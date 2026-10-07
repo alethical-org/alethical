@@ -297,6 +297,7 @@ CF_FILING_TABLES = (
 
 def _clear(session) -> None:
     session.rollback()
+    session.execute(text("DELETE FROM cf_refresh_state"))
     session.execute(text("UPDATE cf_current_release SET release_id = NULL"))
     session.execute(text("DELETE FROM cf_release"))
     for table in CF_TABLES:
@@ -2491,3 +2492,58 @@ def test_a_reconcile_committee_year_waived_on_the_published_release_is_carried_n
     check = contributions_checks(waived)["reported_totals_reconcile"]
     assert check.status == "overridden"
     assert set(check.filer_years) == {"40858:2025", "19200:2025"}
+
+
+def test_publication_crash_before_pruning_keeps_retry_work(
+    db, board, store, monkeypatch
+):
+    from alethical.pipeline import campaign_finance_refresh as refresh
+    from alethical.pipeline.campaign_finance_recheck import RecheckReport, CheckOutcome
+
+    publish_first(db, board, store)
+    refresh.state_update(
+        db, delete_keys=[refresh.CLEARING_PENDING_KEY, refresh.RECHECK_PENDING_KEY]
+    )
+    rows = list(CONTRIBUTION_ROWS)
+    rows[0] = rows[0].replace("Retired", "Teacher")
+    board.set_rows(Dataset.contributions, rows)
+    original_prune = cf.prune
+
+    def interrupted(*args, **kwargs):
+        raise RuntimeError("stopped immediately after publish commit")
+
+    monkeypatch.setattr(cf, "prune", interrupted)
+    with pytest.raises(RuntimeError, match="immediately after publish commit"):
+        run(db, board, store)
+    db.rollback()
+    live = refresh.live_versions(db)
+    assert (
+        refresh.state_get(db, refresh.RECHECK_PENDING_KEY)["payments_release_id"]
+        == live.payments_release_id
+    )
+    assert refresh.state_get(db, refresh.CLEARING_PENDING_KEY)
+    monkeypatch.setattr(cf, "prune", original_prune)
+    again = run(db, board, store)
+    assert not again.published
+    clears, checks = [], []
+
+    def recheck(*args, **kwargs):
+        checks.append(True)
+        return RecheckReport(
+            years=refresh.recheck_years(),
+            outcomes=[
+                CheckOutcome(name="money in", verdicts=1),
+                CheckOutcome(name="money out", verdicts=1),
+            ],
+        )
+
+    result = refresh.finish_manual_publication(
+        db,
+        refresh.when_a_money_download_release_lands(),
+        published=False,
+        clear=lambda clearing, **kw: clears.append(clearing.event),
+        recheck=recheck,
+    )
+    assert result.ok and checks == [True] and clears
+    assert refresh.state_get(db, refresh.RECHECK_PENDING_KEY) is None
+    assert refresh.state_get(db, refresh.CLEARING_PENDING_KEY) is None

@@ -484,7 +484,7 @@ def _run(
     def do_recheck(session, **options):
         calls["recheck"].append(options)
         return recheck or RecheckReport(
-            years=(2024, 2025, 2026),
+            years=refresh.recheck_years(),
             outcomes=[
                 CheckOutcome(name="money in", verdicts=1),
                 CheckOutcome(name="money out", verdicts=1),
@@ -662,7 +662,7 @@ def test_an_unfinished_recheck_is_retried_first_on_the_next_run(
     live = FakeLive()
 
     broken = RecheckReport(
-        years=(2024, 2025, 2026),
+        years=refresh.recheck_years(),
         outcomes=[
             CheckOutcome(
                 name="money in", error="the report-document store is unreachable"
@@ -1008,7 +1008,13 @@ def test_the_hand_run_totals_load_takes_the_lease_first_and_refuses_when_it_is_h
         script, "database_url_for_target", lambda target: "postgresql://fake"
     )
     monkeypatch.setattr(script, "load_campaign_finance_filings", fake_load)
-    monkeypatch.setattr(script, "clear_after_publish", lambda *a, **k: False)
+    monkeypatch.setattr(
+        script,
+        "finish_manual_publication",
+        lambda *a, **k: refresh.RefreshReport(
+            started_at=NOW, dry_run=k.get("dry_run", False)
+        ),
+    )
     monkeypatch.setattr(script, "hold_full_run_lease_until_exit", fake_hold)
 
     monkeypatch.setattr("sys.argv", ["load_campaign_finance_filings.py"])
@@ -1027,3 +1033,169 @@ def test_the_hand_run_totals_load_takes_the_lease_first_and_refuses_when_it_is_h
     monkeypatch.setattr("sys.argv", ["load_campaign_finance_filings.py", "--dry-run"])
     assert script.main() == 0
     assert events == ["load"]
+
+
+def test_lease_outlasts_workflow_timeout():
+    from pathlib import Path
+    import re
+
+    workflow = Path(".github/workflows/campaign-money-refresh.yml").read_text()
+    timeout = int(re.search(r"timeout-minutes: (\d+)", workflow).group(1))
+    assert refresh.FULL_RUN_LEASE_TTL > timedelta(minutes=timeout)
+
+
+def test_manual_totals_then_unchanged_payments_finish_owed_work_once(db):
+    live = FakeLive()
+    live.publish_payments()
+    live.publish_totals()
+    clears, checks = [], []
+
+    def clear(clearing, **kwargs):
+        clears.append(clearing.event)
+        return False
+
+    def recheck(db, **kwargs):
+        checks.append(live.current)
+        return RecheckReport(
+            years=(2022, 2023, 2024, 2025, 2026),
+            outcomes=[
+                CheckOutcome(name="money in", verdicts=1),
+                CheckOutcome(name="money out", verdicts=1),
+            ],
+        )
+
+    totals = refresh.finish_manual_publication(
+        db,
+        refresh.when_a_filings_release_lands(),
+        published=True,
+        run_rechecks=False,
+        read_live=live,
+        clear=clear,
+        recheck=recheck,
+    )
+    assert totals.ok and not checks
+    assert (
+        refresh.state_get(db, refresh.RECHECK_PENDING_KEY)["filings_snapshot_id"]
+        == live.current.filings_snapshot_id
+    )
+    unchanged = refresh.finish_manual_publication(
+        db,
+        refresh.when_a_money_download_release_lands(),
+        published=False,
+        read_live=live,
+        clear=clear,
+        recheck=recheck,
+    )
+    assert unchanged.ok and len(checks) == 1
+    assert refresh.state_get(db, refresh.RECHECK_PENDING_KEY) is None
+    assert refresh.state_get(db, refresh.CLEARING_PENDING_KEY) is None
+    refresh.finish_manual_publication(
+        db,
+        refresh.when_a_money_download_release_lands(),
+        published=False,
+        read_live=live,
+        clear=clear,
+        recheck=recheck,
+    )
+    assert len(checks) == 1
+
+
+def test_interrupted_manual_clear_retains_both_obligations_before_network(db):
+    live = FakeLive()
+    live.publish_payments()
+    live.publish_totals()
+
+    def interrupted(clearing, **kwargs):
+        assert refresh.state_get(db, refresh.RECHECK_PENDING_KEY)
+        assert refresh.state_get(db, refresh.CLEARING_PENDING_KEY)
+        raise RuntimeError("network interrupted")
+
+    with pytest.raises(RuntimeError, match="network interrupted"):
+        refresh.finish_manual_publication(
+            db,
+            refresh.when_a_filings_release_lands(),
+            published=True,
+            run_rechecks=False,
+            read_live=live,
+            clear=interrupted,
+        )
+    db.rollback()
+    assert refresh.state_get(db, refresh.RECHECK_PENDING_KEY)
+    assert refresh.state_get(db, refresh.CLEARING_PENDING_KEY)
+
+
+def test_dry_manual_followup_never_reads_or_writes_production():
+    result = refresh.finish_manual_publication(
+        None,
+        refresh.when_a_filings_release_lands(),
+        published=True,
+        dry_run=True,
+    )
+    assert result.ok and not result.recheck_attempted
+
+
+def test_manual_restore_cannot_claim_to_be_a_dry_run(monkeypatch):
+    from scripts import load_campaign_finance_filings as script
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "load",
+            "--restore-filer-years",
+            "12345/2026",
+            "--decision",
+            "test",
+            "--dry-run",
+        ],
+    )
+    monkeypatch.setattr(
+        script,
+        "create_engine",
+        lambda *a, **k: pytest.fail("must refuse before a database connection"),
+    )
+    with pytest.raises(SystemExit) as error:
+        script.main()
+    assert error.value.code == 2
+
+
+def test_subset_year_success_keeps_full_generation_pending(db):
+    live = FakeLive()
+    live.publish_payments()
+    refresh.stage_publication_followups(
+        db, refresh.when_a_money_download_release_lands(), read_live=live
+    )
+    db.commit()
+    pending = refresh.state_get(db, refresh.RECHECK_PENDING_KEY)
+    partial = refresh.finish_manual_publication(
+        db,
+        refresh.when_a_money_download_release_lands(),
+        published=False,
+        read_live=live,
+        clear=lambda *a, **k: False,
+        recheck=lambda *a, **k: RecheckReport(
+            years=(2025,),
+            outcomes=[
+                CheckOutcome(name="money in", verdicts=1),
+                CheckOutcome(name="money out", verdicts=1),
+            ],
+        ),
+    )
+    assert not partial.ok
+    assert "2022" in partial.failures[0]
+    assert refresh.state_get(db, refresh.RECHECK_PENDING_KEY) == pending
+    complete = refresh.finish_manual_publication(
+        db,
+        refresh.when_a_money_download_release_lands(),
+        published=False,
+        read_live=live,
+        clear=lambda *a, **k: False,
+        recheck=lambda *a, **k: RecheckReport(
+            years=refresh.recheck_years(),
+            outcomes=[
+                CheckOutcome(name="money in", verdicts=1),
+                CheckOutcome(name="money out", verdicts=1),
+            ],
+        ),
+    )
+    assert complete.ok
+    assert refresh.state_get(db, refresh.RECHECK_PENDING_KEY) is None

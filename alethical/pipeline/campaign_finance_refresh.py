@@ -14,7 +14,7 @@ hand-started run and a laptop run all follow (D3 on
    session-level lock is unsafe: each statement may reach a different backend, so the
    lock can be released by, or left held on, a backend the run never sees again
    (https://supabase.com/docs/guides/database/connecting-to-postgres#transaction-mode-limitations).
-   The lease expires after 4 hours, so a crashed run frees it without a person; the
+   The lease expires after 6 hours, so a crashed run frees it without a person; the
    run that holds it renews it right before each publish, and a run that finds its
    lease taken by another owner does not publish.
 2. **Retry first.** A saved-page clearing that did not finish last time is retried
@@ -95,8 +95,10 @@ from alethical.pipeline.campaign_finance_filings import (
     live_filings_snapshot,
 )
 from alethical.pipeline.campaign_finance_recheck import (
+    FIRST_SUPPORTED_YEAR,
     RecheckReport,
     recheck_stated_figures,
+    recheck_years,
 )
 from alethical.pipeline.cache_purge import (
     A_FILINGS_RELEASE,
@@ -121,7 +123,6 @@ LIST_ACTIONS: tuple[str, ...] = (
 )
 
 FULL_REFRESH_EVERY = timedelta(days=7)
-FIRST_SUPPORTED_YEAR = 2022
 
 LAST_FULL_REFRESH_KEY = "totals_last_full_refresh_at"
 RECHECK_PENDING_KEY = "recheck_pending"
@@ -129,10 +130,10 @@ CLEARING_PENDING_KEY = "clearing_pending"
 
 # The one run-wide lease. Its row's ``value`` holds ``owner`` (a token unique to the
 # process that took it), ``purpose`` (what the run is, in words), ``acquired_at`` and
-# ``expires_at``. Four hours: the longest honest day is a 54-minute totals fetch, the
-# payments download and 72 minutes of re-checks, and the workflow's own limit is 5.
+# ``expires_at``. Six hours exceeds the workflow's 5-hour hard limit, including
+# termination grace. Publication still renews and checks ownership.
 FULL_RUN_LEASE_KEY = "full_run_lease"
-FULL_RUN_LEASE_TTL = timedelta(hours=4)
+FULL_RUN_LEASE_TTL = timedelta(hours=6)
 
 #: The 3 clearings a run can owe, by the event name a marker stores.
 CLEARINGS_BY_EVENT: dict[str, Callable[[], Clearing]] = {
@@ -304,7 +305,7 @@ def try_acquire_full_run_lease(
     expired or already belongs to this owner. The row comes back only when this owner
     now holds it. Called again by the holder it extends ``expires_at`` and keeps
     ``acquired_at``. Clocks: ``now`` is the caller's clock, and a lease's expiry is
-    compared against the clock of whoever asks next; a 4-hour lease dwarfs any drift
+    compared against the clock of whoever asks next; a 6-hour lease dwarfs any drift
     between a laptop and a GitHub runner.
     """
     moment = now or datetime.now(UTC)
@@ -442,7 +443,7 @@ def hold_full_run_lease(
 # The hand-run loader scripts cannot wrap their whole ``main()`` in a ``with`` block
 # without re-indenting every line of it, so they enter the lease here and it is
 # released when the interpreter exits, however the command ends. A crash that skips
-# ``atexit`` (a kill signal) is what the 4-hour expiry is for.
+# ``atexit`` (a kill signal) is what the 6-hour expiry is for.
 _PROCESS_LEASES = ExitStack()
 atexit.register(_PROCESS_LEASES.close)
 
@@ -466,7 +467,7 @@ def hold_full_run_lease_until_exit(
     log(
         f"another campaign-money run is under way ({describe_holder(lease.holder())}), "
         "so this command does nothing; run it again once that one finishes. A run "
-        "that died without releasing frees the lease 4 hours after it took it."
+        "that died without releasing frees the lease 6 hours after it took it."
     )
     return False
 
@@ -479,13 +480,13 @@ def state_get(db: Session, key: str) -> Any:
     return None if row is None else row.value
 
 
-def state_update(
+def _stage_state_update(
     db: Session,
     *,
     set_values: Optional[Mapping[str, Any]] = None,
     delete_keys: Iterable[str] = (),
 ) -> None:
-    """Write and remove several keys in one commit, so a crash leaves no half-state."""
+    """Stage state changes in the caller's transaction without committing it."""
     for key, value in (set_values or {}).items():
         row = db.get(schema.CampaignFinanceRefreshState, key)
         if row is None:
@@ -497,6 +498,16 @@ def state_update(
         row = db.get(schema.CampaignFinanceRefreshState, key)
         if row is not None:
             db.delete(row)
+
+
+def state_update(
+    db: Session,
+    *,
+    set_values: Optional[Mapping[str, Any]] = None,
+    delete_keys: Iterable[str] = (),
+) -> None:
+    """Write and remove several keys in one commit, so a crash leaves no half-state."""
+    _stage_state_update(db, set_values=set_values, delete_keys=delete_keys)
     db.commit()
 
 
@@ -921,6 +932,9 @@ def _clear_and_mark(
     """Clear, and keep a ``clearing_pending`` marker for as long as it has not succeeded."""
     pending = state_get(db, CLEARING_PENDING_KEY) or {}
     owed = [event for event in pending.get("events", []) if event != clearing.event]
+    # Persist before the external request: an exception or stopped process must
+    # leave the same retry obligation as a returned failure.
+    state_set(db, CLEARING_PENDING_KEY, _clearing_marker([*owed, clearing.event]))
     if clear(clearing, published=True, log=log):
         report.failures.append(
             f"clearing saved pages failed after {clearing.event}; it is retried first "
@@ -930,7 +944,7 @@ def _clear_and_mark(
         return False
     if owed:
         state_set(db, CLEARING_PENDING_KEY, _clearing_marker(owed))
-    elif pending:
+    else:
         state_delete(db, CLEARING_PENDING_KEY)
     return True
 
@@ -980,20 +994,80 @@ def _retry_pending_recheck(
     _run_rechecks(db, report, recheck=recheck, clear=clear, log=log)
 
 
+def stage_publication_followups(
+    db: Session, clearing: Clearing, *, read_live=live_versions
+) -> None:
+    """Save retry obligations in the SAME transaction as a changed live pointer.
+
+    Call after moving the pointer, before committing. Never commits or clears
+    external caches: rollback removes both the pointer change and these markers.
+    """
+    # Live-source readers refresh ORM identities; flush pending source metadata
+    # first so that refresh cannot discard this publication's status/provenance.
+    db.flush()
+    live = read_live(db)
+    pending = state_get(db, CLEARING_PENDING_KEY) or {}
+    events = [event for event in pending.get("events", []) if event != clearing.event]
+    _stage_state_update(
+        db,
+        set_values={
+            CLEARING_PENDING_KEY: _clearing_marker([*events, clearing.event]),
+            RECHECK_PENDING_KEY: {
+                "recorded_at": datetime.now(UTC).isoformat(),
+                "after": clearing.event,
+                **live.as_marker(),
+            },
+        },
+    )
+
+
 def _after_publish(
     db: Session, report: RefreshReport, clearing: Clearing, *, clear, log, read_live
 ) -> None:
+    # Low-level publishers already persisted these with the pointer. Restaging
+    # also supports callers that supply their own publisher (and keeps owed events).
+    stage_publication_followups(db, clearing, read_live=read_live)
+    db.commit()
     _clear_and_mark(db, report, clearing, clear=clear, log=log)
-    live = read_live(db)
-    state_set(
-        db,
-        RECHECK_PENDING_KEY,
-        {
-            "recorded_at": datetime.now(UTC).isoformat(),
-            "after": clearing.event,
-            **live.as_marker(),
-        },
-    )
+
+
+def finish_manual_publication(
+    db: Session,
+    clearing: Clearing,
+    *,
+    published: bool,
+    dry_run: bool = False,
+    run_rechecks: bool = True,
+    clear=clear_after_publish,
+    recheck=recheck_stated_figures,
+    read_live=live_versions,
+    log=print,
+) -> RefreshReport:
+    """Record and finish manual publication work under the caller's writer lease.
+
+    A totals-only command leaves the generation-bound recheck marker for the next
+    payments command or shared refresh. Unchanged payments still finish that work.
+    The existing marker checker handles replaced/removed generations, and only 1
+    recheck attempt runs here. Dry runs neither mark nor clear anything.
+    """
+    report = RefreshReport(started_at=datetime.now(UTC), dry_run=dry_run)
+    if dry_run:
+        return report
+    if published:
+        _after_publish(db, report, clearing, clear=clear, log=log, read_live=read_live)
+    else:
+        _retry_pending_clearing(db, report, clear=clear, log=log)
+    if run_rechecks:
+        _retry_pending_recheck(
+            db, report, recheck=recheck, clear=clear, log=log, read_live=read_live
+        )
+    elif state_get(db, RECHECK_PENDING_KEY):
+        log("money re-checks are recorded for the next payments load or shared refresh")
+    report.live = read_live(db)
+    report.finished_at = datetime.now(UTC)
+    for failure in report.failures:
+        log(failure)
+    return report
 
 
 def _run_rechecks(db: Session, report: RefreshReport, *, recheck, clear, log) -> None:
@@ -1005,6 +1079,18 @@ def _run_rechecks(db: Session, report: RefreshReport, *, recheck, clear, log) ->
         report.failures.append(
             "a money re-check did not finish; it is retried on the next run: "
             + "; ".join(one.error or "" for one in outcome.outcomes if not one.ran)
+        )
+        return
+    missing_years = sorted(set(recheck_years()) - set(outcome.years))
+    if missing_years:
+        report.failures.append(
+            "money re-checks remain pending for supported years: "
+            + ", ".join(str(year) for year in missing_years)
+        )
+        # Partial checks can change public verdicts, so clear their cached pages,
+        # but preserve the full generation obligation for the next complete run.
+        _clear_and_mark(
+            db, report, when_the_money_checks_finish(), clear=clear, log=log
         )
         return
     # The re-check marker goes and the clearing marker arrives in one commit, so no

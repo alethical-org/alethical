@@ -64,6 +64,7 @@ class BackfillStats:
     no_source_match: int = 0
     ambiguous_or_missing_names: int = 0
     write_errors: int = 0
+    source_errors: int = 0
     cross_chamber_mirror: int = 0
 
 
@@ -148,31 +149,14 @@ def supabase_database_url() -> str | None:
 
 
 def rate_limited_source_session(engine: Any, *, target: str) -> Any:
-    """Use the shared production source pace when the scheduler has shipped it."""
-    try:
-        from alethical.pipeline.request_limits import (
-            DEFAULT_SOURCE_REQUEST_INTERVAL_SECONDS,
-            DatabaseRequestLimiter,
-            RateLimitedSession,
-        )
-        from alethical.pipeline.minnesota import http_session
-    except ImportError:
-        # #1446 lands before #1323 by design. The workflow that enables the
-        # bounded sweep is held until #1323 rebases, supplies this shared limiter,
-        # and removes this temporary release-order fallback.
-        if target == "production":
-            raise RuntimeError(
-                "production vote reconciliation waits for the shared database "
-                "source limiter from #1323"
-            )
-        return requests.Session()
-    return RateLimitedSession(
-        http_session(),
-        DatabaseRequestLimiter(
-            engine,
-            interval_seconds=DEFAULT_SOURCE_REQUEST_INTERVAL_SECONDS,
-        ),
+    """Pace all saved-vote checks through the same cross-worker source limit."""
+    from alethical.pipeline.request_limits import (
+        DatabaseRequestLimiter,
+        RateLimitedSession,
     )
+    from alethical.pipeline.minnesota import http_session
+
+    return RateLimitedSession(http_session(), DatabaseRequestLimiter(engine))
 
 
 def parse_roll_call(value: str | None) -> tuple[int, int] | None:
@@ -1611,6 +1595,7 @@ def backfill_votes(
         "no_source_match": 0,
         "ambiguous_or_missing_names": 0,
         "write_errors": 0,
+        "source_errors": 0,
         "cross_chamber_mirror": 0,
     }
     house_cache: dict[str, list[ParsedVote]] = {}
@@ -1649,7 +1634,7 @@ def backfill_votes(
                 senate_cache=senate_cache,
             )
         except Exception as exc:  # noqa: BLE001
-            stats["no_source_match"] += 1
+            stats["source_errors"] += 1
             bill_key = getattr(
                 db.get(Bill, action.bill_id), "bill_key", str(action.bill_id)
             )
@@ -1898,6 +1883,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 dry_run=args.dry_run,
                 only_missing=args.only_missing,
                 bill=args.bill,
+                source_session=rate_limited_source_session(
+                    engine, target=args.target or "local"
+                ),
             )
             print(stats)
     return 0

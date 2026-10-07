@@ -85,11 +85,11 @@ from alethical.pipeline.campaign_finance_filings import (  # noqa: E402
     restore_lost_filer_years,
 )
 from alethical.pipeline.cache_purge import (  # noqa: E402
-    clear_after_publish,
     when_a_filings_release_lands,
 )
 from alethical.pipeline.campaign_finance_refresh import (  # noqa: E402
     hold_full_run_lease_until_exit,
+    finish_manual_publication,
 )
 
 
@@ -192,6 +192,11 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    if args.restore_filer_years and args.dry_run:
+        parser.error(
+            "--restore-filer-years changes the published snapshot and cannot use --dry-run"
+        )
+
     if args.publish_stored_hash and (
         args.dry_run
         or args.publish_hash
@@ -225,7 +230,7 @@ def main() -> int:
     # Every publication route takes the run-wide lease the daily refresh takes (#2344,
     # D3), before any network or database work, so a laptop publish cannot overlap a
     # scheduled run. A dry run writes nothing, the lease included. Held until this
-    # process exits; a run that dies frees it after 4 hours.
+    # process exits; a run that dies frees it after 6 hours.
     if not args.dry_run and not hold_full_run_lease_until_exit(
         engine, purpose="a hand-run campaign-money totals load"
     ):
@@ -247,10 +252,13 @@ def main() -> int:
                     decision=args.decision,
                     log=lambda message: print(message, file=sys.stderr),
                 )
-                failed = clear_after_publish(
-                    when_a_filings_release_lands(), published=restored > 0
+                follow_up = finish_manual_publication(
+                    session,
+                    when_a_filings_release_lands(),
+                    published=restored > 0,
+                    run_rechecks=False,
                 )
-                return 1 if failed else 0
+                return 0 if follow_up.ok else 1
             if args.publish_stored_hash:
                 run = publish_stored_filings(
                     session,
@@ -260,10 +268,13 @@ def main() -> int:
                     log=lambda message: print(message, file=sys.stderr),
                 )
                 print(run.summary())
-                failed = clear_after_publish(
-                    when_a_filings_release_lands(), published=run.published
+                follow_up = finish_manual_publication(
+                    session,
+                    when_a_filings_release_lands(),
+                    published=run.published,
+                    run_rechecks=False,
                 )
-                return 1 if (run.blocked or failed) else 0
+                return 1 if (run.blocked or not follow_up.ok) else 0
             run = load_campaign_finance_filings(
                 session,
                 dry_run=args.dry_run,
@@ -280,10 +291,15 @@ def main() -> int:
             return 1
 
     print(run.summary())
-    failed = clear_after_publish(
-        when_a_filings_release_lands(), published=run.published
-    )
-    return 1 if (run.blocked or failed) else 0
+    with Session(engine) as session:
+        follow_up = finish_manual_publication(
+            session,
+            when_a_filings_release_lands(),
+            published=run.published,
+            dry_run=args.dry_run,
+            run_rechecks=False,
+        )
+    return 1 if (run.blocked or not follow_up.ok) else 0
 
 
 if __name__ == "__main__":

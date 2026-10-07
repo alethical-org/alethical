@@ -1,0 +1,163 @@
+name: Refresh due public records
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Optional exact source job; blank dispatches the oldest due jobs"
+        type: string
+        default: ""
+  schedule:
+    - cron: "17 * * * *"
+
+permissions:
+  contents: read
+
+env:
+  ALETHICAL_DATABASE_TARGET: production
+  SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+  SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      jobs: ${{ steps.due.outputs.jobs }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          version: 0.12.5
+          enable-cache: true
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+      - run: uv sync --frozen
+      - id: due
+        env:
+          REQUESTED_JOB: ${{ inputs.job }}
+        run: |
+          uv run python - <<'PY'
+          import json, os
+          from sqlalchemy import create_engine
+          from sqlalchemy.orm import Session
+          from alethical.db.session import database_url_for_target, NO_PREPARED_STATEMENTS
+          from alethical.pipeline.record_refresh import jobs, due_names
+          requested = os.environ.get("REQUESTED_JOB", "")
+          if requested and requested not in jobs():
+              raise SystemExit("Unknown source job")
+          engine = create_engine(database_url_for_target("production"), connect_args=NO_PREPARED_STATEMENTS)
+          with Session(engine) as db:
+              due = due_names(db)
+          selected = [requested] if requested in due else [] if requested else due
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("jobs=" + json.dumps(selected) + "\n")
+          engine.dispose()
+          PY
+
+  collect:
+    needs: plan
+    if: needs.plan.outputs.jobs != '[]'
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        job: ${{ fromJSON(needs.plan.outputs.jobs) }}
+    concurrency:
+      group: source-record-${{ matrix.job }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 335
+    env:
+      PYTHONPATH: .
+      SUPABASE_STORAGE_S3_ENDPOINT: ${{ secrets.SUPABASE_STORAGE_S3_ENDPOINT }}
+      SUPABASE_STORAGE_S3_REGION: ${{ secrets.SUPABASE_STORAGE_S3_REGION }}
+      SUPABASE_STORAGE_S3_ACCESS_KEY_ID: ${{ secrets.SUPABASE_STORAGE_S3_ACCESS_KEY_ID }}
+      SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY: ${{ secrets.SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+      ALETHICAL_CLEAR_SAVED_ANSWERS: "on"
+      OPENAI_API_KEY: ${{ startsWith(matrix.job, 'bills-') && secrets.OPENAI_API_KEY || '' }}
+      ALETHICAL_AUTO_BILL_SUMMARY_ENABLED: "false"
+      ALETHICAL_EMAIL_ENABLED: "false"
+      COLLECTION_RUN_SUMMARY: collection-run-summary.jsonl
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          version: 0.12.5
+          enable-cache: true
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+      - run: uv sync --frozen
+      - run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - name: Run due source work with saved progress
+        env:
+          SOURCE_JOB: ${{ matrix.job }}
+        run: uv run python scripts/refresh_public_records.py --target production --job "$SOURCE_JOB"
+      - name: Retain stage outcomes
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: collection-summary-${{ matrix.job }}
+          path: collection-run-summary.jsonl
+          if-no-files-found: ignore
+          retention-days: 30
+
+  health:
+    needs: [plan, collect]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: source-record-health
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      issues: write
+    env:
+      PYTHONPATH: .
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_REFRESH_PLAN_RESULT: ${{ needs.plan.result }}
+      SOURCE_REFRESH_COLLECT_RESULT: ${{ needs.collect.result }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v9.0.0
+        with:
+          version: 0.12.5
+          enable-cache: true
+      - uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+      - run: uv sync --frozen
+      - name: Group overdue jobs and changed source findings
+        run: uv run python scripts/report_source_refresh_health.py
+      - name: Report failure to check source health
+        if: failure()
+        env:
+          GH_REPO: alethical-org/alethical
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, subprocess, tempfile
+          marker = "<!-- source-refresh-health:"
+          warning = "<!-- source-refresh-health:source-health-unavailable -->"
+          title = "Public-record updates need attention"
+          def gh(*args):
+              return subprocess.check_output(["gh", *args], text=True)
+          rows = json.loads(gh("issue", "list", "--state", "all", "--search", '"' + title + '" in:title', "--limit", "100", "--json", "number,body,state"))
+          owned = next((row for row in rows if marker in row["body"]), None)
+          if owned and warning in owned["body"] and owned["state"] == "OPEN":
+              raise SystemExit(0)
+          body = "Net: The automatic public-record health check could not finish.\n\nPrevious source findings remain unresolved until the health check succeeds.\n\n" + warning
+          with tempfile.TemporaryDirectory() as directory:
+              path = pathlib.Path(directory) / "warning.md"
+              path.write_text(body)
+              if owned:
+                  gh("issue", "edit", str(owned["number"]), "--body-file", str(path))
+                  if owned["state"] != "OPEN":
+                      gh("issue", "reopen", str(owned["number"]))
+              else:
+                  gh("issue", "create", "--title", title, "--body-file", str(path))
+          PY

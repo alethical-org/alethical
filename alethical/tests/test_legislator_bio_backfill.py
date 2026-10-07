@@ -387,3 +387,59 @@ def test_city_only_refuses_to_overwrite_existing_cities(monkeypatch):
 
     with pytest.raises(SystemExit, match="requires --only-missing"):
         main()
+
+
+def test_maintenance_response_preserves_biography_and_reports_incomplete(monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+    from alethical.pipeline import legislator_bio_backfill as bio
+
+    period = SimpleNamespace(
+        profile_url="https://www.house.mn.gov/members/profile/15389",
+        elected="2020",
+        term="3rd",
+        represented_city="City",
+    )
+    member = SimpleNamespace(full_name="Member", biography="Held official biography")
+    monkeypatch.setattr(
+        bio, "current_service_rows", lambda *_a, **_kw: [(period, member, "house")]
+    )
+    monkeypatch.setattr(bio, "fetch_text", lambda *_a: "<html>Maintenance</html>")
+    db = Mock()
+    stats = bio.backfill(
+        db, dry_run=False, only_missing=False, limit=None, legislator=None, chamber=None
+    )
+    assert member.biography == "Held official biography"
+    assert period.elected == "2020" and period.represented_city == "City"
+    assert stats.source_errors == 1
+
+
+def test_biography_write_failure_is_reported(monkeypatch):
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+    from alethical.pipeline import legislator_bio_backfill as bio
+
+    period = SimpleNamespace(
+        profile_url="https://www.house.mn.gov/members/profile/15389",
+        elected=None,
+        term=None,
+        represented_city=None,
+    )
+    member = SimpleNamespace(full_name="Member", biography=None)
+    monkeypatch.setattr(
+        bio, "current_service_rows", lambda *_a, **_kw: [(period, member, "house")]
+    )
+    monkeypatch.setattr(bio, "fetch_text", lambda *_a: LRL_RESIDENCE_MULTI_TERM)
+    db = Mock()
+    db.commit.side_effect = RuntimeError("write failed")
+    stats = bio.backfill(
+        db,
+        dry_run=False,
+        only_missing=False,
+        limit=None,
+        legislator=None,
+        chamber=None,
+        city_only=True,
+    )
+    assert stats.write_errors == 1 and stats.written == 0
+    db.rollback.assert_called_once()

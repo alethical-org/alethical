@@ -37,6 +37,7 @@ from alethical.api.serializers import (
     sponsor_payloads,
     tracking_payload,
 )
+from alethical.api.services.legislative_freshness import legislative_copy_date
 from alethical.api.services.legislative_sessions import (
     current_legislature_scope,
     named_special_session,
@@ -718,13 +719,9 @@ def keyword_search_clause(columns, q: str):
 
 
 def latest_ingested_at(db: Session):
-    """Newest succeeded-ingestion finish time — the "Data as of" provenance
-    timestamp shown on the bill search screen and Ask answer pages (#134)."""
-    return db.scalar(
-        select(func.max(IngestionRun.finished_at)).where(
-            IngestionRun.status == IngestionStatus.succeeded
-        )
-    )
+    """Shared source-copy date supported by the held current bills and roster."""
+    scope = current_legislature_scope(db)
+    return legislative_copy_date(db, scope.ids, roster_slug=scope.primary.slug)
 
 
 def get_session_by_slug(db: Session, slug: str | None):
@@ -2584,7 +2581,7 @@ def bill_detail(
         # is", and the two values that were available before this both said
         # something else. `latest_action_at` is the Legislature's last action on the
         # bill (a fact the bill card already states, correctly labelled), and the
-        # corpus-wide max(IngestionRun.finished_at) covers every bill at once, so it
+        # A shared corpus date describes multiple records, so it
         # can post-date the very record it stamps — measured Jul 31 2026, it would
         # have claimed Jul 30 for 10,414 bills last pulled Jul 14 or 15.
         # One indexed primary-key lookup; `Bill.ingestion_run_id` is set on every

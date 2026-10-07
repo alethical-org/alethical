@@ -142,6 +142,11 @@ def record_refresh_report(report: object) -> None:
             failed_checks=[c.name for c in getattr(totals, "blocked", None) or []]
             or ["totals refused"],
             details=totals_failed,
+            counts={
+                "totals snapshots published": int(
+                    bool(getattr(report, "published_totals", False))
+                )
+            },
         )
     elif plan is None or not getattr(plan, "totals_due", False):
         record_stage("totals", "skipped")
@@ -178,6 +183,11 @@ def record_refresh_report(report: object) -> None:
             failed_checks=[check.name for check in blocked] or ["payments refused"],
             source_hashes=hashes,
             details=payments_failed,
+            counts={
+                "payments releases published": int(
+                    bool(getattr(report, "published_payments", False))
+                )
+            },
             affected_years=[
                 int(fy.split(":")[1])
                 for fy in filer_years

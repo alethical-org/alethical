@@ -5,7 +5,7 @@ name: Refresh campaign money from the Board
 # weeks behind (https://github.com/alethical-org/alethical/issues/2344, D3).
 #
 # Each run, in this order:
-#   1. takes 1 run-wide lease in the database (a row in cf_refresh_state with a 4-hour
+#   1. takes 1 run-wide lease in the database (a row in cf_refresh_state with a 6-hour
 #      expiry), shared with hand-started and laptop runs, so 2 starts at the same
 #      minute produce 1 run; a run whose lease is taken by another before it publishes
 #      does not publish;
@@ -52,8 +52,7 @@ on:
         description: "Exit 1 on purpose to prove the alert issue, reading and publishing nothing"
         type: boolean
         default: false
-  schedule:
-    - cron: "30 15 * * *"
+  # Scheduled starts now use source-record-refresh.yml and saved deadlines.
 
 concurrency:
   group: campaign-money-refresh

@@ -45,8 +45,9 @@ def test_health_and_meta_endpoints(client):
     assert payload["data"]["current_session"]["session_number"] == 94
     assert payload["data"]["current_session"]["year_start"] == 2025
     assert payload["data"]["current_session"]["year_end"] == 2026
-    # "Data as of {date}" provenance strip source (#134): latest succeeded ingestion.
-    assert payload["data"]["data_as_of"]
+    # Sample records have no successful full-roster copy. An unrelated successful
+    # bill or money import cannot supply a shared legislative source date.
+    assert payload["data"]["data_as_of"] is None
 
 
 def test_current_session_has_start_and_end_dates(client):

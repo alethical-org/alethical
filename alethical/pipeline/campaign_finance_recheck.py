@@ -43,17 +43,15 @@ from alethical.pipeline.raw_file_store import raw_file_store_from_env
 MONEY_IN = "money in"
 MONEY_OUT = "money out"
 
-# The current year and the 2 before it. Wide enough not to shrink what the checks
-# already cover -- the stored verdicts span 3 filing years -- and bounded because the
-# Board serves no report document at all before 2023, so an older year can only ever
-# record as not checked.
-YEARS_BACK = 2
+# Replacing source hashes invalidates verdicts for every supported year.
+# Years before 2022 remain behind the separate historical-expansion approval.
+FIRST_SUPPORTED_YEAR = 2022
 
 
 def recheck_years(today: Optional[datetime] = None) -> tuple[int, ...]:
-    """Which filing years a publish re-checks unless an operator names others."""
+    """Every supported filing year whose old hash-bound verdict is now stale."""
     year = (today or datetime.now(UTC)).year
-    return tuple(range(year - YEARS_BACK, year + 1))
+    return tuple(range(FIRST_SUPPORTED_YEAR, year + 1))
 
 
 @dataclass

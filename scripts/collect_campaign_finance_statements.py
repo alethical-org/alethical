@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from contextlib import nullcontext
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -51,6 +52,7 @@ from alethical.pipeline.cache_purge import (  # noqa: E402
     when_notices_or_statements_are_stored,
 )
 from alethical.pipeline.raw_file_store import raw_file_store_from_env  # noqa: E402
+from alethical.pipeline.campaign_finance_refresh import hold_full_run_lease  # noqa: E402
 
 KINDS = {
     "committees": (schema.CampaignFinanceFilerKind.political_committee_or_fund,),
@@ -67,13 +69,18 @@ def main() -> int:
     )
     parser.add_argument("--database-url", default=None)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--refresh-existing",
+        action="store_true",
+        help="Check retained statement PDFs for corrections at unchanged addresses.",
+    )
     parser.add_argument("--pdf-cache", default=None)
     parser.add_argument(
         "--kinds",
-        default="committees",
+        default="all",
         choices=sorted(KINDS),
         help="Which filers' catalogues to read. 'committees' (political committees and "
-        "funds, where statements are filed) is the routine scope; 'all' is the backfill.",
+        "funds only); 'all' also checks candidates and party units for amendment markers.",
     )
     parser.add_argument("--only", nargs="*", default=None, help="Registration numbers.")
     parser.add_argument("--year", type=int, default=datetime.now(UTC).year)
@@ -85,6 +92,28 @@ def main() -> int:
         ),
         connect_args=NO_PREPARED_STATEMENTS,
     )
+    # Share the same writer lease as the totals refresh and manual collectors.
+    # Dry runs do not write and need not wait behind a production copy.
+    guard = (
+        nullcontext(True)
+        if args.dry_run
+        else hold_full_run_lease(engine, purpose="collecting campaign statements")
+    )
+    with guard as held:
+        if not held:
+            record_stage(
+                "statements",
+                "skipped",
+                details=["deferred: another campaign run holds the writer lease"],
+            )
+            print(
+                "deferred: another campaign run holds the writer lease", file=sys.stderr
+            )
+            return 76
+        return _collect(args, engine)
+
+
+def _collect(args, engine) -> int:
     with Session(engine) as db:
         if not db.execute(
             text("SELECT to_regclass('cf_disclosure_statement')")
@@ -118,6 +147,7 @@ def main() -> int:
             scope=f"{args.kinds}{' only ' + ' '.join(args.only) if args.only else ''}",
             dry_run=args.dry_run,
             cache=notices.PdfCache(args.pdf_cache),
+            refresh_existing=args.refresh_existing,
         )
     print(
         f"catalogues read: {report.catalogues_read} of {len(wanted)}; statements listed: "

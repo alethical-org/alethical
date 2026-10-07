@@ -79,3 +79,23 @@ outside the repository in its saved recovery checkpoint.
   300 plus 300 seconds. Read back current answers after those windows. This is
   bounded refresh, not a global cache purge; the separate clearing-key work remains
   [issue 1979](https://github.com/alethical-org/alethical/issues/1979).
+
+### Guarded retained-row rollback (October 2026)
+
+Before a reviewed totals replacement, run
+`scripts/rollback_campaign_finance_filings.py --target production --capture --proof <private-path.json>`.
+This is read-only: it records the live totals and payments IDs, exact hashes of
+all retained rows, and validates every archive referenced by retained provenance.
+The output path must not exist, preventing accidental overwrite of the baseline.
+
+After replacement, the same command with `--proof <private-path.json>
+--expected-current <replacement-snapshot-id>` checks rollback readiness without
+writing. Adding `--execute` acquires the ordinary campaign writer lease, checks
+stored archives again, locks publication, requires unchanged payment release and
+identical retained baseline rows, and restores only the totals pointer. It clears
+saved public answers using the existing configured cache-clearing mechanism.
+It neither rebuilds rows nor bypasses source guards. A later payments publication,
+pruned baseline, changed row or unexpected current pointer refuses restoration and
+requires a separately reviewed recovery plan. Validate the totals replacement
+before publishing payments. Local PostgreSQL tests cover refused changes,
+transaction abort and committed restoration; no production rollback is a test.

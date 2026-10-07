@@ -6,8 +6,9 @@
 that stores everything, and a set of jobs that pull the Minnesota legislative record in.
 The web service is FastAPI on Uvicorn, hosted on Railway. The database is Postgres with the
 `pgvector` add-on, hosted by Supabase in production and in a container locally. Supabase also
-handles sign-in. The jobs run through a Postgres-backed queue (`oban`) and are started by a
-person or by a scheduled GitHub Actions run, never by a worker that sits running all day.
+handles sign-in. Routine source jobs run on GitHub with saved deadlines and ownership in Postgres.
+The existing API can wake due jobs; it does not download records. The Postgres-backed
+queue (`oban`) remains available for deliberately queued work.
 Outside services are Anthropic and OpenAI for AI text and search, Resend for outbound
 email, and Sentry for alerts when the server fails. Sentry starts on its free plan.
 
@@ -120,17 +121,20 @@ fetch can take minutes.
 - The job types are one per source: bills, roll-call votes, committee memberships, the
   legislator roster, the search index, and the AI summary batches
   (`alethical/pipeline/oban_workers.py`).
-- **Nothing runs these ingestion jobs on a timer inside Railway.** Railway hosts the web
-  API and its gated comment-mail drain in the same process (`railway.json`), so a full ingest is started by a person from a laptop
-  (`alethical/pipeline/oban.py`). Four GitHub Actions workflows cover the narrow slices that
-  can be done safely without a person: a nightly roll-call vote top-up
-  (`vote-backfill.yml`), a manual residence-city fill (`legislator-city-backfill.yml`), and
-  two checks that only open an issue when they find a hole (`bill-section-gaps.yml`,
-  `rag-coverage-gaps.yml`).
-- That hand-started design is the reason a bill can sit at a stale status: fetches skip bills
-  already stored unless told otherwise. Keeping the corpus current is a decision someone
-  makes, not something that happens on its own
-  (`.claude/rules/grounded-answers.md` rule 7).
+- Routine source collection uses `source-record-refresh.yml`, an hourly due-work
+  check plus a restricted optional wakeup from the existing Railway API. GitHub
+  performs collection; the API only requests a fixed workflow on `main`.
+- Saved deadlines, source lanes, expiring claims and bounded commands prevent
+  overlapping work. Bill passes retain their inventory and progress across runs.
+  Shared per-source request slots pace legislative reads across processes.
+- The source-specific clocks cover bills, votes, roster, lobbying, campaign money,
+  filing dates, notices, statements and refunds. Reference-source checks flag maps,
+  ZIP data, candidates and unknown calendars for review rather than guessing values.
+- Changed bill text and its search rows update together. Automatic AI summaries stay
+  off. Review findings and failed reads never advance successful publication dates.
+- [Independent public-record wakeups](../operations/source-refresh-dispatch.md)
+  owns App scope, settings and activation. [What runs, when, and what it costs](../operations/jobs-and-scripts.md)
+  owns the complete source inventory and intervals.
 
 ## 6. AI providers
 

@@ -1159,8 +1159,9 @@ Campaign money, top to bottom:
      ruled out for. Absent by scope, never drawn empty.
    - The text served before the app loads repeats the lead, each window with its chip,
      every notice line with its status, each PDF link and the foot.
-   - Collection: `.github/workflows/campaign-money-notices.yml` copies the Board's list
-     daily from 20 Oct to 6 Nov 2026 and weekly otherwise, keeping each notice PDF once.
+   - Collection: the shared source-refresh schedule copies the Board's list daily
+     throughout the year and checks held PDFs for corrections weekly.
+     `.github/workflows/campaign-money-notices.yml` remains a manual recovery route.
 
    **Statements not linked to a payment** follows the notices card, on every filer's page
    including a party unit's. It lists the year's disclosure statements that name no

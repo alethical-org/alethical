@@ -47,7 +47,7 @@ from alethical.api.request_admission import (
     RequestAdmissionMiddleware,
 )
 from alethical.api.services.contact import log_contact_delivery_readiness
-from alethical.api.services.comment_email import comment_email_lifespan
+from alethical.api.services.source_refresh_lifespan import application_lifespan
 from alethical.logging import configure_logging
 from alethical.release import release_commit
 
@@ -55,9 +55,7 @@ from alethical.release import release_commit
 def create_app() -> FastAPI:
     configure_logging()
     log_contact_delivery_readiness()
-    app = FastAPI(
-        title="Alethical API", version="1.0.0", lifespan=comment_email_lifespan
-    )
+    app = FastAPI(title="Alethical API", version="1.0.0", lifespan=application_lifespan)
     # Added before CORS so overload responses retain the same cross-origin
     # permissions as successful reads and browsers can see the 503 response.
     app.add_middleware(RequestAdmissionMiddleware, max_in_flight=MAX_IN_FLIGHT_REQUESTS)

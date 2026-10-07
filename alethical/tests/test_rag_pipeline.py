@@ -697,7 +697,7 @@ def test_direct_loader_enqueues_role_only_summary_request_without_rag_change(
     request_id = "00000000-0000-0000-0000-000000000458"
 
     class ReportsOneRoleOnlyChange:
-        def __init__(self, _db):
+        def __init__(self, _db, *, sess=None):
             pass
 
         def ingest_bills(self, _targets):

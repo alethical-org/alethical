@@ -127,7 +127,7 @@ def main() -> int:
             record_stage(
                 "refresh", "skipped", details=["another refresh held the lease"]
             )
-            return 0
+            return 76 if os.environ.get("ALETHICAL_REFRESH_JOB_NAME") else 0
         if args.prove_alerting:
             summary = (
                 "PROVING ALERTING: this run exited 1 on purpose after taking the "

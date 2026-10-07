@@ -260,7 +260,7 @@ def _heading_only_pipeline_class(
     request_ids: list[uuid.UUID],
 ):
     class HeadingOnlyPipeline:
-        def __init__(self, db):
+        def __init__(self, db, *, sess=None):
             self.db = db
 
         def ingest_bills(self, _targets):

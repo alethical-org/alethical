@@ -1104,3 +1104,57 @@ def test_database_url_cannot_be_combined_with_a_named_target(
 
     assert raised.value.code == 2
     assert "not allowed with argument" in capsys.readouterr().err
+
+
+def test_missing_vote_source_error_is_not_an_unmatched_vote(monkeypatch):
+    from unittest.mock import Mock
+
+    action = SimpleNamespace(
+        bill_id="bill",
+        chamber_id="house",
+        roll_call_text="1-0",
+        action_text="Third reading Passed",
+        action_number=1,
+        journal_page="1",
+    )
+    bill = SimpleNamespace(bill_key="94-2025-HF1")
+    chamber = SimpleNamespace(slug="house")
+    db = Mock()
+    db.scalars.return_value.all.return_value = [action]
+    db.get.side_effect = lambda model, _id: bill if model is votes.Bill else chamber
+    monkeypatch.setattr(
+        votes,
+        "_source_vote_for_action",
+        Mock(side_effect=RuntimeError("HTTP source failed")),
+    )
+    stats = votes.backfill_votes(db, limit=None, dry_run=False, only_missing=True)
+    assert stats.source_errors == 1 and stats.no_source_match == 0
+    db.commit.assert_not_called()
+    monkeypatch.setattr(votes, "_source_vote_for_action", lambda *_a, **_kw: None)
+    stats = votes.backfill_votes(db, limit=None, dry_run=False, only_missing=True)
+    assert stats.no_source_match == 1 and stats.source_errors == 0
+
+
+def test_cross_chamber_mirror_is_not_an_unmatched_or_failed_source(monkeypatch):
+    from unittest.mock import Mock
+
+    action = SimpleNamespace(
+        bill_id="bill",
+        chamber_id="house",
+        roll_call_text="1-0",
+        action_text="Senate adopted conference committee report, bill repassed",
+        action_number=1,
+    )
+    db = Mock()
+    db.scalars.return_value.all.return_value = [action]
+    db.get.side_effect = lambda model, _id: (
+        SimpleNamespace(bill_key="94-2025-HF1")
+        if model is votes.Bill
+        else SimpleNamespace(slug="house")
+    )
+    source = Mock()
+    monkeypatch.setattr(votes, "_source_vote_for_action", source)
+    stats = votes.backfill_votes(db, limit=None, dry_run=False, only_missing=True)
+    assert stats.cross_chamber_mirror == 1
+    assert stats.no_source_match == stats.source_errors == 0
+    source.assert_not_called()

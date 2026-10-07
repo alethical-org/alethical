@@ -833,7 +833,7 @@ loader scripts, above the 2 short publish locks, so 2 starts at once produce 1 r
 lease is a row in `cf_refresh_state` (key `full_run_lease`: owner token, purpose,
 `acquired_at`, `expires_at`), taken or renewed in 1 `INSERT ... ON CONFLICT DO UPDATE`
 statement that succeeds only when the existing lease has expired or is already this
-owner's, released only by its owner, and expiring after 4 hours so a run that dies frees it
+owner's, released only by its owner, and expiring after 6 hours (beyond the workflow's 5-hour stop) so a run that dies frees it
 without a person. A row rather than `pg_try_advisory_lock` because production connects
 through Supabase's pooler in transaction mode, where a session-level lock can be released
 by, or left held on, a backend the run never sees again
@@ -848,7 +848,17 @@ year, because a totals publication replaces the whole set and a 2-year run would
 to 2023; download the 3 payment files, which serve no size, date or change marker, and
 publish when every check passes; after any publish clear the saved pages, run both
 re-checks and clear again once their verdicts are live, each unfinished step leaving its
-own marker (`clearing_pending`, `recheck_pending`) that only its success removes. A list is
+own marker (`clearing_pending`, `recheck_pending`) that only its success removes.
+Both obligations are written in the same transaction as the live source pointer,
+including stored-set publication, exact filer-year restoration and rollback. No
+external clearing happens in that transaction. A stop immediately after commit,
+during pruning, or during clearing therefore leaves durable retry work. A rollback
+of the transaction removes both the pointer change and its obligations. Manual totals publication uses the same markers; the next
+payments command or shared refresh finishes the checks even when payment bytes are
+unchanged. Manual payment publication uses that same path and attempts the owed checks
+once, for the live source generation. A successful subset-year check clears affected
+saved pages but leaves the full re-check obligation until all supported years from
+2022 through the current year have been checked. A list is
 recorded as handled (`cf_refresh_state`) only after the work succeeded, and a list that
 could not be read, or came back in the wrong shape, is never recorded: the run reports it
 as incomplete while the payments half still runs. The first scheduled run finds no marker
@@ -860,6 +870,21 @@ and which totals snapshot are live at the end and whether this run published eac
 GitHub issue the run files quotes that summary rather than asserting anything itself.
 Freshness, wherever stated: payments checked daily; totals refreshed on list change and
 weekly; a run whose lists could not be read is reported as incomplete.
+
+The publication checks cover every supported year from 2022 through the current year;
+replacing a source hash makes older supported verdicts stale too. Failed totals and
+payment stages record explicit published counts, so a refusal cannot imply that an
+unrelated stage published nothing. Header-only or empty contribution downloads are an
+incomplete source read, never evidence that every confirmed committee identity is wrong.
+
+Periodic notice and disclosure-statement refreshes may use `--refresh-existing` to
+re-read PDFs at unchanged addresses. Identical bytes keep the original copy date;
+changed bytes are retained under their new hash while earlier raw files remain kept.
+A statement's reviewed reading is usable only while its reviewed hash matches the
+current PDF. Changed scans wait for review and do not supply old donor names or amounts.
+Routine catalogue scans include all filer kinds so candidate and party-unit amendment
+markers are included. Notices and statement details remain separate from campaign totals.
+
 
 **Related files release together.** Contributions, general expenditures, independent
 expenditures and the reports that cover the same period form one release. Files fetched on
@@ -2135,8 +2160,10 @@ only.
   current election year only. Each notice is a 1-page PDF, fetched once and kept content-addressed
   under `campaign-finance/notice/` in the raw-source-files bucket. Two PDF layouts are in use, and
   the second prints no date received by the Board, so that date is printed only where the notice
-  states it. `.github/workflows/campaign-money-notices.yml` reads the page daily from 20 Oct to
-  6 Nov 2026 and weekly otherwise, with 2 Feb 2027 as a review point.
+  states it. The shared source-refresh schedule reads the notice index daily throughout the year
+  and re-reads held notice and statement PDFs weekly to detect corrections.
+  `.github/workflows/campaign-money-notices.yml` remains a manual recovery route.
+  Both collectors share the campaign writer lease and defer while another copy is running.
 - **Covered years.** The card draws only for a year some completed copy of the list covers. A year
   outside every copy, a party unit, and a filer with no window draw no card at all, never an empty
   one.

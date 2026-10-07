@@ -69,6 +69,7 @@ Set under **Settings, Secrets and variables, Actions**. The live check reads nam
 
 | Secret | Intended | Used by | For | Automated check |
 | --- | --- | --- | --- | --- |
+| `OPENAI_API_KEY` | Present | `source-record-refresh.yml` bill jobs only | Refreshes search for changed official text under [issue 1323](https://github.com/alethical-org/alethical/issues/1323); automatic summaries remain off. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `CLOUDFLARE_R2_ACCESS_KEY_ID` | Present | `mirror-raw-files.yml` | Writes the backup copy of source files. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `CLOUDFLARE_R2_BUCKET` | Present | `mirror-raw-files.yml` | Names the backup bucket. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `CLOUDFLARE_R2_ENDPOINT` | Present | `mirror-raw-files.yml` | Reaches the backup bucket. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |

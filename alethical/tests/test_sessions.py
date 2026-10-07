@@ -204,3 +204,14 @@ def test_a_cli_alias_and_an_api_model_id_record_the_same_provenance():
     # An unmapped id passes through untouched, and an explicit override still wins.
     assert resolved_model_name("claude-opus-4-5") == "claude:claude-opus-4-5"
     assert resolved_model_name("sonnet", "claude:pinned") == "claude:pinned"
+
+
+def test_reviewed_future_session_preserves_current_and_unknown_end():
+    from datetime import UTC, datetime
+
+    future = session_definition("0952027")
+    assert future.slug == "95-2027-regular"
+    assert future.start_date == datetime(2027, 1, 12, tzinfo=UTC)
+    assert future.end_date is None
+    assert not future.is_current
+    assert session_definition("0942026").is_current

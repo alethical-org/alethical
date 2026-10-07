@@ -16,9 +16,14 @@ can also remove a missing current-version section and its search rows without to
 [#1323](https://github.com/alethical-org/alethical/issues/1323) now owns the schedule, source
 limits, and reporting.
 
-This is a decision record, not a description of shipped behaviour. What ships today is documented
-in [`backend-stack.md`](backend-stack.md) §5: nothing re-fetches bills on a schedule, and a
-refresh is started by hand.
+This record preserves the August 10 measurements and reasoning in sections 1–6.
+Those sections describe the pre-scheduler system, not its current implementation.
+The October implementation uses an hourly saved-deadline runner, shared source
+request limits and atomic changed-text search updates. Automatic paid summaries
+remain off; the August daily-summary proposal below was not activated.
+[`backend-stack.md §5, background jobs`](backend-stack.md#5-background-jobs) and
+[What runs, when, and what it costs](../operations/jobs-and-scripts.md) own current
+operation. The October section below records its implementation and review limits.
 
 Reached Aug 10 2026, from measured production data plus an independent review by OpenAI's
 `gpt-5.6-sol` at maximum reasoning effort, which read the ingest code and found the first four
@@ -59,7 +64,7 @@ fully re-fetched in July 2026 ([#155](https://github.com/alethical-org/alethical
 after the 2025 interim had passed. The refresh saw nothing in those months because the source
 published nothing.
 
-**The corpus is currently in sync with the source.** The newest action we hold is 2026-05-17,
+**The corpus was in sync with the examined source on August 10.** The newest action we hold is 2026-05-17,
 the day before the 2026 session adjourned sine die on May 18. Two bills sit at "passed both
 chambers" (SF 1943 and SF 2373); checking the Revisor's own record for both on Aug 10 2026
 shows their action history also stops on May 16-17, with no gubernatorial action and no chapter
@@ -77,12 +82,12 @@ bug but names no interval. **Decision: 6 hours during a session, 7 days during t
 the promise into an interval: at 300 changed bills a day, a 24-hour pass leaves an average of
 150 bill-days of wrongness per day; a 4-hour pass leaves about 25.
 
-**3. Whether a pass is safe to run unattended.** Ranked this high because it currently
-dominates: the answer is no, so the correct cadence today is zero. See §4.
+**3. Whether a pass is safe to run unattended.** At the August review this
+dominated: the answer was no, so scheduled collection waited for the defects in §4.
 
 **4. What a pass costs the sources we depend on.** A full refresh makes about 3 requests per
 bill, so roughly 31,000 requests against revisor.mn.gov, house.mn.gov and senate.mn, with 8
-workers running concurrently and no shared rate limit. These are free public services we do not
+workers and no shared rate limit in the August implementation. These are free public services we do not
 pay for and cannot afford to be blocked by. Their acceptable request rate is not documented, so
 this is a constraint we respect by design rather than measure.
 
@@ -90,7 +95,8 @@ this is a constraint we respect by design rather than measure.
 $0.001 per bill; a full corpus re-summarisation is $200-265
 ([`ai-models-and-billing.md`](../product-onboarding/ai-models-and-billing.md)). Those are two
 different orders of magnitude and must not be treated as one "expensive tier": rebuild
-embeddings immediately on a text change, and batch summaries daily onto the half-price queue.
+embeddings immediately on a text change. Daily summary batching was proposed here,
+but remains separately gated off in the October implementation.
 
 **6. How much reader attention a stale bill gets.** Would let us refresh popular bills more
 often. Not measurable: no page-view measurement is installed. Tracked-bill counts are a partial
@@ -111,7 +117,7 @@ to avoid, because a calendar tells you when the Legislature may sit, not what it
 | A newly recognised session | One immediate catch-up, then the phase cadence | The catch-up is an event, not a replacement for the baseline. |
 
 The expensive work is event-driven, never scheduled: search text rebuilds as soon as a bill's
-text changes, and summary rewrites collect into one daily batch.
+text changes. Daily summary rewriting remains a proposal, not an enabled job.
 
 ### Where this differs from the independent review
 
@@ -178,7 +184,7 @@ Recent change volume cannot carry it either, because zero recent changes is ambi
 "nothing changed" and "we did not look".
 
 **So: a timer that wakes often and a decision step that chooses whether work is due.** Wake every
-2 hours; run the pass if the phase's interval has elapsed; fall back to the weekly baseline
+hour under the October implementation; run the pass if the phase's interval has elapsed; fall back to the weekly baseline
 regardless of phase, so a phase-detection bug degrades to slow rather than to silent. Sitting
 intervals are stored data a person reviews, not something inferred.
 
@@ -195,3 +201,35 @@ pass from [#1323](https://github.com/alethical-org/alethical/issues/1323) to exi
 - **The 95th-percentile time to refresh one bill.** The 4-hour session interval assumes a full
   pass finishes well inside an hour. If it does not, the interval has to grow or the pass has to
   narrow to bills with recent activity.
+
+## Callable refresh operations (October 2026)
+
+`alethical/pipeline/legislative_refresh.py` supplies bounded bill refreshes, missing and corrected vote collection, and complete roster refreshes to the sitewide scheduler. `scripts/refresh_legislative_records.py` exposes the same operations with an explicit database target and reviewed session code. Bill chunks default to 100 records, return a continuation key, and report whether the inventory pass is complete. A continuation is not a completed freshness check. Rejected or failed bills retain their last accepted values and prevent the runner from reporting a successful chunk.
+
+Requests reserve a shared per-host slot in `source_request_limits` before accessing the source. The database transaction ends before waiting or downloading. HTTP 429 and 503 responses extend the shared cooldown. Discovery carries the official bill URLs into each chunk, avoiding a duplicate search request per bill. Official HTTP validators allow an unchanged bill body to return 304 and reuse its matching saved copy. Sources without validators still receive a full body request; an unchanged XML fingerprint alone does not establish that same-version HTML is unchanged.
+
+Accepted bill text and its search rows commit together. Changed-text embeddings remain event-triggered and use the approved ingestion budget; these operations never start paid summary generation. The cadence helper takes reviewed sitting intervals, not biennium boundaries, and falls back to weekly when those intervals are unavailable. Unknown session codes require mapping review before import.
+
+The scheduler wrapper (`scripts/run_scheduled_bill_refresh.py`) pins the official inventory and its fingerprint for each pass. It saves its cursor, failed bill keys and pending vote checks under the job's unexpired lease token. Vote checks are queued before bill writes, so a stopped process cannot commit an action change and lose its follow-up check. Successful chunks return exit 75 for immediate continuation; the pass reports success only after every pinned bill and pending vote check finishes. Failed bills retry individually rather than restarting the accepted inventory. A later official inventory omitting previously listed bills is held for review.
+
+`scripts/check_legislative_sessions.py` checks the official session selector for new current or future codes and returns exit 2 for mapping review. It never creates a session definition. Scheduled roster imports also compare the PDF's printed biennium with the reviewed current session before updating any member.
+
+### Reviewed sitting calendar and next-session review
+
+`alethical/pipeline/legislative_calendar.py` exports `session_refresh_interval(session_code, date)` for the shared runner. The [Legislative Reference Library session history](https://www.lrl.mn.gov/history/sessions), read October 7, 2026, records these calendar dates:
+
+| Discovery code | Sitting | Convened | Adjourned |
+| --- | --- | --- | --- |
+| 0942025 | 2025 regular | January 14, 2025 | May 19, 2025 |
+| 1942025 | 2025 first special | June 9, 2025 | June 10, 2025 |
+| 0942026 | 2026 continuing regular | February 17, 2026 | May 18, 2026 |
+
+The 2025 and 2026 regular discovery lists share the same sitting clock because bills introduced in 2025 can change in the 2026 sitting. Each reviewed sitting gets its approved interval and 14-day follow-up, then weekly checks. Unknown codes still fail before ingestion.
+
+On October 7, 2026, the [Revisor session selector](https://www.revisor.mn.gov/bills/status_search.php) already lists `0952027`. The [House session information](https://www.house.mn.gov/hinfo/news.asp) states that the 95th Legislature convenes January 12, 2027, and the 2027 sitting must conclude by May 17, 2027. That deadline is not an observed adjournment and is not the end of the 2027–2028 biennium. The reviewed mapping is `0952027` to regular-session slug `95-2027-regular`, Legislature 95, years 2027–2028, and start January 12, 2027. Its final end date remains unknown (`None`), supported by the existing nullable database field. It remains noncurrent, and the runner must wait until January 12, 2027 before initial collection. The reviewed scheduled start enters the sitting clock with no invented adjournment. Do not switch the current roster until its official PDF and reviewed mapping describe the same biennium.
+
+Pending vote failures are retained separately from bill-source failures so 1 unavailable roll call cannot stop collection of the remaining bills. A pass reports success only after both queues clear. After a complete inventory pass, unresolved records keep their retry queues, but the next reviewed interval starts another complete discovery pass. This lets newly filed bills and corrections to healthy bills continue while a rejected record awaits repair. An in-flight pass stays pinned; a rejected replacement inventory preserves its previous inventory and failure evidence.
+
+Scheduled discovery no longer assumes bills end at number 6000. The official XML API returns at most 500 results per range (observed October 7, 2026); capped ranges are divided until every response falls below that cap. Every response must have the official search envelope and valid, unique in-range bill identities. This finds sparse high-number bills too. Discovery is bounded to 1–99,999 and fails if the ceiling itself is reached. A malformed response is never accepted as an empty range. Both regular discovery codes return the full biennium, so the scheduler runs 1 job per distinct session slug using the latest mapped discovery code.
+
+October 7, 2026 read-only source comparison through the adaptive parser returned identical complete inventories for `0942025` and `0942026`: 10,472 bills each (5,162 House, 5,310 Senate), using 70 paced requests per discovery code. Both sorted-key JSON inventories had SHA-256 `370be138d60eac37988b172c55ce7232ce78fd9bf6c4e1388195cc754d4b4f74`. This supports collecting 1 regular-session inventory rather than repeating the same biennium under both aliases.

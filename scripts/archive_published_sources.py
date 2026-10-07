@@ -40,8 +40,8 @@ reach the page; this one asks whether the document is still the one we cited. Ne
 answers the other's question, and there is one definition of "the addresses our
 published writing cites".
 
-Exits 1 when any cited source has gone or changed, or when a document was read and could
-not be stored, so the scheduled job can report it. A store that quietly stops is worse
+Exits 1 when any cited source has gone or changed, remains unreachable after bounded
+retries, or when a document was read and could not be stored, so the scheduled job can report it. A store that quietly stops is worse
 than none, because it is trusted.
 
 Requests are spaced: a session tripped this site's bot protection with a fast loop on
@@ -114,7 +114,12 @@ def cited_addresses(links) -> dict[str, list[str]]:
     """
     found: dict[str, list[str]] = {}
     for path in links.piece_files():
-        for url in links.links_in(path):
+        urls = links.links_in(path)
+        if not urls:
+            raise ValueError(
+                f"{path.name} has no readable source links; refusing a partial archive check"
+            )
+        for url in urls:
             if url.startswith("http"):
                 found.setdefault(url, []).append(path.name)
     return found
@@ -170,12 +175,15 @@ def check_sources(
     timeout: int,
     spacing: float,
     log=print,
+    attempts: int = 3,
 ) -> ArchiveReport:
     """Read every address once, and store or compare what it served.
 
     With no ``db``, this classifies and stores nothing -- what ``--classify-only`` runs,
     so the byte-reading half can be proved against a real address with no credentials.
     """
+    if not 1 <= attempts <= 3:
+        raise ValueError("Source reads allow 1 to 3 attempts")
     report = ArchiveReport()
     held = known_versions(db) if db is not None else {}
 
@@ -183,10 +191,23 @@ def check_sources(
         if index:
             time.sleep(spacing)
         cited_by = ", ".join(sorted(set(addresses[url])))
-        action, detail, _status, media_type, body = read_one(url, timeout, links)
+        for attempt in range(attempts):
+            if attempt:
+                time.sleep(max(spacing, 3.0) * attempt)
+            action, detail, _status, media_type, body = read_one(url, timeout, links)
+            if action != UNREACHABLE:
+                break
+        if action == UNREACHABLE:
+            detail = f"Unavailable after {attempts} attempt(s): {detail}"
         if action:
             report.outcomes.append(
-                SourceOutcome(url, action, detail, cited_by=cited_by)
+                SourceOutcome(
+                    url,
+                    action,
+                    detail,
+                    cited_by=cited_by,
+                    attempts=attempt + 1,
+                )
             )
             log(f"  {action.upper():<11} {url}\n      {detail}")
             continue
@@ -363,7 +384,11 @@ def main() -> int:
     if args.url:
         addresses = {url: [] for url in args.url}
     else:
-        addresses = cited_addresses(links)
+        try:
+            addresses = cited_addresses(links)
+        except ValueError as error:
+            print(str(error))
+            return 1
         if not addresses:
             print(
                 "No outward addresses found in the published pieces. Either they lost "

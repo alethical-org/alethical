@@ -1687,6 +1687,7 @@ def test_the_real_refresh_report_maps_to_stages(monkeypatch, tmp_path):
     crs.record_refresh_report(report)
     by_stage = {r["stage"]: r for r in cfr.parse_summary(target.read_bytes())}
     assert by_stage["payments"]["status"] == "failed"
+    assert by_stage["payments"]["counts"] == {"payments releases published": 0}
     assert by_stage["totals"]["status"] == "skipped"
     assert by_stage["refresh"]["status"] == "unchanged", "no unrecognised failure"
 
