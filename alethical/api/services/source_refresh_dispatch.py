@@ -18,7 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
 from alethical.db.models import SourceRefreshState
-from alethical.pipeline.record_refresh import due_names, jobs
+from alethical.pipeline.record_refresh import _next_due_at, due_names, jobs
 
 API = "https://api.github.com"
 REPOSITORY = "alethical-org/alethical"
@@ -89,10 +89,10 @@ def installation_token(client: httpx.Client, config: AppConfig, now: datetime) -
 
 
 def _claim(db, name: str, now: datetime) -> uuid.UUID | None:
-    job = jobs()[name]
+    job = jobs(now)[name]
     source = db.get(SourceRefreshState, name)
     if source and (
-        source.next_due_at > now
+        _next_due_at(source, job) > now
         or (source.lease_expires_at and source.lease_expires_at > now)
     ):
         return None

@@ -93,6 +93,24 @@ def test_cooldown_survives_next_process_and_then_retries():
         )
 
 
+def test_dispatch_honors_shortened_source_interval():
+    with get_session_factory()() as db:
+        db.add(
+            SourceRefreshState(
+                name="maps",
+                next_due_at=NOW + timedelta(days=7),
+                last_started_at=NOW - timedelta(days=8),
+                last_checked_at=NOW - timedelta(days=8),
+                last_status="succeeded",
+                failures=0,
+            )
+        )
+        db.commit()
+    requests = []
+    with client_for(requests) as client:
+        assert service.dispatch_due(get_session_factory(), now=NOW, client=client)
+
+
 def test_failure_retains_due_work_and_short_retry():
     requests = []
     with client_for(requests, dispatch=503) as client:
