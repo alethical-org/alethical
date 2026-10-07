@@ -850,5 +850,5 @@ class WorkflowSafetyTest(TestCase):
         self.assertIn("head_repository.full_name == github.repository", workflow)
         self.assertIn("contents: read", workflow)
         self.assertIn("if: always()", workflow)
-        self.assertIn("timeout-minutes: 8", workflow)
+        self.assertIn("timeout-minutes: 12", workflow)
         self.assertNotIn("issues: write", workflow)

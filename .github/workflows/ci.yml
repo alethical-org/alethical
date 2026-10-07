@@ -105,6 +105,12 @@ jobs:
         run: python scripts/local_checks.py quick-docs
       - name: Test document structure checks without database or network
         run: python -m unittest discover -s scripts/tests -p 'test_doc_structure.py'
+      - name: Test public search and failure evidence without service access
+        run: >-
+          python -m unittest
+          scripts.tests.test_check_public_search_health
+          scripts.tests.test_collect_page_failure_health
+          scripts.tests.test_check_page_failure_coverage
       - name: Retain reviewed failure evidence and test history collection
         run: |
           python scripts/review_repeat_failures.py check --review docs/operations/repeat-failure-cases.json --root .

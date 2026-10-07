@@ -1,6 +1,6 @@
 # Public search upkeep
 
-<!-- describes: scripts/check_public_search_health.py, .github/workflows/public-search-health.yml, scripts/report_page_speed_by_address.py, scripts/notify_changed_public_pages.py, .github/workflows/public-change-notices.yml -->
+<!-- describes: scripts/check_public_search_health.py, .github/workflows/public-search-health.yml, scripts/report_page_speed_by_address.py, scripts/notify_changed_public_pages.py, .github/workflows/public-change-notices.yml, scripts/collect_page_failure_health.py, scripts/check_page_failure_coverage.py, .github/workflows/page-failure-health.yml -->
 
 ## Outcome and limits
 
@@ -37,8 +37,10 @@ trusted-main **Reader completion checks**. It reads robots instructions, the
 7 sitemap children, important public destinations and a bounded record sample.
 It requires meaningful initial text, correct preferred addresses and indexing
 instructions; missing records and private views keep their deliberate treatment.
-Failures retain a JSON artifact for 35 days. It makes no AI calls, uses no
-credentials and creates no daily issue or message for a person to review.
+Failures retain a JSON artifact for 35 days. Public response reads make no AI
+calls and use no credentials. The daily run also uses GitHub's read-only workflow
+token to inspect the hourly failure collector's coverage. It creates no daily
+issue or message for a person to review.
 GitHub's normal failed-run notification is the fallback for a broken technical check.
 
 Record query variants have a separate, strict check path. Discovery still rejects
@@ -60,6 +62,42 @@ rotating coverage and offline regression tests.
 A release remains incomplete until its intended commit has reached the public
 website and changed reader paths work. The search check records the served commit
 but deliberately does not replace the release ancestry checks.
+
+## Hourly: retain temporary failure evidence
+
+The **Page failure health** workflow reads the previous completed UTC hour of
+production serverless 5xx records through the pinned official Vercel CLI at
+43 minutes past each hour. It runs
+on trusted `main`, never pull-request code. The existing Vercel access key is
+available only to the read step; package installation has no key and disables
+package install scripts. No new service or paid AI call is introduced.
+
+Public page routes use the page server function; sitemap routes use the sitemap
+server function. Static asset failures are outside this page-response collection.
+A Vercel network failure before a request reaches a function may leave no runtime
+record, even without the source filter. Public response checks cover a bounded
+sample independently; neither source proves that every visitor request succeeded.
+
+Raw log records remain bounded in memory. Saved artifacts are treated as public:
+only fixed category labels, numeric status, timing buckets, minute-level counts
+and collection limits survive. No visitor text, paths, record identifiers, source
+bodies or credentials are retained. Records are deduplicated within each fixed
+hour. A 100-row limit reports saturation instead of claiming complete coverage.
+Artifacts remain available for 35 days.
+
+A transient collection failure is tried once more and then recorded as a failed
+collection, without creating an hourly failed-run email. Authentication or format
+failures stop visibly. The daily scheduled public-search run checks 24 eligible
+hourly windows, leaving the newest completed hour time to arrive. Its fixed
+24-hour startup period begins at workflow creation; afterward, 3 missing or
+failed hours fail the daily check. Any saturated hour fails the daily check,
+including during startup. A green hourly workflow alone does not prove that
+collection succeeded. Gaps remain explicit rather than interpreted as no errors.
+GitHub can delay or drop scheduled runs. A run delayed past the next hour collects
+that later completed hour, leaving the missed hour visible as a coverage gap.
+The daily check tolerates 1 or 2 missing or failed hours, but never saturation.
+This is evidence collection, not automatic proof of a cause or permission to
+change cache, timeout, deployment or data behavior without diagnosis.
 
 ## Weekly: broader technical coverage and provider evidence
 
