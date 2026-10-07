@@ -2150,8 +2150,10 @@ only.
   current election year only. Each notice is a 1-page PDF, fetched once and kept content-addressed
   under `campaign-finance/notice/` in the raw-source-files bucket. Two PDF layouts are in use, and
   the second prints no date received by the Board, so that date is printed only where the notice
-  states it. `.github/workflows/campaign-money-notices.yml` reads the page daily from 20 Oct to
-  6 Nov 2026 and weekly otherwise, with 2 Feb 2027 as a review point.
+  states it. The shared source-refresh schedule reads the notice index daily throughout the year
+  and re-reads held notice and statement PDFs weekly to detect corrections.
+  `.github/workflows/campaign-money-notices.yml` remains a manual recovery route.
+  Both collectors share the campaign writer lease and defer while another copy is running.
 - **Covered years.** The card draws only for a year some completed copy of the list covers. A year
   outside every copy, a party unit, and a filer with no window draw no card at all, never an empty
   one.

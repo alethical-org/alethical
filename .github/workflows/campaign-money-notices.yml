@@ -5,14 +5,10 @@ name: Collect large-contribution notices and disclosure statements
 # record of it meanwhile is the committee's large-contribution notice, which the
 # Minnesota Campaign Finance Board posts on one page (#2347). This job copies that page,
 # keeps each new notice PDF once, and records which notice windows apply to which
-# candidates from the Secretary of State's ballot files. Once a week it also reads
-# committees' catalogues for disclosure statements and stores the reviewed readings in
-# alethical/pipeline/data/disclosure_statement_readings.json.
-#
-# Cadence: daily from 20 Oct to 6 Nov 2026 (the general-election notice window plus the
-# Board's posting days after it), weekly otherwise. On and after 2 Feb 2027, the day after
-# the year-end report that covers the October gifts is due, the job opens one issue asking
-# whether this cadence is still worth running.
+# candidates from the Secretary of State's ballot files. This is the manual recovery
+# route. source-record-refresh.yml owns daily notice checks and weekly amendment scans
+# across all filer kinds throughout the year; no election-specific timer expires here.
+# Reviewed readings remain a separate human-approved input.
 #
 # Free: GitHub Actions minutes and a few requests to 2 public websites. A failure keeps
 # every record already held and exits non-zero. Each script writes 1 line saying what
@@ -36,13 +32,6 @@ on:
         type: choice
         options: ["weekly default", "none", "committees", "all"]
         default: "weekly default"
-  schedule:
-    # 17:15 UTC (about noon in Minnesota). The Board posts a notice by the end of the
-    # business day after it is filed, so a midday read picks up the previous day's.
-    # A slot no other scheduled job uses.
-    - cron: "15 17 20-31 10 *"
-    - cron: "15 17 1-6 11 *"
-    - cron: "15 17 * * 3"
 
 concurrency:
   group: production-campaign-money-notices
@@ -51,9 +40,9 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
+    timeout-minutes: 335
     permissions:
       contents: read
-      issues: write
     env:
       ALETHICAL_DATABASE_TARGET: production
       SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
@@ -129,19 +118,6 @@ jobs:
         run: |
           PYTHONPATH=. uv run python scripts/record_disclosure_statement_readings.py \
             --target production $DRY_RUN | tee -a notices-report.txt
-
-      - name: Open the review-point issue on or after 2 Feb 2027
-        if: success() && github.event_name == 'schedule'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ "$(date -u +%Y%m%d)" -ge 20270202 ]; then
-            title="Review the large-contribution notice collector's cadence"
-            existing=$(gh issue list --state all --search "$title in:title" --json number --jq '.[0].number // empty')
-            if [ -z "$existing" ]; then
-              gh issue create --title "$title" --label backend --body "$(printf '**Net:** the year-end report covering October 2026 gifts was due 1 Feb 2027, so every 2026 notice should now match a filed payment row. Decide whether the weekly run in `.github/workflows/campaign-money-notices.yml` is still worth running before the 2028 windows, and update NOTICE_WINDOWS in `alethical/pipeline/campaign_finance_notices.py` for the next election year. Background: #2347.')"
-            fi
-          fi
 
       # Read by .github/workflows/collection-failure-review.yml, which owns the failure
       # issue. Uploaded on success too: a green run closes an open issue only when this

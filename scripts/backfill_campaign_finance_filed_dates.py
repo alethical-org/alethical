@@ -46,6 +46,7 @@ fallback, not a route) and §9.6 (which version is effective).
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 import time
@@ -151,6 +152,31 @@ class Report:
     asked: int = 0
     outcomes: Counter = field(default_factory=Counter)
     unreadable: list[str] = field(default_factory=list)
+
+    @property
+    def exit_code(self) -> int:
+        known = {outcome.value for outcome in DocumentOutcome} | {
+            "served_without_a_readable_date"
+        }
+        if any(
+            count and (name in {"http_error", "empty"} or name not in known)
+            for name, count in self.outcomes.items()
+        ):
+            return 1
+        if any(count and name != "served" for name, count in self.outcomes.items()):
+            return 2
+        return 0
+
+    def finding(self) -> dict:
+        return {
+            "status": {0: "succeeded", 1: "failed", 2: "review_required"}[
+                self.exit_code
+            ],
+            "carried_forward": self.carried_forward,
+            "documents_asked": self.asked,
+            "dates_stored": self.dated,
+            "outcomes": dict(self.outcomes),
+        }
 
     def summary(self) -> str:
         lines = [
@@ -344,6 +370,9 @@ def main() -> int:
         help="Skip the free pass that copies a date from an identical report version in "
         "an earlier snapshot.",
     )
+    parser.add_argument(
+        "--json", action="store_true", help="Print structured stage outcomes"
+    )
     args = parser.parse_args()
 
     engine = create_engine(
@@ -388,8 +417,8 @@ def main() -> int:
             carry_forward=not args.no_carry_forward,
             progress=lambda message: print(message, file=sys.stderr, flush=True),
         )
-    print("\n" + report.summary())
-    return 0
+    print(json.dumps(report.finding()) if args.json else "\n" + report.summary())
+    return report.exit_code
 
 
 if __name__ == "__main__":

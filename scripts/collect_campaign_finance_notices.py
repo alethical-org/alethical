@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from contextlib import nullcontext
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -50,6 +51,7 @@ from alethical.pipeline.cache_purge import (  # noqa: E402
     when_notices_or_statements_are_stored,
 )
 from alethical.pipeline.raw_file_store import raw_file_store_from_env  # noqa: E402
+from alethical.pipeline.campaign_finance_refresh import hold_full_run_lease  # noqa: E402
 
 
 def _ballot(http) -> tuple[list, list, list[str]]:
@@ -103,6 +105,28 @@ def main() -> int:
         ),
         connect_args=NO_PREPARED_STATEMENTS,
     )
+    # Share the same writer lease as the totals refresh and manual collectors.
+    # Dry runs do not write and need not wait behind a production copy.
+    guard = (
+        nullcontext(True)
+        if args.dry_run
+        else hold_full_run_lease(engine, purpose="collecting campaign notices")
+    )
+    with guard as held:
+        if not held:
+            record_stage(
+                "notices",
+                "skipped",
+                details=["deferred: another campaign run holds the writer lease"],
+            )
+            print(
+                "deferred: another campaign run holds the writer lease", file=sys.stderr
+            )
+            return 76
+        return _collect(args, engine)
+
+
+def _collect(args, engine) -> int:
     now = datetime.now(UTC)
     http = filings.http_session()
     exit_code = 0
