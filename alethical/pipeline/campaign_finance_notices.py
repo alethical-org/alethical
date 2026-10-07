@@ -68,6 +68,8 @@ NOTICE_LIST_URL = (
     "large-contribution-notices/"
 )
 PDF_VIEWER_URL = f"{BOARD_BASE_URL}/rptViewer/Main.php"
+# These 2 reviewed ballot source files cover this election year only.
+BALLOT_SOURCE_YEAR = 2026
 PRIMARY_CANDIDATES_URL = "https://electionresultsfiles.sos.mn.gov/20260811/cand.txt"
 GENERAL_CANDIDATES_URL = "https://electionresultsfiles.sos.mn.gov/20261103/cand.txt"
 
@@ -854,6 +856,8 @@ def fetch_pdf(
 
 @dataclass
 class NoticeRunReport:
+    observed_years: list[int] = field(default_factory=list)
+    source_page_sha256: Optional[str] = None
     listed: int = 0
     new: int = 0
     already_held: int = 0
@@ -930,6 +934,8 @@ def collect_notices(
     listed, errors = parse_notice_list(page)
     report.page_errors.extend(errors)
     report.listed = len(listed)
+    report.observed_years = sorted({notice.filing_year for notice in listed})
+    report.source_page_sha256 = hashlib.sha256(page_body).hexdigest()
     if report.page_errors:
         return report
 

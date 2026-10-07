@@ -19,9 +19,11 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import os
 import sys
-from contextlib import nullcontext
+from contextlib import nullcontext, redirect_stdout
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -82,6 +84,9 @@ def main() -> int:
     parser.add_argument("--database-url", default=None)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
+        "--json", action="store_true", help="Print a safe source-check summary as JSON."
+    )
+    parser.add_argument(
         "--refresh-existing",
         action="store_true",
         help="Re-download held notice PDFs to detect corrections at unchanged addresses.",
@@ -123,10 +128,50 @@ def main() -> int:
                 "deferred: another campaign run holds the writer lease", file=sys.stderr
             )
             return 76
+        if args.json:
+            output = sys.stdout
+            with redirect_stdout(sys.stderr):
+                return _collect(args, engine, json_output=output)
         return _collect(args, engine)
 
 
-def _collect(args, engine) -> int:
+def notice_finding(report, *, now_year: int, skip_ballot: bool, failed: bool) -> dict:
+    missing_windows = sorted(set(report.observed_years) - notices.NOTICE_WINDOWS.keys())
+    missing_ballot_sources = (
+        [now_year]
+        if not skip_ballot
+        and now_year in notices.NOTICE_WINDOWS
+        and now_year != notices.BALLOT_SOURCE_YEAR
+        else []
+    )
+    needs_review = bool(
+        missing_windows or missing_ballot_sources or report.parse_failures
+    )
+    return {
+        "status": "failed" if failed else "review" if needs_review else "complete",
+        "finding_key": hashlib.sha256(
+            json.dumps(
+                {
+                    "missing_windows": missing_windows,
+                    "missing_ballot_sources": missing_ballot_sources,
+                    "unreadable_notices": len(report.parse_failures),
+                },
+                sort_keys=True,
+            ).encode()
+        ).hexdigest(),
+        "source_url": notices.NOTICE_LIST_URL,
+        "source_page_sha256": report.source_page_sha256,
+        "observed_notice_years": report.observed_years,
+        "missing_notice_window_years": missing_windows,
+        "ballot_source_years_needing_review": missing_ballot_sources,
+        "notices_needing_reading": len(report.parse_failures),
+        "notices_listed": report.listed,
+        "notices_kept": report.new,
+        "notices_corrected": report.changed,
+    }
+
+
+def _collect(args, engine, *, json_output=None) -> int:
     now = datetime.now(UTC)
     http = filings.http_session()
     exit_code = 0
@@ -165,7 +210,11 @@ def _collect(args, engine) -> int:
         if not report.ok:
             exit_code = 1
 
-        if not args.skip_ballot and now.year in notices.NOTICE_WINDOWS:
+        if (
+            not args.skip_ballot
+            and now.year in notices.NOTICE_WINDOWS
+            and now.year == notices.BALLOT_SOURCE_YEAR
+        ):
             primary, general, failures = _ballot(http)
             ballot_failures = failures
             for line in failures:
@@ -216,6 +265,11 @@ def _collect(args, engine) -> int:
     )
     if clearing_failed:
         exit_code = 1
+    finding = notice_finding(
+        report, now_year=now.year, skip_ballot=args.skip_ballot, failed=bool(exit_code)
+    )
+    if not exit_code and finding["status"] == "review":
+        exit_code = 2
     # What this run did, for the failure review (#2350).
     checks = [
         name
@@ -227,6 +281,15 @@ def _collect(args, engine) -> int:
         )
         if problems
     ]
+    checks += (
+        ["notice windows need review"] if finding["missing_notice_window_years"] else []
+    )
+    checks += (
+        ["ballot source year needs review"]
+        if finding["ballot_source_years_needing_review"]
+        else []
+    )
+    checks += ["notice fields need review"] if report.parse_failures else []
     record_stage(
         "notices",
         "failed"
@@ -249,6 +312,8 @@ def _collect(args, engine) -> int:
             "notices corrected": report.changed,
         },
     )
+    if json_output is not None:
+        print(json.dumps(finding, sort_keys=True), file=json_output)
     return exit_code
 
 

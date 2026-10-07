@@ -169,3 +169,76 @@ def test_source_replacement_during_collection_never_stores_candidate(db, monkeyp
     with pytest.raises(ValueError, match="sources_changed_during_collection"):
         preparation.prepare_candidate(db, Store(), [2025])
     assert calls == []
+
+
+def test_donor_review_key_ignores_check_times_but_keeps_source_meaning():
+    from copy import deepcopy
+
+    def evidence(timestamp, raw_hash):
+        return {
+            "release_id": "release",
+            "filings_snapshot_id": "snapshot",
+            "years": [2025],
+            "recipients": [
+                {
+                    "registration_number": "12345",
+                    "year": 2025,
+                    "collected_at": timestamp,
+                    "catalogues": [
+                        {
+                            "hash": raw_hash,
+                            "fetched_at": timestamp,
+                            "payload": {
+                                "timestamp": timestamp,
+                                "data": {
+                                    "pdfs": {
+                                        "one": {
+                                            "RegisteredEntityID": "12345",
+                                            "FilingYear": "2025",
+                                            "ReportType": "YE",
+                                            "ReportName": "Year-end",
+                                            "CutOffDate": "2025-12-31",
+                                            "amendments": [0],
+                                        }
+                                    }
+                                },
+                            },
+                            "selected_reports": [],
+                        }
+                    ],
+                    "coverage": {
+                        "catalogue_hash": raw_hash,
+                        "coverage_start": "2025-01-01",
+                    },
+                    "coverage_manifest_hash": raw_hash,
+                    "documents": [{"document_hash": "pdf-bytes"}],
+                    "donors": {"donor": {"state": "checked", "amount": "500"}},
+                }
+            ],
+            "failures": [],
+        }
+
+    first = evidence("2026-10-01T12:00:00Z", "old-catalogue-bytes")
+    later = evidence("2026-10-02T12:00:00Z", "new-catalogue-bytes")
+    assert preparation.finding_key(first) == preparation.finding_key(later)
+    changes = []
+    for key in ["release_id", "filings_snapshot_id"]:
+        changed = deepcopy(later)
+        changed[key] = "changed"
+        changes.append(changed)
+    changed = deepcopy(later)
+    changed["recipients"][0]["catalogues"][0]["payload"]["data"]["pdfs"]["one"][
+        "amendments"
+    ] = [0, 1]
+    changes.append(changed)
+    changed = deepcopy(later)
+    changed["recipients"][0]["documents"][0]["document_hash"] = "new-pdf"
+    changes.append(changed)
+    changed = deepcopy(later)
+    changed["recipients"][0]["donors"]["donor"]["amount"] = "600"
+    changes.append(changed)
+    changed = deepcopy(later)
+    changed["recipients"][0]["coverage"]["coverage_start"] = "2025-02-01"
+    changes.append(changed)
+    for changed in changes:
+        assert preparation.finding_key(first) != preparation.finding_key(changed)

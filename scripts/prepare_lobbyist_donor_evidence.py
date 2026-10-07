@@ -23,7 +23,7 @@ from alethical.pipeline.lobbyist_evidence_preparation import prepare_candidate  
 from alethical.pipeline.raw_file_store import raw_file_store_from_env  # noqa: E402
 
 
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--target", choices=["local", "production"], default="local")
     parser.add_argument("--years", nargs="+", type=int)
@@ -34,7 +34,9 @@ def main() -> None:
     with Session(engine) as db:
         result = prepare_candidate(db, raw_file_store_from_env(), args.years)
     print(json.dumps(result, sort_keys=True))
+    # Prepared evidence always waits for the separate human-review publication gate.
+    return 2
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

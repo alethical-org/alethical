@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+from dataclasses import asdict
 import io
 import json
 from pathlib import Path
@@ -13,6 +14,7 @@ from sqlalchemy import text
 
 from alethical.api.services.lobbying_donations import last_completed_year
 from alethical.pipeline.campaign_finance_recheck import FIRST_SUPPORTED_YEAR
+from alethical.pipeline.campaign_finance_filings import parse_catalogue_payload
 from alethical.pipeline.campaign_finance_refresh import live_versions
 from alethical.pipeline.lobbyist_evidence_publication import audit_digest, prepare_run
 from alethical.pipeline.lobbyist_report_collection import collect_reports
@@ -21,6 +23,51 @@ from alethical.pipeline.raw_file_store import sha256_of_file
 
 def supported_years() -> list[int]:
     return list(range(FIRST_SUPPORTED_YEAR, last_completed_year() + 1))
+
+
+def finding_key(run: dict) -> str:
+    """Stable review identity; exact audit/source hashes remain in the private bundle.
+
+    Collection times and catalogue response timestamps cannot manufacture a new
+    finding. Parsed report identities, periods, amendments and termination dates
+    remain significant, as do PDF bytes, donor verdicts, failures and source releases.
+    An unreadable catalogue keeps its exact body hash rather than guessing meaning.
+    """
+    catalogue_keys = {}
+    for recipient in run.get("recipients", []) + run.get("failures", []):
+        for catalogue in recipient.get("catalogues", []):
+            reports, errors = parse_catalogue_payload(
+                catalogue["payload"], recipient["registration_number"]
+            )
+            if not errors:
+                canonical = sorted(
+                    (
+                        json.dumps(asdict(report), sort_keys=True, default=str)
+                        for report in reports
+                    )
+                )
+                catalogue_keys[catalogue["hash"]] = hashlib.sha256(
+                    json.dumps(canonical).encode()
+                ).hexdigest()
+
+    def normalize(value):
+        if isinstance(value, list):
+            return [normalize(item) for item in value]
+        if not isinstance(value, dict):
+            return catalogue_keys.get(value, value) if isinstance(value, str) else value
+        result = {}
+        for key, item in value.items():
+            if key in {"collected_at", "fetched_at", "coverage_manifest_hash"}:
+                continue
+            if key == "payload" and value.get("hash") in catalogue_keys:
+                # The semantic catalogue hash preserves all interpreted report data.
+                continue
+            result[key] = normalize(item)
+        return result
+
+    return hashlib.sha256(
+        json.dumps(normalize(run), sort_keys=True, default=str).encode()
+    ).hexdigest()
 
 
 def retain_candidate(store, directory: Path, run: dict) -> dict:
@@ -51,6 +98,7 @@ def retain_candidate(store, directory: Path, run: dict) -> dict:
                 raise ValueError("source_document_missing")
     manifest = {
         "audit_hash": audit_digest(run),
+        "finding_key": finding_key(run),
         "release_id": run["release_id"],
         "filings_snapshot_id": run["filings_snapshot_id"],
         "years": run["years"],
@@ -84,6 +132,7 @@ def retain_candidate(store, directory: Path, run: dict) -> dict:
         k: manifest[k]
         for k in (
             "audit_hash",
+            "finding_key",
             "release_id",
             "filings_snapshot_id",
             "years",
