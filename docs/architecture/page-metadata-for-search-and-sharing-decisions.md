@@ -2187,7 +2187,22 @@ Optional source failures that preserve a useful 200 response do not emit this ev
 Committee financial payloads must identify the requested committee and year before
 they can be rendered or seeded. Missing filings remain valid data, while malformed
 or mismatched payloads produce the existing uncached 503, never false figures or 404.
-No timeout, retry or cache-window change is justified by the October timing alone.
+The required committee-finance read has at most 2 attempts within the existing
+5-second total deadline. Keep the first request alive and start 1 backup after
+2.5 seconds, or immediately after a network failure or HTTP 502, 503 or 504.
+Either fully read, validated answer may win before the deadline. A terminal first
+answer before a backup starts keeps its existing outcome. Once both are running,
+hold a failed answer while its sibling can still succeed. If neither is valid,
+the original request determines the error, including genuine 404s; a pending
+original request times out as 503. Cancel losing requests and timers. Optional
+reads, cache windows and identity-claim freshness remain unchanged.
+
+A successful required read that used 2 attempts emits a separate recovery event
+with fixed source family, attempt count, winning attempt, trigger and elapsed time.
+It contains no request address, query, body or provider message. An original-request
+winner does not prove that the backup helped. The bounded hourly recorder and its
+separate failure/recovery coverage are owned by
+[public-search-upkeep.md](../operations/public-search-upkeep.md).
 
 Bill search descriptions retain the approved first summary sentence in §26.
 A low click count alone does not authorize keyword padding, unsupported claims,
