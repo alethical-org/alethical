@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from alethical.pipeline.minnesota import (
+    BillSearchResult,
     MinnesotaIngestionPipeline,
     discover_session_bills,
 )
@@ -52,6 +53,7 @@ def refresh_bills(
     max_bill_number: int = 6000,
     limit: int = 100,
     after_key: str | None = None,
+    inventory: list[BillSearchResult] | None = None,
 ) -> dict[str, Any]:
     # Reject unmapped future sessions before making any requests or changing rows.
     session_definition(session_code)
@@ -59,8 +61,12 @@ def refresh_bills(
         raise ValueError("A bill refresh chunk must contain between 1 and 500 bills")
     source = rate_limited_source_session(engine, target=target)
     try:
-        discovered = discover_session_bills(
-            source, session_code=session_code, max_bill_number=max_bill_number
+        discovered = (
+            inventory
+            if inventory is not None
+            else discover_session_bills(
+                source, session_code=session_code, max_bill_number=max_bill_number
+            )
         )
         if not discovered:
             raise RuntimeError(
@@ -155,9 +161,14 @@ def refresh_roster(engine: Any, *, session_code: str, target: str) -> dict[str, 
         from alethical.pipeline.roster_pdf import (
             fetch_roster_pdf_text,
             parse_roster_pdf,
+            validate_roster_biennium,
         )
 
-        members = parse_roster_pdf(fetch_roster_pdf_text(session=source))
+        roster_text = fetch_roster_pdf_text(session=source)
+        validate_roster_biennium(
+            roster_text, year_start=definition.year_start, year_end=definition.year_end
+        )
+        members = parse_roster_pdf(roster_text)
         with Session(engine) as db:
             pipeline = MinnesotaIngestionPipeline(
                 db, sess=source, conditional_bill_text=True

@@ -183,3 +183,23 @@ def test_revisor_api_and_website_share_pacing_budget():
     assert DatabaseRequestLimiter.key(
         "https://api.revisor.mn.gov/bills"
     ) == DatabaseRequestLimiter.key("https://www.revisor.mn.gov/bills")
+
+
+def test_new_biennium_cannot_replace_previous_session_roster():
+    from alethical.pipeline.roster_pdf import validate_roster_biennium
+
+    source = FIXTURE.read_text()
+    validate_roster_biennium(source, year_start=2025, year_end=2026)
+    with pytest.raises(ValueError, match="mapping review"):
+        validate_roster_biennium(
+            source.replace("2025-2026", "2027-2028"), year_start=2025, year_end=2026
+        )
+
+
+def test_unknown_current_or_future_session_is_reviewed_not_invented():
+    from scripts.check_legislative_sessions import unreviewed_session_codes
+
+    html = '<select name="session"><option value="0942025">Current</option><option value="0952027">New</option><option value="2942026">Special</option><option value="0912019">Historical</option></select>'
+    assert unreviewed_session_codes(html) == ["0952027", "2942026"]
+    with pytest.raises(ValueError, match="could not be read"):
+        unreviewed_session_codes("<html>maintenance</html>")

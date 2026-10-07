@@ -152,6 +152,17 @@ def _parse_section(text: str, chamber: str) -> list[RosterMember]:
     return members
 
 
+def validate_roster_biennium(text: str, *, year_start: int, year_end: int) -> None:
+    """A current PDF must never be filed under a previous legislature."""
+    header = re.search(
+        r"(\d{4})\s*[-–]\s*(\d{4})\s+Minnesota House of Representatives Members", text
+    )
+    if header is None or tuple(map(int, header.groups())) != (year_start, year_end):
+        raise ValueError(
+            "The live roster's biennium does not match the reviewed session; session mapping review is required"
+        )
+
+
 def parse_roster_pdf(text: str) -> list[RosterMember]:
     """Parse ``pdftotext -layout`` output into the canonical member list."""
     house_start = text.find(_HOUSE_HEADER)
