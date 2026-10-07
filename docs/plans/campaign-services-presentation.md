@@ -2,6 +2,27 @@
 
 Status: Implementation authorized on 2026-09-30 by “bd services page which services in the nav will go to, see the task building nav & account menu”. `/services` is public. The accepted September 30 download restores the supported candidate names and coalition link. The older private access plan and name-removal instruction are superseded.
 
+## Approved browser printing, 7 October 2026
+
+Eugene said “bd approved”, then corrected the source selection: “bd always means look at the latest download ... understood that the approved one is the last one downloaded. then build it”. The fresh scan found `Alethical Services.pdf`, downloaded 7 October at 10:49:59 Eastern (SHA256 `78ba0627cbe60b54a2f5f9b1ca66d7ac74302900271b4e6a48bccd3f6d587469`). Its 4 Letter sheets match `Campaign Services print.dc.html` in `Alethical UX (57).zip`, downloaded 10:46:20 Eastern (SHA256 `d9e4aa0c739aa55e4cd7d75a7b7e19395a8aa100b828192a3a32639cf1b05cbe`). This supersedes the earlier reviewed download for printing.
+
+Scope: browser Print / Save as PDF at `/services`; keep the existing screen unchanged. The 4 sheets group opener + both audiences; services + developing tools; partners + early work; delivery/pricing + closing brand message. White branding, readable text, all content and saved-PDF links remain. The approved print-only title is “Websites and tools”; its subtitle already names the campaign. No separate PDF download or new control. No new Design messages are authorized.
+
+Owner: Codex task Make services page print-ready (`01a116bc-ec04-7980-a750-8ab0e9e0804b`), branch `codex/services-print`, [issue 2496](https://github.com/alethical-org/alethical/issues/2496).
+
+- [x] Fresh download inspection and correction to the shared `bd` instruction.
+- [x] Compare latest PDF with matching bundle and shared service copy.
+- [x] Print-only presentation generated from shared content, scoped to the active visit, including first-response HTML.
+- [x] Actual Letter and A4 PDFs: 4 pages, no missing text, visible complete lists, loaded branding, linked coalition name/logo and email. PDF export starts from a phone viewport; physical sheet height does not depend on window size.
+- [x] Screen/browser checks: 46 Chromium and WebKit checks pass, including audience keys, contact panel, state restoration, route revisits and no printing leakage elsewhere. WebKit's 2 actual-PDF tests are skipped because that browser automation cannot export PDFs. Firefox's installed browser did not finish starting; no Firefox acceptance is claimed.
+- [x] Independent review exposed window-dependent print height and first-response heading contrast. Use a physical 11-inch minimum and explicitly dark print headings. The JavaScript-disabled first response also produces a complete, readable 4-page Letter PDF.
+- [ ] Final independent acceptance, current-head release checks, merge, deployed printing and acceptance, folder cleanup. Evidence will be recorded in [issue 2496](https://github.com/alethical-org/alethical/issues/2496).
+
+Impact and prevention: the screen's scrolling containers and selected audience could omit paper content. A focused print view outside those containers uses the same strings as the screen and first response; leaving `/services` removes it. Overflow remains visible instead of cutting off changed text. Browser regression checks cover actual pagination, complete lists, sheet/folio collisions, hidden dialogs, preserved screen state and route cleanup. Required frontend CI runs print checks, including the real first-response generator in a static-server fixture, and retains generated PDFs. Local and live acceptance use the server’s own first response. Other routes retain their existing printing. Remaining limits: actual Safari pagination, physical printer margins and user-chosen scaling are outside the automated PDF coverage; tested paper/scale settings are recorded with acceptance.
+
+Model selection: `gpt-6.1-sol` / `high` for integration and print-layout judgment; compared stronger reasoning on the same model, with no additional quality need demonstrated by this settled design. Independent source review and bounded test writing run as helpers; the current task owns acceptance and live delivery.
+
+
 ## Header and footer update, September 30
 
 Authorized by “bd if it matches your rec?” after the recommendation of 1 dedicated

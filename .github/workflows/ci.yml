@@ -355,12 +355,16 @@ jobs:
             --base-url http://127.0.0.1:4173 --fixtures \
             --checked-commit "$GITHUB_SHA" --expected-commit "$GITHUB_SHA" \
             --output reader-completion-results.json
+          E2E_STATIC_BUILD=1 E2E_BASE_URL=http://127.0.0.1:4173 pnpm exec playwright test \
+            e2e/services-print.spec.ts --project=chromium
 
       - name: Retain reader-check evidence even on failure
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: built-reader-checks-${{ github.run_id }}-${{ github.run_attempt }}
-          path: apps/frontend/reader-completion-results.json
+          path: |
+            apps/frontend/reader-completion-results.json
+            apps/frontend/test-results/**/*.pdf
           if-no-files-found: warn
           retention-days: 30

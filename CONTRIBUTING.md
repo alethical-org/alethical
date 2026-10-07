@@ -205,6 +205,8 @@ remains separate: agent-driven user stories and Playwright checks in
 Those broader browser stories run on demand. The focused public reader subset
 runs in the required frontend CI job against the built website with fixed public
 records, and against the live website after main releases.
+The same CI job exercises `/services` printing, including generated first-response
+HTML with JavaScript disabled, and retains the resulting Letter and A4 PDFs.
 [Reader completion checks](docs/operations/reader-completion-checks.md) owns its
 scope, read-only safety guards and saved commit evidence.
 

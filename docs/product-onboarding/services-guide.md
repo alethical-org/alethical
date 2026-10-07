@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/screens/redesign/ServicesScreen.tsx, apps/frontend/src/lib/services.ts, apps/frontend/src/lib/servicesMetadata.ts, apps/frontend/src/lib/servicesPageSnapshot.ts, apps/frontend/src/lib/staticPageMetadata.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/topNavRoutes.ts, apps/frontend/src/navigation/webRoutes.ts, api/page.ts, api/sitemap.ts -->
+<!-- describes: apps/frontend/src/screens/redesign/ServicesScreen.tsx, apps/frontend/src/lib/services.ts, apps/frontend/src/lib/servicesMetadata.ts, apps/frontend/src/lib/servicesPageSnapshot.ts, apps/frontend/src/lib/servicesPrint.ts, apps/frontend/src/components/ServicesPrint*, apps/frontend/src/lib/staticPageMetadata.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/topNavRoutes.ts, apps/frontend/src/navigation/webRoutes.ts, api/page.ts, api/sitemap.ts -->
 
 # How campaign services works
 
@@ -84,6 +84,18 @@ keyboard focus to Contact Us; Tab stays within the panel. Closing returns focus
 to the button that opened it. Short screens can scroll the panel's contents.
 Buttons and links retain the accepted pointer-hover and visible keyboard-focus
 feedback. Reduced-motion settings avoid smooth section scrolling.
+
+## Printing
+
+Use the browser's Print command at `/services`, including Save as PDF. The screen stays dark; paper uses the approved white Alethical branding. Both audience choices and their examples appear together without clicking. The 4 portrait sheets contain opener and audiences; services and developing tools; partners and early work; delivery/pricing and the closing brand message. Letter and A4 are supported at normal scale. The browser print dialog controls paper, scale and any additional printer margins.
+
+The print presentation uses the same saved service content as the screen. Its sole wording exception is “Websites and tools”, approved because “Give your campaign a useful digital foundation.” already names the campaign. There is no separately maintained PDF or Download as PDF button. The coalition name, coalition logo/address and email remain linked in a saved PDF; email retains `ask@alethical.com` in cc.
+
+Sticky headers, section links, audience controls, the contact panel and the footer's social/general links are omitted. Printing with the contact panel open does not close it or change the selected audience. Returning from print restores the screen. Only the active `/services` visit supplies print content; visiting a different address removes the services print view. The first response also prints when JavaScript cannot run. Content remains visible if changed text grows; browser checks catch extra pages and collisions rather than hiding overflow.
+
+Sheets use a physical Letter-height minimum, so print layout does not follow Safari's window height. A4 has extra white space below this baseline. Print heading colors explicitly replace the dark first-response colors. Required frontend CI runs print checks, including the real first-response generator in a static-server fixture, and retains Letter/A4 PDFs. Local and live acceptance exercise the server’s own first response.
+
+Approved print reference: `Alethical Services.pdf`, downloaded 7 October 2026 at 10:49:59 Eastern; matching source `Alethical UX (57).zip`. Accepted colors, type, spacing and sheet content are recorded in [campaign-services-presentation.md (approved browser printing)](../plans/campaign-services-presentation.md#approved-browser-printing-7-october-2026).
 
 ## Scope and follow-up
 

@@ -12,7 +12,9 @@ import {
   type ViewStyle,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { useIsFocused } from '@react-navigation/native';
 
+import { ServicesPrint } from '../../components/ServicesPrint';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
   SERVICES_AUDIENCES,
@@ -230,6 +232,7 @@ function ContactPanel({ close, mobile }: { close: () => void; mobile: boolean })
 }
 
 export function ServicesScreen({ navigation }: RootScreenProps<'Services'>) {
+  const focused = useIsFocused();
   const { width, isMobile, isDesktop } = useResponsive();
   const [audience, setAudience] = useState(0);
   const [hoveredAudience, setHoveredAudience] = useState<number | null>(null);
@@ -301,6 +304,7 @@ export function ServicesScreen({ navigation }: RootScreenProps<'Services'>) {
   );
   return (
     <View style={styles.root}>
+      {focused && <ServicesPrint />}
       <ScrollView nativeID="services-page" style={styles.root} stickyHeaderIndices={[0]}>
         <View style={styles.sectionNav} {...webProps({ role: 'banner' })}>
           <View
