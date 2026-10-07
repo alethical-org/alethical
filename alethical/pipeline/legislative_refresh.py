@@ -77,6 +77,7 @@ def refresh_bills(
             "complete": len(remaining) <= limit,
             "next_cursor": chunk[-1].bill_key if len(remaining) > limit else None,
             "accepted": 0,
+            "accepted_bill_keys": [],
             "failed": [],
             "changed_bill_keys": [],
         }
@@ -107,6 +108,7 @@ def refresh_bills(
                         )
                     db.commit()
                     report["accepted"] += 1
+                    report["accepted_bill_keys"].extend(stats["bill_keys"])
                     report["changed_bill_keys"].extend(changed)
                 except Exception as exc:
                     db.rollback()

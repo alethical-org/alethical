@@ -10,7 +10,7 @@ import time
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 import requests
 from sqlalchemy import text
@@ -50,6 +50,16 @@ class DatabaseRequestLimiter:
         hostname = (urlsplit(url).hostname or "").lower().removeprefix("www.")
         if not hostname:
             raise ValueError("A source request must have a hostname")
+        # A source's API and website share its public service budget.
+        for domain in (
+            "revisor.mn.gov",
+            "house.mn.gov",
+            "senate.mn",
+            "leg.mn.gov",
+            "lrl.mn.gov",
+        ):
+            if hostname == domain or hostname.endswith("." + domain):
+                return domain
         return hostname
 
     def wait(self, url: str) -> None:
@@ -106,13 +116,33 @@ class RateLimitedSession:
         self.headers = session.headers
 
     def get(self, url: str, **kwargs: Any) -> requests.Response:
-        self.limiter.wait(url)
-        response = self.session.get(url, **kwargs)
-        if response.status_code in {429, 503}:
-            self.limiter.defer(
-                url, retry_after_seconds(response.headers.get("Retry-After"))
-            )
-        return response
+        # requests follows redirects internally by default, bypassing wrappers.
+        # Follow each public hop here so its destination receives its own slot.
+        follow = kwargs.pop("allow_redirects", True)
+        for _ in range(10):
+            self.limiter.wait(url)
+            response = self.session.get(url, allow_redirects=False, **kwargs)
+            if response.status_code in {429, 503}:
+                self.limiter.defer(
+                    url, retry_after_seconds(response.headers.get("Retry-After"))
+                )
+            if not follow or response.status_code not in {301, 302, 303, 307, 308}:
+                return response
+            location = response.headers.get("Location")
+            if not location:
+                return response
+            destination = urljoin(url, location)
+            if urlsplit(destination).scheme not in {"http", "https"}:
+                raise requests.InvalidURL(
+                    "Source redirected to an unsupported protocol"
+                )
+            if urlsplit(destination).netloc != urlsplit(url).netloc:
+                # Source validators refer to a single resource, not another host.
+                kwargs.pop("headers", None)
+            response.close()
+            kwargs.pop("params", None)
+            url = destination
+        raise requests.TooManyRedirects("Source exceeded 10 redirects")
 
     def close(self) -> None:
         self.session.close()

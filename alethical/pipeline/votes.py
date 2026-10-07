@@ -1881,6 +1881,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 dry_run=args.dry_run,
                 only_missing=args.only_missing,
                 bill=args.bill,
+                source_session=rate_limited_source_session(
+                    engine, target=args.target or "local"
+                ),
             )
             print(stats)
     return 0

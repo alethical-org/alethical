@@ -158,3 +158,28 @@ def test_unknown_session_refused_before_source_or_database_access():
         with pytest.raises(ValueError, match="No legislative session mapped"):
             refresh(engine, session_code="0952027", target="production")
     engine.assert_not_called()
+
+
+def test_redirect_destination_gets_its_own_source_slot():
+    session = Mock()
+    redirect = Mock(status_code=302, headers={"Location": "https://senate.mn/member"})
+    result = Mock(status_code=200)
+    session.get.side_effect = [redirect, result]
+    limiter = Mock()
+    assert (
+        RateLimitedSession(session, limiter).get("https://leg.mn.gov/member") is result
+    )
+    assert [call.args[0] for call in limiter.wait.call_args_list] == [
+        "https://leg.mn.gov/member",
+        "https://senate.mn/member",
+    ]
+    assert all(
+        call.kwargs["allow_redirects"] is False for call in session.get.call_args_list
+    )
+    redirect.close.assert_called_once()
+
+
+def test_revisor_api_and_website_share_pacing_budget():
+    assert DatabaseRequestLimiter.key(
+        "https://api.revisor.mn.gov/bills"
+    ) == DatabaseRequestLimiter.key("https://www.revisor.mn.gov/bills")
