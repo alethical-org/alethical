@@ -148,31 +148,14 @@ def supabase_database_url() -> str | None:
 
 
 def rate_limited_source_session(engine: Any, *, target: str) -> Any:
-    """Use the shared production source pace when the scheduler has shipped it."""
-    try:
-        from alethical.pipeline.request_limits import (
-            DEFAULT_SOURCE_REQUEST_INTERVAL_SECONDS,
-            DatabaseRequestLimiter,
-            RateLimitedSession,
-        )
-        from alethical.pipeline.minnesota import http_session
-    except ImportError:
-        # #1446 lands before #1323 by design. The workflow that enables the
-        # bounded sweep is held until #1323 rebases, supplies this shared limiter,
-        # and removes this temporary release-order fallback.
-        if target == "production":
-            raise RuntimeError(
-                "production vote reconciliation waits for the shared database "
-                "source limiter from #1323"
-            )
-        return requests.Session()
-    return RateLimitedSession(
-        http_session(),
-        DatabaseRequestLimiter(
-            engine,
-            interval_seconds=DEFAULT_SOURCE_REQUEST_INTERVAL_SECONDS,
-        ),
+    """Pace all saved-vote checks through the same cross-worker source limit."""
+    from alethical.pipeline.request_limits import (
+        DatabaseRequestLimiter,
+        RateLimitedSession,
     )
+    from alethical.pipeline.minnesota import http_session
+
+    return RateLimitedSession(http_session(), DatabaseRequestLimiter(engine))
 
 
 def parse_roll_call(value: str | None) -> tuple[int, int] | None:

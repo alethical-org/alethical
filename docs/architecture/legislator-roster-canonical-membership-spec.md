@@ -65,7 +65,8 @@ The `missing` list is a **warning only** — reconciliation never creates or rea
 Reconciliation targets one session (default `CURRENT_SESSION_SLUG`), mirroring the session parameterization precedent (#219).
 
 - **Every biennium (~every 2 years):** Minnesota sessions are two-year bienniums (`94-2025-regular` = 2025–2026; next is 2027–2028). When a new biennium begins, run the full roster ingest + reconcile against the new session slug. The PDF URL does not change.
-- **Mid-session removals (rare):** re-running the reconcile at any time catches a member who has dropped off the official roster. Low frequency, so it stays a manual/on-demand recipe rather than being wired into the continuous bill-sync (Oban) pipeline.
+- **Routine refreshes:** the sitewide refresh runner invokes the callable roster refresh in `alethical/pipeline/legislative_refresh.py`. It reads a complete roster PDF before making changes, refreshes profile details, reconciles membership, then refreshes committee assignments, service history and biographies. The reviewed current session code is explicit; a historical or unmapped session cannot receive the current roster.
+- **Incomplete sources:** the roster parser requires every 134 House and 67 Senate seat exactly once, either occupied or explicitly vacant. A missing or duplicate seat rejects the copy before anyone is removed. Committee assignments are collected before saved memberships are cleared; a missing or unreadable assignment block keeps the saved set for source review. Biography refreshes retain saved city, election and term values when a page supplies no readable replacement.
 
 ## Out of scope
 

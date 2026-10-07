@@ -24,6 +24,7 @@ from alethical.pipeline.minnesota import BillTarget, MinnesotaIngestionPipeline 
 from alethical.pipeline.sessions import (  # noqa: E402
     CURRENT_SESSION_SLUG,
     DEFAULT_SESSION_CODE,
+    session_definition,
 )
 
 DEFAULT_BILLS = [
@@ -184,7 +185,11 @@ def main() -> None:
     )
     ready_summary_request_ids: list[str] = []
     with Session(engine) as session:
-        pipeline = MinnesotaIngestionPipeline(session)
+        from alethical.pipeline.votes import rate_limited_source_session
+
+        pipeline = MinnesotaIngestionPipeline(
+            session, sess=rate_limited_source_session(engine, target=database_target)
+        )
         if args.merge_duplicate_legislators:
             report = pipeline.merge_duplicate_legislators(dry_run=args.dry_run)
             print(report.summary())
@@ -205,12 +210,14 @@ def main() -> None:
             return
         if not args.skip_legislators:
             stats = pipeline.ingest_roster(
-                limit=args.legislator_limit, fetch_profiles=not args.roster_only
+                limit=args.legislator_limit,
+                fetch_profiles=not args.roster_only,
+                session_code=args.session_code,
             )
             print("legislators", stats)
-            if args.reconcile_roster:
+            if args.reconcile_roster or args.legislator_limit is None:
                 report = pipeline.reconcile_current_members(
-                    args.session_slug, dry_run=args.dry_run
+                    session_definition(args.session_code).slug, dry_run=args.dry_run
                 )
                 print(report.summary())
         if not args.skip_bills:

@@ -381,6 +381,7 @@ def backfill(
     legislator: str | None,
     chamber: str | None,
     city_only: bool = False,
+    source_session=None,
 ) -> BackfillStats:
     stats = BackfillStats()
     rows = current_service_rows(
@@ -393,7 +394,7 @@ def backfill(
     if limit is not None:
         rows = rows[:limit]
 
-    sess = requests.Session()
+    sess = source_session or requests.Session()
     sess.headers.update({"User-Agent": USER_AGENT})
 
     for period, legislator_row, chamber_slug in rows:
@@ -472,12 +473,15 @@ def backfill(
                 stats.written += 1
                 continue
 
-            period.elected = parsed.elected
-            period.term = parsed.term
+            # A partial page cannot erase fields which were previously present.
+            if parsed.elected:
+                period.elected = parsed.elected
+            if parsed.term:
+                period.term = parsed.term
             # Only touch the city when LRL actually answered, so a transient LRL
             # fetch failure never wipes a previously-ingested value (elected/term
             # come from the member page, which already succeeded above).
-            if lrl_ok:
+            if lrl_ok and city:
                 period.represented_city = city
             if parsed.biography:
                 legislator_row.biography = parsed.biography

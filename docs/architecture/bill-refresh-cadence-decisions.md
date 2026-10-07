@@ -195,3 +195,11 @@ pass from [#1323](https://github.com/alethical-org/alethical/issues/1323) to exi
 - **The 95th-percentile time to refresh one bill.** The 4-hour session interval assumes a full
   pass finishes well inside an hour. If it does not, the interval has to grow or the pass has to
   narrow to bills with recent activity.
+
+## Callable refresh operations (October 2026)
+
+`alethical/pipeline/legislative_refresh.py` supplies bounded bill refreshes, missing and corrected vote collection, and complete roster refreshes to the sitewide scheduler. `scripts/refresh_legislative_records.py` exposes the same operations with an explicit database target and reviewed session code. Bill chunks default to 100 records, return a continuation key, and report whether the inventory pass is complete. A continuation is not a completed freshness check. Rejected or failed bills retain their last accepted values and prevent the runner from reporting a successful chunk.
+
+Requests reserve a shared per-host slot in `source_request_limits` before accessing the source. The database transaction ends before waiting or downloading. HTTP 429 and 503 responses extend the shared cooldown. Discovery carries the official bill URLs into each chunk, avoiding a duplicate search request per bill. Official HTTP validators allow an unchanged bill body to return 304 and reuse its matching saved copy. Sources without validators still receive a full body request; an unchanged XML fingerprint alone does not establish that same-version HTML is unchanged.
+
+Accepted bill text and its search rows commit together. Changed-text embeddings remain event-triggered and use the approved ingestion budget; these operations never start paid summary generation. The cadence helper takes reviewed sitting intervals, not biennium boundaries, and falls back to weekly when those intervals are unavailable. Unknown session codes require mapping review before import.

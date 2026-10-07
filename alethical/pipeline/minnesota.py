@@ -116,6 +116,8 @@ class BillTarget:
     chamber: str
     bill_number: str
     session_code: str = DEFAULT_SESSION_CODE
+    status_xml_uri: str | None = None
+    latest_text_html_uri: str | None = None
 
 
 @dataclass(frozen=True)
@@ -206,6 +208,8 @@ class BillSearchResult:
             chamber=self.chamber,
             bill_number=str(self.file_number),
             session_code=self.session_code,
+            status_xml_uri=self.status_xml_uri,
+            latest_text_html_uri=self.latest_text_html_uri,
         )
 
 
@@ -1894,9 +1898,16 @@ def parse_member_profile(html_text: str, source_url: str) -> dict[str, object]:
 
 
 class MinnesotaIngestionPipeline:
-    def __init__(self, db: Session, sess: requests.Session | None = None) -> None:
+    def __init__(
+        self,
+        db: Session,
+        sess: requests.Session | None = None,
+        *,
+        conditional_bill_text: bool = False,
+    ) -> None:
         self.db = db
         self.http = sess or http_session()
+        self.conditional_bill_text = conditional_bill_text
 
     def advisory_xact_lock(self, key: int) -> None:
         self.db.execute(text("select pg_advisory_xact_lock(:key)"), {"key": key})
@@ -2545,10 +2556,19 @@ class MinnesotaIngestionPipeline:
         return legislator
 
     def ingest_roster(
-        self, *, limit: int | None = None, fetch_profiles: bool = True
+        self,
+        *,
+        limit: int | None = None,
+        fetch_profiles: bool = True,
+        session_code: str = DEFAULT_SESSION_CODE,
     ) -> dict[str, Any]:
-        refs = self.seed_reference_data()
-        run = self.start_run("legislator_roster", CURRENT_SESSION_SLUG)
+        definition = session_definition(session_code)
+        if not definition.is_current:
+            raise ValueError(
+                "The live roster can only populate the reviewed current session"
+            )
+        refs = self.seed_reference_data(session_code)
+        run = self.start_run("legislator_roster", definition.slug)
         roster_url = "https://www.leg.mn.gov/leg/legislators"
         roster_html = fetch_text(self.http, roster_url)
         self.record_artifact(
@@ -2573,7 +2593,12 @@ class MinnesotaIngestionPipeline:
                     profile_html,
                     source_key=profile_url,
                 )
-                profile.update(parse_member_profile(profile_html, profile_url))
+                parsed_profile = parse_member_profile(profile_html, profile_url)
+                if not parsed_profile.get("name") or not parsed_profile.get("district"):
+                    raise MinnesotaIngestionError(
+                        f"Incomplete member profile at {profile_url}; keeping the saved roster"
+                    )
+                profile.update(parsed_profile)
                 profile["image_url"] = member.get("image_url")
             self.ingest_member_profile(refs, profile)
             ingested += 1
@@ -2602,7 +2627,7 @@ class MinnesotaIngestionPipeline:
         warning. Idempotent and safe to re-run.
         """
         if roster_members is None:
-            roster_members = parse_roster_pdf(fetch_roster_pdf_text())
+            roster_members = parse_roster_pdf(fetch_roster_pdf_text(session=self.http))
 
         session = self.db.scalar(
             select(LegislativeSession).where(LegislativeSession.slug == session_slug)
@@ -2659,10 +2684,73 @@ class MinnesotaIngestionPipeline:
             dry_run=dry_run,
         )
 
+    def _fetch_bill_html(self, run: Any, url: str, bill_key: str) -> tuple[str, Any]:
+        """Use the state's validators, never a status XML guess, to reuse text.
+
+        A new version or a server without validators gets a full response. The
+        exact saved body is reused only after the source returns HTTP 304.
+        """
+        if not self.conditional_bill_text:
+            body = fetch_text(self.http, url)
+            return body, self.record_artifact(
+                run, ArtifactType.html, url, body, source_key=bill_key
+            )
+        prior = self.db.scalar(
+            select(SourceArtifact)
+            .where(
+                SourceArtifact.adapter == "minnesota_live",
+                SourceArtifact.source_url == url,
+                SourceArtifact.artifact_type == ArtifactType.html,
+            )
+            .order_by(SourceArtifact.updated_at.desc())
+            .limit(1)
+        )
+        metadata = prior.metadata_json if prior is not None else {}
+        headers: dict[str, str] = {}
+        body = metadata.get("conditional_body")
+        if isinstance(body, str) and content_hash(body) == prior.content_hash:
+            if metadata.get("etag"):
+                headers["If-None-Match"] = metadata["etag"]
+            elif metadata.get("last_modified"):
+                headers["If-Modified-Since"] = metadata["last_modified"]
+        response = self.http.get(url, headers=headers, timeout=TIMEOUT)
+        if response.status_code == 304:
+            if not headers or not isinstance(body, str):
+                raise MinnesotaIngestionError(
+                    "The source returned 304 without a saved matching bill text"
+                )
+            return body, prior
+        if response.status_code in {429, 500, 502, 503, 504}:
+            # Existing bounded retry path, still subject to shared source pacing.
+            body = fetch_text(self.http, url)
+            response_headers: dict[str, str] = {}
+        else:
+            response.raise_for_status()
+            body = response_text(response)
+            response_headers = dict(response.headers)
+        artifact = self.record_artifact(
+            run, ArtifactType.html, url, body, source_key=bill_key
+        )
+        artifact.metadata_json = {
+            **(artifact.metadata_json or {}),
+            "conditional_body": body,
+            "etag": response_headers.get("ETag") or response_headers.get("etag"),
+            "last_modified": response_headers.get("Last-Modified")
+            or response_headers.get("last-modified"),
+        }
+        return body, artifact
+
     def _fetch_bill_source(self, target: BillTarget, run: Any) -> BillSourcePayload:
         """Fetch and parse all 3 official responses for one bill."""
         try:
-            discovery = discover_bill(self.http, target)
+            discovery = (
+                {
+                    "status_xml_uri": target.status_xml_uri,
+                    "latest_text_html_uri": target.latest_text_html_uri,
+                }
+                if target.status_xml_uri and target.latest_text_html_uri
+                else discover_bill(self.http, target)
+            )
             xml_text = fetch_text(self.http, discovery["status_xml_uri"])
             xml_artifact = self.record_artifact(
                 run, ArtifactType.xml, discovery["status_xml_uri"], xml_text
@@ -2675,13 +2763,8 @@ class MinnesotaIngestionPipeline:
                 latest_version_payload.get("html_uri")
                 or discovery["latest_text_html_uri"]
             )
-            latest_html_text = fetch_text(self.http, latest_html_url)
-            html_artifact = self.record_artifact(
-                run,
-                ArtifactType.html,
-                latest_html_url,
-                latest_html_text,
-                source_key=str(canonical["bill_key"]),
+            latest_html_text, html_artifact = self._fetch_bill_html(
+                run, latest_html_url, str(canonical["bill_key"])
             )
             bill_text = parse_bill_text_html(latest_html_text, latest_html_url)
         except (ET.ParseError, ValueError) as exc:
