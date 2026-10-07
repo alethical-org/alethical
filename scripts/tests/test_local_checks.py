@@ -51,6 +51,7 @@ class LocalChecksTest(unittest.TestCase):
             ("justfile", {"backend", "frontend"}),
             (".githooks/pre-push", {"backend", "frontend"}),
             (".github/check-paths.json", {"backend", "frontend"}),
+            (".github/actions/prepare-browser-install/action.yml", {"frontend"}),
             ("README.md", set()),
         ]:
             with self.subTest(filename=filename):

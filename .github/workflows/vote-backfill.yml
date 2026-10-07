@@ -13,6 +13,9 @@ on:
     # 09:00 UTC daily (~3-4am America/Chicago — off-peak for the MN .gov sources)
     - cron: "0 9 * * *"
 
+permissions:
+  contents: read
+
 concurrency:
   group: production-vote-backfill
   cancel-in-progress: false

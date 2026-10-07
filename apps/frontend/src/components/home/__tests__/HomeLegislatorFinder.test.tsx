@@ -53,7 +53,7 @@ describe('homepage legislator finder form', () => {
     expect(HOME_FINDER_HELP).toBe(
       "Enter a full street address — a city or ZIP code alone can't identify your legislators",
     );
-    expect(html).toContain(HOME_FINDER_HELP.replace("'", '&#x27;'));
+    expect(html).toContain(HOME_FINDER_HELP.replaceAll("'", '&#x27;'));
     expect(html).not.toContain('legislators.</div>');
   });
 

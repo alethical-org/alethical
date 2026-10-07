@@ -76,10 +76,9 @@ worktree-hold path owner reason:
 worktree-restore id destination:
   python3 scripts/worktree_cleanup.py restore "$1" "$2"
 
-# Read-only setup check. `just doctor ios` and `just doctor android` also check
-# the phone-only tool needed for that target.
-doctor target="web":
-  python3 scripts/check_local_env.py {{target}}
+# Read-only setup check for the supported desktop and phone browser client.
+doctor:
+  python3 scripts/check_local_env.py
 
 # Pinned to the same ruff CI runs (.github/workflows/ci.yml). Unpinned, `uvx`
 # resolves the newest release: today that is ruff 0.16, which reports 778 findings

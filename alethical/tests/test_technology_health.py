@@ -248,84 +248,39 @@ def test_braces_finding_requires_the_exact_installed_repair() -> None:
     ) == ["other (low)"]
 
 
-def source_map_advisory() -> dict:
-    return {
-        "github_advisory_id": check_technology_health.SOURCE_MAP_ADVISORY,
-        "module_name": "source-map-js",
-        "severity": "high",
-        "vulnerable_versions": ">=1.0.0 <1.2.2",
-        "patched_versions": ">=1.2.2",
-        "findings": [
-            {
-                "version": "1.2.1",
-                "paths": [check_technology_health.SOURCE_MAP_TEST_PATH],
+def test_source_map_old_version_has_no_local_repair_exception() -> None:
+    report = javascript_report(
+        {
+            "source-map": {
+                "github_advisory_id": "GHSA-68fv-2mgg-jv7q",
+                "module_name": "source-map-js",
+                "severity": "high",
+                "vulnerable_versions": ">=1.0.0 <1.2.2",
+                "patched_versions": ">=1.2.2",
+                "findings": [
+                    {
+                        "version": "1.2.1",
+                        "paths": ["apps__frontend>jsdom>css-tree>source-map-js"],
+                    }
+                ],
             }
-        ],
-    }
-
-
-def test_source_map_backport_requires_exact_repair_without_calendar_bypass() -> None:
-    report = javascript_report({"source-map": source_map_advisory()})
+        }
+    )
     assert check_technology_health.javascript_audit_problems(
-        report, today=date(2026, 10, 6)
+        report, forge_repaired=True, braces_repaired=True
     ) == ["GHSA-68fv-2mgg-jv7q (high)"]
-    assert (
-        check_technology_health.javascript_audit_problems(
-            report, today=date(2026, 10, 6), source_map_repaired=True
-        )
-        == []
-    )
-    assert (
-        check_technology_health.javascript_audit_problems(
-            report, today=date(2026, 10, 9), source_map_repaired=True
-        )
-        == []
-    )
-    report["advisories"]["other"] = {"severity": "low"}
-    assert check_technology_health.javascript_audit_problems(
-        report, today=date(2026, 10, 6), source_map_repaired=True
-    ) == ["other (low)"]
-
-
-@pytest.mark.parametrize(
-    "change",
-    ["id", "module", "version", "path", "fixed", "range", "severity", "findings"],
-)
-def test_source_map_backport_cannot_accept_changed_findings(change: str) -> None:
-    advisory = source_map_advisory()
-    if change == "id":
-        advisory["github_advisory_id"] = "GHSA-other"
-    elif change == "module":
-        advisory["module_name"] = "other"
-    elif change == "version":
-        advisory["findings"][0]["version"] = "1.2.0"
-    elif change == "path":
-        advisory["findings"][0]["paths"].append("apps__frontend>source-map-js")
-    elif change == "fixed":
-        advisory["patched_versions"] = ">=1.2.3"
-    elif change == "range":
-        advisory["vulnerable_versions"] = "<1.2.3"
-    elif change == "severity":
-        advisory["severity"] = "critical"
-    else:
-        advisory["findings"].append({"version": "1.2.1", "paths": ["other"]})
-    assert check_technology_health.javascript_audit_problems(
-        javascript_report({"source-map": advisory}),
-        today=date(2026, 10, 6),
-        source_map_repaired=True,
-    )
 
 
 @pytest.mark.parametrize("failure", ["install", "repair", "timeout"])
-def test_source_map_backport_install_or_proof_failure_blocks_release(
+def test_source_map_install_or_behavior_failure_blocks_release(
     monkeypatch, failure
 ) -> None:
     def run(command, root):
         if command == ["pnpm", "audit", "--json"]:
             return subprocess.CompletedProcess(
                 command,
-                1,
-                json.dumps(javascript_report({"source-map": source_map_advisory()})),
+                0,
+                json.dumps(javascript_report({})),
                 "",
             )
         if command[0] == "uvx":
@@ -348,8 +303,12 @@ def test_source_map_backport_install_or_proof_failure_blocks_release(
 
     monkeypatch.setattr(check_technology_health, "_run", run)
     problems = check_technology_health.run_security_audits(ROOT)
-    assert "GHSA-68fv-2mgg-jv7q (high)" in problems
-    assert any("repair" in problem for problem in problems)
+    expected = (
+        "The JavaScript security repair installation failed"
+        if failure == "install"
+        else "The installed source-map-js security checks did not pass"
+    )
+    assert expected in problems
 
 
 @pytest.mark.parametrize(
@@ -507,6 +466,7 @@ def test_security_scan_uses_every_locked_python_group_without_installing_package
     monkeypatch,
 ) -> None:
     commands = []
+    scanned = []
 
     def run(command, root):
         commands.append(command)
@@ -520,9 +480,9 @@ def test_security_scan_uses_every_locked_python_group_without_installing_package
                     )
                 ]
             }
-            assert "colorama==" in requirements
-            assert "httpx2-jsfetch==" in requirements
-            assert "ruff==" in requirements
+            scanned.extend(
+                tuple(line.split("==")) for line in requirements.splitlines()
+            )
             assert ";" not in requirements
         else:
             result = javascript_report()
@@ -530,6 +490,12 @@ def test_security_scan_uses_every_locked_python_group_without_installing_package
 
     monkeypatch.setattr(check_technology_health, "_run", run)
     assert check_technology_health.run_security_audits(ROOT) == []
+    _, research, _ = check_technology_health.extra_security_inventory(ROOT)
+    assert (
+        set(scanned)
+        == set(check_technology_health.locked_python_packages(ROOT)) | research
+    )
+    assert any(name == "pip" for name, _ in scanned)
     # A clean runner may have a newer patch than .python-version. Offline lock
     # validation must use the interpreter already running this security check.
     assert commands[0] == [
@@ -547,6 +513,11 @@ def test_security_scan_uses_every_locked_python_group_without_installing_package
 def test_alternate_python_versions_are_scanned_in_separate_complete_batches(
     monkeypatch, tmp_path: Path
 ) -> None:
+    monkeypatch.setattr(
+        check_technology_health,
+        "extra_security_inventory",
+        lambda root: ([], set(), []),
+    )
     (tmp_path / "pyproject.toml").write_text('[project]\nname = "example"\n')
     (tmp_path / "uv.lock").write_text("""
 version = 1
@@ -730,3 +701,127 @@ def test_monthly_workflow_uses_only_free_standard_checks() -> None:
     assert "openai" not in workflow.lower()
     assert "anthropic" not in workflow.lower()
     assert "larger-runner" not in workflow
+
+
+def tracked_inventory_fixture(tmp_path: Path, files: dict[str, str]) -> None:
+    subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=True)
+    for path, content in files.items():
+        target = tmp_path / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content)
+    subprocess.run(["git", "-C", str(tmp_path), "add", "--", *files], check=True)
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"],
+)
+def test_phone_publisher_dependency_cannot_return(tmp_path, field) -> None:
+    tracked_inventory_fixture(
+        tmp_path, {"package.json": json.dumps({field: {"eas-cli": "21.6.0"}})}
+    )
+    problems, _, _ = check_technology_health.extra_security_inventory(tmp_path)
+    assert problems == [
+        "package.json: eas-cli phone publishing is paused; remove its active dependency"
+    ]
+
+
+def test_phone_publisher_alias_cannot_hide_dependency(tmp_path) -> None:
+    tracked_inventory_fixture(
+        tmp_path,
+        {
+            "tools/package.json": '{"devDependencies":{"publisher":"npm:eas-cli@21.6.0"}}'
+        },
+    )
+    assert check_technology_health.extra_security_inventory(tmp_path)[0]
+
+
+def test_inventory_ignores_untracked_worktrees_and_deleted_manifest(tmp_path) -> None:
+    tracked_inventory_fixture(
+        tmp_path,
+        {
+            "package.json": '{"dependencies":{"expo":"57.0.0","react-native":"0.85.0"}}',
+            "tools/package.json": '{"dependencies":{"eas-cli":"21.6.0"}}',
+        },
+    )
+    (tmp_path / "tools/package.json").unlink()
+    for path in (
+        "node_modules/old/package.json",
+        ".claude/worktrees/other/package.json",
+    ):
+        target = tmp_path / path
+        target.parent.mkdir(parents=True)
+        target.write_text('{"dependencies":{"eas-cli":"21.6.0"}}')
+    assert check_technology_health.extra_security_inventory(tmp_path) == ([], set(), [])
+
+
+def test_research_registry_pins_are_inventoried_without_installing_git_sources(
+    tmp_path,
+) -> None:
+    tracked_inventory_fixture(
+        tmp_path,
+        {
+            "package.json": "{}",
+            "docs/"
+            + "research/evidence/example/requirements.txt": "# replay tools\npip==25.3\nExample_Name==1.2.3\ntool @ git+https://github.com/example/tool.git@"
+            + "a" * 40
+            + "\n",
+            "docs/" + "research/evidence/example/old-results.json": '{"pip":"25.3"}',
+        },
+    )
+    problems, packages, manual = check_technology_health.extra_security_inventory(
+        tmp_path
+    )
+    assert problems == []
+    assert packages == {("pip", "25.3"), ("example-name", "1.2.3")}
+    assert len(manual) == 1
+    assert "outside the registry audit and requires manual source review" in manual[0]
+
+
+@pytest.mark.parametrize(
+    "requirement",
+    [
+        "pip>=25.3",
+        "-r other.txt",
+        "tool @ git+https://github.com/example/tool.git@main",
+        "tool @ https://example.com/tool.whl",
+        "pip==25.3; os_name == 'nt'",
+    ],
+)
+def test_unsupported_research_inventory_fails_closed(tmp_path, requirement) -> None:
+    tracked_inventory_fixture(
+        tmp_path,
+        {
+            "package.json": "{}",
+            "docs/" + "research/evidence/example/requirements.txt": requirement,
+        },
+    )
+    with pytest.raises(ValueError, match="unsupported research requirement"):
+        check_technology_health.extra_security_inventory(tmp_path)
+
+
+@pytest.mark.parametrize("manifest", ["{invalid", "[]", '{"dependencies": []}'])
+def test_unreadable_javascript_inventory_fails_closed(tmp_path, manifest) -> None:
+    tracked_inventory_fixture(tmp_path, {"package.json": manifest})
+    with pytest.raises(ValueError):
+        check_technology_health.extra_security_inventory(tmp_path)
+
+
+def test_inventory_cannot_read_a_symlink_outside_checkout(tmp_path) -> None:
+    tracked_inventory_fixture(tmp_path, {"package.json": "{}"})
+    (tmp_path / "package.json").unlink()
+    (tmp_path / "package.json").symlink_to("/etc/hosts")
+    with pytest.raises(ValueError, match="unsafe path"):
+        check_technology_health.extra_security_inventory(tmp_path)
+
+
+def test_git_inventory_failure_blocks_security_scan(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(
+        check_technology_health,
+        "_run",
+        lambda command, root: subprocess.CompletedProcess(command, 1, "", ""),
+    )
+    assert (
+        "The tracked JavaScript/research security inventory is unreadable or unsupported"
+        in check_technology_health.run_security_audits(tmp_path)
+    )

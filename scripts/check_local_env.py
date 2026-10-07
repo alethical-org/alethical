@@ -148,17 +148,6 @@ def effective_python(required: str, runner: Runner) -> list[str]:
     return [status("ok", f"Project Python {actual} (selected by uv)")]
 
 
-def optional_native_tools(target: str, runner: Runner) -> list[str]:
-    if target == "web":
-        return [
-            status("skip", "Xcode is only needed for iPhone work."),
-            status("skip", "Java is only needed for Android work."),
-        ]
-    if target == "ios":
-        return command_check("Xcode", ("xcodebuild", "-version"), runner)
-    return command_check("Java", ("java", "-version"), runner)
-
-
 def upload_hook_checks(repo: Path, runner: Runner) -> list[str]:
     """Report whether Git will run Alethical's current hooks in this worktree."""
     lines: list[str] = []
@@ -257,7 +246,7 @@ def upload_docker_checks(runner: Runner) -> list[str]:
     return lines
 
 
-def doctor(repo: Path, target: str = "web", runner: Runner = run) -> list[str]:
+def doctor(repo: Path, runner: Runner = run) -> list[str]:
     python, node, pnpm = project_requirements(repo)
     lines = [
         f"Alethical setup check for {repo.name}",
@@ -276,8 +265,6 @@ def doctor(repo: Path, target: str = "web", runner: Runner = run) -> list[str]:
     lines += upload_hook_checks(repo, runner)
     lines += ["", "Disposable upload-test database"]
     lines += upload_docker_checks(runner)
-    lines += ["", f"Optional tools for {target} work"]
-    lines += optional_native_tools(target, runner)
     gaps = sum(line.startswith("  [GAP]") for line in lines)
     lines += [
         "",
@@ -288,15 +275,8 @@ def doctor(repo: Path, target: str = "web", runner: Runner = run) -> list[str]:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "target",
-        nargs="?",
-        choices=("web", "ios", "android"),
-        default="web",
-        help="Check optional tools for web (default), ios, or android work.",
-    )
-    args = parser.parse_args(argv)
-    print("\n".join(doctor(REPO, args.target)))
+    parser.parse_args(argv)
+    print("\n".join(doctor(REPO)))
     return 0
 
 

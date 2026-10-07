@@ -180,14 +180,26 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 function visibleText(html: string): string {
   return html
     .replace(/<[^>]+>/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&#x27;/g, "'")
+    .replace(/&(?:amp|lt|gt|quot|#39|#x27);/g, (entity) => {
+      const decoded: Record<string, string> = {
+        '&amp;': '&',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&quot;': '"',
+        '&#39;': "'",
+        '&#x27;': "'",
+      };
+      return decoded[entity];
+    })
     .replace(/\s+/g, ' ')
     .trim();
 }
+
+it('reads escaped entity names as literal text rather than decoding them twice', () => {
+  expect(visibleText('<p>&amp;lt;script&amp;gt; &lt;literal&gt; &amp;quot;</p>')).toBe(
+    '&lt;script&gt; <literal> &quot;',
+  );
+});
 
 /**
  * Every string the app renders as a text of its own, decoded and trimmed. Membership

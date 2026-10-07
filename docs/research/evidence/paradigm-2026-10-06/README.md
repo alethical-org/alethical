@@ -10,10 +10,17 @@ This folder supports the parent research summary. It contains 5 bounded context 
 - fixtures/: tiny post-change inputs and their before/after patches, plus import-rule controls
 - outputs/: captured fixture results and selected historical result objects; 2 text searches have only their snapshot-folder prefix removed
 - evidence-manifest.json: hashes, sizes and descriptions of transformations
-- requirements.txt: exact installed package versions and public tools pinned to their tested Git revisions
+- requirements.txt: current reproduction packages and public tools pinned to their tested Git revisions
+- historical-environment.json: original measured package list and its original hash, retained as evidence rather than an install input
 - reproduce.py: creates a fresh scratch environment and repeats local runs
 
 Historical excerpts preserve captured object values. They are explicitly partial, and the original full-output hashes are recorded. No large source snapshots, vendor source trees or private pull request bodies are bundled. Expected fixture relationships were not supplied to the tools. The historical patches are already-corrected revisions with regression tests, so their results measure retrospective context coverage, not prediction of the original bugs.
+
+## Installer security correction, 7 October 2026
+
+The original measurements used pip 25.3. The current reproduction installs pip 26.2.0 before installing the research tools, addressing the installer warnings covered by [pip 26.2](https://pip.pypa.io/en/stable/news/#v26-2). The version is normalized to 26.2 by pip. Every other research package and tool revision stays pinned to the measured version. [historical-environment.json](historical-environment.json) preserves the original package list byte-for-byte as a JSON string, with its original byte count and SHA-256 hash. It is never read by the installer.
+
+The saved output, counts and timings still describe the 6 October run. Changing the installer does not turn those historical observations into measurements from the new environment. A new run records its own installed packages, outputs and timings in the scratch folder. The 7 October rerun completed with pip 26.2, a clean package-consistency check, matching counts for all 5 context cases, matching outputs for the 3 small context fixtures, and matching findings for the 5 import controls and 2 historical import scans. Timings from that rerun are not substituted for the original measurements.
 
 ## Repeat the comparison
 

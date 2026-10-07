@@ -1288,8 +1288,8 @@ describe('first-response page tags', () => {
     for (const href of hrefs) {
       expect(body).toContain(`<a href="${escapeHtml(href)}">`);
     }
-    expect(hrefs.filter((href) => href.includes('cfb.mn.gov'))).toHaveLength(8);
-    expect(hrefs.filter((href) => href.includes('revisor.mn.gov'))).toHaveLength(3);
+    expect(hrefs.filter((href) => new URL(href).hostname === 'cfb.mn.gov')).toHaveLength(8);
+    expect(hrefs.filter((href) => new URL(href).hostname === 'www.revisor.mn.gov')).toHaveLength(3);
 
     expect(guide.indexed).toBe(true);
     expect(headers.get('X-Robots-Tag')).toBeUndefined();

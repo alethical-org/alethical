@@ -481,8 +481,52 @@ class Checker:
                     org_row, "GitHub withheld two_factor_requirement_enabled"
                 )
 
+        self._check_github_codeql(repo_name, admin_headers)
         self._check_github_protection(repo_name, admin_headers)
         self._check_github_secrets(repo_name, admin_headers)
+
+    def _check_github_codeql(self, repo_name: str, headers: Mapping[str, str]) -> None:
+        row = self.row("GitHub repository", "CodeQL code scanning")
+        languages_text, separator, schedule_text = row.intended.partition("; schedule ")
+        expected_languages = _codes(languages_text)
+        expected_schedule = _codes(schedule_text)
+        if not separator or not expected_languages or len(expected_schedule) != 1:
+            self.unavailable(row, "documented CodeQL languages or schedule are missing")
+            return
+        response = self.cached_fetch(
+            "github-codeql-default-setup",
+            "GET",
+            f"{GITHUB_API}/repos/{repo_name}/code-scanning/default-setup",
+            headers,
+        )
+        config = self._json_object(response, row)
+        if config is None:
+            return
+        state = config.get("state")
+        if state not in ("configured", "not-configured"):
+            self.unavailable(row, "GitHub did not return a known CodeQL setup state")
+            return
+        if state == "not-configured":
+            self.record(row, not _intended_bool(row), "off")
+            return
+        languages = config.get("languages")
+        schedule = config.get("schedule")
+        if (
+            not isinstance(languages, list)
+            or not all(isinstance(language, str) for language in languages)
+            or "schedule" not in config
+            or (schedule is not None and not isinstance(schedule, str))
+        ):
+            self.unavailable(row, "GitHub did not return CodeQL languages and schedule")
+            return
+        self.record(
+            row,
+            _intended_bool(row)
+            and set(expected_languages).issubset(languages)
+            and schedule == expected_schedule[0],
+            f"on; languages {', '.join(sorted(set(languages)))}; "
+            f"schedule {schedule or 'none'}",
+        )
 
     def _check_github_protection(
         self, repo_name: str, headers: Mapping[str, str]

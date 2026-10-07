@@ -461,8 +461,9 @@ failed-release watch above compares deployment state instead of fetching the sit
 
 ## Related releases
 
-The web app is the shipped client. [iOS release](ios-release.md) owns simulator,
-TestFlight, and future native iOS steps.
+Desktop and phone browsers are the supported clients. Native iOS and Android
+publishing is paused; [native restart notes](ios-release.md) retain the recovery
+point and acceptance requirements for explicitly approved future work.
 
 ## Preserve Site metrics history during rollback
 

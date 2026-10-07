@@ -33,7 +33,9 @@ it finds bills by keyword or bill number. If you have a real *question*
   (or even just `2904`) is treated as looking up that bill by its number, not as
   keywords, so you get only that bill (`2904` on its own returns both the House and
   Senate bills with that number). You stay on the results list and tap the card to
-  open it.
+  open it. Spaces around the number and leading zeros are accepted. A value above
+  the database's number limit (2,147,483,647) is treated as search text.
+  Long runs of zeros or spaces must not stall number matching.
 - **Best matches float to the top** when you've searched — the closest, most relevant
   bills come first, unless you change the order with the "sorted by" control below.
 

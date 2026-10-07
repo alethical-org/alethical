@@ -1,89 +1,56 @@
-# iOS Release Workflow
+# Native app publishing pause and restart
 
-> **Not shipped.** The web app is the client that ships today (see `docs/product-onboarding/product-scope.md` § Frontend Scope).
-> This workflow covers the native iOS client ([#91](https://github.com/alethical-org/alethical/issues/91), not built yet) plus the simulator/TestFlight QA that works today. The web app is what ships now.
+Native iOS and Android publishing is paused. Desktop and phone browsers are the
+supported clients. [Issue 91](https://github.com/alethical-org/alethical/issues/91)
+remains the future native-app work item; restarting native work requires Eugene's
+explicit approval. There is no promise to keep native builds working during the pause.
 
-The frontend is an Expo React Native app in `apps/frontend`. iOS builds should stay Expo-managed unless a future native customization requires committing an `ios/` directory.
+## What the pause removes
 
-Phone publishing tools have their own optional install in `tools/native-release`. Ordinary website setup does not install them. The separate [native release tools check](../../.github/workflows/native-release-tools.yml) runs when those tools or the phone build settings change.
+The separate phone publishing package list and lockfile, native release workflow,
+native-only dependency updates, EAS build settings, iOS publishing commands and
+Android build helpers are retired. Ordinary website setup, tests and releases
+must not install or maintain those tools.
 
-Android can be shared as APKs, but iOS does not have an equivalent general-purpose sideloading path. The normal sharing path is TestFlight through App Store Connect. Until Apple Developer Program access is available, use an iOS Simulator build for local QA.
+Expo and React Native still build the website. Their shared packages, app settings,
+brand assets and browser security checks remain supported. Existing app identifiers
+and native runtime branches are retained as recovery context, not tested native
+release support. This pause does not cancel accounts, change billing, remove
+credentials or change sign-in return addresses.
 
-## One-time local setup
+## Recovery point
 
-Install the local toolchain on a Mac:
+The full previous release instructions and tooling remain in
+[commit fb435d30](https://github.com/alethical-org/alethical/commit/fb435d3062fcf3498caad55296103017ff9e2c43).
+The [previous iOS release instructions](https://github.com/alethical-org/alethical/blob/fb435d3062fcf3498caad55296103017ff9e2c43/docs/operations/ios-release.md)
+and [previous Android prototype instructions](https://github.com/alethical-org/alethical/blob/fb435d3062fcf3498caad55296103017ff9e2c43/docs/operations/android-prototype-handoff.md)
+are historical references. Their package versions and service settings must be
+reviewed before reuse; restoring an old lockfile is not a security review.
 
-```bash
-xcode-select --install
-```
+## Restart requirements
 
-Install Xcode from the Mac App Store, open it once, accept its license, and install at least one iOS Simulator runtime from Xcode > Settings > Platforms.
-
-Install JavaScript dependencies from the repo root:
-
-```bash
-corepack enable
-corepack prepare pnpm@10.33.0 --activate
-pnpm install --frozen-lockfile
-pnpm --dir tools/native-release install --frozen-lockfile
-```
-
-Log in to Expo before the first EAS build:
-
-```bash
-pnpm --dir apps/frontend run eas:login
-```
-
-If this Expo project has not been linked to EAS yet, initialize it once:
-
-```bash
-pnpm --dir apps/frontend run eas:init
-```
-
-That command may add an Expo project id to `apps/frontend/app.json`. Commit that id after verifying it belongs to the correct Expo account.
-
-## Simulator QA
-
-Simulator builds do not require TestFlight, an iPhone, or Apple Developer Program membership.
-
-Create a simulator build:
-
-```bash
-pnpm --dir apps/frontend run build:ios:simulator
-```
-
-Install and run the build on an available iOS Simulator:
-
-```bash
-pnpm --dir apps/frontend run ios:simulator
-```
-
-Before QA, confirm the backend target is correct. For local development, `.env` should expose:
-
-```bash
-EXPO_PUBLIC_API_URL=http://localhost:8000
-EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-```
-
-EAS simulator, preview, and TestFlight builds are configured in `apps/frontend/eas.json` to use production services:
-
-```bash
-EXPO_PUBLIC_FRONTEND_URL=https://www.alethical.com
-EXPO_PUBLIC_API_URL=https://api.alethical.com
-EXPO_PUBLIC_SUPABASE_URL=https://naakzorbkqqgbsreulqi.supabase.co
-EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-```
-
-These values are embedded at build time. Rebuild the iOS artifact after changing them.
-
-Smoke test these flows in the simulator:
-
-- App launches as Alethical and reaches the main tabs.
-- Search, bill details, legislator details, tracked bills, chat, and account screens render.
-- Auth starts in the browser and returns to `alethical://auth/callback`.
-- API calls point at the intended backend environment.
-- Text remains readable on small and large simulated iPhones.
+1. Obtain explicit approval to resume native work through
+   [issue 91](https://github.com/alethical-org/alethical/issues/91), with a release
+   owner and intended iOS or Android scope.
+2. Read the recovery point in a separate working folder. Restore only the native
+   tooling needed for the approved work, leaving the current website intact.
+3. Review current Expo, Apple and Google requirements. Choose supported package
+   versions, rebuild the native-only lockfile, and resolve security findings before
+   restoring native dependency updates and native release checks. Update the
+   paused-native tool guard as part of that reviewed restart.
+4. Inventory the actual Expo project, Apple/Google accounts, billing, credentials,
+   automatic build triggers and saved sign-in return addresses. Preserve browser
+   sign-in, get approval for new spending, and do not remove shared credentials.
+5. Recheck the intended service addresses and public environment values. Recover
+   the iOS bundle identifier and Android application identifier from the retained
+   app settings, and confirm account ownership before building or submitting.
+6. Run the current website tests, security checks, production web build and desktop
+   and phone browser checks. Native restoration must not add native installation
+   or release requirements to the browser delivery path.
+7. Build and test the approved native target using current tools. Test navigation,
+   readable text, API connections, account persistence and saved tracking. Android
+   emulator networking and device networking need separate checks. Distribution,
+   invitations and paid builds retain their own approval and safety requirements.
 
 ## Native account and tracking acceptance checks
 
@@ -99,44 +66,3 @@ prove a return address is allowed.
 - Sign out, close the app, and reopen it. Confirm the signed-out state remains.
 - With the same designated test account on web and native, track and untrack a bill
   in each client. Refresh the other client and confirm its saved list matches.
-
-## TestFlight sharing
-
-TestFlight requires paid Apple Developer Program membership and App Store Connect access.
-
-One-time Apple setup:
-
-1. Enroll in the Apple Developer Program.
-2. Create an App Store Connect app for bundle id `com.alethical.app`.
-3. Ensure the Expo account used by EAS has access to the Apple team.
-4. In Supabase Auth redirect URLs, keep `alethical://auth/callback` enabled for native auth.
-
-Build an App Store distribution artifact:
-
-```bash
-pnpm --dir apps/frontend run build:ios:testflight
-```
-
-Submit the latest production build to App Store Connect:
-
-```bash
-pnpm --dir apps/frontend run submit:ios:testflight
-```
-
-After Apple finishes processing the build, open App Store Connect > Alethical > TestFlight, fill in beta test information, and invite testers. Internal testers can usually access builds faster; external tester groups may require Apple beta review.
-
-## Ad hoc preview builds
-
-The `preview` EAS profile is available for known-device internal distribution:
-
-```bash
-pnpm --dir apps/frontend run build:ios:preview
-```
-
-Use this only when TestFlight is not appropriate. Ad hoc iOS builds are restricted to registered device UDIDs, so a new build is usually needed when a new tester device is added.
-
-## Versioning
-
-`apps/frontend/app.json` owns the public app version. EAS owns iOS build number increments through `autoIncrement` on the production profile, which prevents TestFlight upload collisions.
-
-When preparing a user-visible release, update `expo.version` in `apps/frontend/app.json`, then build and submit with the production profile.

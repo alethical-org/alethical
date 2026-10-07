@@ -151,28 +151,26 @@ updates:
     labels:
       - frontend
 
-  # Phone publishing tools have their own lockfile, outside the web workspace.
-  # Watch it without adding those packages to ordinary website installs.
-  - package-ecosystem: npm
-    directory: "/tools/native-release"
+  # Research replays install these packages too; the release security check
+  # audits their exact registry pins alongside the main Python lockfile.
+  - package-ecosystem: pip
+    directory: "/docs/research/evidence/paradigm-2026-10-06"
     schedule:
       interval: monthly
     groups:
-      native-release-tools:
+      research-dependencies:
         update-types:
           - "minor"
           - "patch"
         patterns:
           - "*"
-      native-release-security:
+      research-security:
         applies-to: security-updates
         patterns:
           - "*"
     open-pull-requests-limit: 2
-    commit-message:
-      prefix: chore
     labels:
-      - frontend
+      - dependencies
 
   # Container images sit outside Python and JavaScript package files. Without
   # these 2 entries, their security and support updates stay invisible.
