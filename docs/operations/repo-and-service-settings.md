@@ -1,5 +1,7 @@
 # Repo and service settings
 
+<!-- describes: scripts/check_hosted_service_settings.py, scripts/supabase_oauth_state.mjs, .github/workflows/hosted-service-settings.yml -->
+
 This file is the source of truth for Alethical's GitHub, Vercel, Railway, and
 Supabase settings outside the repository. The free read-only check in
 `.github/workflows/hosted-service-settings.yml` reads these tables directly and
@@ -226,6 +228,22 @@ refresh token after every use, so the workflow encrypts each replacement with th
 client secret and keeps 2 ciphertext-only GitHub Actions artifacts for 90 days. Runs wait
 for the prior run. Only artifacts made by this trusted workflow can be restored, and a
 missing, expired, corrupt, or unsaved replacement fails the check.
+
+Failures identify whether access renewal or the settings read failed, without printing
+response bodies or credentials. An HTTP error during renewal means the settings were
+not read; it does not establish changed settings or broken reader sign-in. A settings
+read failure still saves any successfully renewed grant through the existing encrypted
+copies. Never retry renewal inside the checker: a lost response may already have consumed
+the rotating grant. Investigate the failed stage and retained copies before using the
+serialized workflow to rerun it.
+
+On 6 October 2026, [the audit](https://github.com/alethical-org/alethical/actions/runs/37484276915)
+received HTTP 404 during renewal and saved no replacement. On 7 October,
+[an unchanged rerun](https://github.com/alethical-org/alethical/actions/runs/37645269479)
+matched all 18 sign-in settings and saved both encrypted replacements. The provider's
+internal reason for the earlier response is unknown; no account or setting change was
+needed. [Issue 2495](https://github.com/alethical-org/alethical/issues/2495) retains the
+investigation and correction to the original failure description.
 
 | Setting | Intended | Why | Automated check |
 | --- | --- | --- | --- |
