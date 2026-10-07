@@ -43,6 +43,7 @@ reviewer too, and its switch is off until its limits are approved.
 | Website release (Vercel Git connection) | A relevant commit reaches `main` | Builds and releases the web app | No paid AI call; build and hosting usage stays on the existing Vercel account |
 | Unsaved-work backup (`com.alethical.wip-backup`, `com.commercialdeals.wip-backup`) | Every 5 minutes after each project's profile is installed on Eugene's Mac | Saves each working folder's staged and on-disk source separately, with private outside bundles and separate project storage | No outside service or paid AI call |
 | Working-folder inventory and released-folder cleanup (`com.alethical.worktree-cleanup`, `com.commercialdeals.worktree-cleanup`) | At login, when an owner releases a folder, and daily to refresh the report and retry held removals | Reports every registered folder, saves independent recovery copies, then removes admitted clean delivered folders only after every owner releases them and no program still uses them; persistent preview holds remain, and Codex-managed folders use the app's archive tool | No outside service charge or paid AI call; reads GitHub change status |
+| [Local coding job activity](agent-job-outcomes.md) | Supported Claude Code and Codex events after installation, host review and explicit job registration | Saves private event metadata against the existing job; a reply ending never finishes a job or starts another turn | No outside call or paid AI call |
 
 The 17 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
 Time and Central Daylight Time, so their local hour changes by 1 during the year.
@@ -63,7 +64,7 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 92 runnable files. GitHub jobs call 34 of them
+The `scripts/` folder has 95 runnable files. GitHub jobs call 34 of them
 directly and 3 document checks through `local_checks.py`. The 4 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`, which uses `worktree_inventory.py`
 for the complete folder report; the older shell command
@@ -83,7 +84,9 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Prepare a chosen public research email; live delivery is separately gated off | `send_unconcealed.py` |
 | Test reader comments with a disposable database and all outgoing mail disabled | `comments_local_qa.py` |
 | Review campaign-finance records | `recompute_lobbying_published_figures.py`, `record_disclosure_statement_readings.py`, `review_legislator_campaign_committees.py`, `show_party_and_caucus_money.py` |
-| Measure private agent job outcomes | `agent_job_outcomes.py` |
+| Register approved jobs, record private activity and report outcomes | `agent_job_outcomes.py`, `agent_job_events.py` |
+| Read current completion sources and retain a private receipt | `check_agent_job_completion.py` |
+| Install pinned local coding hooks while preserving other settings | `install_agent_job_hooks.py` |
 | Recover 1 proven missed website release with saved evidence | `website_release_recovery.py` |
 | Measure AI answers and search | `answer_eval.py`, `retrieval_eval.py`, `try_queries.py`, `validate_query_rubric.py` |
 | Compare printed-name search offline without paid calls or live changes | `benchmark_campaign_finance_name_search.py` |
