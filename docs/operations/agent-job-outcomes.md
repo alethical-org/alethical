@@ -138,7 +138,9 @@ python3 scripts/agent_job_outcomes.py update \
   --input /absolute/private/job.json
 ```
 
-Use the exact saved identity, title and start time. Each update adds a revision;
+Copy `agent`, `title` and `started_at` from that job's latest snapshot in
+`<state-dir>/jobs.jsonl`; these supply `SAVED_AGENT_ID` and the unchanged job details.
+Each update adds a revision;
 reports use the latest revision. Unknown measures remain `null`. Use `blocked`,
 `paused` or `failed` when that is what happened. A failed job has a finish time;
 paused and blocked jobs remain unfinished. A planned job has no start time.
@@ -280,6 +282,11 @@ marked eligible. It includes failed, blocked, paused and unfinished jobs rather
 than selecting only successes. Existing jobs and installation smoke tests do not
 count. Setup does not launch work; the next ordinary user-approved jobs fill the
 trial. Do not start new agents or paid schedules to manufacture observations.
+
+After each member job's outcome is saved, its owning coding agent reads
+`trial-report`. Once 10 jobs are enrolled, that agent reviews the whole group,
+including any unfinished work, before recommending broader powers. This is part
+of the ordinary authorized job, not a scheduled AI run.
 
 Review failures, waits, repeat work, human help, unknown measures and retained
 evidence before proposing wider unattended work. Ten jobs are a small operational
