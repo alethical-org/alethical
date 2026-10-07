@@ -36,9 +36,10 @@ It reads required versions from `.python-version`, `docker-compose.yml`, and
 `pre-commit` and `pre-push` files and can run, Docker uses a local connection that
 responds, and `pgvector/pgvector:pg17` is already cached. It reports problems
 without installing helpers, starting Docker, downloading an image, or blocking
-work. Use `just doctor ios` before iPhone work or `just doctor
-android` before Android work to also check Xcode or Java; web work does not need
-either one.
+work. Desktop and phone browsers are the supported clients. Native iOS and Android
+builds are paused; website work does not require Xcode, Java or phone publishing
+tools. [Native restart notes](docs/operations/ios-release.md) preserve the future
+release requirements.
 
 ### Keeping Node 22 beside other Node versions
 

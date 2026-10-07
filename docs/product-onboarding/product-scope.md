@@ -17,7 +17,7 @@ phrased as "not until v-something," that is a bug in the doc.
 
 ## Goal
 
-Rebuild Alethical from scratch as a trustworthy Minnesota legislative intelligence platform with a clean data model, reliable ingestion, a scalable backend, and a responsive web product. The first release ships web only; native iOS and Android apps are not built yet ([#91](https://github.com/alethical-org/alethical/issues/91), milestone `v9 tbd`). The backend APIs, auth model, and design system stay client-agnostic so mobile can follow without a rewrite.
+Rebuild Alethical from scratch as a trustworthy Minnesota legislative intelligence platform with a clean data model, reliable ingestion, a scalable backend, and a responsive web product. Desktop and phone browsers are the supported clients. Native iOS and Android publishing is paused, with future work retained in [issue 91](https://github.com/alethical-org/alethical/issues/91). Native tooling is not actively maintained and restarting it requires Eugene's explicit approval. The backend APIs, auth model, and design system stay client-agnostic so mobile can follow without a rewrite.
 
 The product optimizes for:
 
@@ -482,9 +482,15 @@ Native iOS and Android apps are **not built yet** ([#91](https://github.com/alet
 - Full core functionality
 - Primary admin and operational surface
 
-### Native iOS and Android — not built yet
+### Native iOS and Android — publishing paused
 
-Native iOS and Android apps are not built yet ([#91](https://github.com/alethical-org/alethical/issues/91)). The frontend is already an Expo/React Native codebase capable of targeting all three platforms, and styling is centralized in `theme/tokens.ts`, so mobile can be added without a rewrite. When the native apps ship they will:
+Native apps remain future work in [issue 91](https://github.com/alethical-org/alethical/issues/91).
+The website continues to use Expo and React Native. Native-only publishing tools,
+build commands, security update work and release checks are retired during the
+pause. Browser releases and setup must work without them. The backend and shared
+app code stay reusable, but native compatibility is not promised or tested until
+an explicitly approved restart. [Native restart notes](../operations/ios-release.md)
+retain the recovery point and acceptance requirements. Planned native capabilities remain:
 
 - Share the mobile app architecture with common backend APIs
 - Cover the core read and track flows: browse, search, bill detail, legislator profile, tracked bills, chat

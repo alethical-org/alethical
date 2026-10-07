@@ -113,6 +113,10 @@ Extend the existing empty-retrieval fallback into a hard invariant for every ans
 
 **Each bill says which session it is from, the answer says which Legislature it covered.** The answer-wide `session` always names the ground covered, in every answer shape; a bill payload carries its own `session` only when that is not the Legislature's regular session, which is what the page needs to keep two cards both reading "HF 5" apart. The two never swap meanings depending on the answer.
 
+Title cleanup and session-name matching must finish promptly on long, invalid
+questions, including repeated spaces or digits. A special-session qualifier starts
+at a word boundary; an unknown qualifier still declines rather than widening scope.
+
 **Not built yet — tolerant person resolution for answers:** name/nickname → legislator id, tolerant of partial names and misspellings, feeding the `legislator_vote` path and per-person answers. `/search` and the name-matching in `votes.py` (`legislator_keys`, `build_legislator_index`) are starting points. "My legislator" resolution depends on §8.1.
 
 ### 4.7 Follow-up chips ("Continue the conversation")

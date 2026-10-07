@@ -16,6 +16,7 @@
   ],
   "frontend": [
     ".github/workflows/ci.yml",
+    ".github/actions/prepare-browser-install/**",
     ".github/check-paths.json",
     ".githooks/**",
     "apps/frontend/**",

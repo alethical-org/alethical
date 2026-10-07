@@ -122,7 +122,7 @@ OTHER_SESSION = re.compile(r"\bsession\b", re.I)
 # Special Session, HF5"). Missing pieces widen the candidate set rather than guessing
 # at one, and a widened set that stays ambiguous is declined.
 NAMED_SPECIAL_SESSION = re.compile(
-    r"(?:(?P<year>(?:19|20)\d{2})\s+)?"
+    r"\b(?:(?P<year>(?:19|20)\d{2})\s+)?"
     r"(?:(?P<qualifier>[A-Za-z0-9]+)\s+)?"
     r"special\s+session\b",
     re.I,

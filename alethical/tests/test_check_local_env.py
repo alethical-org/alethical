@@ -135,7 +135,7 @@ def test_docker_queries_use_the_same_safe_environment_as_upload_tests() -> None:
     assert env == {"PATH": "/fixture/bin", "LANG": "en_US.UTF-8"}
 
 
-def test_healthy_web_setup_reports_no_gaps_and_skips_phone_tools(
+def test_healthy_web_setup_reports_no_gaps_without_phone_tools(
     tmp_path: Path,
 ) -> None:
     write_project(tmp_path)
@@ -151,8 +151,10 @@ def test_healthy_web_setup_reports_no_gaps_and_skips_phone_tools(
     assert "Git pre-push protection is active here" in report
     assert "Local Docker service is ready for upload tests" in report
     assert "Saved upload-test image pgvector/pgvector:pg17 is ready" in report
-    assert "Xcode is only needed for iPhone work." in report
-    assert "Java is only needed for Android work." in report
+    assert "Xcode" not in report
+    assert "Java" not in report
+    assert ("xcodebuild", "-version") not in calls
+    assert ("java", "-version") not in calls
     assert all(
         "install" not in command and "sync" not in command and "up" not in command
         for command in calls
@@ -177,26 +179,6 @@ def test_broken_setup_reports_missing_and_wrong_versions_without_stopping(
     assert "pnpm is 10.32.0; this project needs 10.33.0." in report
     assert "Project Python is 3.12.12; this project needs 3.12.13." in report
     assert "This check only reports and always exits 0." in report
-
-
-def test_ios_and_android_only_check_their_own_optional_tool(tmp_path: Path) -> None:
-    write_project(tmp_path)
-    ios = healthy_responses(tmp_path) | {("xcodebuild", "-version"): (0, "Xcode 17.0")}
-    android = healthy_responses(tmp_path) | {
-        ("java", "-version"): (0, "openjdk version 21.0.7")
-    }
-
-    ios_runner, ios_calls = runner_with(ios)
-    android_runner, android_calls = runner_with(android)
-
-    assert "[ok] Xcode 17.0" in "\n".join(
-        check_local_env.doctor(tmp_path, "ios", ios_runner)
-    )
-    assert ("java", "-version") not in ios_calls
-    assert "[ok] Java 21.0.7" in "\n".join(
-        check_local_env.doctor(tmp_path, "android", android_runner)
-    )
-    assert ("xcodebuild", "-version") not in android_calls
 
 
 def test_missing_or_outdated_hooks_are_reported_for_this_worktree(

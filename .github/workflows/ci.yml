@@ -322,8 +322,7 @@ jobs:
       - name: Check Expo package compatibility
         run: pnpm run check:expo-packages
 
-      # Keep the website's patched build and link tools working. Phone
-      # publishing tools have their own install and focused workflow.
+      # Keep the website's patched build and link tools working.
       - name: Check secured web build-tool compatibility
         run: pnpm run check:build-tool-security
 
@@ -353,7 +352,11 @@ jobs:
       - name: Test reader-check privacy and target guards
         run: node --test scripts/test-reader-completion-policy.mjs scripts/test-reader-completion-money.mjs
 
+      - name: Bound browser dependency downloads
+        uses: ./.github/actions/prepare-browser-install
+
       - name: Install Chromium for reader checks
+        timeout-minutes: 10
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Exercise the built public reader paths with fixed sample records

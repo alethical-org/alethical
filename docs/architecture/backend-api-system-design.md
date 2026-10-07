@@ -2620,6 +2620,9 @@ section originally listed were never built, and two that exist were never listed
 #### `GET /internal/v1/oban/jobs`
 
 Background-job rows. Real, and absent from this doc until the Aug 3 2026 audit.
+If a saved job result cannot be decoded, its `return` field contains
+`{"decode_error": "Stored job result could not be decoded"}`. The decoder's
+exception text is not returned to either the JSON route or HTML dashboard.
 
 #### `GET /internal/v1/oban`
 

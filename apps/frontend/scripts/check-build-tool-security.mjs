@@ -134,10 +134,7 @@ assert.equal(
 );
 const expoConfig = JSON.parse(expoConfigResult.stdout);
 assert.equal(expoConfig.name, 'Alethical', "Expo must load Alethical's app configuration");
-assert.equal(
-  expoConfig.extra?.eas?.projectId,
-  'e9bfa83e-58af-44d9-8587-8207217bb836',
-  "Expo must retain Alethical's EAS project link",
-);
+assert.equal(expoConfig.web?.favicon, './assets/favicon.png', 'Expo must retain the browser icon');
+assert.equal(expoConfig.web?.display, 'standalone', 'Expo must retain the browser display setting');
 
 console.log('Web build-tool security compatibility checks passed.');

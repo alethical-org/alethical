@@ -58,6 +58,9 @@ release issue open. Successful recovery closes it on the next missed-release wat
 
 ## Build, promote and prove
 
+Browser setup uses the shared [installation limits](reader-completion-checks.md#browser-installation-limits).
+Installation failure or its 10-minute timeout stops recovery before any deployment attempt.
+
 Vercel builds with production settings and without assigning the public domain
 (`vercel deploy --prod --skip-domain`). The previous website keeps serving.
 The routine saves safe phase evidence before outside changes and stores the

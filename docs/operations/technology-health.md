@@ -1,4 +1,4 @@
-<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/native-release-tools.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs apps/frontend/scripts/check-braces-security.mjs apps/frontend/scripts/check-source-map-security.mjs apps/frontend/scripts/test-source-map-security.mjs apps/frontend/scripts/test-compression-security.mjs tools/native-release/** patches/metro@0.84.4.patch patches/node-forge@1.4.0.patch patches/braces@3.0.3.patch patches/source-map-js@1.2.1.patch pnpm-lock.yaml uv.lock alethical/tests/test_multidict_security.py -->
+<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs apps/frontend/scripts/check-braces-security.mjs apps/frontend/scripts/check-source-map-security.mjs apps/frontend/scripts/test-source-map-security.mjs apps/frontend/scripts/test-compression-security.mjs patches/metro@0.84.4.patch patches/node-forge@1.4.0.patch patches/braces@3.0.3.patch pnpm-lock.yaml uv.lock alethical/tests/test_multidict_security.py -->
 <!-- last-major-tool-review: 2026-08-15 -->
 
 # Keeping every tool supported and useful
@@ -19,10 +19,19 @@ the newest major release is never automatic.
   or merge-queue commit can pass. Every severity blocks release unless the exact
   finding meets the recorded exception or installed repair below. Missing packages, unreadable reports,
   scanner errors, and timeouts fail the check rather than reporting a clean result.
-- Phone publishing packages have a separate lockfile (`tools/native-release/pnpm-lock.yaml`).
-  Changes to those tools run their command and security checks in
-  `.github/workflows/native-release-tools.yml`; GitHub's update helper also watches
-  that lockfile for security fixes.
+- Native phone publishing is paused. Its packages, lockfile, workflow and update
+  entry are removed. The required security check rejects a restored `eas-cli`
+  dependency, including an alias, in any tracked package manifest. Expo and React
+  Native remain required by the browser build. [ios-release.md](ios-release.md)
+  records the restart conditions and recovery point.
+- The security check also audits exact registry package pins in tracked research
+  replay requirements under `docs/research/evidence/`. It does not install those
+  packages. Public Git dependencies must name a full commit and are explicitly
+  reported for source review outside the registry audit. Historical JSON evidence
+  is not an installation input.
+- GitHub CodeQL default setup scans Python, JavaScript/TypeScript and GitHub Actions
+  on changes and weekly. Its alerts are reviewed alongside dependency warnings.
+  Secret scanning and push protection remain enabled; TruffleHog checks new commits.
 - The same security check runs every Monday at 13:41 UTC through
   `.github/workflows/technology-health.yml`, so new warnings are found between releases.
 - The monthly technology check (`.github/workflows/technology-health.yml`) also finds
@@ -42,7 +51,25 @@ the newest major release is never automatic.
 
 Run `just doctor` after setup changes or when a newly pulled branch will not start.
 It checks Docker, uv, just, Node.js, pnpm, and the project's Python version without
-changing the Mac. Use `just doctor ios` or `just doctor android` before phone work.
+changing the Mac. Only browser development is supported while native releases are paused.
+
+## Monday repair review
+
+The user authorized the Codex schedule **Alethical Monday security repairs** on
+7 October 2026. It returns to the owning chat every Monday at 09:00 America/New_York
+and checks Dependabot, malware alerts, code-scanning findings, secret-scanning
+metadata, security workflow failures, package audits and runtime support deadlines.
+It carries safe fixes through tests, independent review, the merge queue and live
+acceptance, while respecting active work and keeping native publishing paused.
+It reports completed repairs, failed protection or a real need for user input;
+unchanged, non-actionable state stays quiet.
+
+This local Codex schedule requires the Mac to be on and the app running. GitHub's
+security updates, release checks and Monday machine scan do not depend on that Mac.
+The scheduled agent uses the user's Codex allowance; the GitHub scans use standard
+public-repository runners. The schedule does not authorize new paid services,
+destructive access or data changes, real messages to readers, or native releases.
+Keep the schedule prompt current through Codex's supported automation controls.
 
 ## What needs human judgment every 3 months
 
@@ -105,26 +132,17 @@ The raw audit warning stays visible. A changed dependency path, version,
 advisory, or repair stops release until reviewed. A fixed upstream version
 should replace the local repair after compatibility checks pass.
 
-The jsdom CSS parser and PostCSS use source-map-js 1.2.1 with the complete
-[upstream indexed-map repair](https://github.com/7rulnik/source-map-js/commit/cf7658058ceeaa8619d5ae0ec90be6905209d016).
-Its [section-offset advisory](https://github.com/advisories/GHSA-68fv-2mgg-jv7q)
-is fixed in 1.2.2, published on 30 September at 14:08:09 UTC. That package remains
-inside the saved 7-day waiting period until 7 October at 14:08:09 UTC. The exact
-backport preserves that waiting period rather than installing a young package.
+The jsdom CSS parser and PostCSS use source-map-js 1.2.2, the published fix for
+its [section-offset advisory](https://github.com/advisories/GHSA-68fv-2mgg-jv7q).
+The package was published on 30 September at 14:08:09 UTC and cleared the saved
+7-day waiting period on 7 October at 14:08:09 UTC. The temporary 1.2.1 backport,
+patch binding, and exact audit classification have been removed. Security scans
+now reject any remaining affected source-map-js version without an exception.
 
-Acceptance requires the exact high-severity advisory, version 1.2.1, affected and
-fixed ranges, and the reported jsdom CSS-parser path. The patch, lock binding,
-and all 3 repaired installed files must match their saved fingerprints through
-both CSS consumers. Bounded child processes test invalid and excessive offsets,
-the combined offset of nested maps, large valid maps, linear nested-source
-reading, and ordinary CSS generation. The raw warning stays visible. Changed
-findings, missing or drifted repair evidence, installation failure, and failed
-behavior checks block release. The proven repair has no calendar expiration:
-each scan repeats the installed-code and behavior proof. During routine
-dependency updates, replace the backport with mature 1.2.2, remove its patch
-binding and exact audit classification, and retain compatibility checks. The
-existing dependency-update and technology-health checks own that upkeep; this
-repair needs no new scheduled job.
+The build-tool checks retain bounded child processes for invalid and excessive
+offsets, combined offsets in nested maps, large valid maps, linear nested-source
+reading, and ordinary CSS generation through both actual CSS consumers. These
+behavior checks remain after replacing the local repair with the official release.
 
 React Native's development tools use shell-quote 1.11.0, the published fix for
 [command injection after a comment](https://github.com/ljharb/shell-quote/security/advisories/GHSA-pqg4-j6r4-53mv).
