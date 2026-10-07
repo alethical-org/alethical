@@ -58,7 +58,7 @@ def save_progress(engine, name: str, token: str, progress: dict) -> None:
             raise RuntimeError("The bill refresh lost its lease before saving progress")
 
 
-def check_pending_votes(engine, *, target: str, bill_keys: list[str]) -> bool:
+def check_pending_votes(engine, *, target: str, bill_keys: list[str]) -> list[str]:
     source = rate_limited_source_session(engine, target=target)
     try:
         with Session(engine) as db:
@@ -69,7 +69,7 @@ def check_pending_votes(engine, *, target: str, bill_keys: list[str]) -> bool:
                 dry_run=False,
                 source_session=source,
             )
-        return not report.failed and not report.rejected
+        return sorted({item.bill_key for item in (*report.failed, *report.rejected)})
     finally:
         source.close()
 
@@ -82,10 +82,11 @@ def run_chunk(engine, *, name: str, token: str, target: str, session_code: str) 
     progress["session_code"] = session_code
     pending = progress.get("pending_votes", [])
     if pending:
-        if not check_pending_votes(
+        failed_votes = check_pending_votes(
             engine, target=target, bill_keys=pending[:CHUNK_SIZE]
-        ):
-            return 1
+        )
+        previous = set(progress.get("failed_votes", [])) - set(pending[:CHUNK_SIZE])
+        progress["failed_votes"] = sorted(previous | set(failed_votes))
         progress["pending_votes"] = pending[CHUNK_SIZE:]
         save_progress(engine, name, token, progress)
         return CONTINUE
@@ -125,6 +126,17 @@ def run_chunk(engine, *, name: str, token: str, target: str, session_code: str) 
             if cursor is None or item.bill_key > cursor
         ][:CHUNK_SIZE]
     if not work:
+        failed_votes = progress.get("failed_votes", [])
+        if failed_votes:
+            retry_votes = failed_votes[:CHUNK_SIZE]
+            still_failed = check_pending_votes(
+                engine, target=target, bill_keys=retry_votes
+            )
+            progress["failed_votes"] = sorted(
+                set(failed_votes[CHUNK_SIZE:]) | set(still_failed)
+            )
+            save_progress(engine, name, token, progress)
+            return 1 if still_failed else CONTINUE
         save_progress(
             engine,
             name,

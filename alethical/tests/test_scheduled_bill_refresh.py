@@ -38,7 +38,7 @@ def setup(monkeypatch, count=3):
         "discover_session_bills",
         lambda *_args, **_kw: [item(n) for n in range(1, count + 1)],
     )
-    monkeypatch.setattr(scheduled, "check_pending_votes", lambda *_args, **_kw: True)
+    monkeypatch.setattr(scheduled, "check_pending_votes", lambda *_args, **_kw: [])
     monkeypatch.setattr(scheduled, "CHUNK_SIZE", 2)
     return state, writes
 
@@ -129,3 +129,33 @@ def test_shrinking_inventory_never_claims_complete_refresh(monkeypatch):
     ]
     with pytest.raises(RuntimeError, match="omitted 1"):
         run()
+
+
+def test_vote_failure_does_not_hold_up_remaining_bill_inventory(monkeypatch):
+    state, _ = setup(monkeypatch, count=3)
+    seen = []
+
+    def refresh(*_args, **kwargs):
+        seen.extend(item.bill_key for item in kwargs["inventory"])
+        return {"failed": []}
+
+    monkeypatch.setattr(scheduled, "refresh_bills", refresh)
+    monkeypatch.setattr(
+        scheduled,
+        "check_pending_votes",
+        lambda *_args, **kwargs: (
+            [item(1).bill_key] if item(1).bill_key in kwargs["bill_keys"] else []
+        ),
+    )
+    assert run() == 75
+    assert run() == 75
+    assert run() == 75
+    assert run() == 75
+    assert len(seen) == 3
+    assert run() == 1
+    assert state["failed_votes"] == [item(1).bill_key]
+
+    monkeypatch.setattr(scheduled, "check_pending_votes", lambda *_args, **_kw: [])
+    assert run() == 75
+    assert run() == 0
+    assert "failed_votes" not in state

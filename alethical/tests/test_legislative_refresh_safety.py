@@ -203,3 +203,66 @@ def test_unknown_current_or_future_session_is_reviewed_not_invented():
     assert unreviewed_session_codes(html) == ["0952027", "2942026"]
     with pytest.raises(ValueError, match="could not be read"):
         unreviewed_session_codes("<html>maintenance</html>")
+
+
+def test_reviewed_calendar_refreshes_both_regular_years_during_continuing_sitting():
+    from alethical.pipeline.legislative_calendar import session_refresh_interval
+
+    assert session_refresh_interval("0942025", date(2026, 3, 1)) == timedelta(hours=4)
+    assert session_refresh_interval("0942026", date(2026, 3, 1)) == timedelta(hours=4)
+    assert session_refresh_interval("0942025", date(2025, 8, 1)) == timedelta(days=7)
+    assert session_refresh_interval("1942025", date(2025, 6, 9)) == timedelta(hours=2)
+    assert session_refresh_interval("1942025", date(2025, 6, 24)) == timedelta(hours=4)
+    assert session_refresh_interval("1942025", date(2025, 6, 25)) == timedelta(days=7)
+    with pytest.raises(ValueError, match="No legislative session mapped"):
+        session_refresh_interval("0952027", date(2027, 1, 12))
+
+
+def test_embedding_failure_rolls_back_canonical_bill_too(monkeypatch):
+    from alethical.pipeline import legislative_refresh as refresh
+    from alethical.pipeline.minnesota import BillSearchResult
+    from alethical.pipeline import rag_ingest
+
+    db = Mock()
+    context = Mock()
+    context.__enter__ = Mock(return_value=db)
+    context.__exit__ = Mock(return_value=False)
+    monkeypatch.setattr(refresh, "Session", lambda *_: context)
+    source = Mock()
+    monkeypatch.setattr(
+        refresh, "rate_limited_source_session", lambda *_a, **_kw: source
+    )
+    pipeline = Mock()
+    pipeline.ingest_bills.return_value = {
+        "bill_refresh_rejections": [],
+        "text_changed_bill_keys": ["94-2025-HF1"],
+        "summary_changed_bill_keys": [],
+        "bill_keys": ["94-2025-HF1"],
+    }
+    monkeypatch.setattr(
+        refresh, "MinnesotaIngestionPipeline", lambda *_a, **_kw: pipeline
+    )
+    embedding = Mock(side_effect=RuntimeError("embedding service unavailable"))
+    monkeypatch.setattr(rag_ingest, "build_rag_rows_for_bill_keys", embedding)
+    result = refresh.refresh_bills(
+        Mock(),
+        session_code="0942025",
+        target="production",
+        inventory=[
+            BillSearchResult(
+                chamber="House",
+                file_type="HF",
+                file_number=1,
+                description="Bill",
+                status_xml_uri="",
+                latest_text_html_uri="",
+                session_code="0942025",
+            )
+        ],
+    )
+    assert result["accepted"] == 0
+    assert result["failed"] == [{"bill_key": "94-2025-HF1", "error": "RuntimeError"}]
+    embedding.assert_called_once_with(db, ["94-2025-HF1"], database_target="production")
+    db.rollback.assert_called_once()
+    db.commit.assert_not_called()
+    source.close.assert_called_once()

@@ -207,3 +207,19 @@ Accepted bill text and its search rows commit together. Changed-text embeddings 
 The scheduler wrapper (`scripts/run_scheduled_bill_refresh.py`) pins the official inventory and its fingerprint for each pass. It saves its cursor, failed bill keys and pending vote checks under the job's unexpired lease token. Vote checks are queued before bill writes, so a stopped process cannot commit an action change and lose its follow-up check. Successful chunks return exit 75 for immediate continuation; the pass reports success only after every pinned bill and pending vote check finishes. Failed bills retry individually rather than restarting the accepted inventory. A later official inventory omitting previously listed bills is held for review.
 
 `scripts/check_legislative_sessions.py` checks the official session selector for new current or future codes and returns exit 2 for mapping review. It never creates a session definition. Scheduled roster imports also compare the PDF's printed biennium with the reviewed current session before updating any member.
+
+### Reviewed sitting calendar and next-session review
+
+`alethical/pipeline/legislative_calendar.py` exports `session_refresh_interval(session_code, date)` for the shared runner. The [Legislative Reference Library session history](https://www.lrl.mn.gov/history/sessions), read October 7, 2026, records these calendar dates:
+
+| Discovery code | Sitting | Convened | Adjourned |
+| --- | --- | --- | --- |
+| 0942025 | 2025 regular | January 14, 2025 | May 19, 2025 |
+| 1942025 | 2025 first special | June 9, 2025 | June 10, 2025 |
+| 0942026 | 2026 continuing regular | February 17, 2026 | May 18, 2026 |
+
+The 2025 and 2026 regular discovery lists share the same sitting clock because bills introduced in 2025 can change in the 2026 sitting. Each reviewed sitting gets its approved interval and 14-day follow-up, then weekly checks. Unknown codes still fail before ingestion.
+
+On October 7, 2026, the [Revisor session selector](https://www.revisor.mn.gov/bills/status_search.php) already lists `0952027`. The [House session information](https://www.house.mn.gov/hinfo/news.asp) states that the 95th Legislature convenes January 12, 2027, and the 2027 sitting must conclude by May 17, 2027. That deadline is not an observed adjournment and is not the end of the 2027–2028 biennium. The proposed mapping is `0952027` to regular-session slug `95-2027-regular`, Legislature 95, years 2027–2028, and start January 12, 2027. It remains unactivated: the current definition requires a final end date, so support an unknown end date before adding it rather than inventing the 2028 adjournment. Do not switch the current roster until its official PDF and reviewed mapping describe the same biennium.
+
+Pending vote failures are retained separately from bill-source failures so 1 unavailable roll call cannot stop collection of the remaining bills. A pass reports success only after both queues clear.

@@ -146,7 +146,7 @@ def refresh_votes(
                 dry_run=False,
                 source_session=source,
             )
-        return {"missing": missing, "corrections": corrections.to_dict()}
+        return {"missing": vars(missing), "corrections": corrections.to_dict()}
     finally:
         source.close()
 
