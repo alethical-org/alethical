@@ -1,13 +1,13 @@
 import { readFile } from 'node:fs/promises';
+import { readerMoneyFixtures } from './reader-completion-money.mjs';
 
 // Existing public API snapshots, kept as evidence by the frontend contract tests.
 // Fixtures prove client behavior only, never production data or source availability.
-export async function readerFixtures() {
+export async function readerFixtures(options = {}) {
   const root = new URL('../src/lib/__tests__/fixtures/', import.meta.url);
   const bill = JSON.parse(await readFile(new URL('bill-page-snapshot.json', root), 'utf8'));
-  const legislator = JSON.parse(
-    await readFile(new URL('legislator-page-snapshot.json', root), 'utf8'),
-  );
+  const money = await readerMoneyFixtures(options);
+  const legislator = money.profile;
   const billRow = { ...bill, file_type: 'HF', file_number: 719 };
   const page = (data) => ({
     data,
@@ -27,5 +27,6 @@ export async function readerFixtures() {
     [`/api/v1/legislators/${legislator.id}/bills`, page([billRow])],
     [`/api/v1/legislators/${legislator.slug}/bills`, page([billRow])],
   ]);
-  return (pathname) => endpoints.get(pathname);
+  return (pathname, searchParams = new URLSearchParams()) =>
+    money.response(pathname, searchParams) ?? endpoints.get(pathname);
 }

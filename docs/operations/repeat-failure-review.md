@@ -1,6 +1,6 @@
 # Preventing repeated failures
 
-<!-- describes: scripts/review_repeat_failures.py, scripts/tests/test_review_repeat_failures.py, apps/frontend/scripts/check-address-recovery.mjs, apps/frontend/scripts/check-address-recovery-local.mjs, alethical/tests/test_campaign_finance_load.py -->
+<!-- describes: scripts/review_repeat_failures.py, scripts/tests/test_review_repeat_failures.py, scripts/repeat_failure_runs.py, scripts/tests/test_repeat_failure_runs.py, scripts/tests/test_repeat_failure_runs_pytest.py, apps/frontend/scripts/check-address-recovery.mjs, apps/frontend/scripts/check-address-recovery-local.mjs, alethical/tests/test_campaign_finance_load.py -->
 
 Alethical reviews the cause of a failure, finds the other places that share that
 cause, and adds a check that fails when the broken behavior returns. A change
@@ -60,16 +60,104 @@ prevention status (`covered`, `partial`, or `open`). Occurrences use `failure`,
 `prevention`, or `design`. Assign each failure-related change to at most 1 case so
 totals cannot double-count it; describe multiple mechanisms inside its evidence.
 Every retained check names a repository file and exact test-name anchor. The free
-CI check rejects missing files or anchors. It cannot prove that a test still catches
-the cause; running the test against broken behavior supplies that evidence.
-The same CI step runs the history-tool tests and the browser runner's small native
-process-cleanup tests. Those tests launch local fixture programs, not browsers.
+CI reference check rejects missing files or anchors. Finding a name, including a
+name in a comment, does not establish that a test ran. The historical `covered`
+status is a reviewed statement about the scoped invariant, not a pass on the code
+being released. Running a test against deliberately broken behavior supplies a
+separate kind of evidence: that the test can catch the known failure.
+The same CI step runs the history-tool tests, the run-receipt checker tests, and
+the browser runner's small native process-cleanup tests. These always-run checks
+use Python's standard library and local fixture programs, not browsers or pytest.
 
 Reviews run when investigating a failure or deliberately reviewing a bounded
 history window. There is no recurring AI job, vendor connection or paid schedule.
 The task repairing a failure owns its cause record and prevention evidence through
 delivery. The existing release checks run the money tests; the browser command
 remains on demand under [CONTRIBUTING.md, Frontend tests](../../CONTRIBUTING.md#frontend-tests).
+
+## Named results on the code being released
+
+[repeat_failure_runs.py](../../scripts/repeat_failure_runs.py) runs pytest once
+and reads pytest's own machine-readable results (JUnit). The fixed `money`
+selection runs the 2 registered loader tests, including both +$0.01 and -$0.01
+parameters. The `backend` selection runs the existing complete backend suite and
+checks the same 3 named results within it. The registry cannot supply commands.
+
+Use a fresh ignored output folder for each run:
+
+```sh
+uv run --frozen python scripts/repeat_failure_runs.py run \
+  --scope money --output .tmp/repeat-failure/money-1
+# In backend CI, replace the existing pytest invocation with this single run:
+uv run --frozen python scripts/repeat_failure_runs.py run \
+  --scope backend --output .tmp/repeat-failure/backend-1
+# After a run from clean committed files, compare with the exact checkout:
+python3 scripts/repeat_failure_runs.py check \
+  --output .tmp/repeat-failure/backend-1 --commit "$(git rev-parse HEAD)"
+```
+
+The runner saves `receipt.json` and `pytest.xml` in that folder. It records the
+commit and content fingerprints of tracked files and nonignored new files before
+and after pytest. Ignored output and caches do not enter the source snapshot.
+Changed source, a failed process, missing results, skipped required tests, duplicate
+test identities, changed parameter coverage and inconsistent or truncated JUnit
+output prevent a successful receipt. A test name retained only in a comment cannot
+supply a collected, passing testcase. Other skipped backend tests remain outside
+this scoped prevention claim; failures anywhere in the backend run reject it.
+
+Unfinished or interrupted runs leave an `incomplete` receipt, and a new run refuses
+to overwrite an existing output folder. Normal exits and interruptions clean only
+the runner's own process group. On interruption, pytest gets time to unwind its
+existing disposable-database cleanup before remaining children are stopped.
+The child receives a small allowlist of environment settings and the local test
+database contract, never inherited service keys or pytest plugin overrides.
+A working copy with nonempty `.env` settings is refused before importing the app.
+The existing database guard still selects its own disposable local server, or
+GitHub's fresh job-owned server; no production database is selected.
+
+A successful run on unfinished edits is explicitly a working-tree result. The
+`check` command rejects it as release evidence, even if the same edits are later
+committed. Release evidence requires a fresh run with clean files, the same full
+commit, unchanged fingerprints and the retained JUnit file matching its saved
+hash. Run `check` in that same checkout; file modes and local paths make this a
+local/CI run receipt, not a portable signed build certificate. A PR's test commit
+and a later merge commit are different identities and require separate runs for
+claims about those commits.
+
+This is drift and completeness checking, not authentication. Someone controlling
+the files or runner can forge both outputs and hashes. Before/after snapshots do
+not detect a temporary edit restored before the second snapshot. Ignored runtime
+files, installed dependencies, the Python executable and the host are not fully
+attested. A passing named test also does not prove that its assertions remain
+strong enough; review the assertions and retain the broken-behavior experiment.
+
+Each receipt lists `reviewed-money-exception-identity` as the passed scoped case
+and lists the 2 candidate cases as `not_run_cases`. This money result does not
+supply current browser or frontend-test proof. Full address browser journeys
+remain on demand under [CONTRIBUTING.md, Frontend tests](../../CONTRIBUTING.md#frontend-tests)
+and [issue 1635](https://github.com/alethical-org/alethical/issues/1635).
+
+The [money mutation recipe](../research/evidence/repeat-failures-2026-10-06/waiver-mutation.py.txt),
+[money mutation outcome](../research/evidence/repeat-failures-2026-10-06/waiver-mutation-result.txt)
+and [browser mutation recipe and outcome](../research/evidence/repeat-failures-2026-10-06/browser-mutation.txt)
+remain the historical demonstration that deliberately broken behavior fails.
+The run receipt does not claim those experiments were repeated for the current
+release. Repeat a relevant experiment when changing its assertions or prevention
+mechanism, keeping the broken copy separate from the release run.
+
+The receipt checker's stdlib tests run with:
+
+```sh
+python3 -m unittest scripts.tests.test_repeat_failure_runs
+```
+
+Its separate integration test runs real pytest against a tiny temporary test and
+then its comment-only replacement. It belongs in the backend environment after
+`uv sync`, not the stdlib-only job:
+
+```sh
+uv run --frozen python -m unittest scripts.tests.test_repeat_failure_runs_pytest
+```
 
 ## Address and result replacement checks
 

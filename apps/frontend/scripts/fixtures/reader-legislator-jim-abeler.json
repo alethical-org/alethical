@@ -1,0 +1,68 @@
+{
+  "id": "cb238172-c829-4935-80ba-4ffe8606b345",
+  "slug": "jim-abeler",
+  "full_name": "Jim Abeler",
+  "biography": "Chiropractor; Co-Owner Family Business, Abeler Chiropractic Clinic, Anoka. Anoka High School; Secondary; 1972. University of Minnesota, Twin Cities. Hamline University; Biology and Chemistry, 1974. NW Health Services University; D.C.; Chiropractic, 1979.",
+  "current_service": {
+    "chamber": "senate",
+    "party": "R",
+    "district": {
+      "id": "381b68f0-dfca-4503-9993-5788f17337a3",
+      "code": "35",
+      "label": "District 35"
+    },
+    "email": null,
+    "phone": "651-296-3733",
+    "office_address": "95 University Avenue W.\nMinnesota Senate Bldg., Room 2207\nSt. Paul, MN 55155",
+    "profile_url": "https://www.senate.mn/members/member_bio.html?leg_id=10002",
+    "photo_url": "https://www.lrl.mn.gov/legdb/MemberPhotos/ls94/thumbnails/35Abeler.jpg",
+    "elected": "to the House 1998, re-elected 2000, 2002, 2004, 2006, 2008, 2010, 2012",
+    "term": "4th",
+    "represented_city": "Anoka"
+  },
+  "stats": {
+    "chief_bill_count": 85,
+    "total_bill_count": 401,
+    "vote_record_count": 0,
+    "committee_count": 4
+  },
+  "committees": [
+    {
+      "name": "Health and Human Services",
+      "role": null
+    },
+    {
+      "name": "Education Policy",
+      "role": null
+    },
+    {
+      "name": "Housing and Homelessness Prevention",
+      "role": null
+    },
+    {
+      "name": "Human Services",
+      "role": null
+    }
+  ],
+  "service_history": {
+    "term": 4,
+    "periods": [
+      {
+        "chamber": "house",
+        "initial_year": 1998,
+        "reelection_years": [2000, 2002, 2004, 2006, 2008, 2010, 2012]
+      },
+      {
+        "chamber": "senate",
+        "initial_year": 2016,
+        "reelection_years": [2016, 2020, 2022]
+      }
+    ]
+  },
+  "campaign_committees": [
+    {
+      "registration_number": "17868",
+      "committee_name": "Abeler, Jim Senate Committee"
+    }
+  ]
+}

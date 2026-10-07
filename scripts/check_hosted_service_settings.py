@@ -1271,9 +1271,17 @@ class Checker:
             or (state_required and not isinstance(next_refresh_token, str))
             or (state_required and not next_refresh_token)
         ):
+            reason = (
+                f"HTTP {token_response.status}"
+                if token_response.status not in {0, 200}
+                else "invalid token response"
+                if token_response.status == 200
+                else "request failed"
+            )
             self.unavailable_rows(
                 rows,
-                token_response.error or "Supabase OAuth grant could not be refreshed",
+                f"Supabase OAuth renewal failed: {reason}; "
+                "sign-in settings were not read",
             )
             return
 
@@ -1289,19 +1297,26 @@ class Checker:
                 return
 
         project_ref = urllib.parse.quote(self.env["SUPABASE_PROJECT_REF"], safe="")
-        representative = self.row("Supabase sign-in", "Site URL")
         response = self.cached_fetch(
             "supabase-auth-config",
             "GET",
             f"{SUPABASE_API}/v1/projects/{project_ref}/config/auth",
             {"Authorization": f"Bearer {access_token}"},
         )
-        config = self._json_object(response, representative)
-        if config is None:
+        if response.status != 200 or not isinstance(response.data, dict):
+            reason = (
+                f"HTTP {response.status}"
+                if response.status not in {0, 200}
+                else "invalid settings response"
+                if response.status == 200
+                else "request failed"
+            )
             self.unavailable_rows(
-                rows, response.error or "Supabase sign-in settings unreadable"
+                rows, f"Supabase sign-in settings read failed: {reason}"
             )
             return
+        config = response.data
+        representative = self.row("Supabase sign-in", "Site URL")
 
         site_expected = _codes(representative.intended)[0]
         site_actual = config.get("site_url")

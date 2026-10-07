@@ -109,6 +109,7 @@ jobs:
         run: |
           python scripts/review_repeat_failures.py check --review docs/operations/repeat-failure-cases.json --root .
           python -m unittest discover -s scripts/tests -p 'test_review_repeat_failures.py'
+          python -m unittest discover -s scripts/tests -p 'test_repeat_failure_runs.py'
           node --test apps/frontend/scripts/test-address-recovery-local.mjs
       - name: Test local upload selection without database or network
         run: python -m unittest discover -s scripts/tests -p 'test_local_checks.py'
@@ -255,7 +256,20 @@ jobs:
       - name: Test backend
         run: |
           uv run python -m unittest discover -s scripts/tests -p 'test_manual_test_database.py'
-          uv run pytest
+          uv run python -m unittest discover -s scripts/tests -p 'test_repeat_failure_runs_pytest.py'
+          uv run --frozen python scripts/repeat_failure_runs.py run --scope backend --output .tmp/prevention-backend
+          uv run --frozen python scripts/repeat_failure_runs.py check --output .tmp/prevention-backend --commit "$GITHUB_SHA"
+
+      - name: Retain named prevention results even on failure
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: prevention-backend-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .tmp/prevention-backend/receipt.json
+            .tmp/prevention-backend/pytest.xml
+          if-no-files-found: warn
+          retention-days: 30
 
   frontend:
     needs: changes
@@ -337,7 +351,7 @@ jobs:
         run: pnpm run build
 
       - name: Test reader-check privacy and target guards
-        run: node --test scripts/test-reader-completion-policy.mjs
+        run: node --test scripts/test-reader-completion-policy.mjs scripts/test-reader-completion-money.mjs
 
       - name: Install Chromium for reader checks
         run: pnpm exec playwright install --with-deps chromium
@@ -357,6 +371,37 @@ jobs:
             --output reader-completion-results.json
           E2E_STATIC_BUILD=1 E2E_BASE_URL=http://127.0.0.1:4173 pnpm exec playwright test \
             e2e/services-print.spec.ts --project=chromium
+          # These failures must reach the money assertions. A crashed browser,
+          # wrong release, or earlier navigation failure is not a successful test.
+          for money_failure in unavailable wrong-amount missing-as-zero; do
+            if node scripts/reader-completion-checks.mjs \
+              --base-url http://127.0.0.1:4173 --fixtures \
+              --fixture-money-failure "$money_failure" \
+              --checked-commit "$GITHUB_SHA" --expected-commit "$GITHUB_SHA" \
+              --output "reader-money-negative-$money_failure.json"; then
+              echo 'A deliberately broken money response passed the reader checks'
+              exit 1
+            fi
+            MONEY_FAILURE="$money_failure" python3 - <<'PY_MONEY'
+          import json, os
+          mode = os.environ["MONEY_FAILURE"]
+          with open(f"reader-money-negative-{mode}.json") as source:
+              report = json.load(source)
+          expected = (
+              "money-fixture-separate-committees-missing-versus-zero"
+              if mode == "missing-as-zero"
+              else "money-fixture-official-amounts-period-and-source"
+          )
+          failures = [check for check in report["checks"] if check["passed"] is False]
+          assert report["passed"] is False and report["blocked_requests"] == 0
+          assert report["phase"] == "premerge-fixtures" and report["release_match"] == "exact"
+          assert len(failures) == 1 and failures[0]["name"] == expected
+          assert failures[0]["failure"] == "reader-expectation-not-met"
+          assert any(check["name"] == "money-lane-opens-legislator-money-tab"
+                     and check["passed"] is True for check in report["checks"])
+          print(f"Deliberately broken money response rejected: {mode}")
+          PY_MONEY
+          done
 
       - name: Retain reader-check evidence even on failure
         if: always()
@@ -366,5 +411,6 @@ jobs:
           path: |
             apps/frontend/reader-completion-results.json
             apps/frontend/test-results/**/*.pdf
+            apps/frontend/reader-money-negative-*.json
           if-no-files-found: warn
           retention-days: 30

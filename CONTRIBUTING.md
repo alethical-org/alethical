@@ -268,7 +268,7 @@ draws this workflow as commit graphs, with the habits and commands behind each s
 
 On every PR (`.github/workflows/ci.yml`):
 
-- **Failure-prevention evidence** (always): history-tool tests, retained source/test references, and native process-cleanup tests run without browser or paid-service calls. Full address-recovery browser journeys remain on demand.
+- **Failure-prevention evidence** (always): history-tool tests, retained source/test references, named-result checker tests, and native process-cleanup tests run without browser or paid-service calls. When the backend suite runs, its captured test results must include every registered money-prevention case and match the exact tested code. Full address-recovery browser journeys remain on demand.
 - **Working-folder safety** (always): `python3 -m unittest discover -s scripts/tests -p 'test_worktree_*.py'` exercises backup, cleanup, recovery, and installation in disposable folders, without production data or network services.
 - **Backend** (when backend paths change): `ruff check`, `ty check`, and `pytest` against a real Postgres
 - **Frontend** (when frontend paths change): `tsc --noEmit`, `prettier --check`, the Vitest suite, and a production build

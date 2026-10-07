@@ -12,6 +12,7 @@ import {
   selectedBillMatchesOfficialLink,
 } from './reader-official-bill.mjs';
 import { readerFixtures } from './reader-completion-fixtures.mjs';
+import { checkMoneyFixtures, MONEY_FAILURE_MODES } from './reader-completion-money.mjs';
 
 export async function runReaderChecks(options) {
   const report = {
@@ -28,8 +29,9 @@ export async function runReaderChecks(options) {
     suppressed_metrics: 0,
     blocked_external_reads: 0,
     passed: false,
-    scope:
-      'Chromium desktop public navigation and bill source link; no sign-in, writes, AI answers, numeric accuracy, full accessibility or visual review',
+    scope: options.fixtures
+      ? 'Chromium desktop fixture navigation, bill source link, saved committee figures and synthetic missing-versus-zero states; no production numeric accuracy, source availability, full accessibility or visual review'
+      : 'Chromium desktop public navigation and bill source link; live campaign money covers navigation only, not numeric accuracy; no sign-in, writes, AI answers, full accessibility or visual review',
   };
   let browser;
   let activeCheck = 'input-safety';
@@ -40,6 +42,13 @@ export async function runReaderChecks(options) {
     if (options.expectedCommit) report.expected_commit = commitSha(options.expectedCommit);
     if (options.fixtures && base === 'https://www.alethical.com')
       throw new Error('Fixtures cannot target production');
+    if (options.fixtureMoneyFailure && !options.fixtures)
+      throw new Error('Money failure injection requires fixtures');
+    if (
+      options.fixtureMoneyFailure !== undefined &&
+      !MONEY_FAILURE_MODES.includes(options.fixtureMoneyFailure)
+    )
+      throw new Error('Invalid money failure fixture');
     const wait = Number(options.releaseWaitSeconds ?? 0);
     if (!Number.isInteger(wait) || wait < 0 || wait > 900) throw new Error('Invalid bounded wait');
     const { chromium, expect } = await import('@playwright/test');
@@ -48,7 +57,9 @@ export async function runReaderChecks(options) {
       viewport: { width: 1440, height: 1000 },
       serviceWorkers: 'block',
     });
-    const fixture = options.fixtures ? await readerFixtures() : null;
+    const fixture = options.fixtures
+      ? await readerFixtures({ failMoney: options.fixtureMoneyFailure })
+      : null;
     await context.route('**/*', async (route) => {
       const request = route.request();
       const policy = readerRequestPolicy(request.url(), request.method(), base);
@@ -73,7 +84,7 @@ export async function runReaderChecks(options) {
       }
       if (fixture && new URL(request.url()).origin !== base) {
         const url = new URL(request.url());
-        const body = fixture(url.pathname);
+        const body = fixture(url.pathname, url.searchParams);
         if (url.origin === 'https://api.alethical.com' && body !== undefined) {
           return route.fulfill({ json: body, headers: { 'access-control-allow-origin': '*' } });
         }
@@ -256,6 +267,7 @@ export async function runReaderChecks(options) {
         'page',
       );
     });
+    if (fixture) await checkMoneyFixtures(page, expect, check);
     await check('no-unexpected-network-action', async () => {
       if (report.blocked_requests !== 0) throw new Error('Unexpected network action prevented');
     });
@@ -272,6 +284,8 @@ export async function runReaderChecks(options) {
       ['Official link identifies a different bill', 'official-link-bill-mismatch'],
       ['Official source identifies a different bill', 'official-destination-bill-mismatch'],
       ['Unexpected network action prevented', 'unexpected-action-prevented'],
+      ['Invalid money failure fixture', 'money-failure-fixture-rejected'],
+      ['Money failure injection requires fixtures', 'money-failure-injection-requires-fixtures'],
       ['Fixtures cannot target production', 'production-fixture-target-rejected'],
       ['Invalid bounded wait', 'release-wait-outside-limit'],
       ['Expected a full commit hash', 'invalid-commit-input'],
@@ -311,6 +325,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
       'expected-commit': { type: 'string' },
       'release-wait-seconds': { type: 'string', default: '0' },
       fixtures: { type: 'boolean' },
+      'fixture-money-failure': { type: 'string' },
       'allow-newer': { type: 'boolean' },
       'allow-equivalent': { type: 'boolean' },
     },
@@ -322,6 +337,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     expectedCommit: values['expected-commit'],
     releaseWaitSeconds: values['release-wait-seconds'],
     fixtures: values.fixtures,
+    fixtureMoneyFailure: values['fixture-money-failure'],
     allowNewer: values['allow-newer'],
     allowEquivalent: values['allow-equivalent'],
   });
