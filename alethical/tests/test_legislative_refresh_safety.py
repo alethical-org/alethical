@@ -351,3 +351,49 @@ def test_roster_command_reports_bio_incomplete_as_failure(monkeypatch, failure):
         )
         == 1
     )
+
+
+@pytest.mark.parametrize(
+    "field, expected",
+    [
+        ("source_errors", 1),
+        ("write_errors", 1),
+        ("no_source_match", 2),
+        ("ambiguous_or_missing_names", 2),
+        ("cross_chamber_mirror", 0),
+    ],
+)
+def test_votes_command_distinguishes_failure_review_and_success(
+    monkeypatch, capsys, field, expected
+):
+    import json
+    from scripts import refresh_legislative_records as command
+    from alethical.pipeline.votes import BackfillStats
+
+    monkeypatch.setattr(command, "database_url_for_target", lambda *_: "local")
+    monkeypatch.setattr(command, "_validated_database_target", lambda *_: None)
+    monkeypatch.setattr(command, "create_engine", lambda *_a, **_kw: Mock())
+    missing = vars(BackfillStats()) | {field: 1}
+
+    def refresh(*_a, **_kw):
+        print("source diagnostic")
+        return {
+            "missing": missing,
+            "corrections": {
+                "failed": [],
+                "rejected": [],
+                "updated": [],
+                "unchanged": [],
+            },
+        }
+
+    monkeypatch.setattr(command, "refresh_votes", refresh)
+    assert (
+        command.main(
+            ["--kind", "votes", "--target", "local", "--session-code", "0942026"]
+        )
+        == expected
+    )
+    captured = capsys.readouterr()
+    assert "source diagnostic" in captured.err
+    assert json.loads(captured.out)["missing"][field] == 1

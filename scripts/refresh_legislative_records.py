@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import redirect_stdout
 import json
 import sys
 from pathlib import Path
@@ -38,6 +39,7 @@ def main(argv: list[str] | None = None) -> int:
     _validated_database_target(args.target, url)
     engine = create_engine(url, connect_args=NO_PREPARED_STATEMENTS)
     try:
+        review_required = False
         if args.kind == "bills":
             report = refresh_bills(
                 engine,
@@ -61,19 +63,35 @@ def main(argv: list[str] | None = None) -> int:
                 or report["bio"]["no_profile_url"]
             )
         else:
-            report = refresh_votes(
-                engine,
-                target=args.target,
-                bill_keys=args.bill_key,
-                sweep_limit=args.sweep_limit,
-            )
+            # Keep collector diagnostics away from the retained JSON finding.
+            with redirect_stdout(sys.stderr):
+                report = refresh_votes(
+                    engine,
+                    target=args.target,
+                    bill_keys=args.bill_key,
+                    sweep_limit=args.sweep_limit,
+                )
             failed = bool(
                 report["corrections"]["rejected"]
                 or report["corrections"]["failed"]
                 or report["missing"]["write_errors"]
+                or report["missing"]["source_errors"]
             )
+            review_required = bool(
+                report["missing"]["no_source_match"]
+                or report["missing"]["ambiguous_or_missing_names"]
+            )
+            report = {
+                "missing": report["missing"],
+                "corrections": {
+                    key: len(value)
+                    for key, value in report["corrections"].items()
+                    if isinstance(value, list)
+                },
+                "review_required": review_required,
+            }
         print(json.dumps(report, default=str, sort_keys=True))
-        return 1 if failed else 0
+        return 1 if failed else 2 if review_required else 0
     finally:
         engine.dispose()
 

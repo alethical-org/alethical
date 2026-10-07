@@ -64,6 +64,7 @@ class BackfillStats:
     no_source_match: int = 0
     ambiguous_or_missing_names: int = 0
     write_errors: int = 0
+    source_errors: int = 0
     cross_chamber_mirror: int = 0
 
 
@@ -1594,6 +1595,7 @@ def backfill_votes(
         "no_source_match": 0,
         "ambiguous_or_missing_names": 0,
         "write_errors": 0,
+        "source_errors": 0,
         "cross_chamber_mirror": 0,
     }
     house_cache: dict[str, list[ParsedVote]] = {}
@@ -1632,7 +1634,7 @@ def backfill_votes(
                 senate_cache=senate_cache,
             )
         except Exception as exc:  # noqa: BLE001
-            stats["no_source_match"] += 1
+            stats["source_errors"] += 1
             bill_key = getattr(
                 db.get(Bill, action.bill_id), "bill_key", str(action.bill_id)
             )
