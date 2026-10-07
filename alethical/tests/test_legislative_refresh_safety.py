@@ -321,3 +321,33 @@ def test_committee_collection_refuses_a_current_member_without_profile():
     db.execute.return_value.all.return_value = [(Mock(), Mock(slug="house"), None)]
     with pytest.raises(RuntimeError, match="no profile URL"):
         committee_memberships.current_legislator_rows(db, "session")
+
+
+@pytest.mark.parametrize("failure", ["write_errors", "source_errors", "no_profile_url"])
+def test_roster_command_reports_bio_incomplete_as_failure(monkeypatch, failure):
+    from scripts import refresh_legislative_records as command
+
+    monkeypatch.setattr(command, "database_url_for_target", lambda *_: "local")
+    monkeypatch.setattr(command, "_validated_database_target", lambda *_: None)
+    monkeypatch.setattr(command, "create_engine", lambda *_a, **_kw: Mock())
+    bio = {
+        "fetch_errors": 0,
+        "write_errors": 0,
+        "source_errors": 0,
+        "no_profile_url": 0,
+    }
+    bio[failure] = 1
+    monkeypatch.setattr(
+        command,
+        "refresh_roster",
+        lambda *_a, **_kw: {
+            "service": {"fetch_errors": 0, "write_errors": 0, "no_data": 0},
+            "bio": bio,
+        },
+    )
+    assert (
+        command.main(
+            ["--kind", "roster", "--target", "local", "--session-code", "0942026"]
+        )
+        == 1
+    )

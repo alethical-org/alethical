@@ -126,3 +126,34 @@ def test_promotion_and_failed_transaction_preserve_history_and_reviewed_links(
                 db, session_definition("0942026"), today=date(2027, 1, 12)
             )
         db.rollback()
+
+
+def test_partial_profile_preserves_held_contacts_and_accepts_corrections(seed_database):
+    with Session(get_engine()) as db:
+        pipeline = MinnesotaIngestionPipeline(db)
+        refs = pipeline.seed_reference_data("0942026")
+        period = db.scalar(
+            select(LegislatorServicePeriod).where(
+                LegislatorServicePeriod.session_id == refs["session"].id,
+                LegislatorServicePeriod.is_current.is_(True),
+            )
+        )
+        assert period is not None
+        from alethical.db.models import Legislator, Chamber, District
+
+        legislator = db.get(Legislator, period.legislator_id)
+        chamber = db.get(Chamber, period.chamber_id)
+        district = db.get(District, period.district_id)
+        period.phone = "651-555-0100"
+        period.photo_url = "https://house.mn.gov/held.jpg"
+        pipeline.upsert_service_period(
+            refs,
+            legislator,
+            chamber,
+            district,
+            {"office_phone": None, "image_url": "", "email": "new@example.test"},
+        )
+        assert period.phone == "651-555-0100"
+        assert period.photo_url == "https://house.mn.gov/held.jpg"
+        assert period.email == "new@example.test"
+        db.rollback()

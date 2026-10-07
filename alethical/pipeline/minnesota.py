@@ -2521,14 +2521,20 @@ class MinnesotaIngestionPipeline:
             self.db.flush()
         service_period.chamber_id = chamber.id
         service_period.district_id = district.id
-        service_period.party = str(profile.get("party") or "") or None
-        service_period.email = str(profile.get("email") or "") or None
-        service_period.phone = str(profile.get("office_phone") or "") or None
-        service_period.profile_url = (
-            str(profile.get("source_url") or profile.get("profile_url") or "") or None
-        )
-        service_period.photo_url = str(profile.get("image_url") or "") or None
-        service_period.office_address = str(profile.get("office_block") or "") or None
+        # Partial profile pages must not erase previously sourced contacts or
+        # photos. Nonempty official corrections replace held values; clearing
+        # needs an explicit source absence signal, which these parsers lack.
+        values = {
+            "party": profile.get("party"),
+            "email": profile.get("email"),
+            "phone": profile.get("office_phone"),
+            "profile_url": profile.get("source_url") or profile.get("profile_url"),
+            "photo_url": profile.get("image_url"),
+            "office_address": profile.get("office_block"),
+        }
+        for field, value in values.items():
+            if value is not None and str(value).strip():
+                setattr(service_period, field, str(value).strip())
         return service_period
 
     def upsert_committees(

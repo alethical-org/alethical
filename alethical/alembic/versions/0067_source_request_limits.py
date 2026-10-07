@@ -16,6 +16,7 @@ def upgrade() -> None:
         sa.Column("next_request_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("blocked_until", sa.DateTime(timezone=True), nullable=False),
     )
+    op.execute("ALTER TABLE source_request_limits ENABLE ROW LEVEL SECURITY")
 
 
 def downgrade() -> None:
