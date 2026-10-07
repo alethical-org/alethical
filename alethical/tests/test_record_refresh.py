@@ -226,3 +226,90 @@ def test_large_job_fits_default_budget(sessions, monkeypatch):
         == 0
     )
     assert called == [True]
+
+
+def test_shorter_cadence_advances_completed_weekly_deadline(sessions, monkeypatch):
+    from dataclasses import replace
+
+    weekly = replace(job(), interval=timedelta(days=7))
+    active = replace(weekly, interval=timedelta(hours=4))
+    with sessions() as db:
+        claim = runner.claim_job(db, weekly, now=NOW)
+        runner.finish_job(db, claim, code=0, now=NOW)
+        assert db.get(SourceRefreshState, "test").next_due_at == NOW + timedelta(days=7)
+    monkeypatch.setattr(runner, "jobs", lambda *_a: {"test": active})
+    with sessions() as db:
+        assert runner.due_names(db, now=NOW + timedelta(hours=3)) == []
+        assert runner.claim_job(db, active, now=NOW + timedelta(hours=3)) is None
+        assert runner.due_names(db, now=NOW + timedelta(hours=4)) == ["test"]
+        assert runner.claim_job(db, active, now=NOW + timedelta(hours=4)) is not None
+
+
+@pytest.mark.parametrize(
+    "status, failures", [("failed", 1), ("deferred", 0), ("continuing", 0)]
+)
+def test_shorter_cadence_preserves_retry_and_continuation_deadlines(
+    sessions, monkeypatch, status, failures
+):
+    from dataclasses import replace
+
+    active = replace(job(), interval=timedelta(hours=4))
+    with sessions() as db:
+        db.add(
+            SourceRefreshState(
+                name="test",
+                next_due_at=NOW + timedelta(hours=1),
+                last_started_at=NOW - timedelta(days=1),
+                last_status=status,
+                failures=failures,
+                progress={"cursor": "bill123"},
+            )
+        )
+        db.commit()
+    monkeypatch.setattr(runner, "jobs", lambda *_a: {"test": active})
+    with sessions() as db:
+        assert runner.due_names(db, now=NOW) == []
+        assert runner.claim_job(db, active, now=NOW) is None
+        assert db.get(SourceRefreshState, "test").progress == {"cursor": "bill123"}
+        assert runner.claim_job(db, active, now=NOW + timedelta(hours=1))
+
+
+def test_shorter_cadence_never_takes_an_active_lease(sessions, monkeypatch):
+    from dataclasses import replace
+
+    definition = replace(job(), interval=timedelta(seconds=1))
+    monkeypatch.setattr(runner, "jobs", lambda *_a: {"test": definition})
+    with sessions() as db:
+        owner = runner.claim_job(db, definition, now=NOW)
+        row = db.get(SourceRefreshState, "test")
+        # Even a prior success left on the state cannot overrule active ownership.
+        row.last_status = "succeeded"
+        row.last_started_at = NOW - timedelta(days=1)
+        db.commit()
+        assert runner.due_names(db, now=NOW) == []
+        assert runner.claim_job(db, definition, now=NOW) is None
+        assert db.get(SourceRefreshState, "test").token == owner.token
+
+
+def test_roster_uses_numeric_legislature_order_not_source_code_order(monkeypatch):
+    from dataclasses import replace
+    from alethical.pipeline.sessions import session_definition
+
+    ninety_five = session_definition("0952027")
+    hundred = replace(
+        ninety_five,
+        slug="100-2037-regular",
+        session_number=100,
+        year_start=2037,
+        year_end=2038,
+        start_date=datetime(2037, 1, 1, tzinfo=UTC),
+    )
+    monkeypatch.setattr(
+        runner, "SESSION_DEFINITIONS", {"0952027": ninety_five, "01002037": hundred}
+    )
+    monkeypatch.setattr(
+        runner, "session_refresh_interval", lambda *_a: timedelta(days=7)
+    )
+    definitions = runner.jobs(datetime(2037, 2, 1, tzinfo=UTC))
+    assert definitions["roster"].arguments[-1] == "01002037"
+    assert definitions["votes"].arguments[-1] == "01002037"

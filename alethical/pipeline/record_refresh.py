@@ -166,10 +166,17 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
                 lane="legislative",
             )
         )
-    current_code = max(
-        code
-        for code, definition in by_slug.values()
-        if definition.session_type == "regular"
+    current_code, _ = max(
+        (
+            (code, definition)
+            for code, definition in by_slug.values()
+            if definition.session_type == "regular"
+        ),
+        key=lambda item: (
+            item[1].session_number,
+            item[1].year_start,
+            int(item[0][-4:]),
+        ),
     )
     definitions.extend(
         [
@@ -237,6 +244,22 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
     return {job.name: job for job in definitions}
 
 
+def _next_due_at(row: SourceRefreshState, job: RefreshJob) -> datetime:
+    """A shorter source cadence advances completed work, never a retry or lease.
+
+    Completion schedules from its pass start, matching finish_job. A stored
+    weekly deadline must not suppress the first active-session 4-hour check.
+    Deferred, failed and continuing runs keep their own saved resume deadline.
+    """
+    if (
+        row.last_status in {"succeeded", "review_required"}
+        and row.failures == 0
+        and row.last_started_at is not None
+    ):
+        return min(row.next_due_at, row.last_started_at + job.interval)
+    return row.next_due_at
+
+
 def due_names(db: Session, *, now: datetime | None = None) -> list[str]:
     now = now or datetime.now(UTC)
     states = {row.name: row for row in db.scalars(select(SourceRefreshState))}
@@ -246,7 +269,7 @@ def due_names(db: Session, *, now: datetime | None = None) -> list[str]:
         row = states.get(name)
         lane = states.get(f"lane:{job.lane}") if job.lane else None
         if row and (
-            row.next_due_at > now
+            _next_due_at(row, job) > now
             or (row.lease_expires_at and row.lease_expires_at > now)
         ):
             continue
@@ -255,7 +278,7 @@ def due_names(db: Session, *, now: datetime | None = None) -> list[str]:
         ready.append(name)
     ready.sort(
         key=lambda name: (
-            states[name].next_due_at
+            _next_due_at(states[name], definitions[name])
             if name in states
             else datetime.min.replace(tzinfo=UTC),
             name,
@@ -316,7 +339,7 @@ def claim_job(
     if row.lease_expires_at and row.lease_expires_at > now:
         db.commit()
         return None
-    if not force and row.next_due_at > now:
+    if not force and _next_due_at(row, job) > now:
         db.commit()
         return None
     if row.token:
