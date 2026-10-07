@@ -162,3 +162,29 @@ def test_map_rejects_duplicate_district_even_when_row_count_matches():
         archive.writestr("districts.json", json.dumps(payload))
     with pytest.raises(checks.SourceUnavailable, match="missing districts or repeats"):
         checks.map_payload(output.getvalue(), "senate")
+
+
+def test_election_countdown_and_script_rebuild_do_not_repeat_review_alert():
+    first = checks.CheckResult(
+        "candidate-ballot",
+        "review_required",
+        "Review mapping",
+        {
+            "supported_election": {"id": "8334"},
+            "days_until_election": 27,
+            "script_url": "main-A.js",
+        },
+    )
+    next_day = checks.CheckResult(
+        "candidate-ballot",
+        "review_required",
+        "Review mapping",
+        {
+            "supported_election": {"id": "8334"},
+            "days_until_election": 26,
+            "script_url": "main-B.js",
+        },
+    )
+    assert first.document()["finding_key"] == next_day.document()["finding_key"]
+    next_day.evidence["supported_election"] = {"id": "new-reviewed-id"}
+    assert first.document()["finding_key"] != next_day.document()["finding_key"]

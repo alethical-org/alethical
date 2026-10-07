@@ -18,7 +18,9 @@ PYTHONPATH=. uv run python scripts/check_supporting_sources.py --source zip
 ```
 
 Each prints JSON with `checked_at`, `published: false`, and `results` containing
-`source`, `status`, `detail`, and source-specific `evidence`. Exit 0 means the
+`source`, `status`, `detail`, source-specific `evidence`, and a stable
+`finding_key`. The key excludes daily election countdowns and public JavaScript
+filenames so the same mapping review does not become a new daily finding. Exit 0 means the
 check passed or the next review is not due; 1 means a source was unavailable;
 2 means review is required. The shared scheduler must preserve those meanings,
 retain the JSON, and group unchanged findings rather than opening daily duplicate

@@ -35,7 +35,26 @@ class CheckResult:
     evidence: dict = field(default_factory=dict)
 
     def document(self) -> dict:
-        return asdict(self)
+        document = asdict(self)
+        # Daily countdowns and rebuilt public JavaScript names do not create a
+        # new review decision. A changed official release or mapping does.
+        stable_evidence = {
+            key: value
+            for key, value in self.evidence.items()
+            if key not in {"days_until_election", "script_url"}
+        }
+        fingerprint = json.dumps(
+            {
+                "source": self.source,
+                "status": self.status,
+                "detail": self.detail,
+                "evidence": stable_evidence,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        document["finding_key"] = hashlib.sha256(fingerprint.encode()).hexdigest()
+        return document
 
 
 class SourceUnavailable(ValueError):
