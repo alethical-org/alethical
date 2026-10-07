@@ -68,6 +68,19 @@ class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=naming_convention)
 
 
+class SourceRequestLimit(Base):
+    """Shared request reservations and source-requested cooldowns."""
+
+    __tablename__ = "source_request_limits"
+    host: Mapped[str] = mapped_column(Text, primary_key=True)
+    next_request_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    blocked_until: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
 class SourceRefreshState(Base):
     """One durable deadline per named source job, not a public source-copy date."""
 
