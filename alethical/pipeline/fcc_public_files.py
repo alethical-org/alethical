@@ -45,14 +45,18 @@ DEFAULT_STATIONS = (
 
 @dataclass(frozen=True)
 class FileListing:
+    """A source record, including explicit gaps where FCC publishes no link."""
+
     file_id: str
     folder_id: str
     folder_path: str
     name: str
-    url: str
+    url: str | None
     uploaded_at: str | None = None
     size_bytes: int | None = None
     size_label: str | None = None
+    unavailable_reason: str | None = None
+    source_folder_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -244,9 +248,43 @@ def parse_folder(body: bytes, url: str, path: str) -> FolderListing:
     children: list[tuple[str, str]] = []
     station_prefix = urlsplit(url).path.split("/political-files", 1)[0] + "/"
     for row in parser.rows:
-        if len(row) != 3 or len(row[0].links) != 1:
+        if len(row) != 3 or len(row[0].links) > 1:
             raise FCCSourceError(f"Unrecognized FCC listing row in {url}")
         cell, size_cell, date_cell = row
+        if not cell.links:
+            # FCC sometimes lists a public file record without a download link.
+            # Keep that gap and its metadata without hiding downloadable siblings.
+            record_id = cell.attrs.get("id", "").removeprefix("file")
+            folder_id = urlsplit(url).path.rstrip("/").rsplit("/", 1)[-1]
+            name = _text(cell.text)
+            if (
+                not {"file", "public"}.issubset(cell.attrs.get("class", "").split())
+                or not cell.attrs.get("id", "").startswith("file")
+                or re.fullmatch(_UUID, record_id) is None
+                or re.fullmatch(_UUID, folder_id) is None
+                or not name
+            ):
+                raise FCCSourceError(f"Unrecognized unlinked FCC file row in {url}")
+            size_label = _text(size_cell.text)
+            exact_bytes = re.fullmatch(r"([0-9,]+) (?:B|bytes)", size_label, re.I)
+            uploaded_at = _text(date_cell.text)
+            files.append(
+                FileListing(
+                    file_id=record_id,
+                    folder_id=folder_id,
+                    folder_path=path,
+                    name=name,
+                    url=None,
+                    uploaded_at=None if uploaded_at in ("", "--") else uploaded_at,
+                    size_bytes=int(exact_bytes[1].replace(",", ""))
+                    if exact_bytes
+                    else None,
+                    size_label=size_label or None,
+                    unavailable_reason="FCC lists this record without a public download link",
+                    source_folder_url=url,
+                )
+            )
+            continue
         link = cell.links[0]
         href = urljoin(url, link.attrs.get("href", ""))
         classes = set(link.attrs.get("class", "").split())
@@ -256,12 +294,19 @@ def parse_folder(body: bytes, url: str, path: str) -> FolderListing:
         if "nav2folder" in classes:
             _safe_url(href)
             child_path = link.attrs.get("data-path", "")
+            child_url_path = urlsplit(href).path.rstrip("/")
+            child_id = child_url_path.rsplit("/", 1)[-1]
+            # FCC's state listing can point to a folder under local instead.
+            # Keep the actual path, bounded to this station's political files.
             if (
-                not child_path.startswith(path.rstrip("/") + "/")
+                not child_path.startswith("political-files/")
                 or any(part in ("", ".", "..") for part in child_path.split("/"))
-                or not urlsplit(href).path.startswith(station_prefix + child_path + "/")
+                or re.fullmatch(_UUID, child_id) is None
+                or child_url_path != station_prefix + child_path + "/" + child_id
             ):
-                raise FCCSourceError(f"FCC child folder leaves its parent: {href}")
+                raise FCCSourceError(
+                    f"FCC child folder leaves station or mismatches its path: {href}"
+                )
             children.append((href, child_path))
         elif "nav2file" in classes:
             _safe_url(href, download=True)
@@ -391,6 +436,12 @@ class FCCClient:
 
     def download(self, file: FileListing) -> bytes:
         self.last_download_url = None
+        if file.url is None or file.unavailable_reason is not None:
+            raise FCCFetchError(
+                file.source_folder_url or FCC_ORIGIN,
+                file.unavailable_reason
+                or "FCC lists this record without a public download link",
+            )
         _safe_url(file.url, download=True)
         try:
             body, effective = self._fetch(file.url, self.max_file_bytes, download=True)

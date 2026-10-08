@@ -143,6 +143,7 @@ specifically the ingestion that _builds the retrieval corpus_ those depend on.
 | H   | Campaign finance (money in and out)      | MN Campaign Finance Board data downloads                                               | HTTP `GET`, 3 whole CSV files              | none to fetch; storage credentials to keep the files | [campaign_finance.py](../../alethical/pipeline/campaign_finance.py), [raw_file_store.py](../../alethical/pipeline/raw_file_store.py) |
 | H2  | What each committee itself reported, and Minnesota's registered-filer list | MN Campaign Finance Board per-filer services (undocumented) | HTTP `POST`, JSON — and money inside an HTML table inside JSON | none to fetch; storage credentials to keep the responses | [campaign_finance_filings.py](../../alethical/pipeline/campaign_finance_filings.py) |
 | H3  | Lobbying (what each principal spent per year) | MN Campaign Finance Board lobbying data downloads | HTTP `GET`, 1 whole CSV file | none to fetch; storage credentials to keep the file | [lobbying_expenditures.py](../../alethical/pipeline/lobbying_expenditures.py) |
+| H4 | TV political advertising files | FCC station political folders, initially KSTP-TV, KARE and KMSP-TV | HTTP `GET`, folder listings and original served files | none to fetch; private storage credentials to retain and mirror | [fcc_archive.py](../../alethical/pipeline/fcc_archive.py), [FCC political files](../implementation/fcc-political-files.md) |
 
 **Every one of those `GET`s decodes through one helper, and it has to**
 ([http_text.py](../../alethical/pipeline/http_text.py)). Sources A, B and C each
@@ -1073,6 +1074,22 @@ record-set hash still decides "did the data change", because 2 fetches of 1 file
 not a property of the source. And 48 of its 17,842 rows carry no amounts at all:
 blank money lands as NULL ("not reported"), never as 0, while `.0000` is the file's
 explicit zero and stays one.
+
+### H4: FCC political advertising evidence
+
+The private FCC archive retains all available political folders for each selected
+station, including listings with missing downloads. It preserves source versions,
+reads PDF pages with local tools and stores draft facts with page quotations.
+Orders, invoices, credits and evidence of payment remain separate. The station
+hosting a file is not proof that every billed spot aired on that station.
+
+Run `uv run python scripts/fcc_political_files.py collect --target prod --dry-run`
+to inspect the collection plan. Collection, text reading, backup and search are
+separate restartable commands; the manual GitHub workflow has no schedule and
+calls no paid AI service. Public screens remain on hold. The
+[FCC political-file implementation and operator instructions](../implementation/fcc-political-files.md)
+own the commands, bounds, source gaps and acceptance evidence. This archive uses
+its own tables and does not change published campaign expense totals.
 
 ## E & F: the credentialed AI sources (Anthropic and OpenAI)
 

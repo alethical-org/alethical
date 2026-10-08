@@ -17,6 +17,7 @@ defined station list. No paid recurring AI job is authorized.
 
 Owner: Codex chat (FCC media-vendor, 01a11a9b-d455-7d51-9baf-7d821afd0d6f),
 branch `codex/fcc-political-file-archive`.
+Source-listing corrections continue on `codex/fcc-source-listing-gaps`.
 
 ## Source evidence and approved handling
 
@@ -76,6 +77,41 @@ scale, varied PDF layouts and station scope beyond the initial 3.
   integrates database, storage, commands and release, then personally reviews both.
 - Initial proposal listed 4,507 files. This is a changing FCC listing count, not a
   verified count of unique invoices or proof of historical completeness.
+- The private backend is released; production applies migration
+  `0067_fcc_political_files` with all 7 FCC tables protected from public access.
+  The initial 3-station collection, text reading and backup are running.
+- Actual listings exposed 2 source shapes: a file row without a download link,
+  and a state folder linking to a local folder. The reader retains unavailable
+  file metadata without inventing a link, and follows links only within the same
+  station's political tree with an exact path match. The actual source category
+  survives. A missing download cannot hide its downloadable neighboring records.
+  Focused tests cover retained gaps, sibling downloads, later link recovery,
+  cross-category links and cycles. A missing FCC link remains a source limit.
+- Initial parallel text reading exposed database records expiring after each
+  saved result. Workers now receive copied file details; only the coordinating
+  thread reads or writes database records. Tests force a save before later workers
+  start and cover both successful reads and failures.
+- Reader version `fcc-document-text-v2` prefers Poppler's usable page text, which
+  retains filled values omitted by the first reader on a completed PB-19 form.
+  Disclosure headings take priority over referenced orders, and identifier fields
+  require a digit. The old readings remain available as history; progress counts
+  and search use the current version. A 6-PDF comparison preserves the previously
+  correct financial fields and removes a false contract number of `Station`.
+- A wider production sample found the adjacent heading `Original Date / Revision`
+  stored as an advertiser on 83 documents. Version `fcc-document-text-v3` rejects
+  observed form headings in all name, address and identifier fields, while keeping
+  real names with slashes. It leaves ambiguous names unknown instead of guessing
+  from neighboring rows. Earlier readings remain retained; current readings are
+  rebuilt from the original stored bytes and stay drafts requiring review.
+- KMSP sampling exposed a long advertiser joined to the next `Invoice Date`
+  heading by only 1 space. Version `fcc-document-text-v4` rejects embedded compound
+  headings across text fields, preserving ordinary company words and slash names.
+  It also opens PDFs using the empty password when they require no opening
+  password; genuinely protected files remain unreadable. Checks cover both cases,
+  and 15 source PDFs retain their supported financial and identity facts.
+- A KSTP source invoice names its property as `KSTP_KSAX`. The archive station is
+  the filing location, not proof that every billed spot aired on that station.
+  Source text remains available for later review of grouped station buys.
 
 ## Operator commands and limits
 
@@ -105,6 +141,10 @@ scope is the available folders at collection time, not historical completeness.
 Unchanged files are read back from storage for up to 7 days; older files are
 downloaded again even if their source names and dates did not change. Use
 `--refresh-existing` for a full source comparison sooner.
+Files listed without a public download link count as `files_unavailable`; their
+name, source record ID, listing address, size and upload label remain in the
+observation record and `gaps` output. They make the scan `incomplete` even when
+every available download succeeds. They are never counted as stored documents.
 
 `extract --retry-failed` retries incomplete readings while preserving their earlier
 pages, facts and failure reasons. Readings already used in an expense link cannot
@@ -144,4 +184,6 @@ page text and review history; the private file stores retain the response bytes.
 - Review identified bounded-run starvation, retries losing prior reading evidence,
   mixed scanned/native pages and matching across extractor versions. The build
   adds focused checks for each before the initial production collection.
-- Release, initial station coverage and final independent acceptance remain pending.
+- The backend release is live at commit
+  `b982aa7a2e8abd6e794a37f235bd043960eeec63`. Initial station coverage, correction
+  release, text reading, full backup and final independent acceptance remain pending.

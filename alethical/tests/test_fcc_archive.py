@@ -317,6 +317,48 @@ def test_file_limit_is_limited_and_download_failure_is_incomplete(db):
     assert observation.status == "failed" and observation.content_hash is None
 
 
+def test_missing_download_link_keeps_siblings_and_explicit_source_gap(db):
+    unavailable = replace(
+        FILE,
+        file_id="record-unavailable",
+        url=None,
+        source_folder_url=ROOT,
+        unavailable_reason="FCC lists this record without a public download link",
+    )
+    downloaded = []
+    store = MemoryStore()
+    result = collect(
+        db, store, factory(files=(FILE, unavailable), downloaded=downloaded)
+    )
+    assert result["status"] == "incomplete"
+    assert result["listed_files"] == 2
+    assert result["files_stored"] == result["files_unavailable"] == 1
+    assert result.get("folders_failed", 0) == result.get("files_failed", 0) == 0
+    assert downloaded == [FILE.file_id]
+    assert count(db, m.FCCDocument) == 1
+    source_gap = archive.gaps(db)["source_failures"]
+    assert len(source_gap) == 1
+    assert source_gap[0]["status"] == "unavailable"
+    assert source_gap[0]["url"] == ROOT + "#fcc-file=record-unavailable"
+    assert source_gap[0]["details"]["url"] is None
+    assert source_gap[0]["details"]["name"] == unavailable.name
+    assert source_gap[0]["error"] == unavailable.unavailable_reason
+
+    # A later real download link resolves the current gap, preserving the old one.
+    restored = replace(unavailable, url=FILE.url, unavailable_reason=None)
+    rerun = collect(db, store, factory(files=(FILE, restored)))
+    assert rerun["status"] == "complete"
+    assert archive.gaps(db)["source_failures"] == []
+    assert count(db, m.FCCDocument) == 2
+    retained = db.scalar(
+        select(m.FCCObservation).where(
+            m.FCCObservation.scan_id == result["scan_id"],
+            m.FCCObservation.status == "unavailable",
+        )
+    )
+    assert retained is not None and retained.content_hash is None
+
+
 def reading(text="Example committee bought 100% of unit_A", *, version=None):
     kwargs = {} if version is None else {"version": version}
     return Extraction(
@@ -340,6 +382,10 @@ def test_saved_extraction_is_replayable_versioned_and_keeps_quotes(db):
     assert count(db, m.FCCExtraction) == count(db, m.FCCPage) == 2
     row = db.get(m.FCCExtraction, (key, extraction.version))
     assert row.facts[0]["quote"] == "Invoice: 510114" and row.facts[0]["page"] == 1
+    status = archive.status(db)
+    assert status["extraction_version"] == extraction.version
+    assert status["readings"] == {"pending_review": 1}
+    assert status["older_readings_retained"] == 1
 
 
 def test_search_quotes_source_page_and_escapes_pattern_characters(db):
@@ -451,6 +497,37 @@ def test_bounded_scans_eventually_download_every_distinct_record(db):
     assert {row.file_id for row in db.scalars(select(m.FCCDocument))} == {
         file.file_id for file in files
     }
+
+
+def test_cross_category_folder_link_preserves_actual_path_and_stops_cycles(db):
+    state_url, local_url = ROOT + "/2026/state/state-id", ROOT + "/2026/local/local-id"
+    visited = []
+    local_file = replace(FILE, folder_path="political-files/2026/local/example")
+    Base = factory(files=(local_file,))
+
+    class Client(Base):
+        def read_folder(self, url, path):
+            visited.append(url)
+            if url == ROOT:
+                children = [(state_url, "political-files/2026/state")]
+            elif url == state_url:
+                children = [(local_url, local_file.folder_path)]
+            else:
+                assert url == local_url and path == local_file.folder_path
+                return FolderListing(
+                    url,
+                    path,
+                    b"local source",
+                    [local_file],
+                    [(ROOT, "political-files")],
+                )
+            return FolderListing(url, path, url.encode(), [], children)
+
+    result = collect(db, MemoryStore(), Client)
+    assert result["status"] == "complete"
+    assert visited == [ROOT, state_url, local_url]
+    assert result["folders_stored"] == 3 and result["files_stored"] == 1
+    assert db.scalar(select(m.FCCDocument)).folder_path == local_file.folder_path
 
 
 def test_failed_first_record_does_not_starve_unseen_records(db):

@@ -67,7 +67,88 @@ def _values(facts):
     return {fact.field: fact.value for fact in facts}
 
 
+# Retained text from page 4 of the official Defending Main Street PB-19,
+# SHA256 0bc89eea480e8559e6bce2e1ce06b42acd61af18053cc1db7b3237976a69a96b.
+# pypdf's layout output drops the filled values and splits "Station Call".
+_PB19_HEADING = (
+    "Political Broadcast Agreement Form for\nNon-Candidate/Issue Advertisements (PB-19)"
+)
+_PB19_PYPDF = (
+    "Contract #:       Station  Call Letters:       Date Received/Requested:\n"
+    "Est. #:           Station  Location:           Run Start and End Dates:"
+)
+_PB19_POPPLER = (
+    "Contract #:       Station Call Letters:       Date Received/Requested:\n"
+    "    #429347                   KSTP-TV         5/6/22\n"
+    "Est. #:           Station Location:           Run Start and End Dates:\n"
+    "    #8860         Minneapolis/St. Paul        5/6/22-5/13/22"
+)
+
+# Retained native layout from KARE contract 2577554, page 1,
+# SHA256 1480c586b161b1c1b02423acec134ee287ba91f4072025717c097bb843d77f70.
+_KARE_ADVERTISER_ROWS = (
+    "Advertiser                    Original Date / Revision\n"
+    "POL/ Keith Ellison / D / Attny General / MN       10/26/22 / 11/04/22"
+)
+
+
 class LabelReadingTests(unittest.TestCase):
+    def test_actual_kmsp_joined_advertiser_heading_is_omitted(self):
+        # Native layout of invoice 1972759-1, SHA256
+        # 1f9b697517f593b485de5788fec5e36d31226a77b86f555724bcfd2290224168.
+        repeated = (
+            "INVOICE\nInvoice #     1972759-1\n"
+            "Advertiser    Alliance for a Better Minnesota State PAC Invoice Date    08/30/26\n"
+            "Property      KMSP          Order #    1972759"
+        )
+        kind, facts, errors = _read(
+            *([repeated] * 5),
+            repeated + "\nGross Total    $31,650.00\nAgency Commission    $4,747.50\n"
+            "Net Amount Due    $26,902.50",
+        )
+        self.assertEqual(kind, "invoice")
+        self.assertFalse(errors)
+        self.assertEqual(
+            _values(facts),
+            {
+                "invoice_number": "1972759-1",
+                "order_number": "1972759",
+                "gross_amount": "31650.00",
+                "commission_amount": "4747.50",
+                "net_amount": "26902.50",
+            },
+        )
+
+    def test_actual_kare_header_is_not_advertiser_on_any_repeated_page(self):
+        kind, facts, errors = _read(*([_KARE_ADVERTISER_ROWS] * 5))
+        self.assertEqual(kind, "unknown")
+        self.assertFalse(facts)
+        self.assertFalse(errors)
+
+    def test_explicit_advertiser_keeps_slashes_in_real_name(self):
+        _, facts, _ = _read("Advertiser: POL/ Keith Ellison / D / Attny General / MN")
+        self.assertEqual(
+            _values(facts),
+            {"advertiser": "POL/ Keith Ellison / D / Attny General / MN"},
+        )
+
+    def test_actual_pb19_column_heading_is_not_contract_number(self):
+        _, facts, _ = _read(_PB19_HEADING, _PB19_PYPDF)
+        self.assertNotIn("order_number", _values(facts))
+        # Multiple aligned fields on the next row remain searchable evidence,
+        # without guessing which filled value belongs to the contract label.
+        _, facts, _ = _read(_PB19_HEADING, _PB19_POPPLER)
+        self.assertNotIn("order_number", _values(facts))
+
+    def test_explicit_disclosure_heading_outranks_referenced_contract(self):
+        kind, facts, _ = _read(_PB19_HEADING, "Contract #: 429347")
+        self.assertEqual(kind, "disclosure")
+        self.assertEqual(_values(facts), {"order_number": "429347"})
+
+    def test_identifiers_need_a_digit_to_avoid_bare_column_headings(self):
+        _, facts, _ = _read("Order Number: Station\nInvoice Number: Date")
+        self.assertFalse(facts)
+
     def test_actual_wideorbit_order_layout_and_totals(self):
         kind, facts, errors = _read(
             "ORDER\nOrders               Order / Rev:              510114\n"
@@ -134,6 +215,17 @@ class LabelReadingTests(unittest.TestCase):
             },
         )
         self.assertEqual(next(f.page for f in facts if f.field == "gross_amount"), 2)
+
+    def test_poppler_invoice_flight_cell_is_distinct_from_invoice_period(self):
+        _, facts, _ = _read(
+            "Main: (651)646-5555     Invoice Period    "
+            "06/29/26 - 07/21/26 Flight Dates 07/17/26 - 07/21/26"
+        )
+        self.assertEqual(
+            _values(facts), {"start_date": "07/17/26", "end_date": "07/21/26"}
+        )
+        _, facts, _ = _read("Invoice Period 06/29/26 - 07/21/26")
+        self.assertFalse(facts)
 
     def test_invoice_values_have_exact_source_quotes(self):
         kind, facts, errors = _read(
@@ -242,7 +334,125 @@ def test_rate_requires_explicit_percent_and_valid_range(value):
     assert not _read(f"Commission Rate: {value}")[1]
 
 
+@pytest.mark.parametrize(
+    "label", ("Advertiser", "Agency Name", "Agency Address", "Payer")
+)
+@pytest.mark.parametrize(
+    "heading",
+    (
+        "Original Date / Revision",
+        "Contract / Revision",
+        "Contract Dates",
+        "Station Call Letters",
+        "Account Executive",
+        "Invoice Date",
+    ),
+)
+def test_neighboring_headers_are_not_text_field_values(label, heading):
+    assert not _read(f"{label}       {heading}")[1]
+    assert not _read(f"{label}: {heading}")[1]
+    assert not _read(f"{label}\n{heading}")[1]
+    assert not _read(f"{label}       Example Committee {heading}")[1]
+    assert not _read(f"{label}: {heading} Example Committee")[1]
+
+
+@pytest.mark.parametrize(
+    "heading",
+    (
+        "Order Number",
+        "Order No.",
+        "Contract #",
+        "Order / Rev",
+        "Invoice Number",
+        "Agency Name",
+        "Agency Address",
+        "Advertiser Name",
+        "Payer Name",
+        "Paid By",
+        "Invoice Date",
+        "Start Date",
+        "Flight Start Date",
+        "End Date",
+        "Flight End Date",
+        "Gross Amount",
+        "Gross Total",
+        "Commission Amount",
+        "Commission Rate",
+        "Agency Commission %",
+        "Net Amount Due",
+        "Net Total",
+        "Total Order Amount",
+        "Credit Amount",
+        "Amount Paid",
+        "Paid Amount",
+        "Payment Received",
+    ),
+)
+def test_all_supported_compound_headings_reject_joined_names(heading):
+    assert not _read(f"Advertiser: Example Committee {heading}")[1]
+    assert not _read(f"Agency Address: {heading} Example Committee")[1]
+
+
+@pytest.mark.parametrize(
+    "name",
+    (
+        "POL/ Keith Ellison / D / Attny General / MN",
+        "POL/ Tim Walz/ D / GOV / MN",
+        "The Agency / Minnesota",
+        "Property Media Partners",
+    ),
+)
+def test_embedded_heading_guard_preserves_slash_names_and_bare_words(name):
+    assert _values(_read(f"Advertiser: {name}")[1]) == {"advertiser": name}
+
+
+# Separate pytest cases keep JUnit's declared count equal to its testcase nodes.
+@pytest.mark.parametrize(
+    "answer",
+    (b"", subprocess.CalledProcessError(1, "pdftotext")),
+    ids=("empty", "failed"),
+)
+def test_native_text_survives_empty_or_failed_poppler(answer):
+    body = _pdf("Invoice Number: 12345")
+    with tempfile.TemporaryDirectory() as directory:
+        source = Path(directory) / "source.pdf"
+        source.write_bytes(body)
+        with (
+            patch.object(reader.shutil, "which", return_value="pdftotext"),
+            patch.object(reader, "_command", side_effect=[answer]),
+            patch.object(reader, "_ocr_page") as ocr,
+        ):
+            result = reader._extract_pages(body, source)
+    ocr.assert_not_called()
+    assert result.pages[0].method == "pypdf"
+    assert _values(result.facts) == {"invoice_number": "12345"}
+
+
 class PdfReadingTests(unittest.TestCase):
+    def test_usable_pb19_native_boilerplate_does_not_hide_filled_values(self):
+        body = _pdf(_PB19_HEADING, _PB19_PYPDF)
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "pb19.pdf"
+            source.write_bytes(body)
+            with (
+                patch.object(reader.shutil, "which", return_value="pdftotext"),
+                patch.object(
+                    reader,
+                    "_command",
+                    side_effect=[_PB19_HEADING.encode(), _PB19_POPPLER.encode()],
+                ) as command,
+                patch.object(reader, "_ocr_page") as ocr,
+            ):
+                result = reader._extract_pages(body, source)
+        self.assertEqual(command.call_count, 2)
+        ocr.assert_not_called()
+        self.assertEqual(result.document_kind, "disclosure")
+        self.assertEqual(result.pages[1].method, "pdftotext")
+        self.assertIn("#429347", result.pages[1].text)
+        self.assertIn("KSTP-TV", result.pages[1].text)
+        self.assertIn("5/6/22-5/13/22", result.pages[1].text)
+        self.assertNotIn("order_number", _values(result.facts))
+
     @unittest.skipUnless(
         shutil.which("pdftoppm") and shutil.which("tesseract"),
         "optional local OCR tools are unavailable",
@@ -321,7 +531,8 @@ class PdfReadingTests(unittest.TestCase):
         body = mixed.getvalue()
         result = extract_document(body, "native-footer-scanned-body.pdf")
         self.assertEqual(result.status, "pending_review")
-        self.assertEqual(result.pages[0].method, "pypdf+tesseract")
+        native_method = "pdftotext" if shutil.which("pdftotext") else "pypdf"
+        self.assertEqual(result.pages[0].method, native_method + "+tesseract")
         self.assertIn("Station Public File", result.pages[0].text)
         self.assertIn("12345", result.pages[0].text)
         self.assertEqual(_values(result.facts)["invoice_number"], "12345")
@@ -346,7 +557,9 @@ class PdfReadingTests(unittest.TestCase):
         self.assertEqual(result.status, "pending_review")
         self.assertEqual(result.document_kind, "invoice")
         self.assertEqual([page.page for page in result.pages], [1, 2])
-        self.assertEqual([page.method for page in result.pages], ["pypdf", "pypdf"])
+        native_method = "pdftotext" if shutil.which("pdftotext") else "pypdf"
+        self.assertEqual([page.method for page in result.pages], [native_method] * 2)
+        self.assertEqual(result.version, "fcc-document-text-v4")
         self.assertEqual(
             _values(result.facts), {"invoice_number": "123", "gross_amount": "42.30"}
         )
@@ -436,6 +649,21 @@ class PdfReadingTests(unittest.TestCase):
         writer.write(output)
         result = extract_document(output.getvalue(), "encrypted.pdf")
         self.assertEqual(result.errors, ["encrypted_pdf"])
+
+    def test_aes_pdf_with_empty_opening_password_is_readable(self):
+        # Publicly viewable PDFs can carry encryption for permissions while
+        # having no opening password, as the observed KARE scanned NAB does.
+        writer = PdfWriter(
+            clone_from=PdfReader(io.BytesIO(_pdf("Invoice Number: 12345")))
+        )
+        writer.encrypt("", owner_password="test-owner", algorithm="AES-128")
+        output = io.BytesIO()
+        writer.write(output)
+        result = extract_document(output.getvalue(), "public-encrypted.pdf")
+        self.assertEqual(result.status, "pending_review")
+        self.assertEqual(len(result.pages), 1)
+        self.assertIn("12345", result.pages[0].text)
+        self.assertNotIn("encrypted_pdf", result.errors)
 
     def test_page_and_byte_limits_fail_without_partial_claim(self):
         with patch.object(reader, "MAX_DOCUMENT_BYTES", 2):

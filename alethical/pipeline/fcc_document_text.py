@@ -24,7 +24,7 @@ from typing import Any
 from pypdf import PdfReader
 from pypdf.generic import ContentStream, DictionaryObject
 
-EXTRACTOR_VERSION = "fcc-document-text-v1"
+EXTRACTOR_VERSION = "fcc-document-text-v4"
 VERSION = EXTRACTOR_VERSION
 MAX_DOCUMENT_BYTES = 30 * 1024 * 1024
 MAX_PAGES = 100
@@ -253,7 +253,13 @@ def _extract_pages(body: bytes, source: Path) -> Extraction:
     try:
         reader = PdfReader(io.BytesIO(body), strict=False)
         if reader.is_encrypted:
-            return _failed("unreadable", "encrypted_pdf")
+            # Permissions encryption does not necessarily require an opening
+            # password. Try only the standard empty password, never guesses.
+            try:
+                if not reader.decrypt(""):
+                    return _failed("unreadable", "encrypted_pdf")
+            except Exception:
+                return _failed("unreadable", "encrypted_pdf")
         count = len(reader.pages)
         if count > MAX_PAGES:
             return _failed("limit_exceeded", "document_page_limit")
@@ -276,9 +282,12 @@ def _extract_pages(body: bytes, source: Path) -> Extraction:
         except Exception:
             text = ""
             page_errors.append("page_text_failed")
-        if not _usable(text) and (binary := shutil.which("pdftotext")):
+        # A usable boilerplate layer can still omit filled values. Poppler's
+        # rendered layout recovers those values on observed completed PB-19s.
+        # Prefer it on every page when available; retain pypdf on failure/blank.
+        if binary := shutil.which("pdftotext"):
             try:
-                text = _command(
+                rendered_text = _command(
                     [
                         binary,
                         "-f",
@@ -291,7 +300,8 @@ def _extract_pages(body: bytes, source: Path) -> Extraction:
                     ],
                     deadline,
                 ).decode("utf-8", errors="replace")
-                method = "pdftotext"
+                if _usable(rendered_text):
+                    text, method = rendered_text, "pdftotext"
             except (OSError, subprocess.SubprocessError):
                 page_errors.append("pdftotext_failed")
         coverage = _image_coverage(page, reader)
@@ -378,6 +388,37 @@ _LABEL_PATTERNS = [
     (field_name, re.compile(rf"^\s*(?:{label})(?:\s*[:=]\s*(.*?)|\s*)$", re.I))
     for field_name, label in _LABELS.items()
 ]
+# These observed form headers are labels even though we do not extract their
+# fields. A neighboring header is never evidence of a name, address, or ID.
+_COLUMN_HEADING = re.compile(
+    r"(?:original\s+date\s*/\s*revision|contract\s*/\s*revision|contract\s+dates"
+    r"|print\s+date|estimate\s*#|alt\s+order\s*#|property|account\s+executive"
+    r"|sales\s+office|sales\s+region|station\s+call\s+letters|station\s+location"
+    r"|date\s+received\s*/\s*requested|run\s+start\s+and\s+end\s+dates"
+    r"|billing\s+cycle|billing\s+calendar|billing\s+type|billing\s+address"
+    r"|cash\s*/\s*trade|special\s+handling|demographic|agy\s+code|agency\s+code"
+    r"|advertiser\s+code|agency\s+ref|advertiser\s+ref|product(?:\s+[12](?:/[12])?)?"
+    r"|invoice\s+period|invoice\s+month|payment\s+terms)\s*:?",
+    re.I,
+)
+_EMBEDDED_HEADING = re.compile(
+    rf"(?<!\w)(?:{_COLUMN_HEADING.pattern}|"
+    + "|".join(
+        (
+            _LABELS
+            | {
+                # Bare labels must not shadow longer headings, or reject a
+                # genuine name containing an ordinary word such as Agency.
+                "agency_name": r"agency\s+name",
+                "advertiser": r"advertiser\s+name",
+                "payer": r"(?:payer\s+name|paid\s+by)",
+                "commission_amount": r"(?:agency\s+commission(?:\s+amount)?|commission\s+amount)",
+            }
+        ).values()
+    )
+    + r")(?!\w)",
+    re.I,
+)
 _MONEY_FIELDS = {
     "gross_amount",
     "commission_amount",
@@ -401,6 +442,19 @@ def _label(line: str) -> tuple[str, str] | None:
     return None
 
 
+def _contains_heading(value: str) -> bool:
+    if _label(value) or _COLUMN_HEADING.fullmatch(value):
+        return True
+    for match in _EMBEDDED_HEADING.finditer(value):
+        heading = match.group().strip()
+        # Poppler can join a long name to the next heading with only 1 space.
+        # Reject that whole value; never trim a plausible name out of it.
+        # Bare words such as Agency/Property can also belong to real names.
+        if len(heading.split()) > 1 or "/" in heading or "#" in heading:
+            return True
+    return False
+
+
 def _value(name: str, value: str) -> str | None:
     if not value or len(value) > 500 or "\ufffd" in value:
         return None
@@ -420,17 +474,20 @@ def _value(name: str, value: str) -> str | None:
             return format(Decimal(match.group(1)).normalize(), "f")
         return None
     # Multiple columns may contain otherwise plausible strings. Never join them.
-    if re.search(r"\S\s{2,}\S", value) or _label(value) or ":" in value:
+    if re.search(r"\S\s{2,}\S", value) or _contains_heading(value) or ":" in value:
         return None
     if name.endswith("_date") and not re.fullmatch(
         r"(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{2}-\d{2}|[A-Za-z]+\s+\d{1,2},?\s+\d{4})",
         value,
     ):
         return None
-    if name.endswith("_number") and not re.fullmatch(
-        r"[A-Za-z0-9][A-Za-z0-9./_-]{0,79}", value
-    ):
-        return None
+    if name.endswith("_number"):
+        # Bare words such as "Station" can be the start of the next column
+        # heading. An identifier without any digit is too ambiguous to assert.
+        if not re.search(r"\d", value) or not re.fullmatch(
+            r"[A-Za-z0-9][A-Za-z0-9./_-]{0,79}", value
+        ):
+            return None
     return value
 
 
@@ -439,6 +496,20 @@ def _read_facts(pages: list[PageText]) -> tuple[str, list[Fact], list[str]]:
     for page in pages:
         lines = page.text.splitlines()
         for index, line in enumerate(lines):
+            # Poppler may place the flight label and dates in one cell beside
+            # an invoice period. Accept only its complete, explicit end cell.
+            flight = re.search(
+                rf"(?:^|\s)Flight Dates:?\s+{_FLIGHT_DATES.pattern}\s*$",
+                line,
+                re.I,
+            )
+            if flight:
+                candidates.extend(
+                    Fact(name, value, page.page, line.strip())
+                    for name, value in zip(
+                        ("start_date", "end_date"), flight.groups(), strict=True
+                    )
+                )
             # This observed WideOrbit table labels both repeated gross/net
             # columns. Its explicit Totals row states the order-level values.
             # Require the entire header and row, not proximity to a dollar sign.
@@ -534,7 +605,14 @@ def _read_facts(pages: list[PageText]) -> tuple[str, list[Fact], list[str]]:
             facts.append(candidate)
             seen.add(key)
     text = "\n".join(p.text for p in pages)
-    if re.search(r"(?im)^\s*credit\s+(?:memo|note)\b", text):
+    # A completed disclosure may reference an order or invoice. Its explicit
+    # heading states the document's kind more clearly than those references.
+    if re.search(
+        r"(?im)^\s*(?:political\s+disclosure|political\s+advertising\s+disclosure|political\s+broadcast\s+agreement)\b",
+        text,
+    ):
+        kind = "disclosure"
+    elif re.search(r"(?im)^\s*credit\s+(?:memo|note)\b", text):
         kind = "credit"
     elif "invoice_number" in values or re.search(r"(?im)^\s*invoice\s*$", text):
         kind = "invoice"
@@ -543,11 +621,6 @@ def _read_facts(pages: list[PageText]) -> tuple[str, list[Fact], list[str]]:
         text,
     ):
         kind = "order"
-    elif re.search(
-        r"(?im)^\s*(?:political\s+disclosure|political\s+advertising\s+disclosure|political\s+broadcast\s+agreement)\b",
-        text,
-    ):
-        kind = "disclosure"
     elif "credit_amount" in values:
         kind = "credit"
     else:
