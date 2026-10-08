@@ -451,10 +451,7 @@ try {
         await silentFill(field, countryAddress);
         await field.press('Enter');
         await state.page
-          .getByText(
-            'We couldn’t match that address: check the street address, city, and ZIP code',
-            { exact: true },
-          )
+          .getByText('We couldn’t match that address to election records', { exact: true })
           .waitFor();
         await field.fill(publicAddress);
         await field.press('Enter');

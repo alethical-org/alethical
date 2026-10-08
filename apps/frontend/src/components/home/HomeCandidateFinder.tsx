@@ -11,7 +11,7 @@ const loadCandidates = () => import('../../data/candidates');
 type CandidateModule = Awaited<ReturnType<typeof loadCandidates>>;
 const messages = {
   empty: 'Enter your full Minnesota street address',
-  'no-match': 'We couldn’t match that address: check the street address, city, and ZIP code',
+  'no-match': 'We couldn’t match that address to election records',
   failed: 'We couldn’t complete your search: please try again',
 };
 

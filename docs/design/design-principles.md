@@ -763,13 +763,26 @@ wrapping and spacing; do not leave an empty row for the removed wording.
 
 ### Build acceptance for controls
 
-**Open menus stay visible and receive input.** Every menu update, Design handoff
-and authorized build must check the open menu over realistic page content, even
-when drawings omit that state. Maps, images, buttons and sticky sections must not
-cover a menu or intercept pointer movement or clicks inside it. Preserve the
+**Open menus and floating controls stay visible and receive input.** This covers
+address suggestions, dropdowns, date pickers and popovers as well as navigation
+menus. Design must show changed controls open beside realistic surrounding
+controls in every distinct placement and supported layout band. Entry and
+results/editing forms are separate placements even when they reuse a component.
+State whether the panel overlays content or pushes it down; preserve approved
+in-flow treatments on narrow screens.
+
+Every Design handoff and authorized build must check the open panel over actual
+page content, even when drawings omit that state. Maps, images, buttons and sticky
+sections must not cover a menu or intercept pointer movement or clicks inside it. Preserve the
 intended priority of dialogs and other higher-level overlays. Check containing
 elements for clipping and isolated display layers; increasing a menu's own layer
 number cannot lift it out of a lower parent layer.
+
+Every visible row, including the bottom row and wrapped text, must receive clicks
+and taps without activating a control behind it. Review the containing layout and
+its neighboring controls, not only the component in isolation. Establish whether
+a failure originates in the drawing, handoff or implementation before assigning
+its cause. Preserve the intended priority of site navigation and dialogs.
 
 Move the pointer from each trigger into its menu, between items and back,
 including slow and diagonal paths across the intended gap. The menu must remain
@@ -779,6 +792,14 @@ assume a sitewide hover defect or hide an overlap with longer close delays.
 Check keyboard opening and selection, visible focus, Escape, outside dismissal,
 touch, scrolling, wrapped text and screen edges across the supported layout
 bands. A screenshot proves neither pointer access nor successful selection.
+
+For overlay placements, select a lower row where it covers another control and
+confirm only the selected action fires. Reproduce overlap in a rendered browser
+regression with realistic neighboring controls; a component-only test or a layer
+number assertion does not establish this. Inventory the actual shared control
+and enclosing layout uses, then check each distinct placement. Do not conceal a
+layering failure with extra spacing, a delayed close or an arbitrary large layer
+number.
 
 State this display order and interaction behavior in menu build handoffs. During
 authorized builds, correct confirmed failures using existing approved behavior,
