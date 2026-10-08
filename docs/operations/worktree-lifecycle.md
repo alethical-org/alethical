@@ -32,20 +32,20 @@ The existing `just install-wip-backup` command installs this complete setup too.
 `just stop-wip-backup` stops only the backup schedule and keeps saved copies.
 
 Installation also creates a separate Claude plugin at
-`~/.claude/skills/alethical-worktree-maintenance/`. New Claude sessions register
-ownership at session start and on each new user message. Resumed work cancels a
-pending release. Before a final reply, every registered working folder needs either a release
-or a specific hold explaining unfinished work, review, preview, or app protection.
-This includes unsaved and unpublished work; stopping is not completion. Existing sessions that have not loaded
-the plugin use the explicit commands below. Other global hooks are unchanged.
+`~/.claude/skills/alethical-worktree-maintenance/`. Claude sessions register
+ownership quietly at session start and on each new user message. Resumed work
+cancels a pending release but preserves an existing hold while the folder identity
+is unchanged. Ending a reply quietly keeps the folder unless its owner explicitly
+released it. Existing sessions that have not loaded the plugin use the explicit
+commands below. Other global hooks are unchanged.
 
 ## Finish or retain a working folder
 
 The task that owns delivery also owns cleanup. Finish the requested release,
 live checks and acceptance first. A review, preview, or unfinished user request
 keeps the folder. Every registered owner must release a shared working folder.
-Use the owner ID supplied by the Claude hook; a terminal-only task supplies its
-own stable task ID.
+Use the task or session ID from the host, also listed in the local folder
+inspection report; a terminal-only task supplies its own stable task ID.
 
 ```sh
 python3 scripts/worktree_cleanup.py register --worktree '/absolute/path/to/alethical-wt-example' --owner 'owner-id'
@@ -202,15 +202,24 @@ paid service runs. A missing owner is a review finding, never deletion permissio
 Retained work stays until its owner completes the requested outcome. The existing
 shared `worktree-triage` skill guides the judgment part of that review.
 
-Claude's installed plugin registers owners when work starts or resumes and asks
-for a release or specific hold before a final reply. The finish hook blocks once:
-when the host marks a repeated finish attempt with `stop_hook_active`, it permits
-the reply without changing the saved ownership decision. A failed hold write leaves
-the owner active and the folder retained; it never becomes permission to remove it.
-This prevents repeated paid turns when a sandbox denies the hold command.
-It does not decide that work
-is finished from a merged change or from the wording of a reply. Start/finish hooks
-only affect sessions that load them; terminal work uses the explicit commands.
+Claude and Codex lifecycle hooks record ownership without adding routine messages
+or instructions to the conversation. Starting or resuming work cancels queued
+cleanup. An existing hold and its reason survive ordinary questions while the
+folder identity stays the same. A changed saved version invalidates old decisions,
+and the next finish quietly records a conservative hold.
+
+Ending a reply never means delivery is accepted. If no explicit release exists,
+the finish hook records **No explicit completion release; keep this working folder**.
+It never blocks a reply or asks an agent to wake up just to record that default.
+A failed finish-record write leaves cleanup unauthorized and reports only a local
+error. Failure to record resumed work remains a safety stop: the hook cannot let
+editing start while it might still have a queued deletion. This is distinct from
+routine housekeeping, and the agent must repair it before using the folder.
+
+The owner still releases completed external/Claude work or archives completed
+Codex work after delivery and acceptance. Hooks never infer completion from a
+merged change, a quiet chat, or the wording of a reply. Terminal work uses the
+explicit commands. Routine holds and successful cleanup need no chat message.
 
 Codex supports the same lifecycle events through its documented hooks. Prepare
 the definitions with the maintenance installer, or add `--install-codex-hooks` to
@@ -221,8 +230,8 @@ its supported `/hooks` control before execution. Never edit trust storage, use a
 trust-bypass option, or claim a prepared definition is running. See
 [Codex hooks and trust](https://learn.chatgpt.com/docs/hooks).
 
-For native Codex folders, these hooks record ownership and holds and direct the
-owner to the app's archive tool. The script cannot archive or delete a native
+For native Codex folders, these hooks quietly record ownership and holds. The
+owner uses the app's archive tool after delivery and acceptance. The script cannot archive or delete a native
 folder. If Codex protects a primary checkout, record that exact reason as a hold.
 
 ## CommercialDeals coverage
@@ -259,8 +268,19 @@ programs to durable private storage so removing the build checkout cannot break 
 
 - **Cause:** release-only reports hide unclaimed folders, unfinished turns lack hold records, and single-project installation leaves CommercialDeals uncovered; basename-only backup names collide across identically named folders.
 - **Affected uses:** terminal and Claude working folders need explicit delivery ownership, while Codex-managed folders retain their separate app-owned lifecycle.
-- **Correction:** owner releases drive guarded removal, every registered owner records a finish decision, and full inventories expose missing decisions; resumed work revokes releases; separate project profiles retain stable identities and independently recoverable contents.
+- **Correction:** owner releases drive guarded removal, missing finish decisions conservatively retain folders without interrupting chats, and full inventories expose ownership; resumed work revokes releases; separate project profiles retain stable identities and independently recoverable contents.
 - **Prevention checks:** disposable-folder tests cover unsaved work, multiple owners, active programs, failed archives, interrupted removal, recovery, backup collisions, deleted feature branches and installer isolation.
 - **Remaining limits:** existing sessions may lack loaded hooks, Codex requires native trust, live chat activity remains a host lookup, and simultaneous unmanaged file writes still require the owner to finish using the folder before release.
 - **Owner and authorization:** the implementing task owns the user-authorized cleanup and free local prevention setup; other task owners retain control of unfinished work and previews.
 - **Completion:** eligible cleanup has private recovery proof, the installed helpers run from durable storage, and remaining holds identify the reason a folder must stay; native Codex coverage is reported separately.
+
+### Quiet cleanup correction, October 8, 2026
+
+[Issue 2530](https://github.com/alethical-org/alethical/issues/2530) tracks this correction.
+
+- **Cause and evidence:** each new message overwrote an existing hold with active status; the finish hook then blocked the reply to demand another hold.
+- **Affected uses:** the same installed program serves Claude and Codex in Alethical and CommercialDeals. Native Codex folders remain archive-only; external folders still require all owners to release.
+- **Approved correction:** keep routine lifecycle events silent, preserve current holds, revoke queued releases on resumed work, and retain uncompleted folders by default.
+- **Prevention:** disposable-folder tests cover repeated conversation, missing decisions, dirty work, changed versions, native protection, explicit release, multiple owners and failures to save finish/resume state.
+- **Remaining boundary:** failure to cancel a queued release still stops resumed work safely; installation must preserve project protections and unrelated hooks.
+- **Owner and completion:** the task implementing this correction owns independent review and installation for both existing project profiles, followed by actual installed-hook checks showing empty standard output and retained ownership.

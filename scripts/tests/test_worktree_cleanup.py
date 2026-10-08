@@ -509,7 +509,108 @@ class CleanupTest(unittest.TestCase):
         self.assertEqual(self.cleanup.sweep(self.repo, self.state, True), [])
         self.assertTrue(self.tree.exists())
 
-    def test_stop_gate_requires_explicit_hold_or_release_never_infers_completion(self):
+    def test_ordinary_conversation_preserves_hold_without_hook_messages(self):
+        owner = "owning fixture task"
+        self.cleanup.retain(
+            self.repo, self.state, self.tree, owner, "Preview awaits review"
+        )
+        record = self.cleanup.identity(self.repo, self.tree)
+        target = self.state / "owners" / (record["id"] + ".json")
+        held = json.loads(target.read_text())["owners"][owner]
+        for event in (
+            "SessionStart",
+            "UserPromptSubmit",
+            "Stop",
+            "UserPromptSubmit",
+            "Stop",
+        ):
+            self.assertIsNone(
+                self.cleanup.hook(
+                    self.repo,
+                    self.state,
+                    {
+                        "cwd": str(self.tree),
+                        "session_id": owner,
+                        "hook_event_name": event,
+                    },
+                )
+            )
+            self.assertEqual(json.loads(target.read_text())["owners"][owner], held)
+        self.assertEqual(self.cleanup.sweep(self.repo, self.state, True), [])
+        self.assertTrue(self.tree.exists())
+
+    def test_missing_finish_decision_silently_keeps_folder(self):
+        owner = "owning fixture task"
+        self.assertIsNone(
+            self.cleanup.hook(
+                self.repo,
+                self.state,
+                {
+                    "cwd": str(self.tree),
+                    "session_id": owner,
+                    "hook_event_name": "Stop",
+                },
+            )
+        )
+        record = self.cleanup.identity(self.repo, self.tree)
+        target = self.state / "owners" / (record["id"] + ".json")
+        self.assertEqual(
+            json.loads(target.read_text())["owners"][owner]["status"], "held"
+        )
+        self.assertEqual(self.cleanup.sweep(self.repo, self.state, True), [])
+        self.assertTrue(self.tree.exists())
+
+    def test_finish_record_failure_does_not_block_but_resume_failure_still_does(self):
+        for event, code in (("Stop", 0), ("UserPromptSubmit", 2)):
+            with self.subTest(event=event):
+                if event == "UserPromptSubmit":
+                    queued = self.release()
+                output = io.StringIO()
+                payload = {
+                    "cwd": str(self.tree),
+                    "session_id": "fixture",
+                    "hook_event_name": event,
+                }
+                with (
+                    patch.object(
+                        sys,
+                        "argv",
+                        [
+                            "cleanup",
+                            "--repo",
+                            str(self.repo),
+                            "--state",
+                            str(self.state),
+                            "hook",
+                        ],
+                    ),
+                    patch.object(sys, "stdin", io.StringIO(json.dumps(payload))),
+                    patch.object(sys, "stdout", output),
+                    patch.object(sys, "stderr", io.StringIO()),
+                    patch.object(
+                        self.cleanup, "locked", side_effect=PermissionError("locked")
+                    ),
+                ):
+                    self.assertEqual(self.cleanup.main(), code)
+                if event == "Stop":
+                    self.assertEqual(output.getvalue(), "")
+                else:
+                    self.assertEqual(json.loads(output.getvalue())["decision"], "block")
+                    receipt = self.state / "released" / (queued["id"] + ".json")
+                    self.assertEqual(
+                        json.loads(receipt.read_text())["status"], "released"
+                    )
+                    # Editing must not resume until retry can revoke that release.
+                    self.assertIsNone(self.cleanup.hook(self.repo, self.state, payload))
+                    self.assertEqual(
+                        json.loads(receipt.read_text())["status"], "resumed"
+                    )
+        self.assertEqual(self.cleanup.sweep(self.repo, self.state, True), [])
+        self.assertTrue(self.tree.exists())
+
+    def test_stop_retains_without_inferring_completion_or_revoking_explicit_release(
+        self,
+    ):
         payload = {
             "cwd": str(self.tree),
             "session_id": "owning fixture task",
@@ -517,9 +618,7 @@ class CleanupTest(unittest.TestCase):
         }
         self.cleanup.hook(self.repo, self.state, payload)
         payload["hook_event_name"] = "Stop"
-        self.assertEqual(
-            self.cleanup.hook(self.repo, self.state, payload)["decision"], "block"
-        )
+        self.assertIsNone(self.cleanup.hook(self.repo, self.state, payload))
         self.cleanup.retain(
             self.repo,
             self.state,
@@ -532,7 +631,7 @@ class CleanupTest(unittest.TestCase):
         self.release()
         self.assertIsNone(self.cleanup.hook(self.repo, self.state, payload))
 
-    def test_dirty_turn_needs_a_concrete_hold_before_stopping(self):
+    def test_dirty_turn_is_retained_without_interrupting_reply(self):
         subfolder = self.tree / "private"
         subfolder.mkdir()
         payload = {
@@ -544,9 +643,7 @@ class CleanupTest(unittest.TestCase):
         self.assertEqual(len(list((self.state / "owners").glob("*.json"))), 1)
         (self.tree / "source.txt").write_text("unfinished")
         payload["hook_event_name"] = "Stop"
-        self.assertEqual(
-            self.cleanup.hook(self.repo, self.state, payload)["decision"], "block"
-        )
+        self.assertIsNone(self.cleanup.hook(self.repo, self.state, payload))
         self.cleanup.retain(
             self.repo, self.state, self.tree, "fixture", "source change awaits tests"
         )
@@ -560,9 +657,7 @@ class CleanupTest(unittest.TestCase):
             "session_id": owner,
             "hook_event_name": "Stop",
         }
-        self.assertEqual(
-            self.cleanup.hook(self.repo, self.state, payload)["decision"], "block"
-        )
+        self.assertIsNone(self.cleanup.hook(self.repo, self.state, payload))
         target = self.state / "owners" / (record["id"] + ".json")
         before = target.read_bytes()
         with patch.object(
@@ -575,7 +670,7 @@ class CleanupTest(unittest.TestCase):
             payload["stop_hook_active"] = True
             self.assertIsNone(self.cleanup.hook(self.repo, self.state, payload))
         self.assertEqual(target.read_bytes(), before)
-        self.assertEqual(json.loads(before)["owners"][owner]["status"], "active")
+        self.assertEqual(json.loads(before)["owners"][owner]["status"], "held")
         self.assertEqual(self.cleanup.sweep(self.repo, self.state, True), [])
         self.assertTrue(self.tree.exists())
 
@@ -673,7 +768,7 @@ class CleanupTest(unittest.TestCase):
             self.cleanup.sweep(self.repo, self.state, True)[0]["state"], "removed"
         )
 
-    def test_changed_head_requires_a_new_finish_decision(self):
+    def test_changed_head_is_silently_retained(self):
         owner = "owning fixture task"
         self.cleanup.register(self.repo, self.state, self.tree, owner)
         self.cleanup.retain(self.repo, self.state, self.tree, owner, "old review")
@@ -686,11 +781,19 @@ class CleanupTest(unittest.TestCase):
             "session_id": owner,
             "hook_event_name": "Stop",
         }
+        self.assertIsNone(self.cleanup.hook(self.repo, self.state, payload))
+        record = self.cleanup.identity(self.repo, self.tree)
+        target = self.state / "owners" / (record["id"] + ".json")
+        retained = json.loads(target.read_text())
         self.assertEqual(
-            self.cleanup.hook(self.repo, self.state, payload)["decision"], "block"
+            retained["head"], self.git("rev-parse", "HEAD", root=self.tree)
         )
+        self.assertEqual(retained["owners"][owner]["status"], "held")
+        self.assertNotEqual(retained["owners"][owner]["reason"], "old review")
+        self.assertEqual(self.cleanup.sweep(self.repo, self.state, True), [])
+        self.assertTrue(self.tree.exists())
 
-    def test_stop_requires_decision_without_fetching_or_inferring_completion(self):
+    def test_stop_retains_without_fetching_or_inferring_completion(self):
         owner = "owning fixture task"
         self.cleanup.register(self.repo, self.state, self.tree, owner)
         self.git("commit", "--allow-empty", "-qm", "new version", root=self.tree)
@@ -705,9 +808,7 @@ class CleanupTest(unittest.TestCase):
             "session_id": owner,
             "hook_event_name": "Stop",
         }
-        self.assertEqual(
-            self.cleanup.hook(self.repo, self.state, payload)["decision"], "block"
-        )
+        self.assertIsNone(self.cleanup.hook(self.repo, self.state, payload))
         self.assertEqual(self.git("rev-parse", "origin/main"), old)
 
     def test_reused_folder_keeps_distinct_private_recovery_generations(self):

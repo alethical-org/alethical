@@ -156,8 +156,10 @@ At work start, inspect the current folder report (`just maintenance-status`).
 Recorded owners do not establish live chat activity; use the host's live task list
 for that. Register the current task through the installed lifecycle hook or the
 explicit owner command in [working-folder cleanup and recovery](docs/operations/worktree-lifecycle.md).
-Before finishing a turn, record a concrete hold for unfinished work or a pending
-review, including unsaved or unpublished work. Never infer completion from age,
+Unfinished work stays by default. Record a concrete hold when its reason changes,
+not after every conversational reply. Lifecycle hooks preserve current holds and
+quietly retain a folder with no explicit completion release. Routine cleanup
+bookkeeping must not interrupt a reply or add a chat message. Never infer completion from age,
 silence, clean files, or a merged change. Native Codex hooks require the user's
 supported trust review before they run; a prepared hook is not an active hook.
 
@@ -169,9 +171,10 @@ supported trust review before they run; a prepared hook is not an active hook.
   `archive_worktree` tools after preserving needed ignored files privately outside
   the folder. If this task's own managed checkout is not attached, attach that exact
   checkout with `attach_worktree` first. Never attach or archive another chat's
-  checkout. Archive the folder while keeping the chat open; report the saved
-  recovery result. If the app protects the folder or a requested review remains,
-  retain it and name that specific hold. Never delete native app folders with Git
+  checkout. Archive the folder while keeping the chat open. Keep routine recovery
+  results and holds in the local record; report them when cleanup is the requested
+  task or a problem needs the user. If the app protects the folder or a requested
+  review remains, retain it with that specific reason. Never delete native app folders with Git
   or rewrite the app's saved state.
 
 ## Cursor Cloud specific instructions
