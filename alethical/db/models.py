@@ -2007,7 +2007,7 @@ class LegislatorCampaignCommittee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     and deliberately no default for ``reviewed_by``: a row with no reviewer is a row that
     cannot be written. What that column holds is the *accountable entity* rather than the
     individual who typed the keystroke -- ``Alethical, LLC``, the same words a reader is
-    shown on the profile (Eugene, 31 Aug 2026). A person still answers every question; what
+    shown on the profile (31 Aug 2026). A person still answers every question; what
     the row no longer records is which person, which is a real cost if 2 people ever hold
     sittings and is why the reviewing tool keeps an override.
     """
@@ -3085,8 +3085,8 @@ class CampaignFinanceStatedSplitStatus(enum.Enum):
     agrees = "agrees"
     # They differ. Money we are missing would otherwise land inside the derived figure
     # and become a positive claim that money had no donor, which is the one thing
-    # `.claude/rules/grounded-answers.md` rule 12 exists to prevent. Eugene ruled on 12
-    # Aug 2026 that where 2 official sources disagree we show both and say so.
+    # `.claude/rules/grounded-answers.md` rule 12 exists to prevent. Under the
+    # 12 Aug 2026 decision, where 2 official sources disagree we show both and say so.
     disagrees = "disagrees"
     # The comparison could not be made. The Board serves no report document before
     # 2023, serves none for several report kinds even inside the years it covers, and
@@ -3189,7 +3189,7 @@ class CampaignFinanceStatedSpendingStatus(enum.Enum):
     agrees = "agrees"
     # They differ. A shortfall makes a committee look like it spent less than it did,
     # under a real politician's name, with the state's own filing saying otherwise.
-    # Eugene ruled on 12 Aug 2026 that where 2 official sources disagree we show both.
+    # The 12 Aug 2026 decision establishes that where 2 official sources disagree we show both.
     disagrees = "disagrees"
     # The comparison could not be made: no document of this filing is stored, or the
     # catalogue serves no report, amendment index or cut-off date to bound it by.

@@ -9,12 +9,11 @@ The 18 September visual refinement is in
 ## Authorization and scope
 
 The earlier all-expanded revision shipped in [pull request 2235](https://github.com/alethical-org/alethical/pull/2235).
-The user then reopened the browsing structure, ballot warning, register-date placement and
-copy. The resulting prompt specified a compact directory followed by 1 complete selected
-group. On 17 September 2026 the user supplied `Alethical UX (16).zip` and said **“build”**.
-That authorizes implementation, tests, browser review, fixes, commit, pull request, merge,
-deployment and a live check. The archive's review-only wording is design evidence rather
-than an instruction overriding the user's build request.
+The revised browsing structure, ballot warning, register-date placement and copy
+use a compact directory followed by 1 complete selected group. The 17 September
+2026 implementation approval covers `Alethical UX (16).zip` through tests, browser
+review, fixes, commit, pull request, merge, deployment and a live check. The
+archive's review-only label does not narrow that separate implementation approval.
 
 Scope is `/money/races`, its search, route state, shared copy helpers, initial response,
 focused tests and corresponding product records. No database replacement, paid data run,
@@ -91,7 +90,7 @@ new recurring task, navigation redesign or unrelated money-page changes are incl
 - [x] Open the draft pull request and finish remote checks.
 - [x] After browser review passes, mark ready, merge, deploy and exercise the live flow.
 
-Browser access recovered after the user restarted Codex and resumed the task. Review
+Browser access recovered after a Codex restart and task resumption. Review
 at 390, 900 and 1440 pixels covered the compact directory, selected House district,
 all 28 Governor committees, keyboard selection, ambiguous Enter, global search from
 a House-filtered directory, Back restoring search and office, and Clear search.

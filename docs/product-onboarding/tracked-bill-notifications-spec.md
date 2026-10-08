@@ -5,7 +5,7 @@
 **Net:** Tracking a bill promises we will tell you when it moves, and today we tell
 nobody anything. This doc is the plan for closing that — what an email would say, how
 often, what it costs, and how a live send is kept from firing before it has been proven.
-**Nothing here is built.** The spend decision at the end is Eugene's.
+**Nothing here is built.** Spending requires explicit project-owner approval.
 
 This is the design half of
 [#36](https://github.com/alethical-org/alethical/issues/36). It is a plan, not a
@@ -417,7 +417,7 @@ always-on service for a job that runs for seconds a day.
 
 **On the standing rule about recurring jobs:** the run itself is free (GitHub Actions
 minutes are included, and the database read is trivial). The **email spend is not**, so
-this is priced and proposed here and **must not be armed** until Eugene signs off. The
+this is priced and proposed here and **must not be armed** until spending receives explicit project-owner approval. The
 workflow ships with `workflow_dispatch` only — no `schedule:` block — and the cron line
 is added in a separate one-line change after the go-ahead.
 
@@ -494,8 +494,8 @@ Each rung has to pass before the next. This is the part that must not be shorten
    preference row flipped, confirm the next dry run excludes that user.
 5. **Remove the allowlist.** Real recipients only after 1 to 4 pass.
 
-Steps 3 through 5 are Eugene's call, not a session's. Step 3 is the first moment this
-system touches the outside world.
+Steps 3 through 5 require explicit project-owner approval. Step 3 is the first
+external effect.
 
 ### 6.4 Content review before the first real send
 
@@ -516,7 +516,7 @@ observable, and 3 is where the first money is spent.
 | --- | --- | --- |
 | 1 | [#1048](https://github.com/alethical-org/alethical/issues/1048) — record an event when a tracked bill's status actually changes | Closes gaps §1.1 and §1.2. Until this lands the queue is permanently empty and everything downstream is untestable. |
 | 2 | [#1049](https://github.com/alethical-org/alethical/issues/1049) — make tracking a bill actually opt you in | Closes gap §1.3. Without it, four of five real users are silently excluded. |
-| 3 | [#1050](https://github.com/alethical-org/alethical/issues/1050) — the digest job and the email transport, behind config | The build. Ships fully gated; no live send without Eugene's sign-off. |
+| 3 | [#1050](https://github.com/alethical-org/alethical/issues/1050) — the digest job and the email transport, behind config | The build. Ships fully gated; no live send without explicit project-owner approval. |
 | 4 | [#1051](https://github.com/alethical-org/alethical/issues/1051) — one-click unsubscribe | Must exist before the first real recipient, so it is not "after the send works". |
 | 5 | [#1052](https://github.com/alethical-org/alethical/issues/1052) — notification preferences in the account screen | Replaces the fixtures of §1.4 with the real API. |
 | 6 | [#1053](https://github.com/alethical-org/alethical/issues/1053) — restore the "know the moment it moves" copy | Copy may only claim this once send is live (`.claude/rules/grounded-answers.md` rule 6). |
@@ -532,7 +532,7 @@ Filed alongside, not on the critical path:
 
 ## 8. What this deliberately does not decide
 
-- **Whether to spend the money.** §4 prices it; the decision is Eugene's.
+- **Whether to spend the money.** §4 prices it; explicit project-owner approval is required.
 - **Push notifications.** The channel enum has `push`; nothing here builds it. Email
   first, per `docs/product-onboarding/product-scope.md` § "Not built yet — accounts and
   notifications".

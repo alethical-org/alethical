@@ -1,6 +1,6 @@
 # Joel Carlson contribution-record investigation, September 19, 2026
 
-Scope: read-only comparison of Alethical's September 1 contribution copy and the user’s downloaded September 19 CSV, followed by primary-report checks. No production records or application code changed.
+Scope: read-only comparison of Alethical's September 1 contribution copy and the supplied September 19 CSV, followed by primary-report checks. No production records or application code changed.
 
 ## Count reconciliation
 - Live registration 8692 profile: 1,194 records.

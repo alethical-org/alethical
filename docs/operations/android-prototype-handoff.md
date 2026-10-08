@@ -7,7 +7,7 @@ a generated Android project is not a supported release target.
 [Native app publishing pause and restart](ios-release.md) owns the pause,
 restoration requirements, account safeguards and future acceptance checks.
 [Issue 91](https://github.com/alethical-org/alethical/issues/91) remains open for
-future native work, subject to Eugene's explicit restart approval.
+future native work, subject to explicit project-owner restart approval.
 
 The prototype instructions and helper scripts remain in
 [commit fb435d30](https://github.com/alethical-org/alethical/commit/fb435d3062fcf3498caad55296103017ff9e2c43).

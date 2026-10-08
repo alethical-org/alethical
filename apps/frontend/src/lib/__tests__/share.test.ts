@@ -70,7 +70,7 @@ describe('shared page text', () => {
     });
 
     // The sentence adds what the title does not (roads, bridges, water systems,
-    // buildings), so the card carries it (Eugene, 18 Sep 2026).
+    // buildings), so the card carries it (18 Sep 2026).
     expect(content).toEqual({
       subject: 'bill',
       title: 'HF 719 (2025): Funds local infrastructure projects across Minnesota',

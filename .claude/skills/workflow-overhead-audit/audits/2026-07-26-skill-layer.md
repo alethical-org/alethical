@@ -2,7 +2,7 @@
 
 > **Addendum, 2026-07-26 (later the same day): the scheduling recommendation below is countermanded.**
 > This record twice proposes a scheduled runner as the structural fix for the observation backlog —
-> in "Found, not fixed" item 1 and watch item 2. Eugene decided the opposite: **all scheduled tasks
+> in "Found, not fixed" item 1 and watch item 2. The approved decision is: **all scheduled tasks
 > and routines were removed and every process run is manual, on request**, until the right frequency
 > is understood. `monthly-issue-triage`, `workflow-overhead-audit-monthly` and the
 > `weekly-observation-review` this audit armed are all gone; `~/.claude/scheduled-tasks/` is
@@ -26,7 +26,7 @@
 
 Layer: **1 + 3 together** — the skill population spans both (7 repo skills, 7 personal), and auditing either half alone would miss the global-vs-repo placement question that only appears when you look at both. Diff base: `2026-07-26-memory-system.md` (same day, layer 4).
 
-**Run justified:** the skill *listing* is always-resident and was measured at ~1,820 est. tok, but no audit had ever examined the skill **bodies** — and the four same-day audits (#630, #631, #633, #634) had each pushed content *into* skills as the destination for restructured rules. A layer that keeps receiving content and has never been audited is the next place bloat hides. Triggered by Eugene asking directly whether any of the fourteen could be simplified or consolidated.
+**Run justified:** the skill *listing* is always-resident and was measured at ~1,820 est. tok, but no audit had ever examined the skill **bodies** — and the four same-day audits (#630, #631, #633, #634) had each pushed content *into* skills as the destination for restructured rules. A layer that keeps receiving content and has never been audited is the next place bloat hides. The audit covers simplification and consolidation across all 14 skills.
 
 ## Deltas since the diff base
 
@@ -99,7 +99,7 @@ Source: `skill-observations/log.md`, 18 observations (gitignored, not quoted her
 - **`worktree-triage`** — the #211 → #214 relocation is its own incident record.
 - **Zero observations:** `loop-run`, `loop-audit`, `design-review`, `when-to-act-without-approval`, `file-github-issue`, `resume-research-workflow`. **This is not a trim signal for any of them** — four are days old or younger (three shipped today in #630/#631), and silence from a gate younger than the evidence window carries no information. The loop pair is user-invoked by name, which is its own usage evidence. Re-test at the next backstop, when they have history.
 
-## Found, not fixed — flagged for Eugene
+## Found, not fixed — pending maintainer review
 
 Three findings sit outside a skill-layer verdict:
 

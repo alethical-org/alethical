@@ -30,7 +30,7 @@
 ## Feature naming: the AI answer feature
 One name, everywhere. **"Grounded Ask"** is the *feature name* (the Search-menu badge, About/docs); **"Ask"** is the *action verb* (the hero submit button and contextual question actions). **Never "Ask AI"** — it reads generic/hype and undercuts the grounded, cite-or-refuse differentiator that is the whole point. The global menu is Ask-free on every page; the ✦ sparkle may still carry the AI affordance inside an Ask surface.
 
-**One scoped exception (Eugene, 2026-08-04):** the nav's greyed **"ON THE ROADMAP"** group carries an inert **"Ask AI"** pill for the not-yet-built free-form (open-ended) ask capability. This exception is deliberate and narrow — it applies *only* to that non-committal roadmap chip, which makes no live capability claim. The ban above still governs all shipped/live copy: nothing users can actually *use* is ever labeled "Ask AI." Item `search-ask-ai` in `apps/frontend/src/navigation/ia.ts`.
+**One scoped exception (4 August 2026):** the nav's greyed **"ON THE ROADMAP"** group carries an inert **"Ask AI"** pill for the not-yet-built free-form (open-ended) ask capability. This exception is deliberate and narrow — it applies *only* to that non-committal roadmap chip, which makes no live capability claim. The ban above still governs all shipped/live copy: nothing users can actually *use* is ever labeled "Ask AI." Item `search-ask-ai` in `apps/frontend/src/navigation/ia.ts`.
 
 ## Exception: sign-in buttons
 Functional auth controls (**Sign In / Log In**) keep plain functional labels. The sovereignty/promise rewrite does **not** apply to authentication buttons — only to marketing and acquisition CTAs.
@@ -145,7 +145,7 @@ change their lengths. Keep both amounts and their labels visible and accessible.
 This does not remove a zero that is a measured value, a needed scale label on a
 more complex chart, a meaningful boundary or a necessary qualification.
 
-Approved by Eugene on 26 September 2026 and applied to the private first-post
+Approved on 26 September 2026 and applied to the private first-post
 comparison chart. Review all post drafts for implied text and visual clutter;
 this rule does not authorize unrelated redesigns.
 
@@ -164,7 +164,7 @@ Check generated chart and table text before the first review so rendering cannot
 restore decimal places. This is a post-drafting rule, not a request to alter
 underlying records or bulk-edit unrelated published pages.
 
-Approved by Eugene on 26 September 2026.
+Approved on 26 September 2026.
 
 ### Draft every post for meaning, without repeated explanations
 
@@ -198,8 +198,8 @@ explanation, necessary qualification or a clear next action.
   Do not add duplicate visible or spoken text for SEO or accessibility. Preserve
   unique information and accessible chart labels when cutting a transcript.
 
-Approved by Eugene on 26 September 2026, including implementation in the private
-“2 records do not always mean 2 donations” draft. Publication awaits his final review.
+Approved on 26 September 2026, including implementation in the private
+“2 records do not always mean 2 donations” draft. Publication awaits final editorial review.
 
 ### Make the answer easy to find
 
@@ -207,8 +207,8 @@ For a post that answers a question or establishes a finding, make the supported
 answer easy to spot. Do not bury it in small source text or a block of caveats.
 Open each highlighted takeaway with its main point. Use **Conclusion:** only
 when it helps readers recognize a conclusion; it is optional, not a required
-opening. Keep factual findings distinct from editorial recommendations. Eugene
-confirmed this on 8 October 2026. Do not force a conclusion onto a guide that only explains steps, or
+opening. Keep factual findings distinct from editorial recommendations. This distinction
+was confirmed on 8 October 2026. Do not force a conclusion onto a guide that only explains steps, or
 present an unresolved claim as settled to fill the slot.
 
 Put the leading bold answer on its own line. Supporting qualifications begin
@@ -216,7 +216,7 @@ on the next line in regular text and fill the available text width beside the
 symbol. Keep them in the same conclusion without an extra blank-line gap. A long
 bold answer may wrap naturally on narrow screens; start the supporting text after
 that whole answer. Preserve sentence punctuation and every qualification.
-Eugene approved this line separation on 8 October 2026. For example:
+This line separation was approved on 8 October 2026. For example:
 
 **Conclusion: The filings support 1 reported $500 contribution appearing in repeated
 records.**<br>
@@ -225,7 +225,7 @@ The 2 download entries do not establish 2 separate donations.
 Use the approved Alethical symbol to the left of the conclusion in every post
 type, including conclusions outside charts. The conclusion row fills the available
 article or chart content width, with no separate narrow maximum on its text
-(Eugene, 8 October 2026). Center the symbol against the first 2 text
+(8 October 2026). Center the symbol against the first 2 text
 lines, with the answer bold and continuing qualifications unbolded. Keep the
 wordmark out of website post conclusions. This treatment does not require adding
 a conclusion where the post has none.
@@ -249,13 +249,13 @@ motive, influence or wrongdoing. Describe the supported records without directin
 the reader's personal conclusions. If the article's own wording implies a claim
 the evidence cannot support, correct that wording rather than adding boilerplate.
 
-**For now, omit illegality commentary in blog posts.** On 8 October 2026 Eugene
-asked to remove “, not a finding that these payments were illegal” from the
-private Realtor draft and apply the direction to future blog posts. Do not add
-a legal verdict or a disclaimer that the evidence does not establish illegality.
-Present the supported evidence and its specific limits, and let readers draw
-their own conclusions. Apply this to new and revised blog posts until Eugene
-changes the direction; it does not authorize a bulk rewrite of published posts.
+**For now, omit illegality commentary in blog posts.** The 8 October 2026
+editorial decision applies to the private Realtor draft and future blog posts:
+do not add a legal verdict or a disclaimer that the evidence does not establish
+illegality. Present the supported evidence and its specific limits, and let
+readers draw their own conclusions. Apply this to new and revised blog posts
+until a later editorial decision changes the scope; it does not authorize a bulk
+rewrite of published posts.
 
 This does not remove the approved AI-use disclosure, specific material gaps,
 required legal notices or source citations. It does not permit unsupported claims
@@ -282,10 +282,10 @@ complete. It can be shown in a private draft; publication still needs the usual
 source checks, human review and explicit instruction. Do not send a contact message
 as a test. This approval does not request a bulk edit of previously published posts.
 
-Approved by Eugene on 26 September 2026, replacing the older closing-note wording.
+Approved on 26 September 2026, replacing the older closing-note wording.
 
-**Event promotions omit the standard AI notice.** Eugene made this a standing
-exception for all event promotions on 7 October 2026. Event facts still require
+**Event promotions omit the standard AI notice.** This standing exception applies
+to all event promotions from 7 October 2026. Event facts still require
 checking. Research, Guides, Short posts and other articles retain their existing
 closing-note requirements.
 
@@ -302,7 +302,7 @@ review claim while that review is still pending.
 
 “Prep review” and equivalent post-review requests deliver a working private browser
 preview in the approved article design, not just a manuscript or Markdown link.
-Apply this to every post type unless Eugene explicitly asks for text only. Reuse
+Apply this to every post type unless the review request explicitly specifies text only. Reuse
 the real article and chart components with the reviewed text, useful recreated
 graphics or tables, topics, sources, conclusion and current closing note. The
 original social poster is source material, never the finished visual.
@@ -314,19 +314,19 @@ task's publishing preview untouched. Keep the preview private, excluded from
 search and without an invented publication date; the yellow banner says only
 “PRIVATE DRAFT”, and public sharing stays disabled.
 
-Complete the redundancy review on the rendered preview before opening it for
-Eugene. Check template-generated units and labels against nearby headings and
+Complete the redundancy review on the rendered preview before presenting it for
+editorial review. Check template-generated units and labels against nearby headings and
 values. A manuscript review alone cannot catch text added during rendering.
 
 This authorizes private rendering with the existing approved design. It does not
 authorize publication, a new visual direction or a new Design request. Identify
 any necessary unresolved visual choice and follow the existing Design approval
 process. Retain manuscripts, checked graphic inputs and evidence as supporting
-material. Review preparation is complete when Eugene can inspect the working
-preview, not when those supporting files exist.
+material. Review preparation is complete when the working
+preview is available for editorial inspection, not when those supporting files exist.
 
-Approved by Eugene on 26 September 2026 after the organizations and lobbyist
-manuscripts had to be separately requested as browser previews.
+The 26 September 2026 approval covers browser previews for all post types,
+including the organizations and lobbyist manuscripts.
 
 ### Review the whole draft before presenting it
 
@@ -336,10 +336,9 @@ its evidence? Remove repeated or implied copy, retain any limit that changes the
 meaning, and check punctuation after joining or separating text. Inspect real
 wrapping and chart-label space on narrow and wide screens using
 [design-principles.md](design-principles.md#post-chart-readability-and-conclusions).
-Do this before Eugene's review, not one correction at a time afterward.
+Complete this review before presenting the draft.
 
-These additions capture Eugene's first-post corrections on 26 September 2026 for
-future drafts of every post type. They do not authorize publication or a redesign
+These 26 September 2026 editorial decisions apply to future drafts of every post type. They do not authorize publication or a redesign
 of unrelated surfaces.
 
 ## Test for any copy
@@ -378,7 +377,7 @@ Use typographer's punctuation in all user-facing copy. It is the quality-publish
   not change the rule. Keep punctuation in supporting text with 2 or more
   sentences and within quoted source text. Author the intended wording directly;
   do not blindly strip punctuation from arbitrary content at display time.
-  Approved by Eugene on 26 September 2026. For example:
+  Approved on 26 September 2026. For example:
   “This example does not establish corrected totals for Carlson or all lobbyists”
   ends without a period. This applies to drafting every post type.
 - **Apostrophes — curly `’` (U+2019), never the straight typewriter `'`.** e.g. don’t, they’ve, Minnesota’s.

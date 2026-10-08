@@ -2444,7 +2444,7 @@ export function committeePageSnapshot(
     ].filter(Boolean);
     moneyInBlocks.push({ kind: 'prose', lines: inLines });
     // The same rows the live card draws: every served kind but `Miscellaneous`, and no
-    // heading when none is left (ruled by Eugene, 11 Sep 2026).
+    // heading when none is left (approved 11 Sep 2026).
     const receipts = shownReceiptRows(moneyIn.other_receipts, (receipt) => receipt.receipt_type);
     if (receipts.length) {
       moneyInBlocks.push({ kind: 'prose', lines: [NOT_A_DONATION_HEADING] });

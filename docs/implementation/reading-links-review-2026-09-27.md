@@ -1,9 +1,8 @@
 # Article links approved for release, 27 September 2026
 
-Status: Eugene authorized the exact 7 inline links and 2 Related reading picks
-for each of the 9 published pieces described below. After those choices were
-explained, he said, “build everything through live like we agreed and show me
-where to check them when done.” This authorizes the link update and release,
+Status: the exact 7 inline links and 2 Related reading picks
+for each of the 9 published pieces described below are approved through live release,
+including a final report with their live addresses. This authorizes the link update and release,
 not a new factual check or a change to article findings, prose, or dates.
 
 ## Existing links
@@ -62,7 +61,7 @@ Campaign finance with its source article.
 - Preserve each Short post's original human-approved fingerprint. The link-only
   release record stores the new navigation fingerprint separately and checks that
   undoing only the approved links recovers the original full-content fingerprint.
-  It does not claim Eugene reviewed a newly generated fingerprint or that the
+  It does not claim human approval of a newly generated fingerprint or that the
   article earned a new Checked date.
 - Open each inline and related link in the working preview. A new article opens at
   its title, and Back restores the source article's reading position.

@@ -879,7 +879,7 @@ Campaign money, top to bottom:
    shows the in-kind donations and says it holds no official total it can stand behind
    rather than printing a $0 the filing's own Total column contradicts (16 committee-years
    across 2024 to 2026, 11 Sep 2026). The labels are the filing's own words
-   (ruled by Eugene, 11 Sep 2026). Where a summary is used without its chart, a fixed sentence directly under the itemized figure says what it is and states
+   (approved 11 Sep 2026). Where a summary is used without its chart, a fixed sentence directly under the itemized figure says what it is and states
    the naming rule. On most pages it reads exactly:
 
    > Donations where the filing names who gave. Named donors include people, lobbyists,
@@ -1679,9 +1679,8 @@ That policy made an article's own address and its `/blog` link available on publ
 and put the newest Research piece on `/money`. It also let an unchecked figure reach a
 search result, so checking promptly and correcting an agreed wrong figure mattered.
 A social-derived Short post needs the separate checks and article-specific instruction
-below before publication. Search engines see a published piece the same day (Eugene,
-25 Aug 2026): its address goes into the site map (`/sitemap.xml`) and its page carries no
-instruction to skip it, unless Eugene names a reason to hold that particular piece back.
+below before publication. Search engines see a published piece the same day (25 Aug 2026): its address goes into the site map (`/sitemap.xml`) and its page carries no
+instruction to skip it, unless an explicit decision holds that particular piece back for a stated reason.
 
 The `/blog` page and every piece's page hand their words over in the **very first response
 from the server**, before any of the app's own code runs: `/blog` includes its visible
@@ -1690,7 +1689,7 @@ the numbered lists link to the older Short posts, and each article includes its 
 That puts our own writing on the same
 footing as a bill page, which hands its text over straight away too
 ([#1760](https://github.com/alethical-org/alethical/issues/1760)). This is separate from
-whether a search engine may _list_ a piece, which is still Eugene's per-piece decision
+whether a search engine may _list_ a piece, which still follows the per-piece approval decision
 above: a piece marked to be skipped is served in full and still asks to be skipped.
 
 6 long-form pieces are posted: the research piece "The Money Only Goes One Way" at
@@ -1750,7 +1749,7 @@ and its label reads Research, because rule 13 binds it in full
   because the site is the author, and the "where these numbers come from" block names every
   filing body used. Where a figure comes from records Alethical does not hold, that block
   names those records and the years they cover; the records-through date speaks only for
-  Alethical's own loaded data (Eugene, 20 Aug 2026).
+  Alethical's own loaded data (20 Aug 2026).
 - The publication date is the day the piece posts, in Minnesota time, and it never moves
   afterwards. The records-through date is separate and stays pinned to the records the
   figures were computed from, so a piece read late never looks fresher than its data.
@@ -1898,10 +1897,9 @@ published Short post is included by default in the separately approved
 [editorial comments](editorial-comments-guide.md) feature, tracked in
 [issue 2399](https://github.com/alethical-org/alethical/issues/2399).
 
-The social copy and image Angel gives Eugene do not themselves publish. The coding
+Supplied social copy and images are inputs, not publication approval. The coding
 agent records each claim's source, period, method, coverage, scope, checked result and
-human reviewer, then reconciles factual changes with the article and graphics. Eugene
-reviews the complete article and graphics; each article needs its own publication
+human reviewer, then reconciles factual changes with the article and graphics. Human editorial review covers the complete article and graphics; each article needs its own publication
 instruction after that review. A missing check, unresolved claim, absent chart or
 notice, changed material after approval, or missing instruction blocks publication.
 These extra checks apply to social-derived Short posts, not retroactively to the 6

@@ -28,7 +28,7 @@ route reports the paid column. Comparing our rows against the total column agree
 3,356 of 3,604 readable committee-years and against the paid column on 2,842, so both
 figures are read and the self-test runs on the one the route can prove.
 
-**This is not a gate on a release.** Eugene ruled on 12 Aug 2026 that where 2 of
+**This is not a gate on a release.** The 12 Aug 2026 decision establishes that where 2 of
 Minnesota's own publications disagree and we cannot derive the truth, we show both
 figures and say plainly that they disagree. So this reports **per committee-year**, and
 a committee-year that disagrees withholds its own figure while every other committee

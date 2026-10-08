@@ -2,7 +2,7 @@
 
 ## Authorization and outcome
 
-Eugene authorized the combined build on October 2, 2026 with “build”, superseding
+The combined build was approved on October 2, 2026, superseding
 the earlier research-only hold. Carry the address fix, shared recovery repair,
 related-use checks and prevention rules through review and live release. Preserve
 candidate temporary-memory privacy, legislator-specific matching and URL behavior,
@@ -46,7 +46,7 @@ and existing Design direction. New visual choices still require Design review.
 7. [x] Main repair live address/browser checks passed; physical-device limits recorded below.
 
 Phone-sized Chromium/WebKit testing is not native keyboard autofill testing.
-Actual iPhone/Android saved-address evidence is requested from Eugene, while
+Actual iPhone/Android saved-address evidence remains pending from physical-device testing, while
 independent work continues. Never store private addresses or auth callback data
 in tests, logs, artifacts or issues. Use public civic addresses for reproduction.
 
@@ -147,8 +147,8 @@ records the follow-up deployment and live acceptance once complete.
 
 ## October 8 follow-ups in progress
 
-Eugene requested the candidate submit button say **Find**, matching legislator
-search, and faster suggestions on both surfaces. Implementation and live release
+The approved candidate submit label is **Find**, matching legislator
+search, with faster suggestions on both surfaces. Implementation and live release
 are authorized; actual phone acceptance follows release. The separate initial
 account-restoration reset in issue 2529 remains owned here, with genuine account
 changes retaining their immediate privacy reset.
@@ -237,7 +237,7 @@ for this build.
   this is a task judgment, not a measured model comparison.
 - Completion: independent review, relevant suites, desktop/tablet/phone-width browser
   checks, current-head release checks and live measurements. Real phone keyboard
-  testing remains Eugene's separate acceptance check after release.
+  testing remains a separate maintainer acceptance check after release.
 
 - Source-query evidence: 7 paired queries for 3 civic prefixes returned identical
   records, with median 0.743s before and 0.624s after moving the state filter local.

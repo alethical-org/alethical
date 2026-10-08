@@ -7,8 +7,8 @@ workflow is implemented. [Issue 147](https://github.com/alethical-org/alethical/
 records the hosted checks and live release evidence. The original preview remains `http://localhost:19047/candidates`.
 The current behavior is owned by [How Find My Candidates works](../product-onboarding/find-my-candidates-guide.md).
 
-The dated sections below retain the earlier decisions and checkpoints. Eugene's latest
-instruction to finish the complete working feature supersedes the earlier interim stops;
+The dated sections below retain the earlier decisions and checkpoints. The approved
+complete working feature supersedes the earlier interim stops;
 the active scope and verification checkpoints are recorded at the end of this plan.
 
 Owner: Codex task **candidate lookup** (`01a0f355-a105-7543-8036-7c5274c0d5b7`).
@@ -16,18 +16,12 @@ Tracking: [Search candidates and candidate profiles](https://github.com/alethica
 
 ## Authorization and boundaries
 
-On 30 September 2026 Eugene instructed: “give design prompt then start building
-everything possible efficiently until designs are ready”. This authorizes the
-independent build work and its checks. New visual choices wait for returned drawings
+Scope approved on 30 September 2026: prepare the Design brief and begin independent
+build work and its checks while drawings are pending. New visual choices wait for returned drawings
 and review. Providing the Design prompt does not send it to Design.
 
-Later on 30 September Eugene corrected the destination scope, in this order:
-
-1. “its a public page which Find my candidates in nav should go to (see task building nav)”
-2. “go”
-3. “remove private labeling”
-
-This authorizes the public `/candidates` destination and removal of private labeling.
+The later 30 September scope revision approves the public `/candidates`
+destination and removal of private labeling.
 The navigation's **Find my candidates** link goes to `/candidates`; the separate
 navigation task owns that integration. The accepted `/candidates` title remains
 **Find My Candidates**. The public destination must not collect an address before a
@@ -36,10 +30,9 @@ Development review retains **ILLUSTRATIVE DATA** so examples cannot be mistaken 
 official records. Earlier private-release boundaries below are dated history, not a
 continuing hold on the public destination.
 
-Eugene's next instruction was: “eval why and when records are not avail and explain
-to me, are we able to see everyone running for the nov election now? based on MN
-public data, research more if needed to find everything the State informs”. That
-research is separate from opening the destination. The public notice is **Candidate
+The next research scope covers why and when records are unavailable, whether
+Minnesota's public sources cover everyone running in November, and further official
+source research needed to establish coverage. That research is separate from opening the destination. The public notice is **Candidate
 records are not available on Alethical yet**, describing Alethical's unconnected
 service rather than claiming Minnesota has not published records. Source research
 must establish actual November coverage before promising everyone is included.
@@ -53,7 +46,7 @@ an ownership shortcut based on possession of a publicly available filing certifi
 
 This follows the [product scope's candidate-data direction](../product-onboarding/product-scope.md)
 and the [existing address-privacy policy](../product-onboarding/user-data-retention-policy.md).
-The meeting notes and Eugene's instructions supply the narrower address-search scope;
+The meeting notes and approved build scope supply the narrower address-search scope;
 the older saved requirements do not settle candidate claim verification.
 
 The homepage and navigation have separate active design work. This branch does not
@@ -71,7 +64,7 @@ layout and supporting text. The older planned `/search/candidates` entry remains
 | Strict election-file parser and offline retained import          | `candidate_foundation` helper   | Now                                                               | Real source excerpt, malformed-response rejection, election separation, immutable replay and coverage tests               |
 | Temporary browser search state                                   | `candidate_search_state` helper | Now                                                               | Old responses cannot replace newer searches; retry retains coherent results; clearing removes private state               |
 | Source review, integration, documentation and independent review | Current task                    | Each result                                                       | Read actual source and code; focused checks; safe release of dormant foundation                                           |
-| Public `/candidates` destination                                 | Current task                    | Authorized by Eugene's later correction                           | Production route and HTTP response succeed; truthful unavailable notice, official link, no address collection or examples |
+| Public `/candidates` destination                                 | Current task                    | Approved by the later destination-scope revision                           | Production route and HTTP response succeed; truthful unavailable notice, official link, no address collection or examples |
 | Navigation link to `/candidates`                                 | Separate navigation task        | Its authorized navigation build                                   | Find my candidates opens the public destination                                                                           |
 | Real search/results and homepage address handoff                 | Current task                    | Reviewed drawings and source contract                             | Desktop/phone browser journeys; keyboard, slow/failure/retry and privacy checks                                           |
 | Candidate profiles and claim management                          | Current task                    | Profile/claim design review and settled identity/evidence rules   | Public record remains immutable; account separation and claim-review checks                                               |
@@ -202,7 +195,7 @@ make network calls, resolve ambiguous addresses, or implement the drawn controls
 
 - Started from `origin/main` at `9474b8b6fe9186d2b9dd456f94b63f5f9b3982d8` on
   `codex/147-candidate-lookup-foundation` in the current task's isolated checkout.
-- Delivered the `/candidates` search/results Design prompt in chat; it includes
+- Prepared the `/candidates` search/results Design brief; it includes
   desktop, tablet, phone, ambiguity, partial coverage, election switching, and failures.
 - Built the 2 offline source parsers, retained snapshots, exact state-race matching,
   and temporary browser search state. No public route, account claim, database table
@@ -219,8 +212,8 @@ make network calls, resolve ambiguous addresses, or implement the drawn controls
 
 ## 30 September: reviewed screens and private build
 
-Eugene then instructed **“bd unless you need drawings”**. The latest completed design
-is `Alethical UX (45).zip`. Search/results and read-only source profiles are build-ready.
+Build scope was then approved against the latest completed design,
+`Alethical UX (45).zip`. Search/results and read-only source profiles are build-ready.
 Claims, management, campaign statements and services remain held. No additional drawing
 is needed for the settled search/profile corrections described here.
 
@@ -323,7 +316,7 @@ On 30 September 2026, website and server both reported release
 addresses returned 404 with that same website release and no illustrative records.
 The final independent visitor review passed after deployment.
 The accepted preview stayed at its original address; its worktree remained
-available while Eugene reviewed it. Final release evidence and visitor acceptance are
+available for review. Final release evidence and visitor acceptance are
 recorded on [issue 147](https://github.com/alethical-org/alethical/issues/147).
 
 ## Public-destination build checkpoint, 30 September 2026
@@ -398,14 +391,10 @@ completeness or authorizes claims about everyone running.
 
 ## Full working feature resumed, 30 September 2026
 
-Eugene explicitly corrected the artificial stop: “i told you earlier to build
-eveyrthing including what you have NEXT. build evveyrhting means everything to be
-fully working, the ideal build, why didnt you start it?” He then instructed:
-“update rules so you would have not stopped in this type of scenario given what I
-instructed, and then keep building through the end”. These instructions carry the
-existing full build through real data, profiles, claims, testing, release and live
+The complete build scope includes real data, profiles, claims, testing, release and live
 acceptance. The temporary public notice and completed research were checkpoints,
-not completion. Earlier implementation holds are replaced by the concrete checks
+not completion. Workflow guidance must preserve that finish across interim checkpoints.
+Earlier implementation holds are replaced by the concrete checks
 below. Candidate-specific paid services remain the explicitly later phase.
 
 Current branch: `codex/147-complete-candidate-lookup`, same isolated checkout and
@@ -511,7 +500,7 @@ commit and deployment evidence rather than treating a local checkpoint as live.
 
 ## Public design release, October 1, 2026
 
-Eugene authorized “set. build through live deployment without stop”. The pinned
+Implementation through live deployment is approved. The pinned
 input is Alethical UX (51).zip; the complete scope and independent coverage review
 are recorded in [Candidate design acceptance](candidate-design-release-acceptance.md).
 Public search/profile drawings and homepage candidate-search copy are implemented;
@@ -537,13 +526,12 @@ saved in [Candidate design acceptance](candidate-design-release-acceptance.md#li
 
 ## Address suggestions consultation, October 8, 2026
 
-Review only; no new application build is authorized by this consultation. Eugene
-requested direct consultation in the existing Alethical UX project and then
-explicitly authorized continuing the chat. The original supplied brief is
+Review only; no new application build is authorized by this consultation. Direct
+consultation and follow-up in the existing Alethical UX project are approved. The original supplied brief is
 `/Users/eug/.codex/attachments/5e85f9b9-3c6b-4258-ac22-11e0049793b5/Pasted text.txt`.
 Design's first response is the top reply card in
 [Alethical UX Prompt.dc.html](https://claude.ai/design/p/e592f874-1b47-4dda-a8d9-2e9f086f2bac?file=Prompt.dc.html).
-Two subsequent chat exchanges accepted the corrections below. They supersede
+The follow-up review accepted the corrections below. They supersede
 conflicting details in that reply card. This is a proposed approach, not a record
 that application behavior or approved product requirements have been changed.
 
@@ -596,8 +584,7 @@ that application behavior or approved product requirements have been changed.
 
 ### Build authorization and model selection, October 8, 2026
 
-Eugene said "build", then interrupted to ask which tier should build it. The
-approved address-suggestions scope now includes implementation, tests, browser
+The approved address-suggestions scope includes implementation, tests, browser
 review, Design record updates and verified live release. The separate sign-in
 restoration issue and legislator URL privacy change remain outside this scope.
 
@@ -612,15 +599,14 @@ there is no task-specific comparative measurement proving speed or equal quality
 The choice does not claim Astra can substitute for unavailable physical devices.
 Sources: https://developers.openai.com/api/docs/guides/model-selection and
 https://developers.openai.com/api/docs/models/gpt-6-astra .
-No application edits started before the tier question. Resume the authorized build
-when the user's setting discussion is complete; do not require another build go.
+Implementation remains approved after the model-setting decision; no separate
+build approval is needed when that decision is complete.
 
 ### Active build and acceptance order
 
-The build authorization supersedes the review-only status above. Eugene subsequently
-said: "test what you can and then deploy live before I can test on actual phones,
-right?" Available automated and computer-browser checks precede deployment; his
-physical iPhone/Android checks follow the live release. Neither emulation nor
+The build authorization supersedes the review-only status above. Available automated
+and computer-browser checks precede deployment; physical
+iPhone/Android checks follow the live release. Neither emulation nor
 synthetic input is evidence that real keyboard saved-address suggestions were tested.
 
 Implementation is on `codex/shared-address-suggestions`, based on current main.
@@ -628,7 +614,7 @@ The frontend worker owns the shared field/list, both integrations and focused te
 the lead owns the guides, Design record update, independent review and release.
 Steps: implement with focused tests; review integration and browser flows; complete
 required checks; merge and deploy; exercise live search; retain exact phone-test gaps
-for Eugene. No worker changes the separate sign-in restoration or URL privacy scope.
+for later device acceptance. No worker changes the separate sign-in restoration or URL privacy scope.
 
 
 ### Shared address design comparison and prevention

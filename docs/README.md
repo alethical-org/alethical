@@ -126,7 +126,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [First Short post preparation](operations/first-short-post-preparation.md) — accepted article checks, editable correction contact and authorized publication steps
 - [Short posts screen delivery plan](operations/short-posts-screen-plan.md) — archive, topic and article screen release checks and the separate article-publication boundary
 - [Reading layout delivery checkpoint](implementation/read-consistency-build-checkpoint.md) — approved listing and article layouts, navigation checks, and remaining related-reading review
-- [Proposed article links for review](implementation/reading-links-review-2026-09-27.md) — exact article links awaiting Eugene’s approval
+- [Proposed article links for review](implementation/reading-links-review-2026-09-27.md) — exact article links awaiting editorial approval
 - [Short posts foundation delivery plan](operations/short-posts-foundation-plan.md) — nonvisual build sequence, checks, and the drawing and publication boundaries for issue 2377
 - [How a legislator is matched to their campaign account](operations/how-a-legislator-is-matched-to-their-campaign-account.md) — the public audit record of the one decision no machine may make: what we claim, the 3 pieces of evidence a person reads, who signs, how a wrong match surfaces, how to challenge one, and where all 200 sitting members stand today
 - [What runs, when, and what it costs](operations/jobs-and-scripts.md) — every GitHub workflow, command-line tool, and job-driven AI cost

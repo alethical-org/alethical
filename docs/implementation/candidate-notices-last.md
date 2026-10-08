@@ -1,7 +1,6 @@
 # Candidate result notices, 2 October 2026
 
-Scope: Eugene authorized “bd Without interfering with candidate lookup task” after
-reviewing source limits. This work owns notice placement and empty-race wording;
+Approved scope after review of source limits: notice placement and empty-race wording, without interfering with the separate candidate lookup work;
 the separate candidate lookup task owns saved-address and disappearing-results fixes.
 
 Accepted download: Alethical UX (53).zip, completed 2 October 2026 at 10:32 local

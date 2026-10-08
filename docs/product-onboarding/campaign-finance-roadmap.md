@@ -30,7 +30,7 @@ own conclusion. We hand them the record, not the verdict.
 
 Between those two sits a third kind of claim: a pattern that really is in the records — for
 example, that two groups of candidates are funded in measurably different ways. Since
-18 Aug 2026 (Eugene's call), that kind of claim is allowed in exactly one place: a signed,
+18 Aug 2026 (approved decision), that kind of claim is allowed in exactly one place: a signed,
 dated research piece on the `/blog` page (`/blog/research/<name>`), where the method is printed
 beside
 the words, every figure links to the record behind it, and the reader can redo the arithmetic
@@ -65,7 +65,7 @@ total from a filing. They are different kinds of fact and adding them together d
 
 ### 2. Campaign finance on legislator profiles
 
-Angel's number one.
+Highest-priority campaign-money surface.
 
 Every current House and Senate member gets their campaign money on their existing profile
 page, for 2025 and 2026: what came in, what went out, and who gave it.
@@ -129,11 +129,11 @@ conditions in
 [`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md).
 A piece posts as its author wrote it, before any figure is checked, and goes live on the
 site the same day: its own address, the `/blog` page, the money landing's count, and the
-sitemap search engines read (Eugene, 25 Aug 2026). Nothing waits, including search engines.
+sitemap search engines read (25 Aug 2026). Nothing waits, including search engines.
 Every figure is then checked against our loaded data on the live page, which is now the only
 thing standing between a wrong figure and a search result. A figure drawn from records we do not hold yet,
 such as lobbying (number 8 below), stays in the piece, and the sources block names those
-records and the years they cover. The masthead names no undated figure (Eugene, 20 Aug 2026).
+records and the years they cover. The masthead names no undated figure (20 Aug 2026).
 
 ---
 
@@ -203,8 +203,8 @@ That second half is the part worth stating. We do not put "not yet" on a page, o
 not hold beside what we do. Telling someone a thing is not here yet promises them a date, and there
 is no date. Every page says what it holds and stops there.
 
-Eugene's call, 12 Aug 2026. It replaces an earlier "deferred" wording on this list, which had
-started to read as a plan.
+Decision of 12 Aug 2026: this source is out of scope, rather than deferred
+for planned delivery.
 
 **One exception: this is a record-page promise.** A signed research report
 (see "Our own research reports" above) may cite records filed with another body, named and
@@ -218,12 +218,12 @@ on. Record pages keep the rule above unchanged. Conditions:
 ## Why this order
 
 1. **What has to exist first.** Number 1 gates everything. Nothing else can be seen without it.
-2. **Then what Angel asked for.** Legislators, then challengers.
+2. **Then the approved politician records.** Legislators, then challengers.
 3. **Then what carries the most.** Party and caucus records outrank clickable links, because
    the caucus money is the story and links are how you move through it.
 4. **Within the first priority the order is enforced.** After that, things are ordered but can
    move if a reason appears.
-5. **Build all of it first, then chase the places our copy looks short.** Decided by Eugene on
+5. **Build all of it first, then chase the places our copy looks short.** Approved on
    12 Aug 2026, and explained below.
 
 ### Build everything first, investigate the data afterwards
@@ -316,11 +316,11 @@ PYTHONPATH=. uv run python scripts/review_legislator_campaign_committees.py cove
 
 # 2. The 144 uncontested as one numbered list, confirmed together after typing 'confirm'.
 PYTHONPATH=. uv run python scripts/review_legislator_campaign_committees.py review --batch \
-  --contributions /tmp/contributions.csv --target production --reviewer "Eugene Lopin"
+  --contributions /tmp/contributions.csv --target production --reviewer "Alethical, LLC"
 
 # 3. The rest, one question at a time, answered y / n / s / q.
 PYTHONPATH=. uv run python scripts/review_legislator_campaign_committees.py review \
-  --contributions /tmp/contributions.csv --target production --reviewer "Eugene Lopin"
+  --contributions /tmp/contributions.csv --target production --reviewer "Alethical, LLC"
 ```
 
 Re-running `coverage` between sittings is how progress is read: its first block counts what a

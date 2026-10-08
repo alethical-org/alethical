@@ -163,7 +163,7 @@ export interface ResearchCorrection {
   /** One banner sentence saying what moved. The piece's own text already holds
    * the corrected wording: rule 13 replaces a wrong figure rather than leaving it
    * readable with a line through it, so this banner is the only trace of the
-   * change (Eugene, 25 Aug 2026). */
+   * change (25 Aug 2026). */
   note: string;
 }
 
@@ -173,7 +173,7 @@ export interface ResearchCorrection {
  *
  * `position` is the reading order inside the set and is used for ORDERING ONLY.
  * No reader-facing surface prints it — not "piece 1", not "piece 1 of 5", not a
- * numbered row (§2.12, Eugene 27 Aug 2026). The set's name alone is what a
+ * numbered row (§2.12, 27 Aug 2026). The set's name alone is what a
  * reader is told.
  */
 export interface PieceSet {
@@ -186,7 +186,7 @@ export interface ResearchPiece extends PieceIndexEntry {
   shortPost?: ShortPostEditorial;
   /**
    * What a search result says under the title: what this piece covers, in the
-   * piece's own words, carrying no figure and no finding (Eugene, 18 Sep 2026).
+   * piece's own words, carrying no figure and no finding (18 Sep 2026).
    *
    * A guide used to tell a search engine only its date, which says nothing about
    * whether the page answers the question somebody typed. Rule 13's bar is
@@ -222,7 +222,7 @@ export interface ResearchPiece extends PieceIndexEntry {
    * Set when the piece draws a figure the masthead's records-through date does
    * not speak for — records Alethical does not hold, or ones it holds on a
    * separate filing cycle with its own coverage end. Kept on the record,
-   * rendered nowhere since 20 Aug 2026 (Eugene's call): the sources block names
+   * rendered nowhere since 20 Aug 2026 (approved editorial scope): the sources block names
    * those records and the years they cover instead (rule 13's publishing order,
    * point 11). Reworded 31 Aug 2026, when the lobbying file became the second
    * kind rather than the first (#1862).
@@ -277,7 +277,7 @@ export const READ_PAGE_EMPTY_BODY =
   'When we publish research or a guide on these records, it appears here, dated and carrying the date its records run through';
 
 /**
- * The 2 group headings on the /blog page, research first (Eugene, 27 Aug
+ * The 2 group headings on the /blog page, research first (27 Aug
  * 2026, overruling the drawn order). Grouping by our own 2 kinds is deliberate
  * and its objection is recorded: a reader arrives with a subject in mind rather
  * than a genre, and the page is revisited at 4 sets or a dozen research pieces
@@ -477,7 +477,7 @@ export function pieceReadingMinutes(piece: ResearchPiece): number {
  * A research piece carries its 2 dates and nothing else — rule 13's publishing
  * order, point 8, is explicit — so no kind word and no minutes join it there.
  * A guide carries its kind, its reading time and its 1 date, which is the line
- * Design settled and Eugene ruled on: "GUIDE · 5 MIN · WRITTEN AUGUST 2026",
+ * the approved design specifies: "GUIDE · 5 MIN · WRITTEN AUGUST 2026",
  * with no piece number anywhere in it (§2.12).
  */
 export function pieceMastheadLine(piece: ResearchPiece): string {

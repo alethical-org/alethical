@@ -1,7 +1,7 @@
 """Review a failed campaign-money collection run, and keep 1 issue per distinct problem.
 
-Net: when the daily campaign-money refresh or the notices collection fails and stays
-failed, nothing used to tell anyone until Eugene opened a coding session. This module
+Net: persistent failures in the daily campaign-money refresh or notices collection
+previously stayed unnoticed until a manual coding review. This module
 is the safety net behind ``.github/workflows/collection-failure-review.yml``
 ([#2350](https://github.com/alethical-org/alethical/issues/2350)). It reads the finished
 run, builds a small redacted evidence packet, keeps exactly 1 GitHub issue per distinct
@@ -193,8 +193,8 @@ SUMMARY_FILE = "collection-run-summary.jsonl"
 #
 # Prices read from https://platform.claude.com/docs/en/about-claude/pricing on
 # 23 Sep 2026: Claude Opus 5.5 is $4 per million input tokens and $20 per million
-# output tokens, and thinking is billed as output. Waiting for Eugene's approval before
-# the switch is turned on; docs/operations/jobs-and-scripts.md carries the cost table.
+# output tokens, and thinking is billed as output. Explicit spending approval is
+# required before the switch is turned on; docs/operations/jobs-and-scripts.md carries the cost table.
 
 MODEL = "claude-opus-5-5"
 EFFORT = "high"

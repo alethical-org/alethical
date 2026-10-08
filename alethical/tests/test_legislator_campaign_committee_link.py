@@ -52,7 +52,7 @@ def a_legislator(db) -> models.Legislator:
     return legislator
 
 
-def a_link(legislator, registration, decision=CONFIRMED, reviewer="Eugene Lopin"):
+def a_link(legislator, registration, decision=CONFIRMED, reviewer="Test reviewer"):
     return models.LegislatorCampaignCommittee(
         legislator_id=legislator.id,
         registration_number=registration,

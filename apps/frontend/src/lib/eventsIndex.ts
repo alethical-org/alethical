@@ -2,7 +2,7 @@
 export const EVENT_INDEX = [
   {
     slug: 'forward-debate-2026',
-    // Held for refinements and candidate approval. Republish only on Eugene’s instruction.
+    // Held for refinements and candidate approval. Republishing requires explicit editorial approval.
     published: false,
     articleId: 'forward-debate-2026',
     title: 'The Forward Debate: Minnesota Senate District 13 in Sauk Rapids',

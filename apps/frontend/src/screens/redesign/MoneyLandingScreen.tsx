@@ -65,7 +65,7 @@ const UnconcealedInvite = loadOnDemand(
 
 /**
  * The campaign money landing at /money — public, no sign-in gate ("Campaign
- * money IA.dc.html" §01, plus Eugene's 18 Aug 2026 decision that every lane card
+ * money IA.dc.html" §01, plus the 18 Aug 2026 decision that every lane card
  * is visible, so a reader sees the whole shape of the section). Redrawn 8 Sep
  * 2026 and refined 17 Sep: 6 lanes follow the search, then research, sources
  * and copy dates with an optional disclosure, record limits, and filed reports.

@@ -56,8 +56,8 @@ The test is whether the piece was **wrong**, not whether it changed.
 
 ## About the dated notes
 
-A piece can carry its own dated correction note at the top. The Alethical team decides whether a
-given correction gets one, and has directed more than once that it should not
+A piece can carry its own dated correction note at the top. Each correction needs an editorial
+decision about whether that note is necessary; several corrections have been approved without one
 ([`.claude/rules/grounded-answers.md`](../.claude/rules/grounded-answers.md) rule 13, point 7a).
 The reasoning, from [issue 1798](https://github.com/alethical-org/alethical/issues/1798): a note
 tells a reader *something you may have acted on has changed*, and raising that alarm for a change
@@ -106,7 +106,7 @@ One thing deliberately left standing: the method box that shows the working behi
 still says what it said, because what it states is the counting a reader would have to repeat, and
 cutting it would be an edit on our own initiative, which rule 13 point 2 forbids.
 
-**Note on the pieces:** none, at the team's direction.
+**Note on the pieces:** none, under the approved correction scope.
 
 **Record:** [PR #1884](https://github.com/alethical-org/alethical/pull/1884),
 [issue 1862](https://github.com/alethical-org/alethical/issues/1862)
@@ -152,7 +152,7 @@ independent reviews of the piece.
 *What the records name, and what they leave out* had printed since it posted, so 2 live pages were
 giving different counts of one file and this one matched neither our data nor the Board's.
 
-**Note on the piece:** none, at the team's direction — a row count describes nobody and moves no
+**Note on the piece:** none, under the approved correction scope — a row count describes nobody and moves no
 money figure.
 
 **Record:** [PR #1830](https://github.com/alethical-org/alethical/pull/1830)
@@ -206,11 +206,11 @@ mark is a promise the words are there.
 that handbook the day this piece posted, and the served copy no longer contains them."
 
 **One thing here is unresolved, and is recorded rather than tidied away.**
-[Issue 1798](https://github.com/alethical-org/alethical/issues/1798) closed on 31 August 2026 with
-"Eugene ruled no correction note", and that issue covers this handbook episode — both this
-correction and the 28 August one above. The banner is on the page today. So either the ruling
-applied only to the 28 August sweep, or the note is still up and should not be. That is the team's
-to settle, not the editor's: rule 13 point 2a puts changes to a posted piece with the team.
+[Issue 1798](https://github.com/alethical-org/alethical/issues/1798) closed on 31 August 2026 recording a decision to omit a correction note. That issue covers
+this handbook episode, including this correction and the 28 August one above. The banner
+remains on the page in this record. The decision may apply only to the 28 August sweep, or
+the banner may remain contrary to the approved scope. This conflict needs an explicit
+editorial decision before changing the published piece under rule 13 point 2a.
 
 **Record:** [PR #1801](https://github.com/alethical-org/alethical/pull/1801),
 [issue 1798](https://github.com/alethical-org/alethical/issues/1798)
@@ -229,7 +229,7 @@ campaign."
 **Why:** $13,000 is what the data supports. The figure was recomputed and the piece was brought to
 the recomputed number.
 
-**Note on the piece:** none, at the team's direction.
+**Note on the piece:** none, under the approved correction scope.
 
 **Record:** [PR #1772](https://github.com/alethical-org/alethical/pull/1772),
 [issue 1687](https://github.com/alethical-org/alethical/issues/1687)
@@ -282,7 +282,7 @@ threshold than the caucuses and state parties do, so comparing the 2 visible tot
 machinery.
 
 **Note on the piece:** none. A note reading **CORRECTED AUG 25 2026** went up with the correction
-and was taken down the same day at the team's direction.
+and was removed the same day under the approved correction scope.
 
 **Record:** [PR #1754](https://github.com/alethical-org/alethical/pull/1754),
 [PR #1759](https://github.com/alethical-org/alethical/pull/1759),

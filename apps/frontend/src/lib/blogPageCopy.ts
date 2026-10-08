@@ -41,7 +41,7 @@ export const READ_PAGE_HEADING = 'Research, guides and events';
  * No terminal period on this line or on the 2 empty-state lines
  * (`READ_PAGE_EMPTY_TITLE` and `READ_PAGE_EMPTY_BODY` in `lib/research.ts`): a
  * period says another sentence is coming, so on a line with nothing after it the
- * eye waits for something that never arrives (Eugene, 2 Sep 2026). A piece's own
+ * eye waits for something that never arrives (2 Sep 2026). A piece's own
  * standfirst, drawn on its card, keeps the period its author wrote.
  */
 export const READ_PAGE_INTRO =

@@ -24,7 +24,7 @@ and
 The profile redesign is tracked in [issue 2140](https://github.com/alethical-org/alethical/issues/2140).
 This guide describes its donation lists, year choices and charts.
 
-On 12 September 2026 Eugene approved chart categories matching the donor tabs, with
+The 12 September 2026 decision approves chart categories matching the donor tabs, with
 candidate committees included in Committees & Funds, and keeping the existing
 whole-dollar display. Each payment's original kind remains available. The donut, its
 legend and the history bars use the final shared solid colour map.
@@ -366,8 +366,8 @@ existing meaning.
 
 ### Money in
 
-Two figures, and they are different things. Their labels are the filing's own words, ruled
-by Eugene on 11 Sep 2026:
+The 2 figures describe different things. Their labels use the filing’s own words
+under the 11 Sep 2026 decision:
 
 - **Total contributions.** The committee's own report, drawn only when we hold its total.
   The date the report runs to, and the way out to the committee's record on the state's
@@ -410,7 +410,7 @@ fixed sentence says:
 > does not name
 
 Both labels are printed once and explained once, wherever the explanation happens to sit,
-because one fact at 2 places on a card is the repeat Eugene ruled out.
+to avoid repeating 1 fact in 2 places on the same card.
 
 **Read the $200 as the donor's yearly total, never the size of a single gift.** 327,759 of
 the 583,152 published donation rows are individually under $200 and are named anyway,
@@ -429,8 +429,8 @@ donation and is counted inside Itemized contributions above, so a reader told th
 leaves goods out would otherwise come looking for them here
 ([#2182](https://github.com/alethical-org/alethical/issues/2182)). It is never
 added to the donation figure, because the filing carries it on a different schedule and the
-Board's own totals exclude it. **A row the state types `Miscellaneous` is not drawn** (ruled
-by Eugene, 11 Sep 2026), and when that was the only such row the heading is not drawn
+Board's own totals exclude it. **A row the state types `Miscellaneous` is not drawn** (approved
+11 Sep 2026), and when that was the only such row the heading is not drawn
 either. Every other kind still is.
 
 The committee card ends with its human-check evidence. It has no generic downloads

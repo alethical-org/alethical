@@ -1,6 +1,6 @@
 # Committee money refinements
 
-Eugene authorized this build on 17 September 2026 after the screenshot review. Full release is authorized: implement, test, browser review, push, merge, deploy, and live check. [Issue 2243](https://github.com/alethical-org/alethical/issues/2243).
+Build scope approved on 17 September 2026 after the screenshot review: implement, test, browser review, push, merge, deploy, and live check. [Issue 2243](https://github.com/alethical-org/alethical/issues/2243).
 
 ## Agreed result
 

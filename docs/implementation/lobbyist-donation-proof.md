@@ -1,6 +1,6 @@
 # Lobbyist donation proof release report
 
-User authorization: build the general missing-amount repair, independently review it,
+Approved scope: build the general missing-amount repair, independently review it,
 coordinate other tasks, release safely, and report before/after supported amounts.
 
 ## Live result on September 19, 2026

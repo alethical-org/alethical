@@ -106,7 +106,7 @@ export function closedChipLabel(terminationDate: string | null | undefined): str
 
 /**
  * The sentence directly under the Itemized contributions figure, on both surfaces
- * (ruled by Eugene, 11 Sep 2026, word for word). It is the one place on the card that
+ * (approved 11 Sep 2026, word for word). It is the one place on the card that
  * states the naming rule, and it states it as rule 12 frames it: a test on a donor's
  * yearly total, and a floor on who a committee MUST name rather than a ban on naming
  * anyone smaller. The statute's own words are that a contributor "must then be listed"
@@ -148,7 +148,7 @@ export function itemizedContributionsNote(isBallot: boolean): string {
 
 /**
  * The sentence under the Non-itemized contributions figure. One sentence, the same for
- * every filer kind (ruled by Eugene, 11 Sep 2026): the naming rule is stated once on
+ * every filer kind (approved 11 Sep 2026): the naming rule is stated once on
  * the card, under the itemized figure above, so this says only what this money is. It
  * says the state's file does not name the givers, **not** that nobody knows who they
  * are: the second is a claim about the world this source cannot support. The `isBallot`
@@ -298,24 +298,24 @@ export function notFoundBody(registrationNumber: string): string {
 export const MONEY_IN_HEADING = 'Money in';
 export const MONEY_OUT_HEADING = 'Money out';
 
-/** The filing's own total, in the filing's own words (ruled by Eugene, 11 Sep 2026).
+/** The filing's own total, in the filing's own words (approved 11 Sep 2026).
  *  Never "Raised in total": the 2 are the same only when the report covers the whole
  *  year, and a report that stops in March makes the second false while the first stays
  *  true beside its own coverage date. */
 export const MONEY_IN_REPORTED_LABEL = 'Total contributions';
 
-/** The named figure, in the filing's own word for it (ruled by Eugene, 11 Sep 2026).
+/** The named figure, in the filing's own word for it (approved 11 Sep 2026).
  *  Always drawn: a real amount or the words "Not reported", never a blank, because a
  *  card with a hole where a figure should be reads as broken. The sentence under it
  *  (`itemizedContributionsNote`) says what the word means. */
 export const MONEY_IN_NAMED_LABEL = 'Itemized contributions';
 
-/** The filing's own word for money reported as a lump with no donor listed (ruled by
- *  Eugene, 11 Sep 2026). The sentence under it says what the word means. */
+/** The filing's own word for money reported as a lump with no donor listed (approved
+ *  11 Sep 2026). The sentence under it says what the word means. */
 export const MONEY_IN_UNNAMED_LABEL = 'Non-itemized contributions';
 
 /**
- * The receipt kind the cards do not draw (ruled by Eugene, 11 Sep 2026). Matched against
+ * The receipt kind the cards do not draw (approved 11 Sep 2026). Matched against
  * the served value exactly: `Miscellaneous` is the Board's own kind on the contributions
  * file, and a page that hides it draws no `Not a contribution` heading when no row is left.
  * Every other kind (a public subsidy, interest, a loan) still draws with its own label.
@@ -338,7 +338,7 @@ export function shownReceiptRows<T>(
  * The server sends the address of the bulk download itself
  * (`.../data-downloads/campaign-finance/?download=<id>`), which streams a 9 MB statewide
  * spreadsheet with no page behind it, so in a browser nothing readable opens. The card
- * links to the page that download lives on instead (ruled by Eugene, 11 Sep 2026), and
+ * links to the page that download lives on instead (approved 11 Sep 2026), and
  * derives it here from the served address rather than hard-coding it, so a future release
  * id cannot break it and the served field stays untouched.
  */

@@ -1,9 +1,9 @@
 # Editorial comments build and release
 
-Owner: the Codex task `blog comments`. User authorization: after the full comments
-build recommendation at `gpt-6-astra` `xhigh`, Eugene said `go` on 26 September 2026.
-This covers implementation, tests, browser review, pull request, merge, deployment
-and safe live verification. There is no new product or Design request in this build.
+Owner: the Codex task `blog comments`. Implementation was approved on
+26 September 2026 at `gpt-6-astra` `xhigh`. The approved scope covers
+implementation, tests, browser review, pull request, merge, deployment
+and safe live verification. It includes no new product or Design request.
 
 Issue: [2399](https://github.com/alethical-org/alethical/issues/2399).
 Release: [pull request 2401](https://github.com/alethical-org/alethical/pull/2401).
@@ -64,8 +64,8 @@ Branch `codex/editorial-comments`, isolated checkout
 installed; Docker is available. No real comments or emails have been sent.
 Production confirmed accounts and configured administrator IDs match for
 alethicaldev@gmail.com, angel@alethical.com, angelzierden@gmail.com and
-eug@alethical.com. ask@alethical.com has no confirmed account yet. Eugene has been
-asked to create and confirm it; its later activation is the only user-owned step.
+eug@alethical.com. ask@alethical.com has no confirmed account yet. Creating and confirming that account remains an account-owner step;
+its later activation is the only user-owned step.
 All admin email alerts still go to ask@alethical.com.
 
 Acceptance evidence: the full pre-push suites pass on the initial feature commit,

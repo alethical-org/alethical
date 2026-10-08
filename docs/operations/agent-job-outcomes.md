@@ -8,12 +8,11 @@ spending stay unknown.
 
 ## Approved scope and intent
 
-On 6 October 2026, Eugene approved measuring completed jobs, time to a working
-result, human interventions, repeats and AI spending. On 7 October he authorized
-the next build: “when done build the earlier recs, astra is set”. That covers shared
-local Claude Code and Codex activity recording, source-reading completion checks,
-and setup of a prospective 10-job trial. It does not authorize new paid recurring
-agents, broader account access or 10 artificial tasks to fill the trial.
+The 6 October 2026 decision approves measuring completed jobs, time to a working
+result, human interventions, repeats and AI spending. The 7 October build approval
+covers shared local Claude Code and Codex activity recording, source-reading
+completion checks, and setup of a prospective 10-job trial. It excludes new paid
+recurring agents, broader account access and artificial tasks to fill the trial.
 
 [workflow.md rule 10 (safe work through live release)](https://github.com/alethical-org/alethical/blob/main/.claude/rules/workflow.md)
 already requires current checks and a working result for releases.
@@ -340,6 +339,6 @@ that coverage gap when interpreting the trial.
 - **Prevention:** tests cover payload privacy, concurrent writers, sequential jobs, duplicate IDs, interruption, missing checks, stale releases, independent review requirements, unsafe evidence paths, protected settings and rollback.
 - **Remaining uncertainty:** host coverage can be incomplete; reviewer identity and behavior observations are attested; cost/help/repeat measures may be unknown; failed enrollment is a coverage gap.
 - **Owner and completion:** the current coding agent owns explicit registration, source inspection, independent acceptance, installation health and truthful completion. Only naturally occurring trial results support its later assessment.
-- **Scope:** no historical mining, vendor ranking, raw transcript collection, paid recurring agents, automatic continuation, wider permissions or policy requiring Eugene to approve each ordinary change.
+- **Scope:** no historical mining, vendor ranking, raw transcript collection, paid recurring agents, automatic continuation, wider permissions or policy requiring project-owner approval for each ordinary change.
 
 Tests use synthetic records and mocked source responses; they make no paid AI calls.

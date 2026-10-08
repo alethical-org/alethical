@@ -7,9 +7,9 @@ figure and reads as ordinary small-donor money, which is a false claim about don
 Minnesota itself named, under a real politician's name. This module is how a page finds
 out, before it draws anything.
 
-**It answers per committee-year and never for a whole release.** Eugene ruled on 12 Aug
-2026 that where 2 of Minnesota's own publications disagree and we cannot derive the
-truth, we show both figures and say plainly that they disagree. So a committee whose
+**It answers per committee-year and never for a whole release.** Under the
+12 Aug 2026 decision, where 2 of Minnesota's own publications disagree and we cannot
+derive the truth, we show both figures and say plainly that they disagree. So a committee whose
 figures contradict each other withholds its own split while every other committee's page
 draws normally ([#1329](https://github.com/alethical-org/alethical/issues/1329)).
 

@@ -2,11 +2,10 @@
 
 ## Authorized outcome
 
-Eugene requested implementation of the `/money` review, asked for the model setting,
-then gave `go` with a 1-character reply. The work includes tests, browser review,
+The approved `/money` review build includes tests, browser review,
 independent review, a pull request, merge, deployment, and a live check.
-Eugene also requested replacing the dotted-zero date font on `/money` with the
-Libre Franklin numbers on the legislator money tab, and a lasting handoff rule.
+Dates on `/money` must use the Libre Franklin numbers on the legislator money tab
+instead of the dotted-zero font; the same requirement applies to future handoffs.
 No new drawing is required. Existing layout, destinations, and source data remain.
 
 ## Acceptance checks
@@ -40,4 +39,4 @@ No new drawing is required. Existing layout, destinations, and source data remai
   political funds track election money within an existing organization; they are
   not separate organizations, and their activity is reported to the Board.
 - [Aaron Repinski money tab](https://www.alethical.com/legislators/aaron-repinski?tab=money):
-  Libre Franklin with tabular digits is the requested number treatment.
+  Libre Franklin with tabular digits is the approved number treatment.

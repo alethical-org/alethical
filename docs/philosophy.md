@@ -226,7 +226,7 @@ Three practical consequences, each of which has already changed a decision here:
   a record a reader can open, or it is marked as what we do not know. The honest gap is
   always publishable; the confident guess never is.
 
-Eugene, 25 Aug 2026. This principle is the *why* under the strictness everywhere else, and
+Adopted 25 Aug 2026. This principle is the *why* under the strictness everywhere else, and
 it is worth stating plainly because the pressure always runs the other way: publishing
 sooner, claiming more, explaining less.
 

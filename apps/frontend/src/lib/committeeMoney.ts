@@ -559,7 +559,7 @@ export const FILINGS_UNAVAILABLE =
  * This line used to be omitted, on a recorded belief that the 2 sources disagreed. They
  * do not: the $200 reading came from the *Political Committee and Political Fund
  * Handbook*, whose reporting instructions are written for the general-purpose kind of
- * filer. Both read at source 31 Aug 2026; Eugene lifted the ban the same day.
+ * filer. Both read at source 31 Aug 2026; the restriction was removed the same day.
  */
 export const RECORD_COVERS_HEADING = 'What this record covers';
 

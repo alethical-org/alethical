@@ -56,7 +56,7 @@ Research and Guide are 2 traits, not 2 mutually exclusive kinds. §2.7 explains 
 
 ## 2. Settled decisions
 
-Ratified by Eugene, 27 Aug 2026, except where a different date is given.
+Approved on 27 Aug 2026, except where a different date is given.
 
 ### 2.1 Addresses carry the trait, and the `/blog` page lists everything
 
@@ -103,7 +103,7 @@ instead.
 
 ### 2.3 A set names only its published pieces, never its unwritten ones
 
-Ratified by Eugene 27 Aug 2026. A set box on the `/blog` page lists the pieces that are
+Approved on 27 Aug 2026. A set box on the `/blog` page lists the pieces that are
 published and nothing else. It never lists a title a reader cannot open, and it carries no count
 of how many pieces the set is eventually meant to hold.
 
@@ -142,8 +142,7 @@ withdrawn; it gives no procedure for doing so, which is why this is rare rather 
 
 ### 2.5 A set box shows from the first published piece, and starting one commits us to the next
 
-Ratified by Eugene 27 Aug 2026, rejecting a design recommendation with a reason that changes what
-the box means.
+Approved on 27 Aug 2026: a set box signals a growing set from its first published piece.
 
 **The rule.** A set holding 1 published piece shows its box, drawn exactly as a box holding many:
 the summary, the meta line, the rule above the rows, the fold control, and 1 row. Nothing is
@@ -166,14 +165,11 @@ posted the same day, so the set has 2 published pieces and its box now shows wit
 1-piece state is still the ratified design and is still what a new set opens with; it is simply
 not the state this set is in.
 
-**What the design recommended instead, and why it lost.** Design drew the 1-piece box as asked,
-then argued against it: at 1 piece the meta line restates the single row, the row's own reading time
-appears twice, the dividing rule is a table header over a one-row table, and the fold control offers
-to collapse a single line. It proposed a box from 2 pieces, a plain card carrying the set's name at
-1, and nothing at 0. Every one of those observations about repeated furniture is accurate. It lost
-because it reads the box as a container, and Eugene's ruling makes it a signal: the repetition is
-the cost of saying "this is a set and it is growing" from the first piece, and the alternative
-spends a visual transition at the second piece to save it.
+**Why a set box appears at 1 piece.** A 1-piece box repeats its row’s reading time
+and offers a collapse control for a single line. Alethical accepts that repetition
+to signal a growing set from the first published piece. A plain card at 1 piece
+and a box from 2 pieces would save repeated controls but introduce a visual
+transition at the second piece.
 
 **What it costs.** A reader meeting a 1-row box sees 4 pieces of furniture that carry no
 information beyond the row itself. The box is also a promise about our writing schedule that no
@@ -211,7 +207,7 @@ Counted 27 Aug 2026, before the 13 September helper split into `committeeMoney.t
 original file, and every one of the 21 is about filing to the Board. Renaming a public record to
 free the word is not available, so our own writing is the half that moves.
 
-**The long-form section is `RESEARCH REPORTS` (27 Sep 2026).** Eugene asked to make the green headings distinguish longer research from short posts. The `/blog` section heading uses the qualified phrase, while individual article labels remain `RESEARCH` or `GUIDE`. `SHORT POSTS` stays broad enough for either trait; it does not become `SHORT RESEARCH POSTS`. This changes the section heading, not article kinds, addresses or source rules. The qualification distinguishes Alethical's writing from filed Board reports.
+**The long-form section is `RESEARCH REPORTS` (27 Sep 2026).** The green headings distinguish longer research from short posts. The `/blog` section heading uses the qualified phrase, while individual article labels remain `RESEARCH` or `GUIDE`. `SHORT POSTS` stays broad enough for either trait; it does not become `SHORT RESEARCH POSTS`. This changes the section heading, not article kinds, addresses or source rules. The qualification distinguishes Alethical's writing from filed Board reports.
 
 **Why "Guide" rather than "Explainer".** "Explainer" names a publishing format; "Guide" states the
 help on offer. Both are honest, and the reader-facing test is which one a person clicks when
@@ -223,14 +219,13 @@ documents named `*-guide.md` under `docs/product-onboarding/` give the word a se
 guess and bans metaphors; it nowhere requires one globally unique meaning per word. Those 13 files
 are correctly named in their own setting and no reader ever sees them. Objection dropped.
 
-**Why one vocabulary rather than reader-facing labels over different internal names.** The peer
-coding consultant recommended the split, citing rule 3 of
-[`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md), which requires
-"author" in user-facing copy while the data model keeps `SponsorshipRole.sponsor`
-(`alethical/db/models.py:100`). Eugene's ruling: one vocabulary, because the split's cost is a
-mapping every future reader of the code has to hold in their head, and here the internal word can
-simply be the reader's word. Rule 3's precedent stands where it is: `sponsor` is a genuinely
-distinct filing role, not a translation of "author".
+**Why one vocabulary is used in reader-facing labels and code.** A translation
+between separate internal and reader-facing words would add a mapping every future
+code reader must retain. Here, the internal word can be the reader’s word.
+[`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 3
+remains a distinct exception: reader-facing “author” and the model’s
+`SponsorshipRole.sponsor` (`alethical/db/models.py:100`) describe genuinely different
+roles, rather than 2 names for the same writing trait.
 
 **A piece carrying both traits shows one label: Research.** Rule 13 makes research the stricter
 class, and a piece that adds figures up across members must obey rule 13 in full whatever else it
@@ -299,8 +294,7 @@ another session's feet, not tidiness.
 
 ### 2.10 A card carries its kind word only where no heading supplies one
 
-Ratified by Eugene 27 Aug 2026, narrowing §2.2's wording at Design's own request rather than
-letting Design apply the narrowing quietly.
+Approved on 27 Aug 2026 as a narrower replacement for §2.2's wording.
 
 **The rule.** A card carries its visible kind word where readers need it to tell mixed kinds
 apart. Under `GUIDES` or `RESEARCH REPORTS` on `/blog`, the heading supplies the word. Short post rows
@@ -309,11 +303,10 @@ on `/blog` and cards on `/blog/short-posts` also omit the visible word; each kee
 `/blog/topics/<topic>` keep the visible kind because a topic mixes kinds. A card also prints
 the word on the home page, in a search result, and in a related-piece list when needed.
 
-**Why the word depends on context.** An unqualified rule, "a card outside a set box carries the
-word", prints "Guide" on the `/blog` page under a heading already reading `GUIDES`, twice in one
-glance. Design spotted this while drawing the page and asked to have the narrowing ratified rather
-than absorb it silently, which is the right instinct: a looser sentence already written down gets
-followed by the next person.
+**Why the word depends on context.** Always labelling cards outside set boxes
+would repeat “Guide” beneath the `GUIDES` heading on `/blog`. The approved
+context-dependent wording avoids that repetition while retaining labels where
+a mixed list needs them.
 
 **What it costs.** The word a reader sees now depends on context rather than on the piece, so a
 card component needs to know whether a heading sits above it. That is a small amount of wiring and
@@ -321,19 +314,18 @@ card component needs to know whether a heading sits above it. That is a small am
 
 ### 2.11 The `/blog` page groups writing, with topic destinations alongside
 
-Ratified by Eugene 27 Aug 2026, with the long-form heading clarified on 27 Sep 2026.
+Approved on 27 Aug 2026, with the long-form heading clarified on 27 Sep 2026.
 `RESEARCH REPORTS` sits above `SHORT POSTS`, then `GUIDES`.
 
-**The order is Eugene's, against the design.** Every drawing in the accepted handoff puts `GUIDES`
-first; he overruled it and named it the only change from that handoff. Research is what Alethical
+**The approved order overrides the drawing on this point only.** The accepted handoff puts `GUIDES`
+first; the approved order puts Research first. Research is what Alethical
 publishes in its own name and the reason the section exists, so it leads. A guide teaches a term a
 research piece raised, which makes it the support rather than the headline. Treat any drawing showing
 `GUIDES` first as superseded on this one point and nothing else.
 
-**Design's objection, which stands and is not dismissed.** Grouping the page by our own genre is the
-opposite of the reason both kinds share one page: a reader arrives with a subject in mind, not a
-genre. Design raised it, declined to restructure the page on its own authority because that is a
-decision rather than a refinement, and asked for a ruling.
+**Tradeoff of grouping by format.** Readers may arrive with a subject in mind
+rather than a writing format. Replacing format groups with subject groups
+would change the product’s organization and requires separate approval.
 
 **Why it is not acted on yet.** Two reasons, neither of them disagreement. At 2 published pieces
 there is nothing for a subject grouping to group. And a subject grouping needs a subject on every
@@ -348,7 +340,7 @@ page to find it.
 after readers have learned the current shape, and any inbound link to a heading anchor breaks.
 
 **Updated 26 Sep 2026.** §7 adds controlled subjects to every currently published piece and
-settles topic destinations. Eugene authorized the screen build: Research, Short posts, then Guides.
+settles topic destinations. The approved screen build follows this order: Research, Short posts, then Guides.
 The first heading became `RESEARCH REPORTS` on 27 Sep 2026, without changing this order.
 The newest 3 Short posts share one box of rows with hidden kind labels and separate topic links. This
 group stays hidden until an article is published. Topic destinations show only each entry’s other
@@ -356,7 +348,7 @@ topics, since the heading already names the current topic.
 
 ### 2.12 A piece's number in its set never reaches a reader
 
-Ratified by Eugene 27 Aug 2026. No reader-facing surface prints a piece's position in its set. Not
+Approved on 27 Aug 2026. No reader-facing surface prints a piece's position in its set. Not
 "piece 1", not "piece 1 of 5", not "1st", and not a numbered row inside a set box. The set's name
 alone is what a reader is told.
 
@@ -381,7 +373,7 @@ listed in it.
 
 ### 2.13 The bar says **Blog**, one item with no dropdown, and the addresses match it
 
-The single destination was ratified by Eugene 27 Aug 2026; its current name and addresses follow §2.15.
+The single destination was approved on 27 Aug 2026; its current name and addresses follow §2.15.
 
 **The rule.** The top bar's Blog item follows Money and Search. It is a destination, not a
 dropdown: one bar item on a computer with no panel behind it, and one row in the phone drawer with no
@@ -411,8 +403,8 @@ whose link is the page being viewed now carries it, at both bands. A dropdown tr
 trigger opens a panel and is not a page, so on `/money` the direct Money navigation link is
 marked and the Search trigger is not.
 
-**In the phone drawer the Blog row is drawn at top level, not as another group row.** Ruled by
-Eugene 27 Aug 2026, correcting a first build that drew it plain. The row is 60px tall with a 1px
+**In the phone drawer the Blog row is drawn at top level, not as another group row.** Approved on
+27 Aug 2026, correcting a first build that drew it plain. The row is 60px tall with a 1px
 rule above and below (`alpha.ink10`), its label at 25px in the same weight as a group's rows, its
 NEW chip beside the label, and a drawn right arrow at the far end in the muted ink. The whole band
 between the 2 rules is the tap target.
@@ -461,7 +453,8 @@ any change to a posted piece with the Alethical team.
 
 ### 2.15 The section is Blog and its permanent addresses start with `/blog`
 
-Approved by Eugene, 30 Sep 2026: “change read in nav and url to "blog" and anywhere else needed to permanently change section name”.
+Approved on 30 Sep 2026: Blog is the permanent section name in navigation,
+addresses and all related references, replacing Read.
 
 **Blog** is the public section name in the top bar, phone drawer, browser titles,
 page headings, return links and accessibility labels. Its combined listing is `/blog`.
@@ -484,22 +477,21 @@ publication dates, accuracy-review dates, claims, evidence or article publicatio
 ### 2.16 Events reuse the Blog design and retain a permanent address
 
 **Current hold, 7 October 2026:** The Forward Debate announcement is unpublished
-for refinements and candidate approval, as directed by Eugene. Its saved copy,
+for refinements and candidate approval. Its saved copy,
 image, layout and address are retained. A held announcement is absent from
 public routes, Blog listings, sitemaps and comment eligibility; its flyer is
 kept outside the public asset directory. An empty Events group is hidden.
-Republication requires Eugene’s instruction after candidate approval.
+Republication requires explicit publication approval after candidate approval.
 
 
-Approved by Eugene, 7 October 2026. The `/blog` page includes an `EVENTS` group
+Approved on 7 October 2026. The `/blog` page includes an `EVENTS` group
 using the existing section heading, box, row, type and responsive spacing patterns.
 The group links to `/blog/events`; each announcement has its own address below it.
 Existing Research reports, Short posts and Guides keep their relative order.
 
 The first announcement is The Forward Debate at `/blog/events/forward-debate-2026`.
 The supplied flyer appears before the article text, with its content unchanged.
-Aaron Brutger's flyer and article label remains “Republican primary candidate”,
-as expressly directed by Eugene. The article includes the confirmed event time,
+Aaron Brutger's flyer and article label remains “Republican primary candidate” under the approved event wording. The article includes the confirmed event time,
 venue, free admission and the registration link `https://luma.com/3w69g6dw`.
 The Alethical icon links home and the Forward Coalition logo links to
 `https://forwardcoalition.com/candidates`; their presence does not
@@ -510,8 +502,7 @@ sitemap. The page remains available after the end time, labelled as ended, witho
 an active registration invitation or registration offer in structured data.
 A recap, recording or photos require actual supplied material; none is implied.
 Host announcements do not acquire Research or Guide traits, findings, research
-authorship claims or a research source-verification badge. Default reader comments apply to individual event articles too. All event promotions omit the standard AI notice, following Eugene’s standing
-instruction of 7 October 2026. Factual event details still require checking.
+authorship claims or a research source-verification badge. Default reader comments apply to individual event articles too. All event promotions omit the standard AI notice, under the 7 October 2026 decision. Factual event details still require checking.
 Event article identities join the generated server eligibility registry; collection
 pages remain comment-free.
 
@@ -552,7 +543,7 @@ weekly check runs and reports either way, so nothing waits on this.
    on, same slot, one word swapped.
 
    **The last clause of that settlement, that a listing row carries no date either way, was
-   superseded on 27 Aug 2026 by Design's `/read` handoff, which Eugene sent to be built.** A card
+   superseded on 27 Aug 2026 by the approved `/read` build handoff.** A card
    now carries its reading time and then its date, on both kinds: `7 MIN · PUBLISHED AUG 20, 2026`
    for a research piece and `5 MIN · WRITTEN AUGUST 2026` for a guide. The reason the 26 Aug
    settlement gave for dropping the date was staleness reading worst on a listing row, and the
@@ -601,8 +592,7 @@ Two items, both rode with §2.8's rename so the files were swept once. **Both ar
   names a newcomer can guess and bans metaphors. It arrived in a design bundle and had spread into
   `MoneyReportsShelfScreen.tsx`, its exported screen and route, 4 code comments, the navigation
   note at `apps/frontend/src/navigation/ia.ts`, and rule 13's own text. Replacement, now shipped:
-  **the `/blog` page**, named by its address, which is Eugene's standing rule for naming any
-  page. The screen is `ReadScreen.tsx`, its route is `Read`, and the word "shelf" appears
+  **the `/blog` page**, named by its address, under the standing address-based naming convention. The screen is `ReadScreen.tsx`, its route is `Read`, and the word "shelf" appears
   nowhere in the frontend or the API. (The screen and route were `ReadingScreen.tsx` and `Reading`
   for the few hours between that rename and §2.13.)
 - **`explainer`** as the internal word for the guide trait, in this repo's issues, design notes and
@@ -627,13 +617,18 @@ are not a plan we can run and are not adopted as one. What we can measure withou
 
 ## 7. Short posts from checked social material
 
-Eugene approved this format on 25 Sep 2026. [Issue 2377](https://github.com/alethical-org/alethical/issues/2377) owns its nonvisual foundation. Short posts are focused writing, not a word limit. They use the same piece identity and the same Research and Guide traits as longer writing. A piece may carry both traits, and Research still determines its one permanent `/blog/research/<slug>` address; a Guide without Research uses `/blog/guides/<slug>`. Editing its title does not change its slug or address.
+This format was approved on 25 Sep 2026. [Issue 2377](https://github.com/alethical-org/alethical/issues/2377) owns its nonvisual foundation. Short posts are focused writing, not a word limit. They use the same piece identity and the same Research and Guide traits as longer writing. A piece may carry both traits, and Research still determines its one permanent `/blog/research/<slug>` address; a Guide without Research uses `/blog/guides/<slug>`. Editing its title does not change its slug or address.
 
-Angel finishes the social copy and image and provides available sources. Eugene gives those materials to the coding agent. The agent checks the claims against Alethical's held records before publication, resolves supported corrections, explains useful context, assigns topics, and recreates useful graphics. Eugene reviews the complete article and graphics. Each article needs its own publication instruction. The earlier plan to publish Angel's copy unchanged first is withdrawn for these adaptations.
+Social copy, images and available sources are inputs for adaptation. The coding
+agent checks claims against Alethical’s held records, resolves supported
+corrections, explains useful context, assigns topics and recreates useful graphics.
+Human editorial review covers the complete article and graphics. Each article
+requires separate publication approval. The earlier plan to publish supplied
+social copy unchanged before these checks is withdrawn for these adaptations.
 
 The new prepublication checks apply to social-derived Short posts, not retroactively to signed Research and Guides already live. Arithmetic only checks arithmetic. A factual claim needs a recorded source, period, method, coverage, checked scope, and human review. A missing Alethical record is a coverage gap, not proof a source claim is false. Official sources may fill a genuine gap when their own period and method are stated. Known errors block publication; generic disclaimers cannot excuse them.
 
-One controlled topic vocabulary describes subject independently of format and traits. It begins with Campaign finance, Lobbying, and Elections. The `/blog` page groups Research reports, then Short posts, then Guides; shows the newest 3 Short posts with an All short posts link; hides that group until a Short post is published; and keeps each Short post out of the long-form groups and reading sets. `/blog/short-posts` uses newest-first publication timestamps, 6 pieces per numbered page, and a stable tie-breaker. Checks and corrections never reset publication time or ordering. `/blog/topics/<topic>` gathers published pieces across traits and format. The kind-label rule for each listing is in §2.10. No topic directory, new search box, or combined filters are part of this decision. Eugene authorized these screens on 26 Sep 2026; [issue 2396](https://github.com/alethical-org/alethical/issues/2396) owns implementation and release. Individual articles retain their separate publication gate.
+One controlled topic vocabulary describes subject independently of format and traits. It begins with Campaign finance, Lobbying, and Elections. The `/blog` page groups Research reports, then Short posts, then Guides; shows the newest 3 Short posts with an All short posts link; hides that group until a Short post is published; and keeps each Short post out of the long-form groups and reading sets. `/blog/short-posts` uses newest-first publication timestamps, 6 pieces per numbered page, and a stable tie-breaker. Checks and corrections never reset publication time or ordering. `/blog/topics/<topic>` gathers published pieces across traits and format. The kind-label rule for each listing is in §2.10. No topic directory, new search box, or combined filters are part of this decision. These screens were approved on 26 Sep 2026; [issue 2396](https://github.com/alethical-org/alethical/issues/2396) owns implementation and release. Individual articles retain their separate publication gate.
 
 Official context without a quantitative reporting period, such as a statute,
 organization notice or brokerage policy, retains its copy date and exact scope
@@ -643,17 +638,17 @@ and undated context stays explicit beside the relevant claims.
 
 Related reading names a few relevant pieces already published, never the current piece or an invented destination. Reader-facing article text and quantitative graphics draw from the same approved numeric inputs, including units, periods, denominators, and any remainder category. An overlap diagram must not imply unsupported area proportions. Its labels and any needed explanation follow [ui-copy-guide.md §Remove implied information from text and visuals](../design/ui-copy-guide.md#remove-implied-information-from-text-and-visuals); omit the generic overlap sentence in the approved organizations draft. A dated newer-record notice points to newer activity without silently recalculating a dated article. An amended source earns a dated explanation and revised finding; Alethical's own error is corrected in text and chart with a dated correction, leaving no wrong figure readable with a line through it. The original publication date follows Minnesota's calendar and stays fixed; a later correction has its own full-content review and release instruction. Records-through is the newest covered reporting-period end among cited records Alethical holds, not extraction day. A piece using only official sources names that outside-source coverage and uses their newest covered end; it never presents that date as coverage of records Alethical loaded. A purely explanatory Guide names source dates when known and never invents a numeric reporting period or date for an undated source. Different sources' coverage stays explicit.
 
-New or revised posts use 1 closing note, except event promotions, which omit the standard AI notice under Eugene’s 7 October 2026 instruction: “AI helped prepare this article and can make mistakes. We report what the cited public sources support and identify known gaps and uncertainty. Contact us to report a possible error so we can review it and make corrections.” Link “Contact us” to `/about/contact`. Omit the first sentence when AI did not help prepare the article. The note applies beyond social-derived writing and may appear in private drafts because it does not claim completed review. All 5 published guides and *The Money Only Goes One Way* carry `aiAssisted: true` in the writing index: the 5 guide manuscript commits explicitly credit Claude ([825a2357](https://github.com/alethical-org/alethical/commit/825a2357), [66bc1d77](https://github.com/alethical-org/alethical/commit/66bc1d77), [3de50d25](https://github.com/alethical-org/alethical/commit/3de50d25), [9a3d4838](https://github.com/alethical-org/alethical/commit/9a3d4838), [f505376a](https://github.com/alethical-org/alethical/commit/f505376a)); the research report's reader-facing methodology was prepared with Claude assistance ([8a862399](https://github.com/alethical-org/alethical/commit/8a862399)). This flag selects the closing sentence, not a claim that all source checking was delegated. [ui-copy-guide.md](../design/ui-copy-guide.md#standard-closing-note-for-every-post-type) owns the wording. Publication still requires all source checks, human review and a separate publication instruction. Each known material gap belongs beside the affected claim. No complete-accuracy guarantee is made. Following Eugene’s 26 September drafting-rule update, the generic contribution/motive/influence/wrongdoing note is not mandatory for new drafts. Use precise, supported wording and specific limitations instead of automatic boilerplate. [ui-copy-guide.md](../design/ui-copy-guide.md#keep-meaningful-uncertainty-remove-obvious-caveats) owns this rule; already published articles are outside this change.
+New or revised posts use 1 closing note. Event promotions omit the standard AI notice under the 7 October 2026 decision. The standard reader-facing wording is: “AI helped prepare this article and can make mistakes. We report what the cited public sources support and identify known gaps and uncertainty. Contact us to report a possible error so we can review it and make corrections.” Link “Contact us” to `/about/contact`. Omit the first sentence when AI did not help prepare the article. The note applies beyond social-derived writing and may appear in private drafts because it does not claim completed review. All 5 published guides and *The Money Only Goes One Way* carry `aiAssisted: true` in the writing index: the 5 guide manuscript commits explicitly credit Claude ([825a2357](https://github.com/alethical-org/alethical/commit/825a2357), [66bc1d77](https://github.com/alethical-org/alethical/commit/66bc1d77), [3de50d25](https://github.com/alethical-org/alethical/commit/3de50d25), [9a3d4838](https://github.com/alethical-org/alethical/commit/9a3d4838), [f505376a](https://github.com/alethical-org/alethical/commit/f505376a)); the research report's reader-facing methodology was prepared with Claude assistance ([8a862399](https://github.com/alethical-org/alethical/commit/8a862399)). This flag selects the closing sentence, not a claim that all source checking was delegated. [ui-copy-guide.md](../design/ui-copy-guide.md#standard-closing-note-for-every-post-type) owns the wording. Publication still requires all source checks, human review and a separate publication instruction. Each known material gap belongs beside the affected claim. No complete-accuracy guarantee is made. Under the 26 September drafting update, the generic contribution/motive/influence/wrongdoing note is not mandatory for new drafts. Use precise, supported wording and specific limitations instead of automatic boilerplate. [ui-copy-guide.md](../design/ui-copy-guide.md#keep-meaningful-uncertainty-remove-obvious-caveats) owns this rule; already published articles are outside this change.
 
-**26 September 2026, origin of the drafting update:** Eugene removed the generic contribution
-note from “2 records do not always mean 2 donations” because it states the obvious.
+**26 September 2026 drafting update:** The generic contribution note is omitted
+from “2 records do not always mean 2 donations” because it states the obvious.
 Keep the specific limits on what the cited filings establish. This change does
 not remove the AI disclosure or authorize publication.
 
-The original social poster is temporary working material and never appears in the article. After publication, its temporary processing copy may be removed; the extracted claims, evidence and source copies, calculations, finished charts, and correction history remain. Eugene's original Downloads files remain untouched. Quantitative charts are built from checked values, never generated artwork. Every individual published editorial piece now falls within the approved comments scope, including Research, Guides and Short posts. Comments attach to its stable article identity by default, without a per-piece switch. Listing and factual data pages remain comment-free. The 26 September 2026 decision and complete behavior are recorded in [Reader comments](../product-onboarding/editorial-comments-guide.md); implementation and release are tracked in [issue 2399](https://github.com/alethical-org/alethical/issues/2399).
+The original social poster is temporary working material and never appears in the article. After publication, its temporary processing copy may be removed; the extracted claims, evidence and source copies, calculations, finished charts, and correction history remain. The original Downloads files remain untouched. Quantitative charts are built from checked values, never generated artwork. Every individual published editorial piece now falls within the approved comments scope, including Research, Guides and Short posts. Comments attach to its stable article identity by default, without a per-piece switch. Listing and factual data pages remain comment-free. The 26 September 2026 decision and complete behavior are recorded in [Reader comments](../product-onboarding/editorial-comments-guide.md); implementation and release are tracked in [issue 2399](https://github.com/alethical-org/alethical/issues/2399).
 
 
-Branding clarification approved by Eugene on 26 Sep 2026: posts and recreated graphics
+Branding clarification approved on 26 Sep 2026: posts and recreated graphics
 viewed within Alethical use the approved symbol without the “ALETHICAL” wordmark,
 placed to fit the approved composition. Standalone PDF reports retain both. This
 does not change the shared website header. The visual rule is owned by
@@ -665,24 +660,23 @@ private implementation was authorized on 26 Sep 2026, as recorded in
 
 The Short post article uses an ordered body. Every quantitative graphic has exactly 1 position in that body and 1 display record naming its title, checked evidence and limitation. Every amended-source history record appears exactly once beside the relevant content. Missing notices and missing graphics block publication. Related reading is up to 3 editor-selected, already published pieces sharing a topic; the selection helper offers candidates and never automatically publishes them.
 
-On 27 September 2026 Eugene approved the exact link choices in [reading-links-review-2026-09-27.md](../implementation/reading-links-review-2026-09-27.md) and instructed their live release. This is a link-only revision to already published articles. The original reviewed prose, source checks, graphics, publication dates, and human approval fingerprints remain fixed. A separate navigation record checks the exact approved link labels, destinations, and order, and confirms that removing those links recovers each Short post's original reviewed fingerprint. It does not create a public correction, newer-filings notice, or new Checked date.
+The 27 September 2026 approval covers the exact link choices in [reading-links-review-2026-09-27.md](../implementation/reading-links-review-2026-09-27.md) and their live release. This is a link-only revision to already published articles. The original reviewed prose, source checks, graphics, publication dates, and human approval fingerprints remain fixed. A separate navigation record checks the exact approved link labels, destinations, and order, and confirms that removing those links recovers each Short post's original reviewed fingerprint. It does not create a public correction, newer-filings notice, or new Checked date.
 
 The Short post article keeps its kind label once above the title, in unboxed blue monospace capitals (11px, weight 700, `0.14em`, `#2b6377`). Its publication line uses uppercase Libre Franklin (11.5px, weight 800, `0.01em`, equal-width digits, `#656c66`), `MON D, YYYY` dates with commas, and scope labels without colons. The “How this was calculated” and “Where these numbers come from” labels share the same monospace treatment (10.5px, weight 700, `0.12em`, `#4f5651`). The article ends with sources and disclosures, then reader comments, then Related reading, then the footer. Related reading uses the page background across the available article width, a `rgba(17,21,15,0.14)` top line and 48px/72px top/bottom space on desktop or 34px/48px on phone. When comments are unavailable, Related reading follows the disclosures. These display rules do not change an article's reviewed facts or approve new related links; each editor selection still passes the article's publication review.
 
 ### Blog evidence and reader conclusions, 8 October 2026
 
-Eugene removed “, not a finding that these payments were illegal” from the
-private Realtor article and made the direction a blog-post rule for now. New
+The private Realtor article omits the generic illegality disclaimer. The same
+drafting decision applies to blog posts for now. New
 and revised posts present supported evidence and specific limitations without
 adding a legal verdict or an illegality disclaimer. Readers draw their own
 conclusions. [ui-copy-guide.md §Keep meaningful uncertainty, remove obvious caveats](../design/ui-copy-guide.md#keep-meaningful-uncertainty-remove-obvious-caveats)
 owns the wording rule. This changes the current draft and future drafting,
-not the requirement to support factual claims. Eugene separately authorized
-publication of the Realtor article on 8 October 2026.
+not the requirement to support factual claims. Publication of the Realtor article received separate approval on 8 October 2026.
 
 ### Article widths, 30 September 2026
 
-Eugene authorized implementing `Alethical UX (43).zip` for all article formats.
+The approved build implements `Alethical UX (43).zip` for all article formats.
 Article gutters are 20px below 768px, 40px from 768px through 1099px, and 56px
 from 1100px. Long-form Research retains its 226px contents rail and 56px gap
 from 768px; its reading column fills the remaining width without a 760px cap.
@@ -699,12 +693,11 @@ Numeric table columns leave enough room for their headings and values; 160px is
 a minimum, and wider headings or values enlarge the column. The illustrative figures
 in the drawing do not replace published article facts.
 
-Eugene’s later “Articles — width limits for the title, research opening line,
-short notes, conclusions and tables, 30 Sep 2026” proposal makes these narrow
-exceptions to the full-width text direction. He authorized implementation with
-“if so, build these too when ready”. [Issue 2448](https://github.com/alethical-org/alethical/issues/2448)
-owns the checked release. This approval is the written proposal; the named
-updated drawings were not downloaded.
+The 30 Sep 2026 article-width proposal approves the narrow exceptions below
+to the full-width text direction, including implementation when ready.
+[Issue 2448](https://github.com/alethical-org/alethical/issues/2448) owns the checked
+release. The approval covers the written proposal; the named updated drawings
+were not downloaded.
 
 From 768px, all article H1 titles have a 1040px maximum and balanced wrapping.
 Each exact 4-digit year range joined by an en dash stays together at every width
@@ -728,7 +721,7 @@ flattened to prose are not rebuilt as part of this title/table refinement. Long 
 The essential paragraph and Full method control inside HOW THIS WAS CALCULATED,
 and the closing AI-preparation paragraph have an 880px maximum. Conclusion rows
 use the full available article or chart content width, including symbol, gap and
-text, under Eugene’s 8 October revision. Expanded Full method text,
+text, under the 8 October revision. Expanded Full method text,
 enclosing boxes, ordinary prose, headings, lists, contents rail, comments, Related
 reading and footer retain their full available widths and existing appearance.
 Conclusion symbols retain each surface’s existing size.
@@ -746,8 +739,8 @@ No wording, figures, dates, links, font sizes/weights, fills, spacing, padding,
 borders or radii change, except for the row-line length and conclusion-width
 revisions below.
 
-**Table row-line length, 8 October 2026.** Eugene revised the full-width row-line
-direction while reviewing the private Realtor post. In all blog article tables
+**Table row-line length, 8 October 2026.** The approved revision replaces the full-width
+row-line direction following review of the private Realtor post. In all blog article tables
 (Research, Guides and Short posts, including chart tables), horizontal row lines
 end at the last real column, including its normal padding. Empty remaining width
 must not carry a line. This keeps the visible table bounded by its labels,
@@ -758,10 +751,10 @@ alignment, padding, number readability, header associations and accessible local
 scrolling. The last total row still has no closing line. Check header and body-row
 dividers at phone, tablet and desktop sizes with wrapped labels and wide values.
 This approved design revision replaces the 30 September instruction to extend
-lines across spacer cells. Eugene authorized implementation and live release on
+lines across spacer cells. Implementation and live release were approved on
 8 October 2026.
 
-**Conclusion row width, 8 October 2026.** Eugene asked that blog conclusions
+**Conclusion row width, 8 October 2026.** Blog conclusions
 use full-width rows like ordinary article content, with the logo on the left.
 This applies to every blog post type and to conclusions inside charts or article
 text, in private previews, initial HTML and loaded articles. Remove the separate
@@ -771,9 +764,8 @@ its alignment against the first 2 lines, and the bold answer followed by regular
 qualifications in the same conclusion. This replaces only the 30 September
 conclusion-width restriction, not the method or closing-note text limits.
 
-**Conclusion line separation, 8 October 2026.** In a later review the same day,
-Eugene asked for the first bold answer to stand on its own line, with the rest
-starting below it and going full width. The leading bold answer now forms its
+**Conclusion line separation, 8 October 2026.** The approved revision places
+the first bold answer on its own line, with the rest starting below it at full width. The leading bold answer now forms its
 own line within the existing full-width text column beside the left symbol.
 Supporting text starts immediately below, uses that same available width, and
 adds no blank-line gap. Long answers wrap naturally on narrow screens before
@@ -782,8 +774,8 @@ private previews, initial HTML and loaded articles. Keep exact wording, links,
 font sizes, weights, logo size and alignment, and approval records unchanged.
 Do not place supporting text on the same line as the leading bold answer.
 
-**Optional conclusion label, 8 October 2026.** Eugene accepted opening highlighted
-takeaways with their main point and using “Conclusion:” only when it helps readers
+**Optional conclusion label, 8 October 2026.** Highlighted takeaways may open
+with their main point and use “Conclusion:” only when it helps readers
 recognize a conclusion. Keep factual findings distinct from editorial
 recommendations. This clarifies the existing optional-label writing guidance;
 it does not require adding or removing the label in published articles.
@@ -796,7 +788,7 @@ Presentation of an existing source-copy date does not change the reviewed eviden
 claims, approval history or publication date. The stored source-copy date remains
 available for reproducing the analysis.
 
-The initial HTML includes the same ordered text, chart labels and values, necessary descriptions, methods, evidence links, limitations and disclosures as the article. A chart's text labels and values can supply its factual description; no second visible transcript is required. Nearby supporting text adds meaning or necessary context rather than repeating labels, values and shared dates. Screen readers must receive the chart's information without duplicate announcements. Eugene approved this clarification on 26 Sep 2026; [ui-copy-guide.md](../design/ui-copy-guide.md#avoid-redundant-nearby-text) owns the wording rule. Search descriptions follow the existing trait rule: Research uses publication and records-through dates; Guide may describe its subject. External sharing keeps the existing dates-only rule for each trait. Guide reading time is computed from its current text.
+The initial HTML includes the same ordered text, chart labels and values, necessary descriptions, methods, evidence links, limitations and disclosures as the article. A chart's text labels and values can supply its factual description; no second visible transcript is required. Nearby supporting text adds meaning or necessary context rather than repeating labels, values and shared dates. Screen readers must receive the chart's information without duplicate announcements. This clarification was approved on 26 Sep 2026; [ui-copy-guide.md](../design/ui-copy-guide.md#avoid-redundant-nearby-text) owns the wording rule. Search descriptions follow the existing trait rule: Research uses publication and records-through dates; Guide may describe its subject. External sharing keeps the existing dates-only rule for each trait. Guide reading time is computed from its current text.
 
 The approved comparison bars share one zero and one scale, and accept nonnegative measured values. The percentage bar represents 1 named share plus an explicit remainder; multiple named shares use the approved data table. Overlap diagrams are nonproportional; their labels and any needed explanation follow §7 without automatic chart-reading commentary. Unsupported proportional inputs cannot pass publication checks. These display limits do not alter the underlying calculation helpers.
 
@@ -806,14 +798,14 @@ Quantitative chart inputs must fit the displayed precision: USD uses whole cents
 
 ### 26 September 2026: concise drafting and first-post review
 
-Eugene approved the copy-simplification approach for every post type, including
+The approved copy-simplification approach applies to every post type, including
 Short posts, Research, Guides and blog articles.
 [ui-copy-guide.md](../design/ui-copy-guide.md#draft-every-post-for-meaning-without-repeated-explanations)
 owns the rule. A subtitle is optional when it would only repeat the title.
-He authorized implementing the pending symbol-only branding, chart transcript
+The private build approval covers the pending symbol-only branding, chart transcript
 removal, minimal private banner and article copy changes in the private preview.
 “2 records do not always mean 2 donations” is the intended first Short post,
-subject to his final review and publication instruction. The original-graphic
+subject to final human review and article-specific publication approval. The original-graphic
 investigations remain separate; neither is replaced by this article.
 
 ### First-post preparation checks, 26 September 2026
@@ -838,10 +830,10 @@ owns the form's precise behavior. The source archive remains internal under §2.
 
 ### 26 September 2026: browser previews are the review deliverable
 
-Eugene directed that post-review preparation always produce private browser
+Post-review preparation delivers private browser
 previews using the approved article design, including useful recreated graphics
 or tables, rather than stopping at manuscript links. This applies to all post
-types, including `verify post` / `vp`, unless he requests text only. Reusing the
+types, including `verify post` / `vp`, unless the request explicitly limits delivery to text. Reusing the
 existing design for a private preview is authorized; publication, a new visual
 direction and new Design requests retain their separate approval requirements.
 [ui-copy-guide.md, Prepare post reviews in the browser](../design/ui-copy-guide.md#prepare-post-reviews-in-the-browser)
@@ -852,7 +844,7 @@ remain intact.
 
 ### 26 September 2026: accepted first post authorized for publication
 
-Eugene instructed publication of “2 records do not always mean 2 donations” at
+Publication was approved for “2 records do not always mean 2 donations” at
 `/read/research/2-records-not-always-2-donations`; its current address follows §2.15. The accepted article, chart inputs,
 source scope and closing note stay unchanged. The article joins the Short posts
 archive, Campaign finance and Lobbying topics, sitemap, and the approved default

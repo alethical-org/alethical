@@ -127,7 +127,7 @@ function pagesUrlset(
     ...(PUBLISHED_EVENTS.length ? [EVENTS_PATH] : []),
     ...PUBLISHED_EVENTS.map(eventPath),
   ];
-  // A posted piece is in the sitemap from the day it posts (Eugene, 25 Aug 2026).
+  // A posted piece is in the sitemap from the day it posts (25 Aug 2026).
   // `indexed` is true on everything we publish; it stays as a way to hold one back
   // for a stated reason, not as a checking step every piece waits behind.
   for (const piece of indexedResearch()) {

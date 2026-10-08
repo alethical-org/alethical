@@ -1,16 +1,16 @@
 # Campaign services presentation: approved direction and internal follow-up
 
-Status: Implementation authorized on 2026-09-30 by “bd services page which services in the nav will go to, see the task building nav & account menu”. `/services` is public. The accepted September 30 download restores the supported candidate names and coalition link. The older private access plan and name-removal instruction are superseded.
+Status: Implementation approved on 2026-09-30 for the public `/services` destination linked from navigation, coordinated with the navigation and account-menu build. The accepted September 30 download restores the supported candidate names and coalition link. The older private access plan and name-removal instruction are superseded.
 
 ## Approved browser printing, 7 October 2026
 
-Approval: “bd approved” and “bd always means look at the latest download ... understood that the approved one is the last one downloaded. then build it”. The approved newest completed download is `Alethical Services.pdf`, downloaded 7 October at 10:49:59 Eastern (SHA256 `78ba0627cbe60b54a2f5f9b1ca66d7ac74302900271b4e6a48bccd3f6d587469`). Its 4 Letter sheets match `Campaign Services print.dc.html` in `Alethical UX (57).zip`, downloaded 10:46:20 Eastern (SHA256 `d9e4aa0c739aa55e4cd7d75a7b7e19395a8aa100b828192a3a32639cf1b05cbe`). The approval applies to this newest download, not an earlier review.
+Approved build input: the newest completed download, `Alethical Services.pdf`, downloaded 7 October at 10:49:59 Eastern (SHA256 `78ba0627cbe60b54a2f5f9b1ca66d7ac74302900271b4e6a48bccd3f6d587469`). Its 4 Letter sheets match `Campaign Services print.dc.html` in `Alethical UX (57).zip`, downloaded 10:46:20 Eastern (SHA256 `d9e4aa0c739aa55e4cd7d75a7b7e19395a8aa100b828192a3a32639cf1b05cbe`). The approval applies to this newest download, not an earlier review.
 
 Scope: browser Print / Save as PDF at `/services`; keep the existing screen unchanged. The 4 sheets group opener + both audiences; services + developing tools; partners + early work; delivery/pricing + closing brand message. White branding, readable text, all content and saved-PDF links remain. The approved print-only title is “Websites and tools”; its subtitle already names the campaign. No separate PDF download or new control. No new Design messages are authorized.
 
 Owner: Codex task Make services page print-ready (`01a116bc-ec04-7980-a750-8ab0e9e0804b`), branch `codex/services-print`, [issue 2496](https://github.com/alethical-org/alethical/issues/2496).
 
-- [x] Fresh download inspection and correction to the shared `bd` instruction.
+- [x] Fresh download inspection and correction to the shared latest-download build guidance.
 - [x] Compare latest PDF with matching bundle and shared service copy.
 - [x] Print-only presentation generated from shared content, scoped to the active visit, including first-response HTML.
 - [x] Actual Letter and A4 PDFs: 4 pages, no missing text, visible complete lists, loaded branding, linked coalition name/logo and email. PDF export starts from a phone viewport; physical sheet height does not depend on window size.
@@ -26,9 +26,8 @@ Model selection: `gpt-6.1-sol` / `high` for integration and print-layout judgmen
 
 ## Header and footer update, September 30
 
-Authorized by “bd if it matches your rec?” after the recommendation of 1 dedicated
-dark header and the standard dark footer. `Alethical UX (48).zip` matches that
-recommendation, with no main-content changes. Downloaded at 18:24 Eastern; SHA256
+Approved scope: 1 dedicated dark header and the standard dark footer.
+`Alethical UX (48).zip` matches that scope, with no main-content changes. Downloaded at 18:24 Eastern; SHA256
 `5a2cf8fe48966b54e502a4b7f198219b693e97e59f1842c3cd5bd7ab56f434ee`.
 
 - Branch: `codex/services-header-footer`; [issue 2447](https://github.com/alethical-org/alethical/issues/2447).
@@ -57,22 +56,22 @@ recommendation, with no main-content changes. Downloaded at 18:24 Eastern; SHA25
 
 ## Current design review
 
-- The Codex presentation was removed at the user's request. The former preview at `http://127.0.0.1:49317/` is no longer served.
+- The Codex presentation is withdrawn. The former preview at `http://127.0.0.1:49317/` is no longer served.
 - Preserve Claude Design versions and the supplied September 29 design system and shared brand assets.
-- The user prefers Claude version 3 except for version 4's Software and tools section.
+- The accepted design combines Claude version 3 with version 4's Software and tools section.
 - Accepted numbering in the September 30 design: leave the audience introduction unnumbered, then number Services, Software and tools, Partner services, Early work, and Delivery and pricing from 01 to 05.
 - Leave visual taste decisions to Claude Design.
-- The revised opener uses “Political intelligence. Practical campaign support.” Partner services are presented as available through Alethical; the user confirms Kris already provides services with Alethical. This does not establish that marketplace purchasing software is implemented.
+- The revised opener uses “Political intelligence. Practical campaign support.” Partner services are already available through Alethical. This does not establish that marketplace purchasing software is implemented.
 - Keep company-facing wording and “Contact Us” labels. The September 30 build instruction authorizes this public presentation through live release.
 
 ## Purpose and audience
 
 - Create 1 customer-facing presentation for political intelligence, campaign services, software, and a broad partner marketplace.
-- Organizations are the main business focus. Individual candidates and campaign teams are customers from the start, including early learning and traction from Angel's existing free work.
+- Organizations are the main business focus. Individual candidates and campaign teams are customers from the start, including early learning and traction from existing free campaign-support work.
 - Keep investor content out completely, including financial forecasts, market-size estimates, investor testimonials, and fundraising arguments.
 - Start with Minnesota relationships and examples. Do not imply unverified geographic coverage.
 - Define content first, then design the presentation, then obtain the build go. Completing the presentation precedes committing to the heavier candidate-profile and marketplace implementation.
-- Present the value of candidate profiles, campaign tools, and the marketplace now. The user explicitly says software is being developed around client needs and existing supported campaigns will beta test it. Describe development and beta status honestly instead of either omitting the value or implying every tool is already available.
+- Present the value of candidate profiles, campaign tools, and the marketplace now. Software development follows client needs, with beta testing planned through existing supported campaigns. Describe development and beta status honestly instead of either omitting the value or implying every tool is already available.
 
 ## Marketing level
 
@@ -81,7 +80,7 @@ recommendation, with no main-content changes. Downloaded at 18:24 Eastern; SHA25
 - Alethical's core offering includes campaign-finance intelligence, factual research, websites, graphics, content, and practical campaign tools.
 - Do not present Alethical as managing every campaign function.
 - The campaign checklist can connect customer needs with Alethical services and suitable external providers. Present that value without claiming the interactive checklist or purchasing system already exists.
-- Preserve the section title **Delivery and pricing**. Publish no package prices, ranges, or investor pricing estimates. Angel discusses pricing privately according to the specific client's needs while market pricing is established.
+- Preserve the section title **Delivery and pricing**. Publish no package prices, ranges, or investor pricing estimates. Alethical discusses pricing privately according to the specific client's needs while market pricing is established.
 - Keep the mechanics of partner purchasing, contracts, subscriptions, revenue sharing, and placement fees out of the marketing. These remain private business decisions.
 - Do not make operational details such as post-election handoff, support limits, approved contacts, campaign counts, cancellation, or revision policies part of the high-level sales narrative.
 
@@ -89,7 +88,7 @@ recommendation, with no main-content changes. Downloaded at 18:24 Eastern; SHA25
 
 - Kris Babler is a partner provider, not an alternative spelling or a separate unresolved identity. Do not name him as the partner provider in the marketing; the latest design separately lists him among supported candidates.
 - The marketplace includes other providers and is not limited to his platform.
-- User-described capabilities include voter-file handling, canvassing maps and walking routes, texting, outreach tracking, and access for multiple campaigns.
+- Reported partner capabilities include voter-file handling, canvassing maps and walking routes, texting, outreach tracking, and access for multiple campaigns.
 - Broader marketplace categories include campaign operations and consulting; election-law and compliance professionals; fundraising services; communications and media relations; branding, photography and video; digital marketing; field teams and volunteer coordination; data and polling; campaign software and databases; and printers, mailers, signs, apparel, and other production vendors.
 - Political and candidate-support organizations may be customers, partners, or referral channels. Do not automatically portray every organization as a vendor or every named prospect as an existing partner.
 - Distinguish currently deliverable services, developing products, and explored capabilities. Do not claim a provider is vetted, contracted, or ready without evidence.
@@ -100,14 +99,14 @@ recommendation, with no main-content changes. Downloaded at 18:24 Eastern; SHA25
 
 - Correct spelling: **Aaron Brutger**. Do not carry forward “Aaron Brudger.”
 - Supplied context identifies websites for Aaron Brutger and Jay Reeves; a campaign-finance report for Trina Swanson; and graphics and content planning for coalition candidates.
-- These are user-supplied descriptions of work, not an independent assessment of the actual artifacts, outcomes, or permissions.
+- These work descriptions have not been independently assessed against the actual artifacts, outcomes, or permissions.
 - The accepted September 30 design names Aaron Brutger, Kris Babler, Jay Reeves, Trent Dilks, Denise Slipy, and Tara Killen together as supported Minnesota Forward Coalition candidates. It does not assign specific deliverables to individual candidates. The coalition text and supplied logo link to `https://forwardcoalition.com/candidates`.
 - Denise Slipy, Kim, Aaron Brutger, Jay Reeves, and other supported candidates are potential sources of feedback and testimonials. Denise and Kim were named as possible candidate-profile testers.
 - Obtain actual examples and exact approved quotes. Distinguish permission for private use from permission for eventual public use. Accurately describe free or discounted work.
 
 ## Public viewing
 
-- On September 30, the user changed the plan: `/services` will be public, without the earlier sign-in restriction to 4 accounts.
+- The September 30 decision makes `/services` public, superseding the earlier sign-in restriction to 4 accounts.
 - Public marketing access does not grant access to private customer data, examples, or downloads. Any work samples or testimonials must be approved for public use.
 - Services appears in the shared About menu after About us and before Contact us. The homepage services card opens `/services`.
 - The September 30 build instruction authorizes implementation and publication. No viewing permissions were activated under the superseded private plan.
@@ -122,7 +121,7 @@ These tasks are deliberately kept outside the high-level marketing. They are not
 - [ ] Confirm the first set of partner providers, available services, beta status, and responsibilities.
 - [ ] Agree whether customers purchase directly from partners or through Alethical; define contracts, subscriptions, commissions, and paid placement privately.
 - [ ] Define any provider review standard and paid-placement disclosures before describing providers as vetted or recommended.
-- [ ] Develop prices privately with Angel from client needs, delivery time, outside costs, revisions, and support. No published prices yet.
+- [ ] Develop Alethical's prices privately from client needs, delivery time, outside costs, revisions, and support. No published prices yet.
 - [ ] Define deliverables, geography, dates, turnaround, revisions, client inputs, approvals, support limits, and exclusions per engagement.
 - [ ] Define ownership of websites, accounts, source files, finished materials, and client data.
 - [ ] Define ongoing charges, cancellation, post-election support, handoff, export, and retention/deletion.

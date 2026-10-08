@@ -59,7 +59,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 // A populated piece that exists ONLY here: nothing a reader can reach may show
 // a figure or a claim from an unpublished piece, so the populated states are
 // exercised with obviously-fake sample content instead of the real text
-// (Eugene's 19 Aug 2026 decision — build the page and its container only).
+// (19 Aug 2026 scope: the page and its container only).
 export const SAMPLE_PIECE: ResearchPiece = {
   slug: 'sample-piece',
   traits: { research: true, guide: false },
@@ -224,7 +224,7 @@ describe('piece share previews', () => {
 
   // A date says nothing about whether a page answers the question somebody
   // typed, and until 18 Sep 2026 it was the whole of what a guide told a search
-  // engine. A guide now describes its own subject there (Eugene, 18 Sep 2026),
+  // engine. A guide now describes its own subject there (18 Sep 2026),
   // while the share preview stays on rule 13's dates-only wording.
   it('gives every guide a search line about its subject, and keeps the card on dates', () => {
     // The sentence lives on the full piece record, not on the light index the
@@ -404,7 +404,7 @@ describe('the 2 trait flags decide the label and the address', () => {
 });
 
 describe('set membership, and the number a reader never sees', () => {
-  // §2.12, Eugene 27 Aug 2026: no reader-facing surface prints a piece's position
+  // §2.12, 27 Aug 2026: no reader-facing surface prints a piece's position
   // in its set. Not "piece 1", not "piece 1 of 5", not a numbered row.
   it('names the set and nothing else on every line a reader reads', () => {
     const guide = researchBySlug('who-has-to-report-their-money');
@@ -1073,7 +1073,7 @@ describe('the 3 guides that complete the set', () => {
 });
 
 describe('a line sitting on its own takes no closing period', () => {
-  // Eugene, 2 Sep 2026: a period says another sentence is coming, so on a line
+  // 2 Sep 2026: a period says another sentence is coming, so on a line
   // with nothing after it the eye waits for something that never arrives. The
   // rule reaches the lines the /blog page writes itself; it does not reach an
   // explaining sentence inside a piece.

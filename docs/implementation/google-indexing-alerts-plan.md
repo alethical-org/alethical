@@ -4,11 +4,11 @@ Tracking: [issue 2516](https://github.com/alethical-org/alethical/issues/2516).
 
 ## Authorized outcome
 
-Eugene asked the Codex chat (seo, 01a117ab-5b6b-7b01-8a5d-f46e3a3c01b5)
-to recap previous search work, investigate the new Google alerts, repair demonstrated
-problems, prevent recurrence and arrange routine review without forwarded screenshots.
-He requested Claude consultation on important decisions and implementation through
-completion. Keep publication, privacy, source accuracy and spending boundaries intact.
+Approved scope: recap previous search work, investigate the new Google alerts,
+repair demonstrated problems, prevent recurrence and arrange routine review without
+forwarded screenshots. The Codex task (seo, 01a117ab-5b6b-7b01-8a5d-f46e3a3c01b5)
+owns implementation through completion, with Claude consultation on important
+decisions. Keep publication, privacy, source accuracy and spending boundaries intact.
 
 ## Impact and prevention
 
@@ -77,9 +77,9 @@ Rounded headline counts are 11.3K indexed and 20.5K not indexed.
   No saved error includes a cause, so the new classification is still needed.
 - Failure classification has 20 new focused tests; all 187 page-endpoint tests pass.
   Exact committee/year validation refuses malformed or mismatched source payloads.
-- Explicit approval for a weekly token-consuming report review was requested while
-  free build work continued. The request states allowance use and unknown per-run
-  cost. No recurring AI task has been armed while that answer is pending.
+- A weekly token-consuming report review requires separate approval. It would use
+  the account allowance; its per-run cost is unknown. Free build work continues,
+  and no recurring AI task has been armed.
 
 Raw exports and response evidence stay private outside this checkout in the task's
 visualization folder, under `seo-alerts/`. Provider decisions may lag a successful

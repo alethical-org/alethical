@@ -6,7 +6,7 @@ description: >-
   builds it. Pressure-tests every element for buildability + honesty
   (grounded-answers), applies the design-audit accessibility/interaction rubric to
   everything a static design can reveal, and routes prioritized feedback to Design,
-  the current coding agent, or Eugene. Pre-build. First in the
+  the current coding agent, or the maintainer. Pre-build. First in the
   design- skill set: design-review → design-intake → design-build → design-audit.
 ---
 
@@ -26,7 +26,7 @@ approved design, product rules, source facts, accessibility rules and shipped pa
 settle it; and (3) Design's visual workspace or design judgment is likely to improve the build.
 At least 2 meaningfully different good answers must remain. A missing screen, state, phone view
 or other large change does not qualify by itself. Everything with 1 checkable answer stays with
-the current coding agent. Product, scope and policy choices stay with Eugene.
+the current coding agent. Product, scope and policy choices stay with the maintainer.
 
 **The coding roles are relative.** The agent holding this review is the current coding agent.
 Its peer coding consultant is the other platform: Codex consults Claude Code, and Claude Code
@@ -77,7 +77,7 @@ pasted prompt, the first reply's `Tier:` line names only the model and the tool'
 label. If a mechanism choice is required, name it in `Rec:`. Do nothing else: no reading the
 bundle, repo checks, findings, plan or code. A review is judgment-bound end to end, so the
 default is deep or deepest useful reasoning in 1 pass with nothing worth handing to a helper.
-Then wait for Eugene's go (`'`) and start from step 0. Reading the bundle at the wrong tier is
+Then wait for the maintainer's go (`'`) and start from step 0. Reading the bundle at the wrong tier is
 the exact spend the wait exists to prevent, and a tier named alongside the findings is a
 receipt, not a recommendation.
 
@@ -97,11 +97,11 @@ the relevant issues/milestone). State in one line what this screen is and is for
 
 Verify data claims against what's **ingested and fresh**, not what's theoretically possible. No verdict from memory — check the field/API/issue.
 
-**But score an under-construction surface against the FINISHED roadmap, not today's build (Eugene, 20 Aug 2026).** When the screen carries its own under-construction notice — the money section's is the standing case — "it does not work yet" is not a finding, because the notice already tells the reader that. The test becomes: **once every roadmap item ships, can this claim be built from what the source actually publishes?** Only what fails *that* survives as 🔴. A claim whose data is simply not loaded yet is 🟡 with the roadmap item named.
+**But score an under-construction surface against the FINISHED roadmap, not today's build (20 Aug 2026).** When the screen carries its own under-construction notice — the money section's is the standing case — "it does not work yet" is not a finding, because the notice already tells the reader that. The test becomes: **once every roadmap item ships, can this claim be built from what the source actually publishes?** Only what fails *that* survives as 🔴. A claim whose data is simply not loaded yet is 🟡 with the roadmap item named.
 
 Applied to the 20 Aug 2026 homepage review, this dissolved 3 of 6 findings, 2 of them called blockers: lobbying copy (Minnesota publishes the registrations; it is a named roadmap item), a search button (search is that section's own plan), and an under-construction caveat. What survived was the one claim no finished roadmap can deliver — payments tied to the filing they came from, which the published rows carry no key for.
 
-**And ask whether a missing state needs a FRAME or only a SENTENCE (Eugene, 20 Aug 2026).** Before requesting a new frame, split the state: does it differ *visually*, or only in *wording*? A singular/plural form, a shortened clause when a value is absent, an error message — those are copy, and the ask is the sentence, not a drawing. Sample data in a mock is never the thing to fix: "14 tracked bills" is a placeholder, and asking Design to redraw it with 1 wastes a round while leaving the actual gap, the singular wording, unwritten.
+**And ask whether a missing state needs a FRAME or only a SENTENCE (20 Aug 2026).** Before requesting a new frame, split the state: does it differ *visually*, or only in *wording*? A singular/plural form, a shortened clause when a value is absent, an error message — those are copy, and the ask is the sentence, not a drawing. Sample data in a mock is never the thing to fix: "14 tracked bills" is a placeholder, and asking Design to redraw it with 1 wastes a round while leaving the actual gap, the singular wording, unwritten.
 
 **2. Apply the `design-audit` rubric statically.** Run the accessibility + interaction rubric (the `design-audit` skill's pinned Web Interface Guidelines + WCAG snapshot) against everything a static design reveals — see the split below. Flag what the still image can prove; note the few checks that must wait for the live build so they carry into `design-build`'s verify step.
 
@@ -115,7 +115,7 @@ Applied to the 20 Aug 2026 homepage review, this dissolved 3 of 6 findings, 2 of
 
 Each recommendation gets a plain-language **Net** (per `eugene-workflow-preferences`: lead with what you'd *see on screen*, no unglossed jargon).
 
-**Every observation ships in the deliverable, weighted — never withheld as an aside (Eugene, 18 Aug 2026).** A review's output is not only rule breaches: taste-level UX and copy improvements (a label whose voice drifted from a renamed sibling, a placeholder using our vocabulary instead of the reader's) go into the same relayed feedback, tagged by weight — *must fix* (breaks a rule or the data) versus *recommended polish* (better, Design may push back). The failure this prevents: a real improvement spotted during review, then parked in an "also found" note that never reaches Design (origin: the round-2 campaign-money review left the "vendor"-to-"payee" voice fix out of the relayed fix block after the lane it echoed had been renamed).
+**Every observation ships in the deliverable, weighted — never withheld as an aside (18 Aug 2026).** A review's output is not only rule breaches: taste-level UX and copy improvements (a label whose voice drifted from a renamed sibling, a placeholder using our vocabulary instead of the reader's) go into the same relayed feedback, tagged by weight — *must fix* (breaks a rule or the data) versus *recommended polish* (better, Design may push back). The failure this prevents: a real improvement spotted during review, then parked in an "also found" note that never reaches Design (origin: the round-2 campaign-money review left the "vendor"-to-"payee" voice fix out of the relayed fix block after the lane it echoed had been renamed).
 
 **4. Route every finding into exactly 1 output.**
 - **A Design prompt, only when needed** — include only findings that pass all 3 return-to-Design checks. Obey the active Design provider's prompt rules; for Claude Design, use the `claude-design-prompt-rules` memory. Ask no feasibility questions back to Design (feasibility is our call), add no approval-dependent blocks, request no exports, do no roadmap relabeling, and do no mock-realism policing. Reference frames by preview-band label and state capabilities as settled facts. State must-fix items as settled changes and label recommended polish.
@@ -127,9 +127,9 @@ Each recommendation gets a plain-language **Net** (per `eugene-workflow-preferen
 
   **A truth finding is a settled change; a visual one is a constraint plus its price (memory rules 8–10).** Say what the code makes true and what each option costs — including when lifting the constraint is cheap, because a cheap limit reported as a bare fact reads as a wall. Then let Design choose. Where lifting it is worth what it costs and the change is one I agree with, lift it myself rather than routing it back. And a handoff marked *settled* is Design's status, not a finding I inherit: re-judge anything that touches what a reader is told.
 - **A current-coding-agent fix list** — include every finding with 1 checkable answer: factual and source corrections, technical feasibility, settled copy, existing patterns, known accessibility fixes, browser behaviour, acceptance checks, tests, bundle consistency and implementation. Fix local bundle errors during the review where the shared rules authorize it; otherwise carry the exact correction into the build. Consult the peer coding consultant only when the `model-effort` triggers apply, and keep ownership here.
-- **An Eugene decision list, only when needed** — include genuine product, scope or policy calls (build the missing capability vs. cut the element vs. ship interim), each with a recommendation, effort and Net.
+- **A maintainer decision list, only when needed** — include genuine product, scope or policy calls (build the missing capability vs. cut the element vs. ship interim), each with a recommendation, effort and Net.
 
-If no finding passes the Design test, produce no Design prompt. Say the handoff is build-ready after the current-coding-agent fixes, then wait for Eugene's explicit build go.
+If no finding passes the Design test, produce no Design prompt. Say the handoff is build-ready after the current-coding-agent fixes, then wait for the maintainer's explicit build approval.
 
 **5. Interview on genuine gaps only** — batched, ≤4, each with a recommended default (`design-intake` style). Only for gaps the repo/spec didn't answer.
 

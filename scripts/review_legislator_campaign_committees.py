@@ -607,7 +607,7 @@ def link_row(
 # Who a decision is recorded against. The company, not the individual who typed the
 # keystroke: Alethical, LLC is the entity accountable for the match, and it is the entity a
 # reader is told checked it, so the stored value and the published one are the same words
-# (Eugene, 31 Aug 2026). The tradeoff is real and accepted: the row no longer says which
+# (31 Aug 2026). The tradeoff is real and accepted: the row no longer says which
 # human answered, so if 2 people ever hold sittings the record cannot say which of them to
 # ask about one decision. ``--reviewer`` still overrides, for the day that matters.
 REVIEWER_OF_RECORD = "Alethical, LLC"

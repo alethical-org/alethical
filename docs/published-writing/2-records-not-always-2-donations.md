@@ -1,5 +1,5 @@
 <!-- describes: apps/frontend/src/lib/researchPieces/twoRecordsNotTwoDonations.ts -->
-<!-- Accepted private copy published with Eugene’s article-specific instruction on 26 September 2026. This file freezes the ordered body, chart labels, method, sources and closing note. -->
+<!-- Accepted private copy published under article-specific approval on 26 September 2026. This file freezes the ordered body, chart labels, method, sources and closing note. -->
 
 # 2 records do not always mean 2 donations
 

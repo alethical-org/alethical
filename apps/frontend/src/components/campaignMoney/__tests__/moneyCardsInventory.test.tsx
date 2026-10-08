@@ -246,7 +246,7 @@ describe('the money cards on the profile, at the final inventory', () => {
     expect(onlyMisc).not.toContain(NOT_A_DONATION_HEADING);
   });
 
-  // Ruled by Eugene, 11 Sep 2026: heading, "Expenditures", the filing's amount. None
+  // Approved 11 Sep 2026: heading, "Expenditures", the filing's amount. None
   // of our own figures, rows or links beside it.
   it('draws money out as the filing’s Expenditures figure and nothing else', () => {
     const html = cards(render([committee()]));

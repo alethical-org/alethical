@@ -578,7 +578,7 @@ just check-campaign-finance-stated-split production false 2025
 
 Five things about it that are not obvious:
 
-- **It never blocks a release.** Eugene ruled on 12 Aug 2026 that where 2 of
+- **It never blocks a release.** The 12 Aug 2026 decision is that where 2 of
   Minnesota's own publications disagree and we cannot derive the truth, we show both
   figures and say plainly that they disagree. So it answers per committee-year: one
   committee whose figures contradict each other withholds its own split while every

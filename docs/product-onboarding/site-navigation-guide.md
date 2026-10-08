@@ -99,9 +99,9 @@ title and shared-link title, and every link or empty-state button returning to
 `/money`, including campaign and lobbying pages. A browser title may append the
 site name in the usual format.
 
-**Money** is the shorter name in the shared website navigation only. Eugene approved
-this scope on 30 Sep 2026: “move money in politics submenu (under Search menu) out into
-its own "Money" section left of "Search" in nav on web”. Money opens `/money` directly
+**Money** is the shorter name in the shared website navigation only. The 30 Sep 2026
+decision moves Money from the Search submenu to its own top-level website
+navigation item immediately before Search. Money opens `/money` directly
 on desktop and in the phone drawer; it is not a dropdown and is not a Search child.
 The order is Money, Search, Blog, About. This navigation exception does not rename
 the `/money` page, its browser or shared title, or other return links. The signed-out
