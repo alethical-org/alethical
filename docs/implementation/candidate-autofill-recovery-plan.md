@@ -191,3 +191,22 @@ changes retaining their immediate privacy reset.
   fallback failure and unchanged address identity. Browser acceptance covers 3 layout bands,
   short suggestions, Find submission and the two introductions. Physical phone autofill
   remains a user acceptance check after release.
+
+### Follow-up acceptance before release
+
+- Full checks passed: 4,606 backend tests and 4,236 frontend tests before the final
+  shared-field correction; 45 focused address tests and TypeScript pass afterward.
+- Independent browser acceptance covers 3 layout bands, fixed source-note position,
+  both introductions and public-source suggestions/results. The user-reported country-
+  suffixed address also returned candidate results without an automatic reset.
+- Browser review found external Find could reopen suggestions after loading ended.
+  React Native Web consumes the click before the outside-click listener; imperative
+  dismissal now disables automatic suggestions until deliberate editing or refocus.
+  This shared correction covers candidate entry/Change address and legislator
+  Find/location/map requests. Escape then Arrow Down remains available.
+- Both new regression cases failed before the correction and pass afterward, for
+  unchanged and canonicalized addresses. Independent browser review confirmed stable
+  settled results, deliberate reopening, Escape/Arrow Down and narrow candidate use.
+- Design updated the existing candidate and legislator drawings and address build
+  notes. Candidate drawing shows exact new copy and 144/144/36px source margins.
+  Its extra download and prompt card are not dependencies of this running build.

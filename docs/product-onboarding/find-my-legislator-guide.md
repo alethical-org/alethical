@@ -42,7 +42,9 @@ A screen reader hears the count on every opening and count change while open.
 A completed click or tap fills the box and starts the search. Touch-down, scrolling
 and cancelled gestures do not select. Focus changes cannot swallow the first tap
 or move **Find** between press and release. New text clears old choices; old replies
-cannot replace current suggestions or reopen a dismissed list.
+cannot replace current suggestions or reopen a dismissed list. External Find, location
+and map searches also keep suggestions closed when loading ends or the returned
+address changes; editing or freshly focusing the address field enables them again.
 
 The field and buttons have a 60px minimum height. Full addresses wrap. Computer and
 tablet suggestions overlay content 8px below the box and stay exactly its width;

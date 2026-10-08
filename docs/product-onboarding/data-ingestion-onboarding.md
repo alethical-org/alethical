@@ -411,7 +411,9 @@ runs when Census finds nothing or stays unavailable after those retries:
    Geometry is reduced only for the browser map afterward. No address or coordinate is
    sent to LCC during a lookup.
 
-The browser waits 300ms after typing stops and reuses each suggestion result for 60s.
+The shared web field waits 180ms after typing stops and does not retain suggestion
+responses in a shared cache. Active status is checked locally; if the state source
+reports omitted rows, suggestions retry the original active-filtered query.
 Suggestions have their own 60-request-per-source-address limit, separate from the full
 lookup. The browser also shares identical lookups already in progress and reuses a
 successful result for 60s. The full-lookup endpoint still allows 10 requests per source address in 60s.

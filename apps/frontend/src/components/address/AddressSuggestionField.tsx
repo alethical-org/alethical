@@ -79,7 +79,16 @@ export function AddressSuggestionField<T>({
     field.current?.focus();
     native.current?.focus();
   };
-  useImperativeHandle(fieldRef, () => ({ focus, value, dismiss }));
+  useImperativeHandle(fieldRef, () => ({
+    focus,
+    value,
+    dismiss: () => {
+      dismiss();
+      // External submit controls consume their click. Do not rely on outside
+      // dismissal to prevent busy/result changes from restarting suggestions.
+      setEnabled(false);
+    },
+  }));
   useEffect(() => {
     ensureBrowserFillStyles();
   }, []);

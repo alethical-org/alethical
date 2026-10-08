@@ -256,3 +256,8 @@ or promise-versus-vote scoring.
 
 The [candidate lookup build and release plan](../implementation/candidate-lookup-build-plan.md)
 records source evidence, tests and release history.
+
+The shared address field keeps suggestions closed after the external **Find** button
+submits, including when loading ends or a returned address changes the field. New
+editing or fresh field focus enables suggestions again. Escape then Arrow Down
+continues to reopen existing choices without changing the typed text.
