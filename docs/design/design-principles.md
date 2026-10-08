@@ -694,8 +694,10 @@ Approved by Eugene on 26 September 2026.
   8 October 2026; it replaces the earlier 880px whole-conclusion maximum.
 - A post's supported answer should be visually distinct from its evidence limits.
   In the approved conclusion treatment, put the symbol on the left and bold
-  “Conclusion:” plus the answer. Short supporting qualifications continue in regular
-  text within the same paragraph. Do not repeat the answer elsewhere in the chart.
+  “Conclusion:” plus the answer on its own line, wrapping naturally when needed.
+  Short supporting qualifications begin below it in regular text and fill the
+  available width beside the logo, without an extra paragraph gap (Eugene,
+  8 October 2026). Do not repeat the answer elsewhere in the chart.
 - Center the symbol against the first 2 text lines, not against the top edge or
   the entire paragraph including any later wrapped explanation. Derive the offset
   from the actual line height and symbol height. With 24px lines and a 30px symbol,
