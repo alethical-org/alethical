@@ -167,7 +167,7 @@ export function CandidateAddressForm({
           />
         </View>
         <CandidateButton
-          label="Find my candidates"
+          label="Find"
           busyLabel="Finding candidates…"
           buttonRef={buttonRef}
           busy={busy}
@@ -239,7 +239,7 @@ export function CandidateAddressForm({
         </View>
       ) : null}
       {!compact ? (
-        <View style={styles.privacy}>
+        <View style={[styles.privacy, !isMobile && styles.privacyWide]}>
           <Text style={styles.help}>{privacyDisclosure ?? CANDIDATE_LOOKUP_COPY.privacy}</Text>
         </View>
       ) : null}
@@ -359,6 +359,8 @@ const styles = StyleSheet.create({
     // the desktop dropdown receives clicks where it extends beyond the row.
     zIndex: 1,
   },
+  // Keep the source note clear of a short overlaid list without moving it as rows change.
+  privacyWide: { marginTop: 144 },
   privacy: {
     marginTop: 36,
     paddingTop: 20,

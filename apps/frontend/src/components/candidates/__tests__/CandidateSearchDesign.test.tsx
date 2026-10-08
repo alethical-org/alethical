@@ -268,7 +268,7 @@ it('keeps retained address results steady through desktop edits and failed repla
   });
   expect(field.value).toBe('200 New Street Unit 2');
   expect(host.textContent).toContain('Showing results for 100 Original Street, MN 55415');
-  click(button('Find my candidates'));
+  click(button('Find'));
   await flush();
   expect(host.querySelector('a[href="/candidates/a-person"]')).toBeTruthy();
   expect(host.textContent?.match(/Showing results for State general election/g)).toBeNull();
@@ -357,7 +357,7 @@ it('gives an initial address retry 1 waiting announcement inside its steady form
   expect(lookup).toHaveBeenCalledTimes(2);
   await act(async () => finish({ kind: 'no-match' }));
   await flush();
-  expect(button('Find my candidates').getAttribute('aria-disabled')).toBeNull();
+  expect(button('Find').getAttribute('aria-disabled')).toBeNull();
 });
 
 it.each([

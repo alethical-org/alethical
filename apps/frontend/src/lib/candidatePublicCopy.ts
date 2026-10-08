@@ -2,11 +2,10 @@ import type { CandidateElection } from '../components/candidates/types';
 
 export const CANDIDATE_LOOKUP_COPY = {
   heading: 'Find my candidates',
-  intro:
-    'See who’s running where you live in Minnesota, with candidate profiles linked to official records',
+  intro: 'See who’s running where you live in Minnesota',
   addressLabel: 'Full street address',
   addressHelp: 'A city or ZIP code alone cannot identify your local races',
-  privacy: 'Address lookup uses Minnesota Secretary of State and Minnesota mapping services',
+  privacy: 'Address lookup uses Minnesota’s Secretary of State and mapping services',
 };
 export const CANDIDATE_PROFILE_COPY = {
   heading: 'Official candidate record',

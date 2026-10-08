@@ -773,13 +773,22 @@ class MinnesotaAddressPointGeocoder:
             f"anumber = {query.house_number}",
             f"({' OR '.join(street_clauses)})",
             "(state_code IS NULL OR UPPER(state_code) = 'MN')",
-            "UPPER(status) = 'ACTIVE'",
         ]
         if query.house_suffix:
             suffix = query.house_suffix.replace("'", "''")
             where_parts.append(f"UPPER(anumbersuf) = '{suffix}'")
 
-        features, _ = self._request_features(where_parts, result_record_count=200)
+        # Filtering status in the source query adds a substantial wait. The local
+        # ACTIVE check below enforces the same condition without that remote work.
+        features, exceeded_limit = self._request_features(
+            where_parts, result_record_count=200
+        )
+        if exceeded_limit:
+            # Inactive rows must not crowd active choices out of the source cap.
+            # Fall back to the original query and its existing bounded behavior.
+            features, _ = self._request_features(
+                [*where_parts, "UPPER(status) = 'ACTIVE'"], result_record_count=200
+            )
         active_features: list[object] = [
             feature
             for feature in features

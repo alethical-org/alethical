@@ -154,7 +154,7 @@ it('serves the public candidates destination without example records or data-ser
   expect(snapshot).toContain('Full street address');
   expect(snapshot).toContain('A city or ZIP code alone cannot identify your local races');
   expect(snapshot).toContain(
-    'Address lookup uses Minnesota Secretary of State and Minnesota mapping services',
+    'Address lookup uses Minnesota’s Secretary of State and mapping services',
   );
   expect(snapshot).not.toContain('Home snapshot');
   expect(body).not.toMatch(/PRIVATE DRAFT|ILLUSTRATIVE DATA|preview-general-alex/);

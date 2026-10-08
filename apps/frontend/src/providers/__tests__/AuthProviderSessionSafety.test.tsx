@@ -10,6 +10,11 @@ import {
   resetProviderSessionRejectionsForTests,
 } from '../../lib/auth/providerSessionAcceptance';
 import { AuthProvider, useAuth } from '../AuthProvider.web';
+import { useCandidatePrivacyBoundary } from '../../hooks/useCandidatePrivacyBoundary';
+import { registerCandidatePrivacyReset } from '../../lib/candidatePrivacy';
+import { validationFailureRevokesSession } from '../../lib/auth/sessionSafety';
+
+vi.mock('../AuthProvider', async () => import('../AuthProvider.web'));
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -181,6 +186,7 @@ function validationSuccess(id: string) {
 }
 
 function AuthProbe() {
+  useCandidatePrivacyBoundary();
   testState.authValue = useAuth();
   return null;
 }
@@ -261,6 +267,90 @@ describe('AuthProvider session races', () => {
       await Promise.resolve();
     });
   }
+
+  it('does not reset candidate activity when a delayed saved account finishes validation', async () => {
+    const startup = deferred<any>();
+    const validation = deferred<any>();
+    const saved = providerSession('person', 'saved-session', 'saved');
+    testState.restoreReply = startup.promise;
+    testState.storedSession = saved;
+    testState.validationReplies.set(saved.access_token, validation.promise);
+    const reset = vi.fn();
+    const unsubscribe = registerCandidatePrivacyReset(reset);
+    try {
+      await mountProvider(false);
+      await act(async () => startup.resolve({ session: saved, errorMessage: null }));
+      expect(testState.authValue.isLoading).toBe(true);
+      expect(reset).not.toHaveBeenCalled();
+      await act(async () => validation.resolve(validationSuccess('person')));
+      expect(testState.authValue.isSignedIn).toBe(true);
+      expect(testState.authValue.isLoading).toBe(false);
+      expect(reset).not.toHaveBeenCalled();
+      await rejectFromAnotherTab(saved);
+      expect(testState.authValue.isSignedIn).toBe(false);
+      expect(reset).toHaveBeenCalledOnce();
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it('resets candidate activity for later sign-in after a lazy anonymous visit', async () => {
+    testState.signInPendingOnLoad = false;
+    const fresh = providerSession('person', 'fresh-session', 'fresh');
+    const reset = vi.fn();
+    const unsubscribe = registerCandidatePrivacyReset(reset);
+    try {
+      await mountProvider();
+      expect(loadSignInBundle).not.toHaveBeenCalled();
+      await act(async () => {
+        await loadSignInBundle();
+      });
+      await vi.waitFor(() => expect(testState.authStateListener).not.toBeNull());
+      testState.storedSession = fresh;
+      testState.validationReplies.set(
+        fresh.access_token,
+        Promise.resolve(validationSuccess('person')),
+      );
+      await emitAuthSession(fresh);
+      expect(testState.authValue.isSignedIn).toBe(true);
+      expect(reset).toHaveBeenCalledOnce();
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it('settles a rejected initial account as anonymous and resets candidate activity on a later accepted sign-in', async () => {
+    vi.mocked(validationFailureRevokesSession).mockReturnValueOnce(true);
+    const saved = providerSession('person', 'saved-session', 'saved');
+    testState.restoreReply = Promise.resolve({ session: saved, errorMessage: null });
+    testState.storedSession = saved;
+    testState.validationReplies.set(
+      saved.access_token,
+      Promise.resolve({
+        ok: false,
+        error: { kind: 'unverified-google', message: 'Account could not be accepted' },
+      }),
+    );
+    const reset = vi.fn();
+    const unsubscribe = registerCandidatePrivacyReset(reset);
+    try {
+      await mountProvider();
+      expect(testState.authValue.isSignedIn).toBe(false);
+      expect(testState.authValue.authErrorKind).toBe('unverified-google');
+      expect(reset).not.toHaveBeenCalled();
+      const fresh = providerSession('person', 'fresh-session', 'fresh');
+      testState.storedSession = fresh;
+      testState.validationReplies.set(
+        fresh.access_token,
+        Promise.resolve(validationSuccess('person')),
+      );
+      await emitAuthSession(fresh);
+      expect(testState.authValue.isSignedIn).toBe(true);
+      expect(reset).toHaveBeenCalledOnce();
+    } finally {
+      unsubscribe();
+    }
+  });
 
   it('does not request the sign-in download for a fresh signed-out visit', async () => {
     testState.signInPendingOnLoad = false;

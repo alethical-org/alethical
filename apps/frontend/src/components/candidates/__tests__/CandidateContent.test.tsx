@@ -159,12 +159,12 @@ it('names the address field, rejects empty input without a request, and keeps ty
     root.render(<CandidateSearchContent services={services(lookup)} onOpenProfile={() => {}} />),
   );
   await flush();
-  click(button('Find my candidates'));
+  click(button('Find'));
   expect(host.textContent).toContain('Enter your full Minnesota street address');
   expect(host.querySelector('textarea')?.getAttribute('aria-invalid')).toBe('true');
   expect(lookup).not.toHaveBeenCalled();
   const input = type('100 Example Street');
-  click(button('Find my candidates'));
+  click(button('Find'));
   await flush();
   expect(input.value).toBe('100 Example Street');
   expect(host.textContent).toContain('Candidate results are unavailable');
@@ -376,7 +376,7 @@ it('keeps the same focused busy button and prevents repeat submission', async ()
   );
   await flush();
   type('100 Example Street');
-  const find = button('Find my candidates');
+  const find = button('Find');
   act(() => find.focus());
   click(find);
   click(find);
@@ -414,7 +414,7 @@ it('uses the same explicit address-choice flow when changing an address and keep
   await flush();
   click(button('Change address'));
   type('200 Example Street');
-  click(button('Find my candidates'));
+  click(button('Find'));
   await flush();
   expect(host.querySelector('a[href="/candidates/general-a"]')).toBeTruthy();
   expect(host.textContent).toContain('Choose your address');
@@ -453,7 +453,7 @@ it('keeps address editing open when typing the previous request and closes only 
   type('100 Example Street');
   await flush();
   expect(host.querySelector('textarea')).toBeTruthy();
-  click(button('Find my candidates'));
+  click(button('Find'));
   await flush();
   expect(host.querySelector('textarea')).toBeNull();
   // The submitted exact request can use the recent result without another network call.
@@ -485,7 +485,7 @@ it('keeps a newer typed address when a slow earlier search finishes and preserve
   await flush();
   click(button('Change address'));
   type('200 Example Street');
-  click(button('Find my candidates'));
+  click(button('Find'));
   const input = type('300 Example Street');
   expect(lookup.mock.calls[1][1].aborted).toBe(true);
   await act(async () => resolveOld({ ...result(), matchedAddress: '200 Example Street' }));
@@ -500,7 +500,7 @@ it('keeps a newer typed address when a slow earlier search finishes and preserve
   );
   await flush();
   expect(host.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('300 Example Street');
-  click(button('Find my candidates'));
+  click(button('Find'));
   await flush();
   expect(host.querySelector('textarea')).toBeNull();
   expect(host.textContent).toContain('300 Example Street');
@@ -611,7 +611,7 @@ it('keeps a November 3 election available during Minnesota evening after UTC has
   await flush();
   expect(host.querySelector('textarea')).toBeTruthy();
   type('100 Example Street');
-  click(button('Find my candidates'));
+  click(button('Find'));
   await flush();
   expect(lookup).toHaveBeenCalledOnce();
 });

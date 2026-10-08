@@ -2192,6 +2192,8 @@ Rationale:
   1 digit for a numbered street
 - the state request contains the house number and street-name prefix, not the city or ZIP;
   supplied city and ZIP text rank the returned choices inside Alethical
+- active status is filtered locally to reduce source-query work; if the source reports
+  omitted rows, retry the original active-filtered query before returning suggestions
 - choosing a suggestion gives the existing representative lookup its official point, so
   the reader does not need a second click or another geocoding request
 - the endpoint has its own 60-requests-per-public-IP-per-60-seconds limit, separate from
