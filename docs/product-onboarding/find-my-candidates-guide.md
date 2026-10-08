@@ -32,10 +32,20 @@ or other characters to force a match.
 
 A city or ZIP alone cannot choose a ballot. Ambiguous addresses require an explicit
 choice. An unsupported unit or overlapping range produces no match rather than a guess.
+Address suggestions begin with a house number and enough of the street name to
+match, using the same input rule as Find my legislator. A complete street, city or
+ZIP is not required before suggestions can appear. After a short typing pause,
+available matches appear below the field with **Suggested address** or **Suggested
+addresses**. The first match has a green outline; arrow keys move that outline,
+Enter chooses it, and Escape closes the list. A click or tap also chooses a match
+and starts the candidate search. Later replies for older text cannot replace the
+current suggestions or reopen a dismissed list. The list scrolls when needed.
 Minnesota mapping services can supply a complete address when the ZIP is missing.
 The voter must confirm that complete address, even when only 1 choice is returned.
-The confirmation retains the original typed address so the service can recompute
-the same choice; approved abbreviations do not turn it into an unmatched address.
+Choosing a typing suggestion submits that complete address for official validation.
+Choosing from a submitted ambiguous result retains the original typed address so
+the service can recompute the same choice; approved abbreviations do not turn it
+into an unmatched address.
 Supplied unit numbers remain attached to the choice and must match official ranges.
 
 The connected source is [Minnesota MyBallot](https://myballotmn.sos.mn.gov/).

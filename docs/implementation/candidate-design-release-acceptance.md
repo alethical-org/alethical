@@ -1,5 +1,46 @@
 # Candidate design build acceptance inventory
 
+## Partial address suggestion match, October 8, 2026
+
+Authorized target: Eugene's screenshot `Screenshot 2026-10-08 at 4.05.57 AM.jpg`
+and the live `/find-my-legislator` dropdown. [Issue 2526](https://github.com/alethical-org/alethical/issues/2526)
+owns the build and live release. Suggestions must appear while a street address is
+partially typed, without waiting for a full address or Search.
+
+Direct comparison found that both live searches already return the same partial
+street match. Candidate input has a separate 6-character gate that delays short
+valid prefixes. Reuse the legislator house-number/street-prefix helper. Match the
+reference white rounded dropdown, bold heading, plain address rows and green
+active-row outline. Preserve the candidate form, busy button, desktop overlay and
+inline phone placement. Submitted ambiguous-address choices keep their own design.
+
+Impact and prevention: the shared CandidateAddressForm covers initial lookup and
+Change address. The homepage hands input to this form rather than owning its own
+suggestion list. Both searches share the Minnesota address-point source for partial
+input without ZIP; candidates retain their official ballot street-range branch
+for ZIP input, POST requests without address URLs, and explicit confirmation.
+No provider, Census notice, location sharing or persistence change is needed.
+Checks cover short prefixes, number-only/direction-only rejection, singular/plural
+headings, active rows, click/keyboard selection, late replies, Escape, autofill and
+the previously fixed stable-results and busy-button behavior. A typeahead selection
+submits the selected complete address for official validation, rather than asking
+an exact-address resolver to resolve the incomplete prefix. Submitted ambiguous
+choices retain their original-input confirmation path. Browser-filled replacements
+invalidate stale selections. The live pre-fix browser also reproduced a
+no-match after keyboard selection from an incomplete street-name prefix, and a
+pointer selection that closed the list before submission. Browser hit testing
+showed the helper text below the field receiving clicks through the visible
+overlay. The input row must stack above its message/help siblings so the entire
+visible list receives clicks; keyboard and phone-inline behavior stay intact.
+
+Local browser acceptance: desktop 1280×720 and simulated phone widths 390 and 320
+show readable suggestions and visible active outlines. Enter and pointer selection,
+Escape followed by typing, submitted ambiguity selection, and retained results
+during slow/failed address changes pass. Multiple typeahead choices and late replies
+are covered by focused component tests; the local preview supplies 1 typeahead
+choice. Physical devices and software keyboards were not exercised. Live release
+acceptance is recorded on the owning issue.
+
 Status: coverage accepted by the parent implementation owner on October 1, 2026 after independent comparison of build-facts sections, match-design items and the profile drawings, plus the search builder’s direct search-drawing comparison. The target tables retain the starting-code observations; the acceptance evidence below records completed checks and explicit limits. Local, hosted and live acceptance are complete, including the final court-label follow-up.
 
 ## Accepted inputs and scope
