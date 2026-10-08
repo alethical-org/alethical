@@ -381,6 +381,7 @@ it('puts bold conclusion answers above full-width qualifications beside the symb
   expect(article.defaultView!.getComputedStyle(conclusion).maxWidth).toBe('none');
   expect(article.defaultView!.getComputedStyle(conclusion.querySelector('p')!).flexGrow).toBe('1');
   expect(conclusion.querySelector('svg')?.getAttribute('aria-label')).toBe('Alethical');
+  expect(conclusion.querySelector('strong')).not.toBeNull();
   expect(article.defaultView!.getComputedStyle(conclusion.querySelector('strong')!).display).toBe(
     'block',
   );
@@ -410,4 +411,5 @@ it('puts bold conclusion answers above full-width qualifications beside the symb
     'Conclusion: The records support this answer.',
   );
   expect(foot.querySelector('p')?.textContent).toContain(evidence.limitations);
+  expect(chart.defaultView!.getComputedStyle(foot.querySelector('strong')!).display).toBe('block');
 });

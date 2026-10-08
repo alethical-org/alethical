@@ -186,7 +186,7 @@ describe('Branded conclusions in the first response', () => {
     },
   );
 
-  it('preserves the left symbol, bold answer and regular qualification without a narrower width', () => {
+  it('puts the answer above its qualification beside the left symbol without a narrower width', () => {
     const shell = readFileSync(new URL('../../../public/index.html', import.meta.url), 'utf8');
     const document = documentFor(
       shell.replace(
@@ -197,6 +197,7 @@ describe('Branded conclusions in the first response', () => {
     const conclusion = document.querySelector('.ps-conclusion')!;
     expect(conclusion).not.toBeNull();
     expect(conclusion.querySelector('svg')?.getAttribute('aria-label')).toBe('Alethical');
+    expect(conclusion.querySelector('strong')).not.toBeNull();
     expect(
       document.defaultView!.getComputedStyle(conclusion.querySelector('strong')!).display,
     ).toBe('block');
