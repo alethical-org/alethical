@@ -237,7 +237,7 @@ for this build.
   this is a task judgment, not a measured model comparison.
 - Completion: independent review, relevant suites, desktop/tablet/phone-width browser
   checks, current-head release checks and live measurements. Real phone keyboard
-  testing remains Eugene's separate acceptance check after release.
+  testing remains a separate maintainer acceptance check after release.
 
 - Source-query evidence: 7 paired queries for 3 civic prefixes returned identical
   records, with median 0.743s before and 0.624s after moving the state filter local.
