@@ -17,7 +17,8 @@ defined station list. No paid recurring AI job is authorized.
 
 Owner: Codex chat (FCC media-vendor, 01a11a9b-d455-7d51-9baf-7d821afd0d6f),
 branch `codex/fcc-political-file-archive`.
-Source-listing corrections continue on `codex/fcc-source-listing-gaps`.
+Source-listing corrections shipped from `codex/fcc-source-listing-gaps`; final
+collection acceptance is recorded from `codex/fcc-archive-acceptance`.
 
 ## Source evidence and approved handling
 
@@ -67,19 +68,21 @@ search, commission analysis, expense matching and backup share those risks. Sour
 identity, immutable bodies, versioned drafts and retained match evidence address
 them without changing existing campaign figures. Tests cover repeated collection,
 changed files, invalid downloads, failed folders, reused order numbers, credits,
-missing values and restoration. Remaining uncertainty: download availability at
-scale, varied PDF layouts and station scope beyond the initial 3.
+missing values and restoration. The first full collection accounts for every listed file identity across the
+saved folder tree. Remaining limits are 9 unavailable downloads, 1 unreadable
+nonblank page, unreviewed draft fields and station scope beyond the initial 3.
 
 ## Progress
 
 - Proposal accepted for backend-first implementation; no frontend work started.
-- Source client and PDF extraction are assigned to separate helpers; the owner
-  integrates database, storage, commands and release, then personally reviews both.
+- Independent source, text-reading and acceptance reviews informed the build;
+  the owner reviewed source PDFs and exercised the production archive personally.
 - Initial proposal listed 4,507 files. This is a changing FCC listing count, not a
   verified count of unique invoices or proof of historical completeness.
 - The private backend is released; production applies migration
   `0067_fcc_political_files` with all 7 FCC tables protected from public access.
-  The initial 3-station collection, text reading and backup are running.
+  Collection and current text reading are complete for accessible files; source
+  gaps remain explicit. Backup acceptance has its own completion check.
 - Actual listings exposed 2 source shapes: a file row without a download link,
   and a state folder linking to a local folder. The reader retains unavailable
   file metadata without inventing a link, and follows links only within the same
@@ -184,6 +187,69 @@ page text and review history; the private file stores retain the response bytes.
 - Review identified bounded-run starvation, retries losing prior reading evidence,
   mixed scanned/native pages and matching across extractor versions. The build
   adds focused checks for each before the initial production collection.
-- The backend release is live at commit
-  `b982aa7a2e8abd6e794a37f235bd043960eeec63`. Initial station coverage, correction
-  release, text reading, full backup and final independent acceptance remain pending.
+- The correction release is live at
+  [commit 2c044fd266103521ba080a2365d4ca797972e3a3](https://github.com/alethical-org/alethical/commit/2c044fd266103521ba080a2365d4ca797972e3a3).
+  The production version endpoint returns that commit, health reports `ok`, and
+  readiness reports `ready`. The exact merge-group backend checks passed; the
+  frontend suite was skipped by its path filter.
+
+## Initial collection: 8 October 2026
+
+The combined saved folder tree contains 594 distinct listings and accounts for
+4,507 file identities. Independent review restored and parsed each latest successful
+listing, followed its child links, and compared its file identities with the saved
+observations. This covers the available 3-station political trees, including local,
+noncandidate and terms records. It is not a count of invoices or all historical buys.
+
+| Filing station | Stored file records | Years with stored files |
+| --- | ---: | --- |
+| KSTP-TV | 2,163 | 2022–2026 |
+| KARE | 1,220 | 2022–2026 |
+| KMSP-TV | 1,115 | 2024–2026 |
+| Total | 4,498 | Available files only |
+
+Those records contain 4,485 distinct byte sequences. Duplicate contents share one
+stored body while preserving each FCC identity. The 9 remaining listed identities
+are 5 rows without public download links and 4 downloads refused by the FCC.
+Their names, source IDs and failure evidence remain searchable through `gaps`.
+The 4 refused files returned HTTP 401 from the FCC's official download host after
+the public API refused them; a normal browser click reproduced that refusal for
+1 sampled file. No login or access bypass was attempted.
+
+Both collection scans retain `incomplete` status. The recovery scan also recorded
+1 folder timeout for KARE's 2024 Minnesota Citizens Concerned for Life folder.
+A later ordinary public request succeeded; all 6 file IDs, names, download links
+and upload labels matched the earlier saved listing. All 6 saved files restored
+with matching fingerprints. That later evidence closes the folder-coverage gap
+without rewriting the scan's original failure record.
+
+Current reader `fcc-document-text-v4` has attempted all 4,485 distinct files:
+4,482 readings await review and 3 remain partial. Of 20,964 pages, 20,961 have
+saved text. The remaining pages are:
+
+- KARE, `FCC SNL Nikki Haley Political Appearance 2-3-24`, page 2: blank.
+- KARE, `FCC SNL Kamala Harris Political Appearance 11-2-24`, page 2: blank.
+- KSTP-TV, `K5-North Star Dawn PAC-NAB-509696`, page 4: a noisy scan of printed
+  terms, signatures and handwritten fields. Automatic reading produced no reliable
+  text; alternate page-layout settings produced scrambled text. The original page
+  remains available for visual review and is not presented as fully indexed.
+
+The current draft classification is 1,151 invoices, 1,126 orders, 359 disclosures
+and 1,849 unknown records. There are 2,057 earlier readings retained as history.
+The reader found explicit commission rates in 1,084 distinct files and commission
+amounts in 1,148. These are field-coverage counts, not verified commission totals.
+No payment amount or credit amount was asserted by this extraction pass.
+
+Searches for `Strategic Media` in 2026 and order `510114` return source-linked
+pages and draft facts. The DeMuth expense-match sample returned no supported
+pairing and reported its search bound; the system did not force a match. Matching
+is a reviewable evidence link, not automatic proof of a campaign payment.
+
+The archive holds 5,655 distinct file and listing bodies: 1,070,172,893 original
+bytes, stored as 861,236,041 compressed bytes in each complete copy. Each backup
+write is read back and checked against both the compressed and original file
+fingerprints before being marked complete. The completion record on
+[issue 2528](https://github.com/alethical-org/alethical/issues/2528) carries the
+final backup count, restoration receipt and independent acceptance. A collection
+scan's `incomplete` source status is separate from whether its saved files have
+finished copying.
