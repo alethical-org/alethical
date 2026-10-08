@@ -14,7 +14,9 @@ homepage has **Find my candidates**.
 
 ## 1. Search with a street address
 
-The heading is **Find my legislators**. The visible field label is **Full street
+The heading is **Find my legislators**, followed by **See who represents you in
+the Minnesota House and Senate**. This introduction uses the same responsive
+size, color and heading gap as the candidate introduction. The visible field label is **Full street
 address**, followed by **A city or ZIP code alone cannot identify your legislators**
 before the box. The signed-in homepage's separate finder retains its own introduction.
 
@@ -25,6 +27,10 @@ pause, the shared address component shows **Suggested address** for 1 choice or
 **Suggested addresses** for 2 to 5 active Minnesota addresses. City and ZIP are
 optional, but adding either can narrow or reorder the choices. Slow, failed or empty
 optional suggestions stay quiet; **Find** still searches the typed text.
+The shared suggestion service filters active records locally to reduce the source
+query wait. If the source reports omitted rows, it retries with the active filter
+at the source so inactive records cannot crowd out valid choices. House, state,
+street, direction and unit matching remain unchanged.
 
 No row is selected on opening. Down starts at the first row and Up at the last;
 both wrap. Enter chooses an active keyboard row, otherwise it searches the typed

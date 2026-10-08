@@ -143,3 +143,51 @@ limit. All 15 release-browser journeys pass in both Chromium and WebKit, and the
 at original preview 19047 passes mouse, emulated touch and Tab then Enter, plus
 editing, failed updates with retained results, and retry. The final issue comment
 records the follow-up deployment and live acceptance once complete.
+
+
+## October 8 follow-ups in progress
+
+Eugene requested the candidate submit button say **Find**, matching legislator
+search, and faster suggestions on both surfaces. Implementation and live release
+are authorized; actual phone acceptance follows release. The separate initial
+account-restoration reset in issue 2529 remains owned here, with genuine account
+changes retaining their immediate privacy reset.
+
+- Parent owns button copy, suggestion latency diagnosis/integration and release.
+- Read-only helpers trace suggestion latency and initial account restoration.
+- Measure the service chain before changing the 180ms typing pause. Preserve
+  official matching, units, privacy and latest-input-only results.
+- Update both behavior guides and Design records with settled corrections.
+- Run focused regressions, independent review, browser acceptance, current-head
+  checks, release and live acceptance. Keep physical phone limits explicit.
+- Model assessment: full scope includes service latency and privacy-sensitive
+  account lifecycle. Recommend gpt-6-astra high for lead judgment; gpt-6.1-sol high
+  for bounded read-only diagnosis. Current official model pages describe Astra
+  for demanding reasoning/coding and Sol as the workhorse; no comparative task
+  benchmark was run. High reasoning suits the unresolved shared-state questions;
+  deeper settings have no identified additional benefit here.
+
+### Follow-up scope and prevention
+
+- Both field labels and their location-specific hints remain above the address box.
+- Candidate introduction: “See who’s running where you live in Minnesota”.
+- Legislator introduction: “See who represents you in the Minnesota House and Senate”,
+  matching candidate introduction size, color and 14px heading gap across all 3 bands.
+- Candidate source note: “Address lookup uses Minnesota’s Secretary of State and mapping services”.
+  Its divider uses a fixed 144px top margin after the message region at 768px and above;
+  phones retain 36px. The note does not move as typing suggestions change.
+- Both suggestion routes use the same Minnesota address service. The service omits
+  the remote status filter but still filters ACTIVE locally, preserving state, house,
+  direction and unit checks. A source transfer-limit flag retries the original query
+  so inactive rows cannot crowd out valid choices. No shared address cache is added.
+- Six counterbalanced public-source pairs returned identical suggestions with median
+  time 1.113s before and 0.907s after, about 18% faster. Government response timing varies;
+  an earlier sequential sample was slower. This is not an instant-result guarantee.
+- Initial saved-account restoration establishes identity without clearing fresh candidate
+  input, pending lookup or results. Once identity is known, actual account transitions
+  still clear and cancel private search state, including transitions while loading.
+- Prevention tests cover initial restoration, anonymous baseline, rejected restoration,
+  established-account rejection and switches, active filtering, incomplete-source fallback,
+  fallback failure and unchanged address identity. Browser acceptance covers 3 layout bands,
+  short suggestions, Find submission and the two introductions. Physical phone autofill
+  remains a user acceptance check after release.

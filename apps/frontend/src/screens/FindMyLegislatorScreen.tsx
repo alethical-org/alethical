@@ -191,7 +191,7 @@ function DistrictChips({
 }
 
 export function FindMyLegislatorScreen({ navigation, route }: Props) {
-  const { isMobile } = useResponsive();
+  const { isMobile, isDesktop } = useResponsive();
   const historyScrollProps = useHistoryScrollRestoration();
   const requestedAddress =
     typeof route.params?.address === 'string' ? route.params.address : undefined;
@@ -647,6 +647,17 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
             >
               Find my legislators
             </Text>
+            <Text
+              style={[
+                styles.description,
+                {
+                  fontSize: isMobile ? 16.5 : isDesktop ? 19 : 18,
+                  lineHeight: isMobile ? 25 : isDesktop ? 28.5 : 27,
+                },
+              ]}
+            >
+              See who represents you in the Minnesota House and Senate
+            </Text>
           </View>
           <View style={styles.addressArea}>
             <Text nativeID="find-legislator-address-label" style={styles.addressLabel}>
@@ -908,7 +919,8 @@ const styles = StyleSheet.create({
   scrollContent: { minHeight: '100%' },
   main: { maxWidth: 1180, alignSelf: 'center', paddingTop: 74, paddingBottom: 88 },
   mainMobile: { paddingTop: 44, paddingBottom: 64 },
-  intro: { maxWidth: 780, gap: 16 },
+  intro: { maxWidth: 780, gap: 14 },
+  description: { fontFamily: t.typography.body, color: '#4f5651' },
   title: {
     fontFamily: t.typography.title,
     fontSize: 52,

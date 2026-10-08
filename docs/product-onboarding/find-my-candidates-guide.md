@@ -14,7 +14,7 @@ The full street address identifies the official street range, including house nu
 odd/even side, street direction, city, ZIP and any source-defined unit boundaries.
 Both address entry boxes grow to keep long addresses fully visible.
 Typing, pasting and choosing a saved browser address use the same search. Keyboard
-Search and **Find my candidates** submit the address visible in the box, including
+Search and **Find** submit the address visible in the box, including
 a browser-filled value that arrived just before submission. The suggestion list
 follows the current box value; an older highlighted choice cannot replace a newly
 filled address. Entering or leaving the `/candidates` box also brings a newly
@@ -62,8 +62,15 @@ When necessary, opening the list or the keyboard's later resize reveals the fiel
 and available rows while keeping the label visible. Manual scrolling stops further
 unsolicited movement until the list closes; deliberate arrow keys still reveal
 the selected row. The source line stays below the form: **Address lookup uses
-Minnesota Secretary of State and Minnesota mapping services**.
+Minnesota’s Secretary of State and mapping services**. On computer and tablet,
+the source divider has a fixed 144px top margin after the message area, keeping
+a short suggestion list clear of the note. Phone spacing remains 36px. Neither
+position changes with suggestion count. The introductory line is **See who’s
+running where you live in Minnesota**.
 
+The submit button says **Find** on entry and in **Change address**, matching
+`/find-my-legislator`; the page heading supplies the search context. The homepage
+link and candidate-profile return link keep **Find my candidates**.
 Entry fields and buttons have a 60px minimum height. **Change address** retains
 its compact 56px field and 52px button. Both use the same suggestion component.
 Minnesota mapping services can supply a complete address when the ZIP is missing.
@@ -89,7 +96,10 @@ Each search reads fresh ballot records. Street tables may be reused for 5 minute
 bounded to 32 ZIP tables and 8 MB of source text. The browser may reuse an identical
 successful search for 60 seconds, with at most 4 searches held in memory. Clearing
 the search or changing signed-in accounts erases these responses. Returning from a profile restores the search;
-reloading or opening a new tab loses it.
+reloading or opening a new tab loses it. Initial restoration of an existing
+account does not erase new input, a pending search or results from this visit.
+After the account identity is established, sign-in, sign-out, account switching
+and account rejection still clear and cancel private search activity.
 Once a screen has drawn, a later program-download failure does not automatically
 reload the website and erase this memory. A failed screen or section shows its
 existing failure message and an explicit **Reload page** action; browser Back
@@ -146,7 +156,7 @@ Only the newest request can replace them. Errors retain the typed address and of
 Changing an address keeps the form open while typing, even when the draft equals the
 previous successful request. Only an explicitly submitted successful replacement or
 Escape cancellation closes editing; a submitted recent cached result follows the same transition.
-While an address search runs, both **Find my candidates** buttons show a spinner
+While an address search runs, both **Find** buttons show a spinner
 and **Finding candidates…** inside their unchanged box. A screen reader receives
 1 polite waiting announcement; the line below stays reserved for errors without
 repeating the waiting message. Focus stays on the activated search button, repeated
