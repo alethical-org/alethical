@@ -4,7 +4,7 @@
 
 Net: Readers register through the existing Alethical account flow, then explicitly choose research emails delivered to their account address.
 
-Approved on 25 September 2026: build after review of Alethical UX (9).zip. The v9 drawings own visual direction; v6 build facts supply the full behavior, with the corrections below. The design record was updated alongside implementation. [Issue 2375](https://github.com/alethical-org/alethical/issues/2375) tracks delivery.
+Approved on 25 September 2026: build after review of Alethical UX (9).zip. The v9 drawings own visual direction; v6 build facts supply the full behavior, with the corrections below. A request to update the design record accompanied implementation. [Issue 2375](https://github.com/alethical-org/alethical/issues/2375) tracks delivery.
 
 The 30 September `/money` invitation build approval adopts `Alethical UX (41).zip` for that invitation only. Its concise wording and responsive invitation states replace the older invitation design. Sign-in, confirmation, preferences and sending behavior remain unchanged.
 
