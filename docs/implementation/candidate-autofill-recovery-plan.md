@@ -210,3 +210,52 @@ changes retaining their immediate privacy reset.
 - Design updated the existing candidate and legislator drawings and address build
   notes. Candidate drawing shows exact new copy and 144/144/36px source margins.
   Its extra download and prompt card are not dependencies of this running build.
+
+## October 8 second suggestion-speed pass
+
+Authorized outcome: make address suggestions on both finders faster through live
+release, preserving source accuracy, privacy, keyboard/touch behavior and current
+input ownership. Proposed profile-introduction copy is discussion only, not approved
+for this build.
+
+- Baseline: six live curl POST requests took 0.775–1.216 seconds, before the
+  shared field's additional 180ms typing pause. No suggestion-response reuse exists.
+- Shared callers: candidate entry, candidate Change address and the legislator
+  finder. Homepage forms hand addresses onward and do not render this shared field. Full candidate addresses still use official street records;
+  partial candidate and legislator suggestions share Minnesota address points.
+- Investigate source query time separately from input scheduling. Parent owns
+  frontend scheduling, bounded field-local reuse and integration; backend helper
+  owns read-only source measurements before a scoped implementation assignment.
+- Prevention checks: first eligible input, fast typing, out-of-order responses,
+  dismissal/submit, expiry, clearing/account transitions, source transfer limits,
+  units and matched-address correctness. Full search validation remains mandatory.
+- Model assessment: gpt-6.1-sol high suits the bounded measurable performance path
+  with existing matching and interaction contracts. GPT-6 Astra high is the strongest
+  alternative if diagnosis exposes unresolved cross-account semantics or new data
+  architecture; neither is currently required by the measured work. Official
+  OpenAI GPT-6.1 Sol model guidance read October8 describes complex coding support;
+  this is a task judgment, not a measured model comparison.
+- Completion: independent review, relevant suites, desktop/tablet/phone-width browser
+  checks, current-head release checks and live measurements. Real phone keyboard
+  testing remains Eugene's separate acceptance check after release.
+
+- Source-query evidence: 7 paired queries for 3 civic prefixes returned identical
+  records, with median 0.743s before and 0.624s after moving the state filter local.
+  Source truncation still retries both original state and active-status filters.
+- Stateless pooled source connections: warm median 0.617s versus 0.469s in a small
+  paired sample. Fresh connections do not gain the warm benefit. Pooling is per
+  server thread, rejects cookies including redirects and strips credentials; it
+  stores no address/query results and leaves Census unchanged. Full-address candidate
+  suggestions using existing SOS ZIP tables do not use this path.
+- Frontend keeps the 180ms trailing pause during continuing typing but sends the
+  first eligible input and edits after idle immediately. A proposed 100ms throttle
+  was rejected in review: normal 140ms typing could consume the 60/minute allowance.
+  Actual-input tests now produce at most 4 requests across 2 uninterrupted address
+  bursts, rather than 83 under the rejected proposal.
+- Exact positive results reuse at most 8 entries for 60 seconds in the mounted
+  field only. Empty field, search start, suggestion-source replacement and unmount
+  erase reuse; failures and empty matches are not cached. No shared location cache.
+- Independent review passed 126 focused checks across field behavior, supporting
+  privacy/form flows and backend matching/transport. Parent browser checks passed
+  both routes at 1280, 900 and 390px with delayed local fixtures; exact-input reuse
+  took 9–25ms in Chromium. This measures local display, not a new upstream lookup.

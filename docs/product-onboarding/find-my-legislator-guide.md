@@ -22,15 +22,23 @@ before the box. The signed-in homepage's separate finder retains its own introdu
 
 Start with a house number and at least 2 street-name characters. `350 S` is not enough,
 because `S` could mean South or the start of a street name. `350 Su` can start a named-
-street search, and `350 S 5` can start a numbered-street search. After a 180-millisecond
-pause, the shared address component shows **Suggested address** for 1 choice or
+street search, and `350 S 5` can start a numbered-street search. The first eligible
+input starts immediately; continuing edits share a request after a 180-millisecond
+typing pause. An edit after at least 180 milliseconds of idle time starts immediately.
+The shared address component shows **Suggested address** for 1 choice or
 **Suggested addresses** for 2 to 5 active Minnesota addresses. City and ZIP are
 optional, but adding either can narrow or reorder the choices. Slow, failed or empty
 optional suggestions stay quiet; **Find** still searches the typed text.
-The shared suggestion service filters active records locally to reduce the source
-query wait. If the source reports omitted rows, it retries with the active filter
-at the source so inactive records cannot crowd out valid choices. House, state,
-street, direction and unit matching remain unchanged.
+The field can reuse an exact successful input for 60 seconds, keeping at most 8
+entries only in that mounted field’s memory. Clearing the field, starting a search,
+changing its suggestion source or leaving the form clears these entries. No
+address suggestions are saved in browser storage or a shared server cache.
+The shared suggestion service filters active status and state locally to reduce the
+source query wait. If the source reports omitted rows, it retries with both filters
+at the source so excluded records cannot crowd out valid choices. House, state,
+street, direction and unit matching remain unchanged. Minnesota address requests
+reuse a connection within each server worker without retaining cookies, credentials,
+queries or responses. The Census connection path is unchanged.
 
 No row is selected on opening. Down starts at the first row and Up at the last;
 both wrap. Enter chooses an active keyboard row, otherwise it searches the typed
@@ -280,8 +288,9 @@ existing address-in-the-link behavior. See
   seconds. The browser blocks both lookup buttons for the remaining wait after the
   endpoint returns that limit.
 - Suggestions have their own 60-requests-per-60-seconds limit, so normal typing does not
-  spend the 10 full lookups. The browser waits 180 milliseconds after typing stops and
-  cancels obsolete suggestion requests when the text changes.
+  spend the 10 full lookups. First input and edits after an idle period start immediately;
+  continuing edits wait 180 milliseconds after typing stops. The browser cancels
+  obsolete suggestion requests when the text changes.
 - Results depend on 2 public government address services. Both must remain unavailable
   after their retries before a temporary source failure blocks an address lookup.
 - The page shows current state legislators from Alethical's official-record database.

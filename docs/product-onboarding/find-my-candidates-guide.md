@@ -34,8 +34,14 @@ A city or ZIP alone cannot choose a ballot. Ambiguous addresses require an expli
 choice. An unsupported unit or overlapping range produces no match rather than a guess.
 Address suggestions begin with a house number plus at least 2 street-name characters
 (`29308 Cr`), or the first numbered-street digit (`350 5`). A house number alone
-does not trigger suggestions. After a 180-millisecond typing pause, up to 5 Minnesota
-matches appear with **Suggested address** or **Suggested addresses**. Slow, failed
+does not trigger suggestions. The first eligible input starts a request immediately;
+continued typing waits for a 180-millisecond pause to group edits into 1 request.
+An edit after at least 180 milliseconds of idle time also starts immediately. Up to
+5 Minnesota matches appear with **Suggested address** or **Suggested addresses**.
+The field can reuse an exact successful input for 60 seconds, keeping at most 8
+entries only in that mounted field’s memory. Clearing the field, starting a search,
+changing its suggestion source or leaving the form clears these entries. No
+address suggestions are saved in browser storage or a shared server cache. Slow, failed
 or empty optional suggestions leave the list closed; submitting the typed address
 still works and has its own waiting, error and retry feedback.
 
