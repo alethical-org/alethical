@@ -662,7 +662,8 @@ VoiceOver or TalkBack behavior. Those limits remain explicit after deployment.
 
 ### Shared address acceptance
 
-The final frontend suite passes 4,217 tests across 334 files. TypeScript, frontend
+The current-main frontend suite passes 4,225 tests across 334 files.
+The required upload check also passes all 4,602 backend tests. TypeScript, frontend
 formatting, documentation checks and the production web build pass. The production
 build measures 296,135 first-load bytes against the 297,506-byte limit. Independent
 source review found no remaining actionable frontend defects. A fresh-context
@@ -683,3 +684,10 @@ the sole 5TH ST S range (316911) covered only even house 600. The mapping servic
 suggests 350, but candidate lookup requires the separate SOS range. Preserve safe
 no-match rather than borrowing another address's ballot; this source limitation
 is independent of the shared control.
+
+Design updated `Candidates search.dc.html`, `LIVE Find My Legislator.dc.html` and
+the shared-address section of `build-facts-candidates.md` in Alethical UX. The lead
+inspected the rendered controls and read the saved notes. The candidate apartment
+specimen was corrected to an explicit matching S direction with 1 suggestion;
+uncertain unit transfer omits the optional suggestion and leaves typed submission
+available. No additional address confirmation flow was introduced.
