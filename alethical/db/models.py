@@ -3578,6 +3578,170 @@ class CampaignFinanceRefundNotPublished(TimestampMixin, Base):
     reason: Mapped[str] = mapped_column(Text, nullable=False)
 
 
+class FCCSourceBody(TimestampMixin, Base):
+    """Immutable FCC response bytes, covered by the existing source-file mirror."""
+
+    __tablename__ = "fcc_source_body"
+    content_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    object_key: Mapped[str] = mapped_column(Text, nullable=False)
+    byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    compressed_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    compressed_byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    compression: Mapped[str] = mapped_column(String(20), default="gzip", nullable=False)
+    mirrored_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class FCCScan(UUIDPrimaryKeyMixin, Base):
+    """A bounded collection attempt; incomplete listings never imply absence."""
+
+    __tablename__ = "fcc_scan"
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    stations: Mapped[list] = mapped_column(JSONB, nullable=False)
+    counts: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+
+
+class FCCObservation(Base):
+    """What one scan saw, including failed folders and downloads."""
+
+    __tablename__ = "fcc_observation"
+    scan_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("fcc_scan.id"), primary_key=True
+    )
+    url: Mapped[str] = mapped_column(Text, primary_key=True)
+    facility_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    observed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    content_hash: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("fcc_source_body.content_hash")
+    )
+    details: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    error: Mapped[Optional[str]] = mapped_column(Text)
+    __table_args__ = (Index("ix_fcc_observation_status", "scan_id", "status"),)
+
+
+class FCCDocument(Base):
+    """A source document version, distinct from an invoice or purchase."""
+
+    __tablename__ = "fcc_document"
+    facility_id: Mapped[str] = mapped_column(String(20), primary_key=True)
+    file_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    content_hash: Mapped[str] = mapped_column(
+        ForeignKey("fcc_source_body.content_hash"), primary_key=True
+    )
+    call_sign: Mapped[str] = mapped_column(String(30), nullable=False)
+    folder_id: Mapped[str] = mapped_column(Text, nullable=False)
+    folder_path: Mapped[str] = mapped_column(Text, nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    url: Mapped[str] = mapped_column(Text, nullable=False)
+    year: Mapped[Optional[int]] = mapped_column(Integer)
+    uploaded_at: Mapped[Optional[str]] = mapped_column(Text)
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    last_downloaded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    __table_args__ = (Index("ix_fcc_document_station_year", "facility_id", "year"),)
+
+
+class FCCExtraction(Base):
+    """Draft page-grounded readings, never automatically published amounts."""
+
+    __tablename__ = "fcc_extraction"
+    content_hash: Mapped[str] = mapped_column(
+        ForeignKey("fcc_source_body.content_hash"), primary_key=True
+    )
+    version: Mapped[str] = mapped_column(String(80), primary_key=True)
+    document_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    facts: Mapped[list] = mapped_column(JSONB, nullable=False)
+    errors: Mapped[list] = mapped_column(JSONB, nullable=False)
+    attempts: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    __table_args__ = (
+        Index("ix_fcc_extraction_facts", "facts", postgresql_using="gin"),
+    )
+
+
+class FCCPage(Base):
+    __tablename__ = "fcc_page"
+    content_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    version: Mapped[str] = mapped_column(String(80), primary_key=True)
+    page: Mapped[int] = mapped_column(Integer, primary_key=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    method: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    error: Mapped[Optional[str]] = mapped_column(Text)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["content_hash", "version"],
+            ["fcc_extraction.content_hash", "fcc_extraction.version"],
+        ),
+        Index(
+            "ix_fcc_page_text",
+            text,
+            postgresql_using="gin",
+            postgresql_ops={"text": "gin_trgm_ops"},
+        ),
+    )
+
+
+class FCCExpenseLink(UUIDPrimaryKeyMixin, Base):
+    """Reviewed links retain the finance evidence even after source refresh."""
+
+    __tablename__ = "fcc_expense_link"
+    content_hash: Mapped[str] = mapped_column(
+        ForeignKey("fcc_source_body.content_hash"), nullable=False
+    )
+    extraction_version: Mapped[str] = mapped_column(String(80), nullable=False)
+    source_dataset: Mapped[str] = mapped_column(String(40), nullable=False)
+    source_snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False
+    )
+    source_content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_row_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    source_row: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    evidence: Mapped[str] = mapped_column(Text, nullable=False)
+    reviewed_by: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    __table_args__ = (
+        UniqueConstraint(
+            "content_hash",
+            "extraction_version",
+            "source_dataset",
+            "source_snapshot_id",
+            "source_row_number",
+        ),
+        CheckConstraint(
+            "status IN ('suggested', 'accepted', 'rejected')", name="fcc_link_status"
+        ),
+        CheckConstraint(
+            "status = 'suggested' OR length(trim(reviewed_by)) > 0 AND reviewed_by IS NOT NULL",
+            name="fcc_link_review",
+        ),
+        CheckConstraint("length(trim(evidence)) > 0", name="fcc_link_evidence"),
+        ForeignKeyConstraint(
+            ["content_hash", "extraction_version"],
+            ["fcc_extraction.content_hash", "fcc_extraction.version"],
+        ),
+    )
+
+
 class PublishedSourceCopy(TimestampMixin, Base):
     """Our own copy of one document that Alethical's published writing cites.
 

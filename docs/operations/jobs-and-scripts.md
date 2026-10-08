@@ -2,8 +2,8 @@
 
 <!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py -->
 
-Net: The repository has 31 GitHub Actions workflows. 27 can start automatically
-and 4 run only when a person starts them. Scheduled checks, releases, and local
+Net: The repository has 32 GitHub Actions workflows. 27 can start automatically
+and 5 run only when a person starts them. Scheduled checks, releases, and local
 backups do not call paid AI services. Reader questions and deliberately started
 AI work do. The review of a failed campaign-money collection has a paid AI
 reviewer too, and its switch is off until its limits are approved.
@@ -25,7 +25,7 @@ reviewer too, and its switch is off until its limits are approved.
 | Copy of every cited source (`.github/workflows/published-source-archive.yml`) | Weekly, Mondays at 10:00 UTC | Re-reads every outside address our published research and guides cite, keeps our own copy of each version, and opens or updates an issue when one has gone or changed | No paid AI call; free government page reads and storage in a bucket we already pay for |
 | Published piece links still work (`.github/workflows/published-piece-links.yml`) | Weekly, Mondays at 13:00 UTC, and on relevant pull requests | Opens or updates an issue when a link inside a published piece no longer reaches a real page; a pull request only checks the pieces' own links, without reading the network | No paid AI call; free government page reads |
 | Bills missing from search (`.github/workflows/rag-coverage-gaps.yml`) | Daily at 12:00 UTC | Opens or updates an issue when a stored bill has no current search index | No paid AI call; reads the database and does not rebuild the index |
-| Second copy of source files (`.github/workflows/mirror-raw-files.yml`) | Daily at 13:00 UTC | Checks current files in Supabase and Cloudflare R2, repairs missing second copies, and renews old hash proofs within a 256 MiB combined read budget. Covers all 5 kinds of stored body (bulk downloads, totals archives, report documents, published-source copies, and the lobbying principal-expenditures download), discovered from the database schema so a later 6th kind is copied from the day it ships | No paid AI call; [Cloudflare R2 includes 10 GB of Standard storage and large monthly operation allowances](https://developers.cloudflare.com/r2/pricing/) before charges |
+| Second copy of source files (`.github/workflows/mirror-raw-files.yml`) | Daily at 13:00 UTC | Checks current files in Supabase and Cloudflare R2, repairs missing second copies, and renews old hash proofs within a 256 MiB combined read budget. Discovers stored-source tables from the database schema, including FCC political-file copies, so a new source joins the backup without a separate table list | No paid AI call; [Cloudflare R2 includes 10 GB of Standard storage and large monthly operation allowances](https://developers.cloudflare.com/r2/pricing/) before charges |
 | Bills with summary gaps (`.github/workflows/bill-summary-coverage.yml`) | Daily at 14:00 UTC | Opens or updates 1 issue when a bill has complete current text but its full summary is missing or was made from older text or instructions | No paid AI call; reads the database and does not create or change a summary |
 | Homepage fact check (`.github/workflows/home-hero-card-facts.yml`) | Daily at 12:00 UTC, and on relevant pull requests | Checks the homepage's 5 bill claims against Minnesota's published record | No paid AI call; reads public government pages |
 | Technology health (`.github/workflows/technology-health.yml`) | Security every Monday at 13:41 UTC; full review monthly at 13:17 UTC on day 1, and by hand | Checks known package vulnerabilities weekly; the monthly review also checks saved tool versions, support dates, and whether the 3-month major-release review is overdue | No paid AI call; reads public package lists on GitHub's standard computer |
@@ -50,11 +50,12 @@ Time and Central Daylight Time, so their local hour changes by 1 during the year
 
 ## What GitHub runs only by hand
 
-These 4 workflows complete the total of 31:
+These 5 workflows complete the total of 32:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |
 | `.github/workflows/legislator-city-backfill.yml` | Preview or fill missing legislator residence cities | No paid AI call; reads public government sources and the database |
+| `.github/workflows/fcc-political-files.yml` | Keep bounded batches of FCC station files, read PDFs locally, make second copies and report gaps; dry run by default, no schedule | No paid AI call; free FCC downloads, existing GitHub runner usage and private Supabase/R2 storage and transfer allowances |
 | `.github/workflows/migrate.yml` | Apply database changes and check for structural drift when the normal Railway release path needs a fallback | No paid AI call; uses GitHub and the existing database service |
 | `.github/workflows/railway-deploy.yml` | Release the API when Railway's Git connection needs a fallback | No paid AI call; build and hosting usage stays on the existing Railway account |
 | `.github/workflows/vercel-deploy.yml` | Release the web app when Vercel's Git connection needs a fallback | No paid AI call; build and hosting usage stays on the existing Vercel account |
@@ -64,7 +65,7 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 98 runnable files. GitHub jobs call 36 of them
+The `scripts/` folder has 99 runnable files. GitHub jobs call 37 of them
 directly and 3 document checks through `local_checks.py`. The 4 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`, which uses `worktree_inventory.py`
 for the complete folder report; the older shell command
@@ -93,6 +94,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Collect change history by hand, report examined causes and retain prevention references | `review_repeat_failures.py` |
 | Run existing tests once and retain named money-prevention results for the exact tested code | `repeat_failure_runs.py` |
 | Measure what real visitors waited for | `report_origin_share_by_address.py`, `report_page_speed_by_address.py` |
+| Archive and search FCC political advertising evidence, restore source copies and review expense links | `fcc_political_files.py` |
 | Maintain search and stored files | `archive_published_sources.py`, `collect_page_failure_health.py` (public-safe hourly failure counts), `build_rag_hnsw_index.py`, `mirror_raw_files.py`, `notify_changed_public_pages.py` (bounded real public changes with durable receipts) |
 | Protect unfinished work and rotating read grants | `back-up-uncommitted-worktree-work.sh`, `worktree_backup.py`, `supabase_oauth_state.mjs` |
 | Install free Mac maintenance, report every folder and safely remove released working folders | `install_worktree_maintenance.py`, `worktree_cleanup.py`, `worktree_inventory.py` |

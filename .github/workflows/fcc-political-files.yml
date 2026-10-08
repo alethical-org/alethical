@@ -1,0 +1,140 @@
+name: Keep private FCC political files
+
+# Manual-only until full-history source load, storage allowances, and cadence have
+# been measured and approved. No cron is armed. Future daily runs can use the
+# 7-day refresh policy; a weekly full refresh must be explicitly selected here.
+# No AI API is used: text recognition runs on this runner with local software.
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Describe scope without database, source, or storage connections"
+        type: boolean
+        default: true
+      refresh_existing:
+        description: "Download existing PDFs again, keeping changed versions"
+        type: boolean
+        default: false
+      max_files:
+        description: "Maximum documents attempted this run (1 to 500)"
+        type: number
+        default: 100
+      extract_limit:
+        description: "Maximum archived PDFs read locally this run (1 to 100)"
+        type: number
+        default: 25
+
+concurrency:
+  group: production-fcc-political-files
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: .
+      OPENAI_API_KEY: ""
+      SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_STORAGE_S3_ENDPOINT: ${{ secrets.SUPABASE_STORAGE_S3_ENDPOINT }}
+      SUPABASE_STORAGE_S3_REGION: ${{ secrets.SUPABASE_STORAGE_S3_REGION }}
+      SUPABASE_STORAGE_S3_ACCESS_KEY_ID: ${{ secrets.SUPABASE_STORAGE_S3_ACCESS_KEY_ID }}
+      SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY: ${{ secrets.SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY }}
+      CLOUDFLARE_R2_ENDPOINT: ${{ secrets.CLOUDFLARE_R2_ENDPOINT }}
+      CLOUDFLARE_R2_BUCKET: ${{ secrets.CLOUDFLARE_R2_BUCKET }}
+      CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+      CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          version: 0.12.5
+          enable-cache: true
+          prune-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Validate bounded run inputs
+        shell: bash
+        env:
+          MAX_FILES: ${{ inputs.max_files }}
+          EXTRACT_LIMIT: ${{ inputs.extract_limit }}
+        run: |
+          [[ "$MAX_FILES" =~ ^[0-9]+$ && "$MAX_FILES" -ge 1 && "$MAX_FILES" -le 500 ]]
+          [[ "$EXTRACT_LIMIT" =~ ^[0-9]+$ && "$EXTRACT_LIMIT" -ge 1 && "$EXTRACT_LIMIT" -le 100 ]]
+
+      - name: Describe the full collection scope
+        shell: bash
+        env:
+          MAX_FILES: ${{ inputs.max_files }}
+          REFRESH_EXISTING: ${{ inputs.refresh_existing }}
+        run: |
+          args=()
+          if [ "$REFRESH_EXISTING" = "true" ]; then args+=(--refresh-existing); fi
+          uv run python scripts/fcc_political_files.py collect --target prod \
+            --dry-run --max-files "$MAX_FILES" "${args[@]}"
+
+      - name: Check required private settings
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        run: |
+          missing=()
+          for name in SUPABASE_PROJECT_URL SUPABASE_DB_PASSWORD \
+                      SUPABASE_STORAGE_S3_ENDPOINT SUPABASE_STORAGE_S3_REGION \
+                      SUPABASE_STORAGE_S3_ACCESS_KEY_ID SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY \
+                      CLOUDFLARE_R2_ENDPOINT CLOUDFLARE_R2_BUCKET \
+                      CLOUDFLARE_R2_ACCESS_KEY_ID CLOUDFLARE_R2_SECRET_ACCESS_KEY; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf 'Missing repository settings: %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      - name: Install local PDF and text recognition tools
+        if: ${{ !inputs.dry_run }}
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y poppler-utils tesseract-ocr
+
+      - name: Keep listings and public PDFs
+        id: collect
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        env:
+          MAX_FILES: ${{ inputs.max_files }}
+          REFRESH_EXISTING: ${{ inputs.refresh_existing }}
+        run: |
+          args=()
+          if [ "$REFRESH_EXISTING" = "true" ]; then args+=(--refresh-existing); fi
+          uv run python scripts/fcc_political_files.py collect --target prod \
+            --stations all --workers 3 --max-files "$MAX_FILES" "${args[@]}"
+
+      # A limited or incomplete collection is a failed step, but retained evidence
+      # still gets its second copy and local reading. No failure is swallowed.
+      - name: Make verified second copies
+        if: ${{ always() && !cancelled() && !inputs.dry_run && steps.collect.outcome != 'skipped' }}
+        run: uv run python scripts/fcc_political_files.py mirror --target prod --limit 200
+
+      - name: Read PDFs with local software
+        if: ${{ always() && !cancelled() && !inputs.dry_run && steps.collect.outcome != 'skipped' }}
+        env:
+          EXTRACT_LIMIT: ${{ inputs.extract_limit }}
+        run: uv run python scripts/fcc_political_files.py extract --target prod --workers 2 --limit "$EXTRACT_LIMIT"
+
+      - name: Show held records and remaining gaps
+        if: ${{ always() && !cancelled() && !inputs.dry_run && steps.collect.outcome != 'skipped' }}
+        run: |
+          uv run python scripts/fcc_political_files.py status --target prod
+          uv run python scripts/fcc_political_files.py gaps --target prod --limit 100
