@@ -12,6 +12,8 @@ import zlib
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from pypdf import PdfReader, PdfWriter, Transformation
 from pypdf.generic import (
     DecodedStreamObject,
@@ -204,24 +206,7 @@ class LabelReadingTests(unittest.TestCase):
         _, facts, _ = _read("Gross Amount: $100.00\nNet Amount: $85.00\nCommission:\n")
         self.assertEqual(set(_values(facts)), {"gross_amount", "net_amount"})
 
-    def test_wrong_columns_and_malformed_money_are_unknown(self):
-        for text in (
-            "Gross Amount  Net Amount\n$100.00      $85.00",
-            "Gross Amount: $100.00  $85.00",
-            "Gross Amount:\nNet Amount: $85.00",
-            "Gross Amount: $10,00.00",
-            "Gross Amount: $100.001",
-            "Gross Amount: see page 2, $100.00",
-            "Gross Amount: 1e3",
-        ):
-            with self.subTest(text=text):
-                _, facts, _ = _read(text)
-                self.assertNotIn("gross_amount", _values(facts))
-
-    def test_rate_requires_explicit_percent_and_valid_range(self):
-        for value in ("15", "150%", "$15.00", "15%  $300.00"):
-            with self.subTest(value=value):
-                self.assertFalse(_read(f"Commission Rate: {value}")[1])
+    def test_explicit_valid_commission_rate_is_read(self):
         self.assertEqual(
             _values(_read("Agency Commission: 15%")[1]), {"commission_rate": "15"}
         )
@@ -233,6 +218,28 @@ class LabelReadingTests(unittest.TestCase):
             "disclosure",
         )
         self.assertEqual(_read("INVOICE\nCredit Amount: $20.00")[0], "invoice")
+
+
+@pytest.mark.parametrize(
+    "text",
+    (
+        "Gross Amount  Net Amount\n$100.00      $85.00",
+        "Gross Amount: $100.00  $85.00",
+        "Gross Amount:\nNet Amount: $85.00",
+        "Gross Amount: $10,00.00",
+        "Gross Amount: $100.001",
+        "Gross Amount: see page 2, $100.00",
+        "Gross Amount: 1e3",
+    ),
+)
+def test_wrong_columns_and_malformed_money_are_unknown(text):
+    _, facts, _ = _read(text)
+    assert "gross_amount" not in _values(facts)
+
+
+@pytest.mark.parametrize("value", ("15", "150%", "$15.00", "15%  $300.00"))
+def test_rate_requires_explicit_percent_and_valid_range(value):
+    assert not _read(f"Commission Rate: {value}")[1]
 
 
 class PdfReadingTests(unittest.TestCase):
