@@ -14,7 +14,6 @@ import fcntl
 import hashlib
 import json
 import os
-import shlex
 import shutil
 import stat
 import subprocess
@@ -514,7 +513,8 @@ def register(repo: Path, state: Path, path: Path, owner: str) -> dict:
             }
             for key in owners
         }
-    owners[owner] = {"status": "active", "started_at": now()}
+    if owners.get(owner, {}).get("status") != "held":
+        owners[owner] = {"status": "active", "started_at": now()}
     record.update(owners=owners)
     write_json(target, record)
     released = state / "released" / (record["id"] + ".json")
@@ -1016,16 +1016,13 @@ def restore(state: Path, key: str, destination: Path) -> None:
 
 
 def hook(repo: Path, state: Path, payload: dict) -> dict | None:
-    """Register/revoke on new work; require a hold or release before a final reply.
+    """Record activity quietly; only an explicit owner release permits removal.
 
-    Stop never authorizes removal. The gate does not interpret prose or transcripts.
-    Unfinished turns need an explicit hold, not permission to remove the folder.
+    New work cancels queued cleanup. Stop records a conservative hold when needed,
+    never blocks a reply and never interprets the reply as completed delivery.
     """
     event = payload.get("hook_event_name")
-    if event == "Stop" and payload.get("stop_hook_active") is True:
-        # The host already resumed the agent for a Stop correction. Re-blocking
-        # can loop forever when the agent cannot write its hold in the sandbox.
-        # Leave recorded ownership unchanged, so cleanup still cannot remove it.
+    if event not in ("SessionStart", "UserPromptSubmit", "Stop"):
         return None
     cwd = Path(payload.get("cwd", "")).absolute()
     owner = payload.get("session_id")
@@ -1040,48 +1037,27 @@ def hook(repo: Path, state: Path, payload: dict) -> dict | None:
         )
     if event in ("SessionStart", "UserPromptSubmit"):
         register(repo, state, path, owner)
-        command = f"{shlex.quote(sys.executable)} {shlex.quote(str(Path(__file__).resolve()))} --project {PROJECT} --repo {shlex.quote(str(repo))} --state {shlex.quote(str(state))}"
-        context = (
-            f"Worktree cleanup owner is {owner}. When delivery and acceptance are finished, "
-            f"release this folder with: {command} release --worktree {shlex.quote(str(path))} "
-            f"--owner {shlex.quote(owner)} --evidence 'describe the finished delivery'. "
-            "If review or a preview remains, use the hold command with its reason. "
-            "Never release merely because a change merged."
-        )
-        if is_native(path):
-            context = (
-                f"Working-folder owner is {owner}. Codex owns {path}; only its supported archive_worktree tool may remove it after delivery and acceptance. "
-                "Preserve needed ignored files first. If the app protects the folder, or unfinished work/review/preview remains, record the exact hold with: "
-                f"{command} hold --worktree {shlex.quote(str(path))} --owner {shlex.quote(owner)} --reason 'describe what remains or the native protection'. "
-                "Never use Git removal or private app-state edits. Run inspect for the local folder report; recorded ownership does not establish live chat activity."
-            )
-        return {
-            "hookSpecificOutput": {"hookEventName": event, "additionalContext": context}
-        }
-    if event != "Stop":
         return None
     target = state / "owners" / (record["id"] + ".json")
     if not target.exists():
         register(repo, state, path, owner)
     registered = json.loads(target.read_text())
-    if registered.get("head") != record["head"] or owner not in registered.get(
-        "owners", {}
-    ):
+    if any(
+        registered.get(key) != record[key]
+        for key in ("head", "branch", "gitdir", "common", "path")
+    ) or owner not in registered.get("owners", {}):
         registered = register(repo, state, path, owner)
     disposition = registered.get("owners", {}).get(owner, {})
     if disposition.get("status") in ("released", "held"):
         return None
-    return {
-        "decision": "block",
-        "reason": (
-            "This working folder has no current finish decision. "
-            "For unfinished work, a preview, or pending review, record hold with the concrete remaining work. "
-            "For a Codex-managed folder use only the app's archive action after delivery/acceptance, or record its exact protection as a hold. "
-            "If delivery and acceptance are complete, call the cleanup release command with this "
-            f"worktree and owner {owner}. Otherwise call hold with the remaining review/preview work. "
-            "The release queues recoverable cleanup; hold keeps the folder. Do not ask Eugene to clean it."
-        ),
-    }
+    retain(
+        repo,
+        state,
+        path,
+        owner,
+        "No explicit completion release; keep this working folder",
+    )
+    return None
 
 
 def status_records(state: Path) -> list[dict]:
@@ -1126,7 +1102,10 @@ def main() -> int:
     recover.add_argument("destination", type=Path)
     args = parser.parse_args()
     args.state = args.state or default_state(args.project)
+    payload = {}
     try:
+        if args.command == "hook":
+            payload = json.load(sys.stdin)
         guard = (
             nullcontext()
             if args.command in ("inspect", "status")
@@ -1180,7 +1159,7 @@ def main() -> int:
                 )
                 print("The owning task retained this folder with its remaining work.")
             elif args.command == "hook":
-                result = hook(args.repo, args.state, json.load(sys.stdin))
+                result = hook(args.repo, args.state, payload)
                 if result:
                     print(json.dumps(result))
             elif args.command == "sweep":
@@ -1197,6 +1176,9 @@ def main() -> int:
         return 0
     except (CleanupError, OSError, ValueError) as error:
         if args.command == "hook":
+            if payload.get("hook_event_name") == "Stop":
+                print(f"Cleanup finish record unchanged: {error}", file=sys.stderr)
+                return 0
             print(
                 json.dumps(
                     {

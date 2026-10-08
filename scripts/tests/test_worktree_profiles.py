@@ -60,14 +60,9 @@ class ProfileTest(unittest.TestCase):
                 "session_id": "native-owner",
                 "hook_event_name": "SessionStart",
             }
-            context = self.cleanup.hook(self.repo, self.state, payload)
-            self.assertIn(
-                "archive_worktree", context["hookSpecificOutput"]["additionalContext"]
-            )
+            self.assertIsNone(self.cleanup.hook(self.repo, self.state, payload))
             payload["hook_event_name"] = "Stop"
-            self.assertEqual(
-                self.cleanup.hook(self.repo, self.state, payload)["decision"], "block"
-            )
+            self.assertIsNone(self.cleanup.hook(self.repo, self.state, payload))
             record = self.cleanup.identity(self.repo, native, allow_retained=True)
             target = self.state / "owners" / (record["id"] + ".json")
             before = target.read_bytes()
@@ -82,7 +77,7 @@ class ProfileTest(unittest.TestCase):
                 self.assertIsNone(self.cleanup.hook(self.repo, self.state, payload))
             self.assertEqual(target.read_bytes(), before)
             self.assertEqual(
-                json.loads(before)["owners"]["native-owner"]["status"], "active"
+                json.loads(before)["owners"]["native-owner"]["status"], "held"
             )
             self.assertTrue(native.exists())
             payload["stop_hook_active"] = False
