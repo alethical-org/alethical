@@ -2192,8 +2192,12 @@ Rationale:
   1 digit for a numbered street
 - the state request contains the house number and street-name prefix, not the city or ZIP;
   supplied city and ZIP text rank the returned choices inside Alethical
-- active status is filtered locally to reduce source-query work; if the source reports
-  omitted rows, retry the original active-filtered query before returning suggestions
+- state and active status are filtered locally to reduce source-query work; if the source
+  reports omitted rows, retry the original state-and-active-filtered query before returning
+  suggestions
+- Minnesota address-point requests reuse thread-local connections without cookies or
+  credentials, including redirects; no address/query result cache is added and Census
+  transport is unchanged
 - choosing a suggestion gives the existing representative lookup its official point, so
   the reader does not need a second click or another geocoding request
 - the endpoint has its own 60-requests-per-public-IP-per-60-seconds limit, separate from
@@ -2719,7 +2723,10 @@ Frontend access path:
 
 Economic access:
 
-- one debounced suggestion request after a typing pause, cached for 60s per partial address
+- the first eligible input and edits after idle request suggestions immediately; continuing
+  typing shares 1 trailing request after a 180ms pause
+- at most 8 successful exact inputs are reused for 60 seconds within the mounted field;
+  clearing, submitting, replacing the source or unmounting erases them, with no shared cache
 - one representative lookup after the reader chooses a suggestion or submits a full address
 
 ### 5. Cross-Entity Search
