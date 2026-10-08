@@ -386,7 +386,11 @@ it('keeps the same focused busy button and prevents repeat submission', async ()
   expect(find.getAttribute('aria-disabled')).toBe('true');
   expect(find.textContent).toBe('Finding candidates…');
   expect(find.getAttribute('disabled')).toBeNull();
-  expect(host.querySelector('[aria-live="polite"]')?.textContent).toContain('Finding candidates…');
+  expect(
+    [...host.querySelectorAll('[aria-live="polite"]')]
+      .map((region) => region.textContent)
+      .join(' '),
+  ).toContain('Finding candidates…');
   await act(async () => resolve(result()));
   await flush();
 });

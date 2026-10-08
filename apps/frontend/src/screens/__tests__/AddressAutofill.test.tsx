@@ -16,7 +16,8 @@ const lookup = vi.hoisted(() => ({
   reset: vi.fn(),
   isPending: false,
   data: undefined as unknown,
-  error: null,
+  variables: undefined as unknown,
+  error: null as Error | null,
 }));
 vi.mock('../../hooks/useAppQueries', () => ({
   useRepresentativeLookup: () => lookup,
@@ -27,7 +28,7 @@ vi.mock('../../hooks/useHistoryScrollRestoration', () => ({
 }));
 vi.mock('../../components/MapPinPicker', () => ({
   MINNESOTA_MAP_VIEWPORT: {},
-  MapPinPicker: () => null,
+  MapPinPicker: () => <div data-test-map />,
 }));
 vi.mock('../../components/find/RepresentativeCard', () => ({
   RepresentativeCard: () => null,
@@ -53,6 +54,9 @@ beforeEach(() => {
   root = createRoot(host);
   vi.clearAllMocks();
   lookup.data = undefined;
+  lookup.error = null;
+  lookup.variables = undefined;
+  lookup.isPending = false;
 });
 afterEach(() => {
   act(() => root.unmount());
@@ -60,9 +64,14 @@ afterEach(() => {
 });
 const address = '100 Example Street, Minneapolis, MN 55415, United States';
 function fillAndSubmit(method: string) {
-  const input = host.querySelector('input')!;
+  const input = host.querySelector<HTMLInputElement | HTMLTextAreaElement>('input,textarea')!;
   if (method === 'blur-button') act(() => input.focus());
-  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, address);
+  Object.getOwnPropertyDescriptor(
+    input instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype,
+    'value',
+  )!.set!.call(input, address);
   if (method === 'blur-button') act(() => input.blur());
   act(() => {
     if (method === 'keyboard')
@@ -131,8 +140,13 @@ it.each(['homepage', 'search'])(
         <FindMyLegislatorScreen navigation={navigation as never} route={{ params: {} } as never} />
       );
     act(() => root.render(render()));
-    const input = host.querySelector('input')!;
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, address);
+    const input = host.querySelector<HTMLInputElement | HTMLTextAreaElement>('input,textarea')!;
+    Object.getOwnPropertyDescriptor(
+      input instanceof HTMLTextAreaElement
+        ? HTMLTextAreaElement.prototype
+        : HTMLInputElement.prototype,
+      'value',
+    )!.set!.call(input, address);
     act(() => root.render(render()));
     expect(input.value).toBe(address);
     act(() =>
@@ -163,9 +177,112 @@ it('still applies deliberate legislator address replacements and clears', () => 
       />,
     );
   act(() => render(''));
-  const input = host.querySelector('input')!;
+  const input = host.querySelector<HTMLInputElement | HTMLTextAreaElement>('input,textarea')!;
   act(() => render(address));
   expect(input.value).toBe(address);
   act(() => render(''));
   expect(input.value).toBe('');
+});
+
+it('keeps the last legislator results and their address through editing, loading and failure', () => {
+  const navigation = { setParams: vi.fn(), navigate: vi.fn() };
+  const render = () =>
+    act(() =>
+      root.render(
+        <FindMyLegislatorScreen navigation={navigation as never} route={{ params: {} } as never} />,
+      ),
+    );
+  lookup.data = {
+    status: 'found',
+    address: '100 First St, Minneapolis, MN 55415',
+    houseDistrict: '1A',
+    senateDistrict: '1',
+  };
+  render();
+  expect(host.textContent).toContain('100 First St');
+  lookup.data = undefined;
+  render();
+  expect(host.textContent).toContain('Your Minnesota legislators');
+  expect(host.querySelectorAll('[data-test-map]')).toHaveLength(1);
+  lookup.isPending = true;
+  render();
+  expect(host.textContent).toContain('100 First St');
+  expect(host.textContent).toContain('Updating legislators: showing the previous results');
+  expect(host.textContent).toContain('Finding…');
+  lookup.isPending = false;
+  lookup.error = new Error('unavailable');
+  render();
+  expect(host.textContent).toContain('100 First St');
+  expect(host.textContent).toContain('Couldn’t update legislators: showing the previous results');
+  expect(
+    host.querySelector('[aria-label="Find legislators"]')?.getAttribute('aria-disabled'),
+  ).not.toBe('true');
+  lookup.error = null;
+  lookup.data = {
+    status: 'found',
+    address: '200 Second St, Minneapolis, MN 55415',
+    houseDistrict: '2A',
+    senateDistrict: '2',
+  };
+  render();
+  expect(host.textContent).toContain('200 Second St');
+  expect(host.textContent).not.toContain('100 First St');
+});
+it('focuses submitted address choices and accepts the highlighted choice with Enter', () => {
+  const choice = {
+    matchedAddress: '100 Main St, Minneapolis, MN 55415',
+    latitude: 44.98,
+    longitude: -93.27,
+  };
+  lookup.data = { status: 'address-choice', choices: [choice] };
+  const navigation = { setParams: vi.fn(), navigate: vi.fn() };
+  act(() =>
+    root.render(
+      <FindMyLegislatorScreen navigation={navigation as never} route={{ params: {} } as never} />,
+    ),
+  );
+  const list = host.querySelector('[role="listbox"]')!;
+  expect(document.activeElement).toBe(list);
+  expect(list.getAttribute('aria-activedescendant')).toBe(
+    host.querySelector('[role="option"]')?.id,
+  );
+  act(() =>
+    list.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }),
+    ),
+  );
+  expect(lookup.mutate).toHaveBeenCalledExactlyOnceWith({ latitude: 44.98, longitude: -93.27 });
+});
+
+it('keeps a chosen address attached to its coordinate lookup result', () => {
+  const choice = {
+    matchedAddress: '100 Main St, Minneapolis, MN 55415',
+    latitude: 44.98,
+    longitude: -93.27,
+  };
+  lookup.data = { status: 'address-choice', choices: [choice] };
+  const navigation = { setParams: vi.fn(), navigate: vi.fn() };
+  const render = () =>
+    act(() =>
+      root.render(
+        <FindMyLegislatorScreen navigation={navigation as never} route={{ params: {} } as never} />,
+      ),
+    );
+  render();
+  act(() => host.querySelector<HTMLElement>('[role="option"]')!.click());
+  lookup.variables = lookup.mutate.mock.calls[0][0];
+  lookup.data = {
+    status: 'found',
+    address: '44.98,-93.27',
+    houseDistrict: '1A',
+    senateDistrict: '1',
+  };
+  render();
+  expect(host.textContent).toContain(choice.matchedAddress);
+  expect(host.textContent).not.toContain('44.98,-93.27');
+  lookup.isPending = true;
+  lookup.data = undefined;
+  lookup.variables = '200 Other St';
+  render();
+  expect(host.textContent).toContain(choice.matchedAddress);
 });

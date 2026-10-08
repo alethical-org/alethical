@@ -28,10 +28,10 @@
       }
     </style>
     <style id="alethical-browser-fill">
-      input[data-alethical-browser-fill="true"]:autofill,
-      input[data-alethical-browser-fill="true"]:autofill:hover,
-      input[data-alethical-browser-fill="true"]:autofill:focus,
-      input[data-alethical-browser-fill="true"]:autofill:active {
+      :is(input, textarea)[data-alethical-browser-fill="true"]:autofill,
+      :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:hover,
+      :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:focus,
+      :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:active {
         background-color: #ffffff !important;
         -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
         box-shadow: 0 0 0 1000px #ffffff inset !important;
@@ -39,10 +39,10 @@
         color: #11150f !important;
         caret-color: #11150f !important;
       }
-      input[data-alethical-browser-fill="true"]:-webkit-autofill,
-      input[data-alethical-browser-fill="true"]:-webkit-autofill:hover,
-      input[data-alethical-browser-fill="true"]:-webkit-autofill:focus,
-      input[data-alethical-browser-fill="true"]:-webkit-autofill:active {
+      :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill,
+      :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:hover,
+      :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:focus,
+      :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:active {
         background-color: #ffffff !important;
         -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
         box-shadow: 0 0 0 1000px #ffffff inset !important;
@@ -51,10 +51,10 @@
         caret-color: #11150f !important;
       }
       @media (forced-colors: active) {
-        input[data-alethical-browser-fill="true"]:autofill,
-        input[data-alethical-browser-fill="true"]:autofill:hover,
-        input[data-alethical-browser-fill="true"]:autofill:focus,
-        input[data-alethical-browser-fill="true"]:autofill:active {
+        :is(input, textarea)[data-alethical-browser-fill="true"]:autofill,
+        :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:hover,
+        :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:focus,
+        :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:active {
           background-color: Canvas !important;
           -webkit-box-shadow: none !important;
           box-shadow: none !important;
@@ -62,10 +62,10 @@
           color: CanvasText !important;
           caret-color: CanvasText !important;
         }
-        input[data-alethical-browser-fill="true"]:-webkit-autofill,
-        input[data-alethical-browser-fill="true"]:-webkit-autofill:hover,
-        input[data-alethical-browser-fill="true"]:-webkit-autofill:focus,
-        input[data-alethical-browser-fill="true"]:-webkit-autofill:active {
+        :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill,
+        :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:hover,
+        :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:focus,
+        :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:active {
           background-color: Canvas !important;
           -webkit-box-shadow: none !important;
           box-shadow: none !important;

@@ -15,7 +15,7 @@ import {
   ensureBrowserFillStyles,
 } from '../browserFill';
 
-const TARGET = 'input[data-alethical-browser-fill="true"]';
+const TARGET = ':is(input, textarea)[data-alethical-browser-fill="true"]';
 const { renderToStaticMarkup } = require('react-dom/server') as {
   renderToStaticMarkup: (node: React.ReactNode) => string;
 };

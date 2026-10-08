@@ -2,18 +2,16 @@ import { CANDIDATE_LOOKUP_COPY } from '../../lib/candidatePublicCopy';
 import {
   useEffect,
   useId,
-  useLayoutEffect,
+  useCallback,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
-import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
-import { currentAddressInput } from '../../lib/currentAddressInput';
-import { addressSuggestionInput } from '../../lib/findMyLegislator';
+import { AddressSuggestionField, type AddressFieldHandle } from '../address/AddressSuggestionField';
 import { useResponsive } from '../../hooks/useResponsive';
 import { theme as t } from '../../theme/tokens';
-import { fieldFocusRing, fieldOutlineReset } from '../../theme/fieldFocus';
 import { CandidateButton, candidateText } from './CandidateControls';
 import type {
   CandidateAddressChoice,
@@ -53,78 +51,25 @@ export function CandidateAddressForm({
 }) {
   const { isMobile, isDesktop } = useResponsive();
   const id = useId().replace(/:/g, '');
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-  const nativeRef = useRef<TextInput>(null);
+  const inputRef = useRef<AddressFieldHandle>(null);
   const buttonRef = useRef<View>(null);
   const choicesRef = useRef<View>(null);
-  const generation = useRef(0);
-  const [suggestions, setSuggestions] = useState<CandidateAddressChoice[]>([]);
-  const [suggestOpen, setSuggestOpen] = useState(false);
-  const [active, setActive] = useState(-1);
   const [choiceActive, setChoiceActive] = useState(0);
   const [choicesOpen, setChoicesOpen] = useState(false);
-  const [focused, setFocused] = useState(false);
   const [missing, setMissing] = useState(false);
-  const [fieldHover, setFieldHover] = useState(false);
-  useLayoutEffect(() => {
-    // Explicit address changes still update the field. Suggestion, hover, and
-    // other renders must not overwrite a browser fill whose event has not fired.
-    if (inputRef.current && inputRef.current.value !== address) inputRef.current.value = address;
-  }, [address]);
-  useLayoutEffect(() => {
-    const field = inputRef.current;
-    if (!field) return;
-    const resize = () => {
-      field.style.height = 'auto';
-      field.style.height = `${Math.max(compact ? 54 : 58, field.scrollHeight)}px`;
-    };
-    resize();
-    if (typeof ResizeObserver === 'undefined') return;
-    let width = field.getBoundingClientRect().width;
-    const observer = new ResizeObserver(() => {
-      const nextWidth = field.getBoundingClientRect().width;
-      if (nextWidth !== width) {
-        width = nextWidth;
-        resize();
-      }
-    });
-    observer.observe(field);
-    return () => observer.disconnect();
-  }, [address, compact]);
-  const focusField = () => {
-    inputRef.current?.focus();
-    nativeRef.current?.focus();
-  };
+  const focusField = () => inputRef.current?.focus();
   useEffect(() => {
     if (focus) focusField();
   }, [focus]);
-  useEffect(() => {
-    const token = ++generation.current;
-    const controller = new AbortController();
-    setSuggestions([]);
-    setSuggestOpen(false);
-    setActive(-1);
-    const suggestionInput = addressSuggestionInput(address);
-    if (!focused || !suggestionInput || busy) return () => controller.abort();
-    const timer = setTimeout(() => {
-      if (token !== generation.current) return;
-      void services
-        .suggest(suggestionInput, controller.signal)
-        .then((matches) => {
-          if (token !== generation.current || controller.signal.aborted) return;
-          setSuggestions(matches);
-          setSuggestOpen(matches.length > 0);
-          setActive(matches.length ? 0 : -1);
-        })
-        .catch(() => {
-          /* Suggestions are optional; explicit submit still works. */
-        });
-    }, 180);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [address, busy, focused, services]);
+  const suggest = useCallback(
+    async (value: string, signal: AbortSignal) =>
+      (await services.suggest(value, signal)).map((choice) => ({
+        id: choice.id,
+        address: choice.address,
+        value: choice,
+      })),
+    [services],
+  );
   useEffect(() => {
     setChoicesOpen(outcome?.kind === 'ambiguous');
     setChoiceActive(0);
@@ -136,80 +81,27 @@ export function CandidateAddressForm({
     }
   }, [choicesOpen]);
   const choices = outcome?.kind === 'ambiguous' ? outcome.choices : [];
-  const visibleAddress = () => currentAddressInput(inputRef.current, address);
-  const submit = (choice?: CandidateAddressChoice, completeSuggestion = false) => {
+  const submit = (choice?: CandidateAddressChoice, suggestionAddress?: string) => {
     if (busy) return;
-    generation.current += 1;
-    let value = visibleAddress();
-    // A browser-filled replacement invalidates any old highlighted suggestion.
-    const changed = value !== address;
-    if (changed) {
-      generation.current += 1;
-      setSuggestions([]);
-      setActive(-1);
-      onAddress(value);
-    }
+    const value = suggestionAddress ?? inputRef.current?.value() ?? address;
+    inputRef.current?.dismiss();
+    if (value !== address) onAddress(value);
     if (!value.trim()) {
-      setMissing(true);
       focusField();
+      setMissing(true);
       return;
-    }
-    if (completeSuggestion && choice && !changed) {
-      // A typed prefix is only for finding suggestions. Resolve the full address
-      // the person chose, while keeping submitted ambiguity choices unchanged.
-      value = choice.address;
-      if (inputRef.current) inputRef.current.value = value;
-      onAddress(value);
     }
     setMissing(false);
-    setSuggestOpen(false);
     setChoicesOpen(false);
-    // Focus belongs to this submitted action, not election changes or retries.
     if (Platform.OS === 'web') (buttonRef.current as unknown as HTMLElement | null)?.focus();
-    if (choice && !changed) onSubmit(value, choice);
-    else onSubmit(value);
+    if (choice && (suggestionAddress !== undefined || value === address)) {
+      onSubmit(
+        value,
+        suggestionAddress === undefined ? choice : { ...choice, address: value, label: value },
+      );
+    } else onSubmit(value);
   };
   const pick = (choice: CandidateAddressChoice) => submit(choice);
-  const pickSuggestion = (choice: CandidateAddressChoice) => submit(choice, true);
-  const fieldKey = (event: ReactKeyboardEvent<HTMLElement>) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      generation.current += 1;
-      if (!suggestOpen && !choicesOpen) onCancel?.();
-      setSuggestOpen(false);
-      setChoicesOpen(false);
-      return;
-    }
-    if (
-      suggestOpen &&
-      suggestions.length &&
-      (event.key === 'ArrowDown' || event.key === 'ArrowUp')
-    ) {
-      event.preventDefault();
-      const next =
-        (active + (event.key === 'ArrowDown' ? 1 : -1) + suggestions.length) % suggestions.length;
-      setActive(next);
-      // Reveal keyboard choices inside the list without moving the page or field.
-      if (Platform.OS === 'web') {
-        const list = document.getElementById(`${id}-suggestions`);
-        const row = document.getElementById(`${id}-suggestion-${next}`);
-        if (list && row) {
-          const listTop = list.getBoundingClientRect().top + list.clientTop;
-          const rowBounds = row.getBoundingClientRect();
-          if (rowBounds.top < listTop) list.scrollTop += rowBounds.top - listTop;
-          else if (rowBounds.bottom > listTop + list.clientHeight) {
-            list.scrollTop += rowBounds.bottom - listTop - list.clientHeight;
-          }
-        }
-      }
-      return;
-    }
-    if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
-      event.preventDefault();
-      if (suggestOpen && active >= 0 && suggestions[active]) pickSuggestion(suggestions[active]);
-      else submit();
-    }
-  };
   const choiceKey = (event: ReactKeyboardEvent<HTMLElement>) => {
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -239,157 +131,40 @@ export function CandidateAddressForm({
         : '';
   const invalid =
     !busy && (missing || errorKind === 'no-match' || errorKind === 'outside-minnesota');
-  const inputStyle = {
-    width: '100%',
-    minHeight: compact ? 54 : 58,
-    padding: compact ? '14px 16px' : '16px 18px',
-    border: 'none',
-    borderRadius: compact ? 12 : 14,
-    background: '#fff',
-    color: '#11150f',
-    fontFamily: t.typography.body,
-    fontSize: compact ? 16.5 : 17,
-    outline: 'none',
-    boxSizing: 'border-box' as const,
-    fontVariantNumeric: 'tabular-nums' as const,
-    scrollMarginTop: 90,
-    resize: 'none' as const,
-    overflow: 'hidden',
-    overflowWrap: 'anywhere' as const,
-    lineHeight: '26px',
-  };
   return (
     <View style={[styles.form, compact && { marginTop: 0 }]}>
       <Text nativeID={`${id}-label`} style={candidateText.strong}>
         {CANDIDATE_LOOKUP_COPY.addressLabel}
       </Text>
+      <Text nativeID={`${id}-help`} style={styles.help}>
+        A city or ZIP code alone cannot identify your local races
+      </Text>
       <View style={[styles.controls, (isMobile || compact) && { flexDirection: 'column' }]}>
         <View
           style={[styles.fieldWrap, (isMobile || compact) && { flex: undefined, width: '100%' }]}
         >
-          <View
-            style={[
-              styles.inputBorder,
-              compact && { minHeight: 56, borderRadius: 12 },
-              {
-                borderColor: invalid
-                  ? '#a3421a'
-                  : fieldHover
-                    ? 'rgba(17,21,15,0.4)'
-                    : 'rgba(17,21,15,0.18)',
-              },
-              ...fieldFocusRing(focused),
-            ]}
-          >
-            {Platform.OS === 'web' ? (
-              <textarea
-                rows={1}
-                ref={inputRef}
-                aria-labelledby={`${id}-label`}
-                role="combobox"
-                aria-autocomplete="list"
-                aria-expanded={suggestOpen}
-                aria-controls={`${id}-suggestions`}
-                aria-activedescendant={
-                  suggestOpen && active >= 0 ? `${id}-suggestion-${active}` : undefined
-                }
-                aria-invalid={invalid || undefined}
-                aria-describedby={`${id}-message ${id}-help`}
-                autoComplete="street-address"
-                enterKeyHint="search"
-                defaultValue={address}
-                placeholder="350 S 5th St, Minneapolis, MN 55415"
-                style={inputStyle}
-                onChange={(event) => {
-                  generation.current += 1;
-                  setSuggestOpen(false);
-                  setMissing(false);
-                  setChoicesOpen(false);
-                  const value = event.target.value.replace(/[\r\n]+/g, ' ');
-                  event.target.value = value;
-                  onAddress(value);
-                }}
-                onFocus={() => {
-                  const value = visibleAddress();
-                  if (value !== address) onAddress(value);
-                  setFocused(true);
-                  if (isMobile) inputRef.current?.scrollIntoView?.({ block: 'nearest' });
-                }}
-                onBlur={() => {
-                  const value = visibleAddress();
-                  if (value !== address) {
-                    generation.current += 1;
-                    setSuggestions([]);
-                    setChoicesOpen(false);
-                    onAddress(value);
-                  }
-                  setFocused(false);
-                  setSuggestOpen(false);
-                }}
-                onKeyDown={fieldKey}
-                onMouseEnter={() => !isMobile && setFieldHover(true)}
-                onMouseLeave={() => setFieldHover(false)}
-              />
-            ) : (
-              <TextInput
-                ref={nativeRef}
-                accessibilityLabel="Full street address"
-                value={address}
-                onChangeText={onAddress}
-                onSubmitEditing={() => submit()}
-                autoComplete="street-address"
-                placeholder="350 S 5th St, Minneapolis, MN 55415"
-                style={[styles.nativeInput, fieldOutlineReset]}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
-              />
-            )}
-          </View>
-          {suggestOpen ? (
-            <View style={[styles.suggestions, !isMobile && styles.suggestionOverlay]}>
-              <Text style={styles.suggestionHeading}>
-                {suggestions.length === 1 ? 'Suggested address' : 'Suggested addresses'}
-              </Text>
-              <View
-                nativeID={`${id}-suggestions`}
-                {...({ role: 'listbox' } as object)}
-                accessibilityLabel="Matching Minnesota addresses"
-                style={styles.suggestionList}
-              >
-                {suggestions.map((choice, index) => (
-                  <Pressable
-                    key={choice.id}
-                    nativeID={`${id}-suggestion-${index}`}
-                    role="option"
-                    aria-selected={active === index}
-                    tabIndex={-1}
-                    onHoverIn={() => !isMobile && setActive(index)}
-                    onPress={() => pickSuggestion(choice)}
-                    {...(Platform.OS === 'web'
-                      ? {
-                          // Preserve typing focus until click without blocking touch scrolling.
-                          onMouseDown: (event: { preventDefault(): void }) =>
-                            event.preventDefault(),
-                        }
-                      : {})}
-                    style={[
-                      styles.suggestionRow,
-                      active === index && { borderColor: t.colors.brand.base },
-                    ]}
-                  >
-                    <Text style={styles.suggestionText}>{choice.label}</Text>
-                  </Pressable>
-                ))}
-              </View>
-              {suggestions.length > 1 ? (
-                <Text style={styles.suggestionHelp}>
-                  Use <Text style={{ fontWeight: '700' }}>↑</Text> and{' '}
-                  <Text style={{ fontWeight: '700' }}>↓</Text> to move,{' '}
-                  <Text style={{ fontWeight: '700' }}>Enter</Text> to choose
-                </Text>
-              ) : null}
-            </View>
-          ) : null}
+          <AddressSuggestionField
+            fieldRef={inputRef}
+            address={address}
+            onAddress={(value) => {
+              setMissing(false);
+              setChoicesOpen(false);
+              onAddress(value);
+            }}
+            suggestionsEnabled={!choicesOpen}
+            suggest={suggest}
+            onSubmit={(value, choice) => submit(choice, value)}
+            labelId={`${id}-label`}
+            describedBy={`${id}-message ${id}-help`}
+            invalid={invalid}
+            busy={busy}
+            mobile={isMobile}
+            compact={compact}
+            onEscape={() => {
+              if (choicesOpen) setChoicesOpen(false);
+              else onCancel?.();
+            }}
+          />
         </View>
         <CandidateButton
           label="Find my candidates"
@@ -437,14 +212,6 @@ export function CandidateAddressForm({
           </>
         ) : null}
       </View>
-      {compact ? (
-        <Text
-          nativeID={`${id}-help`}
-          style={[candidateText.body, { fontSize: 14.5, lineHeight: 22 }]}
-        >
-          A city or ZIP code alone cannot identify your local races
-        </Text>
-      ) : null}
       {choicesOpen ? (
         <View style={{ marginTop: 22, gap: 10 }}>
           <Text nativeID={`${id}-choices-heading`} style={[candidateText.strong, { fontSize: 17 }]}>
@@ -473,9 +240,6 @@ export function CandidateAddressForm({
       ) : null}
       {!compact ? (
         <View style={styles.privacy}>
-          <Text nativeID={`${id}-help`} style={styles.help}>
-            {CANDIDATE_LOOKUP_COPY.addressHelp}
-          </Text>
           <Text style={styles.help}>{privacyDisclosure ?? CANDIDATE_LOOKUP_COPY.privacy}</Text>
         </View>
       ) : null}
@@ -604,73 +368,7 @@ const styles = StyleSheet.create({
   },
   help: { ...candidateText.body, fontSize: 14, lineHeight: 21 },
   fieldWrap: { flex: 1, minWidth: 0, zIndex: 2 },
-  inputBorder: { borderWidth: 1, borderRadius: 14, backgroundColor: '#fff', minHeight: 60 },
-  nativeInput: {
-    minHeight: 60,
-    padding: 18,
-    backgroundColor: '#fff',
-    borderWidth: 0,
-    borderColor: 'rgba(17,21,15,0.18)',
-    borderRadius: 14,
-    fontFamily: t.typography.body,
-    fontSize: 17,
-  },
   message: { minHeight: 22, marginTop: 12, flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  suggestions: {
-    zIndex: 30,
-    marginTop: 8,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: 'rgba(17,21,15,0.14)',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  suggestionOverlay: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    boxShadow: '0 16px 40px rgba(17,21,15,0.16)',
-  },
-  suggestionHeading: {
-    fontFamily: t.typography.body,
-    fontWeight: '700',
-    color: t.colors.ink,
-    fontSize: 15,
-    paddingHorizontal: 14,
-    paddingTop: 13,
-  },
-  suggestionList: {
-    marginTop: 8,
-    maxHeight: 300,
-    borderTopWidth: 1,
-    borderColor: t.colors.alpha.ink08,
-    ...(Platform.OS === 'web'
-      ? ({ overflowY: 'auto', overflowX: 'hidden' } as object)
-      : { overflow: 'scroll' as const }),
-  },
-  suggestionRow: {
-    minHeight: 48,
-    justifyContent: 'center',
-    paddingHorizontal: 10,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    borderRadius: 10,
-  },
-  suggestionText: {
-    minWidth: 0,
-    fontFamily: t.typography.body,
-    fontSize: 16,
-    fontWeight: '500',
-    color: t.colors.ink,
-  },
-  suggestionHelp: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontFamily: t.typography.body,
-    fontSize: 14,
-    color: '#6f756f',
-  },
   choice: {
     paddingHorizontal: 14,
     paddingVertical: 12,
