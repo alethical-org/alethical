@@ -266,7 +266,7 @@ function CandidateSearchSession({
               {CANDIDATE_LOOKUP_COPY.heading}
             </Text>
             {changingAddress ? (
-              <View style={{ gap: 16 }}>
+              <View style={styles.addressEditor}>
                 <Text style={[candidateText.body, { fontSize: 15.5, lineHeight: 23 }]}>
                   Showing results for{' '}
                   <Text style={candidateText.strong}>{displayed.results.matchedAddress}</Text>
@@ -314,7 +314,7 @@ function CandidateSearchSession({
                       ? 'This search covers Minnesota addresses'
                       : state.outcome.kind === 'rate-limited'
                         ? 'Too many searches: try again shortly'
-                        : 'We couldn’t match that address: check the street address, city, and ZIP code'}
+                        : 'We couldn’t match that address to election records'}
                 </Text>
                 <Text style={candidateText.body}>
                   Showing results for {candidateElectionLabel(displayed.election)} ·{' '}
@@ -688,6 +688,9 @@ const styles = StyleSheet.create({
   desktopResults: { flexDirection: 'row', alignItems: 'flex-start', gap: 48 },
   // Keep the election popup above the following race column on narrow screens.
   sidebar: { gap: 22, width: '100%', zIndex: 1 },
+  // The suggestion list cannot escape an RNW parent's stacking context. Keep
+  // the editor above its sibling Election menu, but inside the page below navigation.
+  addressEditor: { gap: 16, zIndex: 4 },
   races: { flex: 1, minWidth: 0, width: '100%', gap: 18 },
   resultElection: { ...candidateText.strong, fontSize: 15, lineHeight: 23 },
   electionControl: {

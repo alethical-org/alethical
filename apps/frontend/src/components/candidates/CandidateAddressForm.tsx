@@ -20,7 +20,7 @@ import type {
 } from './types';
 
 const errors = {
-  'no-match': 'We couldn’t match that address: check the street address, city, and ZIP code',
+  'no-match': 'We couldn’t match that address to election records',
   'outside-minnesota': 'This search covers Minnesota addresses',
   'rate-limited': 'Too many searches: try again shortly',
 };

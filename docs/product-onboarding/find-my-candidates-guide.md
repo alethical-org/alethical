@@ -30,6 +30,11 @@ are treated as spaces. This cleanup preserves house numbers, units, directions,
 city, state and ZIP+4; it does not discard another country, unknown trailing words
 or other characters to force a match.
 
+A failed official match says **We couldn’t match that address to election records**,
+on `/candidates` and the homepage candidate search. A mapped street address can
+still lack a matching election street range; this message does not assert that
+the reader mistyped it. Missing-input and outside-Minnesota messages remain distinct.
+
 A city or ZIP alone cannot choose a ballot. Ambiguous addresses require an explicit
 choice. An unsupported unit or overlapping range produces no match rather than a guess.
 Address suggestions begin with a house number plus at least 2 street-name characters
@@ -62,7 +67,9 @@ choice. Late replies cannot replace newer suggestions or reopen a dismissed list
 The field is labelled **Full street address**, followed by **A city or ZIP code
 alone cannot identify your local races** before the box. Full addresses wrap.
 On computer and tablet the list overlays content 8px below the box, exactly the
-box's width. On phones it sits in the page flow and pushes the button below it.
+box's width. In **Change address**, the form's containing layer keeps every
+suggestion above the following Election label and selector, including the rows
+that extend beyond the form. The list remains below the site navigation and dialogs. On phones it sits in the page flow and pushes the button below it.
 All rows remain reachable through page scrolling, without a nested list scroller.
 When necessary, opening the list or the keyboard's later resize reveals the field
 and available rows while keeping the label visible. Manual scrolling stops further

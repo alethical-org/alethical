@@ -107,7 +107,7 @@ for (const engine of [chromium, webkit]) {
         'Retained race rows stay steady during an address search',
       );
       await page
-        .getByText('We couldn’t match that address: check the street address, city, and ZIP code', {
+        .getByText('We couldn’t match that address to election records', {
           exact: true,
         })
         .waitFor();
