@@ -780,7 +780,7 @@ adds no blank-line gap. Long answers wrap naturally on narrow screens before
 the supporting text begins. This applies to article and chart conclusions,
 private previews, initial HTML and loaded articles. Keep exact wording, links,
 font sizes, weights, logo size and alignment, and approval records unchanged.
-This supersedes the earlier same-line bold-to-regular treatment.
+Do not place supporting text on the same line as the leading bold answer.
 
 **Optional conclusion label, 8 October 2026.** Eugene accepted opening highlighted
 takeaways with their main point and using “Conclusion:” only when it helps readers
