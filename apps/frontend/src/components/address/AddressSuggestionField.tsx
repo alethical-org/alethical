@@ -51,6 +51,11 @@ export function AddressSuggestionField<T>({
   const wrapper = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const generation = useRef(0);
+  const lastRequestAt = useRef(-Infinity);
+  const lastInputAt = useRef(-Infinity);
+  // Field-local only: no browser storage or reuse across mounted search forms.
+  const recent = useRef(new Map<string, { expires: number; options: AddressSuggestion<T>[] }>());
+  const suggestionSource = useRef(suggest);
   const pointer = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const cancelled = useRef(false);
   const manualScroll = useRef(false);
@@ -123,27 +128,54 @@ export function AddressSuggestionField<T>({
     setActive(-1);
     setHovered(-1);
     const input = addressSuggestionInput(address);
+    const now = Date.now();
+    const idle = now - lastInputAt.current >= 180;
+    lastInputAt.current = now;
+    if (!address.trim() || busy || suggestionSource.current !== suggest) recent.current.clear();
+    suggestionSource.current = suggest;
+    for (const [key, entry] of recent.current) {
+      if (entry.expires <= Date.now()) recent.current.delete(key);
+    }
     if (!enabled || !suggestionsEnabled || busy || !input) return () => controller.abort();
-    const timer = setTimeout(() => {
-      if (request !== generation.current) return;
-      void suggest(input, controller.signal)
-        .then((matches) => {
-          if (request !== generation.current || controller.signal.aborted || value() !== address)
-            return;
-          const safe = matches
-            .flatMap((option) => {
-              const preserved = preserveSuggestedUnit(address, option.address);
-              return preserved ? [{ ...option, address: preserved }] : [];
-            })
-            .slice(0, 5);
-          setOptions(safe);
-          setOpen(safe.length > 0);
-          setActive(-1);
-        })
-        .catch(() => {
-          /* Optional suggestions never block typed search. */
-        });
-    }, 180);
+    const cached = recent.current.get(address);
+    if (cached) {
+      setOptions(cached.options);
+      setOpen(cached.options.length > 0);
+      return () => controller.abort();
+    }
+    // The first eligible input and edits after an idle period start immediately.
+    // Continuing keystrokes share one trailing request to preserve the service
+    // budget instead of spending a request on each letter.
+    const timer = setTimeout(
+      () => {
+        if (request !== generation.current) return;
+        lastRequestAt.current = Date.now();
+        void suggest(input, controller.signal)
+          .then((matches) => {
+            if (request !== generation.current || controller.signal.aborted || value() !== address)
+              return;
+            const safe = matches
+              .flatMap((option) => {
+                const preserved = preserveSuggestedUnit(address, option.address);
+                return preserved ? [{ ...option, address: preserved }] : [];
+              })
+              .slice(0, 5);
+            if (safe.length) {
+              recent.current.delete(address);
+              recent.current.set(address, { expires: Date.now() + 60_000, options: safe });
+              while (recent.current.size > 8)
+                recent.current.delete(recent.current.keys().next().value!);
+            }
+            setOptions(safe);
+            setOpen(safe.length > 0);
+            setActive(-1);
+          })
+          .catch(() => {
+            /* Optional suggestions never block typed search. */
+          });
+      },
+      lastRequestAt.current === -Infinity || idle ? 0 : 180,
+    );
     return () => {
       clearTimeout(timer);
       controller.abort();

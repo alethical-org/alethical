@@ -417,9 +417,15 @@ runs when Census finds nothing or stays unavailable after those retries:
    Geometry is reduced only for the browser map afterward. No address or coordinate is
    sent to LCC during a lookup.
 
-The shared web field waits 180ms after typing stops and does not retain suggestion
-responses in a shared cache. Active status is checked locally; if the state source
-reports omitted rows, suggestions retry the original active-filtered query.
+The shared web field starts the first eligible input and edits after an idle period
+immediately, then waits 180ms after continuing typing stops. It reuses at most 8
+successful exact inputs for 60 seconds within that mounted field only; clearing,
+submitting, replacing the source or unmounting erases them. There is no shared
+suggestion cache. State and active status are checked locally; if the state source
+reports omitted rows, suggestions retry the original state-and-active-filtered query.
+Minnesota address-point requests reuse thread-local connections that reject cookies
+and strip credentials, including redirects; they retain no address/query results.
+Census transport and full address validation are unchanged.
 Suggestions have their own 60-request-per-source-address limit, separate from the full
 lookup. The browser also shares identical lookups already in progress and reuses a
 successful result for 60s. The full-lookup endpoint still allows 10 requests per source address in 60s.
