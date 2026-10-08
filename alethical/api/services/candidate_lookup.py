@@ -404,26 +404,28 @@ class CandidateLookupService:
                 raise CandidateLookupUnavailable(
                     "Government address service unavailable"
                 ) from None
-            choices = self._eligible_choices(
-                [
-                    choice
-                    for match in matches[:5]
-                    if match.state_code in (None, "MN")
-                    if (choice := _geocoded_choice(text, match.matched_address))
-                    is not None
-                ]
-            )
+            choices = [
+                choice
+                for match in matches[:5]
+                if match.state_code in (None, "MN")
+                if (choice := _geocoded_choice(text, match.matched_address)) is not None
+            ]
             if confirmed is not None:
                 if confirmed not in choices:
                     return {"kind": "no-match"}
+                # Resolve only the chosen address. A source failure for an
+                # unrelated alternative must not block a valid confirmation.
                 text = confirmed["address"]
                 confirmed = None
-            elif choices:
+            else:
+                choices = self._eligible_choices(choices)
                 # Even one geocoded answer may correct the street or locality.
                 # The reader must explicitly choose that complete address.
-                return {"kind": "ambiguous", "choices": choices[:5]}
-            else:
-                return {"kind": "no-match"}
+                return (
+                    {"kind": "ambiguous", "choices": choices}
+                    if choices
+                    else {"kind": "no-match"}
+                )
             zip_match = re.search(r"\b(\d{5})(?:-\d{4})?$", text.strip())
         if not zip_match:
             return {"kind": "no-match"}

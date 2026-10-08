@@ -709,3 +709,31 @@ def test_suggestion_validation_source_failure_is_not_empty_success():
     )
     with pytest.raises(CandidateLookupUnavailable):
         lookup.suggest("100 EX")
+
+
+def test_confirmed_map_choice_does_not_fetch_unselected_zip():
+    class Geocoder:
+        def geocode_matches(self, text):
+            return [
+                SimpleNamespace(matched_address=ADDRESS, state_code="MN"),
+                SimpleNamespace(
+                    matched_address=ADDRESS.replace("99999", "99998"), state_code="MN"
+                ),
+            ]
+
+    calls = []
+
+    def fetch(url, params):
+        assert url == STREETS_URL
+        calls.append(params["ZipCode"])
+        if params["ZipCode"] == "99998":
+            raise CandidateLookupUnavailable("Official street records unavailable")
+        return json.dumps({"Streets": [street()]}).encode()
+
+    valid_lookup, _ = service()
+    choice = valid_lookup.suggest(ADDRESS)[0]
+    lookup = CandidateLookupService(fetch=fetch, geocoder=Geocoder())
+    result = lookup.resolve("100 EXAMPLE ST N MN", choice)
+    assert not isinstance(result, dict)
+    assert result[0].house_number == 100
+    assert calls == ["99999"]
