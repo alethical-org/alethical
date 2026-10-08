@@ -208,3 +208,46 @@ def test_existing_report_and_snapshot_block_before_input_or_database_reads(tmp_p
     with pytest.raises(ValueError, match="Snapshot output already exists"):
         cli.snapshot(args)
     assert output.read_text() == "preserve me"
+
+
+@pytest.mark.parametrize("command", ["diagnose", "prepare-answers"])
+def test_offline_review_cli_preserves_inputs_and_keeps_source_text_out_of_stdout(
+    command, tmp_path, monkeypatch, capsys
+):
+    from alethical.eval.graph_eval import compare
+    from alethical.tests.test_evidence_diagnostics import experiment
+
+    snapshot, manifest, _ = experiment([["a"]])
+    manifest["cases"][0]["kind"] = "text"
+    # The diagnostics fixture names the case; retain its actual identifier.
+    case_id = manifest["cases"][0]["id"]
+    snapshot["production_rankings"] = {case_id: {"evidence_ids": ["a"]}}
+    snapshot["manifest"].pop("content_digest")
+    snapshot["manifest"]["content_digest"] = cli.digest(snapshot)
+    manifest["snapshot_digest"] = snapshot["manifest"]["content_digest"]
+    report = compare(snapshot, manifest, None, budget=manifest["character_budget"])
+    inputs = {"snapshot": snapshot, "manifest": manifest, "report": report}
+    paths = {}
+    for name, data in inputs.items():
+        paths[name] = tmp_path / f"{name}.json"
+        paths[name].write_text(json.dumps(data))
+    before = {name: path.read_bytes() for name, path in paths.items()}
+    output = tmp_path / "private-review.json"
+    argv = ["graph_retrieval_eval", command, "--output", str(output)]
+    for name, path in paths.items():
+        argv.extend([f"--{name}", str(path)])
+    monkeypatch.setattr("sys.argv", argv)
+    cli.main()
+    result = json.loads(output.read_text())
+    assert result["snapshot_digest"] == manifest["snapshot_digest"]
+    assert result["code_digest"]
+    assert result["code_commit"]
+    assert json.loads(capsys.readouterr().out) == {
+        "stage": command,
+        "output": str(output),
+    }
+    assert {name: path.read_bytes() for name, path in paths.items()} == before
+    saved = output.read_bytes()
+    with pytest.raises(SystemExit):
+        cli.main()
+    assert output.read_bytes() == saved
