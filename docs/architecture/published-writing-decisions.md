@@ -768,15 +768,25 @@ text, in private previews, initial HTML and loaded articles. Remove the separate
 880px maximum from both the whole row and its text; the enclosing article or
 chart width still governs. Retain the symbol’s proportions, size and clear space,
 its alignment against the first 2 lines, and the bold answer followed by regular
-qualifications in the same paragraph. This replaces only the 30 September
+qualifications in the same conclusion. This replaces only the 30 September
 conclusion-width restriction, not the method or closing-note text limits.
 
-**Conclusion answer line, 8 October 2026.** Eugene then asked for the bold answer
-on its own line, with regular supporting text beginning below it across the
-available width beside the logo. Apply this to the shared prose and chart
-conclusion treatment, including initial HTML and private previews. Let long
-answers wrap naturally; keep the existing paragraph spacing, words, full row
-width and symbol alignment against the first 2 text lines.
+**Conclusion line separation, 8 October 2026.** In a later review the same day,
+Eugene asked for the first bold answer to stand on its own line, with the rest
+starting below it and going full width. The leading bold answer now forms its
+own line within the existing full-width text column beside the left symbol.
+Supporting text starts immediately below, uses that same available width, and
+adds no blank-line gap. Long answers wrap naturally on narrow screens before
+the supporting text begins. This applies to article and chart conclusions,
+private previews, initial HTML and loaded articles. Keep exact wording, links,
+font sizes, weights, logo size and alignment, and approval records unchanged.
+Do not place supporting text on the same line as the leading bold answer.
+
+**Optional conclusion label, 8 October 2026.** Eugene accepted opening highlighted
+takeaways with their main point and using “Conclusion:” only when it helps readers
+recognize a conclusion. Keep factual findings distinct from editorial
+recommendations. This clarifies the existing optional-label writing guidance;
+it does not require adding or removing the label in published articles.
 
 The article metadata displays publication dates and reporting periods, with Share
 on the same row where space permits. Download/copy, retrieval and extraction dates

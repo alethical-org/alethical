@@ -1844,8 +1844,8 @@ the approved organizations draft omits the generic overlap sentence.
 The original social image is temporary working material, not the article's graphic.
 
 Conclusion rows fill the available article or chart width, with the Alethical
-symbol on the left, the answer bold, and qualifications continuing in regular
-text. Table row lines end after the real columns and their padding; unused space
+symbol on the left, the bold answer on its own line, and regular supporting
+text beginning immediately below across the available text width. Table row lines end after the real columns and their padding; unused space
 to the right stays blank. These treatments also appear in the first server response.
 
 The sources block links each source and states its coverage and limits. **Records through**
