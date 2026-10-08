@@ -13,6 +13,7 @@ import {
 import { MONEY_ONLY_GOES_ONE_WAY } from '../researchPieces/moneyOnlyGoesOneWay';
 import { WHO_HAS_TO_REPORT_THEIR_MONEY } from '../researchPieces/whoHasToReportTheirMoney';
 import { escapeHtml } from '../share';
+import { newestShortPosts, shortPostsPage, topicPage } from '../shortPostSelection';
 import { API_SHARED_CACHE_MAX_AGE_MS } from '../currentClaimFreshness';
 import { CONFIRMATION_UNAVAILABLE_LINE } from '../committeeConfirmation';
 import { whoseCommitteeText } from '../committeeMoney';
@@ -458,23 +459,31 @@ it.each([
   },
 );
 
-it('serves the approved article links in the first HTTP response of all 10 published pages', async () => {
+it('serves the approved article links in the first HTTP response of the original 9 published pages', async () => {
   stubNetwork(() => ({ status: 500 }));
   expect(approvedInlineLinks).toHaveLength(7);
-  expect(publishedResearch()).toHaveLength(10);
-  for (const piece of publishedResearch()) {
+  const approvedSlugs = [
+    'the-money-only-goes-one-way',
+    'lobbyist-giving',
+    'organizations-both-parties',
+    '2-records-not-always-2-donations',
+    'who-has-to-report-their-money',
+    'what-the-records-name',
+    'why-2-official-numbers-can-both-be-right',
+    'money-spent-without-a-campaigns-say',
+    'why-nobody-can-follow-a-dollar',
+  ];
+  expect(approvedSlugs).toHaveLength(9);
+  for (const approvedSlug of approvedSlugs) {
+    const piece = publishedResearch().find((entry) => entry.slug === approvedSlug)!;
+    expect(piece).toBeDefined();
     const { body, status } = await serve({ path: piecePath(piece) });
     expect(status).toBe(200);
     for (const [, label, href] of approvedInlineLinks.filter(([slug]) => slug === piece.slug)) {
       expect(body).toContain(`<a href="${href}">${label}</a>`);
     }
     const related = piece.relatedSlugs ?? piece.shortPost?.relatedSlugs ?? [];
-    if (piece.slug === 'realtor-pacs-shared-candidates') {
-      expect(related).toEqual([]);
-      expect(body).not.toContain('Related reading');
-    } else {
-      expect(related).toHaveLength(2);
-    }
+    expect(related).toHaveLength(2);
     for (const slug of related) {
       const destination = publishedResearch().find((entry) => entry.slug === slug)!;
       expect(body).toContain(
@@ -483,6 +492,19 @@ it('serves the approved article links in the first HTTP response of all 10 publi
     }
   }
 });
+
+it.each(['realtor-pacs-shared-candidates', 'committee-officers-and-the-firms-they-pay'])(
+  'serves %s without inventing unapproved related links',
+  async (slug) => {
+    stubNetwork(() => ({ status: 500 }));
+    const piece = publishedResearch().find((entry) => entry.slug === slug)!;
+    expect(piece).toBeDefined();
+    const { body, status } = await serve({ path: piecePath(piece) });
+    expect(status).toBe(200);
+    expect(piece.relatedSlugs ?? piece.shortPost?.relatedSlugs ?? []).toEqual([]);
+    expect(body).not.toContain('Related reading');
+  },
+);
 
 it.each(['/admin', '/admin/users', '/admin/metrics', '/admin/site-metrics', '/admin/operations'])(
   'keeps %s private with no account HTML or analytics',
@@ -1148,7 +1170,7 @@ describe('first-response page tags', () => {
   // sent its text straight away. These two checks are the `curl` measurement in
   // the issue, run on every pull request, because a silent reopening is exactly
   // how the gap arrived.
-  it('sends /blog its collections and newest 3 short posts with followable links', async () => {
+  it('sends the /blog page its groups, newest 3 Short posts and archive link', async () => {
     const calls: string[] = [];
     stubNetwork((url) => {
       calls.push(url);
@@ -1163,23 +1185,17 @@ describe('first-response page tags', () => {
       'Research, guides and events that help you understand Minnesota government',
     );
     expect(publishedResearch().length).toBeGreaterThan(1);
-    const newestShortPostSlugs = [
-      'realtor-pacs-shared-candidates',
-      'lobbyist-giving',
-      'organizations-both-parties',
-    ];
-    for (const piece of publishedResearch().filter(
-      (entry) => entry.format !== 'short-post' || newestShortPostSlugs.includes(entry.slug),
-    )) {
+    const newest = new Set(newestShortPosts().map((piece) => piece.slug));
+    for (const piece of publishedResearch()) {
+      if (piece.format === 'short-post' && !newest.has(piece.slug)) {
+        expect(body).not.toContain(`href="${piecePath(piece)}"`);
+        continue;
+      }
       // Each piece's own folder, so a crawler is never sent to an address the
       // router rejects.
       expect(body).toContain(`href="${piecePath(piece)}"`);
       expect(body).toContain(piece.title);
     }
-    for (const slug of newestShortPostSlugs) {
-      expect(body).toContain(`href="/blog/research/${slug}"`);
-    }
-    expect(body).not.toContain('href="/blog/research/2-records-not-always-2-donations"');
     expect(body).toContain('href="/blog/short-posts"');
     // Read from the registry the server already holds, so no data call.
     expect(calls).toHaveLength(0);
@@ -1197,23 +1213,39 @@ describe('first-response page tags', () => {
     expect(topic.status).toBe(200);
     expect(topic.body).toContain('<h1>Campaign finance</h1>');
     expect(topic.body).toContain('href="/blog/research/realtor-pacs-shared-candidates"');
+    expect(topic.body).toContain('href="/blog/research/committee-officers-and-the-firms-they-pay"');
     expect(topic.body.match(/class="ps-record-label"/g)).toHaveLength(6);
-    expect(topic.body).not.toContain(`href="${piecePath(WHO_HAS_TO_REPORT_THEIR_MONEY)}"`);
-    expect(topic.body).toContain('href="/blog/topics/campaign-finance?page=2"');
+    const topicPieces = publishedResearch().filter((piece) =>
+      piece.topics?.includes('campaign-finance'),
+    );
+    const seen: string[] = [];
+    const pageCount = topicPage('campaign-finance', 1).pageCount;
+    for (let page = 1; page <= pageCount; page++) {
+      const response =
+        page === 1
+          ? topic
+          : await serve({ path: '/blog/topics/campaign-finance', page: String(page) });
+      expect(response.status).toBe(200);
+      const selection = topicPage('campaign-finance', page);
+      expect(selection.items.length).toBeLessThanOrEqual(6);
+      for (const piece of topicPieces) {
+        const expected = selection.items.some((entry) => entry.slug === piece.slug);
+        expect(response.body.includes(`href="${piecePath(piece)}"`)).toBe(expected);
+        if (expected) seen.push(piece.slug);
+      }
+      if (page < pageCount)
+        expect(response.body).toContain(`href="/blog/topics/campaign-finance?page=${page + 1}"`);
+      if (page > 1) expect(response.body).toContain('Previous page');
+    }
+    expect(seen.sort()).toEqual(topicPieces.map((piece) => piece.slug).sort());
     expect(topic.body).toContain(
       '<link rel="canonical" href="https://www.alethical.com/blog/topics/campaign-finance"',
     );
 
-    const nextTopicPage = await serve({ path: '/blog/topics/campaign-finance', page: '2' });
-    expect(nextTopicPage.status).toBe(200);
-    expect(nextTopicPage.body).toContain(`href="${piecePath(WHO_HAS_TO_REPORT_THEIR_MONEY)}"`);
-    expect(nextTopicPage.body).toContain(WHO_HAS_TO_REPORT_THEIR_MONEY.title);
-    expect(nextTopicPage.body.match(/class="ps-record-label"/g)).toHaveLength(4);
-    expect(nextTopicPage.body).not.toContain(
-      'href="/blog/research/realtor-pacs-shared-candidates"',
-    );
-
-    const absent = await serve({ path: '/blog/short-posts', page: '2' });
+    const absent = await serve({
+      path: '/blog/short-posts',
+      page: String(shortPostsPage(1).pageCount + 1),
+    });
     expect(absent.status).toBe(404);
   });
 

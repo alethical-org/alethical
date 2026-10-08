@@ -1,4 +1,5 @@
 import { PUBLISHED_EVENTS } from '../events';
+import { newestShortPosts } from '../shortPostSelection';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1170,7 +1171,7 @@ describe('the guide snapshot serves the guide\u2019s own writing, unchanged', ()
   });
 });
 
-describe('the /blog page snapshot links to its collections and newest short posts', () => {
+describe('the /blog page snapshot links to its visible groups and Short posts archive', () => {
   const pieces = publishedResearch();
   const snapshot = readPageSnapshot(pieces);
   const html = renderPageSnapshot(snapshot);
@@ -1183,28 +1184,23 @@ describe('the /blog page snapshot links to its collections and newest short post
     expect(snapshot.body).toEqual([READ_PAGE_INTRO]);
   });
 
-  it('gives every displayed piece a real link and keeps older short posts in the archive', () => {
+  it('links the newest 3 Short posts and lets readers reach older posts through the archive', () => {
     expect(pieces.length).toBeGreaterThan(1);
-    const newestShortPostSlugs = [
-      'realtor-pacs-shared-candidates',
-      'lobbyist-giving',
-      'organizations-both-parties',
-    ];
-    const displayedPieces = pieces.filter(
-      (piece) => piece.format !== 'short-post' || newestShortPostSlugs.includes(piece.slug),
+    const newest = new Set(newestShortPosts().map((piece) => piece.slug));
+    const visible = pieces.filter(
+      (piece) => piece.format !== 'short-post' || newest.has(piece.slug),
     );
-    expect(snapshot.records).toHaveLength(displayedPieces.length + PUBLISHED_EVENTS.length);
-    for (const piece of displayedPieces) {
+    expect(snapshot.records).toHaveLength(visible.length + PUBLISHED_EVENTS.length);
+    for (const piece of pieces.filter((piece) => !visible.includes(piece))) {
+      expect(html).not.toContain(`href="${piecePath(piece)}"`);
+    }
+    expect(html).toContain('href="/blog/short-posts"');
+    for (const piece of visible) {
       // Each piece's own folder, from the one function that decides it.
       expect(html).toContain(`href="${piecePath(piece)}"`);
       expect(html).toContain(piece.title);
       if (piece.dek) expect(html).toContain(piece.dek.replace(/'/g, '&#39;'));
     }
-    for (const slug of newestShortPostSlugs) {
-      expect(html).toContain(`href="/blog/research/${slug}"`);
-    }
-    expect(html).not.toContain('href="/blog/research/2-records-not-always-2-donations"');
-    expect(html).toContain('href="/blog/short-posts"');
   });
 
   it('lists both kinds, each with the quiet line its card draws', () => {

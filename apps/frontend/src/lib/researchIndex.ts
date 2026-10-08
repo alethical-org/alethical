@@ -228,6 +228,19 @@ export const MONEY_ONLY_GOES_ONE_WAY_INDEX_ENTRY: PieceIndexEntry = {
   recordsThrough: '2026-07-20',
 };
 
+export const COMMITTEE_OFFICERS_INDEX_ENTRY: PieceIndexEntry = {
+  articleId: 'short-committee-officers-and-vendors',
+  slug: 'committee-officers-and-the-firms-they-pay',
+  format: 'short-post',
+  topics: ['campaign-finance', 'elections'],
+  traits: { research: true, guide: true },
+  indexed: true,
+  title: 'Who keeps the books, and who gets paid?',
+  publishedOn: '2026-10-08',
+  recordsThrough: '2026-09-30',
+  publishedAt: '2026-10-08T09:10:00Z',
+};
+
 export const TWO_RECORDS_NOT_TWO_DONATIONS_INDEX_ENTRY: PieceIndexEntry = {
   articleId: 'short-records-not-donations-2023',
   slug: '2-records-not-always-2-donations',
@@ -291,6 +304,7 @@ export const REALTOR_PACS_INDEX_ENTRY: PieceIndexEntry = {
  * full pieces (`lib/research.ts`).
  */
 export const PUBLISHED_PIECE_INDEX: PieceIndexEntry[] = [
+  COMMITTEE_OFFICERS_INDEX_ENTRY,
   REALTOR_PACS_INDEX_ENTRY,
   LOBBYIST_GIVING_INDEX_ENTRY,
   ORGANIZATIONS_BOTH_PARTIES_INDEX_ENTRY,
