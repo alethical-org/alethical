@@ -720,12 +720,26 @@ width 1% and stays on 1 line from 768px, while phone labels may wrap. Each numer
 column uses width 1%, a 160px minimum, nonwrapping Libre Franklin equal-width
 digits, and its existing alignment. Wider headings and values enlarge the column.
 An empty, aria-hidden spacer cell ends every row, including the header, and fills
-the remaining width; row lines extend across it. Real column and row headers retain
+the remaining width without extending row lines across it. Real column and row headers retain
 scope associations. The last real figure keeps its existing padding. Overflow
 scrolls inside the table at every width, including tablet, without widening the
 page; scrolling is keyboard accessible with the existing approved focus treatment.
 No wording, figures, dates, links, font sizes/weights, fills, spacing, padding,
-borders or radii change.
+borders or radii change, except for the row-line length revision below.
+
+**Table row-line length, 8 October 2026.** Eugene revised the full-width row-line
+direction while reviewing the private Realtor post. In all blog article tables
+(Research, Guides and Short posts, including chart tables), horizontal row lines
+end at the last real column, including its normal padding. Empty remaining width
+must not carry a line. This keeps the visible table bounded by its labels,
+headings and values instead of drawing through unused article space. The rule
+applies to private previews and published articles, including initial HTML and
+loaded article rendering. It changes line length only: retain column sizing,
+alignment, padding, number readability, header associations and accessible local
+scrolling. The last total row still has no closing line. Check header and body-row
+dividers at phone, tablet and desktop sizes with wrapped labels and wide values.
+This approved design revision replaces the 30 September instruction to extend
+lines across spacer cells; this rules-only update does not change the renderers.
 
 The article metadata displays publication dates and reporting periods, with Share
 on the same row where space permits. Download/copy, retrieval and extraction dates
