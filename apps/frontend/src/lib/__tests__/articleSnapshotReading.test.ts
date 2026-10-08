@@ -79,6 +79,25 @@ describe('Approved article titles in the first HTML response', () => {
 });
 
 describe('Existing article tables in the first response', () => {
+  it('ends initial article table row lines before the empty remaining width', () => {
+    const shell = readFileSync(new URL('../../../public/index.html', import.meta.url), 'utf8');
+    const snapshot = researchPageSnapshot(MONEY_ONLY_GOES_ONE_WAY);
+    const document = documentFor(
+      shell.replace('</body>', `${renderPageSnapshot(snapshot)}</body>`),
+    );
+    for (const table of document.querySelectorAll('.page-snapshot-article table')) {
+      for (const row of table.querySelectorAll('tr')) {
+        expect(
+          document.defaultView!.getComputedStyle(row.lastElementChild!).borderBottomWidth,
+        ).toBe('0px');
+        expect(
+          document.defaultView!.getComputedStyle(row.firstElementChild!).borderBottomWidth,
+        ).toBe('1px');
+      }
+    }
+    expect(document.querySelectorAll('.ps-table-spacer').length).toBeGreaterThan(0);
+  });
+
   it('preserves all real research cells, associates headers and adds only 1 hidden spacer per row', () => {
     const snapshot = researchPageSnapshot(MONEY_ONLY_GOES_ONE_WAY);
     const tables = MONEY_ONLY_GOES_ONE_WAY.sections
@@ -120,5 +139,27 @@ describe('Existing article tables in the first response', () => {
     expect(generic.querySelectorAll('.ps-article-table-scroll')).toHaveLength(0);
     expect(generic.querySelector('thead th')?.getAttribute('scope')).toBeNull();
     expect(generic.querySelector('tbody tr')?.firstElementChild?.tagName).toBe('TD');
+  });
+});
+
+describe('Branded conclusions in the first response', () => {
+  it('preserves the left symbol, bold answer and regular qualification without a narrower width', () => {
+    const shell = readFileSync(new URL('../../../public/index.html', import.meta.url), 'utf8');
+    const document = documentFor(
+      shell.replace(
+        '</body>',
+        `${renderPageSnapshot(shortPostPageSnapshot(LOBBYIST_GIVING))}</body>`,
+      ),
+    );
+    const conclusion = document.querySelector('.ps-conclusion')!;
+    expect(conclusion).not.toBeNull();
+    expect(conclusion.querySelector('svg')?.getAttribute('aria-label')).toBe('Alethical');
+    expect(conclusion.querySelector('strong')).not.toBeNull();
+    expect(conclusion.querySelectorAll('p')).toHaveLength(1);
+    expect(document.defaultView!.getComputedStyle(conclusion).maxWidth).toBe('none');
+    expect(document.defaultView!.getComputedStyle(conclusion.querySelector('p')!).flexGrow).toBe(
+      '1',
+    );
+    expect(conclusion.querySelector('svg')?.getAttribute('width')).toBe('31');
   });
 });

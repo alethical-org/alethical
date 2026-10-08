@@ -13,12 +13,11 @@ than only by pasting an address, and a name that got paid opens every payment fi
 that exact spelling
 ([#1780](https://github.com/alethical-org/alethical/issues/1780)). Our own signed research
 lives one level up, on the `/blog` page, which the money landing points at. The `/blog`
-page lists 6 long-form pieces (1 Research piece and 5 Guides) and 3 Short posts:
-“2 records do not always mean 2 donations” at
-`/blog/research/2-records-not-always-2-donations`, “Political donors appearing in both
-parties’ Minnesota caucus records” at `/blog/research/organizations-both-parties`,
-and “What Minnesota’s records show about lobbyist contributions, 2015–2026” at
-`/blog/research/lobbyist-giving`.
+page lists 6 long-form pieces (1 Research piece and 5 Guides) and the newest 3 Short
+posts. The full Short post collection at `/blog/short-posts` also retains older
+articles. The newest article, “3 Realtor PACs. 12 shared campaigns.”, is at
+`/blog/research/realtor-pacs-shared-candidates`. It separates Florida candidate
+payments from national dues-funded election spending and brokerage membership rules.
 
 Lobbying is available at `/money/lobbying`, with the copied lobbyist list, represented
 organisations and yearly spending. The earlier lobbying-under-development strip is removed
@@ -1843,6 +1842,11 @@ its areas show group sizes. Labels and any needed explanation follow
 [ui-copy-guide.md §Remove implied information from text and visuals](../design/ui-copy-guide.md#remove-implied-information-from-text-and-visuals);
 the approved organizations draft omits the generic overlap sentence.
 The original social image is temporary working material, not the article's graphic.
+
+Conclusion rows fill the available article or chart width, with the Alethical
+symbol on the left, the answer bold, and qualifications continuing in regular
+text. Table row lines end after the real columns and their padding; unused space
+to the right stays blank. These treatments also appear in the first server response.
 
 The sources block links each source and states its coverage and limits. **Records through**
 means the newest covered reporting-period end in cited records Alethical holds, not the

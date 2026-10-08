@@ -1170,7 +1170,7 @@ describe('the guide snapshot serves the guide\u2019s own writing, unchanged', ()
   });
 });
 
-describe('the /blog page snapshot links to every posted piece', () => {
+describe('the /blog page snapshot links to its collections and newest short posts', () => {
   const pieces = publishedResearch();
   const snapshot = readPageSnapshot(pieces);
   const html = renderPageSnapshot(snapshot);
@@ -1183,15 +1183,28 @@ describe('the /blog page snapshot links to every posted piece', () => {
     expect(snapshot.body).toEqual([READ_PAGE_INTRO]);
   });
 
-  it('gives every posted piece a real link a crawler can follow', () => {
+  it('gives every displayed piece a real link and keeps older short posts in the archive', () => {
     expect(pieces.length).toBeGreaterThan(1);
-    expect(snapshot.records).toHaveLength(pieces.length + PUBLISHED_EVENTS.length);
-    for (const piece of pieces) {
+    const newestShortPostSlugs = [
+      'realtor-pacs-shared-candidates',
+      'lobbyist-giving',
+      'organizations-both-parties',
+    ];
+    const displayedPieces = pieces.filter(
+      (piece) => piece.format !== 'short-post' || newestShortPostSlugs.includes(piece.slug),
+    );
+    expect(snapshot.records).toHaveLength(displayedPieces.length + PUBLISHED_EVENTS.length);
+    for (const piece of displayedPieces) {
       // Each piece's own folder, from the one function that decides it.
       expect(html).toContain(`href="${piecePath(piece)}"`);
       expect(html).toContain(piece.title);
       if (piece.dek) expect(html).toContain(piece.dek.replace(/'/g, '&#39;'));
     }
+    for (const slug of newestShortPostSlugs) {
+      expect(html).toContain(`href="/blog/research/${slug}"`);
+    }
+    expect(html).not.toContain('href="/blog/research/2-records-not-always-2-donations"');
+    expect(html).toContain('href="/blog/short-posts"');
   });
 
   it('lists both kinds, each with the quiet line its card draws', () => {

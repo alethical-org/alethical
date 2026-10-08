@@ -76,6 +76,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 **Research** — our own digging, in no set.
 
 - [2 records do not always mean 2 donations](published-writing/2-records-not-always-2-donations.md) — the accepted Short post comparing 2 identical download entries with 1 matching $500 entry in each cited filing
+- [3 Realtor PACs. 12 shared campaigns.](published-writing/realtor-pacs-shared-candidates.md): Florida committee payments, separate contribution limits, and dated Realtor dues and brokerage policies
 - [Political donors appearing in both parties’ Minnesota caucus records](published-writing/organizations-both-parties.md): the reviewed Short post about overlapping donor registrations and listed contribution values
 - [What Minnesota’s records show about lobbyist contributions, 2015–2026](published-writing/lobbyist-giving.md): the reviewed Short post separating candidate-committee counts, 2025 caucus contributions and unresolved full-period totals
 - [The Money Only Goes One Way](published-writing/the-money-only-goes-one-way.md) — where a $50 donation actually goes: $13.9 million leaving candidate accounts for the 6 party and caucus committees against $730,338 coming back down, the 191 PACs funding both parties' caucuses, and the $886 million of reported lobbying that dwarfs every election dollar. Unlike the 5 files above, this one was written from the shipped piece rather than settled before it, so it pins what shipped and says so in its own opening comment

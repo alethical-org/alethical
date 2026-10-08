@@ -219,7 +219,9 @@ start a separate punctuation unit. For example:
 records.** The 2 download entries do not establish 2 separate donations.
 
 Use the approved Alethical symbol to the left of the conclusion in every post
-type, including conclusions outside charts. Center it against the first 2 text
+type, including conclusions outside charts. The conclusion row fills the available
+article or chart content width, with no separate narrow maximum on its text
+(Eugene, 8 October 2026). Center the symbol against the first 2 text
 lines, with the answer bold and continuing qualifications unbolded. Keep the
 wordmark out of website post conclusions. This treatment does not require adding
 a conclusion where the post has none.

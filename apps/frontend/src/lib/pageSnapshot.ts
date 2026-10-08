@@ -414,7 +414,7 @@ export interface SnapshotSectionItem {
  */
 export type SnapshotBlock =
   | { kind: 'prose'; lines: string[] }
-  | { kind: 'runs'; runs: ResearchInline[] }
+  | { kind: 'runs'; runs: ResearchInline[]; role?: 'conclusion' }
   | { kind: 'bullets'; items: string[] }
   | {
       kind: 'table';
@@ -1145,7 +1145,9 @@ export function shortPostPageSnapshot(piece: ResearchPiece, from?: string): Page
       continue;
     }
     current.blocks?.push(
-      block.runs ? { kind: 'runs', runs: [...block.runs] } : { kind: 'prose', lines: [block.text] },
+      block.runs
+        ? { kind: 'runs', runs: [...block.runs], ...(block.role ? { role: block.role } : {}) }
+        : { kind: 'prose', lines: [block.text] },
     );
     if (!block.runs && block.links?.length) {
       current.blocks?.push({
@@ -2728,7 +2730,19 @@ export function committeePaymentsPageSnapshot(
  */
 function renderSnapshotBlock(block: SnapshotBlock, article = false): string {
   if (block.kind === 'runs') {
-    return `<p class="ps-prose">${block.runs.map((run) => (run.kind === 'internalLink' || run.kind === 'externalLink' ? `<a href="${escapeHtml(run.href)}">${escapeHtml(run.text)}</a>` : escapeHtml(run.text))).join('')}</p>`;
+    const text = block.runs
+      .map((run) =>
+        run.kind === 'internalLink' || run.kind === 'externalLink'
+          ? `<a href="${escapeHtml(run.href)}">${escapeHtml(run.text)}</a>`
+          : block.role === 'conclusion' && run.kind === 'bold'
+            ? `<strong>${escapeHtml(run.text)}</strong>`
+            : escapeHtml(run.text),
+      )
+      .join('');
+    const paragraph = `<p class="ps-prose">${text}</p>`;
+    return block.role === 'conclusion'
+      ? `<div class="ps-conclusion"><svg width="31" height="30" viewBox="0 0 84 82" role="img" aria-label="Alethical"><path d="M0 82 L38 0 L38 82 Z M84 82 L46 0 L46 82 Z" fill="#0f7a45" /></svg>${paragraph}</div>`
+      : paragraph;
   }
   if (block.kind === 'prose') {
     return block.lines.map((line) => `<p class="ps-prose">${escapeHtml(line)}</p>`).join('');

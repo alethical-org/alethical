@@ -318,11 +318,28 @@ export const LOBBYIST_GIVING_INDEX_ENTRY: PieceIndexEntry = {
   publishedAt: '2026-09-26T20:54:05Z',
 };
 
+export const REALTOR_PACS_INDEX_ENTRY: PieceIndexEntry = {
+  articleId: 'realtor-pacs-shared-candidates',
+  slug: 'realtor-pacs-shared-candidates',
+  title: '3 Realtor PACs. 12 shared campaigns.',
+  traits: {
+    research: true,
+    guide: false,
+  },
+  format: 'short-post',
+  topics: ['campaign-finance', 'elections'],
+  indexed: true,
+  publishedOn: '2026-10-08',
+  recordsThrough: '2024-03-31',
+  publishedAt: '2026-10-08T08:57:17.929Z',
+};
+
 /**
  * Every posted piece, newest first, in the order `PUBLISHED_RESEARCH` lists the
  * full pieces (`lib/research.ts`).
  */
 export const PUBLISHED_PIECE_INDEX: PieceIndexEntry[] = [
+  REALTOR_PACS_INDEX_ENTRY,
   LOBBYIST_GIVING_INDEX_ENTRY,
   ORGANIZATIONS_BOTH_PARTIES_INDEX_ENTRY,
   TWO_RECORDS_NOT_TWO_DONATIONS_INDEX_ENTRY,

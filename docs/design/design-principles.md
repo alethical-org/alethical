@@ -688,6 +688,10 @@ Approved by Eugene on 26 September 2026.
   appears inside a chart or as article text. Mark standalone conclusion paragraphs
   explicitly in the article's rendering inputs so rebuilding preserves the logo.
   Do not depend on a chart wrapper to supply branding.
+- Conclusion rows use the full available article or chart content width, with
+  the logo on the left and the text filling the remaining row. Do not apply a
+  separate narrow maximum to the row or its text. Eugene approved this on
+  8 October 2026; it replaces the earlier 880px whole-conclusion maximum.
 - A post's supported answer should be visually distinct from its evidence limits.
   In the approved conclusion treatment, put the symbol on the left and bold
   “Conclusion:” plus the answer. Short supporting qualifications continue in regular
@@ -719,9 +723,9 @@ fonts, balanced wrapping and maximum width; ordinary titles add no keyboard
 stop or visible control. Long Research’s
 22px opening line under H1 has an 880px maximum; Guide and Short post openings
 retain their current widths. Essential method summaries, Full method controls,
-closing AI-preparation paragraphs and existing whole conclusion rows have an
-880px maximum. Keep expanded method text and enclosing boxes full width. The
-conclusion limit includes its existing symbol and gap, not just its text.
+closing AI-preparation paragraphs have an 880px maximum. Keep expanded method
+text, enclosing boxes and conclusion rows full width. The conclusion logo stays
+on the left with its existing size, clear space and first-2-line alignment.
 
 Article prose and chart tables remain 100% wide. Label columns use width 1% and
 no wrapping from 768px; phone labels may wrap. Numeric columns use width 1%, a
@@ -734,10 +738,10 @@ padding and real header scope. Confine
 necessary horizontal scrolling to the table at every screen width, with keyboard
 access and the existing purple 2px keyboard-focus outline. Keep all other article
 styling and text unchanged. Approved by Eugene on 30 September 2026, with row-line
-length revised on 8 October 2026. Check the header and every body-row divider on
+length and conclusion width revised on 8 October 2026. Check the header and every body-row divider on
 phone, tablet and desktop, including wrapped labels and wide numbers; shortening
 the lines must not clip, wrap or shrink a number. This records the design change;
-updating these rules does not itself claim that existing renderers have changed.
+Eugene authorized implementation and live release on 8 October 2026.
 [published-writing-decisions.md §Article widths](../architecture/published-writing-decisions.md#article-widths-30-september-2026)
 owns the scope and [issue 2448](https://github.com/alethical-org/alethical/issues/2448)
 records the 30 September release.

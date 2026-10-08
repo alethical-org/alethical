@@ -635,6 +635,12 @@ The new prepublication checks apply to social-derived Short posts, not retroacti
 
 One controlled topic vocabulary describes subject independently of format and traits. It begins with Campaign finance, Lobbying, and Elections. The `/blog` page groups Research reports, then Short posts, then Guides; shows the newest 3 Short posts with an All short posts link; hides that group until a Short post is published; and keeps each Short post out of the long-form groups and reading sets. `/blog/short-posts` uses newest-first publication timestamps, 6 pieces per numbered page, and a stable tie-breaker. Checks and corrections never reset publication time or ordering. `/blog/topics/<topic>` gathers published pieces across traits and format. The kind-label rule for each listing is in §2.10. No topic directory, new search box, or combined filters are part of this decision. Eugene authorized these screens on 26 Sep 2026; [issue 2396](https://github.com/alethical-org/alethical/issues/2396) owns implementation and release. Individual articles retain their separate publication gate.
 
+Official context without a quantitative reporting period, such as a statute,
+organization notice or brokerage policy, retains its copy date and exact scope
+as a source snapshot. The copy date never becomes reporting coverage. The
+article’s records-through date still comes from its quantitative filings; dated
+and undated context stays explicit beside the relevant claims.
+
 Related reading names a few relevant pieces already published, never the current piece or an invented destination. Reader-facing article text and quantitative graphics draw from the same approved numeric inputs, including units, periods, denominators, and any remainder category. An overlap diagram must not imply unsupported area proportions. Its labels and any needed explanation follow [ui-copy-guide.md §Remove implied information from text and visuals](../design/ui-copy-guide.md#remove-implied-information-from-text-and-visuals); omit the generic overlap sentence in the approved organizations draft. A dated newer-record notice points to newer activity without silently recalculating a dated article. An amended source earns a dated explanation and revised finding; Alethical's own error is corrected in text and chart with a dated correction, leaving no wrong figure readable with a line through it. The original publication date follows Minnesota's calendar and stays fixed; a later correction has its own full-content review and release instruction. Records-through is the newest covered reporting-period end among cited records Alethical holds, not extraction day. A piece using only official sources names that outside-source coverage and uses their newest covered end; it never presents that date as coverage of records Alethical loaded. A purely explanatory Guide names source dates when known and never invents a numeric reporting period or date for an undated source. Different sources' coverage stays explicit.
 
 New or revised posts use 1 closing note, except event promotions, which omit the standard AI notice under Eugene’s 7 October 2026 instruction: “AI helped prepare this article and can make mistakes. We report what the cited public sources support and identify known gaps and uncertainty. Contact us to report a possible error so we can review it and make corrections.” Link “Contact us” to `/about/contact`. Omit the first sentence when AI did not help prepare the article. The note applies beyond social-derived writing and may appear in private drafts because it does not claim completed review. All 5 published guides and *The Money Only Goes One Way* carry `aiAssisted: true` in the writing index: the 5 guide manuscript commits explicitly credit Claude ([825a2357](https://github.com/alethical-org/alethical/commit/825a2357), [66bc1d77](https://github.com/alethical-org/alethical/commit/66bc1d77), [3de50d25](https://github.com/alethical-org/alethical/commit/3de50d25), [9a3d4838](https://github.com/alethical-org/alethical/commit/9a3d4838), [f505376a](https://github.com/alethical-org/alethical/commit/f505376a)); the research report's reader-facing methodology was prepared with Claude assistance ([8a862399](https://github.com/alethical-org/alethical/commit/8a862399)). This flag selects the closing sentence, not a claim that all source checking was delegated. [ui-copy-guide.md](../design/ui-copy-guide.md#standard-closing-note-for-every-post-type) owns the wording. Publication still requires all source checks, human review and a separate publication instruction. Each known material gap belongs beside the affected claim. No complete-accuracy guarantee is made. Following Eugene’s 26 September drafting-rule update, the generic contribution/motive/influence/wrongdoing note is not mandatory for new drafts. Use precise, supported wording and specific limitations instead of automatic boilerplate. [ui-copy-guide.md](../design/ui-copy-guide.md#keep-meaningful-uncertainty-remove-obvious-caveats) owns this rule; already published articles are outside this change.
@@ -670,8 +676,9 @@ private Realtor article and made the direction a blog-post rule for now. New
 and revised posts present supported evidence and specific limitations without
 adding a legal verdict or an illegality disclaimer. Readers draw their own
 conclusions. [ui-copy-guide.md §Keep meaningful uncertainty, remove obvious caveats](../design/ui-copy-guide.md#keep-meaningful-uncertainty-remove-obvious-caveats)
-owns the wording rule. This changes the current private draft and future drafting,
-not the publication hold or the requirement to support factual claims.
+owns the wording rule. This changes the current draft and future drafting,
+not the requirement to support factual claims. Eugene separately authorized
+publication of the Realtor article on 8 October 2026.
 
 ### Article widths, 30 September 2026
 
@@ -719,8 +726,9 @@ Other record tables keep their existing rendering. Short post tables already
 flattened to prose are not rebuilt as part of this title/table refinement. Long Research’s existing 22px opening line under its title has an
 880px maximum; Guide and Short post openings keep their existing widths.
 The essential paragraph and Full method control inside HOW THIS WAS CALCULATED,
-the closing AI-preparation paragraph, and each existing whole conclusion wrapper
-(symbol, gap and text together) have an 880px maximum. Expanded Full method text,
+and the closing AI-preparation paragraph have an 880px maximum. Conclusion rows
+use the full available article or chart content width, including symbol, gap and
+text, under Eugene’s 8 October revision. Expanded Full method text,
 enclosing boxes, ordinary prose, headings, lists, contents rail, comments, Related
 reading and footer retain their full available widths and existing appearance.
 Conclusion symbols retain each surface’s existing size.
@@ -735,7 +743,8 @@ scope associations. The last real figure keeps its existing padding. Overflow
 scrolls inside the table at every width, including tablet, without widening the
 page; scrolling is keyboard accessible with the existing approved focus treatment.
 No wording, figures, dates, links, font sizes/weights, fills, spacing, padding,
-borders or radii change, except for the row-line length revision below.
+borders or radii change, except for the row-line length and conclusion-width
+revisions below.
 
 **Table row-line length, 8 October 2026.** Eugene revised the full-width row-line
 direction while reviewing the private Realtor post. In all blog article tables
@@ -749,7 +758,18 @@ alignment, padding, number readability, header associations and accessible local
 scrolling. The last total row still has no closing line. Check header and body-row
 dividers at phone, tablet and desktop sizes with wrapped labels and wide values.
 This approved design revision replaces the 30 September instruction to extend
-lines across spacer cells; this rules-only update does not change the renderers.
+lines across spacer cells. Eugene authorized implementation and live release on
+8 October 2026.
+
+**Conclusion row width, 8 October 2026.** Eugene asked that blog conclusions
+use full-width rows like ordinary article content, with the logo on the left.
+This applies to every blog post type and to conclusions inside charts or article
+text, in private previews, initial HTML and loaded articles. Remove the separate
+880px maximum from both the whole row and its text; the enclosing article or
+chart width still governs. Retain the symbol’s proportions, size and clear space,
+its alignment against the first 2 lines, and the bold answer followed by regular
+qualifications in the same paragraph. This replaces only the 30 September
+conclusion-width restriction, not the method or closing-note text limits.
 
 The article metadata displays publication dates and reporting periods, with Share
 on the same row where space permits. Download/copy, retrieval and extraction dates

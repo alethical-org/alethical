@@ -36,6 +36,7 @@ import { PUBLISHED_RESEARCH, piecePath, researchBySlug } from '../research';
  * checks underneath without somebody deciding what it must carry.
  */
 const PUBLISHED_ADDRESSES = [
+  '/blog/research/realtor-pacs-shared-candidates',
   '/blog/research/organizations-both-parties',
   '/blog/research/lobbyist-giving',
   '/blog/research/2-records-not-always-2-donations',
@@ -171,11 +172,13 @@ describe('the both-sides PAC label carries its complete method', () => {
 
 /**
  * Rule 13's second exception, and its publishing order point 8: a piece names, in
- * its own words, the body whose filings it read. Every piece we have published so
- * far reads Minnesota's Campaign Finance Board and nothing else.
+ * its own words, the body whose filings it read. The Realtor article uses Florida
+ * records; the earlier pieces use Minnesota’s Campaign Finance Board.
  */
 describe('every published piece names the body whose filings it read', () => {
-  it.each(PUBLISHED_ADDRESSES)('names the Campaign Finance Board on %s', (address) => {
+  it.each(
+    PUBLISHED_ADDRESSES.filter((address) => !address.endsWith('/realtor-pacs-shared-candidates')),
+  )('names the Campaign Finance Board on %s', (address) => {
     const slug = address.slice(address.lastIndexOf('/') + 1);
     expect(servedPage(slug)).toContain('Campaign Finance Board');
   });
@@ -313,5 +316,30 @@ describe('the 2 original-topic short posts preserve their evidence boundaries', 
       'Karl Procaccini',
     ])
       expect(html.toLowerCase()).toContain(required.toLowerCase());
+  });
+});
+
+describe('Realtor payments retain their exact scope and source distinctions', () => {
+  const html = servedPage('realtor-pacs-shared-candidates');
+  it.each([
+    '$36,000 is a subtotal',
+    '$55,000 in candidate payments',
+    'February 16, 2024',
+    'February 29, 2024',
+    '12 × 3 × $1,000 = $36,000',
+    'We did not merge Rick Butler with Ricky Butler',
+    'These national funding records do not trace a Minnesota member’s dues to the Florida payments described here.',
+    'The Minnesota guidance has no reliable update date',
+  ])('keeps the material limit or calculation: %s', (text) => {
+    expect(html).toContain(text);
+  });
+  it('names the Florida body whose filings it read', () => {
+    expect(html).toContain('Florida’s Division of Elections');
+  });
+  it('keeps the requested conclusion without an illegality disclaimer', () => {
+    expect(html).toContain(
+      'A $1,000 committee limit can coexist with $3,000 from an affiliated group.',
+    );
+    expect(html).not.toContain('not a finding that these payments were illegal');
   });
 });

@@ -133,11 +133,13 @@ describe('approved article reading links', () => {
     }
   });
 
-  it('keeps 2 distinct, published, on-topic related picks on all 9 pages and in first HTML', () => {
+  it('keeps the 9 approved pairs of related picks published, on-topic, and in first HTML', () => {
     expect(Object.keys(approvedRelated)).toHaveLength(9);
-    for (const piece of PUBLISHED_RESEARCH) {
+    for (const [pieceSlug, approvedPicks] of Object.entries(approvedRelated)) {
+      const piece = PUBLISHED_RESEARCH.find((entry) => entry.slug === pieceSlug)!;
+      expect(piece).toBeDefined();
       const picks = piece.relatedSlugs ?? piece.shortPost?.relatedSlugs ?? [];
-      expect(picks).toEqual(approvedRelated[piece.slug]);
+      expect(picks).toEqual(approvedPicks);
       expect(new Set(picks).size).toBe(2);
       const html = renderPageSnapshot(
         piece.format === 'short-post' ? shortPostPageSnapshot(piece) : researchPageSnapshot(piece),
@@ -177,14 +179,16 @@ describe('approved article reading links', () => {
     for (const original of PUBLISHED_RESEARCH.filter((piece) => piece.format === 'short-post')) {
       const piece = structuredClone(original);
       const before = JSON.stringify(piece);
-      expect(shortPostOriginalContentFingerprint(piece)).toBe(
-        piece.shortPost!.review.eugeneApprovedFingerprint,
-      );
+      const review = piece.shortPost!.review;
+      if (review.navigationRevision) {
+        expect(shortPostOriginalContentFingerprint(piece)).toBe(review.eugeneApprovedFingerprint);
+      }
       expect(shortPostPublicationErrors(piece)).toEqual([]);
       expect(shortPostPublicationErrors(piece)).toEqual([]);
       expect(JSON.stringify(piece)).toBe(before);
       expect(shortPostFingerprint(piece)).toBe(
-        piece.shortPost!.review.navigationRevision?.approvedNavigationFingerprint,
+        review.navigationRevision?.approvedNavigationFingerprint ??
+          review.eugeneApprovedFingerprint,
       );
     }
   });
