@@ -772,8 +772,8 @@ State whether the panel overlays content or pushes it down; preserve approved
 in-flow treatments on narrow screens.
 
 Every Design handoff and authorized build must check the open panel over actual
-page content, even when drawings omit that state. Maps, images, buttons and sticky sections must not
-cover a menu or intercept pointer movement or clicks inside it. Preserve the
+page content, even when drawings omit that state. Maps, images, buttons and sticky
+sections must not cover a menu or intercept pointer movement or clicks inside it. Preserve the
 intended priority of dialogs and other higher-level overlays. Check containing
 elements for clipping and isolated display layers; increasing a menu's own layer
 number cannot lift it out of a lower parent layer.
