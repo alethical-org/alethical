@@ -24,7 +24,7 @@ from typing import Any
 from pypdf import PdfReader
 from pypdf.generic import ContentStream, DictionaryObject
 
-EXTRACTOR_VERSION = "fcc-document-text-v3"
+EXTRACTOR_VERSION = "fcc-document-text-v4"
 VERSION = EXTRACTOR_VERSION
 MAX_DOCUMENT_BYTES = 30 * 1024 * 1024
 MAX_PAGES = 100
@@ -253,7 +253,13 @@ def _extract_pages(body: bytes, source: Path) -> Extraction:
     try:
         reader = PdfReader(io.BytesIO(body), strict=False)
         if reader.is_encrypted:
-            return _failed("unreadable", "encrypted_pdf")
+            # Permissions encryption does not necessarily require an opening
+            # password. Try only the standard empty password, never guesses.
+            try:
+                if not reader.decrypt(""):
+                    return _failed("unreadable", "encrypted_pdf")
+            except Exception:
+                return _failed("unreadable", "encrypted_pdf")
         count = len(reader.pages)
         if count > MAX_PAGES:
             return _failed("limit_exceeded", "document_page_limit")
@@ -395,6 +401,24 @@ _COLUMN_HEADING = re.compile(
     r"|invoice\s+period|invoice\s+month|payment\s+terms)\s*:?",
     re.I,
 )
+_EMBEDDED_HEADING = re.compile(
+    rf"(?<!\w)(?:{_COLUMN_HEADING.pattern}|"
+    + "|".join(
+        (
+            _LABELS
+            | {
+                # Bare labels must not shadow longer headings, or reject a
+                # genuine name containing an ordinary word such as Agency.
+                "agency_name": r"agency\s+name",
+                "advertiser": r"advertiser\s+name",
+                "payer": r"(?:payer\s+name|paid\s+by)",
+                "commission_amount": r"(?:agency\s+commission(?:\s+amount)?|commission\s+amount)",
+            }
+        ).values()
+    )
+    + r")(?!\w)",
+    re.I,
+)
 _MONEY_FIELDS = {
     "gross_amount",
     "commission_amount",
@@ -418,6 +442,19 @@ def _label(line: str) -> tuple[str, str] | None:
     return None
 
 
+def _contains_heading(value: str) -> bool:
+    if _label(value) or _COLUMN_HEADING.fullmatch(value):
+        return True
+    for match in _EMBEDDED_HEADING.finditer(value):
+        heading = match.group().strip()
+        # Poppler can join a long name to the next heading with only 1 space.
+        # Reject that whole value; never trim a plausible name out of it.
+        # Bare words such as Agency/Property can also belong to real names.
+        if len(heading.split()) > 1 or "/" in heading or "#" in heading:
+            return True
+    return False
+
+
 def _value(name: str, value: str) -> str | None:
     if not value or len(value) > 500 or "\ufffd" in value:
         return None
@@ -437,12 +474,7 @@ def _value(name: str, value: str) -> str | None:
             return format(Decimal(match.group(1)).normalize(), "f")
         return None
     # Multiple columns may contain otherwise plausible strings. Never join them.
-    if (
-        re.search(r"\S\s{2,}\S", value)
-        or _label(value)
-        or _COLUMN_HEADING.fullmatch(value)
-        or ":" in value
-    ):
+    if re.search(r"\S\s{2,}\S", value) or _contains_heading(value) or ":" in value:
         return None
     if name.endswith("_date") and not re.fullmatch(
         r"(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{2}-\d{2}|[A-Za-z]+\s+\d{1,2},?\s+\d{4})",

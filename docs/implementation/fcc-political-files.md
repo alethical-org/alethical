@@ -103,6 +103,12 @@ scale, varied PDF layouts and station scope beyond the initial 3.
   real names with slashes. It leaves ambiguous names unknown instead of guessing
   from neighboring rows. Earlier readings remain retained; current readings are
   rebuilt from the original stored bytes and stay drafts requiring review.
+- KMSP sampling exposed a long advertiser joined to the next `Invoice Date`
+  heading by only 1 space. Version `fcc-document-text-v4` rejects embedded compound
+  headings across text fields, preserving ordinary company words and slash names.
+  It also opens PDFs using the empty password when they require no opening
+  password; genuinely protected files remain unreadable. Checks cover both cases,
+  and 15 source PDFs retain their supported financial and identity facts.
 - A KSTP source invoice names its property as `KSTP_KSAX`. The archive station is
   the filing location, not proof that every billed spot aired on that station.
   Source text remains available for later review of grouped station buys.

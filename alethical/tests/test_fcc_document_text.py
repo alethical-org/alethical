@@ -93,6 +93,32 @@ _KARE_ADVERTISER_ROWS = (
 
 
 class LabelReadingTests(unittest.TestCase):
+    def test_actual_kmsp_joined_advertiser_heading_is_omitted(self):
+        # Native layout of invoice 1972759-1, SHA256
+        # 1f9b697517f593b485de5788fec5e36d31226a77b86f555724bcfd2290224168.
+        repeated = (
+            "INVOICE\nInvoice #     1972759-1\n"
+            "Advertiser    Alliance for a Better Minnesota State PAC Invoice Date    08/30/26\n"
+            "Property      KMSP          Order #    1972759"
+        )
+        kind, facts, errors = _read(
+            *([repeated] * 5),
+            repeated + "\nGross Total    $31,650.00\nAgency Commission    $4,747.50\n"
+            "Net Amount Due    $26,902.50",
+        )
+        self.assertEqual(kind, "invoice")
+        self.assertFalse(errors)
+        self.assertEqual(
+            _values(facts),
+            {
+                "invoice_number": "1972759-1",
+                "order_number": "1972759",
+                "gross_amount": "31650.00",
+                "commission_amount": "4747.50",
+                "net_amount": "26902.50",
+            },
+        )
+
     def test_actual_kare_header_is_not_advertiser_on_any_repeated_page(self):
         kind, facts, errors = _read(*([_KARE_ADVERTISER_ROWS] * 5))
         self.assertEqual(kind, "unknown")
@@ -326,6 +352,58 @@ def test_neighboring_headers_are_not_text_field_values(label, heading):
     assert not _read(f"{label}       {heading}")[1]
     assert not _read(f"{label}: {heading}")[1]
     assert not _read(f"{label}\n{heading}")[1]
+    assert not _read(f"{label}       Example Committee {heading}")[1]
+    assert not _read(f"{label}: {heading} Example Committee")[1]
+
+
+@pytest.mark.parametrize(
+    "heading",
+    (
+        "Order Number",
+        "Order No.",
+        "Contract #",
+        "Order / Rev",
+        "Invoice Number",
+        "Agency Name",
+        "Agency Address",
+        "Advertiser Name",
+        "Payer Name",
+        "Paid By",
+        "Invoice Date",
+        "Start Date",
+        "Flight Start Date",
+        "End Date",
+        "Flight End Date",
+        "Gross Amount",
+        "Gross Total",
+        "Commission Amount",
+        "Commission Rate",
+        "Agency Commission %",
+        "Net Amount Due",
+        "Net Total",
+        "Total Order Amount",
+        "Credit Amount",
+        "Amount Paid",
+        "Paid Amount",
+        "Payment Received",
+    ),
+)
+def test_all_supported_compound_headings_reject_joined_names(heading):
+    assert not _read(f"Advertiser: Example Committee {heading}")[1]
+    assert not _read(f"Agency Address: {heading} Example Committee")[1]
+
+
+@pytest.mark.parametrize(
+    "name",
+    (
+        "POL/ Keith Ellison / D / Attny General / MN",
+        "POL/ Tim Walz/ D / GOV / MN",
+        "The Agency / Minnesota",
+        "Property Media Partners",
+    ),
+)
+def test_embedded_heading_guard_preserves_slash_names_and_bare_words(name):
+    assert _values(_read(f"Advertiser: {name}")[1]) == {"advertiser": name}
 
 
 # Separate pytest cases keep JUnit's declared count equal to its testcase nodes.
@@ -481,7 +559,7 @@ class PdfReadingTests(unittest.TestCase):
         self.assertEqual([page.page for page in result.pages], [1, 2])
         native_method = "pdftotext" if shutil.which("pdftotext") else "pypdf"
         self.assertEqual([page.method for page in result.pages], [native_method] * 2)
-        self.assertEqual(result.version, "fcc-document-text-v3")
+        self.assertEqual(result.version, "fcc-document-text-v4")
         self.assertEqual(
             _values(result.facts), {"invoice_number": "123", "gross_amount": "42.30"}
         )
@@ -571,6 +649,21 @@ class PdfReadingTests(unittest.TestCase):
         writer.write(output)
         result = extract_document(output.getvalue(), "encrypted.pdf")
         self.assertEqual(result.errors, ["encrypted_pdf"])
+
+    def test_aes_pdf_with_empty_opening_password_is_readable(self):
+        # Publicly viewable PDFs can carry encryption for permissions while
+        # having no opening password, as the observed KARE scanned NAB does.
+        writer = PdfWriter(
+            clone_from=PdfReader(io.BytesIO(_pdf("Invoice Number: 12345")))
+        )
+        writer.encrypt("", owner_password="test-owner", algorithm="AES-128")
+        output = io.BytesIO()
+        writer.write(output)
+        result = extract_document(output.getvalue(), "public-encrypted.pdf")
+        self.assertEqual(result.status, "pending_review")
+        self.assertEqual(len(result.pages), 1)
+        self.assertIn("12345", result.pages[0].text)
+        self.assertNotIn("encrypted_pdf", result.errors)
 
     def test_page_and_byte_limits_fail_without_partial_claim(self):
         with patch.object(reader, "MAX_DOCUMENT_BYTES", 2):
