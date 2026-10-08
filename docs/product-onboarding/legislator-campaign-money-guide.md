@@ -597,6 +597,19 @@ show the filed purpose, kind and location where those fields exist. Goods-and-se
 rows carry their marker.
 All amounts are summed with exact decimal arithmetic inside this committee alone.
 
+A failed recheck keeps the last complete payment list and chart for the same committee,
+year and pinned summary release, with “We could not refresh these payments. The last
+complete payment list is still shown.” and **Try again** above them. The action rechecks
+the summary and both payment directions without hiding accepted records; repeated
+activation waits for those payment reads. A first failed read still withholds the list.
+A successful empty answer replaces old rows; a completed response declaring unavailable clears the
+retained list and never becomes a claim of no payments. A changed committee, year or
+summary release cannot reuse that retained view. An unavailable later page is an
+incomplete replacement; it never removes a prior complete matching list or exposes
+partial new rows. The shared behavior is specified in
+[campaign-money-section-guide.md, the donor and payment browser](campaign-money-section-guide.md).
+
+
 A registered committee's name is an ordinary link to
 `/money/committees/{name}-{number}` only when the current responses say that number has
 a page. It can be opened in a new tab or copied. Private donor and vendor names are plain

@@ -1004,8 +1004,21 @@ Campaign money, top to bottom:
    must not call all received payments contributions.
 
    Every page must arrive from the same release before counts, sums, grouping or sorting
-   claim a complete list. Failed reads keep the load-failed words and withhold those
-   figures, never the sentence saying the file names no payments. When every read
+   claim a complete list. A failed first read keeps the load-failed words and withholds
+   those figures, never the sentence saying the file names no payments. A failed recheck
+   retains the last complete chart and list only while the committee, year and pinned
+   summary release remain unchanged. Above those records, the page says “We could not
+   refresh these payments. The last complete payment list is still shown.” and offers
+   **Try again**. The action rechecks the summary and both payment directions; accepted
+   records remain visible while it waits, and repeat activation is disabled until the
+   payment reads finish. Its label and size stay unchanged. A successful empty list
+   replaces old rows; a completed response declaring unavailable clears the retained list and
+   remains a failure, never a claim of no payments. An unavailable later page is an
+   incomplete replacement: keep the prior matching list and never show partial new rows.
+   The committee page’s compact empty-year result follows the same recheck and retry rules. Changing committee, year or summary
+   release discards the retained view. This first-load versus recheck distinction applies
+   to both committee pages and legislator money tabs through their shared display.
+   [Issue 2540](https://github.com/alethical-org/alethical/issues/2540) records the repair. When every read
    succeeded but the lists and the totals above them came from 2 different copies of the
    records, which happens in the minutes after a new copy is published, the list says
    “Our totals and this payment list were copied from Minnesota’s records at different

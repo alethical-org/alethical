@@ -290,6 +290,33 @@ describe('one committee shares the donation browser', () => {
     });
   }
 
+  it('keeps its accepted compact empty year through a failed payment recheck and retry', async () => {
+    missingReports();
+    emptyPaymentReads();
+    await render();
+    expect(host.textContent).toContain(
+      'No itemized receipts or expenditures in our copy for this year',
+    );
+    emptyPaymentReads({ failed: true });
+    await act(async () => {
+      await client.refetchQueries({ queryKey: ['campaign-money-details'] });
+    });
+    await render();
+    expect(host.textContent).toContain(
+      'No itemized receipts or expenditures in our copy for this year',
+    );
+    expect(host.textContent).toContain('The last complete payment list is still shown.');
+    expect(host.textContent).not.toContain('We could not load the complete payment list');
+    expect(host.textContent).not.toContain('Who gave');
+    emptyPaymentReads();
+    click(button('Try again'));
+    await render();
+    expect(host.textContent).toContain(
+      'No itemized receipts or expenditures in our copy for this year',
+    );
+    expect(host.textContent).not.toContain('last complete payment list');
+  });
+
   it.each([2025, 2026])(
     'compacts a complete empty %i year and links to filed reports',
     async (year) => {

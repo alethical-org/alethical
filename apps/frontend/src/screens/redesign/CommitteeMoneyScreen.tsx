@@ -15,6 +15,7 @@ import {
   useFinePointerHover,
 } from '../../components/campaignMoney/finePointerHover';
 import { PageContextLabel } from '../../components/PageContextLabel';
+import { PaymentRecheckNotice } from '../../components/campaignMoney/PaymentRecheckNotice';
 import {
   CommitteeDonations,
   GroupedOutsideSpending,
@@ -1022,10 +1023,12 @@ function PaymentsSection({
   const emptyPayments =
     yearDisplayState(money) !== 'figures' &&
     Number(money.split.namedTotal ?? 0) === 0 &&
-    details.selectedComplete &&
-    !details.received.isError &&
-    !details.made.isError &&
+    // The reader returns data only after a whole direction finishes. A later
+    // recheck error does not erase that accepted empty answer.
+    details.received.data?.state !== 'unavailable' &&
+    details.made.data?.state !== 'unavailable' &&
     details.received.data?.releaseId === money.releaseId &&
+    details.made.data?.releaseId === money.releaseId &&
     details.received.data?.payments.length === 0 &&
     details.made.data?.payments.length === 0;
   return (
@@ -1063,6 +1066,17 @@ function PaymentsSection({
           </>
         ) : (
           <>
+            {emptyPayments && (details.received.isError || details.made.isError) ? (
+              <PaymentRecheckNotice
+                retrying={details.received.isFetching || details.made.isFetching}
+                onRetry={() => {
+                  if (details.received.isFetching || details.made.isFetching) return;
+                  onRefresh();
+                  void details.received.refetch();
+                  void details.made.refetch();
+                }}
+              />
+            ) : null}
             {moneyControls(emptyPayments)}
             {!emptyPayments ? (
               <>
