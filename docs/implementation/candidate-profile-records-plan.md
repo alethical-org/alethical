@@ -143,8 +143,8 @@ cannot confirm the races and provides the official results link. It never falls
 back to current-election geography. This is a real supported limitation, not an
 unassigned future implementation.
 
-Remaining acceptance: safe live activation audit, real browser role/account
-boundaries, full screen comparisons, final integration and live release.
+Remaining acceptance: safe live activation audit, final integration and live
+release. Local role/account boundaries and screen comparisons pass.
 
 Browser review found that selecting a destination from the phone account sheet
 closed that sheet but left the surrounding site menu over the destination. The
@@ -155,78 +155,81 @@ admin destinations; the actual phone profile-review path also passes.
 ## Progress evidence
 
 <!-- timeless-check-ignore: dated implementation checkpoint, not product instructions -->
-8 October 2026: branch `codex/candidate-profile-records`, rebased on current main
-through the independent address-suggestion release. Public drawing package
+8 October 2026: branch `codex/candidate-profile-records` includes current main
+through `14a4706705cc0b37e8ed153eb4cb5959115d6a62`. Public drawing package
 Alethical UX (62).zip remains the accepted public record direction. Profile claim
 package Alethical UX (66).zip has SHA256
 `db3b54331734afec17467c456318cb0ddd725cd45c082c1c17313f2926d6f52f`.
-Independent review covered 218 requirements. Parent inspected the blank-unsaved
-give-up confirmation and admin revoke/sign-out privacy transition in the browser.
-The drawings are accepted with objective routing, filter-refresh, pending-count
-and server-time corrections; no unresolved visual choice remains. Design received
-the settled implementation corrections directly and is updating its saved record
-without another downloadable handoff dependency.
+Independent review covered 218 requirements. Direct Design updates reconcile
+source-block wording, closed-election sign-in, unpublished previews, unsaved
+navigation, responsive dialogs and readable long evidence. Those are settled
+corrections within the accepted visual direction. The private acceptance matrix
+keeps observed browser behavior separate from controlled responses and source
+inspection; actual phone hardware and external email-client rendering are not
+claimed.
 
-The integrated claim, source-recheck and email suite passes 122 tests, including
-41 email checks with a fake provider. Public backend checks pass 120 tests.
-The claim frontend passes 68 focused tests, and the public frontend passes 78.
-Frontend type checks pass. Browser acceptance and release checks remain.
-Claim and public frontend implementation are ready for integrated review. Parent owns email/recheck integration,
-navigation, server-rendered public pages and final delivery. Feature release is
-not yet complete.
+The complete backend suite passes 5,019 tests. The complete frontend suite passes
+4,359 tests in 341 files. Lint, type checks and the production-style website build
+pass. Initial compressed JavaScript is 297,163 bytes against the unchanged
+297,506-byte release limit. Full draft-history protection loads with the statement
+editor rather than adding its complete implementation to every visitor's first
+page. Independent code review covers request-version checks, deleted-reviewer
+cleanup, retained-result feedback and the lazy history boundary.
 
-Email delivery shares the existing provider lock, stores an immutable attempted
-payload, and retries the same provider idempotency key only within 23 hours of
-the first attempt (inside the provider's 24-hour retention). Unknown expired
-delivery is marked uncertain rather than risking another send. Recipient address
-and eligibility come from current confirmed provider records, with ambiguous
-addresses omitted. The new mail worker remains off until launch audit and dry
-run acceptance; tests never send real emails.
+Local browser acceptance covers public/person reciprocal links, separate result
+and service sources, request errors, submission, withdrawal, resubmission, statement
+preview/edit/removal and giving up a published statement. Admin checks cover source
+refresh success/failure, approval validation, revocation, ended-election rejection,
+stale decisions and report review. Profile/menu return destinations survive the
+navigation. Phone, tablet and desktop comparisons cover the accepted form/status,
+editor, dialog and unified admin-list/detail geometry. All 8 email templates fit
+phone and desktop previews; no real email was sent. A further 15 rendered
+Chromium interaction checks pass with controlled fictional responses, covering
+failures, retries, steady saving buttons, hover, focus, touch, menu movement,
+enlarged text and browser history. Firefox and WebKit are not claimed as tested.
 
-The task's private evidence directory is
-`~/.local/state/alethical-agent-jobs/`; temporary drawings and prompts remain
-there, rather than becoming permanent product documentation.
+Browser acceptance exposed 3 shared causes and now has focused prevention checks:
 
-Browser acceptance checkpoint: the real local public profile opens its matching
-person overview and returns to the same election record. Source details open in
-place. The phone certification date now wraps inside its card, and the source
-disclosure exposes its expanded state to screen readers. Production readiness
-uses strictly read-only comparisons: 0 profile claims or published statements,
-3 eligible admins, 6 new historical candidate IDs with no collisions, and 7
-current legislator identity connections. Profile claim email remains disabled.
+- Retained editor routes bypassed the removal warning. Candidate-specific route
+  identities and a guarded history adapter protect profile/header/footer departure
+  and Back/Forward without adding duplicate entries or losing Forward history.
+  Keep editing and Escape restore draft, address and statement-field focus;
+  Discard performs the original departure once. Account and permission changes
+  still clear private content. Real navigation tests failed before the correction
+  and pass after it, alongside the rendered browser path.
+- The unbreakable final-word link group clipped very long evidence URLs, and flex
+  sizing compressed stacked phone metadata when text grew. The existing link group
+  can now wrap an oversized token while keeping the final character with its arrow;
+  phone metadata uses its natural height. Rendered bounds at 200% text verify that
+  the URL remains visible and applicant/submission blocks remain separate.
+- Stale validation messages disappeared only on submission and moved busy actions.
+  Previously invalid fields now update their own errors as they are corrected.
+  Rejecting after an approval-only checkbox error preserves that error's measured
+  space during the request while removing its obsolete message. Browser checks
+  measure ready/busy bounds and cover recovery from uncertain outcomes.
 
-Final integration checkpoint: current-main backend tests pass 5,019 cases;
-frontend tests pass 4,325 cases; lint, types, the production-style web build and
-isolated pre-push checks pass. The account-drawer correction adds 5 focused
-regressions, with all 46 affected menu tests passing. Independent code review has
-accepted request-version checks, deleted-reviewer cleanup and retained-results
-feedback. The applicant browser journey covers request errors, submission,
-withdrawal, resubmission, statement editing and giving up a published statement.
-Admin browser checks cover source refresh success/failure, approval validation,
-revocation, ended-election rejection and a stale decision after another admin
-acts. All 8 email templates are readable at phone and desktop widths without
-horizontal overflow; no real email was sent.
+Unpublished previews omit a date rather than inventing today's date or borrowing
+a statement-removal date. Two focused regressions cover never-published and
+removed statements. In-app draft protection is distinct from the browser-owned
+warning for document departures; no private saved-draft feature is implied.
 
-Responsive acceptance found that the admin list/detail implementation did not
-fully match the accepted drawings. The list's horizontal tablet/desktop rows,
-title sizes and status pills, and the detail's unified divided article and
-evidence grouping now follow the accepted drawings. Corrected admin grouping
-passes phone, tablet and desktop browser comparison. The profile's admin action
-also preserves its candidate filter and return destination when clicked, covered
-by a rendered navigation regression.
-
-The same comparison found claim statuses retaining the request-form introduction
-and manage content using generic account geometry. Status views now own their
-identity, icon, heading and actions. The editor groups verified access inside the
-identity card, puts its heading before help, restores the approved input height
-and preview boundary, and keeps destructive action confirmations. Shared dialogs
-use the approved full phone width, rounded top corners and safe-first action
-order. Privacy, stale-version and uncertain-save safeguards remain in place.
-Frontend checks now pass 4,335 tests; type checking and the production-style
-website build pass after these changes. Final claim/manage browser acceptance
-and the live release remain in progress.
-
-The public-record launch has a private, pinned before/after receipt and guarded
-recovery procedure. Its independent review and 8 isolated PostgreSQL checks pass.
+The public-record launch has a pinned private before/after receipt and guarded
+recovery procedure. Independent review and 8 isolated PostgreSQL checks pass.
+Its planned writes are limited to reviewed public records and preserve source
+versions; they do not touch claims, statements, accounts or notifications.
 Production inspection, migration acceptance and live record readback remain
-release gates; this preparation does not establish that production was changed.
+release gates, not completed production changes.
+
+The earlier read-only readiness audit found 0 profile claims/statements, 3
+eligible admins, 6 collision-free historical candidate IDs and 7 eligible current
+legislator identity connections. Activation requires a fresh audit after release.
+The Railway profile-claim email flag is explicitly staged false, with deployment
+skipped. Delivery remains off until the live migration, privacy, empty-queue,
+public-record and route checks in [deployment.md](../operations/deployment.md)
+pass.
+
+Remaining delivery is current-head hosted checks, merge and deployment, guarded
+public-record import and readback, fresh activation audit, email activation and
+live acceptance. The task retains its managed working folder for routine work.
+Temporary drawings, private audit receipts and browser evidence remain under
+`~/.local/state/alethical-agent-jobs/` rather than in public product documentation.

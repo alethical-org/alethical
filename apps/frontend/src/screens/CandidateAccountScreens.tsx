@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ScrollView, Text, TextInput, View } from 'react-native';
 import { usePreventRemove } from '@react-navigation/native';
 import {
@@ -45,6 +45,8 @@ import {
 import { useAdminAccess } from '../hooks/useAdminAccess';
 import { useResponsive } from '../hooks/useResponsive';
 import { useDocumentTitle } from '../navigation/documentTitle';
+import { GuardedNavigationContext } from '../navigation/GuardedNavigationContext';
+import { createGuardedWebHistory } from '../navigation/guardedWebHistory';
 import type { RootScreenProps } from '../navigation/types';
 import { useAuth } from '../providers/AuthProvider';
 import { useSignInModal } from '../providers/signInModalContext';
@@ -55,10 +57,12 @@ function AccountIntro({
   mode,
   record,
   onPublic,
+  closed = false,
 }: {
   mode: 'claim' | 'manage';
   record: CandidateProfileRecord;
   onPublic(): void;
+  closed?: boolean;
 }) {
   const { isMobile, isDesktop } = useResponsive();
   const size = isMobile ? 30 : isDesktop ? 40 : 36;
@@ -76,7 +80,11 @@ function AccountIntro({
         aria-level={1}
         style={[candidateText.title, { marginTop: 10, fontSize: size, lineHeight: size * 1.08 }]}
       >
-        {mode === 'claim' ? 'Claim this profile' : 'Manage this profile'}
+        {closed
+          ? copy.closedTitle
+          : mode === 'claim'
+            ? 'Claim this profile'
+            : 'Manage this profile'}
       </Text>
       <Text
         style={[
@@ -89,9 +97,9 @@ function AccountIntro({
           },
         ]}
       >
-        {mode === 'claim' ? copy.claim : copy.manage}
+        {closed ? copy.closed : mode === 'claim' ? copy.claim : copy.manage}
       </Text>
-      {mode === 'claim' ? (
+      {mode === 'claim' && !closed ? (
         <View style={{ marginTop: 12 }}>
           <CandidateRecordBoundary>
             An approved profile claim lets you manage the campaign statement, not the official
@@ -495,7 +503,10 @@ function ClaimForm({
                 checked={role === label}
                 disabled={Boolean(busy) || Boolean(unknown)}
                 aria-invalid={Boolean(errors.role)}
-                onChange={() => setRole(label)}
+                onChange={() => {
+                  setRole(label);
+                  if (errors.role) setErrors((previous) => ({ ...previous, role: undefined }));
+                }}
                 style={{ width: 20, height: 20, accentColor: '#0f7a45', flexShrink: 0 }}
               />
               {label}
@@ -535,7 +546,14 @@ function ClaimForm({
         <CandidateField
           label={copy.link}
           value={evidence}
-          onChange={setEvidence}
+          onChange={(value) => {
+            setEvidence(value);
+            if (errors.link)
+              setErrors((previous) => ({
+                ...previous,
+                link: profileClaimFormErrors(role, value, note).link,
+              }));
+          }}
           error={errors.link}
           inputRef={linkRef}
           readOnly={Boolean(busy) || Boolean(unknown)}
@@ -546,7 +564,14 @@ function ClaimForm({
         <CandidateField
           label={copy.explanation}
           value={note}
-          onChange={setNote}
+          onChange={(value) => {
+            setNote(value);
+            if (errors.explanation)
+              setErrors((previous) => ({
+                ...previous,
+                explanation: profileClaimFormErrors(role, evidence, value).explanation,
+              }));
+          }}
           error={errors.explanation}
           inputRef={noteRef}
           multiline
@@ -608,6 +633,16 @@ function ManageContent({
     null,
   );
   const [discarding, setDiscarding] = useState(false);
+  const editorRef = useRef<TextInput>(null);
+  const { cancelPendingNavigation, installHistoryGuard } = useContext(GuardedNavigationContext);
+  useLayoutEffect(() => {
+    installHistoryGuard(createGuardedWebHistory);
+  }, [installHistoryGuard]);
+  const keepEditing = () => {
+    cancelPendingNavigation();
+    setLeaveAction(null);
+    setDialog(null);
+  };
   const [recovered, setRecovered] = useState(false);
   const claim = claims?.claims.find((item) => item.candidate_id === record.candidate.id);
   const canManage = claims?.is_admin !== true && claim?.can_manage === true;
@@ -672,14 +707,14 @@ function ManageContent({
     if (discarding && leaveAction) navigation.dispatch(leaveAction);
   }, [discarding, leaveAction, navigation]);
   useEffect(() => {
-    if (!dirty || typeof window === 'undefined') return;
+    if (!dirty || discarding || typeof window === 'undefined') return;
     const warn = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = '';
     };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty]);
+  }, [dirty, discarding]);
   const write = async (action: 'save' | 'remove' | 'withdraw') => {
     if (!claim || !claims || !canManage || writing.current || failure) return;
     const scope = signal();
@@ -919,9 +954,10 @@ function ManageContent({
       <View style={{ marginTop: 28 }}>
         <CandidateField
           label="Campaign statement"
+          inputRef={editorRef}
           labelLevel={2}
           labelAside={
-            loaded?.statement?.updated_at ? (
+            publicBody && loaded?.statement?.updated_at ? (
               <Text style={[candidateText.body, { fontSize: 14.5 }]}>
                 Published {candidateDate(loaded.statement.updated_at.slice(0, 10))}
               </Text>
@@ -1021,7 +1057,7 @@ function ManageContent({
             record={record}
             statement={{
               body: draft,
-              updated_at: loaded?.statement?.updated_at ?? new Date().toISOString(),
+              updated_at: publicBody ? (loaded?.statement?.updated_at ?? null) : null,
               version: loaded?.statement?.version ?? 0,
             }}
           />
@@ -1094,7 +1130,17 @@ function ManageContent({
               : 'You will lose campaign access to manage this candidate profile’s statement. The public candidate profile and official records will remain.'}
           </Text>
           {dirty ? (
-            <Text style={candidateText.strong}>Your unsaved changes will be discarded</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+              <CandidateStatusIcon kind="warning" size={17} />
+              <Text
+                style={[
+                  candidateText.strong,
+                  { flex: 1, fontSize: 15.5, lineHeight: 23.25, color: '#8f5a12' },
+                ]}
+              >
+                Your unsaved changes will be discarded
+              </Text>
+            </View>
           ) : null}
           <CandidateDialogActions>
             <ProfileClaimButton
@@ -1122,8 +1168,12 @@ function ManageContent({
               : 'You have unsaved changes'
           }
           onClose={() => {
-            if (!busy) setDialog(null);
+            if (!busy) {
+              if (dialog === 'leave') keepEditing();
+              else setDialog(null);
+            }
           }}
+          returnFocus={dialog === 'leave' ? () => editorRef.current?.focus() : undefined}
         >
           <CandidateDialogActions>
             <ProfileClaimButton
@@ -1131,7 +1181,7 @@ function ManageContent({
               width={isMobile ? '100%' : undefined}
               label={dialog === 'remove' ? 'Keep statement' : 'Keep editing'}
               disabled={Boolean(busy)}
-              onPress={() => setDialog(null)}
+              onPress={() => (dialog === 'leave' ? keepEditing() : setDialog(null))}
             />
             <ProfileClaimButton
               label={dialog === 'remove' ? 'Remove statement' : 'Discard changes'}
@@ -1229,12 +1279,17 @@ function CandidateAccountScreen({
                 <AccountIntro
                   mode={mode}
                   record={record}
+                  closed={mode === 'claim' && record.electionEnded === true}
                   onPublic={() => navigation.navigate('CandidateProfile', { candidateId: id })}
                 />
                 <CandidateAccountIdentity record={record} />
                 <View style={{ marginTop: 26 }}>
                   <CandidateButton
-                    label="Sign in to continue"
+                    label={
+                      mode === 'claim' && record.electionEnded === true
+                        ? 'Sign in to view your profile claim status'
+                        : 'Sign in to continue'
+                    }
                     icon="none"
                     onPress={() =>
                       openSignIn({ intent: 'nav', returnTo: `/candidates/${id}/${mode}` })

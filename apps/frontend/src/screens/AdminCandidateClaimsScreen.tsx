@@ -398,6 +398,8 @@ function ClaimDetail({
   const [verified, setVerified] = useState(false);
   const [noteError, setNoteError] = useState<string | undefined>();
   const [checkError, setCheckError] = useState(false);
+  const checkErrorHeight = useRef(0);
+  const [busyCheckErrorHeight, setBusyCheckErrorHeight] = useState(0);
   const [dialog, setDialog] = useState(false);
   const [notice, setNotice] = useState('');
   const [recheckFailed, setRecheckFailed] = useState(false);
@@ -466,6 +468,7 @@ function ClaimDetail({
     )
       return;
     writing.current = true;
+    setBusyCheckErrorHeight(checkError ? checkErrorHeight.current : 0);
     setBusy(action);
     setNotice('');
     try {
@@ -597,7 +600,7 @@ function ClaimDetail({
         </View>
         <View style={[cardPadding, adminStyles.divider, { gap: 16 }]}>
           <View style={{ flexDirection: isMobile ? 'column' : 'row', columnGap: 24, rowGap: 16 }}>
-            <View style={{ gap: 4, flex: 1, minWidth: 0 }}>
+            <View style={{ gap: 4, flex: isMobile ? undefined : 1, minWidth: 0 }}>
               <Text style={adminStyles.label}>Applicant email</Text>
               <Text style={adminStyles.value}>
                 {claim.account_email ?? 'No confirmed account email available'}
@@ -606,7 +609,7 @@ function ClaimDetail({
                 <Text style={[adminStyles.body, { fontSize: 14 }]}>Confirmed account address</Text>
               ) : null}
             </View>
-            <View style={{ gap: 4, flex: 1, minWidth: 0 }}>
+            <View style={{ gap: 4, flex: isMobile ? undefined : 1, minWidth: 0 }}>
               <Text style={adminStyles.label}>Submitted</Text>
               <Text style={adminStyles.value}>
                 {profileClaimTime(claim.submitted_at ?? claim.created_at)}
@@ -705,7 +708,10 @@ function ClaimDetail({
               ) : null}
               <ReviewNoteField
                 value={note}
-                onChange={setNote}
+                onChange={(value) => {
+                  setNote(value);
+                  if (noteError) setNoteError(profileClaimNoteError(value) ?? undefined);
+                }}
                 readOnly={disabled}
                 error={noteError}
                 inputRef={noteRef}
@@ -737,7 +743,10 @@ function ClaimDetail({
                       disabled={disabled}
                       aria-invalid={checkError}
                       aria-describedby={checkError ? 'profile-identity-error' : undefined}
-                      onChange={(event) => setVerified(event.target.checked)}
+                      onChange={(event) => {
+                        setVerified(event.target.checked);
+                        if (event.target.checked) setCheckError(false);
+                      }}
                       style={{
                         margin: '1px 0 0',
                         flexShrink: 0,
@@ -749,14 +758,21 @@ function ClaimDetail({
                     I independently verified this applicant’s identity and authority to represent
                     this campaign
                   </label>
-                  {checkError ? (
-                    <Text
-                      nativeID="profile-identity-error"
-                      role="alert"
-                      style={[candidateText.strong, { color: '#a3421a' }]}
-                    >
-                      {copy.verifyError}
-                    </Text>
+                  {checkError || (busy && busyCheckErrorHeight > 0) ? (
+                    <View style={{ minHeight: busy ? busyCheckErrorHeight : undefined }}>
+                      {checkError ? (
+                        <Text
+                          nativeID="profile-identity-error"
+                          role="alert"
+                          onLayout={(event) => {
+                            checkErrorHeight.current = event.nativeEvent.layout.height;
+                          }}
+                          style={[candidateText.strong, { color: '#a3421a' }]}
+                        >
+                          {copy.verifyError}
+                        </Text>
+                      ) : null}
+                    </View>
                   ) : null}
                 </View>
               ) : null}

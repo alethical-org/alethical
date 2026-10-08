@@ -23,7 +23,7 @@ export function CandidateCampaignStatement({
   preview = false,
 }: {
   record: CandidateProfileRecord;
-  statement: CandidateStatement;
+  statement: Omit<CandidateStatement, 'updated_at'> & { updated_at: string | null };
   onReport?(): void;
   preview?: boolean;
 }) {
@@ -53,9 +53,11 @@ export function CandidateCampaignStatement({
             </Text>
           </View>
         </View>
-        <Text style={[candidateText.body, { fontSize: 14.5, marginTop: 12 }]}>
-          Published {candidateDate(statement.updated_at.slice(0, 10))}
-        </Text>
+        {statement.updated_at ? (
+          <Text style={[candidateText.body, { fontSize: 14.5, marginTop: 12 }]}>
+            Published {candidateDate(statement.updated_at.slice(0, 10))}
+          </Text>
+        ) : null}
         <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'flex-start', gap: 9 }}>
           <Svg
             width={18}

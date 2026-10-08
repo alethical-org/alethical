@@ -363,6 +363,14 @@ its authorship and explains verified campaign access. Campaign statements stay
 out of official-record answers and search material used by Grounded Ask. Private
 statement revisions remain available to the owner and authorized admin review.
 
+An unsaved statement stays in the editor until publication or a confirmed edit;
+there is no saved unpublished-draft feature. Leaving through an in-app link or
+browser Back or Forward offers **Keep editing** and **Discard changes**. Keeping
+the draft restores its text and keyboard focus. Closing or reloading the tab
+uses the browser's own warning. A never-published draft has no publication date,
+including in Preview. Clearing an existing published statement is an unsaved
+edit; typing and clearing a new draft back to empty is not.
+
 Applicants can withdraw pending requests. **Give up this profile claim** ends an
 approved owner's campaign access and removes a published statement if present.
 Its confirmation and success message mention removal only when a statement exists.

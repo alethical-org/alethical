@@ -326,11 +326,13 @@ export function CandidateDialog({
   children,
   onClose,
   initialFocus = 'safe',
+  returnFocus,
 }: {
   title: string;
   children: ReactNode;
   onClose(): void;
   initialFocus?: 'safe' | 'field';
+  returnFocus?: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const { isMobile } = useResponsive();
@@ -345,7 +347,8 @@ export function CandidateDialog({
       ?.focus();
     return () => {
       element?.close?.();
-      prior?.focus();
+      if (returnFocus) returnFocus();
+      else prior?.focus();
     };
   }, []);
   if (Platform.OS !== 'web')

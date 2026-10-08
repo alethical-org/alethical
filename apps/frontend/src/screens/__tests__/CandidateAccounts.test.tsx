@@ -6,6 +6,7 @@ import { CandidateClaimScreen, CandidateManageScreen } from '../CandidateAccount
 import { AdminCandidateClaimsScreen } from '../AdminCandidateClaimsScreen';
 import { CandidateClaimPanel } from '../../components/candidates/CandidateClaimPanel';
 import type { CandidateProfileRecord } from '../../components/candidates/types';
+import { GuardedNavigationContext } from '../../navigation/GuardedNavigationContext';
 
 const mocks = vi.hoisted(() => {
   (globalThis as { __DEV__?: boolean }).__DEV__ = false;
@@ -193,6 +194,32 @@ it('uses the existing sign-in dialog and keeps private claims unavailable while 
   act(() => button('Sign in to continue').click());
   expect(mocks.signIn).toHaveBeenCalledWith({ intent: 'nav', returnTo: `/candidates/${id}/claim` });
 });
+it('explains closed requests to signed-out visitors while preserving sign-in for existing profile claims', async () => {
+  mocks.auth.isSignedIn = false;
+  mocks.getProfile.mockResolvedValue({ ...record, electionEnded: true });
+  act(() =>
+    root.render(<CandidateClaimScreen navigation={navigation as never} route={route as never} />),
+  );
+  await flush();
+  expect(host.querySelector('[aria-level="1"]')?.textContent).toBe(
+    'Profile claims closed for this election',
+  );
+  expect(host.textContent).not.toContain('An approved profile claim lets you manage');
+  act(() => button('Sign in to view your profile claim status').click());
+  expect(mocks.signIn).toHaveBeenLastCalledWith({
+    intent: 'nav',
+    returnTo: `/candidates/${id}/claim`,
+  });
+  expect(mocks.mine).not.toHaveBeenCalled();
+  manage();
+  await flush();
+  expect(host.querySelector('[aria-level="1"]')?.textContent).toBe('Manage this profile');
+  act(() => button('Sign in to continue').click());
+  expect(mocks.signIn).toHaveBeenLastCalledWith({
+    intent: 'nav',
+    returnTo: `/candidates/${id}/manage`,
+  });
+});
 it('submits a manual review request with selected role, evidence, account identity and current version', async () => {
   mocks.mine
     .mockResolvedValueOnce({
@@ -312,7 +339,20 @@ it('removes a statement only after the safe confirmation and the server reply', 
     expect.any(AbortSignal),
   );
   expect(host.textContent).toContain('Statement removed');
+  expect(host.textContent).not.toContain('Published September 30, 2026');
 });
+it.each([null, { body: '', updated_at: '2026-09-30', version: 2 }])(
+  'does not invent a publication date for an unpublished preview (%j)',
+  async (statement) => {
+    mocks.privateStatement.mockResolvedValue({ account_id: 'account-a', statement, history: [] });
+    manage();
+    await flush();
+    edit('Campaign statement', 'Unpublished preview words');
+    act(() => button('Preview').click());
+    expect(host.textContent).toContain('Unpublished preview words');
+    expect(host.textContent).not.toContain('Published');
+  },
+);
 it('erases private drafts and cancels requests when the account changes', async () => {
   manage();
   await flush();
@@ -441,6 +481,33 @@ it('keeps an unsaved statement when the same account refreshes its sign-in token
     expect.objectContaining({ body: 'Unsaved campaign words' }),
     expect.any(AbortSignal),
   );
+});
+
+it('keeps the draft and returns focus to its editor when a departure is cancelled', async () => {
+  const cancel = vi.fn();
+  act(() =>
+    root.render(
+      <GuardedNavigationContext.Provider
+        value={{ cancelPendingNavigation: cancel, installHistoryGuard: vi.fn() }}
+      >
+        <CandidateManageScreen navigation={navigation as never} route={route as never} />
+      </GuardedNavigationContext.Provider>,
+    ),
+  );
+  await flush();
+  edit('Campaign statement', 'Unsaved words to preserve');
+  const editor = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  const link = host.querySelector<HTMLAnchorElement>('a')!;
+  link.focus();
+  const callback = mocks.prevent.mock.lastCall![1];
+  act(() =>
+    callback({ data: { action: { type: 'NAVIGATE', payload: { name: 'CandidateProfile' } } } }),
+  );
+  expect(host.querySelector('dialog')?.getAttribute('aria-label')).toBe('You have unsaved changes');
+  act(() => button('Keep editing').click());
+  expect(cancel).toHaveBeenCalledOnce();
+  expect(editor.value).toBe('Unsaved words to preserve');
+  expect(document.activeElement).toBe(editor);
 });
 
 function adminRequest(claim = { ...approved, status: 'pending', can_manage: false }) {

@@ -242,11 +242,16 @@ export function CandidateLink({
               <span style={{ textDecoration: hovered ? 'underline' : 'none' }}>
                 {label.slice(0, label.lastIndexOf(' ') + 1)}
               </span>
-              <span style={{ whiteSpace: 'nowrap' }}>
+              <span style={{ display: 'inline-block', maxWidth: '100%', whiteSpace: 'normal' }}>
                 <span style={{ textDecoration: hovered ? 'underline' : 'none' }}>
-                  {label.slice(label.lastIndexOf(' ') + 1)}
+                  {label.slice(label.lastIndexOf(' ') + 1, -1)}
                 </span>
-                <LinkArrow color="#0f7a45" placement="candidate-inline" />
+                <span style={{ whiteSpace: 'nowrap' }}>
+                  <span style={{ textDecoration: hovered ? 'underline' : 'none' }}>
+                    {label.slice(-1)}
+                  </span>
+                  <LinkArrow color="#0f7a45" placement="candidate-inline" />
+                </span>
               </span>
             </span>
           )
