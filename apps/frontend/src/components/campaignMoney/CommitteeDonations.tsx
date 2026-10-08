@@ -10,7 +10,8 @@ import {
 } from '../../lib/campaignMoneyDetails';
 import { DonorBreakdown } from './DonorBreakdown';
 import { DonorPaymentList } from './DonorPaymentList';
-import { detailsStyles as s } from './detailsStyles';
+import { useDetailsStyles } from './detailsStyles';
+import { PaymentRecheckNotice } from './PaymentRecheckNotice';
 
 /** Every read and amount in this component belongs to this one registration. */
 export function CommitteeDonations({
@@ -39,6 +40,7 @@ export function CommitteeDonations({
   preferences: MoneyDetailsPreferences;
   onPreferences: (preferences: MoneyDetailsPreferences) => void;
 }) {
+  const s = useDetailsStyles();
   const details = useCampaignMoneyDetails(committee.registrationNumber, year, { history: false });
   const groups = useMemo(
     () => [
@@ -75,17 +77,36 @@ export function CommitteeDonations({
     payments: NonNullable<typeof details.received.data>['payments'];
   } | null>(null);
   const key = `${committee.registrationNumber}:${year}:${releaseId ?? ''}`;
+  const unavailable =
+    details.received.data?.state === 'unavailable' || details.made.data?.state === 'unavailable';
+  // A different identity or an explicit unavailable answer ends this retained view.
+  // Returning later must not revive rows from a visit to another committee or year.
+  if (lastMatched.current?.key !== key || unavailable) lastMatched.current = null;
+  const recheckFailed = details.received.isError || details.made.isError;
   const complete = details.selectedComplete && !failed;
   if (complete && details.received.data) {
     lastMatched.current = { key, groups, payments: details.received.data.payments };
   }
   const kept =
-    !complete && mixedCopies && lastMatched.current?.key === key ? lastMatched.current : null;
+    !complete &&
+    Boolean(releaseId) &&
+    (mixedCopies || recheckFailed) &&
+    lastMatched.current?.key === key
+      ? lastMatched.current
+      : null;
   const shownGroups = kept ? kept.groups : groups;
   const shownPayments = kept ? kept.payments : (details.received.data?.payments ?? []);
   const shownComplete = complete || Boolean(kept);
+  const retrying = details.received.isFetching || details.made.isFetching;
+  const retry = () => {
+    if (retrying) return;
+    onRefresh();
+    void details.received.refetch();
+    void details.made.refetch();
+  };
   return (
     <View style={s.section}>
+      {kept && recheckFailed ? <PaymentRecheckNotice retrying={retrying} onRetry={retry} /> : null}
       <DonorBreakdown
         headingLevel={headingLevel}
         payments={shownPayments}
@@ -108,11 +129,7 @@ export function CommitteeDonations({
         ready={shownComplete}
         failed={failed}
         mixedCopies={mixedCopies}
-        onRetry={() => {
-          onRefresh();
-          void details.received.refetch();
-          void details.made.refetch();
-        }}
+        onRetry={retry}
       />
     </View>
   );

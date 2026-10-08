@@ -15,6 +15,7 @@ import {
   useFinePointerHover,
 } from '../../components/campaignMoney/finePointerHover';
 import { PageContextLabel } from '../../components/PageContextLabel';
+import { PaymentRecheckNotice } from '../../components/campaignMoney/PaymentRecheckNotice';
 import {
   CommitteeDonations,
   GroupedOutsideSpending,
@@ -995,8 +996,14 @@ function PaymentsSection({
     ? (details.received.data.statementsCopiedOn ?? null)
     : null;
   const unlinkedCopied = unlinked.data?.statements.length ? unlinked.data.copiedOn : null;
+  // Held payment rows can carry an older statement catalogue even when a newer
+  // received read has the same payment release. Do not borrow that newer date.
   const statementsCopied =
-    section === 'gave' ? catalogueCopiedLine(linkedCopied ?? unlinkedCopied) : null;
+    section === 'gave' &&
+    details.selectedComplete &&
+    details.received.data?.releaseId === money.releaseId
+      ? catalogueCopiedLine(linkedCopied ?? unlinkedCopied)
+      : null;
   // Committees and funds share one notice threshold; a candidate's depends on office,
   // so its lead waits for the answer.
   const kind =
@@ -1022,10 +1029,12 @@ function PaymentsSection({
   const emptyPayments =
     yearDisplayState(money) !== 'figures' &&
     Number(money.split.namedTotal ?? 0) === 0 &&
-    details.selectedComplete &&
-    !details.received.isError &&
-    !details.made.isError &&
+    // The reader returns data only after a whole direction finishes. A later
+    // recheck error does not erase that accepted empty answer.
+    details.received.data?.state !== 'unavailable' &&
+    details.made.data?.state !== 'unavailable' &&
     details.received.data?.releaseId === money.releaseId &&
+    details.made.data?.releaseId === money.releaseId &&
     details.received.data?.payments.length === 0 &&
     details.made.data?.payments.length === 0;
   return (
@@ -1063,6 +1072,17 @@ function PaymentsSection({
           </>
         ) : (
           <>
+            {emptyPayments && (details.received.isError || details.made.isError) ? (
+              <PaymentRecheckNotice
+                retrying={details.received.isFetching || details.made.isFetching}
+                onRetry={() => {
+                  if (details.received.isFetching || details.made.isFetching) return;
+                  onRefresh();
+                  void details.received.refetch();
+                  void details.made.refetch();
+                }}
+              />
+            ) : null}
             {moneyControls(emptyPayments)}
             {!emptyPayments ? (
               <>

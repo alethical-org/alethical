@@ -93,6 +93,45 @@
           }
         ]
       }
+    },
+    {
+      "id": "money-results-survive-failed-recheck",
+      "summary": "Keep accepted campaign money results through a failed recheck",
+      "cause": "A query can report a refresh error while retaining its last successful data. Treating error or loss of success status as absence removes usable records. The prior repairs concern money summary and search surfaces; issue 2540 extends this scoped pattern to the shared payment chart/list. https://github.com/alethical-org/alethical/issues/2540",
+      "occurrences": [
+        {
+          "pr": 2050,
+          "role": "failure",
+          "evidence": "The legislator money tab discarded held figures when a recheck failed. The repair kept those figures with a held-data notice. This is a separate surface from the payment chart/list. https://github.com/alethical-org/alethical/pull/2050"
+        },
+        {
+          "pr": 2064,
+          "role": "failure",
+          "evidence": "Money search replaced held results with an error on failed recheck. The repair kept the answer for its original query with a held-data notice. https://github.com/alethical-org/alethical/pull/2064"
+        }
+      ],
+      "prevention": {
+        "status": "partial",
+        "description": "Rendered payment checks exercise the real query hook and complete-payment reader through failed incoming/outgoing rechecks, delayed retry, empty versus unavailable, exact committee/year/release boundaries, late old replies and separate committees. The actual committee screen also retains its compact empty result through failure and retry. Browser acceptance and release remain required. This entry does not add a frontend execution-receipt mapping; current receipt mapping is backend-only.",
+        "checks": [
+          {
+            "path": "apps/frontend/src/components/campaignMoney/__tests__/paymentRowsSurviveAFailedRecheck.test.tsx",
+            "anchor": "keeps matching accepted rows and chart when %s refresh fails, then retries"
+          },
+          {
+            "path": "apps/frontend/src/components/campaignMoney/__tests__/paymentRowsSurviveAFailedRecheck.test.tsx",
+            "anchor": "keeps accepted rows and chart throughout a delayed retry and prevents a duplicate retry"
+          },
+          {
+            "path": "apps/frontend/src/screens/redesign/__tests__/CommitteeDonorBrowser.test.tsx",
+            "anchor": "keeps its accepted compact empty year through a failed payment recheck and retry"
+          },
+          {
+            "path": "apps/frontend/src/components/campaignMoney/__tests__/heldFiguresSurviveAFailedRecheck.test.tsx",
+            "anchor": "keeps the figures on screen and says they are held"
+          }
+        ]
+      }
     }
   ]
 }
