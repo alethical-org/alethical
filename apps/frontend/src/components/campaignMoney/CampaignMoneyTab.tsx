@@ -200,6 +200,7 @@ export function CampaignMoneyTab({
         committeeName={committee.committeeName || committee.committeeNameAsReviewed}
         year={year}
         releaseId={money.releaseId}
+        onRefresh={refetchMoney}
         onSelectYear={onSelectYear}
       />
     ) : null;

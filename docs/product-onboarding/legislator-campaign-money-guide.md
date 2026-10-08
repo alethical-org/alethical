@@ -4,7 +4,7 @@
 
 <!-- describes: apps/frontend/src/components/campaignMoney/CampaignMoneyTabOnDemand.tsx, apps/frontend/src/components/campaignMoney/YearControl.tsx, apps/frontend/src/components/campaignMoney/GroupedOutsideSpending.tsx, apps/frontend/src/lib/campaignMoneyColors.ts, apps/frontend/src/data/groupedOutsideSpending.ts, apps/frontend/src/lib/groupedOutsideSpending.ts -->
 
-<!-- describes: apps/frontend/src/components/campaignMoney/CommitteeDonationCards.tsx, apps/frontend/src/components/campaignMoney/CommitteeDonations.tsx, apps/frontend/src/components/campaignMoney/DonorBreakdown.tsx, apps/frontend/src/components/campaignMoney/DonorPaymentList.tsx, apps/frontend/src/components/campaignMoney/CommitteeMixHistory.tsx, apps/frontend/src/components/campaignMoney/MoneyCards.tsx, apps/frontend/src/lib/campaignMoneyDetails.ts, apps/frontend/src/data/campaignMoneyDetails.ts, apps/frontend/src/hooks/useCampaignMoneyDetails.ts, apps/frontend/src/components/campaignMoney/CampaignMoneyTab.tsx, apps/frontend/src/components/legislator/OutsideSpendingCard.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/independent_spending.py, apps/frontend/src/components/campaignMoney/LegislatorProfileTabs.tsx, apps/frontend/src/lib/legislatorCampaignMoney.ts, apps/frontend/src/lib/campaignMoneyFilingSchedule.ts, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, alethical/api/services/legislator_finance.py, alethical/api/services/committee_amount.py, alethical/api/routers/public.py -->
+<!-- describes: apps/frontend/src/components/campaignMoney/CommitteeDonationCards.tsx, apps/frontend/src/components/campaignMoney/CommitteeDonations.tsx, apps/frontend/src/components/campaignMoney/DonorBreakdown.tsx, apps/frontend/src/components/campaignMoney/DonorPaymentList.tsx, apps/frontend/src/components/campaignMoney/CommitteeMixHistory.tsx, apps/frontend/src/components/campaignMoney/PaymentRecheckNotice.tsx, apps/frontend/src/lib/campaignMoneyDetailsCopy.ts, apps/frontend/src/components/campaignMoney/MoneyCards.tsx, apps/frontend/src/lib/campaignMoneyDetails.ts, apps/frontend/src/data/campaignMoneyDetails.ts, apps/frontend/src/hooks/useCampaignMoneyDetails.ts, apps/frontend/src/components/campaignMoney/CampaignMoneyTab.tsx, apps/frontend/src/components/legislator/OutsideSpendingCard.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/independent_spending.py, apps/frontend/src/components/campaignMoney/LegislatorProfileTabs.tsx, apps/frontend/src/lib/legislatorCampaignMoney.ts, apps/frontend/src/lib/campaignMoneyFilingSchedule.ts, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, alethical/api/services/legislator_finance.py, alethical/api/services/committee_amount.py, alethical/api/routers/public.py -->
 
 Every current Minnesota House and Senate member's profile page has two tabs:
 **Overview**, which is the page as it has always been, and **Campaign money**, which
@@ -641,6 +641,19 @@ It appears only after all requested years arrive from the same release as the se
 lists. A partial history is withheld rather than drawn with missing years. Choosing a
 year changes the selected year above. Every committee has its own history; the bars and
 amounts are never combined across a member's committees.
+
+After that complete history has appeared, a failed history or selected-payment recheck
+keeps the accepted bars and opened percentages for the same committee and pinned
+summary release. It says “We could not refresh this history. This is a problem on our
+side. The last complete history is still shown.” with **Try again** in the existing
+payment-recheck treatment. Retry rechecks the profile summary, both selected payment
+lists and the history; the button is unavailable while those payment/history reads
+run. A first failed history never borrows an answer. A changed committee or summary
+release, selected lists from a different release, or an explicit unavailable answer
+clears the retained history. Partial replacement years never appear. The profile's
+committee-confirmation expiry still withholds the whole committee block. This is
+separate from the selected-year payment-list correction
+([issue 2542](https://github.com/alethical-org/alethical/issues/2542)).
 
 ### Money out
 

@@ -75,6 +75,8 @@ export const moneyDetailsCopy = {
   historyHeading: 'How the mix of itemized contributions changed by year',
   historyExplanation:
     'Each bar shows the percentage of dollars from each donor kind, excluding donated goods and services',
+  heldHistoryRecheck:
+    'We could not refresh this history. This is a problem on our side. The last complete history is still shown.',
   historyEmpty: 'No itemized contributions listed',
   historyShowEarlier: 'Show earlier years',
   historyHideEarlier: 'Hide earlier years',
