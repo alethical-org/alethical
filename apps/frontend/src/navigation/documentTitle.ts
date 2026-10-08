@@ -1,4 +1,3 @@
-import { eventIndexBySlug } from '../lib/eventsIndex';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
@@ -103,10 +102,9 @@ function titleWithoutRecord(route: TitledRoute): string | null {
     }
     case 'Events':
       return titleFor('Events');
-    case 'Event': {
-      const event = eventIndexBySlug(String(route.params?.slug ?? ''));
-      return event ? titleFor(event.title) : null;
-    }
+    // EventScreen supplies its title when its on-demand content loads.
+    case 'Event':
+      return null;
     case 'ShortPosts': {
       const page = Number(route.params?.page ?? 1);
       return titleFor(page > 1 ? `Short posts, page ${page}` : 'Short posts');

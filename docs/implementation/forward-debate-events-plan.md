@@ -59,3 +59,5 @@ is a user-requested partner link, not the source for candidate office/status.
 
 - [Google image guidance](https://developers.google.com/search/docs/appearance/google-images): ordinary image elements, meaningful filenames/alternative text and nearby text.
 - [Google recrawl guidance](https://developers.google.com/search/docs/crawling-indexing/ask-google-to-recrawl): requests and sitemaps aid discovery; crawling and indexing timing is Google’s decision.
+
+- Hosted-build finding during the hold: the preview first download exceeded its fixed size limit by 2 bytes. Event-specific title resolution now runs in the on-demand event screen, using the existing resolved-title hook, instead of adding that work to every first page. The size limit stays unchanged.
