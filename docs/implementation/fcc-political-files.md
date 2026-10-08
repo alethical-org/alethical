@@ -87,6 +87,19 @@ scale, varied PDF layouts and station scope beyond the initial 3.
   survives. A missing download cannot hide its downloadable neighboring records.
   Focused tests cover retained gaps, sibling downloads, later link recovery,
   cross-category links and cycles. A missing FCC link remains a source limit.
+- Initial parallel text reading exposed database records expiring after each
+  saved result. Workers now receive copied file details; only the coordinating
+  thread reads or writes database records. Tests force a save before later workers
+  start and cover both successful reads and failures.
+- Reader version `fcc-document-text-v2` prefers Poppler's usable page text, which
+  retains filled values omitted by the first reader on a completed PB-19 form.
+  Disclosure headings take priority over referenced orders, and identifier fields
+  require a digit. The old readings remain available as history; progress counts
+  and search use the current version. A 6-PDF comparison preserves the previously
+  correct financial fields and removes a false contract number of `Station`.
+- A KSTP source invoice names its property as `KSTP_KSAX`. The archive station is
+  the filing location, not proof that every billed spot aired on that station.
+  Source text remains available for later review of grouped station buys.
 
 ## Operator commands and limits
 

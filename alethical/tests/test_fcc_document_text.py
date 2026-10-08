@@ -67,7 +67,42 @@ def _values(facts):
     return {fact.field: fact.value for fact in facts}
 
 
+# Retained text from page 4 of the official Defending Main Street PB-19,
+# SHA256 0bc89eea480e8559e6bce2e1ce06b42acd61af18053cc1db7b3237976a69a96b.
+# pypdf's layout output drops the filled values and splits "Station Call".
+_PB19_HEADING = (
+    "Political Broadcast Agreement Form for\nNon-Candidate/Issue Advertisements (PB-19)"
+)
+_PB19_PYPDF = (
+    "Contract #:       Station  Call Letters:       Date Received/Requested:\n"
+    "Est. #:           Station  Location:           Run Start and End Dates:"
+)
+_PB19_POPPLER = (
+    "Contract #:       Station Call Letters:       Date Received/Requested:\n"
+    "    #429347                   KSTP-TV         5/6/22\n"
+    "Est. #:           Station Location:           Run Start and End Dates:\n"
+    "    #8860         Minneapolis/St. Paul        5/6/22-5/13/22"
+)
+
+
 class LabelReadingTests(unittest.TestCase):
+    def test_actual_pb19_column_heading_is_not_contract_number(self):
+        _, facts, _ = _read(_PB19_HEADING, _PB19_PYPDF)
+        self.assertNotIn("order_number", _values(facts))
+        # Multiple aligned fields on the next row remain searchable evidence,
+        # without guessing which filled value belongs to the contract label.
+        _, facts, _ = _read(_PB19_HEADING, _PB19_POPPLER)
+        self.assertNotIn("order_number", _values(facts))
+
+    def test_explicit_disclosure_heading_outranks_referenced_contract(self):
+        kind, facts, _ = _read(_PB19_HEADING, "Contract #: 429347")
+        self.assertEqual(kind, "disclosure")
+        self.assertEqual(_values(facts), {"order_number": "429347"})
+
+    def test_identifiers_need_a_digit_to_avoid_bare_column_headings(self):
+        _, facts, _ = _read("Order Number: Station\nInvoice Number: Date")
+        self.assertFalse(facts)
+
     def test_actual_wideorbit_order_layout_and_totals(self):
         kind, facts, errors = _read(
             "ORDER\nOrders               Order / Rev:              510114\n"
@@ -134,6 +169,17 @@ class LabelReadingTests(unittest.TestCase):
             },
         )
         self.assertEqual(next(f.page for f in facts if f.field == "gross_amount"), 2)
+
+    def test_poppler_invoice_flight_cell_is_distinct_from_invoice_period(self):
+        _, facts, _ = _read(
+            "Main: (651)646-5555     Invoice Period    "
+            "06/29/26 - 07/21/26 Flight Dates 07/17/26 - 07/21/26"
+        )
+        self.assertEqual(
+            _values(facts), {"start_date": "07/17/26", "end_date": "07/21/26"}
+        )
+        _, facts, _ = _read("Invoice Period 06/29/26 - 07/21/26")
+        self.assertFalse(facts)
 
     def test_invoice_values_have_exact_source_quotes(self):
         kind, facts, errors = _read(
@@ -242,7 +288,53 @@ def test_rate_requires_explicit_percent_and_valid_range(value):
     assert not _read(f"Commission Rate: {value}")[1]
 
 
+# Separate pytest cases keep JUnit's declared count equal to its testcase nodes.
+@pytest.mark.parametrize(
+    "answer",
+    (b"", subprocess.CalledProcessError(1, "pdftotext")),
+    ids=("empty", "failed"),
+)
+def test_native_text_survives_empty_or_failed_poppler(answer):
+    body = _pdf("Invoice Number: 12345")
+    with tempfile.TemporaryDirectory() as directory:
+        source = Path(directory) / "source.pdf"
+        source.write_bytes(body)
+        with (
+            patch.object(reader.shutil, "which", return_value="pdftotext"),
+            patch.object(reader, "_command", side_effect=[answer]),
+            patch.object(reader, "_ocr_page") as ocr,
+        ):
+            result = reader._extract_pages(body, source)
+    ocr.assert_not_called()
+    assert result.pages[0].method == "pypdf"
+    assert _values(result.facts) == {"invoice_number": "12345"}
+
+
 class PdfReadingTests(unittest.TestCase):
+    def test_usable_pb19_native_boilerplate_does_not_hide_filled_values(self):
+        body = _pdf(_PB19_HEADING, _PB19_PYPDF)
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "pb19.pdf"
+            source.write_bytes(body)
+            with (
+                patch.object(reader.shutil, "which", return_value="pdftotext"),
+                patch.object(
+                    reader,
+                    "_command",
+                    side_effect=[_PB19_HEADING.encode(), _PB19_POPPLER.encode()],
+                ) as command,
+                patch.object(reader, "_ocr_page") as ocr,
+            ):
+                result = reader._extract_pages(body, source)
+        self.assertEqual(command.call_count, 2)
+        ocr.assert_not_called()
+        self.assertEqual(result.document_kind, "disclosure")
+        self.assertEqual(result.pages[1].method, "pdftotext")
+        self.assertIn("#429347", result.pages[1].text)
+        self.assertIn("KSTP-TV", result.pages[1].text)
+        self.assertIn("5/6/22-5/13/22", result.pages[1].text)
+        self.assertNotIn("order_number", _values(result.facts))
+
     @unittest.skipUnless(
         shutil.which("pdftoppm") and shutil.which("tesseract"),
         "optional local OCR tools are unavailable",
@@ -321,7 +413,8 @@ class PdfReadingTests(unittest.TestCase):
         body = mixed.getvalue()
         result = extract_document(body, "native-footer-scanned-body.pdf")
         self.assertEqual(result.status, "pending_review")
-        self.assertEqual(result.pages[0].method, "pypdf+tesseract")
+        native_method = "pdftotext" if shutil.which("pdftotext") else "pypdf"
+        self.assertEqual(result.pages[0].method, native_method + "+tesseract")
         self.assertIn("Station Public File", result.pages[0].text)
         self.assertIn("12345", result.pages[0].text)
         self.assertEqual(_values(result.facts)["invoice_number"], "12345")
@@ -346,7 +439,9 @@ class PdfReadingTests(unittest.TestCase):
         self.assertEqual(result.status, "pending_review")
         self.assertEqual(result.document_kind, "invoice")
         self.assertEqual([page.page for page in result.pages], [1, 2])
-        self.assertEqual([page.method for page in result.pages], ["pypdf", "pypdf"])
+        native_method = "pdftotext" if shutil.which("pdftotext") else "pypdf"
+        self.assertEqual([page.method for page in result.pages], [native_method] * 2)
+        self.assertEqual(result.version, "fcc-document-text-v2")
         self.assertEqual(
             _values(result.facts), {"invoice_number": "123", "gross_amount": "42.30"}
         )

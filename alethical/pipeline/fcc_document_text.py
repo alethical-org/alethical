@@ -24,7 +24,7 @@ from typing import Any
 from pypdf import PdfReader
 from pypdf.generic import ContentStream, DictionaryObject
 
-EXTRACTOR_VERSION = "fcc-document-text-v1"
+EXTRACTOR_VERSION = "fcc-document-text-v2"
 VERSION = EXTRACTOR_VERSION
 MAX_DOCUMENT_BYTES = 30 * 1024 * 1024
 MAX_PAGES = 100
@@ -276,9 +276,12 @@ def _extract_pages(body: bytes, source: Path) -> Extraction:
         except Exception:
             text = ""
             page_errors.append("page_text_failed")
-        if not _usable(text) and (binary := shutil.which("pdftotext")):
+        # A usable boilerplate layer can still omit filled values. Poppler's
+        # rendered layout recovers those values on observed completed PB-19s.
+        # Prefer it on every page when available; retain pypdf on failure/blank.
+        if binary := shutil.which("pdftotext"):
             try:
-                text = _command(
+                rendered_text = _command(
                     [
                         binary,
                         "-f",
@@ -291,7 +294,8 @@ def _extract_pages(body: bytes, source: Path) -> Extraction:
                     ],
                     deadline,
                 ).decode("utf-8", errors="replace")
-                method = "pdftotext"
+                if _usable(rendered_text):
+                    text, method = rendered_text, "pdftotext"
             except (OSError, subprocess.SubprocessError):
                 page_errors.append("pdftotext_failed")
         coverage = _image_coverage(page, reader)
@@ -427,10 +431,13 @@ def _value(name: str, value: str) -> str | None:
         value,
     ):
         return None
-    if name.endswith("_number") and not re.fullmatch(
-        r"[A-Za-z0-9][A-Za-z0-9./_-]{0,79}", value
-    ):
-        return None
+    if name.endswith("_number"):
+        # Bare words such as "Station" can be the start of the next column
+        # heading. An identifier without any digit is too ambiguous to assert.
+        if not re.search(r"\d", value) or not re.fullmatch(
+            r"[A-Za-z0-9][A-Za-z0-9./_-]{0,79}", value
+        ):
+            return None
     return value
 
 
@@ -439,6 +446,20 @@ def _read_facts(pages: list[PageText]) -> tuple[str, list[Fact], list[str]]:
     for page in pages:
         lines = page.text.splitlines()
         for index, line in enumerate(lines):
+            # Poppler may place the flight label and dates in one cell beside
+            # an invoice period. Accept only its complete, explicit end cell.
+            flight = re.search(
+                rf"(?:^|\s)Flight Dates:?\s+{_FLIGHT_DATES.pattern}\s*$",
+                line,
+                re.I,
+            )
+            if flight:
+                candidates.extend(
+                    Fact(name, value, page.page, line.strip())
+                    for name, value in zip(
+                        ("start_date", "end_date"), flight.groups(), strict=True
+                    )
+                )
             # This observed WideOrbit table labels both repeated gross/net
             # columns. Its explicit Totals row states the order-level values.
             # Require the entire header and row, not proximity to a dollar sign.
@@ -534,7 +555,14 @@ def _read_facts(pages: list[PageText]) -> tuple[str, list[Fact], list[str]]:
             facts.append(candidate)
             seen.add(key)
     text = "\n".join(p.text for p in pages)
-    if re.search(r"(?im)^\s*credit\s+(?:memo|note)\b", text):
+    # A completed disclosure may reference an order or invoice. Its explicit
+    # heading states the document's kind more clearly than those references.
+    if re.search(
+        r"(?im)^\s*(?:political\s+disclosure|political\s+advertising\s+disclosure|political\s+broadcast\s+agreement)\b",
+        text,
+    ):
+        kind = "disclosure"
+    elif re.search(r"(?im)^\s*credit\s+(?:memo|note)\b", text):
         kind = "credit"
     elif "invoice_number" in values or re.search(r"(?im)^\s*invoice\s*$", text):
         kind = "invoice"
@@ -543,11 +571,6 @@ def _read_facts(pages: list[PageText]) -> tuple[str, list[Fact], list[str]]:
         text,
     ):
         kind = "order"
-    elif re.search(
-        r"(?im)^\s*(?:political\s+disclosure|political\s+advertising\s+disclosure|political\s+broadcast\s+agreement)\b",
-        text,
-    ):
-        kind = "disclosure"
     elif "credit_amount" in values:
         kind = "credit"
     else:

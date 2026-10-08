@@ -500,7 +500,16 @@ def extract_pending(
     retry_failed: bool = False,
     log: Callable[[dict], None] = lambda row: None,
 ) -> dict:
+    from typing import NamedTuple, cast
+
     from alethical.pipeline.fcc_document_text import EXTRACTOR_VERSION, extract_document
+
+    class StoredBody(NamedTuple):
+        content_hash: str
+        object_key: str
+        byte_size: int
+        compressed_hash: str
+        compressed_byte_size: int
 
     if not 1 <= workers <= 4 or limit < 1:
         raise ValueError("Use 1 to 4 workers and a positive extraction limit")
@@ -539,15 +548,31 @@ def extract_pending(
         .order_by(m.FCCDocument.content_hash)
         .limit(limit)
     ).all()
-    inputs = [(db.get(m.FCCSourceBody, digest), name) for digest, name in rows]
+    # A commit expires every session-bound ORM row. Copy the read_body fields
+    # on this thread so later jobs cannot lazily reload through this session.
+    inputs = []
+    for digest, name in rows:
+        source = db.get(m.FCCSourceBody, digest)
+        if source is None:
+            raise ValueError("FCC document has no retained source metadata")
+        metadata = StoredBody(
+            content_hash=digest,
+            object_key=source.object_key,
+            byte_size=source.byte_size,
+            compressed_hash=source.compressed_hash,
+            compressed_byte_size=source.compressed_byte_size,
+        )
+        inputs.append((digest, metadata, name))
     counts: Counter = Counter()
 
     def process(item):
-        row, name = item
+        digest, metadata, name = item
         try:
-            return row.content_hash, extract_document(read_body(store, row), name), None
+            # read_body consumes only the copied fields, not mapped-row state.
+            body = read_body(store, cast(m.FCCSourceBody, metadata))
+            return digest, extract_document(body, name), None
         except Exception as error:
-            return row.content_hash, None, type(error).__name__
+            return digest, None, type(error).__name__
 
     with ThreadPoolExecutor(max_workers=workers) as executor:
         for digest, result, error in executor.map(process, inputs):
@@ -636,6 +661,8 @@ def search(
 
 
 def status(db: Session) -> dict:
+    from alethical.pipeline.fcc_document_text import EXTRACTOR_VERSION
+
     last = db.scalar(select(m.FCCScan).order_by(m.FCCScan.started_at.desc()).limit(1))
     return {
         "latest_scan": None
@@ -651,14 +678,20 @@ def status(db: Session) -> dict:
         "distinct_document_bodies": db.scalar(
             select(func.count(func.distinct(m.FCCDocument.content_hash)))
         ),
+        "extraction_version": EXTRACTOR_VERSION,
         "readings": {
             state: count
             for state, count in db.execute(
-                select(m.FCCExtraction.status, func.count()).group_by(
-                    m.FCCExtraction.status
-                )
+                select(m.FCCExtraction.status, func.count())
+                .where(m.FCCExtraction.version == EXTRACTOR_VERSION)
+                .group_by(m.FCCExtraction.status)
             ).all()
         },
+        "older_readings_retained": db.scalar(
+            select(func.count())
+            .select_from(m.FCCExtraction)
+            .where(m.FCCExtraction.version != EXTRACTOR_VERSION)
+        ),
         "bodies_without_second_copy": db.scalar(
             select(func.count())
             .select_from(m.FCCSourceBody)

@@ -382,6 +382,10 @@ def test_saved_extraction_is_replayable_versioned_and_keeps_quotes(db):
     assert count(db, m.FCCExtraction) == count(db, m.FCCPage) == 2
     row = db.get(m.FCCExtraction, (key, extraction.version))
     assert row.facts[0]["quote"] == "Invoice: 510114" and row.facts[0]["page"] == 1
+    status = archive.status(db)
+    assert status["extraction_version"] == extraction.version
+    assert status["readings"] == {"pending_review": 1}
+    assert status["older_readings_retained"] == 1
 
 
 def test_search_quotes_source_page_and_escapes_pattern_characters(db):
