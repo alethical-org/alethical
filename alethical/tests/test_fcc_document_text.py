@@ -84,8 +84,28 @@ _PB19_POPPLER = (
     "    #8860         Minneapolis/St. Paul        5/6/22-5/13/22"
 )
 
+# Retained native layout from KARE contract 2577554, page 1,
+# SHA256 1480c586b161b1c1b02423acec134ee287ba91f4072025717c097bb843d77f70.
+_KARE_ADVERTISER_ROWS = (
+    "Advertiser                    Original Date / Revision\n"
+    "POL/ Keith Ellison / D / Attny General / MN       10/26/22 / 11/04/22"
+)
+
 
 class LabelReadingTests(unittest.TestCase):
+    def test_actual_kare_header_is_not_advertiser_on_any_repeated_page(self):
+        kind, facts, errors = _read(*([_KARE_ADVERTISER_ROWS] * 5))
+        self.assertEqual(kind, "unknown")
+        self.assertFalse(facts)
+        self.assertFalse(errors)
+
+    def test_explicit_advertiser_keeps_slashes_in_real_name(self):
+        _, facts, _ = _read("Advertiser: POL/ Keith Ellison / D / Attny General / MN")
+        self.assertEqual(
+            _values(facts),
+            {"advertiser": "POL/ Keith Ellison / D / Attny General / MN"},
+        )
+
     def test_actual_pb19_column_heading_is_not_contract_number(self):
         _, facts, _ = _read(_PB19_HEADING, _PB19_PYPDF)
         self.assertNotIn("order_number", _values(facts))
@@ -288,6 +308,26 @@ def test_rate_requires_explicit_percent_and_valid_range(value):
     assert not _read(f"Commission Rate: {value}")[1]
 
 
+@pytest.mark.parametrize(
+    "label", ("Advertiser", "Agency Name", "Agency Address", "Payer")
+)
+@pytest.mark.parametrize(
+    "heading",
+    (
+        "Original Date / Revision",
+        "Contract / Revision",
+        "Contract Dates",
+        "Station Call Letters",
+        "Account Executive",
+        "Invoice Date",
+    ),
+)
+def test_neighboring_headers_are_not_text_field_values(label, heading):
+    assert not _read(f"{label}       {heading}")[1]
+    assert not _read(f"{label}: {heading}")[1]
+    assert not _read(f"{label}\n{heading}")[1]
+
+
 # Separate pytest cases keep JUnit's declared count equal to its testcase nodes.
 @pytest.mark.parametrize(
     "answer",
@@ -441,7 +481,7 @@ class PdfReadingTests(unittest.TestCase):
         self.assertEqual([page.page for page in result.pages], [1, 2])
         native_method = "pdftotext" if shutil.which("pdftotext") else "pypdf"
         self.assertEqual([page.method for page in result.pages], [native_method] * 2)
-        self.assertEqual(result.version, "fcc-document-text-v2")
+        self.assertEqual(result.version, "fcc-document-text-v3")
         self.assertEqual(
             _values(result.facts), {"invoice_number": "123", "gross_amount": "42.30"}
         )

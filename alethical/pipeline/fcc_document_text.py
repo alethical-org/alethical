@@ -24,7 +24,7 @@ from typing import Any
 from pypdf import PdfReader
 from pypdf.generic import ContentStream, DictionaryObject
 
-EXTRACTOR_VERSION = "fcc-document-text-v2"
+EXTRACTOR_VERSION = "fcc-document-text-v3"
 VERSION = EXTRACTOR_VERSION
 MAX_DOCUMENT_BYTES = 30 * 1024 * 1024
 MAX_PAGES = 100
@@ -382,6 +382,19 @@ _LABEL_PATTERNS = [
     (field_name, re.compile(rf"^\s*(?:{label})(?:\s*[:=]\s*(.*?)|\s*)$", re.I))
     for field_name, label in _LABELS.items()
 ]
+# These observed form headers are labels even though we do not extract their
+# fields. A neighboring header is never evidence of a name, address, or ID.
+_COLUMN_HEADING = re.compile(
+    r"(?:original\s+date\s*/\s*revision|contract\s*/\s*revision|contract\s+dates"
+    r"|print\s+date|estimate\s*#|alt\s+order\s*#|property|account\s+executive"
+    r"|sales\s+office|sales\s+region|station\s+call\s+letters|station\s+location"
+    r"|date\s+received\s*/\s*requested|run\s+start\s+and\s+end\s+dates"
+    r"|billing\s+cycle|billing\s+calendar|billing\s+type|billing\s+address"
+    r"|cash\s*/\s*trade|special\s+handling|demographic|agy\s+code|agency\s+code"
+    r"|advertiser\s+code|agency\s+ref|advertiser\s+ref|product(?:\s+[12](?:/[12])?)?"
+    r"|invoice\s+period|invoice\s+month|payment\s+terms)\s*:?",
+    re.I,
+)
 _MONEY_FIELDS = {
     "gross_amount",
     "commission_amount",
@@ -424,7 +437,12 @@ def _value(name: str, value: str) -> str | None:
             return format(Decimal(match.group(1)).normalize(), "f")
         return None
     # Multiple columns may contain otherwise plausible strings. Never join them.
-    if re.search(r"\S\s{2,}\S", value) or _label(value) or ":" in value:
+    if (
+        re.search(r"\S\s{2,}\S", value)
+        or _label(value)
+        or _COLUMN_HEADING.fullmatch(value)
+        or ":" in value
+    ):
         return None
     if name.endswith("_date") and not re.fullmatch(
         r"(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{2}-\d{2}|[A-Za-z]+\s+\d{1,2},?\s+\d{4})",

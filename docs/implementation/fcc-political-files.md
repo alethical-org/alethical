@@ -97,6 +97,12 @@ scale, varied PDF layouts and station scope beyond the initial 3.
   require a digit. The old readings remain available as history; progress counts
   and search use the current version. A 6-PDF comparison preserves the previously
   correct financial fields and removes a false contract number of `Station`.
+- A wider production sample found the adjacent heading `Original Date / Revision`
+  stored as an advertiser on 83 documents. Version `fcc-document-text-v3` rejects
+  observed form headings in all name, address and identifier fields, while keeping
+  real names with slashes. It leaves ambiguous names unknown instead of guessing
+  from neighboring rows. Earlier readings remain retained; current readings are
+  rebuilt from the original stored bytes and stay drafts requiring review.
 - A KSTP source invoice names its property as `KSTP_KSAX`. The archive station is
   the filing location, not proof that every billed spot aired on that station.
   Source text remains available for later review of grouped station buys.
