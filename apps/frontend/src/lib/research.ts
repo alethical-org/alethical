@@ -48,11 +48,10 @@ export {
   piecePath,
   PUBLISHED_PIECE_INDEX,
   pieceIndexBySlug,
-  READ_PAGE_HEADING,
-  READ_PAGE_INTRO,
-  READ_PAGE_NAME,
 } from './researchIndex';
+export { READ_PAGE_HEADING, READ_PAGE_INTRO, READ_PAGE_NAME } from './blogPageCopy';
 export type { PieceIndexEntry, PieceTraits } from './researchIndex';
+import { REALTOR_PACS } from './researchPieces/realtorPacs';
 import { LOBBYIST_GIVING } from './researchPieces/lobbyistGiving';
 import { ORGANIZATIONS_BOTH_PARTIES } from './researchPieces/organizationsBothParties';
 import { TWO_RECORDS_NOT_TWO_DONATIONS } from './researchPieces/twoRecordsNotTwoDonations';
@@ -271,7 +270,7 @@ export interface ResearchPiece extends PieceIndexEntry {
 }
 
 /** The /blog page's 2 empty-state lines. No terminal period on either: see
- *  `READ_PAGE_INTRO` in `lib/researchIndex.ts`. */
+ *  `READ_PAGE_INTRO` in `lib/blogPageCopy.ts`. */
 export const READ_PAGE_EMPTY_TITLE = 'Nothing published yet';
 export const READ_PAGE_EMPTY_BODY =
   'When we publish research or a guide on these records, it appears here, dated and carrying the date its records run through';
@@ -318,6 +317,7 @@ export function researchSourceText(source: ResearchSource): string {
  * disagree about a slug, a title or a date; research.test.ts pins the order.
  */
 export const PUBLISHED_RESEARCH: ResearchPiece[] = assertPublishedShortPosts([
+  REALTOR_PACS,
   LOBBYIST_GIVING,
   ORGANIZATIONS_BOTH_PARTIES,
   TWO_RECORDS_NOT_TWO_DONATIONS,

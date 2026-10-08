@@ -458,10 +458,10 @@ it.each([
   },
 );
 
-it('serves the approved article links in the first HTTP response of all 9 published pages', async () => {
+it('serves the approved article links in the first HTTP response of all 10 published pages', async () => {
   stubNetwork(() => ({ status: 500 }));
   expect(approvedInlineLinks).toHaveLength(7);
-  expect(publishedResearch()).toHaveLength(9);
+  expect(publishedResearch()).toHaveLength(10);
   for (const piece of publishedResearch()) {
     const { body, status } = await serve({ path: piecePath(piece) });
     expect(status).toBe(200);
@@ -469,7 +469,12 @@ it('serves the approved article links in the first HTTP response of all 9 publis
       expect(body).toContain(`<a href="${href}">${label}</a>`);
     }
     const related = piece.relatedSlugs ?? piece.shortPost?.relatedSlugs ?? [];
-    expect(related).toHaveLength(2);
+    if (piece.slug === 'realtor-pacs-shared-candidates') {
+      expect(related).toEqual([]);
+      expect(body).not.toContain('Related reading');
+    } else {
+      expect(related).toHaveLength(2);
+    }
     for (const slug of related) {
       const destination = publishedResearch().find((entry) => entry.slug === slug)!;
       expect(body).toContain(
@@ -1143,7 +1148,7 @@ describe('first-response page tags', () => {
   // sent its text straight away. These two checks are the `curl` measurement in
   // the issue, run on every pull request, because a silent reopening is exactly
   // how the gap arrived.
-  it('sends the /blog page its list, with a followable link per posted piece', async () => {
+  it('sends /blog its collections and newest 3 short posts with followable links', async () => {
     const calls: string[] = [];
     stubNetwork((url) => {
       calls.push(url);
@@ -1158,12 +1163,24 @@ describe('first-response page tags', () => {
       'Research, guides and events that help you understand Minnesota government',
     );
     expect(publishedResearch().length).toBeGreaterThan(1);
-    for (const piece of publishedResearch()) {
+    const newestShortPostSlugs = [
+      'realtor-pacs-shared-candidates',
+      'lobbyist-giving',
+      'organizations-both-parties',
+    ];
+    for (const piece of publishedResearch().filter(
+      (entry) => entry.format !== 'short-post' || newestShortPostSlugs.includes(entry.slug),
+    )) {
       // Each piece's own folder, so a crawler is never sent to an address the
       // router rejects.
       expect(body).toContain(`href="${piecePath(piece)}"`);
       expect(body).toContain(piece.title);
     }
+    for (const slug of newestShortPostSlugs) {
+      expect(body).toContain(`href="/blog/research/${slug}"`);
+    }
+    expect(body).not.toContain('href="/blog/research/2-records-not-always-2-donations"');
+    expect(body).toContain('href="/blog/short-posts"');
     // Read from the registry the server already holds, so no data call.
     expect(calls).toHaveLength(0);
   });
@@ -1179,10 +1196,21 @@ describe('first-response page tags', () => {
     const topic = await serve({ path: '/blog/topics/campaign-finance' });
     expect(topic.status).toBe(200);
     expect(topic.body).toContain('<h1>Campaign finance</h1>');
-    expect(topic.body).toContain(`href="${piecePath(WHO_HAS_TO_REPORT_THEIR_MONEY)}"`);
-    expect(topic.body).toContain(WHO_HAS_TO_REPORT_THEIR_MONEY.title);
+    expect(topic.body).toContain('href="/blog/research/realtor-pacs-shared-candidates"');
+    expect(topic.body.match(/class="ps-record-label"/g)).toHaveLength(6);
+    expect(topic.body).not.toContain(`href="${piecePath(WHO_HAS_TO_REPORT_THEIR_MONEY)}"`);
+    expect(topic.body).toContain('href="/blog/topics/campaign-finance?page=2"');
     expect(topic.body).toContain(
       '<link rel="canonical" href="https://www.alethical.com/blog/topics/campaign-finance"',
+    );
+
+    const nextTopicPage = await serve({ path: '/blog/topics/campaign-finance', page: '2' });
+    expect(nextTopicPage.status).toBe(200);
+    expect(nextTopicPage.body).toContain(`href="${piecePath(WHO_HAS_TO_REPORT_THEIR_MONEY)}"`);
+    expect(nextTopicPage.body).toContain(WHO_HAS_TO_REPORT_THEIR_MONEY.title);
+    expect(nextTopicPage.body.match(/class="ps-record-label"/g)).toHaveLength(4);
+    expect(nextTopicPage.body).not.toContain(
+      'href="/blog/research/realtor-pacs-shared-candidates"',
     );
 
     const absent = await serve({ path: '/blog/short-posts', page: '2' });

@@ -969,6 +969,17 @@ and month labels are unchanged. The local first download falls from 296,814 to
 must pass their own size reading. This removes article-only startup work rather
 than depending on module-numbering or compression differences to pass the limit.
 
+8 October 2026 blog release repair: hosted preview
+[dpl_2JwsCoKefBccHRdqoPkefuqTbrh2](https://vercel.com/alethical/alethical-web/2JwsCoKefBccHRdqoPkefuqTbrh2)
+measured 297,508 first-download bytes, 2 over the unchanged 297,506-byte limit.
+The blog name, description and sharing title were still exported by the startup
+article index, although their callers are lazy blog screens and server metadata.
+These exact strings move to `lib/blogPageCopy.ts`; `lib/research.ts` preserves
+its exports and server metadata imports the smaller home directly. Article
+identities, dates, approvals, routes and reader wording remain unchanged. The
+index test prevents these blog-only exports from returning to startup. Each
+hosted build must still pass its own measurement; local savings do not set the limit.
+
 Each original module re-exports what moved, so every screen keeps importing from
 where it always did, and every query key string is byte-identical
 (`apps/frontend/src/lib/__tests__/pageData.test.ts`). The cost is the one the

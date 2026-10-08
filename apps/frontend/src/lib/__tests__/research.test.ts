@@ -448,7 +448,7 @@ describe('reading time, computed from the piece\u2019s own words', () => {
 
   it('does not count Related reading links as words in a Short post', () => {
     const shortPosts = PUBLISHED_RESEARCH.filter((piece) => piece.format === 'short-post');
-    expect(shortPosts).toHaveLength(3);
+    expect(shortPosts).toHaveLength(4);
     shortPosts.forEach((piece) => {
       const withoutRelated = {
         ...piece,
@@ -693,6 +693,7 @@ function draftWords(file: string): string {
 
 describe('every shipped piece is its settled prose, word for word', () => {
   const pieces = [
+    { slug: 'realtor-pacs-shared-candidates', file: 'realtor-pacs-shared-candidates.md' },
     { slug: 'organizations-both-parties', file: 'organizations-both-parties.md' },
     { slug: 'lobbyist-giving', file: 'lobbyist-giving.md' },
     { slug: '2-records-not-always-2-donations', file: '2-records-not-always-2-donations.md' },
@@ -1130,6 +1131,9 @@ describe('the light index agrees with the full registry', () => {
       'pieceWrittenLine',
       'pieceWrittenSentence',
       'pieceShareDescription',
+      'READ_PAGE_HEADING',
+      'READ_PAGE_INTRO',
+      'READ_PAGE_NAME',
     ]) {
       expect(lightweightIndex).not.toHaveProperty(name);
     }

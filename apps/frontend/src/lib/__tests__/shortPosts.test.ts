@@ -289,6 +289,54 @@ describe('social-derived Short post publication gate', () => {
     expect(shortPostPublicationErrors(piece).join(' ')).toContain('without invented coverage');
   });
 
+  it('allows official context snapshots without changing quantitative coverage', () => {
+    const piece = readyPiece();
+    piece.shortPost!.evidence = [
+      ...piece.shortPost!.evidence,
+      {
+        ...piece.shortPost!.evidence[0],
+        id: 'policy',
+        title: 'Undated official policy',
+        url: 'https://example.gov/policy',
+        period: undefined,
+        sourceSnapshot: {
+          copiedOn: '2026-09-24',
+          selectedRecords: 'The membership requirements on the undated official policy page',
+        },
+      },
+    ];
+    piece.sourceRuns!.push([
+      { kind: 'externalLink', text: 'Official policy', href: 'https://example.gov/policy' },
+    ]);
+    piece.shortPost!.review.eugeneApprovedFingerprint = shortPostFingerprint(piece);
+    expect(shortPostPublicationErrors(piece)).toEqual([]);
+
+    piece.recordsThrough = '2026-09-24';
+    expect(shortPostPublicationErrors(piece)).toContain(
+      'records-through must name the newest covered reporting-period end',
+    );
+    piece.recordsThrough = period.through;
+    piece.shortPost!.evidence[1].period = period;
+    expect(shortPostPublicationErrors(piece).join(' ')).toContain('without invented coverage');
+  });
+
+  it.each(['missing-date', 'missing-scope', 'both-snapshots', 'official-download'])(
+    'rejects invalid official source snapshots: %s',
+    (invalidCase) => {
+      const piece = readyPiece();
+      const evidence = piece.shortPost!.evidence[0];
+      evidence.period = undefined;
+      const snapshot = { copiedOn: '2026-09-24', selectedRecords: 'Official policy' };
+      evidence.sourceSnapshot = snapshot;
+      if (invalidCase === 'missing-date') snapshot.copiedOn = '';
+      if (invalidCase === 'missing-scope') snapshot.selectedRecords = '';
+      if (invalidCase === 'both-snapshots' || invalidCase === 'official-download')
+        evidence.downloadSnapshot = { ...snapshot };
+      if (invalidCase === 'official-download') evidence.sourceSnapshot = undefined;
+      expect(shortPostPublicationErrors(piece).join(' ')).toContain('without invented coverage');
+    },
+  );
+
   it('drops cents without rounding positive or negative dollars', () => {
     const piece = readyPiece();
     const graphic = piece.shortPost!.graphics[0];
@@ -705,11 +753,16 @@ describe('Short post and topic selection', () => {
     const campaign = topicPage('campaign-finance', 1);
     expect(campaign.total).toBe(PUBLISHED_PIECE_INDEX.length);
     expect(newestShortPosts().map((piece) => piece.slug)).toEqual([
+      'realtor-pacs-shared-candidates',
+      'lobbyist-giving',
+      'organizations-both-parties',
+    ]);
+    expect(readGroups().shortPosts.map((piece) => piece.slug)).toEqual([
+      'realtor-pacs-shared-candidates',
       'lobbyist-giving',
       'organizations-both-parties',
       '2-records-not-always-2-donations',
     ]);
-    expect(readGroups().shortPosts).toEqual(newestShortPosts());
     expect(() => topicPage('unknown' as 'lobbying', 1)).toThrow('unknown topic');
   });
 });

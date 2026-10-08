@@ -292,9 +292,10 @@ only follow after the app has run is not reachable by address at all
 ([`.claude/rules/grounded-answers.md` rule 5](../../.claude/rules/grounded-answers.md)). Until this
 shipped, our own writing was the one thing on the site whose words a search engine could only read
 after running the app, while every bill page handed its text over immediately. The **`/blog` page**
-arrives with its heading, its introduction, and an ordinary link to every posted piece, at that
-piece's own address, which is what keeps an older piece reachable on a first visit rather than only
-after the app starts. Not a word of a piece is
+arrives with its heading, introduction, collection links and ordinary links to each displayed
+piece at its own address. It shows the newest 3 Short posts; `/blog/short-posts` keeps older
+Short posts reachable through ordinary links and numbered pages before the app starts.
+Not a word of a piece is
 rewritten, shortened or summarised for this: the served sentences are the stored sentences
 ([`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md) forbids editing
 a piece's text at all), and whether a search engine may _list_ a piece is still the separate,

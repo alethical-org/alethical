@@ -1,6 +1,6 @@
 import { MONEY_SECTION_NAME } from './moneySectionName';
 import { SERVICES_SUBTITLE } from './servicesMetadata';
-import { READ_PAGE_HEADING, READ_PAGE_INTRO, READ_PAGE_NAME } from './researchIndex';
+import { READ_PAGE_HEADING, READ_PAGE_INTRO, READ_PAGE_NAME } from './blogPageCopy';
 import {
   committeeListPageMetadata,
   moneyByRacePageMetadata,

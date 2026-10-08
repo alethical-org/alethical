@@ -666,7 +666,11 @@ Approved by Eugene on 26 September 2026.
 
 ### Post chart readability and conclusions
 
-- In a post table, lines separate rows; the last total row has no closing line
+- In a post table, lines separate rows and end at the last real column, including
+  its normal padding. Do not extend lines through empty space to the article's
+  right edge. This applies to tables in Research, Guides and Short posts,
+  including chart tables, in private previews and published articles. Approved
+  by Eugene on 8 October 2026. The last total row has no closing line
   underneath. Leave a clear gap before explanatory text following a table or
   chart, using the post's existing paragraph spacing. Keep every value and label
   unchanged when adjusting this space.
@@ -684,6 +688,10 @@ Approved by Eugene on 26 September 2026.
   appears inside a chart or as article text. Mark standalone conclusion paragraphs
   explicitly in the article's rendering inputs so rebuilding preserves the logo.
   Do not depend on a chart wrapper to supply branding.
+- Conclusion rows use the full available article or chart content width, with
+  the logo on the left and the text filling the remaining row. Do not apply a
+  separate narrow maximum to the row or its text. Eugene approved this on
+  8 October 2026; it replaces the earlier 880px whole-conclusion maximum.
 - A post's supported answer should be visually distinct from its evidence limits.
   In the approved conclusion treatment, put the symbol on the left and bold
   “Conclusion:” plus the answer. Short supporting qualifications continue in regular
@@ -715,22 +723,28 @@ fonts, balanced wrapping and maximum width; ordinary titles add no keyboard
 stop or visible control. Long Research’s
 22px opening line under H1 has an 880px maximum; Guide and Short post openings
 retain their current widths. Essential method summaries, Full method controls,
-closing AI-preparation paragraphs and existing whole conclusion rows have an
-880px maximum. Keep expanded method text and enclosing boxes full width. The
-conclusion limit includes its existing symbol and gap, not just its text.
+closing AI-preparation paragraphs have an 880px maximum. Keep expanded method
+text, enclosing boxes and conclusion rows full width. The conclusion logo stays
+on the left with its existing size, clear space and first-2-line alignment.
 
 Article prose and chart tables remain 100% wide. Label columns use width 1% and
 no wrapping from 768px; phone labels may wrap. Numeric columns use width 1%, a
 160px minimum and no wrapping, growing for their widest heading or value. Keep
 Libre Franklin equal-width digits and current alignment. An empty aria-hidden
-spacer cell ends each header/body row, fills remaining width and carries the same
-row lines. Preserve the last real value’s padding and real header scope. Confine
+spacer cell ends each header/body row and fills remaining width without a row
+line. The visible lines span the real columns and their normal padding only;
+they do not continue across the empty spacer. Preserve the last real value’s
+padding and real header scope. Confine
 necessary horizontal scrolling to the table at every screen width, with keyboard
 access and the existing purple 2px keyboard-focus outline. Keep all other article
-styling and text unchanged. Approved by Eugene on 30 September 2026;
+styling and text unchanged. Approved by Eugene on 30 September 2026, with row-line
+length and conclusion width revised on 8 October 2026. Check the header and every body-row divider on
+phone, tablet and desktop, including wrapped labels and wide numbers; shortening
+the lines must not clip, wrap or shrink a number. This records the design change;
+Eugene authorized implementation and live release on 8 October 2026.
 [published-writing-decisions.md §Article widths](../architecture/published-writing-decisions.md#article-widths-30-september-2026)
 owns the scope and [issue 2448](https://github.com/alethical-org/alethical/issues/2448)
-owns the release.
+records the 30 September release.
 
 ### Article metadata and Share
 
