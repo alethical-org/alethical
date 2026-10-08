@@ -91,6 +91,11 @@ flag for high-risk work, setup smoke tests and jobs already underway when enroll
 The helper records the current time. A late registration is a partial observation,
 not a full-task duration; do not backdate it or put it in the prospective trial.
 
+At registration, start the private measurement note described under
+[Record help and retries while working](#record-help-and-retries-while-working).
+Carry that note through resumes and helper handoffs; activity events alone cannot
+establish how much human help or repeated work the job needed.
+
 Resumed conversations and helpers join the same job explicitly:
 
 ```bash
@@ -235,6 +240,39 @@ The owning agent must retain independent acceptance and judge whether the promis
 result works. Neither a schema nor 2 agents agreeing is proof of correctness.
 
 ## Measurements and report
+
+### Record help and retries while working
+
+The first 2 trial jobs reached working results but could not support complete
+help or retry totals across their lead agents and helpers. Counting messages or
+tool events cannot repair that gap: a message may be a status question, and a
+repeated command may be an intended check. Preserve unknown historical totals.
+[Issue 2513](https://github.com/alethical-org/alethical/issues/2513) tracks the
+trial; the following procedure applies to future measurements in both local hosts.
+
+1. At the job's start, keep a short private note outside Git with its job ID,
+   observation start, responsible agent, and any known coverage gaps. Use the
+   definitions below. A note started late cannot establish a whole-job total.
+2. Record human help and repeated attempts as they happen. Retain only a safe
+   category, count, and enough non-sensitive context to avoid counting the same
+   event twice. Do not copy prompts, transcripts, tool payloads, credentials or
+   private reader data. Record gaps when observation is interrupted.
+3. Give each helper the same job ID and measurement definitions. Ask it to return
+   its counts, the period and work it covered, and anything it could not observe.
+   The lead owns the combined note; helpers do not write concurrently into it.
+   Reconcile overlapping observations rather than adding the same human action
+   or retry twice. Retain the note's location and gaps when handing work off.
+4. At an outcome update, reconcile the lead and helper notes for each measure.
+   Save a whole-job count only when its full coverage is supported; otherwise
+   keep that measure `null` and retain known observations privately. `0` requires
+   complete coverage with no qualifying events. Missing helper reports and
+   unobserved intervals are gaps, not zero. Keep actual times and trial membership.
+
+This is ordinary recordkeeping by the agents already doing approved work. It
+does not schedule another agent, guarantee compliance, or infer costs from event
+counts. No extra user confirmation is needed just to complete a measurement.
+
+### Measurement definitions
 
 Fill measurements from the actual job record, or leave them `null`:
 
