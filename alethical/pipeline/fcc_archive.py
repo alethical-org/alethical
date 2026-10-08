@@ -260,9 +260,25 @@ def collect(
         def process(item):
             station, file = item
             # Source URLs can be identical for separate FCC file records. Keep both.
-            observation_url = file.url + "#fcc-file=" + file.file_id
+            source_url = file.url or file.source_folder_url
+            if not source_url:
+                raise ValueError("FCC file has no source listing address")
+            observation_url = source_url + "#fcc-file=" + file.file_id
             details = asdict(file)
             with Session(engine) as session:
+                if file.url is None:
+                    observe(
+                        session,
+                        scan_id,
+                        observation_url,
+                        station.facility_id,
+                        "file",
+                        "unavailable",
+                        details=details,
+                        error=file.unavailable_reason,
+                    )
+                    session.commit()
+                    return "unavailable"
                 previous = session.scalar(
                     select(m.FCCDocument)
                     .where(
@@ -368,7 +384,11 @@ def collect(
                     )
                     db.commit()
         status = "limited" if limited else "complete"
-        if counts["folders_failed"] or counts["files_failed"]:
+        if (
+            counts["folders_failed"]
+            or counts["files_failed"]
+            or counts["files_unavailable"]
+        ):
             status = "incomplete"
     except BaseException:
         db.rollback()
@@ -676,7 +696,8 @@ def gaps(db: Session, *, limit: int = 100) -> dict:
         else db.scalars(
             select(m.FCCObservation)
             .where(
-                m.FCCObservation.scan_id == last.id, m.FCCObservation.status == "failed"
+                m.FCCObservation.scan_id == last.id,
+                m.FCCObservation.status.in_(("failed", "unavailable")),
             )
             .order_by(m.FCCObservation.url)
             .limit(limit)
@@ -714,6 +735,7 @@ def gaps(db: Session, *, limit: int = 100) -> dict:
                 url=row.url,
                 facility_id=row.facility_id,
                 kind=row.kind,
+                status=row.status,
                 error=row.error,
                 details=row.details,
             )

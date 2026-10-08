@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import httpx
 import pytest
 
@@ -29,6 +31,12 @@ FILE_ROW = f'''<tr>
 <td class="file public" id="file{RECORD}"><img alt="PDF icon" src="/img/file-ico-pdf.png"> &nbsp;
 <a target="_blank" href="{SOURCE}" class="nav2file">K5-Lisa Demuth for Governor Committee-INVOICE-510114-1<span class="sr-only"> (Opens in new browser window)</span></a></td>
 <td>154.93 KB</td><td>07/28/2026 12:31 PM</td></tr>'''
+# Actual unlinked row from Schimel for Justice's 2025 FCC folder, 2026-10-08.
+UNLINKED_ROW = """<tr>
+<td class="file public" id="file741eb6ab-fe03-c1b5-a426-f5f8365c155b"><img alt="PDF icon" style="border: 0;" src="/img/file-ico-pdf.png"> &nbsp;
+K5-Schimel for Justice-INVOICE-484743-2</td>
+<td style="text-align:right!important;">7.32 KB</td>
+<td style="text-align:right!important;">05/01/2025 5:43 PM</td></tr>"""
 FOLDER_ROW = """<tr><td class="folder public" id="folder23311e58-9b7a-cc83-83e3-279794e43bc8"><span class="icon"></span>
 <a class="nav2folder" href="/tv-profile/kstp-tv/political-files/2017/23311e58-9b7a-cc83-83e3-279794e43bc8" data-id="23311e58-9b7a-cc83-83e3-279794e43bc8" data-path="political-files/2017" data-type="">2017</a></td><td>0</td><td>--</td></tr>"""
 
@@ -55,6 +63,7 @@ def test_real_source_keeps_record_id_separate_from_binary_id():
     result = parse_folder(table(FILE_ROW), URL, PATH)
     file = result.files[0]
     assert file.file_id == RECORD
+    assert file.url is not None
     assert BINARY in file.url
     assert file.folder_id == FOLDER
     assert file.name == "K5-Lisa Demuth for Governor Committee-INVOICE-510114-1"
@@ -85,7 +94,105 @@ def test_same_name_different_record_and_duplicate_rows_survive():
 def test_non_pdf_and_exact_literal_byte_size_survive():
     row = FILE_ROW.replace(".pdf", ".docx").replace("154.93 KB", "1,500 bytes")
     file = parse_folder(table(row), URL, PATH).files[0]
+    assert file.url is not None
     assert file.url.endswith(".docx") and file.size_bytes == 1500
+
+
+def test_unlinked_file_is_preserved_without_hiding_downloadable_siblings():
+    result = parse_folder(table(FILE_ROW + UNLINKED_ROW + FILE_ROW), URL, PATH)
+    assert len(result.files) == 3
+    assert result.files[0].url == result.files[2].url == SOURCE
+    assert result.files[0].unavailable_reason is None
+    unlinked = result.files[1]
+    assert unlinked.file_id == "741eb6ab-fe03-c1b5-a426-f5f8365c155b"
+    assert unlinked.folder_id == FOLDER and unlinked.folder_path == PATH
+    assert unlinked.name == "K5-Schimel for Justice-INVOICE-484743-2"
+    assert unlinked.size_label == "7.32 KB" and unlinked.size_bytes is None
+    assert unlinked.uploaded_at == "05/01/2025 5:43 PM"
+    assert unlinked.url is None
+    assert unlinked.source_folder_url == URL
+    assert (
+        unlinked.unavailable_reason
+        == "FCC lists this record without a public download link"
+    )
+
+
+def test_exact_schimel_source_table_keeps_all_nine_records():
+    url = f"{ROOT}/2025/state/schimel-for-justice/dd51ab70-ae7b-49be-18aa-7e6882399b37"
+    body = (
+        Path(__file__).parent / "fixtures/fcc_schimel_2025_listing.html"
+    ).read_bytes()
+    result = parse_folder(body, url, "political-files/2025/state/schimel-for-justice")
+    assert result.body == body and result.children == []
+    assert len(result.files) == len({file.file_id for file in result.files}) == 9
+    assert sum(file.url is not None for file in result.files) == 8
+    unavailable = [file for file in result.files if file.url is None]
+    assert len(unavailable) == 1
+    assert unavailable[0].file_id == "741eb6ab-fe03-c1b5-a426-f5f8365c155b"
+    assert unavailable[0].folder_id == "dd51ab70-ae7b-49be-18aa-7e6882399b37"
+    assert unavailable[0].source_folder_url == url
+
+
+def test_exact_kare_hmp_source_table_keeps_linked_and_unlinked_records():
+    url = "https://publicfiles.fcc.gov/tv-profile/kare/political-files/2022/non-candidate-issue-ads/house-majority-pac-hmp/e4d059a1-c9d9-386f-1a2a-f2ead9940983"
+    body = (
+        Path(__file__).parent / "fixtures/fcc_kare_hmp_2022_listing.html"
+    ).read_bytes()
+    result = parse_folder(
+        body, url, "political-files/2022/non-candidate-issue-ads/house-majority-pac-hmp"
+    )
+    assert len(result.files) == len({file.file_id for file in result.files}) == 21
+    assert sum(file.url is not None for file in result.files) == 19
+    assert {file.file_id for file in result.files if file.url is None} == {
+        "e8ccac33-fc6e-370b-7f8c-1e2d9c451e0e",
+        "adc14767-9e18-a5f9-c849-9413583842fa",
+    }
+
+
+def test_exact_kare_state_source_keeps_cross_category_folder_actual_path():
+    url = "https://publicfiles.fcc.gov/tv-profile/kare/political-files/2026/state/779e4c7f-ff6b-e709-a616-b92b1f3da2ba"
+    body = (
+        Path(__file__).parent / "fixtures/fcc_kare_state_2026_listing.html"
+    ).read_bytes()
+    result = parse_folder(body, url, "political-files/2026/state")
+    assert result.files == [] and len(result.children) == 10
+    assert (
+        "https://publicfiles.fcc.gov/tv-profile/kare/political-files/2026/local/lisa-demuth-for-governor/25069523-5552-8a10-409d-32c58dd8c698",
+        "political-files/2026/local/lisa-demuth-for-governor",
+    ) in result.children
+
+
+def test_unlinked_file_download_fails_before_any_request_and_resets_effective_url():
+    unlinked = parse_folder(table(UNLINKED_ROW), URL, PATH).files[0]
+    seen = []
+    http = client(lambda request: seen.append(request))
+    http.last_download_url = PUBLIC_PDF
+    try:
+        with pytest.raises(FCCFetchError, match="without a public download link"):
+            http.download(unlinked)
+        assert seen == [] and http.last_download_url is None
+    finally:
+        http.close()
+
+
+@pytest.mark.parametrize(
+    "row,url",
+    [
+        (UNLINKED_ROW.replace('class="file public"', 'class="folder public"'), URL),
+        (
+            UNLINKED_ROW.replace(
+                "file741eb6ab-fe03-c1b5-a426-f5f8365c155b", "fileunknown"
+            ),
+            URL,
+        ),
+        (UNLINKED_ROW.replace("K5-Schimel for Justice-INVOICE-484743-2", " "), URL),
+        (UNLINKED_ROW, ROOT),
+        (UNLINKED_ROW.replace("</td>", '<a class="unexpected">x</a></td>', 1), URL),
+    ],
+)
+def test_unlinked_exception_does_not_accept_unknown_rows_or_guess_folder_id(row, url):
+    with pytest.raises(FCCSourceError):
+        parse_folder(table(row), url, PATH)
 
 
 @pytest.mark.parametrize(
@@ -144,9 +251,38 @@ def test_offsite_file_link_and_child_are_rejected():
         )
 
 
-def test_changed_folder_path_cannot_leave_parent():
+def test_changed_folder_path_must_match_url():
     with pytest.raises(FCCSourceError):
-        parse_folder(table(FOLDER_ROW), URL, PATH)
+        parse_folder(
+            table(
+                FOLDER_ROW.replace(
+                    'data-path="political-files/2017"',
+                    'data-path="political-files/2018"',
+                )
+            ),
+            ROOT,
+            "political-files",
+        )
+
+
+@pytest.mark.parametrize(
+    "row",
+    [
+        FOLDER_ROW.replace("/tv-profile/kstp-tv/", "/tv-profile/kare/"),
+        FOLDER_ROW.replace("political-files/2017", "ownership-reports/2017"),
+        FOLDER_ROW.replace(
+            "political-files/2017", "political-files/../ownership-reports"
+        ),
+        FOLDER_ROW.replace("political-files/2017", "political-files//2017"),
+        FOLDER_ROW.replace(
+            "2017/23311e58-9b7a-cc83-83e3-279794e43bc8",
+            "2017/23311e58-9b7a-cc83-83e3-279794e43bc8/extra",
+        ),
+    ],
+)
+def test_cross_category_permission_keeps_station_root_and_exact_path_guards(row):
+    with pytest.raises(FCCSourceError):
+        parse_folder(table(row), URL, PATH)
 
 
 def test_offsite_redirect_is_rejected_before_request():
