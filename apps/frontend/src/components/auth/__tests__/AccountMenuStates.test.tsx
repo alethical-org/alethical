@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cloneElement, type ReactElement, type ReactNode } from 'react';
+import { act, cloneElement, useState, type ReactElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -220,6 +220,39 @@ it.each([
   expect(getComputedStyle(tracked).minHeight).toBe('56px');
   const signOut = document.querySelector<HTMLElement>('[data-account-menu-sign-out]')!;
   expect(getComputedStyle(signOut).minHeight).toBe('56px');
+});
+
+it.each(['Tracked', 'Email preferences', 'User Accounts', 'Profile claim requests'])(
+  'closes the enclosing phone navigation when %s is selected from its account sheet',
+  (label) => {
+    state.admin = 'allowed';
+    function Navigation() {
+      const [open, setOpen] = useState(true);
+      return open ? (
+        <div aria-label="Site navigation">
+          <AccountDrawerRow onNavigate={() => setOpen(false)} />
+        </div>
+      ) : (
+        <p>Destination content</p>
+      );
+    }
+    render(<Navigation />);
+    click(document.querySelector<HTMLElement>('[aria-label="Account for Marissa Chen"]')!);
+    click(row(label)!);
+    expect(document.querySelector('[aria-label="Site navigation"]')).toBeNull();
+    expect(document.querySelector('[role="dialog"][aria-label="Account"]')).toBeNull();
+    expect(mount.textContent).toContain('Destination content');
+    expect(state.navigate).toHaveBeenCalledOnce();
+  },
+);
+
+it('closing the phone account sheet leaves the enclosing site navigation open', () => {
+  const onNavigate = vi.fn();
+  render(<AccountDrawerRow onNavigate={onNavigate} />);
+  click(document.querySelector<HTMLElement>('[aria-label="Account for Marissa Chen"]')!);
+  click(document.querySelector<HTMLElement>('[aria-label="Close"]')!);
+  expect(onNavigate).not.toHaveBeenCalled();
+  expect(document.querySelector('[aria-label="Account for Marissa Chen"]')).not.toBeNull();
 });
 
 it('reads the private pending count only inside the open admin menu and keeps it during refresh', async () => {

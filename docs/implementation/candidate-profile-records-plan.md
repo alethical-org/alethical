@@ -146,6 +146,12 @@ unassigned future implementation.
 Remaining acceptance: safe live activation audit, real browser role/account
 boundaries, full screen comparisons, final integration and live release.
 
+Browser review found that selecting a destination from the phone account sheet
+closed that sheet but left the surrounding site menu over the destination. The
+shared drawer now closes on account navigation while preserving Close/Escape
+behavior. Rendered regression checks cover tracked items, email preferences and
+admin destinations; the actual phone profile-review path also passes.
+
 ## Progress evidence
 
 <!-- timeless-check-ignore: dated implementation checkpoint, not product instructions -->
@@ -188,3 +194,21 @@ disclosure exposes its expanded state to screen readers. Production readiness
 uses strictly read-only comparisons: 0 profile claims or published statements,
 3 eligible admins, 6 new historical candidate IDs with no collisions, and 7
 current legislator identity connections. Profile claim email remains disabled.
+
+Final integration checkpoint: current-main backend tests pass 5,019 cases;
+frontend tests pass 4,325 cases; lint, types, the production-style web build and
+isolated pre-push checks pass. The account-drawer correction adds 5 focused
+regressions, with all 46 affected menu tests passing. Independent code review has
+accepted request-version checks, deleted-reviewer cleanup and retained-results
+feedback. The applicant browser journey covers request errors, submission,
+withdrawal, resubmission, statement editing and giving up a published statement.
+Admin browser checks cover source refresh success/failure, approval validation,
+revocation, ended-election rejection and a stale decision after another admin
+acts. All 8 email templates are readable at phone and desktop widths without
+horizontal overflow; no real email was sent.
+
+Responsive acceptance found that the admin list/detail implementation did not
+fully match the accepted drawings. The list's horizontal tablet/desktop rows,
+title sizes and status pills, and the detail's unified divided article and
+evidence grouping are being reconciled before final browser acceptance. The
+release pull request remains a draft until these corrections pass.

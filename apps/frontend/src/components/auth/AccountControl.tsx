@@ -1311,7 +1311,13 @@ export function AccountNavButton({ compact = false }: { compact?: boolean } = {}
   );
 }
 
-function PhoneAccountControl({ trigger }: { trigger: 'avatar' | 'drawer' }) {
+function PhoneAccountControl({
+  trigger,
+  onNavigate,
+}: {
+  trigger: 'avatar' | 'drawer';
+  onNavigate?: () => void;
+}) {
   const { height } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
   const { user } = useAuth();
@@ -1440,7 +1446,10 @@ function PhoneAccountControl({ trigger }: { trigger: 'avatar' | 'drawer' }) {
                 email={user?.email ?? ''}
                 signInMethods={user?.signInMethods ?? null}
                 signOutFlow={signOutFlow}
-                onLeave={() => setOpen(false)}
+                onLeave={() => {
+                  setOpen(false);
+                  onNavigate?.();
+                }}
                 onPasswordPress={() => {
                   setOpen(false);
                   setPasswordOpen(true);
@@ -1468,8 +1477,8 @@ export function AccountAvatarButton() {
 }
 
 /** Phone drawer footer: a full-width account target opening the same account sheet. */
-export function AccountDrawerRow() {
-  return <PhoneAccountControl trigger="drawer" />;
+export function AccountDrawerRow({ onNavigate }: { onNavigate?: () => void } = {}) {
+  return <PhoneAccountControl trigger="drawer" onNavigate={onNavigate} />;
 }
 
 const focusRingWeb = isWeb

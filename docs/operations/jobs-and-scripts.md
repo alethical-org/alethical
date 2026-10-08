@@ -1,6 +1,6 @@
 # What runs, when, and what it costs
 
-<!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py -->
+<!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py, alethical/api/services/candidate_claim_email.py, alethical/api/main.py -->
 
 Net: The repository has 32 GitHub Actions workflows. 28 can start automatically
 and 4 run only when a person starts them. Scheduled checks, releases, and local
@@ -40,6 +40,7 @@ reviewer too, and its switch is off until its limits are approved.
 | Missing API release says so (`.github/workflows/api-release-missing.yml`) | After each change reaches `main`, and by hand | Asks the live API which commit it is running and compares that with `main`. Opens 1 issue when a merged API change has not reached the API after 15 minutes, comments rather than opening a second, and closes that issue once the API is up to date. Says nothing for a merge that changes only the website or documents, which correctly needs no API release. Turns the run red as well when it alarms on `main`, so the Actions tab cannot read as quiet while its issue is open | No paid AI call; 1 read a minute of our own live API on GitHub's standard free runner |
 | Campaign money refresh (`.github/workflows/campaign-money-refresh.yml`) | Daily at 15:30 UTC, and by hand | Under 1 run-wide lease shared with the hand-run loaders, reads the Board's 6 registered-filer and current-report lists, refreshes the official totals for every supported year when a list changed or weekly, downloads the 3 payment files daily and publishes what passes every check, then clears saved pages and re-checks the published figures; a run whose lists could not be read is reported as incomplete. Records what each stage did for the failed-collection review below, which owns its failure issue; the job keeps the printed report as an artifact when a step does not finish | No paid AI call; public downloads from cfb.mn.gov and the existing database |
 | Traffic access key (`.github/workflows/traffic-token-expiry.yml`) | Daily at 12:00 UTC | Opens 1 issue 60 days before the private Vercel Traffic key expires and adds 1 urgent note 14 days before | No paid AI call; reads 1 date stored in the repository |
+| Profile claim notification queue (`alethical/api/services/candidate_claim_email.py`, started by `alethical/api/main.py`) | API startup, then 10 seconds after each completed drain; sending requires the profile-claim and general email switches | Sends saved request/decision notices separately to eligible current recipients, considers 20 ready deliveries per drain by default (maximum 100), shares the comment sender's lock, and limits uncertain-send retries to 23 hours | No paid AI call or new service; idle wakeups use existing hosting/database resources, and actual messages use the existing Resend account and its allowance |
 | Backend release (Railway Git connection) | A commit reaches `main` | Applies database changes, then releases the API if its readiness check passes | No paid AI call; build and hosting usage stays on the existing Railway account |
 | Website release (Vercel Git connection) | A relevant commit reaches `main` | Builds and releases the web app | No paid AI call; build and hosting usage stays on the existing Vercel account |
 | Unsaved-work backup (`com.alethical.wip-backup`, `com.commercialdeals.wip-backup`) | Every 5 minutes after each project's profile is installed on the configured Mac | Saves each working folder's staged and on-disk source separately, with private outside bundles and separate project storage | No outside service or paid AI call |
@@ -48,6 +49,11 @@ reviewer too, and its switch is off until its limits are approved.
 
 [FCC political-file instructions](../implementation/fcc-political-files.md#ongoing-collection-and-reporting)
 own the fixed scope, retry order, reporting, pause, recovery and acceptance checks.
+
+The profile-claim sender is an API worker, not another GitHub workflow. Its intended
+accepted-production flag is `true`, staged off until
+[deployment.md § Profile claim email activation](deployment.md#profile-claim-email-activation)
+passes. Its queue wakeup calls no paid API; only eligible queued messages reach Resend.
 
 The 19 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
 Time and Central Daylight Time, so their local hour changes by 1 during the year.
