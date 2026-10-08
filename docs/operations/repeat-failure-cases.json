@@ -97,7 +97,7 @@
     {
       "id": "money-results-survive-failed-recheck",
       "summary": "Keep accepted campaign money results through a failed recheck",
-      "cause": "A query can report a refresh error while retaining its last successful data. Treating error or loss of success status as absence removes usable records. The prior repairs concern money summary and search surfaces; issue 2540 extends this scoped pattern to the shared payment chart/list. https://github.com/alethical-org/alethical/issues/2540",
+      "cause": "A query can report a refresh error while retaining its last successful data. Treating error or loss of success status as absence removes usable records. The prior repairs concern money summary and search surfaces; issue 2540 extends this scoped pattern to the shared payment chart/list. https://github.com/alethical-org/alethical/issues/2540 The same success-status dependency was demonstrated in the profile history path: a failed history, received or made recheck hid a complete saved history. https://github.com/alethical-org/alethical/issues/2542",
       "occurrences": [
         {
           "pr": 2050,
@@ -112,7 +112,7 @@
       ],
       "prevention": {
         "status": "partial",
-        "description": "Rendered payment checks exercise the real query hook and complete-payment reader through failed incoming/outgoing rechecks, delayed retry, empty versus unavailable, exact committee/year/release boundaries, late old replies and separate committees. The actual committee screen also retains its compact empty result through failure and retry. Browser acceptance and release remain required. This entry does not add a frontend execution-receipt mapping; current receipt mapping is backend-only.",
+        "description": "Rendered payment checks exercise the real query hook and complete-payment reader through failed incoming/outgoing rechecks, delayed retry, empty versus unavailable, exact committee/year/release boundaries, late old replies and separate committees. The actual committee screen also retains its compact empty result through failure and retry. Browser acceptance and release remain required. This entry does not add a frontend execution-receipt mapping; current receipt mapping is backend-only. Profile history tests now exercise the real hook/reader through those 3 failures, opened-percentage retention, delayed retry, partial replacement failure, complete empty replacement, unavailable answers, committee/source-copy boundaries and late old replies. This does not relax the selected-year completion flag or establish current browser/live results.",
         "checks": [
           {
             "path": "apps/frontend/src/components/campaignMoney/__tests__/paymentRowsSurviveAFailedRecheck.test.tsx",
@@ -129,6 +129,18 @@
           {
             "path": "apps/frontend/src/components/campaignMoney/__tests__/heldFiguresSurviveAFailedRecheck.test.tsx",
             "anchor": "keeps the figures on screen and says they are held"
+          },
+          {
+            "path": "apps/frontend/src/components/campaignMoney/__tests__/historySurvivesAFailedRecheck.test.tsx",
+            "anchor": "keeps complete history and opened percentages when %s recheck fails, then retries"
+          },
+          {
+            "path": "apps/frontend/src/components/campaignMoney/__tests__/historySurvivesAFailedRecheck.test.tsx",
+            "anchor": "keeps accepted history through a delayed %s retry and prevents duplicate retries"
+          },
+          {
+            "path": "apps/frontend/src/components/campaignMoney/__tests__/historySurvivesAFailedRecheck.test.tsx",
+            "anchor": "keeps the complete accepted history when a later year of a replacement fails without exposing earlier replacement rows"
           }
         ]
       }

@@ -3,20 +3,22 @@ import { moneyDetailsPageCopy as copy } from '../../lib/campaignMoneyDetailsPage
 import { useDetailsStyles } from './detailsStyles';
 import { useFinePointerHover } from './finePointerHover';
 
-/** The held list can have rows or be the committee page's accepted empty result. */
+/** Shared failed-recheck treatment for accepted payment lists and history. */
 export function PaymentRecheckNotice({
   retrying,
   onRetry,
+  message = copy.heldPaymentRecheck,
 }: {
   retrying: boolean;
   onRetry: () => void;
+  message?: string;
 }) {
   const s = useDetailsStyles();
   const hover = useFinePointerHover();
   return (
     <View style={s.section}>
       <Text accessibilityRole="alert" style={s.body}>
-        {copy.heldPaymentRecheck}
+        {message}
       </Text>
       <Pressable
         accessibilityRole="button"

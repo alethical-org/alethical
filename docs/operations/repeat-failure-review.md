@@ -187,6 +187,25 @@ also covers a service that returns an older answer despite cancellation. Neither
 test proves physical phone keyboard autofill; that needs a real device. Assertions
 preserve the behavior in [find-my-candidates-guide.md](../product-onboarding/find-my-candidates-guide.md).
 
+## Profile campaign history retention
+
+[Issue 2542](https://github.com/alethical-org/alethical/issues/2542) carries the
+separate profile-history correction. Its rendered tests use the real query hook
+and complete-history reader with controlled local API responses. Before the
+correction, 3 failed rechecks hid accepted history while its complete data stayed
+in memory; the delayed-retry test also failed because no retry control remained.
+The retained behavior keeps the accepted committee and source copy, opened
+percentages, and honest retry feedback together. First failure, explicit
+unavailable answers, changed committee or source copy, and partial replacement
+years cannot create a history. The shared selected-year completion flag and the
+profile's committee-confirmation expiry remain intact. The history is a separate
+all-years record, rather than a selected-year payment list.
+
+The retained test names are in
+[repeat-failure-cases.json](repeat-failure-cases.json). Their local passing result
+is not browser or live-release evidence; the owning release still supplies those
+checks. No sitewide refactor or new scheduled work is included.
+
 ## Scoped exceptions to money comparisons
 
 A previously reviewed disagreement can carry forward only while both the payment

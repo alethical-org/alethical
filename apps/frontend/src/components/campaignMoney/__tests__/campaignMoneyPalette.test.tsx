@@ -13,6 +13,8 @@ vi.mock('../../../hooks/useResponsive', () => ({
 }));
 vi.mock('../../../hooks/useCampaignMoneyDetails', () => ({
   useCampaignMoneyDetails: () => ({
+    received: { data: undefined, isError: false, isFetching: false },
+    made: { data: undefined, isError: false, isFetching: false },
     historyComplete: true,
     history: {
       data: {
