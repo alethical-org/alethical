@@ -45,7 +45,10 @@ def _operational_reading_failure():
         .where(
             m.FCCPage.content_hash == m.FCCExtraction.content_hash,
             m.FCCPage.version == m.FCCExtraction.version,
-            m.FCCPage.status == "needs_ocr",
+            or_(
+                m.FCCPage.status == "needs_ocr",
+                m.FCCPage.error.regexp_match(r"(^|;)local_ocr_unavailable(;|$)"),
+            ),
         )
         .correlate(m.FCCExtraction)
         .exists(),

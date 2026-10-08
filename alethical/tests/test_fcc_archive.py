@@ -1157,3 +1157,48 @@ def test_operational_retry_recovers_mixed_partial_pdf_with_missing_ocr(db, monke
     row = db.get(m.FCCExtraction, (digest(PDF), partial.version))
     assert row.attempts[0]["pages"][1]["status"] == "needs_ocr"
     assert archive.status(db)["reading_operational_failures"] == 0
+
+
+@pytest.mark.parametrize(
+    "page_error,operational",
+    [
+        ("local_ocr_unavailable", True),
+        ("image_coverage_unreadable;local_ocr_unavailable;other_error", True),
+        ("local_ocr_unavailable;other_error", True),
+        ("image_coverage_unreadable;local_ocr_unavailable", True),
+        ("not_local_ocr_unavailable", False),
+        ("local_ocr_unavailable_elsewhere", False),
+    ],
+)
+def test_operational_retry_recovers_native_partial_page_missing_ocr(
+    db, monkeypatch, page_error, operational
+):
+    from alethical.pipeline import fcc_document_text
+
+    store = MemoryStore()
+    collect(db, store, factory())
+    partial = replace(
+        reading(),
+        status="partial",
+        errors=[],
+        pages=[
+            PageText(
+                1, "Readable native text beside image", "native", "partial", page_error
+            )
+        ],
+    )
+    archive.save_extraction(db, digest(PDF), partial)
+    db.commit()
+    assert archive.status(db)["reading_operational_failures"] == int(operational)
+    monkeypatch.setattr(fcc_document_text, "extract_document", lambda *args: reading())
+    result = archive.extract_pending(db, store, retry_operational=True)
+    assert result == ({"pending_review": 1} if operational else {})
+    row = db.get(m.FCCExtraction, (digest(PDF), partial.version))
+    if operational:
+        assert row.attempts[0]["pages"][0]["error"] == page_error
+        assert (
+            row.attempts[0]["pages"][0]["text"] == "Readable native text beside image"
+        )
+    else:
+        assert row.status == "partial" and row.attempts == []
+    assert archive.status(db)["reading_operational_failures"] == 0
