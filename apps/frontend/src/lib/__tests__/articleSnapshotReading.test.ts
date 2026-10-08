@@ -143,6 +143,49 @@ describe('Existing article tables in the first response', () => {
 });
 
 describe('Branded conclusions in the first response', () => {
+  it.each(['regular', 'bold'] as const)(
+    'breaks only a leading bold answer when the first run is %s',
+    (firstKind) => {
+      const shell = readFileSync(new URL('../../../public/index.html', import.meta.url), 'utf8');
+      const snapshot = shortPostPageSnapshot(LOBBYIST_GIVING);
+      snapshot.sections = [
+        {
+          heading: 'Conclusion fixture',
+          blocks: [
+            {
+              kind: 'runs',
+              role: 'conclusion',
+              runs: [
+                { kind: firstKind === 'bold' ? 'bold' : 'text', text: 'First sentence.' },
+                { kind: 'text', text: ' Qualification with ' },
+                { kind: 'bold', text: 'later emphasis' },
+                { kind: 'text', text: ' and ' },
+                { kind: 'externalLink', text: 'source', href: 'https://example.com/source' },
+                { kind: 'text', text: '.' },
+              ],
+            },
+          ],
+        },
+      ];
+      const document = documentFor(
+        shell.replace('</body>', `${renderPageSnapshot(snapshot)}</body>`),
+      );
+      const paragraph = document.querySelector('.ps-conclusion > p')!;
+      expect(paragraph.textContent).toBe(
+        'First sentence. Qualification with later emphasis and source.',
+      );
+      const answer = paragraph.querySelector('.ps-conclusion-answer');
+      expect(answer?.textContent ?? null).toBe(firstKind === 'bold' ? 'First sentence.' : null);
+      if (answer) expect(document.defaultView!.getComputedStyle(answer).display).toBe('block');
+      const laterEmphasis = [...paragraph.querySelectorAll('strong')].find(
+        (element) => element.textContent === 'later emphasis',
+      )!;
+      expect(laterEmphasis.classList.contains('ps-conclusion-answer')).toBe(false);
+      expect(document.defaultView!.getComputedStyle(laterEmphasis).display).not.toBe('block');
+      expect(paragraph.querySelector('a')?.getAttribute('href')).toBe('https://example.com/source');
+    },
+  );
+
   it('preserves the left symbol, bold answer and regular qualification without a narrower width', () => {
     const shell = readFileSync(new URL('../../../public/index.html', import.meta.url), 'utf8');
     const document = documentFor(
@@ -154,7 +197,9 @@ describe('Branded conclusions in the first response', () => {
     const conclusion = document.querySelector('.ps-conclusion')!;
     expect(conclusion).not.toBeNull();
     expect(conclusion.querySelector('svg')?.getAttribute('aria-label')).toBe('Alethical');
-    expect(conclusion.querySelector('strong')).not.toBeNull();
+    expect(
+      document.defaultView!.getComputedStyle(conclusion.querySelector('strong')!).display,
+    ).toBe('block');
     expect(conclusion.querySelectorAll('p')).toHaveLength(1);
     expect(document.defaultView!.getComputedStyle(conclusion).maxWidth).toBe('none');
     expect(document.defaultView!.getComputedStyle(conclusion.querySelector('p')!).flexGrow).toBe(

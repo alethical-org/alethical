@@ -2731,11 +2731,11 @@ export function committeePaymentsPageSnapshot(
 function renderSnapshotBlock(block: SnapshotBlock, article = false): string {
   if (block.kind === 'runs') {
     const text = block.runs
-      .map((run) =>
+      .map((run, index) =>
         run.kind === 'internalLink' || run.kind === 'externalLink'
           ? `<a href="${escapeHtml(run.href)}">${escapeHtml(run.text)}</a>`
           : block.role === 'conclusion' && run.kind === 'bold'
-            ? `<strong>${escapeHtml(run.text)}</strong>`
+            ? `<strong${index === 0 ? ' class="ps-conclusion-answer"' : ''}>${escapeHtml(run.text)}</strong>`
             : escapeHtml(run.text),
       )
       .join('');

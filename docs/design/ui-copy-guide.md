@@ -205,18 +205,22 @@ Approved by Eugene on 26 September 2026, including implementation in the private
 
 For a post that answers a question or establishes a finding, make the supported
 answer easy to spot. Do not bury it in small source text or a block of caveats.
-Use **Conclusion:** followed by the answer in bold when that identifies the answer
-more clearly. Do not force a conclusion onto a guide that only explains steps, or
+Open each highlighted takeaway with its main point. Use **Conclusion:** only
+when it helps readers recognize a conclusion; it is optional, not a required
+opening. Keep factual findings distinct from editorial recommendations. Eugene
+confirmed this on 8 October 2026. Do not force a conclusion onto a guide that only explains steps, or
 present an unresolved claim as settled to fill the slot.
 
-Keep a short qualification in regular text directly after the bold answer in the
-same paragraph when it qualifies that answer. Avoid a new paragraph and extra gap
-for a sentence that naturally continues the thought. Keep sentence punctuation
-throughout this combined paragraph; changing from bold to regular text does not
-start a separate punctuation unit. For example:
+Put the leading bold answer on its own line. Supporting qualifications begin
+on the next line in regular text and fill the available text width beside the
+symbol. Keep them in the same conclusion without an extra blank-line gap. A long
+bold answer may wrap naturally on narrow screens; start the supporting text after
+that whole answer. Preserve sentence punctuation and every qualification.
+Eugene approved this line separation on 8 October 2026. For example:
 
 **Conclusion: The filings support 1 reported $500 contribution appearing in repeated
-records.** The 2 download entries do not establish 2 separate donations.
+records.**<br>
+The 2 download entries do not establish 2 separate donations.
 
 Use the approved Alethical symbol to the left of the conclusion in every post
 type, including conclusions outside charts. The conclusion row fills the available
