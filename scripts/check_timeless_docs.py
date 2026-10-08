@@ -7,12 +7,12 @@ branch ADDS relative to its merge base, so the existing corpus and every
 legitimate kept use (runtime behaviour like "an anchor whose position no
 longer matches", kept decision evidence) never trip it.
 
-Exempt entirely, matching rule 16's own list: dated snapshots. The
+Exempt from history narration checks, but not internal attribution checks: dated snapshots. The
 published-writing corrections log (whose format is
 before/after by design), measurement and audit records, research findings,
 and the posted pieces' source files.
 
-A legitimate new use on an added line carries an inline escape on that line:
+A legitimate history-narration use on an added line carries an inline escape on that line:
     <!-- timeless-check-ignore: <why this is evidence, not narration> -->
 
 Run locally:  python scripts/check_timeless_docs.py   (base: origin/main,
@@ -26,7 +26,7 @@ import re
 import subprocess
 import sys
 
-CHECKED_PREFIXES = ("docs/", ".claude/rules/", "AGENTS.md")
+HISTORY_PREFIXES = ("docs/", ".claude/rules/", "AGENTS.md")
 
 EXEMPT = (
     "docs/published-writing/",  # posted pieces' source of record (grounded-answers rule 13)
@@ -39,7 +39,60 @@ EXEMPT = (
 
 IGNORE = "timeless-check-ignore:"
 
+# These checks also apply to dated records. They target decision attribution,
+# not names in biographies, source citations, commands or public records.
 MONTH = r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*"
+PERSON = r"(?:Eugene(?: Lopin)?|Angel(?: Zierden)?)"
+ATTRIBUTION_PATTERNS = [
+    (
+        re.compile(
+            rf"\b{PERSON}(?:['’]s)?\s+(?:requested|instructed|asked|said|wants?|"
+            r"wanted|approved|authorized|directed|ruled|decided|confirmed|review|"
+            r"decision|instruction|call)\b",
+            re.IGNORECASE,
+        ),
+        "internal personal attribution",
+    ),
+    (
+        re.compile(
+            rf"\b(?:requested|instructed|asked|approved|authorized|directed|ruled|"
+            rf"decided|confirmed)\s+by\s+{PERSON}\b",
+            re.IGNORECASE,
+        ),
+        "internal personal attribution",
+    ),
+    (
+        re.compile(
+            rf"\({PERSON},?\s+\d*\s*{MONTH}\b",
+            re.IGNORECASE,
+        ),
+        "named decision note",
+    ),
+    (
+        re.compile(
+            rf"\b(?:{PERSON}|the (?:user|maintainer|team)|Alethical|then)\s+"
+            r"(?:instructed|requested|asked|said|directed|wrote)(?:\s+us)?"
+            r"(?:\s+(?:to|that))?\s*:?\s*[\"“‘`]",
+            re.IGNORECASE,
+        ),
+        "quoted instruction; summarize the outcome and limits",
+    ),
+]
+
+
+def line_findings(path: str, text: str) -> list[str]:
+    findings = [
+        label for pattern, label in ATTRIBUTION_PATTERNS if pattern.search(text)
+    ]
+    if (
+        path.startswith(HISTORY_PREFIXES)
+        and not path.startswith(EXEMPT)
+        and IGNORE not in text
+    ):
+        findings.extend(label for pattern, label in PATTERNS if pattern.search(text))
+    return findings
+
+
 PATTERNS = [
     (
         re.compile(rf"\bas of {MONTH}\b", re.IGNORECASE),
@@ -103,7 +156,7 @@ def added_doc_lines(base: str) -> list[tuple[str, int, str]]:
     for raw in diff.splitlines():
         if raw.startswith("+++ b/"):
             path = raw[6:]
-            checked = path.startswith(CHECKED_PREFIXES) and not path.startswith(EXEMPT)
+            checked = True
             continue
         if raw.startswith("@@"):
             m = re.search(r"\+(\d+)", raw)
@@ -119,19 +172,27 @@ def added_doc_lines(base: str) -> list[tuple[str, int, str]]:
 def main() -> int:
     base = os.environ.get("TIMELESS_BASE_REF", "origin/main")
     failures = []
+    previous: tuple[str, int, str] | None = None
     for path, lineno, text in added_doc_lines(base):
-        if IGNORE in text:
-            continue
-        for pattern, label in PATTERNS:
-            if pattern.search(text):
-                failures.append(f"{path}:{lineno}: {label}: {text.strip()[:120]}")
-                break
+        labels = line_findings(path, text)
+        if previous is not None and previous[:2] == (path, lineno - 1):
+            # A wrapped attribution remains attribution. Do not join separate hunks.
+            joined = previous[2] + " " + text
+            labels.extend(
+                label
+                for pattern, label in ATTRIBUTION_PATTERNS
+                if pattern.search(joined) and not pattern.search(previous[2])
+            )
+        for label in dict.fromkeys(labels):
+            failures.append(f"{path}:{lineno}: {label}: {text.strip()[:120]}")
+        previous = (path, lineno, text)
     if failures:
         print(
-            "New doc lines narrate decision history. Rule 16 "
+            "New documentation contains decision narration or internal attribution. Rule 16 "
             "(.claude/rules/workflow.md): state what is true now; git holds the "
-            "history. Rewrite as a present-tense rule with the old behaviour "
-            "banned, not narrated -- or, when the line really is evidence under "
+            "history. Summarize internal instructions without personal attribution. "
+            "Rewrite as a present-tense rule with the old behaviour "
+            "banned, not narrated -- or, for history narration only, when the line is evidence under "
             f"a rule, append `<!-- {IGNORE} <why> -->` on that line.\n",
             file=sys.stderr,
         )

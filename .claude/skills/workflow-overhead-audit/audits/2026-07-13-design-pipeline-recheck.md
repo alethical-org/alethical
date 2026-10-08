@@ -31,7 +31,7 @@ next audit is the first that can test the silence signal.
 
 Rule 10's *directives* are all evidence-backed and stay. What's redundant is the
 *form*: paragraph 4 restates paragraph 2's "a11y fixes are in the lane," the
-"Eugene has reaffirmed…" passage restates paragraph 1's core, and dated
+repeated approval passage restates paragraph 1's core, and dated
 PR-provenance is carried inline. A meaning-preserving consolidation — fold
 paragraph 4's one unique atom ("file the issue at discovery") into the a11y
 clause, compress the reaffirmation to the stale-copy warning that is the *actual*
@@ -46,8 +46,7 @@ it, but silent meaning-drift in a behavioral rule wouldn't *trigger* a revert.
 So the rewrite goes to the session summary for an explicit yes; only this record
 is applied now.
 
-**Update (same session, after the yes):** Eugene approved the consolidation and
-directed that future audit verdicts be applied autonomously. Rule 10 was
+**Approved audit outcome:** the consolidation and autonomous application of future safe audit verdicts are authorized. Rule 10 was
 consolidated (807 → 718 words) and a new clause makes applying
 workflow-overhead-audit verdicts on non-exempt gates part of the safe/reversible
 lane — so the "propose-first" hesitation above will not recur. The next audit's

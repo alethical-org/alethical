@@ -4,7 +4,7 @@
 
 Layer: **5 — the `docs/` tier**, plus the two layer-1 files today's rule audit did not cover (`CONTRIBUTING.md`, `coding-discipline.md`). First audit of this layer; scope added to the skill in this pass. Diff base: `2026-07-26-skill-layer.md` (same day, layers 1+3).
 
-**Run justified:** four audits landed today (#630, #631, #633, #634, #642) covering rules, skills, memory and the global `CLAUDE.md` — every one of which *pushed content into* or *pointed at* docs, and `docs/` had never been audited. 341,094 chars of markdown with no prior pass is the largest unexamined surface in the repo. Triggered by Eugene asking directly whether docs carry redundancy, non-essential text, and stale version constraints.
+**Run justified:** four audits landed today (#630, #631, #633, #634, #642) covering rules, skills, memory and the global `CLAUDE.md` — every one of which *pushed content into* or *pointed at* docs, and `docs/` had never been audited. 341,094 chars of markdown with no prior pass is the largest unexamined surface in the repo. The audit covers redundancy, non-essential text and stale version constraints.
 
 ## Deltas since the diff base
 
@@ -31,7 +31,7 @@ Layer: **5 — the `docs/` tier**, plus the two layer-1 files today's rule audit
 
 **There is no `v1.1` milestone.** Actual milestones: `v0 hardening` (23 open), `v1` (17), `v2` (49), `v8 candidates` (2), `v9 tbd` (1). Two further doc claims are also phantoms — `v1-scope.md` cites an **`Elections` milestone** for #147/#148 (they are on `v8 candidates`), and three docs describe #91 native mobile as **"post-MVP"** (it is on `v9 tbd`).
 
-This is the evidenced core of Eugene's complaint. Sessions are not misremembering; they are correctly reading a doc that is wrong. Per the skill's step 3, **a stale instruction is a negative-value gate** — this is that, in the single most-referenced doc in the repo (18 inbound references).
+This is the demonstrated documentation defect. Sessions are not misremembering; they are correctly reading a doc that is wrong. Per the skill's step 3, **a stale instruction is a negative-value gate** — this is that, in the single most-referenced doc in the repo (18 inbound references).
 
 ## The instrument: state-plus-blocker, not phase-as-permission
 
@@ -77,7 +77,7 @@ Nothing may say *"you may not build this yet because of which bucket it is in."*
 | **Tier C — historical** | | | |
 | `frontend-screen-system-design.md` | 39,736 | **0** | **Restructure** — extract live rules, archive the plan |
 | `aesthetics.md` | 17,892 | 2 | **Archive** — self-labelled retired |
-| `product-notes.md` | 12,355 | 0 | **⚠ Flagged for Eugene** — see below |
+| `product-notes.md` | 12,355 | 0 | **⚠ Pending maintainer review** — see below |
 | `schema-query-validation.md` | 3,803 | 0 | **Archive** — point-in-time validation report |
 | **`docs/` markdown total** | **341,094** | — | ≈ 85,274 est. tok, none of it resident |
 
@@ -114,13 +114,13 @@ A third check confirmed a doc rather than faulting it: `backend-api-system-desig
 | Share branches, not file copies | rule 3 | Near-verbatim duplicate. Trim to a pointer. |
 | Effort labels (`effort: small/medium/large`) | board `LOE` field | Two vocabularies for one axis; needs reconciling against the 8-axis scheme. |
 
-## ⚠ Flagged for Eugene — not actioned
+## ⚠ Pending maintainer review — not actioned
 
 **`docs/product-notes.md` (12,355 chars, 0 inbound references)** is an unedited meeting-notes dump in a **public repository**. It contains a named third party's campaign for Lieutenant Governor, who is personally funding development, specific dollar figures discussed for contractor budgets, named individuals, and monetization plans. It also describes a product that no longer exists (Base44, App-Store-first MVP, promise-vs-vote scoring, multi-model adjudication — all now explicitly out of scope).
 
 Archiving it in place does not address this: the repo is public either way, and `git` history retains it regardless. **This needs your decision, not a default** — the options differ in kind (leave · archive with a header · remove from the working tree · history rewrite), and only you can weigh what the named person would expect. It is the one item in this audit I have not moved.
 
-> **Addendum, 2026-07-26 (same day).** Eugene's call: **remove.** The file is deleted from the working tree and dropped from the docs index ([#647](https://github.com/alethical-org/alethical/issues/647)). Not archived — archiving would have kept it discoverable in the tree, which was the concern. Note for the record that `git` history still contains it: removal changes discoverability, not the historical record, and a history rewrite was not requested.
+> **Addendum, 2026-07-26 (same day).** **Approved outcome: remove.** The file is deleted from the working tree and dropped from the docs index ([#647](https://github.com/alethical-org/alethical/issues/647)). Not archived — archiving would have kept it discoverable in the tree, which was the concern. Note for the record that `git` history still contains it: removal changes discoverability, not the historical record, and a history rewrite was not requested.
 
 ## Verdicts to apply — staged
 
@@ -131,9 +131,9 @@ PR 1 (this record) changes no doc content. Then, in order:
 3. **De-versioning**: apply state-plus-blocker across Tier A + the Tier B headers.
 4. ~~**`CONTRIBUTING.md` de-duplication**: three mirrored sections → pointers.~~ **Withdrawn during the same pass.** The verdict optimized for de-duplication, an axis that does not apply here: the file is not resident, so collapsing prose to pointers saves **zero** tokens, and `workflow.md`'s own header establishes the mirror as deliberate ("machine-facing counterparts of the human conventions in `CONTRIBUTING.md`"). Replacing readable contributor guidance with "see rule 6" would degrade the human doc to satisfy a metric it was never costed against. The real defect was **drift, not duplication** — the milestone contradiction — and that is fixed in step 1. Recorded rather than silently dropped, because a dedup verdict that ignores whether the file is loaded is a mistake this skill's step 2 is supposed to prevent.
 5. **`frontend-screen-system-design.md`** — **revised on inspection from "archive the plan" to "trim in place."** The three sections assumed to be homeless were checked individually, and only one is: **Bill Detail Content Rules** (which AI briefing blocks the bill page shows by default, which are chat-only, and the seeded prompts) is a real product decision with no other home. The other two do not justify a re-homing exercise — Global Empty/Loading/Error States is three ASCII sketches now covered as a principle in `docs/design-principles.md` and as copy review in the `design-review` skill, and Cross-Platform Interaction Rules is six bullets that are mostly shipped and partly **stale** (it says tracked toggles update optimistically; tracking is now an inert dashed roadmap preview). Archiving 39,736 chars to rescue one section would have been the larger, riskier edit. Trimmed instead: the completed "Validation Against V1 Scope" checklist, the three release-tier lists (the actual phase-as-permission), and a "Recommended Next Step" whose four items have all shipped — with a status header naming what the shipped IA superseded. Net −112 lines, the durable Implementation Guidance kept.
-6. **`v1-scope.md` non-goal split** — **gated on Eugene's confirmation.** Separating permanent non-goals ("never doing promise-vs-vote scoring") from not-yet sequencing ("no native apps in the first release") is the one judgment in this audit where a wrong call silently deletes a real product boundary. The enumerated split goes to him before rewriting.
+6. **`v1-scope.md` non-goal split** — **gated on the maintainer's confirmation.** Separating permanent non-goals ("never doing promise-vs-vote scoring") from not-yet sequencing ("no native apps in the first release") is the one judgment in this audit where a wrong call silently deletes a real product boundary. The enumerated split requires maintainer approval before rewriting.
 
-   > **Addendum, 2026-07-26 (same day).** Sorting confirmed by Eugene and applied ([#646](https://github.com/alethical-org/alethical/issues/646)). It went out as a **three**-way split, not two: inspecting the ~50 items surfaced a third category the original plan missed — **standing engineering defaults** ("Postgres FTS until measurement says otherwise"), which are neither permanent non-goals nor sequencing. Relabelling those as "not yet" would have *weakened* them, which is why the gate was worth keeping. Each now carries an explicit revisit trigger. The file was also renamed `v1-scope.md` → `product-scope.md`, since after de-versioning the filename was the last stale label on it; 11 inbound references updated, dated audit records left as-is.
+   > **Addendum, 2026-07-26 (same day).** Approved sorting applied ([#646](https://github.com/alethical-org/alethical/issues/646)). It went out as a **three**-way split, not two: inspecting the ~50 items surfaced a third category the original plan missed — **standing engineering defaults** ("Postgres FTS until measurement says otherwise"), which are neither permanent non-goals nor sequencing. Relabelling those as "not yet" would have *weakened* them, which is why the gate was worth keeping. Each now carries an explicit revisit trigger. The file was also renamed `v1-scope.md` → `product-scope.md`, since after de-versioning the filename was the last stale label on it; 11 inbound references updated, dated audit records left as-is.
 
 ## Verification
 
