@@ -26,9 +26,14 @@ credential exists, and it is a different kind: campaign finance needs **no key t
 fetch** and Storage credentials to **keep** what it fetched, because the Board keeps
 no archive and our copy is the only record of what it published on a given date
 (section **H**).
-Everything is orchestrated through an **Oban (Postgres-backed) job queue driven
-from a CLI** — **nothing ingests on a schedule; a human runs the pipeline**. All
-batch ingestion is **dry-run by default** and **idempotent**. Scheduled jobs do
+The separate private FCC archive uses a direct command rather than Oban. Its local
+collection command writes unless `--dry-run` is supplied; its GitHub workflow
+defaults to a dry run. See [FCC collection instructions](../implementation/fcc-political-files.md)
+for station addresses, setup, repeat runs, storage, recovery and known limits.
+
+The legislative pipeline is orchestrated through an **Oban (Postgres-backed) job queue driven
+from a CLI** — **nothing ingests on a schedule; a human runs the pipeline**. That
+legislative batch pipeline is **dry-run by default** and **idempotent**. Scheduled jobs do
 exist beside it (`.github/workflows/`) and **none of them ingests**: they check for
 gaps a human run left behind, and one copies stored files to a second place
 (section **H**).
