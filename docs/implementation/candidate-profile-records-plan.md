@@ -213,23 +213,48 @@ a statement-removal date. Two focused regressions cover never-published and
 removed statements. In-app draft protection is distinct from the browser-owned
 warning for document departures; no private saved-draft feature is implied.
 
-The public-record launch has a pinned private before/after receipt and guarded
-recovery procedure. Independent review and 8 isolated PostgreSQL checks pass.
-Its planned writes are limited to reviewed public records and preserve source
-versions; they do not touch claims, statements, accounts or notifications.
-Production inspection, migration acceptance and live record readback remain
-release gates, not completed production changes.
+## Live release acceptance
 
-The earlier read-only readiness audit found 0 profile claims/statements, 3
-eligible admins, 6 collision-free historical candidate IDs and 7 eligible current
-legislator identity connections. Activation requires a fresh audit after release.
-The Railway profile-claim email flag is explicitly staged false, with deployment
-skipped. Delivery remains off until the live migration, privacy, empty-queue,
-public-record and route checks in [deployment.md](../operations/deployment.md)
-pass.
+<!-- timeless-check-ignore: dated release evidence, not a promise of current data coverage -->
+8 October 2026: [pull request 2561](https://github.com/alethical-org/alethical/pull/2561)
+passed the merge queue and released as
+[commit 532c97d1](https://github.com/alethical-org/alethical/commit/532c97d1ad3c397128b04ad8a1053c7983575034).
+Both the public website and API report that exact commit. The API readiness check
+passes, and the production database is at `0069_candidate_person_records`.
 
-Remaining delivery is current-head hosted checks, merge and deployment, guarded
-public-record import and readback, fresh activation audit, email activation and
-live acceptance. The task retains its managed working folder for routine work.
+The guarded public-record import added 2 elections, 6 historical candidacies,
+4 races, 6 race memberships, 11 people, 11 candidacy connections, 4 service
+records, 8 research records and 26 retained source versions. It changed no
+pre-existing records. The private receipt retains exact before/after rows and a
+guarded recovery path. Database readback matched the saved after-image. The
+8 isolated PostgreSQL recovery checks and pinned source hashes remain part of
+the retained evidence. The import wrote no claims, statements, accounts or
+notifications.
+
+Live checks passed for 36 public API paths, the explicit unsupported historical
+address response, and signed-out denial of the private request and admin routes.
+The checks cover all 6 historical candidates, 4 historical person overviews and
+7 reciprocal legislator/person/candidacy connections. Ballot, election-result
+and service evidence retain their own sources and dates. Actual service keeps
+the source's year precision rather than inventing a January 1 start date.
+
+Chrome acceptance on the live website covers candidate-to-person navigation,
+service and election records, research source disclosures, the admin account
+menu, Pending/All review filters and the empty review list. Phone layout and
+phone account-menu navigation work. Direct visits to claim and manage addresses
+block admin accounts from ownership and campaign editing. No live claim,
+decision, campaign edit or test email was submitted; those write paths retain
+the isolated database and browser acceptance described above.
+
+The fresh activation audit found both private claim-history/delivery tables
+protected by row security with no public policies, the deleted-reviewer cleanup
+trigger installed, 3 eligible admin email recipients and an empty delivery queue.
+After these checks, the profile-claim email flag was enabled and its settings
+release completed successfully. The final read-only audit at 18:35 UTC found
+the flag enabled, the API ready and the queue still empty. Activation follows
+[deployment.md § Profile claim email activation](../operations/deployment.md#profile-claim-email-activation);
+provider delivery to real recipients is deliberately not claimed as tested.
+
+The task retains its managed working folder for routine work at Eugene's request.
 Temporary drawings, private audit receipts and browser evidence remain under
 `~/.local/state/alethical-agent-jobs/` rather than in public product documentation.
