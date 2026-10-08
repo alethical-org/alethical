@@ -94,6 +94,9 @@ export function CandidateProfileScreen(props: RootScreenProps<'CandidateProfile'
             onOpenLegislator={(slug) =>
               navigation.navigate('LegislatorProfile', { legislatorId: slug })
             }
+            onOpenPerson={(personId) =>
+              navigation.navigate('PersonOverview', { personId, fromCandidateId: id })
+            }
             onOpenProfile={(candidateId) =>
               navigation.navigate('CandidateProfile', { candidateId })
             }

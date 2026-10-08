@@ -133,9 +133,9 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
     noindex: true,
   }),
   '/admin/candidate-claims': pageMetadata({
-    title: titleFor('Candidate requests'),
-    socialTitle: 'Candidate requests',
-    description: 'Private candidate ownership requests and statement reports.',
+    title: titleFor('Profile claim requests'),
+    socialTitle: 'Profile claim requests',
+    description: 'Private candidate profile claim requests and statement reports.',
     canonicalPath: '/admin/candidate-claims',
     noindex: true,
   }),

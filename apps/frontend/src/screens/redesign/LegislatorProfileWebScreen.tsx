@@ -1,3 +1,4 @@
+import { LegislatorPersonLink } from '../../components/candidates/LegislatorPersonLink';
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import {
   ActivityIndicator,
@@ -532,6 +533,7 @@ function Hero({
                 ) : null}
               </View>
             ) : null}
+            <LegislatorPersonLink slug={legislator.slug ?? legislator.id} />
           </View>
         </View>
         <SharePopover content={shareContent} />

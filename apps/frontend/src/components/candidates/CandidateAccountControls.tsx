@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode, type Ref } from 'react';
 import { Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useResponsive } from '../../hooks/useResponsive';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
@@ -10,7 +10,7 @@ export function CandidateAccountIdentity({ record }: { record: CandidateProfileR
     <View style={candidateAccountStyles.identity}>
       <Text style={[candidateText.strong, { fontSize: 19 }]}>{record.candidate.name}</Text>
       <Text style={candidateText.strong}>{record.office}</Text>
-      <Text style={candidateText.body}>{record.votingArea}</Text>
+      {record.votingArea ? <Text style={candidateText.body}>{record.votingArea}</Text> : null}
       <Text style={candidateText.body}>
         {record.election.label} · {candidateDate(record.election.date)}
       </Text>
@@ -23,7 +23,10 @@ export function CandidateField({
   onChange,
   multiline = false,
   readOnly = false,
-  maxLength = 2000,
+  maxLength,
+  error,
+  inputRef,
+  hint,
 }: {
   label: string;
   value: string;
@@ -31,13 +34,25 @@ export function CandidateField({
   multiline?: boolean;
   readOnly?: boolean;
   maxLength?: number;
+  error?: string;
+  inputRef?: Ref<TextInput>;
+  hint?: string;
 }) {
   const { focused, focusProps } = useFieldFocus();
+  const id = useId();
   return (
     <View style={{ gap: 8 }}>
-      <Text style={candidateText.strong}>{label}</Text>
+      <Text nativeID={`${id}-label`} style={candidateText.strong}>
+        {label}
+      </Text>
       <TextInput
+        ref={inputRef}
         accessibilityLabel={label}
+        aria-labelledby={`${id}-label`}
+        aria-invalid={Boolean(error)}
+        aria-describedby={
+          [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(' ') || undefined
+        }
         value={value}
         onChangeText={onChange}
         multiline={multiline}
@@ -49,11 +64,26 @@ export function CandidateField({
         {...focusProps}
         style={[
           candidateAccountStyles.input,
-          multiline && { minHeight: 220, textAlignVertical: 'top' },
+          error && { borderColor: '#a3421a' },
+          multiline && { minHeight: 150, textAlignVertical: 'top' },
           fieldOutlineReset,
           ...fieldFocusRing(focused),
         ]}
       />
+      {hint ? (
+        <Text nativeID={`${id}-hint`} style={candidateText.body}>
+          {hint}
+        </Text>
+      ) : null}
+      {error ? (
+        <Text
+          nativeID={`${id}-error`}
+          role="alert"
+          style={[candidateText.strong, { color: '#a3421a', fontSize: 15 }]}
+        >
+          {error}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -103,9 +133,14 @@ export function CandidateDialog({
         border: '1px solid rgba(17,21,15,0.2)',
         borderRadius: 16,
         padding: 24,
-        maxWidth: 460,
-        width: 'calc(100% - 40px)',
-        ...(isMobile ? { margin: 'auto auto 0' } : {}),
+        maxWidth: 480,
+        width: isMobile ? 'calc(100% - 24px)' : 'calc(100% - 48px)',
+        boxSizing: 'border-box',
+        margin: '110px auto auto',
+        maxHeight: 'calc(100dvh - 134px)',
+        overflowY: 'auto',
+        color: '#11150f',
+        background: '#fff',
       }}
     >
       <View style={{ gap: 18 }}>

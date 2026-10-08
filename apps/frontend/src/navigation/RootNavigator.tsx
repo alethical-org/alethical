@@ -87,6 +87,7 @@ const ShortPostsScreen = loadOnDemand(screenChunks.ShortPosts, { kind: 'screen' 
 const NotFoundScreen = loadOnDemand(screenChunks.NotFound, { kind: 'screen' });
 const CandidatesScreen = loadOnDemand(screenChunks.Candidates, { kind: 'screen' });
 const CandidateProfileScreen = loadOnDemand(screenChunks.CandidateProfile, { kind: 'screen' });
+const PersonOverviewScreen = loadOnDemand(screenChunks.PersonOverview, { kind: 'screen' });
 const CandidateClaimScreen = loadOnDemand(screenChunks.CandidateClaim, { kind: 'screen' });
 const CandidateManageScreen = loadOnDemand(screenChunks.CandidateManage, { kind: 'screen' });
 const AdminCandidateClaimsScreen = loadOnDemand(screenChunks.AdminCandidateClaims, {
@@ -713,6 +714,11 @@ export function RootNavigator() {
             <Stack.Screen
               name="CandidateProfile"
               component={CandidateProfileScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="PersonOverview"
+              component={PersonOverviewScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

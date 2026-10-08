@@ -277,7 +277,16 @@ it('keeps retained address results steady through desktop edits and failed repla
   expect(field.value).toBe('200 New Street Unit 2');
   expect(host.textContent).toContain('Showing results for 100 Original Street, MN 55415');
   expect(host.textContent).toContain('We couldn’t update the results');
-  expect(host.textContent?.match(/Showing results for State general election/g)).toHaveLength(1);
+  // The desktop caption remains visible beside the old races. Its hidden copy
+  // keeps the separate error announcement meaningful to screen-reader users.
+  const captions = [...host.querySelectorAll<HTMLElement>('div')].filter(
+    (element) =>
+      element.textContent === 'Showing results for State general election · November 5, 2030',
+  );
+  expect(captions.filter((element) => getComputedStyle(element).opacity !== '0')).toHaveLength(1);
+  expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+    'Showing results for State general election · November 5, 2030',
+  );
   expect(host.querySelector('[role="region"]')?.textContent).toContain('About these results');
   expect(
     host

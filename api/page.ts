@@ -14,6 +14,14 @@ import {
   validCandidateProfileRecord,
 } from "../apps/frontend/src/lib/candidatePageSnapshot";
 import { candidateProfileMetadata } from "../apps/frontend/src/lib/candidateMetadata";
+import { personPageMetadata } from "../apps/frontend/src/lib/personMetadata";
+import {
+  personPageSnapshot,
+  validPersonRecord,
+  validPublicPersonLink,
+} from "../apps/frontend/src/lib/personPageSnapshot";
+import { PERSON_RECORD_COPY } from "../apps/frontend/src/lib/personRecords";
+import type { PersonRecord } from "../apps/frontend/src/data/personRecords";
 import type { CandidateProfileRecord } from "../apps/frontend/src/components/candidates/types";
 import { lobbyingPageMetadata } from "../apps/frontend/src/lib/lobbyingMetadata";
 import {
@@ -820,6 +828,31 @@ async function legislatorContent(
   const chamber = titleCase(legislator.current_service?.chamber || "");
   // A UUID address canonicalises to the readable slug the profile links use.
   const slug = legislator.slug || id;
+  // The server checks the reviewed identity link using the resolved slug. A
+  // missing or unavailable connection must not hide this legislator's record.
+  const person = await getApiResponse<unknown>(
+    `/people/for-legislator/${encodeURIComponent(slug)}`,
+  ).catch(() => null);
+  const snapshot = legislatorPageSnapshot(
+    legislator,
+    Array.isArray(chiefBills) ? chiefBills : null,
+    confirmedCommitteeLinks(legislator),
+  );
+  if (validPublicPersonLink(person)) {
+    snapshot.sections = [
+      {
+        heading: "",
+        body: [PERSON_RECORD_COPY.introduction],
+        items: [
+          {
+            label: PERSON_RECORD_COPY.link,
+            href: `${person.profileUrl}?legislator=${encodeURIComponent(slug)}`,
+          },
+        ],
+      },
+      ...(snapshot.sections ?? []),
+    ];
+  }
   const data: PageDataEntry[] = [
     { key: legislatorRecordQueryKey(id), payload: legislator },
   ];
@@ -864,13 +897,7 @@ async function legislatorContent(
       // record carries a current photo worth asking for.
       photoUrl: chamber ? legislator.current_service?.photo_url : null,
     }),
-    snapshot: renderPageSnapshot(
-      legislatorPageSnapshot(
-        legislator,
-        Array.isArray(chiefBills) ? chiefBills : null,
-        confirmedCommitteeLinks(legislator),
-      ),
-    ),
+    snapshot: renderPageSnapshot(snapshot),
   };
 }
 
@@ -2131,6 +2158,18 @@ async function contentFor(
         metadata: STATIC_PAGE_METADATA["/candidates"],
         snapshot: renderPageSnapshot(candidateLookupPageSnapshot()),
       };
+    case "personOverview": {
+      const record = await getApiResponse<PersonRecord>(
+        `/people/${target.personId}`,
+      );
+      if (!validPersonRecord(record, target.personId))
+        throw new DataUnavailable("invalid person record");
+      return {
+        metadata: personPageMetadata(record),
+        snapshot: renderPageSnapshot(personPageSnapshot(record)),
+        noStore: true,
+      };
+    }
     case "candidateProfile": {
       // Only public election records enter this page response. Never call address lookup.
       const record = await getApiResponse<CandidateProfileRecord>(

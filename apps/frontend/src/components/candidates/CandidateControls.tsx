@@ -17,10 +17,10 @@ import type { CandidateSource } from './types';
 
 import {
   candidateRecordsSourceLabel,
-  candidateCheckedLabel,
   CANDIDATE_PROFILE_COPY,
   safeCandidateUrl,
 } from '../../lib/candidatePublicCopy';
+import { ballotCheckedLabel } from '../../lib/personRecords';
 export { candidateDate, safeCandidateUrl, sampleBallotUrl } from '../../lib/candidatePublicCopy';
 
 export const candidateColors = {
@@ -48,6 +48,8 @@ export function CandidateButton({
   keepFieldFocus = false,
   busyLabel,
   buttonRef,
+  describedBy,
+  accessibilityLabel,
 }: {
   label: string;
   onPress(): void;
@@ -60,6 +62,8 @@ export function CandidateButton({
   keepFieldFocus?: boolean;
   busyLabel?: string;
   buttonRef?: RefObject<View | null>;
+  describedBy?: string;
+  accessibilityLabel?: string;
 }) {
   const [hovered, setHovered] = useState(false);
   const localRef = useRef<View>(null);
@@ -82,6 +86,8 @@ export function CandidateButton({
     <Pressable
       ref={control}
       accessibilityRole={href ? 'link' : 'button'}
+      aria-describedby={describedBy}
+      accessibilityLabel={accessibilityLabel}
       aria-busy={busy || undefined}
       disabled={disabled || (busy && !busyLabel)}
       accessibilityState={{ busy, disabled: busy || disabled }}
@@ -170,6 +176,7 @@ export function CandidateLink({
   onPress,
   internal = false,
   accessibilityLabel,
+  describedBy,
   style,
 }: {
   label: string;
@@ -177,6 +184,7 @@ export function CandidateLink({
   onPress?(): void;
   internal?: boolean;
   accessibilityLabel?: string;
+  describedBy?: string;
   style?: StyleProp<ViewStyle>;
 }) {
   const [hovered, setHovered] = useState(false);
@@ -191,6 +199,7 @@ export function CandidateLink({
       accessibilityLabel={
         accessibilityLabel ?? `${label}${internal ? '' : ' (opens in a new tab)'}`
       }
+      aria-describedby={describedBy}
       onHoverIn={() => {
         if (canHover()) setHovered(true);
       }}
@@ -199,7 +208,7 @@ export function CandidateLink({
     >
       <Text style={[styles.linkText, hovered && { color: '#11832b' }]}>
         {Platform.OS === 'web' ? (
-          label === 'Back to candidates' ? (
+          label.startsWith('Back to ') ? (
             <span>
               <span style={{ whiteSpace: 'nowrap' }}>
                 <Svg
@@ -220,7 +229,9 @@ export function CandidateLink({
                 </Svg>
                 <span style={{ textDecoration: hovered ? 'underline' : 'none' }}>Back</span>
               </span>
-              <span style={{ textDecoration: hovered ? 'underline' : 'none' }}> to candidates</span>
+              <span style={{ textDecoration: hovered ? 'underline' : 'none' }}>
+                {label.slice(4)}
+              </span>
             </span>
           ) : (
             <span>
@@ -270,8 +281,8 @@ export function CandidateSourceLine({
       ]}
     >
       <CandidateLink url={source.url} label={candidateRecordsSourceLabel(source.authority)} />
-      <Text style={styles.small}>{candidateCheckedLabel(source.checkedDate)}</Text>
-      {source.stale ? (
+      <Text style={styles.small}>{ballotCheckedLabel(source)}</Text>
+      {source.stale && !source.retained ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
             <Circle cx={12} cy={12} r={9} stroke="#8f5a12" strokeWidth={1.8} />

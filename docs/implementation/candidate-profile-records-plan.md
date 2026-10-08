@@ -5,9 +5,9 @@ Owner: Codex task **candidate profiles/records** (`01a11aa8-af7f-74c3-bec8-11fa9
 
 ## Authorized outcome
 
-Eugene authorized direct work with Design, review of the returned drawings, and
-implementation through a tested live release. The task retains its working folder
-for routine work. Drawing and implementation are authorized; new product choices,
+The approved outcome includes direct work with Design, review of the returned
+drawings, and implementation through a tested live release. The task retains its
+working folder for routine work. Drawing and implementation are authorized; new product choices,
 invented records, real test emails and unrelated changes are not.
 
 The public record connects verified people, their election records and their
@@ -130,20 +130,61 @@ must not store visitor addresses or account associations.
 Existing admin-owned requests require a scoped read-only audit before activating
 the restriction. Do not erase their history or silently transfer ownership.
 
-Remaining evidence to establish: usable official recheck source; historical
-election geography; race-specific final-result evidence; safe live activation
-audit; returned design comparisons; real account-deletion browser coverage.
-The owning task resolves these before claiming the affected behavior is complete.
+Official rechecks now use 3 independently retained public reference locations,
+covering 112 current candidate IDs. A fresh response must match the exact record.
+An identity, election or missing-candidate mismatch blocks requests/approvals;
+transient failure preserves any earlier block and successful source date. Existing
+approved non-admin statement management remains available.
+
+The supported historical election has reviewed Minneapolis school-board results
+and separate roster evidence. Its address geography cannot be established from
+the currently served source; historical address lookup therefore states that it
+cannot confirm the races and provides the official results link. It never falls
+back to current-election geography. This is a real supported limitation, not an
+unassigned future implementation.
+
+Remaining acceptance: safe live activation audit, real browser role/account
+boundaries, full screen comparisons, final integration and live release.
 
 ## Progress evidence
 
 <!-- timeless-check-ignore: dated implementation checkpoint, not product instructions -->
-8 October 2026: source baseline `df5721897c5304c14f2eb73a37812082a609b1e3`;
-branch `codex/candidate-profile-records`. Design received all 15 reference files
-and the recovered 853-line target response as a Markdown attachment. Design saved
-the response and began the 7 claim/admin/email surfaces. Drawings are review
-pending. No feature implementation or live release is complete.
+8 October 2026: branch `codex/candidate-profile-records`, rebased on current main
+through the independent address-suggestion release. Public drawing package
+Alethical UX (62).zip remains the accepted public record direction. Profile claim
+package Alethical UX (66).zip has SHA256
+`db3b54331734afec17467c456318cb0ddd725cd45c082c1c17313f2926d6f52f`.
+Independent review covered 218 requirements. Parent inspected the blank-unsaved
+give-up confirmation and admin revoke/sign-out privacy transition in the browser.
+The drawings are accepted with objective routing, filter-refresh, pending-count
+and server-time corrections; no unresolved visual choice remains. Design received
+the settled implementation corrections directly and is updating its saved record
+without another downloadable handoff dependency.
+
+The integrated claim, source-recheck and email suite passes 122 tests, including
+41 email checks with a fake provider. Public backend checks pass 120 tests.
+The claim frontend passes 68 focused tests, and the public frontend passes 78.
+Frontend type checks pass. Browser acceptance and release checks remain.
+Claim and public frontend implementation are ready for integrated review. Parent owns email/recheck integration,
+navigation, server-rendered public pages and final delivery. Feature release is
+not yet complete.
+
+Email delivery shares the existing provider lock, stores an immutable attempted
+payload, and retries the same provider idempotency key only within 23 hours of
+the first attempt (inside the provider's 24-hour retention). Unknown expired
+delivery is marked uncertain rather than risking another send. Recipient address
+and eligibility come from current confirmed provider records, with ambiguous
+addresses omitted. The new mail worker remains off until launch audit and dry
+run acceptance; tests never send real emails.
 
 The task's private evidence directory is
 `~/.local/state/alethical-agent-jobs/`; temporary drawings and prompts remain
 there, rather than becoming permanent product documentation.
+
+Browser acceptance checkpoint: the real local public profile opens its matching
+person overview and returns to the same election record. Source details open in
+place. The phone certification date now wraps inside its card, and the source
+disclosure exposes its expanded state to screen readers. Production readiness
+uses strictly read-only comparisons: 0 profile claims or published statements,
+3 eligible admins, 6 new historical candidate IDs with no collisions, and 7
+current legislator identity connections. Profile claim email remains disabled.

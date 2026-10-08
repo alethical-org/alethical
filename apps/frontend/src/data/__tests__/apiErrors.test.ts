@@ -74,6 +74,20 @@ describe('isAccountDeactivatedError', () => {
 });
 
 describe('ApiError', () => {
+  it('preserves the server reason without confusing it with the problem type', () => {
+    const error = apiErrorFromBody(
+      409,
+      JSON.stringify({
+        type: 'https://api.alethical.com/problems/conflict',
+        detail: 'This profile claim request changed',
+        reason: 'profile_claim_changed',
+      }),
+    );
+    expect(error.reason).toBe('profile_claim_changed');
+    expect(error.problem).toBe('conflict');
+    expect(apiErrorFromBody(409, '{"reason":42}').reason).toBeNull();
+    expect(apiErrorFromBody(502, '<html>Unavailable</html>').reason).toBeNull();
+  });
   it('carries no problem slug unless one is given', () => {
     expect(apiErrorFromBody(404, 'nope').problem).toBeNull();
     expect(new ApiError(404, 'nope').problem).toBeNull();

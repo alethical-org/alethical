@@ -82,7 +82,9 @@ export type RootStackParamList = {
   CandidateProfile: { candidateId: string };
   CandidateClaim: { candidateId: string };
   CandidateManage: { candidateId: string };
-  AdminCandidateClaims: undefined;
+  PersonOverview: { personId: string; fromCandidateId?: string; fromLegislatorSlug?: string };
+  AdminCandidateClaims:
+    { candidateId?: string; claimId?: string; fromProfile?: boolean } | undefined;
   // Campaign money section (campaign money IA handoff, Aug 2026). All public —
   // the section has no sign-in gate.
   MoneyLanding: undefined;

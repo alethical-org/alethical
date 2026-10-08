@@ -1,0 +1,1080 @@
+{
+  "version": 1,
+  "reviewedOn": "2026-10-08",
+  "reviewNotes": "Resolution 2024-0054 lists each candidate in these 4 school board races and explicitly declares the complete elected list; official November 12 minutes separately establish adoption. The 2 named opponents are Not elected from that reviewed complete winner list, never from a vote ranking. Only the 4 roster-confirmed winners receive cross-source person/service links. Other candidate records remain usable without inferred person links.",
+  "elections": [
+    {
+      "id": "8334",
+      "canonicalKey": "mn-2026-11-03-general",
+      "label": "November 3, 2026 general election",
+      "date": "2026-11-03",
+      "type": "general",
+      "sourceIds": {
+        "myballot": "8334",
+        "sosResults": "201"
+      },
+      "capabilities": {
+        "addressLookup": "current-ballot",
+        "results": false,
+        "historicalRecords": false
+      },
+      "officialResultsUrl": "https://electionresults.sos.mn.gov/Results/Index?ersElectionId=201"
+    },
+    {
+      "id": "170",
+      "canonicalKey": "mn-2024-11-05-general",
+      "label": "November 5, 2024 general election",
+      "date": "2024-11-05",
+      "type": "general",
+      "sourceIds": {
+        "sosResults": "170"
+      },
+      "capabilities": {
+        "addressLookup": "unavailable",
+        "results": true,
+        "historicalRecords": true
+      },
+      "officialResultsUrl": "https://electionresults.sos.mn.gov/Results/Index?ersElectionId=170"
+    }
+  ],
+  "sources": [
+    {
+      "file": "local-cand-2024.txt",
+      "sha256": "7094c13c391ab4414b2e602c75365639e30ba39f92a0c58f8fbdbcee25e2caf3"
+    },
+    {
+      "file": "mps-2024-approved-minutes.pdf",
+      "sha256": "21599fdbd836c9132b981e2c2f4deba1c30f5ef143897610fa2e6d2c08645387"
+    },
+    {
+      "file": "mps-2024-resolution.pdf",
+      "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+    },
+    {
+      "file": "mps-school-board.html",
+      "sha256": "569f43c25b0ae382d9bdc4a63defc3ae8b1b857d93ec9049d6bb949dba5a83ca"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "5d4ce3f68073b0f6d854e34234478fc8f6a513ce7e0c2c69d97c4dae25177739",
+      "sourceIdentity": "local_cand:170:2024-11-05:general:27:5000:0000150009001",
+      "profile": {
+        "candidate": {
+          "id": "5d4ce3f68073b0f6d854e34234478fc8f6a513ce7e0c2c69d97c4dae25177739",
+          "name": "Shayla Owodunni",
+          "sortName": "Shayla Owodunni",
+          "party": "NONPARTISAN"
+        },
+        "election": {
+          "id": "170",
+          "canonicalKey": "mn-2024-11-05-general",
+          "label": "November 5, 2024 general election",
+          "date": "2024-11-05",
+          "type": "general",
+          "sourceIds": {
+            "sosResults": "170"
+          },
+          "capabilities": {
+            "addressLookup": "unavailable",
+            "results": true,
+            "historicalRecords": true
+          },
+          "officialResultsUrl": "https://electionresults.sos.mn.gov/Results/Index?ersElectionId=170"
+        },
+        "office": "School Board Member At Large (SSD #1)",
+        "votingArea": "Minneapolis Public Schools · SSD #1",
+        "source": {
+          "authority": "Minnesota Secretary of State",
+          "url": "https://electionresultsfiles.sos.mn.gov/20241105/LocalCandTbl.txt",
+          "checkedAt": "2026-10-08T15:00:29.573509+00:00",
+          "checkedDate": "2026-10-08",
+          "sha256": "7094c13c391ab4414b2e602c75365639e30ba39f92a0c58f8fbdbcee25e2caf3",
+          "retained": true
+        }
+      },
+      "raceId": "16710db56825ee126e3c67b6544eb6366c6d0d296a6816897a8a7521bf1d40fc"
+    },
+    {
+      "id": "fdae2f3eebc70ac773b776621f7fa8ce804f100ecfc23271b97a2a61ca0d0f4d",
+      "sourceIdentity": "local_cand:170:2024-11-05:general:27:5000:0000150009002",
+      "profile": {
+        "candidate": {
+          "id": "fdae2f3eebc70ac773b776621f7fa8ce804f100ecfc23271b97a2a61ca0d0f4d",
+          "name": "Kim Ellison",
+          "sortName": "Kim Ellison",
+          "party": "NONPARTISAN"
+        },
+        "election": {
+          "id": "170",
+          "canonicalKey": "mn-2024-11-05-general",
+          "label": "November 5, 2024 general election",
+          "date": "2024-11-05",
+          "type": "general",
+          "sourceIds": {
+            "sosResults": "170"
+          },
+          "capabilities": {
+            "addressLookup": "unavailable",
+            "results": true,
+            "historicalRecords": true
+          },
+          "officialResultsUrl": "https://electionresults.sos.mn.gov/Results/Index?ersElectionId=170"
+        },
+        "office": "School Board Member At Large (SSD #1)",
+        "votingArea": "Minneapolis Public Schools · SSD #1",
+        "source": {
+          "authority": "Minnesota Secretary of State",
+          "url": "https://electionresultsfiles.sos.mn.gov/20241105/LocalCandTbl.txt",
+          "checkedAt": "2026-10-08T15:00:29.573509+00:00",
+          "checkedDate": "2026-10-08",
+          "sha256": "7094c13c391ab4414b2e602c75365639e30ba39f92a0c58f8fbdbcee25e2caf3",
+          "retained": true
+        }
+      },
+      "raceId": "16710db56825ee126e3c67b6544eb6366c6d0d296a6816897a8a7521bf1d40fc"
+    },
+    {
+      "id": "c561a1f27245caac3c9c70fefd20e7824aaf941a1ab0b94d0494870eff0a1950",
+      "sourceIdentity": "local_cand:170:2024-11-05:general:27:5012:0000150129001",
+      "profile": {
+        "candidate": {
+          "id": "c561a1f27245caac3c9c70fefd20e7824aaf941a1ab0b94d0494870eff0a1950",
+          "name": "Sharon El-Amin",
+          "sortName": "Sharon El-Amin",
+          "party": "NONPARTISAN"
+        },
+        "election": {
+          "id": "170",
+          "canonicalKey": "mn-2024-11-05-general",
+          "label": "November 5, 2024 general election",
+          "date": "2024-11-05",
+          "type": "general",
+          "sourceIds": {
+            "sosResults": "170"
+          },
+          "capabilities": {
+            "addressLookup": "unavailable",
+            "results": true,
+            "historicalRecords": true
+          },
+          "officialResultsUrl": "https://electionresults.sos.mn.gov/Results/Index?ersElectionId=170"
+        },
+        "office": "School Board Member District 2 (SSD #1)",
+        "votingArea": "Minneapolis Public Schools · SSD #1",
+        "source": {
+          "authority": "Minnesota Secretary of State",
+          "url": "https://electionresultsfiles.sos.mn.gov/20241105/LocalCandTbl.txt",
+          "checkedAt": "2026-10-08T15:00:29.573509+00:00",
+          "checkedDate": "2026-10-08",
+          "sha256": "7094c13c391ab4414b2e602c75365639e30ba39f92a0c58f8fbdbcee25e2caf3",
+          "retained": true
+        }
+      },
+      "raceId": "f1594032c4580ca0601d0b6f8e7d48dbf2042300f4c68685a54652b4f3bde401"
+    },
+    {
+      "id": "5e45094b2f6434ad50077bcfb8bc3612f082210e3a2f5f90cc4abf44e9bd1c04",
+      "sourceIdentity": "local_cand:170:2024-11-05:general:27:5016:0000150169001",
+      "profile": {
+        "candidate": {
+          "id": "5e45094b2f6434ad50077bcfb8bc3612f082210e3a2f5f90cc4abf44e9bd1c04",
+          "name": "Adriana Cerrillo",
+          "sortName": "Adriana Cerrillo",
+          "party": "NONPARTISAN"
+        },
+        "election": {
+          "id": "170",
+          "canonicalKey": "mn-2024-11-05-general",
+          "label": "November 5, 2024 general election",
+          "date": "2024-11-05",
+          "type": "general",
+          "sourceIds": {
+            "sosResults": "170"
+          },
+          "capabilities": {
+            "addressLookup": "unavailable",
+            "results": true,
+            "historicalRecords": true
+          },
+          "officialResultsUrl": "https://electionresults.sos.mn.gov/Results/Index?ersElectionId=170"
+        },
+        "office": "School Board Member District 4 (SSD #1)",
+        "votingArea": "Minneapolis Public Schools · SSD #1",
+        "source": {
+          "authority": "Minnesota Secretary of State",
+          "url": "https://electionresultsfiles.sos.mn.gov/20241105/LocalCandTbl.txt",
+          "checkedAt": "2026-10-08T15:00:29.573509+00:00",
+          "checkedDate": "2026-10-08",
+          "sha256": "7094c13c391ab4414b2e602c75365639e30ba39f92a0c58f8fbdbcee25e2caf3",
+          "retained": true
+        }
+      },
+      "raceId": "d20495b91d6fd0928a4feef31fe08b94ed30e57c5f5a70c699ca869484f0add0"
+    },
+    {
+      "id": "98cfb871f53c549296dfa763952b6d72b830a00bb6cd4067a589298fc82d3756",
+      "sourceIdentity": "local_cand:170:2024-11-05:general:27:5020:0000150209001",
+      "profile": {
+        "candidate": {
+          "id": "98cfb871f53c549296dfa763952b6d72b830a00bb6cd4067a589298fc82d3756",
+          "name": "Lara Bergman",
+          "sortName": "Lara Bergman",
+          "party": "NONPARTISAN"
+        },
+        "election": {
+          "id": "170",
+          "canonicalKey": "mn-2024-11-05-general",
+          "label": "November 5, 2024 general election",
+          "date": "2024-11-05",
+          "type": "general",
+          "sourceIds": {
+            "sosResults": "170"
+          },
+          "capabilities": {
+            "addressLookup": "unavailable",
+            "results": true,
+            "historicalRecords": true
+          },
+          "officialResultsUrl": "https://electionresults.sos.mn.gov/Results/Index?ersElectionId=170"
+        },
+        "office": "School Board Member District 6 (SSD #1)",
+        "votingArea": "Minneapolis Public Schools · SSD #1",
+        "source": {
+          "authority": "Minnesota Secretary of State",
+          "url": "https://electionresultsfiles.sos.mn.gov/20241105/LocalCandTbl.txt",
+          "checkedAt": "2026-10-08T15:00:29.573509+00:00",
+          "checkedDate": "2026-10-08",
+          "sha256": "7094c13c391ab4414b2e602c75365639e30ba39f92a0c58f8fbdbcee25e2caf3",
+          "retained": true
+        }
+      },
+      "raceId": "509cb24180462b2c81cbd1ef43923935921d0ee8f8f39cc697582972af76a79b"
+    },
+    {
+      "id": "42c591d8d605e410b3ef338d63f54144a52cde12d11bf0981c2997da745cda00",
+      "sourceIdentity": "local_cand:170:2024-11-05:general:27:5020:0000150209002",
+      "profile": {
+        "candidate": {
+          "id": "42c591d8d605e410b3ef338d63f54144a52cde12d11bf0981c2997da745cda00",
+          "name": "Greta Callahan",
+          "sortName": "Greta Callahan",
+          "party": "NONPARTISAN"
+        },
+        "election": {
+          "id": "170",
+          "canonicalKey": "mn-2024-11-05-general",
+          "label": "November 5, 2024 general election",
+          "date": "2024-11-05",
+          "type": "general",
+          "sourceIds": {
+            "sosResults": "170"
+          },
+          "capabilities": {
+            "addressLookup": "unavailable",
+            "results": true,
+            "historicalRecords": true
+          },
+          "officialResultsUrl": "https://electionresults.sos.mn.gov/Results/Index?ersElectionId=170"
+        },
+        "office": "School Board Member District 6 (SSD #1)",
+        "votingArea": "Minneapolis Public Schools · SSD #1",
+        "source": {
+          "authority": "Minnesota Secretary of State",
+          "url": "https://electionresultsfiles.sos.mn.gov/20241105/LocalCandTbl.txt",
+          "checkedAt": "2026-10-08T15:00:29.573509+00:00",
+          "checkedDate": "2026-10-08",
+          "sha256": "7094c13c391ab4414b2e602c75365639e30ba39f92a0c58f8fbdbcee25e2caf3",
+          "retained": true
+        }
+      },
+      "raceId": "509cb24180462b2c81cbd1ef43923935921d0ee8f8f39cc697582972af76a79b"
+    }
+  ],
+  "races": [
+    {
+      "id": "16710db56825ee126e3c67b6544eb6366c6d0d296a6816897a8a7521bf1d40fc",
+      "electionId": "170",
+      "stage": "general",
+      "jurisdictionScope": "school:MN:SSD:1",
+      "office": "School Board Member At Large (SSD #1)",
+      "status": "certified",
+      "final": true,
+      "testData": false,
+      "authorityScope": "school:MN:SSD:1",
+      "payload": {
+        "status": "certified",
+        "source": {
+          "authority": "Minneapolis Public Schools",
+          "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10286526?org=1807",
+          "checkedAt": "2026-10-08T15:09:11.723957+00:00",
+          "checkedDate": "2026-10-08",
+          "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+        },
+        "certification": {
+          "date": "2024-11-12",
+          "authority": "Minneapolis Public Schools",
+          "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10299284?org=1807"
+        },
+        "certificationEvidence": [
+          {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10286526?org=1807",
+            "checkedAt": "2026-10-08T15:09:11.723957+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+          },
+          {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10299284?org=1807",
+            "checkedAt": "2026-10-08T15:10:15.714862+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "21599fdbd836c9132b981e2c2f4deba1c30f5ef143897610fa2e6d2c08645387"
+          }
+        ],
+        "outcomes": {
+          "5d4ce3f68073b0f6d854e34234478fc8f6a513ce7e0c2c69d97c4dae25177739": "not-elected",
+          "fdae2f3eebc70ac773b776621f7fa8ce804f100ecfc23271b97a2a61ca0d0f4d": "elected"
+        }
+      }
+    },
+    {
+      "id": "f1594032c4580ca0601d0b6f8e7d48dbf2042300f4c68685a54652b4f3bde401",
+      "electionId": "170",
+      "stage": "general",
+      "jurisdictionScope": "school:MN:SSD:1",
+      "office": "School Board Member District 2 (SSD #1)",
+      "status": "certified",
+      "final": true,
+      "testData": false,
+      "authorityScope": "school:MN:SSD:1",
+      "payload": {
+        "status": "certified",
+        "source": {
+          "authority": "Minneapolis Public Schools",
+          "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10286526?org=1807",
+          "checkedAt": "2026-10-08T15:09:11.723957+00:00",
+          "checkedDate": "2026-10-08",
+          "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+        },
+        "certification": {
+          "date": "2024-11-12",
+          "authority": "Minneapolis Public Schools",
+          "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10299284?org=1807"
+        },
+        "certificationEvidence": [
+          {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10286526?org=1807",
+            "checkedAt": "2026-10-08T15:09:11.723957+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+          },
+          {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10299284?org=1807",
+            "checkedAt": "2026-10-08T15:10:15.714862+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "21599fdbd836c9132b981e2c2f4deba1c30f5ef143897610fa2e6d2c08645387"
+          }
+        ],
+        "outcomes": {
+          "c561a1f27245caac3c9c70fefd20e7824aaf941a1ab0b94d0494870eff0a1950": "elected"
+        }
+      }
+    },
+    {
+      "id": "d20495b91d6fd0928a4feef31fe08b94ed30e57c5f5a70c699ca869484f0add0",
+      "electionId": "170",
+      "stage": "general",
+      "jurisdictionScope": "school:MN:SSD:1",
+      "office": "School Board Member District 4 (SSD #1)",
+      "status": "certified",
+      "final": true,
+      "testData": false,
+      "authorityScope": "school:MN:SSD:1",
+      "payload": {
+        "status": "certified",
+        "source": {
+          "authority": "Minneapolis Public Schools",
+          "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10286526?org=1807",
+          "checkedAt": "2026-10-08T15:09:11.723957+00:00",
+          "checkedDate": "2026-10-08",
+          "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+        },
+        "certification": {
+          "date": "2024-11-12",
+          "authority": "Minneapolis Public Schools",
+          "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10299284?org=1807"
+        },
+        "certificationEvidence": [
+          {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10286526?org=1807",
+            "checkedAt": "2026-10-08T15:09:11.723957+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+          },
+          {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10299284?org=1807",
+            "checkedAt": "2026-10-08T15:10:15.714862+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "21599fdbd836c9132b981e2c2f4deba1c30f5ef143897610fa2e6d2c08645387"
+          }
+        ],
+        "outcomes": {
+          "5e45094b2f6434ad50077bcfb8bc3612f082210e3a2f5f90cc4abf44e9bd1c04": "elected"
+        }
+      }
+    },
+    {
+      "id": "509cb24180462b2c81cbd1ef43923935921d0ee8f8f39cc697582972af76a79b",
+      "electionId": "170",
+      "stage": "general",
+      "jurisdictionScope": "school:MN:SSD:1",
+      "office": "School Board Member District 6 (SSD #1)",
+      "status": "certified",
+      "final": true,
+      "testData": false,
+      "authorityScope": "school:MN:SSD:1",
+      "payload": {
+        "status": "certified",
+        "source": {
+          "authority": "Minneapolis Public Schools",
+          "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10286526?org=1807",
+          "checkedAt": "2026-10-08T15:09:11.723957+00:00",
+          "checkedDate": "2026-10-08",
+          "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+        },
+        "certification": {
+          "date": "2024-11-12",
+          "authority": "Minneapolis Public Schools",
+          "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10299284?org=1807"
+        },
+        "certificationEvidence": [
+          {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10286526?org=1807",
+            "checkedAt": "2026-10-08T15:09:11.723957+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+          },
+          {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10299284?org=1807",
+            "checkedAt": "2026-10-08T15:10:15.714862+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "21599fdbd836c9132b981e2c2f4deba1c30f5ef143897610fa2e6d2c08645387"
+          }
+        ],
+        "outcomes": {
+          "98cfb871f53c549296dfa763952b6d72b830a00bb6cd4067a589298fc82d3756": "not-elected",
+          "42c591d8d605e410b3ef338d63f54144a52cde12d11bf0981c2997da745cda00": "elected"
+        }
+      }
+    }
+  ],
+  "people": [
+    {
+      "id": "85c4572a-eb0e-405e-8e30-372cdbcca752",
+      "name": "Kim Ellison",
+      "candidateIds": [
+        "fdae2f3eebc70ac773b776621f7fa8ce804f100ecfc23271b97a2a61ca0d0f4d"
+      ],
+      "identityEvidence": {
+        "reviewedOn": "2026-10-08",
+        "basis": "Individually reviewed official named election winner, exact school board office and district, and current board roster for the 2025–2029 term",
+        "sources": [
+          {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10286526?org=1807",
+            "checkedAt": "2026-10-08T15:09:11.723957+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+          },
+          {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://www.mpschools.org/about-mps/school-board",
+            "checkedAt": "2026-10-08T15:06:17.342632+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "569f43c25b0ae382d9bdc4a63defc3ae8b1b857d93ec9049d6bb949dba5a83ca"
+          }
+        ]
+      },
+      "service": [
+        {
+          "id": "90736ea1-3548-44ad-8b55-31d9f57facd8",
+          "status": "current",
+          "office": "School Board Member At Large (SSD #1)",
+          "votingArea": "Minneapolis Public Schools · SSD #1",
+          "source": {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://www.mpschools.org/about-mps/school-board",
+            "checkedAt": "2026-10-08T15:06:17.342632+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "569f43c25b0ae382d9bdc4a63defc3ae8b1b857d93ec9049d6bb949dba5a83ca"
+          },
+          "termStart": {
+            "value": "2025",
+            "precision": "year"
+          },
+          "termEnd": {
+            "value": "2029",
+            "precision": "year"
+          },
+          "expectedStart": {
+            "value": "2025-01",
+            "precision": "month"
+          },
+          "expectedEnd": {
+            "value": "2029-01",
+            "precision": "month"
+          },
+          "expectedDateSource": {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10286526?org=1807",
+            "checkedAt": "2026-10-08T15:09:11.723957+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+          }
+        }
+      ],
+      "research": [
+        {
+          "id": "a219994eab96fdc9616a5045f4ab4dbb3e6788e48b6d72ff4698a522a52bdfe4",
+          "type": "official-record",
+          "title": "Resolution 2024-0054: November 5, 2024 school board election canvass",
+          "publisher": "Minneapolis Public Schools",
+          "eventDate": "2024-11-12",
+          "source": {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10286526?org=1807",
+            "checkedAt": "2026-10-08T15:09:11.723957+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+          },
+          "context": {
+            "kind": "election",
+            "candidateId": "fdae2f3eebc70ac773b776621f7fa8ce804f100ecfc23271b97a2a61ca0d0f4d",
+            "election": {
+              "id": "170",
+              "canonicalKey": "mn-2024-11-05-general",
+              "label": "November 5, 2024 general election",
+              "date": "2024-11-05",
+              "type": "general",
+              "sourceIds": {
+                "sosResults": "170"
+              },
+              "capabilities": {
+                "addressLookup": "unavailable",
+                "results": true,
+                "historicalRecords": true
+              },
+              "officialResultsUrl": "https://electionresults.sos.mn.gov/Results/Index?ersElectionId=170"
+            },
+            "office": "School Board Member At Large (SSD #1)"
+          },
+          "status": "available"
+        },
+        {
+          "id": "c29d156ab9357508146d9cec4ee023d61f73aeb5a00f82530ce1a5cad7c46f14",
+          "type": "official-record",
+          "title": "Official minutes: November 12, 2024 school board meeting",
+          "publisher": "Minneapolis Public Schools",
+          "eventDate": "2024-11-12",
+          "source": {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10299284?org=1807",
+            "checkedAt": "2026-10-08T15:10:15.714862+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "21599fdbd836c9132b981e2c2f4deba1c30f5ef143897610fa2e6d2c08645387"
+          },
+          "context": {
+            "kind": "election",
+            "candidateId": "fdae2f3eebc70ac773b776621f7fa8ce804f100ecfc23271b97a2a61ca0d0f4d",
+            "election": {
+              "id": "170",
+              "canonicalKey": "mn-2024-11-05-general",
+              "label": "November 5, 2024 general election",
+              "date": "2024-11-05",
+              "type": "general",
+              "sourceIds": {
+                "sosResults": "170"
+              },
+              "capabilities": {
+                "addressLookup": "unavailable",
+                "results": true,
+                "historicalRecords": true
+              },
+              "officialResultsUrl": "https://electionresults.sos.mn.gov/Results/Index?ersElectionId=170"
+            },
+            "office": "School Board Member At Large (SSD #1)"
+          },
+          "status": "available"
+        }
+      ]
+    },
+    {
+      "id": "9f505085-9ff0-465f-b9de-2f8a39511376",
+      "name": "Sharon El-Amin",
+      "candidateIds": [
+        "c561a1f27245caac3c9c70fefd20e7824aaf941a1ab0b94d0494870eff0a1950"
+      ],
+      "identityEvidence": {
+        "reviewedOn": "2026-10-08",
+        "basis": "Individually reviewed official named election winner, exact school board office and district, and current board roster for the 2025–2029 term",
+        "sources": [
+          {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10286526?org=1807",
+            "checkedAt": "2026-10-08T15:09:11.723957+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+          },
+          {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://www.mpschools.org/about-mps/school-board",
+            "checkedAt": "2026-10-08T15:06:17.342632+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "569f43c25b0ae382d9bdc4a63defc3ae8b1b857d93ec9049d6bb949dba5a83ca"
+          }
+        ]
+      },
+      "service": [
+        {
+          "id": "a83332c3-aff8-4e67-9bcb-99921c98069e",
+          "status": "current",
+          "office": "School Board Member District 2 (SSD #1)",
+          "votingArea": "Minneapolis Public Schools · SSD #1",
+          "source": {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://www.mpschools.org/about-mps/school-board",
+            "checkedAt": "2026-10-08T15:06:17.342632+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "569f43c25b0ae382d9bdc4a63defc3ae8b1b857d93ec9049d6bb949dba5a83ca"
+          },
+          "termStart": {
+            "value": "2025",
+            "precision": "year"
+          },
+          "termEnd": {
+            "value": "2029",
+            "precision": "year"
+          },
+          "expectedStart": {
+            "value": "2025-01",
+            "precision": "month"
+          },
+          "expectedEnd": {
+            "value": "2029-01",
+            "precision": "month"
+          },
+          "expectedDateSource": {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10286526?org=1807",
+            "checkedAt": "2026-10-08T15:09:11.723957+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+          }
+        }
+      ],
+      "research": [
+        {
+          "id": "2fce38ef558f12bb9f3aa9fa5b735e7c3a6a3fe0fab581d8c4066a3cc50f5b56",
+          "type": "official-record",
+          "title": "Resolution 2024-0054: November 5, 2024 school board election canvass",
+          "publisher": "Minneapolis Public Schools",
+          "eventDate": "2024-11-12",
+          "source": {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10286526?org=1807",
+            "checkedAt": "2026-10-08T15:09:11.723957+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+          },
+          "context": {
+            "kind": "election",
+            "candidateId": "c561a1f27245caac3c9c70fefd20e7824aaf941a1ab0b94d0494870eff0a1950",
+            "election": {
+              "id": "170",
+              "canonicalKey": "mn-2024-11-05-general",
+              "label": "November 5, 2024 general election",
+              "date": "2024-11-05",
+              "type": "general",
+              "sourceIds": {
+                "sosResults": "170"
+              },
+              "capabilities": {
+                "addressLookup": "unavailable",
+                "results": true,
+                "historicalRecords": true
+              },
+              "officialResultsUrl": "https://electionresults.sos.mn.gov/Results/Index?ersElectionId=170"
+            },
+            "office": "School Board Member District 2 (SSD #1)"
+          },
+          "status": "available"
+        },
+        {
+          "id": "c25e8f7dfc45ec49f08789fc6be24c9dc1e4eee68b0cb76bb79dad428eb9e335",
+          "type": "official-record",
+          "title": "Official minutes: November 12, 2024 school board meeting",
+          "publisher": "Minneapolis Public Schools",
+          "eventDate": "2024-11-12",
+          "source": {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10299284?org=1807",
+            "checkedAt": "2026-10-08T15:10:15.714862+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "21599fdbd836c9132b981e2c2f4deba1c30f5ef143897610fa2e6d2c08645387"
+          },
+          "context": {
+            "kind": "election",
+            "candidateId": "c561a1f27245caac3c9c70fefd20e7824aaf941a1ab0b94d0494870eff0a1950",
+            "election": {
+              "id": "170",
+              "canonicalKey": "mn-2024-11-05-general",
+              "label": "November 5, 2024 general election",
+              "date": "2024-11-05",
+              "type": "general",
+              "sourceIds": {
+                "sosResults": "170"
+              },
+              "capabilities": {
+                "addressLookup": "unavailable",
+                "results": true,
+                "historicalRecords": true
+              },
+              "officialResultsUrl": "https://electionresults.sos.mn.gov/Results/Index?ersElectionId=170"
+            },
+            "office": "School Board Member District 2 (SSD #1)"
+          },
+          "status": "available"
+        }
+      ]
+    },
+    {
+      "id": "8d39c91c-e7e3-4aa9-8a29-f9ce0df7e826",
+      "name": "Adriana Cerrillo",
+      "candidateIds": [
+        "5e45094b2f6434ad50077bcfb8bc3612f082210e3a2f5f90cc4abf44e9bd1c04"
+      ],
+      "identityEvidence": {
+        "reviewedOn": "2026-10-08",
+        "basis": "Individually reviewed official named election winner, exact school board office and district, and current board roster for the 2025–2029 term",
+        "sources": [
+          {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10286526?org=1807",
+            "checkedAt": "2026-10-08T15:09:11.723957+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+          },
+          {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://www.mpschools.org/about-mps/school-board",
+            "checkedAt": "2026-10-08T15:06:17.342632+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "569f43c25b0ae382d9bdc4a63defc3ae8b1b857d93ec9049d6bb949dba5a83ca"
+          }
+        ]
+      },
+      "service": [
+        {
+          "id": "89619efc-959b-4c36-b873-7a8be2180708",
+          "status": "current",
+          "office": "School Board Member District 4 (SSD #1)",
+          "votingArea": "Minneapolis Public Schools · SSD #1",
+          "source": {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://www.mpschools.org/about-mps/school-board",
+            "checkedAt": "2026-10-08T15:06:17.342632+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "569f43c25b0ae382d9bdc4a63defc3ae8b1b857d93ec9049d6bb949dba5a83ca"
+          },
+          "termStart": {
+            "value": "2025",
+            "precision": "year"
+          },
+          "termEnd": {
+            "value": "2029",
+            "precision": "year"
+          },
+          "expectedStart": {
+            "value": "2025-01",
+            "precision": "month"
+          },
+          "expectedEnd": {
+            "value": "2029-01",
+            "precision": "month"
+          },
+          "expectedDateSource": {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10286526?org=1807",
+            "checkedAt": "2026-10-08T15:09:11.723957+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+          }
+        }
+      ],
+      "research": [
+        {
+          "id": "b236f06c49940dd408c5af4b51f32613a0895afebe50781d131195caecb6f19d",
+          "type": "official-record",
+          "title": "Resolution 2024-0054: November 5, 2024 school board election canvass",
+          "publisher": "Minneapolis Public Schools",
+          "eventDate": "2024-11-12",
+          "source": {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10286526?org=1807",
+            "checkedAt": "2026-10-08T15:09:11.723957+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+          },
+          "context": {
+            "kind": "election",
+            "candidateId": "5e45094b2f6434ad50077bcfb8bc3612f082210e3a2f5f90cc4abf44e9bd1c04",
+            "election": {
+              "id": "170",
+              "canonicalKey": "mn-2024-11-05-general",
+              "label": "November 5, 2024 general election",
+              "date": "2024-11-05",
+              "type": "general",
+              "sourceIds": {
+                "sosResults": "170"
+              },
+              "capabilities": {
+                "addressLookup": "unavailable",
+                "results": true,
+                "historicalRecords": true
+              },
+              "officialResultsUrl": "https://electionresults.sos.mn.gov/Results/Index?ersElectionId=170"
+            },
+            "office": "School Board Member District 4 (SSD #1)"
+          },
+          "status": "available"
+        },
+        {
+          "id": "dd232316c26146ca14e9178220ec6dff63bcb2672365549c825747f48de18afd",
+          "type": "official-record",
+          "title": "Official minutes: November 12, 2024 school board meeting",
+          "publisher": "Minneapolis Public Schools",
+          "eventDate": "2024-11-12",
+          "source": {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10299284?org=1807",
+            "checkedAt": "2026-10-08T15:10:15.714862+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "21599fdbd836c9132b981e2c2f4deba1c30f5ef143897610fa2e6d2c08645387"
+          },
+          "context": {
+            "kind": "election",
+            "candidateId": "5e45094b2f6434ad50077bcfb8bc3612f082210e3a2f5f90cc4abf44e9bd1c04",
+            "election": {
+              "id": "170",
+              "canonicalKey": "mn-2024-11-05-general",
+              "label": "November 5, 2024 general election",
+              "date": "2024-11-05",
+              "type": "general",
+              "sourceIds": {
+                "sosResults": "170"
+              },
+              "capabilities": {
+                "addressLookup": "unavailable",
+                "results": true,
+                "historicalRecords": true
+              },
+              "officialResultsUrl": "https://electionresults.sos.mn.gov/Results/Index?ersElectionId=170"
+            },
+            "office": "School Board Member District 4 (SSD #1)"
+          },
+          "status": "available"
+        }
+      ]
+    },
+    {
+      "id": "921e13de-e193-4a43-b112-de580ee83201",
+      "name": "Greta Callahan",
+      "candidateIds": [
+        "42c591d8d605e410b3ef338d63f54144a52cde12d11bf0981c2997da745cda00"
+      ],
+      "identityEvidence": {
+        "reviewedOn": "2026-10-08",
+        "basis": "Individually reviewed official named election winner, exact school board office and district, and current board roster for the 2025–2029 term",
+        "sources": [
+          {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10286526?org=1807",
+            "checkedAt": "2026-10-08T15:09:11.723957+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+          },
+          {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://www.mpschools.org/about-mps/school-board",
+            "checkedAt": "2026-10-08T15:06:17.342632+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "569f43c25b0ae382d9bdc4a63defc3ae8b1b857d93ec9049d6bb949dba5a83ca"
+          }
+        ]
+      },
+      "service": [
+        {
+          "id": "476e0731-c2d6-4efa-852a-20692b61100e",
+          "status": "current",
+          "office": "School Board Member District 6 (SSD #1)",
+          "votingArea": "Minneapolis Public Schools · SSD #1",
+          "source": {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://www.mpschools.org/about-mps/school-board",
+            "checkedAt": "2026-10-08T15:06:17.342632+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "569f43c25b0ae382d9bdc4a63defc3ae8b1b857d93ec9049d6bb949dba5a83ca"
+          },
+          "termStart": {
+            "value": "2025",
+            "precision": "year"
+          },
+          "termEnd": {
+            "value": "2029",
+            "precision": "year"
+          },
+          "expectedStart": {
+            "value": "2025-01",
+            "precision": "month"
+          },
+          "expectedEnd": {
+            "value": "2029-01",
+            "precision": "month"
+          },
+          "expectedDateSource": {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10286526?org=1807",
+            "checkedAt": "2026-10-08T15:09:11.723957+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+          }
+        }
+      ],
+      "research": [
+        {
+          "id": "92556e3ccaf2b65ddd8fcd595a7b341b2680a7e75b8acbecb7946a42e0aeba6b",
+          "type": "official-record",
+          "title": "Resolution 2024-0054: November 5, 2024 school board election canvass",
+          "publisher": "Minneapolis Public Schools",
+          "eventDate": "2024-11-12",
+          "source": {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10286526?org=1807",
+            "checkedAt": "2026-10-08T15:09:11.723957+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "1c950c3f91ad65cb05f9f5405f189422d0573f3a1aad57dace503eed0db90192"
+          },
+          "context": {
+            "kind": "election",
+            "candidateId": "42c591d8d605e410b3ef338d63f54144a52cde12d11bf0981c2997da745cda00",
+            "election": {
+              "id": "170",
+              "canonicalKey": "mn-2024-11-05-general",
+              "label": "November 5, 2024 general election",
+              "date": "2024-11-05",
+              "type": "general",
+              "sourceIds": {
+                "sosResults": "170"
+              },
+              "capabilities": {
+                "addressLookup": "unavailable",
+                "results": true,
+                "historicalRecords": true
+              },
+              "officialResultsUrl": "https://electionresults.sos.mn.gov/Results/Index?ersElectionId=170"
+            },
+            "office": "School Board Member District 6 (SSD #1)"
+          },
+          "status": "available"
+        },
+        {
+          "id": "fe0cde1bb3c92869abaa8ccddea2dfce473f35fb55854e0a6ad26033188241e1",
+          "type": "official-record",
+          "title": "Official minutes: November 12, 2024 school board meeting",
+          "publisher": "Minneapolis Public Schools",
+          "eventDate": "2024-11-12",
+          "source": {
+            "authority": "Minneapolis Public Schools",
+            "url": "https://meetings.boardbook.org/Documents/DownloadPDF/10299284?org=1807",
+            "checkedAt": "2026-10-08T15:10:15.714862+00:00",
+            "checkedDate": "2026-10-08",
+            "sha256": "21599fdbd836c9132b981e2c2f4deba1c30f5ef143897610fa2e6d2c08645387"
+          },
+          "context": {
+            "kind": "election",
+            "candidateId": "42c591d8d605e410b3ef338d63f54144a52cde12d11bf0981c2997da745cda00",
+            "election": {
+              "id": "170",
+              "canonicalKey": "mn-2024-11-05-general",
+              "label": "November 5, 2024 general election",
+              "date": "2024-11-05",
+              "type": "general",
+              "sourceIds": {
+                "sosResults": "170"
+              },
+              "capabilities": {
+                "addressLookup": "unavailable",
+                "results": true,
+                "historicalRecords": true
+              },
+              "officialResultsUrl": "https://electionresults.sos.mn.gov/Results/Index?ersElectionId=170"
+            },
+            "office": "School Board Member District 6 (SSD #1)"
+          },
+          "status": "available"
+        }
+      ]
+    }
+  ],
+  "legislatorPeople": [
+    {
+      "id": "0371da63-ba13-4c36-8d93-733d9b060b56",
+      "candidateId": "677e8bb6e927a5df33d9b486844b2e8dbf3b31bd49816bdc0627fba488ba185f",
+      "legislatorSlug": "mohamud-noor",
+      "memberSourceUrl": "https://www.house.mn.gov/members/profile/15528"
+    },
+    {
+      "id": "3fc30dba-d73f-4b61-90d9-398156c1c2cc",
+      "candidateId": "2aac573ec752af687b5d9d024cfc1530ae61127d9a5e90f7a6dc43721465cc1b",
+      "legislatorSlug": "doron-clark",
+      "memberSourceUrl": "https://www.senate.mn/members/member_bio.html?leg_id=15649"
+    },
+    {
+      "id": "7b679f3e-cb7b-4832-8d59-aa7d50633cc8",
+      "candidateId": "a458d79a8838f12a9962a99e21d4657a97c747f7d848a6d10df3b4d86f3eed0f",
+      "legislatorSlug": "josh-heintzeman",
+      "memberSourceUrl": "https://www.house.mn.gov/members/profile/15435"
+    },
+    {
+      "id": "5ea77714-22b7-446e-8533-fb3ec335348a",
+      "candidateId": "8e78033d9be7ff9bae056b93f0bbf8c3127e73ceaf9248b75b7c8e93c72af7f9",
+      "legislatorSlug": "keri-heintzeman",
+      "memberSourceUrl": "https://www.senate.mn/members/member_bio.html?leg_id=15651"
+    },
+    {
+      "id": "31d5067b-1c65-486d-b4e4-79690cfa41cb",
+      "candidateId": "a10f7a00034128a0bf9bd30dc42efe3a7c5431ea8bdf41e61f3ba81ea8e96d9b",
+      "legislatorSlug": "cedrick-frazier",
+      "memberSourceUrl": "https://www.house.mn.gov/members/profile/15548"
+    },
+    {
+      "id": "a1f93715-4af6-42d5-b8a3-2c0a3bf99f11",
+      "candidateId": "dc7047b6bc44675d0d5186830236a63cde0624459fbe17313fbab44f26e24d00",
+      "legislatorSlug": "lisa-demuth",
+      "memberSourceUrl": "https://www.house.mn.gov/members/profile/15498"
+    },
+    {
+      "id": "84e29c31-a876-4c4a-a6f0-7d30ee7c6e8d",
+      "candidateId": "8a0fbff7f8c487137849add5cef656b2d6548aae2bef314383cf69e2c20245a4",
+      "legislatorSlug": "carlie-kotyza-witthuhn",
+      "memberSourceUrl": "https://www.house.mn.gov/members/profile/15515"
+    }
+  ]
+}

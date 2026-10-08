@@ -1,5 +1,6 @@
+import { candidateDate, candidateElectionLabel } from '../lib/candidatePublicCopy';
 import { CANDIDATE_LOOKUP_COPY } from '../lib/candidatePublicCopy';
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useResponsive } from '../hooks/useResponsive';
@@ -28,7 +29,17 @@ export function CandidatesScreen(props: RootScreenProps<'Candidates'>) {
     );
     return () => cancelAnimationFrame(frame);
   }, [focused]);
-  useDocumentTitle('/candidates', 'Find My Candidates | Alethical');
+  const displayed = useSyncExternalStore(
+    candidateFlow.subscribe,
+    candidateFlow.getState,
+    candidateFlow.getState,
+  ).displayed;
+  useDocumentTitle(
+    '/candidates',
+    displayed?.results.resultsAvailable
+      ? `Election results · ${candidateElectionLabel(displayed.election)} · ${candidateDate(displayed.election.date)} | Alethical`
+      : 'Find My Candidates | Alethical',
+  );
   if (__DEV__ && candidatePreviewEnabled() && Preview)
     return (
       <Suspense fallback={<Text accessibilityLiveRegion="polite">Loading preview…</Text>}>

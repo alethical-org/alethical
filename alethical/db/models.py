@@ -1043,6 +1043,7 @@ class CandidateRecord(Base):
     election_date: Mapped[date] = mapped_column(Date, nullable=False)
     public_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
     source_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    claim_source_block: Mapped[Optional[str]] = mapped_column(String(32))
     checked_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
@@ -1079,6 +1080,71 @@ class CandidateClaim(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             unique=True,
             postgresql_where=text("status = 'approved'"),
         ),
+    )
+
+
+class CandidateClaimEvent(UUIDPrimaryKeyMixin, Base):
+    """Private immutable evidence for one saved profile claim transition."""
+
+    __tablename__ = "candidate_claim_event"
+    claim_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("candidate_claim.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    kind: Mapped[str] = mapped_column(String(24), nullable=False)
+    claim_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    actor_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("user_account.id", ondelete="SET NULL")
+    )
+    evidence_url: Mapped[str] = mapped_column(Text, nullable=False)
+    request_note: Mapped[str] = mapped_column(Text, nullable=False)
+    review_note: Mapped[Optional[str]] = mapped_column(Text)
+    identity_verified: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    statement_removed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    candidate_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    __table_args__ = (
+        UniqueConstraint("claim_id", "claim_version"),
+        CheckConstraint(
+            "kind IN ('submitted', 'resubmitted', 'withdrawn', 'given_up', 'approved', 'rejected', 'revoked')",
+            name="kind",
+        ),
+    )
+
+
+class CandidateClaimEmailDelivery(UUIDPrimaryKeyMixin, Base):
+    """One intended recipient per event; email addresses are resolved at delivery."""
+
+    __tablename__ = "candidate_claim_email_delivery"
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("candidate_claim_event.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), nullable=False
+    )
+    recipient_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    provider_id: Mapped[Optional[str]] = mapped_column(String(200))
+    message_payload: Mapped[Optional[dict]] = mapped_column(JSONB)
+    attempted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    next_attempt_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    __table_args__ = (
+        UniqueConstraint("event_id", "user_id"),
+        CheckConstraint(
+            "recipient_kind IN ('admin', 'applicant')", name="recipient_kind"
+        ),
+        Index("ix_candidate_claim_email_delivery_pending", "state", "next_attempt_at"),
     )
 
 
@@ -5184,4 +5250,142 @@ class CampaignFinanceDisclosureStatementSource(
         UniqueConstraint(
             "reading_id", "position", name="uq_cf_disclosure_statement_source_position"
         ),
+    )
+
+
+class CandidateElection(Base):
+    """Supported elections and their separately proved source capabilities."""
+
+    __tablename__ = "candidate_election"
+    id: Mapped[str] = mapped_column(String(20), primary_key=True)
+    canonical_key: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
+    election_date: Mapped[date] = mapped_column(Date, nullable=False)
+    stage: Mapped[str] = mapped_column(String(20), nullable=False)
+    public_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    __table_args__ = (
+        CheckConstraint(
+            "stage IN ('general', 'primary', 'special')", name="valid_stage"
+        ),
+        UniqueConstraint("id", "stage"),
+    )
+
+
+class CandidateRaceRecord(Base):
+    """One exact race; certification is scoped here, never to a whole election."""
+
+    __tablename__ = "candidate_race_record"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    election_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    stage: Mapped[str] = mapped_column(String(20), nullable=False)
+    jurisdiction_scope: Mapped[str] = mapped_column(String(160), nullable=False)
+    office: Mapped[str] = mapped_column(Text, nullable=False)
+    result_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="unavailable"
+    )
+    final: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    test_data: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    authority_scope: Mapped[Optional[str]] = mapped_column(String(160))
+    result_payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["election_id", "stage"],
+            ["candidate_election.id", "candidate_election.stage"],
+        ),
+        CheckConstraint(
+            "result_status IN ('pending','unofficial','certified','recount','tie','unavailable')",
+            name="valid_result_status",
+        ),
+        CheckConstraint(
+            "NOT final OR (result_status = 'certified' AND NOT test_data)",
+            name="final_certified_real",
+        ),
+        CheckConstraint(
+            "result_status != 'certified' OR (authority_scope IS NOT NULL AND authority_scope = jurisdiction_scope AND NOT test_data AND coalesce(jsonb_array_length(result_payload->'certificationEvidence'), 0) > 0)",
+            name="certified_scope_evidence",
+        ),
+    )
+
+
+class CandidateRaceMember(Base):
+    __tablename__ = "candidate_race_member"
+    candidate_id: Mapped[str] = mapped_column(
+        ForeignKey("candidate_record.id"), primary_key=True
+    )
+    race_id: Mapped[str] = mapped_column(
+        ForeignKey("candidate_race_record.id"), nullable=False, index=True
+    )
+    # Frozen facts the cross-source join was reviewed against, not a name-only key.
+    identity: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
+class PublicPerson(UUIDPrimaryKeyMixin, Base):
+    """A public identity, unrelated to a private account or profile claim."""
+
+    __tablename__ = "public_person"
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    legislator_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("legislator.id", ondelete="SET NULL"), unique=True
+    )
+    identity_evidence: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
+class PersonCandidacy(Base):
+    __tablename__ = "person_candidacy"
+    person_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("public_person.id"), primary_key=True
+    )
+    candidate_id: Mapped[str] = mapped_column(
+        ForeignKey("candidate_record.id"), primary_key=True
+    )
+    identity: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    evidence: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
+class PersonServiceRecord(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "person_service_record"
+    person_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("public_person.id"), nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    public_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('current','elected','former','unknown')",
+            name="valid_service_status",
+        ),
+    )
+
+
+class PersonResearchRecord(Base):
+    __tablename__ = "person_research_record"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    person_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("public_person.id"), nullable=False, index=True
+    )
+    kind: Mapped[str] = mapped_column(String(30), nullable=False)
+    public_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    sort_date: Mapped[date] = mapped_column(Date, nullable=False)
+    __table_args__ = (
+        CheckConstraint("kind = 'official-record'", name="official_research_only"),
+    )
+
+
+class PublicRecordVersion(Base):
+    """Immutable accepted public source reads; no visitor or claim evidence."""
+
+    __tablename__ = "public_record_version"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    record_kind: Mapped[str] = mapped_column(String(30), nullable=False)
+    record_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    source_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    checked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    public_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    __table_args__ = (
+        CheckConstraint(
+            "record_kind IN ('candidate','ballot','race','person','service','research')",
+            name="public_record_kind",
+        ),
+        Index("ix_public_record_version_record", "record_kind", "record_id"),
     )

@@ -42,7 +42,7 @@ shared navigation described here. See [services-guide.md](services-guide.md).
   sign-in is enabled; an account whose sign-in methods are not yet known says **Password**.
   Approved administrators see an **Admin** group between Email preferences and Sign out,
   with **User Accounts** (`/admin/users`), **Site Metrics** (`/admin/site-metrics`),
-  **Operations** (`/admin/operations`), and **Candidate requests** (`/admin/candidate-claims`), in that order. These navigation labels
+  **Operations** (`/admin/operations`), and **Profile claim requests** (`/admin/candidate-claims`), in that order. These navigation labels
   do not authorize changes to report-page copy.
   Desktop and phone use this same order. The signed-in profile supplies
   the menu hint; older responses use a separate access check. Every private read
@@ -58,10 +58,18 @@ The account menu uses matching outline pictures for Tracked, password, email, an
 Every action label has the same bold weight and size within its layout band. Tablet
 keeps its existing bottom sheet but uses the desktop action text size; phone action
 text is larger. The desktop popover has room for longer labels.
-The Admin group has 1 divider above its label and no divider between its 3 links.
+The Admin group has 1 divider above its label and no divider between its 4 links.
 Empty icon spaces keep its labels aligned with the ordinary actions.
 The count uses Libre Franklin with equal-width digits, and expands to fit the full number.
 It appears only after both the bill and committee lists have loaded and the total is positive.
+**Profile claim requests** has its own pending count inside the open account menu,
+including requests whose election ended. Loading does not pretend the count is 0;
+a failed count read leaves the destination usable. Reopening the menu, returning
+to the website and a saved profile claim change refresh the count. Account or
+permission changes clear the previous account's private count. This admin link
+opens the shared review list; a candidate profile's admin action filters that list
+to the candidate. See [How Find My Candidates works](find-my-candidates-guide.md#claiming-and-managing-a-profile).
+
 The password dialog keeps its own larger lock and success check mark.
 
 Hovering over a row gives it a light grey background. Keyboard focus has 1 purple outline

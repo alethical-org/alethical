@@ -9,12 +9,13 @@ import {
   candidateOfficeLabel,
   safeCandidateUrl,
   candidateRecordsSourceLabel,
-  candidateCheckedLabel,
   candidateServiceSourceLabel,
   candidateWebsiteLabel,
   candidatePartyLabel,
 } from './candidatePublicCopy';
 import type { PageSnapshot, SnapshotSection } from './pageSnapshot';
+import { PERSON_RECORD_COPY, ballotCheckedLabel } from './personRecords';
+import { electionResultSnapshot, validElectionResult } from './personPageSnapshot';
 
 /** Public instructions only. Address searches and their results stay in temporary memory. */
 export function candidateLookupPageSnapshot(): PageSnapshot {
@@ -58,6 +59,18 @@ export function validCandidateProfileRecord(
     !safeCandidateUrl(value.source.url) ||
     !date(value.source?.checkedDate) ||
     (value.source.stale !== undefined && typeof value.source.stale !== 'boolean') ||
+    (value.source.retained !== undefined && typeof value.source.retained !== 'boolean') ||
+    (value.electionEnded !== undefined && typeof value.electionEnded !== 'boolean') ||
+    (value.result !== undefined && !validElectionResult(value.result)) ||
+    (value.people !== undefined &&
+      (!Array.isArray(value.people) ||
+        !value.people.every(
+          (person) =>
+            person &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(person.id) &&
+            text(person.name) &&
+            person.profileUrl === `/people/${person.id}`,
+        ))) ||
     (value.candidate.party !== undefined && !text(value.candidate.party)) ||
     (value.website !== undefined && typeof value.website !== 'string')
   )
@@ -87,7 +100,7 @@ export function candidateProfilePageSnapshot(
   now = new Date(),
 ): PageSnapshot {
   const leg = record.legislator;
-  const past = candidateElectionHasPassed(record.election.date, now);
+  const past = record.electionEnded ?? candidateElectionHasPassed(record.election.date, now);
   const reelection = !past && leg?.serviceStatus === 'current' && leg.isReelection;
   const running = past
     ? CANDIDATE_PROFILE_COPY.past
@@ -95,6 +108,18 @@ export function candidateProfilePageSnapshot(
       ? CANDIDATE_PROFILE_COPY.reelection
       : CANDIDATE_PROFILE_COPY.running;
   const sections: SnapshotSection[] = [];
+  if (record.people?.length) {
+    sections.push({
+      heading: '',
+      body: [PERSON_RECORD_COPY.introduction],
+      items: record.people.map((person) => ({
+        label: record.isJointTicket
+          ? `${person.name} · ${PERSON_RECORD_COPY.link}`
+          : PERSON_RECORD_COPY.link,
+        href: `${person.profileUrl}?candidate=${record.candidate.id}`,
+      })),
+    });
+  }
   if (leg) {
     const showService =
       leg.serviceStatus === 'former' || (leg.serviceStatus === 'current' && !reelection);
@@ -142,10 +167,11 @@ export function candidateProfilePageSnapshot(
   sections.push({
     heading: '',
     body: [
-      candidateCheckedLabel(record.source.checkedDate),
-      ...(record.source.stale ? [CANDIDATE_PROFILE_COPY.stale] : []),
+      ballotCheckedLabel(record.source),
+      ...(record.source.stale && !record.source.retained ? [CANDIDATE_PROFILE_COPY.stale] : []),
     ],
   });
+  if (record.result) sections.push(electionResultSnapshot(record.result));
   return {
     backLink: { label: CANDIDATE_LOOKUP_COPY.heading, href: '/candidates' },
     heading: record.candidate.name,

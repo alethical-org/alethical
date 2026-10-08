@@ -213,7 +213,9 @@ it('keeps campaign text and reporting together and isolates preview account serv
   expect(host.textContent).toContain('Published October 1, 2026');
   expect(host.textContent).not.toContain('Candidate name · Campaign');
   expect(host.textContent).toContain(statement.body);
-  expect(host.textContent).toContain('For candidates and authorized campaign representatives');
+  expect(host.textContent).toContain(
+    'Request campaign access to add a statement to this candidate profile.',
+  );
   expect(host.textContent).toContain('Report this statement');
 });
 it('renders approved, pending, loading and error account actions without live requests', async () => {
@@ -227,9 +229,9 @@ it('renders approved, pending, loading and error account actions without live re
   };
   for (const [state, label] of [
     ['approved', 'Manage this profile'],
-    ['pending', 'View claim status'],
-    ['loading', 'Loading profile access…'],
-    ['error', 'Profile access is unavailable'],
+    ['pending', 'View profile claim status'],
+    ['loading', 'Loading profile claim status…'],
+    ['error', 'We couldn’t load your profile claim status'],
   ] as const) {
     await act(async () =>
       root.render(

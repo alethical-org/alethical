@@ -1,3 +1,4 @@
+import { ElectionOutcome, ElectionResultStatus, ElectionResultSource } from './ElectionResult';
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -105,7 +106,8 @@ function sameSource(a: CandidateSource, b: CandidateSource) {
     a.authority === b.authority &&
     a.url === b.url &&
     a.checkedDate === b.checkedDate &&
-    Boolean(a.stale) === Boolean(b.stale)
+    Boolean(a.stale) === Boolean(b.stale) &&
+    Boolean(a.retained) === Boolean(b.retained)
   );
 }
 export function CandidateRaceCard({
@@ -114,12 +116,16 @@ export function CandidateRaceCard({
   onOpenProfile,
   showSource = true,
   judicial = false,
+  resultsPhase = false,
+  showResultSource = true,
 }: {
   race: CandidateRace;
   election: CandidateElection;
   onOpenProfile(id: string): void;
   showSource?: boolean;
   judicial?: boolean;
+  resultsPhase?: boolean;
+  showResultSource?: boolean;
 }) {
   const entries = [...race.entries].sort((a, b) => entryName(a).localeCompare(entryName(b), 'en'));
   const tickets = entries.filter((entry) => entry.kind === 'ticket');
@@ -138,7 +144,8 @@ export function CandidateRaceCard({
           Number.isInteger(race.seatCount) &&
           (race.seatCount ?? 0) > 0 ? (
             <Text style={styles.metadata}>
-              {race.seatCount} {race.seatCount === 1 ? 'seat' : 'seats'} to fill
+              {race.seatCount} {race.seatCount === 1 ? 'seat' : 'seats'}
+              {resultsPhase ? '' : ' to fill'}
             </Text>
           ) : null}
           {tickets.length > 0 ? (
@@ -150,8 +157,15 @@ export function CandidateRaceCard({
       </View>
       {tickets.length > 0 ? (
         <Text style={styles.ticketHelp}>
-          Each ticket is a pair who run together. You vote for 1 ticket.
+          {resultsPhase
+            ? 'Each ticket is a pair who ran together'
+            : 'Each ticket is a pair who run together. You vote for 1 ticket.'}
         </Text>
+      ) : null}
+      {resultsPhase ? (
+        <View style={{ paddingHorizontal: 18, paddingBottom: 12 }}>
+          <ElectionResultStatus result={race.result ?? { status: 'unavailable' }} />
+        </View>
       ) : null}
       {entries.length === 0 ? (
         <View style={styles.empty}>
@@ -172,6 +186,9 @@ export function CandidateRaceCard({
               <View style={styles.person}>
                 <View style={styles.personName}>
                   <Text style={styles.name}>{name}</Text>
+                  <ElectionOutcome
+                    result={entry.kind === 'candidate' ? entry.candidate.result : entry.result}
+                  />
                   {party ? <Text style={candidateText.party}>{party}</Text> : null}
                 </View>
                 <CandidateLink
@@ -187,10 +204,31 @@ export function CandidateRaceCard({
         })
       )}
       {showSource ? <CandidateSourceLine source={race.source} /> : null}
+      {resultsPhase && showResultSource && race.result?.source ? (
+        <View
+          style={{
+            paddingHorizontal: 18,
+            paddingTop: 6,
+            paddingBottom: 14,
+            borderTopWidth: 1,
+            borderTopColor: 'rgba(17,21,15,0.08)',
+          }}
+        >
+          <ElectionResultSource result={race.result} />
+        </View>
+      ) : null}
     </View>
   );
 }
-export function CandidateCoverage({ gaps }: { gaps: CandidateCoverageGap[] }) {
+export function CandidateCoverage({
+  gaps,
+  resultsPhase = false,
+  officialResultsUrl,
+}: {
+  gaps: CandidateCoverageGap[];
+  resultsPhase?: boolean;
+  officialResultsUrl?: string;
+}) {
   const headingId = useId();
   return (
     <View role="region" aria-labelledby={headingId} style={styles.coverage}>
@@ -228,7 +266,7 @@ export function CandidateCoverage({ gaps }: { gaps: CandidateCoverageGap[] }) {
                   ? 'Some local offices may be missing'
                   : gap.kind === 'district-unconfirmed'
                     ? `We couldn’t confirm your district for ${gap.office}`
-                    : `Candidate records are unavailable for ${gap.office}`}
+                    : `${resultsPhase ? 'Results' : 'Candidate records'} are unavailable for ${gap.office}`}
               </Text>
               {gap.kind !== 'coverage-unconfirmed' ? (
                 <CandidateLink label={`Election information from ${gap.authority}`} url={gap.url} />
@@ -239,9 +277,17 @@ export function CandidateCoverage({ gaps }: { gaps: CandidateCoverageGap[] }) {
       ))}
       <View style={styles.ballot}>
         <Text style={[candidateText.body, { fontSize: 14.5, lineHeight: 22 }]}>
-          This is a candidate list, not an official sample ballot
+          {resultsPhase
+            ? 'Coverage varies by race'
+            : 'This is a candidate list, not an official sample ballot'}
         </Text>
-        <CandidateLink label="Minnesota sample ballot information" url={sampleBallotUrl} />
+        {resultsPhase ? (
+          officialResultsUrl ? (
+            <CandidateLink label="Official election results" url={officialResultsUrl} />
+          ) : null
+        ) : (
+          <CandidateLink label="Minnesota sample ballot information" url={sampleBallotUrl} />
+        )}
       </View>
     </View>
   );
@@ -309,10 +355,12 @@ export function CandidateRaceGroups({
   onOpenProfile,
   openGroups,
   onGroupOpen,
+  resultsPhase = false,
 }: {
   races: CandidateRace[];
   election: CandidateElection;
   busy: boolean;
+  resultsPhase?: boolean;
   onOpenProfile(id: string): void;
   openGroups?: Record<string, boolean>;
   onGroupOpen?(group: string, open: boolean): void;
@@ -425,6 +473,15 @@ export function CandidateRaceGroups({
           const shared = group.races.every((race) => sameSource(race.source, group.races[0].source))
             ? group.races[0].source
             : null;
+          const firstResult = group.races[0].result;
+          const sharedResult =
+            resultsPhase &&
+            firstResult?.source &&
+            group.races.every(
+              (race) => race.result?.source && sameSource(race.result.source, firstResult.source!),
+            )
+              ? firstResult
+              : null;
           const cards = (list: CandidateRace[], judicial = false) =>
             list.map((race) => (
               <CandidateRaceCard
@@ -434,6 +491,8 @@ export function CandidateRaceGroups({
                 onOpenProfile={onOpenProfile}
                 showSource={!shared}
                 judicial={judicial}
+                resultsPhase={resultsPhase}
+                showResultSource={!sharedResult}
               />
             ));
           const judgesOpen = state.judges === true;
@@ -478,6 +537,11 @@ export function CandidateRaceGroups({
                 onReveal={() => setOpen(group.key, true)}
               >
                 {shared ? <CandidateSourceLine source={shared} group /> : null}
+                {sharedResult ? (
+                  <View style={{ paddingHorizontal: 14, paddingBottom: 12 }}>
+                    <ElectionResultSource result={sharedResult} />
+                  </View>
+                ) : null}
                 <View style={{ marginTop: 14, gap: 12 }}>
                   {cards(ordinary)}
                   {judges.length ? (

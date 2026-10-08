@@ -32,6 +32,14 @@ the loaded page overwrote an honest served page with 3 guesses about 6 real name
 ([#2061](https://github.com/alethical-org/alethical/issues/2061),
 [#1461](https://github.com/alethical-org/alethical/issues/1461)).
 
+A verified person connection adds **Elections and service over time** and
+**View person overview**, linking to `/people/<id>`. The overview retains this
+legislator destination for its return link. The connection is omitted when the
+reviewed candidate/person/legislator identities do not agree; a matching name is
+insufficient. This link does not replace the legislator's bills, votes or service
+record, and a candidate's election outcome never proves current legislative service.
+The first response and all supported layout bands use the same confirmed connection.
+
 ## Committees and bills
 
 A profile's search-result line names the member: "See Rep. Aaron Repinski's committee

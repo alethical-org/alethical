@@ -273,13 +273,9 @@ class CandidateLookupService:
         self._lock = threading.Lock()
 
     def elections(self) -> list[dict]:
-        # Do not offer an old ballot as a future election after its date passes.
-        return (
-            [dict(SUPPORTED_ELECTION)]
-            if self.now().astimezone(ZoneInfo("America/Chicago")).date()
-            <= date(2026, 11, 3)
-            else []
-        )
+        from alethical.api.services.person_records import supported_elections
+
+        return supported_elections()
 
     def streets(self, zip_code: str) -> list[dict]:
         if not re.fullmatch(r"\d{5}", zip_code):
@@ -480,8 +476,18 @@ class CandidateLookupService:
     def lookup(
         self, text: str, election_id: str, confirmed: dict | None = None
     ) -> tuple[dict, BallotCatalogue | None]:
-        if election_id not in {item["id"] for item in self.elections()}:
+        election = next(
+            (item for item in self.elections() if item["id"] == election_id), None
+        )
+        if election is None:
             return {"kind": "no-elections"}, None
+        if election["capabilities"]["addressLookup"] == "unavailable":
+            return {
+                "kind": "historical-match-unavailable",
+                "electionId": election_id,
+                "message": "We couldn’t confirm the races for this address and election",
+                "officialResultsUrl": election["officialResultsUrl"],
+            }, None
         resolved = self.resolve(text, confirmed)
         if isinstance(resolved, dict):
             return resolved, None
@@ -624,7 +630,12 @@ def race_payload(race: BallotRace, catalogue: BallotCatalogue) -> dict:
 
 
 def persist_catalogue(db: Session, catalogue: BallotCatalogue) -> None:
-    from alethical.db.models import CandidateRecord, CandidateSnapshot
+    from alethical.db.models import CandidateSnapshot
+    from alethical.api.services.person_records import (
+        retain_public_version,
+        save_candidate_record,
+        sync_reviewed_legislators,
+    )
 
     document = candidate_ballot_document(catalogue)
     document["publication_status"] = "source_backed_ballot_lookup"
@@ -638,14 +649,34 @@ def persist_catalogue(db: Session, catalogue: BallotCatalogue) -> None:
         ensure_ascii=False,
         separators=(",", ":"),
     ).encode()
+    snapshot_id = hashlib.sha256(canonical).hexdigest()
+    old = db.get(CandidateSnapshot, snapshot_id)
+    if old is not None:
+        retain_public_version(
+            db,
+            kind="ballot",
+            record_id=snapshot_id,
+            payload=old.public_payload,
+            source_hash=old.source_sha256,
+            checked_at=old.checked_at,
+        )
+    retain_public_version(
+        db,
+        kind="ballot",
+        record_id=snapshot_id,
+        payload=document,
+        source_hash=catalogue.source_sha256,
+        checked_at=catalogue.checked_at,
+    )
     snapshot = insert(CandidateSnapshot).values(
-        id=hashlib.sha256(canonical).hexdigest(),
+        id=snapshot_id,
         election_id=catalogue.election.election_id,
         source_sha256=catalogue.source_sha256,
         public_payload=document,
         checked_at=catalogue.checked_at,
     )
-    # Repeated identical public facts share evidence; retain the newest read/hash.
+    # This existing index keeps its newest accepted read. Every read and its
+    # actual source hash/check time is retained separately above.
     snapshot = snapshot.on_conflict_do_update(
         index_elements=["id"],
         set_={
@@ -656,6 +687,7 @@ def persist_catalogue(db: Session, catalogue: BallotCatalogue) -> None:
         where=CandidateSnapshot.checked_at <= snapshot.excluded.checked_at,
     )
     db.execute(snapshot)
+    profiles = []
     for race in catalogue.races:
         for candidate in race.candidates:
             profile: dict[str, Any] = {
@@ -667,24 +699,20 @@ def persist_catalogue(db: Session, catalogue: BallotCatalogue) -> None:
             }
             if candidate.campaign_website:
                 profile["website"] = candidate.campaign_website
-            statement = insert(CandidateRecord).values(
-                id=candidate.stable_id,
-                election_id=catalogue.election.election_id,
-                election_date=catalogue.election.election_date,
-                public_payload=profile,
-                source_sha256=catalogue.source_sha256,
-                checked_at=catalogue.checked_at,
-            )
-            statement = statement.on_conflict_do_update(
-                index_elements=["id"],
-                set_={
-                    "public_payload": statement.excluded.public_payload,
-                    "source_sha256": statement.excluded.source_sha256,
-                    "checked_at": statement.excluded.checked_at,
-                },
-                where=CandidateRecord.checked_at <= statement.excluded.checked_at,
-            )
-            db.execute(statement)
+            profiles.append(profile)
+    # Stable order avoids crossed locks when simultaneous ballots share races.
+    for profile in sorted(profiles, key=lambda item: item["candidate"]["id"]):
+        save_candidate_record(
+            db,
+            profile=profile,
+            source_hash=catalogue.source_sha256,
+            checked_at=catalogue.checked_at,
+        )
+    sync_reviewed_legislators(
+        db,
+        today=catalogue.checked_at.astimezone(ZoneInfo("America/Chicago")).date(),
+        candidate_ids={profile["candidate"]["id"] for profile in profiles},
+    )
     db.commit()
 
 
@@ -693,6 +721,7 @@ def load_profile(
 ) -> dict | None:
     from alethical.db.models import CandidateRecord
     from alethical.api.services.candidate_legislators import confirmed_legislator
+    from alethical.api.services.person_records import add_profile_records
 
     if not re.fullmatch(r"[a-f0-9]{64}", candidate_id):
         return None
@@ -701,7 +730,9 @@ def load_profile(
         return None
     payload = {**record.public_payload, "source": dict(record.public_payload["source"])}
     checked_now = now or datetime.now(UTC)
-    if checked_now - record.checked_at > timedelta(hours=24):
+    if not payload["source"].get(
+        "retained"
+    ) and checked_now - record.checked_at > timedelta(hours=24):
         payload["source"]["stale"] = True
     payload["isJointTicket"] = payload.get("office") == "Governor & Lt Governor"
     connection = confirmed_legislator(
@@ -711,4 +742,6 @@ def load_profile(
         payload["legislator"] = connection
         if connection.get("photoUrl") and not payload["isJointTicket"]:
             payload["photo"] = {"url": connection["photoUrl"]}
-    return payload
+    return add_profile_records(
+        db, payload, today=checked_now.astimezone(ZoneInfo("America/Chicago")).date()
+    )

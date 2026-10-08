@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  ActivityIndicator,
   Modal,
   Platform,
   Pressable,
@@ -27,6 +28,7 @@ import {
   validatePassword,
   validatePasswordMatch,
 } from '../../lib/auth/rev9Auth';
+import { getPendingProfileClaimCount } from '../../data/candidateClaims';
 import { passwordMethodCopy, type PasswordMethodCopy } from '../../lib/auth/passwordMethod';
 import { clearSignedInAuthDrafts } from '../../lib/auth/signOutCleanup';
 import { trackedBillsCount } from '../../lib/trackedState';
@@ -625,11 +627,15 @@ function AdminRow({
   href,
   onPress,
   phone,
+  pendingCount,
+  countLoading,
 }: {
   label: string;
   href: string;
   onPress: () => void;
   phone: boolean;
+  pendingCount?: number | null;
+  countLoading?: boolean;
 }) {
   const { isTablet } = useResponsive();
   const hover = useFineHover();
@@ -637,6 +643,11 @@ function AdminRow({
     <Pressable
       {...({ dataSet: menuRowDataSet } as object)}
       {...linkProps(href, onPress)}
+      accessibilityLabel={
+        pendingCount != null
+          ? `${label}, ${pendingCount} pending profile claim ${pendingCount === 1 ? 'request' : 'requests'}`
+          : label
+      }
       onHoverIn={hover.onHoverIn}
       onHoverOut={hover.onHoverOut}
       style={({ pressed }) => [
@@ -656,6 +667,34 @@ function AdminRow({
       >
         {label}
       </Text>
+      {pendingCount != null ? (
+        <Text
+          aria-hidden
+          style={{
+            fontFamily: t.typography.ui,
+            fontSize: 13,
+            fontWeight: '800',
+            fontVariant: ['tabular-nums'],
+            color: '#0b4f2c',
+            backgroundColor: '#e4f8ee',
+            borderColor: '#bfeacf',
+            borderWidth: 1,
+            borderRadius: 8,
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+            marginLeft: 'auto',
+          }}
+        >
+          {pendingCount}
+        </Text>
+      ) : countLoading ? (
+        <ActivityIndicator
+          size="small"
+          color="#0f7a45"
+          accessibilityLabel="Loading pending profile claim count"
+          style={{ marginLeft: 'auto' }}
+        />
+      ) : null}
       <ChevronRightIcon />
     </Pressable>
   );
@@ -670,6 +709,54 @@ function AdminGroup({
 }) {
   const navigation = useNavigation<any>();
   const access = useAdminAccess();
+  const { user, accessToken } = useAuth();
+  const [count, setCount] = useState<{ account: string; value: number } | null>(null);
+  const [countLoading, setCountLoading] = useState(false);
+  useEffect(() => {
+    if (access.state !== 'allowed' || !user || !accessToken) {
+      setCount(null);
+      return;
+    }
+    let active: AbortController | null = null;
+    const refresh = () => {
+      active?.abort();
+      const request = new AbortController();
+      active = request;
+      setCountLoading(true);
+      void getPendingProfileClaimCount(accessToken, request.signal)
+        .then(
+          (result) => {
+            if (
+              !request.signal.aborted &&
+              Number.isInteger(result.pending_count) &&
+              result.pending_count >= 0
+            )
+              setCount({ account: user.id, value: result.pending_count });
+          },
+          () => {},
+        )
+        .finally(() => {
+          if (!request.signal.aborted) setCountLoading(false);
+        });
+    };
+    const visible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    refresh();
+    if (isWeb) {
+      window.addEventListener('alethical-profile-claims-changed', refresh);
+      window.addEventListener('focus', refresh);
+      document.addEventListener('visibilitychange', visible);
+    }
+    return () => {
+      active?.abort();
+      if (isWeb) {
+        window.removeEventListener('alethical-profile-claims-changed', refresh);
+        window.removeEventListener('focus', refresh);
+        document.removeEventListener('visibilitychange', visible);
+      }
+    };
+  }, [access.state, user?.id, accessToken]);
   const phone = variant === 'phone';
   if (access.state !== 'allowed') return null;
   return (
@@ -682,7 +769,7 @@ function AdminGroup({
           ['User Accounts', routePath.adminUsers(), 'AdminUsers'],
           ['Site Metrics', routePath.siteMetrics(), 'SiteMetrics'],
           ['Operations', routePath.adminSiteMetrics(), 'AdminSiteMetrics'],
-          ['Candidate requests', '/admin/candidate-claims', 'AdminCandidateClaims'],
+          ['Profile claim requests', '/admin/candidate-claims', 'AdminCandidateClaims'],
         ] as const
       ).map(([label, href, screen]) => (
         <AdminRow
@@ -690,9 +777,16 @@ function AdminGroup({
           label={label}
           href={href}
           phone={phone}
+          pendingCount={
+            screen === 'AdminCandidateClaims' && count?.account === user?.id ? count?.value : null
+          }
+          countLoading={
+            screen === 'AdminCandidateClaims' && countLoading && count?.account !== user?.id
+          }
           onPress={() => {
             onNavigate();
-            navigation.navigate(screen);
+            if (screen === 'AdminCandidateClaims') navigation.navigate(screen, {});
+            else navigation.navigate(screen);
           }}
         />
       ))}

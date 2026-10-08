@@ -76,3 +76,27 @@ it('keeps private statement history and staff review data on authenticated no-st
     'https://api.alethical.com/api/v1/admin/candidate-claims?status=all&offset=25&limit=25',
   );
 });
+
+it('keeps exact candidate and request identities in private list, detail and source-recheck requests', async () => {
+  const api = await import('../candidateClaims');
+  const signal = new AbortController().signal;
+  await api.getAdminCandidateClaims('token', 'pending', signal, 25, 'candidate/a');
+  await api.getAdminCandidateClaim('token', 'claim/a', signal);
+  const identity = { expected_account_id: 'admin-account', expected_version: 7 };
+  await api.recheckCandidateClaim('token', 'claim/a', identity, signal);
+  await api.getPendingProfileClaimCount('token', signal);
+  expect(vi.mocked(fetch).mock.calls.map(([url]) => url)).toEqual([
+    'https://api.alethical.com/api/v1/admin/candidate-claims?status=pending&offset=25&limit=25&candidate_id=candidate%2Fa',
+    'https://api.alethical.com/api/v1/admin/candidate-claims/claim%2Fa',
+    'https://api.alethical.com/api/v1/admin/candidate-claims/claim%2Fa/recheck',
+    'https://api.alethical.com/api/v1/admin/candidate-claims/pending-count',
+  ]);
+  expect(vi.mocked(fetch).mock.calls[2][1]?.method).toBe('POST');
+  expect(JSON.parse(vi.mocked(fetch).mock.calls[2][1]?.body as string)).toEqual(identity);
+  for (const [, options] of vi.mocked(fetch).mock.calls)
+    expect(options).toMatchObject({
+      signal,
+      cache: 'no-store',
+      headers: { Authorization: 'Bearer token' },
+    });
+});

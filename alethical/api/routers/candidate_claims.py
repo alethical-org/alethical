@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from typing import Literal
+from typing import Literal, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response, HTTPException
@@ -12,8 +12,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from alethical.api.auth import get_current_user, get_auth_service
+from alethical.api.problems import problem_exception
 from alethical.api.routers.admin import require_admin, administrator_access
 from alethical.api.services import candidate_claims as service
+from alethical.api.services.candidate_claim_recheck import (
+    recheck as recheck_official_record,
+)
 from alethical.db.session import get_db
 
 router = APIRouter()
@@ -31,9 +35,14 @@ def claim_database(db: Session = Depends(get_db)):
             pass
         # SQL errors can embed values from notes and reports, even when query
         # parameter logging is disabled. Never hand that exception to the server.
-        raise HTTPException(
-            503, "Candidate records are temporarily unavailable. Please try again."
-        ) from None
+        error = problem_exception(
+            503,
+            "Profile claim request unavailable",
+            "Candidate records are temporarily unavailable. Please try again.",
+            type_slug="profile-claims-unavailable",
+        )
+        cast(dict, error.detail)["reason"] = "profile_claims_unavailable"
+        raise error from None
 
 
 class Write(BaseModel):
@@ -120,14 +129,47 @@ def update_statement(
 def queue(
     status: Status = "pending",
     offset: int = Query(default=0, ge=0, le=1000000),
-    limit: int = Query(default=25, ge=1, le=100),
+    limit: int = Query(default=25, ge=25, le=25),
+    candidate_id: str | None = Query(default=None, pattern=r"^[a-f0-9]{64}$"),
     user=Depends(get_current_user),
     db: Session = Depends(claim_database),
 ):
     return {
-        **service.queue(db, status=status, offset=offset, limit=limit),
+        **service.queue(
+            db, status=status, offset=offset, limit=limit, candidate_id=candidate_id
+        ),
         "account_id": str(user.id),
     }
+
+
+@router.get(
+    "/admin/candidate-claims/pending-count", dependencies=[Depends(require_admin)]
+)
+def pending_count(
+    user=Depends(get_current_user), db: Session = Depends(claim_database)
+):
+    return {**service.pending_count(db), "account_id": str(user.id)}
+
+
+@router.get("/admin/candidate-claims/{claim_id}", dependencies=[Depends(require_admin)])
+def detail(
+    claim_id: UUID,
+    user=Depends(get_current_user),
+    db: Session = Depends(claim_database),
+):
+    return {**service.detail(db, claim_id), "account_id": str(user.id)}
+
+
+@router.post(
+    "/admin/candidate-claims/{claim_id}/recheck", dependencies=[Depends(require_admin)]
+)
+def recheck(
+    claim_id: UUID,
+    payload: Write,
+    user=Depends(writer),
+    db: Session = Depends(claim_database),
+):
+    return recheck_official_record(db, user, claim_id=claim_id, **payload.model_dump())
 
 
 @router.post(

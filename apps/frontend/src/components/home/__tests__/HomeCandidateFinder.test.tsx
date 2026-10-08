@@ -164,25 +164,25 @@ it('does not navigate to newer address choices when its old search finishes late
   await act(async () => finishOld({ kind: 'no-match' }));
   expect(navigate).not.toHaveBeenCalled();
 });
-it.each<Exclude<CandidateLookupResponse['kind'], 'results' | 'ambiguous'>>([
-  'no-match',
-  'outside-minnesota',
-  'rate-limited',
-  'no-elections',
-])('retains the typed address and stays home for %s', async (kind) => {
-  const { navigate } = setup(async () => ({ kind }));
-  const input = type(address);
-  submit();
-  await flush();
-  expect(navigate).not.toHaveBeenCalled();
-  expect(input.value).toBe(address);
-  expect(host.textContent).toContain(
-    kind === 'no-match' || kind === 'outside-minnesota'
-      ? 'We couldn’t match that address'
-      : 'We couldn’t complete your search',
-  );
-  expect(host.textContent).not.toContain('no candidates');
-});
+it.each<
+  Exclude<CandidateLookupResponse['kind'], 'results' | 'ambiguous' | 'historical-match-unavailable'>
+>(['no-match', 'outside-minnesota', 'rate-limited', 'no-elections'])(
+  'retains the typed address and stays home for %s',
+  async (kind) => {
+    const { navigate } = setup(async () => ({ kind }));
+    const input = type(address);
+    submit();
+    await flush();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(input.value).toBe(address);
+    expect(host.textContent).toContain(
+      kind === 'no-match' || kind === 'outside-minnesota'
+        ? 'We couldn’t match that address'
+        : 'We couldn’t complete your search',
+    );
+    expect(host.textContent).not.toContain('no candidates');
+  },
+);
 it('keeps the busy button size and ignores repeated submits, then retries failure', async () => {
   let resolve!: (value: CandidateLookupResponse) => void;
   const { services, navigate } = setup(

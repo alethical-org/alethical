@@ -1,3 +1,4 @@
+import { defaultCandidateElection, PERSON_RECORD_COPY } from '../../lib/personRecords';
 import { CANDIDATE_LOOKUP_COPY } from '../../lib/candidatePublicCopy';
 import {
   useEffect,
@@ -85,6 +86,7 @@ function CandidateSearchSession({
   const autoStarted = useRef(false);
   const initialSearchAddress = useRef(initialAddress).current;
   const displayed = state.displayed;
+  const resultsPhase = Boolean(displayed?.results.resultsAvailable);
   const previousDisplayed = useRef(displayed);
   const busy = state.status === 'loading' || state.status === 'updating';
   const retryBusy = retrying && busy;
@@ -97,18 +99,12 @@ function CandidateSearchSession({
       .getElections(controller.signal)
       .then((records) => {
         if (controller.signal.aborted) return;
-        const sorted = [...records].sort((a, b) => a.date.localeCompare(b.date));
+        const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date));
         setElections(sorted);
         setSelected((current) =>
           current && sorted.some((election) => election.id === current)
             ? current
-            : (sorted.find(
-                (election) =>
-                  election.date >=
-                  new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(
-                    new Date(),
-                  ),
-              )?.id ?? ''),
+            : (defaultCandidateElection(sorted)?.id ?? ''),
         );
         setElectionLoad('ready');
       })
@@ -203,17 +199,19 @@ function CandidateSearchSession({
             <Text
               style={[candidateText.strong, { position: 'absolute', top: 0, left: 0, right: 0 }]}
             >
-              {displayed ? 'Updating candidates…' : 'Finding candidates…'}
+              {displayed
+                ? resultsPhase
+                  ? 'Updating election results…'
+                  : 'Updating candidates…'
+                : 'Finding candidates…'}
             </Text>
           ) : null}
         </View>
         {displayed ? (
-          <>
-            <Text style={candidateText.body}>
-              Showing results for {candidateElectionLabel(displayed.election)} ·{' '}
-              {candidateDate(displayed.election.date)}
-            </Text>
-          </>
+          <Text style={[candidateText.body, isDesktop && styles.spokenCaption]}>
+            Showing results for {candidateElectionLabel(displayed.election)} ·{' '}
+            {candidateDate(displayed.election.date)}
+          </Text>
         ) : null}
         <CandidateButton
           label="Try again"
@@ -263,7 +261,7 @@ function CandidateSearchSession({
                 { fontSize: isMobile ? 28 : isDesktop ? 34 : 32, lineHeight: 40 },
               ]}
             >
-              {CANDIDATE_LOOKUP_COPY.heading}
+              {resultsPhase ? 'Election results' : CANDIDATE_LOOKUP_COPY.heading}
             </Text>
             {changingAddress ? (
               <View style={styles.addressEditor}>
@@ -296,8 +294,10 @@ function CandidateSearchSession({
             {noElectionNotice}
             {state.status === 'updating' && !changingAddress && !retryBusy ? (
               <CandidateNotice>
-                <Text style={candidateText.strong}>Updating candidates…</Text>
-                <Text style={candidateText.body}>
+                <Text style={candidateText.strong}>
+                  {resultsPhase ? 'Updating election results…' : 'Updating candidates…'}
+                </Text>
+                <Text style={[candidateText.body, isDesktop && styles.spokenCaption]}>
                   Showing results for {candidateElectionLabel(displayed.election)} ·{' '}
                   {candidateDate(displayed.election.date)}
                 </Text>
@@ -308,25 +308,37 @@ function CandidateSearchSession({
             {state.outcome && !changingAddress && state.outcome.kind !== 'no-elections' ? (
               <CandidateNotice error>
                 <Text style={candidateText.strong}>
-                  {state.outcome.kind === 'ambiguous'
-                    ? 'Choose your address'
-                    : state.outcome.kind === 'outside-minnesota'
-                      ? 'This search covers Minnesota addresses'
-                      : state.outcome.kind === 'rate-limited'
-                        ? 'Too many searches: try again shortly'
-                        : 'We couldn’t match that address to election records'}
+                  {state.outcome.kind === 'historical-match-unavailable'
+                    ? PERSON_RECORD_COPY.historicalMatchUnavailable
+                    : state.outcome.kind === 'ambiguous'
+                      ? 'Choose your address'
+                      : state.outcome.kind === 'outside-minnesota'
+                        ? 'This search covers Minnesota addresses'
+                        : state.outcome.kind === 'rate-limited'
+                          ? 'Too many searches: try again shortly'
+                          : 'We couldn’t match that address to election records'}
                 </Text>
-                <Text style={candidateText.body}>
+                <Text style={[candidateText.body, isDesktop && styles.spokenCaption]}>
                   Showing results for {candidateElectionLabel(displayed.election)} ·{' '}
                   {candidateDate(displayed.election.date)}
                 </Text>
-                <CandidateButton kind="text" label="Change address" onPress={beginAddressEdit} />
+                {state.outcome.kind === 'historical-match-unavailable' ? (
+                  <CandidateLink
+                    label="Official election results"
+                    url={state.outcome.officialResultsUrl}
+                  />
+                ) : (
+                  <CandidateButton kind="text" label="Change address" onPress={beginAddressEdit} />
+                )}
               </CandidateNotice>
             ) : null}
             {isDesktop &&
-            !(changingAddress && selected === displayed.election.id) &&
+            (!(changingAddress && selected === displayed.election.id) ||
+              state.status === 'error' ||
+              Boolean(state.outcome)) &&
             (state.status === 'updating' ||
               state.status === 'error' ||
+              Boolean(state.outcome) ||
               selected !== displayed.election.id) ? (
               <Text style={styles.resultElection}>
                 Showing results for {candidateElectionLabel(displayed.election)} ·{' '}
@@ -336,13 +348,20 @@ function CandidateSearchSession({
             <View style={{ gap: 40 }}>
               <CandidateRaceGroups
                 races={displayed.results.races}
+                resultsPhase={resultsPhase}
                 election={displayed.election}
                 busy={busy}
                 openGroups={state.openGroups}
                 onGroupOpen={flow.setGroupOpen}
                 onOpenProfile={onOpenProfile}
               />
-              {!noElection ? <CandidateCoverage gaps={displayed.results.coverage} /> : null}
+              {!noElection ? (
+                <CandidateCoverage
+                  gaps={displayed.results.coverage}
+                  resultsPhase={resultsPhase}
+                  officialResultsUrl={displayed.election.officialResultsUrl}
+                />
+              ) : null}
             </View>
           </View>
         </View>
@@ -693,6 +712,9 @@ const styles = StyleSheet.create({
   addressEditor: { gap: 16, zIndex: 4 },
   races: { flex: 1, minWidth: 0, width: '100%', gap: 18 },
   resultElection: { ...candidateText.strong, fontSize: 15, lineHeight: 23 },
+  // The desktop status is in a separate column from the visible caption.
+  // Keep its election context in the spoken announcement without a second label.
+  spokenCaption: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 },
   electionControl: {
     minHeight: 56,
     borderWidth: 1,

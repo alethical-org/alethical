@@ -58,7 +58,7 @@ export const STATIC_PAGE_SUBJECTS: Record<string, string> = {
   '/terms': 'Terms of Service',
   '/admin/operations': 'Admin metrics',
   '/admin/users': 'Users',
-  '/admin/candidate-claims': 'Candidate requests',
+  '/admin/candidate-claims': 'Profile claim requests',
   '/tracked': 'Tracked',
 };
 

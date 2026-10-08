@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -26,6 +27,7 @@ from alethical.api.routers.ask import router as ask_router
 from alethical.api.routers.contact import router as contact_router
 from alethical.api.routers.candidates import router as candidates_router
 from alethical.api.routers.candidate_claims import router as candidate_claims_router
+from alethical.api.routers.people import router as people_router
 from alethical.api.routers.comments import router as comments_router
 from alethical.api.routers.email_subscriptions import (
     router as email_subscriptions_router,
@@ -48,16 +50,21 @@ from alethical.api.request_admission import (
 )
 from alethical.api.services.contact import log_contact_delivery_readiness
 from alethical.api.services.comment_email import comment_email_lifespan
+from alethical.api.services.candidate_claim_email import candidate_claim_email_lifespan
 from alethical.logging import configure_logging
 from alethical.release import release_commit
+
+
+@asynccontextmanager
+async def email_lifespan(app):
+    async with comment_email_lifespan(app), candidate_claim_email_lifespan(app):
+        yield
 
 
 def create_app() -> FastAPI:
     configure_logging()
     log_contact_delivery_readiness()
-    app = FastAPI(
-        title="Alethical API", version="1.0.0", lifespan=comment_email_lifespan
-    )
+    app = FastAPI(title="Alethical API", version="1.0.0", lifespan=email_lifespan)
     # Added before CORS so overload responses retain the same cross-origin
     # permissions as successful reads and browsers can see the 503 response.
     app.add_middleware(RequestAdmissionMiddleware, max_in_flight=MAX_IN_FLIGHT_REQUESTS)
@@ -279,6 +286,7 @@ def create_app() -> FastAPI:
     app.include_router(contact_router, prefix="/api/v1", tags=["contact"])
     app.include_router(comments_router, prefix="/api/v1", tags=["comments"])
     app.include_router(candidates_router, prefix="/api/v1", tags=["candidates"])
+    app.include_router(people_router, prefix="/api/v1", tags=["people"])
     app.include_router(
         candidate_claims_router, prefix="/api/v1", tags=["candidate-claims"]
     )

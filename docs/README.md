@@ -160,6 +160,7 @@ lasting decisions and release evidence have their permanent homes.
 - [Navigation design 47 delivery](implementation/navigation-design-47-plan.md) — approved navigation and account-menu changes, comparison evidence, and release dependencies
 - [Lobbyist donation proof release report](implementation/lobbyist-donation-proof.md) — live before/after coverage, source evidence, validation and remaining gaps
 - [Lobbyist donor evidence](operations/lobbyist-donor-evidence.md) — source matching, review, safe publication and rollback.
+- [Candidate profile records and profile claim review](implementation/candidate-profile-records-plan.md) — approved public history, campaign access, administrator review and release checks
 - [Private account activation](implementation/admin-users-plan.md) — approved account access and the remaining administrator activation
 - [Campaign-finance history refresh](implementation/campaign-finance-history-refresh.md) — source-replacement boundaries, failed-source handling and saved recovery evidence
 - [FCC political-file archive](implementation/fcc-political-files.md) — station source addresses, collection and refresh steps, private storage, recovery, searchable readings and limits before any reader feature

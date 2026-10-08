@@ -7,14 +7,13 @@ import uuid
 
 from fastapi import HTTPException
 import pytest
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text, update
 
 from alethical.api.auth import get_auth_service
 from alethical.api.services.auth import AuthenticatedPrincipal
 from alethical.api.routers.admin import administrator_access
 from alethical.api.services import candidate_claims as service
 from alethical.db.models import (
-    AuthIdentity,
     CandidateClaim,
     CandidateRecord,
     CandidateStatement,
@@ -33,22 +32,62 @@ REVIEWER = {"Authorization": "Bearer candidate-test-reviewer"}
 
 
 @pytest.fixture(autouse=True)
-def clean(seed_database, client):
+def clean(seed_database, client, monkeypatch):
+    monkeypatch.setenv("ALETHICAL_ADMIN_ACCOUNT_IDS", "")
     original = client.app.dependency_overrides[get_auth_service]()
 
+    # Provisioning joins confirmed identities by email. Keep both fake subjects
+    # and emails separate from the shared API fixtures so these tests cannot
+    # delete their accounts or attach a second identity to their metric readers.
     class ClaimsAuth:
         def authenticate(self, token):
             if token == "candidate-test-reviewer":
-                return AuthenticatedPrincipal(
+                principal = AuthenticatedPrincipal(
                     provider="supabase",
                     provider_subject="candidate-test-reviewer",
                     email="reviewer@example.com",
                     email_verified=True,
                 )
-            return original.authenticate(token)
+            else:
+                principal = original.authenticate(token)
+            return AuthenticatedPrincipal(
+                provider="supabase",
+                provider_subject=str(
+                    uuid.uuid5(
+                        uuid.NAMESPACE_URL,
+                        f"candidate-profile-claim-test:{principal.provider_subject}",
+                    )
+                ),
+                email=f"candidate-profile-claim-test-{principal.email}",
+                email_verified=principal.email_verified,
+            )
 
     client.app.dependency_overrides[get_auth_service] = ClaimsAuth
     with get_session_factory()() as db:
+        db.execute(text("CREATE SCHEMA IF NOT EXISTS auth"))
+        db.execute(
+            text("""CREATE TABLE IF NOT EXISTS auth.users (
+            id uuid PRIMARY KEY, email text, email_confirmed_at timestamptz,
+            deleted_at timestamptz, banned_until timestamptz,
+            is_anonymous boolean NOT NULL DEFAULT false)""")
+        )
+        for subject, email in (
+            ("supabase-user-ada", "ada@example.com"),
+            ("supabase-user-grace", "grace@example.com"),
+            ("candidate-test-reviewer", "reviewer@example.com"),
+        ):
+            db.execute(
+                text("""INSERT INTO auth.users (id,email,email_confirmed_at)
+                VALUES (:id,:email,CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET
+                email=EXCLUDED.email, email_confirmed_at=EXCLUDED.email_confirmed_at,
+                deleted_at=NULL, banned_until=NULL, is_anonymous=false"""),
+                {
+                    "id": uuid.uuid5(
+                        uuid.NAMESPACE_URL, f"candidate-profile-claim-test:{subject}"
+                    ),
+                    "email": f"candidate-profile-claim-test-{email}",
+                },
+            )
         for model in (
             CandidateStatementReport,
             CandidateStatementRevision,
@@ -57,7 +96,7 @@ def clean(seed_database, client):
             CandidateRecord,
         ):
             db.execute(delete(model))
-        db.execute(UserAccount.__table__.update().values(is_active=True))
+        db.execute(update(UserAccount).values(is_active=True))
         db.add(
             CandidateRecord(
                 id=CANDIDATE,
@@ -89,7 +128,7 @@ def apply(client, headers=FIRST, version=0, **changes):
             "expected_account_id": account(client, headers),
             "expected_version": version,
             "evidence_url": "https://example.com/campaign",
-            "request_note": "I am this candidate; verify through my published campaign contact.",
+            "request_note": "Candidate\n\nI am this candidate; verify through my published campaign contact.",
             **changes,
         },
     )
@@ -163,7 +202,14 @@ def test_request_does_not_grant_editing_and_account_change_is_rejected(client):
     assert statement(client, item).status_code == 403
     assert apply(client, expected_account_id=str(uuid.uuid4())).status_code == 409
     assert apply(client).status_code == 409
-    assert apply(client, version=1).json()["claim"]["version"] == 2
+    pending = apply(
+        client,
+        version=1,
+        request_note="Candidate\n\nChanged evidence must not replace the pending request",
+    )
+    assert pending.json()["claim"]["version"] == 1
+    assert pending.json()["already_submitted"] is True
+    assert "Changed evidence" not in pending.json()["claim"]["request_note"]
 
 
 def test_review_requires_admin_independent_person_and_verification(client):
@@ -320,9 +366,9 @@ def test_unconfirmed_claimant_cannot_be_approved(client):
     item = claim(client)
     with get_session_factory()() as db:
         db.execute(
-            AuthIdentity.__table__.update()
-            .where(AuthIdentity.user_id == uuid.UUID(account(client)))
-            .values(email_verified_at=None)
+            text("""UPDATE auth.users SET email_confirmed_at=NULL
+            WHERE id::text IN (SELECT provider_subject FROM auth_identity WHERE user_id=:user_id)"""),
+            {"user_id": uuid.UUID(account(client))},
         )
         db.commit()
     assert review(client, item).status_code == 403
