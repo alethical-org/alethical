@@ -147,10 +147,10 @@ function MixHistory({
           aria-expanded={earlierVisible}
           aria-controls={`${id}-years`}
           onPress={() => setEarlierVisible((value) => !value)}
+          // Normal history buttons use the app’s keyboard-only :focus-visible ring.
           style={(state) => [
             styles.control,
             Boolean('hovered' in state && state.hovered) && styles.hover,
-            Boolean('focused' in state && state.focused) && s.focus,
           ]}
         >
           <Text style={[s.controlText, styles.controlText]}>
@@ -216,7 +216,6 @@ function MixHistory({
                       style={(state) => [
                         styles.control,
                         Boolean('hovered' in state && state.hovered) && styles.hover,
-                        Boolean('focused' in state && state.focused) && s.focus,
                       ]}
                     >
                       <Text style={[s.controlText, styles.controlText]}>

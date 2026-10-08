@@ -640,7 +640,9 @@ The history starts loading after the selected year's received and made lists fin
 It appears only after all requested years arrive from the same release as the selected
 lists. A partial history is withheld rather than drawn with missing years. Choosing a
 year changes the selected year above. Every committee has its own history; the bars and
-amounts are never combined across a member's committees.
+amounts are never combined across a member's committees. The earlier-year and
+percentage buttons use the shared keyboard-only outline; clicking or tapping does
+not add that outline. The chart segments keep their separate inset focus treatment.
 
 After that complete history has appeared, a failed history or selected-payment recheck
 keeps the accepted bars and opened percentages for the same committee and pinned
