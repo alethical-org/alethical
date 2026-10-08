@@ -1,6 +1,8 @@
 <!-- Settled publication copy; includes the approved source and correction note -->
 # 3 Realtor PACs. 12 shared campaigns.
 
+Separate contribution limits and dues-funded election spending raise a question about members’ control over political money.
+
 Florida’s campaign-finance records show 3 Realtor political committees reporting $1,000 payments to each of 12 matching campaign names, all dated February 16, 2024. That is $3,000 per campaign and $36,000 across the shared group.
 
 Committee · Across 12 campaigns

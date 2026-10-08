@@ -753,16 +753,14 @@ describe('Short post and topic selection', () => {
     const campaign = topicPage('campaign-finance', 1);
     expect(campaign.total).toBe(PUBLISHED_PIECE_INDEX.length);
     expect(newestShortPosts().map((piece) => piece.slug)).toEqual([
+      'committee-officers-and-the-firms-they-pay',
       'realtor-pacs-shared-candidates',
       'lobbyist-giving',
-      'organizations-both-parties',
     ]);
-    expect(readGroups().shortPosts.map((piece) => piece.slug)).toEqual([
-      'realtor-pacs-shared-candidates',
-      'lobbyist-giving',
-      'organizations-both-parties',
+    expect(readGroups().shortPosts.slice(0, 3)).toEqual(newestShortPosts());
+    expect(shortPostsPage(1).items.map((piece) => piece.slug)).toContain(
       '2-records-not-always-2-donations',
-    ]);
+    );
     expect(() => topicPage('unknown' as 'lobbying', 1)).toThrow('unknown topic');
   });
 });

@@ -75,6 +75,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 
 **Research** — our own digging, in no set.
 
+- [Who keeps the books, and who gets paid?](published-writing/committee-officers-and-the-firms-they-pay.md) — committee officers, reported vendors and the separate records that connect them
 - [2 records do not always mean 2 donations](published-writing/2-records-not-always-2-donations.md) — the accepted Short post comparing 2 identical download entries with 1 matching $500 entry in each cited filing
 - [3 Realtor PACs. 12 shared campaigns.](published-writing/realtor-pacs-shared-candidates.md): Florida committee payments, separate contribution limits, and dated Realtor dues and brokerage policies
 - [Political donors appearing in both parties’ Minnesota caucus records](published-writing/organizations-both-parties.md): the reviewed Short post about overlapping donor registrations and listed contribution values

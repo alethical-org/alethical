@@ -51,6 +51,7 @@ export {
 } from './researchIndex';
 export { READ_PAGE_HEADING, READ_PAGE_INTRO, READ_PAGE_NAME } from './blogPageCopy';
 export type { PieceIndexEntry, PieceTraits } from './researchIndex';
+import { COMMITTEE_OFFICERS } from './researchPieces/committeeOfficers';
 import { REALTOR_PACS } from './researchPieces/realtorPacs';
 import { LOBBYIST_GIVING } from './researchPieces/lobbyistGiving';
 import { ORGANIZATIONS_BOTH_PARTIES } from './researchPieces/organizationsBothParties';
@@ -317,6 +318,7 @@ export function researchSourceText(source: ResearchSource): string {
  * disagree about a slug, a title or a date; research.test.ts pins the order.
  */
 export const PUBLISHED_RESEARCH: ResearchPiece[] = assertPublishedShortPosts([
+  COMMITTEE_OFFICERS,
   REALTOR_PACS,
   LOBBYIST_GIVING,
   ORGANIZATIONS_BOTH_PARTIES,

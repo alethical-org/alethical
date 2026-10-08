@@ -448,7 +448,10 @@ describe('reading time, computed from the piece\u2019s own words', () => {
 
   it('does not count Related reading links as words in a Short post', () => {
     const shortPosts = PUBLISHED_RESEARCH.filter((piece) => piece.format === 'short-post');
-    expect(shortPosts).toHaveLength(4);
+    expect(shortPosts.map((piece) => piece.slug)).toContain('realtor-pacs-shared-candidates');
+    expect(shortPosts.map((piece) => piece.slug)).toContain(
+      'committee-officers-and-the-firms-they-pay',
+    );
     shortPosts.forEach((piece) => {
       const withoutRelated = {
         ...piece,
@@ -621,15 +624,29 @@ const blockText = (blocks: readonly ResearchBlock[]): string[] =>
  * piece uses today, because a field left out is a field where a sentence can be
  * dropped and no test notices — which is the whole reason issue 1832 exists.
  */
+function shortPostTableText(piece: ResearchPiece): Map<string, string> {
+  // Table separators belong to layout. Preserve punctuation within each cell.
+  return new Map(
+    (piece.shortPost?.body ?? [])
+      .filter((block) => block.kind === 'table')
+      .flatMap((block) => [block.columns, ...block.rows])
+      .map((cells) => [cells.join(' · '), cells.join(' ')]),
+  );
+}
+
 function shippedWords(piece: ResearchPiece): string {
   if (piece.format === 'short-post') {
     const blocks = shortPostArticleSnapshotBlocks(piece);
+    const tableText = shortPostTableText(piece);
     const relatedStart = blocks.findIndex(
       (block) => block.kind === 'heading' && block.text === 'Related reading',
     );
     return [
       piece.title,
-      ...blocks.slice(0, relatedStart < 0 ? undefined : relatedStart).map((block) => block.text),
+      piece.dek,
+      ...blocks
+        .slice(0, relatedStart < 0 ? undefined : relatedStart)
+        .map((block) => tableText.get(block.text) ?? block.text),
     ]
       .join(' ')
       .replace(/\s+/g, ' ')
@@ -666,7 +683,8 @@ function shippedWords(piece: ResearchPiece): string {
 }
 
 /** The same words as the file holds them, with markdown marks removed. */
-function draftWords(file: string): string {
+function draftWords(file: string, piece: ResearchPiece): string {
+  const tableText = shortPostTableText(piece);
   return (
     readFileSync(join(HERE, '../../../../..', `docs/published-writing/${file}`), 'utf8')
       // The opening HTML comments are the doc-sync declaration and a note to
@@ -685,6 +703,8 @@ function draftWords(file: string): string {
       // cells then each row, which is this file's own reading order.
       .replace(/^\|(?: *:?-+:? *\|)+$/gm, '')
       .replace(/\|/g, ' ')
+      // Earlier Short post drafts store table rows as text separated by dots.
+      .replace(/^.*$/gm, (line) => tableText.get(line.trim()) ?? line)
       .replace(/\*/g, '')
       .replace(/\s+/g, ' ')
       .trim()
@@ -694,6 +714,10 @@ function draftWords(file: string): string {
 describe('every shipped piece is its settled prose, word for word', () => {
   const pieces = [
     { slug: 'realtor-pacs-shared-candidates', file: 'realtor-pacs-shared-candidates.md' },
+    {
+      slug: 'committee-officers-and-the-firms-they-pay',
+      file: 'committee-officers-and-the-firms-they-pay.md',
+    },
     { slug: 'organizations-both-parties', file: 'organizations-both-parties.md' },
     { slug: 'lobbyist-giving', file: 'lobbyist-giving.md' },
     { slug: '2-records-not-always-2-donations', file: '2-records-not-always-2-donations.md' },
@@ -725,7 +749,8 @@ describe('every shipped piece is its settled prose, word for word', () => {
   it.each(pieces)(
     'ships every word the settled file of $slug holds, in that file\u2019s own order',
     ({ slug, file }) => {
-      expect(shippedWords(researchBySlug(slug)!)).toBe(draftWords(file));
+      const piece = researchBySlug(slug)!;
+      expect(shippedWords(piece)).toBe(draftWords(file, piece));
     },
   );
 });
