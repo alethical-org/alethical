@@ -3,7 +3,7 @@ import { act, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { CandidateAddressForm } from '../CandidateAddressForm';
-import type { CandidateSearchServices } from '../types';
+import type { CandidateLookupResponse, CandidateSearchServices } from '../types';
 vi.hoisted(() => {
   (globalThis as { __DEV__?: boolean }).__DEV__ = false;
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -28,16 +28,20 @@ afterEach(() => {
 const oldAddress = '100 Example Street, Minneapolis, MN 55415';
 const newAddress = '200 Example Street, Minneapolis, MN 55415, United States';
 const choice = { id: 'old', label: oldAddress, address: oldAddress };
-function setup() {
+function setup(
+  initialAddress = oldAddress,
+  suggest: CandidateSearchServices['suggest'] = vi.fn(async () => [choice]),
+  outcome: Exclude<CandidateLookupResponse, { kind: 'results' }> | null = null,
+) {
   const onSubmit = vi.fn();
   let changeAddress!: (value: string) => void;
   const services: CandidateSearchServices = {
     getElections: async () => [],
-    suggest: vi.fn(async () => [choice]),
+    suggest,
     lookup: async () => ({ kind: 'no-match' }),
   };
   function Form() {
-    const [address, setAddress] = useState(oldAddress);
+    const [address, setAddress] = useState(initialAddress);
     changeAddress = setAddress;
     return (
       <CandidateAddressForm
@@ -46,7 +50,7 @@ function setup() {
         onAddress={setAddress}
         onSubmit={onSubmit}
         busy={false}
-        outcome={null}
+        outcome={outcome}
       />
     );
   }
@@ -138,4 +142,153 @@ it('still reflects an explicit address change and clear from the search flow', (
   expect(input.value).toBe(newAddress);
   act(() => changeAddress(''));
   expect(input.value).toBe('');
+});
+
+it.each(['1 Ma', '5 1'])(
+  'suggests a short partial street address before 6 characters: %s',
+  async (address) => {
+    vi.useFakeTimers();
+    const suggest = vi.fn(async () => [choice]);
+    const { input } = setup(address, suggest);
+    act(() => input.focus());
+    await act(async () => vi.advanceTimersByTimeAsync(181));
+    expect(suggest).toHaveBeenCalledWith(address, expect.any(AbortSignal));
+    expect(host.querySelector('[role="option"]')?.getAttribute('aria-selected')).toBe('true');
+    expect(input.getAttribute('aria-activedescendant')).toBe(
+      host.querySelector('[role="option"]')?.id,
+    );
+    expect(host.querySelector('[role="option"] svg')).toBeNull();
+  },
+);
+
+it.each(['29308', '29308 N', '29308 N C'])(
+  'waits for a street name instead of suggesting a house number or direction: %s',
+  async (address) => {
+    vi.useFakeTimers();
+    const suggest = vi.fn(async () => [choice]);
+    const { input } = setup(address, suggest);
+    act(() => input.focus());
+    await act(async () => vi.advanceTimersByTimeAsync(181));
+    expect(suggest).not.toHaveBeenCalled();
+    expect(input.getAttribute('aria-expanded')).toBe('false');
+  },
+);
+
+it('shows multiple suggestions, moves the active row with arrows and submits the chosen address', async () => {
+  vi.useFakeTimers();
+  const other = { id: 'other', label: newAddress, address: newAddress };
+  const { input, onSubmit } = setup('100 Ex', async () => [choice, other]);
+  act(() => input.focus());
+  await act(async () => vi.advanceTimersByTimeAsync(181));
+  expect(host.textContent).toContain('Suggested addresses');
+  expect(host.textContent).toContain('Enter to choose');
+  key(input, 'ArrowDown');
+  expect(host.querySelectorAll('[role="option"]')[1].getAttribute('aria-selected')).toBe('true');
+  key(input, 'ArrowUp');
+  expect(host.querySelectorAll('[role="option"]')[0].getAttribute('aria-selected')).toBe('true');
+  key(input, 'ArrowDown');
+  key(input, 'Enter');
+  expect(onSubmit).toHaveBeenCalledExactlyOnceWith(newAddress, other);
+  expect(input.value).toBe(newAddress);
+  expect(host.querySelector('[role="listbox"]')).toBeNull();
+});
+
+it('keeps the field focused through a suggestion mouse-down and submits the completed address on click', async () => {
+  vi.useFakeTimers();
+  const { input, onSubmit } = setup('100 Ex');
+  act(() => input.focus());
+  await act(async () => vi.advanceTimersByTimeAsync(181));
+  const option = host.querySelector<HTMLElement>('[role="option"]')!;
+  const mouseDown = new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 });
+  act(() => {
+    option.dispatchEvent(mouseDown);
+    // jsdom does not perform the browser's default mouse-down focus change.
+    if (!mouseDown.defaultPrevented) option.focus();
+  });
+  expect(mouseDown.defaultPrevented).toBe(true);
+  expect(document.activeElement).toBe(input);
+  expect(option.isConnected).toBe(true);
+  act(() => option.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, button: 0 })));
+  act(() => option.click());
+  expect(onSubmit).toHaveBeenCalledExactlyOnceWith(oldAddress, choice);
+});
+
+it.each(['Escape', 'Enter'])(
+  'does not reopen suggestions when an older request finishes after %s',
+  async (action) => {
+    vi.useFakeTimers();
+    let resolve!: (value: (typeof choice)[]) => void;
+    const pending = new Promise<(typeof choice)[]>((yes) => {
+      resolve = yes;
+    });
+    const { input } = setup(oldAddress, async () => pending);
+    act(() => input.focus());
+    await act(async () => vi.advanceTimersByTimeAsync(181));
+    key(input, action);
+    await act(async () => resolve([choice]));
+    expect(input.getAttribute('aria-expanded')).toBe('false');
+    expect(host.querySelector('[role="listbox"]')).toBeNull();
+  },
+);
+
+it('cancels a pending suggestion timer after Escape and permits suggestions after a new edit', async () => {
+  vi.useFakeTimers();
+  const suggest = vi.fn(async () => [choice]);
+  const { input, changeAddress } = setup(oldAddress, suggest);
+  act(() => input.focus());
+  key(input, 'Escape');
+  await act(async () => vi.advanceTimersByTimeAsync(181));
+  expect(suggest).not.toHaveBeenCalled();
+  act(() => changeAddress('200 Ex'));
+  await act(async () => vi.advanceTimersByTimeAsync(181));
+  expect(suggest).toHaveBeenCalledOnce();
+  expect(input.getAttribute('aria-expanded')).toBe('true');
+});
+
+it('scrolls only the suggestion list when keyboard selection reaches an offscreen row', async () => {
+  vi.useFakeTimers();
+  const other = { id: 'other', label: newAddress, address: newAddress };
+  const { input } = setup('100 Ex', async () => [choice, other]);
+  act(() => input.focus());
+  await act(async () => vi.advanceTimersByTimeAsync(181));
+  const list = host.querySelector<HTMLElement>('[role="listbox"]')!;
+  const rows = host.querySelectorAll<HTMLElement>('[role="option"]');
+  const scrollIntoView = vi.fn();
+  rows.forEach((row) => {
+    row.scrollIntoView = scrollIntoView;
+  });
+  vi.spyOn(list, 'getBoundingClientRect').mockReturnValue({ top: 100 } as DOMRect);
+  Object.defineProperty(list, 'clientHeight', { value: 300 });
+  vi.spyOn(rows[1], 'getBoundingClientRect').mockReturnValue({ top: 380, bottom: 428 } as DOMRect);
+  key(input, 'ArrowDown');
+  expect(list.scrollTop).toBe(28);
+  expect(document.activeElement).toBe(input);
+  expect(scrollIntoView).not.toHaveBeenCalled();
+  vi.spyOn(rows[0], 'getBoundingClientRect').mockReturnValue({ top: 72, bottom: 120 } as DOMRect);
+  key(input, 'ArrowUp');
+  expect(list.scrollTop).toBe(0);
+});
+
+it('ignores a clicked suggestion when browser autofill silently replaced the typed prefix', async () => {
+  vi.useFakeTimers();
+  const { input, onSubmit } = setup('100 Ex');
+  act(() => input.focus());
+  await act(async () => vi.advanceTimersByTimeAsync(181));
+  const option = host.querySelector<HTMLElement>('[role="option"]')!;
+  fill(input, newAddress);
+  act(() => option.click());
+  expect(onSubmit).toHaveBeenCalledExactlyOnceWith(newAddress);
+  expect(input.value).toBe(newAddress);
+});
+
+it('preserves the original submitted text when choosing among ambiguous lookup results', () => {
+  const enteredAddress = '100 Example Street Apt 4';
+  const { input, onSubmit } = setup(enteredAddress, async () => [], {
+    kind: 'ambiguous',
+    choices: [choice],
+  });
+  expect(host.textContent).toContain('Choose your address');
+  act(() => host.querySelector<HTMLElement>('[role="option"]')!.click());
+  expect(onSubmit).toHaveBeenCalledExactlyOnceWith(enteredAddress, choice);
+  expect(input.value).toBe(enteredAddress);
 });

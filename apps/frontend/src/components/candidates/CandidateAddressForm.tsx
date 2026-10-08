@@ -10,6 +10,7 @@ import {
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { currentAddressInput } from '../../lib/currentAddressInput';
+import { addressSuggestionInput } from '../../lib/findMyLegislator';
 import { useResponsive } from '../../hooks/useResponsive';
 import { theme as t } from '../../theme/tokens';
 import { fieldFocusRing, fieldOutlineReset } from '../../theme/fieldFocus';
@@ -103,14 +104,17 @@ export function CandidateAddressForm({
     setSuggestions([]);
     setSuggestOpen(false);
     setActive(-1);
-    if (!focused || address.trim().length < 6 || busy) return () => controller.abort();
+    const suggestionInput = addressSuggestionInput(address);
+    if (!focused || !suggestionInput || busy) return () => controller.abort();
     const timer = setTimeout(() => {
+      if (token !== generation.current) return;
       void services
-        .suggest(address.trim(), controller.signal)
+        .suggest(suggestionInput, controller.signal)
         .then((matches) => {
           if (token !== generation.current || controller.signal.aborted) return;
           setSuggestions(matches);
           setSuggestOpen(matches.length > 0);
+          setActive(matches.length ? 0 : -1);
         })
         .catch(() => {
           /* Suggestions are optional; explicit submit still works. */
@@ -133,9 +137,10 @@ export function CandidateAddressForm({
   }, [choicesOpen]);
   const choices = outcome?.kind === 'ambiguous' ? outcome.choices : [];
   const visibleAddress = () => currentAddressInput(inputRef.current, address);
-  const submit = (choice?: CandidateAddressChoice) => {
+  const submit = (choice?: CandidateAddressChoice, completeSuggestion = false) => {
     if (busy) return;
-    const value = visibleAddress();
+    generation.current += 1;
+    let value = visibleAddress();
     // A browser-filled replacement invalidates any old highlighted suggestion.
     const changed = value !== address;
     if (changed) {
@@ -149,6 +154,13 @@ export function CandidateAddressForm({
       focusField();
       return;
     }
+    if (completeSuggestion && choice && !changed) {
+      // A typed prefix is only for finding suggestions. Resolve the full address
+      // the person chose, while keeping submitted ambiguity choices unchanged.
+      value = choice.address;
+      if (inputRef.current) inputRef.current.value = value;
+      onAddress(value);
+    }
     setMissing(false);
     setSuggestOpen(false);
     setChoicesOpen(false);
@@ -158,9 +170,11 @@ export function CandidateAddressForm({
     else onSubmit(value);
   };
   const pick = (choice: CandidateAddressChoice) => submit(choice);
+  const pickSuggestion = (choice: CandidateAddressChoice) => submit(choice, true);
   const fieldKey = (event: ReactKeyboardEvent<HTMLElement>) => {
     if (event.key === 'Escape') {
       event.preventDefault();
+      generation.current += 1;
       if (!suggestOpen && !choicesOpen) onCancel?.();
       setSuggestOpen(false);
       setChoicesOpen(false);
@@ -172,15 +186,27 @@ export function CandidateAddressForm({
       (event.key === 'ArrowDown' || event.key === 'ArrowUp')
     ) {
       event.preventDefault();
-      setActive(
-        (index) =>
-          (index + (event.key === 'ArrowDown' ? 1 : -1) + suggestions.length) % suggestions.length,
-      );
+      const next =
+        (active + (event.key === 'ArrowDown' ? 1 : -1) + suggestions.length) % suggestions.length;
+      setActive(next);
+      // Reveal keyboard choices inside the list without moving the page or field.
+      if (Platform.OS === 'web') {
+        const list = document.getElementById(`${id}-suggestions`);
+        const row = document.getElementById(`${id}-suggestion-${next}`);
+        if (list && row) {
+          const listTop = list.getBoundingClientRect().top + list.clientTop;
+          const rowBounds = row.getBoundingClientRect();
+          if (rowBounds.top < listTop) list.scrollTop += rowBounds.top - listTop;
+          else if (rowBounds.bottom > listTop + list.clientHeight) {
+            list.scrollTop += rowBounds.bottom - listTop - list.clientHeight;
+          }
+        }
+      }
       return;
     }
     if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
       event.preventDefault();
-      if (suggestOpen && active >= 0 && suggestions[active]) pick(suggestions[active]);
+      if (suggestOpen && active >= 0 && suggestions[active]) pickSuggestion(suggestions[active]);
       else submit();
     }
   };
@@ -275,6 +301,8 @@ export function CandidateAddressForm({
                 placeholder="350 S 5th St, Minneapolis, MN 55415"
                 style={inputStyle}
                 onChange={(event) => {
+                  generation.current += 1;
+                  setSuggestOpen(false);
                   setMissing(false);
                   setChoicesOpen(false);
                   const value = event.target.value.replace(/[\r\n]+/g, ' ');
@@ -318,27 +346,48 @@ export function CandidateAddressForm({
             )}
           </View>
           {suggestOpen ? (
-            <View
-              nativeID={`${id}-suggestions`}
-              {...({ role: 'listbox' } as object)}
-              accessibilityLabel={
-                suggestions.length === 1 ? 'Suggested address' : 'Suggested addresses'
-              }
-              style={[styles.suggestions, !isMobile && styles.suggestionOverlay]}
-            >
+            <View style={[styles.suggestions, !isMobile && styles.suggestionOverlay]}>
               <Text style={styles.suggestionHeading}>
                 {suggestions.length === 1 ? 'Suggested address' : 'Suggested addresses'}
               </Text>
-              {suggestions.map((choice, index) => (
-                <Choice
-                  key={choice.id}
-                  id={`${id}-suggestion-${index}`}
-                  label={choice.label}
-                  selected={active === index}
-                  onPress={() => pick(choice)}
-                  keepFieldFocus
-                />
-              ))}
+              <View
+                nativeID={`${id}-suggestions`}
+                {...({ role: 'listbox' } as object)}
+                accessibilityLabel="Matching Minnesota addresses"
+                style={styles.suggestionList}
+              >
+                {suggestions.map((choice, index) => (
+                  <Pressable
+                    key={choice.id}
+                    nativeID={`${id}-suggestion-${index}`}
+                    role="option"
+                    aria-selected={active === index}
+                    tabIndex={-1}
+                    onHoverIn={() => !isMobile && setActive(index)}
+                    onPress={() => pickSuggestion(choice)}
+                    {...(Platform.OS === 'web'
+                      ? {
+                          // Preserve typing focus until click without blocking touch scrolling.
+                          onMouseDown: (event: { preventDefault(): void }) =>
+                            event.preventDefault(),
+                        }
+                      : {})}
+                    style={[
+                      styles.suggestionRow,
+                      active === index && { borderColor: t.colors.brand.base },
+                    ]}
+                  >
+                    <Text style={styles.suggestionText}>{choice.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              {suggestions.length > 1 ? (
+                <Text style={styles.suggestionHelp}>
+                  Use <Text style={{ fontWeight: '700' }}>↑</Text> and{' '}
+                  <Text style={{ fontWeight: '700' }}>↓</Text> to move,{' '}
+                  <Text style={{ fontWeight: '700' }}>Enter</Text> to choose
+                </Text>
+              ) : null}
             </View>
           ) : null}
         </View>
@@ -438,13 +487,11 @@ function Choice({
   label,
   selected,
   onPress,
-  keepFieldFocus = false,
 }: {
   id: string;
   label: string;
   selected: boolean;
   onPress(): void;
-  keepFieldFocus?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
   const { isMobile } = useResponsive();
@@ -457,20 +504,10 @@ function Choice({
       onPress={onPress}
       onHoverIn={() => !isMobile && setHovered(true)}
       onHoverOut={() => setHovered(false)}
-      {...(Platform.OS === 'web' && keepFieldFocus
-        ? { onMouseDown: (event: React.MouseEvent) => event.preventDefault() }
-        : {})}
       style={[
         styles.choice,
-        keepFieldFocus && {
-          minHeight: 52,
-          paddingHorizontal: 12,
-          paddingVertical: 10,
-          borderRadius: 10,
-          borderWidth: 0,
-        },
         selected && {
-          backgroundColor: keepFieldFocus ? '#e9f7ef' : '#f2fbf6',
+          backgroundColor: '#f2fbf6',
           borderColor: '#2ed47e',
         },
         hovered && { backgroundColor: '#f5f6f7', borderColor: 'rgba(17,21,15,0.3)' },
@@ -497,24 +534,22 @@ function Choice({
       >
         {label}
       </Text>
-      {!keepFieldFocus ? (
-        <Svg
-          width={18}
-          height={18}
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden
-          style={{ flexShrink: 0 }}
-        >
-          <Path
-            d="M9 6 L15 12 L9 18"
-            stroke="#6f756f"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </Svg>
-      ) : null}
+      <Svg
+        width={18}
+        height={18}
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden
+        style={{ flexShrink: 0 }}
+      >
+        <Path
+          d="M9 6 L15 12 L9 18"
+          stroke="#6f756f"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
     </Pressable>
   );
 }
@@ -551,7 +586,15 @@ const styles = StyleSheet.create({
       ? ({ clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap' } as object)
       : {}),
   },
-  controls: { flexDirection: 'row', gap: 12, marginTop: 8, alignItems: 'flex-start' },
+  controls: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+    alignItems: 'flex-start',
+    // RNW Views start at z-index 0. Lift this row above its helper siblings so
+    // the desktop dropdown receives clicks where it extends beyond the row.
+    zIndex: 1,
+  },
   privacy: {
     marginTop: 36,
     paddingTop: 20,
@@ -576,12 +619,11 @@ const styles = StyleSheet.create({
   suggestions: {
     zIndex: 30,
     marginTop: 8,
-    padding: 6,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: 'rgba(17,21,15,0.14)',
-    borderRadius: 14,
-    gap: 2,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   suggestionOverlay: {
     position: 'absolute',
@@ -591,11 +633,43 @@ const styles = StyleSheet.create({
     boxShadow: '0 16px 40px rgba(17,21,15,0.16)',
   },
   suggestionHeading: {
-    ...candidateText.strong,
-    color: '#4f5651',
-    fontSize: 13.5,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    fontFamily: t.typography.body,
+    fontWeight: '700',
+    color: t.colors.ink,
+    fontSize: 15,
+    paddingHorizontal: 14,
+    paddingTop: 13,
+  },
+  suggestionList: {
+    marginTop: 8,
+    maxHeight: 300,
+    borderTopWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    ...(Platform.OS === 'web'
+      ? ({ overflowY: 'auto', overflowX: 'hidden' } as object)
+      : { overflow: 'scroll' as const }),
+  },
+  suggestionRow: {
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    borderRadius: 10,
+  },
+  suggestionText: {
+    minWidth: 0,
+    fontFamily: t.typography.body,
+    fontSize: 16,
+    fontWeight: '500',
+    color: t.colors.ink,
+  },
+  suggestionHelp: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    color: '#6f756f',
   },
   choice: {
     paddingHorizontal: 14,
