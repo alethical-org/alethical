@@ -126,7 +126,9 @@ def test_confirmed_choice_never_overrides_number_parity_or_range():
 
 def test_overlapping_source_ranges_fail_even_with_confirmed_choice():
     lookup, calls = service(rows=[street(), street(ProdAddressRangeId=124)])
-    choice = lookup.suggest(ADDRESS)[0]
+    valid_lookup, _ = service()
+    choice = valid_lookup.suggest(ADDRESS)[0]
+    assert lookup.suggest(ADDRESS) == []
     assert lookup.lookup(ADDRESS, "8334", choice)[0] == {"kind": "no-match"}
     assert all(url != SOURCE_URL for url, _ in calls)
 
@@ -406,7 +408,7 @@ def test_no_zip_geocoded_answer_requires_explicit_confirmation(original):
     assert response["kind"] == "ambiguous"
     assert response["choices"][0]["address"] == ADDRESS
     assert catalogue is None
-    assert calls == []
+    assert calls == [(STREETS_URL, {"ZipCode": "99999"})]
     assert (
         lookup.lookup(original, "8334", response["choices"][0])[0]["kind"] == "results"
     )
@@ -625,3 +627,113 @@ def test_country_cleanup_keeps_ambiguity_and_unit_validation():
     assert lookup.lookup("100 EXAMPLE ST N, EXAMPLE CITY, WI 99999, USA", "8334")[
         0
     ] == {"kind": "outside-minnesota"}
+
+
+@pytest.mark.parametrize("complete_zip", [False, True])
+def test_suggestions_omit_addresses_without_one_exact_ballot_range(complete_zip):
+    """A mapped street or an individual range is not enough to offer a choice."""
+    labels = [
+        ADDRESS.replace("100 ", "99 "),
+        ADDRESS.replace("100 ", "101 "),
+        ADDRESS.replace("EXAMPLE ST N", "OTHER ST N"),
+        ADDRESS,
+    ]
+
+    class Geocoder:
+        def suggest_matches(self, text):
+            return [SimpleNamespace(matched_address=a, state_code="MN") for a in labels]
+
+    lookup, calls = service(geocoder=Geocoder())
+    query = ADDRESS if complete_zip else "100 EX"
+    choices = lookup.suggest(query)
+    assert [choice["address"] for choice in choices] == [ADDRESS]
+    for choice in choices:
+        assert lookup.resolve(choice["address"], choice)[0].house_number == 100
+    assert all(url != SOURCE_URL for url, _ in calls)
+
+    # The same printed address belongs to 2 official ranges: never pick either.
+    lookup, _ = service(
+        rows=[street(), street(ProdAddressRangeId=124)], geocoder=Geocoder()
+    )
+    assert lookup.suggest(query) == []
+
+
+def test_map_choices_validate_each_zip_once_and_keep_source_order():
+    from threading import Barrier
+
+    sync = Barrier(2, timeout=3)
+    labels = [ADDRESS, ADDRESS.replace("99999", "99998"), ADDRESS]
+    calls = []
+
+    class Geocoder:
+        def suggest_matches(self, text):
+            return [SimpleNamespace(matched_address=a, state_code="MN") for a in labels]
+
+    def fetch(url, params):
+        assert url == STREETS_URL
+        calls.append(params["ZipCode"])
+        sync.wait()  # Both ZIP requests run together, not one after the other.
+        return json.dumps({"Streets": [street(ZipCode=params["ZipCode"])]}).encode()
+
+    lookup = CandidateLookupService(fetch=fetch, geocoder=Geocoder())
+    assert [choice["address"] for choice in lookup.suggest("100 EX")] == labels[:2]
+    assert sorted(calls) == ["99998", "99999"]
+    assert [choice["address"] for choice in lookup.suggest("100 EXA")] == labels[:2]
+    assert len(calls) == 2  # Only public ZIP tables are reused, not private queries.
+
+
+def test_no_zip_confirmation_does_not_offer_known_unresolvable_map_choices():
+    class Geocoder:
+        def geocode_matches(self, text):
+            return [
+                SimpleNamespace(
+                    matched_address=ADDRESS.replace("100", "99"), state_code="MN"
+                ),
+                SimpleNamespace(matched_address=ADDRESS, state_code="MN"),
+            ]
+
+    lookup, calls = service(geocoder=Geocoder())
+    response = lookup.resolve("100 EXAMPLE ST N MN")
+    assert response["kind"] == "ambiguous"
+    assert [choice["address"] for choice in response["choices"]] == [ADDRESS]
+    assert all(url != SOURCE_URL for url, _ in calls)
+
+
+def test_suggestion_validation_source_failure_is_not_empty_success():
+    class Geocoder:
+        def suggest_matches(self, text):
+            return [SimpleNamespace(matched_address=ADDRESS, state_code="MN")]
+
+    lookup, _ = service(
+        rows=[street(DisplayUnitNbr=True, UnitNumberRange=None)], geocoder=Geocoder()
+    )
+    with pytest.raises(CandidateLookupUnavailable):
+        lookup.suggest("100 EX")
+
+
+def test_confirmed_map_choice_does_not_fetch_unselected_zip():
+    class Geocoder:
+        def geocode_matches(self, text):
+            return [
+                SimpleNamespace(matched_address=ADDRESS, state_code="MN"),
+                SimpleNamespace(
+                    matched_address=ADDRESS.replace("99999", "99998"), state_code="MN"
+                ),
+            ]
+
+    calls = []
+
+    def fetch(url, params):
+        assert url == STREETS_URL
+        calls.append(params["ZipCode"])
+        if params["ZipCode"] == "99998":
+            raise CandidateLookupUnavailable("Official street records unavailable")
+        return json.dumps({"Streets": [street()]}).encode()
+
+    valid_lookup, _ = service()
+    choice = valid_lookup.suggest(ADDRESS)[0]
+    lookup = CandidateLookupService(fetch=fetch, geocoder=Geocoder())
+    result = lookup.resolve("100 EXAMPLE ST N MN", choice)
+    assert not isinstance(result, dict)
+    assert result[0].house_number == 100
+    assert calls == ["99999"]
