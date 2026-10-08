@@ -162,7 +162,7 @@ lasting decisions and release evidence have their permanent homes.
 - [Lobbyist donor evidence](operations/lobbyist-donor-evidence.md) — source matching, review, safe publication and rollback.
 - [Private account activation](implementation/admin-users-plan.md) — approved account access and the remaining administrator activation
 - [Campaign-finance history refresh](implementation/campaign-finance-history-refresh.md) — source-replacement boundaries, failed-source handling and saved recovery evidence
-- [FCC political-file archive](implementation/fcc-political-files.md) — private station-file collection, source copies, searchable readings and reviewed expense links before any reader feature
+- [FCC political-file archive](implementation/fcc-political-files.md) — station source addresses, collection and refresh steps, private storage, recovery, searchable readings and limits before any reader feature
 - [Legislator campaign-money delivery](implementation/legislator-campaign-money-tab-plan.md) — coordinated releases, outstanding decisions and held data work
 - [Campaign-money review scope](implementation/campaign-money-final-review-prompt.md) — the releases to inspect and the work still excluded from that review
 - [Committee search and payment design](implementation/committee-search-payment-design.md) — the accepted committee and payment-list behavior

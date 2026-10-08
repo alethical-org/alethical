@@ -20,6 +20,43 @@ branch `codex/fcc-political-file-archive`.
 Source-listing corrections shipped from `codex/fcc-source-listing-gaps`; final
 collection acceptance is recorded from `codex/fcc-archive-acceptance`.
 
+## Why this collection exists
+
+Angel wants to trace media-agency commissions and find the invoices behind reported
+campaign expenses. The starting example was KSTP's 2026 State folder for Lisa
+DeMuth. Angel reported manually downloading 41 PDFs; those local copies were not
+provided for comparison, so 41 is context, not an acceptance target. Collection
+covers every candidate and political folder of the configured stations.
+
+The station transcribed as “Carol Levin” is treated as KARE from Eugene's supplied
+KARE address. The supplied KMSP address is also included. The wider station list
+has not been supplied. Adding stations requires a reviewed source-list change;
+`--stations all` means these 3 stations, not every US television station.
+
+## Source addresses and identities
+
+| Filing station | FCC facility ID | Political-file starting address |
+| --- | --- | --- |
+| KSTP-TV | 28010 | <https://publicfiles.fcc.gov/tv-profile/kstp-tv/political-files> |
+| KARE | 23079 | <https://publicfiles.fcc.gov/tv-profile/kare/political-files> |
+| KMSP-TV | 68883 | <https://publicfiles.fcc.gov/tv-profile/kmsp-tv/political-files> |
+
+The running collector reads the public station web listings and follows their
+folder links. It does not currently use the developer change-list API to decide
+which folders changed. The [FCC developer reference](https://publicfiles.fcc.gov/developer)
+is background for a possible future change, not a dependency of the current run.
+
+Folder addresses follow the station's political path and end in the FCC folder ID.
+Download links are taken from the listing, normally
+`https://publicfiles.fcc.gov/api/manager/download/<folder-id>/<download-id>.pdf`.
+The public distribution address is
+`https://files.fcc.gov/download/<download-id>.pdf`. The collector tries that known
+public route only for eligible PDF links after an API refusal with status 403 or
+a timeout. It does not invent a download for a row with no link or bypass a login.
+A file row's own FCC ID can differ from its download ID; preserve both identities.
+The saved listing, original address and successful download address retain that
+chain of evidence. Remove tracking parameters when recording starting addresses.
+
 ## Source evidence and approved handling
 
 - The [FCC developer reference](https://publicfiles.fcc.gov/developer) describes
@@ -116,6 +153,79 @@ nonblank page, unreviewed draft fields and station scope beyond the initial 3.
   the filing location, not proof that every billed spot aired on that station.
   Source text remains available for later review of grouped station buys.
 
+## Where each part lives
+
+| Saved information | Home | What it preserves |
+| --- | --- | --- |
+| Original public response bytes | Private Supabase bucket `raw-source-files`; second copy in the configured Cloudflare R2 bucket | PDFs and folder listings, compressed under `fcc/political-files/<sha256>.gz` |
+| Source-file details | `fcc_source_body` | Original/compressed sizes and fingerprints, storage key and last successful second-copy proof |
+| Collection attempts | `fcc_scan`, `fcc_observation` | Run status, folder/file identities, timestamps, source paths and failures |
+| Station file versions | `fcc_document` | Separate FCC records even when their contents are identical; changed versions remain retained |
+| Readings and page text | `fcc_extraction`, `fcc_page` | Reader version, draft facts, page quotations, text and incomplete-reading reasons |
+| Reviewed expense connections | `fcc_expense_link` | Review status plus the expense's saved version, row and copied evidence |
+
+These 7 tables are private. The migration is `0067_fcc_political_files`.
+The [FCC command](../../scripts/fcc_political_files.py) is the entry point;
+[source collection](../../alethical/pipeline/fcc_public_files.py),
+[archive and search](../../alethical/pipeline/fcc_archive.py),
+[PDF reading](../../alethical/pipeline/fcc_document_text.py), and
+[expense connections](../../alethical/pipeline/fcc_expense_links.py) own their
+respective behavior. Search reads current-version saved text and draft fields in
+PostgreSQL. It uses no embeddings, vector service or paid AI call.
+
+## Setup and a repeat collection
+
+Use the repository's locked Python dependencies (`uv sync --frozen`) and the
+schema containing migration `0067_fcc_political_files`. PDF reading also needs
+Poppler (`pdftotext`, `pdftoppm`) and Tesseract. The GitHub workflow installs those
+programs; a local operator must install them before extraction. Source download
+and storage do not require OCR software.
+
+The command loads an existing private `.env` from the working directory or its
+parents. Production needs the configured Supabase database connection, the 4
+`SUPABASE_STORAGE_S3_*` settings, and the Cloudflare mirror settings
+`CLOUDFLARE_R2_ENDPOINT`, `CLOUDFLARE_R2_BUCKET`,
+`CLOUDFLARE_R2_ACCESS_KEY_ID`, and `CLOUDFLARE_R2_SECRET_ACCESS_KEY`.
+The [manual FCC workflow](../../.github/workflows/fcc-political-files.yml) lists
+its exact repository-secret names. Store values privately; never put passwords,
+connection strings or signed private download links in GitHub notes.
+
+1. Run `status` and `gaps` to record the starting coverage. Coordinate with any
+   active FCC collector before another writer starts. The GitHub workflow queues
+   its own runs, but that does not lock an independently started local command.
+2. Run `collect --target prod --dry-run` to print the intended scope. This checks
+   arguments without contacting the FCC, database or storage. It is not an access
+   test. Local collection writes unless `--dry-run` is explicitly supplied.
+3. Run collection with a stated station set and file limit, or omit `--max-files`
+   for the full configured collection. Retain the output and scan ID. Each run
+   traverses the folders; the file limit bounds attempted documents, not listing
+   requests. Keep failed and limited run evidence rather than hiding the failure.
+4. Run `mirror` in bounded batches until `status` reports
+   `bodies_without_second_copy: 0`. A successful batch alone is not proof that all
+   saved files have their second copy.
+5. Run `extract` in bounded batches until `gaps` reports `unread_documents: 0`.
+   Review `reading_gaps` separately. Zero unattempted files does not mean every
+   page was readable or every extracted fact was approved.
+6. Repeat source-linked searches and export a varied sample to confirm originals
+   can be recovered. Record the date, station/year counts, source failures,
+   incomplete readings, reader version, remaining backup count and sample results.
+   Keep the figures in this file labelled as the dated initial collection.
+
+`gaps` shows source failures from the **latest scan**, with separate current-reader
+gaps across the archive. Its lists are capped by `--limit` (maximum 1,000).
+Earlier scan observations remain stored; one limited latest run is not a full
+archive audit. `pending_review` means a reading exists, not that a person approved
+its money figures.
+
+The manual [GitHub FCC workflow](https://github.com/alethical-org/alethical/actions/workflows/fcc-political-files.yml)
+defaults to `dry_run: true`, `max_files: 100`, and `extract_limit: 25`.
+It allows 1–500 attempted files and 1–100 readings per run, and mirrors up to 200
+bodies. Collection can report failure because it is limited or incomplete;
+subsequent backup, reading and status steps still run for retained evidence when
+collection was attempted and the run was not cancelled. Inspect each outcome.
+There is no FCC source-refresh schedule; the existing source-file backup schedule
+is separate. A future recurring source refresh needs its cadence and cost approved.
+
 ## Operator commands and limits
 
 The private command accepts `--target prod` explicitly. Its default, `dev`, only
@@ -189,8 +299,8 @@ page text and review history; the private file stores retain the response bytes.
   adds focused checks for each before the initial production collection.
 - The correction release is live at
   [commit 2c044fd266103521ba080a2365d4ca797972e3a3](https://github.com/alethical-org/alethical/commit/2c044fd266103521ba080a2365d4ca797972e3a3).
-  The production version endpoint returns that commit, health reports `ok`, and
-  readiness reports `ready`. The exact merge-group backend checks passed; the
+  At that release acceptance, the production version endpoint returned that commit,
+  health reported `ok`, and readiness reported `ready`. The exact merge-group backend checks passed; the
   frontend suite was skipped by its path filter.
 
 ## Initial collection: 8 October 2026
@@ -253,3 +363,57 @@ fingerprints before being marked complete. The completion record on
 final backup count, restoration receipt and independent acceptance. A collection
 scan's `incomplete` source status is separate from whether its saved files have
 finished copying.
+
+
+## Recovery and the initial catalogue copy
+
+Source-file backup and database backup protect different things. Restoring a PDF
+does not restore its page text, review history or expense connections. Follow
+[recovery.md](../operations/recovery.md) for bounded source-copy audits and a safe,
+isolated database restoration. A stored `mirrored_at` timestamp is past proof,
+not a fresh check that an object still exists.
+
+On 8 October 2026, a one-time consistent, read-only catalogue export retained
+56,926 rows across the 7 FCC tables, including older readings. The compressed
+export is 33,026,367 bytes; its SHA-256 is
+`e90cb1db62b1651c4fd3453c9a70c4979dff815d3373fe1d7581c92c11b25a22`.
+Both private stores hold the manifest at:
+
+```text
+fcc-catalog-snapshots/manifests/ca52f13feac4cd40f59f00d4dd1864b9927542da73c78640b9a2eaeffb220483.json
+```
+
+The manifest identifies 8 ordered pieces under `fcc-catalog-snapshots/chunks/`.
+Reassembly from each store reproduced the compressed and expanded fingerprints,
+and all 56,926 rows parsed. An independent restore repeated that check from R2.
+This proves that saved catalogue copy can be read; it is not a completed database
+rebuild or full disaster-recovery drill. It is not an automatically refreshed
+catalogue export, and the FCC command does not include a catalogue-import command.
+
+Private scripts, restoration receipts and the manifest are retained on the
+operator's Mac under `/Users/eug/.local/state/alethical-fcc/2026-10-08/` with
+owner-only access. GitHub records the nonsecret storage key and results so the
+cloud copy does not depend on a temporary coding folder. Use a disposable,
+isolated database for any future import and follow the recovery checks before
+considering a production change.
+
+## Financial interpretation and work still outside this release
+
+- Order amount means booked airtime. Invoice amount means billed airtime. A
+  cancellation, changed order, credit or replacement can alter what is owed.
+  Never add all versions as separate spending.
+- Keep the source's gross amount, commission rate, commission amount and net
+  amount separate. Do not fill missing commissions with 15%, or call commission
+  an agency's profit. Strategic Media Services in Virginia is a research lead,
+  not a blanket identity match for every similar agency name.
+- A final invoice supports a billed amount. A reviewed connection can relate it
+  to a reported campaign expense, but neither record alone proves payment. Retain
+  any reported unpaid amount and require separate payment evidence before calling
+  it paid. The initial collection has no accepted expense connections.
+- Candidate, committee and agency names are separate identities. One campaign
+  expense can cover several station invoices; one invoice may need more than one
+  expense connection. The current tools retain reviewed connections but do not
+  allocate amounts or calculate a reconciled spend total.
+- Additional stations, federal expense sources not already held, a comparison
+  with Angel's 41 local PDFs, complete human review of money fields, recurring
+  source collection and the public frontend remain outside this delivered run.
