@@ -342,7 +342,20 @@ def test_failed_fallback_reports_both_origins_without_inventing_success():
         ) as failure:
             http.download(listing())
         assert SOURCE in str(failure.value) and PUBLIC_PDF in str(failure.value)
+        assert failure.value.status_code == 403
         assert http.last_download_url is None
+    finally:
+        http.close()
+
+
+def test_failed_fallback_keeps_terminal_status_instead_of_original_refusal():
+    http = client(
+        lambda request: httpx.Response(403 if str(request.url) == SOURCE else 503)
+    )
+    try:
+        with pytest.raises(FCCFetchError) as failure:
+            http.download(listing())
+        assert failure.value.status_code == 503
     finally:
         http.close()
 

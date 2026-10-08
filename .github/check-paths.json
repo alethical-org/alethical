@@ -1,5 +1,7 @@
 {
   "backend": [
+    ".github/scripts/fcc-refresh-report*.cjs",
+    ".github/workflows/fcc-political-files.yml",
     ".github/workflows/ci.yml",
     ".github/check-paths.json",
     ".githooks/**",

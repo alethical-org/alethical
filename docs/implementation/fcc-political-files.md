@@ -1,6 +1,6 @@
 # FCC political files: archive before the reader feature
 
-<!-- describes: alethical/pipeline/fcc_*.py, scripts/fcc_political_files.py, .github/workflows/fcc-political-files.yml -->
+<!-- describes: alethical/pipeline/fcc_*.py, scripts/fcc_political_files.py, .github/workflows/fcc-political-files.yml, .github/scripts/fcc-refresh-report*.cjs -->
 
 Net: Preserve and search the complete political-file folders of KSTP-TV, KARE and
 KMSP-TV before building a public-facing feature.
@@ -9,14 +9,18 @@ KMSP-TV before building a public-facing feature.
 
 The scope approved on 8 October 2026 covers collection, source storage, text and evidence extraction, internal
 search, backup, and reviewable links to held campaign expense records through a
-working deployed backend and initial collection. The frontend remains on hold.
-The first collection is the 3 supplied stations; expansion beyond them awaits a
-defined station list. No paid recurring AI job is authorized.
+working deployed backend and initial collection. Ongoing automatic collection is
+also approved for KSTP-TV, KARE and KMSP-TV, across every available year and
+political folder. The frontend remains on hold. Additional stations require a
+separate scope decision. No paid recurring AI job is authorized.
 
 Owner: Codex chat (FCC media-vendor, 01a11a9b-d455-7d51-9baf-7d821afd0d6f),
 branch `codex/fcc-political-file-archive`.
 Source-listing corrections shipped from `codex/fcc-source-listing-gaps`; final
 collection acceptance is recorded from `codex/fcc-archive-acceptance`.
+The recurring collection change uses `codex/fcc-recurring-archive`.
+[Issue 2528](https://github.com/alethical-org/alethical/issues/2528) records the
+release and production acceptance receipts separately from initial collection.
 
 ## Why this collection exists
 
@@ -26,8 +30,9 @@ DeMuth. A reported manual collection contained 41 PDFs; those local copies were 
 provided for comparison, so 41 is context, not an acceptance target. Collection
 covers every candidate and political folder of the configured stations.
 
-The supplied KARE and KMSP addresses establish the other 2 stations. The wider station list
-has not been supplied. Adding stations requires a reviewed source-list change;
+The supplied KARE and KMSP addresses establish the other 2 stations. Coverage
+remains limited to these 3 stations. Adding stations requires a reviewed
+source-list change;
 `--stations all` means these 3 stations, not every US television station.
 
 ## Source addresses and identities
@@ -91,7 +96,10 @@ chain of evidence. Remove tracking parameters when recording starting addresses.
 5. Copy FCC objects to R2 and restore a sample; validate source hashes and search.
 6. Independent review, current required checks, merge queue, deployment, initial
    production collection and read-back. Preserve any source-access limits honestly.
-7. Keep the frontend held. Record the measured result and recoverable folder hold
+7. Add the approved daily source refresh, with bounded downloads, backup, local
+   text reading and honest reporting of source gaps and unfinished work. Accept
+   it only after a production run proves those stages and the saved schedule.
+8. Keep the frontend held. Record the measured result and recoverable folder hold
    or native archive after acceptance.
 
 ## Shared impact and prevention
@@ -103,8 +111,29 @@ identity, immutable bodies, versioned drafts and retained match evidence address
 them without changing existing campaign figures. Tests cover repeated collection,
 changed files, invalid downloads, failed folders, reused order numbers, credits,
 missing values and restoration. The first full collection accounts for every listed file identity across the
-saved folder tree. Remaining limits are 9 unavailable downloads, 1 unreadable
-nonblank page, unreviewed draft fields and station scope beyond the initial 3.
+saved folder tree. At initial acceptance, remaining limits were 9 unavailable
+downloads, 1 unreadable nonblank page and unreviewed draft fields. Coverage beyond
+the 3 stations is out of scope.
+
+The original source collector required an operator to start each collection. Daily source discovery removes that dependency. Reusing
+recent unchanged files avoids downloading the archive from private storage merely
+to observe unchanged listing details. Reserving half the download budget for the
+oldest attempts prevents newly added files from indefinitely delaying older
+source comparisons; the remaining capacity favors new or changed records. Spare
+capacity passes between those groups.
+
+This change affects FCC collection, private source storage, backup and current
+text readings. Existing manual `collect`, financial interpretation, expense-link
+review and the public frontend hold retain their existing behavior. Focused
+checks must cover complete folder discovery with bounded downloads, fair retries,
+unchanged metadata observations, changed contents under unchanged names, source
+refusals versus operational failures, retained work after failures, backlog
+reporting and repeated runs. Independent acceptance must examine those shared
+uses and the first production refresh. FCC availability, GitHub scheduling delays
+and arrivals beyond the daily budget remain external limits; the run summary and
+1 continuing problem issue expose them without claiming complete coverage.
+The owner named above carries implementation, live acceptance and documentation
+through completion within the approved 3-station scope.
 
 ## Progress
 
@@ -183,7 +212,7 @@ parents. Production needs the configured Supabase database connection, the 4
 `SUPABASE_STORAGE_S3_*` settings, and the Cloudflare mirror settings
 `CLOUDFLARE_R2_ENDPOINT`, `CLOUDFLARE_R2_BUCKET`,
 `CLOUDFLARE_R2_ACCESS_KEY_ID`, and `CLOUDFLARE_R2_SECRET_ACCESS_KEY`.
-The [manual FCC workflow](../../.github/workflows/fcc-political-files.yml) lists
+The [FCC workflow](../../.github/workflows/fcc-political-files.yml) lists
 its exact repository-secret names. Store values privately; never put passwords,
 connection strings or signed private download links in GitHub notes.
 
@@ -214,24 +243,100 @@ Earlier scan observations remain stored; one limited latest run is not a full
 archive audit. `pending_review` means a reading exists, not that a person approved
 its money figures.
 
-The manual [GitHub FCC workflow](https://github.com/alethical-org/alethical/actions/workflows/fcc-political-files.yml)
-defaults to `dry_run: true`, `max_files: 100`, and `extract_limit: 25`.
-It allows 1–500 attempted files and 1–100 readings per run, and mirrors up to 200
-bodies. Collection can report failure because it is limited or incomplete;
-subsequent backup, reading and status steps still run for retained evidence when
-collection was attempted and the run was not cancelled. Inspect each outcome.
-There is no FCC source-refresh schedule; the existing source-file backup schedule
-is separate. A future recurring source refresh needs its cadence and cost approved.
+## Ongoing collection and reporting
+
+The approved [GitHub FCC workflow](https://github.com/alethical-org/alethical/actions/workflows/fcc-political-files.yml)
+schedule is daily at 06:23 UTC. Scheduled runs write automatically; a manually
+started run defaults to `dry_run: true`. Release acceptance requires a production
+refresh using the scheduled limits, a saved schedule read-back, and checks of
+remaining source, reading and backup gaps. [Issue 2528](https://github.com/alethical-org/alethical/issues/2528)
+records initial and recurring acceptance separately; the initial figures below
+are not a recurring-run receipt.
+Manual runs may select 1–2,000 file attempts, 1–2,000 readings and 1–5,000 second
+copies; their defaults match the scheduled limits.
+
+Each `refresh` run follows every available political folder of KSTP-TV, KARE and
+KMSP-TV, across all years. The initial tree had 594 distinct listings; discovery
+is not limited to the current year, selected candidates or invoice classifications.
+It retains folder evidence, then attempts up to 1,000 new, changed or due file
+downloads with 3 workers. A file is due after 7 days without a source download,
+even when its listed name and date have not changed. Half the capacity is
+reserved for the oldest attempts and the rest favors new or changed records,
+with unused capacity shared. This is a rolling source comparison, not a promise
+that every file is re-downloaded within 7 days while a backlog exists.
+
+A recent unchanged file receives a metadata observation without reading its body
+again from private storage. That observation is not a fresh byte-integrity check.
+The separate daily [source-file backup workflow](../../.github/workflows/mirror-raw-files.yml)
+at 13:00 UTC checks stored copies and renews old fingerprint proofs within its
+own read budget. Source comparison and storage-integrity checks answer different
+questions and keep separate evidence.
+
+After collection, `refresh` attempts up to 2,500 outstanding second copies and
+reads up to 1,000 unread files with local PDF and OCR tools. Backup covers both
+files and listings. Retained work proceeds through backup and reading even when
+collection reports an operational failure. Remaining download, backup and unread
+backlogs stay visible and make the run unhealthy; a successful bounded batch does
+not establish that the archive has caught up. Unsupported or unreadable pages
+remain separate reading gaps, with their originals and prior evidence retained.
+Every incomplete current reading contributes to the summary and keeps the problem
+issue open, even after its first reading attempt. Local reader-process failures,
+invalid reader output and missing OCR tools also fail job health. These exact
+operational failures receive up to 3 automatic retries per body and reader version,
+after never-read files. Attempts remain in history; expense-linked readings are
+protected. Durable source and document limits are not retried automatically; an
+operator can inspect the source and use `extract --retry-failed` when justified.
+
+A listed file without a download link, or a final file download refusal with
+HTTP 401, 403, 404 or 410, is a source gap. It keeps source coverage incomplete,
+is retained in observations, and is retried on a future run. Folder failures,
+transient request errors, database errors and storage failures are operational
+failures, not routine source gaps. A healthy collection process can therefore
+still have incomplete source coverage. Neither status means the missing records
+represent zero spending.
+
+The workflow keeps its sanitized completion report for 14 days and publishes a
+summary of counts with a link to its run. A separate reporting job also records
+collector setup failures and timeouts when no completion report exists. It opens or
+updates 1 continuing GitHub problem issue for source gaps, operational failures
+or backlog, rather than adding daily comments. Incomplete readings keep the same
+issue open. It closes only when these gaps and failures are absent and the bounded
+work has caught up. An unchanged known FCC refusal must not hide a new folder or backup failure.
+Private document contents and credentials stay out of workflow summaries and
+issue text.
+
+The daily source budget is approximately the number of current folder listings
+plus at most 1,000 selected file attempts, with the client's bounded retries and
+public-download fallback. The initial compressed archive occupied 861,236,041
+bytes per complete copy. Repeated identical contents share stored bodies; new
+versions grow the archive. FCC reads and local text extraction use no paid AI.
+GitHub runner time, database access, private storage operations and transfers use
+existing account allowances; this is not a claim that hosting usage is unlimited
+or free at every volume.
+
+[GitHub scheduled events](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)
+can be delayed or dropped during heavy load. Treat 06:23 UTC as the requested time,
+not a guaranteed delivery time; inspect the last finished run when freshness matters.
+GitHub queues scheduled and manual FCC workflow runs together. An independently
+started local command is outside that queue: coordinate with an active collector
+before starting it. A manual dry run checks scope and limits without source,
+database or storage requests. To pause collection, disable the FCC workflow in
+GitHub Actions. Re-enable it and run a bounded refresh to resume from saved
+observations and outstanding work. Stopping the schedule does not delete source
+versions, page text or review history, and does not stop the separate backup job.
 
 ## Operator commands and limits
 
 The private command accepts `--target prod` explicitly. Its default, `dev`, only
 accepts a database on the operator's machine. No public API or screen is added.
-The manual GitHub workflow defaults to a dry run and has no recurring schedule.
+The manual GitHub trigger defaults to a dry run; scheduled refreshes write within
+the fixed 3-station scope and the bounds described above.
 No command calls an AI service. Local PDF text reading and image recognition use
 Python, Poppler and Tesseract; unreadable or unsupported formats remain archived.
 
 ```bash
+uv run python scripts/fcc_political_files.py refresh --target prod --dry-run
+uv run python scripts/fcc_political_files.py refresh --target prod --max-files 1000 --extract-limit 1000 --mirror-limit 2500 --workers 3 --summary /tmp/fcc-refresh-summary.json
 uv run python scripts/fcc_political_files.py collect --target prod --dry-run
 uv run python scripts/fcc_political_files.py collect --target prod --workers 3
 uv run python scripts/fcc_political_files.py mirror --target prod --limit 1000
@@ -242,8 +347,13 @@ uv run python scripts/fcc_political_files.py search 'Strategic Media' --target p
 uv run python scripts/fcc_political_files.py search --target prod --field order_number --value 510114
 ```
 
-`collect --max-files N` prioritizes records never attempted, then changed or due
-records, with older attempts first. A permanently failed file cannot trap every
+`refresh` runs discovery, bounded source downloads, backup, local text reading and
+health reporting together. Its scope is fixed to the 3 stations above. The
+`--summary` output contains run counts and health results, not private source text.
+The separate commands remain available for targeted recovery.
+
+`collect --max-files N` retains its manual behavior: it prioritizes records never
+attempted, then changed or due records, with older attempts first. A permanently failed file cannot trap every
 bounded run. Partial runs report `limited` or `incomplete`; only a full traversal
 with every listed file retained or checked reports `complete`. The observation
 ledger retains failed folder paths and source download reasons. The recorded
@@ -412,5 +522,6 @@ considering a production change.
   expense connection. The current tools retain reviewed connections but do not
   allocate amounts or calculate a reconciled spend total.
 - Additional stations, federal expense sources not already held, a comparison
-  with the reported collection of 41 local PDFs, complete human review of money fields, recurring
-  source collection and the public frontend remain outside this delivered run.
+  with the reported collection of 41 local PDFs, complete human review of money
+  fields and the public frontend remain outside this release. Ongoing collection
+  is authorized only for KSTP-TV, KARE and KMSP-TV.
