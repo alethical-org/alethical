@@ -769,7 +769,7 @@ describe('the record-coverage block', () => {
     }
   });
 
-  // Ruled by Eugene, 11 Sep 2026: the naming rule is said once on the card, under the
+  // Approved 11 Sep 2026: the naming rule is said once on the card, under the
   // itemized figure, so this sentence says only what the money is. The same words for
   // every filer kind; the parameter stays so callers do not change.
   it('says what non-itemized money is, in 1 sentence, for every filer kind', () => {
@@ -785,7 +785,7 @@ describe('the record-coverage block', () => {
 });
 
 describe('the sentence under the Itemized contributions figure', () => {
-  // Ruled by Eugene, 11 Sep 2026, word for word. This is the one place on the card that
+  // Approved 11 Sep 2026, word for word. This is the one place on the card that
   // states the naming rule, and it states it as rule 12 frames it: a test on a donor's
   // yearly total, and a floor on who a committee MUST name rather than a ban (#1755).
   const who =
@@ -866,7 +866,7 @@ describe('the 2 money cards’ fixed labels, shared by both surfaces', () => {
     }
   });
 
-  // Ruled by Eugene, 11 Sep 2026. Matched against the served kind exactly, so a row
+  // Approved 11 Sep 2026. Matched against the served kind exactly, so a row
   // typed `Miscellaneous Income` still draws: only the one kind is hidden.
   it('hides the Miscellaneous receipt row and keeps every other kind', () => {
     expect(HIDDEN_RECEIPT_KIND).toBe('Miscellaneous');

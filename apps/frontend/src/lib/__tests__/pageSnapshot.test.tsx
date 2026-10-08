@@ -1713,7 +1713,7 @@ describe('a committee’s record in the first response', () => {
     expect(text).not.toContain('Shares of the contributions this committee reported');
   });
 
-  // Ruled by Eugene, 11 Sep 2026: the money-out section is the filing's own figure
+  // Approved 11 Sep 2026: the money-out section is the filing's own figure
   // alone, so the first response carries the same and nothing of ours beside it.
   it('prints money out as the filing’s Expenditures figure and nothing else', () => {
     expect(text).toContain(`${MONEY_OUT_REPORTED_LABEL}: ${formatMoney(moneyOut.reported_total)}`);
@@ -1735,7 +1735,7 @@ describe('a committee’s record in the first response', () => {
 
   // Ruled 1 Sep 2026 (#1924): the payment count comes off both named figures, because
   // the list below the cards already prints it and one fact at 2 levels of a page is
-  // the repeat Eugene ruled out. Asserted on the prose lines rather than on the page
+  // the repetition excluded by the approved copy. Asserted on the prose lines rather than on the page
   // text, and that distinction is the point of the test: this fixture's category row
   // carries "3 payments" legitimately, the same number the money-out figure used to
   // repeat, so a page-wide search cannot tell the removal from the survivor.
@@ -1754,7 +1754,7 @@ describe('a committee’s record in the first response', () => {
 
   // A non-donation receipt row's count is that row's own fact, so it stays — except on
   // a `Miscellaneous` row, which is not drawn at all, and its heading goes with it
-  // (ruled by Eugene, 11 Sep 2026). The fixture carries no receipt rows of its own.
+  // (approved 11 Sep 2026). The fixture carries no receipt rows of its own.
   it('counts the payments on a non-donation receipt row, and hides a Miscellaneous one', () => {
     const withReceipts = (rows: { receipt_type: string; total: string; payments: number }[]) =>
       visibleText(
@@ -2251,7 +2251,7 @@ describe('a committee’s full payments list in the first response', () => {
   });
 
   // A registered filer opens its own committee page. An unregistered printed name
-  // opens the exact-spelling payments lookup, which Eugene ruled on 1 Sep 2026
+  // opens the exact-spelling payments lookup, under the 1 Sep 2026 matching rule
   // (#1331). The guard this test was written for still holds and is asserted
   // below: that destination is NOT a profile. It quotes the string it searched,
   // joins no 2 spellings, prints no total, and so cannot be read as a person.

@@ -4,7 +4,7 @@
 
 Net: Readers register through the existing Alethical account flow, then explicitly choose research emails delivered to their account address.
 
-Approved by Eugene on 25 September 2026: build after review of Alethical UX (9).zip. The v9 drawings own visual direction; v6 build facts supply the full behavior, with the corrections below. The Design update prompt was supplied while implementation proceeded. [Issue 2375](https://github.com/alethical-org/alethical/issues/2375) tracks delivery.
+Approved on 25 September 2026: build after review of Alethical UX (9).zip. The v9 drawings own visual direction; v6 build facts supply the full behavior, with the corrections below. The design record was updated alongside implementation. [Issue 2375](https://github.com/alethical-org/alethical/issues/2375) tracks delivery.
 
 The 30 September `/money` invitation build approval adopts `Alethical UX (41).zip` for that invitation only. Its concise wording and responsive invitation states replace the older invitation design. Sign-in, confirmation, preferences and sending behavior remain unchanged.
 
@@ -12,7 +12,8 @@ The 30 September `/money` invitation build approval adopts `Alethical UX (41).zi
 
 The dark invitation is the first item in Research at `/money`, above the article. Existing search, 6 record cards and public information stay available. Existing responsive bands switch at 768 and 1100 pixels. Invitation-to-article gaps are 28px on tablet/desktop and 24px on phone.
 
-Print these words verbatim. Copy improvements can be proposed separately with a reason; do not substitute them silently.
+The following interface wording is fixed. Proposed wording changes require
+separate review with a reason before replacing the approved text.
 
 - Invitation sentence: Get **Unconcealed** research reports by email as we discover them
 - Invitation button: **Sign up**

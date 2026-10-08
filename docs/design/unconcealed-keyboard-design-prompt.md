@@ -18,7 +18,7 @@ Include every distinct applicable state, but do not invent impossible combinatio
 Pointer behavior already decided
 Remove the keyboard-only purple outline triggered by a mouse click or touch on the email checkbox rows and email action buttons. Keep their approved hover, pressed and checked feedback. Keyboard navigation must retain a visible focus marker; the build keeps the current keyboard treatment until the new drawings are reviewed. Text-entry fields still show focus when clicked for typing.
 
-This is NOT a ban on purple outlines. Eugene explicitly keeps the drawn purple outline on the campaign-money contribution expand/collapse arrow, including its intended mouse behavior. Preserve that exception. Do not copy the arrow treatment onto email rows or call an outline “selected” merely because the row is open.
+This is NOT a ban on purple outlines. The approved design retains the drawn purple outline on the campaign-money contribution expand/collapse arrow, including its intended mouse behavior. Preserve that exception. Do not copy the arrow treatment onto email rows or call an outline “selected” merely because the row is open.
 
 Full remaining build list to reflect
 1. Sign-in helper, when entered from Unconcealed:

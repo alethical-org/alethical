@@ -2,8 +2,8 @@
 
 Native iOS and Android publishing is paused. Desktop and phone browsers are the
 supported clients. [Issue 91](https://github.com/alethical-org/alethical/issues/91)
-remains the future native-app work item; restarting native work requires Eugene's
-explicit approval. There is no promise to keep native builds working during the pause.
+remains the future native-app work item; restarting native work requires explicit
+project-owner approval. There is no promise to keep native builds working during the pause.
 
 ## What the pause removes
 

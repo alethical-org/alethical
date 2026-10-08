@@ -20,7 +20,7 @@ subtraction, where it reads as ordinary small-donor money under a real politicia
 
 **This never blocks a release.** It reports per committee-year, so one committee whose
 figures contradict each other withholds its own split while every other committee
-publishes normally. Eugene ruled on 12 Aug 2026 that where 2 of Minnesota's own
+publishes normally. The 12 Aug 2026 decision establishes that where 2 of Minnesota's own
 publications disagree and we cannot derive the truth, we show both figures and say
 plainly that they disagree.
 
@@ -232,7 +232,7 @@ def main() -> int:
         print("\n" + keeper.report.summary())
     # A committee-year whose figures disagree exits 0. That is a finding to display, not
     # a failure to stop a pipeline with, and exiting non-zero on it would invite exactly
-    # the release-wide refusal Eugene ruled against on 12 Aug 2026.
+    # the release-wide refusal excluded by the 12 Aug 2026 decision.
     #
     # A document we could not KEEP is the one thing here that does exit non-zero. The
     # verdicts are already written by this point, so nothing is lost by saying so, and

@@ -83,10 +83,10 @@ export interface PieceIndexEntry {
   traits: PieceTraits;
   /**
    * Whether search engines may list the piece. **Every published piece is
-   * visible from the day it posts (Eugene, 25 Aug 2026)**, so this is `true` on
+   * visible from the day it posts (25 Aug 2026)**, so this is `true` on
    * anything we publish and the field exists only to hold a piece back for a
-   * reason Eugene names. It governs the sitemap row, the indexing tag and the
-   * canonical link together, so all 3 follow from the one value.
+   * separately approved editorial reason. It governs the sitemap row, the indexing
+   * tag and the canonical link together, so all 3 follow from the one value.
    */
   indexed: boolean;
   title: string;

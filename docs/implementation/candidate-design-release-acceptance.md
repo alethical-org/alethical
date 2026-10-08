@@ -2,7 +2,7 @@
 
 ## Partial address suggestion match, October 8, 2026
 
-Authorized target: Eugene's screenshot `Screenshot 2026-10-08 at 4.05.57 AM.jpg`
+Authorized target: the supplied screenshot `Screenshot 2026-10-08 at 4.05.57 AM.jpg`
 and the live `/find-my-legislator` dropdown. [Issue 2526](https://github.com/alethical-org/alethical/issues/2526)
 owns the build and live release. Suggestions must appear while a street address is
 partially typed, without waiting for a full address or Search.
@@ -45,12 +45,12 @@ Status: coverage accepted by the parent implementation owner on October 1, 2026 
 
 ## Accepted inputs and scope
 
-- User authorization: “set. build through live deployment without stop”; public candidate search, public candidate profiles and homepage candidate-search copy. User explicitly approved the newer, higher arrow position.
+- Approved build scope through live deployment: public candidate search, public candidate profiles and homepage candidate-search copy, including the newer, higher arrow position.
 - Source: `/Users/eug/Downloads/Alethical UX (51).zip`, SHA-256 `f2feabf5f778d6852679930ddce7ad7d9253f2cba8e7e8c1fba373c20c715365`, extracted at `/tmp/candidate-design-review/package51`.
 - All 8 source files reviewed: `Candidates search.dc.html`, `Candidates profile.dc.html`, `Candidates claim.dc.html`, `Candidates manage.dc.html`, `build-facts-candidates.md`, `match-design-candidates.md`, `copy-proposals-candidates.md`, `review-prompt-candidates.md`.
 - Acceptance owner: `docs/design/design-principles.md`, “Build acceptance for controls”. Inventory must be independently accepted before affected implementation, then every required row needs actual behavior/visual evidence or an explicitly approved exception. Reused shared controls remain in scope for review. Final independent review starts from the handoff, not just this checklist or the code changes.
 - Claim/manage drawings are context only. `copy-proposals-candidates.md` excludes their redraw from this round. Public profile account controls, campaign statement, reporting and correct navigation to existing claim/manage screens ARE in scope. Do not introduce the old drawing's email-code or uploaded-record verification workflow. Preserve real staff-reviewed access and existing security boundaries.
-- Homepage copy is expressly authorized by the user even where the review prompt excludes homepage work. Do not silently expand that into a homepage interaction redesign.
+- Homepage copy is expressly approved even where the review prompt excludes homepage work. Do not silently expand that into a homepage interaction redesign.
 - Actual production address disclosure must name Minnesota government services, including the Minnesota Secretary of State and Minnesota mapping services as applicable. Census language in illustrative drawings is not permission to misstate production processing. Preserve source-injected truthful disclosure.
 - Current source capability controls production states: do not invent a primary election, official seat counts, missing named offices, portraits, service history, individual members of a joint ticket or legislator identity matches. Use controlled fixtures for conditional drawing acceptance, and mark fixture-only evidence.
 - No new paid services, unrelated navigation rewrite, sitewide arrow replacement or claim/manage redraw is authorized by this inventory.
@@ -65,7 +65,7 @@ Source abbreviations: S = `Candidates search.dc.html`; P = `Candidates profile.d
 | G02 | Libre Franklin, equal-width digits for numbers per saved product rule. White cards; page `#fbfcfd`; ink `#11150f`; secondary `#4f5651`; green action `#2ed47e` / `#06231a`; neutral party `#f1f1f4` / `#4f5651`; amber `#fdf6e7` / `#efd9a8` / `#8f5a12`; error `#a3421a`. | Measure actual rendered fonts, sizes, colors; review marks, amber copy-review underlines and state switches never ship. |
 | G03 | Every button/link target at least 44px. Keyboard-only control focus 2px purple `#7c5cff`, offset 2; text fields retain typing focus on pointer/touch. Focus rings fully visible. | Tab, click and touch separately; no mouse-created keyboard outline on ordinary buttons/links, no removed field focus. |
 | G04 | Hover follows each named control's approved treatment, only when hover is available. Press feedback distinct; disabled/busy controls cannot advertise another action. Busy button width, height, location remain steady; reserve predictable feedback and allow errors to grow. | Actual hover/pressed/busy measurements for all controls listed below; slow and immediate completion. |
-| G05 | Preserve shared sitewide geometry: forward arrow19px, established `M3.5…` path and stroke1.8; back18px chevron with9px gap. Apply only the approved newer higher candidate inline-arrow position from eug-17. Word hover is `#11832b` and underline on words only; arrow and last word stay together. | Parent resolved the source reconciliation: Design recommends eug-17 alignment with shared geometry. User “yes newer arrow position” approves height, not new path/stroke or mirrored back arrow. Existing diagonal external candidate arrow needs the shared forward treatment. |
+| G05 | Preserve shared sitewide geometry: forward arrow19px, established `M3.5…` path and stroke1.8; back18px chevron with9px gap. Apply only the approved newer higher candidate inline-arrow position from eug-17. Word hover is `#11832b` and underline on words only; arrow and last word stay together. | The reconciled target uses eug-17 alignment with shared geometry. Approval covers the higher position, not a new path/stroke or mirrored back arrow. Existing diagonal external candidate arrow needs the shared forward treatment. |
 | G06 | External links open real official destinations in a new tab and announce this accessibly. Internal links use same-tab app navigation. Never invent URLs from labels. | Inspect actual destinations and return paths, not merely clickability. |
 | G07 | Reused header: desktop full navigation; tablet/phone drawer and green Sign in; menu hit target 44 with 38 visible square. Footer includes Contact us at every width alongside Privacy Policy and Terms. Phone copyright differs as drawn. | Browser open/close menu, focus return, header/footer routes, hover, touch. Reuse does not waive checks. |
 | G08 | Interface punctuation: prefer a clean single sentence/line without ending period. Messages with multiple sentences end every sentence with a period. Count sentences, not wrap lines; preserve source quotations. | Sweep rendered strings across ready, error, loading, report and account states. Exact build corrections recorded in design update notes. |
@@ -77,7 +77,7 @@ Source abbreviations: S = `Candidates search.dc.html`; P = `Candidates profile.d
 | S01 | Visitor, direct/menu `/candidates` | Empty form, no account requirement. Heading “Find my candidates” and button “Find”. Support “See who’s running where you live in Minnesota”. S/BF. | Existing heading/button capitalization and support differ. Compare text and order at 3 widths. |
 | S02 | Visitor, homepage search block | Exact approved support: “Explore the candidates in your Minnesota races, with links to official records”. Keep heading “Who’s running where you live?” and existing homepage behavior. Preserve truthful injected privacy disclosure. | Replace the old “Enter your Minnesota street address to see who is running for office in your area” support. Parent has reconciled the exact homepage copy. |
 | S03 | Visitor, homepage handoff | Typed address carried in temporary memory, `/candidates` address bar stays clean. Drawn arrival has populated field and finding feedback. Direct visits remain empty. | Existing homepage waits for search before navigating; scope is homepage copy, so report any timing difference explicitly rather than silently broadening. Verify actual route handoff and no address in URL. |
-| S04 | Visitor, entry layout | Desktop max1168, remaining-width form +300 outline, gap64; tablet200 outline/gap40; phone160×176 decorative outline centered below the address notes with40px above, superseding the beside-title outline under the user's October2 isolated mobile change. H1 48/42/32; lead19/18/16.5; page top padding64/48/32, superseding S's36/32/24 under the user's October1 live-review correction. The same outer padding applies to results. Input/button top-aligned; desktop button248, tablet220, phone full width, height60. S plus explicit user correction. | Existing entry cap1080/form700/gap80 and map placement differ. Decorative outline excluded from accessibility tree. |
+| S04 | Visitor, entry layout | Desktop max1168, remaining-width form +300 outline, gap64; tablet200 outline/gap40; phone160×176 decorative outline centered below the address notes with40px above, superseding the beside-title outline under the approved October2 isolated mobile change. H1 48/42/32; lead19/18/16.5; page top padding64/48/32, superseding S's36/32/24 under the approved October1 live-review correction. The same outer padding applies to results. Input/button top-aligned; desktop button248, tablet220, phone full width, height60. S plus the approved corrections. | Existing entry cap1080/form700/gap80 and map placement differ. Decorative outline excluded from accessibility tree. |
 | S05 | Visitor, street field typing/paste | Label “Full street address”; placeholder “350 S 5th St, Minneapolis, MN 55415”. 60px minimum, radius14, font17. Grow for wrapped text without an internal scrollbar or clipping. Pasted line breaks become spaces; Enter picks/submits, no inserted newline. | Auto-growing textarea exists but paste normalization/IME guard need attention; compact height currently52. Check long address and composed text. |
 | S06 | Visitor, submit ready/busy | Search icon changes to spinner with “Finding candidates…” inside the same button. A hidden polite live region announces once; no visible repeated busy line. Entry248/220/full width×60; Change address full width×52. Field remains editable, repeated pointer/Enter submission guarded, activated button keeps focus with aria-disabled and progress cursor. 22px minimum error space at12px below (10px for compact). | Current stretch alignment can change button height with textarea. Measure ready/busy/error. |
 | S07 | Visitor, helper/disclosure | Hairline36px after feedback,20px before helper; 14px/21px gray lines with6px gaps. City/ZIP limitation, actual-service privacy disclosure, and actual-service attribution only. Field described-by includes help. | Existing helper position/sizes differ. Census fallback cannot replace production Minnesota-service wording. |
@@ -195,7 +195,7 @@ Account state coverage: public, approved owner, pending, loading, failure. Campa
 5. Minimum realistic journeys: homepage→search→suggestion→results→profile→legislator→back; direct empty→ambiguous→choice; editing address failure with old results; election rapid changes/failure/retry; closed group jump/find/print; direct profile→Find my candidates; account role entrances; campaign/report all feedback outcomes.
 6. Browser tests must inspect every whole authorized screen including reused header/footer and every hover state. Test long text, large text, phone keyboard, focus return, slow and instant responses. Check parent coordinates independent final review from drawings and live release evidence.
 7. Safe tests use controlled service responses for report submissions and source-dependent states. Actual production read-only navigation/data/portrait links can be inspected without writes. Do not send emails or create production claims/reports solely to prove appearance.
-8. Carry exact settled copy/source corrections and user-approved arrow precedence into saved implementation/design-update notes. A returned drawing is not a dependency for objective settled corrections.
+8. Carry exact settled copy/source corrections and approved arrow precedence into saved implementation/design-update notes. A returned drawing is not a dependency for objective settled corrections.
 
 ## Reconciled implementation decisions
 
@@ -303,7 +303,7 @@ address search followed by opening Judges shows both corrected Supreme Court sea
 
 ## Isolated phone outline update, October 2, 2026
 
-User authorization: “bd mobile isolated change”. Latest completed download:
+Approved scope: the isolated mobile outline change. Latest completed download:
 `Alethical UX (52).zip`, downloaded October 2 at 08:13, SHA-256
 `8e7c8f1639775dff5751f8a8b7b5f8576ac883d3f36906bf84c55d83282996d1`.
 The isolated `review-prompt.md` and the updated entry drawing agree: below768px,
@@ -341,7 +341,7 @@ The mobile change's scope and larger-screen appearance remain unchanged.
 
 ## Isolated address search busy buttons, October 2, 2026
 
-User authorization: “bd for the candidate search button update see it?” Accepted
+Approved scope: the candidate search button update. Accepted
 `Alethical UX (55).zip`, downloaded October2 at14:02:40, SHA-256
 `ea9f1bb90e3fbbd0d7ab1f1d5e448eb0b269f665a37b21b817a519719a682c50`.
 The isolated `review-prompt-busy-button.md`, `build-facts-busy-button.md` and

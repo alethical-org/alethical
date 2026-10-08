@@ -1,7 +1,7 @@
 # Money speed work, 7 September 2026
 
 This is a dated execution checkpoint, not a claim that the remaining work is live.
-Eugene authorizes non-design fixes through release. Any change to wording, layout,
+The approved scope includes non-design fixes through release. Any change to wording, layout,
 loading presentation, or control interaction needs separate approval before it is built.
 
 ## Order and ownership

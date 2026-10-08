@@ -6,8 +6,8 @@
      `apps/frontend/src/lib/researchPieces/whyTwoOfficialNumbersCanBothBeRight.ts`, and
      `apps/frontend/src/lib/__tests__/research.test.ts` compares the 2 word for word,
      so an edit here without the matching edit there fails the build, and so does the
-     reverse. The words are settled: rule 13's publishing order lets the Alethical team
-     direct a change (point 2a) and forbids us editing them on our own initiative.
+     reverse. The words are settled: rule 13's publishing order requires explicit editorial
+     approval for a change (point 2a) and forbids autonomous edits.
 
      WHAT IT IS. The third piece written in the set "How the Money Works", following
      `docs/published-writing/who-has-to-report-their-money.md` and
@@ -16,8 +16,7 @@
      right", which is also the subject piece 2's closing paragraph hands off to. A
      **Guide** teaches one piece of how the system works and draws no conclusions.
 
-     NO READER-FACING LINE NUMBERS THIS PIECE OR COUNTS THE SET, per Eugene's ruling
-     of 27 Aug 2026 (`docs/architecture/published-writing-decisions.md` §2.12). The
+     NO READER-FACING LINE NUMBERS THIS PIECE OR COUNTS THE SET, under the 27 Aug 2026 editorial decision (`docs/architecture/published-writing-decisions.md` §2.12). The
      position line names the set and stops, and the closing paragraph names the next
      piece's subject and neither its title nor a link (§2.3).
 
@@ -119,15 +118,15 @@
      the version now served: the form line "Contributions from donors who each gave
      $200 or less" and the instruction "Do not list the donors separately". Piece 2's
      other 3 handbook dates still match. Rule 13's publishing order forbids editing a
-     posted piece's words on our own initiative and puts the correction with Eugene
+     posted piece's words on our own initiative and requires separate editorial approval
      (points 2, 2a and 7a), so nothing here changes piece 2. The general lesson for
      this set: the Board serves each handbook at 1 permanent address and swaps the
      file underneath it, so a handbook quote is only as good as the revision date
      printed beside it, and the statute is the safer home for anything load-bearing.
 
-     THE FORWARD LINKS ARE PAID, IN BOTH DIRECTIONS. Piece 2's closing paragraph used
-     to end "This paragraph gains a link to it the day that piece posts"; this piece
-     posted, so that link went in and the sentence explaining its absence came out with
+     THE FORWARD LINKS ARE PAID, IN BOTH DIRECTIONS. Piece 2's closing paragraph
+     previously promised a link upon this piece's publication. Publication made that
+     link available, so it went in and the sentence explaining its absence came out with
      it, because it becomes false the moment the link exists. This piece's own closing
      paragraph did the same for piece 4 on the same day. Neither is an edit on our own
      initiative, which rule 13 point 2 forbids: each piece's own text instructed it, and

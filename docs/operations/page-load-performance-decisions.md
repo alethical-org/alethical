@@ -513,9 +513,9 @@ that no word may change.
 
 That measurement originally closed
 [issue 2070](https://github.com/alethical-org/alethical/issues/2070), which was filed
-against the 39,747-byte reading and asked for a ratchet cut. Doing exactly what it asked —
-leaving no first-load file importing that module — was built and measured on 8 Sep 2026 and
-made the first load 1,013 bytes **bigger**, because the module left `index-*.js` for the
+against the 39,747-byte reading with a goal of reducing the download limit.
+Removing every first-load import of that module was built and measured on 8 Sep 2026
+and made the first load 1,013 bytes **bigger**, because the module left `index-*.js` for the
 dearer `__common-*.js` and 7 screens still read it.
 
 The ordered campaign-money speed work reopened
@@ -1400,9 +1400,8 @@ minutes. Words were the wrong instrument.
 
 - **Every build enforces its actual measured bytes; only hosted production establishes
   production headroom.** The earlier fixed `+542` adjustment was retired by
-  [pull request 2209](https://github.com/alethical-org/alethical/pull/2209), following
-  Eugene's instruction to use hosted measurements without a fixed local-to-host
-  adjustment. Hosted source `112c698538f11fa15ccae1d70026c45a1a5019e6` measured
+  [pull request 2209](https://github.com/alethical-org/alethical/pull/2209), to use
+  hosted measurements without a fixed local-to-host adjustment. Hosted source `112c698538f11fa15ccae1d70026c45a1a5019e6` measured
   338,820 bytes with production settings; the same app code in the pull-request
   preview measured 338,978. Adding 542 falsely described the preview as 339,520
   and refused it against the unchanged 339,072 limit. The difference changes with

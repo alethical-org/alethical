@@ -70,8 +70,8 @@ import { theme as t } from '../../theme/tokens';
  * content instead.
  *
  * Rule 13 constraints this layout owns:
- * - A research piece's masthead carries the 2 dates and nothing else (Eugene,
- *   20 Aug 2026). The author line, the filing bodies, and the undated-records
+ * - A research piece's masthead carries the 2 dates and nothing else (20 Aug 2026).
+ *   The author line, the filing bodies, and the undated-records
  *   note were removed from it; the sources block still names every filing body
  *   and the years each set of outside records covers.
  * - Links run one way. The piece may link outward to record pages and official
@@ -80,7 +80,7 @@ import { theme as t } from '../../theme/tokens';
  *   researchPageMetadata); the Share control's prepared text says the same.
  * - A correction replaces the wrong figure in the piece's own text; the dated
  *   correction banner, when the piece carries one, is the only trace, and a
- *   wrong number is never left readable (rule 13, Eugene 25 Aug 2026).
+ *   wrong number is never left readable (rule 13, 25 Aug 2026).
  */
 
 const isWeb = Platform.OS === 'web';

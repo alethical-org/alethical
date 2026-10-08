@@ -55,7 +55,7 @@ changing the Mac. Only browser development is supported while native releases ar
 
 ## Monday repair review
 
-The user authorized the Codex schedule **Alethical Monday security repairs** on
+The Codex schedule **Alethical Monday security repairs** was approved on
 7 October 2026. It returns to the owning chat every Monday at 09:00 America/New_York
 and checks Dependabot, malware alerts, code-scanning findings, secret-scanning
 metadata, security workflow failures, package audits and runtime support deadlines.

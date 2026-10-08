@@ -446,11 +446,11 @@ describe('social-derived Short post publication gate', () => {
     const piece = readyPiece();
     piece.title = 'A revised title';
     expect(shortPostPublicationErrors(piece)).toContain(
-      'article or graphic inputs changed after Eugene review',
+      'article or graphic inputs changed after maintainer review',
     );
   });
 
-  it('requires an article-specific publication instruction after Eugene saw the complete piece', () => {
+  it('requires an article-specific publication instruction after the maintainer saw the complete piece', () => {
     const piece = readyPiece();
     piece.shortPost!.review.publicationInstructionAt = '';
     expect(shortPostPublicationErrors(piece)).toContain(
@@ -468,7 +468,7 @@ describe('social-derived Short post publication gate', () => {
       { kind: 'our-correction', datedOn: '2026-09-26', explanation: 'Corrected the title.' },
     ];
     expect(shortPostPublicationErrors(piece)).toContain(
-      'article or graphic inputs changed after Eugene review',
+      'article or graphic inputs changed after maintainer review',
     );
     piece.shortPost!.review.revision = {
       editorialApprovedBy: 'Editor',
@@ -481,7 +481,7 @@ describe('social-derived Short post publication gate', () => {
     expect(piece.publishedAt).toBe(originalTime);
     piece.dek = 'Changed again without review.';
     expect(shortPostPublicationErrors(piece)).toContain(
-      'revised article or graphic needs Eugene review of its current contents',
+      'revised article or graphic needs maintainer review of its current contents',
     );
   });
 

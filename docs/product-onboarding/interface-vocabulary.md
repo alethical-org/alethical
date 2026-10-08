@@ -7,23 +7,20 @@ code identifiers, and in reader-facing copy. This file is the list. It exists be
 was called 3 things in an hour and nobody could tell whether 2 people were discussing the same
 object.
 
-Started 27 Aug 2026, after Eugene pointed out that a session was saying "top bar" while he was
-saying "nav".
+Established on 27 Aug 2026 to align spoken, written and code names for interface elements.
 
 ## How a word gets settled
 
-1. **Eugene's word wins** where he has one. He is the reader's proxy and he says the word out loud
-   more often than anyone.
-2. **Where neither of us has one, the plain guessable word wins**, per
-   [`.claude/rules/workflow.md`](../../.claude/rules/workflow.md) rule 7: literal, in plain words, no
-   metaphors, no coined terms, no shorthand that only makes sense to whoever was in the conversation.
-   Industry jargon fails that test even when it is precise.
-3. **The reader-facing word and the code's own name are the same word.** Eugene's standing rule, and
-   the reason the earlier rename turned "report" into "research" in the code rather than only on
-   screen.
-4. **A word here binds Design too.** When a bundle introduces a different one, prompt it back into
-   sync and say which rule the new word breaks, while genuinely inviting its case that our rule is
-   wrong.
+1. **Use approved interface terms consistently.** The vocabulary records the
+   product’s reader-facing names.
+2. **Use plain, guessable words where a term is not yet settled**, per
+   [`.claude/rules/workflow.md`](../../.claude/rules/workflow.md) rule 7: literal
+   names without metaphors, coined terms or conversation-dependent shorthand.
+   Precise industry jargon still fails when a newcomer cannot understand it.
+3. **Use the same word in the interface and code.** The earlier rename changed
+   “report” to “research” internally as well as on screen.
+4. **Apply the vocabulary to Design handoffs too.** Resolve differing names against
+   the naming requirements, while allowing a separate proposal to improve them.
 
 ## The list
 

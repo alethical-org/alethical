@@ -44,7 +44,7 @@ credibility first.
   text adds an interpretation, source, limitation or other necessary context. Preserve
   distinct periods, units and qualifications where needed to avoid ambiguity. Keep the
   information available as text and usable with a screen reader without announcing the
-  same chart data twice. Eugene approved this rule on 26 September 2026; wording guidance
+  same chart data twice. This rule was approved on 26 September 2026; wording guidance
   is in [ui-copy-guide.md](ui-copy-guide.md#avoid-redundant-nearby-text).
 - **Neutral by construction.** Layout, color, and emphasis describe records; they never editorialize.
   We don't use visual weight to imply a position (see `grounded-answers.md` rule 3, grounded
@@ -191,7 +191,7 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   issue label without relying on color alone. On phones, its 44px target comes from a minimum height,
   not inflated vertical padding. The shared implementation is `VoteCountLinkChip`; the action
   timeline's per-action "View votes →" text link is a different element and stays unchanged.
-- **Every green trailing destination-link arrow uses the Board-refund treatment (Eugene, 17 Sep 2026).** The
+- **Every green trailing destination-link arrow uses the Board-refund treatment (17 Sep 2026).** The
   approved example is “The Board’s refund summaries” on the legislator money page. Draw the arrow
   with [`LinkArrow.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/LinkArrow.tsx):
   a 19×19 box, `#0f7a45` stroke, 1.8px line, rounded ends and joins, and the shared path in that
@@ -209,7 +209,7 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
 - **Candidate search and profile links keep their approved higher inline position.**
   The candidate surfaces use the shared 19px geometry and 6px gap with
   `LinkArrow`'s `candidate-inline` placement (`vertical-align: -0.26em`). This is
-  the scope of Eugene's approved newer arrow position. Other surfaces keep the
+  the scope of the approved newer arrow position. Other surfaces keep the
   standard centered treatment. Return links retain the 18px chevron and 9px gap.
 - **A link's underline covers every word and the spaces between them, including the final word
   beside its arrow.** Keep each link's accepted always-visible or hover/focus-only underline
@@ -222,7 +222,7 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   links in the working browser at rest, on pointer hover, and with keyboard focus. Check that the
   underline is continuous through spaces and that the arrow stays bare; never copy a partial
   underline from a Design drawing.
-- **Add pointer hover only where the live control lacks it (Eugene, 25 Sep 2026).** Preserve an
+- **Add pointer hover only where the live control lacks it (25 Sep 2026).** Preserve an
   existing hover even when it differs from this table. Use these treatments only for a mouse or
   trackpad on computer and tablet widths, never for a touch tap, and keep busy or disabled
   controls from suggesting an available action. Keyboard focus keeps its independent purple
@@ -251,7 +251,7 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
 - **The rule standardizes arrows that already exist; it does not add them.** A green link whose
   accepted surface has no trailing arrow keeps no arrow. Back arrows, disclosure chevrons, and
   arrows used as data or diagrams are outside this rule.
-- **On-screen actions keep their own appearance (Eugene, 17 Sep 2026).** This treatment applies
+- **On-screen actions keep their own appearance (17 Sep 2026).** This treatment applies
   to links that open another internal or external page, not controls that act on the current
   screen. Preserve an action's accepted arrow presence or absence, drawing, size, spacing,
   and alignment. On light surfaces, ordinary action labels use near-black `#11150f`
@@ -662,7 +662,7 @@ values and structure. Directly labelled comparison bars omit an isolated zero
 and its horizontal axis line while retaining a true shared zero and equal scale.
 Keep meaningful data, boundaries and qualifications. The full drafting rule is in
 [ui-copy-guide.md](ui-copy-guide.md#remove-implied-information-from-text-and-visuals).
-Approved by Eugene on 26 September 2026.
+Approved on 26 September 2026.
 
 ### Post chart readability and conclusions
 
@@ -670,7 +670,7 @@ Approved by Eugene on 26 September 2026.
   its normal padding. Do not extend lines through empty space to the article's
   right edge. This applies to tables in Research, Guides and Short posts,
   including chart tables, in private previews and published articles. Approved
-  by Eugene on 8 October 2026. The last total row has no closing line
+  on 8 October 2026. The last total row has no closing line
   underneath. Leave a clear gap before explanatory text following a table or
   chart, using the post's existing paragraph spacing. Keep every value and label
   unchanged when adjusting this space.
@@ -690,8 +690,8 @@ Approved by Eugene on 26 September 2026.
   Do not depend on a chart wrapper to supply branding.
 - Conclusion rows use the full available article or chart content width, with
   the logo on the left and the text filling the remaining row. Do not apply a
-  separate narrow maximum to the row or its text. Eugene approved this on
-  8 October 2026; it replaces the earlier 880px whole-conclusion maximum.
+  separate narrow maximum to the row or its text. The 8 October 2026 approval
+  replaces the earlier 880px whole-conclusion maximum.
 - A post's supported answer should be visually distinct from its evidence limits.
   In the approved conclusion treatment, put the symbol on the left and bold
   the answer, with “Conclusion:” only when the optional label helps readers
@@ -701,7 +701,7 @@ Approved by Eugene on 26 September 2026.
   supporting qualifications start on the next line in regular text and fill the
   available text width beside the symbol, with no extra blank-line gap. Let a long
   bold answer wrap naturally on narrow screens; the supporting text starts after
-  the entire answer. Eugene approved this line separation on 8 October 2026.
+  the entire answer. This line separation was approved on 8 October 2026.
   Do not repeat the answer elsewhere in the chart.
 - Center the symbol against the first 2 text lines, not against the top edge or
   the entire paragraph including any later wrapped explanation. Derive the offset
@@ -715,7 +715,7 @@ Approved by Eugene on 26 September 2026.
 
 The wording and caveat rules live in
 [ui-copy-guide.md](ui-copy-guide.md#make-the-answer-easy-to-find).
-Approved from Eugene's first-post refinements on 26 September 2026; preserve each
+Approved for post refinements on 26 September 2026; preserve each
 surface's other approved visual choices.
 
 ### Article text limits and table columns
@@ -744,11 +744,11 @@ they do not continue across the empty spacer. Preserve the last real value’s
 padding and real header scope. Confine
 necessary horizontal scrolling to the table at every screen width, with keyboard
 access and the existing purple 2px keyboard-focus outline. Keep all other article
-styling and text unchanged. Approved by Eugene on 30 September 2026, with row-line
+styling and text unchanged. Approved on 30 September 2026, with row-line
 length and conclusion width revised on 8 October 2026. Check the header and every body-row divider on
 phone, tablet and desktop, including wrapped labels and wide numbers; shortening
-the lines must not clip, wrap or shrink a number. This records the design change;
-Eugene authorized implementation and live release on 8 October 2026.
+the lines must not clip, wrap or shrink a number. This records the design change.
+Implementation and live release were authorized on 8 October 2026.
 [published-writing-decisions.md §Article widths](../architecture/published-writing-decisions.md#article-widths-30-september-2026)
 owns the scope and [issue 2448](https://github.com/alethical-org/alethical/issues/2448)
 records the 30 September release.

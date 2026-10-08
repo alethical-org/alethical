@@ -117,7 +117,7 @@ export interface ShortPostEditorial {
   review: {
     editorialApprovedBy: string;
     editorialApprovedAt: string;
-    /** Fingerprint of the complete piece, checks, and graphic inputs Eugene saw. */
+    /** Fingerprint of the complete piece, checks, and graphic inputs covered by final review. */
     eugeneApprovedFingerprint: string;
     eugeneReviewedAt: string;
     /** Each article needs its own explicit instruction, after the complete review. */
@@ -441,7 +441,7 @@ export function shortPostOriginalContentFingerprint(piece: ResearchPiece): strin
   });
 }
 
-/** Eugene approved these exact existing-word links and related picks on 27 September 2026. */
+/** These exact existing-word links and related picks were approved on 27 September 2026. */
 const APPROVED_LINK_ONLY_REVISIONS: Record<
   string,
   {
@@ -862,7 +862,7 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
     !validInstant(review.eugeneReviewedAt) ||
     Date.parse(review.eugeneReviewedAt) < Date.parse(review.editorialApprovedAt)
   ) {
-    errors.push('Eugene review after editorial approval is missing');
+    errors.push('maintainer review after editorial approval is missing');
   }
   if (
     !validInstant(review.publicationInstructionAt) ||
@@ -918,7 +918,7 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
       Date.parse(revision.eugeneReviewedAt) < Date.parse(revision.editorialApprovedAt) ||
       revision.eugeneApprovedFingerprint !== currentFingerprint
     ) {
-      errors.push('revised article or graphic needs Eugene review of its current contents');
+      errors.push('revised article or graphic needs maintainer review of its current contents');
     }
     if (
       !validInstant(revision.releaseInstructionAt) ||
@@ -927,7 +927,7 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
       errors.push('revised article needs its own release instruction');
     }
   } else if (review.eugeneApprovedFingerprint !== currentFingerprint) {
-    errors.push('article or graphic inputs changed after Eugene review');
+    errors.push('article or graphic inputs changed after maintainer review');
   }
   return errors;
 }

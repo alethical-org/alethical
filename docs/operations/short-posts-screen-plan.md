@@ -1,6 +1,6 @@
 # Short posts screen delivery plan
 
-[Issue 2396](https://github.com/alethical-org/alethical/issues/2396) owns the approved screen build. Eugene said “yes and when do we test the first post?” on 26 September 2026 after review of Alethical UX (13).zip. This authorizes screen implementation through live release, with a private first-post trial. Each real article still requires separate publication instruction. Comments and nondeveloper submission remain out of scope.
+[Issue 2396](https://github.com/alethical-org/alethical/issues/2396) owns the approved screen build. Approval followed review of Alethical UX (13).zip on 26 September 2026 and covers screen implementation through live release, with a private first-post trial. Each real article still requires separate publication instruction. Comments and nondeveloper submission remain out of scope.
 
 ## Work and checks
 
@@ -17,9 +17,9 @@ The source of product decisions is [published-writing-decisions.md §7](../archi
 
 ### Article research direction, approved 26 September 2026
 
-Eugene requested investigation of the original lobbyist-giving topic, preserving
+The approved research scope is the original lobbyist-giving topic, preserving
 the graphic's subject rather than substituting the private duplicate-entry example.
-The earlier instruction not to investigate further is superseded for this research.
+The earlier research hold is lifted for this investigation.
 Recompute supportable figures for the original 2015–2026 scope: registered lobbyist
 giving and donor count, the amount and share received by the 4 caucus committees,
 and Ward Einess's and Joel Carlson's amounts, contribution counts, unique recipient
@@ -27,7 +27,8 @@ candidate committees and party breakdowns. Preserve the distinction between the
 original extraction date and any newer source copy. Explain gaps or required scope
 changes instead of silently shortening coverage or changing the topic.
 
-Eugene authorized the separate task on 26 September 2026. The created task is
+A separate research task was approved on 26 September 2026:
+
 `01a0de4e-e38d-7020-9514-65fc0884d328`, with the current host title
 “Investigate lobbyist giving for the…”, in `/Users/eug/.codex/worktrees/7082/Alethical`.
 Its setup-only turn finished, but the parent's task listing omitted it; the parent
@@ -57,7 +58,7 @@ Research approval does not publish an article or lift the held visual changes.
    space. Check the result on phone, tablet and desktop, including the existing
    private preview at `http://127.0.0.1:8766/`. Standalone PDF reports keep the full
    symbol and wordmark; the shared website header is outside this change.
-   Eugene authorized implementation on 26 September 2026. The private preview now
+   Implementation was approved on 26 September 2026. The private preview now
    uses the approved twin-peak vector from the website header, without the wordmark.
 2. **Remove repeated text beneath charts when the chart already says it clearly.**
    In the private comparison chart, retain the 2 labels and values beside their bars
@@ -65,7 +66,7 @@ Research approval does not publish an article or lift the held visual changes.
    Retain any useful explanation or qualification not already conveyed, along with
    evidence and limitations. Apply the same check to the other Short post chart types;
    keep their information available as text and avoid duplicate screen-reader output.
-   This follows Eugene's 26 September 2026 clarification in
+   This follows the 26 September 2026 wording decision in
    [ui-copy-guide.md](../design/ui-copy-guide.md#avoid-redundant-nearby-text).
    Implemented in the shared Short post chart component and private preview.
 
@@ -75,7 +76,7 @@ Research approval does not publish an article or lift the held visual changes.
    their accessible labels. Keep the supported records-through date. The disabled
    sharing control uses its normal “Share” label. The yellow top banner contains
    only the bold text “PRIVATE DRAFT”, with no other sentences or explanations,
-   following Eugene's further clarification on 26 September 2026. Sharing remains
+   under the 26 September 2026 decision. Sharing remains
    disabled and privacy/indexing safeguards remain intact. Implemented at
    `http://127.0.0.1:8766/`.
 
@@ -87,12 +88,12 @@ The branding rule is in
    once where needed; distinguish dates without repeating the complete set. Keep
    evidence, reproducibility, required disclosures and qualifications.
 
-Eugene selected “2 records do not always mean 2 donations” as the intended first
-Short post on 26 September 2026, subject to his final review. This supersedes the
+Alethical selected “2 records do not always mean 2 donations” as the intended first
+Short post on 26 September 2026, subject to final human review. This supersedes the
 earlier trial-only status for this article; it does not replace either separate
 original-graphic investigation. The shorter article is rendered at the same private
 address, with no publication date or public registry entry. Publication remains
-held until his final review and instruction. Original private inputs are retained
+held until final human review and article-specific publication approval. Original private inputs are retained
 in the private artifact directory's `revisions/before-copy-simplification-2026-09-26`.
 
 The website template and saved rules are prepared locally with the private draft;
@@ -115,7 +116,7 @@ No real Short post is in the public registry. The private draft uses the actual 
 
 ### Organizations giving to both parties: private investigation (26 Sep 2026)
 
-Eugene requested a separate task for the second graphic with Claude consultation.
+The approved second-graphic investigation uses a separate task with Claude consultation.
 Task `Verify post: organizations funding both…`
 (`01a0de5c-f93f-7d62-a33c-50f4361a5c4a`) is active in
 `/Users/eug/.codex/worktrees/de2e/Alethical`, started at `gpt-6-astra`
@@ -127,9 +128,9 @@ evidence ledger, reproducible calculations and checked chart inputs. This task
 production writes, new Design requests and shared visual changes remain on hold.
 The source is `/Users/eug/Downloads/785060511_122125256925275386_1656974990463420094_n.jpg`.
 
-Eugene approved `verify post` and `vp` as equivalent shortcuts for post verification
-and drafting. Their shared definition is saved in the personal instructions, with
-peer review and private drafting included and separate publication approval preserved.
+`verify post` and `vp` are equivalent shortcuts for post verification
+and drafting, approved on 26 September 2026. Their shared definition includes
+peer review and private drafting; publication requires separate approval.
 
 ### Private copy-update acceptance, 26 September 2026
 
@@ -147,9 +148,9 @@ Final article review and publication are the next checkpoint.
 ### Shared comments integration copy, received 26 September 2026
 
 The owning task “blog comments” (`01a0d4e4-f4d1-7b03-95d7-853fcaa37b48`)
-reported Eugene's approved shared-comments corrections. Carry these into the next
-authorized Short post comments integration; this message does not authorize a
-new build or Design request, and the private first-post review remains unchanged.
+owns the approved shared-comments corrections for the next
+authorized Short post comments integration. This scope excludes a
+new build or Design request; the private first-post review remains unchanged.
 
 Standalone 1-sentence UI instructions, explanations and notices omit their final
 period, including when wrapping. Messages with 2 or more sentences keep punctuation.
@@ -172,7 +173,7 @@ source links. All 3 official source links remain together under “Where these n
 come from”. The chart retains its filing period and necessary limits. Direct
 external chart citations remain supported for charts that need them.
 
-On 26 September 2026 Eugene clarified that standalone 1-sentence information
+The 26 September 2026 wording decision specifies that standalone 1-sentence information
 outside editorial article prose has no final period, regardless of screen wrapping.
 Applied to the private source-scope limit, essential method summary and informational
 campaign-finance disclosure. Editorial paragraphs and multi-sentence supporting
@@ -181,10 +182,10 @@ The comments owner additionally flagged “No short posts yet” and “No artic
 this topic yet” for the next authorized archive/topic integration; this private
 article pass does not release archive changes.
 
-On 26 September 2026 Eugene approved removing the implied zero and the horizontal
+The 26 September 2026 decision removes the implied zero and the horizontal
 line above it. The shared comparison chart and existing private preview now omit
 both. Both bars still start at zero and share a scale; the $1,000 bar remains twice
-the $500 bar. The draft stays private for Eugene's final review.
+the $500 bar. The draft stays private for final human review.
 
 The comparison chart now omits “USD” from its shared period line because each
 amount carries the currency. Shared units remain where values lack their own
@@ -194,19 +195,19 @@ to remove duplicated units, dates and context without losing meaning.
 
 ### First private post: visible conclusion (26 September 2026)
 
-Eugene approved a bold “Conclusion:” and the existing supported answer beside the
+The approved presentation uses a bold “Conclusion:” and the existing supported answer beside the
 Alethical symbol, with the symbol on the left. The evidence limits continue in regular text in the same paragraph after the
 bold answer. The answer retains its period to separate the sentences. Center the
 30px symbol vertically against the first 2 lines (24px line height, 9px top gap). This changes presentation, not findings.
-Finish the first short post with Eugene before resuming other task reviews.
-Publication still waits for his final review and instruction.
+Complete final human review of the first short post before resuming other task reviews.
+Publication still requires that review and article-specific approval.
 
 ### First-post generic contribution note removed (26 September 2026)
 
-Eugene removed the generic motive/influence/wrongdoing disclaimer from the first
+The approved draft omits the generic motive/influence/wrongdoing disclaimer from the first
 private post. The specific evidence limits stay. The empty disclosure box is omitted
 from the preview; the separately approved AI note remains held until human review.
-Eugene subsequently requested these principles as rules for future drafts. The
+The same principles apply to future drafts. The
 publication validator now permits omission of the generic contribution note,
 while retaining the AI disclosure, evidence and approval checks. Do not restore
 the removed copy to satisfy the older policy. Publication remains held.
@@ -218,7 +219,7 @@ entries do not establish 2 separate donations.
 
 ### First-post chart label width (26 September 2026)
 
-Eugene approved wider left-hand chart labels so they wrap into fewer lines, moving
+The approved layout uses wider left-hand chart labels so they wrap into fewer lines, moving
 both bar origins right together. Use 30% of the comparison width, at least 180px,
 on the existing side-by-side layout. Preserve the common zero and scale. On phones,
 keep the existing full-width label above each bar instead of squeezing columns.
@@ -235,7 +236,7 @@ release; they do not approve publication or resume other task reviews.
 
 ### Shared closing note approved and visible (26 September 2026)
 
-Eugene approved the revised closing note across new or revised posts of every type,
+The revised closing note is approved across new or revised posts of every type,
 with the AI sentence only where AI helped. The first private post now shows the
 new note after sources with a working contact link. This supersedes earlier notes
 in this plan about withholding the AI text: the replacement no longer claims that
@@ -247,7 +248,7 @@ publication and other task reviews remain held.
 
 ### Separate publication-preparation task launched (26 September 2026)
 
-Eugene approved a separate task so this parent can stay available for discussion.
+A separate preparation task was approved to keep the coordinating task available for discussion.
 “Prepare first short post for publication” (01a0de8f-369c-7f30-a8c5-c59768f40b31)
 is active in /Users/eug/.codex/worktrees/fbd0/Alethical, using the configured
 GPT-6 Astra model with high effort. Its first turn began source/rule and branch
@@ -274,7 +275,7 @@ links use the approved registered-article prefill described in
 
 ### 26 September 2026: accepted first post authorized for publication
 
-Eugene instructed publication of “2 records do not always mean 2 donations” at
+Publication was approved for “2 records do not always mean 2 donations” at
 `/read/research/2-records-not-always-2-donations`. The accepted article, chart inputs,
 source scope and closing note stay unchanged. The article joins the Short posts
 archive, Campaign finance and Lobbying topics, sitemap, and the approved default
@@ -285,10 +286,10 @@ records approval times and the release checks.
 
 ## September 26: publish the 2 reviewed original-topic posts
 
-Eugene authorized the organizations article at 2026-09-26T20:39:49.138Z:
-“when done updating drafts and rules publish the 2nd short post”. He authorized
-the lobbyist article at 2026-09-26T20:45:24.598Z: “publish the 3rd short post when ready”.
-These instructions supersede the private-only holds for these 2 articles.
+Publication of the organizations article was approved at 2026-09-26T20:39:49.138Z,
+conditional on completing the draft and governing-rule updates. Publication of
+the lobbyist article was approved at 2026-09-26T20:45:24.598Z, conditional on release
+readiness. These approvals supersede the private-only holds for these 2 articles.
 The first article remains owned by the separate task “Prepare first short post for publication”.
 
 Release sequence owned here:
@@ -302,7 +303,7 @@ Release sequence owned here:
    request, clear checks, merge, deploy and inspect both live addresses.
 
 Editorial copy acceptance was recorded at 2026-09-26T16:47:25.940Z. The publication
-instructions also approve the displayed content with Eugene’s requested formatting
+approvals also cover the displayed content with the approved formatting
 corrections. Exact source values and historic peer acceptances remain in retained research
 packages; formatting never changes the calculations. Approval fingerprints are frozen only
 after comparing the integrated article with those approved previews.

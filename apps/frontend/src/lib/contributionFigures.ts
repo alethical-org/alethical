@@ -34,7 +34,7 @@ export function unnamedFigureDraws(split: {
 /** The heading over the receipt rows that are not contributions — a loan, a public
  *  subsidy, interest. Short because the card heading 2 elements above already says
  *  "Money in", and the rows themselves show that each is reported on its own line
- *  (ruled by Eugene, 2 Sep 2026, in the campaign-money design's copy proposals).
+ *  (approved 2 Sep 2026, in the campaign-money design's copy proposals).
  *
  *  "Contribution", not "donation" (#2182). A donated good or service **is** a donation,
  *  and it sits inside the Itemized contributions figure above rather than under this

@@ -41,7 +41,7 @@ reviewer too, and its switch is off until its limits are approved.
 | Traffic access key (`.github/workflows/traffic-token-expiry.yml`) | Daily at 12:00 UTC | Opens 1 issue 60 days before the private Vercel Traffic key expires and adds 1 urgent note 14 days before | No paid AI call; reads 1 date stored in the repository |
 | Backend release (Railway Git connection) | A commit reaches `main` | Applies database changes, then releases the API if its readiness check passes | No paid AI call; build and hosting usage stays on the existing Railway account |
 | Website release (Vercel Git connection) | A relevant commit reaches `main` | Builds and releases the web app | No paid AI call; build and hosting usage stays on the existing Vercel account |
-| Unsaved-work backup (`com.alethical.wip-backup`, `com.commercialdeals.wip-backup`) | Every 5 minutes after each project's profile is installed on Eugene's Mac | Saves each working folder's staged and on-disk source separately, with private outside bundles and separate project storage | No outside service or paid AI call |
+| Unsaved-work backup (`com.alethical.wip-backup`, `com.commercialdeals.wip-backup`) | Every 5 minutes after each project's profile is installed on the configured Mac | Saves each working folder's staged and on-disk source separately, with private outside bundles and separate project storage | No outside service or paid AI call |
 | Working-folder inventory and released-folder cleanup (`com.alethical.worktree-cleanup`, `com.commercialdeals.worktree-cleanup`) | At login, when an owner releases a folder, and daily to refresh the report and retry held removals | Reports every registered folder, saves independent recovery copies, then removes admitted clean delivered folders only after every owner releases them and no program still uses them; persistent preview holds remain, and Codex-managed folders use the app's archive tool | No outside service charge or paid AI call; reads GitHub change status |
 | [Local coding job activity](agent-job-outcomes.md) | Supported Claude Code and Codex events after installation, host review and explicit job registration | Saves private event metadata against the existing job; a reply ending never finishes a job or starts another turn | No outside call or paid AI call |
 
@@ -145,7 +145,7 @@ on. The last 2 are off by default. No clock-based job above opens either.
 | --- | --- |
 | The review workflow, its issues, redaction, recovery and fallback alert | **Installed and on.** Runs on every completion of a watched collection |
 | The AI reviewer's code and its limits | **Installed, switched off.** No call can be made |
-| The limits, the key and the switch | **Waiting for Eugene's approval** |
+| The limits, the key and the switch | **Waiting for explicit spending and activation approval** |
 
 The worst case for 1 review is what its caps allow: 50,000 input tokens at $4 per
 million ($0.20) plus 12,000 output tokens at $20 per million ($0.24), which is
@@ -170,8 +170,8 @@ console as the outer wall. All but the console limit are constants in
 `alethical/pipeline/collection_failure_review.py`, and each review is counted at its
 $0.44 worst case before it is bought, so a failed step can only overcount.
 
-**To switch it on, once the limits are approved** (Eugene only; this session cannot
-create an API key or a secret):
+**To switch it on, once the limits are approved** (requires the account owner;
+the coding task cannot create an API key or a secret):
 
 1. In Anthropic's console, on the Alethical organisation's API account, create a
    workspace for this reviewer, set its monthly spending limit to $10, and create an

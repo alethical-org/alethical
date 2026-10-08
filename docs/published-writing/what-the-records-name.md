@@ -5,8 +5,8 @@
      `apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts`, and
      `apps/frontend/src/lib/__tests__/research.test.ts` compares the 2 word for word, so
      an edit here without the matching edit there fails the build, and so does the
-     reverse. The words are settled: rule 13's publishing order lets the Alethical team
-     direct a change (point 2a) and forbids us editing them on our own initiative.
+     reverse. The words are settled: rule 13's publishing order requires explicit editorial
+     approval for a change (point 2a) and forbids autonomous edits.
 
      Its address follows `docs/architecture/published-writing-decisions.md` §2.1 (the
      address carries the trait), which is deliberately not copied here: the reading
@@ -20,8 +20,7 @@
      off to it. A **Guide** teaches one piece of how the system works and draws no
      conclusions.
 
-     NO READER-FACING LINE NUMBERS THIS PIECE OR COUNTS THE SET, per Eugene's ruling of
-     27 Aug 2026 (`docs/architecture/published-writing-decisions.md` §2.12): a piece's
+     NO READER-FACING LINE NUMBERS THIS PIECE OR COUNTS THE SET, under the 27 Aug 2026 editorial decision (`docs/architecture/published-writing-decisions.md` §2.12): a piece's
      position in its set is internal talk. The position line names the set and stops,
      and the closing paragraph names no title for the next piece
      (`docs/architecture/published-writing-decisions.md` §2.3).
@@ -164,8 +163,8 @@
         Expenditure and Ballot Question Political Committee and Fund Handbook** (last
         revised 11 Jul 2023), which is its handbook for exactly those filers and states
         $500 for them repeatedly, including a worked example. On that reading the 2
-        sources agree and there is no disagreement to resolve. Reported to Eugene and
-        commented on issue #1661; rule 12's clause is his to change, not this piece's,
+        sources agree and there is no disagreement to resolve. The finding is recorded
+        on issue #1661; changing rule 12's clause requires separate editorial approval,
         so the piece prints no figure either way.
 
      3. The 5 contributor lines on a candidate's own report. Issue #1752's first comment
@@ -220,11 +219,11 @@
      paragraphs, per issue #1752's linking rules. They stay relative links between the
      drafts HERE, because `scripts/check_doc_references.py` requires a relative link
      inside `docs/` to resolve to a real file. The shipped piece points them at piece 1's
-     reader-facing address, `/blog/guides/who-has-to-report-their-money`, which is the
-     swap this line used to ask the builder for; a test pins both to that address.
+     reader-facing address, `/blog/guides/who-has-to-report-their-money`, as required by the
+     linking plan; a test pins both to that address.
 
      WHERE IT LINKS FORWARD: 1 link to piece 3, in the closing paragraph. This paragraph
-     used to end "This paragraph gains a link to it the day that piece posts". Piece 3
+     previously promised a link upon piece 3's publication. Piece 3
      posted at /blog/guides/why-2-official-numbers-can-both-be-right, so the link went in
      and the sentence explaining its absence came out with it, because that sentence
      becomes false the moment the link exists. That is not an edit on our own initiative,

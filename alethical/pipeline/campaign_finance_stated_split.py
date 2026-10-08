@@ -7,7 +7,7 @@ figure where it reads as ordinary small-donor money under a real politician's na
 only record that can see it is the filing's own statement of how much it itemized, and
 that statement lives nowhere but inside the report document.
 
-**This is not a gate on a release.** Eugene ruled on 12 Aug 2026 that where 2 of
+**This is not a gate on a release.** The 12 Aug 2026 decision establishes that where 2 of
 Minnesota's own publications disagree and we cannot derive the truth, we show both
 figures and say plainly that they disagree. So this reports **per committee-year**, and a
 committee-year that disagrees withholds its own split while every other committee

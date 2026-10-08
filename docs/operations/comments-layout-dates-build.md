@@ -2,9 +2,9 @@
 
 ## Authorized outcome
 
-Eugene instructed “build the pending build” after accepting the comment order in
-`Alethical UX (35).zip`, identifying incorrect button typography and requesting
-that repeated download dates leave article headings. Delivery includes the live
+Implementation was approved after acceptance of the comment order in
+`Alethical UX (35).zip`, with corrections to button typography and removal of
+repeated download dates from article headings. Delivery includes the live
 release and the existing review address, `http://localhost:8782/read`.
 
 Scope: comments before the form, responsive rules placement, empty-state spacing,

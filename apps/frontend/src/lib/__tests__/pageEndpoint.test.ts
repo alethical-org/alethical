@@ -1288,7 +1288,7 @@ describe('first-response page tags', () => {
     }
 
     // Every published piece is visible to search engines from the day it posts
-    // (Eugene, 25 Aug 2026), so a posted piece carries no skip instruction and
+    // (25 Aug 2026), so a posted piece carries no skip instruction and
     // does carry a canonical address.
     expect(piece.indexed).toBe(true);
     expect(headers.get('X-Robots-Tag')).toBeUndefined();

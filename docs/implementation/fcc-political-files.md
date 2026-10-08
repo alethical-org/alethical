@@ -7,9 +7,7 @@ KMSP-TV before building a public-facing feature.
 
 ## Authorization and owner
 
-Eugene requested a proposal on 8 October 2026, then instructed: “lets
-build/index/store/etc everything first bf building the front end feature for it?”
-This authorizes collection, source storage, text and evidence extraction, internal
+The scope approved on 8 October 2026 covers collection, source storage, text and evidence extraction, internal
 search, backup, and reviewable links to held campaign expense records through a
 working deployed backend and initial collection. The frontend remains on hold.
 The first collection is the 3 supplied stations; expansion beyond them awaits a
@@ -22,14 +20,13 @@ collection acceptance is recorded from `codex/fcc-archive-acceptance`.
 
 ## Why this collection exists
 
-Angel wants to trace media-agency commissions and find the invoices behind reported
-campaign expenses. The starting example was KSTP's 2026 State folder for Lisa
-DeMuth. Angel reported manually downloading 41 PDFs; those local copies were not
+The collection supports research into media-agency commissions and the invoices
+behind reported campaign expenses. The starting example was KSTP's 2026 State folder for Lisa
+DeMuth. A reported manual collection contained 41 PDFs; those local copies were not
 provided for comparison, so 41 is context, not an acceptance target. Collection
 covers every candidate and political folder of the configured stations.
 
-The station transcribed as “Carol Levin” is treated as KARE from Eugene's supplied
-KARE address. The supplied KMSP address is also included. The wider station list
+The supplied KARE and KMSP addresses establish the other 2 stations. The wider station list
 has not been supplied. Adding stations requires a reviewed source-list change;
 `--stations all` means these 3 stations, not every US television station.
 
@@ -415,5 +412,5 @@ considering a production change.
   expense connection. The current tools retain reviewed connections but do not
   allocate amounts or calculate a reconciled spend total.
 - Additional stations, federal expense sources not already held, a comparison
-  with Angel's 41 local PDFs, complete human review of money fields, recurring
+  with the reported collection of 41 local PDFs, complete human review of money fields, recurring
   source collection and the public frontend remain outside this delivered run.

@@ -313,9 +313,8 @@ The exact choices and copy are in
 
 ## 3. Given, generated, or just written down
 
-The issue behind this doc asked for this distinction, and it turns out to be the most
-useful cut through the whole list — because it predicts how a reader will feel about
-each item without them having to be asked.
+The distinction between deliberate input, generated content and incidental records
+helps explain what readers expect Alethical to retain or delete.
 
 **Given deliberately.** Bills someone chose to follow. Their alert settings. A note on a
 bill. A chosen public name, published comments and replies, and comment email
@@ -423,7 +422,7 @@ dangerous one.
 3. **A typed message may never be copied into anything that outlives it.** No log line,
    no diagnostic receipt, no analytics event, no evaluation fixture, no error report. If
    we cannot delete every copy when the 24 months run out, the retention rule is
-   decorative. This is the constraint the issue asked us to place on per-answer receipts:
+   decorative. The same privacy constraint applies to per-answer receipts:
    **a receipt may record which passages were retrieved, which model answered, and how
    long it took — and may not record the question, the answer, or anything that
    identifies who asked.** A receipt that carries the question is a second, undeletable

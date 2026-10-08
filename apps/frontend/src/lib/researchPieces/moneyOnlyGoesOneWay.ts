@@ -1,7 +1,7 @@
 /**
  * "The Money Only Goes One Way", posted 20 Aug 2026.
  *
- * The prose is Eugene's, transcribed word for word. Rule 13's publishing order
+ * The author-supplied prose is transcribed word for word. Rule 13's publishing order
  * is explicit that a report posts exactly as its author wrote it, so nothing
  * here is edited to fit a layout or to fit a check: the layout accommodates the
  * prose, and the figure check happens after posting, on the live page. Point 2a
@@ -188,8 +188,8 @@ export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
         ),
         // The comparison's own half was unstated until 29 Aug 2026: a reader could check
         // the $886 million against the method box and the linked download, and had
-        // nothing at all for the side it is being compared with. Eugene directed the
-        // figure and the ratio into the sentence. $329,576,005.47 is every candidate
+        // nothing at all for the side it is being compared with. The approved revision adds
+        // the figure and ratio to the sentence. $329,576,005.47 is every candidate
         // committee, party unit and political committee or fund's receipts for the same
         // report years, recomputed from the Board's itemized contributions download that
         // this piece's sources already name.
@@ -329,7 +329,7 @@ export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
   // CORRECTED 28 AUG 2026: 583,120 became 583,152. The file holds 583,152 rows, which
   // is what our own loaded snapshot carries and what guide 2 has printed since it
   // posted, so 2 live pages were giving different counts of one file and this one
-  // matched neither our data nor the Board's. Eugene directed the correction under
+  // matched neither our data nor the Board's. The correction was approved under
   // rule 13 point 2a. No dated note: the piece already carries the 27 Aug note about
   // the 2 quotations the Board's handbook replacement removed, and a reader does not
   // need 2 notices for a row count that describes nobody and moves no money figure.

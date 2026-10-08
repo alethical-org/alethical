@@ -34,7 +34,8 @@ The durable answer is:
 5. Keep answer truth checks, saved progress, and reader-facing failure behavior in
    Alethical.
 
-This is “use the SDK by default,” not “let the SDK decide everything.”
+Official libraries supply the ordinary transport; Alethical controls retry limits
+and final behavior.
 
 ### 1.1 The named exceptions
 

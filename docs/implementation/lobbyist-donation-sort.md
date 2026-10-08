@@ -2,7 +2,7 @@
 
 ## Authorization and scope
 
-On 18 September 2026 Eugene said **“build”** after the proposal to add a year
+Build scope approved on 18 September 2026: a year
 selector, Name A–Z / Recorded donations highest first / Recorded donations lowest
 first, and a selected-year amount on `/money/lobbying/lobbyists`. Each amount must
 lead to its supporting donations on the lobbyist record. This is a scoped change
@@ -95,7 +95,7 @@ Any amount remains a sum of held matching records, never proof of complete givin
 
 ## Presentation refinement
 
-Design drew the directory again as one results card. Eugene authorised the build on
+Design drew the directory again as one results card. The build was approved on
 18 September 2026 from `Alethical UX (24).zip` and its corrected handoff. The
 refinement changes what the page looks like and never what it counts: no API,
 schema, calculation or production-data change is part of it.
@@ -190,7 +190,7 @@ first-name-first finds nobody), [issue 2303](https://github.com/alethical-org/al
 
 ## The directory opens on the dollar order
 
-Eugene ruled on 18 September 2026 that `Sort by` opens on the largest recorded
+The 18 September 2026 decision makes `Sort by` open on the largest recorded
 amount at `/money/lobbying/lobbyists`, replacing `Name A–Z`.
 
 One constant carries it (`LOBBYING_DEFAULT_DONATION_SORT` in
@@ -227,8 +227,8 @@ carrying a parameter other than `page` does.
 
 ## Copy, the 2 record dates, and the jump back to the results
 
-Design drew the directory again in `Alethical UX (27).zip`. Eugene authorised the
-build on 19 September 2026 and overruled 2 of the bundle's instructions: the Year
+Design drew the directory again in `Alethical UX (27).zip`. The build scope approved
+on 19 September 2026 overrides 2 of the bundle's instructions at this checkpoint: the Year
 and Sort by menus stay native browser menus rather than becoming drawn panels, and
 the availability count is kept for a search that matched a single lobbyist. Nothing
 here changes what the page counts.
@@ -288,10 +288,10 @@ overflow, and the last row retains its own rounded bottom corners.
 
 ## The directory draws its own choice menus
 
-Eugene ruled on 19 September 2026 that the Year and Sort by controls at
+The later 19 September 2026 decision makes the Year and Sort by controls at
 `/money/lobbying/lobbyists` use Design's own panels, drawn in
-`Alethical UX (27).zip`. He had asked Design for the opened menus and the first
-build pass overrode that. The browser's own list is gone from this page.
+`Alethical UX (27).zip`. The first build pass had omitted the drawn open menus.
+The browser's own list is gone from this page.
 
 `LobbyingChoiceMenu` ([LobbyingChoiceMenu.tsx](../../apps/frontend/src/components/lobbying/LobbyingChoiceMenu.tsx))
 holds the whole control. Every drawn value is the bundle's: a 48-high closed box

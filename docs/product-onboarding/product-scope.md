@@ -17,7 +17,7 @@ phrased as "not until v-something," that is a bug in the doc.
 
 ## Goal
 
-Rebuild Alethical from scratch as a trustworthy Minnesota legislative intelligence platform with a clean data model, reliable ingestion, a scalable backend, and a responsive web product. Desktop and phone browsers are the supported clients. Native iOS and Android publishing is paused, with future work retained in [issue 91](https://github.com/alethical-org/alethical/issues/91). Native tooling is not actively maintained and restarting it requires Eugene's explicit approval. The backend APIs, auth model, and design system stay client-agnostic so mobile can follow without a rewrite.
+Rebuild Alethical from scratch as a trustworthy Minnesota legislative intelligence platform with a clean data model, reliable ingestion, a scalable backend, and a responsive web product. Desktop and phone browsers are the supported clients. Native iOS and Android publishing is paused, with future work retained in [issue 91](https://github.com/alethical-org/alethical/issues/91). Native tooling is not actively maintained and restarting it requires explicit project-owner approval. The backend APIs, auth model, and design system stay client-agnostic so mobile can follow without a rewrite.
 
 The product optimizes for:
 
@@ -197,8 +197,7 @@ Minnesota focus or relies on unreviewed sources rather than an official public r
 
   - **Minnesota only, on record pages.** Money filed with the Minnesota Campaign Finance and
     Public Disclosure Board, and nothing else. Filings made to any other body are out of scope
-    and are not named on any record surface, because naming an absence advertises it (Eugene,
-    12 Aug 2026). One exception, decided 18 Aug 2026: a signed research report may cite another
+    and are not named on any record surface, because naming an absence advertises it (12 Aug 2026). One exception, decided 18 Aug 2026: a signed research report may cite another
     body's records, named and linked at their source, under
     `.claude/rules/grounded-answers.md` rule 13; the report's sources block names every body used.
   - **Whole-set replacement, not row merging.** Minnesota publishes no per-transaction

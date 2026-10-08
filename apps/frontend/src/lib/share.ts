@@ -279,7 +279,7 @@ export function billPageMetadata(input: {
   });
   // The search result always gets this bill's own first sentence; the share card
   // gets it only when it adds to the title, and the fixed label when it restates
-  // it (Eugene, 17 and 18 Sep 2026, decisions doc §26).
+  // it (17 and 18 Sep 2026, decisions doc §26).
   const searchDescription = clean(input.lines?.search ?? '');
   return pageMetadata({
     title: titleFor(content.title),

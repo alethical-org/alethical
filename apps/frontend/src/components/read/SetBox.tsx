@@ -33,7 +33,7 @@ import { theme as t } from '../../theme/tokens';
  *
  * **A box shows from the set's first published piece** (§2.5), drawn whole at 1
  * row. The repetition between the meta line and a single row is the price of
- * saying the set is live and growing, and Eugene ruled it worth paying.
+ * saying the set is live and growing; that tradeoff is part of the approved scope.
  *
  * There is no fold-away element to inherit. React Native's web renderer produces
  * its own elements, and the app has no disclosure or accordion component, so the

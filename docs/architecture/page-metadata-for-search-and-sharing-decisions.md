@@ -105,7 +105,7 @@ Rules that generate every page, not examples. They carry over to campaign financ
 | Bill, no summary yet | `{HF\|SF} {number} ({year}) \| Alethical` | `See what {HF\|SF} {number} would do and where it stands in the Minnesota Legislature.` |
 | Bill list | `Search Minnesota bills \| Alethical` | `Search bills in the Minnesota Legislature by topic, chamber, and status.` |
 | Legislator list | `Minnesota House and Senate members \| Alethical` | `Find a Minnesota legislator by name, chamber, or party.` |
-| Home | `Alethical: Minnesota political intelligence & campaign strategy` | Eugene approved this new direction on 24 Sep 2026. Keep political intelligence first, followed by campaign strategy. |
+| Home | `Alethical: Minnesota political intelligence & campaign strategy` | Direction approved on 24 Sep 2026. Keep political intelligence first, followed by campaign strategy. |
 | Campaign finance (Sept 2026) | `{Name}: campaign finance, Minnesota {chamber} District {code} \| Alethical` | `See who contributed to {Name}'s campaign, from official Minnesota filings.` |
 | Committee | `{Filed name} — Minnesota campaign money \| Alethical` | `Money in and money out for the {kind} registered for {seat}, from Minnesota’s own campaign-finance filings.` — the register's kind and seat; for a filer with no seat, `…for a Minnesota {kind}, from the state’s own campaign-finance filings.`; never the name (§26) and never a figure |
 | Money section pages | `{Page name} — Minnesota campaign money \| Alethical`, or the page's own subject with the state in it (`Money in politics in Minnesota`, `Outside spending in Minnesota campaigns`, `Money by race: Minnesota candidates by office and district`) | Each page's existing sentence |
@@ -419,7 +419,7 @@ which breaks the freshness requirement in `.claude/rules/grounded-answers.md` ru
 
 ---
 
-## 11. What Eugene needs to decide
+## 11. Decisions requiring approval
 
 1. **Approve the two-release shape** (correct tags now, real text next), or approve release 1 only.
    Release 1 alone is a real improvement but leaves search engines writing our result text from a
@@ -428,15 +428,15 @@ which breaks the freshness requirement in `.claude/rules/grounded-answers.md` ru
    there is no search benefit to give up and blocking is the reversible direction. Search robots,
    user-question robots, and `Google-Extended` get allowed regardless.
 3. **The portrait work in §5**, now split in two. The box-shape fix and the credit line are cheap,
-   depend on nobody, and should just be done. The three permission requests need Eugene to send
-   them or say who does. Both tracked in
+   depend on nobody, and should just be done. The 3 permission requests require an authorized sender
+   before delivery. Both tracked in
    [#1334](https://github.com/alethical-org/alethical/issues/1334).
 
 ---
 
 ## 12. What release 1 actually shipped, and what it had to decide
 
-Approved by Eugene 11 Aug 2026 and built the same day. This section is the record of what is live;
+Approved on 11 Aug 2026 and built the same day. This section is the record of what is live;
 §1–§11 stay as written, as the record of why.
 
 ### The serving path
@@ -1174,7 +1174,7 @@ Settled, and binding on the `/blog` page and every piece that lives on it:
 
 **Read this before building any address for published writing.** This section decided a flat
 address with no folder word on 25 Aug 2026. **That decision is withdrawn**, because both grounds it
-rested on were checked the next day and neither survived. **Nested is ratified**, by Eugene on
+rested on were checked the next day and neither survived. **Nested addresses were approved** on
 27 Aug 2026, and is recorded below with what each ground lost on.
 
 **The current base word is `/blog`.** The folder-shape decision applies to the
@@ -1189,13 +1189,13 @@ published at a per-kind address.
 
 #### Why it was withdrawn — the 2 grounds, and how each failed
 
-- **"A folder word becomes reader-visible text we cannot edit."** Google does learn a breadcrumb
+- **The assumption that a folder word creates uneditable reader-visible text was wrong.** Google does learn a breadcrumb
   from the words in an address, and its breadcrumb documentation also says a page's own structured
   markup determines the breadcrumb shown in a result. So a folder word is **controllable**, not
   permanent, and the whole force of this ground was its permanence.
-- **"We do not maintain forwards, so a move breaks the address."** False as written. `vercel.json`
+- **The assumption that moved addresses cannot be forwarded was wrong.** `vercel.json`
   already keeps 2 permanent forwards for this very section of the site (`/money/reports` and
-  `/money/reports/:slug`, both `"permanent": true`). Eugene's ruling covered those 2
+  `/money/reports/:slug`, both `"permanent": true`). The decision covered those 2
   specific dead addresses and was never a standing policy against forwarding. With forwards
   available, a moved address is survivable, which removes the cost this ground was pricing.
 
@@ -1325,7 +1325,7 @@ piece's claims out of its **share preview and metadata**, and keeps *listing* a 
   asserts the served `<head>` carries the dates line and none of the piece's figures.
 - The `indexed` flag still decides listing on its own, and serving the body never sets it. What
   changed there is rule 13 itself, not this work: since 25 Aug 2026 a posted piece is
-  `indexed: true` from the day it posts, and the hold-back stays available for a piece Eugene names
+  `indexed: true` from the day it posts, and the hold-back stays available for an explicitly named piece
   ([#1767](https://github.com/alethical-org/alethical/pull/1767)). A held piece still carries
   `X-Robots-Tag: noindex`, the noindex tag and no canonical, and stays out of the sitemap. Serving
   the body and permitting the listing are different acts, and only the first one changed here.
@@ -1881,7 +1881,7 @@ Committee and lobbying social titles omit the website suffix. Descriptions do no
 repeat the record name. The contextual window label, such as **Share this committee**,
 is not transmitted.
 
-**The search-result text and the share text are 2 strings for a bill (Eugene, 18 Sep 2026).**
+**The search-result text and the share text are 2 strings for a bill (18 Sep 2026).**
 A search result always says the first sentence of the bill's plain-language summary, or the
 fixed line above when a bill has none. A share card says that sentence too **when it adds to
 the title**, and the fixed line when it mostly restates the title, which is the case the 17 Sep
@@ -2009,7 +2009,7 @@ tidy-up, and it is what gave the bill change above room to ship.
 one line each that was only a date, "Written August 2026.", because rule 13 holds a piece's
 claims out of metadata. Each now carries a sentence about what it covers, written from the
 guide's own words and stating no amount, while its share preview keeps the dates-only wording
-rule 13 sets. That rule's own text carries the ruling (Eugene, 18 Sep 2026); describing a
+rule 13 sets. That rule's own text carries the ruling (18 Sep 2026); describing a
 subject is not making the claim, and a date tells a searcher nothing about whether the page
 answers their question.
 
@@ -2100,8 +2100,8 @@ already takes its sentence (§28.4d).
 pages: §6 admits only what a shipped search feature consumes, and no listed feature reads a
 `Dataset` or `ItemList` for pages like these; `BreadcrumbList` stays out for §12's reason. A
 narrowed money view stays `noindex` (§22), which a seat never was. The bill description stays the one fixed sentence §26 rules, and
-a guide's description stays its dates (rule 13); both are Eugene's rulings and both cost search
-visibility, so they are raised with him rather than changed here. Host, scheme and trailing-slash
+a guide's description stays its dates (rule 13); both follow approved decisions and both cost search
+visibility, so changes require separate product approval. Host, scheme and trailing-slash
 forwards, the 404 and 503 answers, `robots.txt`, `lang`, one `<h1>` per page, and the per-page
 canonical links all measured correct on 18 Sep 2026 and are unchanged.
 

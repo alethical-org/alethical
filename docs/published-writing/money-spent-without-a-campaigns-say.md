@@ -6,8 +6,8 @@
      `apps/frontend/src/lib/researchPieces/moneySpentWithoutACampaignsSay.ts`, and
      `apps/frontend/src/lib/__tests__/research.test.ts` compares the 2 word for word,
      so an edit here without the matching edit there fails the build, and so does the
-     reverse. The words are settled: rule 13's publishing order lets the Alethical team
-     direct a change (point 2a) and forbids us editing them on our own initiative.
+     reverse. The words are settled: rule 13's publishing order requires explicit editorial
+     approval for a change (point 2a) and forbids autonomous edits.
 
      WHAT IT IS. The fourth piece written in the set "How the Money Works", following
      `docs/published-writing/why-2-official-numbers-can-both-be-right.md`. Issue #1752's
@@ -16,8 +16,7 @@
      coordinating it, and lobbying disclosure as a separate set of records. A
      **Guide** teaches one piece of how the system works and draws no conclusions.
 
-     NO READER-FACING LINE NUMBERS THIS PIECE OR COUNTS THE SET, per Eugene's ruling
-     of 27 Aug 2026 (`docs/architecture/published-writing-decisions.md` §2.12).
+     NO READER-FACING LINE NUMBERS THIS PIECE OR COUNTS THE SET, under the 27 Aug 2026 editorial decision (`docs/architecture/published-writing-decisions.md` §2.12).
 
      WHICH RULES BIND IT. `.claude/rules/grounded-answers.md` rules 1 to 12. Rule 3 is
      the sharpest here, because this piece names real spenders and the committees they
@@ -110,7 +109,7 @@
      WE HELD NO LOBBYING RECORDS WHEN THIS POSTED, AND WE DO NOW (31 Aug 2026,
      issue 1862). The Board's yearly principal-expenditure file is loaded as dated
      snapshots, and both published pieces were corrected the same day to say so under
-     rule 13 point 2a, on Eugene's direction. What did NOT change is this piece's
+     rule 13 point 2a, with explicit editorial approval. What did NOT change is this piece's
      shape: the 2 halves' sourcing stays visibly apart, the independent-spending
      figures are counted from a file, and the lobbying half still carries no spending
      figure beyond the 2 statutory thresholds. **No lobbying figure here is given the
@@ -140,7 +139,7 @@
      its **Lobbyist Search Tool** at
      `https://cfb.mn.gov/reports-and-data/viewers/lobbying/lobbyists/`, plural. This
      piece links the 2 that work. Rule 13's publishing order puts a change to a posted
-     piece with Eugene, so nothing here edits the research piece; filed as
+     piece behind separate editorial approval, so nothing here edits the research piece; filed as
      [#1802](https://github.com/alethical-org/alethical/issues/1802). Corroborating
      figure while checking it: the research piece's $886 million for 2015 through 2025
      reproduces to $886,298,059.00 from the Board's own principal expenditures
@@ -209,9 +208,8 @@
      how that threshold is worked out for spending, which is not established.
 
      WHERE IT LINKS FORWARD: 1 link to piece 5, in the closing paragraph, added the day
-     that piece posted. It used to end "This paragraph gains a link to it the day that
-     piece posts", and that sentence came out with the link because it becomes false the
-     moment the link exists. The shipped piece holds the address as a literal, for the
+     that piece posted. The earlier promise to add a link upon publication
+     was removed when the link became available. The shipped piece holds the address as a literal, for the
      same cycle reason the piece before this one does, and a test asserts it equals piece
      5's real path.
 -->

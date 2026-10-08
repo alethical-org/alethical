@@ -389,7 +389,7 @@ def test_accepted_link_survives_source_row_deletion_and_refresh(db, finance):
         db,
         link.id,
         "accepted",
-        "Eugene",
+        "Test reviewer",
         "Compared exact source pages and the filed expense",
     )
     retained = dict(link.source_row)
@@ -497,7 +497,7 @@ def test_review_requires_named_reviewer_and_nonblank_evidence(
     link = _write(db, digest, finance["expenditures"])
     arguments = {
         "status": "accepted",
-        "reviewed_by": "Eugene",
+        "reviewed_by": "Test reviewer",
         "evidence": "Compared source pages",
     }
     arguments[field] = value
@@ -516,13 +516,21 @@ def test_accepting_on_write_requires_review_and_existing_link_needs_explicit_rev
     link = _write(db, digest, finance["expenditures"])
     with pytest.raises(ValueError, match="explicit review"):
         _write(
-            db, digest, finance["expenditures"], status="accepted", reviewed_by="Eugene"
+            db,
+            digest,
+            finance["expenditures"],
+            status="accepted",
+            reviewed_by="Test reviewer",
         )
     assert link.status == "suggested"
     first_evidence = link.evidence
-    links.review_link(db, link.id, "accepted", "Eugene", "Exact source review")
+    links.review_link(db, link.id, "accepted", "Test reviewer", "Exact source review")
     links.review_link(
-        db, link.id, "rejected", "Eugene", "The document covers a different booking"
+        db,
+        link.id,
+        "rejected",
+        "Test reviewer",
+        "The document covers a different booking",
     )
     assert first_evidence in link.evidence
     assert "Exact source review" in link.evidence

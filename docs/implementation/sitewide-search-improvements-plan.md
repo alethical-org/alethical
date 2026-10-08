@@ -4,11 +4,11 @@
 
 ## Authorized finish and boundaries
 
-Eugene said “build all” after the sitewide search audit.
+The complete sitewide search audit scope is approved for implementation.
 Implement the six proposed areas through a tested live website release. Phone
 checks mean mobile browsers, including Safari on iPhone and Chrome on Android;
 no native iOS or Android app is in scope. Outreach drafts remain private until
-Eugene separately authorizes sending. No paid recurring agent work, bulk paid
+separate sending approval is granted. No paid recurring agent work, bulk paid
 content generation, production record replacement, or new visual direction.
 
 ## Evidence, impact and prevention

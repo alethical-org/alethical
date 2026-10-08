@@ -895,7 +895,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
                 the promo read as a separate section.
                 The card is not a section: it is the tail of the hero.
 
-                Two knock-on effects, both accepted (Eugene, 20 Aug 2026), and
+                Two knock-on effects, both accepted (20 Aug 2026), and
                 both follow from the backgrounds staying in percentages of the
                 wrapper rather than being pinned to pixels or split into a second
                 layer. The wrapper is now ~700px taller when signed in, so its

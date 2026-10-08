@@ -6,9 +6,9 @@ real politician's name, with the state's own filing saying otherwise. A payment 
 that the filing does not itemize is the opposite error and reads just as confidently.
 This module is how a page finds out which it is, before it draws anything.
 
-**It answers per committee-year and never for a whole release.** Eugene ruled on 12 Aug
-2026 that where 2 of Minnesota's own publications disagree and we cannot derive the
-truth, we show both figures and say plainly that they disagree. So a committee whose
+**It answers per committee-year and never for a whole release.** Under the
+12 Aug 2026 decision, where 2 of Minnesota's own publications disagree and we cannot
+derive the truth, we show both figures and say plainly that they disagree. So a committee whose
 figures contradict each other says so on its own page while every other committee's page
 draws normally.
 

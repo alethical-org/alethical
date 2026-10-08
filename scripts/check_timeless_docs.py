@@ -38,6 +38,7 @@ EXEMPT = (
 )
 
 IGNORE = "timeless-check-ignore:"
+SOURCE_QUOTE = re.compile(r"<!-- doc-voice-source: https://[^\s<>]+ -->")
 
 # These checks also apply to dated records. They target decision attribution,
 # not names in biographies, source citations, commands or public records.
@@ -77,13 +78,23 @@ ATTRIBUTION_PATTERNS = [
         ),
         "quoted instruction; summarize the outcome and limits",
     ),
+    (
+        re.compile(
+            r"\b(?:user authorization|approval|explicit instruction|user request)"
+            r"\s*:\s*[\"“‘`]",
+            re.IGNORECASE,
+        ),
+        "quoted instruction label; summarize the outcome and limits",
+    ),
 ]
 
 
 def line_findings(path: str, text: str) -> list[str]:
-    findings = [
-        label for pattern, label in ATTRIBUTION_PATTERNS if pattern.search(text)
-    ]
+    findings = (
+        []
+        if SOURCE_QUOTE.search(text)
+        else [label for pattern, label in ATTRIBUTION_PATTERNS if pattern.search(text)]
+    )
     if (
         path.startswith(HISTORY_PREFIXES)
         and not path.startswith(EXEMPT)
@@ -175,7 +186,11 @@ def main() -> int:
     previous: tuple[str, int, str] | None = None
     for path, lineno, text in added_doc_lines(base):
         labels = line_findings(path, text)
-        if previous is not None and previous[:2] == (path, lineno - 1):
+        if (
+            previous is not None
+            and previous[:2] == (path, lineno - 1)
+            and not SOURCE_QUOTE.search(text)
+        ):
             # A wrapped attribution remains attribution. Do not join separate hunks.
             joined = previous[2] + " " + text
             labels.extend(

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 // The approved alethical.com addresses. `ask@` is the published contact
 // address, verified against the live production bundle on 6 Aug 2026; `eug@` is
 // the maintainer's own and appears in repo metadata rather than reader-facing
-// copy. `angel@` was supplied by Eugene and is the accepted services contact
+// copy. `angel@` is the accepted services contact
 // in Campaign Services on September 30, 2026. Anything else must be established.
 //
 // Why this test exists: a session drafting lockout copy wrote `hello@alethical.com`

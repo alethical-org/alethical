@@ -75,7 +75,7 @@ Contact Us opens a dark panel over the presentation. It says:
 
 The contact address is `angel@alethical.com`. Open email draft uses
 `mailto:angel@alethical.com?cc=ask@alethical.com`, so the reader's email app prepares
-a message to Angel with Ask copied. Opening the panel sends nothing; the reader
+a message to the contact address with `ask@alethical.com` copied. Opening the panel sends nothing; the reader
 must choose to send the draft in their email app. This is separate from the
 website's general Contact us form at `/about/contact`.
 
