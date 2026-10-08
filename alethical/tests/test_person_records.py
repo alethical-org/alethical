@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 from datetime import UTC, date, datetime, timedelta
+from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 import pytest
@@ -51,7 +52,10 @@ def test_real_register_keeps_ballot_certification_service_separate(public_db):
         assert profile["source"]["retained"] is True
         assert "stale" not in profile["source"]
         assert profile["source"]["url"].endswith("/LocalCandTbl.txt")
-        assert "boardbook.org" in profile["result"]["source"]["url"]
+        assert (
+            urlsplit(profile["result"]["source"]["url"]).hostname
+            == "meetings.boardbook.org"
+        )
         assert profile["result"]["certification"]["date"] == "2024-11-12"
         assert profile["election"]["sourceIds"] == {"sosResults": "170"}
         assert "legislator" not in profile

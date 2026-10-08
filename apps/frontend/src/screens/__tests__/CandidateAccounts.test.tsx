@@ -78,6 +78,7 @@ vi.mock('react-native-svg', () => ({
   default: ({ children, ...props }: React.PropsWithChildren) => <svg {...props}>{children}</svg>,
   Path: (props: React.SVGProps<SVGPathElement>) => <path {...props} />,
   Circle: (props: React.SVGProps<SVGCircleElement>) => <circle {...props} />,
+  Rect: (props: React.SVGProps<SVGRectElement>) => <rect {...props} />,
 }));
 const id = 'a'.repeat(64);
 const record: CandidateProfileRecord = {
@@ -225,7 +226,31 @@ it('submits a manual review request with selected role, evidence, account identi
     expect.any(AbortSignal),
   );
   expect(host.textContent).toContain('Profile claim pending review');
+  expect(host.querySelector('[aria-level="1"]')?.textContent).toBe('Profile claim pending review');
+  expect(host.textContent).not.toContain('An approved profile claim lets you manage');
+  expect(host.textContent!.indexOf('Public Candidate')).toBeLessThan(
+    host.textContent!.indexOf('Profile claim pending review'),
+  );
   expect(host.textContent).not.toContain('Enter your code');
+});
+it('groups verified campaign access with identity and labels the editor before its help and preview', async () => {
+  manage();
+  await flush();
+  const text = host.textContent!;
+  expect(text.indexOf('Public Candidate')).toBeLessThan(text.indexOf('Campaign access verified'));
+  expect(text.indexOf('Campaign access verified')).toBeLessThan(text.indexOf('Campaign statement'));
+  expect(text.indexOf('Campaign statement')).toBeLessThan(text.indexOf('Explain your record'));
+  const input = host.querySelector<HTMLTextAreaElement>(
+    'textarea[aria-label="Campaign statement"]',
+  )!;
+  expect(input.getAttribute('aria-describedby')).toContain('-help');
+  expect(input.style.minHeight).toBe('220px');
+  expect(button('Preview').getAttribute('aria-expanded')).toBe('false');
+  act(() => button('Preview').click());
+  expect(button('Preview').getAttribute('aria-expanded')).toBe('true');
+  const preview = host.querySelector('#campaign-statement-preview')!;
+  expect(preview.textContent).toContain('Current campaign words');
+  expect(preview.textContent).not.toContain('Report this statement');
 });
 it('keeps the complete draft after an uncertain save and reads server state before enabling another save', async () => {
   mocks.save.mockRejectedValue(new Error('Lost response'));
@@ -437,6 +462,52 @@ function deferred<T = unknown>() {
   });
   return { promise, resolve };
 }
+it('keeps candidate-profile return context when an admin opens an exact request from the list', async () => {
+  mocks.admin = 'allowed';
+  mocks.queue.mockResolvedValue({
+    account_id: 'account-a',
+    claims: [{ ...approved, status: 'pending' }],
+    offset: 0,
+    has_more: false,
+  });
+  act(() =>
+    root.render(
+      <AdminCandidateClaimsScreen
+        navigation={navigation as never}
+        route={{ params: { candidateId: id, fromProfile: true } } as never}
+      />,
+    ),
+  );
+  await flush();
+  const link = host.querySelector<HTMLAnchorElement>(
+    'a[aria-label="Review profile claim request for Public Candidate"]',
+  )!;
+  expect(link.getAttribute('href')).toBe(
+    `/admin/candidate-claims?claim=${approved.id}&candidate=${id}&from=profile`,
+  );
+  act(() => link.click());
+  expect(navigation.navigate).toHaveBeenCalledWith('AdminCandidateClaims', {
+    claimId: approved.id,
+    candidateId: id,
+    fromProfile: true,
+  });
+});
+it('groups the request, review form, and history together with instructions before the field', async () => {
+  adminRequest();
+  await flush();
+  const article = host.querySelector('[role="article"]')!;
+  const field = article.querySelector('[aria-label="Private review note"]')!;
+  const help = article.querySelector('#profile-review-note-help')!;
+  expect(help.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(field.getAttribute('aria-describedby')).toContain(help.id);
+  expect(article.textContent).toContain('Applicant email');
+  expect(article.textContent).toContain('Profile claim history');
+  const returnNav = host.querySelector('[aria-label="Profile claim navigation"]')!;
+  const heading = host.querySelector('[aria-level="1"]')!;
+  expect(
+    returnNav.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+});
 it('blocks admin accounts before reading private owner statements or offering a claim form', async () => {
   mocks.admin = 'allowed';
   mocks.auth.user.isAdmin = true;

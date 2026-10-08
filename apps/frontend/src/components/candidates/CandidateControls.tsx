@@ -177,6 +177,7 @@ export function CandidateLink({
   internal = false,
   accessibilityLabel,
   describedBy,
+  direction,
   style,
 }: {
   label: string;
@@ -185,6 +186,7 @@ export function CandidateLink({
   internal?: boolean;
   accessibilityLabel?: string;
   describedBy?: string;
+  direction?: 'back';
   style?: StyleProp<ViewStyle>;
 }) {
   const [hovered, setHovered] = useState(false);
@@ -208,7 +210,7 @@ export function CandidateLink({
     >
       <Text style={[styles.linkText, hovered && { color: '#11832b' }]}>
         {Platform.OS === 'web' ? (
-          label.startsWith('Back to ') ? (
+          direction === 'back' || label.startsWith('Back to ') ? (
             <span>
               <span style={{ whiteSpace: 'nowrap' }}>
                 <Svg
@@ -227,10 +229,12 @@ export function CandidateLink({
                     strokeLinejoin="round"
                   />
                 </Svg>
-                <span style={{ textDecoration: hovered ? 'underline' : 'none' }}>Back</span>
+                <span style={{ textDecoration: hovered ? 'underline' : 'none' }}>
+                  {label.split(' ')[0]}
+                </span>
               </span>
               <span style={{ textDecoration: hovered ? 'underline' : 'none' }}>
-                {label.slice(4)}
+                {label.slice(label.indexOf(' '))}
               </span>
             </span>
           ) : (

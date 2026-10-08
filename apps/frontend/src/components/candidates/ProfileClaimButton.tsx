@@ -14,17 +14,23 @@ export function ProfileClaimButton({
   describedBy,
   accessibilityLabel,
   selected,
+  expanded,
+  controls,
+  style,
 }: {
   label: string;
   busyLabel?: string;
   busy?: boolean;
   disabled?: boolean;
-  kind?: 'green' | 'outline' | 'danger';
+  kind?: 'green' | 'outline' | 'danger' | 'danger-text';
   onPress(): void;
   width?: CSSProperties['width'];
   describedBy?: string;
   accessibilityLabel?: string;
   selected?: boolean;
+  expanded?: boolean;
+  controls?: string;
+  style?: CSSProperties;
 }) {
   useEffect(() => {
     if (typeof document === 'undefined' || document.getElementById('profile-claim-buttons')) return;
@@ -62,6 +68,8 @@ export function ProfileClaimButton({
         aria-label={accessibilityLabel ?? (busy ? (busyLabel ?? label) : label)}
         aria-describedby={describedBy}
         aria-pressed={selected}
+        aria-expanded={expanded}
+        aria-controls={controls}
         aria-disabled={off || undefined}
         aria-busy={busy || undefined}
         onClick={() => {
@@ -99,6 +107,18 @@ export function ProfileClaimButton({
           lineHeight: 1.3,
           cursor: off ? (busy ? 'progress' : 'default') : 'pointer',
           opacity: 1,
+          ...(kind === 'danger-text'
+            ? {
+                border: 0,
+                background: 'transparent',
+                color: off ? '#6f756f' : '#a3421a',
+                padding: '0 6px',
+                fontSize: 15.5,
+                textDecoration: 'underline',
+                textUnderlineOffset: 3,
+              }
+            : {}),
+          ...style,
         }}
       >
         <span

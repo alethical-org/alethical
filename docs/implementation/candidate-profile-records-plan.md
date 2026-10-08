@@ -210,5 +210,23 @@ horizontal overflow; no real email was sent.
 Responsive acceptance found that the admin list/detail implementation did not
 fully match the accepted drawings. The list's horizontal tablet/desktop rows,
 title sizes and status pills, and the detail's unified divided article and
-evidence grouping are being reconciled before final browser acceptance. The
-release pull request remains a draft until these corrections pass.
+evidence grouping now follow the accepted drawings. Corrected admin grouping
+passes phone, tablet and desktop browser comparison. The profile's admin action
+also preserves its candidate filter and return destination when clicked, covered
+by a rendered navigation regression.
+
+The same comparison found claim statuses retaining the request-form introduction
+and manage content using generic account geometry. Status views now own their
+identity, icon, heading and actions. The editor groups verified access inside the
+identity card, puts its heading before help, restores the approved input height
+and preview boundary, and keeps destructive action confirmations. Shared dialogs
+use the approved full phone width, rounded top corners and safe-first action
+order. Privacy, stale-version and uncertain-save safeguards remain in place.
+Frontend checks now pass 4,335 tests; type checking and the production-style
+website build pass after these changes. Final claim/manage browser acceptance
+and the live release remain in progress.
+
+The public-record launch has a private, pinned before/after receipt and guarded
+recovery procedure. Its independent review and 8 isolated PostgreSQL checks pass.
+Production inspection, migration acceptance and live record readback remain
+release gates; this preparation does not establish that production was changed.

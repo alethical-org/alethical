@@ -158,6 +158,9 @@ Money comes before Search, and Blog follows Search. Both direct rows use the exi
 Blog row's taller touch target, dividing lines and right-pointing arrow. The roadmap pills appear below in a
 larger touch size, and the account card sits in the drawer's footer and opens the phone sheet.
 The card has a pale background, a border, the account name and email, and an upward arrow.
+Choosing an account destination closes both the account sheet and the surrounding
+navigation drawer. Closing the account sheet with Close or Escape returns to the
+still-open drawer.
 The drawer header, scrolling links and fixed footer each own their padding;
 short screens can scroll through every roadmap pill without moving the footer.
 Every row is at least 44 pixels tall, and nothing depends on hovering.
@@ -208,7 +211,7 @@ Find my candidates sits immediately before Find my legislators, with “See who 
 running for office in your area” on desktop and a green NEW label on both surfaces.
 The `/candidates` destination is public and accepts a full street address for the
 supported Minnesota election. Official-source results link to public candidate
-profiles. Claiming requires an existing account and independent staff review.
+profiles. A profile claim requires an existing non-admin account and independent admin review.
 Illustrative records remain limited to an explicit development preview.
 
 The account menu retains Tracked and its combined bill-and-committee count.

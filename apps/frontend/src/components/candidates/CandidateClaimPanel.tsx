@@ -20,14 +20,16 @@ import type { CandidateProfileRecord } from './types';
 export function CandidateCampaignStatement({
   statement,
   onReport,
+  preview = false,
 }: {
   record: CandidateProfileRecord;
   statement: CandidateStatement;
   onReport?(): void;
+  preview?: boolean;
 }) {
   const { isMobile } = useResponsive();
   return (
-    <View style={styles.statement}>
+    <View style={[styles.statement, preview && { marginTop: 0 }]}>
       <View style={{ padding: isMobile ? 20 : 24 }}>
         <View style={styles.headingRow}>
           <Text
