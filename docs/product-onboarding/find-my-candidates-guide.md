@@ -1,6 +1,6 @@
 # How Find My Candidates works
 
-<!-- describes: alethical/api/services/address_format.py, apps/frontend/src/lib/currentAddressInput.ts, apps/frontend/src/lib/addressSuggestion.ts, apps/frontend/src/components/address/*.tsx, apps/frontend/src/components/home/HomeCandidateFinder.tsx, apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidateProfileScreen.tsx, apps/frontend/src/screens/CandidateAccountScreens.tsx, apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx, apps/frontend/src/components/candidates/*.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/data/candidates.ts, apps/frontend/src/data/candidateClaims.ts, apps/frontend/src/hooks/useCandidatePrivacyBoundary.ts, apps/frontend/src/lib/candidatePrivacy.ts, apps/frontend/src/lib/candidatePageSnapshot.ts, apps/frontend/src/lib/candidatePublicCopy.ts, alethical/api/routers/candidates.py, alethical/api/routers/candidate_claims.py, alethical/api/services/candidate_lookup.py, alethical/api/services/candidate_legislators.py, alethical/api/data/candidate_legislator_links.json, alethical/api/services/candidate_claims.py, alethical/pipeline/candidate_ballot.py, alethical/db/models.py, alethical/alembic/versions/0066_candidate_lookup.py, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/lib/staticPageMetadata.ts, api/page.ts -->
+<!-- describes: alethical/api/services/address_format.py, apps/frontend/src/lib/currentAddressInput.ts, apps/frontend/src/lib/addressSuggestion.ts, apps/frontend/src/components/address/*.tsx, apps/frontend/src/components/home/HomeCandidateFinder.tsx, apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidateProfileScreen.tsx, apps/frontend/src/screens/CandidateAccountScreens.tsx, apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx, apps/frontend/src/components/candidates/*.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/data/candidates.ts, apps/frontend/src/data/candidateClaims.ts, apps/frontend/src/hooks/useCandidatePrivacyBoundary.ts, apps/frontend/src/lib/candidatePrivacy.ts, apps/frontend/src/lib/candidatePageSnapshot.ts, apps/frontend/src/lib/candidatePublicCopy.ts, alethical/api/routers/candidates.py, alethical/api/routers/candidate_claims.py, alethical/api/services/candidate_lookup.py, alethical/api/services/candidate_legislators.py, alethical/api/data/candidate_legislator_links.json, alethical/api/services/candidate_claims.py, alethical/api/services/admin_access.py, alethical/api/services/candidate_claim_identity.py, alethical/api/services/candidate_claim_events.py, alethical/api/services/candidate_claim_email.py, alethical/api/services/candidate_claim_recheck.py, alethical/api/services/candidate_recheck.py, alethical/api/services/person_records.py, alethical/api/routers/people.py, alethical/api/data/candidate_person_records.json, alethical/pipeline/candidate_person_records.py, alethical/pipeline/data/candidate_recheck_references_2026_v1.json, alethical/alembic/versions/0068_profile_claim_review.py, alethical/alembic/versions/0069_candidate_person_records.py, apps/frontend/src/screens/PersonOverviewScreen.tsx, apps/frontend/src/components/candidates/PersonOverviewContent.tsx, apps/frontend/src/components/candidates/PersonResearch.tsx, apps/frontend/src/data/personRecords.ts, apps/frontend/src/lib/personRecords.ts, alethical/pipeline/candidate_ballot.py, alethical/db/models.py, alethical/alembic/versions/0066_candidate_lookup.py, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/lib/staticPageMetadata.ts, api/page.ts -->
 
 ## Public address lookup
 
@@ -115,9 +115,18 @@ different unit stays visible for selection. The printed selected address and
 submitted address agree; official ballot range validation still decides the match.
 
 The connected source is [Minnesota MyBallot](https://myballotmn.sos.mn.gov/).
-The supported election is November 3, 2026, general election, source ID `8334`.
-The choice expires after election day in Minnesota; an older election never silently
-replaces it. Adding the next election requires a source check and an explicit update.
+The supported current ballot is the November 3, 2026 general election, MyBallot
+source ID `8334` (the results service uses `201`). The November 5, 2024 general
+election is also retained, with results source ID `170`. These IDs name elections,
+not counts of candidates. An explicit election choice stays selected. Otherwise,
+choose the nearest supported upcoming election, or the most recent supported past
+election when none is upcoming, using Minnesota's date.
+
+Historical address matching requires that election's own geography. The retained
+2024 source cannot establish those boundaries, so a 2024 address search says
+**We couldn’t confirm the races for this address and election** and links to the
+official results. It never borrows 2026 geography. Adding another election or
+source capability requires reviewed evidence; elapsed time alone does not add it.
 
 Each search reads fresh ballot records. Street tables may be reused for 5 minutes,
 bounded to 32 ZIP tables and 8 MB of source text. The browser may reuse an identical
@@ -231,41 +240,186 @@ available, preserve its whole proportions, and disappear cleanly on failure. A
 joint ticket retains its shared identity; a linked member's portrait and service
 sit beside that member's name in the legislator panel.
 
-The stored evidence contains candidate records and their source hash, not visitor
-addresses, coordinates, precinct names, range IDs or account associations. Private
+Evidence saved from visitor searches contains candidate records and their source
+hash, not visitor addresses, coordinates, precinct names, range IDs or account
+associations. The separate recheck register retains independently collected public
+reference locations and is never populated from a visitor’s address search. Private
 address requests bypass browser and shared caches. Source exceptions do not expose
 submitted addresses. Illustrative records remain restricted to an explicitly enabled
 development preview and cannot appear in production.
 
+## People, election results and service
+
+`/people/<id>` joins explicitly verified candidacies, supported service and official
+research for 1 person. `/candidates/<id>` remains 1 candidacy, office and election;
+`/legislators/<slug>` keeps detailed legislative work. Candidate records are public
+before anyone claims a profile. A lost election, expired campaign or deleted
+campaign account does not erase the official record.
+
+**Elections and service over time** explains **View person overview** on a linked
+candidate or legislator profile. Connections need retained identity evidence,
+rechecked against the candidate record. Matching names do not establish identity.
+A joint governor/lieutenant-governor label stays intact; only explicitly verified
+members receive separate person links. The overview returns to the exact linked
+candidate or legislator when a valid return context exists.
+
+The reviewed historical register covers 6 candidacies in 4 Minneapolis school-board
+races in the November 5, 2024 election. The district's adopted canvass resolution
+and meeting minutes support the certified outcomes. There are 4 verified people,
+with separate district-roster evidence for service and 8 official research links.
+The register also holds 7 explicit candidate/legislator connections, shown only
+while their source identities match. This is scoped coverage, not a statewide
+historical catalogue or a claim that every office is represented.
+
+Ballot facts and race results keep their own sources and check dates. **Elected**
+and **Not elected** require final certified results for the exact race, jurisdiction
+and election stage, with retained certification evidence. A vote lead, an
+uncontested race, a statewide certification for a different authority, or an elapsed
+election date cannot establish the outcome. The 2026 test results feed is excluded;
+no 2026 result is inferred from it. Pending, unofficial, recount, unresolved tie and
+unavailable result states remain distinct. An official withdrawal needs its own
+source and is not treated as a certified election outcome.
+
+Election badges retain the explicit word **Election** so their context remains
+clear on a person's profile. An outcome never proves the person took office.
+Current, elected-to, former and unknown service need their own source evidence.
+Expected term dates keep their stated precision; reaching an expected start date
+does not turn it into confirmed service. A retained roster does not establish a
+new term after its known end. Non-legislative winners use the same person and
+service records, without being labelled legislators or permanently reduced to
+“former candidate.” January 1 is not a universal start date.
+
+Official research keeps its source, date and historical versions. Research rows
+load in further batches without inventing missing material.
+Articles and debates remain later intake work. Campaign finance is reached through
+explicitly confirmed Minnesota Campaign Finance Board committee connections,
+retaining each committee and reporting period. Candidate statements are separate
+campaign-authored material and never become official research.
+
 ## Claiming and managing a profile
 
 `/candidates/<id>/claim` uses the existing Alethical account. Browsing remains public.
-An applicant supplies a public campaign or official-record link and a private explanation
-of their role and how ownership can be established. Alethical does not fetch applicant
-links automatically. A public filing, uploaded record, email domain or ordinary sign-in
-alone never grants control. No verification email is sent by this workflow.
+**Claim this profile** is the feature name; it requests campaign access to publish a
+statement. Approval grants that permission, not ownership of official records.
+**Manage this profile** keeps the same profile terminology. The explanation sits
+below its applicable action, before the footer, across layout bands.
 
-A confirmed, active account can request review and see its own status. A staff member
-uses `/admin/candidate-claims`, independently verifies control through a trusted contact,
-and records the private evidence before approval. The queue identifies the requesting
-account by its confirmed email address. Staff cannot approve their own claims.
-Approval requires a current-election source record checked within 24 hours. At most 1
-account can own a profile. Competing requests require review; ownership never transfers
-automatically. Staff can reject requests and revoke access. Applicants can withdraw.
+The form requires **Candidate** or **Authorized campaign representative**, a public
+campaign or official-record link, and a private explanation of the role and how it
+can be confirmed. The explanation is 20–1900 characters; the stored role and
+explanation together fit within 2000. The link is at most 2000 characters and is
+not fetched automatically. There is no supporting upload, campaign code check,
+or **More information needed** workflow. A filing, certificate, email domain or
+ordinary sign-in alone never proves campaign authority. An existing pending
+request opens **View profile claim status** without changing its saved evidence
+or sending another notification.
 
-An approved owner uses `/candidates/<id>/manage` for a plain-text statement of at most
-2000 characters. Preview, publication, edits and removal keep the official record intact.
-The public campaign block identifies its authorship and explains what verified access
-means. Campaign statements are excluded from official-record answers and search material
-used by Grounded Ask. Private revision history remains available to the owner and staff.
+Only an active account with a current confirmed email can request campaign access.
+There is 1 administrator role, with equal review powers. Admin accounts cannot
+claim profiles or manage statements as owners, including through a direct address
+or a previously approved claim. The admin action on `/candidates/<id>` is
+**Review profile claim requests**. Public voters have no approval controls.
 
-Updates include an account ID and a saved version. An account change or an older editor
-cannot overwrite a newer result. A same-account sign-in refresh preserves unsaved
-text; changing accounts clears it. Revocation, withdrawal, deactivation and account deletion
-remove the public statement from subsequent reads. Account deletion also removes the
-account's private claims and statement history through database relationships.
+The private `/admin/candidate-claims` list has **Pending** and **All**, candidate
+filtering, exact request links and 25 rows per page, oldest-created first. Its
+pending count includes requests from ended elections. The open account menu
+shows the count beside **Profile claim requests**; it is not a public site badge.
+An exact request shows current confirmed account email when unambiguous, saved
+role/link/explanation, current official facts and source check date, private review
+notes and retained history. A historical missing role or event is not invented.
 
-Readers can report a published statement. Staff receive the reason and the exact text
+An admin independently confirms identity and campaign authority, checks the
+approval confirmation, and saves a private note of 20–2000 characters before
+approval. Approval requires an active confirmed non-admin applicant, no other
+approved owner, and official evidence checked within 24 hours. **Reject profile
+claim request** and **Revoke profile claim** also require a private note. Competing
+requests never transfer ownership automatically. There is no assignment or second
+admin role: the saved request version prevents an older screen from overwriting a
+newer decision. An unknown save outcome requires reloading the request before retry.
+
+**Recheck official record** fetches real official evidence outside database locks,
+then rechecks admin eligibility, request version and the exact saved candidate
+before saving only that matched record. Its independent public reference register
+covers 112 current candidate IDs, not every possible candidate. A missing reference
+or temporary source failure does not advance the check date. A proved identity,
+election or missing-candidate mismatch blocks new requests and approvals until a
+successful matched recheck clears it; temporary failures retain any existing block.
+A merely old record asks for a new check. A mismatched record says **The official
+candidate record could not be confirmed, so this profile claim request cannot be
+approved**. Existing approved non-admin owners retain statement management.
+
+New requests and approvals close after election day in **America/Chicago**, without
+waiting for results certification. Existing pending requests retain their private
+status and withdrawal action. Rejected, withdrawn, given-up and revoked applicants
+can request another review while new requests are open and account/source checks
+allow it. An already-claimed profile does not promise a transfer; another request
+still needs admin review. Closed-election public states explain what a profile
+claim means and show no new-request button.
+
+An approved owner uses `/candidates/<id>/manage` for a plain-text statement of at
+most 2000 characters, including after the election. Preview, publication, edits and
+removal leave the official record intact. The public campaign block identifies
+its authorship and explains verified campaign access. Campaign statements stay
+out of official-record answers and search material used by Grounded Ask. Private
+statement revisions remain available to the owner and authorized admin review.
+
+An unsaved statement stays in the editor until publication or a confirmed edit;
+there is no saved unpublished-draft feature. Leaving through an in-app link or
+browser Back or Forward offers **Keep editing** and **Discard changes**. Keeping
+the draft restores its text and keyboard focus. Closing or reloading the tab
+uses the browser's own warning. A never-published draft has no publication date,
+including in Preview. Clearing an existing published statement is an unsaved
+edit; typing and clearing a new draft back to empty is not.
+
+Applicants can withdraw pending requests. **Give up this profile claim** ends an
+approved owner's campaign access and removes a published statement if present.
+Its confirmation and success message mention removal only when a statement exists.
+The saved claim state remains withdrawn, but new history distinguishes **given up**
+from an ordinary withdrawal. Revocation also removes a published statement if
+present. None of these actions removes the official candidate profile.
+
+Private history records 7 events: submitted, resubmitted, withdrawn, given up,
+approved, rejected and revoked. Every new event retains its own evidence and note.
+The latest submission date comes from a submission event, not a later decision;
+legacy requests retain their original creation date when later history is absent.
+History says when earlier events are unavailable rather than recreating them.
+
+Updates carry the expected account and saved version. Same-account sign-in refresh
+preserves unsaved text; sign-out, account switching or lost permission clears private
+responses and text. Revocation, giving up, deactivation and account deletion remove
+the public statement from subsequent reads. Deleting a requesting account removes
+its private claims, statement revisions, claim events and queued deliveries.
+Deleting a reviewing admin removes that actor's account reference from retained
+history instead of copying their private identity permanently. Official people,
+candidacies, service, research and results remain independently retained.
+
+## Profile claim email notifications
+
+There are 8 message variants: new and resubmitted requests to eligible active admins,
+and approval, rejection and revocation separately to the applicant and to other
+eligible active admins. The deciding admin is excluded from the admin decision
+notification. Messages go individually to current confirmed account addresses,
+never a public campaign address or an exposed recipient list. Ambiguous current
+addresses are skipped instead of choosing one.
+
+Resend delivers from **Alethical <ask@alethical.com>**, with replies to
+**ask@alethical.com**. Messages identify the candidate, office, voting area and
+election. Admin decision messages also name the decision, retained reviewer and
+saved time. Private supporting links, explanations, review notes and reports stay
+out of email. Admin links open the exact private request; applicant links open the
+matching profile status or management view after sign-in. An old approval link
+cannot restore revoked access.
+
+The request or decision, history event and intended notifications save together.
+Delivery runs afterward and rechecks current recipient eligibility before sending.
+A delivery failure does not undo the saved decision. Each event/account pair has
+1 delivery record; retries use the same attempted message and delivery key. An
+uncertain send stops retrying after 23 hours and clears its prepared private
+payload. Deleted or ineligible recipients are cancelled, and test-recipient
+restrictions are checked again immediately before delivery. Feature and general
+email switches keep live sending disabled until the release checks allow it.
+
+Readers can report a published statement. Admins receive the reason and the exact text
 and version reported, even if the campaign edits it before review. Reports and verification
 notes are private. Database failures return a generic unavailable response without
 passing private notes into server error logs. Public report submission is rate limited and sends no email.

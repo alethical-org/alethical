@@ -1,4 +1,4 @@
-<!-- describes: alethical/release.py, alethical/api/main.py, apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, api/page.ts, alethical/api/routers/me.py, alethical/api/main.py, alethical/api/request_admission.py, alethical/api/services/ask_router.py, alethical/pipeline/rag_ingest.py, alethical/logging.py, alethical/monitoring.py, railway.json, vercel.json, apps/frontend/metro.config.js, patches/@expo__metro-config@57.0.7.patch, pnpm-workspace.yaml, pnpm-lock.yaml -->
+<!-- describes: alethical/api/services/candidate_claim_email.py, alethical/alembic/versions/0068_profile_claim_review.py, alethical/release.py, alethical/api/main.py, apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, api/page.ts, alethical/api/routers/me.py, alethical/api/main.py, alethical/api/request_admission.py, alethical/api/services/ask_router.py, alethical/pipeline/rag_ingest.py, alethical/logging.py, alethical/monitoring.py, railway.json, vercel.json, apps/frontend/metro.config.js, patches/@expo__metro-config@57.0.7.patch, pnpm-workspace.yaml, pnpm-lock.yaml -->
 
 # Production setup and recovery
 
@@ -100,6 +100,48 @@ API process drains saved messages independently from reader requests. See
 [editorial-comments-guide.md](../product-onboarding/editorial-comments-guide.md#recovery-privacy-and-delivery)
 for delivery gates, retries and safe checks; do not send real test messages.
 Keep values only in Railway, never in this repository.
+
+### Profile claim email activation
+
+The intended accepted-production setting is
+`ALETHICAL_PROFILE_CLAIM_EMAIL_ENABLED=true`. Delivery is staged off until these
+release checks pass; an absent value also means off. This uses the existing
+`ALETHICAL_EMAIL_ENABLED=true`, `ALETHICAL_EMAIL_TRANSPORT=resend` and
+`RESEND_API_KEY` settings, with no new email service or paid AI call.
+
+Before activation:
+
+1. Confirm migrations `0068_profile_claim_review` and `0069_candidate_person_records`
+   are applied, the private claim event/delivery tables have row security enabled
+   with no public policies, and the reviewer-deletion cleanup trigger is installed.
+2. Pass the real PostgreSQL claim, permission, deletion, concurrent-decision and
+   delivery tests with the provider replaced by a test substitute; send no real test
+   email. Check current confirmed recipient handling and duplicate protection.
+3. Confirm the live candidate/admin routes and approved email image asset answer,
+   and the reviewed official public records have been imported and read back.
+4. Read the production delivery queue without changing it and confirm the launch
+   queue is empty. An unexpected queued row needs investigation before enabling
+   sending; never activate the sender merely to test it.
+5. Set the profile-claim flag to `true` in Railway, allow the settings release to
+   complete, and check service readiness and the saved flag without submitting a
+   real claim or decision to generate test mail.
+
+The API starts the saved-message worker at startup and waits 10 seconds after each
+completed drain. A drain considers up to 20 ready deliveries by default, with an
+absolute limit of 100, and shares the comment sender's database lock. Attempted
+messages retain their content and provider key; uncertain delivery stops retrying
+after 23 hours. Profile claim requests and admin decisions only save the queue entry, so a
+mail failure does not reverse a saved decision. Recipient eligibility is checked
+again before delivery. Setting the flag back to `false` pauses future drains;
+already handed-off email cannot be recalled.
+
+[find-my-candidates-guide.md § Profile claim email notifications](../product-onboarding/find-my-candidates-guide.md#profile-claim-email-notifications)
+owns recipient and message behavior.
+[user-data-retention-policy.md §2.10](../product-onboarding/user-data-retention-policy.md#210-candidate-profile-claims-and-campaign-statements)
+owns private retention and immediate deleted-reviewer cleanup, including while the
+sender is off. Keep all setting values in Railway, never in this repository.
+
+### Answer generation and error reporting
 
 `OPENAI_API_KEY` powers live Ask question sorting and search embeddings. It also
 writes answers unless `OPENAI_RAG_CHAT_MODEL` names an Anthropic model; that choice

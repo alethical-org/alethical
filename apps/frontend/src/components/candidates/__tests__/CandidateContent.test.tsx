@@ -241,8 +241,8 @@ it('keeps old results and election attached while changing selection by keyboard
   expect(host.querySelector('a[href="/candidates/primary-a"]')).toBeTruthy();
   expect(host.textContent).not.toContain('Elect 1');
 });
-it('does not silently use an old election when none is upcoming', async () => {
-  const lookup = vi.fn<CandidateSearchServices['lookup']>();
+it('uses the most recent supported past election when none is upcoming', async () => {
+  const lookup = vi.fn<CandidateSearchServices['lookup']>().mockResolvedValue(result());
   const service = {
     ...services(lookup),
     getElections: async () => [{ ...general, date: '2000-11-07' }],
@@ -257,9 +257,11 @@ it('does not silently use an old election when none is upcoming', async () => {
     ),
   );
   await flush();
-  expect(host.textContent).toContain('Records for upcoming elections are not available yet');
-  expect(lookup).not.toHaveBeenCalled();
-  expect(host.querySelector('[role="combobox"]')).toBeNull();
+  expect(lookup).toHaveBeenCalledWith(
+    expect.objectContaining({ electionId: general.id }),
+    expect.any(AbortSignal),
+  );
+  expect(host.textContent).toContain('November 7, 2000');
 });
 it('requires a keyboard-confirmed ambiguous address and passes its choice to the service', async () => {
   const choice = {

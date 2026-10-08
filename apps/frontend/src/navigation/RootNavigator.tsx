@@ -15,7 +15,7 @@ import {
   UserCircle,
   type Icon,
 } from '../components/icons';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -23,13 +23,11 @@ import { useAuth } from '../providers/AuthProvider';
 import { useResponsive } from '../hooks/useResponsive';
 import { useCandidatePrivacyBoundary } from '../hooks/useCandidatePrivacyBoundary';
 import { documentTitleForRoute } from './documentTitle';
+import { candidateEditorId, candidateEditorRouter } from './candidateEditorRouter';
+import { defaultGuardedNavigation, GuardedNavigationContext } from './GuardedNavigationContext';
+import { createWebNavigationHistory } from './webNavigationHistory';
 import { linkProps, routePath } from './links';
-import {
-  consumeWebHistoryReplaceMark,
-  initializeWebHistory,
-  pushWebHistory,
-  replaceWebHistoryPath,
-} from './webHistory';
+import { initializeWebHistory } from './webHistory';
 import { MainTabParamList, MainTabScreenProps, RootStackParamList } from './types';
 import { pathnameFromNavigationState, stateFromPathname } from './webRoutes';
 import { loadOnDemand } from '../lib/loadOnDemand';
@@ -87,6 +85,7 @@ const ShortPostsScreen = loadOnDemand(screenChunks.ShortPosts, { kind: 'screen' 
 const NotFoundScreen = loadOnDemand(screenChunks.NotFound, { kind: 'screen' });
 const CandidatesScreen = loadOnDemand(screenChunks.Candidates, { kind: 'screen' });
 const CandidateProfileScreen = loadOnDemand(screenChunks.CandidateProfile, { kind: 'screen' });
+const PersonOverviewScreen = loadOnDemand(screenChunks.PersonOverview, { kind: 'screen' });
 const CandidateClaimScreen = loadOnDemand(screenChunks.CandidateClaim, { kind: 'screen' });
 const CandidateManageScreen = loadOnDemand(screenChunks.CandidateManage, { kind: 'screen' });
 const AdminCandidateClaimsScreen = loadOnDemand(screenChunks.AdminCandidateClaims, {
@@ -551,7 +550,8 @@ export function RootNavigator() {
   useCandidatePrivacyBoundary();
   const isWeb = Platform.OS === 'web';
   const { isDesktop } = useResponsive();
-  const lastPathRef = useRef('/');
+  const { isSignedIn, user } = useAuth();
+  const accountIdentity = isSignedIn ? user?.id : null;
   const [activeRailRoute, setActiveRailRoute] = useState<RailRouteName | undefined>('Home');
   const isHome = useIsHome(activeRailRoute === 'Home' ? 'Home' : undefined);
   const usesOwnPageChrome =
@@ -563,374 +563,372 @@ export function RootNavigator() {
     activeRailRoute === 'AdminUsers' ||
     activeRailRoute === 'AdminSiteMetrics';
 
-  useEffect(() => {
-    if (!isWeb) {
-      return;
-    }
-
-    const onPopState = () => {
-      if (!navigationRef.isReady()) {
-        return;
-      }
-
-      // Include the query string: ?q= / ?subjectType= params live there and
-      // targetFromPathname parses them (the pathname alone drops them).
-      const fullPath = `${window.location.pathname}${window.location.search}` || '/';
-      navigationRef.resetRoot(stateFromPathname(fullPath));
-      lastPathRef.current = fullPath;
-    };
-
-    window.addEventListener('popstate', onPopState);
-    return () => {
-      window.removeEventListener('popstate', onPopState);
-    };
-  }, [isWeb]);
-
   const initialState = useMemo(() => {
     if (!isWeb || typeof window === 'undefined') {
       return undefined;
     }
 
-    lastPathRef.current = `${window.location.pathname}${window.location.search}` || '/';
     initializeWebHistory();
-    return stateFromPathname(lastPathRef.current);
+    return stateFromPathname(`${window.location.pathname}${window.location.search}` || '/');
   }, [isWeb]);
+  const webHistory = useMemo(
+    () =>
+      isWeb && typeof window !== 'undefined'
+        ? createWebNavigationHistory({
+            getNavigationPath: () => pathnameFromNavigationState(navigationRef.getRootState()),
+            resetNavigationToPath: (path) => navigationRef.resetRoot(stateFromPathname(path)),
+            shouldGuardCurrentRoute: () =>
+              navigationRef.getCurrentRoute()?.name === 'CandidateManage',
+          })
+        : null,
+    [isWeb],
+  );
+  useEffect(() => {
+    if (!webHistory) return;
+    const onPopState = () => {
+      if (navigationRef.isReady()) webHistory.onPopState();
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [webHistory]);
+  useLayoutEffect(() => {
+    webHistory?.cancelPendingNavigation();
+  }, [webHistory, accountIdentity, user?.isAdmin]);
 
   return (
-    <NavigationContainer
-      ref={navigationRef}
-      theme={navigationTheme}
-      initialState={initialState}
-      documentTitle={{
-        // Titles come from the shared page-wording builders, not from the screen's
-        // navigation name — see navigation/documentTitle.ts for why.
-        formatter: (_options, route) =>
-          documentTitleForRoute(
-            (route ?? { name: 'Home' }) as Parameters<typeof documentTitleForRoute>[0],
-          ),
-      }}
-      onReady={() => {
-        if (navigationRef.isReady()) {
-          const rootState = navigationRef.getRootState();
-          lastPathRef.current = pathnameFromNavigationState(rootState);
-          const nextActiveRailRoute = activeRailRouteFromRootState(rootState);
+    <GuardedNavigationContext.Provider value={webHistory ?? defaultGuardedNavigation}>
+      <NavigationContainer
+        ref={navigationRef}
+        theme={navigationTheme}
+        initialState={initialState}
+        documentTitle={{
+          // Titles come from the shared page-wording builders, not from the screen's
+          // navigation name — see navigation/documentTitle.ts for why.
+          formatter: (_options, route) =>
+            documentTitleForRoute(
+              (route ?? { name: 'Home' }) as Parameters<typeof documentTitleForRoute>[0],
+            ),
+        }}
+        onReady={() => {
+          if (navigationRef.isReady()) {
+            const rootState = navigationRef.getRootState();
+            const nextActiveRailRoute = activeRailRouteFromRootState(rootState);
+            if (nextActiveRailRoute) {
+              setActiveRailRoute(nextActiveRailRoute);
+            }
+          }
+        }}
+        onStateChange={(state) => {
+          const nextActiveRailRoute = activeRailRouteFromRootState(state);
           if (nextActiveRailRoute) {
             setActiveRailRoute(nextActiveRailRoute);
           }
-        }
-      }}
-      onStateChange={(state) => {
-        const nextActiveRailRoute = activeRailRouteFromRootState(state);
-        if (nextActiveRailRoute) {
-          setActiveRailRoute(nextActiveRailRoute);
-        }
-        if (!isWeb || !state) {
-          return;
-        }
-
-        const nextPath = pathnameFromNavigationState(state);
-
-        if (nextPath !== lastPathRef.current) {
-          // A canonical forward (e.g. a committee address with a misspelled name
-          // part) rewrites the address in place; anything else is a real step.
-          if (consumeWebHistoryReplaceMark()) {
-            replaceWebHistoryPath(nextPath);
-          } else {
-            pushWebHistory(nextPath);
+          if (!isWeb || !state) {
+            return;
           }
-          lastPathRef.current = nextPath;
-        }
-      }}
-    >
-      <View style={isDesktop ? styles.globalShell : styles.globalShellMobile}>
-        {/* Redesign pages bring their own top nav and footer, so they opt out of
+
+          webHistory?.onStateChange(pathnameFromNavigationState(state));
+        }}
+      >
+        <View style={isDesktop ? styles.globalShell : styles.globalShellMobile}>
+          {/* Redesign pages bring their own top nav and footer, so they opt out of
             the old desktop rail instead of rendering both navigation systems. */}
-        {isDesktop && !usesOwnPageChrome ? <DesktopRail activeRouteName={activeRailRoute} /> : null}
-        <View style={styles.globalContent}>
-          <Stack.Navigator
-            screenOptions={({ navigation }) => ({
-              headerShown: !isDesktop,
-              headerBackVisible: false,
-              headerTitleAlign: 'left',
-              headerShadowVisible: false,
-              headerStyle: {
-                backgroundColor: theme.colors.surface,
-              },
-              headerTintColor: theme.colors.ink,
-              headerLeft: () =>
-                navigation.canGoBack() ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Go back"
-                    hitSlop={10}
-                    onPress={() => navigation.goBack()}
-                    style={({ pressed }) => [
-                      styles.headerBackButton,
-                      pressed && styles.headerBackButtonPressed,
-                    ]}
-                  >
-                    <ArrowLeft color={theme.colors.ink} size={32} strokeWidth={2.4} />
-                  </Pressable>
-                ) : null,
-              headerLeftContainerStyle: styles.headerLeftContainer,
-              headerTitleContainerStyle: styles.headerTitleContainer,
-              headerTitleStyle: {
-                color: theme.colors.ink,
-                fontFamily: theme.typography.title,
-                fontSize: 22,
-              },
-              contentStyle: {
-                backgroundColor: theme.colors.paper,
-              },
-            })}
-          >
-            <Stack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
-            <Stack.Screen
-              name="Ask"
-              component={AskAnswerScreen}
-              options={{ headerShown: false, title: 'Ask' }}
-            />
-            <Stack.Screen
-              name="BillDetail"
-              component={BillDetailScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="LegislatorProfile"
-              component={LegislatorProfileScreen}
-              options={{ headerShown: false, title: 'Legislator' }}
-            />
-            <Stack.Screen
-              name="FindMyLegislator"
-              component={FindMyLegislatorScreen}
-              options={{ headerShown: false, title: 'Find my legislator' }}
-            />
-            <Stack.Screen
-              name="Candidates"
-              component={CandidatesScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="CandidateProfile"
-              component={CandidateProfileScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="CandidateClaim"
-              component={CandidateClaimScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="CandidateManage"
-              component={CandidateManageScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="AdminCandidateClaims"
-              component={AdminCandidateClaimsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="Bills"
-              component={SearchBillsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="Legislators"
-              component={SearchLegislatorsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="LobbyingLanding"
-              component={LobbyingLandingScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="LobbyingPrincipals"
-              component={LobbyingPrincipalsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="LobbyingLobbyists"
-              component={LobbyingLobbyistsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="LobbyingPrincipal"
-              component={LobbyingPrincipalScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="LobbyingLobbyist"
-              component={LobbyingLobbyistScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="MoneyLanding"
-              component={MoneyLandingScreen}
-              options={{ headerShown: false, title: MONEY_SECTION_NAME }}
-            />
-            <Stack.Screen
-              name="EmailPreferences"
-              component={EmailPreferencesScreen}
-              options={{ headerShown: false, title: 'Email preferences' }}
-            />
-            <Stack.Screen
-              name="CommentEmails"
-              component={CommentEmailsScreen}
-              options={{ headerShown: false, title: 'Comment emails' }}
-            />
-            <Stack.Screen
-              name="Unsubscribe"
-              component={UnsubscribeScreen}
-              options={{ headerShown: false, title: 'Unsubscribe' }}
-            />
-            <Stack.Screen
-              name="Read"
-              component={ReadScreen}
-              options={{ headerShown: false, title: 'Campaign money research' }}
-            />
-            <Stack.Screen
-              name="ReadResearch"
-              component={ReadCollectionScreen}
-              options={{ headerShown: false, title: 'Research reports' }}
-            />
-            <Stack.Screen
-              name="Events"
-              component={EventScreen}
-              options={{ headerShown: false, title: 'Events' }}
-            />
-            <Stack.Screen
-              name="Event"
-              component={EventScreen}
-              options={{ headerShown: false, title: 'Event' }}
-            />
-            <Stack.Screen
-              name="ReadGuides"
-              component={ReadCollectionScreen}
-              options={{ headerShown: false, title: 'Guides' }}
-            />
-            <Stack.Screen
-              name="ReadSet"
-              component={ReadCollectionScreen}
-              options={{ headerShown: false, title: 'How the Money Works' }}
-            />
-            <Stack.Screen
-              name="ShortPosts"
-              component={ShortPostsScreen}
-              options={{ headerShown: false, title: 'Short posts' }}
-            />
-            <Stack.Screen
-              name="ReadTopic"
-              component={ShortPostsScreen}
-              options={{ headerShown: false, title: 'Topic' }}
-            />
-            <Stack.Screen
-              name="Research"
-              component={ResearchScreen}
-              options={{ headerShown: false, title: 'Research' }}
-            />
-            {/* The same screen: a guide and a research piece are one document
+          {isDesktop && !usesOwnPageChrome ? (
+            <DesktopRail activeRouteName={activeRailRoute} />
+          ) : null}
+          <View style={styles.globalContent}>
+            <Stack.Navigator
+              UNSTABLE_router={candidateEditorRouter}
+              screenOptions={({ navigation }) => ({
+                headerShown: !isDesktop,
+                headerBackVisible: false,
+                headerTitleAlign: 'left',
+                headerShadowVisible: false,
+                headerStyle: {
+                  backgroundColor: theme.colors.surface,
+                },
+                headerTintColor: theme.colors.ink,
+                headerLeft: () =>
+                  navigation.canGoBack() ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Go back"
+                      hitSlop={10}
+                      onPress={() => navigation.goBack()}
+                      style={({ pressed }) => [
+                        styles.headerBackButton,
+                        pressed && styles.headerBackButtonPressed,
+                      ]}
+                    >
+                      <ArrowLeft color={theme.colors.ink} size={32} strokeWidth={2.4} />
+                    </Pressable>
+                  ) : null,
+                headerLeftContainerStyle: styles.headerLeftContainer,
+                headerTitleContainerStyle: styles.headerTitleContainer,
+                headerTitleStyle: {
+                  color: theme.colors.ink,
+                  fontFamily: theme.typography.title,
+                  fontSize: 22,
+                },
+                contentStyle: {
+                  backgroundColor: theme.colors.paper,
+                },
+              })}
+            >
+              <Stack.Screen name="Tabs" component={MainTabs} options={{ headerShown: false }} />
+              <Stack.Screen
+                name="Ask"
+                component={AskAnswerScreen}
+                options={{ headerShown: false, title: 'Ask' }}
+              />
+              <Stack.Screen
+                name="BillDetail"
+                component={BillDetailScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="LegislatorProfile"
+                component={LegislatorProfileScreen}
+                options={{ headerShown: false, title: 'Legislator' }}
+              />
+              <Stack.Screen
+                name="FindMyLegislator"
+                component={FindMyLegislatorScreen}
+                options={{ headerShown: false, title: 'Find my legislator' }}
+              />
+              <Stack.Screen
+                name="Candidates"
+                component={CandidatesScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="CandidateProfile"
+                component={CandidateProfileScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="PersonOverview"
+                component={PersonOverviewScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="CandidateClaim"
+                component={CandidateClaimScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="CandidateManage"
+                component={CandidateManageScreen}
+                getId={candidateEditorId}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="AdminCandidateClaims"
+                component={AdminCandidateClaimsScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="Bills"
+                component={SearchBillsScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="Legislators"
+                component={SearchLegislatorsScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="LobbyingLanding"
+                component={LobbyingLandingScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="LobbyingPrincipals"
+                component={LobbyingPrincipalsScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="LobbyingLobbyists"
+                component={LobbyingLobbyistsScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="LobbyingPrincipal"
+                component={LobbyingPrincipalScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="LobbyingLobbyist"
+                component={LobbyingLobbyistScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="MoneyLanding"
+                component={MoneyLandingScreen}
+                options={{ headerShown: false, title: MONEY_SECTION_NAME }}
+              />
+              <Stack.Screen
+                name="EmailPreferences"
+                component={EmailPreferencesScreen}
+                options={{ headerShown: false, title: 'Email preferences' }}
+              />
+              <Stack.Screen
+                name="CommentEmails"
+                component={CommentEmailsScreen}
+                options={{ headerShown: false, title: 'Comment emails' }}
+              />
+              <Stack.Screen
+                name="Unsubscribe"
+                component={UnsubscribeScreen}
+                options={{ headerShown: false, title: 'Unsubscribe' }}
+              />
+              <Stack.Screen
+                name="Read"
+                component={ReadScreen}
+                options={{ headerShown: false, title: 'Campaign money research' }}
+              />
+              <Stack.Screen
+                name="ReadResearch"
+                component={ReadCollectionScreen}
+                options={{ headerShown: false, title: 'Research reports' }}
+              />
+              <Stack.Screen
+                name="Events"
+                component={EventScreen}
+                options={{ headerShown: false, title: 'Events' }}
+              />
+              <Stack.Screen
+                name="Event"
+                component={EventScreen}
+                options={{ headerShown: false, title: 'Event' }}
+              />
+              <Stack.Screen
+                name="ReadGuides"
+                component={ReadCollectionScreen}
+                options={{ headerShown: false, title: 'Guides' }}
+              />
+              <Stack.Screen
+                name="ReadSet"
+                component={ReadCollectionScreen}
+                options={{ headerShown: false, title: 'How the Money Works' }}
+              />
+              <Stack.Screen
+                name="ShortPosts"
+                component={ShortPostsScreen}
+                options={{ headerShown: false, title: 'Short posts' }}
+              />
+              <Stack.Screen
+                name="ReadTopic"
+                component={ShortPostsScreen}
+                options={{ headerShown: false, title: 'Topic' }}
+              />
+              <Stack.Screen
+                name="Research"
+                component={ResearchScreen}
+                options={{ headerShown: false, title: 'Research' }}
+              />
+              {/* The same screen: a guide and a research piece are one document
                 shape with different mastheads, so 2 route names exist only to
                 write the 2 addresses. */}
-            <Stack.Screen
-              name="Guide"
-              component={ResearchScreen}
-              options={{ headerShown: false, title: 'Guide' }}
-            />
-            <Stack.Screen
-              name="MoneySearch"
-              component={MoneySearchScreen}
-              options={{ headerShown: false, title: 'Search campaign money' }}
-            />
-            <Stack.Screen
-              name="PaymentsUnderName"
-              component={PaymentsUnderNameScreen}
-              options={{ headerShown: false, title: 'Payments filed under one name' }}
-            />
-            <Stack.Screen
-              name="OutsideSpending"
-              component={OutsideSpendingScreen}
-              options={{ headerShown: false, title: 'Outside spending' }}
-            />
-            <Stack.Screen
-              name="CommitteeList"
-              component={CommitteeListScreen}
-              options={{ headerShown: false, title: 'Committees' }}
-            />
-            <Stack.Screen
-              name="MoneyByRace"
-              component={MoneyByRaceScreen}
-              options={{ headerShown: false, title: 'Money by race' }}
-            />
-            <Stack.Screen
-              name="CommitteeMoney"
-              component={CommitteeMoneyScreen}
-              options={{ headerShown: false, title: 'Committee' }}
-            />
-            <Stack.Screen
-              name="CommitteePayments"
-              component={CommitteePaymentsScreen}
-              options={{ headerShown: false, title: 'Committee payments' }}
-            />
-            <Stack.Screen
-              name="Privacy"
-              component={PrivacyScreen}
-              options={{ headerShown: false, title: 'Privacy Policy' }}
-            />
-            <Stack.Screen
-              name="AdminUsers"
-              component={AdminUsersScreen}
-              options={{ headerShown: false, title: 'Users' }}
-            />
-            <Stack.Screen
-              name="AdminSiteMetrics"
-              component={AdminSiteMetricsScreen}
-              options={{ headerShown: false, title: 'Admin metrics' }}
-            />
-            <Stack.Screen
-              name="SiteMetrics"
-              component={TrafficScreen}
-              options={{ headerShown: false, title: 'Site Metrics' }}
-            />
-            <Stack.Screen
-              name="Terms"
-              component={TermsScreen}
-              options={{ headerShown: false, title: 'Terms of Service' }}
-            />
-            <Stack.Screen
-              name="AboutUs"
-              component={AboutUsScreen}
-              options={{ headerShown: false, title: 'About us' }}
-            />
-            <Stack.Screen
-              name="Services"
-              component={ServicesScreen}
-              options={{ headerShown: false, title: 'Services' }}
-            />
-            <Stack.Screen
-              name="ContactUs"
-              component={ContactUsScreen}
-              options={{ headerShown: false, title: 'Contact us' }}
-            />
-            <Stack.Screen
-              name="NotFound"
-              component={NotFoundScreen}
-              options={{ headerShown: false, title: 'Page not found' }}
-            />
-            <Stack.Screen
-              name="VoteDetail"
-              component={VoteDetailScreen}
-              options={{ title: 'Vote Detail' }}
-            />
-            <Stack.Screen
-              name="ChatSession"
-              component={ChatSessionScreen}
-              options={{ title: 'Chat' }}
-            />
-          </Stack.Navigator>
+              <Stack.Screen
+                name="Guide"
+                component={ResearchScreen}
+                options={{ headerShown: false, title: 'Guide' }}
+              />
+              <Stack.Screen
+                name="MoneySearch"
+                component={MoneySearchScreen}
+                options={{ headerShown: false, title: 'Search campaign money' }}
+              />
+              <Stack.Screen
+                name="PaymentsUnderName"
+                component={PaymentsUnderNameScreen}
+                options={{ headerShown: false, title: 'Payments filed under one name' }}
+              />
+              <Stack.Screen
+                name="OutsideSpending"
+                component={OutsideSpendingScreen}
+                options={{ headerShown: false, title: 'Outside spending' }}
+              />
+              <Stack.Screen
+                name="CommitteeList"
+                component={CommitteeListScreen}
+                options={{ headerShown: false, title: 'Committees' }}
+              />
+              <Stack.Screen
+                name="MoneyByRace"
+                component={MoneyByRaceScreen}
+                options={{ headerShown: false, title: 'Money by race' }}
+              />
+              <Stack.Screen
+                name="CommitteeMoney"
+                component={CommitteeMoneyScreen}
+                options={{ headerShown: false, title: 'Committee' }}
+              />
+              <Stack.Screen
+                name="CommitteePayments"
+                component={CommitteePaymentsScreen}
+                options={{ headerShown: false, title: 'Committee payments' }}
+              />
+              <Stack.Screen
+                name="Privacy"
+                component={PrivacyScreen}
+                options={{ headerShown: false, title: 'Privacy Policy' }}
+              />
+              <Stack.Screen
+                name="AdminUsers"
+                component={AdminUsersScreen}
+                options={{ headerShown: false, title: 'Users' }}
+              />
+              <Stack.Screen
+                name="AdminSiteMetrics"
+                component={AdminSiteMetricsScreen}
+                options={{ headerShown: false, title: 'Admin metrics' }}
+              />
+              <Stack.Screen
+                name="SiteMetrics"
+                component={TrafficScreen}
+                options={{ headerShown: false, title: 'Site Metrics' }}
+              />
+              <Stack.Screen
+                name="Terms"
+                component={TermsScreen}
+                options={{ headerShown: false, title: 'Terms of Service' }}
+              />
+              <Stack.Screen
+                name="AboutUs"
+                component={AboutUsScreen}
+                options={{ headerShown: false, title: 'About us' }}
+              />
+              <Stack.Screen
+                name="Services"
+                component={ServicesScreen}
+                options={{ headerShown: false, title: 'Services' }}
+              />
+              <Stack.Screen
+                name="ContactUs"
+                component={ContactUsScreen}
+                options={{ headerShown: false, title: 'Contact us' }}
+              />
+              <Stack.Screen
+                name="NotFound"
+                component={NotFoundScreen}
+                options={{ headerShown: false, title: 'Page not found' }}
+              />
+              <Stack.Screen
+                name="VoteDetail"
+                component={VoteDetailScreen}
+                options={{ title: 'Vote Detail' }}
+              />
+              <Stack.Screen
+                name="ChatSession"
+                component={ChatSessionScreen}
+                options={{ title: 'Chat' }}
+              />
+            </Stack.Navigator>
+          </View>
         </View>
-      </View>
-    </NavigationContainer>
+      </NavigationContainer>
+    </GuardedNavigationContext.Provider>
   );
 }

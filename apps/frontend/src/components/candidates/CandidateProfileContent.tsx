@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -11,6 +11,8 @@ import {
 } from './CandidateControls';
 import { candidateElectionLabel, candidateOfficeLabel, areaLabel } from './CandidateResultsContent';
 import type { CandidateProfileRecord } from './types';
+import { PERSON_RECORD_COPY } from '../../lib/personRecords';
+import { ElectionResultBlock } from './ElectionResult';
 
 import {
   candidateElectionHasPassed,
@@ -63,6 +65,7 @@ export function CandidateProfileContent({
   record,
   onBack,
   onOpenLegislator,
+  onOpenPerson,
   fromSearch = true,
   children,
 }: {
@@ -71,6 +74,7 @@ export function CandidateProfileContent({
   onBack(): void;
   fromSearch?: boolean;
   onOpenLegislator?(slug: string): void;
+  onOpenPerson?(id: string): void;
   /** Kept for the existing preview route; joint records never invent separate people. */
   onOpenProfile?(id: string): void;
 }) {
@@ -78,7 +82,8 @@ export function CandidateProfileContent({
   const bodyStyle = { fontSize: isMobile ? 16 : 17, lineHeight: isMobile ? 24 : 25.5 };
   const inset = isMobile ? 18 : isDesktop ? 28 : 24;
   const leg = record.legislator;
-  const past = candidateElectionHasPassed(record.election.date);
+  const personDescription = useId();
+  const past = record.electionEnded ?? candidateElectionHasPassed(record.election.date);
   const reelection = !past && leg?.serviceStatus === 'current' && leg.isReelection;
   const showService =
     leg && (leg.serviceStatus === 'former' || (leg.serviceStatus === 'current' && !reelection));
@@ -135,6 +140,60 @@ export function CandidateProfileContent({
             {record.candidate.name}
           </Text>
         </View>
+        {record.people?.length ? (
+          <View style={{ marginTop: 12 }}>
+            <Text nativeID={personDescription} style={candidateText.body}>
+              {PERSON_RECORD_COPY.introduction}
+            </Text>
+            <View
+              style={
+                record.isJointTicket
+                  ? { marginTop: 10, flexDirection: isMobile ? 'column' : 'row', gap: 10 }
+                  : undefined
+              }
+            >
+              {record.people.map((person) => (
+                <View
+                  key={person.id}
+                  style={
+                    record.isJointTicket
+                      ? {
+                          flex: 1,
+                          minWidth: 0,
+                          paddingHorizontal: 16,
+                          paddingTop: 12,
+                          paddingBottom: 4,
+                          borderWidth: 1,
+                          borderColor: 'rgba(17,21,15,0.1)',
+                          borderRadius: 14,
+                          backgroundColor: '#fff',
+                        }
+                      : undefined
+                  }
+                >
+                  {record.isJointTicket ? (
+                    <Text
+                      style={[
+                        candidateText.strong,
+                        { fontSize: 17, fontWeight: '800', lineHeight: 23 },
+                      ]}
+                    >
+                      {person.name}
+                    </Text>
+                  ) : null}
+                  <CandidateLink
+                    internal
+                    label={PERSON_RECORD_COPY.link}
+                    url={`${person.profileUrl}?candidate=${record.candidate.id}`}
+                    describedBy={personDescription}
+                    accessibilityLabel={`${PERSON_RECORD_COPY.link}, ${person.name}`}
+                    onPress={onOpenPerson ? () => onOpenPerson(person.id) : undefined}
+                  />
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
         {leg ? (
           <View accessibilityLabel="Legislator profile" style={styles.legislator}>
             <View
@@ -288,6 +347,7 @@ export function CandidateProfileContent({
             source={record.source}
             style={{ paddingHorizontal: inset, paddingTop: 8, paddingBottom: 14 }}
           />
+          {record.result ? <ElectionResultBlock result={record.result} /> : null}
         </View>
         {children}
       </View>

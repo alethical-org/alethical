@@ -747,18 +747,22 @@ export class ApiError extends Error {
    */
   readonly problem: string | null;
   readonly retryAfterSeconds: number | null;
+  /** A stable action-specific reason, without parsing user-facing prose. */
+  readonly reason: string | null;
 
   constructor(
     status: number,
     message: string,
     problem: string | null = null,
     retryAfterSeconds: number | null = null,
+    reason: string | null = null,
   ) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.problem = problem;
     this.retryAfterSeconds = retryAfterSeconds;
+    this.reason = reason;
   }
 }
 
@@ -789,11 +793,26 @@ export function apiErrorFromBody(
   retryAfterHeader: string | null = null,
 ): ApiError {
   const retryAfterSeconds = /^\d+$/.test(retryAfterHeader ?? '') ? Number(retryAfterHeader) : null;
+  let reason: string | null = null;
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      'reason' in parsed &&
+      typeof parsed.reason === 'string'
+    ) {
+      reason = parsed.reason;
+    }
+  } catch {
+    // A non-JSON failure has no machine-readable action reason.
+  }
   return new ApiError(
     status,
     body || `API request failed with ${status}`,
     problemSlug(body),
     Number.isSafeInteger(retryAfterSeconds) ? retryAfterSeconds : null,
+    reason,
   );
 }
 

@@ -18,7 +18,7 @@ export type LegalDocumentContent = {
 
 export const privacyContent: LegalDocumentContent = {
   title: 'Privacy Policy',
-  meta: 'Effective date: August 15, 2026 · Last updated: September 26, 2026',
+  meta: 'Effective date: August 15, 2026 · Last updated: October 8, 2026',
   sections: [
     {
       blocks: [
@@ -53,6 +53,7 @@ export const privacyContent: LegalDocumentContent = {
             'Anonymous account-use and follow totals: Alethical also keeps hourly counts of first signed-in use and newly created bill or committee follows, without an account identifier in those counts. These counts start when recording begins and remain when a follow or account is removed. They are separate from the current account and follow records needed to run the Service.',
             'User account totals: Alethical counts accounts still present in Supabase, including accounts awaiting email confirmation. Closed, banned, anonymous, team, and test accounts are excluded. Linked sign-in records count as 1 account. Deleted accounts are not included, so totals can decrease. The administrator-only /admin/site-metrics and /admin/operations reports show combined counts, not names, email addresses, or individual activity.',
             'Anonymous page-speed measurements: Cloudflare Web Analytics receives the page path without the question text after “?”, timing measurements, the page element or resource tied to some speed measurements, the referring website, and broad place, device, and browser facts. It uses no cookies, local storage, or fingerprinting. Alethical shows administrators only sitewide speed scores for 30 complete UTC days, with each score shown after at least 50 actual measurements for that score. These cover full page loads, including reloads and restored pages, and exclude Cloudflare’s known bots. Team visits may remain in these measurements.',
+            'Candidate profile claims: your selected role, supporting public link, private explanation, request and decision history, and private administrator review notes. We also keep campaign statements you publish and their private revision history, and reports submitted about campaign statements.',
             'Contact messages — the name and phone number you choose to provide, your email address, subject, and message.',
           ],
         },
@@ -77,6 +78,7 @@ export const privacyContent: LegalDocumentContent = {
             'Operate, maintain, and improve the Service.',
             'Communicate with you about your account and security. Send research and feature emails separately when you choose them; you can stop either through Email preferences or the unsubscribe link. Stopping these emails keeps your account open and does not stop account security messages.',
             'Receive and reply to messages you send through Contact us, and send you a copy.',
+            'Review candidate profile claims, manage campaign access, and send applicants and administrators notifications about saved requests and decisions.',
             'Protect against fraud, abuse, and unauthorized access.',
           ],
         },
@@ -122,6 +124,7 @@ export const privacyContent: LegalDocumentContent = {
             'The Minnesota Geospatial Information Office, while we show Minnesota address suggestions and when the Census Bureau cannot match a Minnesota address. We send only the house number and street name entered so far to its public address list, not the city or ZIP. We do not store it.',
             'Resend, when you subscribe to Unconcealed. It receives your account email address and the email content to deliver public research you chose to receive. Unconcealed emails do not use open or click tracking.',
             'Resend, when a comment email is sent. It receives the recipient address, public names used in the message, article title, contribution link and private stop links. Comment text is not included. Alethical’s Google Workspace inbox receives administrator alerts with the article title and contribution link.',
+            'Resend, when profile claim notifications are sent. It receives each recipient’s current confirmed account email, candidate name, office, voting area, election, message and link. Administrator decision notifications also include the decision, reviewer name or retained account identifier, and saved time. Applicants and eligible administrators receive separate messages. Private supporting links, explanations, review notes and recipient lists are not included.',
             'Resend, when you use Contact us. It receives the form fields to deliver 1 copy to Alethical’s Google Workspace inbox and 1 copy to you. The Alethical app does not store the form in its database.',
             'Legal authorities when required by law, regulation, or valid legal process.',
             'A successor entity in connection with a merger, acquisition, or sale of assets, subject to this Policy.',
@@ -149,6 +152,7 @@ export const privacyContent: LegalDocumentContent = {
             'Email choices and your delivery records stay while your account exists. Stop-link lookup records store a scrambled value. Prepared comment emails temporarily retain their private stop links until delivery finishes or is cancelled. Closing your account removes your choices, lookup records and reader deliveries.',
             'Conversations about a bill, and every message in them — no longer than 24 months after the last message in that conversation, whether or not your account is still active. Text you typed is the most sensitive thing we hold, so it does not simply live forever alongside the account.',
             'Bill alerts we have sent you — 90 days after we send them. A bill alert waiting to go out stays until it is sent.',
+            'Candidate profile claims and their private evidence, decision history, campaign statement revisions, reports about those statements and queued notifications stay while the requesting account exists. Deleting that account removes these records and its published campaign statement. If a reviewing administrator’s account is deleted, their account reference is removed from retained profile claim history and their copied identity is cleared from prepared administrator notifications, even when sending is turned off. Official candidate, election, person, service and research records remain separate from campaign accounts. Other prepared notification content is cleared when delivery finishes or the sender processes cancellation, permanent failure or an expired retry window. A message already handed to the email provider cannot be recalled. Copies already delivered remain in recipients’ inboxes and with the email provider under their own terms.',
             'Contact us messages — we do not save them in our database at all. Copies stay in our email inbox and with the company that delivers our email, under their own terms.',
           ],
         },

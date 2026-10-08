@@ -42,7 +42,7 @@ shared navigation described here. See [services-guide.md](services-guide.md).
   sign-in is enabled; an account whose sign-in methods are not yet known says **Password**.
   Approved administrators see an **Admin** group between Email preferences and Sign out,
   with **User Accounts** (`/admin/users`), **Site Metrics** (`/admin/site-metrics`),
-  **Operations** (`/admin/operations`), and **Candidate requests** (`/admin/candidate-claims`), in that order. These navigation labels
+  **Operations** (`/admin/operations`), and **Profile claim requests** (`/admin/candidate-claims`), in that order. These navigation labels
   do not authorize changes to report-page copy.
   Desktop and phone use this same order. The signed-in profile supplies
   the menu hint; older responses use a separate access check. Every private read
@@ -58,10 +58,18 @@ The account menu uses matching outline pictures for Tracked, password, email, an
 Every action label has the same bold weight and size within its layout band. Tablet
 keeps its existing bottom sheet but uses the desktop action text size; phone action
 text is larger. The desktop popover has room for longer labels.
-The Admin group has 1 divider above its label and no divider between its 3 links.
+The Admin group has 1 divider above its label and no divider between its 4 links.
 Empty icon spaces keep its labels aligned with the ordinary actions.
 The count uses Libre Franklin with equal-width digits, and expands to fit the full number.
 It appears only after both the bill and committee lists have loaded and the total is positive.
+**Profile claim requests** has its own pending count inside the open account menu,
+including requests whose election ended. Loading does not pretend the count is 0;
+a failed count read leaves the destination usable. Reopening the menu, returning
+to the website and a saved profile claim change refresh the count. Account or
+permission changes clear the previous account's private count. This admin link
+opens the shared review list; a candidate profile's admin action filters that list
+to the candidate. See [How Find My Candidates works](find-my-candidates-guide.md#claiming-and-managing-a-profile).
+
 The password dialog keeps its own larger lock and success check mark.
 
 Hovering over a row gives it a light grey background. Keyboard focus has 1 purple outline
@@ -150,6 +158,9 @@ Money comes before Search, and Blog follows Search. Both direct rows use the exi
 Blog row's taller touch target, dividing lines and right-pointing arrow. The roadmap pills appear below in a
 larger touch size, and the account card sits in the drawer's footer and opens the phone sheet.
 The card has a pale background, a border, the account name and email, and an upward arrow.
+Choosing an account destination closes both the account sheet and the surrounding
+navigation drawer. Closing the account sheet with Close or Escape returns to the
+still-open drawer.
 The drawer header, scrolling links and fixed footer each own their padding;
 short screens can scroll through every roadmap pill without moving the footer.
 Every row is at least 44 pixels tall, and nothing depends on hovering.
@@ -200,7 +211,7 @@ Find my candidates sits immediately before Find my legislators, with “See who 
 running for office in your area” on desktop and a green NEW label on both surfaces.
 The `/candidates` destination is public and accepts a full street address for the
 supported Minnesota election. Official-source results link to public candidate
-profiles. Claiming requires an existing account and independent staff review.
+profiles. A profile claim requires an existing non-admin account and independent admin review.
 Illustrative records remain limited to an explicit development preview.
 
 The account menu retains Tracked and its combined bill-and-committee count.

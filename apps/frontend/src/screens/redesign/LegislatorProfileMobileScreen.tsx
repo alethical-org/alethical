@@ -1,3 +1,4 @@
+import { LegislatorPersonLink } from '../../components/candidates/LegislatorPersonLink';
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import {
   ActivityIndicator,
@@ -582,6 +583,7 @@ export function LegislatorProfileMobileScreen() {
                       {legislatorDisplayName(leg.name, leg.chamber)}
                     </Text>
                   </View>
+                  <LegislatorPersonLink slug={leg.slug ?? leg.id} />
                   <View style={styles.metaRow}>
                     {/* A record with no current service period says nothing about
                         what this person does now, so neither does this row: no

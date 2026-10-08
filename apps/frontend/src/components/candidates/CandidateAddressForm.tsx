@@ -12,7 +12,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { AddressSuggestionField, type AddressFieldHandle } from '../address/AddressSuggestionField';
 import { useResponsive } from '../../hooks/useResponsive';
 import { theme as t } from '../../theme/tokens';
-import { CandidateButton, candidateText } from './CandidateControls';
+import { CandidateButton, CandidateLink, candidateText } from './CandidateControls';
 import type {
   CandidateAddressChoice,
   CandidateLookupResponse,
@@ -20,6 +20,7 @@ import type {
 } from './types';
 
 const errors = {
+  'historical-match-unavailable': 'We couldn’t confirm the races for this address and election',
   'no-match': 'We couldn’t match that address to election records',
   'outside-minnesota': 'This search covers Minnesota addresses',
   'rate-limited': 'Too many searches: try again shortly',
@@ -212,6 +213,9 @@ export function CandidateAddressForm({
           </>
         ) : null}
       </View>
+      {outcome?.kind === 'historical-match-unavailable' && !busy ? (
+        <CandidateLink label="Official election results" url={outcome.officialResultsUrl} />
+      ) : null}
       {choicesOpen ? (
         <View style={{ marginTop: 22, gap: 10 }}>
           <Text nativeID={`${id}-choices-heading`} style={[candidateText.strong, { fontSize: 17 }]}>

@@ -42,7 +42,13 @@ type WebRouteTarget =
   | { kind: 'candidateProfile'; candidateId: string }
   | { kind: 'candidateClaim'; candidateId: string }
   | { kind: 'candidateManage'; candidateId: string }
-  | { kind: 'adminCandidateClaims' }
+  | {
+      kind: 'personOverview';
+      personId: string;
+      fromCandidateId?: string;
+      fromLegislatorSlug?: string;
+    }
+  | { kind: 'adminCandidateClaims'; candidateId?: string; claimId?: string; fromProfile?: boolean }
   | { kind: 'moneyLanding' }
   | { kind: 'emailPreferences' }
   | { kind: 'unsubscribe' }
@@ -246,12 +252,44 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   const segments = normalized.split('/').filter(Boolean);
 
   if (normalized === '/candidates') return { kind: 'candidates' };
+  if (
+    segments[0] === 'people' &&
+    segments.length === 2 &&
+    /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(segments[1])
+  ) {
+    const candidateId = searchParams.get('candidate');
+    const legislatorSlug = searchParams.get('legislator');
+    return {
+      kind: 'personOverview',
+      personId: segments[1],
+      ...(candidateId && /^[a-f0-9]{64}$/.test(candidateId)
+        ? { fromCandidateId: candidateId }
+        : legislatorSlug && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(legislatorSlug)
+          ? { fromLegislatorSlug: legislatorSlug }
+          : {}),
+    };
+  }
 
   if (segments[0] === 'candidates' && segments.length === 3 && /^[a-f0-9]{64}$/.test(segments[1])) {
     if (segments[2] === 'claim') return { kind: 'candidateClaim', candidateId: segments[1] };
     if (segments[2] === 'manage') return { kind: 'candidateManage', candidateId: segments[1] };
   }
-  if (normalized === '/admin/candidate-claims') return { kind: 'adminCandidateClaims' };
+  if (normalized === '/admin/candidate-claims') {
+    const candidateId = searchParams.get('candidate');
+    const claimId = searchParams.get('claim');
+    return {
+      kind: 'adminCandidateClaims',
+      ...(candidateId && /^[a-f0-9]{64}$/.test(candidateId) ? { candidateId } : {}),
+      ...(claimId && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(claimId)
+        ? { claimId }
+        : {}),
+      ...(candidateId &&
+      /^[a-f0-9]{64}$/.test(candidateId) &&
+      searchParams.get('from') === 'profile'
+        ? { fromProfile: true }
+        : {}),
+    };
+  }
   if (segments[0] === 'candidates' && segments.length === 2) {
     const candidateId = segments[1];
     if (
@@ -724,7 +762,29 @@ export function pathForRoute(activeRoute: {
   params?: Record<string, unknown>;
 }): string {
   if (activeRoute.name === 'Candidates') return '/candidates';
-  if (activeRoute.name === 'AdminCandidateClaims') return '/admin/candidate-claims';
+  if (activeRoute.name === 'PersonOverview') {
+    const personId = String(activeRoute.params?.personId ?? '');
+    if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(personId))
+      return '/404';
+    const params = new URLSearchParams();
+    const candidateId = String(activeRoute.params?.fromCandidateId ?? '');
+    const legislatorSlug = String(activeRoute.params?.fromLegislatorSlug ?? '');
+    if (/^[a-f0-9]{64}$/.test(candidateId)) params.set('candidate', candidateId);
+    else if (/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(legislatorSlug))
+      params.set('legislator', legislatorSlug);
+    return `/people/${personId}${params.size ? `?${params}` : ''}`;
+  }
+  if (activeRoute.name === 'AdminCandidateClaims') {
+    const params = new URLSearchParams();
+    const candidateId = String(activeRoute.params?.candidateId ?? '');
+    const claimId = String(activeRoute.params?.claimId ?? '');
+    if (/^[a-f0-9]{64}$/.test(candidateId)) params.set('candidate', candidateId);
+    if (/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(claimId))
+      params.set('claim', claimId);
+    if (params.has('candidate') && activeRoute.params?.fromProfile === true)
+      params.set('from', 'profile');
+    return `/admin/candidate-claims${params.size ? `?${params}` : ''}`;
+  }
   if (activeRoute.name === 'CandidateClaim' || activeRoute.name === 'CandidateManage') {
     const id = String(activeRoute.params?.candidateId ?? '');
     return /^[a-f0-9]{64}$/.test(id)
@@ -1071,6 +1131,10 @@ export function stateFromPathname(pathname: string): WebNavigationState {
   };
 
   if (target.kind === 'candidates') return { routes: [homeTabs, { name: 'Candidates' }], index: 1 };
+  if (target.kind === 'personOverview') {
+    const { kind: _kind, ...params } = target;
+    return { routes: [homeTabs, { name: 'PersonOverview', params }], index: 1 };
+  }
   if (target.kind === 'candidateClaim' || target.kind === 'candidateManage')
     return {
       routes: [
@@ -1082,8 +1146,16 @@ export function stateFromPathname(pathname: string): WebNavigationState {
       ],
       index: 1,
     };
-  if (target.kind === 'adminCandidateClaims')
-    return { routes: [homeTabs, { name: 'AdminCandidateClaims' }], index: 1 };
+  if (target.kind === 'adminCandidateClaims') {
+    const { kind: _kind, ...params } = target;
+    return {
+      routes: [
+        homeTabs,
+        { name: 'AdminCandidateClaims', ...(Object.keys(params).length ? { params } : {}) },
+      ],
+      index: 1,
+    };
+  }
   if (target.kind === 'candidateProfile')
     return {
       routes: [homeTabs, { name: 'CandidateProfile', params: { candidateId: target.candidateId } }],

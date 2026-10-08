@@ -5,13 +5,25 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { CandidateProfileScreen } from '../CandidateProfileScreen';
 import type { CandidateProfileRecord } from '../../components/candidates/types';
 
-const { getProfile } = vi.hoisted(() => {
+const { getProfile, statement, admin } = vi.hoisted(() => {
   (globalThis as { __DEV__?: boolean }).__DEV__ = false;
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  return { getProfile: vi.fn() };
+  return { getProfile: vi.fn(), statement: vi.fn(), admin: { state: 'signed-out' } };
 });
-vi.mock('../../components/candidates/CandidateClaimPanel', () => ({
-  CandidateClaimPanel: () => null,
+vi.mock('../../providers/AuthProvider', () => ({
+  useAuth: () => ({
+    isLoading: false,
+    isSignedIn: admin.state === 'allowed',
+    user: admin.state === 'allowed' ? { id: 'admin-account' } : null,
+    accessToken: admin.state === 'allowed' ? 'fake-admin-token' : null,
+  }),
+}));
+vi.mock('../../hooks/useAdminAccess', () => ({ useAdminAccess: () => admin }));
+vi.mock('@react-navigation/native', () => ({ useIsFocused: () => true }));
+vi.mock('../../data/candidateClaims', () => ({
+  getCandidateStatement: statement,
+  getMyCandidateClaims: vi.fn(),
+  reportCandidateStatement: vi.fn(),
 }));
 vi.mock('../../data/candidates', () => ({
   getCandidateProfile: getProfile,
@@ -64,6 +76,8 @@ async function flush() {
 }
 beforeEach(() => {
   getProfile.mockReset();
+  statement.mockReset().mockResolvedValue({ statement: null });
+  admin.state = 'signed-out';
   navigate.mockReset();
   host = document.createElement('div');
   document.body.append(host);
@@ -85,6 +99,21 @@ it('opens a direct public profile with the record’s own election and source da
   expect(host.textContent).toContain('May be out of date');
   act(() => host.querySelector<HTMLAnchorElement>('a[href="/candidates"]')!.click());
   expect(navigate).toHaveBeenCalledWith('Candidates');
+});
+it('opens this candidate’s admin requests from both the profile link and its click handler', async () => {
+  admin.state = 'allowed';
+  getProfile.mockResolvedValue(record);
+  render();
+  await flush();
+  const review = [...host.querySelectorAll<HTMLAnchorElement>('a')].find(
+    (link) => link.textContent === 'Review profile claim requests',
+  )!;
+  expect(review.getAttribute('href')).toBe(`/admin/candidate-claims?candidate=${id}&from=profile`);
+  act(() => review.click());
+  expect(navigate).toHaveBeenCalledExactlyOnceWith('AdminCandidateClaims', {
+    candidateId: id,
+    fromProfile: true,
+  });
 });
 it('distinguishes absent records from service failures and offers retry', async () => {
   const { ApiError } = await import('../../data/api');

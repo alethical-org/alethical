@@ -1,3 +1,4 @@
+import { defaultCandidateElection } from '../../lib/personRecords';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Image, Platform } from 'react-native';
 import type { CandidateFlow } from '../candidates/candidateFlow';
@@ -87,7 +88,7 @@ export function HomeCandidateFinder({
       if (token !== generation.current) return;
       const elections = await module.candidateSearchServices.getElections(abort.signal);
       if (token !== generation.current) return;
-      const election = elections[0];
+      const election = defaultCandidateElection(elections);
       if (!election) throw new Error('No supported election');
       module.handoffCandidateAddress(value);
       flow.current = module.candidateFlow;

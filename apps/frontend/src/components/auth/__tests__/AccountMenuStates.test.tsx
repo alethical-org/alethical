@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, cloneElement, type ReactElement, type ReactNode } from 'react';
+import { act, cloneElement, useState, type ReactElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -11,10 +11,14 @@ const state = vi.hoisted(() => {
     bills: [] as object[] | undefined,
     committees: [] as object[] | undefined,
     admin: 'pending',
+    token: undefined as string | undefined,
+    count: vi.fn(),
     width: 375,
     navigate: vi.fn(),
   };
 });
+
+vi.mock('../../../data/candidateClaims', () => ({ getPendingProfileClaimCount: state.count }));
 
 vi.mock('react-native-svg', () => ({
   default: ({ children }: { children?: ReactNode }) => <svg>{children}</svg>,
@@ -30,6 +34,7 @@ vi.mock('../../../providers/AuthProvider', () => ({
       signInMethods: state.methods,
     },
     signOut: vi.fn(),
+    accessToken: state.token,
   }),
 }));
 vi.mock('@react-navigation/native', () => ({
@@ -66,6 +71,8 @@ beforeEach(() => {
   state.bills = [];
   state.committees = [];
   state.admin = 'pending';
+  state.token = undefined;
+  state.count.mockReset();
   state.width = 375;
   state.navigate.mockReset();
   mount = document.createElement('div');
@@ -114,7 +121,7 @@ describe.each([
       'User Accounts',
       'Site Metrics',
       'Operations',
-      'Candidate requests',
+      'Profile claim requests',
     ];
     for (const label of labels) {
       const text = [...row(label)!.querySelectorAll<HTMLElement>('*')].find(
@@ -174,7 +181,7 @@ describe.each([
     expect(row('User Accounts')).toBeUndefined();
     state.admin = 'allowed';
     render(control);
-    const links = ['User Accounts', 'Site Metrics', 'Operations', 'Candidate requests'].map(
+    const links = ['User Accounts', 'Site Metrics', 'Operations', 'Profile claim requests'].map(
       (label) => row(label),
     );
     expect(links.map((element) => element?.getAttribute('href'))).toEqual([
@@ -213,4 +220,98 @@ it.each([
   expect(getComputedStyle(tracked).minHeight).toBe('56px');
   const signOut = document.querySelector<HTMLElement>('[data-account-menu-sign-out]')!;
   expect(getComputedStyle(signOut).minHeight).toBe('56px');
+});
+
+it.each(['Tracked', 'Email preferences', 'User Accounts', 'Profile claim requests'])(
+  'closes the enclosing phone navigation when %s is selected from its account sheet',
+  (label) => {
+    state.admin = 'allowed';
+    function Navigation() {
+      const [open, setOpen] = useState(true);
+      return open ? (
+        <div aria-label="Site navigation">
+          <AccountDrawerRow onNavigate={() => setOpen(false)} />
+        </div>
+      ) : (
+        <p>Destination content</p>
+      );
+    }
+    render(<Navigation />);
+    click(document.querySelector<HTMLElement>('[aria-label="Account for Marissa Chen"]')!);
+    click(row(label)!);
+    expect(document.querySelector('[aria-label="Site navigation"]')).toBeNull();
+    expect(document.querySelector('[role="dialog"][aria-label="Account"]')).toBeNull();
+    expect(mount.textContent).toContain('Destination content');
+    expect(state.navigate).toHaveBeenCalledOnce();
+  },
+);
+
+it('closing the phone account sheet leaves the enclosing site navigation open', () => {
+  const onNavigate = vi.fn();
+  render(<AccountDrawerRow onNavigate={onNavigate} />);
+  click(document.querySelector<HTMLElement>('[aria-label="Account for Marissa Chen"]')!);
+  click(document.querySelector<HTMLElement>('[aria-label="Close"]')!);
+  expect(onNavigate).not.toHaveBeenCalled();
+  expect(document.querySelector('[aria-label="Account for Marissa Chen"]')).not.toBeNull();
+});
+
+it('reads the private pending count only inside the open admin menu and keeps it during refresh', async () => {
+  state.admin = 'allowed';
+  state.width = 1280;
+  state.token = 'test-token';
+  let finish!: (value: { pending_count: number }) => void;
+  state.count.mockResolvedValueOnce({ pending_count: 4 }).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  render(<AccountNavButton compact />);
+  expect(state.count).not.toHaveBeenCalled();
+  click(document.querySelector<HTMLElement>('[aria-label="Account panel for Marissa Chen"]')!);
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(
+    document.querySelector(
+      '[aria-label="Profile claim requests, 4 pending profile claim requests"]',
+    ),
+  ).not.toBeNull();
+  act(() => window.dispatchEvent(new Event('alethical-profile-claims-changed')));
+  expect(
+    document.querySelector(
+      '[aria-label="Profile claim requests, 4 pending profile claim requests"]',
+    ),
+  ).not.toBeNull();
+  await act(async () => finish({ pending_count: 3 }));
+  expect(
+    document.querySelector(
+      '[aria-label="Profile claim requests, 3 pending profile claim requests"]',
+    ),
+  ).not.toBeNull();
+  const request = state.count.mock.calls[1][1] as AbortSignal;
+  act(() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+  expect(request.aborted).toBe(true);
+  expect(
+    document.querySelector(
+      '[aria-label="Profile claim requests, 3 pending profile claim requests"]',
+    ),
+  ).toBeNull();
+});
+it('does not invent a zero count after a failed private count request', async () => {
+  state.admin = 'allowed';
+  state.width = 1280;
+  state.token = 'test-token';
+  state.count.mockRejectedValue(new Error('Offline'));
+  render(<AccountNavButton compact />);
+  click(document.querySelector<HTMLElement>('[aria-label="Account panel for Marissa Chen"]')!);
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(row('Profile claim requests')).toBeDefined();
+  expect(
+    document.querySelector(
+      '[aria-label="Profile claim requests, 0 pending profile claim requests"]',
+    ),
+  ).toBeNull();
 });

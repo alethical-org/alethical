@@ -178,6 +178,7 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 | --- | --- | --- | --- |
 | `ALETHICAL_ADMIN_ACCOUNT_IDS` | Present | Binds private account visibility to explicitly approved Supabase identities; current confirmed email and active status are also required. An approved email needs an existing confirmed account and a listed identifier before access activates. | Live |
 | `ALETHICAL_COMMENT_EMAIL_ENABLED` | Present | Enables durable reader and administrator comment alerts after the release privacy checks; local and test environments keep it false. | Live |
+| `ALETHICAL_PROFILE_CLAIM_EMAIL_ENABLED` | Present; intended accepted-production value `true` | Staged absent/off until the profile-claim release checks pass, then enables saved request and decision notifications through the existing Resend service; local and test environments keep it false. | Live: presence only; value and activation gates are checked during release |
 | `ALETHICAL_CONTACT_RATE_PER_MIN` | Present | Limits repeated Contact us requests. | Live |
 | `ALETHICAL_CORS_ORIGINS` | Present | Limits which websites can call the API from a browser. | Live |
 | `ALETHICAL_EMAIL_ENABLED` | Present | Turns production Contact us delivery on. | Live |
@@ -197,6 +198,14 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 | `SUPABASE_URL` | Present | Points the API at the production Supabase project. | Live |
 | `TRAFFIC_EXCLUDED_ACCOUNT_IDS` | Present | Discards confirmed team actions and removes confirmed team readers and watches from public totals. | Live |
 | `UV_VERSION` | Present | Pins the package installer Railway uses to build the API. | Live |
+
+Profile-claim email activation is part of the accepted release, not evidence that
+sending is already on. Keep `ALETHICAL_PROFILE_CLAIM_EMAIL_ENABLED` absent or `false`
+until the checks in
+[deployment.md § Profile claim email activation](deployment.md#profile-claim-email-activation)
+pass, then set it to `true` in Railway. The other email readiness settings must also
+remain valid. The settings checker reads variable names and cannot prove the value
+or that a message was delivered.
 
 Team exclusion is active for 3 of the 4 team accounts. Append the 4th stable Supabase
 account identifier to `TRAFFIC_EXCLUDED_ACCOUNT_IDS` in Vercel and Railway after it is

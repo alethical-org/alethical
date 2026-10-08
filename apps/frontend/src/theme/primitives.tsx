@@ -1040,7 +1040,7 @@ export function TopNav({
             </ScrollView>
             <View style={styles.menuFooter}>
               {isSignedIn ? (
-                <AccountDrawerRow />
+                <AccountDrawerRow onNavigate={closeDrawer} />
               ) : (
                 <NavSignInButton
                   drawer

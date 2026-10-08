@@ -6,6 +6,13 @@ export interface CandidateElection {
   /** ISO calendar date. The election record owns this date. */
   date: string;
   type: 'general' | 'primary' | 'special';
+  canonicalKey?: string;
+  capabilities?: {
+    addressLookup: 'current-ballot' | 'unavailable';
+    results: boolean;
+    historicalRecords: boolean;
+  };
+  officialResultsUrl?: string;
 }
 export interface CandidateAddressChoice {
   id: string;
@@ -22,6 +29,20 @@ export interface CandidateSource {
   url: string;
   checkedDate: string;
   stale?: boolean;
+  retained?: boolean;
+  checkedAt?: string;
+  sha256?: string;
+}
+export interface PublicPersonLink {
+  id: string;
+  name: string;
+  profileUrl: string;
+}
+export interface CandidateElectionResult {
+  status: 'pending' | 'unofficial' | 'certified' | 'recount' | 'tie' | 'unavailable';
+  outcome?: 'elected' | 'not-elected' | 'withdrew';
+  source?: CandidateSource;
+  certification?: { date?: string; authority: string; url: string };
 }
 export interface CandidatePerson {
   /** Election-specific record ID, not a guessed match to an incumbent. */
@@ -30,10 +51,21 @@ export interface CandidatePerson {
   sortName: string;
   party?: string;
   role?: string;
+  people?: PublicPersonLink[];
+  result?: CandidateElectionResult;
+  electionEnded?: boolean;
 }
 export type CandidateEntry =
   | { kind: 'candidate'; candidate: CandidatePerson }
-  | { kind: 'ticket'; id: string; label?: string; members: CandidatePerson[]; party?: string };
+  | {
+      kind: 'ticket';
+      id: string;
+      label?: string;
+      members: CandidatePerson[];
+      party?: string;
+      result?: CandidateElectionResult;
+      people?: PublicPersonLink[];
+    };
 export type CandidateOfficeGroup = 'state' | 'county' | 'municipal' | 'school' | 'other';
 export interface CandidateRace {
   id: string;
@@ -43,6 +75,7 @@ export interface CandidateRace {
   seatCount?: number;
   entries: CandidateEntry[];
   source: CandidateSource;
+  result?: CandidateElectionResult;
 }
 export interface CandidateCoverageGap {
   kind: 'district-unconfirmed' | 'records-unavailable' | 'coverage-unconfirmed';
@@ -56,9 +89,17 @@ export interface CandidateResults {
   matchedAddress: string;
   races: CandidateRace[];
   coverage: CandidateCoverageGap[];
+  resultsAvailable?: boolean;
+  electionEnded?: boolean;
 }
 export type CandidateLookupResponse =
   | CandidateResults
+  | {
+      kind: 'historical-match-unavailable';
+      message: string;
+      electionId: string;
+      officialResultsUrl: string;
+    }
   | { kind: 'ambiguous'; choices: CandidateAddressChoice[] }
   | { kind: 'no-match' | 'outside-minnesota' | 'rate-limited' | 'no-elections' };
 export interface CandidateSearchServices {
@@ -83,6 +124,10 @@ export interface CandidateProfileRecord {
   office: string;
   votingArea: string;
   source: CandidateSource;
+  people?: PublicPersonLink[];
+  result?: CandidateElectionResult;
+  /** Server cutoff at the end of election day in Minnesota. */
+  electionEnded?: boolean;
   filedDate?: string;
   filedWith?: string;
   website?: string;

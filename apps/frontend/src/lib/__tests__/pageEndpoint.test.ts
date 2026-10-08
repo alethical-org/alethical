@@ -1,5 +1,6 @@
 import { privacyContent, termsContent } from '../legalContent';
 import type { CandidateProfileRecord } from '../../components/candidates/types';
+import type { PersonRecord } from '../../data/personRecords';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runInNewContext } from 'node:vm';
 
@@ -301,6 +302,17 @@ it('serves only source-backed candidate facts, dates and the confirmed legislato
   }
 });
 
+it('keeps a reviewed historical ballot distinct from stale live records', async () => {
+  const record = publicCandidateRecord();
+  record.source.retained = true;
+  record.source.stale = true;
+  stubNetwork(() => ({ status: 200, payload: record }));
+  const { body, status } = await serve({ path: `/candidates/${record.candidate.id}` });
+  expect(status).toBe(200);
+  expect(body).toContain('Ballot record saved October 1, 2026');
+  expect(body).not.toContain('May be out of date');
+});
+
 it('escapes candidate fields and omits an unsafe campaign website', async () => {
   const record = publicCandidateRecord();
   record.candidate.name = '<script>alert("name")</script> & Person';
@@ -439,6 +451,149 @@ it('distinguishes missing candidate records from unavailable records', async () 
   expect((await serve({ path })).status).toBe(404);
   stubNetwork(() => ({ status: 503 }));
   expect((await serve({ path })).status).toBe(503);
+});
+
+const publicPersonId = '85c4572a-eb0e-405e-8e30-372cdbcca752';
+function publicPersonRecord(): PersonRecord {
+  const candidate = publicCandidateRecord();
+  return {
+    id: publicPersonId,
+    name: 'Public Person',
+    service: [
+      {
+        id: 'service-1',
+        status: 'unknown',
+        office: 'School board member',
+        votingArea: 'Example district',
+        source: candidate.source,
+        termStart: { value: '2025', precision: 'year' },
+      },
+    ],
+    elections: [
+      {
+        candidateId: candidate.candidate.id,
+        name: 'Public Person and Running Mate',
+        profileUrl: `/candidates/${candidate.candidate.id}`,
+        office: candidate.office,
+        votingArea: candidate.votingArea,
+        election: candidate.election,
+        source: { ...candidate.source, retained: true },
+        isJointTicket: true,
+      },
+    ],
+    research: { items: [], nextCursor: null },
+  };
+}
+
+it('serves a public person record without leaking return queries or private claim fields', async () => {
+  stubNetwork((url) => {
+    expect(url).toBe(`https://api.alethical.com/api/v1/people/${publicPersonId}`);
+    return {
+      status: 200,
+      payload: {
+        ...publicPersonRecord(),
+        request_note: 'private-evidence',
+        email: 'private@example.org',
+        campaignStatement: 'campaign-copy',
+      },
+    };
+  });
+  const { body, status, headers } = await serve({
+    path: `/people/${publicPersonId}?candidate=${'a'.repeat(64)}&address=private-home`,
+  });
+  expect(status).toBe(200);
+  expect(body).toContain('<title>Public Person | Alethical</title>');
+  expect(body).toContain(`href="https://www.alethical.com/people/${publicPersonId}"`);
+  expect(body).toContain('Current service not confirmed');
+  expect(body).toContain('Term starts 2025');
+  expect(body).not.toContain('January 1');
+  expect(body).not.toContain('Public Person and Running Mate');
+  expect(body).not.toContain('Ballot record saved October 1, 2026');
+  expect(body).not.toContain('Candidate records from');
+  expect(body).toContain(`href="/candidates/${'a'.repeat(64)}">View election record</a>`);
+  expect(body).toContain('No research records added');
+  for (const privateText of [
+    'private-evidence',
+    'private@example.org',
+    'campaign-copy',
+    'private-home',
+  ])
+    expect(body).not.toContain(privateText);
+  expect(headers.get('Cache-Control')).toBe('no-store');
+});
+
+it('keeps year and month service dates precise and optional legacy source dates absent', async () => {
+  const record = publicPersonRecord();
+  record.legislator = { slug: 'public-person', profileUrl: '/legislators/public-person' };
+  record.service = [
+    {
+      id: 'legacy-service',
+      office: 'State Representative',
+      votingArea: 'House District 1A',
+      status: 'current',
+      profileUrl: record.legislator.profileUrl,
+      source: { authority: 'Minnesota Legislature', url: 'https://www.leg.mn.gov/' },
+      termStart: { value: '2025', precision: 'year' },
+      termEnd: { value: '2027', precision: 'year' },
+    },
+    {
+      id: 'expected-service',
+      office: 'School board member',
+      votingArea: 'Example district',
+      status: 'elected',
+      source: { ...record.elections[0].source, checkedDate: '2024-11-12' },
+      expectedStart: { value: '2025-01', precision: 'month' },
+      expectedStartPassed: true,
+    },
+  ];
+  const source = { ...record.elections[0].source, checkedDate: '2024-11-12' };
+  record.elections[0].result = {
+    status: 'certified',
+    outcome: 'elected',
+    certification: { date: '2024-11-12', authority: source.authority, url: source.url },
+    source,
+  };
+  stubNetwork(() => ({ status: 200, payload: record }));
+  const { body, status } = await serve({ path: `/people/${publicPersonId}` });
+  expect(status).toBe(200);
+  expect(body).toContain('Term 2025–2027');
+  expect(body).toContain('Expected start January 2025');
+  expect(body).toContain('Current service not confirmed');
+  expect(body).toContain('Certified November 12, 2024');
+  expect(body).not.toContain('January 1');
+  expect(body).not.toContain('Checked undefined');
+  expect(body).not.toContain('Invalid Date');
+  expect(body).not.toContain('Results from');
+  expect(body.match(/View legislator profile/g)).toHaveLength(1);
+  // Source-backed legislative history can also use the verified profile itself.
+  delete record.service[0].source;
+  const withoutSource = await serve({ path: `/people/${publicPersonId}` });
+  expect(withoutSource.status).toBe(200);
+  expect(withoutSource.body).toContain('Term 2025–2027');
+  expect(withoutSource.body).toContain('View legislator profile');
+});
+
+it.each(['wrong-identity', 'unsafe-link', 'uncertified-outcome', 'impossible-date'] as const)(
+  'does not publish an invalid person record: %s',
+  async (fault) => {
+    const record = publicPersonRecord();
+    if (fault === 'wrong-identity') record.id = '00000000-0000-4000-8000-000000000001';
+    if (fault === 'unsafe-link') record.elections[0].profileUrl = 'https://elsewhere.example/';
+    if (fault === 'uncertified-outcome')
+      record.elections[0].result = { status: 'unofficial', outcome: 'elected' };
+    if (fault === 'impossible-date') record.service[0].startDate = '2025-02-31';
+    stubNetwork(() => ({ status: 200, payload: record }));
+    const { body, status } = await serve({ path: `/people/${publicPersonId}` });
+    expect(status).toBe(503);
+    expect(body).not.toContain('<h1>Public Person</h1>');
+  },
+);
+
+it('keeps absent people distinct from failed record reads', async () => {
+  stubNetwork(() => ({ status: 404 }));
+  expect((await serve({ path: `/people/${publicPersonId}` })).status).toBe(404);
+  stubNetwork(() => ({ status: 503 }));
+  expect((await serve({ path: `/people/${publicPersonId}` })).status).toBe(503);
 });
 
 it.each([
@@ -816,6 +971,84 @@ describe('first-response page tags', () => {
       expect.anything(),
     );
   });
+
+  it('links a reviewed person from the resolved legislator slug, including UUID entry', async () => {
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      calls.push(url);
+      if (url.includes('/people/for-legislator/')) {
+        expect(url).toBe('https://api.alethical.com/api/v1/people/for-legislator/aisha-gomez');
+        return {
+          status: 200,
+          payload: {
+            id: publicPersonId,
+            name: 'Aisha Gomez',
+            profileUrl: `/people/${publicPersonId}`,
+          },
+        };
+      }
+      return {
+        status: 200,
+        payload: {
+          data: url.includes('/bills?')
+            ? []
+            : {
+                slug: 'aisha-gomez',
+                full_name: 'Aisha Gomez',
+                current_service: { chamber: 'house', district: { code: '62A' } },
+              },
+        },
+      };
+    });
+    const redirect = await serve({ path: '/legislators/8c31565f-e674-462d-b71f-a1d1ebcc' });
+    expect(redirect.status).toBe(301);
+    expect(calls.some((url) => url.includes('/people/for-legislator/aisha-gomez'))).toBe(true);
+    const { body, status } = await serve({ path: '/legislators/aisha-gomez' });
+    expect(status).toBe(200);
+    expect(body).toContain('Elections and service over time');
+    expect(body).toContain(
+      `href="/people/${publicPersonId}?legislator=aisha-gomez">View person overview</a>`,
+    );
+  });
+
+  it.each([404, 503, 'invalid-link', 'missing-identity'] as const)(
+    'keeps a legislator readable when its optional person link is %s',
+    async (fault) => {
+      stubNetwork((url) => {
+        if (url.includes('/people/for-legislator/'))
+          return typeof fault === 'number'
+            ? { status: fault }
+            : {
+                status: 200,
+                payload: {
+                  id: fault === 'missing-identity' ? '' : publicPersonId,
+                  name: 'Aisha Gomez',
+                  profileUrl:
+                    fault === 'invalid-link'
+                      ? 'https://elsewhere.example/'
+                      : `/people/${publicPersonId}`,
+                },
+              };
+        return {
+          status: 200,
+          payload: {
+            data: url.includes('/bills?')
+              ? []
+              : {
+                  slug: 'aisha-gomez',
+                  full_name: 'Aisha Gomez',
+                  current_service: { chamber: 'house' },
+                },
+          },
+        };
+      });
+      const { body, status } = await serve({ path: '/legislators/aisha-gomez' });
+      expect(status).toBe(200);
+      expect(body).toContain('<h1>Rep. Aisha Gomez</h1>');
+      expect(body).not.toContain('View person overview');
+      expect(body).not.toContain('elsewhere.example');
+    },
+  );
 
   it('names a legislator, and forwards a UUID address to their readable one', async () => {
     const calls: string[] = [];

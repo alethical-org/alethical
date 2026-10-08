@@ -2139,7 +2139,7 @@ owns those choices and the exact messages.
 
 The website's `/candidates`, `/candidates/<id>`, `/privacy` and `/terms` addresses
 carry useful text before the browser program loads. This extends the existing
-first-response pattern; the visible design and legal wording stay the same.
+first-response pattern; the initial text matches the visible design and legal wording.
 Phone acceptance means the website in mobile browsers, not native iOS or Android.
 
 Candidate instructions share their source with the address form. A saved candidate
@@ -2149,7 +2149,7 @@ Confirmed legislator links retain their reviewed identity and service rules.
 Direct visits do not refresh MyBallot, expose addresses or seed browser lookup
 results. Missing records remain 404; failed or malformed source records remain
 503; these responses retain `no-store`. Claim, manage and private account views
-remain excluded from public discovery. Privacy and terms use their unchanged
+remain excluded from public discovery. Privacy and terms use their
 complete legal text from the same source as the visible screens.
 
 The `/candidates` instructions belong in the public pages sitemap. This does not
@@ -2247,3 +2247,45 @@ Central Time offsets, free registration, the ended state, missing pages and site
 
 
 The Forward Debate announcement is held from publication for refinements and candidate approval as of 7 October 2026. Its article and flyer return not found, and its URLs are omitted from public listings and sitemaps. Preserved event metadata is used again only after publication is approved.
+
+
+## 31. Retained candidate records and verified person overviews
+
+`/candidates/<id>` describes 1 candidacy, office and election. `/people/<id>`
+describes 1 explicitly verified person across supported elections, service and
+research. `/legislators/<slug>` retains the detailed legislative record. Their
+public first responses and loaded screens preserve the same verified links and
+source limits. A matching name, winning result or elapsed term date never creates
+a person connection or proves service.
+
+A person overview's canonical address contains its person ID, not a return-link
+query. Return context is navigation, not a second public record. Server rendering
+validates the requested identity and source/result fields and prints only the
+approved public fields. It includes supported service, candidacies and official
+research links with their distinct sources and dates. Missing identities return
+404; failed source reads return an uncached 503. An unavailable optional person
+connection does not hide an otherwise valid legislator profile.
+
+Candidate outcomes require final certified evidence for the exact race and stage;
+ballot and result source dates remain separate. The retained November 5, 2024
+coverage consists of 6 Minneapolis school-board candidacies in 4 races, with
+4 verified people and separate roster evidence. Election source ID `170` is not
+a record count. Unsupported historical address geography cannot borrow current
+boundaries. The November 3, 2026 test result feed is excluded.
+
+`/people/<id>` and verified person links are public. This change does not create an
+automatic statewide sitemap catalogue from saved candidate records, visitor
+searches or person rows. `/candidates` remains a public sitemap destination.
+Claim, manage and admin review addresses stay private, `noindex` and `no-store`,
+and excluded from analytics and public discovery. Their first response does not
+contain private supporting evidence, campaign revisions, review notes, claim
+history, account addresses or pending counts. Public share previews cannot use
+those private fields.
+
+Privacy wording comes from the same shared legal content in the first response
+and the loaded `/privacy` screen. It describes profile claim evidence and history,
+Resend's separate request/decision notifications, current confirmed recipients,
+and account deletion without implying that official public records are deleted
+with a campaign account. Other legal terms and traffic/account policies remain
+unchanged. [How Find My Candidates works](../product-onboarding/find-my-candidates-guide.md)
+owns the detailed public record, review, source recheck and notification behavior.

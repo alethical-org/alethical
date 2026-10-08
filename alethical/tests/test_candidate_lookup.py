@@ -173,14 +173,14 @@ def test_wrong_election_or_source_failure_raises_safe_error(payload):
     assert caught.value.__cause__ is None
 
 
-def test_unknown_or_expired_election_never_fetches_sources():
+def test_unknown_election_never_fetches_sources_and_known_elections_are_retained():
     lookup, calls = service()
     assert lookup.lookup(ADDRESS, "9999")[0] == {"kind": "no-elections"}
     lookup.now = lambda: datetime(2026, 11, 4, tzinfo=UTC)
     assert lookup.elections()  # Still election day in Minnesota.
     lookup.now = lambda: datetime(2026, 11, 4, 6, tzinfo=UTC)
-    assert lookup.elections() == []
-    assert lookup.lookup(ADDRESS, "8334")[0] == {"kind": "no-elections"}
+    assert [item["id"] for item in lookup.elections()] == ["8334", "170"]
+    assert lookup.lookup(ADDRESS, "170")[0]["kind"] == "historical-match-unavailable"
     assert calls == []
 
 

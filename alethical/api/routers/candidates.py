@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from zoneinfo import ZoneInfo
+
 from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.orm import Session
@@ -18,6 +20,10 @@ from alethical.api.services.candidate_lookup import (
     persist_catalogue,
 )
 from alethical.db.session import get_db
+from alethical.api.services.person_records import (
+    PublicRecordConflict,
+    enrich_lookup_results,
+)
 
 router = APIRouter(prefix="/candidates", tags=["candidates"])
 
@@ -108,8 +114,14 @@ def lookup(
     if catalogue is not None:
         # A successful result's links must work in a separate browser. Database
         # failure therefore fails the lookup instead of returning broken links.
-        persist_catalogue(db, catalogue)
-    return result
+        try:
+            persist_catalogue(db, catalogue)
+        except PublicRecordConflict:
+            db.rollback()
+            raise _unavailable() from None
+    return enrich_lookup_results(
+        db, result, today=service.now().astimezone(ZoneInfo("America/Chicago")).date()
+    )
 
 
 @router.get("/{candidate_id}")

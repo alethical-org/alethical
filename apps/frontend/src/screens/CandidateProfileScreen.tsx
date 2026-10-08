@@ -94,6 +94,9 @@ export function CandidateProfileScreen(props: RootScreenProps<'CandidateProfile'
             onOpenLegislator={(slug) =>
               navigation.navigate('LegislatorProfile', { legislatorId: slug })
             }
+            onOpenPerson={(personId) =>
+              navigation.navigate('PersonOverview', { personId, fromCandidateId: id })
+            }
             onOpenProfile={(candidateId) =>
               navigation.navigate('CandidateProfile', { candidateId })
             }
@@ -102,7 +105,12 @@ export function CandidateProfileScreen(props: RootScreenProps<'CandidateProfile'
               record={current.record}
               onClaim={() => navigation.navigate('CandidateClaim', { candidateId: id })}
               onManage={() => navigation.navigate('CandidateManage', { candidateId: id })}
-              onAdmin={() => navigation.navigate('AdminCandidateClaims')}
+              onAdmin={() =>
+                navigation.navigate('AdminCandidateClaims', {
+                  candidateId: id,
+                  fromProfile: true,
+                })
+              }
             />
           </CandidateProfileContent>
         ) : (

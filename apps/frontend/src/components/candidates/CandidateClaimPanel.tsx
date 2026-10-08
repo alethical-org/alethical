@@ -1,32 +1,35 @@
 import { useIsFocused } from '@react-navigation/native';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import {
   getCandidateStatement,
   getMyCandidateClaims,
   reportCandidateStatement,
-  type CandidateClaim,
+  type CandidateClaimList,
   type CandidateStatement,
 } from '../../data/candidateClaims';
 import { useAdminAccess } from '../../hooks/useAdminAccess';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useAuth } from '../../providers/AuthProvider';
+import { claimAccountBlock, profileClaimCopy } from './profileClaimCopy';
 import { CandidateReportDialog } from './CandidateReportDialog';
-import { CandidateButton, CandidateLink, candidateDate, candidateText } from './CandidateControls';
+import { CandidateButton, candidateDate, candidateText } from './CandidateControls';
 import type { CandidateProfileRecord } from './types';
 
 export function CandidateCampaignStatement({
   statement,
   onReport,
+  preview = false,
 }: {
   record: CandidateProfileRecord;
-  statement: CandidateStatement;
+  statement: Omit<CandidateStatement, 'updated_at'> & { updated_at: string | null };
   onReport?(): void;
+  preview?: boolean;
 }) {
   const { isMobile } = useResponsive();
   return (
-    <View style={styles.statement}>
+    <View style={[styles.statement, preview && { marginTop: 0 }]}>
       <View style={{ padding: isMobile ? 20 : 24 }}>
         <View style={styles.headingRow}>
           <Text
@@ -50,9 +53,11 @@ export function CandidateCampaignStatement({
             </Text>
           </View>
         </View>
-        <Text style={[candidateText.body, { fontSize: 14.5, marginTop: 12 }]}>
-          Published {candidateDate(statement.updated_at.slice(0, 10))}
-        </Text>
+        {statement.updated_at ? (
+          <Text style={[candidateText.body, { fontSize: 14.5, marginTop: 12 }]}>
+            Published {candidateDate(statement.updated_at.slice(0, 10))}
+          </Text>
+        ) : null}
         <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'flex-start', gap: 9 }}>
           <Svg
             width={18}
@@ -73,7 +78,7 @@ export function CandidateCampaignStatement({
           <View style={{ gap: 2, flex: 1 }}>
             <Text style={[candidateText.strong, { fontSize: 14.5 }]}>Campaign access verified</Text>
             <Text style={[candidateText.body, { fontSize: 14, lineHeight: 20.3 }]}>
-              Alethical confirmed this account’s authority to manage campaign content
+              {profileClaimCopy.disclosure}
             </Text>
           </View>
         </View>
@@ -102,48 +107,84 @@ function AccessLoading() {
     <View role="status" style={styles.accessRow}>
       <ActivityIndicator size="small" color="#4f5651" />
       <Text style={[candidateText.strong, { fontSize: 15.5, color: '#4f5651' }]}>
-        Loading profile access…
+        Loading profile claim status…
       </Text>
     </View>
   );
 }
 function AccountAction({
-  candidateId,
+  record,
   status,
+  isAdmin = false,
+  canManage,
   onClaim,
   onManage,
+  onAdmin,
 }: {
-  candidateId: string;
+  record: CandidateProfileRecord;
   status?: string;
+  isAdmin?: boolean;
+  canManage?: boolean;
   onClaim(): void;
   onManage(): void;
+  onAdmin(): void;
 }) {
   const { isMobile } = useResponsive();
-  const owner = status === 'approved';
-  const pending = status === 'pending';
+  const description = useId();
+  const closed = record.electionEnded === true;
+  const owner = status === 'approved' && canManage !== false;
+  const saved = ['approved', 'pending', 'rejected', 'withdrawn', 'revoked'].includes(status ?? '');
+  const label = isAdmin
+    ? 'Review profile claim requests'
+    : owner
+      ? 'Manage this profile'
+      : saved
+        ? 'View profile claim status'
+        : 'Claim this profile';
+  const explanation = isAdmin
+    ? profileClaimCopy.admin
+    : owner
+      ? profileClaimCopy.manage
+      : status === 'pending'
+        ? closed
+          ? profileClaimCopy.ended
+          : profileClaimCopy.pending
+        : status === 'rejected'
+          ? 'Your profile claim request was not approved. View its status and available next steps.'
+          : status === 'withdrawn'
+            ? 'Your profile claim was withdrawn. View its status and available next steps.'
+            : status === 'revoked'
+              ? 'An Alethical administrator revoked your profile claim. View its status and available next steps.'
+              : profileClaimCopy.claim;
   return (
-    <View
-      style={{
-        flexDirection: isMobile ? 'column' : 'row',
-        alignItems: isMobile ? 'stretch' : 'center',
-        flexWrap: 'wrap',
-        columnGap: 16,
-        rowGap: 10,
-      }}
-    >
-      <CandidateButton
-        href={`/candidates/${candidateId}/${owner ? 'manage' : 'claim'}`}
-        kind={owner ? 'green' : 'outline'}
-        icon="none"
-        label={owner ? 'Manage this profile' : pending ? 'View claim status' : 'Claim this profile'}
-        onPress={owner ? onManage : onClaim}
-        style={{ minHeight: 48, width: isMobile ? '100%' : undefined }}
-      />
-      {!owner && !pending ? (
-        <Text style={[candidateText.body, { fontSize: 15, flexShrink: 1 }]}>
-          For candidates and authorized campaign representatives
-        </Text>
-      ) : null}
+    <View style={{ gap: 8, maxWidth: 600, width: '100%', alignItems: 'flex-start' }}>
+      {!isAdmin && !owner && !saved && closed ? (
+        <>
+          <Text style={candidateText.strong}>{profileClaimCopy.closedTitle}</Text>
+          <Text style={candidateText.body}>{profileClaimCopy.closed}</Text>
+        </>
+      ) : (
+        <>
+          <View style={{ width: isMobile ? '100%' : undefined }}>
+            <CandidateButton
+              href={
+                isAdmin
+                  ? `/admin/candidate-claims?candidate=${encodeURIComponent(record.candidate.id)}&from=profile`
+                  : `/candidates/${record.candidate.id}/${owner ? 'manage' : 'claim'}`
+              }
+              kind={owner && !isAdmin ? 'green' : 'outline'}
+              icon="none"
+              label={label}
+              describedBy={description}
+              onPress={isAdmin ? onAdmin : owner ? onManage : onClaim}
+              style={{ minHeight: 48, width: isMobile ? '100%' : undefined }}
+            />
+          </View>
+          <Text nativeID={description} style={[candidateText.body, { fontSize: 15 }]}>
+            {explanation}
+          </Text>
+        </>
+      )}
     </View>
   );
 }
@@ -152,32 +193,32 @@ export const candidateClaimServices = {
   getClaims: getMyCandidateClaims,
   reportStatement: reportCandidateStatement,
 };
-
 function ProfileAccountAction({
   record,
   token,
   getClaims,
   onClaim,
   onManage,
+  onAdmin,
 }: {
   record: CandidateProfileRecord;
   token: string;
   getClaims: typeof getMyCandidateClaims;
   onClaim(): void;
   onManage(): void;
+  onAdmin(): void;
 }) {
-  const [claim, setClaim] = useState<CandidateClaim | null>(null);
+  const [response, setResponse] = useState<CandidateClaimList | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     setStatus('loading');
+    setResponse(null);
     void getClaims(token, record.candidate.id, controller.signal).then(
-      (response) => {
+      (result) => {
         if (!controller.signal.aborted) {
-          setClaim(
-            response.claims.find((item) => item.candidate_id === record.candidate.id) ?? null,
-          );
+          setResponse(result);
           setStatus('ready');
         }
       },
@@ -191,9 +232,7 @@ function ProfileAccountAction({
   if (status === 'error')
     return (
       <View role="alert" style={styles.accessRow}>
-        <Text style={[candidateText.strong, { fontSize: 15.5 }]}>
-          Profile access is unavailable
-        </Text>
+        <Text style={[candidateText.strong, { fontSize: 15.5 }]}>{profileClaimCopy.failed}</Text>
         <CandidateButton
           kind="outline"
           icon="none"
@@ -203,12 +242,20 @@ function ProfileAccountAction({
         />
       </View>
     );
+  const claim = response?.claims.find((item) => item.candidate_id === record.candidate.id);
+  if (!claim && response?.request_eligibility?.reason === 'official_record_unavailable')
+    return (
+      <Text style={candidateText.body}>{claimAccountBlock('official_record_unavailable')}</Text>
+    );
   return (
     <AccountAction
-      candidateId={record.candidate.id}
+      record={{ ...record, electionEnded: claim?.election_ended ?? record.electionEnded }}
       status={claim?.status}
+      isAdmin={response?.is_admin}
+      canManage={claim?.can_manage}
       onClaim={onClaim}
       onManage={onManage}
+      onAdmin={onAdmin}
     />
   );
 }
@@ -297,7 +344,7 @@ export function CandidateClaimPanel({
             <AccessLoading />
           ) : previewAccount === 'error' ? (
             <View role="alert" style={styles.accessRow}>
-              <Text style={candidateText.strong}>Profile access is unavailable</Text>
+              <Text style={candidateText.strong}>We couldn’t load your profile claim status</Text>
               <CandidateButton
                 kind="outline"
                 icon="none"
@@ -308,34 +355,36 @@ export function CandidateClaimPanel({
             </View>
           ) : (
             <AccountAction
-              candidateId={record.candidate.id}
+              record={record}
               status={previewAccount}
+              onAdmin={onAdmin}
               onClaim={onClaim}
               onManage={onManage}
             />
           )
         ) : isLoading ? (
           <AccessLoading />
+        ) : admin.state === 'allowed' ? (
+          <AccountAction
+            record={record}
+            isAdmin
+            onClaim={onClaim}
+            onManage={onManage}
+            onAdmin={onAdmin}
+          />
         ) : isSignedIn && user && accessToken ? (
           <ProfileAccountAction
             key={`${user.id}:${accessToken}:${record.candidate.id}:${focused}`}
             record={record}
             token={accessToken}
             getClaims={services.getClaims}
+            onAdmin={onAdmin}
             onClaim={onClaim}
             onManage={onManage}
           />
         ) : (
-          <AccountAction candidateId={record.candidate.id} onClaim={onClaim} onManage={onManage} />
+          <AccountAction record={record} onClaim={onClaim} onManage={onManage} onAdmin={onAdmin} />
         )}
-        {admin.state === 'allowed' ? (
-          <CandidateLink
-            internal
-            url="/admin/candidate-claims"
-            label="Review candidate requests"
-            onPress={onAdmin}
-          />
-        ) : null}
       </View>
     </>
   );

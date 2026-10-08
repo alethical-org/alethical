@@ -47,6 +47,8 @@ export const screenChunks = {
     })),
   CandidateClaim: () =>
     import('../screens/CandidateAccountScreens').then((m) => ({ default: m.CandidateClaimScreen })),
+  PersonOverview: () =>
+    import('../screens/PersonOverviewScreen').then((m) => ({ default: m.PersonOverviewScreen })),
   CandidateManage: () =>
     import('../screens/CandidateAccountScreens').then((m) => ({
       default: m.CandidateManageScreen,
