@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EVENTS, PUBLISHED_EVENTS, eventBySlug, orderedEvents } from '../events';
 import { PUBLISHED_EVENT_INDEX, eventIndexBySlug } from '../eventsIndex';
 import { targetFromPathname } from '../../navigation/webRoutes';
@@ -29,7 +29,11 @@ function recorder() {
   return { response, read: () => ({ body, status }) };
 }
 
-beforeEach(() => vi.resetModules());
+beforeEach(() => {
+  vi.resetModules();
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('data unavailable')));
+});
+afterEach(() => vi.unstubAllGlobals());
 
 describe('candidate approval publication hold', () => {
   it('retains the complete event but excludes it from public selections', () => {
