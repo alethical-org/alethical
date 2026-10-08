@@ -406,9 +406,10 @@ considering a production change.
   amount separate. Do not fill missing commissions with 15%, or call commission
   an agency's profit. Strategic Media Services in Virginia is a research lead,
   not a blanket identity match for every similar agency name.
-- A final invoice can support a billed amount. Actual payment needs separate
-  payment evidence or a supported connection to a reported expense. The archive
-  has no accepted expense connections from the initial collection.
+- A final invoice supports a billed amount. A reviewed connection can relate it
+  to a reported campaign expense, but neither record alone proves payment. Retain
+  any reported unpaid amount and require separate payment evidence before calling
+  it paid. The initial collection has no accepted expense connections.
 - Candidate, committee and agency names are separate identities. One campaign
   expense can cover several station invoices; one invoice may need more than one
   expense connection. The current tools retain reviewed connections but do not
