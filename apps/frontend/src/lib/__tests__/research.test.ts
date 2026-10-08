@@ -1131,6 +1131,9 @@ describe('the light index agrees with the full registry', () => {
       'pieceWrittenLine',
       'pieceWrittenSentence',
       'pieceShareDescription',
+      'READ_PAGE_HEADING',
+      'READ_PAGE_INTRO',
+      'READ_PAGE_NAME',
     ]) {
       expect(lightweightIndex).not.toHaveProperty(name);
     }
