@@ -598,8 +598,9 @@ rows carry their marker.
 All amounts are summed with exact decimal arithmetic inside this committee alone.
 
 A failed recheck keeps the last complete payment list and chart for the same committee,
-year and pinned summary release, with “We could not refresh these payments. The last
-complete payment list is still shown.” and **Try again** above them. The action rechecks
+year and pinned summary release, with “We could not refresh these payments. This is a
+problem on our side. The last complete payment list is still shown.” and **Try again**
+above them. The action rechecks
 the summary and both payment directions without hiding accepted records; repeated
 activation waits for those payment reads. A first failed read still withholds the list.
 A successful empty answer replaces old rows; a completed response declaring unavailable clears the

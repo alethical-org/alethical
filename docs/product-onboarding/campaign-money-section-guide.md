@@ -1008,7 +1008,8 @@ Campaign money, top to bottom:
    those figures, never the sentence saying the file names no payments. A failed recheck
    retains the last complete chart and list only while the committee, year and pinned
    summary release remain unchanged. Above those records, the page says “We could not
-   refresh these payments. The last complete payment list is still shown.” and offers
+   refresh these payments. This is a problem on our side. The last complete payment list
+   is still shown.” and offers
    **Try again**. The action rechecks the summary and both payment directions; accepted
    records remain visible while it waits, and repeat activation is disabled until the
    payment reads finish. Its label and size stay unchanged. A successful empty list
@@ -1107,9 +1108,11 @@ Campaign money, top to bottom:
      committee's statements afresh for every report, so a statement is its report and its
      number; a second copy of a statement filed under a later report is kept and shown
      once.
-   - When the tab shows a statement, linked or not, **Minnesota’s report catalogue copied
-     {date}** prints under the payment-file freshness line, 16px in, dating the catalogue
-     copy the statements came from. Filed reports lists neither statements nor notices.
+   - When the tab shows a statement from the complete matching payment lists, linked or
+     not, **Minnesota’s report catalogue copied {date}** prints under the payment-file
+     freshness line, 16px in, dating the catalogue copy the statements came from. While
+     an earlier accepted list is retained, omit this line until a complete matching pair
+     returns, as described above. Filed reports lists neither statements nor notices.
    - The selected donor-kind tab, like the selected section tab above it, prints its
      label in green (`#0f7a45`, weight 700) over the green underline (`#2ed47e`).
 
@@ -1372,8 +1375,10 @@ this year” and **View filed reports**, which opens this committee's Filed repo
 Hide the empty money cards, donor browser and contribution-detail disclosures in this
 state. Keep the independent outside-spending section and “What this record covers”.
 Missing report figures alone never hide available payments. A reported zero, partial
-lists, loading, failure or a release mismatch never qualifies as this empty state.
-Empty-state text uses regular weight 400.
+lists, a first read still loading or failed, or a release mismatch cannot establish this
+empty state. An already accepted empty result stays visible during a failed recheck and
+retry only for the same committee, year and pinned summary release, with the failure
+notice and retry described above. Empty-state text uses regular weight 400.
 
 **The way onward is View filed reports.** Missing-year and closed-empty states never
 guess a useful destination year with “See {year}”. Their link opens the committee's

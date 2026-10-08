@@ -148,7 +148,9 @@ describe.each(['committee', 'profile'])('%s payment rechecks', (surface) => {
       await recheck();
       expect(host.textContent).toContain('Accepted Donor');
       expect(host.querySelector('svg')).not.toBeNull();
-      expect(host.textContent).toContain('The last complete payment list is still shown');
+      expect(host.textContent).toContain(
+        'We could not refresh these payments. This is a problem on our side. The last complete payment list is still shown.',
+      );
       const retry = [...host.querySelectorAll<HTMLElement>('[role="button"],button')].find(
         (button) => button.textContent === 'Try again',
       )!;

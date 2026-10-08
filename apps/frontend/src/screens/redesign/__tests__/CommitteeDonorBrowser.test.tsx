@@ -305,7 +305,9 @@ describe('one committee shares the donation browser', () => {
     expect(host.textContent).toContain(
       'No itemized receipts or expenditures in our copy for this year',
     );
-    expect(host.textContent).toContain('The last complete payment list is still shown.');
+    expect(host.textContent).toContain(
+      'We could not refresh these payments. This is a problem on our side. The last complete payment list is still shown.',
+    );
     expect(host.textContent).not.toContain('We could not load the complete payment list');
     expect(host.textContent).not.toContain('Who gave');
     emptyPaymentReads();

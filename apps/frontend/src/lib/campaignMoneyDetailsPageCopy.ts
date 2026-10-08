@@ -54,7 +54,7 @@ export const moneyDetailsPageCopy = {
   freshnessMismatch:
     'We cannot give these money records one shared download date. Their recorded dates differ or a date is missing.',
   heldPaymentRecheck:
-    'We could not refresh these payments. The last complete payment list is still shown.',
+    'We could not refresh these payments. This is a problem on our side. The last complete payment list is still shown.',
   refreshRecords: 'Try again',
 } as const;
 
