@@ -1,6 +1,6 @@
 # How Find My Candidates works
 
-<!-- describes: alethical/api/services/address_format.py, apps/frontend/src/lib/currentAddressInput.ts, apps/frontend/src/components/home/HomeCandidateFinder.tsx, apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidateProfileScreen.tsx, apps/frontend/src/screens/CandidateAccountScreens.tsx, apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx, apps/frontend/src/components/candidates/*.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/data/candidates.ts, apps/frontend/src/data/candidateClaims.ts, apps/frontend/src/hooks/useCandidatePrivacyBoundary.ts, apps/frontend/src/lib/candidatePrivacy.ts, apps/frontend/src/lib/candidatePageSnapshot.ts, apps/frontend/src/lib/candidatePublicCopy.ts, alethical/api/routers/candidates.py, alethical/api/routers/candidate_claims.py, alethical/api/services/candidate_lookup.py, alethical/api/services/candidate_legislators.py, alethical/api/data/candidate_legislator_links.json, alethical/api/services/candidate_claims.py, alethical/pipeline/candidate_ballot.py, alethical/db/models.py, alethical/alembic/versions/0066_candidate_lookup.py, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/lib/staticPageMetadata.ts, api/page.ts -->
+<!-- describes: alethical/api/services/address_format.py, apps/frontend/src/lib/currentAddressInput.ts, apps/frontend/src/lib/addressSuggestion.ts, apps/frontend/src/components/address/*.tsx, apps/frontend/src/components/home/HomeCandidateFinder.tsx, apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidateProfileScreen.tsx, apps/frontend/src/screens/CandidateAccountScreens.tsx, apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx, apps/frontend/src/components/candidates/*.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/data/candidates.ts, apps/frontend/src/data/candidateClaims.ts, apps/frontend/src/hooks/useCandidatePrivacyBoundary.ts, apps/frontend/src/lib/candidatePrivacy.ts, apps/frontend/src/lib/candidatePageSnapshot.ts, apps/frontend/src/lib/candidatePublicCopy.ts, alethical/api/routers/candidates.py, alethical/api/routers/candidate_claims.py, alethical/api/services/candidate_lookup.py, alethical/api/services/candidate_legislators.py, alethical/api/data/candidate_legislator_links.json, alethical/api/services/candidate_claims.py, alethical/pipeline/candidate_ballot.py, alethical/db/models.py, alethical/alembic/versions/0066_candidate_lookup.py, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/lib/staticPageMetadata.ts, api/page.ts -->
 
 ## Public address lookup
 
@@ -32,21 +32,53 @@ or other characters to force a match.
 
 A city or ZIP alone cannot choose a ballot. Ambiguous addresses require an explicit
 choice. An unsupported unit or overlapping range produces no match rather than a guess.
-Address suggestions begin with a house number and enough of the street name to
-match, using the same input rule as Find my legislator. A complete street, city or
-ZIP is not required before suggestions can appear. After a short typing pause,
-available matches appear below the field with **Suggested address** or **Suggested
-addresses**. The first match has a green outline; arrow keys move that outline,
-Enter chooses it, and Escape closes the list. A click or tap also chooses a match
-and starts the candidate search. Later replies for older text cannot replace the
-current suggestions or reopen a dismissed list. The list scrolls when needed.
+Address suggestions begin with a house number plus at least 2 street-name characters
+(`29308 Cr`), or the first numbered-street digit (`350 5`). A house number alone
+does not trigger suggestions. After a 180-millisecond typing pause, up to 5 Minnesota
+matches appear with **Suggested address** or **Suggested addresses**. Slow, failed
+or empty optional suggestions leave the list closed; submitting the typed address
+still works and has its own waiting, error and retry feedback.
+
+No suggestion is selected when the list opens. Down starts at the first row and
+Up at the last; both wrap. Enter chooses a keyboard-selected row, otherwise it
+submits the typed text. Escape, Tab and clicking outside dismiss the list without
+changing the text. Keyboard focus stays in the address box. Mouse hover is grey;
+the keyboard-selected row is pale green. Hover does not change Enter's choice.
+System high-contrast mode adds a visible system-color outline to the active row.
+A screen reader hears the count on every opening and count change while open.
+
+A completed click or tap selects the printed address and starts the candidate
+search. Starting a touch, scrolling or cancelling a gesture does not select it.
+Focus leaving the field cannot swallow the first tap or move the Search button
+between press and release. Editing or browser autofill clears the old keyboard
+choice. Late replies cannot replace newer suggestions or reopen a dismissed list.
+
+The field is labelled **Full street address**, followed by **A city or ZIP code
+alone cannot identify your local races** before the box. Full addresses wrap.
+On computer and tablet the list overlays content 8px below the box, exactly the
+box's width. On phones it sits in the page flow and pushes the button below it.
+All rows remain reachable through page scrolling, without a nested list scroller.
+When necessary, opening the list or the keyboard's later resize reveals the field
+and available rows while keeping the label visible. Manual scrolling stops further
+unsolicited movement until the list closes; deliberate arrow keys still reveal
+the selected row. The source line stays below the form: **Address lookup uses
+Minnesota Secretary of State and Minnesota mapping services**.
+
+Entry fields and buttons have a 60px minimum height. **Change address** retains
+its compact 56px field and 52px button. Both use the same suggestion component.
 Minnesota mapping services can supply a complete address when the ZIP is missing.
 The voter must confirm that complete address, even when only 1 choice is returned.
 Choosing a typing suggestion submits that complete address for official validation.
 Choosing from a submitted ambiguous result retains the original typed address so
 the service can recompute the same choice; approved abbreviations do not turn it
-into an unmatched address.
-Supplied unit numbers remain attached to the choice and must match official ranges.
+into an unmatched address. This **Choose your address** confirmation remains a
+separate step with its existing keyboard guidance.
+
+A typed unit carries onto a suggestion only when the same base location is
+established, respecting the supplied house number, street, direction, city, state
+and ZIP. An uncertain match never silently drops or transfers the unit. An explicit
+different unit stays visible for selection. The printed selected address and
+submitted address agree; official ballot range validation still decides the match.
 
 The connected source is [Minnesota MyBallot](https://myballotmn.sos.mn.gov/).
 The supported election is November 3, 2026, general election, source ID `8334`.
@@ -123,9 +155,9 @@ ready label returns after a result or error. Election changes keep their separat
 **Updating candidates…** status.
 
 The search button must receive the first click or tap while address suggestions are
-visible. Keep the field focused during pointer activation so dismissing inline phone
-suggestions cannot move the button between press and release; keyboard focus and
-explicit outside dismissal retain their existing behavior.
+visible. Delay dismissal of inline phone suggestions until the completed click is delivered,
+so the button cannot move between press and release. Touch scrolling remains
+available; keyboard focus and explicit outside dismissal keep their intended behavior.
 
 ## Public candidate profiles
 
