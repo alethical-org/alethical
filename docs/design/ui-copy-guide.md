@@ -243,6 +243,14 @@ motive, influence or wrongdoing. Describe the supported records without directin
 the reader's personal conclusions. If the article's own wording implies a claim
 the evidence cannot support, correct that wording rather than adding boilerplate.
 
+**For now, omit illegality commentary in blog posts.** On 8 October 2026 Eugene
+asked to remove “, not a finding that these payments were illegal” from the
+private Realtor draft and apply the direction to future blog posts. Do not add
+a legal verdict or a disclaimer that the evidence does not establish illegality.
+Present the supported evidence and its specific limits, and let readers draw
+their own conclusions. Apply this to new and revised blog posts until Eugene
+changes the direction; it does not authorize a bulk rewrite of published posts.
+
 This does not remove the approved AI-use disclosure, specific material gaps,
 required legal notices or source citations. It does not permit unsupported claims
 of motive, causation or wrongdoing. A generic caveat cannot make a false claim safe.

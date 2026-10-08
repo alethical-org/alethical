@@ -663,6 +663,16 @@ On 27 September 2026 Eugene approved the exact link choices in [reading-links-re
 
 The Short post article keeps its kind label once above the title, in unboxed blue monospace capitals (11px, weight 700, `0.14em`, `#2b6377`). Its publication line uses uppercase Libre Franklin (11.5px, weight 800, `0.01em`, equal-width digits, `#656c66`), `MON D, YYYY` dates with commas, and scope labels without colons. The “How this was calculated” and “Where these numbers come from” labels share the same monospace treatment (10.5px, weight 700, `0.12em`, `#4f5651`). The article ends with sources and disclosures, then reader comments, then Related reading, then the footer. Related reading uses the page background across the available article width, a `rgba(17,21,15,0.14)` top line and 48px/72px top/bottom space on desktop or 34px/48px on phone. When comments are unavailable, Related reading follows the disclosures. These display rules do not change an article's reviewed facts or approve new related links; each editor selection still passes the article's publication review.
 
+### Blog evidence and reader conclusions, 8 October 2026
+
+Eugene removed “, not a finding that these payments were illegal” from the
+private Realtor article and made the direction a blog-post rule for now. New
+and revised posts present supported evidence and specific limitations without
+adding a legal verdict or an illegality disclaimer. Readers draw their own
+conclusions. [ui-copy-guide.md §Keep meaningful uncertainty, remove obvious caveats](../design/ui-copy-guide.md#keep-meaningful-uncertainty-remove-obvious-caveats)
+owns the wording rule. This changes the current private draft and future drafting,
+not the publication hold or the requirement to support factual claims.
+
 ### Article widths, 30 September 2026
 
 Eugene authorized implementing `Alethical UX (43).zip` for all article formats.
