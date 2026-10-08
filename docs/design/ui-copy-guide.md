@@ -209,14 +209,15 @@ Use **Conclusion:** followed by the answer in bold when that identifies the answ
 more clearly. Do not force a conclusion onto a guide that only explains steps, or
 present an unresolved claim as settled to fill the slot.
 
-Keep a short qualification in regular text directly after the bold answer in the
-same paragraph when it qualifies that answer. Avoid a new paragraph and extra gap
-for a sentence that naturally continues the thought. Keep sentence punctuation
-throughout this combined paragraph; changing from bold to regular text does not
-start a separate punctuation unit. For example:
+Put the bold answer on its own line, allowing it to wrap naturally. Start a short
+qualification in regular text below it, using the full available text width beside
+the logo (Eugene, 8 October 2026). Keep both in the same paragraph without an extra
+paragraph gap. Keep sentence punctuation throughout; changing from bold to regular
+text does not start a separate punctuation unit. For example:
 
 **Conclusion: The filings support 1 reported $500 contribution appearing in repeated
-records.** The 2 download entries do not establish 2 separate donations.
+records.**\
+The 2 download entries do not establish 2 separate donations.
 
 Use the approved Alethical symbol to the left of the conclusion in every post
 type, including conclusions outside charts. The conclusion row fills the available

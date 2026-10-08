@@ -771,6 +771,13 @@ its alignment against the first 2 lines, and the bold answer followed by regular
 qualifications in the same paragraph. This replaces only the 30 September
 conclusion-width restriction, not the method or closing-note text limits.
 
+**Conclusion answer line, 8 October 2026.** Eugene then asked for the bold answer
+on its own line, with regular supporting text beginning below it across the
+available width beside the logo. Apply this to the shared prose and chart
+conclusion treatment, including initial HTML and private previews. Let long
+answers wrap naturally; keep the existing paragraph spacing, words, full row
+width and symbol alignment against the first 2 text lines.
+
 The article metadata displays publication dates and reporting periods, with Share
 on the same row where space permits. Download/copy, retrieval and extraction dates
 belong with source links, following

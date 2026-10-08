@@ -143,7 +143,7 @@ describe('Existing article tables in the first response', () => {
 });
 
 describe('Branded conclusions in the first response', () => {
-  it('preserves the left symbol, bold answer and regular qualification without a narrower width', () => {
+  it('puts the answer above its qualification beside the left symbol without a narrower width', () => {
     const shell = readFileSync(new URL('../../../public/index.html', import.meta.url), 'utf8');
     const document = documentFor(
       shell.replace(
@@ -155,6 +155,9 @@ describe('Branded conclusions in the first response', () => {
     expect(conclusion).not.toBeNull();
     expect(conclusion.querySelector('svg')?.getAttribute('aria-label')).toBe('Alethical');
     expect(conclusion.querySelector('strong')).not.toBeNull();
+    expect(
+      document.defaultView!.getComputedStyle(conclusion.querySelector('strong')!).display,
+    ).toBe('block');
     expect(conclusion.querySelectorAll('p')).toHaveLength(1);
     expect(document.defaultView!.getComputedStyle(conclusion).maxWidth).toBe('none');
     expect(document.defaultView!.getComputedStyle(conclusion.querySelector('p')!).flexGrow).toBe(

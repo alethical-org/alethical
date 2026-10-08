@@ -373,7 +373,7 @@ it('uses the article source list without a redundant jump link and retains direc
   }
 });
 
-it('lets branded prose and chart conclusions fill their available content width', () => {
+it('puts conclusion answers above qualifications across the available content width', () => {
   const article = new JSDOM(renderToStaticMarkup(<ShortPostArticle piece={LOBBYIST_GIVING} />))
     .window.document;
   const conclusion = article.querySelector('.sp-prose-conclusion')!;
@@ -382,6 +382,9 @@ it('lets branded prose and chart conclusions fill their available content width'
   expect(article.defaultView!.getComputedStyle(conclusion.querySelector('p')!).flexGrow).toBe('1');
   expect(conclusion.querySelector('svg')?.getAttribute('aria-label')).toBe('Alethical');
   expect(conclusion.querySelector('strong')).not.toBeNull();
+  expect(article.defaultView!.getComputedStyle(conclusion.querySelector('strong')!).display).toBe(
+    'block',
+  );
   const chart = new JSDOM(
     renderToStaticMarkup(
       <ShortPostChart
@@ -407,4 +410,5 @@ it('lets branded prose and chart conclusions fill their available content width'
     'Conclusion: The records support this answer.',
   );
   expect(foot.querySelector('p')?.textContent).toContain(evidence.limitations);
+  expect(chart.defaultView!.getComputedStyle(foot.querySelector('strong')!).display).toBe('block');
 });
