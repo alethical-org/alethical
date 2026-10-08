@@ -18,8 +18,9 @@ Owner: Codex chat (FCC media-vendor, 01a11a9b-d455-7d51-9baf-7d821afd0d6f),
 branch `codex/fcc-political-file-archive`.
 Source-listing corrections shipped from `codex/fcc-source-listing-gaps`; final
 collection acceptance is recorded from `codex/fcc-archive-acceptance`.
-The recurring collection change is being implemented on
-`codex/fcc-recurring-archive`; its first production run is not yet accepted.
+The recurring collection change uses `codex/fcc-recurring-archive`.
+[Issue 2528](https://github.com/alethical-org/alethical/issues/2528) records the
+release and production acceptance receipts separately from initial collection.
 
 ## Why this collection exists
 
