@@ -2,8 +2,8 @@
 
 <!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py -->
 
-Net: The repository has 32 GitHub Actions workflows. 27 can start automatically
-and 5 run only when a person starts them. Scheduled checks, releases, and local
+Net: The repository has 32 GitHub Actions workflows. 28 can start automatically
+and 4 run only when a person starts them. Scheduled checks, releases, and local
 backups do not call paid AI services. Reader questions and deliberately started
 AI work do. The review of a failed campaign-money collection has a paid AI
 reviewer too, and its switch is off until its limits are approved.
@@ -25,6 +25,7 @@ reviewer too, and its switch is off until its limits are approved.
 | Copy of every cited source (`.github/workflows/published-source-archive.yml`) | Weekly, Mondays at 10:00 UTC | Re-reads every outside address our published research and guides cite, keeps our own copy of each version, and opens or updates an issue when one has gone or changed | No paid AI call; free government page reads and storage in a bucket we already pay for |
 | Published piece links still work (`.github/workflows/published-piece-links.yml`) | Weekly, Mondays at 13:00 UTC, and on relevant pull requests | Opens or updates an issue when a link inside a published piece no longer reaches a real page; a pull request only checks the pieces' own links, without reading the network | No paid AI call; free government page reads |
 | Bills missing from search (`.github/workflows/rag-coverage-gaps.yml`) | Daily at 12:00 UTC | Opens or updates an issue when a stored bill has no current search index | No paid AI call; reads the database and does not rebuild the index |
+| FCC political-file archive (`.github/workflows/fcc-political-files.yml`) | Daily at 06:23 UTC, or by hand with dry run on by default | Lists all available political folders and years for KSTP-TV, KARE and KMSP-TV; attempts up to 1,000 new, changed or due downloads, up to 2,500 second copies and up to 1,000 local readings; reports source gaps, operational failures and unfinished work in a run summary and 1 continuing issue | No paid AI call; free FCC downloads, existing GitHub runner usage and private Supabase/R2 storage and transfer allowances |
 | Second copy of source files (`.github/workflows/mirror-raw-files.yml`) | Daily at 13:00 UTC | Checks current files in Supabase and Cloudflare R2, repairs missing second copies, and renews old hash proofs within a 256 MiB combined read budget. Discovers stored-source tables from the database schema, including FCC political-file copies, so a new source joins the backup without a separate table list | No paid AI call; [Cloudflare R2 includes 10 GB of Standard storage and large monthly operation allowances](https://developers.cloudflare.com/r2/pricing/) before charges |
 | Bills with summary gaps (`.github/workflows/bill-summary-coverage.yml`) | Daily at 14:00 UTC | Opens or updates 1 issue when a bill has complete current text but its full summary is missing or was made from older text or instructions | No paid AI call; reads the database and does not create or change a summary |
 | Homepage fact check (`.github/workflows/home-hero-card-facts.yml`) | Daily at 12:00 UTC, and on relevant pull requests | Checks the homepage's 5 bill claims against Minnesota's published record | No paid AI call; reads public government pages |
@@ -45,17 +46,19 @@ reviewer too, and its switch is off until its limits are approved.
 | Working-folder inventory and released-folder cleanup (`com.alethical.worktree-cleanup`, `com.commercialdeals.worktree-cleanup`) | At login, when an owner releases a folder, and daily to refresh the report and retry held removals | Reports every registered folder, saves independent recovery copies, then removes admitted clean delivered folders only after every owner releases them and no program still uses them; persistent preview holds remain, and Codex-managed folders use the app's archive tool | No outside service charge or paid AI call; reads GitHub change status |
 | [Local coding job activity](agent-job-outcomes.md) | Supported Claude Code and Codex events after installation, host review and explicit job registration | Saves private event metadata against the existing job; a reply ending never finishes a job or starts another turn | No outside call or paid AI call |
 
-The 18 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
+[FCC political-file instructions](../implementation/fcc-political-files.md#ongoing-collection-and-reporting)
+own the fixed scope, retry order, reporting, pause, recovery and acceptance checks.
+
+The 19 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
 Time and Central Daylight Time, so their local hour changes by 1 during the year.
 
 ## What GitHub runs only by hand
 
-These 5 workflows complete the total of 32:
+These 4 workflows complete the total of 32:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |
 | `.github/workflows/legislator-city-backfill.yml` | Preview or fill missing legislator residence cities | No paid AI call; reads public government sources and the database |
-| `.github/workflows/fcc-political-files.yml` | Keep bounded batches of FCC station files, read PDFs locally, make second copies and report gaps; dry run by default, no schedule | No paid AI call; free FCC downloads, existing GitHub runner usage and private Supabase/R2 storage and transfer allowances |
 | `.github/workflows/migrate.yml` | Apply database changes and check for structural drift when the normal Railway release path needs a fallback | No paid AI call; uses GitHub and the existing database service |
 | `.github/workflows/railway-deploy.yml` | Release the API when Railway's Git connection needs a fallback | No paid AI call; build and hosting usage stays on the existing Railway account |
 | `.github/workflows/vercel-deploy.yml` | Release the web app when Vercel's Git connection needs a fallback | No paid AI call; build and hosting usage stays on the existing Vercel account |
@@ -94,7 +97,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Collect change history by hand, report examined causes and retain prevention references | `review_repeat_failures.py` |
 | Run existing tests once and retain named money-prevention results for the exact tested code | `repeat_failure_runs.py` |
 | Measure what real visitors waited for | `report_origin_share_by_address.py`, `report_page_speed_by_address.py` |
-| Archive and search FCC political advertising evidence, restore source copies and review expense links | `fcc_political_files.py` |
+| Refresh, archive and search FCC political advertising evidence, restore source copies and review expense links | `fcc_political_files.py` |
 | Maintain search and stored files | `archive_published_sources.py`, `collect_page_failure_health.py` (public-safe hourly failure counts), `build_rag_hnsw_index.py`, `mirror_raw_files.py`, `notify_changed_public_pages.py` (bounded real public changes with durable receipts) |
 | Protect unfinished work and rotating read grants | `back-up-uncommitted-worktree-work.sh`, `worktree_backup.py`, `supabase_oauth_state.mjs` |
 | Install free Mac maintenance, report every folder and safely remove released working folders | `install_worktree_maintenance.py`, `worktree_cleanup.py`, `worktree_inventory.py` |

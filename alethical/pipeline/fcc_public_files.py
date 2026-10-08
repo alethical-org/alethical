@@ -472,6 +472,7 @@ class FCCClient:
                 raise FCCFetchError(
                     file.url,
                     f"original request failed ({error}); official PDF distribution failed ({alternate_error})",
+                    alternate_error.status_code,
                 ) from alternate_error
         self.last_download_url = effective
         if not body:

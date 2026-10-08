@@ -738,3 +738,422 @@ def test_storage_failure_never_retains_credentials_in_observation_or_progress(db
     assert result["files_failed"] == 1 and observation.error == "RuntimeError"
     assert "private-password" not in repr([result, progress, observation.error])
     assert "private-token" not in repr([result, progress, observation.error])
+
+
+def test_incremental_unchanged_inventory_does_not_read_cached_bodies(db, monkeypatch):
+    files = tuple(replace(FILE, file_id=f"record-{n}") for n in range(3))
+    store = MemoryStore()
+    collect(db, store, factory(files))
+    before = {
+        row.file_id: row.last_downloaded_at for row in db.scalars(select(m.FCCDocument))
+    }
+
+    def unexpected_read(*args):
+        raise AssertionError("Unchanged listing must not claim a new body check")
+
+    monkeypatch.setattr(archive, "read_body", unexpected_read)
+    downloaded = []
+    result = collect(
+        db, store, factory(files, downloaded=downloaded), incremental=True, max_files=1
+    )
+    assert result["status"] == "complete"
+    assert result["files_unchanged"] == result["listed_files"] == 3
+    assert result["files_due"] == 0 and downloaded == []
+    unchanged = db.scalars(
+        select(m.FCCObservation).where(m.FCCObservation.status == "unchanged")
+    ).all()
+    assert len(unchanged) == 3
+    assert all(row.details["body_checked_this_scan"] is False for row in unchanged)
+    db.expire_all()
+    for row in db.scalars(select(m.FCCDocument)):
+        assert row.last_downloaded_at == before[row.file_id]
+        assert row.last_seen_at > row.last_downloaded_at
+
+
+def test_incremental_bound_preserves_metadata_for_every_file_and_unlinked_gap(db):
+    files = tuple(replace(FILE, file_id=f"record-{n}") for n in range(3))
+    gap = replace(
+        FILE,
+        file_id="gap",
+        url=None,
+        source_folder_url=ROOT,
+        unavailable_reason="No public download link",
+    )
+    result = collect(
+        db, MemoryStore(), factory((*files, gap)), incremental=True, max_files=1
+    )
+    observations = db.scalars(
+        select(m.FCCObservation).where(m.FCCObservation.kind == "file")
+    ).all()
+    assert result["status"] == "incomplete"
+    assert result["listed_files"] == 4
+    assert result["files_due"] == 3 and result["files_deferred"] == 2
+    assert result["files_stored"] == result["files_unavailable"] == 1
+    assert {row.details["file_id"] for row in observations} == {
+        file.file_id for file in (*files, gap)
+    }
+    assert all(
+        row.content_hash is None for row in observations if row.status == "deferred"
+    )
+    assert count(db, m.FCCDocument) == 1
+
+
+def test_incremental_reserves_oldest_work_despite_continued_new_arrivals(db):
+    old = tuple(replace(FILE, file_id=f"old-{n}") for n in range(3))
+    store = MemoryStore()
+    collect(db, store, factory(old))
+    for row in db.scalars(select(m.FCCDocument)):
+        row.last_downloaded_at -= timedelta(days=8)
+    db.commit()
+    files = list(old)
+    refreshed = []
+    for run in range(3):
+        files.extend(replace(FILE, file_id=f"new-{run}-{n}") for n in range(3))
+        downloaded = []
+        result = collect(
+            db,
+            store,
+            factory(tuple(files), downloaded=downloaded),
+            incremental=True,
+            max_files=2,
+        )
+        assert len(downloaded) == 2 and result["files_deferred"] > 0
+        assert any(file_id.startswith("new-") for file_id in downloaded)
+        refreshed.extend(
+            file_id for file_id in downloaded if file_id.startswith("old-")
+        )
+    assert set(refreshed) == {file.file_id for file in old}
+
+
+def test_incremental_oldest_work_uses_database_clock_when_runner_clock_lags(
+    db, monkeypatch
+):
+    store = MemoryStore()
+    collect(db, store, factory())
+    db.scalar(select(m.FCCDocument)).last_downloaded_at -= timedelta(days=9)
+    db.commit()
+    lagging_clock = archive.now() - timedelta(days=1)
+    monkeypatch.setattr(archive, "now", lambda: lagging_clock)
+    arrivals = tuple(replace(FILE, file_id=f"new-{n}") for n in range(3))
+    downloaded = []
+    collect(
+        db,
+        store,
+        factory((FILE, *arrivals), downloaded=downloaded),
+        incremental=True,
+        max_files=2,
+    )
+    assert FILE.file_id in downloaded
+    assert len(downloaded) == 2
+
+
+def test_incremental_due_same_label_replacement_retains_versions(db):
+    store = MemoryStore()
+    collect(db, store, factory())
+    previous = db.scalar(select(m.FCCDocument))
+    previous.last_downloaded_at -= timedelta(days=8)
+    db.commit()
+    result = collect(
+        db,
+        store,
+        factory(bodies={FILE.file_id: PDF + b" replacement"}),
+        incremental=True,
+        max_files=1,
+    )
+    assert result["files_stored"] == 1
+    assert result["oldest_due_age_seconds"] >= 86400
+    assert count(db, m.FCCDocument) == 2
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("size_bytes", 900),
+        ("size_label", "900 KB"),
+        ("folder_path", "political-files/2025/state/moved"),
+    ],
+)
+def test_incremental_metadata_changes_remain_due_after_deferral(db, field, value):
+    other = replace(FILE, file_id="older-attempt")
+    store = MemoryStore()
+    collect(db, store, factory((other,)))
+    collect(db, store, factory())
+    changed = replace(FILE, **{field: value})
+    other_changed = replace(other, name="Updated other invoice")
+    first = collect(
+        db, store, factory((other_changed, changed)), incremental=True, max_files=1
+    )
+    assert first["files_deferred"] == 1
+    downloaded = []
+    second = collect(
+        db,
+        store,
+        factory((other_changed, changed), downloaded=downloaded),
+        incremental=True,
+        max_files=1,
+    )
+    assert second["status"] == "complete"
+    assert downloaded == [FILE.file_id]
+
+
+@pytest.mark.parametrize(
+    "http_status,expected",
+    [
+        (401, "unavailable"),
+        (403, "unavailable"),
+        (404, "unavailable"),
+        (410, "unavailable"),
+        (429, "failed"),
+        (503, "failed"),
+        (None, "failed"),
+    ],
+)
+def test_incremental_source_gap_classification_is_narrow(db, http_status, expected):
+    class RefusingClient(factory()):
+        def download(self, file):
+            raise FCCFetchError(file.url, "source failure", http_status)
+
+    result = collect(db, MemoryStore(), RefusingClient, incremental=True)
+    assert result["status"] == "incomplete"
+    assert result["files_" + expected] == 1
+
+
+def test_incremental_storage_error_is_not_a_source_gap(db):
+    class RefusingStore(MemoryStore):
+        def put_and_verify(self, key, path, expected_sha256):
+            if key == f"fcc/political-files/{digest(PDF)}.gz":
+                raise RuntimeError("storage failed")
+            return super().put_and_verify(key, path, expected_sha256)
+
+    result = collect(db, RefusingStore(), factory(), incremental=True)
+    assert result["files_failed"] == 1
+    assert result.get("files_unavailable", 0) == 0
+
+
+def test_incremental_missing_link_recovery_downloads_and_failed_folder_preserves(db):
+    store = MemoryStore()
+    missing = replace(FILE, url=None, source_folder_url=ROOT)
+    first = collect(db, store, factory((missing,)), incremental=True, max_files=1)
+    assert first["files_unavailable"] == 1
+    second = collect(db, store, factory(), incremental=True, max_files=1)
+    assert second["files_stored"] == 1
+    failed = collect(db, store, factory(folder_failure=ROOT), incremental=True)
+    assert failed["status"] == "incomplete" and failed["folders_failed"] == 1
+    assert count(db, m.FCCDocument) == 1
+
+
+def test_extraction_prefers_oldest_archived_body_over_hash_order(db, monkeypatch):
+    from alethical.pipeline import fcc_document_text
+
+    files = (FILE, replace(FILE, file_id="record-2"))
+    store = MemoryStore()
+    collect(
+        db,
+        store,
+        factory(files, bodies={FILE.file_id: PDF, "record-2": PDF + b"second"}),
+    )
+    document_hashes = sorted(db.scalars(select(m.FCCDocument.content_hash)).all())
+    oldest_hash = document_hashes[-1]
+    db.get(m.FCCSourceBody, oldest_hash).created_at -= timedelta(days=1)
+    db.commit()
+    read_hashes = []
+
+    def read_document(body, name):
+        read_hashes.append(digest(body))
+        return Extraction(
+            pages=[PageText(1, "Example text", "test", "extracted")],
+            document_kind="unknown",
+            facts=[],
+            status="pending_review",
+        )
+
+    monkeypatch.setattr(fcc_document_text, "extract_document", read_document)
+    result = archive.extract_pending(db, store, limit=1, workers=1)
+    assert result == {"pending_review": 1}
+    assert read_hashes == [oldest_hash]
+
+
+def test_incremental_transient_failure_retry_rotates_with_bounded_work(db):
+    files = tuple(replace(FILE, file_id=f"record-{n}") for n in range(3))
+    downloaded = []
+
+    class RefusingClient(factory(files)):
+        def download(self, file):
+            downloaded.append(file.file_id)
+            raise FCCFetchError(file.url, "HTTP 503", 503)
+
+    store = MemoryStore()
+    for _ in range(4):
+        result = collect(db, store, RefusingClient, incremental=True, max_files=1)
+        assert result["files_failed"] == 1 and result["files_deferred"] == 2
+    assert set(downloaded[:3]) == {file.file_id for file in files}
+    assert downloaded[3] == downloaded[0]
+
+
+@pytest.mark.parametrize(
+    "failure_status,errors",
+    [
+        ("unreadable", ["reader_process_unavailable"]),
+        ("unreadable", ["reader_process_failed"]),
+        ("unreadable", ["reader_output_invalid"]),
+        ("needs_ocr", ["local_ocr_unavailable"]),
+    ],
+)
+def test_operational_retry_recovers_and_retains_history(
+    db, monkeypatch, failure_status, errors
+):
+    from alethical.pipeline import fcc_document_text
+
+    store = MemoryStore()
+    collect(db, store, factory())
+    failed = replace(
+        reading("Prior reader result"), status=failure_status, errors=errors
+    )
+    archive.save_extraction(db, digest(PDF), failed)
+    db.commit()
+    assert archive.status(db)["reading_operational_failures"] == 1
+    monkeypatch.setattr(fcc_document_text, "extract_document", lambda *args: reading())
+    assert archive.extract_pending(db, store) == {}
+    assert archive.extract_pending(db, store, retry_operational=True) == {
+        "pending_review": 1
+    }
+    row = db.get(m.FCCExtraction, (digest(PDF), failed.version))
+    assert row.status == "pending_review" and len(row.attempts) == 1
+    assert row.attempts[0]["errors"] == errors
+    assert row.attempts[0]["pages"][0]["text"] == "Prior reader result"
+    assert archive.status(db)["reading_operational_failures"] == 0
+
+
+def test_operational_retry_stops_after_3_retries_but_failure_stays_visible(
+    db, monkeypatch
+):
+    from alethical.pipeline import fcc_document_text
+
+    store = MemoryStore()
+    collect(db, store, factory())
+    failed = replace(reading(), status="unreadable", errors=["reader_process_failed"])
+    archive.save_extraction(db, digest(PDF), failed)
+    db.commit()
+    monkeypatch.setattr(fcc_document_text, "extract_document", lambda *args: failed)
+    for _ in range(3):
+        assert archive.extract_pending(db, store, retry_operational=True) == {
+            "unreadable": 1
+        }
+    assert archive.extract_pending(db, store, retry_operational=True) == {}
+    row = db.get(m.FCCExtraction, (digest(PDF), failed.version))
+    assert len(row.attempts) == 3
+    assert archive.status(db)["reading_operational_failures"] == 1
+    assert not archive.save_extraction(
+        db, digest(PDF), reading(), retry_operational=True
+    )
+    db.commit()
+    monkeypatch.setattr(fcc_document_text, "extract_document", lambda *args: reading())
+    assert archive.extract_pending(db, store, retry_failed=True) == {
+        "pending_review": 1
+    }
+    assert len(db.get(m.FCCExtraction, (digest(PDF), failed.version)).attempts) == 4
+
+
+def test_operational_retry_keeps_linked_and_source_limited_readings(db, monkeypatch):
+    from alethical.pipeline import fcc_document_text
+
+    store = MemoryStore()
+    files = (FILE, replace(FILE, file_id="record-2"))
+    second_pdf = PDF + b"second"
+    collect(
+        db, store, factory(files, bodies={FILE.file_id: PDF, "record-2": second_pdf})
+    )
+    failed = replace(reading(), status="unreadable", errors=["reader_process_failed"])
+    source_gap = replace(reading(), status="partial", errors=["document_time_limit"])
+    archive.save_extraction(db, digest(PDF), failed)
+    archive.save_extraction(db, digest(second_pdf), source_gap)
+    db.flush()
+    db.add(
+        m.FCCExpenseLink(
+            content_hash=digest(PDF),
+            extraction_version=failed.version,
+            source_dataset="cfb",
+            source_snapshot_id=uuid4(),
+            source_content_hash="b" * 64,
+            source_row_number=1,
+            source_row={"vendor": "KSTP-TV"},
+            status="suggested",
+            evidence="The saved source row names KSTP-TV",
+        )
+    )
+    db.commit()
+
+    def unexpected_read(*args):
+        raise AssertionError("Protected or source-limited reading must stay unchanged")
+
+    monkeypatch.setattr(fcc_document_text, "extract_document", unexpected_read)
+    assert archive.extract_pending(db, store, retry_operational=True) == {}
+    assert not archive.save_extraction(
+        db, digest(PDF), reading(), retry_operational=True
+    )
+    assert archive.status(db)["reading_operational_failures"] == 1
+
+
+def test_operational_retry_prioritizes_fresh_unread_before_old_retry(db, monkeypatch):
+    from alethical.pipeline import fcc_document_text
+
+    store = MemoryStore()
+    files = (FILE, replace(FILE, file_id="record-2"))
+    second_pdf = PDF + b"second"
+    collect(
+        db, store, factory(files, bodies={FILE.file_id: PDF, "record-2": second_pdf})
+    )
+    failed = replace(reading(), status="unreadable", errors=["reader_process_failed"])
+    archive.save_extraction(db, digest(PDF), failed)
+    db.get(m.FCCSourceBody, digest(PDF)).created_at -= timedelta(days=1)
+    db.commit()
+    read_hashes = []
+
+    def reader(body, name):
+        read_hashes.append(digest(body))
+        return reading()
+
+    monkeypatch.setattr(fcc_document_text, "extract_document", reader)
+    assert archive.extract_pending(db, store, limit=1, retry_operational=True) == {
+        "pending_review": 1
+    }
+    assert read_hashes == [digest(second_pdf)]
+    assert archive.status(db)["reading_operational_failures"] == 1
+
+
+def test_operational_failure_total_is_not_truncated_and_excludes_old_readers(db):
+    store = MemoryStore()
+    failed = replace(reading(), status="unreadable", errors=["reader_output_invalid"])
+    for number in range(101):
+        key = archive.archive_body(db, store, PDF + str(number).encode())
+        archive.save_extraction(db, key, failed)
+    archive.save_extraction(db, key, replace(failed, version="old-reader"))
+    db.commit()
+    assert len(archive.gaps(db)["reading_gaps"]) == 100
+    assert archive.status(db)["reading_operational_failures"] == 101
+
+
+def test_operational_retry_recovers_mixed_partial_pdf_with_missing_ocr(db, monkeypatch):
+    from alethical.pipeline import fcc_document_text
+
+    store = MemoryStore()
+    collect(db, store, factory())
+    partial = replace(
+        reading(),
+        status="partial",
+        errors=[],
+        pages=[
+            PageText(1, "Readable native text", "native", "extracted"),
+            PageText(2, "", "ocr", "needs_ocr", "local_ocr_unavailable"),
+        ],
+    )
+    archive.save_extraction(db, digest(PDF), partial)
+    db.commit()
+    assert archive.status(db)["reading_operational_failures"] == 1
+    monkeypatch.setattr(fcc_document_text, "extract_document", lambda *args: reading())
+    assert archive.extract_pending(db, store, retry_operational=True) == {
+        "pending_review": 1
+    }
+    row = db.get(m.FCCExtraction, (digest(PDF), partial.version))
+    assert row.attempts[0]["pages"][1]["status"] == "needs_ocr"
+    assert archive.status(db)["reading_operational_failures"] == 0

@@ -1,28 +1,29 @@
 name: Keep private FCC political files
 
-# Manual-only until full-history source load, storage allowances, and cadence have
-# been measured and approved. No cron is armed. Future daily runs can use the
-# 7-day refresh policy; a weekly full refresh must be explicitly selected here.
+# Full folder inventory daily; bounded downloads, second copies and local reading.
+# Scope stays KSTP-TV, KARE and KMSP-TV, across every available political year.
 # No AI API is used: text recognition runs on this runner with local software.
 on:
+  schedule:
+    - cron: "23 6 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
         description: "Describe scope without database, source, or storage connections"
         type: boolean
         default: true
-      refresh_existing:
-        description: "Download existing PDFs again, keeping changed versions"
-        type: boolean
-        default: false
       max_files:
-        description: "Maximum documents attempted this run (1 to 500)"
+        description: "Maximum new, changed or due downloads (1 to 2000)"
         type: number
-        default: 100
+        default: 1000
       extract_limit:
-        description: "Maximum archived PDFs read locally this run (1 to 100)"
+        description: "Maximum archived documents read locally (1 to 2000)"
         type: number
-        default: 25
+        default: 1000
+      mirror_limit:
+        description: "Maximum bodies copied to Cloudflare R2 (1 to 5000)"
+        type: number
+        default: 2500
 
 concurrency:
   group: production-fcc-political-files
@@ -37,6 +38,10 @@ jobs:
     timeout-minutes: 90
     env:
       PYTHONPATH: .
+      # Scheduled events do not have workflow_dispatch input defaults.
+      MAX_FILES: ${{ github.event_name == 'schedule' && '1000' || inputs.max_files }}
+      EXTRACT_LIMIT: ${{ github.event_name == 'schedule' && '1000' || inputs.extract_limit }}
+      MIRROR_LIMIT: ${{ github.event_name == 'schedule' && '2500' || inputs.mirror_limit }}
       OPENAI_API_KEY: ""
       SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
@@ -67,28 +72,14 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
-      - name: Validate bounded run inputs
+      - name: Describe and validate the bounded scope
         shell: bash
-        env:
-          MAX_FILES: ${{ inputs.max_files }}
-          EXTRACT_LIMIT: ${{ inputs.extract_limit }}
         run: |
-          [[ "$MAX_FILES" =~ ^[0-9]+$ && "$MAX_FILES" -ge 1 && "$MAX_FILES" -le 500 ]]
-          [[ "$EXTRACT_LIMIT" =~ ^[0-9]+$ && "$EXTRACT_LIMIT" -ge 1 && "$EXTRACT_LIMIT" -le 100 ]]
-
-      - name: Describe the full collection scope
-        shell: bash
-        env:
-          MAX_FILES: ${{ inputs.max_files }}
-          REFRESH_EXISTING: ${{ inputs.refresh_existing }}
-        run: |
-          args=()
-          if [ "$REFRESH_EXISTING" = "true" ]; then args+=(--refresh-existing); fi
-          uv run python scripts/fcc_political_files.py collect --target prod \
-            --dry-run --max-files "$MAX_FILES" "${args[@]}"
+          uv run python scripts/fcc_political_files.py refresh --target prod --dry-run \
+            --max-files "$MAX_FILES" --extract-limit "$EXTRACT_LIMIT" --mirror-limit "$MIRROR_LIMIT"
 
       - name: Check required private settings
-        if: ${{ !inputs.dry_run }}
+        if: ${{ github.event_name == 'schedule' || !inputs.dry_run }}
         shell: bash
         run: |
           missing=()
@@ -105,36 +96,51 @@ jobs:
           fi
 
       - name: Install local PDF and text recognition tools
-        if: ${{ !inputs.dry_run }}
+        if: ${{ github.event_name == 'schedule' || !inputs.dry_run }}
         run: sudo apt-get update && sudo apt-get install --no-install-recommends -y poppler-utils tesseract-ocr
 
-      - name: Keep listings and public PDFs
-        id: collect
-        if: ${{ !inputs.dry_run }}
+      - name: Archive changes, copy originals and read new documents
+        id: refresh
+        if: ${{ github.event_name == 'schedule' || !inputs.dry_run }}
         shell: bash
-        env:
-          MAX_FILES: ${{ inputs.max_files }}
-          REFRESH_EXISTING: ${{ inputs.refresh_existing }}
         run: |
-          args=()
-          if [ "$REFRESH_EXISTING" = "true" ]; then args+=(--refresh-existing); fi
-          uv run python scripts/fcc_political_files.py collect --target prod \
-            --stations all --workers 3 --max-files "$MAX_FILES" "${args[@]}"
+          uv run python scripts/fcc_political_files.py refresh --target prod \
+            --workers 3 --max-files "$MAX_FILES" --extract-limit "$EXTRACT_LIMIT" \
+            --mirror-limit "$MIRROR_LIMIT" --summary fcc-refresh-report.json
 
-      # A limited or incomplete collection is a failed step, but retained evidence
-      # still gets its second copy and local reading. No failure is swallowed.
-      - name: Make verified second copies
-        if: ${{ always() && !cancelled() && !inputs.dry_run && steps.collect.outcome != 'skipped' }}
-        run: uv run python scripts/fcc_political_files.py mirror --target prod --limit 200
+      - name: Keep the completion report
+        if: ${{ always() && (github.event_name == 'schedule' || !inputs.dry_run) }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: fcc-refresh-report
+          path: fcc-refresh-report.json
+          if-no-files-found: warn
+          retention-days: 14
 
-      - name: Read PDFs with local software
-        if: ${{ always() && !cancelled() && !inputs.dry_run && steps.collect.outcome != 'skipped' }}
+  report:
+    needs: archive
+    if: ${{ always() && (github.event_name == 'schedule' || !inputs.dry_run) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Read the collection report if it was produced
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: fcc-refresh-report
+      # A separate job can report a collector timeout or setup failure too.
+      - name: Report coverage and keep one problem report
+        if: always()
+        uses: actions/github-script@v7
         env:
-          EXTRACT_LIMIT: ${{ inputs.extract_limit }}
-        run: uv run python scripts/fcc_political_files.py extract --target prod --workers 2 --limit "$EXTRACT_LIMIT"
-
-      - name: Show held records and remaining gaps
-        if: ${{ always() && !cancelled() && !inputs.dry_run && steps.collect.outcome != 'skipped' }}
-        run: |
-          uv run python scripts/fcc_political_files.py status --target prod
-          uv run python scripts/fcc_political_files.py gaps --target prod --limit 100
+          JOB_FAILED: ${{ needs.archive.result != 'success' || steps.download.outcome != 'success' }}
+        with:
+          script: |
+            const report = require('./.github/scripts/fcc-refresh-report.cjs');
+            await report({github, context, core, failed: process.env.JOB_FAILED === 'true'});

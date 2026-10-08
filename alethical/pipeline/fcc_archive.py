@@ -27,6 +27,30 @@ from alethical.pipeline.fcc_public_files import (
 )
 from alethical.pipeline.raw_file_store import sha256_of_file
 
+OPERATIONAL_READING_ERRORS = (
+    "reader_process_unavailable",
+    "reader_process_failed",
+    "reader_output_invalid",
+)
+
+
+def _operational_reading_failure():
+    return or_(
+        m.FCCExtraction.status == "needs_ocr",
+        *(
+            m.FCCExtraction.errors.contains([error])
+            for error in OPERATIONAL_READING_ERRORS
+        ),
+        select(m.FCCPage.page)
+        .where(
+            m.FCCPage.content_hash == m.FCCExtraction.content_hash,
+            m.FCCPage.version == m.FCCExtraction.version,
+            m.FCCPage.status == "needs_ocr",
+        )
+        .correlate(m.FCCExtraction)
+        .exists(),
+    )
+
 
 def now() -> datetime:
     return datetime.now(timezone.utc)
@@ -120,6 +144,7 @@ def collect(
     workers: int = 3,
     max_files: int | None = None,
     refresh_existing: bool = False,
+    incremental: bool = False,
     client_factory: Callable = FCCClient,
     log: Callable[[dict], None] = lambda row: None,
 ) -> dict:
@@ -128,6 +153,8 @@ def collect(
     Recent unchanged listings can reuse a verified body for up to 7 days. Weekly
     full downloads detect replacements even when the source keeps its old label.
     Full historical versions are retained, including files later removed by FCC.
+    Incremental runs inventory every record but bound only needed downloads;
+    unchanged observations establish listing presence, not a new byte check.
     """
     if not 1 <= workers <= 4 or (max_files is not None and max_files < 1):
         raise ValueError("Use 1 to 4 workers and a positive file limit")
@@ -204,7 +231,9 @@ def collect(
                     )
         counts["listed_files"] = len(work)
         limited = max_files is not None and len(work) > max_files
-        if max_files is not None:
+        unchanged_ids: set[tuple[str, str]] = set()
+        deferred_ids: set[tuple[str, str]] = set()
+        if max_files is not None or incremental:
             # Prioritize never-attempted records, then changed/due records,
             # and use attempt time for fair retries of permanently unavailable files.
             previous_rows = db.scalars(
@@ -222,7 +251,10 @@ def collect(
                         observed_file_id,
                         func.max(m.FCCObservation.observed_at),
                     )
-                    .where(m.FCCObservation.kind == "file")
+                    .where(
+                        m.FCCObservation.kind == "file",
+                        m.FCCObservation.status.not_in(("unchanged", "deferred")),
+                    )
                     .group_by(
                         m.FCCObservation.facility_id,
                         observed_file_id,
@@ -250,8 +282,131 @@ def collect(
                 rank = 0 if attempted is None else 1 if changed else 2 if due else 3
                 return rank, attempted or earliest
 
-            work.sort(key=priority)
-            work = work[:max_files]
+            if incremental:
+                # Deferred and metadata-only observations must not become the
+                # baseline for a download we have not performed yet.
+                successful = {
+                    (row.facility_id, row.details.get("file_id")): row
+                    for row in db.scalars(
+                        select(m.FCCObservation)
+                        .where(
+                            m.FCCObservation.kind == "file",
+                            m.FCCObservation.status.in_(
+                                ("stored", "reused", "unchanged")
+                            ),
+                        )
+                        .distinct(m.FCCObservation.facility_id, observed_file_id)
+                        .order_by(
+                            m.FCCObservation.facility_id,
+                            observed_file_id,
+                            m.FCCObservation.observed_at.desc(),
+                            m.FCCObservation.scan_id.desc(),
+                        )
+                    )
+                }
+                due = []
+                changed_ids = set()
+                # Attempts and discovery times use the database clock. Mixing
+                # the runner clock here can put new arrivals ahead of old work.
+                observed_now = scan.started_at
+                first_listed = {
+                    (facility, file_id): listed_at
+                    for facility, file_id, listed_at in db.execute(
+                        select(
+                            m.FCCObservation.facility_id,
+                            observed_file_id,
+                            func.min(m.FCCScan.started_at),
+                        )
+                        .join(m.FCCScan, m.FCCScan.id == m.FCCObservation.scan_id)
+                        .where(m.FCCObservation.kind == "file")
+                        .group_by(m.FCCObservation.facility_id, observed_file_id)
+                    )
+                }
+                oldest_due_age = 0
+                for station, file in work:
+                    identity = (station.facility_id, file.file_id)
+                    if file.url is None:
+                        continue
+                    previous = previous_by_id.get(identity)
+                    baseline = successful.get(identity)
+                    changed = previous is not None and (
+                        previous.uploaded_at != file.uploaded_at
+                        or previous.name != file.name
+                        or previous.url != file.url
+                        or previous.folder_path != file.folder_path
+                        or previous.folder_id != file.folder_id
+                        or baseline is None
+                        or baseline.content_hash != previous.content_hash
+                        or any(
+                            baseline.details.get(field) != getattr(file, field)
+                            for field in ("size_bytes", "size_label")
+                        )
+                    )
+                    if (
+                        previous is not None
+                        and not changed
+                        and previous.last_downloaded_at >= cutoff
+                        and not refresh_existing
+                    ):
+                        unchanged_ids.add(identity)
+                        continue
+                    due.append((station, file))
+                    if previous is None or changed:
+                        changed_ids.add(identity)
+                    if previous is not None:
+                        oldest_due_age = max(
+                            oldest_due_age,
+                            int((cutoff - previous.last_downloaded_at).total_seconds()),
+                        )
+                counts["files_due"] = len(due)
+                counts["oldest_due_age_seconds"] = oldest_due_age
+                limited = max_files is not None and len(due) > max_files
+                if limited:
+                    assert max_files is not None
+
+                    def oldest_attempt(item):
+                        station, file = item
+                        identity = (station.facility_id, file.file_id)
+                        # New arrivals get the other half's priority; treating
+                        # them as infinitely old would starve every old record.
+                        # Deferred arrivals retain their original discovery time,
+                        # so repeated failures cannot starve them on a 1-slot run.
+                        return (
+                            attempts.get(
+                                identity, first_listed.get(identity, observed_now)
+                            ),
+                            identity,
+                        )
+
+                    oldest = sorted(due, key=oldest_attempt)
+                    selected = oldest[: (max_files + 1) // 2]
+                    selected_ids = {
+                        (station.facility_id, file.file_id)
+                        for station, file in selected
+                    }
+                    remaining = [
+                        item
+                        for item in due
+                        if (item[0].facility_id, item[1].file_id) not in selected_ids
+                    ]
+                    remaining.sort(
+                        key=lambda item: (
+                            (item[0].facility_id, item[1].file_id) not in changed_ids,
+                            oldest_attempt(item),
+                        )
+                    )
+                    selected_ids.update(
+                        (station.facility_id, file.file_id)
+                        for station, file in remaining[: max_files - len(selected)]
+                    )
+                    deferred_ids = {
+                        (station.facility_id, file.file_id)
+                        for station, file in due
+                        if (station.facility_id, file.file_id) not in selected_ids
+                    }
+            else:
+                work.sort(key=priority)
+                work = work[:max_files]
         db.execute(
             update(m.FCCScan).where(m.FCCScan.id == scan_id).values(counts=dict(counts))
         )
@@ -266,6 +421,19 @@ def collect(
             observation_url = source_url + "#fcc-file=" + file.file_id
             details = asdict(file)
             with Session(engine) as session:
+                identity = (station.facility_id, file.file_id)
+                if identity in deferred_ids:
+                    observe(
+                        session,
+                        scan_id,
+                        observation_url,
+                        station.facility_id,
+                        "file",
+                        "deferred",
+                        details=details,
+                    )
+                    session.commit()
+                    return "deferred"
                 if file.url is None:
                     observe(
                         session,
@@ -297,13 +465,27 @@ def collect(
                     and previous.url == file.url
                 )
                 try:
-                    if recent and not refresh_existing:
+                    if identity in unchanged_ids or (
+                        not incremental and recent and not refresh_existing
+                    ):
+                        if previous is None:
+                            raise ValueError(
+                                "Unchanged FCC file has no retained document"
+                            )
                         digest = previous.content_hash
                         body_row = session.get(m.FCCSourceBody, digest)
                         if body_row is None:
                             raise ValueError("Archived source record is missing")
-                        read_body(store, body_row)
-                        status = "reused"
+                        if incremental:
+                            status = "unchanged"
+                            details["body_checked_this_scan"] = False
+                            details["reason"] = (
+                                "Listing unchanged; retained source record exists; "
+                                "stored bytes were not rechecked in this scan"
+                            )
+                        else:
+                            read_body(store, body_row)
+                            status = "reused"
                     else:
                         source_client = client_factory()
                         try:
@@ -359,18 +541,25 @@ def collect(
                     return status
                 except Exception as error:
                     session.rollback()
+                    status = (
+                        "unavailable"
+                        if incremental
+                        and isinstance(error, FCCFetchError)
+                        and error.status_code in (401, 403, 404, 410)
+                        else "failed"
+                    )
                     observe(
                         session,
                         scan_id,
                         observation_url,
                         station.facility_id,
                         "file",
-                        "failed",
+                        status,
                         details=details,
                         error=source_error(error),
                     )
                     session.commit()
-                    return "failed"
+                    return status
 
         with ThreadPoolExecutor(max_workers=workers) as executor:
             for index, result in enumerate(executor.map(process, work), 1):
@@ -411,7 +600,12 @@ def collect(
 
 
 def save_extraction(
-    db: Session, digest: str, extraction: Any, *, retry_failed: bool = False
+    db: Session,
+    digest: str,
+    extraction: Any,
+    *,
+    retry_failed: bool = False,
+    retry_operational: bool = False,
 ) -> bool:
     values = dict(
         content_hash=digest,
@@ -445,7 +639,25 @@ def save_extraction(
             )
             .limit(1)
         )
-        if row is None or not retry_failed or row.status == "pending_review" or linked:
+        if (
+            row is None
+            or not (retry_failed or retry_operational)
+            or row.status == "pending_review"
+            or linked
+        ):
+            return False
+        # Recheck under the row lock: concurrent callers cannot exceed the
+        # automatic retry cap or replace a reading that has since recovered.
+        if not retry_failed and (
+            len(row.attempts) >= 3
+            or not db.scalar(
+                select(m.FCCExtraction.content_hash).where(
+                    m.FCCExtraction.content_hash == digest,
+                    m.FCCExtraction.version == extraction.version,
+                    _operational_reading_failure(),
+                )
+            )
+        ):
             return False
         old_pages = db.scalars(
             select(m.FCCPage).where(
@@ -498,6 +710,7 @@ def extract_pending(
     limit: int = 100,
     workers: int = 2,
     retry_failed: bool = False,
+    retry_operational: bool = False,
     log: Callable[[dict], None] = lambda row: None,
 ) -> dict:
     from typing import NamedTuple, cast
@@ -522,13 +735,21 @@ def extract_pending(
         .exists()
     )
     eligible = ~existing
-    if retry_failed:
+    if retry_failed or retry_operational:
         failed = (
             select(m.FCCExtraction.content_hash)
             .where(
                 m.FCCExtraction.content_hash == m.FCCDocument.content_hash,
                 m.FCCExtraction.version == EXTRACTOR_VERSION,
                 m.FCCExtraction.status != "pending_review",
+                *(
+                    []
+                    if retry_failed
+                    else [
+                        _operational_reading_failure(),
+                        func.jsonb_array_length(m.FCCExtraction.attempts) < 3,
+                    ]
+                ),
             )
             .exists()
         )
@@ -545,7 +766,15 @@ def extract_pending(
         select(m.FCCDocument.content_hash, func.min(m.FCCDocument.name))
         .where(eligible)
         .group_by(m.FCCDocument.content_hash)
-        .order_by(m.FCCDocument.content_hash)
+        .join(
+            m.FCCSourceBody,
+            m.FCCSourceBody.content_hash == m.FCCDocument.content_hash,
+        )
+        .order_by(
+            *([existing] if retry_operational else []),
+            func.min(m.FCCSourceBody.created_at),
+            m.FCCDocument.content_hash,
+        )
         .limit(limit)
     ).all()
     # A commit expires every session-bound ORM row. Copy the read_body fields
@@ -579,7 +808,13 @@ def extract_pending(
             if error:
                 counts["failed"] += 1
             else:
-                saved = save_extraction(db, digest, result, retry_failed=retry_failed)
+                saved = save_extraction(
+                    db,
+                    digest,
+                    result,
+                    retry_failed=retry_failed,
+                    retry_operational=retry_operational,
+                )
                 db.commit()
                 counts[result.status if saved else "already_read"] += 1
             log({"content_hash": digest, "status": error or result.status})
@@ -691,6 +926,14 @@ def status(db: Session) -> dict:
             select(func.count())
             .select_from(m.FCCExtraction)
             .where(m.FCCExtraction.version != EXTRACTOR_VERSION)
+        ),
+        "reading_operational_failures": db.scalar(
+            select(func.count())
+            .select_from(m.FCCExtraction)
+            .where(
+                m.FCCExtraction.version == EXTRACTOR_VERSION,
+                _operational_reading_failure(),
+            )
         ),
         "bodies_without_second_copy": db.scalar(
             select(func.count())

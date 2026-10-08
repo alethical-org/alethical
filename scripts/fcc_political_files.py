@@ -42,6 +42,7 @@ from alethical.db.session import (  # noqa: E402
 )
 from alethical.pipeline import fcc_archive as archive  # noqa: E402
 from alethical.pipeline import fcc_expense_links as links  # noqa: E402
+from alethical.pipeline import fcc_refresh  # noqa: E402
 from alethical.pipeline.fcc_document_text import EXTRACTOR_VERSION  # noqa: E402
 from alethical.pipeline.fcc_public_files import DEFAULT_STATIONS  # noqa: E402
 from alethical.pipeline.raw_file_store import (  # noqa: E402
@@ -107,6 +108,18 @@ def parser_for_commands() -> argparse.ArgumentParser:
         "--dry-run",
         action="store_true",
         help="Describe full source scope and limits; no connections, downloads, or writes",
+    )
+    refresh = commands.add_parser(
+        "refresh",
+        help="Check all 3 stations, archive changes, copy and read bounded batches",
+    )
+    refresh.add_argument("--max-files", type=positive, default=1000)
+    refresh.add_argument("--extract-limit", type=positive, default=1000)
+    refresh.add_argument("--mirror-limit", type=positive, default=2500)
+    refresh.add_argument("--workers", type=int, choices=range(1, 5), default=3)
+    refresh.add_argument("--dry-run", action="store_true")
+    refresh.add_argument(
+        "--summary", type=Path, help="Save the sanitized run report as JSON"
     )
     extract = commands.add_parser(
         "extract", help="Read archived PDFs with local software"
@@ -183,6 +196,16 @@ def parser_for_commands() -> argparse.ArgumentParser:
 
 def run(args: argparse.Namespace) -> int:
     selected = stations_for(args.stations) if args.command == "collect" else ()
+    if args.command == "refresh":
+        selected = DEFAULT_STATIONS
+        if (
+            args.max_files > 2000
+            or args.extract_limit > 2000
+            or args.mirror_limit > 5000
+        ):
+            raise CLIError(
+                "Refresh permits up to 2000 downloads, 2000 readings and 5000 second copies"
+            )
     station = None
     if args.command == "search":
         if (
@@ -205,10 +228,10 @@ def run(args: argparse.Namespace) -> int:
         and re.fullmatch(r"[0-9a-f]{64}", args.content_hash) is None
     ):
         raise CLIError("Export needs a lowercase SHA-256 content hash")
-    if args.command == "collect" and args.dry_run:
+    if args.command in {"collect", "refresh"} and args.dry_run:
         emit(
             {
-                "command": "collect",
+                "command": args.command,
                 "target": args.target,
                 "status": "dry_run",
                 "writes": 0,
@@ -217,7 +240,10 @@ def run(args: argparse.Namespace) -> int:
                 "scope": "Every available year and every political folder, including federal, state, local, non-candidate, and terms/disclosures",
                 "workers": args.workers,
                 "max_files": args.max_files,
-                "refresh_existing": args.refresh_existing,
+                "refresh_existing": getattr(args, "refresh_existing", False),
+                "incremental": args.command == "refresh",
+                "extract_limit": getattr(args, "extract_limit", None),
+                "mirror_limit": getattr(args, "mirror_limit", None),
                 "public_feature": False,
                 "paid_ai": False,
             }
@@ -240,6 +266,23 @@ def run(args: argparse.Namespace) -> int:
     )
     try:
         with Session(engine) as db:
+            if args.command == "refresh":
+                result = fcc_refresh.refresh(
+                    db,
+                    raw_file_store_from_env(),
+                    mirror_file_store_from_env(),
+                    max_files=args.max_files,
+                    extract_limit=args.extract_limit,
+                    mirror_limit=args.mirror_limit,
+                    workers=args.workers,
+                    log=emit,
+                )
+                emit({"command": "refresh", "target": args.target, **result})
+                if args.summary:
+                    args.summary.write_text(
+                        json.dumps(result, indent=2, default=str) + "\n"
+                    )
+                return 1 if result["needs_attention"] else 0
             if args.command == "collect":
                 result = archive.collect(
                     db,

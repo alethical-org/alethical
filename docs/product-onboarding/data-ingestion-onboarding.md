@@ -27,8 +27,8 @@ fetch** and Storage credentials to **keep** what it fetched, because the Board k
 no archive and our copy is the only record of what it published on a given date
 (section **H**).
 The separate private FCC archive uses a direct command rather than Oban. Its local
-collection command writes unless `--dry-run` is supplied; its GitHub workflow
-defaults to a dry run. See [FCC collection instructions](../implementation/fcc-political-files.md)
+collection command writes unless `--dry-run` is supplied. Its GitHub workflow
+checks KSTP-TV, KARE and KMSP-TV daily at 06:23 UTC; a manual start defaults to a dry run. See [FCC collection instructions](../implementation/fcc-political-files.md)
 for station addresses, setup, repeat runs, storage, recovery and known limits.
 
 The legislative pipeline is orchestrated through an **Oban (Postgres-backed) job queue driven
@@ -1098,8 +1098,8 @@ hosting a file is not proof that every billed spot aired on that station.
 
 Run `uv run python scripts/fcc_political_files.py collect --target prod --dry-run`
 to inspect the collection plan. Collection, text reading, backup and search are
-separate restartable commands; the manual GitHub workflow has no schedule and
-calls no paid AI service. Public screens remain on hold. The
+separate restartable commands. The daily GitHub workflow runs bounded collection,
+backup and text-reading batches through `refresh`, with no paid AI service. Public screens remain on hold. The
 [FCC political-file implementation and operator instructions](../implementation/fcc-political-files.md)
 own the commands, bounds, source gaps and acceptance evidence. This archive uses
 its own tables and does not change published campaign expense totals.
