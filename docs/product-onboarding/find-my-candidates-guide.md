@@ -81,7 +81,21 @@ Entry fields and buttons have a 60px minimum height. **Change address** retains
 its compact 56px field and 52px button. Both use the same suggestion component.
 Minnesota mapping services can supply a complete address when the ZIP is missing.
 The voter must confirm that complete address, even when only 1 choice is returned.
-Choosing a typing suggestion submits that complete address for official validation.
+Before offering a typing suggestion or submitted address choice, the candidate
+service checks that its complete address resolves to exactly 1 official election
+street range. This includes house number, parity, direction, city, ZIP, suffix and
+unit. Map addresses absent from the election source, or belonging to overlapping
+ranges, are omitted. This does not establish that an omitted address is invalid.
+The legislator finder keeps its separate map-based coverage; it does not require
+an election street range. Choosing a typing suggestion revalidates the printed
+complete address and then loads its ballot; an earlier suggestion never bypasses
+source validation or guarantees the source remains available.
+
+Validation loads each distinct ZIP table once per suggestion request, with at most
+5 ZIP requests running together and the existing 5-minute public street-table cache.
+It does not fetch candidate ballots while typing or cache visitor addresses on the
+server. If an official table cannot be read, suggestions are unavailable rather than
+reported as a successful empty response.
 Choosing from a submitted ambiguous result retains the original typed address so
 the service can recompute the same choice; approved abbreviations do not turn it
 into an unmatched address. This **Choose your address** confirmation remains a

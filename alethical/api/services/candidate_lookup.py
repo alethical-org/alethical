@@ -9,6 +9,7 @@ import threading
 import time
 from collections import OrderedDict
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta
 from functools import lru_cache
 from typing import Any
@@ -322,6 +323,44 @@ class CandidateLookupService:
                 self._street_bytes -= dropped[2]
         return rows
 
+    def _eligible_choices(self, choices: list[dict]) -> list[dict]:
+        """Offer only complete addresses supported by one official ballot range.
+
+        Map address points include locations the election source cannot resolve.
+        Load each ZIP once, concurrently when necessary, using the existing bounded
+        public street-table cache. Never fetch ballots or save personal queries here.
+        """
+        choices_with_zip = [
+            (choice, match.group(1))
+            for choice in choices[:5]
+            if (match := re.search(r"\b(\d{5})(?:-\d{4})?$", choice["address"]))
+        ]
+        zip_codes = list(dict.fromkeys(zip_code for _, zip_code in choices_with_zip))
+        if not zip_codes:
+            return []
+        if len(zip_codes) == 1:
+            tables = {zip_codes[0]: self.streets(zip_codes[0])}
+        else:
+            with ThreadPoolExecutor(max_workers=len(zip_codes)) as executor:
+                tables = dict(zip(zip_codes, executor.map(self.streets, zip_codes)))
+        eligible = []
+        for choice, zip_code in choices_with_zip:
+            rows = tables[zip_code]
+            matches = _parse_with_rows(choice["address"], rows)
+            if len(matches) != 1:
+                continue
+            try:
+                match_street_range(rows, matches[0])
+            except CandidateAddressNotFound:
+                continue
+            except CandidateBallotError:
+                raise CandidateLookupUnavailable(
+                    "Official street records unavailable"
+                ) from None
+            if choice not in eligible:
+                eligible.append(choice)
+        return eligible
+
     def suggest(self, text: str) -> list[dict]:
         text = normalize_address_format(text)
         zip_match = re.search(r"\b(\d{5})(?:-\d{4})?$", text.strip())
@@ -329,19 +368,23 @@ class CandidateLookupService:
             addresses = _parse_with_rows(
                 text, self.streets(zip_match.group(1)), prefix=True
             )
-            return [_choice(_address_label(address)) for address in addresses[:5]]
+            return self._eligible_choices(
+                [_choice(_address_label(address)) for address in addresses[:5]]
+            )
         try:
             matches = self.geocoder.suggest_matches(text)
         except (requests.RequestException, RepresentativeLookupUpstreamError):
             raise CandidateLookupUnavailable(
                 "Government address service unavailable"
             ) from None
-        return [
-            choice
-            for match in matches[:5]
-            if match.state_code in (None, "MN")
-            if (choice := _geocoded_choice(text, match.matched_address)) is not None
-        ]
+        return self._eligible_choices(
+            [
+                choice
+                for match in matches[:5]
+                if match.state_code in (None, "MN")
+                if (choice := _geocoded_choice(text, match.matched_address)) is not None
+            ]
+        )
 
     def resolve(
         self, text: str, confirmed: dict | None = None
@@ -361,12 +404,15 @@ class CandidateLookupService:
                 raise CandidateLookupUnavailable(
                     "Government address service unavailable"
                 ) from None
-            choices = [
-                choice
-                for match in matches[:5]
-                if match.state_code in (None, "MN")
-                if (choice := _geocoded_choice(text, match.matched_address)) is not None
-            ]
+            choices = self._eligible_choices(
+                [
+                    choice
+                    for match in matches[:5]
+                    if match.state_code in (None, "MN")
+                    if (choice := _geocoded_choice(text, match.matched_address))
+                    is not None
+                ]
+            )
             if confirmed is not None:
                 if confirmed not in choices:
                     return {"kind": "no-match"}
@@ -405,7 +451,12 @@ class CandidateLookupService:
             # expansion. Carry that canonical choice into the exact filter.
             confirmed = choices[0]
         if len(matches) > 1 and confirmed is None:
-            return {"kind": "ambiguous", "choices": choices[:5]}
+            eligible = self._eligible_choices(choices)
+            return (
+                {"kind": "ambiguous", "choices": eligible}
+                if eligible
+                else {"kind": "no-match"}
+            )
         if confirmed is not None:
             matches = [
                 address
