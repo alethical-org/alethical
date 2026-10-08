@@ -1,6 +1,6 @@
-# How Find My Legislator works (plain-English guide)
+# How Find my legislators works (plain-English guide)
 
-<!-- describes: alethical/api/services/address_format.py, apps/frontend/src/lib/currentAddressInput.ts, apps/frontend/src/components/home/HomeLegislatorFinder.tsx, apps/frontend/src/screens/FindMyLegislatorScreen.tsx, apps/frontend/src/components/MapPinPicker.tsx, apps/frontend/src/components/find/RepresentativeCard.tsx, apps/frontend/src/lib/findMyLegislator.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, alethical/api/routers/public.py, alethical/api/services/representative_lookup.py, alethical/api/serializers.py -->
+<!-- describes: alethical/api/services/address_format.py, apps/frontend/src/lib/currentAddressInput.ts, apps/frontend/src/lib/addressSuggestion.ts, apps/frontend/src/components/address/*.tsx, apps/frontend/src/components/home/HomeLegislatorFinder.tsx, apps/frontend/src/screens/FindMyLegislatorScreen.tsx, apps/frontend/src/components/MapPinPicker.tsx, apps/frontend/src/components/find/RepresentativeCard.tsx, apps/frontend/src/lib/findMyLegislator.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, alethical/api/routers/public.py, alethical/api/services/representative_lookup.py, alethical/api/serializers.py -->
 
 **Find My Legislator** tells you which current Minnesota state senator and state
 representative serve one location. It also shows the location's state House, state
@@ -14,24 +14,43 @@ homepage has **Find my candidates**.
 
 ## 1. Search with a street address
 
-The page and home-page finder say: **Enter a full street address — a city or ZIP code
-alone can't identify your legislators**. This same instruction appears at phone and
-wider screen widths.
+The heading is **Find my legislators**. The visible field label is **Full street
+address**, followed by **A city or ZIP code alone cannot identify your legislators**
+before the box. The signed-in homepage's separate finder retains its own introduction.
 
 Start with a house number and at least 2 street-name characters. `350 S` is not enough,
 because `S` could mean South or the start of a street name. `350 Su` can start a named-
-street search, and `350 S 5` can start a numbered-street search. After a short pause,
-the page says **Suggested address** for 1 choice or **Suggested addresses** for 2 to 5
-active addresses from Minnesota's official statewide list. City and ZIP are optional,
-but adding either can narrow or reorder the choices.
+street search, and `350 S 5` can start a numbered-street search. After a 180-millisecond
+pause, the shared address component shows **Suggested address** for 1 choice or
+**Suggested addresses** for 2 to 5 active Minnesota addresses. City and ZIP are
+optional, but adding either can narrow or reorder the choices. Slow, failed or empty
+optional suggestions stay quiet; **Find** still searches the typed text.
 
-On a phone, the page reserves the short message row before matching begins. This keeps
-the address field and buttons in place when **Finding matching addresses…** appears
-while the on-screen keyboard is open.
+No row is selected on opening. Down starts at the first row and Up at the last;
+both wrap. Enter chooses an active keyboard row, otherwise it searches the typed
+address. Hover is grey and never changes the keyboard choice, which is pale green.
+Escape, Tab and an outside click close the list and keep the text. Keyboard focus
+stays in the field. System high-contrast mode adds an outline to the active row.
+A screen reader hears the count on every opening and count change while open.
 
-Choose an address to put its full official form in the box and find its legislators in
-the same step. Or enter a full Minnesota street address and choose **Find**. Pressing
-Enter does the same thing.
+A completed click or tap fills the box and starts the search. Touch-down, scrolling
+and cancelled gestures do not select. Focus changes cannot swallow the first tap
+or move **Find** between press and release. New text clears old choices; old replies
+cannot replace current suggestions or reopen a dismissed list.
+
+The field and buttons have a 60px minimum height. Full addresses wrap. Computer and
+tablet suggestions overlay content 8px below the box and stay exactly its width;
+on phones they sit in the page flow before the full-width buttons. The page scrolls
+all rows into reach without an inner list scroller. Necessary opening or delayed
+keyboard-resize scrolling keeps the label visible. Manual scrolling suppresses
+further unsolicited movement until the list closes; arrow navigation still reveals
+the selected row. The browser's readable saved-address styling and system contrast
+colors are retained.
+
+Typed units carry only onto a confidently matching full base location, respecting
+supplied city, state and ZIP as well as house number, street and direction. An
+uncertain match cannot silently remove or transfer a unit. A different returned
+unit stays visible for explicit selection, and displayed and submitted choices agree.
 
 Keyboard and button submission read the address visible in the box, including a
 saved browser address filled just before submission. Entering or leaving the box
@@ -79,10 +98,9 @@ right one. With a keyboard, use the up and down arrows, Enter to choose, or Esca
 close the list. The page shows the movement hint only when the list has at least 2
 choices.
 
-Both address lists use the same keyboard, mouse, and touch behavior. Moving with the
-arrow keys or hovering puts a bright-green line around the current choice while keeping its
-background white. Alethical never chooses a
-suggestion without the reader's click, tap, or Enter key.
+The submitted **Choose your address** confirmation keeps its existing selection
+treatment and keyboard guidance. It is separate from typing suggestions. Neither
+list chooses an address without a completed click, tap or explicit Enter selection.
 
 After a successful search, the address box and the page's browser link use the official
 address that was found. For example, a safe typo match replaces the typo instead of
@@ -180,13 +198,12 @@ number, but it does not show a member of Congress.
   answer, or a local district file could not be read. The address itself may be fine.
   Try again later.
 - **Seat vacant:** The district was found, but no current member holds that seat.
-- **No matching Minnesota addresses yet:** Keep typing.
-- **Address suggestions are unavailable:** The official suggestion list did not answer.
-  The **Find** button and **Use my location** still work.
 
-While a lookup is running, the page says **Looking up districts** and shows 2
-placeholder cards. The page does not show an old address result as if it belonged to a
-new typed address.
+While an address lookup runs, **Find** changes to **Finding…** with a spinner in
+the same-sized button and a polite waiting announcement. The first search shows
+2 placeholder cards. Later searches retain successful results with their original
+address and district context until replacement succeeds. A failure keeps those
+results with the error and a retry action; only the latest request can replace them.
 
 The placeholder animation waits 250 milliseconds, so a quick result does not flash
 an animation on screen.
@@ -255,8 +272,8 @@ existing address-in-the-link behavior. See
   seconds. The browser blocks both lookup buttons for the remaining wait after the
   endpoint returns that limit.
 - Suggestions have their own 60-requests-per-60-seconds limit, so normal typing does not
-  spend the 10 full lookups. The browser waits 300 milliseconds after typing stops and
-  reuses a recent suggestion result for 60 seconds.
+  spend the 10 full lookups. The browser waits 180 milliseconds after typing stops and
+  cancels obsolete suggestion requests when the text changes.
 - Results depend on 2 public government address services. Both must remain unavailable
   after their retries before a temporary source failure blocks an address lookup.
 - The page shows current state legislators from Alethical's official-record database.

@@ -2491,6 +2491,7 @@ export async function lookupRepresentativeFromApi(
 
 export async function suggestRepresentativeAddressesFromApi(
   input: string,
+  signal?: AbortSignal,
 ): Promise<RepresentativeAddressChoice[]> {
   const addressText = input.trim();
   if (!addressText) return [];
@@ -2498,6 +2499,7 @@ export async function suggestRepresentativeAddressesFromApi(
   const response = await publicApiPost<DetailResponse<ApiAddressSuggestionsPayload>>(
     '/address-suggestions',
     { address_text: addressText },
+    { signal },
   );
   return response.data.suggestions.map((suggestion) => ({
     matchedAddress: suggestion.matched_address,

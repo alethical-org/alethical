@@ -153,11 +153,9 @@ it.each(['1 Ma', '5 1'])(
     act(() => input.focus());
     await act(async () => vi.advanceTimersByTimeAsync(181));
     expect(suggest).toHaveBeenCalledWith(address, expect.any(AbortSignal));
-    expect(host.querySelector('[role="option"]')?.getAttribute('aria-selected')).toBe('true');
-    expect(input.getAttribute('aria-activedescendant')).toBe(
-      host.querySelector('[role="option"]')?.id,
-    );
-    expect(host.querySelector('[role="option"] svg')).toBeNull();
+    expect(host.querySelector('[role="option"]')?.getAttribute('aria-selected')).toBe('false');
+    expect(input.getAttribute('aria-activedescendant')).toBeNull();
+    expect(host.querySelector('[role="option"] svg')).not.toBeNull();
   },
 );
 
@@ -181,7 +179,8 @@ it('shows multiple suggestions, moves the active row with arrows and submits the
   act(() => input.focus());
   await act(async () => vi.advanceTimersByTimeAsync(181));
   expect(host.textContent).toContain('Suggested addresses');
-  expect(host.textContent).toContain('Enter to choose');
+  expect(host.textContent).toContain('2 suggested addresses below the address box');
+  key(input, 'ArrowDown');
   key(input, 'ArrowDown');
   expect(host.querySelectorAll('[role="option"]')[1].getAttribute('aria-selected')).toBe('true');
   key(input, 'ArrowUp');
@@ -245,7 +244,7 @@ it('cancels a pending suggestion timer after Escape and permits suggestions afte
   expect(input.getAttribute('aria-expanded')).toBe('true');
 });
 
-it('scrolls only the suggestion list when keyboard selection reaches an offscreen row', async () => {
+it('reveals the active row without giving the suggestions an inner scroller', async () => {
   vi.useFakeTimers();
   const other = { id: 'other', label: newAddress, address: newAddress };
   const { input } = setup('100 Ex', async () => [choice, other]);
@@ -261,9 +260,9 @@ it('scrolls only the suggestion list when keyboard selection reaches an offscree
   Object.defineProperty(list, 'clientHeight', { value: 300 });
   vi.spyOn(rows[1], 'getBoundingClientRect').mockReturnValue({ top: 380, bottom: 428 } as DOMRect);
   key(input, 'ArrowDown');
-  expect(list.scrollTop).toBe(28);
+  expect(list.scrollTop).toBe(0);
   expect(document.activeElement).toBe(input);
-  expect(scrollIntoView).not.toHaveBeenCalled();
+  expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' });
   vi.spyOn(rows[0], 'getBoundingClientRect').mockReturnValue({ top: 72, bottom: 120 } as DOMRect);
   key(input, 'ArrowUp');
   expect(list.scrollTop).toBe(0);
@@ -291,4 +290,97 @@ it('preserves the original submitted text when choosing among ambiguous lookup r
   act(() => host.querySelector<HTMLElement>('[role="option"]')!.click());
   expect(onSubmit).toHaveBeenCalledExactlyOnceWith(enteredAddress, choice);
   expect(input.value).toBe(enteredAddress);
+});
+
+function pointer(target: HTMLElement, type: string, x = 0, y = 0) {
+  const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y });
+  Object.defineProperty(event, 'pointerType', { value: 'touch' });
+  act(() => target.dispatchEvent(event));
+}
+it('selects on a completed first tap even when the field blurs with no related target', async () => {
+  vi.useFakeTimers();
+  const { input, onSubmit } = setup('100 Ex');
+  act(() => input.focus());
+  await act(async () => vi.advanceTimersByTimeAsync(181));
+  const option = host.querySelector<HTMLElement>('[role="option"]')!;
+  pointer(option, 'pointerdown');
+  act(() => input.blur());
+  expect(option.isConnected).toBe(true);
+  expect(onSubmit).not.toHaveBeenCalled();
+  pointer(option, 'pointerup');
+  act(() => option.click());
+  expect(onSubmit).toHaveBeenCalledExactlyOnceWith(oldAddress, choice);
+});
+it.each(['scroll', 'cancel'])('does not select during a touch %s', async (action) => {
+  vi.useFakeTimers();
+  const { input, onSubmit } = setup('100 Ex');
+  act(() => input.focus());
+  await act(async () => vi.advanceTimersByTimeAsync(181));
+  const option = host.querySelector<HTMLElement>('[role="option"]')!;
+  pointer(option, 'pointerdown');
+  pointer(option, action === 'scroll' ? 'pointermove' : 'pointercancel', 0, 50);
+  pointer(option, 'pointerup', 0, 50);
+  act(() => option.click());
+  expect(onSubmit).not.toHaveBeenCalled();
+});
+it('hover does not choose a row for Enter and ArrowUp starts at the last row', async () => {
+  vi.useFakeTimers();
+  const other = { id: 'other', label: newAddress, address: newAddress };
+  const { input, onSubmit } = setup('100 Ex', async () => [choice, other]);
+  act(() => input.focus());
+  await act(async () => vi.advanceTimersByTimeAsync(181));
+  const options = host.querySelectorAll<HTMLElement>('[role="option"]');
+  act(() => options[1].dispatchEvent(new MouseEvent('mouseover', { bubbles: true })));
+  expect(input.getAttribute('aria-activedescendant')).toBeNull();
+  key(input, 'ArrowUp');
+  expect(options[1].getAttribute('aria-selected')).toBe('true');
+  key(input, 'ArrowDown');
+  expect(options[0].getAttribute('aria-selected')).toBe('true');
+  key(input, 'Escape');
+  key(input, 'ArrowDown');
+  expect(host.querySelector('[role="option"]')?.getAttribute('aria-selected')).toBe('true');
+  key(input, 'Escape');
+  key(input, 'Enter');
+  expect(onSubmit).toHaveBeenCalledExactlyOnceWith('100 Ex');
+});
+it('keeps optional suggestion failures quiet and permits typed submission', async () => {
+  vi.useFakeTimers();
+  const { input, onSubmit } = setup('100 Ex', async () => {
+    throw new Error('unavailable');
+  });
+  act(() => input.focus());
+  await act(async () => vi.advanceTimersByTimeAsync(181));
+  expect(host.querySelector('[role="listbox"]')).toBeNull();
+  expect(host.textContent).not.toContain('unavailable');
+  key(input, 'Enter');
+  expect(onSubmit).toHaveBeenCalledExactlyOnceWith('100 Ex');
+});
+it('submits precisely the unit-preserving address shown in the chosen row', async () => {
+  vi.useFakeTimers();
+  const { input, onSubmit } = setup('100 Example Street Apt 4, Minneapolis, MN 55415');
+  act(() => input.focus());
+  await act(async () => vi.advanceTimersByTimeAsync(181));
+  const option = host.querySelector<HTMLElement>('[role="option"]')!;
+  const shown = option.textContent;
+  act(() => option.click());
+  expect(shown).toContain('Apt 4');
+  expect(onSubmit).toHaveBeenCalledExactlyOnceWith(shown, {
+    ...choice,
+    address: shown,
+    label: shown,
+  });
+  expect(input.value).toBe(shown);
+});
+it('releases the blur guard when a scroll ends without a click', async () => {
+  vi.useFakeTimers();
+  const { input } = setup('100 Ex');
+  act(() => input.focus());
+  await act(async () => vi.advanceTimersByTimeAsync(181));
+  const option = host.querySelector<HTMLElement>('[role="option"]')!;
+  pointer(option, 'pointerdown');
+  pointer(option, 'pointermove', 0, 50);
+  pointer(option, 'pointerup', 0, 50);
+  await act(async () => vi.advanceTimersByTimeAsync(1));
+  act(() => input.blur());
+  expect(host.querySelector('[role="listbox"]')).toBeNull();
 });
