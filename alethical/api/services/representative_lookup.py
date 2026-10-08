@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
+from http.cookiejar import DefaultCookiePolicy
 import json
 import logging
 import os
 import re
 import time
+import threading
 from dataclasses import asdict, dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -89,10 +92,42 @@ UPSTREAM_RETRY_DELAYS_SECONDS = (0.2, 0.6)
 RETRYABLE_UPSTREAM_STATUS_CODES = {408, 425, 500, 502, 503, 504}
 
 
-def _get_json(*, url: str, params: dict, timeout: float):
+class _RejectSourceCookies(DefaultCookiePolicy):
+    def set_ok(self, cookie, request):
+        return False
+
+    def return_ok(self, cookie, request):
+        return False
+
+
+class _AddressPointSession(requests.Session):
+    def send(self, request, **kwargs):
+        # Requests can copy a redirect response's cookies onto the next request
+        # even when the session jar rejects them. Strip credentials at every send.
+        for header in ("Cookie", "Authorization", "Proxy-Authorization"):
+            request.headers.pop(header, None)
+        return super().send(request, **kwargs)
+
+
+_address_point_transport = threading.local()
+
+
+def _address_point_session() -> requests.Session:
+    session = getattr(_address_point_transport, "session", None)
+    if session is None:
+        session = _AddressPointSession()
+        # Public source transport retains connections, not cookies, credentials,
+        # submitted queries or results. Each worker owns its own session.
+        session.trust_env = False
+        session.cookies.set_policy(_RejectSourceCookies())
+        _address_point_transport.session = session
+    return session
+
+
+def _get_json(*, url: str, params: dict, timeout: float, get: Callable | None = None):
     for attempt in range(len(UPSTREAM_RETRY_DELAYS_SECONDS) + 1):
         try:
-            response = requests.get(url, params=params, timeout=timeout)
+            response = (get or requests.get)(url, params=params, timeout=timeout)
             response.raise_for_status()
             return response.json()
         except (requests.Timeout, requests.ConnectionError):
@@ -772,22 +807,26 @@ class MinnesotaAddressPointGeocoder:
         where_parts = [
             f"anumber = {query.house_number}",
             f"({' OR '.join(street_clauses)})",
-            "(state_code IS NULL OR UPPER(state_code) = 'MN')",
         ]
         if query.house_suffix:
             suffix = query.house_suffix.replace("'", "''")
             where_parts.append(f"UPPER(anumbersuf) = '{suffix}'")
 
-        # Filtering status in the source query adds a substantial wait. The local
-        # ACTIVE check below enforces the same condition without that remote work.
+        # Filtering state and status remotely adds a measurable wait. Apply the
+        # same conditions locally when the bounded source response is complete.
         features, exceeded_limit = self._request_features(
             where_parts, result_record_count=200
         )
         if exceeded_limit:
-            # Inactive rows must not crowd active choices out of the source cap.
+            # Other states and inactive rows must not crowd choices out of the cap.
             # Fall back to the original query and its existing bounded behavior.
             features, _ = self._request_features(
-                [*where_parts, "UPPER(status) = 'ACTIVE'"], result_record_count=200
+                [
+                    *where_parts,
+                    "(state_code IS NULL OR UPPER(state_code) = 'MN')",
+                    "UPPER(status) = 'ACTIVE'",
+                ],
+                result_record_count=200,
             )
         active_features: list[object] = [
             feature
@@ -795,6 +834,10 @@ class MinnesotaAddressPointGeocoder:
             if isinstance(feature, dict)
             and isinstance(feature.get("attributes"), dict)
             and self._normalize(feature["attributes"].get("status")) == "ACTIVE"
+            and (
+                feature["attributes"].get("state_code") is None
+                or str(feature["attributes"]["state_code"]).upper() == "MN"
+            )
         ]
         candidates = self._candidates(
             address_text,
@@ -903,6 +946,7 @@ class MinnesotaAddressPointGeocoder:
                 "f": "json",
             },
             timeout=self.timeout_seconds,
+            get=_address_point_session().get,
         )
         if not isinstance(payload, dict) or payload.get("error"):
             raise RepresentativeLookupUpstreamError(

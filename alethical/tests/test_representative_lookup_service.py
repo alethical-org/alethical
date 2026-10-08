@@ -1,4 +1,5 @@
 import json
+from types import SimpleNamespace
 
 import pytest
 import requests
@@ -19,6 +20,18 @@ from alethical.api.services.representative_lookup import (
     prepare_district_geometry,
     validate_district_containment,
 )
+
+
+@pytest.fixture(autouse=True)
+def fake_address_transport(monkeypatch):
+    # Existing source fixtures exercise parser behavior through the same fake GET.
+    # The real pooled transport has separate HTTP-level privacy/reuse tests.
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup._address_point_session",
+        lambda: SimpleNamespace(
+            get=lambda *args, **kwargs: requests.get(*args, **kwargs)
+        ),
+    )
 
 
 class FakeResponse:
@@ -111,10 +124,7 @@ def test_state_address_suggestions_complete_a_partial_active_address(monkeypatch
 
     matches = MinnesotaAddressPointGeocoder().suggest_matches("3040 Ex")
 
-    assert seen_params["where"] == (
-        "anumber = 3040 AND (UPPER(st_name) LIKE 'EX%') AND "
-        "(state_code IS NULL OR UPPER(state_code) = 'MN')"
-    )
+    assert seen_params["where"] == ("anumber = 3040 AND (UPPER(st_name) LIKE 'EX%')")
     assert seen_params["resultRecordCount"] == "200"
     assert [match.matched_address for match in matches] == [
         "3040 Excelsior Boulevard, Minneapolis, MN 55416"
@@ -165,8 +175,11 @@ def test_suggestions_filter_broader_source_rows_without_changing_address_identit
 
 
 @pytest.mark.parametrize("filtered_still_truncated", [False, True])
-def test_suggestions_retry_active_only_when_inactive_rows_can_crowd_out_choices(
-    monkeypatch, filtered_still_truncated
+@pytest.mark.parametrize(
+    "crowding_row", [{"status": "Retired"}, {"state_code": "WI"}, {"state_code": ""}]
+)
+def test_suggestions_retry_original_filters_when_source_rows_can_crowd_out_choices(
+    monkeypatch, filtered_still_truncated, crowding_row
 ):
     calls = []
 
@@ -175,7 +188,7 @@ def test_suggestions_retry_active_only_when_inactive_rows_can_crowd_out_choices(
         if len(calls) == 1:
             return FakeResponse(
                 {
-                    "features": [suggestion_feature(status="Retired")],
+                    "features": [suggestion_feature(**crowding_row)],
                     "exceededTransferLimit": True,
                 }
             )
@@ -192,11 +205,50 @@ def test_suggestions_retry_active_only_when_inactive_rows_can_crowd_out_choices(
     matches = MinnesotaAddressPointGeocoder().suggest_matches("350 S 5")
     assert len(calls) == 2
     assert "status" not in calls[0]["where"]
-    assert calls[1]["where"] == calls[0]["where"] + " AND UPPER(status) = 'ACTIVE'"
+    assert "state_code" not in calls[0]["where"]
+    assert calls[1]["where"] == (
+        calls[0]["where"]
+        + " AND (state_code IS NULL OR UPPER(state_code) = 'MN')"
+        + " AND UPPER(status) = 'ACTIVE'"
+    )
     assert all(call["resultRecordCount"] == "200" for call in calls)
     assert [match.matched_address for match in matches] == [
         "350 5th Street South, Minneapolis, MN 55415"
     ]
+
+
+@pytest.mark.parametrize(
+    "state, expected",
+    [("MN", 1), ("mn", 1), (None, 1), ("", 0), (" MN ", 0), ("WI", 0)],
+)
+def test_suggestions_preserve_source_state_filter_locally(monkeypatch, state, expected):
+    calls = []
+
+    def get(url, *, params, timeout):
+        calls.append(params)
+        return FakeResponse({"features": [suggestion_feature(state_code=state)]})
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get", get
+    )
+    matches = MinnesotaAddressPointGeocoder().suggest_matches("350 S 5")
+    assert len(matches) == expected
+    assert "state_code" not in calls[0]["where"]
+
+
+def test_suggestion_query_keeps_house_suffix_remote(monkeypatch):
+    calls = []
+
+    def get(url, *, params, timeout):
+        calls.append(params)
+        return FakeResponse({"features": []})
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.requests.get", get
+    )
+    MinnesotaAddressPointGeocoder().suggest_matches("350A S 5")
+    assert "anumber = 350" in calls[0]["where"]
+    assert "UPPER(anumbersuf) = 'A'" in calls[0]["where"]
 
 
 def test_suggestion_active_only_retry_failure_does_not_publish_partial_choices(
