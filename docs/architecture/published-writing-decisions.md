@@ -483,6 +483,14 @@ publication dates, accuracy-review dates, claims, evidence or article publicatio
 
 ### 2.16 Events reuse the Blog design and retain a permanent address
 
+**Current hold, 7 October 2026:** The Forward Debate announcement is unpublished
+for refinements and candidate approval, as directed by Eugene. Its saved copy,
+image, layout and address are retained. A held announcement is absent from
+public routes, Blog listings, sitemaps and comment eligibility; its flyer is
+kept outside the public asset directory. An empty Events group is hidden.
+Republication requires Eugene’s instruction after candidate approval.
+
+
 Approved by Eugene, 7 October 2026. The `/blog` page includes an `EVENTS` group
 using the existing section heading, box, row, type and responsive spacing patterns.
 The group links to `/blog/events`; each announcement has its own address below it.

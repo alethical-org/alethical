@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { PUBLISHED_EVENTS } from '../events';
+import { EVENTS } from '../events';
 import { eventPageMetadata, eventsPageMetadata } from '../eventMetadata';
 import { pageJsonLd, renderPageHead } from '../pageHead';
 import { homePageMetadata } from '../share';
 
-const event = PUBLISHED_EVENTS[0];
+const event = EVENTS[0];
 const before = Date.parse('2026-10-07T18:00:00-05:00');
 
 describe('event search and share metadata', () => {

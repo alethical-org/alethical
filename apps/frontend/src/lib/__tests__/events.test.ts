@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { PUBLISHED_EVENTS } from '../events';
+import { EVENTS } from '../events';
 import { renderEventArticle } from '../eventMarkup';
 
 describe('accessible event announcement', () => {
-  const event = PUBLISHED_EVENTS[0];
+  const event = EVENTS[0];
   it('opens the uncropped flyer and repeats important image details as real text', () => {
     const document = new JSDOM(renderEventArticle(event, Date.parse('2026-10-07'))).window.document;
     const flyer = document.querySelector('.event-flyer')!;

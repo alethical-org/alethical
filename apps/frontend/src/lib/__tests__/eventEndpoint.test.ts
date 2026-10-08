@@ -87,3 +87,14 @@ describe('public event pages before JavaScript', () => {
     }
   });
 });
+
+// Exercise the reusable published route without lifting the real candidate-review hold.
+vi.mock('../eventsIndex', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../eventsIndex')>();
+  const index = original.EVENT_INDEX.map((event) => ({ ...event, published: true }));
+  return {
+    EVENT_INDEX: index,
+    PUBLISHED_EVENT_INDEX: index,
+    eventIndexBySlug: (slug: string) => index.find((event) => event.slug === slug),
+  };
+});

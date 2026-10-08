@@ -1,4 +1,4 @@
-import { eventIndexBySlug } from '../lib/eventsIndex';
+import { eventIndexBySlug, PUBLISHED_EVENT_INDEX } from '../lib/eventsIndex';
 import { candidatePreviewEnabled } from '../lib/candidateLookupAvailability';
 import { campaignMoneyYear } from '../lib/campaignMoneyYears';
 import { registrationNumberFromSlug } from '../lib/committeeRoute';
@@ -367,7 +367,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   }
 
   if (segments[0] === 'blog' && segments[1] === 'events') {
-    if (segments.length === 2) return { kind: 'events' };
+    if (segments.length === 2 && PUBLISHED_EVENT_INDEX.length) return { kind: 'events' };
     if (segments.length === 3 && eventIndexBySlug(segments[2]))
       return { kind: 'event', slug: segments[2] };
     return { kind: 'notFound', path: pathname };

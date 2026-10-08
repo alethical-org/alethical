@@ -5,7 +5,7 @@ export const EVENTS_PATH = '/blog/events';
 export const EVENTS_TITLE = 'Events';
 export const COALITION_CANDIDATES_URL = 'https://forwardcoalition.com/candidates';
 
-export const PUBLISHED_EVENTS = [
+export const EVENTS = [
   {
     ...EVENT_INDEX[0],
     name: 'The Forward Debate',
@@ -43,7 +43,9 @@ export const PUBLISHED_EVENTS = [
   },
 ] as const;
 
-export type PublishedEvent = (typeof PUBLISHED_EVENTS)[number];
+export const PUBLISHED_EVENTS = EVENTS.filter((event) => event.published);
+
+export type PublishedEvent = (typeof EVENTS)[number];
 export const eventPath = (event: Pick<PublishedEvent, 'slug'>) => `${EVENTS_PATH}/${event.slug}`;
 export const eventBySlug = (slug: string) => PUBLISHED_EVENTS.find((event) => event.slug === slug);
 export const eventHasEnded = (event: Pick<PublishedEvent, 'endDate'>, now = Date.now()) =>

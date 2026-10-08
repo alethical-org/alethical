@@ -25,7 +25,7 @@ const COLLECTION_PAGE_ROWS =
  * adds one to the sitemap, and this stops failing on every publish for a reason
  * that is not a defect.
  */
-const FIXED_PAGE_ROWS = 19 + PUBLISHED_EVENTS.length;
+const FIXED_PAGE_ROWS = 18 + (PUBLISHED_EVENTS.length ? 1 : 0) + PUBLISHED_EVENTS.length;
 /** The numbered directory rows the live counts add: 2 for bills, 1 for
  *  legislators, 2 for the register of campaign committees. */
 const DIRECTORY_PAGE_ROWS = 5;

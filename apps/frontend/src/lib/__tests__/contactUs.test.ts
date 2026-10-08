@@ -68,11 +68,8 @@ describe('Contact us form rules', () => {
 });
 
 describe('article correction links', () => {
-  it('resolves event corrections to the published event identity and address', () => {
-    const event = EVENT_INDEX[0];
-    const values = correctionContactValues(event.articleId);
-    expect(values.subject).toBe(`Possible correction: ${event.title}`);
-    expect(values.message).toContain(`https://alethical.com/blog/events/${event.slug}`);
+  it('does not expose held events through correction links', () => {
+    expect(correctionContactValues(EVENT_INDEX[0].articleId)).toEqual(correctionContactValues());
   });
   it('resolves the approved title and canonical address from a published legacy slug', () => {
     const piece = { ...PUBLISHED_PIECE_INDEX[0], articleId: undefined, slug: 'legacy-slug' };
