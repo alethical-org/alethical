@@ -1,6 +1,6 @@
 # Private relationship retrieval evaluation
 
-<!-- describes: alethical/eval/graph_eval.py, alethical/eval/graph_snapshot.py, alethical/eval/retrieval_eval.py, scripts/graph_retrieval_eval.py -->
+<!-- describes: alethical/eval/graph_eval.py, alethical/eval/graph_snapshot.py, alethical/eval/retrieval_eval.py, alethical/eval/evidence_diagnostics.py, alethical/eval/answer_trial.py, scripts/graph_retrieval_eval.py -->
 
 This tool tests whether following recorded relationships finds better evidence than searching the same records. It supports the evidence tests in [issue 399](https://github.com/alethical-org/alethical/issues/399). It does not change public answers or require a graph database. Run inputs and results stay in an operator-selected private folder; the repository supplies the code and synthetic tests.
 
@@ -77,12 +77,69 @@ Zero additional failures does not establish correct refusal: both methods may re
 
 ## Completion checks
 
+### Diagnose before changing search
+
+The offline review stages reuse the saved comparison. They neither rerank records
+nor change its success rule. They never call a model or write to a database.
+
+```bash
+uv run python -m scripts.graph_retrieval_eval diagnose \
+  --snapshot /private/experiment/snapshot.json \
+  --manifest /private/experiment/cases.json \
+  --report /private/experiment/report.json \
+  --output /private/experiment/diagnostics.json
+
+uv run python -m scripts.graph_retrieval_eval prepare-answers \
+  --snapshot /private/experiment/snapshot.json \
+  --manifest /private/experiment/cases.json \
+  --report /private/experiment/report.json \
+  --arm production_reference \
+  --output /private/experiment/answer-review.json
+```
+
+Diagnostics separate evidence coverage from whether the labelled facts can fit
+within the experiment's character allowance. A valid evidence set proves `fits`;
+a conservative lower bound above the allowance proves `exceeds`. Other cases stay
+`undetermined`. Records supporting several facts count once. Unsupported cases
+remain separate, and an unavailable comparison never becomes a failed search.
+The captured production selector has a different allowance; it does not inherit
+the controlled experiment's character limit. These diagnostics do not change any
+original score or establish which ranking change would help.
+
+Answer review packets carry the exact question, source labels, chosen passages,
+source/version identifiers, reading coverage and the existing writer's prompts.
+They accept bill-text questions; structured author/vote questions stay outside
+this trial. They preserve both support in the full saved source and support in
+the selected passages. A missing fact is not silently relabelled as an
+unanswerable source question. Labels naming selected examples are not proof that
+a whole list was found.
+
+The packet is preparation, not an answer-quality result. Review legal framing,
+the scope of each answer and the source/context labels before generation. Use the
+[existing answer-quality gates](../../../product-onboarding/answer-quality-bar.md)
+for any subsequent answer trial, scoring the served answer with its citations and
+retaining the raw answer separately. Answer quality, correct refusal and the
+fraction of questions answered correctly remain untested until that work runs.
+Preparing packets does not complete [issue 399](https://github.com/alethical-org/alethical/issues/399).
+
+Once scores have been inspected, keep those cases as regression examples. Before
+tuning a new candidate, freeze fresh source-reviewed questions with different
+bills and question families reserved for final validation. Rewording already-seen
+questions measures robustness, not independent confirmation. Do not switch
+databases or public retrieval merely because an experimental method combines
+more tools. Require an improvement on the affected reader outcome, against the
+appropriate baseline and the same budget, without weakening source boundaries.
+
+### Tests and replay
+
 Run the focused tests before using a result:
 
 ```bash
 uv run pytest alethical/tests/test_graph_eval.py \
   alethical/tests/test_graph_snapshot.py \
   alethical/tests/test_graph_eval_cli.py \
+  alethical/tests/test_evidence_diagnostics.py \
+  alethical/tests/test_answer_trial.py \
   alethical/tests/test_evidence_retrieval_eval.py \
   alethical/tests/test_retrieval_eval.py \
   alethical/tests/test_answer_eval.py -q

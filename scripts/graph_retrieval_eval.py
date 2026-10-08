@@ -172,6 +172,37 @@ def run(args) -> None:
     )
 
 
+def review(args) -> None:
+    """Inspect a frozen comparison without ranking again or calling a model."""
+    if Path(args.output).exists():
+        raise ValueError("Review output already exists")
+    inputs = (read(args.snapshot), read(args.manifest), read(args.report))
+    if args.command == "diagnose":
+        from alethical.eval.evidence_diagnostics import diagnose
+
+        result = diagnose(*inputs)
+    else:
+        from alethical.eval.answer_trial import prepare_answer_trial
+
+        result = prepare_answer_trial(*inputs, arm=args.arm)
+    root = Path(__file__).resolve().parents[1]
+    paths = [
+        "alethical/eval/evidence_diagnostics.py",
+        "alethical/eval/answer_trial.py",
+        "alethical/eval/graph_eval.py",
+        "scripts/graph_retrieval_eval.py",
+        "scripts/answer_eval.py",
+        "alethical/api/routers/me.py",
+    ]
+    result["code_commit"] = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], text=True, cwd=root
+    ).strip()
+    result["code_digest"] = digest({p: (root / p).read_text() for p in paths})
+    write_new(args.output, result)
+    # Questions, source excerpts and review prompts stay in the private output.
+    print(json.dumps({"stage": args.command, "output": args.output}))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -199,6 +230,18 @@ def main() -> None:
     compare_parser.add_argument("--character-budget", type=int, default=6000)
     compare_parser.add_argument("--output", required=True)
     compare_parser.set_defaults(func=run)
+    for command, help_text in (
+        ("diagnose", "offline coverage and evidence-budget diagnostics"),
+        ("prepare-answers", "offline bill-text answer review packets; no model calls"),
+    ):
+        review_parser = commands.add_parser(command, help=help_text)
+        review_parser.add_argument("--snapshot", required=True)
+        review_parser.add_argument("--manifest", required=True)
+        review_parser.add_argument("--report", required=True)
+        review_parser.add_argument("--output", required=True)
+        if command == "prepare-answers":
+            review_parser.add_argument("--arm", default="production_reference")
+        review_parser.set_defaults(func=review)
     args = parser.parse_args()
     try:
         args.func(args)
