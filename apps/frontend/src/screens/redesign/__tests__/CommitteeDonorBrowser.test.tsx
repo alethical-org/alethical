@@ -317,6 +317,48 @@ describe('one committee shares the donation browser', () => {
     expect(host.textContent).not.toContain('last complete payment list');
   });
 
+  it('never borrows a newer catalogue date for retained payment statements after a failed recheck', async () => {
+    const original = request.getMockImplementation()!;
+    let copiedOn = '2026-09-23';
+    let failMade = false;
+    request.mockImplementation(async (path, signal) => {
+      const url = new URL(String(path), 'https://fixture.test');
+      if (failMade && url.searchParams.get('direction') === 'made')
+        throw new Error('controlled outgoing failure');
+      const result = (await original(path, signal)) as { data: Record<string, unknown> };
+      if (url.searchParams.get('direction') === 'received') {
+        const payments = result.data.payments as Array<{ record_number?: number }>;
+        result.data.disclosure_statements = payments
+          .filter((payment) => typeof payment.record_number === 'number')
+          .map((payment) => ({
+            record_number: payment.record_number,
+            statement_id: 'held-statement',
+            state: 'read',
+            pdf_url: 'https://cfb.mn.gov/fixture-statement.pdf',
+          }));
+        result.data.statements_copied_on = copiedOn;
+      }
+      return result as never;
+    });
+    await render();
+    expect(host.textContent).toContain('disclosure statement');
+    expect(host.textContent).toContain('Minnesota’s report catalogue copied Sep 23, 2026');
+    copiedOn = '2026-10-01';
+    failMade = true;
+    await act(async () => {
+      await client.refetchQueries({ queryKey: ['campaign-money-details'] });
+    });
+    await render();
+    expect(host.textContent).toContain('The last complete payment list is still shown.');
+    expect(host.textContent).not.toContain('Minnesota’s report catalogue copied');
+    failMade = false;
+    await act(async () => {
+      await client.refetchQueries({ queryKey: ['campaign-money-details'] });
+    });
+    await render();
+    expect(host.textContent).toContain('Minnesota’s report catalogue copied Oct 1, 2026');
+  });
+
   it.each([2025, 2026])(
     'compacts a complete empty %i year and links to filed reports',
     async (year) => {

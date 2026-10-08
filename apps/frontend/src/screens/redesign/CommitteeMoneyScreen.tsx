@@ -996,8 +996,14 @@ function PaymentsSection({
     ? (details.received.data.statementsCopiedOn ?? null)
     : null;
   const unlinkedCopied = unlinked.data?.statements.length ? unlinked.data.copiedOn : null;
+  // Held payment rows can carry an older statement catalogue even when a newer
+  // received read has the same payment release. Do not borrow that newer date.
   const statementsCopied =
-    section === 'gave' ? catalogueCopiedLine(linkedCopied ?? unlinkedCopied) : null;
+    section === 'gave' &&
+    details.selectedComplete &&
+    details.received.data?.releaseId === money.releaseId
+      ? catalogueCopiedLine(linkedCopied ?? unlinkedCopied)
+      : null;
   // Committees and funds share one notice threshold; a candidate's depends on office,
   // so its lead waits for the answer.
   const kind =

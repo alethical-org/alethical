@@ -1015,7 +1015,11 @@ Campaign money, top to bottom:
    replaces old rows; a completed response declaring unavailable clears the retained list and
    remains a failure, never a claim of no payments. An unavailable later page is an
    incomplete replacement: keep the prior matching list and never show partial new rows.
-   The committee page’s compact empty-year result follows the same recheck and retry rules. Changing committee, year or summary
+   The committee page’s compact empty-year result follows the same recheck and retry rules.
+   While a previously accepted list is held, omit the shared report-catalogue copy-date
+   line until a complete matching pair returns; the newest incoming-payment response
+   may carry a newer statement catalogue than the statement links still displayed.
+   Changing committee, year or summary
    release discards the retained view. This first-load versus recheck distinction applies
    to both committee pages and legislator money tabs through their shared display.
    [Issue 2540](https://github.com/alethical-org/alethical/issues/2540) records the repair. When every read
