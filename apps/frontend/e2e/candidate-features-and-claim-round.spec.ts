@@ -1,4 +1,11 @@
-import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
+import {
+  expect,
+  test,
+  type BrowserContext,
+  type Locator,
+  type Page,
+  type Route,
+} from '@playwright/test';
 
 // Local rendered acceptance only, with labelled fictional records. Every API and
 // sign-in request is intercepted and every write is held for the test to answer;
@@ -690,73 +697,148 @@ for (const band of bands) {
   });
 }
 
-test('a claim page opened from a link in a new tab carries unsent answers; no other tab does', async ({
+const linkLabel = 'Link to a campaign website or official record';
+const noteLabel = 'Explain your role and how Alethical can confirm it';
+/** The reachable path: public profile, its claim link, answers typed, then Go back. */
+async function typeThenGoBack(page: Page, link: string, note: string) {
+  await page.goto(profilePath);
+  await page.getByRole('link', { name: 'Claim this candidate profile', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`${profilePath}/claim$`));
+  await page.getByRole('radio', { name: 'Authorized campaign representative' }).check();
+  await page.getByLabel(linkLabel, { exact: true }).fill(link);
+  await page.getByLabel(noteLabel, { exact: true }).fill(note);
+  await page.getByRole('link', { name: 'Go back' }).click();
+  await expect(page).toHaveURL(new RegExp(`${profilePath}$`));
+  return page.getByRole('link', { name: 'Claim this candidate profile', exact: true });
+}
+async function expectClaimAnswers(tab: Page, link: string, note: string) {
+  await expect(tab).toHaveURL(new RegExp(`${profilePath}/claim$`));
+  await expect(tab.getByLabel(linkLabel, { exact: true })).toHaveValue(link);
+  await expect(
+    tab.getByRole('radio', { name: 'Authorized campaign representative' }),
+  ).toBeChecked();
+  await expect(tab.getByLabel(noteLabel, { exact: true })).toHaveValue(note);
+  expect(new URL(tab.url()).hash).toBe('');
+  expect(
+    await tab.evaluate(() =>
+      JSON.stringify({ ...localStorage, ...sessionStorage, name: window.name }).includes(
+        'Illustrative',
+      ),
+    ),
+  ).toBe(false);
+}
+async function expectEmptyClaim(tab: Page) {
+  await expect(tab.getByLabel(linkLabel, { exact: true })).toHaveValue('');
+  // Past the answer window, it is still empty.
+  await tab.waitForTimeout(2000);
+  await expect(tab.getByLabel(linkLabel, { exact: true })).toHaveValue('');
+  await expect(tab.getByLabel(noteLabel, { exact: true })).toHaveValue('');
+}
+async function openedFrom(context: BrowserContext, action: Promise<unknown>) {
+  const [opened] = await Promise.all([context.waitForEvent('page'), action]);
+  await fixture(opened);
+  return opened;
+}
+
+test('claim, public profile, then a new-tab claim page carries the unsent answers; no other tab does', async ({
   page,
   context,
   browserName,
 }) => {
   const api = await fixture(page);
-  const linkLabel = 'Link to a campaign website or official record';
-  const noteLabel = 'Explain your role and how Alethical can confirm it';
-  const typed = 'Illustrative: typed before opening a new tab.';
-  const claimUrl = new RegExp(`${profilePath}/claim$`);
-  await page.goto(`${profilePath}/claim`);
-  await page.getByRole('radio', { name: 'Authorized campaign representative' }).check();
-  await page.getByLabel(linkLabel, { exact: true }).fill('https://example-campaign.org/new-tab');
-  await page.getByLabel(noteLabel, { exact: true }).fill(typed);
-  // An in-app trip to the features page; signed in, the claim page has no features link.
-  await page.evaluate((path) => {
-    window.history.pushState({}, '', path);
-    window.dispatchEvent(new PopStateEvent('popstate'));
-  }, `/candidates/features?candidate=${candidateId}`);
-  const resume = page.getByRole('link', { name: 'Continue claiming this candidate profile' });
-  const expectAnswers = async (tab: Page) => {
-    await expect(tab).toHaveURL(claimUrl);
-    await expect(tab.getByLabel(linkLabel, { exact: true })).toHaveValue(
-      'https://example-campaign.org/new-tab',
-    );
-    await expect(
-      tab.getByRole('radio', { name: 'Authorized campaign representative' }),
-    ).toBeChecked();
-    await expect(tab.getByLabel(noteLabel, { exact: true })).toHaveValue(typed);
-    // The one-time code left the address at once; nothing private was ever in it.
-    expect(new URL(tab.url()).hash).toBe('');
-    expect(
-      await tab.evaluate(() =>
-        JSON.stringify({ ...localStorage, ...sessionStorage }).includes('Illustrative'),
-      ),
-    ).toBe(false);
-  };
-  const expectEmpty = async (tab: Page) => {
-    await expect(tab.getByLabel(linkLabel, { exact: true })).toHaveValue('');
-    // Past the answer window, it is still empty.
-    await tab.waitForTimeout(2000);
-    await expect(tab.getByLabel(linkLabel, { exact: true })).toHaveValue('');
-    await expect(tab.getByLabel(noteLabel, { exact: true })).toHaveValue('');
-  };
+  const link = 'https://example-campaign.org/new-tab';
+  const note = 'Illustrative: typed before opening a new tab.';
+  const claimLink = await typeThenGoBack(page, link, note);
   const gestures: NonNullable<Parameters<Locator['click']>[0]>[] = [
     { modifiers: ['ControlOrMeta'] },
     // Playwright's WebKit opens no tab for a middle click, so only Chromium checks it.
     ...(browserName === 'chromium' ? [{ button: 'middle' as const }] : []),
   ];
   for (const gesture of gestures) {
-    const [opened] = await Promise.all([context.waitForEvent('page'), resume.click(gesture)]);
-    await fixture(opened);
-    await expectAnswers(opened);
+    const opened = await openedFrom(context, claimLink.click(gesture));
+    await expectClaimAnswers(opened, link, note);
     await opened.close();
   }
-  // Opening the link's menu and dismissing it hands nothing to a tab opened another way.
-  await resume.click({ button: 'right' });
-  expect(await resume.getAttribute('href')).toMatch(/#claim-draft=[a-f0-9-]{36}$/);
+  // The copied address opens a plain tab: no answers.
+  const copied = await context.newPage();
+  await fixture(copied);
+  await copied.goto(new URL((await claimLink.getAttribute('href'))!, page.url()).href);
+  await expectEmptyClaim(copied);
+  await copied.close();
+  // The link's own menu opened and dismissed: nothing opens and nothing is offered.
+  const pagesBefore = context.pages().length;
+  await claimLink.click({ button: 'right' });
   await page.keyboard.press('Escape');
+  expect(context.pages().length).toBe(pagesBefore);
   const plain = await context.newPage();
   await fixture(plain);
   await plain.goto(`${profilePath}/claim`);
-  await expectEmpty(plain);
-  // The original tab keeps its own answers, and the link shows its own address again.
-  await resume.click();
-  await expect(page.getByLabel(linkLabel, { exact: true })).toHaveValue(
-    'https://example-campaign.org/new-tab',
-  );
+  await expectEmptyClaim(plain);
+  // The original tab keeps its own answers.
+  await claimLink.click();
+  await expectClaimAnswers(page, link, note);
   expect(api.writes).toHaveLength(0);
+});
+
+test('2 tabs with answers for the same candidate each hand theirs only to the tab they open', async ({
+  page,
+  context,
+}) => {
+  await fixture(page);
+  const second = await context.newPage();
+  await fixture(second);
+  const firstLink = await typeThenGoBack(
+    page,
+    'https://example.org/first',
+    'Illustrative first tab.',
+  );
+  const secondLink = await typeThenGoBack(
+    second,
+    'https://example.org/second',
+    'Illustrative second tab.',
+  );
+  const fromSecond = await openedFrom(context, secondLink.click({ modifiers: ['ControlOrMeta'] }));
+  const fromFirst = await openedFrom(context, firstLink.click({ modifiers: ['ControlOrMeta'] }));
+  await expectClaimAnswers(fromSecond, 'https://example.org/second', 'Illustrative second tab.');
+  await expectClaimAnswers(fromFirst, 'https://example.org/first', 'Illustrative first tab.');
+});
+
+test('a slowly loading new-tab claim page still receives the answers once it is ready', async ({
+  page,
+  context,
+}) => {
+  await fixture(page);
+  const link = 'https://example.org/slow';
+  const note = 'Illustrative: answers for a slow page.';
+  const claimLink = await typeThenGoBack(page, link, note);
+  const [opened] = await Promise.all([
+    context.waitForEvent('page'),
+    claimLink.click({ modifiers: ['ControlOrMeta'] }),
+  ]);
+  const api = await fixture(opened);
+  const held: Route[] = [];
+  api.handlers.set(`/api/v1/candidates/${candidateId}`, (route) => {
+    held.push(route);
+  });
+  await expect.poll(() => held.length, { timeout: 15000 }).toBeGreaterThan(0);
+  await opened.waitForTimeout(4000);
+  for (const route of held) await route.fulfill({ json: api.record });
+  await expectClaimAnswers(opened, link, note);
+});
+
+test('when the browser refuses the new tab, the reader stays in this tab with the answers', async ({
+  page,
+  context,
+}) => {
+  await fixture(page);
+  await page.addInitScript(() => {
+    window.open = () => null;
+  });
+  const link = 'https://example.org/refused';
+  const note = 'Illustrative: the new tab was refused.';
+  const claimLink = await typeThenGoBack(page, link, note);
+  const pagesBefore = context.pages().length;
+  await claimLink.click({ modifiers: ['ControlOrMeta'] });
+  await expectClaimAnswers(page, link, note);
+  expect(context.pages().length).toBe(pagesBefore);
 });
