@@ -12,7 +12,9 @@ from sqlalchemy import select
 from alethical.api.services import candidate_lookup
 from alethical.api.services.candidate_lookup import (
     SOURCE_URL,
+    STREET_ID_URL,
     STREETS_URL,
+    UNIT_RANGES_URL,
     CandidateLookupService,
     CandidateLookupUnavailable,
     get_candidate_lookup_service,
@@ -27,9 +29,18 @@ from alethical.tests.test_candidate_ballot import candidate, source, street
 
 NOW = datetime(2026, 9, 30, 14, tzinfo=UTC)
 ADDRESS = "100 EXAMPLE ST N, EXAMPLE CITY, MN 99999"
+EXAMPLE_LISTING = {
+    "ProdAddressRangeId": None,
+    "FullStreetNameCityNameZipCodeId": 4242,
+    "FullStreetName": "EXAMPLE ST N ",
+    "CityName": "EXAMPLE CITY",
+    "ZipCode": "99999",
+}
 
 
-def service(*, rows=None, ballot=None, clock=lambda: 0, geocoder=None):
+def service(
+    *, rows=None, ballot=None, clock=lambda: 0, geocoder=None, listings=None, units=None
+):
     calls = []
 
     def fetch(url, params):
@@ -38,6 +49,14 @@ def service(*, rows=None, ballot=None, clock=lambda: 0, geocoder=None):
             return json.dumps(
                 {"Streets": [street()] if rows is None else rows}
             ).encode()
+        if url == STREET_ID_URL:
+            if isinstance(listings, Exception):
+                raise listings
+            return json.dumps(listings or []).encode()
+        if url == UNIT_RANGES_URL:
+            if isinstance(units, Exception):
+                raise units
+            return json.dumps([] if units is None else units).encode()
         assert url == SOURCE_URL
         return json.dumps(source(candidate()) if ballot is None else ballot).encode()
 
@@ -476,9 +495,13 @@ def test_invalid_street_fields_are_source_failure_not_no_match(changes):
 
 
 def test_unresolved_official_unit_is_source_failure_not_wrong_address():
-    lookup, calls = service(rows=[street(DisplayUnitNbr=True, UnitNumberRange=None)])
+    # The source flags the range but its official unit list is empty.
+    lookup, calls = service(
+        rows=[street(DisplayUnitNbr=True, UnitNumberRange=None)],
+        listings=[EXAMPLE_LISTING],
+    )
     with pytest.raises(CandidateLookupUnavailable):
-        lookup.lookup(ADDRESS, "8334")
+        lookup.lookup(ADDRESS.replace(",", " APT 3,", 1), "8334")
     assert all(url != SOURCE_URL for url, _ in calls)
 
 
@@ -708,11 +731,21 @@ def test_suggestion_validation_source_failure_is_not_empty_success():
         def suggest_matches(self, text):
             return [SimpleNamespace(matched_address=ADDRESS, state_code="MN")]
 
-    lookup, _ = service(
-        rows=[street(DisplayUnitNbr=True, UnitNumberRange=None)], geocoder=Geocoder()
-    )
+    lookup, _ = service(rows=[street(OddEvenInd="X")], geocoder=Geocoder())
     with pytest.raises(CandidateLookupUnavailable):
         lookup.suggest("100 EX")
+
+
+def test_unit_flagged_address_is_suggested_without_reading_its_unit_list():
+    class Geocoder:
+        def suggest_matches(self, text):
+            return [SimpleNamespace(matched_address=ADDRESS, state_code="MN")]
+
+    lookup, calls = service(
+        rows=[street(DisplayUnitNbr=True, UnitNumberRange=None)], geocoder=Geocoder()
+    )
+    assert [choice["address"] for choice in lookup.suggest("100 EX")] == [ADDRESS]
+    assert {url for url, _ in calls} == {STREETS_URL}
 
 
 def test_confirmed_map_choice_does_not_fetch_unselected_zip():
@@ -922,3 +955,161 @@ def test_locate_api_source_failure_is_unavailable_without_the_point(client):
     assert "44.9512" not in response.text
     assert response.headers["cache-control"] == "private, no-store"
     client.app.dependency_overrides.pop(get_candidate_lookup_service)
+
+
+OFFICIAL_UNITS = json.loads(
+    (
+        __import__("pathlib").Path(__file__).parent
+        / "fixtures"
+        / "sos_unit_number_ranges_2026-10-09.json"
+    ).read_text()
+)
+HOPKINS = next(s for s in OFFICIAL_UNITS["streets"] if s["street"] == "8TH AVE S")
+HOPKINS_LISTING = {
+    "ProdAddressRangeId": None,
+    "FullStreetNameCityNameZipCodeId": HOPKINS["FullStreetNameCityNameZipCodeId"],
+    "FullStreetName": "8TH AVE S ",
+    "CityName": "HOPKINS",
+    "ZipCode": "55343",
+}
+
+
+def hopkins(**changes):
+    return service(
+        rows=HOPKINS["GetStreets_rows"],
+        listings=changes.pop("listings", [HOPKINS_LISTING]),
+        units=changes.pop("units", HOPKINS["GetUnitNumberRanges"]),
+        ballot=source(candidate(), ProdAddressRangeId=313578),
+        **changes,
+    )
+
+
+@pytest.mark.parametrize(
+    ("address", "range_id"),
+    [
+        ("100 8th Ave S #250, Hopkins, MN 55343", 313578),
+        ("100 8th Ave S, Apt 101, Hopkins, MN 55343", 313576),
+        ("100 8th Ave S Hopkins Unit 663 MN 55343", 313577),
+        ("100 8th Avenue South Apt. 248, Hopkins, MN 55343", 313576),
+    ],
+)
+def test_split_building_unit_reads_its_official_ballot_range(address, range_id):
+    lookup, calls = hopkins()
+    result = lookup.resolve(address)
+    assert not isinstance(result, dict)
+    assert result[1].range_id == range_id
+    sent = [params for url, params in calls if url in (STREET_ID_URL, UNIT_RANGES_URL)]
+    # Only the official street, city and ZIP leave Alethical: no house or unit.
+    assert sent == [
+        {"address": "8TH AVE S HOPKINS 55343"},
+        {"FullStreetNameCityNameZipCodeId": HOPKINS["FullStreetNameCityNameZipCodeId"]},
+    ]
+
+
+def test_split_building_lookup_fetches_the_chosen_ballot_and_labels_the_unit():
+    lookup, calls = hopkins()
+    result, _ = lookup.lookup("100 8th Ave S #250, Hopkins, MN 55343", "8334")
+    assert result["kind"] == "results"
+    assert result["matchedAddress"] == "100 8TH AVE S #250, HOPKINS, MN 55343"
+    assert calls[-1] == (SOURCE_URL, {"prodAddressRangeId": 313578})
+
+
+@pytest.mark.parametrize(
+    "address",
+    [
+        "100 8th Ave S, Hopkins, MN 55343",  # the source needs a unit here
+        "100 8th Ave S #249, Hopkins, MN 55343",  # between official ranges
+        "100 8th Ave S #664, Hopkins, MN 55343",  # past the last range
+        "100 8th Ave S #250A, Hopkins, MN 55343",  # not provably in any range
+        "100 8th Ave S Apt 101 #250, Hopkins, MN 55343",  # 2 different units
+        "102 8th Ave S #250, Hopkins, MN 55343",  # another house
+    ],
+)
+def test_split_building_refuses_what_its_official_ranges_do_not_prove(address):
+    lookup, calls = hopkins()
+    assert lookup.lookup(address, "8334")[0] == {"kind": "no-match"}
+    assert all(url != SOURCE_URL for url, _ in calls)
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"listings": []},  # the street's listing number cannot be found
+        # Same street and city in another ZIP is another listing.
+        {"listings": [{**HOPKINS_LISTING, "ZipCode": "55305"}]},
+        {
+            "listings": [
+                HOPKINS_LISTING,
+                {**HOPKINS_LISTING, "FullStreetNameCityNameZipCodeId": 9},
+            ]
+        },
+        {"listings": CandidateLookupUnavailable("down")},
+        {"units": CandidateLookupUnavailable("down")},
+        {"units": [{"ProdAddressRangeId": 313578, "UnitNumberRange": "250 - 250"}]},
+    ],
+)
+def test_unit_list_source_failures_are_unavailable_not_no_match(changes):
+    lookup, calls = hopkins(**changes)
+    with pytest.raises(CandidateLookupUnavailable):
+        lookup.lookup("100 8th Ave S #250, Hopkins, MN 55343", "8334")
+    assert all(url != SOURCE_URL for url, _ in calls)
+
+
+def test_location_suggestion_for_a_unit_building_needs_no_unit_list():
+    label = "100 8th Avenue South, Hopkins, MN 55343"
+
+    class Nearby:
+        def nearby_addresses(self, latitude, longitude, radius):
+            return [(label, 1.0)]
+
+    lookup, calls = hopkins(geocoder=Nearby())
+    assert lookup.locate(44.92, -93.41, 5) == {
+        "kind": "address",
+        "address": "100 8TH AVE S, HOPKINS, MN 55343",
+    }
+    assert {url for url, _ in calls} == {STREETS_URL}
+
+
+def test_official_unit_list_fetch_reads_the_sources_not_found_answer(monkeypatch):
+    responses = []
+
+    class Response:
+        def __init__(self, status, body):
+            self.status_code = status
+            self.raw = SimpleNamespace(read=lambda *args, **kwargs: body)
+            self._body = body
+
+        def iter_content(self, size):
+            yield self._body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    def get(url, **kwargs):
+        responses.append((url, kwargs["params"]))
+        return queue.pop(0)
+
+    monkeypatch.setattr(
+        candidate_lookup, "public_source_session", lambda: SimpleNamespace(get=get)
+    )
+    queue = [Response(404, b'{"message":"Unit number data not found."}')]
+    assert (
+        official_bytes(UNIT_RANGES_URL, {"FullStreetNameCityNameZipCodeId": 44163})
+        == b"[]"
+    )
+    for status, body in ((404, b'{"message":"other"}'), (500, b"[]")):
+        queue = [Response(status, body)]
+        with pytest.raises(CandidateLookupUnavailable):
+            official_bytes(UNIT_RANGES_URL, {"FullStreetNameCityNameZipCodeId": 44163})
+    # The listing request accepts only official table text: no unit mark, no
+    # free typing. Its value is built from the table row, never from the reader.
+    for address in ("8TH AVE S #250", "8th ave s", "", "8TH AVE S\nHOPKINS"):
+        with pytest.raises(CandidateLookupUnavailable):
+            official_bytes(STREET_ID_URL, {"address": address})
+    queue = [Response(200, b"[]")]
+    assert (
+        official_bytes(STREET_ID_URL, {"address": "8TH AVE S HOPKINS 55343"}) == b"[]"
+    )

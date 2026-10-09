@@ -28,6 +28,10 @@ class CandidateAddressNotFound(CandidateBallotError):
     """Valid official ranges do not identify exactly one submitted address."""
 
 
+class CandidateUnitRangesNeeded(CandidateBallotError):
+    """The street table flags a unit-specific range; its unit list must be read."""
+
+
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise CandidateBallotError(message)
@@ -351,10 +355,86 @@ def validate_street_rows(rows: Sequence[Mapping[str, object]]) -> None:
         _require(type(range_id) is int and range_id > 0, "invalid address range ID")
 
 
+@dataclass(frozen=True)
+class UnitNumberRange:
+    """1 official unit-number range label for 1 ballot range at a house range.
+
+    MyBallot offers each label as a choice whose value is the ballot range; the
+    parity describes the house numbers, not the apartments.
+    """
+
+    range_id: int
+    label: str
+    house_low: int
+    house_high: int
+    parity: str
+
+
+def parse_unit_ranges(payload: object) -> tuple[UnitNumberRange, ...]:
+    """Validate MyBallot's GetUnitNumberRanges answer; anything unexpected fails."""
+    _require(isinstance(payload, list) and len(payload) <= 10_000, "invalid unit list")
+    assert isinstance(payload, list)
+    ranges = []
+    for entry in payload:
+        _require(isinstance(entry, Mapping), "invalid unit entry")
+        range_id = entry.get("ProdAddressRangeId")
+        _require(type(range_id) is int and range_id > 0, "invalid unit range ID")
+        label = " ".join(_text(entry.get("UnitNumberRange"), "UnitNumberRange").split())
+        houses = re.fullmatch(
+            r"\s*(\d{1,8})\s+-\s+(\d{1,8})\s*",
+            _text(entry.get("HouseNumberRange"), "HouseNumberRange"),
+        )
+        _require(houses is not None, "invalid unit house range")
+        assert houses is not None
+        low, high = int(houses.group(1)), int(houses.group(2))
+        _require(low <= high, "invalid unit house range")
+        parity = entry.get("OddEvenInd")
+        _require(parity in ("B", "E", "O"), "unknown unit house parity")
+        assert isinstance(range_id, int) and isinstance(parity, str)
+        ranges.append(UnitNumberRange(range_id, label, low, high, parity))
+    return tuple(ranges)
+
+
+_UNIT_LABEL = re.compile(r"^(?:(?:APT|APARTMENT|UNIT|SUITE|STE)\.?\s+|#\s*)")
+
+
+def _unit_identifier(unit: str) -> str:
+    return _UNIT_LABEL.sub("", " ".join(unit.upper().split())).strip()
+
+
+def _unit_in_label(unit: str, label: str) -> bool | None:
+    """True or False when the official label settles it; None when it cannot.
+
+    The source writes ranges as "LOW - HIGH". Numeric bounds are inclusive.
+    Text bounds prove only an exact endpoint: no order between letters is invented.
+    """
+    identifier = _unit_identifier(unit)
+    if not identifier:
+        return False
+    span = re.fullmatch(r"(\S+) - (\S+)", label.upper())
+    if span is None:
+        return identifier == _unit_identifier(label) or _same_text(unit, label)
+    low, high = span.groups()
+    if low.isdigit() and high.isdigit():
+        if int(low) > int(high):
+            return None
+        return identifier.isdigit() and int(low) <= int(identifier) <= int(high)
+    if identifier in (low, high):
+        return True
+    return False if low == high else None
+
+
 def match_street_range(
-    rows: Sequence[Mapping[str, object]], address: StreetAddress
+    rows: Sequence[Mapping[str, object]],
+    address: StreetAddress,
+    unit_ranges: Sequence[UnitNumberRange] | None = None,
 ) -> StreetRangeMatch:
-    """Require one exact official range; never infer town from its postal city."""
+    """Require one exact official range; never infer town from its postal city.
+
+    A range the source flags for units needs the street's official unit list
+    (unit_ranges). Without it this raises CandidateUnitRangesNeeded so the caller
+    can read it; a flagged range never stands in for an unchecked unit.
+    """
     _require(
         type(address.house_number) is int and address.house_number >= 0,
         "invalid house number",
@@ -372,6 +452,8 @@ def match_street_range(
         "invalid street rows",
     )
     matches = []
+    unproven = False
+    unit_required = False
     for row in rows:
         _require(isinstance(row, Mapping), "invalid street row")
         values = {
@@ -414,8 +496,31 @@ def match_street_range(
         _require(type(needs_unit) is bool, "invalid unit requirement")
         row_unit = _text(row.get("UnitNumberRange"), "UnitNumberRange", optional=True)
         if needs_unit or row_unit:
-            _require(bool(row_unit), "official unit information is unresolved")
-            if not unit or not _same_text(row_unit, unit):
+            range_id = row.get("ProdAddressRangeId")
+            if row_unit:
+                labels = [row_unit]
+            elif unit_ranges is None:
+                raise CandidateUnitRangesNeeded("official unit list required")
+            else:
+                labels = [
+                    entry.label
+                    for entry in unit_ranges
+                    if entry.range_id == range_id
+                    and entry.house_low <= address.house_number <= entry.house_high
+                    and (
+                        entry.parity == "B"
+                        or (entry.parity == "O") == bool(address.house_number % 2)
+                    )
+                ]
+            _require(bool(labels), "official unit information is unresolved")
+            if not unit:
+                # The source needs a unit here; never let another row stand in.
+                unit_required = True
+                continue
+            found = [_unit_in_label(unit, label) for label in labels]
+            if None in found:
+                unproven = True
+            if True not in found:
                 continue
         elif unit:
             # Unit-specific precincts cannot be guessed from a general street
@@ -425,6 +530,6 @@ def match_street_range(
         _require(type(range_id) is int and range_id > 0, "invalid address range ID")
         assert isinstance(range_id, int)
         matches.append(range_id)
-    if len(matches) != 1:
+    if unit_required or unproven or len(matches) != 1:
         raise CandidateAddressNotFound("address range is missing or ambiguous")
     return StreetRangeMatch(matches[0])

@@ -242,7 +242,19 @@ The [official Minnesota sample-ballot website](https://myballotmn.sos.mn.gov/) u
 `/api/PollingPlaceData/GetPollingPlaceData?prodAddressRangeId=<id>`.
 The ZIP table supplies number bounds, parity, full street directions, suffix and unit
 fields. Require exactly 1 complete match; unresolved units or multiple matches must
-remain unresolved. Postal city is not municipality: a SHAKOPEE postal range returned
+remain unresolved. A ZIP-table range marked `DisplayUnitNbr` carries no unit list of
+its own (`UnitNumberRange` was empty on all 19 marked rows across 15 tables read on
+9 October 2026). The same site reads it in 2 further requests:
+`/api/FilteredAddress/GetFilteredAddresses?address=<street city ZIP>` returns the
+street's `FullStreetNameCityNameZipCodeId`, and
+`/api/UnitNumberRangesData/GetUnitNumberRanges?FullStreetNameCityNameZipCodeId=<id>`
+returns `ProdAddressRangeId`, `UnitNumberRange` (such as `101 - 248` or
+`SIDE - SIDE`), `HouseNumberRange` and `OddEvenInd`, which follows the house numbers.
+The site offers each unit label as a choice whose value is its ballot range. A
+street with no list answers HTTP 404 `{"message":"Unit number data not found."}`.
+Matching rules and the dated replies are in
+[find-my-candidates-guide.md, units](../product-onboarding/find-my-candidates-guide.md)
+and `alethical/tests/fixtures/sos_unit_number_ranges_2026-10-09.json`. Postal city is not municipality: a SHAKOPEE postal range returned
 JACKSON TWP. P-1. Never assign city races from the postal name.
 
 The current response supplies election ID `8334`, 3 November 2026, plus exact-precinct

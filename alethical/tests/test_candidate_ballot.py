@@ -13,11 +13,14 @@ import pytest
 from alethical.pipeline.candidate_ballot import (
     AUTHORITY,
     SOURCE_URL,
+    CandidateAddressNotFound,
     CandidateBallotError,
+    CandidateUnitRangesNeeded,
     StreetAddress,
     candidate_ballot_document,
     match_street_range,
     parse_candidate_ballot,
+    parse_unit_ranges,
 )
 
 CHECKED = datetime(2026, 9, 30, 12, tzinfo=timezone.utc)
@@ -328,9 +331,13 @@ def test_unit_requirements_fail_closed_and_exact_unit_choices_work():
     assert match_street_range(rows, replace(ADDRESS, unit="UNIT A")).range_id == 123
     with pytest.raises(CandidateBallotError):
         match_street_range(rows, ADDRESS)
-    with pytest.raises(CandidateBallotError, match="unresolved"):
+    with pytest.raises(CandidateUnitRangesNeeded):
         match_street_range(
             [street(DisplayUnitNbr=True)], replace(ADDRESS, unit="UNIT A")
+        )
+    with pytest.raises(CandidateBallotError, match="unresolved"):
+        match_street_range(
+            [street(DisplayUnitNbr=True)], replace(ADDRESS, unit="UNIT A"), ()
         )
     with pytest.raises(CandidateBallotError):
         match_street_range(
@@ -443,3 +450,208 @@ def test_school_type_number_subdistrict_and_municipality_remain_part_of_identity
 def test_unresolved_unit_cannot_fall_back_to_general_street_range():
     with pytest.raises(CandidateBallotError):
         match_street_range([street()], replace(ADDRESS, unit="UNIT A"))
+
+
+# Minnesota's own unit-number ranges, read from MyBallot on 9 October 2026.
+OFFICIAL_UNITS = json.loads(
+    (
+        __import__("pathlib").Path(__file__).parent
+        / "fixtures"
+        / "sos_unit_number_ranges_2026-10-09.json"
+    ).read_text()
+)
+
+
+def official(street_name: str, city: str | None = None):
+    found = next(
+        s
+        for s in OFFICIAL_UNITS["streets"]
+        if s["street"] == street_name and city in (None, s["city"])
+    )
+    return found["GetStreets_rows"], parse_unit_ranges(found["GetUnitNumberRanges"])
+
+
+def unit_address(rows, house: int, unit: str = "") -> StreetAddress:
+    row = rows[0]
+    return StreetAddress(
+        row["FullStreetName"].strip(),
+        row["CityName"].strip(),
+        "MN",
+        row["ZipCode"],
+        house,
+        "",
+        unit,
+    )
+
+
+@pytest.mark.parametrize(
+    ("unit", "range_id"),
+    [
+        ("101", 313576),
+        ("248", 313576),  # inclusive upper endpoint
+        ("APT 250", 313578),  # a 1-unit range of its own
+        ("#250", 313578),
+        ("Unit 252", 313577),
+        ("apt. 663", 313577),
+        ("0101", 313576),
+    ],
+)
+def test_official_numeric_unit_ranges_choose_the_one_containing_ballot_range(
+    unit, range_id
+):
+    rows, units = official("8TH AVE S")
+    assert (
+        match_street_range(rows, unit_address(rows, 100, unit), units).range_id
+        == range_id
+    )
+
+
+@pytest.mark.parametrize("unit", ["100", "249", "251", "664", "250A", "B", "1-2"])
+def test_units_outside_every_official_range_are_refused(unit):
+    rows, units = official("8TH AVE S")
+    with pytest.raises(CandidateAddressNotFound):
+        match_street_range(rows, unit_address(rows, 100, unit), units)
+
+
+def test_unit_required_by_the_source_is_never_skipped_or_guessed():
+    rows, units = official("8TH AVE S")
+    with pytest.raises(CandidateAddressNotFound):
+        match_street_range(rows, unit_address(rows, 100), units)
+    # A general range at the same house never stands in for the missing unit.
+    general = street(
+        FullStreetName=rows[0]["FullStreetName"],
+        CityName=rows[0]["CityName"],
+        ZipCode=rows[0]["ZipCode"],
+        HouseNumberLow=2,
+        HouseNumberHigh=200,
+        ProdAddressRangeId=999,
+    )
+    with pytest.raises(CandidateAddressNotFound):
+        match_street_range([*rows, general], unit_address(rows, 100), units)
+
+
+def test_source_defined_text_unit_and_house_parity():
+    rows, units = official("GROVELAND AVE")
+    for unit in ("SIDE", "side", "Unit Side"):
+        assert (
+            match_street_range(rows, unit_address(rows, 511, unit), units).range_id
+            == 373719
+        )
+    with pytest.raises(CandidateAddressNotFound):
+        match_street_range(rows, unit_address(rows, 511, "FRONT"), units)
+    rows, units = official("UNIVERSITY AVE W")
+    # OddEvenInd O names house 625's side of the street, not odd apartments.
+    assert (
+        match_street_range(rows, unit_address(rows, 625, "202"), units).range_id
+        == 312511
+    )
+    with pytest.raises(CandidateAddressNotFound):
+        match_street_range(rows, unit_address(rows, 624, "202"), units)
+
+
+def test_same_street_in_2_postal_cities_keeps_each_citys_own_unit_list():
+    rows, units = official("UTICA AVE S", "ST LOUIS PARK")
+    assert (
+        match_street_range(rows, unit_address(rows, 1511, "305"), units).range_id
+        == 313399
+    )
+    gv_rows, gv_units = official("UTICA AVE S", "GOLDEN VALLEY")
+    assert match_street_range(
+        gv_rows, unit_address(gv_rows, 1513, "330"), gv_units
+    ) == match_street_range(gv_rows, unit_address(gv_rows, 1513, "#330"), gv_units)
+    assert (
+        match_street_range(
+            gv_rows, unit_address(gv_rows, 1513, "330"), gv_units
+        ).range_id
+        == 313392
+    )
+    # St Louis Park's list says nothing about Golden Valley's 1513.
+    with pytest.raises(CandidateBallotError, match="unresolved") as raised:
+        match_street_range(gv_rows, unit_address(gv_rows, 1513, "330"), units)
+    assert not isinstance(raised.value, CandidateAddressNotFound)
+
+
+def test_unit_lists_are_requested_only_when_the_source_flags_the_range():
+    rows, _ = official("8TH AVE S")
+    with pytest.raises(CandidateUnitRangesNeeded):
+        match_street_range(rows, unit_address(rows, 100, "101"))
+    assert match_street_range([street()], ADDRESS).range_id == 123
+
+
+def test_overlapping_or_unprovable_unit_ranges_refuse():
+    rows = [
+        street(DisplayUnitNbr=True, ProdAddressRangeId=1),
+        street(DisplayUnitNbr=True, ProdAddressRangeId=2),
+    ]
+
+    def entry(range_id, label, houses="100 - 100", parity="E"):
+        return {
+            "ProdAddressRangeId": range_id,
+            "UnitNumberRange": label,
+            "HouseNumberRange": houses,
+            "OddEvenInd": parity,
+        }
+
+    overlap = parse_unit_ranges([entry(1, "100 - 200"), entry(2, "150 - 250")])
+    assert match_street_range(rows, replace(ADDRESS, unit="120"), overlap).range_id == 1
+    with pytest.raises(CandidateAddressNotFound):
+        match_street_range(rows, replace(ADDRESS, unit="160"), overlap)
+    span = parse_unit_ranges([entry(1, "1A - 1F"), entry(2, "200 - 300")])
+    # No order is invented between letters: only an exact endpoint is provable.
+    with pytest.raises(CandidateAddressNotFound):
+        match_street_range(rows, replace(ADDRESS, unit="1C"), span)
+    assert match_street_range(rows, replace(ADDRESS, unit="1F"), span).range_id == 1
+    # A letter span cannot rule a number out, so the building's answer stays unproven.
+    with pytest.raises(CandidateAddressNotFound):
+        match_street_range(rows, replace(ADDRESS, unit="250"), span)
+    # An entry for another house or the other side of the street is not this unit.
+    for other in (
+        parse_unit_ranges([entry(1, "1 - 9", houses="102 - 102")]),
+        parse_unit_ranges([entry(1, "1 - 9", parity="O")]),
+    ):
+        with pytest.raises(CandidateBallotError, match="unresolved"):
+            match_street_range(rows[:1], replace(ADDRESS, unit="5"), other)
+    assert (
+        match_street_range(
+            rows[:1],
+            replace(ADDRESS, unit="5"),
+            parse_unit_ranges([entry(1, "1 - 9", parity="B")]),
+        ).range_id
+        == 1
+    )
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"message": "other"},
+        [{"ProdAddressRangeId": "1", "UnitNumberRange": "1 - 2"}],
+        [
+            {
+                "ProdAddressRangeId": 1,
+                "UnitNumberRange": "",
+                "HouseNumberRange": "1 - 1",
+                "OddEvenInd": "B",
+            }
+        ],
+        [
+            {
+                "ProdAddressRangeId": 1,
+                "UnitNumberRange": "1 - 2",
+                "HouseNumberRange": "9 - 1",
+                "OddEvenInd": "B",
+            }
+        ],
+        [
+            {
+                "ProdAddressRangeId": 1,
+                "UnitNumberRange": "1 - 2",
+                "HouseNumberRange": "1 - 1",
+                "OddEvenInd": "X",
+            }
+        ],
+    ],
+)
+def test_malformed_unit_lists_are_source_failures(payload):
+    with pytest.raises(CandidateBallotError):
+        parse_unit_ranges(payload)

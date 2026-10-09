@@ -85,14 +85,29 @@ The legislator finder keeps its coordinate-to-district lookup and map.
   lone comma match; a bare unit beside the same street unit is not doubled; a location
   tap clears an earlier address error; an empty Find, a retry or a loading election
   list no longer leaves an attempt running or a confirmation doing nothing.
-  Open for the product owner: the optional unit field leads to **We couldn’t match
-  that address to election records** wherever the election source lists no unit
-  ranges, which is most buildings; the approved rule forbids falling back to the
-  building's general range.
 - [x] Integrated the merged address-help change (pull request 2572): entry keeps its
   help line below the divider and **Change address** prints none. Integrated the
   renamed shared source connection (pull request 2571). Unit parsing scans text in a
   single pass, clearing 3 slow-pattern security alerts.
-- [ ] 6 Browser checks pass in Chromium and WebKit at 1280, 900, 390, 320 and 200%
-  zoom (`apps/frontend/scripts/check-candidate-location.mjs`); the open suggestion
-  list was found under the outline and fixed. Independent review and release pending
+- [x] 6 Browser checks pass in Chromium and WebKit at 1280, 900, 390, 320 and 200%
+  zoom (`apps/frontend/scripts/check-candidate-location.mjs`, also run in CI); the open
+  suggestion list was found under the outline and fixed. Released in
+  [pull request 2574](https://github.com/alethical-org/alethical/pull/2574) (merge
+  `7ea6666e`). Live on 9 October in Chromium and WebKit at 1280, 900 and 390, using
+  Duluth City Hall as a fixed public test location: entry Find 150 × 60 and Use my
+  location 200 × 60; the confirmation suggested `411 W 1ST ST, DULUTH, MN 55802`, Enter
+  confirmed it and the official results loaded; no position or address appeared in any
+  request address; blocked permission kept the typed text; **Change address** Find kept
+  a 9px magnifier gap (8.5 to 9 while busy, within half a pixel of rounding), a 3px left
+  nudge and an unchanged 52px box in ready and busy states with 1-line and 3-line
+  addresses; `/find-my-legislator` Find 150px with the same gap and nudge; the Privacy
+  Policy carries the location sentence.
+- [x] Acceptance correction, 9 October: the unit field exposed a missing official
+  connection. Minnesota's street tables mark unit-split house ranges but omit their
+  unit lists, which its sample-ballot site reads separately; the earlier matcher only
+  compared whole unit labels, so every address at those houses failed. The service
+  now reads that street's official unit-number ranges and resolves a unit only when
+  exactly 1 ballot range provably contains it (see
+  [find-my-candidates-guide.md, units](../product-onboarding/find-my-candidates-guide.md)).
+  An earlier statement here that few buildings have unit ranges was unsupported and
+  is withdrawn.

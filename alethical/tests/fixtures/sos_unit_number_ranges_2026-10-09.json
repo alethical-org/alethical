@@ -1,0 +1,611 @@
+{
+ "source": "Minnesota Secretary of State MyBallot public services, read 2026-10-09",
+ "endpoints": {
+  "streets": "https://myballotmn.sos.mn.gov/api/Streets/GetStreets?ZipCode=<zip>",
+  "street_id": "https://myballotmn.sos.mn.gov/api/FilteredAddress/GetFilteredAddresses?address=<FullStreetName CityName ZipCode>",
+  "unit_ranges": "https://myballotmn.sos.mn.gov/api/UnitNumberRangesData/GetUnitNumberRanges?FullStreetNameCityNameZipCodeId=<id>",
+  "official_app": "https://myballotmn.sos.mn.gov/main-WXAFWK4Y.js shows each unit range's label as a choice whose value is its ProdAddressRangeId"
+ },
+ "not_found_response": {
+  "status": 404,
+  "body": {
+   "message": "Unit number data not found."
+  },
+  "example": "FullStreetNameCityNameZipCodeId=99999999 (an unused number)"
+ },
+ "streets": [
+  {
+   "street": "8TH AVE S",
+   "city": "HOPKINS",
+   "zip": "55343",
+   "FullStreetNameCityNameZipCodeId": 32622,
+   "GetStreets_rows": [
+    {
+     "ProdAddressRangeId": 231957,
+     "OddEvenInd": "O",
+     "HouseNumberLow": 21,
+     "HouseNumberHigh": 151,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "8TH AVE S ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "HOPKINS",
+     "StateCode": "MN",
+     "ZipCode": "55343",
+     "DisplayUnitNbr": false,
+     "UnitNumberRange": null
+    },
+    {
+     "ProdAddressRangeId": 313576,
+     "OddEvenInd": "E",
+     "HouseNumberLow": 100,
+     "HouseNumberHigh": 100,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "8TH AVE S ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "HOPKINS",
+     "StateCode": "MN",
+     "ZipCode": "55343",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    },
+    {
+     "ProdAddressRangeId": 313577,
+     "OddEvenInd": "E",
+     "HouseNumberLow": 100,
+     "HouseNumberHigh": 100,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "8TH AVE S ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "HOPKINS",
+     "StateCode": "MN",
+     "ZipCode": "55343",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    },
+    {
+     "ProdAddressRangeId": 313578,
+     "OddEvenInd": "E",
+     "HouseNumberLow": 100,
+     "HouseNumberHigh": 100,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "8TH AVE S ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "HOPKINS",
+     "StateCode": "MN",
+     "ZipCode": "55343",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    }
+   ],
+   "GetUnitNumberRanges": [
+    {
+     "ProdAddressRangeId": 313576,
+     "UnitNumberRange": "101 - 248",
+     "HouseNumberRange": "100 - 100",
+     "OddEvenInd": "E"
+    },
+    {
+     "ProdAddressRangeId": 313578,
+     "UnitNumberRange": "250 - 250",
+     "HouseNumberRange": "100 - 100",
+     "OddEvenInd": "E"
+    },
+    {
+     "ProdAddressRangeId": 313577,
+     "UnitNumberRange": "252 - 663",
+     "HouseNumberRange": "100 - 100",
+     "OddEvenInd": "E"
+    }
+   ]
+  },
+  {
+   "street": "BLAKE RD N",
+   "city": "HOPKINS",
+   "zip": "55343",
+   "FullStreetNameCityNameZipCodeId": 32628,
+   "GetStreets_rows": [
+    {
+     "ProdAddressRangeId": 313870,
+     "OddEvenInd": "O",
+     "HouseNumberLow": 439,
+     "HouseNumberHigh": 439,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "BLAKE RD N ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "HOPKINS",
+     "StateCode": "MN",
+     "ZipCode": "55343",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    },
+    {
+     "ProdAddressRangeId": 313871,
+     "OddEvenInd": "O",
+     "HouseNumberLow": 439,
+     "HouseNumberHigh": 439,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "BLAKE RD N ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "HOPKINS",
+     "StateCode": "MN",
+     "ZipCode": "55343",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    },
+    {
+     "ProdAddressRangeId": 313872,
+     "OddEvenInd": "O",
+     "HouseNumberLow": 439,
+     "HouseNumberHigh": 439,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "BLAKE RD N ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "HOPKINS",
+     "StateCode": "MN",
+     "ZipCode": "55343",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    },
+    {
+     "ProdAddressRangeId": 313873,
+     "OddEvenInd": "O",
+     "HouseNumberLow": 439,
+     "HouseNumberHigh": 439,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "BLAKE RD N ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "HOPKINS",
+     "StateCode": "MN",
+     "ZipCode": "55343",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    }
+   ],
+   "GetUnitNumberRanges": [
+    {
+     "ProdAddressRangeId": 313870,
+     "UnitNumberRange": "101 - 112",
+     "HouseNumberRange": "439 - 439",
+     "OddEvenInd": "O"
+    },
+    {
+     "ProdAddressRangeId": 313871,
+     "UnitNumberRange": "201 - 216",
+     "HouseNumberRange": "439 - 439",
+     "OddEvenInd": "O"
+    },
+    {
+     "ProdAddressRangeId": 313872,
+     "UnitNumberRange": "301 - 316",
+     "HouseNumberRange": "439 - 439",
+     "OddEvenInd": "O"
+    },
+    {
+     "ProdAddressRangeId": 313873,
+     "UnitNumberRange": "401 - 407",
+     "HouseNumberRange": "439 - 439",
+     "OddEvenInd": "O"
+    }
+   ]
+  },
+  {
+   "street": "UNIVERSITY AVE W",
+   "city": "ST PAUL",
+   "zip": "55104",
+   "FullStreetNameCityNameZipCodeId": 15590,
+   "GetStreets_rows": [
+    {
+     "ProdAddressRangeId": 312511,
+     "OddEvenInd": "O",
+     "HouseNumberLow": 625,
+     "HouseNumberHigh": 625,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "UNIVERSITY AVE W ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "ST PAUL",
+     "StateCode": "MN",
+     "ZipCode": "55104",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    }
+   ],
+   "GetUnitNumberRanges": [
+    {
+     "ProdAddressRangeId": 312511,
+     "UnitNumberRange": "201 - 204",
+     "HouseNumberRange": "625 - 625",
+     "OddEvenInd": "O"
+    }
+   ]
+  },
+  {
+   "street": "JEFFERSON RD",
+   "city": "NORTHFIELD",
+   "zip": "55057",
+   "FullStreetNameCityNameZipCodeId": 9955,
+   "GetStreets_rows": [
+    {
+     "ProdAddressRangeId": 316713,
+     "OddEvenInd": "B",
+     "HouseNumberLow": 2431,
+     "HouseNumberHigh": 2431,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "JEFFERSON RD ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "NORTHFIELD",
+     "StateCode": "MN",
+     "ZipCode": "55057",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    },
+    {
+     "ProdAddressRangeId": 316714,
+     "OddEvenInd": "B",
+     "HouseNumberLow": 2411,
+     "HouseNumberHigh": 2411,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "JEFFERSON RD ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "NORTHFIELD",
+     "StateCode": "MN",
+     "ZipCode": "55057",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    }
+   ],
+   "GetUnitNumberRanges": [
+    {
+     "ProdAddressRangeId": 316713,
+     "UnitNumberRange": "101 - 316",
+     "HouseNumberRange": "2431 - 2431",
+     "OddEvenInd": "B"
+    },
+    {
+     "ProdAddressRangeId": 316714,
+     "UnitNumberRange": "101 - 316",
+     "HouseNumberRange": "2411 - 2411",
+     "OddEvenInd": "B"
+    }
+   ]
+  },
+  {
+   "street": "GROVELAND AVE",
+   "city": "MINNEAPOLIS",
+   "zip": "55403",
+   "FullStreetNameCityNameZipCodeId": 43192,
+   "GetStreets_rows": [
+    {
+     "ProdAddressRangeId": 373719,
+     "OddEvenInd": "O",
+     "HouseNumberLow": 511,
+     "HouseNumberHigh": 511,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "GROVELAND AVE ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "MINNEAPOLIS",
+     "StateCode": "MN",
+     "ZipCode": "55403",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    }
+   ],
+   "GetUnitNumberRanges": [
+    {
+     "ProdAddressRangeId": 373719,
+     "UnitNumberRange": "SIDE - SIDE",
+     "HouseNumberRange": "511 - 511",
+     "OddEvenInd": "O"
+    }
+   ]
+  },
+  {
+   "street": "UTICA AVE S",
+   "city": "ST LOUIS PARK",
+   "zip": "55416",
+   "FullStreetNameCityNameZipCodeId": 44163,
+   "GetStreets_rows": [
+    {
+     "ProdAddressRangeId": 313384,
+     "OddEvenInd": "O",
+     "HouseNumberLow": 1511,
+     "HouseNumberHigh": 1511,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "UTICA AVE S ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "ST LOUIS PARK",
+     "StateCode": "MN",
+     "ZipCode": "55416",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    },
+    {
+     "ProdAddressRangeId": 313385,
+     "OddEvenInd": "O",
+     "HouseNumberLow": 1511,
+     "HouseNumberHigh": 1511,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "UTICA AVE S ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "ST LOUIS PARK",
+     "StateCode": "MN",
+     "ZipCode": "55416",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    },
+    {
+     "ProdAddressRangeId": 313387,
+     "OddEvenInd": "O",
+     "HouseNumberLow": 1511,
+     "HouseNumberHigh": 1511,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "UTICA AVE S ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "ST LOUIS PARK",
+     "StateCode": "MN",
+     "ZipCode": "55416",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    },
+    {
+     "ProdAddressRangeId": 313388,
+     "OddEvenInd": "O",
+     "HouseNumberLow": 1511,
+     "HouseNumberHigh": 1511,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "UTICA AVE S ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "ST LOUIS PARK",
+     "StateCode": "MN",
+     "ZipCode": "55416",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    },
+    {
+     "ProdAddressRangeId": 313389,
+     "OddEvenInd": "O",
+     "HouseNumberLow": 1511,
+     "HouseNumberHigh": 1511,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "UTICA AVE S ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "ST LOUIS PARK",
+     "StateCode": "MN",
+     "ZipCode": "55416",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    },
+    {
+     "ProdAddressRangeId": 313399,
+     "OddEvenInd": "O",
+     "HouseNumberLow": 1511,
+     "HouseNumberHigh": 1511,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "UTICA AVE S ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "ST LOUIS PARK",
+     "StateCode": "MN",
+     "ZipCode": "55416",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    }
+   ],
+   "GetUnitNumberRanges": [
+    {
+     "ProdAddressRangeId": 313384,
+     "UnitNumberRange": "101 - 107",
+     "HouseNumberRange": "1511 - 1511",
+     "OddEvenInd": "O"
+    },
+    {
+     "ProdAddressRangeId": 313385,
+     "UnitNumberRange": "201 - 223",
+     "HouseNumberRange": "1511 - 1511",
+     "OddEvenInd": "O"
+    },
+    {
+     "ProdAddressRangeId": 313399,
+     "UnitNumberRange": "301 - 323",
+     "HouseNumberRange": "1511 - 1511",
+     "OddEvenInd": "O"
+    },
+    {
+     "ProdAddressRangeId": 313387,
+     "UnitNumberRange": "401 - 423",
+     "HouseNumberRange": "1511 - 1511",
+     "OddEvenInd": "O"
+    },
+    {
+     "ProdAddressRangeId": 313388,
+     "UnitNumberRange": "501 - 523",
+     "HouseNumberRange": "1511 - 1511",
+     "OddEvenInd": "O"
+    },
+    {
+     "ProdAddressRangeId": 313389,
+     "UnitNumberRange": "601 - 623",
+     "HouseNumberRange": "1511 - 1511",
+     "OddEvenInd": "O"
+    }
+   ]
+  },
+  {
+   "street": "UTICA AVE S",
+   "city": "GOLDEN VALLEY",
+   "zip": "55416",
+   "FullStreetNameCityNameZipCodeId": 44017,
+   "GetStreets_rows": [
+    {
+     "ProdAddressRangeId": 313390,
+     "OddEvenInd": "O",
+     "HouseNumberLow": 1513,
+     "HouseNumberHigh": 1513,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "UTICA AVE S ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "GOLDEN VALLEY",
+     "StateCode": "MN",
+     "ZipCode": "55416",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    },
+    {
+     "ProdAddressRangeId": 313391,
+     "OddEvenInd": "O",
+     "HouseNumberLow": 1513,
+     "HouseNumberHigh": 1513,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "UTICA AVE S ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "GOLDEN VALLEY",
+     "StateCode": "MN",
+     "ZipCode": "55416",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    },
+    {
+     "ProdAddressRangeId": 313392,
+     "OddEvenInd": "O",
+     "HouseNumberLow": 1513,
+     "HouseNumberHigh": 1513,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "UTICA AVE S ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "GOLDEN VALLEY",
+     "StateCode": "MN",
+     "ZipCode": "55416",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    },
+    {
+     "ProdAddressRangeId": 313393,
+     "OddEvenInd": "O",
+     "HouseNumberLow": 1513,
+     "HouseNumberHigh": 1513,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "UTICA AVE S ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "GOLDEN VALLEY",
+     "StateCode": "MN",
+     "ZipCode": "55416",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    },
+    {
+     "ProdAddressRangeId": 313394,
+     "OddEvenInd": "O",
+     "HouseNumberLow": 1513,
+     "HouseNumberHigh": 1513,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "UTICA AVE S ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "GOLDEN VALLEY",
+     "StateCode": "MN",
+     "ZipCode": "55416",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    },
+    {
+     "ProdAddressRangeId": 313395,
+     "OddEvenInd": "O",
+     "HouseNumberLow": 1513,
+     "HouseNumberHigh": 1513,
+     "HouseNumberSuffix": null,
+     "FullStreetName": "UTICA AVE S ",
+     "StreetName": "",
+     "StreetPreDirectional": "",
+     "UnitType": null,
+     "CityName": "GOLDEN VALLEY",
+     "StateCode": "MN",
+     "ZipCode": "55416",
+     "DisplayUnitNbr": true,
+     "UnitNumberRange": null
+    }
+   ],
+   "GetUnitNumberRanges": [
+    {
+     "ProdAddressRangeId": 313390,
+     "UnitNumberRange": "108 - 112",
+     "HouseNumberRange": "1513 - 1513",
+     "OddEvenInd": "O"
+    },
+    {
+     "ProdAddressRangeId": 313391,
+     "UnitNumberRange": "224 - 241",
+     "HouseNumberRange": "1513 - 1513",
+     "OddEvenInd": "O"
+    },
+    {
+     "ProdAddressRangeId": 313392,
+     "UnitNumberRange": "324 - 341",
+     "HouseNumberRange": "1513 - 1513",
+     "OddEvenInd": "O"
+    },
+    {
+     "ProdAddressRangeId": 313393,
+     "UnitNumberRange": "424 - 441",
+     "HouseNumberRange": "1513 - 1513",
+     "OddEvenInd": "O"
+    },
+    {
+     "ProdAddressRangeId": 313394,
+     "UnitNumberRange": "524 - 541",
+     "HouseNumberRange": "1513 - 1513",
+     "OddEvenInd": "O"
+    },
+    {
+     "ProdAddressRangeId": 313395,
+     "UnitNumberRange": "624 - 641",
+     "HouseNumberRange": "1513 - 1513",
+     "OddEvenInd": "O"
+    }
+   ],
+   "status": 200
+  }
+ ]
+}
