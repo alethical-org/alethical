@@ -294,3 +294,61 @@ it('starts the check for at most 2 marked rows the reader points at', async () =
   ]);
   expect(lookupRequest).not.toHaveBeenCalled();
 });
+const shownRow = (requiresLocationCheck = true) => ({
+  matchedAddress: '100 Main St, Minneapolis, MN 55415',
+  latitude: 44.97,
+  longitude: -93.26,
+  ...(requiresLocationCheck ? { requiresLocationCheck } : {}),
+});
+async function openSuggestions(typed: string) {
+  suggestions.mockResolvedValue([shownRow()]);
+  type(typed);
+  await act(async () => vi.advanceTimersByTimeAsync(200));
+  return host.querySelector<HTMLElement>('[role="listbox"] [role="option"]')!;
+}
+it.each([
+  [
+    'an apartment',
+    '100 Main St Apt 4, Minneapolis, MN 55415',
+    '100 Main St, Apt 4, Minneapolis, MN 55415',
+  ],
+  ['a ZIP+4', '100 Main St, Minneapolis, MN 55415-1234', '100 Main St, Minneapolis, MN 55415-1234'],
+  [
+    'both',
+    '100 Main St Apt 4, Minneapolis, MN 55415-1234',
+    '100 Main St, Apt 4, Minneapolis, MN 55415-1234',
+  ],
+])('checks a marked pick with %s by its exact shown text', async (_, typed, shown) => {
+  const option = await openSuggestions(typed);
+  expect(option.textContent).toBe(shown);
+  act(() => option.dispatchEvent(new PointerEvent('pointerover', { bubbles: true })));
+  lookupRequest.mockResolvedValue(found(shown));
+  act(() => option.click());
+  await settle();
+  const picked = { latitude: 44.97, longitude: -93.26, selectedAddress: shown };
+  // The early check and the pick send the same request, so the pick reuses it.
+  expect(preparedLookup.mock.calls.map(([input]) => input)).toEqual([picked]);
+  expect(lookupRequest).toHaveBeenLastCalledWith(picked, expect.anything());
+  expect(field().value).toBe(shown);
+});
+it.each([
+  ['the data saver', { saveData: true }],
+  ['a slow connection', { effectiveType: '3g' }],
+])('skips only the early check for %s', async (_, connection) => {
+  Object.defineProperty(navigator, 'connection', { value: connection, configurable: true });
+  try {
+    const option = await openSuggestions('100 Main');
+    act(() => option.dispatchEvent(new PointerEvent('pointerover', { bubbles: true })));
+    act(() => option.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+    expect(preparedLookup).not.toHaveBeenCalled();
+    lookupRequest.mockResolvedValue(found(shownRow().matchedAddress));
+    act(() => option.click());
+    await settle();
+    expect(lookupRequest).toHaveBeenLastCalledWith(
+      { latitude: 44.97, longitude: -93.26, selectedAddress: shownRow().matchedAddress },
+      expect.anything(),
+    );
+  } finally {
+    delete (navigator as { connection?: unknown }).connection;
+  }
+});

@@ -24,6 +24,7 @@ import {
   lookupRepresentativeFromApi,
   suggestRepresentativeAddressesFromApi,
 } from '../data/api';
+import { readerIsSavingData } from '../lib/dataSaving';
 import { isCoordinateInMinnesota } from '../data/minnesotaBoundary';
 import type {
   RepresentativeAddressChoice,
@@ -123,6 +124,11 @@ function reducedMotion() {
   return Platform.OS === 'web' && typeof matchMedia !== 'undefined'
     ? matchMedia('(prefers-reduced-motion: reduce)').matches
     : false;
+}
+
+/** The checked request for a marked choice: the exact text the reader picked. */
+function selectedChoiceInput(choice: RepresentativeAddressChoice, shown: string) {
+  return { latitude: choice.latitude, longitude: choice.longitude, selectedAddress: shown };
 }
 
 function errorKind(error: unknown) {
@@ -242,24 +248,24 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   );
   // Start the current-records check for at most 2 rows per typed address, so
   // pointing at a row hides most of its wait without spending the lookup limit.
+  // It is optional, so a reader saving data or on a slow connection skips it;
+  // a deliberate pick still runs the same check.
   const preparedChoices = useRef<{ address: string; keys: Set<string> }>({
     address: '',
     keys: new Set(),
   });
-  const prepareChoice = (choice: RepresentativeAddressChoice) => {
+  const prepareChoice = (choice: RepresentativeAddressChoice, shown: string) => {
     if (!choice.requiresLocationCheck || rateLimitSeconds > 0 || lookup.isPending) return;
+    if (readerIsSavingData()) return;
     const typed = addressInputRef.current?.value() ?? address;
     if (preparedChoices.current.address !== typed)
       preparedChoices.current = { address: typed, keys: new Set() };
     const { keys } = preparedChoices.current;
-    if (keys.has(choice.matchedAddress) || keys.size >= 2) return;
-    keys.add(choice.matchedAddress);
-    // Shared with the pick through the lookup's in-flight and 60-second reuse.
-    lookupRepresentativeFromApi({
-      latitude: choice.latitude,
-      longitude: choice.longitude,
-      selectedAddress: choice.matchedAddress,
-    }).catch(() => undefined);
+    if (keys.has(shown) || keys.size >= 2) return;
+    keys.add(shown);
+    // Shared with the pick through the lookup's in-flight and 60-second reuse,
+    // which match because both send the shown text, apartment and ZIP+4 included.
+    lookupRepresentativeFromApi(selectedChoiceInput(choice, shown)).catch(() => undefined);
   };
   const choicesRef = useRef<View>(null);
   const confirmedChoice = useRef<
@@ -568,11 +574,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     // A copied or conflicting point is only a hint: the server checks the printed
     // address against current official records before choosing districts.
     const coordinate = choice.requiresLocationCheck
-      ? {
-          latitude: choice.latitude,
-          longitude: choice.longitude,
-          selectedAddress: choice.matchedAddress,
-        }
+      ? selectedChoiceInput(choice, matchedAddress)
       : { latitude: choice.latitude, longitude: choice.longitude };
     confirmedChoice.current = { coordinate, address: matchedAddress };
     runCoordinate(coordinate, 'choice');

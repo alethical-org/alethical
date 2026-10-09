@@ -614,7 +614,7 @@ it.each(['Escape', 'Find', 'unmount'])(
 );
 
 it('names a row the reader points at, presses or moves to, without choosing it', async () => {
-  const prepared: number[] = [];
+  const prepared: [number, string][] = [];
   const submitted: unknown[] = [];
   act(() =>
     root.render(
@@ -625,7 +625,7 @@ it('names a row the reader points at, presses or moves to, without choosing it',
           onAddress={() => {}}
           suggest={suggest}
           onSubmit={(_, choice) => submitted.push(choice)}
-          onPrepare={(choice) => prepared.push(choice)}
+          onPrepare={(choice, shown) => prepared.push([choice, shown])}
           labelId="prepare-label"
           busy={false}
           mobile={false}
@@ -640,6 +640,10 @@ it('names a row the reader points at, presses or moves to, without choosing it',
   act(() => rows[2].dispatchEvent(new PointerEvent('pointerover', { bubbles: true })));
   act(() => rows[3].dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
   act(() => field.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })));
-  expect(prepared).toEqual([2, 3, 0]);
+  expect(prepared).toEqual([
+    [2, '102 Main St, Minneapolis, MN 55415'],
+    [3, '103 Main St, Minneapolis, MN 55415'],
+    [0, '100 Main St, Minneapolis, MN 55415'],
+  ]);
   expect(submitted).toEqual([]);
 });
