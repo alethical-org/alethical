@@ -1,6 +1,6 @@
 # How Find My Candidates works
 
-<!-- describes: alethical/api/services/address_format.py, apps/frontend/src/lib/currentAddressInput.ts, apps/frontend/src/lib/addressSuggestion.ts, apps/frontend/src/components/address/*.tsx, apps/frontend/src/components/home/HomeCandidateFinder.tsx, apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidateProfileScreen.tsx, apps/frontend/src/screens/CandidateAccountScreens.tsx, apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx, apps/frontend/src/components/candidates/*.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/data/candidates.ts, apps/frontend/src/data/candidateClaims.ts, apps/frontend/src/hooks/useCandidatePrivacyBoundary.ts, apps/frontend/src/lib/candidatePrivacy.ts, apps/frontend/src/lib/candidatePageSnapshot.ts, apps/frontend/src/lib/candidatePublicCopy.ts, alethical/api/routers/candidates.py, alethical/api/routers/candidate_claims.py, alethical/api/services/candidate_lookup.py, alethical/api/services/candidate_legislators.py, alethical/api/data/candidate_legislator_links.json, alethical/api/services/candidate_claims.py, alethical/api/services/admin_access.py, alethical/api/services/candidate_claim_identity.py, alethical/api/services/candidate_claim_events.py, alethical/api/services/candidate_claim_email.py, alethical/api/services/candidate_claim_recheck.py, alethical/api/services/candidate_recheck.py, alethical/api/services/person_records.py, alethical/api/routers/people.py, alethical/api/data/candidate_person_records.json, alethical/pipeline/candidate_person_records.py, alethical/pipeline/data/candidate_recheck_references_2026_v1.json, alethical/alembic/versions/0068_profile_claim_review.py, alethical/alembic/versions/0069_candidate_person_records.py, apps/frontend/src/screens/PersonOverviewScreen.tsx, apps/frontend/src/components/candidates/PersonOverviewContent.tsx, apps/frontend/src/components/candidates/PersonResearch.tsx, apps/frontend/src/data/personRecords.ts, apps/frontend/src/lib/personRecords.ts, alethical/pipeline/candidate_ballot.py, alethical/db/models.py, alethical/alembic/versions/0066_candidate_lookup.py, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/lib/staticPageMetadata.ts, api/page.ts -->
+<!-- describes: alethical/api/services/address_format.py, apps/frontend/src/lib/currentAddressInput.ts, apps/frontend/src/lib/addressSuggestion.ts, apps/frontend/src/components/address/*.tsx, apps/frontend/src/components/home/HomeCandidateFinder.tsx, apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidateProfileScreen.tsx, apps/frontend/src/screens/CandidateAccountScreens.tsx, apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx, apps/frontend/src/components/candidates/*.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/lib/candidateAddressUnit.ts, apps/frontend/src/data/candidates.ts, apps/frontend/src/data/candidateClaims.ts, apps/frontend/src/hooks/useCandidatePrivacyBoundary.ts, apps/frontend/src/lib/candidatePrivacy.ts, apps/frontend/src/lib/candidatePageSnapshot.ts, apps/frontend/src/lib/candidatePublicCopy.ts, alethical/api/routers/candidates.py, alethical/api/routers/candidate_claims.py, alethical/api/services/candidate_lookup.py, alethical/api/services/candidate_legislators.py, alethical/api/data/candidate_legislator_links.json, alethical/api/services/candidate_claims.py, alethical/api/services/admin_access.py, alethical/api/services/candidate_claim_identity.py, alethical/api/services/candidate_claim_events.py, alethical/api/services/candidate_claim_email.py, alethical/api/services/candidate_claim_recheck.py, alethical/api/services/candidate_recheck.py, alethical/api/services/person_records.py, alethical/api/routers/people.py, alethical/api/data/candidate_person_records.json, alethical/pipeline/candidate_person_records.py, alethical/pipeline/data/candidate_recheck_references_2026_v1.json, alethical/alembic/versions/0068_profile_claim_review.py, alethical/alembic/versions/0069_candidate_person_records.py, apps/frontend/src/screens/PersonOverviewScreen.tsx, apps/frontend/src/components/candidates/PersonOverviewContent.tsx, apps/frontend/src/components/candidates/PersonResearch.tsx, apps/frontend/src/data/personRecords.ts, apps/frontend/src/lib/personRecords.ts, alethical/pipeline/candidate_ballot.py, alethical/db/models.py, alethical/alembic/versions/0066_candidate_lookup.py, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/lib/staticPageMetadata.ts, api/page.ts -->
 
 ## Public address lookup
 
@@ -16,7 +16,9 @@ Both address entry boxes grow to keep long addresses fully visible. A filled box
 **Clear address** button (×), including a browser-filled value. Clearing empties
 and focuses the box without searching, dismisses choices, and ignores late replies.
 It removes address-specific errors but retains service failures and existing results.
-The button's reserved space stays put when empty or busy.
+On entry the box keeps 18px of right padding while empty and 60px once it holds
+text, so the placeholder fits and typed text never runs under the ×. The
+**Change address** box keeps its reserved space whether empty or busy.
 Typing, pasting and choosing a saved browser address use the same search. Keyboard
 Search and **Find** submit the address visible in the box, including
 a browser-filled value that arrived just before submission. The suggestion list
@@ -71,8 +73,11 @@ Focus leaving the field cannot swallow the first tap or move the Search button
 between press and release. Editing or browser autofill clears the old keyboard
 choice. Late replies cannot replace newer suggestions or reopen a dismissed list.
 
-The field is labelled **Full street address**, followed by **A city or ZIP code
-alone cannot identify your local races** before the box. Full addresses wrap.
+The field is labelled **Full street address**, 8px above the box. On entry, **A city
+or ZIP code alone cannot identify your local races** is the first of the 2 grey
+lines below the divider, and the box still names it as its description, so a screen
+reader hears it in the box. **Change address** keeps that line above its box. Full
+addresses wrap.
 On computer and tablet the list overlays content 8px below the box, exactly the
 box's width. In **Change address**, the form's containing layer keeps every
 suggestion above the following Election label and selector, including the rows
@@ -83,18 +88,29 @@ and available rows while keeping the label visible. Manual scrolling stops furth
 unsolicited movement until the list closes; deliberate arrow keys still reveal
 the selected row. The source line stays below the form: **Address lookup uses
 Minnesota’s Secretary of State and mapping services**. On computer and tablet,
-the source divider has a fixed 144px top margin after the message area, keeping
-a short suggestion list clear of the note. Phone spacing remains 36px. Neither
-position changes with suggestion count. The introductory line is **See who’s
-running where you live in Minnesota**.
+the divider sits 56px below the message area and an open suggestion list overlays
+both grey lines and the outline: opaque, above them, and taking every click. Phone
+spacing remains 36px, and phone suggestions push content down. Neither position
+changes with suggestion count. The introductory line is **See who’s running where
+you live in Minnesota**.
+
+Entry is 1 column on every band, at most 840px wide and centred. The address box,
+**Find** and **Use my location** share 1 row on computer and tablet; on phones they
+stack, each full width. The decorative Minnesota outline sits below the source line,
+centred, 40px below it: 200 × 220 on computer and tablet, 160 × 176 on phones.
 
 The submit button says **Find** on entry and in **Change address**, matching
 `/find-my-legislator`; the page heading supplies the search context. The homepage
 link keeps **Find my candidates**. Candidate profiles use the standard **Go back**
 link, returning to the previous Alethical page in the tab or `/candidates` on a
 direct visit.
-Entry fields and buttons have a 60px minimum height. **Change address** retains
-its compact 56px field and 52px minimum button height. Wrapped or enlarged waiting
+Entry fields and buttons have a 60px minimum height. Entry **Find** is 150px wide on
+computer and tablet and full width on phones. The magnifier and word form 1 group
+with a 9px gap, centred 3px left of true centre because the thin icon carries less
+weight than the bold word. **Change address** retains its compact 56px field and
+52px minimum button height; its **Find** takes the rest of the row beside **Cancel**
+and keeps the same 1 group and nudge. A hidden copy of the waiting group only
+reserves the box's width, so it never separates the visible icon from its word. Wrapped or enlarged waiting
 text can grow the action row; the ready state reserves the same height and Cancel
 stays aligned. Both use the same suggestion component.
 Minnesota mapping services can supply a complete address when the ZIP is missing.
@@ -118,6 +134,10 @@ Choosing from a submitted ambiguous result retains the original typed address so
 the service can recompute the same choice; approved abbreviations do not turn it
 into an unmatched address. This **Choose your address** confirmation remains a
 separate step with its existing keyboard guidance.
+
+The official match reads a unit at the end of the street segment, after a comma
+(`350 S 5th St, Apt 3, Minneapolis`) or after the city (`350 S 5th St Minneapolis Apt
+3 MN 55415`). 2 different units in 1 address are refused, never reconciled.
 
 A typed unit carries onto a suggestion only when the same base location is
 established, respecting the supplied house number, street, direction, city, state
@@ -153,6 +173,57 @@ existing failure message and an explicit **Reload page** action; browser Back
 can return to earlier results while the visit remains open. Choosing to reload
 still clears candidate search memory. The shared recovery behavior is defined in
 [page-load-performance-decisions.md, Recover failed downloads without losing a working visit](../operations/page-load-performance-decisions.md#recover-failed-downloads-without-losing-a-working-visit).
+
+### Use my location
+
+Entry offers **Use my location** beside **Find** (white, bordered, 200px wide on
+computer and tablet, full width on phones). **Change address** and the homepage do not
+offer it. The browser asks permission only after the tap. While it waits, the button
+reads **Locating…** with a spinner in the same box and a polite announcement; the
+typed text stays, and **Find** keeps working. Typing or a manual **Find** ends the
+attempt, and its late reply is ignored, whichever finishes first. An attempt with no
+answer after 30 seconds, for example a permission prompt nobody answers, ends as
+unavailable.
+
+A location never searches by itself. The reading's position and accuracy go once,
+in a private request body, to Alethical's server, which asks Minnesota's open address
+points service for nearby addresses. A suggestion is offered only when the reading
+separates 1 building from its neighbours: accuracy no worse than 100 meters, and
+every other distinct address at least the reading's accuracy (minimum 8 meters)
+farther away than the nearest. Otherwise the reading is treated as too imprecise.
+Coordinates are never put in a link, saved in the browser, an account, analytics or
+logs, and the suggestion is not kept after the attempt.
+
+A suggestion replaces the form in place with **Is this your home address?** (keyboard
+focus moves to it) and **Your device’s location can be approximate or show where you
+are now, not where you live**. **Street address** is editable and prefilled.
+**Apartment or unit**, marked **Optional** with placeholder **Apt 3**, is joined into
+the street segment before the first comma; a bare value such as `3` becomes `#3`, and
+the same unit typed in both fields appears once. A different unit in each field is
+kept, and the official match then refuses the address rather than choosing either.
+**This is my home address** (busy **Finding…** in the same box) runs the normal exact
+official match; Enter in either field does the same, except while an input method is
+composing text, and a second press cannot submit again. Editing either field cancels
+a running search, and its late reply cannot replace the edit. An empty street shows
+**Enter your full Minnesota street address** in the card. Results replace the page;
+no match, **Choose your address** and outside-Minnesota outcomes return to the form
+holding the searched address. **Enter a different address** cancels any search,
+restores the text typed before the tap and returns focus to the address box. Leaving
+the page or the privacy reset ends an attempt and discards an unconfirmed suggestion.
+
+When location cannot be used, the form and typed text stay, focus returns to the
+address box, and 1 information line appears in the message area. It is not a field
+error: dark text with a grey information icon, and the box is not marked invalid.
+
+- **Location access is blocked: enter your street address**
+- **Your location isn’t precise enough: enter your street address**
+- **Your location isn’t available right now: enter your street address** (also after
+  a timeout or a failed address-point request)
+- **This search covers Minnesota addresses** (a reading outside the state)
+
+Minnesota's election source records very few unit ranges. An address with a unit that
+the source does not list returns **We couldn’t match that address to election
+records** rather than the building's general range, exactly as a typed unit does.
 
 ## Results and their limits
 
@@ -211,7 +282,7 @@ Changing an address keeps the form open while typing, even when the draft equals
 previous successful request. Only an explicitly submitted successful replacement or
 **Cancel** or Escape cancellation closes editing; a submitted recent cached result follows the same transition.
 While an address search runs, both **Find** buttons show a spinner
-and **Finding candidates…** inside their unchanged box. A screen reader receives
+and **Finding…** inside their unchanged box, centred the same way. A screen reader receives
 1 polite waiting announcement; the line below stays reserved for errors without
 repeating the waiting message. Focus stays on the activated search button, repeated
 clicks and Enter cannot submit again, and reduced motion stops the spinner. The

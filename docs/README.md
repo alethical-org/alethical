@@ -158,6 +158,7 @@ lasting decisions and release evidence have their permanent homes.
 - [Candidate design acceptance](implementation/candidate-design-release-acceptance.md) — approved public search and profile controls, source limits, and release checks
 - [Candidate profile claim button](implementation/claim-profile-button-plan.md) — green claim action, distinct account states, alignment and release checks
 - [Candidate result notices](implementation/candidate-notices-last.md) — bottom notice placement, empty-race wording, affected uses and release evidence
+- [Candidate location shortcut and Find buttons](implementation/candidate-location-shortcut-build-plan.md) — Use my location with home address confirmation, unit joining, and Find button sizing and centring
 - [Candidate lookup delivery](implementation/candidate-lookup-build-plan.md) — staged candidate imports, private address handling, and the design and source requirements before launch
 - [Address controls delivery](implementation/address-controls-build-plan.md) — clear buttons, candidate address replacement and cancellation, and browser acceptance
 - [Navigation design 47 delivery](implementation/navigation-design-47-plan.md) — approved navigation and account-menu changes, comparison evidence, and release dependencies

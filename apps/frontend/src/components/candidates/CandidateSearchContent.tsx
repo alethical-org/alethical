@@ -901,7 +901,9 @@ const styles = StyleSheet.create({
   page: { width: '100%', paddingBottom: 64 },
   // 1 centred column on every band; the outline sits below the source line.
   entryLayout: { maxWidth: 840, width: '100%', alignSelf: 'center' },
-  entryWords: { flex: 1, minWidth: 0, width: '100%' },
+  // RNW gives every View a stacking context: lift the form above the later outline
+  // so an open suggestion list covers it and takes every click.
+  entryWords: { flex: 1, minWidth: 0, width: '100%', zIndex: 1 },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',

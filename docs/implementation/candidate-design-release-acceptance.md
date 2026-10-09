@@ -442,3 +442,18 @@ within the approved stable-update behavior and does not change election meanings
 
 Physical phone keyboard, native autofill and screen-reader speech remain untested; DOM
 checks establish the single polite live region without claiming spoken output.
+
+## Use my location and Find buttons, 9 October 2026
+
+The reviewed bundle `Alethical UX (74).zip` (9 October 2026) supersedes the entry
+widths, busy wording, help-line position and outline position recorded in S04, S06 and
+S10 and in the busy-button comparison above. Entry is 1 centred 840px column; **Find**
+is 150px on computer and tablet, full width on phones, 60px tall, padded 0 25px 0 19px
+for a 3px optical nudge, and its busy label is **Finding…** on entry and in **Change
+address**. **Change address** keeps its 52px height and gains the same padding; its icon
+and word stay 1 centred group in ready and busy states. The help line sits below the
+divider, which is 56px below the message area on computer and tablet. The outline is
+below the source line. **Use my location** and its confirmation card are new. The build
+record is [candidate-location-shortcut-build-plan.md](candidate-location-shortcut-build-plan.md);
+behaviour is owned by
+[find-my-candidates-guide.md](../product-onboarding/find-my-candidates-guide.md).

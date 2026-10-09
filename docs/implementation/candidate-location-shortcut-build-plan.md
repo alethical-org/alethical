@@ -67,9 +67,14 @@ The legislator finder keeps its coordinate-to-district lookup and map.
 
 ## Progress
 
-- [ ] 1 Backend
-- [ ] 2 Button
-- [ ] 3 Location flow
-- [ ] 4 Legislator Find
-- [ ] 5 Guides
-- [ ] 6 Browser, review, release
+- [x] 1 Backend: endpoint, unit parsing, tests (164 backend tests pass)
+- [x] 2 Button: the live defect reproduced on 9 October at 1280px (magnifier right
+  edge 111px, word starting 183px, a 72px gap) because the word was centred inside
+  the hidden "Finding candidates…" layer; fixed by 1 visible group above the reserve
+- [x] 3 Location flow and confirmation card, 15 focused tests, each key assertion
+  mutation-checked
+- [x] 4 Legislator Find
+- [x] 5 Guides and build records
+- [ ] 6 Browser checks pass in Chromium and WebKit at 1280, 900, 390, 320 and 200%
+  zoom (`apps/frontend/scripts/check-candidate-location.mjs`); the open suggestion
+  list was found under the outline and fixed. Independent review and release pending
