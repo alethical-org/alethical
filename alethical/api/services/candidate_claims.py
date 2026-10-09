@@ -210,6 +210,13 @@ def _approval_block(
             "reason": "election_ended",
             "message": "This election has ended, so this profile claim request can no longer be approved",
         }
+    # Order shown to reviewers: ended election, an existing approved claim, the
+    # applicant's account, then the official record checks.
+    if other_owner:
+        return {
+            "reason": "profile_already_claimed",
+            "message": "This candidate profile already has an approved profile claim. Review the existing profile claim before approving another account.",
+        }
     if is_admin:
         return {
             "reason": "applicant_is_admin",
@@ -234,11 +241,6 @@ def _approval_block(
         return {
             "reason": "official_record_stale",
             "message": "The official candidate record must be checked again before this profile claim request can be approved",
-        }
-    if other_owner:
-        return {
-            "reason": "profile_already_claimed",
-            "message": "This candidate profile already has an approved profile claim. Review the existing profile claim before approving another account.",
         }
     return None
 
@@ -279,26 +281,22 @@ def _read_claims(db: Session, query, *, admin: bool = False) -> list[dict]:
             )
         )
     }
-    submitted_at = (
-        {
-            claim_id: created_at
-            for claim_id, created_at in db.execute(
-                select(
-                    CandidateClaimEvent.claim_id,
-                    func.max(CandidateClaimEvent.created_at),
-                )
-                .where(
-                    CandidateClaimEvent.claim_id.in_(
-                        {claim.id for claim, _, _ in rows}
-                    ),
-                    CandidateClaimEvent.kind.in_(("submitted", "resubmitted")),
-                )
-                .group_by(CandidateClaimEvent.claim_id)
-            ).all()
-        }
-        if admin
-        else {}
-    )
+    # The latest submission or resubmission. Only a claim with no submission
+    # history falls back to its creation; never a later decision or update time.
+    submitted_at = {
+        claim_id: created_at
+        for claim_id, created_at in db.execute(
+            select(
+                CandidateClaimEvent.claim_id,
+                func.max(CandidateClaimEvent.created_at),
+            )
+            .where(
+                CandidateClaimEvent.claim_id.in_({claim.id for claim, _, _ in rows}),
+                CandidateClaimEvent.kind.in_(("submitted", "resubmitted")),
+            )
+            .group_by(CandidateClaimEvent.claim_id)
+        ).all()
+    }
     values = []
     for claim, candidate, account in rows:
         ended = (
@@ -320,6 +318,7 @@ def _read_claims(db: Session, query, *, admin: bool = False) -> list[dict]:
             "version": claim.version,
             "created_at": claim.created_at.isoformat(),
             "updated_at": claim.updated_at.isoformat(),
+            "submitted_at": submitted_at.get(claim.id, claim.created_at).isoformat(),
             "election_ended": ended,
             "can_manage": bool(eligible and claim.status == "approved"),
             "can_request_review": bool(
@@ -336,7 +335,6 @@ def _read_claims(db: Session, query, *, admin: bool = False) -> list[dict]:
                 user_id=str(account.id),
                 account_email=confirmed_emails.get(account.id),
                 applicant_is_admin=account.id in admin_ids,
-                submitted_at=submitted_at.get(claim.id, claim.created_at).isoformat(),
                 review_note=claim.review_note,
                 reviewed_at=claim.reviewed_at.isoformat()
                 if claim.reviewed_at
@@ -550,12 +548,42 @@ def withdraw(
     return result
 
 
-def _statement(row: CandidateStatement | None) -> dict | None:
+def _publication_dates(db: Session, row: CandidateStatement) -> dict:
+    """First publication and latest edit of the statement now public.
+
+    A removal starts a new publication, so the current one is the run of
+    published revisions after this owner's last removal. Version numbers count
+    removals too, so they never decide this. Without revision evidence the row
+    date is the publication date and no edit is invented.
+    """
+    if not row.body:
+        return {"published_at": None, "edited_at": None}
+    revisions = db.execute(
+        select(CandidateStatementRevision.action, CandidateStatementRevision.created_at)
+        .where(
+            CandidateStatementRevision.claim_id == row.claim_id,
+            CandidateStatementRevision.candidate_id == row.candidate_id,
+        )
+        .order_by(CandidateStatementRevision.created_at, CandidateStatementRevision.id)
+    ).all()
+    current: list[datetime] = []
+    for action, created_at in revisions:
+        current = [] if action == "removed" else [*current, created_at]
+    if not current:
+        return {"published_at": row.updated_at.isoformat(), "edited_at": None}
+    return {
+        "published_at": current[0].isoformat(),
+        "edited_at": row.updated_at.isoformat() if len(current) > 1 else None,
+    }
+
+
+def _statement(db: Session, row: CandidateStatement | None) -> dict | None:
     return (
         {
             "body": row.body,
             "updated_at": row.updated_at.isoformat(),
             "version": row.version,
+            **_publication_dates(db, row),
         }
         if row
         else None
@@ -578,7 +606,7 @@ def public_statement(db: Session, candidate_id: str) -> dict:
             UserAccount.id.not_in(eligible_administrator_account_ids(db)),
         )
     )
-    return {"statement": _statement(row)}
+    return {"statement": _statement(db, row)}
 
 
 def write_statement(
@@ -630,7 +658,7 @@ def write_statement(
         )
     )
     db.flush()
-    result = {"statement": _statement(row), "account_id": str(user.id)}
+    result = {"statement": _statement(db, row), "account_id": str(user.id)}
     db.commit()
     return result
 
@@ -684,7 +712,7 @@ def private_statement(
     ).all()
     return {
         "account_id": str(user.id),
-        "statement": _statement(row),
+        "statement": _statement(db, row),
         "history": [
             {
                 "id": str(item.id),

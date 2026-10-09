@@ -672,3 +672,64 @@ def test_database_boundary_suppresses_private_exception_traceback():
     else:
         pytest.fail("Expected a safe unavailable response")
     db.rollback.assert_called_once()
+
+
+def remove(client, item, version, headers=FIRST):
+    return client.request(
+        "DELETE",
+        f"{BASE}/{item['id']}/statement",
+        headers=headers,
+        json={
+            "expected_account_id": account(client, headers),
+            "expected_version": version,
+        },
+    )
+
+
+def test_published_and_edited_dates_follow_the_current_publication(client):
+    item = approved(client)
+    first = statement(client, item, "First published text").json()["statement"]
+    assert first["published_at"] is not None and first["edited_at"] is None
+    assert public(client).json()["statement"]["published_at"] == first["published_at"]
+    edited = statement(client, item, "Edited text", 1).json()["statement"]
+    # An edit keeps the first publication and adds the latest saved edit.
+    assert edited["published_at"] == first["published_at"]
+    assert edited["edited_at"] == edited["updated_at"]
+    assert public(client).json()["statement"]["edited_at"] == edited["edited_at"]
+    removed = remove(client, item, 2).json()["statement"]
+    assert removed["published_at"] is None and removed["edited_at"] is None
+    # Version 4 after a removal is a new publication, not an edit.
+    again = statement(client, item, "Published again", 3).json()["statement"]
+    assert again["version"] == 4
+    assert again["edited_at"] is None
+    assert again["published_at"] > first["published_at"]
+    private = client.get(f"{BASE}/{item['id']}/statement", headers=FIRST).json()
+    assert private["statement"]["published_at"] == again["published_at"]
+
+
+def test_publication_dates_never_invent_an_edit_without_revision_evidence(client):
+    item = approved(client)
+    statement(client, item, "Words")
+    statement(client, item, "Edited words", 1)
+    with get_session_factory()() as db:
+        db.execute(delete(CandidateStatementRevision))
+        db.commit()
+    shown = public(client).json()["statement"]
+    assert shown["published_at"] == shown["updated_at"]
+    assert shown["edited_at"] is None
+
+
+def test_new_owner_publication_is_dated_from_its_own_history(client):
+    item = approved(client)
+    statement(client, item, "Old owner words")
+    statement(client, item, "Old owner edit", 1)
+    assert review(client, item, action="revoke").status_code == 200
+    successor = claim(client, SECOND)
+    assert review(client, successor).status_code == 200
+    successor = client.get(f"{BASE}/me", headers=SECOND).json()["claims"][0]
+    fresh = statement(client, successor, "New owner words", headers=SECOND)
+    assert fresh.status_code == 200, fresh.text
+    shown = public(client).json()["statement"]
+    assert shown["body"] == "New owner words"
+    assert shown["edited_at"] is None
+    assert shown["published_at"] == fresh.json()["statement"]["published_at"]
