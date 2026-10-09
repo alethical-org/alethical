@@ -7,6 +7,7 @@ import { AdminCandidateClaimsScreen } from '../AdminCandidateClaimsScreen';
 import { CandidateClaimPanel } from '../../components/candidates/CandidateClaimPanel';
 import type { CandidateProfileRecord } from '../../components/candidates/types';
 import { GuardedNavigationContext } from '../../navigation/GuardedNavigationContext';
+import { clearAllProfileClaimDrafts } from '../../lib/profileClaimDraft';
 
 const mocks = vi.hoisted(() => {
   (globalThis as { __DEV__?: boolean }).__DEV__ = false;
@@ -37,8 +38,13 @@ const mocks = vi.hoisted(() => {
     resolve: vi.fn(),
     signIn: vi.fn(),
     prevent: vi.fn(),
+    fromOpener: vi.fn(),
   };
 });
+vi.mock('../../lib/profileClaimDraft', async (original) => ({
+  ...(await original<typeof import('../../lib/profileClaimDraft')>()),
+  requestProfileClaimDraftFromOpener: mocks.fromOpener,
+}));
 vi.mock('../../providers/AuthProvider', () => ({ useAuth: () => mocks.auth }));
 vi.mock('../../providers/signInModalContext', () => ({
   useSignInModal: () => ({ openSignIn: mocks.signIn }),
@@ -153,6 +159,9 @@ beforeEach(() => {
   };
   mocks.admin = 'restricted';
   mocks.focused = true;
+  mocks.fromOpener.mockResolvedValue(null);
+  // Unsent answers live in memory for the page's life; each case starts with none.
+  clearAllProfileClaimDrafts();
   mocks.getProfile.mockResolvedValue(record);
   mocks.mine.mockResolvedValue({ account_id: 'account-a', claims: [approved] });
   mocks.privateStatement.mockResolvedValue({
@@ -1574,4 +1583,88 @@ it('shows the current access state when a write is refused for lost access, with
   expect(button('Try again')).toBeUndefined();
   expect(host.querySelector('[aria-label="Campaign statement"]')).toBeNull();
   expect(mocks.save).toHaveBeenCalledTimes(1);
+});
+
+const eligibleList = {
+  account_id: 'account-a',
+  claims: [],
+  request_eligibility: { allowed: true, reason: null },
+};
+const handedOver = {
+  role: 'Candidate',
+  link: 'https://example.org/handed-over',
+  explanation: 'Illustrative explanation typed in the opening tab',
+  errors: {},
+};
+function claimPage() {
+  act(() =>
+    root.render(<CandidateClaimScreen navigation={navigation as never} route={route as never} />),
+  );
+}
+function fieldValue(label: string) {
+  return host.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[aria-label="${label}"]`)!
+    .value;
+}
+it('asks the tab that opened it only once its form is ready and eligible, then fills the empty form', async () => {
+  mocks.mine.mockResolvedValue(eligibleList);
+  mocks.fromOpener.mockResolvedValue(handedOver);
+  claimPage();
+  await flush();
+  await flush();
+  expect(mocks.fromOpener).toHaveBeenCalledTimes(1);
+  expect(mocks.fromOpener).toHaveBeenCalledWith(
+    'account-a',
+    id,
+    expect.any(Function),
+    expect.any(AbortSignal),
+  );
+  expect(fieldValue('Link to a campaign website or official record')).toBe(
+    'https://example.org/handed-over',
+  );
+  expect(fieldValue('Explain your role and how Alethical can confirm it')).toBe(
+    'Illustrative explanation typed in the opening tab',
+  );
+});
+it('never asks the opening tab while this account cannot request', async () => {
+  mocks.mine.mockResolvedValue({
+    account_id: 'account-a',
+    claims: [{ ...approved, status: 'pending', can_manage: false }],
+    request_eligibility: { allowed: false, reason: 'profile_claim_pending' },
+  });
+  claimPage();
+  await flush();
+  await flush();
+  expect(mocks.fromOpener).not.toHaveBeenCalled();
+});
+it('keeps what the reader typed when the opening tab answers late', async () => {
+  mocks.mine.mockResolvedValue(eligibleList);
+  let answer: (value: unknown) => void = () => undefined;
+  mocks.fromOpener.mockImplementation(() => new Promise((resolve) => (answer = resolve)));
+  claimPage();
+  await flush();
+  edit('Link to a campaign website or official record', 'https://example.org/typed-here');
+  await act(async () => answer(handedOver));
+  await flush();
+  expect(fieldValue('Link to a campaign website or official record')).toBe(
+    'https://example.org/typed-here',
+  );
+  expect(fieldValue('Explain your role and how Alethical can confirm it')).toBe('');
+});
+it('drops a late answer after the account changes', async () => {
+  mocks.mine.mockResolvedValue(eligibleList);
+  const answers: ((value: unknown) => void)[] = [];
+  mocks.fromOpener.mockImplementation(() => new Promise((resolve) => answers.push(resolve)));
+  claimPage();
+  await flush();
+  const [, , , lifetime] = mocks.fromOpener.mock.calls[0];
+  mocks.auth = { ...mocks.auth, user: { id: 'account-b', isAdmin: false }, accessToken: 'token-b' };
+  mocks.mine.mockResolvedValue({ ...eligibleList, account_id: 'account-b' });
+  claimPage();
+  await flush();
+  // The form for the old account is gone, and with it the request it made.
+  expect((lifetime as AbortSignal).aborted).toBe(true);
+  // The old account's request is answered late; the new account's form stays empty.
+  await act(async () => answers[0](handedOver));
+  await flush();
+  expect(fieldValue('Link to a campaign website or official record')).toBe('');
 });

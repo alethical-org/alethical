@@ -4,13 +4,14 @@ import {
   PROFILE_CLAIM_DRAFT_OFFER_MS,
   claimPageCandidate,
   createProfileClaimDraftTab,
-  takeProfileClaimDraftCode,
   type ProfileClaimDraft,
+  type ProfileClaimDraftHost,
 } from '../profileClaimDraft';
 
 const candidate = 'a'.repeat(64);
 const other = 'b'.repeat(64);
 const origin = 'https://www.alethical.com';
+const claimHref = `/candidates/${candidate}/claim`;
 const draft: ProfileClaimDraft = {
   role: 'Candidate',
   link: 'https://example.org/campaign',
@@ -20,291 +21,279 @@ const draft: ProfileClaimDraft = {
   },
 };
 
-/** Same-site tabs in one process: each message reaches every other open channel. */
-function browser() {
-  type Channel = {
-    onmessage: ((event: { data: unknown }) => void) | null;
-    postMessage(message: unknown): void;
-    close(): void;
-  };
-  const open = new Set<Channel>();
-  const sent: Record<string, unknown>[] = [];
-  const channel = () => {
-    const self: Channel = {
-      onmessage: null,
-      postMessage(message) {
-        sent.push(message as Record<string, unknown>);
-        for (const peer of open)
-          if (peer !== self)
-            queueMicrotask(() => peer.onmessage?.({ data: structuredClone(message) }));
+type Handle = { postMessage(message: unknown, targetOrigin: string): void };
+type Listener = (event: { data: unknown; origin: string; source: unknown }) => void;
+
+/** Browser windows in one process. A window's handle to another delivers messages to
+ * that window with this window as the sender, as postMessage does. */
+class FakeWindow {
+  listeners = new Set<Listener>();
+  handles = new Map<FakeWindow, Handle>();
+  opener: FakeWindow | null = null;
+  opened: FakeWindow[] = [];
+  blocked = false;
+  received: unknown[] = [];
+  constructor(public origin = 'https://www.alethical.com') {}
+  handleTo(target: FakeWindow): Handle {
+    if (!this.handles.has(target))
+      this.handles.set(target, {
+        postMessage: (message, targetOrigin) => {
+          if (targetOrigin !== target.origin) return;
+          const source = target.handleTo(this);
+          const data = structuredClone(message);
+          target.received.push(data);
+          queueMicrotask(() => {
+            for (const listener of target.listeners)
+              listener({ data, origin: this.origin, source });
+          });
+        },
+      });
+    return this.handles.get(target)!;
+  }
+  host(): ProfileClaimDraftHost {
+    return {
+      origin: this.origin,
+      open: () => {
+        if (this.blocked) return null;
+        const child = new FakeWindow(this.origin);
+        child.opener = this;
+        this.opened.push(child);
+        return this.handleTo(child);
       },
-      close() {
-        open.delete(self);
+      opener: () => (this.opener ? this.handleTo(this.opener) : null),
+      forgetOpener: () => {
+        this.opener = null;
+      },
+      listen: (handler) => {
+        this.listeners.add(handler);
+        return () => this.listeners.delete(handler);
       },
     };
-    open.add(self);
-    return self;
-  };
-  let clock = 0;
-  let count = 0;
-  const tab = () =>
-    createProfileClaimDraftTab({
-      openChannel: channel,
-      now: () => clock,
-      newCode: () => `00000000-0000-4000-8000-${String(++count).padStart(12, '0')}`,
-    });
-  return { tab, raw: channel, sent, advance: (ms: number) => (clock += ms) };
+  }
 }
 
-beforeEach(() => vi.useFakeTimers());
-afterEach(() => {
-  vi.useRealTimers();
-  document.body.innerHTML = '';
+let clock = 0;
+const tabFor = (window: FakeWindow) =>
+  createProfileClaimDraftTab({ host: window.host(), now: () => clock });
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  clock = 0;
 });
+afterEach(() => vi.useRealTimers());
 
 async function ask(
-  tab: ReturnType<ReturnType<typeof browser>['tab']>,
-  code: string | null,
+  window: FakeWindow,
   account = 'account-a',
   id = candidate,
   isCurrent = () => true,
 ) {
-  if (!code) return null;
-  const answer = tab.request(code, account, id, isCurrent);
+  const answer = tabFor(window).requestFromOpener(account, id, isCurrent);
   await vi.advanceTimersByTimeAsync(2000);
   return answer;
 }
 
-it('hands unsent answers only to the tab opened with the one-time code, once', async () => {
-  const site = browser();
-  const opener = site.tab();
-  opener.save('account-a', candidate, draft);
-  const code = opener.offer(candidate);
-  expect(code).toMatch(/^[a-f0-9-]{36}$/);
-  expect(await ask(site.tab(), code)).toEqual(draft);
-  // The code works once.
-  expect(await ask(site.tab(), code)).toBeNull();
-  // The opener keeps its own answers.
-  expect(opener.read('account-a', candidate)).toEqual(draft);
+it('hands unsent answers only to the exact window this tab opened, once, and keeps its own', async () => {
+  const original = new FakeWindow();
+  const tab = tabFor(original);
+  tab.save('account-a', candidate, draft);
+  expect(tab.openWithAnswers(claimHref)).toBe('opened');
+  const [child] = original.opened;
+  expect(await ask(child)).toEqual(draft);
+  // One exchange: the opened window no longer holds a link to its opener.
+  expect(child.opener).toBeNull();
+  child.opener = original;
+  expect(await ask(child)).toBeNull();
+  expect(tab.read('account-a', candidate)).toEqual(draft);
 });
 
-it('never answers a tab without the code, even while an offer is waiting', async () => {
-  const site = browser();
-  const opener = site.tab();
-  opener.save('account-a', candidate, draft);
-  const code = opener.offer(candidate)!;
-  expect(await ask(site.tab(), '00000000-0000-4000-8000-999999999999')).toBeNull();
-  expect(site.sent.filter((message) => message.type === 'profile-claim-draft-reply')).toEqual([]);
-  // The opened tab can still use its own code.
-  expect(await ask(site.tab(), code)).toEqual(draft);
+it('never answers a window it did not open, even one claiming it as opener', async () => {
+  const original = new FakeWindow();
+  const tab = tabFor(original);
+  tab.save('account-a', candidate, draft);
+  tab.openWithAnswers(claimHref);
+  const stranger = new FakeWindow();
+  stranger.opener = original;
+  expect(await ask(stranger)).toBeNull();
+  // A plain tab has no opener at all and never asks.
+  const plain = new FakeWindow();
+  expect(await ask(plain)).toBeNull();
+  expect(plain.received).toEqual([]);
+  // The opened window still receives.
+  expect(await ask(original.opened[0])).toEqual(draft);
 });
 
-it('never answers another account or another candidate, and keeps the offer for the right one', async () => {
-  const site = browser();
-  const opener = site.tab();
-  opener.save('account-a', candidate, draft);
-  const code = opener.offer(candidate)!;
-  expect(await ask(site.tab(), code, 'account-b')).toBeNull();
-  expect(await ask(site.tab(), code, 'account-a', other)).toBeNull();
-  expect(await ask(site.tab(), code)).toEqual(draft);
+it('keeps 2 tabs with answers for the same candidate apart', async () => {
+  const first = new FakeWindow();
+  const second = new FakeWindow();
+  const firstTab = tabFor(first);
+  const secondTab = tabFor(second);
+  firstTab.save('account-a', candidate, { ...draft, link: 'https://example.org/first' });
+  secondTab.save('account-a', candidate, { ...draft, link: 'https://example.org/second' });
+  firstTab.openWithAnswers(claimHref);
+  secondTab.openWithAnswers(claimHref);
+  expect((await ask(second.opened[0]))?.link).toBe('https://example.org/second');
+  expect((await ask(first.opened[0]))?.link).toBe('https://example.org/first');
 });
 
-it('accepts only while the receiving tab is still the same account with an empty, untouched form', async () => {
-  const site = browser();
-  const opener = site.tab();
-  opener.save('account-a', candidate, draft);
-  const code = opener.offer(candidate)!;
-  expect(await ask(site.tab(), code, 'account-a', candidate, () => false)).toBeNull();
+it('never answers another account or another candidate', async () => {
+  const original = new FakeWindow();
+  const tab = tabFor(original);
+  tab.save('account-a', candidate, draft);
+  tab.openWithAnswers(claimHref);
+  const child = original.opened[0];
+  expect(await ask(child, 'account-b')).toBeNull();
+  child.opener = original;
+  expect(await ask(child, 'account-a', other)).toBeNull();
+  child.opener = original;
+  expect(await ask(child)).toEqual(draft);
+});
+
+it('accepts only while the opened window is still the same account, eligible and untouched', async () => {
+  const original = new FakeWindow();
+  const tab = tabFor(original);
+  tab.save('account-a', candidate, draft);
+  tab.openWithAnswers(claimHref);
+  expect(await ask(original.opened[0], 'account-a', candidate, () => false)).toBeNull();
 });
 
 it('forgets answers and offers on sign-out or an account switch', async () => {
-  const site = browser();
-  const opener = site.tab();
-  opener.save('account-a', candidate, draft);
-  const code = opener.offer(candidate)!;
-  opener.clearAll();
-  expect(await ask(site.tab(), code)).toBeNull();
+  const original = new FakeWindow();
+  const tab = tabFor(original);
+  tab.save('account-a', candidate, draft);
+  tab.openWithAnswers(claimHref);
+  tab.clearAll();
+  expect(await ask(original.opened[0])).toBeNull();
 });
 
-it('lets an offer lapse after 2 minutes', async () => {
-  const site = browser();
-  const opener = site.tab();
-  opener.save('account-a', candidate, draft);
-  const code = opener.offer(candidate)!;
-  site.advance(PROFILE_CLAIM_DRAFT_OFFER_MS + 1);
-  expect(await ask(site.tab(), code)).toBeNull();
+it('lets an offer lapse after 2 minutes, however slowly the opened page loads', async () => {
+  const original = new FakeWindow();
+  const tab = tabFor(original);
+  tab.save('account-a', candidate, draft);
+  tab.openWithAnswers(claimHref);
+  clock += PROFILE_CLAIM_DRAFT_OFFER_MS - 1;
+  const slow = original.opened[0];
+  expect(await ask(slow)).toEqual(draft);
+  tab.openWithAnswers(claimHref);
+  clock += PROFILE_CLAIM_DRAFT_OFFER_MS + 1;
+  expect(await ask(original.opened[1])).toBeNull();
 });
 
-it('offers nothing, and makes no code, for a candidate with no unsent answers', () => {
-  const site = browser();
-  const opener = site.tab();
-  opener.save('account-a', other, draft);
-  expect(opener.offer(candidate)).toBeNull();
+it('opens nothing for a candidate with no unsent answers', () => {
+  const original = new FakeWindow();
+  const tab = tabFor(original);
+  tab.save('account-a', other, draft);
+  expect(tab.holds(claimHref)).toBe(false);
+  expect(tab.openWithAnswers(claimHref)).toBeNull();
+  expect(original.opened).toEqual([]);
 });
 
-it('offers nothing without a secure random source', () => {
-  const opener = createProfileClaimDraftTab({
-    openChannel: browser().raw,
-    newCode: () => null,
-  });
-  opener.save('account-a', candidate, draft);
-  expect(opener.offer(candidate)).toBeNull();
+it('reports a refused window', () => {
+  const original = new FakeWindow();
+  original.blocked = true;
+  const tab = tabFor(original);
+  tab.save('account-a', candidate, draft);
+  expect(tab.openWithAnswers(claimHref)).toBe('blocked');
 });
 
-it('ignores a malformed reply, even one carrying the right code', async () => {
-  const site = browser();
-  const receiving = site.tab();
-  const code = '00000000-0000-4000-8000-000000000042';
-  const answer = receiving.request(code, 'account-a', candidate, () => true);
-  const raw = site.raw();
+it('ignores replies that are malformed, from another sender or for someone else', async () => {
+  const original = new FakeWindow();
+  const child = new FakeWindow();
+  child.opener = original;
+  const answer = tabFor(child).requestFromOpener('account-a', candidate, () => true);
   const reply = {
-    type: 'profile-claim-draft-reply',
-    code,
+    type: 'alethical-profile-claim-draft-reply',
     accountId: 'account-a',
     candidateId: candidate,
   };
+  const fromOpener = original.handleTo(child);
   for (const bad of [
     { ...draft, explanation: 42 },
     { ...draft, link: 'x'.repeat(10001) },
     { ...draft, errors: { surprise: 'Not a field' } },
     { ...draft, errors: null },
   ])
-    raw.postMessage({ ...reply, draft: bad });
-  raw.postMessage({ ...reply, accountId: 'account-b', draft });
+    fromOpener.postMessage({ ...reply, draft: bad }, origin);
+  fromOpener.postMessage({ ...reply, accountId: 'account-b', draft }, origin);
+  // A well-formed reply from any window other than the opener is ignored.
+  new FakeWindow().handleTo(child).postMessage({ ...reply, draft }, origin);
+  // As is one from another site.
+  new FakeWindow('https://example.org').handleTo(child).postMessage({ ...reply, draft }, origin);
   await vi.advanceTimersByTimeAsync(2000);
   expect(await answer).toBeNull();
 });
 
 it('recognises only same-site claim page links', () => {
-  expect(claimPageCandidate(`/candidates/${candidate}/claim`, origin)).toBe(candidate);
-  expect(claimPageCandidate(`${origin}/candidates/${candidate}/claim`, origin)).toBe(candidate);
+  expect(claimPageCandidate(claimHref, origin)).toBe(candidate);
+  expect(claimPageCandidate(`${origin}${claimHref}`, origin)).toBe(candidate);
   expect(claimPageCandidate(`/candidates/features?candidate=${candidate}`, origin)).toBeNull();
   expect(claimPageCandidate(`/candidates/${candidate}`, origin)).toBeNull();
   expect(claimPageCandidate(`/candidates/${candidate}/manage`, origin)).toBeNull();
-  expect(
-    claimPageCandidate(`https://example.org/candidates/${candidate}/claim`, origin),
-  ).toBeNull();
+  expect(claimPageCandidate(`https://example.org${claimHref}`, origin)).toBeNull();
 });
 
-it('puts a one-time code on a claim page link only for a new-tab gesture, and puts the address back', async () => {
-  const site = browser();
-  const opener = site.tab();
-  opener.save('account-a', candidate, draft);
-  const plain = `/candidates/${candidate}/claim`;
-  // A fresh page per case: watchers are installed once per real page.
+it('takes over only Ctrl/Cmd-click and middle click on a claim link it holds answers for', () => {
+  const original = new FakeWindow(location.origin);
+  const tab = tabFor(original);
   const page = document.implementation.createHTMLDocument('claim');
-  page.body.innerHTML = `<a id="claim" href="${plain}"><span>Continue</span></a><a id="away" href="https://example.org/">Away</a><a id="features" href="/candidates/features?candidate=${candidate}">Features</a>`;
-  opener.watchNewTabGestures(page, location.origin);
-  const link = page.querySelector<HTMLAnchorElement>('#claim')!;
-  const span = link.querySelector('span')!;
-  span.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
-  expect(link.getAttribute('href')).toBe(plain);
-  for (const event of [
-    new MouseEvent('click', { bubbles: true, metaKey: true }),
-    new MouseEvent('click', { bubbles: true, ctrlKey: true }),
-    new MouseEvent('click', { bubbles: true, shiftKey: true }),
-    new MouseEvent('auxclick', { bubbles: true, button: 1 }),
-    new MouseEvent('contextmenu', { bubbles: true, button: 2 }),
-  ]) {
+  page.body.innerHTML = `<a id="claim" href="${claimHref}"><span>Claim</span></a><a id="away" href="https://example.org/">Away</a>`;
+  tab.watchNewTabGestures(page);
+  const span = page.querySelector('#claim span')!;
+  const fire = (type: string, init: MouseEventInit) => {
+    const event = new MouseEvent(type, { bubbles: true, cancelable: true, ...init });
     span.dispatchEvent(event);
-    const href = link.getAttribute('href')!;
-    expect(href).toMatch(new RegExp(`^${plain}#claim-draft=[a-f0-9-]{36}$`));
-    // The next press puts the link's own address back.
-    page.dispatchEvent(new Event('pointerdown'));
-    expect(link.getAttribute('href')).toBe(plain);
-    // Only the tab opened with that code can receive the answers.
-    expect(await ask(site.tab(), href.split('=')[1])).toEqual(draft);
-  }
-  for (const id of ['#away', '#features']) {
-    const element = page.querySelector<HTMLAnchorElement>(id)!;
-    const before = element.getAttribute('href');
-    element.dispatchEvent(new MouseEvent('click', { bubbles: true, metaKey: true }));
-    expect(element.getAttribute('href')).toBe(before);
-  }
-  // A dismissed link menu leaves no code behind once the offer ends.
-  span.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, button: 2 }));
-  await vi.advanceTimersByTimeAsync(PROFILE_CLAIM_DRAFT_OFFER_MS);
-  expect(link.getAttribute('href')).toBe(plain);
-});
-
-it('reads the code once for this candidate’s claim page and removes it from the address', () => {
-  const replace = vi.fn();
-  const code = '00000000-0000-4000-8000-000000000007';
-  const where = {
-    pathname: `/candidates/${candidate}/claim`,
-    search: '',
-    hash: `#claim-draft=${code}`,
+    return event.defaultPrevented;
   };
-  expect(takeProfileClaimDraftCode(candidate, where, replace)).toBe(code);
-  expect(replace).toHaveBeenCalledWith(`/candidates/${candidate}/claim`);
-  // Another candidate's page gets nothing, but the code still leaves the address.
-  replace.mockClear();
-  expect(
-    takeProfileClaimDraftCode(other, { ...where, hash: `#x=1&claim-draft=${code}` }, replace),
-  ).toBeNull();
-  expect(replace).toHaveBeenCalledWith(`/candidates/${candidate}/claim#x=1`);
-  // A page opened any other way has no code and changes nothing.
-  replace.mockClear();
-  expect(takeProfileClaimDraftCode(candidate, { ...where, hash: '' }, replace)).toBeNull();
-  expect(replace).not.toHaveBeenCalled();
-  expect(
-    takeProfileClaimDraftCode(candidate, { ...where, hash: '#claim-draft=not-a-code' }, replace),
-  ).toBeNull();
+  // No answers held: every gesture stays the browser's own.
+  expect(fire('click', { metaKey: true })).toBe(false);
+  expect(original.opened).toHaveLength(0);
+  tab.save('account-a', candidate, draft);
+  expect(fire('click', { button: 0 })).toBe(false);
+  expect(fire('click', { shiftKey: true })).toBe(false);
+  expect(fire('click', { metaKey: true, shiftKey: true })).toBe(false);
+  expect(fire('contextmenu', { button: 2 })).toBe(false);
+  expect(original.opened).toHaveLength(0);
+  expect(fire('click', { metaKey: true })).toBe(true);
+  expect(fire('click', { ctrlKey: true })).toBe(true);
+  expect(fire('auxclick', { button: 1 })).toBe(true);
+  expect(original.opened).toHaveLength(3);
+  const away = page.querySelector('#away')!;
+  const event = new MouseEvent('click', { bubbles: true, cancelable: true, metaKey: true });
+  away.dispatchEvent(event);
+  expect(event.defaultPrevented).toBe(false);
 });
 
-it('keeps answers out of browser storage and the page history', async () => {
+it('keeps the reader in this tab, with the answers, when the browser refuses the window', () => {
+  const original = new FakeWindow(location.origin);
+  original.blocked = true;
+  const tab = tabFor(original);
+  tab.save('account-a', candidate, draft);
+  const page = document.implementation.createHTMLDocument('claim');
+  page.body.innerHTML = `<a id="claim" href="${claimHref}">Claim</a>`;
+  const link = page.querySelector<HTMLAnchorElement>('#claim')!;
+  const plainClicks: boolean[] = [];
+  link.addEventListener('click', (event) => plainClicks.push(event.metaKey));
+  tab.watchNewTabGestures(page);
+  const event = new MouseEvent('click', { bubbles: true, cancelable: true, metaKey: true });
+  link.dispatchEvent(event);
+  expect(event.defaultPrevented).toBe(true);
+  // The fallback is a plain click, which the link's own handler turns into an in-app move.
+  expect(plainClicks).toEqual([false, true]);
+});
+
+it('keeps answers out of browser storage, the address and the page history', async () => {
   const setItem = vi.spyOn(Storage.prototype, 'setItem');
   const push = vi.spyOn(history, 'pushState');
-  const site = browser();
-  const opener = site.tab();
-  opener.save('account-a', candidate, draft);
-  const code = opener.offer(candidate)!;
-  expect(await ask(site.tab(), code)).toEqual(draft);
+  const replace = vi.spyOn(history, 'replaceState');
+  const original = new FakeWindow();
+  const tab = tabFor(original);
+  tab.save('account-a', candidate, draft);
+  tab.openWithAnswers(claimHref);
+  const child = original.opened[0];
+  expect(await ask(child)).toEqual(draft);
   expect(setItem).not.toHaveBeenCalled();
   expect(push).not.toHaveBeenCalled();
-  expect(location.href).not.toContain('Illustrative');
-  expect(
-    JSON.stringify(site.sent.filter((m) => m.type === 'profile-claim-draft-request')),
-  ).not.toContain('Illustrative');
-});
-
-it('keeps 2 tabs with answers for the same candidate apart: each opened tab gets its own opener’s answers', async () => {
-  const site = browser();
-  const first = site.tab();
-  const second = site.tab();
-  first.save('account-a', candidate, { ...draft, link: 'https://example.org/first' });
-  second.save('account-a', candidate, { ...draft, link: 'https://example.org/second' });
-  const firstCode = first.offer(candidate)!;
-  const secondCode = second.offer(candidate)!;
-  expect(firstCode).not.toBe(secondCode);
-  expect((await ask(site.tab(), secondCode))?.link).toBe('https://example.org/second');
-  expect((await ask(site.tab(), firstCode))?.link).toBe('https://example.org/first');
-  // Neither code works again, and a tab with no code gets nothing from either.
-  expect(await ask(site.tab(), firstCode)).toBeNull();
-  expect(await ask(site.tab(), secondCode)).toBeNull();
-  expect(site.sent.filter((message) => message.type === 'profile-claim-draft-reply')).toHaveLength(
-    2,
-  );
-});
-
-it('hands nothing to a plain tab after the link menu was opened and dismissed', async () => {
-  const site = browser();
-  const opener = site.tab();
-  opener.save('account-a', candidate, draft);
-  // A fresh page per case: watchers are installed once per real page.
-  const page = document.implementation.createHTMLDocument('claim');
-  page.body.innerHTML = `<a id="claim" href="/candidates/${candidate}/claim">Continue</a>`;
-  opener.watchNewTabGestures(page, location.origin);
-  const link = page.querySelector<HTMLAnchorElement>('#claim')!;
-  link.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, button: 2 }));
-  page.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-  expect(link.getAttribute('href')).toBe(`/candidates/${candidate}/claim`);
-  // A claim page opened by typing its address has no code, so it never asks.
-  const typed = takeProfileClaimDraftCode(candidate, {
-    pathname: `/candidates/${candidate}/claim`,
-    search: '',
-    hash: '',
-  });
-  expect(typed).toBeNull();
-  expect(site.sent.filter((message) => message.type === 'profile-claim-draft-reply')).toEqual([]);
+  expect(replace).not.toHaveBeenCalled();
+  // The request carries only the public candidate id and the account it is for.
+  expect(JSON.stringify(original.received)).not.toContain('Illustrative');
 });

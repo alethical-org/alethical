@@ -61,9 +61,8 @@ import { candidateFeaturesPath } from '../lib/candidateFeatures';
 import {
   clearProfileClaimDraft,
   readProfileClaimDraft,
-  requestProfileClaimDraftFromOpeningTab,
+  requestProfileClaimDraftFromOpener,
   saveProfileClaimDraft,
-  takeProfileClaimDraftCode,
 } from '../lib/profileClaimDraft';
 import { useDocumentTitle } from '../navigation/documentTitle';
 import { GuardedNavigationContext } from '../navigation/GuardedNavigationContext';
@@ -505,43 +504,43 @@ function ClaimForm({
       errors,
     });
   }, [accountKey, candidateId, role, evidence, note, errors]);
-  // A claim page opened from a link in a new tab carries a one-time code in its address
-  // fragment; it is removed at once and used to ask, once, for the answers that tab was
-  // opened from. They are accepted only while this tab is still the same account and the
-  // form is still empty and untouched, so nothing newer is ever replaced.
+  const current = response?.claims.find((item) => item.candidate_id === candidateId);
+  const reason = response?.request_eligibility?.reason;
+  const closed =
+    current?.election_ended ?? (reason === 'election_ended' || record.electionEnded === true);
+  const canRequest = response?.request_eligibility?.allowed === true;
+  // A claim page this site opened from another tab's link asks that exact tab, once, for
+  // its unsent answers: only after this form has loaded, while signed in to the same
+  // account, eligible to request and still empty and untouched. Nothing newer is replaced.
+  const askedOpener = useRef(false);
+  const eligible = useRef(false);
+  eligible.current = canRequest;
   useEffect(() => {
-    const code = takeProfileClaimDraftCode(candidateId);
-    if (saved || !code) return;
-    const controller = new AbortController();
+    if (askedOpener.current || saved || !response || !canRequest) return;
+    askedOpener.current = true;
+    // Lives as long as this form, so a later recheck of eligibility does not cancel it.
+    const lifetime = signal();
     const untouched = () => {
       const now = live.current;
       return (
+        eligible.current &&
         now.auth.isSignedIn &&
         now.auth.user?.id === accountKey &&
         !now.edited &&
         !readProfileClaimDraft(accountKey, candidateId)
       );
     };
-    void requestProfileClaimDraftFromOpeningTab(
-      code,
-      accountKey,
-      candidateId,
-      untouched,
-      controller.signal,
-    ).then((draft) => {
-      if (!draft || controller.signal.aborted || !untouched()) return;
-      setRole(draft.role);
-      setEvidence(draft.link);
-      setNote(draft.explanation);
-      setErrors(draft.errors);
-    });
-    return () => controller.abort();
-  }, []);
-  const current = response?.claims.find((item) => item.candidate_id === candidateId);
-  const reason = response?.request_eligibility?.reason;
-  const closed =
-    current?.election_ended ?? (reason === 'election_ended' || record.electionEnded === true);
-  const canRequest = response?.request_eligibility?.allowed === true;
+    if (!untouched()) return;
+    void requestProfileClaimDraftFromOpener(accountKey, candidateId, untouched, lifetime).then(
+      (draft) => {
+        if (!draft || lifetime.aborted || !untouched()) return;
+        setRole(draft.role);
+        setEvidence(draft.link);
+        setNote(draft.explanation);
+        setErrors(draft.errors);
+      },
+    );
+  }, [response, canRequest]);
   const sourceBlocked = reason === 'official_record_unavailable';
   const loadSeq = useRef(0);
   const load = async (silent = false) => {
