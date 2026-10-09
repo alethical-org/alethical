@@ -232,3 +232,40 @@ it('does not let an older location reply replace a newer map lookup', async () =
   expect(host.textContent).toContain(secondAddress);
   expect(host.textContent).not.toContain('Finding your location…');
 });
+it('sends a marked choice as an address for the server to check', async () => {
+  const marked = { matchedAddress: firstAddress, latitude: 44.97, longitude: -93.26 };
+  const plain = { matchedAddress: secondAddress, latitude: 44.98, longitude: -93.27 };
+  lookupRequest.mockResolvedValue({
+    status: 'address-choice',
+    address: '100 First St',
+    choices: [{ ...marked, requiresLocationCheck: true }, plain],
+  } as RepresentativeLookupResult);
+  type('100 First St');
+  await submit();
+  const options = () => [...host.querySelectorAll<HTMLElement>('[role="option"]')];
+  expect(options()).toHaveLength(2);
+  lookupRequest.mockResolvedValue(found(firstAddress));
+  act(() => options()[0].click());
+  await settle();
+  expect(lookupRequest.mock.calls[1][0]).toEqual({
+    latitude: 44.97,
+    longitude: -93.26,
+    selectedAddress: firstAddress,
+  });
+});
+it('sends an unmarked choice as its point', async () => {
+  lookupRequest.mockResolvedValue({
+    status: 'address-choice',
+    address: '200 Second St',
+    choices: [
+      { matchedAddress: firstAddress, latitude: 44.97, longitude: -93.26 },
+      { matchedAddress: secondAddress, latitude: 44.98, longitude: -93.27 },
+    ],
+  } as RepresentativeLookupResult);
+  type('200 Second St');
+  await submit();
+  lookupRequest.mockResolvedValue(found(secondAddress));
+  act(() => host.querySelectorAll<HTMLElement>('[role="option"]')[1].click());
+  await settle();
+  expect(lookupRequest.mock.calls[1][0]).toEqual({ latitude: 44.98, longitude: -93.27 });
+});

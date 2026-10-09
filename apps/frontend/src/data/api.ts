@@ -445,6 +445,7 @@ interface ApiRepresentativeLookupPayload {
     matched_address: string;
     latitude: number;
     longitude: number;
+    requires_location_check?: boolean;
   }> | null;
   house_legislator?: ApiLegislatorListItemPayload | null;
   senate_legislator?: ApiLegislatorListItemPayload | null;
@@ -456,6 +457,7 @@ interface ApiAddressSuggestionsPayload {
     latitude: number;
     longitude: number;
     state_code?: string | null;
+    requires_location_check?: boolean;
   }>;
 }
 
@@ -1655,6 +1657,7 @@ function mapRepresentativeLookup(
       matchedAddress: choice.matched_address,
       latitude: choice.latitude,
       longitude: choice.longitude,
+      ...(choice.requires_location_check ? { requiresLocationCheck: true } : {}),
     })),
     coordinate:
       payload.resolved_place.latitude != null && payload.resolved_place.longitude != null
@@ -2466,7 +2469,13 @@ export async function lookupRepresentativeFromApi(
   const body =
     typeof input === 'string'
       ? { address_text: input.trim() }
-      : { latitude: input.latitude, longitude: input.longitude };
+      : 'selectedAddress' in input
+        ? {
+            selected_address: input.selectedAddress,
+            latitude: input.latitude,
+            longitude: input.longitude,
+          }
+        : { latitude: input.latitude, longitude: input.longitude };
 
   if ('address_text' in body && !body.address_text) {
     return null;
@@ -2524,6 +2533,7 @@ export async function suggestRepresentativeAddressesFromApi(
     matchedAddress: suggestion.matched_address,
     latitude: suggestion.latitude,
     longitude: suggestion.longitude,
+    ...(suggestion.requires_location_check ? { requiresLocationCheck: true } : {}),
   }));
 }
 

@@ -540,7 +540,15 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       lookupAddress: undefined,
       locationFailure: undefined,
     });
-    const coordinate = { latitude: choice.latitude, longitude: choice.longitude };
+    // A copied or conflicting point is only a hint: the server checks the printed
+    // address against current official records before choosing districts.
+    const coordinate = choice.requiresLocationCheck
+      ? {
+          latitude: choice.latitude,
+          longitude: choice.longitude,
+          selectedAddress: choice.matchedAddress,
+        }
+      : { latitude: choice.latitude, longitude: choice.longitude };
     confirmedChoice.current = { coordinate, address: matchedAddress };
     runCoordinate(coordinate, 'choice');
   };
