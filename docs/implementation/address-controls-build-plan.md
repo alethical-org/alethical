@@ -76,7 +76,7 @@ evidence. Scope owner is the current task, search change address.
 2. Shared suggestion field and legislator lookup; homepage forms run separately
    from candidate editor and flow. Integration: complete.
 3. Focused tests, full frontend checks, rendered browser acceptance and independent
-   reader review: final reader review pending.
+   reader review: accepted, including the final Escape correction.
 4. Commit, upload, current-head checks, merge, deployment and live comparison: pending.
 5. Supply Design record-update prompt and complete working-folder lifecycle: pending.
 
@@ -116,3 +116,18 @@ delivery; a passing static drawing is not runtime evidence.
   button during a search. The editor now handles Escape across its address
   controls, while fields and open lists consume their dismissal first. Regression
   checks include Escape from focused Find and Cancel and suppression of the late reply.
+
+- Fresh reader acceptance passes after the Escape correction: candidate replacement,
+  busy cancellation from Find/Cancel, list-first Escape, previous-results context,
+  legislator bottom-row and keyboard selection, signed-out homepage submission and
+  signed-in homepage navigation. Final release build: 297,152 compressed bytes,
+  below the existing 297,506 limit. Chromium and WebKit final address journeys pass.
+- The country-ending suggestion exception is queued separately in
+  [issue 2566](https://github.com/alethical-org/alethical/issues/2566); typed search
+  is unaffected and this address-controls build does not broaden matching scope.
+- Design record update uses Opus 5.5 / High, observed receiving controls. Current
+  official selection, comparison, effort and model prompting guidance read on
+  9 October 2026. The task reconciles several drawings and interaction states;
+  High is the selected task judgment. Medium is the credible faster alternative;
+  no matched comparison proves equal coverage. This updates settled records,
+  without a new visual direction or a download dependency.
