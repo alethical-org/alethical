@@ -139,6 +139,8 @@ Simultaneous requests for the same ZIP share 1 download of its public table, and
 failed download reaches each of them without being kept. When the legislator finder's
 copy of Minnesota's published address file is on, candidate suggestions can start
 from that copy and still pass this election street-range check before they appear.
+Choosing a suggestion that carries the reader's own apartment or ZIP+4 detail searches
+that full shown text through the same checks as a typed address.
 It does not fetch candidate ballots while typing or cache visitor addresses on the
 server. If an official table cannot be read, suggestions are unavailable rather than
 reported as a successful empty response.
@@ -347,7 +349,9 @@ While an address search runs, both **Find** buttons show a spinner
 and **Finding…** inside their unchanged box, centred the same way. A screen reader receives
 1 polite waiting announcement; the line below stays reserved for errors without
 repeating the waiting message. Focus stays on the activated search button, repeated
-clicks and Enter cannot submit again, and reduced motion stops the spinner. The
+clicks and Enter cannot submit again, a search started by keyboard shows the purple
+focus ring there, a search started by mouse, pen or touch does not, and a later
+keyboard visit shows it again, and reduced motion stops the spinner. The
 ready label returns after a result or error. Election changes keep their separate
 **Updating candidates…** status.
 

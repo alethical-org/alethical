@@ -443,11 +443,39 @@ untested. Laptop timings are not the production wait.
 Holds: the copy stays off; no new paid service or recurring agent; no Design send;
 Codex acceptance before merge or release; retain this folder and branch after delivery.
 
-Design record: no visual change. Behavior worth recording in Design's build notes: a
-legislator suggestion that needs the current-records check can take up to about 1
-second after a pick, and current points in different districts show the existing **No
-match for that address** message. Whether that case deserves its own wording is open
-for Codex to raise; the existing copy is used meanwhile.
+Acceptance corrections (independent review, 9 October 2026):
+
+- A group of points now agrees only when every point has the same single House,
+  Senate and congressional answer. The old check only asked whether the first point's
+  shapes contained the rest, so a point on the House 59B/43B border in Minneapolis
+  (45.006042, -93.31852) passed beside a 59B point. An unreadable district map is now
+  a retryable source failure instead of a refused address.
+- A candidate suggestion carrying the reader's apartment or ZIP+4 relabelled the
+  official choice but kept its fingerprint, so the server refused it while the same
+  typed text succeeded. That fuller text now takes the normal address check.
+- A marked legislator pick and its early check send the exact shown text, apartment
+  and ZIP+4 included, so the pick reuses the early request. The early check is skipped
+  when the browser asks to save data or reports a slow connection.
+- The candidate **Find** button showed the purple keyboard ring after a mouse, pen or
+  touch search, because focus moved from the text box and inherited its ring. A pointer
+  press now marks that move and hides the ring; keyboard searches and later keyboard
+  visits keep it. Chromium and WebKit checks cover pointer, touch, Enter, arrow plus
+  Enter, and a Tab back.
+- Disagreeing districts no longer reuse **No match for that address**.
+- Every API start prints 1 `ADDRESS_COPY_CAPACITY` line of host facts, copy on or off,
+  for the capacity check in [issue 2585](https://github.com/alethical-org/alethical/issues/2585).
+
+Design record: no visual change. Settled wording and behavior for Design's build notes:
+
+- Legislator finder, when current official points for 1 address disagree about
+  districts: field message **We couldn’t safely identify your districts from this
+  address** and answer line **Check your full street address, or choose where you
+  live on the map**, each 1 sentence with no ending period, in the existing
+  address-error position. Source failures keep **Lookup unavailable right now**.
+- A legislator suggestion that needs the current-records check can take up to about 1
+  second after a pick; a glance at the row first usually hides most of it.
+- Candidate **Find** button: no purple focus ring after a mouse, pen or touch search;
+  the ring shows after a keyboard search and on later keyboard visits.
 
 Next step: Codex independent acceptance; then establish Railway capacity and charges
 before setting `ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED`, tracked in

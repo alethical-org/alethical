@@ -158,13 +158,23 @@ to start a build with less than 3 GB free. A new container starts with no copy, 
 release downloads the file once more and suggestions use the live service until that
 build finishes.
 
+Every API start prints 1 line, whether the copy is on or off, so these facts come
+from the real host. It starts with `ADDRESS_COPY_CAPACITY ` followed by JSON holding
+only `enabled` (true or false), `free_bytes` (free space where the copy folder lives,
+read from the nearest existing folder without creating it), `cgroup_current_bytes`
+and `cgroup_max_bytes` (the container's memory in use and its limit, `"max"` when
+unlimited), and `api_process_count` (running processes with the API's program name,
+read without arguments or environment). Any fact the host cannot report is `null`.
+A start on a Mac printed
+`ADDRESS_COPY_CAPACITY {"api_process_count": null, "cgroup_current_bytes": null, "cgroup_max_bytes": null, "enabled": false, "free_bytes": 394287038464}`.
+
 Before activation, tracked in
 [issue 2585](https://github.com/alethical-org/alethical/issues/2585):
 
 1. Establish the Railway service's actual free disk in its running container,
-   memory headroom, process count (`WEB_CONCURRENCY` or `--workers`), and whether the
-   plan charges for that disk, memory or the incoming 1.06 GB per release and per 12
-   hours. Do not assume these from another service or plan. A persistent volume would
+   memory headroom and process count from the `ADDRESS_COPY_CAPACITY` line in
+   Railway's logs, and whether the plan charges for that disk, memory or the incoming
+   1.06 GB per release and per 12 hours. Do not assume these from another service or plan. A persistent volume would
    avoid downloading on every release but is a new paid resource needing its own
    approval.
 2. Set the flag to `true` in Railway and change its row in

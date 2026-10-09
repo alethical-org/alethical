@@ -56,15 +56,17 @@ records only, never what readers type.
 
 The same printed address can carry more than 1 official map point, for example 1 per
 unit. A suggestion from the copy, or one whose printed address has more than 1 point,
-is offered once. When chosen, the server checks the printed address against
-Minnesota's current address points before finding districts. When every current point
-shares the same districts, the result uses the point nearest the suggestion. When they
-fall in different districts, the page shows **No match for that address** instead of
-guessing. When the check cannot settle the point, Alethical searches the printed
-address as if it were typed. Pointing at, pressing or arrowing to such a suggestion
-starts this check early, for at most 2 suggestions per typed address, so a choice made
-after a glance usually finishes sooner. Each early check counts toward the lookup
-limit below.
+is offered once. When chosen, the server checks the exact chosen text, including any
+apartment or ZIP+4 detail the reader typed, against Minnesota's current address points
+before finding districts. When every current point has the same single House, Senate
+and congressional answer, the result uses the point nearest the suggestion. A point on
+a district border has no single answer. When the points disagree, the page refuses to
+guess (see **What the messages mean**). When the check cannot settle the point,
+Alethical searches the chosen text as if it were typed. Pointing at, pressing or
+arrowing to such a suggestion starts this check early, for at most 2 suggestions per
+typed address, so a choice made after a glance usually finishes sooner. A reader whose
+browser asks to save data, or reports a slow connection, skips the early check; the
+choice itself still runs it. Each early check counts toward the lookup limit below.
 
 No row is selected on opening. Down starts at the first row and Up at the last;
 both wrap. Enter chooses an active keyboard row, otherwise it searches the typed
@@ -245,6 +247,10 @@ number, but it does not show a member of Congress.
 - **No match for that address:** The public address sources could not find 1 safe
   Minnesota match. Check the house number and street name, include `MN`, and try the
   full city and ZIP.
+- **We couldn’t safely identify your districts from this address:** Minnesota's
+  current records give this address points in different districts, or a point on a
+  district border, so Alethical will not guess. It says **Check your full street
+  address, or choose where you live on the map**.
 - **That address is outside Minnesota:** Alethical only covers Minnesota state
   legislative districts.
 - **We couldn't use your location:** The browser blocked location access, could not get
