@@ -1,7 +1,7 @@
 import { candidateDate, candidateElectionLabel } from '../lib/candidatePublicCopy';
 import { CANDIDATE_LOOKUP_COPY } from '../lib/candidatePublicCopy';
 import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { Platform, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useResponsive } from '../hooks/useResponsive';
 import { CandidateSearchContent } from '../components/candidates/CandidateSearchContent';
@@ -50,6 +50,9 @@ export function CandidatesScreen(props: RootScreenProps<'Candidates'>) {
     <PageBackground candidateSurface>
       <ScrollView
         ref={scroll}
+        // Browser scroll anchoring can move phone results after our saved
+        // position is restored. Keep the explicit return position instead.
+        style={Platform.OS === 'web' ? ({ overflowAnchor: 'none' } as object) : undefined}
         contentContainerStyle={{ flexGrow: 1 }}
         scrollEventThrottle={100}
         onScroll={(event) => candidateFlow.setScrollOffset(event.nativeEvent.contentOffset.y)}

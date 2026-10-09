@@ -379,6 +379,7 @@ jobs:
             --checked-commit "$GITHUB_SHA" --expected-commit "$GITHUB_SHA" \
             --output reader-completion-results.json
           BASE_URL=http://127.0.0.1:4173 node scripts/check-address-suggestion-layering.mjs
+          node scripts/check-candidate-return.mjs http://127.0.0.1:4173
           E2E_STATIC_BUILD=1 E2E_BASE_URL=http://127.0.0.1:4173 pnpm exec playwright test \
             e2e/services-print.spec.ts --project=chromium
           # These failures must reach the money assertions. A crashed browser,
