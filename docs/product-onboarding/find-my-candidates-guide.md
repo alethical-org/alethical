@@ -34,6 +34,11 @@ are treated as spaces. This cleanup preserves house numbers, units, directions,
 city, state and ZIP+4; it does not discard another country, unknown trailing words
 or other characters to force a match.
 
+For a postal city beginning with Saint, **SAINT**, **ST** and **ST.** are equivalent.
+The remaining city words still must match the election source exactly. This keeps
+Minnesota's **SAINT PAUL** map addresses usable with the election source's **ST PAUL**
+records without relaxing house number, street, ZIP, unit or election-range checks.
+
 A failed official match says **We couldn’t match that address to election records**,
 on `/candidates` and the homepage candidate search. A mapped street address can
 still lack a matching election street range; this message does not assert that
@@ -43,7 +48,9 @@ A city or ZIP alone cannot choose a ballot. Ambiguous addresses require an expli
 choice. An unsupported unit or overlapping range produces no match rather than a guess.
 Address suggestions begin with a house number plus at least 2 street-name characters
 (`29308 Cr`), or the first numbered-street digit (`350 5`). A house number alone
-does not trigger suggestions. The first eligible input starts a request immediately;
+does not trigger suggestions. A lone street-name word that is also a street type,
+such as `1006 Summit`, still offers matching streets while typing; submitted-address
+checks stay unchanged. The first eligible input starts a request immediately;
 continued typing waits for a 180-millisecond pause to group edits into 1 request.
 An edit after at least 180 milliseconds of idle time also starts immediately. Pasting,
 dropping or accepting a browser-provided replacement skips the typing pause. Spaces
