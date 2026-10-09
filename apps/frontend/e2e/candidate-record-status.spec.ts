@@ -136,7 +136,10 @@ for (const width of [1280, 900, 390]) {
     if (width === 390) {
       expect(box!.y).toBeGreaterThan(office!.y);
       expect(box!.y + box!.height).toBeLessThanOrEqual(area!.y);
-    } else expect(box!.x).toBeGreaterThan(office!.x + office!.width);
+    } else {
+      expect(box!.x).toBeGreaterThan(office!.x + office!.width);
+      expect(Math.round(box!.width)).toBe(200);
+    }
     expect(await status.locator('svg').getAttribute('aria-hidden')).toBe('true');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
       true,
@@ -330,11 +333,18 @@ for (const role of [
   });
 }
 
-for (const status of ['recount', 'tie', 'unavailable']) {
+for (const [status, outcome] of [
+  ['recount', undefined],
+  ['tie', undefined],
+  ['unavailable', undefined],
+  ['certified', 'elected'],
+  ['certified', 'not-elected'],
+] as const) {
+  const name = outcome ?? status;
   for (const width of [1280, 900, 390]) {
-    test(`${status} stays readable with doubled text at ${width}`, async ({ page }, info) => {
+    test(`${name} stays readable with doubled text at ${width}`, async ({ page }, info) => {
       await page.setViewportSize({ width, height: 1100 });
-      await fixture(page, { status, source: resultsSource });
+      await fixture(page, { status, outcome, source: resultsSource });
       await page.evaluate(() => {
         const labels = Array.from(document.querySelectorAll<HTMLElement>('[dir="auto"]')).map(
           (el) => ({
@@ -355,12 +365,35 @@ for (const status of ['recount', 'tie', 'unavailable']) {
       ).toBe(true);
       expect(
         await block.evaluate((el) =>
-          Array.from(el.querySelectorAll<HTMLElement>('[dir="auto"]')).every(
-            (child) =>
+          Array.from(el.querySelectorAll<HTMLElement>('[dir="auto"]')).every((child) => {
+            // Glyph tails may extend a pixel or 2 past a tight line box; what matters
+            // is that no text is cut off sideways and every line sits inside the block.
+            const box = el.getBoundingClientRect();
+            const text = child.getBoundingClientRect();
+            return (
               child.scrollWidth <= child.clientWidth + 1 &&
-              child.scrollHeight <= child.clientHeight + 1,
-          ),
+              text.left >= box.left - 1 &&
+              text.right <= box.right + 1 &&
+              text.top >= box.top - 1 &&
+              text.bottom <= box.bottom + 1
+            );
+          }),
         ),
+      ).toBe(true);
+      // Each word of the status stays whole: no word starts on one line and ends on the next.
+      expect(
+        await block.evaluate((el) => {
+          const label = Array.from(el.querySelectorAll<HTMLElement>('[dir="auto"]')).at(-1)!;
+          const text = label.firstChild!;
+          const range = document.createRange();
+          let offset = 0;
+          return label.textContent!.split(' ').every((word) => {
+            range.setStart(text, offset);
+            range.setEnd(text, offset + word.length);
+            offset += word.length + 1;
+            return range.getClientRects().length === 1;
+          });
+        }),
       ).toBe(true);
       await page.screenshot({ path: info.outputPath(`double-text-${width}.png`), fullPage: true });
     });
