@@ -184,7 +184,8 @@ def _choice(address: str) -> dict:
 
 
 _UNIT_PATTERN = re.compile(
-    r"(?:\b(?:APT|APARTMENT|UNIT|SUITE|STE)\.?\s+|#\s*)[A-Z0-9-]+\b", re.IGNORECASE
+    r"(?:\b(?:APT|APARTMENT|UNIT|SUITE|STE)(?:\.\s*|\s+)|#\s*)[A-Z0-9-]+\b",
+    re.IGNORECASE,
 )
 
 
@@ -252,7 +253,7 @@ def _parse_with_rows(
         for part in (" ".join(piece.split()) for piece in without.split(","))
         if part
     )
-    unit_text = re.sub(r"\.(?=\s)", "", unit.group())
+    unit_text = _unit_spelling(unit.group())
     street, separator, locality = without.partition(",")
     if separator:
         matches = _parse_rows_once(
@@ -265,7 +266,13 @@ def _parse_with_rows(
     return _parse_rows_once(without, rows, prefix=prefix, unit=unit_text)
 
 
-_UNIT_START = re.compile(r"(?:APT|APARTMENT|UNIT|SUITE|STE)\.?\s|#")
+# "Apt.250" is the same supported spelling as "Apt 250" and "Apt. 250".
+_UNIT_START = re.compile(r"(?:APT|APARTMENT|UNIT|SUITE|STE)(?:\.|\s)|#")
+
+
+def _unit_spelling(unit: str) -> str:
+    """Print a label's dot as a space: "APT.250" and "APT. 250" become "APT 250"."""
+    return re.sub(r"^([A-Z]+)\.\s*", r"\1 ", " ".join(unit.upper().split()))
 
 
 def _trailing_unit_start(text: str) -> int | None:
@@ -327,7 +334,7 @@ def _parse_rows_once(
         if unit_start is not None:
             if supplied_unit:
                 continue
-            unit = re.sub(r"^([A-Z]+)\.(?=\s)", r"\1", requested[unit_start:].strip())
+            unit = _unit_spelling(requested[unit_start:].strip())
             # "Street, Apt 3, City" leaves the separating comma behind.
             requested = requested[:unit_start].strip(" ,")
         expected, supplied = _normal(street), _normal(requested)

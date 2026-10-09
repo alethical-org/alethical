@@ -436,6 +436,13 @@ it('joins a unit once in the canonical place without dropping a conflicting unit
   expect(normalizeAddressUnit('# 3B')).toBe('#3B');
   expect(normalizeAddressUnit('Unit 2')).toBe('Unit 2');
   expect(normalizeAddressUnit('Apt. 3')).toBe('Apt 3');
+  expect(normalizeAddressUnit('Apt.250')).toBe('Apt 250');
+  expect(joinAddressUnit('100 8th Ave S Apt.250, Hopkins, MN 55343', '250')).toBe(
+    '100 8th Ave S Apt.250, Hopkins, MN 55343',
+  );
+  expect(joinAddressUnit('100 8th Ave S Apt.250, Hopkins, MN 55343', 'Apt 250')).toBe(
+    '100 8th Ave S Apt.250, Hopkins, MN 55343',
+  );
   expect(joinAddressUnit('4821 Sample Ave S Apt 3, Sample Lake, MN 55999', '3')).toBe(
     '4821 Sample Ave S Apt 3, Sample Lake, MN 55999',
   );

@@ -146,7 +146,10 @@ separate step with its existing keyboard guidance.
 The official match reads a unit at the end of the street segment, after a comma
 (`350 S 5th St, Apt 3, Minneapolis`) or after the city (`350 S 5th St Minneapolis Apt
 3 MN 55415`), with or without a dot after the label (`Apt. 3`). 2 different units in 1
-address are refused, never reconciled. Street types compare in either spelling
+address are refused, never reconciled: a unit is 1 optional label (`Apt`, `Apartment`,
+`Unit`, `Suite`, `Ste` or `#`) and 1 value, so `Apt 3 #4`, `Apt 3 Apt 4` or a unit
+followed by other words is refused at every kind of range. `Apt.250`, `Apt. 250` and
+`Apt 250` are the same unit. Street types compare in either spelling
 (`Ter` and `Terrace`).
 
 A unit at a house whose range the source does not mark for units reads that house's

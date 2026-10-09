@@ -3,11 +3,18 @@
  * confirmed, as 1 visible and submitted address. The official matcher decides
  * whether the unit is supported; this never drops, replaces or guesses a unit.
  */
-const UNIT = /(?:\b(?:apt|apartment|unit|suite|ste)\.?\s+|#\s*)[a-z0-9-]+\b/gi;
+// Matches the service's unit spellings, including "Apt.250".
+const UNIT = /(?:\b(?:apt|apartment|unit|suite|ste)(?:\.\s*|\s+)|#\s*)[a-z0-9-]+\b/gi;
 const STATE_AND_ZIP = /(?:,?\s+(?:mn|minnesota))?,?\s+\d{5}(?:-\d{4})?\s*$/i;
 
 function comparable(unit: string) {
-  return unit.toUpperCase().replace(/\./g, '').replace(/#\s*/, '#').replace(/\s+/g, ' ').trim();
+  return unit
+    .toUpperCase()
+    .replace(/^(APT|APARTMENT|UNIT|SUITE|STE)\.\s*/, '$1 ')
+    .replace(/\./g, '')
+    .replace(/#\s*/, '#')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 const identifier = (unit: string) => comparable(unit).replace(/^(?:[A-Z]+ |#)/, '');
 

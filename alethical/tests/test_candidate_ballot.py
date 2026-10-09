@@ -724,3 +724,15 @@ def test_off_format_labels_and_unmatched_listed_ranges_stay_unproven():
     assert (
         match_street_range(rows[:1], replace(ADDRESS, unit="105"), units).range_id == 1
     )
+
+
+@pytest.mark.parametrize(
+    "unit", ["APT 3 #4", "APT 3 APT 4", "APT 3 GARBAGE", "APT", "#", "3 4", "APT -3"]
+)
+def test_unit_text_must_be_1_label_and_1_value_for_any_range(unit):
+    for rows in ([street()], [street(DisplayUnitNbr=True, UnitNumberRange="APT 3")]):
+        with pytest.raises(CandidateAddressNotFound):
+            match_street_range(rows, replace(ADDRESS, unit=unit))
+    rows, units = official("8TH AVE S")
+    with pytest.raises(CandidateAddressNotFound):
+        match_street_range(rows, unit_address(rows, 100, f"#250 {unit}"), units)
