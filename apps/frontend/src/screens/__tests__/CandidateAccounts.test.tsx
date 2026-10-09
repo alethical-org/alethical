@@ -859,3 +859,118 @@ it('reloads applicant eligibility failures without treating them as loss of admi
   expect(host.textContent).not.toContain('This account does not have permission');
   expect(button('Reject profile claim request')).toBeDefined();
 });
+
+it.each([
+  ['public', undefined, false, false, false, 'Claim this profile', 'rgb(46, 212, 126)', 'claim'],
+  ['approved', true, false, false, false, 'Manage this profile', 'rgb(46, 212, 126)', 'manage'],
+  [
+    'pending',
+    false,
+    false,
+    false,
+    false,
+    'View profile claim status',
+    'rgb(255, 255, 255)',
+    'claim',
+  ],
+  [
+    'rejected',
+    false,
+    false,
+    false,
+    false,
+    'View profile claim status',
+    'rgb(255, 255, 255)',
+    'claim',
+  ],
+  [
+    'withdrawn',
+    false,
+    false,
+    false,
+    false,
+    'View profile claim status',
+    'rgb(255, 255, 255)',
+    'claim',
+  ],
+  [
+    'revoked',
+    false,
+    false,
+    false,
+    false,
+    'View profile claim status',
+    'rgb(255, 255, 255)',
+    'claim',
+  ],
+  [
+    'approved',
+    false,
+    false,
+    false,
+    false,
+    'View profile claim status',
+    'rgb(255, 255, 255)',
+    'claim',
+  ],
+  [
+    'public',
+    undefined,
+    true,
+    false,
+    false,
+    'Review profile claim requests',
+    'rgb(255, 255, 255)',
+    'admin',
+  ],
+  ['public', undefined, false, true, false, null, null, null],
+  [
+    'pending',
+    false,
+    false,
+    true,
+    false,
+    'View profile claim status',
+    'rgb(255, 255, 255)',
+    'claim',
+  ],
+  ['public', undefined, false, false, true, null, null, null],
+] as const)(
+  'keeps public-panel appearance and access distinct: %s manage=%s admin=%s ended=%s blocked=%s',
+  async (status, canManage, admin, ended, blocked, label, fill, destination) => {
+    mocks.admin = admin ? 'allowed' : 'restricted';
+    mocks.mine.mockResolvedValue({
+      account_id: 'account-a',
+      claims:
+        status === 'public'
+          ? []
+          : [{ ...approved, status, can_manage: canManage, election_ended: ended }],
+      request_eligibility: blocked ? { reason: 'official_record_unavailable' } : null,
+    });
+    act(() =>
+      root.render(
+        <CandidateClaimPanel
+          record={{ ...record, electionEnded: ended }}
+          onClaim={() => {}}
+          onManage={() => {}}
+          onAdmin={() => {}}
+        />,
+      ),
+    );
+    await flush();
+    const control = host.querySelector<HTMLAnchorElement>('a');
+    if (label) {
+      expect(control?.textContent).toBe(label);
+      expect(getComputedStyle(control!).backgroundColor).toBe(fill);
+      expect(control?.getAttribute('href')).toBe(
+        destination === 'admin'
+          ? `/admin/candidate-claims?candidate=${id}&from=profile`
+          : `/candidates/${id}/${destination}`,
+      );
+      expect(document.getElementById(control!.getAttribute('aria-describedby')!)).not.toBeNull();
+    } else {
+      expect(control).toBeNull();
+      expect(host.textContent).toContain(ended ? 'This election has ended' : 'official');
+    }
+  },
+);

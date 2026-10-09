@@ -20,6 +20,11 @@ const geometry = (control) =>
       radius: style.borderRadius,
       text: text.color,
       fontSize: text.fontSize,
+      family: text.fontFamily,
+      padding: style.paddingLeft,
+      columnX: document
+        .querySelector('[role="heading"][aria-level="1"]')
+        ?.parentElement.getBoundingClientRect().x,
       weight: text.fontWeight,
       descriptionX: description?.getBoundingClientRect().x,
       description: description?.textContent,
@@ -47,6 +52,10 @@ try {
       await page.mouse.move(1, 1);
       const shown = await geometry(control);
       assert.equal(shown.fill, green ? 'rgb(46, 212, 126)' : 'rgb(255, 255, 255)');
+      assert.equal(shown.border, green ? 'rgb(46, 212, 126)' : 'rgba(17, 21, 15, 0.2)');
+      assert(shown.family.includes('Libre Franklin'));
+      assert.equal(shown.padding, '22px');
+      assert.equal(shown.x, shown.columnX, 'Account action starts at the record column edge');
       assert.equal(shown.text, green ? 'rgb(6, 35, 26)' : 'rgb(17, 21, 15)');
       assert.equal(shown.height, 48);
       assert.equal(shown.radius, '12px');

@@ -76,11 +76,13 @@ action and existing explanation; this appearance change does not change those pe
 
 ## Local acceptance
 
-- Existing candidate account and public report suites: 38 tests pass.
+- Existing candidate account and public report suites: 49 tests pass, including focused public-panel checks for all saved statuses,
+  administrators, restricted owners, ended elections and blocked official records.
 - TypeScript check passes.
 - Rendered Chromium regression passes at 1280, 900, 390 and 320px: public claim,
   owner/manage and pending/status states; colors, hover, press, keyboard focus,
-  dimensions, alignment, wrapping, explanation association, destinations,
+  dimensions, Libre Franklin, border colors, record-column alignment, wrapping,
+  explanation association, destination links,
   loading omission and failure retry. It uses private illustrative records.
 - The current source already left-aligns account buttons; the browser shows the
   same left edge for the claim control and its explanation. No spacing change is needed.
@@ -91,4 +93,10 @@ Independent coverage review accepted the comparison after adding terminal accoun
 states, restricted owners, blocked official records and precise button measurements.
 The smallest change is the appearance choice in AccountAction; alignment needs no edit.
 
-Status: implementation underway; browser acceptance pending.
+Independent browser acceptance found no visual corrections. The rendered regression
+now asserts font family, border colors and alignment with the record column, and
+focused panel tests cover the unchanged access gates. The private illustrative
+claim destination deliberately routes to /404; live navigation acceptance uses
+an actual public candidate record instead. No preview route behavior is changed.
+
+Status: local acceptance passed; upload, release and live navigation pending.
