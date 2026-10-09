@@ -62,6 +62,25 @@ has no free-form question box because reader-written questions are not a live fe
   punctuation changes are separate proposals. The hero has 2 sentences and keeps
   both periods; the card bodies have 1 sentence each and omit their ending periods.
 
+## Address controls
+
+Both homepage address fields grow to show the full value and placeholder. A filled
+field shows a 44px **Clear address** button (×), including browser-filled text.
+Clearing empties and focuses the field without submitting. Its space is reserved
+when empty or busy. The signed-out finder removes address errors while retaining
+service failures. Neither homepage field adds typing suggestions, Cancel, or
+select-all on focus.
+
+The signed-in finder navigates to `/find-my-legislator`. Its button remains **Find**
+on desktop and **Find my legislator** on tablet and phone. **Use my location**
+becomes **Finding your location…** only during the location wait. Homepage lookup
+loading and no-match messages belong to the signed-out candidate finder, not this
+navigation form. Tablet actions stay below the address side by side; phone actions
+stack at full width. Desktop actions stay centered beside a growing field, with
+wrapping retained so the location action can move below rather than squeeze text.
+The desktop field reserves 56px for clear in addition to its previous 360px minimum,
+for 416px bounded by its container.
+
 ## Shared money-record safeguards
 
 - The money count is read live from the register on every load. If the register

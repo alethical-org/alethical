@@ -158,7 +158,7 @@ export function createCandidateFlow(services: CandidateSearchServices) {
       // Scroll is private navigation memory, not data state; avoid rerendering every scroll tick.
       state = { ...state, scrollOffset: Math.max(0, offset) };
     },
-    setDraftAddress(address: string) {
+    setDraftAddress(address: string, preserveServiceError = false) {
       if (disposed || resetting) return;
       resetting = true;
       try {
@@ -167,8 +167,14 @@ export function createCandidateFlow(services: CandidateSearchServices) {
         publish({
           ...state,
           draftAddress: address,
-          outcome: null,
-          status: state.displayed ? 'success' : 'idle',
+          outcome:
+            preserveServiceError && state.outcome?.kind === 'rate-limited' ? state.outcome : null,
+          status:
+            preserveServiceError && state.status === 'error'
+              ? 'error'
+              : state.displayed
+                ? 'success'
+                : 'idle',
           requested: state.displayed?.request ?? null,
         });
       } finally {

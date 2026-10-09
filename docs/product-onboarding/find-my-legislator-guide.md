@@ -54,6 +54,13 @@ cannot replace current suggestions or reopen a dismissed list. External Find, lo
 and map searches also keep suggestions closed when loading ends or the returned
 address changes; editing or freshly focusing the address field enables them again.
 
+A filled address box shows a 44px **Clear address** button (×), including saved
+browser addresses. Clearing empties and focuses the box without searching, dismisses
+choices and ignores older lookup or location replies. Existing successful results
+remain. Address-specific errors disappear; service failures remain without marking
+the cleared box invalid. The reserved button space stays when empty or busy.
+This finder does not select all on focus or add Cancel.
+
 The field and buttons have a 60px minimum height. Full addresses wrap. Computer and
 tablet suggestions overlay content 8px below the box and stay exactly its width;
 on phones they sit in the page flow before the full-width buttons. The page scrolls
