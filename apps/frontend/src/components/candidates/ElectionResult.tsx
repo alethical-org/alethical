@@ -191,7 +191,7 @@ export function ElectionRecordStatus({ result }: { result?: CandidateElectionRes
             textAlign: isMobile ? 'left' : 'center',
             flexShrink: 1,
             ...(Platform.OS === 'web'
-              ? ({ textWrap: 'balance', overflowWrap: 'anywhere' } as object)
+              ? ({ textWrap: 'balance', overflowWrap: 'break-word' } as object)
               : {}),
           },
         ]}
@@ -206,7 +206,13 @@ export function ElectionRecordStatus({ result }: { result?: CandidateElectionRes
       style={[
         styles.recordStatus,
         {
-          width: isMobile ? '100%' : 200,
+          // Enlarged text widens the block to its longest whole word instead of
+          // splitting it; normal text keeps the approved 200px width.
+          ...(isMobile
+            ? { width: '100%' }
+            : Platform.OS === 'web'
+              ? ({ width: 'min-content', minWidth: 200, maxWidth: '50%' } as object)
+              : { width: 200 }),
           minHeight: isMobile ? 64 : 112,
           backgroundColor: result.status === 'unavailable' && !outcome ? '#ffffff' : palette.fill,
           borderColor: outcome

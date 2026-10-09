@@ -451,7 +451,9 @@ immediately after the office name, before the area and election date. Final
 outcomes use a double solid frame; unfinished races use a single frame. The
 profile withdrawal label is **Withdrew from election**; compact election rows
 retain **Withdrew**. A certified race without a candidate outcome has its
-certification in the source area without a large outcome block.
+certification in the source area without a large outcome block. With enlarged
+text, the tablet and desktop block widens to fit its longest word, up to half the
+record's width, so no status word is split across lines.
 
 The official record's sources share 1 dividing line. Race status appears once:
 in the large block when no outcome exists, otherwise in the source area.
