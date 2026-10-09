@@ -2,9 +2,9 @@ import { CandidateClaimPanel } from '../components/candidates/CandidateClaimPane
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { CandidateProfileContent } from '../components/candidates/CandidateProfileContent';
+import { GoBackLink } from '../components/GoBackLink';
 import {
   CandidateButton,
-  CandidateLink,
   CandidateNotice,
   candidateText,
 } from '../components/candidates/CandidateControls';
@@ -12,6 +12,7 @@ import type { CandidateProfileRecord } from '../components/candidates/types';
 import { isNotFoundError } from '../data/api';
 import { candidateFlow, getCandidateProfile } from '../data/candidates';
 import { candidatePreviewEnabled } from '../lib/candidateLookupAvailability';
+import { useResponsive } from '../hooks/useResponsive';
 import { useDocumentTitle } from '../navigation/documentTitle';
 import type { RootScreenProps } from '../navigation/types';
 import { Footer, PageBackground, TopNav } from '../theme/primitives';
@@ -27,6 +28,7 @@ type ProfileState =
   | { id: string; kind: 'ready'; record: CandidateProfileRecord };
 
 export function CandidateProfileScreen(props: RootScreenProps<'CandidateProfile'>) {
+  const { isMobile } = useResponsive();
   const { navigation, route } = props;
   const id = route.params.candidateId;
   const fromSearch = Boolean(
@@ -89,7 +91,6 @@ export function CandidateProfileScreen(props: RootScreenProps<'CandidateProfile'
         {current.kind === 'ready' ? (
           <CandidateProfileContent
             record={current.record}
-            fromSearch={fromSearch}
             onBack={returnToCandidates}
             onOpenLegislator={(slug) =>
               navigation.navigate('LegislatorProfile', { legislatorId: slug })
@@ -115,11 +116,11 @@ export function CandidateProfileScreen(props: RootScreenProps<'CandidateProfile'
           </CandidateProfileContent>
         ) : (
           <View style={{ padding: 32, maxWidth: 760, width: '100%', alignSelf: 'center', flex: 1 }}>
-            <CandidateLink
-              internal
-              url="/candidates"
-              label={fromSearch ? 'Back to candidates' : 'Find my candidates'}
+            <GoBackLink
+              href="/candidates"
               onPress={returnToCandidates}
+              mobile={isMobile}
+              style={{ minHeight: 44, marginBottom: 0 }}
             />
             {current.kind === 'error' ? (
               <CandidateNotice error>

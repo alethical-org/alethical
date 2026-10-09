@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useResponsive } from '../../hooks/useResponsive';
+import { GoBackLink } from '../GoBackLink';
 import {
   CandidateLink,
   CandidateSourceLine,
@@ -66,13 +67,11 @@ export function CandidateProfileContent({
   onBack,
   onOpenLegislator,
   onOpenPerson,
-  fromSearch = true,
   children,
 }: {
   record: CandidateProfileRecord;
   children?: React.ReactNode;
   onBack(): void;
-  fromSearch?: boolean;
   onOpenLegislator?(slug: string): void;
   onOpenPerson?(id: string): void;
   /** Kept for the existing preview route; joint records never invent separate people. */
@@ -98,11 +97,11 @@ export function CandidateProfileContent({
       ]}
     >
       <View style={styles.content}>
-        <CandidateLink
-          internal
-          url="/candidates"
-          label={fromSearch ? 'Back to candidates' : 'Find my candidates'}
+        <GoBackLink
+          href="/candidates"
           onPress={onBack}
+          mobile={isMobile}
+          style={{ minHeight: 44, marginBottom: 0 }}
         />
         <View
           style={{

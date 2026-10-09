@@ -194,7 +194,6 @@ export function CandidateProfileScreen({ navigation, route }: RootScreenProps<'C
   const [account, setAccount] = useState<'public' | 'loading' | 'approved' | 'pending' | 'error'>(
     'public',
   );
-  const [entry, setEntry] = useState('search');
   const [recordState, setRecordState] = useState('ready');
   const [slow, setSlow] = useState(false);
   const fixtureServices = useMemo(
@@ -288,14 +287,6 @@ export function CandidateProfileScreen({ navigation, route }: RootScreenProps<'C
             </select>
           </label>
           <label>
-            Entry{' '}
-            <select aria-label="Entry" value={entry} onChange={(e) => setEntry(e.target.value)}>
-              {['search', 'direct'].map((x) => (
-                <option key={x}>{x}</option>
-              ))}
-            </select>
-          </label>
-          <label>
             Record{' '}
             <select
               aria-label="Record"
@@ -316,7 +307,6 @@ export function CandidateProfileScreen({ navigation, route }: RootScreenProps<'C
       {record ? (
         <CandidateProfileContent
           record={record}
-          fromSearch={entry === 'search'}
           onOpenLegislator={(slug) =>
             navigation.navigate('LegislatorProfile', { legislatorId: slug })
           }

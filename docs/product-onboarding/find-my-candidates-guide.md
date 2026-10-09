@@ -83,7 +83,9 @@ running where you live in Minnesota**.
 
 The submit button says **Find** on entry and in **Change address**, matching
 `/find-my-legislator`; the page heading supplies the search context. The homepage
-link and candidate-profile return link keep **Find my candidates**.
+link keeps **Find my candidates**. Candidate profiles use the standard **Go back**
+link, returning to the previous Alethical page in the tab or `/candidates` on a
+direct visit.
 Entry fields and buttons have a 60px minimum height. **Change address** retains
 its compact 56px field and 52px button. Both use the same suggestion component.
 Minnesota mapping services can supply a complete address when the ZIP is missing.
