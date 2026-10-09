@@ -273,6 +273,7 @@ export function personPageSnapshot(record: PersonRecord): PageSnapshot {
     backLink: { label: 'Find my candidates', href: '/candidates' },
     heading: record.name,
     eyebrow: PERSON_RECORD_COPY.eyebrow,
+    profileLabel: true,
     subheading: '',
     bodyHeading: '',
     body: [],

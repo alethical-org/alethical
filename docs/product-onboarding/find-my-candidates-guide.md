@@ -220,6 +220,11 @@ The first response includes the same public facts, source/check dates, stale
 warnings and confirmed legislator links as the loaded screen, without caching
 private address requests or seeding visitor lookup results.
 
+A green **Candidate profile** label sits below the return link and above the whole
+portrait-and-name group. It appears only with a loaded record, including joint
+tickets and past elections. The name remains the main heading. **Official candidate
+record** remains the card heading that separates official facts from campaign words.
+
 Profiles display only supported fields: source name, office, voting area, election,
 party when supplied, campaign website when supplied, and source/check date. MyBallot
 establishes ballot candidacy, not an original filing date; Alethical does not invent one.
@@ -258,7 +263,11 @@ research for 1 person. `/candidates/<id>` remains 1 candidacy, office and electi
 before anyone claims a profile. A lost election, expired campaign or deleted
 campaign account does not erase the official record.
 
-**Elections and service over time** explains **View person overview** on a linked
+A green **Person profile** label sits above the name on `/people/<id>`. Loading
+says **Loading person profile…**; a failed read says **Person profile is unavailable**.
+Neither state shows a profile label before a named record is available.
+
+**Elections and service over time** explains **View person profile** on a linked
 candidate or legislator profile. Connections need retained identity evidence,
 rechecked against the candidate record. Matching names do not establish identity.
 A joint governor/lieutenant-governor label stays intact; only explicitly verified
@@ -305,6 +314,10 @@ campaign-authored material and never become official research.
 statement. Approval grants that permission, not ownership of official records.
 **Manage this profile** keeps the same profile terminology. The explanation sits
 below its applicable action, before the footer, across layout bands.
+**Claim this profile** uses the shared green filled button, as does **Manage this
+profile**. Claim-status and administrator actions stay outlined. The action and
+explanation share the left edge on computer and tablet; the button fills the
+column on phone. The inactive legislator claim preview retains its pale treatment.
 
 The form requires **Candidate** or **Authorized campaign representative**, a public
 campaign or official-record link, and a private explanation of the role and how it

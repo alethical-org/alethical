@@ -12,8 +12,8 @@ import {
 
 export const PERSON_RECORD_COPY = {
   introduction: 'Elections and service over time',
-  link: 'View person overview',
-  eyebrow: 'PUBLIC RECORD',
+  link: 'View person profile',
+  eyebrow: 'Person profile',
   service: 'Service',
   elections: 'Elections',
   research: 'Research',

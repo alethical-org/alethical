@@ -931,3 +931,23 @@ and exercise the tablet layout where its structure differs. Inspect both populat
 and empty states, including content order, gaps, and absent controls. An empty
 list must not reserve space for sorting or feedback that is not shown. A passing
 build or a test of stylesheet text does not establish visual fidelity.
+
+## Profile labels
+
+Every public profile identifies its record kind above the whole identity group:
+Candidate profile, Legislator profile, Person profile, Lobbyist profile, or Lobbying
+principal profile. The name remains the main heading. The label appears only once
+a named record has loaded; it does not imply current office, campaign authority or
+an election outcome. Joint tickets and historical records keep their route's label.
+
+Use Libre Franklin 700, green #0f7a45, letter spacing 2.4px, 13px on computer/tablet
+and 12px on phone. Source text stays sentence case; styling displays capitals.
+It is plain text, with no link, button, keyboard stop or hover response. Candidate,
+person and lobbying labels have 14px above them after a 44px return target on
+computer/tablet and 6px on phone; the identity group follows after 14px. Preserve
+the existing legislator header's visible spacing.
+
+Lobbying labels retain their exact source identifier, use equal-width digits and
+line height 1.5, and wrap between words. Keep the middle dot with the preceding
+text and keep Registration {number} or Entity ID {id} together. Test the real font
+at 320px and each layout band; do not shrink, clip or truncate the label.

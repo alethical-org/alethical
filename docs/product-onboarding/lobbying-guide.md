@@ -248,6 +248,16 @@ retained and explains its missing amounts. “No matching donation records” an
 “Amount unavailable” never become $0. This approved directory order does not
 rank influence, combine donors or join client spending to donations.
 
+## Profile labels
+
+Loaded lobbyist records show **Lobbyist profile · Registration {number}** above the
+name. Principal records show **Lobbying principal profile · Entity ID {id}**;
+this does not guess whether the principal is a person or an organisation. Source
+text uses sentence case, with capitals applied visually. Both labels follow the
+shared profile treatment in [design-principles.md](../design/design-principles.md).
+The label wraps between words, keeping the middle dot with the preceding text and
+the identifier phrase together. Loading and unavailable states omit the label.
+
 ## The principal address
 
 The page defines a principal as a person or organisation that funds lobbying and must
