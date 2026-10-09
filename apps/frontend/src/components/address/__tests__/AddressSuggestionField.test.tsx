@@ -561,3 +561,54 @@ it.each(['insertFromPaste', 'insertReplacementText', 'insertFromDrop'])(
     );
   },
 );
+
+it.each(['Escape', 'Find', 'unmount'])(
+  'discards a reused pending reply after %s',
+  async (action) => {
+    let finish!: (options: Awaited<ReturnType<typeof suggest>>) => void;
+    const suggestMatches = vi.fn(
+      (_value: string, _signal: AbortSignal) =>
+        new Promise<Awaited<ReturnType<typeof suggest>>>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    function TypingForm() {
+      const [address, setAddress] = useState('100 Ma');
+      return (
+        <ExternalSubmitForm
+          address={address}
+          busy={false}
+          onAddress={setAddress}
+          suggestMatches={suggestMatches}
+        />
+      );
+    }
+    act(() => root.render(<TypingForm />));
+    const field = host.querySelector('textarea')!;
+    act(() => field.focus());
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(
+        field,
+        '100 Ma ',
+      );
+      field.dispatchEvent(
+        new InputEvent('input', { bubbles: true, inputType: 'insertText', data: ' ' }),
+      );
+    });
+    const signal = suggestMatches.mock.calls[0][1];
+    expect(signal.aborted).toBe(false);
+    act(() => {
+      if (action === 'Escape')
+        field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      else if (action === 'Find') host.querySelector<HTMLElement>('[role="button"]')!.click();
+      else root.render(null);
+    });
+    expect(signal.aborted).toBe(true);
+    await act(async () => {
+      finish(await suggest());
+    });
+    expect(host.querySelector('[role="listbox"]')).toBeNull();
+    expect(suggestMatches).toHaveBeenCalledOnce();
+  },
+);

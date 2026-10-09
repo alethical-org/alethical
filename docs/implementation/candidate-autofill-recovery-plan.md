@@ -317,3 +317,11 @@ lifecycle diagnosis and existing correctness tests. The strongest alternative is
 `gpt-6-astra` with `high`; current evidence exposes no new data architecture or
 unsettled privacy policy requiring it. Official OpenAI model guidance was read on
 9 October 2026. This is a task judgment, not a measured model comparison.
+
+Acceptance: 140 focused checks and type checking pass after integrating the merged
+address clearing/cancellation work. Chromium and WebKit pass both dedicated
+finders at 1280, 900 and 390 pixels with delayed fixture replies and real space-key
+edits. Completed-reply reuse renders in 7–29ms in these samples; this is local
+redisplay, not a fresh government-source lookup. Chromium layering and selection
+checks pass all 6 placements. The independent integrated-code review accepts the
+scoped outcome and prevention checks with no remaining material findings.
