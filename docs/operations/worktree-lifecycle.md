@@ -54,8 +54,8 @@ inspection report; a terminal-only task supplies its own stable task ID.
 
 ```sh
 python3 scripts/worktree_cleanup.py register --worktree '/absolute/path/to/alethical-wt-example' --owner 'owner-id'
-just worktree-rm 'codex/example' 'owner-id' 'Eugene requested cleanup; release is live, checks passed, and review is complete'
-just worktree-release '/absolute/path/to/alethical-wt-example' 'owner-id' 'Eugene requested cleanup; release is live, checks passed, and review is complete'
+just worktree-rm 'codex/example' 'owner-id' 'User-requested cleanup; release is live, checks passed, and review is complete'
+just worktree-release '/absolute/path/to/alethical-wt-example' 'owner-id' 'User-requested cleanup; release is live, checks passed, and review is complete'
 just worktree-hold '/absolute/path/to/alethical-wt-example' 'owner-id' 'Private preview still awaits user review'
 ```
 
