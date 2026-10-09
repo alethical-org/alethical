@@ -270,6 +270,10 @@ available, preserve its whole proportions, and disappear cleanly on failure. A
 joint ticket retains its shared identity; a linked member's portrait and service
 sit beside that member's name in the legislator panel.
 
+A search saves its whole ballot together: every candidate record and accepted read in
+1 database transaction, with candidate locks taken in candidate-ID order. Results return
+only after every record is saved, so each profile link works at once; a failed save
+returns an error and keeps nothing partial.
 Evidence saved from visitor searches contains candidate records and their source
 hash, not visitor addresses, coordinates, precinct names, range IDs or account
 associations. The separate recheck register retains independently collected public

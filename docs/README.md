@@ -153,6 +153,7 @@ issues and pull requests establish what remains. Preserve explicit data-replacem
 a completed code release does not approve a held data run. Remove a finished plan once its
 lasting decisions and release evidence have their permanent homes.
 
+- [Faster address search results](implementation/address-result-speed-plan.md) — why both address searches waited, the fewer-database-trips fix, its tests and release evidence
 - [Candidate autofill and result recovery](implementation/candidate-autofill-recovery-plan.md) — shared address handling, stable results, related-use review and release evidence
 - [Public profile labels](implementation/profile-labels-plan.md) — record-kind labels, claim action, phone wrapping and release checks
 - [Candidate design acceptance](implementation/candidate-design-release-acceptance.md) — approved public search and profile controls, source limits, and release checks
