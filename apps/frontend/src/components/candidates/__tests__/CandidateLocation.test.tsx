@@ -466,9 +466,26 @@ it('joins a unit once in the canonical place without dropping a conflicting unit
   expect(joinAddressUnit('100 8th Ave S Apt.#250, Hopkins, MN 55343', 'Apt #250')).toBe(
     '100 8th Ave S Apt.#250, Hopkins, MN 55343',
   );
-  expect(joinAddressUnit('100 8th Ave S #250, Hopkins, MN 55343', 'Apt #250')).toBe(
+  expect(joinAddressUnit('100 8th Ave S #250, Hopkins, MN 55343', '250')).toBe(
     '100 8th Ave S #250, Hopkins, MN 55343',
   );
+  // A labelled card unit beside an unlabelled street unit is kept: the word before the
+  // street's "#" may be a label the service does not accept.
+  expect(joinAddressUnit('100 8th Ave S #250, Hopkins, MN 55343', 'Apt #250')).toBe(
+    '100 8th Ave S #250 Apt #250, Hopkins, MN 55343',
+  );
+  for (const [street, card] of [
+    ['Floor #250', 'Apt 250'],
+    ['Rm #250', 'Unit 250'],
+    ['Unit#250', 'Apt 250'],
+    ['Apt#250', 'Suite 250'],
+    ['Unit#250', '250'],
+    ['Apt-#250', '#250'],
+    ['Lot#250', '#250'],
+  ])
+    expect(joinAddressUnit(`123 Main St ${street}, Eden Prairie, MN 55343`, card)).toBe(
+      `123 Main St ${street} ${normalizeAddressUnit(card)}, Eden Prairie, MN 55343`,
+    );
   // A different value, a different label or extra words stay, so the match refuses.
   expect(joinAddressUnit(HOPKINS, 'Apt #251')).toBe(
     '100 8th Ave S Apt #250 Apt #251, Hopkins, MN 55343',
