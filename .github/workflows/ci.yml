@@ -171,23 +171,39 @@ jobs:
     needs: changes
     if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true') }}
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: pgvector/pgvector:pg17
-        env:
-          POSTGRES_DB: alethical
-          POSTGRES_USER: alethical
-          POSTGRES_PASSWORD: alethical
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U alethical -d alethical"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
     env:
       DATABASE_URL: postgresql+psycopg://alethical:alethical@localhost:5432/alethical
     steps:
+      # Job services start before any step can configure Docker's supported
+      # public-image cache. Start this disposable database after that setup so
+      # a shared Docker Hub download limit cannot prevent every test from running.
+      - name: Start the temporary test database through Google's public cache
+        run: |
+          set -euo pipefail
+          ci_database_config=$(mktemp)
+          if sudo test -f /etc/docker/daemon.json; then
+            sudo cat /etc/docker/daemon.json > "$ci_database_config"
+          else
+            printf '{}\n' > "$ci_database_config"
+          fi
+          jq '.["registry-mirrors"] = ["https://mirror.gcr.io"]' "$ci_database_config" > "$ci_database_config.updated"
+          sudo install -m 644 "$ci_database_config.updated" /etc/docker/daemon.json
+          rm "$ci_database_config" "$ci_database_config.updated"
+          sudo systemctl restart docker
+          docker run --detach --rm --name alethical-ci-postgres \
+            -e POSTGRES_DB=alethical -e POSTGRES_USER=alethical \
+            -e POSTGRES_PASSWORD=alethical -p 5432:5432 \
+            --health-cmd "pg_isready -U alethical -d alethical" \
+            --health-interval 5s --health-timeout 5s --health-retries 20 \
+            pgvector/pgvector:pg17
+          for attempt in $(seq 1 30); do
+            if test "$(docker inspect --format '{{.State.Health.Status}}' alethical-ci-postgres)" = healthy; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'The temporary test database did not become ready'
+          exit 1
       - name: Check out repository
         uses: actions/checkout@v7
 
@@ -276,6 +292,10 @@ jobs:
             .tmp/prevention-backend/pytest.xml
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Stop this job's temporary test database
+        if: always()
+        run: docker stop alethical-ci-postgres || true
 
   frontend:
     needs: changes
