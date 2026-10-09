@@ -491,6 +491,103 @@ class AddressSuggestionIndex:
         return [{"attributes": dict(zip(ADDRESS_FIELDS, row))} for row in rows]
 
 
+CAPACITY_PREFIX = "ADDRESS_COPY_CAPACITY "
+# cgroup v1 reports "no limit" as a huge number near 2**63.
+_UNLIMITED_V1 = 1 << 60
+
+
+def _read_int(path: Path) -> int | None:
+    try:
+        value = int(path.read_text().strip())
+    except (OSError, ValueError):
+        return None
+    return value if value >= 0 else None
+
+
+def _cgroup_memory(root: Path) -> tuple[int | None, int | str | None]:
+    """Container memory in use and its limit, from cgroup v2 or v1, else None."""
+    current = _read_int(root / "memory.current")
+    try:
+        raw_max = (root / "memory.max").read_text().strip()
+    except OSError:
+        raw_max = None
+    if current is not None or raw_max is not None:
+        maximum: int | str | None = (
+            "max" if raw_max == "max" else _read_int(root / "memory.max")
+        )
+        return current, maximum
+    current = _read_int(root / "memory" / "memory.usage_in_bytes")
+    limit = _read_int(root / "memory" / "memory.limit_in_bytes")
+    return current, ("max" if limit is not None and limit >= _UNLIMITED_V1 else limit)
+
+
+def _api_process_count(proc: Path) -> int | None:
+    """Running processes sharing this process's program name; None off Linux.
+
+    Reads only each process's short program name, never its arguments or
+    environment, and keeps nothing but the count.
+    """
+    try:
+        own = (proc / "self" / "comm").read_text().strip()
+    except OSError:
+        return None
+    count = 0
+    try:
+        entries = list(proc.iterdir())
+    except OSError:
+        return None
+    for entry in entries:
+        if not entry.name.isdigit():
+            continue
+        try:
+            if (entry / "comm").read_text().strip() == own:
+                count += 1
+        except OSError:
+            continue
+    return count
+
+
+def capacity_report(
+    index: AddressSuggestionIndex,
+    *,
+    cgroup_root: Path = Path("/sys/fs/cgroup"),
+    proc: Path = Path("/proc"),
+) -> dict:
+    """Host facts needed before switching the copy on. Numbers and booleans only.
+
+    Never creates the copy folder or starts a download: free space is read from
+    the nearest folder that already exists.
+    """
+    folder = index._root
+    while not folder.exists() and folder != folder.parent:
+        folder = folder.parent
+    try:
+        free_bytes: int | None = shutil.disk_usage(folder).free
+    except OSError:
+        free_bytes = None
+    current, maximum = _cgroup_memory(cgroup_root)
+    return {
+        "enabled": bool(index.enabled),
+        "free_bytes": free_bytes,
+        "cgroup_current_bytes": current,
+        "cgroup_max_bytes": maximum,
+        "api_process_count": _api_process_count(proc),
+    }
+
+
+def log_capacity(index: AddressSuggestionIndex) -> None:
+    """Print 1 line the Railway log reader recognizes by its fixed prefix.
+
+    Printed directly, because the normal log format puts a timestamp first.
+    """
+    try:
+        report = capacity_report(index)
+    except Exception:
+        # Capacity facts are optional and never block startup.
+        return
+    print(CAPACITY_PREFIX + json.dumps(report, sort_keys=True), flush=True)
+
+
 _default_index: AddressSuggestionIndex | None = None
 _default_lock = threading.Lock()
 

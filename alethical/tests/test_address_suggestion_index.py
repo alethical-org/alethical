@@ -725,3 +725,118 @@ def test_public_download_rejects_failed_partial_large_or_stalled_response(
         monkeypatch.setattr(module.time, "monotonic", lambda: next(clock))
     with pytest.raises(ValueError):
         module._download(tmp_path / "source.gpkg", stop)
+
+
+def _fake_proc(tmp_path, own, others):
+    proc = tmp_path / "proc"
+    (proc / "self").mkdir(parents=True)
+    (proc / "self" / "comm").write_text(own + "\n")
+    for pid, name in enumerate(others, 100):
+        (proc / str(pid)).mkdir()
+        (proc / str(pid) / "comm").write_text(name + "\n")
+        # Arguments and environment exist on Linux but are never read.
+        (proc / str(pid) / "cmdline").write_text("SECRET-ARGUMENT")
+    return proc
+
+
+def test_capacity_report_reads_cgroup_v2_and_counts_matching_processes(tmp_path):
+    cgroup = tmp_path / "cgroup"
+    cgroup.mkdir()
+    (cgroup / "memory.current").write_text("123456\n")
+    (cgroup / "memory.max").write_text("max\n")
+    proc = _fake_proc(tmp_path, "uvicorn", ["uvicorn", "uvicorn", "postgres", "uv"])
+    missing = tmp_path / "not-created" / "copy"
+    index = module.AddressSuggestionIndex(directory=missing)
+
+    report = module.capacity_report(index, cgroup_root=cgroup, proc=proc)
+
+    assert report["enabled"] is False
+    assert isinstance(report["free_bytes"], int) and report["free_bytes"] > 0
+    assert report["cgroup_current_bytes"] == 123456
+    assert report["cgroup_max_bytes"] == "max"
+    assert report["api_process_count"] == 2
+    # Reporting while off never creates the folder or starts a download.
+    assert not missing.exists() and not missing.parent.exists()
+
+    (cgroup / "memory.max").write_text("8589934592\n")
+    assert (
+        module.capacity_report(index, cgroup_root=cgroup, proc=proc)["cgroup_max_bytes"]
+        == 8589934592
+    )
+
+
+def test_capacity_report_reads_cgroup_v1_and_its_unlimited_value(tmp_path):
+    memory = tmp_path / "cgroup" / "memory"
+    memory.mkdir(parents=True)
+    (memory / "memory.usage_in_bytes").write_text("2048\n")
+    (memory / "memory.limit_in_bytes").write_text("9223372036854771712\n")
+
+    report = module.capacity_report(
+        module.AddressSuggestionIndex(directory=tmp_path),
+        cgroup_root=tmp_path / "cgroup",
+        proc=tmp_path / "no-proc",
+    )
+
+    assert report["cgroup_current_bytes"] == 2048
+    assert report["cgroup_max_bytes"] == "max"
+
+
+def test_capacity_report_is_null_where_linux_files_are_missing(tmp_path):
+    report = module.capacity_report(
+        module.AddressSuggestionIndex(enabled=True, directory=tmp_path / "copy"),
+        cgroup_root=tmp_path / "no-cgroup",
+        proc=tmp_path / "no-proc",
+    )
+
+    assert report["enabled"] is True
+    assert report["cgroup_current_bytes"] is None
+    assert report["cgroup_max_bytes"] is None
+    assert report["api_process_count"] is None
+
+
+def test_capacity_line_holds_only_the_allowlisted_numbers(
+    tmp_path, monkeypatch, capsys
+):
+    directory = tmp_path / "PRIVATE-FOLDER-NAME"
+    monkeypatch.setattr(
+        module,
+        "capacity_report",
+        lambda index: {
+            "enabled": False,
+            "free_bytes": 10,
+            "cgroup_current_bytes": None,
+            "cgroup_max_bytes": "max",
+            "api_process_count": 1,
+        },
+    )
+    module.log_capacity(module.AddressSuggestionIndex(directory=directory))
+    line = capsys.readouterr().out
+    assert line.startswith("ADDRESS_COPY_CAPACITY {") and line.endswith("}\n")
+    record = json.loads(line[len("ADDRESS_COPY_CAPACITY ") :])
+    assert set(record) == {
+        "enabled",
+        "free_bytes",
+        "cgroup_current_bytes",
+        "cgroup_max_bytes",
+        "api_process_count",
+    }
+    assert "PRIVATE" not in line and "/" not in line
+
+    def broken(index):
+        raise OSError("PRIVATE path /secret")
+
+    monkeypatch.setattr(module, "capacity_report", broken)
+    module.log_capacity(module.AddressSuggestionIndex(directory=directory))
+    assert capsys.readouterr().out == ""
+
+
+def test_real_capacity_line_never_prints_a_path_or_argument(tmp_path, capsys):
+    directory = tmp_path / "PRIVATE-FOLDER-NAME"
+    module.log_capacity(module.AddressSuggestionIndex(directory=directory))
+    line = capsys.readouterr().out
+    record = json.loads(line[len("ADDRESS_COPY_CAPACITY ") :])
+    assert all(
+        value is None or type(value) in (bool, int) or value == "max"
+        for value in record.values()
+    )
+    assert "PRIVATE" not in line and not directory.exists()
