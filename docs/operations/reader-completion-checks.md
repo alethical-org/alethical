@@ -1,6 +1,6 @@
 # Reader completion checks
 
-<!-- describes: apps/frontend/scripts/reader-completion-*.mjs, apps/frontend/scripts/reader-official-bill.mjs, apps/frontend/scripts/reader-release-relation.mjs, apps/frontend/scripts/serve-reader-check-build.mjs, .github/workflows/reader-completion-checks.yml, .github/workflows/ci.yml, .github/actions/prepare-browser-install/action.yml -->
+<!-- describes: apps/frontend/scripts/reader-completion-*.mjs, apps/frontend/scripts/reader-official-bill.mjs, apps/frontend/scripts/reader-release-relation.mjs, apps/frontend/scripts/serve-reader-check-build.mjs, apps/frontend/scripts/check-candidate-return.mjs, .github/workflows/reader-completion-checks.yml, .github/workflows/ci.yml, .github/actions/prepare-browser-install/action.yml -->
 
 Alethical's completion evidence includes what a reader can do on the deployed
 website. A successful build or merge alone does not establish that result.
