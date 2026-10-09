@@ -136,17 +136,31 @@ function errorKind(error: unknown) {
   if (error.problem === 'representative-lookup-outside-minnesota')
     return 'outside-minnesota' as const;
   if (error.status === 429) return 'rate-limited' as const;
+  // Official points for this address fall in different districts: never guess.
+  if (error.problem === 'representative-lookup-ambiguous-location')
+    return 'ambiguous-location' as const;
   if (error.status === 404) return 'not-found' as const;
   return 'service-down' as const;
 }
 
 function errorCopy(
-  state: 'not-found' | 'outside-minnesota' | 'location-error' | 'rate-limited' | 'service-down',
+  state:
+    | 'not-found'
+    | 'ambiguous-location'
+    | 'outside-minnesota'
+    | 'location-error'
+    | 'rate-limited'
+    | 'service-down',
 ) {
   if (state === 'not-found')
     return {
       field: 'No match for that address',
       answer: 'Enter a house number and street name, like 350 S 5th St, Minneapolis, MN 55415',
+    };
+  if (state === 'ambiguous-location')
+    return {
+      field: 'We couldn’t safely identify your districts from this address',
+      answer: 'Check your full street address, or choose where you live on the map',
     };
   if (state === 'outside-minnesota')
     return {
@@ -321,6 +335,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   });
   const activeError =
     state === 'not-found' ||
+    state === 'ambiguous-location' ||
     state === 'outside-minnesota' ||
     state === 'location-error' ||
     state === 'rate-limited' ||
@@ -328,7 +343,8 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       ? errorCopy(state)
       : null;
   const addressError = activeError && state !== 'location-error' ? activeError : null;
-  const addressInvalid = state === 'not-found' || state === 'outside-minnesota';
+  const addressInvalid =
+    state === 'not-found' || state === 'ambiguous-location' || state === 'outside-minnesota';
   const locationButtonError = state === 'location-error' ? activeError : null;
   const mapUpdateLabel = lookup.isPending
     ? 'Updating legislators: showing the previous results'
@@ -371,7 +387,10 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (
       address.trim() &&
-      (state === 'not-found' || state === 'outside-minnesota' || state === 'service-down')
+      (state === 'not-found' ||
+        state === 'ambiguous-location' ||
+        state === 'outside-minnesota' ||
+        state === 'service-down')
     ) {
       addressInputRef.current?.focus();
     }

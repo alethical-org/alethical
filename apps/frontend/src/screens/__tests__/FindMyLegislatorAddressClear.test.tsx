@@ -352,3 +352,25 @@ it.each([
     delete (navigator as { connection?: unknown }).connection;
   }
 });
+it.each([
+  [
+    new ApiError(404, 'disagree', 'representative-lookup-ambiguous-location'),
+    'We couldn’t safely identify your districts from this address',
+    'Check your full street address, or choose where you live on the map',
+  ],
+  [
+    new ApiError(502, 'map unavailable', 'representative-lookup-upstream-error'),
+    'Lookup unavailable right now',
+    'Try again later',
+  ],
+])(
+  'names disagreeing districts separately from a source failure',
+  async (error, field_, answer) => {
+    lookupRequest.mockRejectedValue(error);
+    type(firstAddress);
+    await submit();
+    expect(host.textContent).toContain(field_);
+    expect(host.textContent).toContain(answer);
+    expect(host.textContent).not.toContain('No match for that address');
+  },
+);
