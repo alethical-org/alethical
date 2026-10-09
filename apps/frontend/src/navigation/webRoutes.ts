@@ -772,10 +772,12 @@ export function pathForRoute(activeRoute: {
 }): string {
   if (activeRoute.name === 'Candidates') return '/candidates';
   if (activeRoute.name === 'CandidateFeatures') {
-    const candidateId = String(activeRoute.params?.candidateId ?? '');
-    return /^[a-f0-9]{64}$/.test(candidateId)
-      ? `/candidates/features?candidate=${candidateId}`
-      : '/candidates/features';
+    // Written for the smallest first download; a missing or invalid id reads as no candidate.
+    const candidateId = activeRoute.params?.candidateId as string;
+    return (
+      '/candidates/features' +
+      (/^[a-f0-9]{64}$/.test(candidateId) ? `?candidate=${candidateId}` : '')
+    );
   }
   if (activeRoute.name === 'PersonOverview') {
     const personId = String(activeRoute.params?.personId ?? '');

@@ -94,9 +94,6 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
       'Enter a Minnesota street address to see source-backed candidates for state and local offices.',
     canonicalPath: '/candidates',
   }),
-  // An ordinary public page: its own label and this description say every feature is on
-  // the roadmap. The address carrying a candidate is a context view; see below.
-  '/candidates/features': candidateFeaturesPageMetadata(),
   '/find-my-legislator': pageMetadata({
     title: titleFor('Find my legislator'),
     socialTitle: 'Find my legislator',

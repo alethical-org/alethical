@@ -552,9 +552,14 @@ def _publication_dates(db: Session, row: CandidateStatement) -> dict:
     """First publication and latest edit of the statement now public.
 
     A removal starts a new publication, so the current one is the run of
-    published revisions after this owner's last removal. Version numbers count
-    removals too, so they never decide this. Without revision evidence neither
-    date can be established (the row date may be an edit), so both are omitted.
+    published revisions after this owner's last removal. Approval of a new owner
+    deletes the statement row, so this owner's revisions are the whole history of
+    this row only when there is exactly 1 per version: every save and removal
+    adds 1 revision and 1 version. With fewer (an older row), the first retained
+    revision may be an edit of unrecorded words, so the run's start is known only
+    when a recorded removal precedes it, and otherwise no publication date is
+    given. An edit is known whenever the run holds 2 published revisions.
+    Version numbers alone never decide either date.
     """
     if not row.body:
         return {"published_at": None, "edited_at": None}
@@ -567,12 +572,17 @@ def _publication_dates(db: Session, row: CandidateStatement) -> dict:
         .order_by(CandidateStatementRevision.created_at, CandidateStatementRevision.id)
     ).all()
     current: list[datetime] = []
+    after_removal = False
     for action, created_at in revisions:
-        current = [] if action == "removed" else [*current, created_at]
+        if action == "removed":
+            current, after_removal = [], True
+        else:
+            current.append(created_at)
     if not current:
         return {"published_at": None, "edited_at": None}
+    start_known = after_removal or len(revisions) == row.version
     return {
-        "published_at": current[0].isoformat(),
+        "published_at": current[0].isoformat() if start_known else None,
         "edited_at": row.updated_at.isoformat() if len(current) > 1 else None,
     }
 

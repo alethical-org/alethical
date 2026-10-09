@@ -1503,3 +1503,69 @@ it('brings back unsent answers when another review is requested again', async ()
     )!.value,
   ).toBe('https://example.org/again');
 });
+it('rechecks access before Try again: a revoked owner sees the revoked state, not Statement removed', async () => {
+  mocks.remove.mockRejectedValueOnce(new Error('Lost response'));
+  manage();
+  await flush();
+  act(() => button('Remove statement').click());
+  const risky = [...host.querySelectorAll<HTMLButtonElement>('dialog button')].find(
+    (value) => value.getAttribute('aria-label') === 'Remove statement',
+  )!;
+  act(() => risky.click());
+  await flush();
+  expect(host.textContent).toContain('We couldn’t complete this request');
+  // Revocation removed the statement; the former owner can still read the empty history.
+  mocks.mine.mockResolvedValue({
+    account_id: 'account-a',
+    claims: [{ ...approved, status: 'revoked', can_manage: false }],
+  });
+  mocks.privateStatement.mockResolvedValue({
+    account_id: 'account-a',
+    statement: { body: '', updated_at: '2026-10-01', version: 3 },
+    history: [],
+  });
+  const reads = mocks.privateStatement.mock.calls.length;
+  act(() => button('Try again').click());
+  await flush();
+  expect(host.textContent).toContain('Profile claim revoked');
+  expect(host.textContent).not.toContain('Statement removed');
+  expect(host.querySelector('[aria-label="Campaign statement"]')).toBeNull();
+  expect(mocks.privateStatement.mock.calls.length).toBe(reads);
+  expect(mocks.remove).toHaveBeenCalledTimes(1);
+  expect(mocks.save).not.toHaveBeenCalled();
+});
+it('rechecks access before reconciling a change saved elsewhere, and writes nothing once access ends', async () => {
+  mocks.save.mockRejectedValueOnce(Object.assign(new Error('Changed'), { status: 409 }));
+  manage();
+  await flush();
+  edit('Campaign statement', 'My edited campaign words');
+  act(() => button('Save changes').click());
+  await flush();
+  mocks.mine.mockResolvedValue({
+    account_id: 'account-a',
+    claims: [{ ...approved, status: 'revoked', can_manage: false }],
+  });
+  act(() => button('Try again').click());
+  await flush();
+  expect(host.textContent).toContain('Profile claim revoked');
+  expect(host.textContent).not.toContain('My edited campaign words');
+  expect(mocks.save).toHaveBeenCalledTimes(1);
+});
+it('shows the current access state when a write is refused for lost access, without offering to repeat it', async () => {
+  mocks.save.mockRejectedValueOnce(Object.assign(new Error('Not approved'), { status: 403 }));
+  manage();
+  await flush();
+  edit('Campaign statement', 'My edited campaign words');
+  mocks.mine.mockResolvedValue({
+    account_id: 'account-a',
+    claims: [{ ...approved, status: 'revoked', can_manage: false }],
+  });
+  act(() => button('Save changes').click());
+  await flush();
+  await flush();
+  expect(host.textContent).toContain('Profile claim revoked');
+  expect(host.textContent).not.toContain('We couldn’t complete this request');
+  expect(button('Try again')).toBeUndefined();
+  expect(host.querySelector('[aria-label="Campaign statement"]')).toBeNull();
+  expect(mocks.save).toHaveBeenCalledTimes(1);
+});

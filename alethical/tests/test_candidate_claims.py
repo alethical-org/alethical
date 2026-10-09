@@ -755,3 +755,55 @@ def test_new_owner_publication_is_dated_from_its_own_history(client):
     assert shown["body"] == "New owner words"
     assert shown["edited_at"] is None
     assert shown["published_at"] == fresh.json()["statement"]["published_at"]
+
+
+def make_legacy(version, body=None):
+    """An older statement row: no revision history and a later version number."""
+    with get_session_factory()() as db:
+        db.execute(delete(CandidateStatementRevision))
+        row = db.get(CandidateStatement, CANDIDATE)
+        row.version = version
+        if body is not None:
+            row.body = body
+        db.commit()
+
+
+def test_editing_a_legacy_statement_is_not_dated_as_a_first_publication(client):
+    item = approved(client)
+    statement(client, item, "Legacy words")
+    make_legacy(7)
+    edited = statement(client, item, "Edited legacy words", 7)
+    assert edited.status_code == 200, edited.text
+    shown = edited.json()["statement"]
+    assert shown["version"] == 8
+    # 1 retained revision after unrecorded words: an edit or a republish, unknown.
+    assert shown["published_at"] is None and shown["edited_at"] is None
+    assert public(client).json()["statement"]["published_at"] is None
+    # A second edit is known to be an edit, while its first publication stays unknown.
+    again = statement(client, item, "Edited twice", 8).json()["statement"]
+    assert again["edited_at"] == again["updated_at"]
+    assert again["published_at"] is None
+
+
+def test_republishing_after_a_recorded_removal_of_a_legacy_statement_is_dated(client):
+    item = approved(client)
+    statement(client, item, "Legacy words")
+    make_legacy(7)
+    assert remove(client, item, 7).status_code == 200
+    republished = statement(client, item, "Published again", 8).json()["statement"]
+    assert republished["version"] == 9
+    # The recorded removal ended the unrecorded publication, so this one starts here.
+    assert republished["published_at"] is not None
+    assert republished["edited_at"] is None
+    edited = statement(client, item, "Published again, edited", 9).json()["statement"]
+    assert edited["published_at"] == republished["published_at"]
+    assert edited["edited_at"] == edited["updated_at"]
+
+
+def test_publishing_over_an_emptied_legacy_statement_is_not_dated(client):
+    item = approved(client)
+    statement(client, item, "Legacy words")
+    make_legacy(7, body="")
+    shown = statement(client, item, "New words", 7).json()["statement"]
+    # No recorded removal: the empty row's history is unknown, so no date is claimed.
+    assert shown["published_at"] is None and shown["edited_at"] is None

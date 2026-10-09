@@ -1272,9 +1272,16 @@ function ManageContent({
     );
   };
   const failed = (kind: WriteKind | 'withdraw', error: unknown) => {
-    if ([401, 403].includes((error as { status?: number })?.status ?? 0)) clearPrivate();
-    setFailure(kind === 'withdraw' ? 'give' : 'write');
     setDialog(null);
+    // Access ended or the sign-in lapsed: drop the private text and show the current
+    // access state from a fresh read, never offering to repeat the write.
+    if ([401, 403].includes((error as { status?: number })?.status ?? 0)) {
+      clearPrivate();
+      setFailure(null);
+      void load();
+      return;
+    }
+    setFailure(kind === 'withdraw' ? 'give' : 'write');
   };
   const write = async (kind: WriteKind) => {
     if (!claim || !claims || !canManage || writing.current || loading) return;
@@ -1314,6 +1321,22 @@ function ManageContent({
     setBusy('checking');
     let attempted: number | null = null;
     try {
+      // Former owners can still read their history, so first confirm this account
+      // still manages this claim. If not, show the current access state; write nothing.
+      const mine = await getMyCandidateClaims(token, candidateId, scope);
+      if (scope.aborted) return;
+      const access = mine.claims.find((item) => item.candidate_id === candidateId);
+      if (mine.is_admin === true || !access?.can_manage || access.id !== claim.id) {
+        clearPrivate();
+        setFailure(null);
+        setFieldError(null);
+        setMessage('');
+        // A different claim now manages it: start again from that claim's saved state.
+        if (mine.is_admin !== true && access?.can_manage) void load();
+        else setClaims(mine);
+        return;
+      }
+      setClaims(mine);
       const fresh = await getPrivateCandidateStatement(token, claim.id, scope);
       if (scope.aborted) return;
       setLoaded(fresh);
