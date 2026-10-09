@@ -209,7 +209,7 @@ def _parse_with_rows(
         # Postal city belongs to the address match, never to a municipal race.
         city_words = city.strip().split()
         city_name = re.escape(city.strip())
-        if len(city_words) > 1 and city_words[0].rstrip(".") in {"ST", "SAINT"}:
+        if len(city_words) > 1 and city_words[0] in {"ST", "ST.", "SAINT"}:
             # Minnesota address points print SAINT PAUL; election street tables
             # print ST PAUL. Accept that exact prefix spelling, preserving every
             # remaining city word and the source's house/street/ZIP/range checks.
