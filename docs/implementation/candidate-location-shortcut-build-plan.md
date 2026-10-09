@@ -75,6 +75,20 @@ The legislator finder keeps its coordinate-to-district lookup and map.
   mutation-checked
 - [x] 4 Legislator Find
 - [x] 5 Guides and build records
+- [x] Independent review (9 October) found 6 material and 12 minor issues. Fixed:
+  the CI check still expecting the old busy wording; the Privacy Policy and data
+  sharing table now name the device position sent to the Minnesota Geospatial
+  Information Office; suggestions print the election source's spelling and street
+  types compare in either spelling; a nearer unlabelled point blocks a suggestion; the
+  search reaches past the nearest building by the separation distance; a capped answer
+  is imprecise; inactive and invalid points are ignored; `Apt.` and a unit before a
+  lone comma match; a bare unit beside the same street unit is not doubled; a location
+  tap clears an earlier address error; an empty Find, a retry or a loading election
+  list no longer leaves an attempt running or a confirmation doing nothing.
+  Open for the product owner: the optional unit field leads to **We couldn’t match
+  that address to election records** wherever the election source lists no unit
+  ranges, which is most buildings; the approved rule forbids falling back to the
+  building's general range.
 - [ ] 6 Browser checks pass in Chromium and WebKit at 1280, 900, 390, 320 and 200%
   zoom (`apps/frontend/scripts/check-candidate-location.mjs`); the open suggestion
   list was found under the outline and fixed. Independent review and release pending

@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { useResponsive } from '../../hooks/useResponsive';
+import { fieldFocusRing, fieldOutlineReset } from '../../theme/fieldFocus';
 import { theme } from '../../theme/tokens';
 import { CandidateButton, candidateText } from './CandidateControls';
 
@@ -151,7 +152,9 @@ export function CandidateLocationConfirm({
           onSubmitEditing={confirm}
           accessibilityLabel="Street address"
           autoComplete="street-address"
-          style={styles.nativeField}
+          onFocus={() => setFocused('street')}
+          onBlur={() => setFocused(null)}
+          style={[styles.nativeField, ...fieldFocusRing(focused === 'street'), fieldOutlineReset]}
         />
       )}
       <View nativeID={`${id}-message`} aria-live="polite">
@@ -213,7 +216,9 @@ export function CandidateLocationConfirm({
           onSubmitEditing={confirm}
           placeholder="Apt 3"
           accessibilityLabel="Apartment or unit, optional"
-          style={styles.nativeField}
+          onFocus={() => setFocused('unit')}
+          onBlur={() => setFocused(null)}
+          style={[styles.nativeField, ...fieldFocusRing(focused === 'unit'), fieldOutlineReset]}
         />
       )}
       <View

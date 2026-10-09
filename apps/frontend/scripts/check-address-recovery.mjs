@@ -520,7 +520,7 @@ try {
         state.holdLookups();
         await field.press('Enter');
         await expect.poll(() => state.pending.length).toBe(1);
-        const find = state.page.getByRole('button', { name: 'Finding candidates…', exact: true });
+        const find = state.page.getByRole('button', { name: 'Finding…', exact: true });
         await assertButtonTextContained(find);
         await assertButtonTextContained(cancel);
         const findBox = await find.boundingBox();

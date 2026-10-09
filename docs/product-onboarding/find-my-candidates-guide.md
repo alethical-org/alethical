@@ -137,7 +137,9 @@ separate step with its existing keyboard guidance.
 
 The official match reads a unit at the end of the street segment, after a comma
 (`350 S 5th St, Apt 3, Minneapolis`) or after the city (`350 S 5th St Minneapolis Apt
-3 MN 55415`). 2 different units in 1 address are refused, never reconciled.
+3 MN 55415`), with or without a dot after the label (`Apt. 3`). 2 different units in 1
+address are refused, never reconciled. Street types compare in either spelling
+(`Ter` and `Terrace`).
 
 A typed unit carries onto a suggestion only when the same base location is
 established, respecting the supplied house number, street, direction, city, state
@@ -187,10 +189,15 @@ unavailable.
 
 A location never searches by itself. The reading's position and accuracy go once,
 in a private request body, to Alethical's server, which asks Minnesota's open address
-points service for nearby addresses. A suggestion is offered only when the reading
-separates 1 building from its neighbours: accuracy no worse than 100 meters, and
-every other distinct address at least the reading's accuracy (minimum 8 meters)
-farther away than the nearest. Otherwise the reading is treated as too imprecise.
+points service for nearby active addresses. A suggestion is offered only when the
+reading separates 1 building from its neighbours: accuracy no worse than 100 meters,
+the nearest address within the accuracy plus 30 meters, and every other distinct
+address point, including one with no usable address, at least the reading's accuracy
+(minimum 8 meters) farther away than the nearest. The search reaches far enough to
+see those neighbours. A capped answer, an unlabelled nearest point or no nearby
+address is treated as too imprecise. When exactly 1 official election street matches,
+the suggestion prints the election source's spelling, so a confirmed suggestion is
+compared in the same words; otherwise it keeps the state's wording.
 Coordinates are never put in a link, saved in the browser, an account, analytics or
 logs, and the suggestion is not kept after the attempt.
 
@@ -198,8 +205,9 @@ A suggestion replaces the form in place with **Is this your home address?** (key
 focus moves to it) and **Your device’s location can be approximate or show where you
 are now, not where you live**. **Street address** is editable and prefilled.
 **Apartment or unit**, marked **Optional** with placeholder **Apt 3**, is joined into
-the street segment before the first comma; a bare value such as `3` becomes `#3`, and
-the same unit typed in both fields appears once. A different unit in each field is
+the street segment before the first comma; a bare value such as `3` becomes `#3`,
+`Apt. 3` is read as `Apt 3`, and the same unit typed in both fields appears once
+(`3` beside a street already ending `Apt 3` is the same unit). A different unit in each field is
 kept, and the official match then refuses the address rather than choosing either.
 **This is my home address** (busy **Finding…** in the same box) runs the normal exact
 official match; Enter in either field does the same, except while an input method is

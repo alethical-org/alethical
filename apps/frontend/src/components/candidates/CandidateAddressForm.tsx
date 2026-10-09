@@ -42,6 +42,7 @@ export function CandidateAddressForm({
   onUseLocation,
   locating = false,
   notice,
+  onFindPress,
 }: {
   services: CandidateSearchServices;
   address: string;
@@ -60,6 +61,8 @@ export function CandidateAddressForm({
   locating?: boolean;
   /** Information that leaves the typed address valid, such as a location failure. */
   notice?: string | null;
+  /** Every Find activation, including an empty box that only shows an error. */
+  onFindPress?(): void;
 }) {
   const { isMobile } = useResponsive();
   const id = useId().replace(/:/g, '');
@@ -96,6 +99,7 @@ export function CandidateAddressForm({
   const choices = outcome?.kind === 'ambiguous' ? outcome.choices : [];
   const submit = (choice?: CandidateAddressChoice, suggestionAddress?: string) => {
     if (busy) return;
+    onFindPress?.();
     const value = suggestionAddress ?? inputRef.current?.value() ?? address;
     inputRef.current?.dismiss();
     if (value !== address) onAddress(value);

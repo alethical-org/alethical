@@ -23,8 +23,8 @@ for (const engine of [chromium, webkit]) {
       await page.evaluate(() => document.fonts.ready);
       await page.getByLabel('Slow request', { exact: true }).check();
       const field = page.getByLabel('Full street address', { exact: true });
-      const ready = page.getByRole('button', { name: 'Find my candidates', exact: true });
-      const busy = page.getByRole('button', { name: 'Finding candidates…', exact: true });
+      const ready = page.getByRole('button', { name: 'Find', exact: true });
+      const busy = page.getByRole('button', { name: 'Finding…', exact: true });
       const verifyBusy = async (before, compact = false) => {
         await busy.waitFor();
         await page.screenshot({
@@ -36,7 +36,7 @@ for (const engine of [chromium, webkit]) {
           'Busy button box/fill/border must stay fixed',
         );
         assert.equal(before.height, compact ? 52 : 60);
-        if (!compact) assert.equal(before.width, width === 1280 ? 248 : width === 900 ? 220 : 350);
+        if (!compact) assert.equal(before.width, width === 390 ? 350 : 150);
         assert.equal(await busy.getAttribute('aria-disabled'), 'true');
         assert.equal(await busy.evaluate((node) => node === document.activeElement), true);
         assert.equal(await busy.evaluate((node) => getComputedStyle(node).cursor), 'progress');
@@ -52,10 +52,10 @@ for (const engine of [chromium, webkit]) {
         );
         const announcements = page
           .locator('[aria-live="polite"]')
-          .filter({ hasText: /^Finding candidates…$/ });
+          .filter({ hasText: /^Finding…$/ });
         assert.equal(await announcements.count(), 1);
         assert.equal(await announcements.evaluate((node) => getComputedStyle(node).width), '1px');
-        assert.equal(await page.getByText('Finding candidates…', { exact: true }).count(), 2);
+        assert.equal(await page.getByText('Finding…', { exact: true }).count(), 2);
         assert.equal(
           await busy.evaluate(
             (node) => node.parentElement.nextElementSibling.nextElementSibling.textContent,
@@ -164,10 +164,10 @@ for (const engine of [chromium, webkit]) {
       await page.getByLabel('Review state', { exact: true }).selectOption('full');
       await retry.click();
       await busy.waitFor();
-      assert.equal(await page.getByText('Finding candidates…', { exact: true }).count(), 2);
+      assert.equal(await page.getByText('Finding…', { exact: true }).count(), 2);
       const retryAnnouncement = page
         .locator('[aria-live="polite"]')
-        .filter({ hasText: /^Finding candidates…$/ });
+        .filter({ hasText: /^Finding…$/ });
       assert.equal(await retryAnnouncement.count(), 1);
       assert.equal(await retryAnnouncement.evaluate((node) => getComputedStyle(node).width), '1px');
       assert.deepEqual(

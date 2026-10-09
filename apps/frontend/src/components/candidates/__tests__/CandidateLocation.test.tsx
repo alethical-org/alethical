@@ -435,6 +435,13 @@ it('joins a unit once in the canonical place without dropping a conflicting unit
   expect(normalizeAddressUnit(' 3 ')).toBe('#3');
   expect(normalizeAddressUnit('# 3B')).toBe('#3B');
   expect(normalizeAddressUnit('Unit 2')).toBe('Unit 2');
+  expect(normalizeAddressUnit('Apt. 3')).toBe('Apt 3');
+  expect(joinAddressUnit('4821 Sample Ave S Apt 3, Sample Lake, MN 55999', '3')).toBe(
+    '4821 Sample Ave S Apt 3, Sample Lake, MN 55999',
+  );
+  expect(joinAddressUnit('4821 Sample Ave S Apt 3, Sample Lake, MN 55999', 'Unit 3')).toBe(
+    '4821 Sample Ave S Apt 3 Unit 3, Sample Lake, MN 55999',
+  );
   expect(joinAddressUnit(SUGGESTED, '')).toBe(SUGGESTED);
   expect(joinAddressUnit(SUGGESTED, 'Apt 3')).toBe(
     '4821 Sample Ave S Apt 3, Sample Lake, MN 55999',
@@ -451,4 +458,44 @@ it('joins a unit once in the canonical place without dropping a conflicting unit
   expect(joinAddressUnit('4821 Sample Ave S Sample Lake', 'Apt 3')).toBe(
     '4821 Sample Ave S Sample Lake Apt 3',
   );
+});
+
+it('clears an earlier address error when location starts', async () => {
+  const current = setup({ lookup: vi.fn(async () => ({ kind: 'no-match' }) as const) });
+  await render(current);
+  setValue(textarea(), '1 Unknown Rd, Sample Lake, MN 55999');
+  click(button('Find')!);
+  await flush();
+  expect(textarea().getAttribute('aria-invalid')).toBe('true');
+  click(button('Use my location')!);
+  expect(textarea().getAttribute('aria-invalid')).toBeNull();
+  expect(host.textContent).not.toContain('We couldn’t match that address to election records');
+});
+
+it('lets an empty Find press end a location attempt', async () => {
+  const current = setup();
+  await render(current);
+  click(button('Use my location')!);
+  click(button('Find')!);
+  expect(host.textContent).toContain('Enter your full Minnesota street address');
+  await act(async () => geo.success!(position()));
+  await flush();
+  expect(host.textContent).not.toContain('Is this your home address?');
+  expect(current.locate).not.toHaveBeenCalled();
+});
+
+it('confirms as soon as elections arrive when they were still loading', async () => {
+  let elections!: (value: CandidateElection[]) => void;
+  const current = setup();
+  current.services.getElections = () => new Promise((yes) => (elections = yes));
+  await render(current);
+  click(button('Use my location')!);
+  await act(async () => geo.success!(position()));
+  await flush();
+  click(button('This is my home address')!);
+  expect(button('Finding…')).toBeTruthy();
+  expect(current.lookup).not.toHaveBeenCalled();
+  await act(async () => elections([election]));
+  await flush();
+  expect(vi.mocked(current.lookup).mock.calls[0][0].address).toBe(SUGGESTED);
 });

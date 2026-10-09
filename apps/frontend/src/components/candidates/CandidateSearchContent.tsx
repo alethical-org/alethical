@@ -92,6 +92,7 @@ function CandidateSearchSession({
   const locationCleanup = useRef<(() => void) | null>(null);
   // The confirmed address whose search is running from the confirmation card.
   const confirmPending = useRef<string | null>(null);
+  const queuedConfirm = useRef<{ street: string; unit: string } | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
   const focusFieldSoon = useRef(false);
   const state = useSyncExternalStore(flow.subscribe, flow.getState, flow.getState);
@@ -233,8 +234,9 @@ function CandidateSearchSession({
   const useLocation = () => {
     if (location.kind === 'locating') return;
     endLocationAttempt();
-    // The newest request wins: an unfinished typed search stops here.
-    if (busy) flow.setDraftAddress(address);
+    // The newest request wins: an unfinished search stops, and an earlier outcome
+    // for the typed text clears so its error does not sit beside the new attempt.
+    flow.setDraftAddress(address);
     const geolocation =
       Platform.OS === 'web' && typeof navigator !== 'undefined' ? navigator.geolocation : undefined;
     const locate = services.locate;
@@ -296,7 +298,10 @@ function CandidateSearchSession({
     if (location.kind !== 'confirm') return;
     // Editing either field ends a running search; its reply cannot replace the edit.
     cancelConfirmSearch(location.previous);
-    setLocation({ ...location, ...patch, missing: false });
+    queuedConfirm.current = null;
+    setLocation((current) =>
+      current.kind === 'confirm' ? { ...current, ...patch, missing: false } : current,
+    );
   };
   const confirmHome = (street: string, unit: string) => {
     if (location.kind !== 'confirm' || confirmPending.current !== null) return;
@@ -305,7 +310,15 @@ function CandidateSearchSession({
       return;
     }
     const election = elections.find((item) => item.id === selected);
-    if (!election) return;
+    if (!election) {
+      // Elections are still loading: confirm as soon as they arrive.
+      if (electionLoad === 'loading') {
+        queuedConfirm.current = { street, unit };
+        setConfirmBusy(true);
+      }
+      return;
+    }
+    queuedConfirm.current = null;
     const confirmed = joinAddressUnit(street, unit);
     confirmPending.current = confirmed;
     setConfirmBusy(true);
@@ -320,6 +333,8 @@ function CandidateSearchSession({
   const enterDifferentAddress = () => {
     if (location.kind !== 'confirm') return;
     const { previous } = location;
+    queuedConfirm.current = null;
+    setConfirmBusy(false);
     if (confirmPending.current !== null) cancelConfirmSearch(previous);
     else flow.setDraftAddress(previous);
     setAddress(previous);
@@ -339,6 +354,19 @@ function CandidateSearchSession({
       focusFieldSoon.current = true;
     }
   }, [state.status, state.displayed]);
+  useEffect(() => {
+    const queued = queuedConfirm.current;
+    if (!queued || location.kind !== 'confirm') return;
+    if (electionLoad === 'error') {
+      queuedConfirm.current = null;
+      setConfirmBusy(false);
+    } else if (electionLoad === 'ready' && selected) {
+      setConfirmBusy(false);
+      confirmHome(queued.street, queued.unit);
+    }
+    // confirmHome reads the current render's elections and selection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [electionLoad, selected, location.kind]);
   useEffect(() => {
     if (location.kind === 'idle' && focusFieldSoon.current) {
       focusFieldSoon.current = false;
@@ -374,7 +402,7 @@ function CandidateSearchSession({
         street={location.street}
         unit={location.unit}
         missing={location.missing}
-        busy={confirmBusy && busy}
+        busy={confirmBusy && (busy || queuedConfirm.current !== null)}
         onStreet={(street) => editConfirm({ street })}
         onUnit={(unit) => editConfirm({ unit })}
         onConfirm={confirmHome}
@@ -385,6 +413,11 @@ function CandidateSearchSession({
         services={services}
         fieldRef={fieldRef}
         onUseLocation={displayed || !services.locate ? undefined : useLocation}
+        onFindPress={() => {
+          // Any Find press, even with an empty box, wins over a location attempt.
+          endLocationAttempt();
+          setLocation((current) => (current.kind === 'locating' ? { kind: 'idle' } : current));
+        }}
         locating={location.kind === 'locating'}
         notice={location.kind === 'notice' ? LOCATION_NOTICES[location.notice] : null}
         address={address}
@@ -435,6 +468,8 @@ function CandidateSearchSession({
           onPress={() => {
             if (electionLoad === 'error') setReload((value) => value + 1);
             else {
+              endLocationAttempt();
+              setLocation({ kind: 'idle' });
               setRetrying(true);
               void flow.retry();
             }

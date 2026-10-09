@@ -21,7 +21,9 @@ from sqlalchemy.orm import Session
 
 from alethical.api.services.address_format import normalize_address_format
 from alethical.api.services.representative_lookup import (
+    _STREET_TYPE_ALIASES,
     MINNESOTA_ADDRESS_POINTS_URL,
+    AddressPointsIncomplete,
     MinnesotaAddressPointGeocoder,
     RepresentativeLookupNotFound,
     RepresentativeLookupOutsideMinnesota,
@@ -129,8 +131,14 @@ _ALIASES = {
 
 
 def _normal(value: str) -> str:
+    # Both spellings of a street type compare equal ("TER" and "TERRACE"), on both
+    # sides of every comparison, so the state's address points and the election
+    # source's abbreviations name the same street.
     return " ".join(
-        _ALIASES.get(word, word) for word in value.upper().replace(".", "").split()
+        _STREET_TYPE_ALIASES.get(word, word)
+        for word in (
+            _ALIASES.get(word, word) for word in value.upper().replace(".", "").split()
+        )
     )
 
 
@@ -143,7 +151,7 @@ def _choice(address: str) -> dict:
 
 
 _UNIT_PATTERN = re.compile(
-    r"(?:\b(?:APT|APARTMENT|UNIT|SUITE|STE)\s+|#\s*)[A-Z0-9-]+\b", re.IGNORECASE
+    r"(?:\b(?:APT|APARTMENT|UNIT|SUITE|STE)\.?\s+|#\s*)[A-Z0-9-]+\b", re.IGNORECASE
 )
 
 
@@ -207,18 +215,17 @@ def _parse_with_rows(
     without = upper[: unit.start()] + upper[unit.end() :]
     without = re.sub(r"\s*,(?:\s*,)+", ",", without)
     without = re.sub(r"\s+,", ",", " ".join(without.split()))
+    unit_text = re.sub(r"\.(?=\s)", "", unit.group())
     street, separator, locality = without.partition(",")
-    if not separator:
-        # Comma-free text: let each source row's own city mark the street's end.
-        return [
-            address
-            for address in _parse_rows_once(
-                without, rows, prefix=prefix, unit=unit.group()
-            )
-        ]
-    return _parse_rows_once(
-        f"{street.strip()} {unit.group()},{locality}", rows, prefix=prefix
-    )
+    if separator:
+        matches = _parse_rows_once(
+            f"{street.strip()} {unit_text},{locality}", rows, prefix=prefix
+        )
+        if matches:
+            return matches
+    # Comma-free text, or a unit placed after the city: each source row's own
+    # city marks where the street ends.
+    return _parse_rows_once(without, rows, prefix=prefix, unit=unit_text)
 
 
 def _parse_rows_once(
@@ -255,12 +262,12 @@ def _parse_rows_once(
             continue
         unit = supplied_unit
         unit_match = re.search(
-            r"\s+((?:(?:APT|APARTMENT|UNIT|SUITE|STE)\s+|#\s*)[^,]+)$", requested
+            r"\s+((?:(?:APT|APARTMENT|UNIT|SUITE|STE)\.?\s+|#\s*)[^,]+)$", requested
         )
         if unit_match:
             if supplied_unit:
                 continue
-            unit = unit_match.group(1).strip()
+            unit = re.sub(r"^([A-Z]+)\.(?=\s)", r"\1", unit_match.group(1).strip())
             # "Street, Apt 3, City" leaves the separating comma behind.
             requested = requested[: unit_match.start()].strip(" ,")
         expected, supplied = _normal(street), _normal(requested)
@@ -440,21 +447,47 @@ class CandidateLookupService:
             return {"kind": "outside-minnesota"}
         if accuracy > LOCATION_MAX_ACCURACY_METERS:
             return {"kind": "imprecise"}
+        reach = accuracy + LOCATION_PLACEMENT_SLACK_METERS
+        separation = max(accuracy, LOCATION_MIN_SEPARATION_METERS)
         try:
+            # Look far enough past the nearest possible building to see every
+            # neighbour that the separation rule must rule out.
             nearby = self.geocoder.nearby_addresses(
-                latitude, longitude, accuracy + LOCATION_PLACEMENT_SLACK_METERS
+                latitude, longitude, reach + separation
             )
+        except AddressPointsIncomplete:
+            return {"kind": "imprecise"}
         except Exception:
             # Upstream text can include the submitted point. Report nothing of it.
             raise CandidateLookupUnavailable(
                 "Government address service unavailable"
             ) from None
-        if not nearby:
+        if not nearby or nearby[0][1] > reach or nearby[0][0] is None:
+            # No building close enough, or the nearest point has no usable address.
             return {"kind": "imprecise"}
-        separation = max(accuracy, LOCATION_MIN_SEPARATION_METERS)
         if len(nearby) > 1 and nearby[1][1] - nearby[0][1] < separation:
             return {"kind": "imprecise"}
-        return {"kind": "address", "address": nearby[0][0]}
+        return {"kind": "address", "address": self._official_spelling(nearby[0][0])}
+
+    def _official_spelling(self, label: str) -> str:
+        """Print the election source's spelling when exactly 1 of its streets matches.
+
+        Anything else keeps the state's address-point wording; the reader's
+        confirmed search still decides the match.
+        """
+        zip_code = re.search(r"\b(\d{5})$", label)
+        if not zip_code:
+            return label
+        try:
+            rows = self.streets(zip_code.group(1))
+            matches = _parse_with_rows(label, rows)
+            if not matches:
+                # Postal community names can differ from the source's city name.
+                street = label.partition(",")[0]
+                matches = _parse_with_rows(f"{street} MN {zip_code.group(1)}", rows)
+        except CandidateLookupUnavailable:
+            return label
+        return _address_label(matches[0]) if len(matches) == 1 else label
 
     def resolve(
         self, text: str, confirmed: dict | None = None

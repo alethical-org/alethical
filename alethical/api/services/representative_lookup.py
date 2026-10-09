@@ -780,6 +780,10 @@ class CensusGeocoder:
         return text or None
 
 
+class AddressPointsIncomplete(RepresentativeLookupUpstreamError):
+    """The service capped its answer, so a nearer building may be missing."""
+
+
 def _address_point_label(attributes: dict) -> tuple[str, str, str]:
     """Base street address of 1 address point; unit fields are deliberately omitted."""
     street = " ".join(
@@ -827,11 +831,13 @@ class MinnesotaAddressPointGeocoder:
 
     def nearby_addresses(
         self, latitude: float, longitude: float, radius_meters: float
-    ) -> list[tuple[str, float]]:
-        """Distinct base addresses within a radius, nearest first.
+    ) -> list[tuple[str | None, float]]:
+        """Distinct active base addresses within a radius, nearest first.
 
-        The point travels in a form body to the state's service, never in a URL.
-        Callers decide whether the result is specific enough to suggest.
+        A point with no usable street, number or ZIP still counts, labelled None,
+        so it can never hide behind a farther labelled neighbour. The point travels
+        in a form body to the state's service, never in a URL. Callers decide
+        whether the result is specific enough to suggest.
         """
         response = _address_point_session().post(
             self.base_url,
@@ -867,12 +873,14 @@ class MinnesotaAddressPointGeocoder:
                 "Minnesota address service returned an error"
             )
         features = payload.get("features")
-        if not isinstance(features, list) or payload.get("exceededTransferLimit"):
-            # A truncated answer may omit the nearest building. Never suggest from it.
+        if not isinstance(features, list):
             raise RepresentativeLookupUpstreamError(
-                "Minnesota address service response incomplete"
+                "Minnesota address service response missing features"
             )
-        nearest: dict[str, tuple[str, float]] = {}
+        if payload.get("exceededTransferLimit"):
+            # A truncated answer may omit the nearest building. Never suggest from it.
+            raise AddressPointsIncomplete("Minnesota address service capped its answer")
+        nearest: dict[str, tuple[str | None, float]] = {}
         for feature in features:
             attributes = (
                 feature.get("attributes") if isinstance(feature, dict) else None
@@ -882,24 +890,37 @@ class MinnesotaAddressPointGeocoder:
             state = self._normalize(attributes.get("state_code"))
             if state and state != "MN":
                 continue
+            status = self._normalize(attributes.get("status"))
+            if status and status != "ACTIVE":
+                continue
             try:
-                int(str(attributes["anumber"]))
                 point_latitude = float(attributes["latitude"])
                 point_longitude = float(attributes["longitude"])
             except (KeyError, TypeError, ValueError):
                 continue
-            if not self._normalize(attributes.get("st_name")):
-                continue
-            label, _, zip_code = _address_point_label(attributes)
-            if not re.fullmatch(r"\d{5}", zip_code):
+            if not (math.isfinite(point_latitude) and math.isfinite(point_longitude)):
                 continue
             distance = _meters_between(
                 latitude, longitude, point_latitude, point_longitude
             )
-            key = label.casefold()
+            label: str | None
+            try:
+                int(str(attributes["anumber"]))
+                label, _, zip_code = _address_point_label(attributes)
+                if not self._normalize(attributes.get("st_name")) or not re.fullmatch(
+                    r"\d{5}", zip_code
+                ):
+                    label = None
+            except (KeyError, TypeError, ValueError):
+                label = None
+            key = (
+                label.casefold()
+                if label
+                else f"point:{point_latitude:.6f},{point_longitude:.6f}"
+            )
             if key not in nearest or distance < nearest[key][1]:
                 nearest[key] = (label, distance)
-        return sorted(nearest.values(), key=lambda item: (item[1], item[0]))
+        return sorted(nearest.values(), key=lambda item: (item[1], item[0] or ""))
 
     def __init__(
         self,

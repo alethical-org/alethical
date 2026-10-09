@@ -753,6 +753,9 @@ UNIT_ROWS = [
         "100 EXAMPLE ST N EXAMPLE CITY APT 3 MN 99999",  # comma-free, after the city
         "100 EXAMPLE ST N, EXAMPLE CITY APT 3, MN 99999",  # autofill line then unit
         "100 EXAMPLE ST N APT 3 EXAMPLE CITY MN 99999",  # comma-free, canonical place
+        "100 EXAMPLE ST N EXAMPLE CITY APT 3, MN 99999",  # unit before a lone comma
+        "100 EXAMPLE ST N Apt. 3, EXAMPLE CITY, MN 99999",  # designator with a dot
+        "100 EXAMPLE ST N, Apt. 3, EXAMPLE CITY, MN 99999",
     ],
 )
 def test_unit_joined_in_any_position_resolves_its_own_official_range(address):
@@ -808,7 +811,8 @@ def test_location_suggests_only_a_building_its_reading_separates():
     clear = NearbyAddresses([(ADDRESS, 4.0), ("102 EXAMPLE ST N", 14.0)])
     lookup, calls = service(geocoder=clear)
     assert lookup.locate(*point, 6) == {"kind": "address", "address": ADDRESS}
-    assert clear.calls == [(*point, 36)]
+    # Reach (6 + 30) plus the separation the rule must check (8).
+    assert clear.calls == [(*point, 44)]
     # Neighbours closer together than the reading's own radius are not separable.
     assert lookup.locate(*point, 12) == {"kind": "imprecise"}
     # The minimum separation still applies to a very small reported radius.
@@ -822,8 +826,43 @@ def test_location_suggests_only_a_building_its_reading_separates():
     assert service(geocoder=NearbyAddresses())[0].locate(*point, 10) == {
         "kind": "imprecise"
     }
-    # Suggesting never reads election sources or saves anything.
-    assert calls == []
+    # A nearer point with no usable address is never skipped for a farther one.
+    unlabelled = NearbyAddresses([(None, 2.0), (ADDRESS, 14.0)])
+    assert service(geocoder=unlabelled)[0].locate(*point, 5) == {"kind": "imprecise"}
+    # The nearest building must lie within reach of the reading itself.
+    far = NearbyAddresses([(ADDRESS, 45.0)])
+    assert service(geocoder=far)[0].locate(*point, 10) == {"kind": "imprecise"}
+    # Suggesting reads only the public street table to print the official spelling.
+    assert all(url == STREETS_URL for url, _ in calls)
+
+
+def test_location_prints_the_election_sources_spelling_of_the_suggestion():
+    rows = [street(FullStreetName="OAK RIDGE TER", CityName="ST PAUL")]
+    label = "100 Oak Ridge Terrace, SAINT PAUL, MN 99999"
+    lookup, _ = service(rows=rows, geocoder=NearbyAddresses([(label, 1.0)]))
+    suggestion = lookup.locate(44.95, -93.10, 5)
+    assert suggestion == {
+        "kind": "address",
+        "address": "100 OAK RIDGE TER, ST PAUL, MN 99999",
+    }
+    assert lookup.lookup(suggestion["address"], "8334")[0]["kind"] == "results"
+    # The full street type matches the abbreviation in a typed address too.
+    assert (
+        lookup.lookup("100 Oak Ridge Terrace, St Paul, MN 99999", "8334")[0]["kind"]
+        == "results"
+    )
+    # Without exactly 1 official street, the state's wording is kept unchanged.
+    other, _ = service(geocoder=NearbyAddresses([(label, 1.0)]))
+    assert other.locate(44.95, -93.10, 5)["address"] == label
+
+
+def test_location_capped_answer_is_imprecise_not_unavailable():
+    from alethical.api.services.representative_lookup import AddressPointsIncomplete
+
+    capped = NearbyAddresses(error=AddressPointsIncomplete("capped"))
+    assert service(geocoder=capped)[0].locate(44.95, -93.10, 50) == {
+        "kind": "imprecise"
+    }
 
 
 def test_location_limits_outside_state_and_source_failure_are_distinct():
