@@ -1236,6 +1236,12 @@ function ManageContent({
   };
   const write = async (kind: WriteKind) => {
     if (!claim || !claims || !canManage || writing.current || loading) return;
+    // Saving an emptied public statement is a removal, so it asks first like Remove statement.
+    if (kind === 'save' && !draft.trim()) {
+      setFieldError(null);
+      setDialog('remove');
+      return;
+    }
     const invalid = check(kind, draft);
     setFieldError(invalid);
     if (invalid) {

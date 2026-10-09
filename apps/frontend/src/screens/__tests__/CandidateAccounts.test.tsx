@@ -1360,3 +1360,14 @@ it('explains statement removal keeps access', async () => {
     'Voters will no longer see your statement. You keep access to manage this profile.',
   );
 });
+it('asks before saving an emptied public statement, because that removes it', async () => {
+  manage();
+  await flush();
+  edit('Campaign statement', '   ');
+  act(() => button('Save changes').click());
+  expect(host.querySelector('dialog')?.getAttribute('aria-label')).toBe(
+    'Remove your statement from the public profile?',
+  );
+  expect(mocks.save).not.toHaveBeenCalled();
+  expect(mocks.remove).not.toHaveBeenCalled();
+});
