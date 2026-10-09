@@ -101,6 +101,9 @@ newly visible address instead of selecting an unrelated location.
   `215th`.
 - Common direction order does not have to match the official record. For example,
   `350 S 5` can suggest an address stored as `350 5th Street South`.
+- While typing, a lone street-name word that is also a street type, such as
+  `1006 Summit`, still offers matching streets. This suggestion-only allowance
+  does not relax the checks on a submitted address.
 - The house number must be exact. Alethical will not quietly move you to a nearby
   number or a different street.
 

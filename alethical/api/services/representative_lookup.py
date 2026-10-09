@@ -1210,7 +1210,8 @@ class MinnesotaAddressPointGeocoder:
                 street=street,
                 locality=" ".join(locality_words) or None,
                 zip_code=zip_code,
-            )
+            ),
+            allow_name_only_type=True,
         )
         if query is None:
             return None
@@ -1248,7 +1249,7 @@ class MinnesotaAddressPointGeocoder:
 
     @classmethod
     def _query_from_parsed_address(
-        cls, parsed: _ParsedMinnesotaAddress
+        cls, parsed: _ParsedMinnesotaAddress, *, allow_name_only_type: bool = False
     ) -> _AddressPointQuery | None:
         street_match = re.match(r"^(\d+)([A-Z]?)\s+(.+)$", parsed.street, re.IGNORECASE)
         if street_match is None:
@@ -1278,7 +1279,11 @@ class MinnesotaAddressPointGeocoder:
             if street_type:
                 street_type_width = width
                 break
-        if street_type:
+        if street_type and allow_name_only_type and street_type_width == len(tokens):
+            # While typing, "Summit" can be the whole street-name prefix. Do not
+            # consume its only word as a type and suppress all official choices.
+            street_type = None
+        elif street_type:
             del tokens[-street_type_width:]
         elif len(tokens) > 1:
             # Minnesota's standard allows many uncommon street types. Keep a

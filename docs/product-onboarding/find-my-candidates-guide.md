@@ -43,7 +43,9 @@ A city or ZIP alone cannot choose a ballot. Ambiguous addresses require an expli
 choice. An unsupported unit or overlapping range produces no match rather than a guess.
 Address suggestions begin with a house number plus at least 2 street-name characters
 (`29308 Cr`), or the first numbered-street digit (`350 5`). A house number alone
-does not trigger suggestions. The first eligible input starts a request immediately;
+does not trigger suggestions. A lone street-name word that is also a street type,
+such as `1006 Summit`, still offers matching streets while typing; submitted-address
+checks stay unchanged. The first eligible input starts a request immediately;
 continued typing waits for a 180-millisecond pause to group edits into 1 request.
 An edit after at least 180 milliseconds of idle time also starts immediately. Pasting,
 dropping or accepting a browser-provided replacement skips the typing pause. Spaces
