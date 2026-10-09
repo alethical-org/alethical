@@ -20,6 +20,12 @@ describe('privacy copy', () => {
     expect(source).toContain('house number and street name entered so far');
     expect(source).toContain('When you choose Use my location on Find my candidates');
     expect(source).toContain('We do not store either, or put the position in a link');
+    expect(source).toContain(
+      'The Minnesota Secretary of State, when you look up candidates by address',
+    );
+    expect(source).toContain(
+      'the official ballot-range number for your address, which can identify 1 building or apartment',
+    );
     expect(source).not.toContain('We send latitude and longitude to its public district service');
   });
 

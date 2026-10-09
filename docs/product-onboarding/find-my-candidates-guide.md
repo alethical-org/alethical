@@ -149,6 +149,47 @@ The official match reads a unit at the end of the street segment, after a comma
 address are refused, never reconciled. Street types compare in either spelling
 (`Ter` and `Terrace`).
 
+A unit at a house whose range the source does not mark for units reads that house's
+range, as Minnesota's own sample-ballot site does: it asks for no unit there, because
+every unit at the house shares the range. If any range at the house is marked, an
+unmarked one never stands in for a unit.
+
+Some buildings are split between ballot ranges by apartment number. Minnesota's
+street table marks those house ranges as needing a unit (`DisplayUnitNbr`), and its
+own sample-ballot site then lists that street's unit-number ranges, each tied to 1
+ballot range. When a searched address falls in such a range, the service reads the
+street's unit list the same way: it sends only the official street, city and ZIP to
+find the street's listing number, then that number, never the house number or unit.
+The answer is used for that search only and is not cached.
+
+- A range such as `101 - 248` is inclusive and numeric. A unit counts only when its
+  number, written in the digits 0 to 9, lies within it; `#250`, `Apt 250`, `Apt #250`,
+  `Apt.250`, `0250` and a bare `250` all read as 250.
+- A range whose 2 ends are the same text, such as `SIDE - SIDE`, matches only that
+  exact unit. Between letters no order is assumed, so a letter span proves only its
+  2 ends. A label in any other shape, such as `101-110` without spaces, proves
+  nothing either way.
+- The range's odd/even mark describes the house number, never the apartment.
+- The address resolves only when exactly 1 ballot range contains the unit and no
+  listed range at that house, including one with no street-table row, leaves it
+  unproven. A unit outside every range, between 2 ranges or in
+  2 overlapping ranges returns **We couldn’t match that address to election
+  records**. So does an address with no unit at a house the source says needs one:
+  no other range stands in for the missing unit.
+- A failed or unexpected unit-list request, or a flagged range with no unit list, is
+  a source failure: **Candidate results are unavailable**, never a no-match.
+- Typing suggestions and location suggestions do not read unit lists; the unit is
+  checked when the address is searched. A typing suggestion without a unit is not
+  offered at a house marked for units, because it could not be searched. A location
+  suggestion there prints the street address, and the card's unit field supplies
+  the unit.
+- An address with no unit at a marked house is refused before any unit list is read.
+
+Measured on 9 October 2026: 100 8th Ave S, Hopkins, lists units `101 - 248`, `250 - 250`
+and `252 - 663` on 3 different ballot ranges, and 439 Blake Rd N, Hopkins, splits by
+floor. The dated official replies are kept in
+`alethical/tests/fixtures/sos_unit_number_ranges_2026-10-09.json`.
+
 A typed unit carries onto a suggestion only when the same base location is
 established, respecting the supplied house number, street, direction, city, state
 and ZIP. An uncertain match never silently drops or transfers the unit. An explicit
@@ -237,9 +278,7 @@ error: dark text with a grey information icon, and the box is not marked invalid
   a timeout or a failed address-point request)
 - **This search covers Minnesota addresses** (a reading outside the state)
 
-Minnesota's election source records very few unit ranges. An address with a unit that
-the source does not list returns **We couldn’t match that address to election
-records** rather than the building's general range, exactly as a typed unit does.
+A unit typed in the card follows the same unit matching as a typed address.
 
 ## Results and their limits
 

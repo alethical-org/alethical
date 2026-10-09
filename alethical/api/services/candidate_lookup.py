@@ -38,15 +38,39 @@ from alethical.pipeline.candidate_ballot import (
     BallotRace,
     CandidateAddressNotFound,
     CandidateBallotError,
+    CandidateUnitRangesNeeded,
+    CandidateUnitRequired,
     StreetAddress,
+    StreetRangeMatch,
+    UnitNumberRange,
     ballot_jurisdiction,
     candidate_ballot_document,
     match_street_range,
     parse_candidate_ballot,
+    parse_unit_ranges,
     validate_street_rows,
 )
 
 STREETS_URL = "https://myballotmn.sos.mn.gov/api/Streets/GetStreets"
+# The official app reads a flagged range's unit list in 2 steps: the street's
+# listing number, then that street's unit-number ranges (read 2026-10-09).
+STREET_ID_URL = "https://myballotmn.sos.mn.gov/api/FilteredAddress/GetFilteredAddresses"
+UNIT_RANGES_URL = (
+    "https://myballotmn.sos.mn.gov/api/UnitNumberRangesData/GetUnitNumberRanges"
+)
+
+
+def _source_params(url: str) -> tuple[str, str] | None:
+    # Read at call time, so a test's local stand-in for a URL is honoured.
+    return {
+        STREETS_URL: ("ZipCode", r"[0-9]{1,12}"),
+        SOURCE_URL: ("prodAddressRangeId", r"[0-9]{1,12}"),
+        # Street, city and ZIP from the official street table: never a house number.
+        STREET_ID_URL: ("address", r"[A-Z0-9][A-Z0-9 .'&/-]{2,149}"),
+        UNIT_RANGES_URL: ("FullStreetNameCityNameZipCodeId", r"[0-9]{1,12}"),
+    }.get(url)
+
+
 BALLOT_HOME = "https://myballotmn.sos.mn.gov/"
 SUPPORTED_ELECTION = {
     "id": "8334",
@@ -70,12 +94,11 @@ class CandidateLookupUnavailable(Exception):
 
 def official_bytes(url: str, params: dict[str, str | int]) -> bytes:
     """The fixed source allowlist cannot be changed by a submitted address."""
-    if url not in (STREETS_URL, SOURCE_URL):
+    allowlisted = _source_params(url)
+    if allowlisted is None:
         raise CandidateLookupUnavailable("Unsupported candidate source")
-    expected = "ZipCode" if url == STREETS_URL else "prodAddressRangeId"
-    if set(params) != {expected} or not re.fullmatch(
-        r"[0-9]{1,12}", str(params[expected])
-    ):
+    expected, allowed = allowlisted
+    if set(params) != {expected} or not re.fullmatch(allowed, str(params[expected])):
         raise CandidateLookupUnavailable("Unsupported candidate source request")
     # Do not follow a redirect to an unrelated host, or include source exceptions
     # (which can contain the request parameters) in operational reports.
@@ -91,6 +114,15 @@ def official_bytes(url: str, params: dict[str, str | int]) -> bytes:
             # for application/json, but sends the actual object as text/plain.
             headers={"Accept": "text/plain"},
         ) as response:
+            if url == UNIT_RANGES_URL and response.status_code == 404:
+                # The source's own answer for a street with no unit list.
+                try:
+                    payload = json.loads(response.raw.read(1000, decode_content=True))
+                except Exception:
+                    # A broken or slow error body is a failure, never "no list".
+                    payload = None
+                if payload == {"message": "Unit number data not found."}:
+                    return b"[]"
             if response.status_code != 200:
                 raise CandidateLookupUnavailable("Official ballot service unavailable")
             body = bytearray()
@@ -314,6 +346,10 @@ def _parse_rows_once(
             # An individual row is only a suggestion. Full resolution below
             # still checks every row and rejects overlapping ranges.
             match_street_range([row], address)
+        except (CandidateUnitRangesNeeded, CandidateUnitRequired):
+            # The house is in a unit-specific range: the street spelling still
+            # matches. Its unit list is read only when this address is searched.
+            pass
         except CandidateAddressNotFound:
             continue
         except CandidateBallotError:
@@ -436,6 +472,8 @@ class CandidateLookupService:
                 continue
             try:
                 match_street_range(rows, matches[0])
+            except CandidateUnitRangesNeeded:
+                pass
             except CandidateAddressNotFound:
                 continue
             except CandidateBallotError:
@@ -527,9 +565,55 @@ class CandidateLookupService:
             return label
         return _address_label(matches[0]) if len(matches) == 1 else label
 
+    def unit_ranges(self, address: StreetAddress) -> tuple[UnitNumberRange, ...]:
+        """Read 1 street's official unit-number ranges, as MyBallot itself does.
+
+        Only the official street, city and ZIP leave Alethical, never the house
+        number or unit, and nothing is cached. A source failure is unavailable.
+        """
+        try:
+            listings = json.loads(
+                self.fetch(
+                    STREET_ID_URL,
+                    {"address": f"{address.street} {address.city} {address.zip_code}"},
+                ),
+                object_pairs_hook=_street_json_object,
+            )
+            if not isinstance(listings, list) or len(listings) > 1000:
+                raise ValueError
+            ids = {
+                listing.get("FullStreetNameCityNameZipCodeId")
+                for listing in listings
+                if isinstance(listing, dict)
+                and isinstance(listing.get("FullStreetName"), str)
+                and isinstance(listing.get("CityName"), str)
+                and " ".join(listing["FullStreetName"].upper().split())
+                == " ".join(address.street.upper().split())
+                and " ".join(listing["CityName"].upper().split())
+                == " ".join(address.city.upper().split())
+                and listing.get("ZipCode") == address.zip_code
+            }
+            if len(ids) != 1:
+                raise ValueError
+            street_id = ids.pop()
+            if type(street_id) is not int or street_id <= 0:
+                raise ValueError
+            return parse_unit_ranges(
+                json.loads(
+                    self.fetch(
+                        UNIT_RANGES_URL, {"FullStreetNameCityNameZipCodeId": street_id}
+                    ),
+                    object_pairs_hook=_street_json_object,
+                )
+            )
+        except (ValueError, TypeError, CandidateBallotError):
+            raise CandidateLookupUnavailable(
+                "Official unit records unavailable"
+            ) from None
+
     def resolve(
         self, text: str, confirmed: dict | None = None
-    ) -> tuple[StreetAddress, list[dict]] | dict:
+    ) -> tuple[StreetAddress, StreetRangeMatch] | dict:
         text = normalize_address_format(text)
         # Confirmation never acts as an arbitrary range selector or replacement
         # address. Recompute choices from the submitted original address first.
@@ -609,14 +693,19 @@ class CandidateLookupService:
         if len(matches) != 1:
             return {"kind": "no-match"}
         try:
-            match_street_range(rows, matches[0])
+            try:
+                found = match_street_range(rows, matches[0])
+            except CandidateUnitRangesNeeded:
+                found = match_street_range(
+                    rows, matches[0], self.unit_ranges(matches[0])
+                )
         except CandidateAddressNotFound:
             return {"kind": "no-match"}
         except CandidateBallotError:
             raise CandidateLookupUnavailable(
                 "Official street records unavailable"
             ) from None
-        return matches[0], rows
+        return matches[0], found
 
     def lookup(
         self, text: str, election_id: str, confirmed: dict | None = None
@@ -636,8 +725,8 @@ class CandidateLookupService:
         resolved = self.resolve(text, confirmed)
         if isinstance(resolved, dict):
             return resolved, None
-        address, rows = resolved
-        range_id = match_street_range(rows, address).range_id
+        address, found = resolved
+        range_id = found.range_id
         body = self.fetch(SOURCE_URL, {"prodAddressRangeId": range_id})
         try:
             catalogue = parse_candidate_ballot(

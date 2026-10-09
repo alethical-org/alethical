@@ -28,6 +28,14 @@ class CandidateAddressNotFound(CandidateBallotError):
     """Valid official ranges do not identify exactly one submitted address."""
 
 
+class CandidateUnitRequired(CandidateAddressNotFound):
+    """The house is in a range the source splits by unit, and no unit was given."""
+
+
+class CandidateUnitRangesNeeded(CandidateBallotError):
+    """The street table flags a unit-specific range; its unit list must be read."""
+
+
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise CandidateBallotError(message)
@@ -351,10 +359,94 @@ def validate_street_rows(rows: Sequence[Mapping[str, object]]) -> None:
         _require(type(range_id) is int and range_id > 0, "invalid address range ID")
 
 
+@dataclass(frozen=True)
+class UnitNumberRange:
+    """1 official unit-number range label for 1 ballot range at a house range.
+
+    MyBallot offers each label as a choice whose value is the ballot range; the
+    parity describes the house numbers, not the apartments.
+    """
+
+    range_id: int
+    label: str
+    house_low: int
+    house_high: int
+    parity: str
+
+
+def parse_unit_ranges(payload: object) -> tuple[UnitNumberRange, ...]:
+    """Validate MyBallot's GetUnitNumberRanges answer; anything unexpected fails."""
+    _require(isinstance(payload, list) and len(payload) <= 10_000, "invalid unit list")
+    assert isinstance(payload, list)
+    ranges = []
+    for entry in payload:
+        _require(isinstance(entry, Mapping), "invalid unit entry")
+        range_id = entry.get("ProdAddressRangeId")
+        _require(type(range_id) is int and range_id > 0, "invalid unit range ID")
+        label = " ".join(_text(entry.get("UnitNumberRange"), "UnitNumberRange").split())
+        houses = re.fullmatch(
+            r"\s*(\d{1,8})\s+-\s+(\d{1,8})\s*",
+            _text(entry.get("HouseNumberRange"), "HouseNumberRange"),
+        )
+        _require(houses is not None, "invalid unit house range")
+        assert houses is not None
+        low, high = int(houses.group(1)), int(houses.group(2))
+        _require(low <= high, "invalid unit house range")
+        parity = entry.get("OddEvenInd")
+        _require(parity in ("B", "E", "O"), "unknown unit house parity")
+        assert isinstance(range_id, int) and isinstance(parity, str)
+        ranges.append(UnitNumberRange(range_id, label, low, high, parity))
+    return tuple(ranges)
+
+
+_UNIT_LABEL = re.compile(r"^(?:(?:APT|APARTMENT|UNIT|SUITE|STE)(?:\.\s*|\s+))?#?\s*")
+_DIGITS = re.compile(r"[0-9]+")
+
+
+def _unit_identifier(unit: str) -> str:
+    return _UNIT_LABEL.sub("", " ".join(unit.upper().split())).strip()
+
+
+def _unit_in_label(unit: str, label: str) -> bool | None:
+    """True or False when the official label settles it; None when it cannot.
+
+    The source writes ranges as "LOW - HIGH". Numeric bounds are inclusive.
+    Text bounds prove only an exact endpoint: no order between letters is invented.
+    """
+    identifier = _unit_identifier(unit)
+    if not identifier:
+        return False
+    text = label.upper()
+    span = re.fullmatch(r"(\S+) - (\S+)", text)
+    if span is None:
+        single = _unit_identifier(label)
+        if " " in single or "-" in single:
+            # Not the source's "LOW - HIGH" shape: never read it as a range or a no.
+            return None
+        return identifier == single
+    low, high = span.groups()
+    if _DIGITS.fullmatch(low) and _DIGITS.fullmatch(high):
+        if int(low) > int(high):
+            return None
+        return bool(_DIGITS.fullmatch(identifier)) and (
+            int(low) <= int(identifier) <= int(high)
+        )
+    if identifier in (low, high):
+        return True
+    return False if low == high else None
+
+
 def match_street_range(
-    rows: Sequence[Mapping[str, object]], address: StreetAddress
+    rows: Sequence[Mapping[str, object]],
+    address: StreetAddress,
+    unit_ranges: Sequence[UnitNumberRange] | None = None,
 ) -> StreetRangeMatch:
-    """Require one exact official range; never infer town from its postal city."""
+    """Require one exact official range; never infer town from its postal city.
+
+    A range the source flags for units needs the street's official unit list
+    (unit_ranges). Without it this raises CandidateUnitRangesNeeded so the caller
+    can read it; a flagged range never stands in for an unchecked unit.
+    """
     _require(
         type(address.house_number) is int and address.house_number >= 0,
         "invalid house number",
@@ -372,6 +464,10 @@ def match_street_range(
         "invalid street rows",
     )
     matches = []
+    unproven = False
+    unit_required = False
+    flagged_range_ids: set[int] = set()
+    general_range_ids: list[int] = []
     for row in rows:
         _require(isinstance(row, Mapping), "invalid street row")
         values = {
@@ -414,17 +510,69 @@ def match_street_range(
         _require(type(needs_unit) is bool, "invalid unit requirement")
         row_unit = _text(row.get("UnitNumberRange"), "UnitNumberRange", optional=True)
         if needs_unit or row_unit:
-            _require(bool(row_unit), "official unit information is unresolved")
-            if not unit or not _same_text(row_unit, unit):
+            range_id = row.get("ProdAddressRangeId")
+            if isinstance(range_id, int):
+                flagged_range_ids.add(range_id)
+            if not unit:
+                # The source needs a unit here; never let another row stand in,
+                # and never read a unit list that cannot help.
+                unit_required = True
                 continue
-        elif unit:
-            # Unit-specific precincts cannot be guessed from a general street
-            # range when the official service has not settled the unit.
+            if row_unit:
+                labels = [row_unit]
+            elif unit_ranges is None:
+                raise CandidateUnitRangesNeeded("official unit list required")
+            else:
+                labels = [
+                    entry.label
+                    for entry in unit_ranges
+                    if entry.range_id == range_id
+                    and entry.house_low <= address.house_number <= entry.house_high
+                    and (
+                        entry.parity == "B"
+                        or (entry.parity == "O") == bool(address.house_number % 2)
+                    )
+                ]
+            _require(bool(labels), "official unit information is unresolved")
+            found = [_unit_in_label(unit, label) for label in labels]
+            if None in found:
+                unproven = True
+            if True not in found:
+                continue
+            range_id = row.get("ProdAddressRangeId")
+            _require(type(range_id) is int and range_id > 0, "invalid address range ID")
+            assert isinstance(range_id, int)
+            matches.append(range_id)
             continue
         range_id = row.get("ProdAddressRangeId")
         _require(type(range_id) is int and range_id > 0, "invalid address range ID")
         assert isinstance(range_id, int)
+        if unit:
+            # MyBallot asks for no unit on an unmarked range: the whole house is in
+            # it. It stands for a unit only when no range at the house is marked.
+            general_range_ids.append(range_id)
+            continue
         matches.append(range_id)
-    if len(matches) != 1:
+    if unit and not flagged_range_ids:
+        matches.extend(general_range_ids)
+    elif unit and general_range_ids:
+        unproven = True
+    if unit and unit_ranges is not None and flagged_range_ids:
+        # A listed range at this house whose street row is missing could also hold
+        # the unit; the answer is then not proven.
+        for entry in unit_ranges:
+            if (
+                entry.range_id not in flagged_range_ids
+                and entry.house_low <= address.house_number <= entry.house_high
+                and (
+                    entry.parity == "B"
+                    or (entry.parity == "O") == bool(address.house_number % 2)
+                )
+                and _unit_in_label(unit, entry.label) is not False
+            ):
+                unproven = True
+    if unit_required and not matches:
+        raise CandidateUnitRequired("the source needs a unit for this house")
+    if unit_required or unproven or len(matches) != 1:
         raise CandidateAddressNotFound("address range is missing or ambiguous")
     return StreetRangeMatch(matches[0])

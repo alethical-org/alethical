@@ -85,10 +85,6 @@ The legislator finder keeps its coordinate-to-district lookup and map.
   lone comma match; a bare unit beside the same street unit is not doubled; a location
   tap clears an earlier address error; an empty Find, a retry or a loading election
   list no longer leaves an attempt running or a confirmation doing nothing.
-  Open for the product owner: the optional unit field leads to **We couldn’t match
-  that address to election records** wherever the election source lists no unit
-  ranges, which is most buildings; the approved rule forbids falling back to the
-  building's general range.
 - [x] Integrated the merged address-help change (pull request 2572): entry keeps its
   help line below the divider and **Change address** prints none. Integrated the
   renamed shared source connection (pull request 2571). Unit parsing scans text in a
@@ -106,3 +102,14 @@ The legislator finder keeps its coordinate-to-district lookup and map.
   nudge and an unchanged 52px box in ready and busy states with 1-line and 3-line
   addresses; `/find-my-legislator` Find 150px with the same gap and nudge; the Privacy
   Policy carries the location sentence.
+- [x] Acceptance correction, 9 October: the unit field exposed a missing official
+  connection. Minnesota's street tables mark unit-split house ranges but omit their
+  unit lists, which its sample-ballot site reads separately; the earlier matcher only
+  compared whole unit labels, so every address at those houses failed. The service
+  now reads that street's official unit-number ranges and resolves a unit only when
+  exactly 1 ballot range provably contains it (see
+  [find-my-candidates-guide.md, units](../product-onboarding/find-my-candidates-guide.md)).
+  A unit at a house the source does not mark now reads that house's single range, as
+  MyBallot asks for no unit there; the earlier refusal of every unit at an ordinary
+  building is what made the optional unit field fail. An earlier statement here that
+  few buildings have unit ranges was unsupported and is withdrawn.
