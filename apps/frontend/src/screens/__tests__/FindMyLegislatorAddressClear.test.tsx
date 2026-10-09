@@ -14,9 +14,12 @@ const lookupRequest = vi.hoisted(() => vi.fn());
 vi.mock('../../hooks/useAppQueries', () => ({
   useRepresentativeLookup: () => useMutation({ mutationFn: lookupRequest }),
 }));
+const suggestions = vi.hoisted(() => vi.fn());
+const preparedLookup = vi.hoisted(() => vi.fn());
 vi.mock('../../data/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../data/api')>()),
-  suggestRepresentativeAddressesFromApi: async () => [],
+  suggestRepresentativeAddressesFromApi: suggestions,
+  lookupRepresentativeFromApi: preparedLookup,
 }));
 vi.mock('../../hooks/useHistoryScrollRestoration', () => ({
   useHistoryScrollRestoration: () => ({}),
@@ -71,6 +74,8 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
   lookupRequest.mockReset();
+  suggestions.mockReset().mockResolvedValue([]);
+  preparedLookup.mockReset().mockResolvedValue(null);
   client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   host = document.createElement('div');
   document.body.append(host);
@@ -268,4 +273,24 @@ it('sends an unmarked choice as its point', async () => {
   act(() => host.querySelectorAll<HTMLElement>('[role="option"]')[1].click());
   await settle();
   expect(lookupRequest.mock.calls[1][0]).toEqual({ latitude: 44.98, longitude: -93.27 });
+});
+it('starts the check for at most 2 marked rows the reader points at', async () => {
+  const row = (number: number, requiresLocationCheck: boolean) => ({
+    matchedAddress: `${number} Main Street, Minneapolis, MN 55415`,
+    latitude: 44.97,
+    longitude: -93.26,
+    ...(requiresLocationCheck ? { requiresLocationCheck } : {}),
+  });
+  suggestions.mockResolvedValue([row(100, true), row(102, false), row(104, true), row(106, true)]);
+  type('100 Main');
+  await act(async () => vi.advanceTimersByTimeAsync(200));
+  const rows = [...host.querySelectorAll<HTMLElement>('[role="listbox"] [role="option"]')];
+  expect(rows).toHaveLength(4);
+  for (const index of [0, 0, 1, 2, 3])
+    act(() => rows[index].dispatchEvent(new PointerEvent('pointerover', { bubbles: true })));
+  expect(preparedLookup.mock.calls.map(([input]) => input)).toEqual([
+    { latitude: 44.97, longitude: -93.26, selectedAddress: row(100, true).matchedAddress },
+    { latitude: 44.97, longitude: -93.26, selectedAddress: row(104, true).matchedAddress },
+  ]);
+  expect(lookupRequest).not.toHaveBeenCalled();
 });

@@ -19,7 +19,11 @@ import {
   AddressSuggestionField,
   type AddressFieldHandle,
 } from '../components/address/AddressSuggestionField';
-import { ApiError, suggestRepresentativeAddressesFromApi } from '../data/api';
+import {
+  ApiError,
+  lookupRepresentativeFromApi,
+  suggestRepresentativeAddressesFromApi,
+} from '../data/api';
 import { isCoordinateInMinnesota } from '../data/minnesotaBoundary';
 import type {
   RepresentativeAddressChoice,
@@ -236,6 +240,27 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       })),
     [],
   );
+  // Start the current-records check for at most 2 rows per typed address, so
+  // pointing at a row hides most of its wait without spending the lookup limit.
+  const preparedChoices = useRef<{ address: string; keys: Set<string> }>({
+    address: '',
+    keys: new Set(),
+  });
+  const prepareChoice = (choice: RepresentativeAddressChoice) => {
+    if (!choice.requiresLocationCheck || rateLimitSeconds > 0 || lookup.isPending) return;
+    const typed = addressInputRef.current?.value() ?? address;
+    if (preparedChoices.current.address !== typed)
+      preparedChoices.current = { address: typed, keys: new Set() };
+    const { keys } = preparedChoices.current;
+    if (keys.has(choice.matchedAddress) || keys.size >= 2) return;
+    keys.add(choice.matchedAddress);
+    // Shared with the pick through the lookup's in-flight and 60-second reuse.
+    lookupRepresentativeFromApi({
+      latitude: choice.latitude,
+      longitude: choice.longitude,
+      selectedAddress: choice.matchedAddress,
+    }).catch(() => undefined);
+  };
   const choicesRef = useRef<View>(null);
   const confirmedChoice = useRef<
     { coordinate: RepresentativeLookupCoordinates; address: string } | undefined
@@ -727,6 +752,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                   onClear={clearAddress}
                   suggestionsEnabled={!choices.length && rateLimitSeconds === 0}
                   suggest={suggest}
+                  onPrepare={prepareChoice}
                   onSubmit={(value, choice) =>
                     choice ? chooseAddress(choice, value) : runAddress(value)
                   }

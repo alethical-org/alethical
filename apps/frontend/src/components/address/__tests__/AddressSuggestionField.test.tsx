@@ -612,3 +612,34 @@ it.each(['Escape', 'Find', 'unmount'])(
     expect(suggestMatches).toHaveBeenCalledOnce();
   },
 );
+
+it('names a row the reader points at, presses or moves to, without choosing it', async () => {
+  const prepared: number[] = [];
+  const submitted: unknown[] = [];
+  act(() =>
+    root.render(
+      <>
+        <label id="prepare-label">Full street address</label>
+        <AddressSuggestionField
+          address="100 Ma"
+          onAddress={() => {}}
+          suggest={suggest}
+          onSubmit={(_, choice) => submitted.push(choice)}
+          onPrepare={(choice) => prepared.push(choice)}
+          labelId="prepare-label"
+          busy={false}
+          mobile={false}
+        />
+      </>,
+    ),
+  );
+  const field = host.querySelector('textarea')!;
+  act(() => field.focus());
+  await act(async () => vi.advanceTimersByTimeAsync(181));
+  const rows = host.querySelectorAll<HTMLElement>('[role="option"]');
+  act(() => rows[2].dispatchEvent(new PointerEvent('pointerover', { bubbles: true })));
+  act(() => rows[3].dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  act(() => field.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })));
+  expect(prepared).toEqual([2, 3, 0]);
+  expect(submitted).toEqual([]);
+});
