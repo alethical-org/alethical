@@ -535,8 +535,26 @@ the active deployment's explicit placement and saved environment configuration,
 and separately requests service-level disk usage. Activation requires explicit
 matching single-replica settings and fresh quota usage; missing facts still refuse.
 69 focused tests cover these fields, privacy and refusal when large filesystem
-free space accompanies missing or full quota usage. Actual extended-report proof
-and activation remain pending.
+free space accompanies missing or full quota usage. The
+[extended authenticated read](https://github.com/alethical-org/alethical/actions/runs/38000695624)
+established explicit saved and active replica counts of 1, about 0.3 GB memory
+use against 24 GB, and 1 API-program process. Both instance-grouped and separately
+requested whole-service disk usage were unavailable. The current Chrome login
+cannot open the production project; supported SSH and service-file reads require
+a registered key rather than the existing project token. No key was created.
+A whole-root folder scan was rejected as quota proof: it misses deleted-but-open
+files and hidden overlay storage, and Railway does not document the visible-file
+total as its quota accounting. Activation remains refused until provider storage
+use is available. The reader correction continues in
+[pull request 2590](https://github.com/alethical-org/alethical/pull/2590).
+
+Charges reviewed against Railway's
+[published container rates](https://docs.railway.com/pricing/plans) on 9 October:
+$10 per GB memory per month, $20 per vCPU per month and $0.05 per GB outbound.
+No separate incoming-download or ephemeral-storage price appears in the published
+table. Runtime copy building still consumes billable CPU and memory; added live
+use remains to be measured after activation. No new resource is requested, and
+published rates do not establish the account's invoice or special rates.
 
 Fresh-context live review passed normal legislator searches, pointer and keyboard
 selection, apartment/ZIP+4 submission, candidate selection and typed searches,

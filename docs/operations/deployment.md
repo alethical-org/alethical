@@ -187,6 +187,19 @@ are reported; missing counts never mean 1. Raw metadata and configuration stay
 private. The nullable legacy dashboard count is reported separately. A separate
 exact-service disk request omits instance grouping, because disk usage may lack
 an instance tag.
+On 9 October, the authenticated service and instance disk requests both returned
+no usage. The supported SSH and service-file paths require a registered SSH key;
+the existing project token alone cannot use them. A visible-folder size scan
+does not replace provider quota usage: deleted-but-open files and hidden overlay
+storage can be absent from that total. Keep the switch off when storage remains
+unknown; do not create an access key or paid volume merely to bypass this gate.
+
+Railway's [published container rates](https://docs.railway.com/pricing/plans), read
+on 9 October, are $10 per GB memory per month, $20 per vCPU per month and $0.05 per
+GB outbound. The published table lists no separate incoming-download or ephemeral
+storage price. Runtime copy building uses billable CPU and memory; measure the
+added live use after activation. These rates are not an account invoice or proof
+of no added charge. This activation does not request another resource.
 
 The manual-only [Address copy control workflow](../../.github/workflows/address-copy-control.yml)
 accepts `enabled` (default `false`) and `release_commit` (the reviewed live API's
