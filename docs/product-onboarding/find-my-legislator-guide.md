@@ -36,9 +36,9 @@ address suggestions are saved in browser storage or a shared server cache.
 The shared suggestion service filters active status and state locally to reduce the
 source query wait. If the source reports omitted rows, it retries with both filters
 at the source so excluded records cannot crowd out valid choices. House, state,
-street, direction and unit matching remain unchanged. Minnesota address requests
-reuse a connection within each server worker without retaining cookies, credentials,
-queries or responses. The Census connection path is unchanged.
+street, direction and unit matching remain unchanged. Census and Minnesota address
+requests reuse a connection within each server worker without retaining cookies,
+credentials, queries or responses.
 
 No row is selected on opening. Down starts at the first row and Up at the last;
 both wrap. Enter chooses an active keyboard row, otherwise it searches the typed

@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import select
 
+from alethical.api.services import candidate_lookup
 from alethical.api.services.candidate_lookup import (
     SOURCE_URL,
     STREETS_URL,
@@ -210,7 +211,9 @@ def test_official_fetch_allowlist_redirects_timeout_and_safe_error(monkeypatch):
         calls.append((url, kwargs))
         raise requests.Timeout("private range and street details")
 
-    monkeypatch.setattr(requests, "get", get)
+    monkeypatch.setattr(
+        candidate_lookup, "public_source_session", lambda: SimpleNamespace(get=get)
+    )
     with pytest.raises(CandidateLookupUnavailable) as caught:
         official_bytes(STREETS_URL, {"ZipCode": "99999"})
     assert caught.value.__cause__ is None
@@ -329,7 +332,6 @@ def test_invalid_street_source_fails_instead_of_reporting_no_address(raw):
 
 
 def test_official_fetch_requests_plain_json_object_and_rejects_redirect(monkeypatch):
-    import requests
 
     captured = []
 
@@ -346,7 +348,9 @@ def test_official_fetch_requests_plain_json_object_and_rejects_redirect(monkeypa
         captured.append(kwargs)
         return Response()
 
-    monkeypatch.setattr(requests, "get", get)
+    monkeypatch.setattr(
+        candidate_lookup, "public_source_session", lambda: SimpleNamespace(get=get)
+    )
     with pytest.raises(CandidateLookupUnavailable):
         official_bytes(STREETS_URL, {"ZipCode": "99999"})
     assert captured[0]["headers"]["Accept"] == "text/plain"

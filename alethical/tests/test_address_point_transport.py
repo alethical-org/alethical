@@ -44,11 +44,11 @@ def address_server():
 
 
 def test_address_transport_is_reused_per_thread_and_isolated_between_threads():
-    main = lookup._address_point_session()
-    assert lookup._address_point_session() is main
+    main = lookup.public_source_session()
+    assert lookup.public_source_session() is main
     with ThreadPoolExecutor(max_workers=1) as executor:
         other, repeated = executor.submit(
-            lambda: (lookup._address_point_session(), lookup._address_point_session())
+            lambda: (lookup.public_source_session(), lookup.public_source_session())
         ).result()
     assert other is repeated
     assert other is not main
@@ -66,7 +66,7 @@ def test_address_transport_reuses_connection_without_cookies_auth_or_query_cache
             "Public address transport must not load saved credentials"
         ),
     )
-    session = lookup._address_point_session()
+    session = lookup.public_source_session()
     try:
         for path in ("/redirect", "/query", "/query"):
             result = lookup._get_json(
@@ -89,7 +89,7 @@ def test_address_transport_reuses_connection_without_cookies_auth_or_query_cache
 
 def test_address_transport_strips_explicit_credentials(address_server):
     base_url, seen = address_server
-    session = lookup._address_point_session()
+    session = lookup.public_source_session()
     try:
         response = session.get(
             base_url + "/query",
@@ -129,25 +129,63 @@ def test_address_transport_preserves_retry_and_timeout(monkeypatch):
     assert seen == [("https://example.test/query", {"f": "json"}, 8)] * 2
 
 
-def test_address_points_use_pooled_transport_and_census_keeps_default(monkeypatch):
+def test_census_and_address_points_share_pooled_transport(monkeypatch):
     source_calls = []
-    default_calls = []
 
-    def response():
+    def response(payload):
         result = requests.Response()
         result.status_code = 200
-        result._content = b'{"features": []}'
+        result._content = payload
         return result
 
     def source_get(url, **kwargs):
-        source_calls.append((url, kwargs))
-        return response()
+        source_calls.append(url)
+        if "census" in url:
+            return response(b'{"result": {"addressMatches": []}}')
+        return response(b'{"features": []}')
 
-    monkeypatch.setattr(lookup._address_point_session(), "get", source_get)
+    monkeypatch.setattr(lookup.public_source_session(), "get", source_get)
     monkeypatch.setattr(
-        requests, "get", lambda url, **kwargs: default_calls.append(url) or response()
+        requests, "get", lambda *a, **k: pytest.fail("Fresh connection used")
     )
     lookup.MinnesotaAddressPointGeocoder().suggest_matches("350 S 5")
-    lookup._get_json(url="https://example.test/census", params={}, timeout=10)
-    assert len(source_calls) == 1
-    assert default_calls == ["https://example.test/census"]
+    lookup.CensusGeocoder(base_url="https://example.test/census")._raw_matches(
+        "350 S 5th St, Minneapolis, MN 55415"
+    )
+    assert len(source_calls) == 2
+    assert source_calls[1] == "https://example.test/census"
+
+
+def test_ballot_source_reuses_connection_without_redirects_or_cookies(
+    address_server, monkeypatch
+):
+    from alethical.api.services import candidate_lookup
+
+    base_url, seen = address_server
+    monkeypatch.setattr(candidate_lookup, "STREETS_URL", base_url + "/query")
+    monkeypatch.setattr(candidate_lookup, "SOURCE_URL", base_url + "/redirect")
+    session = lookup.public_source_session()
+    try:
+        for _ in range(2):
+            assert (
+                candidate_lookup.official_bytes(
+                    base_url + "/query", {"ZipCode": "55415"}
+                )
+                == b'{"features": []}'
+            )
+        with pytest.raises(candidate_lookup.CandidateLookupUnavailable):
+            candidate_lookup.official_bytes(
+                base_url + "/redirect", {"prodAddressRangeId": "1"}
+            )
+        # The redirect is refused rather than followed to another address.
+        assert [path.split("?")[0] for path, _, _ in seen] == [
+            "/query",
+            "/query",
+            "/redirect",
+        ]
+        assert len({port for _, _, port in seen}) == 1
+        assert all("Cookie" not in headers for _, headers, _ in seen)
+        assert all(headers.get("Accept") == "text/plain" for _, headers, _ in seen)
+        assert len(session.cookies) == 0
+    finally:
+        session.close()

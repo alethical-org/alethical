@@ -2195,9 +2195,11 @@ Rationale:
 - state and active status are filtered locally to reduce source-query work; if the source
   reports omitted rows, retry the original state-and-active-filtered query before returning
   suggestions
-- Minnesota address-point requests reuse thread-local connections without cookies or
-  credentials, including redirects; no address/query result cache is added and Census
-  transport is unchanged
+- Census, Minnesota address-point and MyBallot requests share 1 thread-local connection
+  pool (`public_source_session`) without cookies, credentials, environment proxies or
+  saved passwords, including across redirects; each caller keeps its own timeout,
+  redirect and streaming settings, MyBallot redirects stay refused, and no
+  address/query result cache is added
 - choosing a suggestion gives the existing representative lookup its official point, so
   the reader does not need a second click or another geocoding request
 - the endpoint has its own 60-requests-per-public-IP-per-60-seconds limit, separate from

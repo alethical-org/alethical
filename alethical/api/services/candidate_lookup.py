@@ -26,6 +26,7 @@ from alethical.api.services.representative_lookup import (
     RepresentativeLookupNotFound,
     RepresentativeLookupOutsideMinnesota,
     RepresentativeLookupUpstreamError,
+    public_source_session,
 )
 from alethical.api.services.zip_state_reference import SUPPORTED_STATES
 from alethical.pipeline.candidate_ballot import (
@@ -71,7 +72,7 @@ def official_bytes(url: str, params: dict[str, str | int]) -> bytes:
     # (which can contain the request parameters) in operational reports.
     try:
         started = time.monotonic()
-        with requests.get(
+        with public_source_session().get(
             url,
             params=params,
             timeout=(3.05, 12),
