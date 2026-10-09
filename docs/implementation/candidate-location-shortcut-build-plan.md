@@ -109,5 +109,7 @@ The legislator finder keeps its coordinate-to-district lookup and map.
   now reads that street's official unit-number ranges and resolves a unit only when
   exactly 1 ballot range provably contains it (see
   [find-my-candidates-guide.md, units](../product-onboarding/find-my-candidates-guide.md)).
-  An earlier statement here that few buildings have unit ranges was unsupported and
-  is withdrawn.
+  A unit at a house the source does not mark now reads that house's single range, as
+  MyBallot asks for no unit there; the earlier refusal of every unit at an ordinary
+  building is what made the optional unit field fail. An earlier statement here that
+  few buildings have unit ranges was unsupported and is withdrawn.

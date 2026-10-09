@@ -39,6 +39,7 @@ from alethical.pipeline.candidate_ballot import (
     CandidateAddressNotFound,
     CandidateBallotError,
     CandidateUnitRangesNeeded,
+    CandidateUnitRequired,
     StreetAddress,
     StreetRangeMatch,
     UnitNumberRange,
@@ -57,13 +58,19 @@ STREET_ID_URL = "https://myballotmn.sos.mn.gov/api/FilteredAddress/GetFilteredAd
 UNIT_RANGES_URL = (
     "https://myballotmn.sos.mn.gov/api/UnitNumberRangesData/GetUnitNumberRanges"
 )
-_SOURCE_PARAMS = {
-    STREETS_URL: ("ZipCode", r"[0-9]{1,12}"),
-    SOURCE_URL: ("prodAddressRangeId", r"[0-9]{1,12}"),
-    # Street, city and ZIP from the official street table: never a house number.
-    STREET_ID_URL: ("address", r"[A-Z0-9][A-Z0-9 .'&/-]{2,149}"),
-    UNIT_RANGES_URL: ("FullStreetNameCityNameZipCodeId", r"[0-9]{1,12}"),
-}
+
+
+def _source_params(url: str) -> tuple[str, str] | None:
+    # Read at call time, so a test's local stand-in for a URL is honoured.
+    return {
+        STREETS_URL: ("ZipCode", r"[0-9]{1,12}"),
+        SOURCE_URL: ("prodAddressRangeId", r"[0-9]{1,12}"),
+        # Street, city and ZIP from the official street table: never a house number.
+        STREET_ID_URL: ("address", r"[A-Z0-9][A-Z0-9 .'&/-]{2,149}"),
+        UNIT_RANGES_URL: ("FullStreetNameCityNameZipCodeId", r"[0-9]{1,12}"),
+    }.get(url)
+
+
 BALLOT_HOME = "https://myballotmn.sos.mn.gov/"
 SUPPORTED_ELECTION = {
     "id": "8334",
@@ -87,9 +94,10 @@ class CandidateLookupUnavailable(Exception):
 
 def official_bytes(url: str, params: dict[str, str | int]) -> bytes:
     """The fixed source allowlist cannot be changed by a submitted address."""
-    if url not in _SOURCE_PARAMS:
+    allowlisted = _source_params(url)
+    if allowlisted is None:
         raise CandidateLookupUnavailable("Unsupported candidate source")
-    expected, allowed = _SOURCE_PARAMS[url]
+    expected, allowed = allowlisted
     if set(params) != {expected} or not re.fullmatch(allowed, str(params[expected])):
         raise CandidateLookupUnavailable("Unsupported candidate source request")
     # Do not follow a redirect to an unrelated host, or include source exceptions
@@ -110,7 +118,8 @@ def official_bytes(url: str, params: dict[str, str | int]) -> bytes:
                 # The source's own answer for a street with no unit list.
                 try:
                     payload = json.loads(response.raw.read(1000, decode_content=True))
-                except ValueError:
+                except Exception:
+                    # A broken or slow error body is a failure, never "no list".
                     payload = None
                 if payload == {"message": "Unit number data not found."}:
                     return b"[]"
@@ -337,9 +346,9 @@ def _parse_rows_once(
             # An individual row is only a suggestion. Full resolution below
             # still checks every row and rejects overlapping ranges.
             match_street_range([row], address)
-        except CandidateUnitRangesNeeded:
-            # The house is in a unit-specific range; its unit list is read only
-            # when this address is actually searched.
+        except (CandidateUnitRangesNeeded, CandidateUnitRequired):
+            # The house is in a unit-specific range: the street spelling still
+            # matches. Its unit list is read only when this address is searched.
             pass
         except CandidateAddressNotFound:
             continue

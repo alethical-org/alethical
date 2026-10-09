@@ -463,10 +463,9 @@ def test_no_zip_units_survive_suggestions_and_confirmation(unit):
     assert (
         lookup.lookup(suggestion["address"], "8334", suggestion)[0]["kind"] == "results"
     )
-    # A general building range cannot stand in for an unresolved unit.
+    # An unmarked building range holds every unit at that house, as on MyBallot.
     lookup, calls = service(geocoder=Geocoder())
-    assert lookup.lookup(original, "8334", suggestion)[0] == {"kind": "no-match"}
-    assert all(url != SOURCE_URL for url, _ in calls)
+    assert lookup.lookup(original, "8334", suggestion)[0]["kind"] == "results"
     # A caller cannot confirm the geocoder's unitless answer for a unit request.
     unitless_lookup, _ = service()
     unitless_choice = unitless_lookup.suggest(ADDRESS)[0]
@@ -736,7 +735,7 @@ def test_suggestion_validation_source_failure_is_not_empty_success():
         lookup.suggest("100 EX")
 
 
-def test_unit_flagged_address_is_suggested_without_reading_its_unit_list():
+def test_split_building_suggests_unit_addresses_only_and_reads_no_unit_list():
     class Geocoder:
         def suggest_matches(self, text):
             return [SimpleNamespace(matched_address=ADDRESS, state_code="MN")]
@@ -744,7 +743,11 @@ def test_unit_flagged_address_is_suggested_without_reading_its_unit_list():
     lookup, calls = service(
         rows=[street(DisplayUnitNbr=True, UnitNumberRange=None)], geocoder=Geocoder()
     )
-    assert [choice["address"] for choice in lookup.suggest("100 EX")] == [ADDRESS]
+    # Without a unit the address cannot be searched there, so it is not offered.
+    assert lookup.suggest("100 EX") == []
+    assert [choice["address"] for choice in lookup.suggest("100 EX APT 3")] == [
+        "100 EXAMPLE ST N APT 3, EXAMPLE CITY, MN 99999"
+    ]
     assert {url for url, _ in calls} == {STREETS_URL}
 
 
@@ -821,13 +824,14 @@ def test_conflicting_or_unlisted_units_never_force_a_match(address):
     assert all(url != SOURCE_URL for url, _ in calls)
 
 
-def test_unit_against_a_general_building_range_stays_unsupported():
-    lookup, _ = service()
-    for address in (
-        "100 EXAMPLE ST N, APT 3, EXAMPLE CITY, MN 99999",
-        "100 EXAMPLE ST N EXAMPLE CITY APT 3 MN 99999",
-    ):
-        assert lookup.lookup(address, "8334")[0] == {"kind": "no-match"}
+def test_unit_at_an_unmarked_building_reads_its_single_official_range():
+    lookup, calls = service()
+    result, _ = lookup.lookup("100 EXAMPLE ST N, APT 3, EXAMPLE CITY, MN 99999", "8334")
+    assert result["kind"] == "results"
+    assert result["matchedAddress"] == "100 EXAMPLE ST N APT 3, EXAMPLE CITY, MN 99999"
+    assert calls[-1] == (SOURCE_URL, {"prodAddressRangeId": 123})
+    # No unit list is read for a house the source does not mark.
+    assert {url for url, _ in calls} == {STREETS_URL, SOURCE_URL}
 
 
 class NearbyAddresses:
@@ -1095,6 +1099,13 @@ def test_official_unit_list_fetch_reads_the_sources_not_found_answer(monkeypatch
     monkeypatch.setattr(
         candidate_lookup, "public_source_session", lambda: SimpleNamespace(get=get)
     )
+    broken = Response(404, b"")
+    broken.raw = SimpleNamespace(
+        read=lambda *args, **kwargs: (_ for _ in ()).throw(OSError("read failed"))
+    )
+    queue = [broken]
+    with pytest.raises(CandidateLookupUnavailable):
+        official_bytes(UNIT_RANGES_URL, {"FullStreetNameCityNameZipCodeId": 44163})
     queue = [Response(404, b'{"message":"Unit number data not found."}')]
     assert (
         official_bytes(UNIT_RANGES_URL, {"FullStreetNameCityNameZipCodeId": 44163})

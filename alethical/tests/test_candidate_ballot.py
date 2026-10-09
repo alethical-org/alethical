@@ -16,6 +16,7 @@ from alethical.pipeline.candidate_ballot import (
     CandidateAddressNotFound,
     CandidateBallotError,
     CandidateUnitRangesNeeded,
+    CandidateUnitRequired,
     StreetAddress,
     candidate_ballot_document,
     match_street_range,
@@ -447,9 +448,30 @@ def test_school_type_number_subdistrict_and_municipality_remain_part_of_identity
     ) == len(titles)
 
 
-def test_unresolved_unit_cannot_fall_back_to_general_street_range():
-    with pytest.raises(CandidateBallotError):
-        match_street_range([street()], replace(ADDRESS, unit="UNIT A"))
+def test_unit_at_an_unmarked_house_reads_that_houses_only_range():
+    # MyBallot asks for no unit on an unmarked range: the whole house is in it.
+    assert (
+        match_street_range([street()], replace(ADDRESS, unit="UNIT A")).range_id == 123
+    )
+    # A house that also has a range marked for units never lets the unmarked one
+    # stand in for a unit outside the marked list.
+    marked = street(DisplayUnitNbr=True, ProdAddressRangeId=124)
+    units = parse_unit_ranges(
+        [
+            {
+                "ProdAddressRangeId": 124,
+                "UnitNumberRange": "1 - 9",
+                "HouseNumberRange": "100 - 100",
+                "OddEvenInd": "E",
+            }
+        ]
+    )
+    with pytest.raises(CandidateAddressNotFound):
+        match_street_range([street(), marked], replace(ADDRESS, unit="UNIT 12"), units)
+    with pytest.raises(CandidateAddressNotFound):
+        match_street_range([street(), marked], replace(ADDRESS, unit="UNIT 5"), units)
+    with pytest.raises(CandidateUnitRequired):
+        match_street_range([marked], ADDRESS, units)
 
 
 # Minnesota's own unit-number ranges, read from MyBallot on 9 October 2026.
@@ -655,3 +677,50 @@ def test_overlapping_or_unprovable_unit_ranges_refuse():
 def test_malformed_unit_lists_are_source_failures(payload):
     with pytest.raises(CandidateBallotError):
         parse_unit_ranges(payload)
+
+
+@pytest.mark.parametrize(
+    ("unit", "range_id"),
+    [("Apt #250", 313578), ("Apt.250", 313578), ("UNIT. 101", 313576)],
+)
+def test_unit_label_spellings_read_the_same_number(unit, range_id):
+    rows, units = official("8TH AVE S")
+    assert (
+        match_street_range(rows, unit_address(rows, 100, unit), units).range_id
+        == range_id
+    )
+
+
+@pytest.mark.parametrize("unit", ["Apt ²", "Apt ①", "Apt ٢٥٠", "Apt 2 5 0"])
+def test_non_ascii_or_spaced_digits_are_refused_never_crash(unit):
+    rows, units = official("8TH AVE S")
+    with pytest.raises(CandidateAddressNotFound):
+        match_street_range(rows, unit_address(rows, 100, unit), units)
+
+
+def test_off_format_labels_and_unmatched_listed_ranges_stay_unproven():
+    rows = [
+        street(DisplayUnitNbr=True, ProdAddressRangeId=1),
+        street(DisplayUnitNbr=True, ProdAddressRangeId=2),
+    ]
+
+    def entry(range_id, label):
+        return {
+            "ProdAddressRangeId": range_id,
+            "UnitNumberRange": label,
+            "HouseNumberRange": "100 - 100",
+            "OddEvenInd": "E",
+        }
+
+    for label in ("101-110", "101 -110", "APT 101 - APT 110"):
+        units = parse_unit_ranges([entry(1, label), entry(2, "100 - 200")])
+        with pytest.raises(CandidateAddressNotFound):
+            match_street_range(rows, replace(ADDRESS, unit="105"), units)
+    # A listed range for this house with no street row could also hold the unit.
+    units = parse_unit_ranges([entry(1, "100 - 200"), entry(7, "100 - 200")])
+    with pytest.raises(CandidateAddressNotFound):
+        match_street_range(rows[:1], replace(ADDRESS, unit="105"), units)
+    units = parse_unit_ranges([entry(1, "100 - 200"), entry(7, "300 - 400")])
+    assert (
+        match_street_range(rows[:1], replace(ADDRESS, unit="105"), units).range_id == 1
+    )
