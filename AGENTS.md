@@ -125,7 +125,7 @@ see [manual server tests](CONTRIBUTING.md#manual-server-tests-use-a-temporary-po
     work. No git version guards this either. A tracked hook
     (`.githooks/post-checkout`) locks every new worktree as it is created, whichever
     tool ran `git worktree add`, so the command refuses and prints the lock reason.
-    `just worktree-rm <branch> <owner> <evidence>` queues recoverable cleanup after delivery and acceptance; the helper unlocks only after its safety checks pass.
+    `just worktree-rm <branch> <owner> <evidence>` queues user-requested recoverable cleanup after delivery and acceptance; the helper unlocks only after its safety checks pass.
     **The hook is broad but not total:** it only covers worktrees created after it is
     installed, `--force --force` still overrides it, `git worktree unlock` clears it,
     and it does nothing at all until someone runs `just install-hooks` in that clone
@@ -145,12 +145,19 @@ see [manual server tests](CONTRIBUTING.md#manual-server-tests-use-a-temporary-po
   "temporary" files. `.cursorignore` fences this path off for Cursor specifically, since
   a prose rule is not a mechanism; if your tool has an equivalent, use it too.
 
-## Finish the working-folder lifecycle
+## Keep working folders available for follow-up
 
-After the requested delivery, live checks and acceptance are complete, the owning
-agent must finish cleanup before its final reply. A pending review or private
-preview keeps the folder and gets an explicit hold. A merge alone never proves
-that the task is complete.
+Keep the chat, working folder and local branch after delivery, live checks and
+acceptance. Finishing a task is not permission to archive or remove its folder.
+Record a hold such as "Delivery complete; retained for follow-up" and finish the
+reply normally. There is no automatic expiry. Release or archive only when Eugene
+explicitly asks for cleanup of that folder or includes it in an approved cleanup
+batch. A pending review or private preview still keeps its specific hold.
+
+Continue related follow-up in the same chat and retained folder. Preserve the
+finished version with a commit; if another change needs a fresh branch, create it
+from current main in this task's own clean folder. Do not require a new task just
+because the previous change finished. Never switch another owner's folder.
 
 At work start, inspect the current folder report (`just maintenance-status`).
 Recorded owners do not establish live chat activity; use the host's live task list
@@ -163,11 +170,13 @@ bookkeeping must not interrupt a reply or add a chat message. Never infer comple
 silence, clean files, or a merged change. Native Codex hooks require the user's
 supported trust review before they run; a prepared hook is not an active hook.
 
-- External terminal and Claude folders: use the owner release command in
+- External terminal and Claude folders: when cleanup is requested, use the owner
+  release command in
   [working-folder cleanup and recovery](docs/operations/worktree-lifecycle.md).
   The free Mac helper preserves recovery, waits for programs to release the folder,
   and removes it without force. New Claude work revokes prior releases.
-- Codex-managed folders: use the supported `list_artifacts` and
+- Codex-managed folders: when cleanup is requested, use the supported
+  `list_artifacts` and
   `archive_worktree` tools after preserving needed ignored files privately outside
   the folder. If this task's own managed checkout is not attached, attach that exact
   checkout with `attach_worktree` first. Never attach or archive another chat's

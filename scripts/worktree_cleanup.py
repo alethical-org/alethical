@@ -2,7 +2,8 @@
 """Remove explicitly released external worktrees, with private recovery copies.
 
 Merging, age, silence and an absent process are never release signals. The owning
-task calls release after delivery/acceptance and after giving up every preview.
+task calls release only for user-requested cleanup after delivery/acceptance
+and after giving up every preview. Completed folders stay available for follow-up.
 The scheduler retries those receipts and removes empty external container shells.
 Codex-managed trees stay with Codex.
 """

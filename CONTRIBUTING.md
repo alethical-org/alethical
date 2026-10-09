@@ -89,8 +89,9 @@ boundary, and it only covers worktrees created after the hook is installed.
 
 **On a Mac, run `just maintenance-install` once per machine.** It installs
 private backups every 5 minutes and automatic removal of working folders that
-all their owners explicitly release after delivery and acceptance. The existing
-`just install-wip-backup` command installs the same complete setup. The helpers
+all their owners explicitly release for user-requested cleanup after delivery
+and acceptance. Completed tasks keep their working folders for follow-up by
+default. The existing `just install-wip-backup` command installs the same complete setup. The helpers
 run from saved copies outside every working folder, so removing a folder does
 not remove the program that maintains the others. No AI or paid service runs.
 
@@ -252,8 +253,9 @@ ten bullets of shape at the top, then the numbered rules. The short version:
    automatically; fill in the template's **`Closes #<issue>`** line so the issue
    closes on merge (no issue? delete the line and say why in "What").
 4. **Merge** once the checks pass on the current head (squash-merge keeps `main` to
-   one commit per topic), then finish deployment checks and acceptance. Release
-   the working folder only when every owner is finished and no preview needs it:
+   one commit per topic), then finish deployment checks and acceptance. Keep the
+   working folder and local branch for follow-up, with no automatic expiry. Release
+   only when Eugene requests cleanup, every owner is finished and no preview needs it:
    `just worktree-rm <branch> <owner-id> '<delivery evidence>'`. Cleanup keeps the
    branch and a private recovery copy. Use the Codex app's archive control for
    its managed working folders instead.

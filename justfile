@@ -53,12 +53,12 @@ worktree branch:
   # Tolerant of failure on purpose: with hooks installed, .githooks/post-checkout
   # has already locked it, and a second lock is an error. Kept as a belt so a clone
   # that never ran `just install-hooks` still gets locked worktrees from this recipe.
-  -git worktree lock ../alethical-wt-{{branch}} --reason "live session; release after delivery: just worktree-rm <branch> <owner-id> <evidence>"
+  -git worktree lock ../alethical-wt-{{branch}} --reason "retain for follow-up; user-requested cleanup: just worktree-rm <branch> <owner-id> <evidence>"
   main_root="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"; [ -f "$main_root/.env" ] && ln -sf "$main_root/.env" ../alethical-wt-{{branch}}/.env || true
   cd ../alethical-wt-{{branch}} && pnpm install --frozen-lockfile
   @echo "✅ Worktree ready: ../alethical-wt-{{branch}} (branch {{branch}}). cd there to build, commit, and push."
 
-# Queue cleanup after delivery and acceptance, retaining the branch and recovery copy.
+# Queue user-requested cleanup after delivery and acceptance; keep branch and recovery.
 # Owner is the task/session ID; evidence states the completed delivery and checks.
 [positional-arguments]
 worktree-rm branch owner evidence:

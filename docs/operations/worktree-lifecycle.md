@@ -2,9 +2,10 @@
 
 <!-- describes: scripts/worktree_cleanup.py, scripts/worktree_inventory.py, scripts/install_worktree_maintenance.py, scripts/worktree_backup.py -->
 
-Alethical removes a working folder only after its owners finish delivery and
-acceptance and explicitly release it. A merged change, an old folder, or an idle
-process is not a completion signal. [Issue 2485](https://github.com/alethical-org/alethical/issues/2485)
+Alethical keeps completed working folders for follow-up, with no automatic expiry.
+Removal requires Eugene to request cleanup, followed by the owners finishing
+delivery and acceptance and explicitly releasing the folder. A merged change,
+an old folder, or an idle process is not a completion signal. [Issue 2485](https://github.com/alethical-org/alethical/issues/2485)
 tracks this maintenance work.
 
 ## Install and inspect
@@ -41,21 +42,26 @@ commands below. Other global hooks are unchanged.
 
 ## Finish or retain a working folder
 
-The task that owns delivery also owns cleanup. Finish the requested release,
-live checks and acceptance first. A review, preview, or unfinished user request
-keeps the folder. Every registered owner must release a shared working folder.
+The task that owns delivery keeps its chat, folder and local branch available
+after the requested release, live checks and acceptance. Record a retention hold
+such as "Delivery complete; retained for follow-up". Cleanup is a separate action
+that Eugene must request for a named folder or an approved batch; do not queue
+a release or archive a Codex folder merely to finish a reply. A review, preview,
+or unfinished user request keeps the folder. For requested cleanup, every
+registered owner must release a shared working folder.
 Use the task or session ID from the host, also listed in the local folder
 inspection report; a terminal-only task supplies its own stable task ID.
 
 ```sh
 python3 scripts/worktree_cleanup.py register --worktree '/absolute/path/to/alethical-wt-example' --owner 'owner-id'
-just worktree-rm 'codex/example' 'owner-id' 'Release is live, requested checks passed, and review is complete'
-just worktree-release '/absolute/path/to/alethical-wt-example' 'owner-id' 'Release is live, requested checks passed, and review is complete'
+just worktree-rm 'codex/example' 'owner-id' 'Eugene requested cleanup; release is live, checks passed, and review is complete'
+just worktree-release '/absolute/path/to/alethical-wt-example' 'owner-id' 'Eugene requested cleanup; release is live, checks passed, and review is complete'
 just worktree-hold '/absolute/path/to/alethical-wt-example' 'owner-id' 'Private preview still awaits user review'
 ```
 
-The removal command requires the matching Mac cleanup helper to be running, then queues a release. It does not delete a branch or force
-removal. Change the example evidence to the actual delivered result and checks;
+Use the removal commands only for user-requested cleanup. The removal command
+requires the matching Mac cleanup helper to be running, then queues a release.
+It does not delete a branch or force removal. Change the example evidence to the actual delivered result and checks;
 never claim acceptance while a requested review remains open. Leave the released
 folder and stop its task-owned preview normally. The background helper waits
 while a program still holds the folder open.
@@ -66,9 +72,9 @@ Before resuming released terminal work, revoke the release:
 python3 scripts/worktree_cleanup.py resume --worktree '/absolute/path/to/alethical-wt-example'
 ```
 
-This registers the terminal owner as `terminal`; that owner must release the
-folder when finished. The same path cannot be released on behalf of another
-registered owner. A changed saved version invalidates earlier owners' finish
+This registers the terminal owner as `terminal`; that owner keeps the folder
+when finished and releases it only for user-requested cleanup. The same path
+cannot be released on behalf of another registered owner. A changed saved version invalidates earlier owners' finish
 decisions. Recorded ownership does not establish whether a chat is running.
 
 ## Removal safeguards
@@ -170,7 +176,8 @@ cleanup push private recovery refs to GitHub.
 ## Codex-managed folders
 
 Folders under `~/.codex/worktrees/` belong to the Codex app. This helper refuses
-to remove them or edit the app's saved state. After delivery and acceptance,
+to remove them or edit the app's saved state. Keep completed folders available
+for follow-up. When Eugene requests cleanup after delivery and acceptance,
 the owning Codex task lists its attachments and archives its own working folder
 through the supported app tool, preserving needed ignored files separately.
 If its own managed checkout is not attached, the task attaches that exact
@@ -216,9 +223,9 @@ error. Failure to record resumed work remains a safety stop: the hook cannot let
 editing start while it might still have a queued deletion. This is distinct from
 routine housekeeping, and the agent must repair it before using the folder.
 
-The owner still releases completed external/Claude work or archives completed
-Codex work after delivery and acceptance. Hooks never infer completion from a
-merged change, a quiet chat, or the wording of a reply. Terminal work uses the
+The owner retains completed external/Claude and Codex folders for follow-up.
+Only a user cleanup request authorizes a release or archive after acceptance.
+Hooks never infer completion from a merged change, a quiet chat, or the wording of a reply. Terminal work uses the
 explicit commands. Routine holds and successful cleanup need no chat message.
 
 Codex supports the same lifecycle events through its documented hooks. Prepare
@@ -231,8 +238,8 @@ trust-bypass option, or claim a prepared definition is running. See
 [Codex hooks and trust](https://learn.chatgpt.com/docs/hooks).
 
 For native Codex folders, these hooks quietly record ownership and holds. The
-owner uses the app's archive tool after delivery and acceptance. The script cannot archive or delete a native
-folder. If Codex protects a primary checkout, record that exact reason as a hold.
+owner uses the app's archive tool only for user-requested cleanup after delivery
+and acceptance. The script cannot archive or delete a native folder. If Codex protects a primary checkout, record that exact reason as a hold.
 
 ## CommercialDeals coverage
 
@@ -284,3 +291,12 @@ programs to durable private storage so removing the build checkout cannot break 
 - **Prevention:** disposable-folder tests cover repeated conversation, missing decisions, dirty work, changed versions, native protection, explicit release, multiple owners and failures to save finish/resume state.
 - **Remaining boundary:** failure to cancel a queued release still stops resumed work safely; installation must preserve project protections and unrelated hooks.
 - **Owner and completion:** the task implementing this correction owns independent review and installation for both existing project profiles, followed by actual installed-hook checks showing empty standard output and retained ownership.
+
+### Keep completed folders for follow-up, October 9, 2026
+
+- **Cause and evidence:** agent instructions required cleanup before the final reply, so completed tasks lost their working folders just when follow-up questions began.
+- **Affected uses:** the shared personal release rules and Alethical's agent, workflow and setup instructions all repeated automatic end-of-task cleanup; native Codex archives and external owner releases need the same retention default.
+- **Correction:** retain the chat, folder and local branch without an automatic expiry; record a follow-up hold, continue related work in the same chat, and require a user cleanup request before releasing or archiving.
+- **Prevention:** reconcile every current cleanup instruction and the shared folder-review skill; retain the existing no-release, ownership, preview and recovery safeguards. The helper already retains folders without an explicit release.
+- **Boundary:** this changes agent instructions, not the Codex app's independent retention settings. A previously requested cleanup still needs the existing safeguards; completion alone no longer supplies permission.
+- **Completion:** the revised rules are published and the shared personal instructions are updated; this task's own folder remains held for follow-up.
