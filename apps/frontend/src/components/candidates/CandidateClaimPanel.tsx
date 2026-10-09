@@ -172,12 +172,13 @@ function AccountAction({
                   ? `/admin/candidate-claims?candidate=${encodeURIComponent(record.candidate.id)}&from=profile`
                   : `/candidates/${record.candidate.id}/${owner ? 'manage' : 'claim'}`
               }
-              kind={!isAdmin && (owner || !saved) ? 'green' : 'outline'}
+              kind={!isAdmin && (owner || !saved) ? 'green' : 'black'}
               icon="none"
               label={label}
               describedBy={description}
               onPress={isAdmin ? onAdmin : owner ? onManage : onClaim}
-              style={{ minHeight: 48, width: isMobile ? '100%' : undefined }}
+              textStyle={{ lineHeight: 20.8 }}
+              style={{ minHeight: 48, paddingVertical: 11, width: isMobile ? '100%' : undefined }}
             />
           </View>
           <Text nativeID={description} style={[candidateText.body, { fontSize: 15 }]}>

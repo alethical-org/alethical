@@ -11,6 +11,7 @@ import {
 } from '../candidatePageSnapshot';
 import { legalPageSnapshot } from '../legalPageSnapshot';
 import type { PageSnapshot } from '../pageSnapshot';
+import { personPageSnapshot } from '../personPageSnapshot';
 
 vi.hoisted(() => {
   (globalThis as { __DEV__?: boolean }).__DEV__ = false;
@@ -102,6 +103,46 @@ const record: CandidateProfileRecord = {
 afterEach(() => vi.useRealTimers());
 
 describe('public first-response copy matches the actual screens', () => {
+  it.each([undefined, '2024-11-12'])(
+    'keeps certification with optional date %s in candidate and person first responses',
+    (date) => {
+      const result = {
+        status: 'certified' as const,
+        outcome: 'elected' as const,
+        source: record.source,
+        certification: { authority: record.source.authority, url: record.source.url, date },
+      };
+      const profile = { ...record, result };
+      const expected = date ? 'Certified November 12, 2024' : 'Certified';
+      const person = personPageSnapshot({
+        id: '00000000-0000-4000-8000-000000000084',
+        name: record.candidate.name,
+        service: [],
+        research: { items: [], nextCursor: null },
+        elections: [
+          {
+            candidateId: record.candidate.id,
+            profileUrl: `/candidates/${record.candidate.id}`,
+            name: record.candidate.name,
+            election: record.election,
+            office: record.office,
+            votingArea: record.votingArea,
+            source: record.source,
+            isJointTicket: false,
+            result,
+          },
+        ],
+      });
+      for (const snapshot of [candidateProfilePageSnapshot(profile), person]) {
+        expect(snapshotLines(snapshot)).toContain('Election results');
+        expect(snapshotLines(snapshot)).toContain(expected);
+      }
+      const shown = screenText(
+        renderToStaticMarkup(<CandidateProfileContent record={profile} onBack={() => {}} />),
+      );
+      expect(shown).toContain(expected);
+    },
+  );
   it('opens the official Google policy from the visible privacy wording', () => {
     const element = document.createElement('div');
     element.innerHTML = renderToStaticMarkup(<PrivacyScreen />);

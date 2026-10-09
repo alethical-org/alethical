@@ -438,7 +438,34 @@ unavailable result states remain distinct. An official withdrawal needs its own
 source and is not treated as a certified election outcome.
 
 Election badges retain the explicit word **Election** so their context remains
-clear on a person's profile. An outcome never proves the person took office.
+clear on a person's profile. Colour identifies a final outcome: **Elected** is
+green, **Not elected** is red with a cross, and a sourced withdrawal is grey.
+Pending, unofficial, recount, tie and certified status badges are neutral grey;
+**Election results unavailable** is white with a dash. Certified badges always
+say **Election results**, beside **Certified {date}** when supplied or **Certified**
+when the date is absent.
+
+On `/candidates/<id>`, the status block sits beside the office facts on tablet and
+desktop, stretching from the candidacy label to the party chip. On phone it sits
+immediately after the office name, before the area and election date. Final
+outcomes use a double solid frame; unfinished races use a single frame. The
+profile withdrawal label is **Withdrew from election**; compact election rows
+retain **Withdrew**. A certified race without a candidate outcome has its
+certification in the source area without a large outcome block.
+
+The official record's sources share 1 dividing line. Race status appears once:
+in the large block when no outcome exists, otherwise in the source area.
+Certification always appears in the source area. The candidate source precedes
+the results source. Matching check dates share **Both checked {date}** below
+both links; different dates remain under their own link. **Ballot record saved
+{date}** stays under the ballot source even when dates match. A missing results
+source adds no source date, and no date is invented.
+
+Candidate profile actions use filled buttons. **Claim this profile** and
+**Manage this profile** are green. **View profile claim status** and
+**Review profile claim requests** are black with white text, regardless of
+request state. Their existing explanations, permissions and destinations remain
+unchanged. An outcome never proves the person took office.
 Current, elected-to, former and unknown service need their own source evidence.
 Expected term dates keep their stated precision; reaching an expected start date
 does not turn it into confirmed service. A retained roster does not establish a

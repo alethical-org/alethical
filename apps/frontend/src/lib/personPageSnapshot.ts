@@ -180,8 +180,12 @@ export function electionResultSnapshot(
       ...(result.outcome ? [electionOutcomeLabel(result.outcome)] : []),
       electionResultLabel(result),
       ...(result.status === 'unofficial' ? ['These results have not been certified'] : []),
-      ...(result.certification?.date
-        ? [`Certified ${candidateDate(result.certification.date)}`]
+      ...(result.status === 'certified'
+        ? [
+            result.certification?.date
+              ? `Certified ${candidateDate(result.certification.date)}`
+              : 'Certified',
+          ]
         : []),
       ...(includeSource && result.source
         ? [`Checked ${candidateDate(result.source.checkedDate)}`]

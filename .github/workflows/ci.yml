@@ -383,7 +383,7 @@ jobs:
           node scripts/check-candidate-return.mjs http://127.0.0.1:4173
           node scripts/check-candidate-location.mjs http://127.0.0.1:4173 /tmp/candidate-location-check --chromium
           E2E_STATIC_BUILD=1 E2E_BASE_URL=http://127.0.0.1:4173 pnpm exec playwright test \
-            e2e/services-print.spec.ts --project=chromium
+            e2e/services-print.spec.ts e2e/candidate-record-status.spec.ts --project=chromium
           # These failures must reach the money assertions. A crashed browser,
           # wrong release, or earlier navigation failure is not a successful test.
           for money_failure in unavailable wrong-amount missing-as-zero; do

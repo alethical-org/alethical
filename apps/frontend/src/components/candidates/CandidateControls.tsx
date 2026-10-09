@@ -8,6 +8,7 @@ import {
   View,
   type StyleProp,
   type ViewStyle,
+  type TextStyle,
 } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { externalLinkProps, linkProps } from '../../navigation/links';
@@ -49,6 +50,7 @@ export function CandidateButton({
   busyLabel,
   reserveBusyLabel = false,
   pressedStyle,
+  textStyle,
   buttonRef,
   describedBy,
   accessibilityLabel,
@@ -59,7 +61,7 @@ export function CandidateButton({
   busy?: boolean;
   disabled?: boolean;
   icon?: 'search' | 'none' | 'location';
-  kind?: 'green' | 'outline' | 'text';
+  kind?: 'green' | 'black' | 'outline' | 'text';
   /** Label size in px; the line height follows it. */
   fontSize?: number;
   style?: StyleProp<ViewStyle>;
@@ -68,6 +70,7 @@ export function CandidateButton({
   busyLabel?: string;
   reserveBusyLabel?: boolean;
   pressedStyle?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
   buttonRef?: RefObject<View | null>;
   describedBy?: string;
   accessibilityLabel?: string;
@@ -151,7 +154,9 @@ export function CandidateButton({
         styles.buttonText,
         { flexShrink: 1 },
         fontSize ? { fontSize, lineHeight: Math.round(fontSize * 1.4) } : null,
+        textStyle,
         kind === 'green' && { color: '#06231a' },
+        kind === 'black' && { color: '#ffffff' },
         kind === 'text' && { textDecorationLine: 'underline' },
         kind === 'text' &&
           visible &&
@@ -190,23 +195,33 @@ export function CandidateButton({
       onHoverOut={() => setHovered(false)}
       style={({ pressed }) => [
         styles.button,
-        kind === 'green' ? styles.green : kind === 'text' ? styles.textButton : styles.outline,
+        kind === 'green'
+          ? styles.green
+          : kind === 'black'
+            ? styles.black
+            : kind === 'text'
+              ? styles.textButton
+              : styles.outline,
         hovered &&
           !busy &&
           !disabled &&
           (kind === 'green'
             ? styles.greenHover
-            : kind === 'text'
-              ? styles.textHover
-              : styles.outlineHover),
+            : kind === 'black'
+              ? styles.blackHover
+              : kind === 'text'
+                ? styles.textHover
+                : styles.outlineHover),
         pressed &&
           !busy &&
           !disabled &&
           (kind === 'green'
             ? styles.greenPressed
-            : kind === 'outline'
-              ? styles.outlinePressed
-              : null),
+            : kind === 'black'
+              ? styles.blackPressed
+              : kind === 'outline'
+                ? styles.outlinePressed
+                : null),
         pressed && !busy && !disabled && pressedStyle,
         disabled && { opacity: 0.5 },
         busy && busyLabel && Platform.OS === 'web' && ({ cursor: 'progress' } as object),
@@ -335,10 +350,14 @@ export function CandidateLink({
 export function CandidateSourceLine({
   source,
   group = false,
+  showChecked = true,
+  checkedStyle,
   style,
 }: {
   source: CandidateSource;
   group?: boolean;
+  showChecked?: boolean;
+  checkedStyle?: StyleProp<TextStyle>;
   style?: StyleProp<ViewStyle>;
 }) {
   return (
@@ -360,7 +379,9 @@ export function CandidateSourceLine({
       ]}
     >
       <CandidateLink url={source.url} label={candidateRecordsSourceLabel(source.authority)} />
-      <Text style={styles.small}>{ballotCheckedLabel(source)}</Text>
+      {showChecked ? (
+        <Text style={[styles.small, checkedStyle]}>{ballotCheckedLabel(source)}</Text>
+      ) : null}
       {source.stale && !source.retained ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -439,6 +460,9 @@ const styles = StyleSheet.create({
   green: { backgroundColor: '#2ed47e', borderColor: '#2ed47e' },
   greenHover: { backgroundColor: '#28bf71', borderColor: '#28bf71' },
   greenPressed: { backgroundColor: '#23ad66', borderColor: '#23ad66' },
+  black: { backgroundColor: '#11150f', borderColor: '#11150f' },
+  blackHover: { backgroundColor: '#2c322c', borderColor: '#2c322c' },
+  blackPressed: { backgroundColor: '#000000', borderColor: '#000000' },
   outline: { backgroundColor: '#fff', borderColor: 'rgba(17,21,15,0.2)' },
   outlineHover: { backgroundColor: '#f7f8fa', borderColor: 'rgba(17,21,15,0.3)' },
   outlinePressed: { backgroundColor: '#eceff1' },
