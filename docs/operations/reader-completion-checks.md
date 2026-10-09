@@ -1,6 +1,6 @@
 # Reader completion checks
 
-<!-- describes: apps/frontend/scripts/reader-completion-*.mjs, apps/frontend/scripts/reader-official-bill.mjs, apps/frontend/scripts/reader-release-relation.mjs, apps/frontend/scripts/serve-reader-check-build.mjs, apps/frontend/scripts/check-candidate-return.mjs, .github/workflows/reader-completion-checks.yml, .github/workflows/ci.yml, .github/actions/prepare-browser-install/action.yml -->
+<!-- describes: apps/frontend/scripts/reader-completion-*.mjs, apps/frontend/scripts/reader-official-bill.mjs, apps/frontend/scripts/reader-release-relation.mjs, apps/frontend/scripts/serve-reader-check-build.mjs, apps/frontend/scripts/check-candidate-return.mjs, apps/frontend/scripts/check-candidate-location.mjs, .github/workflows/reader-completion-checks.yml, .github/workflows/ci.yml, .github/actions/prepare-browser-install/action.yml -->
 
 Alethical's completion evidence includes what a reader can do on the deployed
 website. A successful build or merge alone does not establish that result.
@@ -47,6 +47,17 @@ exercise search, a collapsed group, a profile visit and return at desktop, table
 and phone widths. The same result text, group states and link position must return.
 Candidate API answers are supplied locally; unrelated outside requests receive
 HTTP 503. The test sends no address to a service and starts no sign-in or paid work.
+
+It also runs
+[`check-candidate-location.mjs`](../../apps/frontend/scripts/check-candidate-location.mjs)
+in Chromium at 1280, 900, 390, 320 and 640 wide with doubled text. Fixture device
+locations and fixture API answers exercise **Use my location**: blocked, imprecise and
+unavailable lines, the confirmation card, Enter, unit joining and **Enter a different
+address**. It measures the **Find** buttons on `/candidates`, **Change address** and
+`/find-my-legislator`: width, height, the 9px icon gap, the 3px nudge and steady busy
+boxes. It also requires every row of an open suggestion list, including the last, to
+take a click above the help lines and outline. Unrelated outside requests receive
+HTTP 503; nothing reaches a location or address service.
 
 ### Campaign-money fixture evidence
 

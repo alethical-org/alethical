@@ -1,18 +1,30 @@
 /**
  * Focused browser regression for /candidates Use my location and the Find buttons.
- * Run against a local web build whose EXPO_PUBLIC_API_URL is http://127.0.0.1:8799;
- * every API reply and every device location below is a fixture, never a real reader.
- *   node scripts/check-candidate-location.mjs http://localhost:19071 [screenshot dir]
+ * Every API reply and every device location below is a fixture, never a real reader;
+ * requests to any API origin are answered here, so a local dev server or the CI
+ * static build both work.
+ *   node scripts/check-candidate-location.mjs http://localhost:19071 [screenshot dir] [--chromium]
  */
 import assert from 'node:assert/strict';
 import { mkdirSync } from 'node:fs';
 import { chromium, webkit } from '@playwright/test';
 
 const base = process.argv[2] ?? 'http://localhost:19071';
-const shots = process.argv[3] ?? '/tmp/candidate-location-check';
+const shots =
+  process.argv[3] && !process.argv[3].startsWith('--')
+    ? process.argv[3]
+    : '/tmp/candidate-location-check';
+const engines = process.argv.includes('--chromium') ? [chromium] : [chromium, webkit];
 assert(['localhost', '127.0.0.1'].includes(new URL(base).hostname), 'Use the local preview');
 mkdirSync(shots, { recursive: true });
-const API = 'http://127.0.0.1:8799/api/v1';
+// Any origin: the built site may name its API differently from the dev server.
+const isApi = (url) => new URL(url).pathname.includes('/api/v1/');
+// Nothing else leaves the machine: unrelated outside requests get HTTP 503.
+const blockOutside = (page) =>
+  page.route(
+    (url) => url.origin !== new URL(base).origin && !isApi(url),
+    (route) => route.fulfill({ status: 503, body: '' }),
+  );
 const SUGGESTED = '917 North 7th Avenue East, DULUTH, MN 55805';
 const LONG =
   '29308 Countryside Northwest Lakeshore Boulevard Extension North Apt 1204, Sample Lake Township, MN 55999';
@@ -70,8 +82,9 @@ async function open(
     ...(location ? { geolocation: location, permissions: ['geolocation'] } : {}),
   });
   const page = await context.newPage();
+  await blockOutside(page);
   const seen = { lookups: [], locates: [] };
-  await page.route(`${API}/**`, async (route) => {
+  await page.route(isApi, async (route) => {
     const url = new URL(route.request().url());
     const body = route.request().postDataJSON?.() ?? null;
     const reply = (json, status = 200) =>
@@ -166,7 +179,7 @@ const noHorizontalScroll = (page) =>
   );
 
 const report = [];
-for (const engine of [chromium, webkit]) {
+for (const engine of engines) {
   const browser = await engine.launch({ headless: true });
   try {
     for (const width of [1280, 900, 390]) {
@@ -335,15 +348,18 @@ for (const engine of [chromium, webkit]) {
       ({ page, context } = await open(browser, width, {
         location: { latitude: 46.79, longitude: -92.09, accuracy: 6 },
       }));
-      await page.route(`${API}/candidates/locate`, async (route) => {
-        await new Promise((yes) => setTimeout(yes, 1500));
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ kind: 'imprecise' }),
-          headers: { 'access-control-allow-origin': '*' },
-        });
-      });
+      await page.route(
+        (url) => url.pathname.endsWith('/api/v1/candidates/locate'),
+        async (route) => {
+          await new Promise((yes) => setTimeout(yes, 1500));
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ kind: 'imprecise' }),
+            headers: { 'access-control-allow-origin': '*' },
+          });
+        },
+      );
       await page.getByRole('button', { name: 'Use my location', exact: true }).click();
       const locatingButton = page.getByRole('button', { name: 'Locating…', exact: true });
       await locatingButton.waitFor();
@@ -472,7 +488,8 @@ for (const engine of [chromium, webkit]) {
       // Legislator finder: same width and nudge.
       const legislatorContext = await browser.newContext({ viewport: { width, height: 1000 } });
       const legislator = await legislatorContext.newPage();
-      await legislator.route(`${API}/**`, (route) =>
+      await blockOutside(legislator);
+      await legislator.route(isApi, (route) =>
         route.fulfill({ status: 404, body: '{}', headers: { 'access-control-allow-origin': '*' } }),
       );
       await legislator.goto(`${base}/find-my-legislator`);
