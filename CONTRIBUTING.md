@@ -183,9 +183,12 @@ migrations and sample data instead of reusing an earlier test database.
 An explicit `ALETHICAL_TEST_DATABASE_URL` override is refused. A remote
 `DATABASE_URL` or non-local `ALETHICAL_DATABASE_TARGET` is also refused before
 startup. Unset those values for local testing; they cannot direct fixture writes
-into an existing server. GitHub Actions uses its fresh, job-owned PostgreSQL
-service on port 5432 without starting another container. Setting `CI=true` on a
-laptop does not enable that exception.
+into an existing server. GitHub Actions starts its fresh, job-owned PostgreSQL
+container on port 5432 before tests. The job pulls the same `pgvector/pgvector:pg17`
+image directly from Google's public Docker Hub cache (`mirror.gcr.io`), then falls back to
+Docker Hub if the image is missing from that cache. This avoids a shared Docker Hub
+download limit when the image is cached. Setting `CI=true` on a laptop does not
+enable the GitHub database exception.
 
 ### Frontend tests
 

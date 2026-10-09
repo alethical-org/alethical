@@ -10,7 +10,7 @@ import os
 import re
 import time
 import threading
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field, replace
 from functools import lru_cache
 from pathlib import Path
 
@@ -19,9 +19,14 @@ from shapely.geometry import Point, mapping, shape
 from shapely.geometry.base import BaseGeometry
 
 from alethical.api.services.address_format import normalize_address_format
+from alethical.api.services.address_suggestion_index import (
+    get_address_suggestion_index,
+)
 from alethical.api.services.legislative_districts import (
     LegislativeDistrictDataError,
     legislative_districts_for_point,
+    one_shape_for_all,
+    points_share_legislative_districts,
 )
 from alethical.logging import configure_logging
 
@@ -50,6 +55,10 @@ class RepresentativeLookupUpstreamError(RepresentativeLookupError):
     pass
 
 
+class RepresentativeLookupAmbiguousLocation(RepresentativeLookupNotFound):
+    """Current official points printed with 1 address fall in different districts."""
+
+
 @dataclass(frozen=True)
 class GeocodedAddress:
     requested_address: str
@@ -57,6 +66,14 @@ class GeocodedAddress:
     latitude: float
     longitude: float
     state_code: str | None = None
+    # Every distinct official point printed with this address, when there is more
+    # than 1. The lookup service settles them before choosing districts.
+    conflicting_points: tuple[tuple[float, float], ...] = field(
+        default=(), compare=False, repr=False
+    )
+    # A chosen suggestion must be resolved against current official records before
+    # its point decides districts: it came from the public copy, or has conflicts.
+    requires_location_check: bool = field(default=False, compare=False)
 
 
 @dataclass(frozen=True)
@@ -946,6 +963,24 @@ class MinnesotaAddressPointGeocoder:
         if query is None:
             return []
 
+        if self.base_url == MINNESOTA_ADDRESS_POINTS_URL:
+            copied = get_address_suggestion_index().suggestions(
+                house_number=query.house_number,
+                street_names=query.street_names,
+                house_suffix=query.house_suffix,
+            )
+            if copied is not None:
+                matches = self._suggestion_matches(address_text, query, copied)
+                if matches:
+                    # A copied point can lag the live records, so a chosen copy
+                    # suggestion is checked against them before districts.
+                    return [
+                        replace(match, requires_location_check=True)
+                        for match in matches
+                    ]
+            # A missing, expired, unusable or empty copy never blocks a live read.
+            # Local rows can exist but all fail the existing address checks.
+
         street_clauses = []
         for street_name in query.street_names:
             escaped = street_name.replace("'", "''")
@@ -974,6 +1009,14 @@ class MinnesotaAddressPointGeocoder:
                 ],
                 result_record_count=200,
             )
+        return self._suggestion_matches(address_text, query, features)
+
+    def _suggestion_matches(
+        self,
+        address_text: str,
+        query: _AddressPointQuery,
+        features: list[object],
+    ) -> list[GeocodedAddress]:
         active_features: list[object] = [
             feature
             for feature in features
@@ -1000,24 +1043,20 @@ class MinnesotaAddressPointGeocoder:
         if not queries:
             raise RepresentativeLookupNotFound("address could not be geocoded")
 
-        query = queries[0]
-        street_names = sorted(
-            {street_name for item in queries for street_name in item.street_names}
+        where_parts = self._exact_where_parts(queries)
+        features, exceeded_limit = self._request_features(
+            where_parts, result_record_count=100
         )
-        escaped_street_names = ", ".join(
-            f"'{name.replace("'", "''")}'" for name in street_names
-        )
-        where_parts = [
-            f"anumber = {query.house_number}",
-            f"UPPER(st_name) IN ({escaped_street_names})",
-            "(state_code IS NULL OR UPPER(state_code) = 'MN')",
-            "(status IS NULL OR UPPER(status) <> 'RETIRED')",
-        ]
-        if query.house_suffix:
-            suffix = query.house_suffix.replace("'", "''")
-            where_parts.append(f"UPPER(anumbersuf) = '{suffix}'")
-
-        features, _ = self._request_features(where_parts, result_record_count=100)
+        if exceeded_limit:
+            # A capped answer can omit another city's address or another official
+            # point printed the same way, so it can never prove a unique location.
+            features, exceeded_limit = self._request_features(
+                where_parts, result_record_count=2000
+            )
+            if exceeded_limit:
+                raise AddressPointsIncomplete(
+                    "Minnesota address service capped its answer"
+                )
         candidates = self._candidates(
             address_text, queries, features, allow_fuzzy_street=False
         )
@@ -1079,6 +1118,51 @@ class MinnesotaAddressPointGeocoder:
         ]
         return [match for match, _, _, _, _ in candidates[:5]]
 
+    def current_match(self, matched_address: str) -> GeocodedAddress | None:
+        """Current official point(s) printed exactly as a chosen address.
+
+        Used after a reader picks a suggestion, so a copied point never decides
+        districts. None means this answer cannot settle the point: the text does
+        not parse, the answer was capped, or no current row prints that address.
+        Source failures propagate to the caller.
+        """
+        queries = self._parse_queries(matched_address)
+        if not queries:
+            return None
+        features, exceeded_limit = self._request_features(
+            self._exact_where_parts(queries), result_record_count=2000
+        )
+        if exceeded_limit:
+            return None
+        chosen = [
+            match
+            for match, _, _, _, _ in self._candidates(
+                matched_address, queries, features, allow_fuzzy_street=False
+            )
+            if match.matched_address.casefold() == matched_address.casefold()
+        ]
+        return chosen[0] if len(chosen) == 1 else None
+
+    @staticmethod
+    def _exact_where_parts(queries: tuple[_AddressPointQuery, ...]) -> list[str]:
+        query = queries[0]
+        street_names = sorted(
+            {street_name for item in queries for street_name in item.street_names}
+        )
+        escaped_street_names = ", ".join(
+            f"'{name.replace("'", "''")}'" for name in street_names
+        )
+        where_parts = [
+            f"anumber = {query.house_number}",
+            f"UPPER(st_name) IN ({escaped_street_names})",
+            "(state_code IS NULL OR UPPER(state_code) = 'MN')",
+            "(status IS NULL OR UPPER(status) <> 'RETIRED')",
+        ]
+        if query.house_suffix:
+            suffix = query.house_suffix.replace("'", "''")
+            where_parts.append(f"UPPER(anumbersuf) = '{suffix}'")
+        return where_parts
+
     def _request_features(
         self, where_parts: list[str], *, result_record_count: int
     ) -> tuple[list[object], bool]:
@@ -1117,6 +1201,9 @@ class MinnesotaAddressPointGeocoder:
     ) -> list[tuple[GeocodedAddress, str, str, int, _AddressPointQuery]]:
         candidates: list[tuple[GeocodedAddress, str, str, int, _AddressPointQuery]] = []
         seen_addresses: dict[str, int] = {}
+        # Rows printing the same address can carry different official points. Offer
+        # the address once, but keep every point so no caller silently picks one.
+        label_points: dict[str, list[tuple[float, float]]] = {}
         for feature in features:
             if not isinstance(feature, dict):
                 continue
@@ -1142,14 +1229,30 @@ class MinnesotaAddressPointGeocoder:
             candidate = min(query_candidates, key=self._candidate_query_rank)
             match, locality, zip_code, distance, matched_query = candidate
             key = match.matched_address.casefold()
+            point = (round(match.latitude, 8), round(match.longitude, 8))
             if key in seen_addresses:
+                if point not in label_points[key]:
+                    label_points[key].append(point)
                 existing_index = seen_addresses[key]
                 if distance < candidates[existing_index][3]:
                     candidates[existing_index] = candidate
                 continue
             seen_addresses[key] = len(candidates)
+            label_points[key] = [point]
             candidates.append((match, locality, zip_code, distance, matched_query))
-        return candidates
+        return [
+            (
+                replace(
+                    item[0],
+                    conflicting_points=tuple(points),
+                    requires_location_check=True,
+                ),
+                *item[1:],
+            )
+            if len(points := label_points[item[0].matched_address.casefold()]) > 1
+            else item
+            for item in candidates
+        ]
 
     @classmethod
     def _fuzzy_street_clause(
@@ -1463,6 +1566,22 @@ class MinnesotaAddressPointGeocoder:
 
 
 class MinnesotaGisLookupClient:
+    def points_share_districts(self, points: tuple[tuple[float, float], ...]) -> bool:
+        """True when every (latitude, longitude) point has the same unique districts.
+
+        A point on a shared boundary is no unique answer, so it disagrees. A map
+        that cannot be read is a source failure, never a disagreement.
+        """
+        lon_lat = tuple((longitude, latitude) for latitude, longitude in points)
+        try:
+            legislative = points_share_legislative_districts(lon_lat)
+        except LegislativeDistrictDataError as exc:
+            raise RepresentativeLookupUpstreamError(str(exc)) from exc
+        return legislative and one_shape_for_all(
+            tuple(geometry for _, geometry in _congressional_district_geometries()),
+            lon_lat,
+        )
+
     def lookup(
         self, *, latitude: float, longitude: float
     ) -> tuple[DistrictMatch | None, DistrictMatch | None, str | None]:
@@ -1515,6 +1634,36 @@ class RepresentativeLookupService:
     def suggest_addresses(self, address_text: str) -> list[GeocodedAddress]:
         return self.address_point_geocoder.suggest_matches(address_text)
 
+    def lookup_selected(
+        self, selected_address: str, *, latitude: float, longitude: float
+    ) -> RepresentativeLookupResult:
+        """Resolve a chosen suggestion against current official points first.
+
+        The submitted point only breaks a tie between current points that share
+        districts. A missing, capped or failed check uses the typed lookup on the
+        printed address, never the submitted point.
+        """
+        try:
+            current = self.address_point_geocoder.current_match(selected_address)
+        except (RepresentativeLookupUpstreamError, requests.RequestException):
+            current = None
+        if current is None:
+            return self.lookup(selected_address)
+        points = current.conflicting_points or ((current.latitude, current.longitude),)
+        nearest_latitude, nearest_longitude = min(
+            points,
+            key=lambda point: _meters_between(latitude, longitude, *point),
+        )
+        return self._lookup_settled(
+            replace(
+                current,
+                requested_address=selected_address,
+                latitude=nearest_latitude,
+                longitude=nearest_longitude,
+            ),
+            requested_address=selected_address,
+        )
+
     def lookup(self, address_text: str) -> RepresentativeLookupResult:
         try:
             matches = self.geocoder.geocode_matches(address_text)
@@ -1527,12 +1676,24 @@ class RepresentativeLookupService:
                 raise outside_minnesota
         if len(matches) > 1:
             raise RepresentativeLookupChoices(matches)
-        geocoded = matches[0]
+        return self._lookup_settled(matches[0], requested_address=address_text)
 
+    def _lookup_settled(
+        self, geocoded: GeocodedAddress, *, requested_address: str
+    ) -> RepresentativeLookupResult:
+        if len(
+            geocoded.conflicting_points
+        ) > 1 and not self.gis_client.points_share_districts(
+            geocoded.conflicting_points
+        ):
+            # Choosing either point would guess the reader's districts.
+            raise RepresentativeLookupAmbiguousLocation(
+                "official points for this address are in different districts"
+            )
         return self.lookup_coordinates(
             latitude=geocoded.latitude,
             longitude=geocoded.longitude,
-            requested_address=address_text,
+            requested_address=requested_address,
             matched_address=geocoded.matched_address,
             state_code=geocoded.state_code,
         )

@@ -135,6 +135,12 @@ source validation or guarantees the source remains available.
 
 Validation loads each distinct ZIP table once per suggestion request, with at most
 5 ZIP requests running together and the existing 5-minute public street-table cache.
+Simultaneous requests for the same ZIP share 1 download of its public table, and a
+failed download reaches each of them without being kept. When the legislator finder's
+copy of Minnesota's published address file is on, candidate suggestions can start
+from that copy and still pass this election street-range check before they appear.
+Choosing a suggestion that carries the reader's own apartment or ZIP+4 detail searches
+that full shown text through the same checks as a typed address.
 It does not fetch candidate ballots while typing or cache visitor addresses on the
 server. If an official table cannot be read, suggestions are unavailable rather than
 reported as a successful empty response.
@@ -258,9 +264,11 @@ focus moves to it) and **Your device’s location can be approximate or show whe
 are now, not where you live**. **Street address** is editable and prefilled.
 **Apartment or unit**, marked **Optional** with placeholder **Apt 3**, is joined into
 the street segment before the first comma; a bare value such as `3` becomes `#3`,
-`Apt. 3` is read as `Apt 3`, and the same unit typed in both fields appears once
-(`3` beside a street already ending `Apt 3` is the same unit). A different unit in each field is
-kept, and the official match then refuses the address rather than choosing either.
+`Apt. 3` is read as `Apt 3`, and the same unit typed in both fields appears once:
+`Apt #250`, `Apt 250`, `Apt.250`, `#250` and a bare `250` beside a street already
+carrying `Apt #250` are all the same unit. A different number, a different label
+(`Unit 250` beside `Apt 250`) or extra words are kept, and the official match then
+refuses the address rather than choosing either.
 **This is my home address** (busy **Finding…** in the same box) runs the normal exact
 official match; Enter in either field does the same, except while an input method is
 composing text, and a second press cannot submit again. Editing either field cancels
@@ -343,7 +351,9 @@ While an address search runs, both **Find** buttons show a spinner
 and **Finding…** inside their unchanged box, centred the same way. A screen reader receives
 1 polite waiting announcement; the line below stays reserved for errors without
 repeating the waiting message. Focus stays on the activated search button, repeated
-clicks and Enter cannot submit again, and reduced motion stops the spinner. The
+clicks and Enter cannot submit again, a search started by keyboard shows the purple
+focus ring there, a search started by mouse, pen or touch does not, and a later
+keyboard visit shows it again, and reduced motion stops the spinner. The
 ready label returns after a result or error. Election changes keep their separate
 **Updating candidates…** status.
 

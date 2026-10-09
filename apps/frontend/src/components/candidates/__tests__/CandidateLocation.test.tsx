@@ -459,6 +459,30 @@ it('joins a unit once in the canonical place without dropping a conflicting unit
   expect(joinAddressUnit('4821 Sample Ave S Apt 3, Sample Lake, MN 55999', 'Apt 4')).toBe(
     '4821 Sample Ave S Apt 3 Apt 4, Sample Lake, MN 55999',
   );
+  // A "#" after a named label is the same unit, in either field, typed either way.
+  const HOPKINS = '100 8th Ave S Apt #250, Hopkins, MN 55343';
+  for (const same of ['Apt #250', 'apt # 250', '250', '#250', 'Apt 250', 'Apt.250', 'Apt. #250'])
+    expect(joinAddressUnit(HOPKINS, same)).toBe(HOPKINS);
+  expect(joinAddressUnit('100 8th Ave S Apt.#250, Hopkins, MN 55343', 'Apt #250')).toBe(
+    '100 8th Ave S Apt.#250, Hopkins, MN 55343',
+  );
+  expect(joinAddressUnit('100 8th Ave S #250, Hopkins, MN 55343', 'Apt #250')).toBe(
+    '100 8th Ave S #250, Hopkins, MN 55343',
+  );
+  // A different value, a different label or extra words stay, so the match refuses.
+  expect(joinAddressUnit(HOPKINS, 'Apt #251')).toBe(
+    '100 8th Ave S Apt #250 Apt #251, Hopkins, MN 55343',
+  );
+  expect(joinAddressUnit(HOPKINS, '251')).toBe('100 8th Ave S Apt #250 #251, Hopkins, MN 55343');
+  expect(joinAddressUnit(HOPKINS, 'Unit #250')).toBe(
+    '100 8th Ave S Apt #250 Unit #250, Hopkins, MN 55343',
+  );
+  expect(joinAddressUnit(HOPKINS, 'Apt #250 rear')).toBe(
+    '100 8th Ave S Apt #250 Apt #250 rear, Hopkins, MN 55343',
+  );
+  expect(joinAddressUnit('100 8th Ave S Apt #250 Apt #251, Hopkins, MN 55343', '250')).toBe(
+    '100 8th Ave S Apt #250 Apt #251 #250, Hopkins, MN 55343',
+  );
   expect(joinAddressUnit('4821 Sample Ave S Sample Lake MN 55999', '3')).toBe(
     '4821 Sample Ave S Sample Lake #3 MN 55999',
   );

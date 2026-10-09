@@ -59,6 +59,12 @@ them to FastAPI. One Uvicorn process runs per container.
 - The app is assembled in one function (`create_app` in `alethical/api/main.py`), which the
   start command calls. This is what lets tests build a fresh app instead of importing a
   half-configured one.
+- The public address suggestion copy is off by default. When switched on, the app's
+  startup starts 1 background refresher per process; every process on a machine reads 1
+  shared copy, and only the holder of the folder lock downloads and builds a
+  replacement. Startup never waits for the copy, and shutdown leaves it for the other
+  processes. See
+  [deployment.md § Address suggestion copy activation](../operations/deployment.md#address-suggestion-copy-activation).
 - Public and signed-in routes sit under `/api/v1`. Operations routes we use ourselves sit
   under `/internal/v1`. The version number is in the address so a future change can ship
   beside the old one instead of breaking every client at once.

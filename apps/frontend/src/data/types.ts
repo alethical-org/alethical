@@ -449,6 +449,8 @@ export interface RepresentativeLookupResult {
 
 export interface RepresentativeAddressChoice extends RepresentativeLookupCoordinates {
   matchedAddress: string;
+  /** Its point must be checked against current official records when chosen. */
+  requiresLocationCheck?: boolean;
 }
 
 export interface GeoJsonGeometry {
@@ -461,7 +463,13 @@ export interface RepresentativeLookupCoordinates {
   longitude: number;
 }
 
-export type RepresentativeLookupInput = string | RepresentativeLookupCoordinates;
+/** A chosen address whose point the server checks against current official records. */
+export interface RepresentativeSelectedAddress extends RepresentativeLookupCoordinates {
+  selectedAddress: string;
+}
+
+export type RepresentativeLookupInput =
+  string | RepresentativeLookupCoordinates | RepresentativeSelectedAddress;
 
 export interface AskAnswerBill {
   id: string;

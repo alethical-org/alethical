@@ -351,3 +351,168 @@ scoped outcome and prevention checks with no remaining material findings.
   avoid writes. Live release acceptance remains pending.
 - These matching corrections do not enable the separately held public-address
   index or change suggestion freshness, privacy, visual treatment or request timing.
+
+## October 9 copied suggestions and current-record selection checks
+
+Scope: the approved proposal to answer address suggestions from a shared public copy,
+check a chosen address against current official records before districts, share
+same-ZIP street-table downloads, and measure the reader-visible result. Delivery
+through live release belongs to Codex task “Address suggestion speed CB” after its
+independent acceptance; Claude Code session “Address suggestion speed CB build” is the
+sole implementation writer. The copy stays off until hosting capacity is established.
+
+Evidence and causes:
+
+- Live suggestions wait about 0.47 seconds (median of 63 sampled prefixes, laptop
+  server time) on Minnesota's address service at every typing pause.
+- `MinnesotaAddressPointGeocoder._candidates` kept only the first point when rows
+  printed the same address with different official points. With Census unavailable,
+  the typed lookup could silently pick 1 of 2 points in different districts.
+- `geocode_matches` ignored the exact answer's row-cap flag, so a cut-short answer
+  could be read as 1 address.
+- `CandidateLookupService.streets` fetched outside its cache lock, so simultaneous
+  misses for 1 ZIP each downloaded the same public table.
+
+Affected uses: `/find-my-legislator` entry and Change address; `/candidates` entry and
+Change address; the typed-lookup fallback; candidate no-ZIP resolution, which shares
+`geocode_matches`. Homepage forms render no suggestions and hand only typed text or a
+device location to their finders, so they need no change.
+
+Approved differences kept: candidate suggestions still need exactly 1 official election
+street range before display, and a chosen candidate address is still revalidated
+against the Secretary of State tables; the legislator finder keeps its map-based
+coverage. No visitor query or ballot is cached on the server.
+
+Correction:
+
+- Rows printing the same address keep every point. A lookup continues only when the
+  first point's House, Senate and congressional shapes cover them all; otherwise it
+  returns `representative-lookup-ambiguous-location` (shown as **No match for that
+  address**). A cut-short exact answer is asked again at 2,000 rows and fails as a
+  source error if still cut short.
+- Suggestions carry `requires_location_check` when they come from the copy or carry
+  conflicting points. Choosing one sends `selected_address` with its point; the server
+  re-reads current points, uses 1 current point even when it moved, picks the nearest
+  of several that share districts, refuses points in different districts, and runs the
+  typed lookup when the check cannot settle the point.
+- The browser starts that request when the reader points at, presses or arrows to a
+  marked row, for at most 2 rows per typed address, sharing it with the pick.
+- The copy (`address_suggestion_index.py`) is off by default; when on, every process
+  on a machine shares 1 folder, 1 lock holder builds, a validated build swaps in all at
+  once, the previous copy stays on failure, refresh is every 12 hours with 24-hour
+  expiry and a 1-hour retry, and anything unusable falls back to the live service.
+- 1 street-table download per ZIP is shared by simultaneous requests.
+
+Prevention checks: `test_address_selection_check.py` (duplicate points, capped answers,
+every selection outcome), `test_address_suggestion_index.py` (off switch, validation,
+expiry, refresh schedule, shared-folder builder, damaged copies, untrusted state file,
+copy-to-live fallback, candidate eligibility), API contract tests for the new request
+and marks, street-table sharing tests, and frontend tests for the request body, the
+marked-choice pick and the bounded early check. Removing the district-consistency
+check, the row-cap retry, the current-point pick, copy expiry, street-table sharing or
+the marked-choice request each made its tests fail.
+
+Measurements on 9 October 2026, from the saved official file (no new download):
+
+- Build: 2,220,021 rows, 288,256,000-byte copy, about 1.36 GB peak folder space,
+  about 48 MB peak memory, 11.6 seconds including a local file copy.
+- 63 seeded prefixes (7 civic, 24 general, 16 township, 16 apartment buildings): 62
+  answered from the copy at 1.9 ms median (8.2 ms maximum) server time; 1 had no match
+  anywhere and used the live service. All 63 returned the same labels, order and points
+  (8 decimal places) as live. This is a sample, not general parity.
+- Pick check for 34 chosen copy suggestions: all found, 0.78 seconds median (1.19
+  maximum) server time, no point moved and no district changed.
+- Browser, Chromium at 1280 px against local servers: suggestions appeared about
+  0.18 seconds after the last key with the copy on (the existing 180 ms typing pause)
+  versus about 0.79 seconds with it off. A legislator pick took 0.86–1.31 seconds
+  (median of 5) when clicked at once with the copy on, 0.32–0.33 seconds after a
+  0.6-second glance at the row, and about 0.12 seconds with it off. Candidate picks
+  were unchanged. Under 4× CPU slowdown with a 300 ms, 1.6 Mbps phone network, the
+  suggestion appeared after 0.78 seconds and the pick finished in 0.9 seconds.
+- Browser behavior passed in Chromium at 1280, 900 and 390 px and WebKit at 1280 px on
+  both finders, entry and Change address: every bottom row receives the pointer, touch
+  and keyboard selection work, Escape and outside clicks close the list while keeping
+  the text, a late older reply does not replace newer suggestions, a failed suggestion
+  request stays quiet while Find still works, and earlier legislator results stay
+  visible while a replacement loads.
+
+Uncertainty: Railway's free disk, memory headroom, process count and any charges are
+not established; this machine has no Railway access. Native phone keyboards remain
+untested. Laptop timings are not the production wait.
+
+Holds: the copy stays off; no new paid service or recurring agent; no Design send;
+Codex acceptance before merge or release; retain this folder and branch after delivery.
+
+Acceptance corrections (independent review, 9 October 2026):
+
+- A group of points now agrees only when every point has the same single House,
+  Senate and congressional answer. The old check only asked whether the first point's
+  shapes contained the rest, so a point on the House 59B/43B border in Minneapolis
+  (45.006042, -93.31852) passed beside a 59B point. An unreadable district map is now
+  a retryable source failure instead of a refused address.
+- A candidate suggestion carrying the reader's apartment or ZIP+4 relabelled the
+  official choice but kept its fingerprint, so the server refused it while the same
+  typed text succeeded. That fuller text now takes the normal address check.
+- A marked legislator pick and its early check send the exact shown text, apartment
+  and ZIP+4 included, so the pick reuses the early request. The early check is skipped
+  when the browser asks to save data or reports a slow connection.
+- The candidate **Find** button showed the purple keyboard ring after a mouse, pen or
+  touch search, because focus moved from the text box and inherited its ring. A pointer
+  press now marks that move and hides the ring; keyboard searches and later keyboard
+  visits keep it. Chromium and WebKit checks cover pointer, touch, Enter, arrow plus
+  Enter, and a Tab back.
+- Disagreeing districts no longer reuse **No match for that address**.
+- Every API start prints 1 `ADDRESS_COPY_CAPACITY` line of host facts, copy on or off,
+  for the capacity check in [issue 2585](https://github.com/alethical-org/alethical/issues/2585).
+
+Design record: no visual change. Settled wording and behavior for Design's build notes:
+
+- Legislator finder, when current official points for 1 address disagree about
+  districts: field message **We couldn’t safely identify your districts from this
+  address** and answer line **Check your full street address, or choose where you
+  live on the map**, each 1 sentence with no ending period, in the existing
+  address-error position. Source failures keep **Lookup unavailable right now**.
+- A legislator suggestion that needs the current-records check can take up to about 1
+  second after a pick; a glance at the row first usually hides most of it.
+- Candidate **Find** button: no purple focus ring after a mouse, pen or touch search;
+  the ring shows after a keyboard search and on later keyboard visits.
+
+Product corrections passed independent code and browser acceptance. Codex owns the
+remaining release, capacity and charges check, activation and fresh-context live
+review. Claude's product-writing lane is complete and its preview remains available.
+The working folder and branch stay retained for follow-up.
+
+Release preparation (9 October 2026):
+
+- Added manual-only capacity reads and a bounded on/off control using the existing
+  Railway project token. Activation requires exactly 1 measured production instance,
+  fresh capacity and memory facts, no competing deployment and the reviewed live
+  commit. Unknown facts refuse activation. Failed on attempts restore off where
+  ownership remains clear; outputs expose only allowlisted host facts and fixed
+  statuses. Before redeploying off, a failed activation with a known owned ID
+  must end or reach success; only its own queued/building deployment may be
+  cancelled, and a cancellation reply alone is insufficient. Unknown or lost
+  identity remains unconfirmed. Neither workflow creates resources or runs on a schedule.
+- The control's 62 focused tests cover privacy, stale and unknown facts, another
+  operator's deployment, uncertain flag writes, rollback and a delayed first build.
+  Production activation time remains unmeasured until the actual operation.
+- Docker Hub refused the backend check twice before tests could start. GitHub's
+  fresh runner now pulls directly from Google's public cache before starting the same
+  disposable PostgreSQL image. Matching public image manifests establish unchanged
+  database contents. Cache misses still use Docker Hub; final-head CI must exercise
+  the runner setup. Local and shared development databases remain untouched.
+- The scripts and manual workflow inventory now includes both new operations.
+  Full local product suites passed before these release-only changes; inventory
+  failures caused by the new files are corrected. Current-head checks remain the
+  merge condition.
+- The hosted website preview exceeded its first-download budget by 173 bytes.
+  Contact links in the shared API pulled in the whole address-finder helper module.
+  Moving those 2 contact helpers to their own small module preserves public imports
+  and keeps address-entry and district-error code with finder screens. A local
+  settings-less export passes at 296,154 bytes against the unchanged 297,506 limit;
+  hosted preview and production must pass their own measurements. Contact and
+  address-lookup tests pass; live contact links remain part of final acceptance.
+
+Next step: publish the reviewed default-off release; then establish Railway capacity
+and charges before setting `ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED`, tracked in
+[issue 2585](https://github.com/alethical-org/alethical/issues/2585).

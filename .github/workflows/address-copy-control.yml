@@ -1,0 +1,39 @@
+name: Address copy control
+
+on:
+  workflow_dispatch:
+    inputs:
+      enabled:
+        description: Copy switch (activation requires the parent capacity and charges review)
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      release_commit:
+        description: Reviewed live API release commit (40 lowercase hex characters)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: railway-production
+  cancel-in-progress: false
+
+jobs:
+  control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Change the copy switch and verify the same release privately
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          ADDRESS_COPY_ENABLED: ${{ inputs.enabled }}
+          ADDRESS_COPY_RELEASE_COMMIT: ${{ inputs.release_commit }}
+        run: python3 -m scripts.address_copy_control

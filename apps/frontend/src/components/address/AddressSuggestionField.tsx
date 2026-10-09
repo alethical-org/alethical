@@ -39,6 +39,7 @@ export function AddressSuggestionField<T>({
   suggestionsEnabled = true,
   onEscape,
   onClear,
+  onPrepare,
 }: {
   address: string;
   onAddress(value: string): void;
@@ -56,6 +57,8 @@ export function AddressSuggestionField<T>({
   suggestionsEnabled?: boolean;
   onEscape?(): void;
   onClear?(): void;
+  /** A row the reader points at, presses or moves to, with its shown address. */
+  onPrepare?(choice: T, address: string): void;
 }) {
   const id = useId().replace(/:/g, '');
   const field = useRef<HTMLTextAreaElement>(null);
@@ -468,6 +471,7 @@ export function AddressSuggestionField<T>({
                   : options.length - 1
                 : (active + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length;
             setActive(next);
+            onPrepare?.(options[next].value, options[next].address);
             return;
           }
           if (event.key === 'Enter') {
@@ -523,7 +527,9 @@ export function AddressSuggestionField<T>({
                 tabIndex={-1}
                 onPointerEnter={(event) => {
                   if (event.pointerType === 'mouse') setHovered(index);
+                  onPrepare?.(option.value, option.address);
                 }}
+                onPointerDown={() => onPrepare?.(option.value, option.address)}
                 onPointerLeave={() => setHovered(-1)}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => {

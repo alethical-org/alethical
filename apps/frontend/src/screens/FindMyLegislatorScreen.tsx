@@ -19,7 +19,12 @@ import {
   AddressSuggestionField,
   type AddressFieldHandle,
 } from '../components/address/AddressSuggestionField';
-import { ApiError, suggestRepresentativeAddressesFromApi } from '../data/api';
+import {
+  ApiError,
+  lookupRepresentativeFromApi,
+  suggestRepresentativeAddressesFromApi,
+} from '../data/api';
+import { readerIsSavingData } from '../lib/dataSaving';
 import { isCoordinateInMinnesota } from '../data/minnesotaBoundary';
 import type {
   RepresentativeAddressChoice,
@@ -121,22 +126,41 @@ function reducedMotion() {
     : false;
 }
 
+/** The checked request for a marked choice: the exact text the reader picked. */
+function selectedChoiceInput(choice: RepresentativeAddressChoice, shown: string) {
+  return { latitude: choice.latitude, longitude: choice.longitude, selectedAddress: shown };
+}
+
 function errorKind(error: unknown) {
   if (!(error instanceof ApiError)) return 'service-down' as const;
   if (error.problem === 'representative-lookup-outside-minnesota')
     return 'outside-minnesota' as const;
   if (error.status === 429) return 'rate-limited' as const;
+  // Official points for this address fall in different districts: never guess.
+  if (error.problem === 'representative-lookup-ambiguous-location')
+    return 'ambiguous-location' as const;
   if (error.status === 404) return 'not-found' as const;
   return 'service-down' as const;
 }
 
 function errorCopy(
-  state: 'not-found' | 'outside-minnesota' | 'location-error' | 'rate-limited' | 'service-down',
+  state:
+    | 'not-found'
+    | 'ambiguous-location'
+    | 'outside-minnesota'
+    | 'location-error'
+    | 'rate-limited'
+    | 'service-down',
 ) {
   if (state === 'not-found')
     return {
       field: 'No match for that address',
       answer: 'Enter a house number and street name, like 350 S 5th St, Minneapolis, MN 55415',
+    };
+  if (state === 'ambiguous-location')
+    return {
+      field: 'We couldn’t safely identify your districts from this address',
+      answer: 'Check your full street address, or choose where you live on the map',
     };
   if (state === 'outside-minnesota')
     return {
@@ -236,6 +260,27 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       })),
     [],
   );
+  // Start the current-records check for at most 2 rows per typed address, so
+  // pointing at a row hides most of its wait without spending the lookup limit.
+  // It is optional, so a reader saving data or on a slow connection skips it;
+  // a deliberate pick still runs the same check.
+  const preparedChoices = useRef<{ address: string; keys: Set<string> }>({
+    address: '',
+    keys: new Set(),
+  });
+  const prepareChoice = (choice: RepresentativeAddressChoice, shown: string) => {
+    if (!choice.requiresLocationCheck || rateLimitSeconds > 0 || lookup.isPending) return;
+    if (readerIsSavingData()) return;
+    const typed = addressInputRef.current?.value() ?? address;
+    if (preparedChoices.current.address !== typed)
+      preparedChoices.current = { address: typed, keys: new Set() };
+    const { keys } = preparedChoices.current;
+    if (keys.has(shown) || keys.size >= 2) return;
+    keys.add(shown);
+    // Shared with the pick through the lookup's in-flight and 60-second reuse,
+    // which match because both send the shown text, apartment and ZIP+4 included.
+    lookupRepresentativeFromApi(selectedChoiceInput(choice, shown)).catch(() => undefined);
+  };
   const choicesRef = useRef<View>(null);
   const confirmedChoice = useRef<
     { coordinate: RepresentativeLookupCoordinates; address: string } | undefined
@@ -290,6 +335,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   });
   const activeError =
     state === 'not-found' ||
+    state === 'ambiguous-location' ||
     state === 'outside-minnesota' ||
     state === 'location-error' ||
     state === 'rate-limited' ||
@@ -297,7 +343,8 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       ? errorCopy(state)
       : null;
   const addressError = activeError && state !== 'location-error' ? activeError : null;
-  const addressInvalid = state === 'not-found' || state === 'outside-minnesota';
+  const addressInvalid =
+    state === 'not-found' || state === 'ambiguous-location' || state === 'outside-minnesota';
   const locationButtonError = state === 'location-error' ? activeError : null;
   const mapUpdateLabel = lookup.isPending
     ? 'Updating legislators: showing the previous results'
@@ -340,7 +387,10 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (
       address.trim() &&
-      (state === 'not-found' || state === 'outside-minnesota' || state === 'service-down')
+      (state === 'not-found' ||
+        state === 'ambiguous-location' ||
+        state === 'outside-minnesota' ||
+        state === 'service-down')
     ) {
       addressInputRef.current?.focus();
     }
@@ -540,7 +590,11 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       lookupAddress: undefined,
       locationFailure: undefined,
     });
-    const coordinate = { latitude: choice.latitude, longitude: choice.longitude };
+    // A copied or conflicting point is only a hint: the server checks the printed
+    // address against current official records before choosing districts.
+    const coordinate = choice.requiresLocationCheck
+      ? selectedChoiceInput(choice, matchedAddress)
+      : { latitude: choice.latitude, longitude: choice.longitude };
     confirmedChoice.current = { coordinate, address: matchedAddress };
     runCoordinate(coordinate, 'choice');
   };
@@ -719,6 +773,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                   onClear={clearAddress}
                   suggestionsEnabled={!choices.length && rateLimitSeconds === 0}
                   suggest={suggest}
+                  onPrepare={prepareChoice}
                   onSubmit={(value, choice) =>
                     choice ? chooseAddress(choice, value) : runAddress(value)
                   }

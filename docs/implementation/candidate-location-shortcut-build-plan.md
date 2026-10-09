@@ -119,3 +119,9 @@ The legislator finder keeps its coordinate-to-district lookup and map.
   validation, so `Apt 3 #4`, `Apt 3 Apt 4` or a unit with extra words resolved there.
   Every range now requires 1 label and 1 value first, and typed `Apt.250` reads as
   `Apt 250`, the spelling the confirmation card already used.
+- [x] Acceptance correction, 9 October: the confirmation card printed `Apt #250` twice
+  when the street already carried `Apt #250` and the unit field said the same, because
+  its unit finder missed the `#` the official parser allows after a named label, and
+  the official match then refused the doubled unit. The card now finds that spelling,
+  reads `Apt #250`, `Apt 250`, `Apt.250`, `#250` and a bare `250` as 1 unit, and still
+  keeps a different number, a different label or extra words so the match refuses.

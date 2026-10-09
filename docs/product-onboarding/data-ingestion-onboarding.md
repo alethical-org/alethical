@@ -409,7 +409,12 @@ runs when Census finds nothing or stays unavailable after those retries:
    The house number stays exact. The street first matches exactly, then may differ by 1
    character only in a word with at least 5 characters. Exact ZIP, close city, street
    type, and direction rank the official results; equally close results become choices.
-   The fallback refuses a close match when the state says its result list was cut short.
+   The fallback refuses a close match when the state says its result list was cut short,
+   and an exact answer cut short is asked again at 2,000 rows before it can count as 1
+   address. When the optional public copy is on, suggestions read Minnesota's published
+   address file (`https://operations.gis.data.mn.gov/api/publicdownload/download/497/loc_addresses_open.gpkg`,
+   about 1.06 GB, 2,220,021 rows on 9 October 2026) instead of this service, and a chosen
+   copied suggestion is re-read from this service before districts.
 3. **District:** check the point against the official 2022 House, Senate, and
    congressional boundary files stored with the backend. The local copy contains the
    May 26, 2023 LCC corrections. It must contain all 134 House and 67 Senate district

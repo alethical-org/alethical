@@ -2145,6 +2145,16 @@ Pinned location request body:
 }
 ```
 
+Chosen suggestion request body, for a choice marked `requires_location_check`:
+
+```json
+{
+  "selected_address": "350 5th Street South, Minneapolis, MN 55415",
+  "latitude": 44.9774,
+  "longitude": -93.2657
+}
+```
+
 Response:
 
 - normalized place
@@ -2162,6 +2172,9 @@ Rationale:
 - the parser ignores commas, periods, repeated spaces, common street abbreviations, and full street endings found in Minnesota's official address list; `St`, `Mt`, and `Ft` city forms are normalized for ranking
 - if Census finds nothing or stays unavailable, the backend asks Minnesota's public statewide address-point list using only the exact house number and street name; it tries an exact street first, then allows 1 added, missing, changed, or swapped character only in a word with at least 5 characters
 - exact ZIP and close city matches rank official results, while the supplied street type and direction break remaining ties; equally close addresses become choices, and an incomplete state result list is refused rather than guessed
+- an exact state answer that reports omitted rows is asked again at the service's 2,000-row maximum; if it is still cut short the lookup fails as a source error (`AddressPointsIncomplete`) instead of claiming a unique address
+- rows printing the same address keep every distinct official point (`conflicting_points`); the lookup continues only when every point has the same single House, Senate and congressional answer from the stored maps (a point on a shared border has none), and otherwise returns `404` `representative-lookup-ambiguous-location`; an unreadable district map is a `502` source failure, never a disagreement
+- a `selected_address` request re-reads that printed address from Minnesota's current address points before districts: 1 current point is used even if it moved; several points sharing districts use the one nearest the submitted point; points in different districts return the ambiguous-location answer; a missing, capped or failed check runs the normal address lookup on the printed address, so the submitted point never decides districts
 - House, Senate, and Congress are read from the Minnesota Legislative Coordinating Commission's official 2022 boundary files stored with the backend, including the May 26, 2023 legislative corrections; a person's precise point is not sent to the commission during a lookup
 - single-digit House and Senate numbers from that map are padded before the saved district lookup (`4A`/`4` becomes `04A`/`04`), matching the official records instead of falsely reporting no address match
 - each database round trip adds to every search, so the House and Senate districts are read in 1 query, each member's district, chamber and person are joined into the member query, and both freshness dates are read in 1 query; `test_representative_lookup_reads_the_database_in_few_statements` holds a found lookup to 9 statements
@@ -2186,6 +2199,7 @@ Response:
 
 - up to 5 unique active addresses from Minnesota's official statewide address points
 - the full official address and its latitude and longitude for each choice
+- `requires_location_check`, true when the choice came from the public copy below or its printed address carries more than 1 official point; the same field appears on `address_choices` from a lookup
 
 Rationale:
 
@@ -2201,8 +2215,19 @@ Rationale:
   saved passwords, including across redirects; each caller keeps its own timeout,
   redirect and streaming settings, MyBallot redirects stay refused, and no
   address/query result cache is added
-- choosing a suggestion gives the existing representative lookup its official point, so
-  the reader does not need a second click or another geocoding request
+- choosing an unmarked suggestion gives the existing representative lookup its official
+  point, so the reader does not need a second click or another geocoding request; a
+  marked choice sends `selected_address`, the exact shown text including any typed
+  apartment or ZIP+4, with its point so the server checks current records first; the
+  browser starts that same request early when the reader points at, presses or arrows
+  to the row (at most 2 rows per typed address, shared with the pick, skipped when the
+  browser asks to save data or reports a slow connection)
+- an optional public copy (`alethical/api/services/address_suggestion_index.py`) can
+  answer suggestions without a source request; it is off unless
+  `ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED` is set, refreshes every 12 hours, expires
+  24 hours after its download, and returns nothing (so the live source answers) when
+  missing, expired, damaged, over 5,000 rows or without a usable match; activation is in
+  [deployment.md § Address suggestion copy activation](../operations/deployment.md#address-suggestion-copy-activation)
 - the endpoint has its own 60-requests-per-public-IP-per-60-seconds limit, separate from
   the 10 full representative lookups
 

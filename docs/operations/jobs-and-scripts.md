@@ -2,8 +2,8 @@
 
 <!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py, alethical/api/services/candidate_claim_email.py, alethical/api/main.py -->
 
-Net: The repository has 32 GitHub Actions workflows. 28 can start automatically
-and 4 run only when a person starts them. Scheduled checks, releases, and local
+Net: The repository has 34 GitHub Actions workflows. 28 can start automatically
+and 6 run only when a person starts them. Scheduled checks, releases, and local
 backups do not call paid AI services. Reader questions and deliberately started
 AI work do. The review of a failed campaign-money collection has a paid AI
 reviewer too, and its switch is off until its limits are approved.
@@ -41,6 +41,7 @@ reviewer too, and its switch is off until its limits are approved.
 | Campaign money refresh (`.github/workflows/campaign-money-refresh.yml`) | Daily at 15:30 UTC, and by hand | Under 1 run-wide lease shared with the hand-run loaders, reads the Board's 6 registered-filer and current-report lists, refreshes the official totals for every supported year when a list changed or weekly, downloads the 3 payment files daily and publishes what passes every check, then clears saved pages and re-checks the published figures; a run whose lists could not be read is reported as incomplete. Records what each stage did for the failed-collection review below, which owns its failure issue; the job keeps the printed report as an artifact when a step does not finish | No paid AI call; public downloads from cfb.mn.gov and the existing database |
 | Traffic access key (`.github/workflows/traffic-token-expiry.yml`) | Daily at 12:00 UTC | Opens 1 issue 60 days before the private Vercel Traffic key expires and adds 1 urgent note 14 days before | No paid AI call; reads 1 date stored in the repository |
 | Profile claim notification queue (`alethical/api/services/candidate_claim_email.py`, started by `alethical/api/main.py`) | API startup, then 10 seconds after each completed drain; sending requires the profile-claim and general email switches | Sends saved request/decision notices separately to eligible current recipients, considers 20 ready deliveries per drain by default (maximum 100), shares the comment sender's lock, and limits uncertain-send retries to 23 hours | No paid AI call or new service; idle wakeups use existing hosting/database resources, and actual messages use the existing Resend account and its allowance |
+| Address suggestion copy (`alethical/api/services/address_suggestion_index.py`, started by `alethical/api/main.py`) | Only when `ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED` is on (off in production): API startup, then a check every 5 minutes; every API start, on or off, prints 1 `ADDRESS_COPY_CAPACITY` line of host facts | Downloads Minnesota's public address file when the shared copy is missing, damaged or 12 hours old, at most 1 build per machine, retrying after 1 hour on failure; [deployment.md § Address suggestion copy activation](deployment.md#address-suggestion-copy-activation) owns the gates | No paid AI call or new service; downloads a free public government file using existing hosting disk, memory and network |
 | Backend release (Railway Git connection) | A commit reaches `main` | Applies database changes, then releases the API if its readiness check passes | No paid AI call; build and hosting usage stays on the existing Railway account |
 | Website release (Vercel Git connection) | A relevant commit reaches `main` | Builds and releases the web app | No paid AI call; build and hosting usage stays on the existing Vercel account |
 | Unsaved-work backup (`com.alethical.wip-backup`, `com.commercialdeals.wip-backup`) | Every 5 minutes after each project's profile is installed on the configured Mac | Saves each working folder's staged and on-disk source separately, with private outside bundles and separate project storage | No outside service or paid AI call |
@@ -60,10 +61,12 @@ Time and Central Daylight Time, so their local hour changes by 1 during the year
 
 ## What GitHub runs only by hand
 
-These 4 workflows complete the total of 32:
+These 6 workflows complete the total of 34:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |
+| `.github/workflows/address-copy-capacity.yml` | Read the existing Railway server’s capacity without exposing private logs | No paid AI call; bounded reads on the existing account |
+| `.github/workflows/address-copy-control.yml` | Switch copied address suggestions on after measured capacity and charges review, or restore live suggestions | No paid AI call or new resource; existing Railway deployment and hosting usage |
 | `.github/workflows/legislator-city-backfill.yml` | Preview or fill missing legislator residence cities | No paid AI call; reads public government sources and the database |
 | `.github/workflows/migrate.yml` | Apply database changes and check for structural drift when the normal Railway release path needs a fallback | No paid AI call; uses GitHub and the existing database service |
 | `.github/workflows/railway-deploy.yml` | Release the API when Railway's Git connection needs a fallback | No paid AI call; build and hosting usage stays on the existing Railway account |
@@ -74,7 +77,7 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 99 runnable files. GitHub jobs call 37 of them
+The `scripts/` folder has 101 runnable files. GitHub jobs call 40 of them
 directly and 3 document checks through `local_checks.py`. The 4 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`, which uses `worktree_inventory.py`
 for the complete folder report; the older shell command
@@ -97,6 +100,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Register approved jobs, record private activity and report outcomes | `agent_job_outcomes.py`, `agent_job_events.py` |
 | Read current completion sources and retain a private receipt | `check_agent_job_completion.py` |
 | Install pinned local coding hooks while preserving other settings | `install_agent_job_hooks.py` |
+| Read the current address-copy host capacity or safely switch the copy on or off | `address_copy_capacity.py`, `address_copy_control.py` |
 | Recover 1 proven missed website release with saved evidence | `website_release_recovery.py` |
 | Measure AI answers and search | `answer_eval.py`, `graph_retrieval_eval.py`, `retrieval_eval.py`, `try_queries.py`, `validate_query_rubric.py` |
 | Compare printed-name search offline without paid calls or live changes | `benchmark_campaign_finance_name_search.py` |

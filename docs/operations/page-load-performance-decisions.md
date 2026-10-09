@@ -6,6 +6,22 @@
 
 **Net:** Improve the shared first download and the saved Ask path without changing what readers see or how current the record is. Keep every option that delays another click, risks stale data, or depends on experimental routing out of the automatic safe-work lane.
 
+## Address finder startup boundary, 9 October 2026
+
+The address suggestion release's hosted preview measured 297,679 Brotli bytes for
+the first program, 173 above the unchanged 297,506-byte limit. The shared API
+imported contact-link helpers from `lib/findMyLegislator.ts`, which also contains
+address-entry, keyboard-choice and district-error helpers needed only by finder
+screens. Contact helpers now live in `lib/legislatorContact.ts`; the shared API
+imports that small module and the finder module re-exports its existing names.
+All contact link behavior and public imports stay unchanged.
+
+A settings-less local export after this boundary change measured 296,154 bytes
+and passed the existing budget. That is a local check, not production headroom.
+Hosted preview and production must each pass their own unchanged measurement.
+The existing contact and lookup tests passed; final-head checks and live contact
+links remain acceptance conditions. No visual or loading-state change is intended.
+
 ## Priority order
 
 Reliability comes first: every public page and deep link must load on its first attempt without a refresh. After that, reduce the work before useful content appears.

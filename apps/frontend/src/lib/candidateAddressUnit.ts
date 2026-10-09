@@ -3,20 +3,27 @@
  * confirmed, as 1 visible and submitted address. The official matcher decides
  * whether the unit is supported; this never drops, replaces or guesses a unit.
  */
-// Matches the service's unit spellings, including "Apt.250".
-const UNIT = /(?:\b(?:apt|apartment|unit|suite|ste)(?:\.\s*|\s+)|#\s*)[a-z0-9-]+\b/gi;
+// Matches the service's unit spellings, including "Apt.250" and "Apt #250".
+const UNIT = /(?:\b(?:apt|apartment|unit|suite|ste)(?:\.\s*|\s+)(?:#\s*)?|#\s*)[a-z0-9-]+\b/gi;
 const STATE_AND_ZIP = /(?:,?\s+(?:mn|minnesota))?,?\s+\d{5}(?:-\d{4})?\s*$/i;
 
 function comparable(unit: string) {
-  return unit
-    .toUpperCase()
-    .replace(/^(APT|APARTMENT|UNIT|SUITE|STE)\.\s*/, '$1 ')
-    .replace(/\./g, '')
-    .replace(/#\s*/, '#')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return (
+    unit
+      .toUpperCase()
+      .replace(/^(APT|APARTMENT|UNIT|SUITE|STE)\.\s*/, '$1 ')
+      .replace(/\./g, '')
+      .replace(/#\s*/, '#')
+      .replace(/\s+/g, ' ')
+      .trim()
+      // "Apt #250" and "Apt 250" are the same label and number.
+      .replace(/^(APT|APARTMENT|UNIT|SUITE|STE) #/, '$1 ')
+  );
 }
 const identifier = (unit: string) => comparable(unit).replace(/^(?:[A-Z]+ |#)/, '');
+// "#250" or a bare "250" states only the number, so it names whichever labelled unit
+// carries that number.
+const numberOnly = (unit: string) => comparable(unit).startsWith('#');
 
 /** A bare value such as `3` states only a number, so it becomes `#3`. */
 export function normalizeAddressUnit(value: string) {
@@ -34,12 +41,10 @@ export function joinAddressUnit(street: string, unitValue: string) {
   const present = address.match(UNIT) ?? [];
   // The same unit typed in both fields appears once. A different one is kept, and
   // the official match then refuses the address instead of choosing either unit.
-  const bare = /^#/.test(unit) && /^[a-z0-9-]+$/i.test(unitValue.trim().replace(/^#\s*/, ''));
   if (
     present.length === 1 &&
     (comparable(present[0]) === comparable(unit) ||
-      // A bare `3` beside "Apt 3" already in the street names the same unit.
-      (bare && identifier(present[0]) === identifier(unit)))
+      ((numberOnly(present[0]) || numberOnly(unit)) && identifier(present[0]) === identifier(unit)))
   )
     return address;
   const comma = address.indexOf(',');

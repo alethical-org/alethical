@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-from shapely.geometry import Point, shape
+from shapely.geometry import MultiPoint, Point, shape
 from shapely.geometry.base import BaseGeometry
 
 
@@ -118,3 +118,31 @@ def legislative_districts_for_point(
         return matches[0] if matches else None
 
     return match("house"), match("senate")
+
+
+def one_shape_for_all(
+    shapes: tuple[BaseGeometry, ...], points: tuple[tuple[float, float], ...]
+) -> bool:
+    """True when every (longitude, latitude) point gets the same single answer.
+
+    A point on a shared boundary touches 2 shapes, which is no single answer.
+    Points outside every shape all share the answer "none". Costs 1 check per
+    shape however many points there are.
+    """
+    group = MultiPoint(points)
+    touching = [item for item in shapes if item.intersects(group)]
+    return not touching or (len(touching) == 1 and touching[0].covers(group))
+
+
+def points_share_legislative_districts(
+    points: tuple[tuple[float, float], ...],
+) -> bool:
+    """Every (longitude, latitude) point has the same unique House and Senate answer.
+
+    Map loading failures still raise LegislativeDistrictDataError.
+    """
+    districts = _legislative_district_geometries()
+    return all(
+        one_shape_for_all(tuple(item._shape for item in districts[chamber]), points)
+        for chamber in ("house", "senate")
+    )
