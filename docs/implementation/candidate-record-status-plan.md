@@ -37,11 +37,9 @@ Current coding owner: Codex chat 01a12188-4e44-7cb0-84ce-2f643837e8c6, Explain b
 - [x] Shared components and permanent feature guide updated
 - [x] Component and browser checks pass
 - [x] Screens inspected at1280/900/390 and enlarged text
-- [ ] Independent final review accepted
-- [ ] CI on current head; pull request attached, merged
-- [ ] Deployment and live changed behavior reached
-- [ ] Complete Design corrections prompt produced
-- [ ] Worktree recovery cleanup or specific hold recorded
+- [x] Independent final review accepted
+
+The remaining current-head CI, merge, deployment, live behavior, complete Design update prompt and recovery cleanup are recorded on [issue 2576](https://github.com/alethical-org/alethical/issues/2576).
 
 ## Coverage review reconciled
 
