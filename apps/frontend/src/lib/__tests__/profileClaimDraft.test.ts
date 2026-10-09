@@ -191,9 +191,11 @@ it('puts a one-time code on a claim page link only for a new-tab gesture, and pu
   const opener = site.tab();
   opener.save('account-a', candidate, draft);
   const plain = `/candidates/${candidate}/claim`;
-  document.body.innerHTML = `<a id="claim" href="${plain}"><span>Continue</span></a><a id="away" href="https://example.org/">Away</a><a id="features" href="/candidates/features?candidate=${candidate}">Features</a>`;
-  opener.watchNewTabGestures(document, location.origin);
-  const link = document.querySelector<HTMLAnchorElement>('#claim')!;
+  // A fresh page per case: watchers are installed once per real page.
+  const page = document.implementation.createHTMLDocument('claim');
+  page.body.innerHTML = `<a id="claim" href="${plain}"><span>Continue</span></a><a id="away" href="https://example.org/">Away</a><a id="features" href="/candidates/features?candidate=${candidate}">Features</a>`;
+  opener.watchNewTabGestures(page, location.origin);
+  const link = page.querySelector<HTMLAnchorElement>('#claim')!;
   const span = link.querySelector('span')!;
   span.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
   expect(link.getAttribute('href')).toBe(plain);
@@ -208,13 +210,13 @@ it('puts a one-time code on a claim page link only for a new-tab gesture, and pu
     const href = link.getAttribute('href')!;
     expect(href).toMatch(new RegExp(`^${plain}#claim-draft=[a-f0-9-]{36}$`));
     // The next press puts the link's own address back.
-    document.dispatchEvent(new Event('pointerdown'));
+    page.dispatchEvent(new Event('pointerdown'));
     expect(link.getAttribute('href')).toBe(plain);
     // Only the tab opened with that code can receive the answers.
     expect(await ask(site.tab(), href.split('=')[1])).toEqual(draft);
   }
   for (const id of ['#away', '#features']) {
-    const element = document.querySelector<HTMLAnchorElement>(id)!;
+    const element = page.querySelector<HTMLAnchorElement>(id)!;
     const before = element.getAttribute('href');
     element.dispatchEvent(new MouseEvent('click', { bubbles: true, metaKey: true }));
     expect(element.getAttribute('href')).toBe(before);
@@ -264,4 +266,45 @@ it('keeps answers out of browser storage and the page history', async () => {
   expect(
     JSON.stringify(site.sent.filter((m) => m.type === 'profile-claim-draft-request')),
   ).not.toContain('Illustrative');
+});
+
+it('keeps 2 tabs with answers for the same candidate apart: each opened tab gets its own opener’s answers', async () => {
+  const site = browser();
+  const first = site.tab();
+  const second = site.tab();
+  first.save('account-a', candidate, { ...draft, link: 'https://example.org/first' });
+  second.save('account-a', candidate, { ...draft, link: 'https://example.org/second' });
+  const firstCode = first.offer(candidate)!;
+  const secondCode = second.offer(candidate)!;
+  expect(firstCode).not.toBe(secondCode);
+  expect((await ask(site.tab(), secondCode))?.link).toBe('https://example.org/second');
+  expect((await ask(site.tab(), firstCode))?.link).toBe('https://example.org/first');
+  // Neither code works again, and a tab with no code gets nothing from either.
+  expect(await ask(site.tab(), firstCode)).toBeNull();
+  expect(await ask(site.tab(), secondCode)).toBeNull();
+  expect(site.sent.filter((message) => message.type === 'profile-claim-draft-reply')).toHaveLength(
+    2,
+  );
+});
+
+it('hands nothing to a plain tab after the link menu was opened and dismissed', async () => {
+  const site = browser();
+  const opener = site.tab();
+  opener.save('account-a', candidate, draft);
+  // A fresh page per case: watchers are installed once per real page.
+  const page = document.implementation.createHTMLDocument('claim');
+  page.body.innerHTML = `<a id="claim" href="/candidates/${candidate}/claim">Continue</a>`;
+  opener.watchNewTabGestures(page, location.origin);
+  const link = page.querySelector<HTMLAnchorElement>('#claim')!;
+  link.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, button: 2 }));
+  page.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+  expect(link.getAttribute('href')).toBe(`/candidates/${candidate}/claim`);
+  // A claim page opened by typing its address has no code, so it never asks.
+  const typed = takeProfileClaimDraftCode(candidate, {
+    pathname: `/candidates/${candidate}/claim`,
+    search: '',
+    hash: '',
+  });
+  expect(typed).toBeNull();
+  expect(site.sent.filter((message) => message.type === 'profile-claim-draft-reply')).toEqual([]);
 });

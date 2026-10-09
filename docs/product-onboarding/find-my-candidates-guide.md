@@ -539,13 +539,17 @@ Unsent answers are kept in memory for the same signed-in account and candidate, 
 to another page in the same tab returns the claim step as it was left. They are never
 written to browser storage or an address, and any account change clears them. Reopening
 the form after a decision or a withdrawal brings back unsent answers too. Opening a
-claim-step link (the claim page, or `/candidates/features` for that candidate) in a new
-tab or window with the browser's own new-tab gesture (Ctrl- or Cmd-click, a middle click,
-Shift-click, or the link's menu) lets that new tab ask once, within 2 minutes, for the
-answers: the original tab answers over the browser's same-site tab channel, never through
-an address, storage or a server, and only for the same account and candidate. The new tab
-accepts them only while still signed in to that account with an empty, untouched form,
-and the original tab keeps its own copy. A tab opened any other way starts empty.
+link to that candidate's claim page in a new tab or window with the browser's own
+gesture (Ctrl- or Cmd-click, a middle click, Shift-click, or the link's menu) adds a
+random one-time code to that link's address after the `#` sign, a part browsers never send
+to a server. The opened claim page removes the code from its address at once and uses it,
+within 2 minutes, to ask the original tab for the answers over the browser's same-site
+tab channel; only the tab holding that code answers, once, for the same account and
+candidate. The code carries no answers and works once. The new tab accepts the answers
+only while still signed in to that account with an empty, untouched form, and the original
+tab keeps its own copy. A tab opened any other way, including after the link's menu was
+opened and dismissed, starts empty. `/candidates/features` takes no part: the only link
+to it is on the signed-out claim page, where there are no answers to hand over.
 
 A saved pending request shows a receipt: **Profile claim request received**, an
 explanation that an Alethical team member reviews it and may contact the applicant,
@@ -643,9 +647,13 @@ focusing the editor; saving after deleting all the text asks the same "Remove yo
 statement from the public profile?" question as **Remove statement**, on the first press
 and on **Try again**. **Try again** first reads what was saved, then repeats only the last
 action and only if it is still needed; a failed removal is retried as a removal, never as
-a save, and the owner's text is never changed. If the statement was saved somewhere else
-since the failed attempt, **Try again** sends nothing: the editor keeps the owner's text,
-now unsaved against the newer version, and only a fresh **Save changes** replaces it. Preview shows the public card, with the same spacing, without the
+a save, and the owner's text is never changed. **Try again** first confirms the account still manages the profile; if access has ended,
+the page shows the current access state, clears the editor and sends nothing, and a write
+refused for lost access does the same. If the statement was saved somewhere else since the
+failed attempt, **Try again** sends nothing and says "The published statement changed
+elsewhere. Your changes are still here and have not been saved.", shows the statement voters
+now see, and keeps the owner's text in the editor; only a fresh **Save changes** replaces
+the published statement. Preview shows the public card, with the same spacing, without the
 report link. Campaign statements stay out of official-record answers and search material
 used by Grounded Ask. Private statement revisions remain available to the owner and
 authorized admin review.
@@ -653,8 +661,11 @@ authorized admin review.
 The public card leads with **Campaign statement** and the campaign's own words, dated
 **Published {date}** for the first publication or **Edited {date}** for the latest saved
 edit, never an election, certification or check date. A removal followed by a new
-statement is a new publication. Where the revision history cannot show when the current
-statement was first published, no date is shown rather than a guess. One quiet line beside **Report this statement** says
+statement is a new publication. **Published** is shown only when the owner's revision history proves
+when the current statement was first published: the history is complete, or a recorded
+removal comes before it. For an older statement saved before its history was kept, an
+edit is never dated as a first publication; **Edited** still appears once a second edit
+is recorded, and otherwise no date is shown rather than a guess. One quiet line beside **Report this statement** says
 "Alethical verified this account’s authority to represent the campaign, not the
 statement’s accuracy". A failed statement load shows "We couldn’t load the campaign
 statement" with **Try again**, which reloads only the statement and keeps its box steady;

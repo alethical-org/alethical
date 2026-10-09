@@ -1135,6 +1135,7 @@ function ManageContent({
   // The statement version the failed write expected, so Try again can tell a lost
   // response from a change saved somewhere else.
   const failedVersion = useRef<number | null>(null);
+  const [changedElsewhere, setChangedElsewhere] = useState(false);
   const [failure, setFailure] = useState<'load' | 'write' | 'give' | null>(null);
   const [fieldError, setFieldError] = useState<'empty' | 'over' | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1172,6 +1173,7 @@ function ManageContent({
   const dirty = canManage && initialised.current && draft !== publicBody && !givenUp;
   const characters = [...draft].length;
   const clearPrivate = () => {
+    setChangedElsewhere(false);
     setLoaded(null);
     setDraft('');
     setClaims(null);
@@ -1267,6 +1269,7 @@ function ManageContent({
     setLoaded(next);
     setDraft(next.statement?.body ?? '');
     setDialog(null);
+    setChangedElsewhere(false);
     setMessage(
       kind === 'remove'
         ? 'Statement removed'
@@ -1306,6 +1309,7 @@ function ManageContent({
     setLastKind(kind);
     setMessage('');
     setFailure(null);
+    setChangedElsewhere(false);
     const expected = loaded?.statement?.version ?? 0;
     try {
       await send(kind, expected);
@@ -1347,12 +1351,14 @@ function ManageContent({
       const saved = fresh.statement?.body ?? '';
       const version = fresh.statement?.version ?? 0;
       // Saved somewhere else since the failed write: never overwrite or remove what the
-      // owner has not seen. The editor keeps their text, now unsaved against the new state.
-      const changedElsewhere = () => {
+      // owner has not seen. The editor keeps their text, now unsaved against the new state,
+      // and the page says so and shows what is published now.
+      const savedElsewhere = () => {
         if (failedVersion.current === null || version === failedVersion.current) return false;
         setFailure(null);
         setFieldError(null);
         setMessage('');
+        setChangedElsewhere(true);
         return true;
       };
       if (lastKind === 'remove') {
@@ -1362,7 +1368,7 @@ function ManageContent({
           setMessage('Statement removed');
           return;
         }
-        if (changedElsewhere()) return;
+        if (savedElsewhere()) return;
         setBusy('remove');
         attempted = version;
         await send('remove', version);
@@ -1375,7 +1381,7 @@ function ManageContent({
         setMessage(lastKind === 'publish' ? 'Statement published' : 'Changes saved');
         return;
       }
-      if (changedElsewhere()) return;
+      if (savedElsewhere()) return;
       const kind: WriteKind = saved ? 'save' : 'publish';
       // The same checks as the first press: an emptied public statement asks before removal.
       if (kind === 'save' && !draft.trim()) {
@@ -1791,6 +1797,20 @@ function ManageContent({
               {busy === 'checking' ? copy.checking : ''}
             </Text>
           </View>
+        ) : null}
+        {changedElsewhere ? (
+          <>
+            <View role="alert" style={claimStyles.writeFailure}>
+              <Text style={[candidateText.strong, { flex: 1, fontSize: 15.5, fontWeight: '800' }]}>
+                {copy.changedElsewhere}
+              </Text>
+            </View>
+            {published && loaded?.statement ? (
+              <View style={{ marginTop: 12 }}>
+                <CandidateCampaignStatement preview record={record} statement={loaded.statement} />
+              </View>
+            ) : null}
+          </>
         ) : null}
         <View
           style={[

@@ -95,6 +95,8 @@ export const profileClaimCopy = {
   giveUpUnsaved: 'Your unsaved changes will also be discarded.',
   removeBody: 'Voters will no longer see your statement. You keep access to manage this profile.',
   writeFailed: 'We couldn’t complete this request',
+  changedElsewhere:
+    'The published statement changed elsewhere. Your changes are still here and have not been saved.',
   checking: 'Checking whether your changes were saved…',
   changed: 'This profile claim request changed. Review the latest status before continuing.',
   decisionUnknown:

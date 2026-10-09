@@ -280,23 +280,26 @@ Scope delivered in this round:
    plain address is indexed and in the sitemap; an address carrying a candidate is kept
    out of search with no canonical.
 2. Claim page: introduction, sign-in return, human-review form wording, per-length
-   explanation errors, in-memory answers bound to account and candidate (handed once to a
-   tab opened from a claim-step link with the browser's new-tab gesture, over the
-   same-site tab channel only), receipt with the server's latest submission date and the
+   explanation errors, in-memory answers bound to account and candidate (handed once to the
+   tab opened from a claim page link with the browser's new-tab gesture, matched by a
+   one-time code in the address fragment and sent over the same-site tab channel only), receipt with the server's latest submission date and the
    saved explanation exactly as stored, and every status state.
 3. Manage page: new layout and wording, live count, publication date under the editor,
    Save changes only after an edit, write checks on every path, read-before-retry that
-   never overwrites a statement saved elsewhere, and equal-width dialogs.
+   first rechecks access and never overwrites a statement saved elsewhere (it explains the
+   change and shows the published statement), and equal-width dialogs.
 4. Public statement card with Design's settled spacing, failure retry and report dialog
    with the updated-statement panel; first publication and latest edit derived from
-   revision history (no schema change), and no date where that history is missing.
+   revision history (no schema change); a first publication is dated only when that
+   history is complete or follows a recorded removal.
 5. Admin request review labels, decision section, block order and placement, and
    per-submission history; profile claim email wording.
 6. Grey Go back on person overview and the admin request; legislator panel edge
    alignment on the candidate profile.
 
 Held: an applicant-facing rejection reason (not approved intent; the private review note
-stays private).
+stays private), and the final visual treatment of the dialogs' equal button heights and of
+the changed-elsewhere notice, which Design is resolving; both are built provisionally.
 
 Verification: focused backend and frontend suites, the full frontend suite, and rendered
 Chromium and WebKit specs with fictional intercepted data at 1280, 900 and 390 pixels

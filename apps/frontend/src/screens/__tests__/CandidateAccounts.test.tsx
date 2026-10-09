@@ -1410,6 +1410,11 @@ it('never lets Try again overwrite or remove a statement saved somewhere else', 
     'My edited campaign words',
   );
   expect(button('Save changes')).toBeDefined();
+  // The owner is told, and sees what voters see now, before choosing to replace it.
+  expect(host.querySelector('[role="alert"]')?.textContent).toBe(
+    'The published statement changed elsewhere. Your changes are still here and have not been saved.',
+  );
+  expect(host.textContent).toContain('Words saved in another tab');
   // A later Save is the owner's own choice, made against the version they now hold.
   act(() => button('Save changes').click());
   await flush();
@@ -1417,6 +1422,7 @@ it('never lets Try again overwrite or remove a statement saved somewhere else', 
     body: 'My edited campaign words',
     expected_version: 3,
   });
+  expect(host.textContent).not.toContain('The published statement changed elsewhere.');
 });
 it('dates statement history in Minnesota time, like the line under the editor', async () => {
   mocks.privateStatement.mockResolvedValue({

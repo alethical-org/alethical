@@ -498,6 +498,50 @@ for (const band of bands) {
       expect(api.writes).toHaveLength(0);
     });
 
+    test('manage: a statement saved elsewhere is explained and never overwritten', async ({
+      page,
+    }) => {
+      const api = await fixture(page);
+      api.me = { ...api.me, claims: [{ ...claim, status: 'approved', can_manage: true }] };
+      api.privateStatement = {
+        body: 'Fictional words saved in this tab.',
+        updated_at: '2026-10-02T15:00:00Z',
+        published_at: '2026-10-02T15:00:00Z',
+        edited_at: null,
+        version: 2,
+      };
+      await page.goto(`${profilePath}/manage`);
+      const editor = page.getByRole('textbox', { name: 'Campaign statement' });
+      await editor.fill('Fictional unsaved edit in this tab.');
+      await page.getByRole('button', { name: 'Save changes' }).click();
+      await expect.poll(() => api.writes.length).toBe(1);
+      await api.writes[0].route.fulfill({
+        status: 409,
+        json: { detail: { code: 'profile_claim_changed' } },
+      });
+      await expect(page.getByText('We couldn’t complete this request')).toBeVisible();
+      api.privateStatement = {
+        body: 'Fictional words saved in another tab.',
+        updated_at: '2026-10-05T15:00:00Z',
+        published_at: '2026-10-02T15:00:00Z',
+        edited_at: '2026-10-05T15:00:00Z',
+        version: 3,
+      };
+      await page.getByRole('button', { name: 'Try again', exact: true }).click();
+      await expect(
+        page.getByRole('alert').filter({
+          hasText:
+            'The published statement changed elsewhere. Your changes are still here and have not been saved.',
+        }),
+      ).toBeVisible();
+      await expect(page.getByText('Fictional words saved in another tab.')).toBeVisible();
+      await expect(editor).toHaveValue('Fictional unsaved edit in this tab.');
+      await expect(page.getByRole('button', { name: 'Save changes' })).toBeVisible();
+      expect(api.writes).toHaveLength(1);
+      await noHorizontalOverflow(page);
+      await shot(page, `manage-changed-elsewhere-${band.name}`);
+    });
+
     test('public statement card, report reload and failed statement retry', async ({ page }) => {
       const api = await fixture(page, { signedIn: false });
       api.publicStatement = {
