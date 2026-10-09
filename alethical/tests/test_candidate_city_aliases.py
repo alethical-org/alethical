@@ -88,15 +88,21 @@ def test_city_alias_confirmation_must_keep_every_address_identity_field(
 
 @pytest.mark.parametrize("typed_city", ["ST PAUL", "SAINT PAUL", "ST. PAUL"])
 @pytest.mark.parametrize("confirmed_city", [None, "ST PAUL", "SAINT PAUL"])
+@pytest.mark.parametrize("source_street", ["EXAMPLE ST N", "EXAMPLE STREET NORTH"])
+@pytest.mark.parametrize("source_city", ["SAINT PAUL", "SAINT  PAUL", "ST. PAUL"])
 def test_mixed_city_spellings_cannot_select_an_overlapping_range(
-    typed_city, confirmed_city
+    typed_city, confirmed_city, source_street, source_city
 ):
     from alethical.api.services.candidate_lookup import _choice
 
     lookup, _ = service(
         rows=[
             street(CityName="ST PAUL"),
-            street(CityName="SAINT PAUL", ProdAddressRangeId=124),
+            street(
+                FullStreetName=source_street,
+                CityName=source_city,
+                ProdAddressRangeId=124,
+            ),
         ]
     )
     address = f"100 EXAMPLE ST N, {typed_city}, MN 99999"

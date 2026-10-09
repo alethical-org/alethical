@@ -336,12 +336,13 @@ scoped outcome and prevention checks with no remaining material findings.
   words and exact house, street, direction, ZIP, unit and official range checks.
 - A confirmed candidate choice passes through the same exact parser as typed input.
   Mixed Saint/ST source records for an otherwise identical address are rejected as
-  an overlap before confirmation can choose either range.
+  an overlap before confirmation can choose either range, including equivalent
+  street abbreviations and city spacing.
 - Public-source reproduction: `1006 Summit Avenue, SAINT PAUL, MN 55105` had zero
   candidate matches, while the same address with `ST PAUL` had one. The Secretary of
   State street row prints `SUMMIT AVE ` and `ST PAUL`. Both forms now identify the
   same official range. No ballot write was needed to establish this.
-- Focused checks: 167 address, candidate and range tests pass. Browser checks at
+- Focused checks: 212 address, candidate and range tests pass. Browser checks at
   390, 900 and 1280 pixels cover narrowing, paste, keyboard dismissal, clearing stale
   choices and reachable rows. Candidate click, Enter and touch each request exactly
   one lookup for the selected current address; final requests were intercepted to

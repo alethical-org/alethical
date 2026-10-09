@@ -198,6 +198,7 @@ def _parse_with_rows(
             return []
         remainder = remainder[: state.start()].strip(" ,")
     matches: dict[tuple, StreetAddress] = {}
+    city_spellings: dict[tuple, str] = {}
     for row in rows:
         street, city = row.get("FullStreetName"), row.get("CityName")
         if not isinstance(street, str) or not isinstance(city, str):
@@ -250,16 +251,22 @@ def _parse_with_rows(
             ) from None
         key = (
             address.street,
-            re.sub(r"^(?:SAINT|ST\.)\s+", "ST ", address.city),
+            address.city,
             address.zip_code,
             address.house_number,
             address.house_number_suffix,
             address.unit,
         )
-        if key in matches and matches[key].city != address.city:
+        city_key = (
+            _normal(address.street),
+            re.sub(r"^(?:SAINT|ST\.)\s+", "ST ", " ".join(address.city.split())),
+            *key[2:],
+        )
+        if city_key in city_spellings and city_spellings[city_key] != address.city:
             # Equivalent city spellings must not turn overlapping official
             # records into choices a confirmation can use to select a range.
             return []
+        city_spellings[city_key] = address.city
         matches[key] = address
     return list(matches.values())
 
