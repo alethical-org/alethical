@@ -180,7 +180,7 @@ export function HomeCandidateFinder({
             defaultValue=""
             readOnly={busy}
             aria-invalid={invalid}
-            aria-describedby={`${id}-message ${id}-help ${id}-privacy`}
+            aria-describedby={error ? `${id}-message ${id}-privacy` : `${id}-privacy`}
             onChange={(event) => {
               const value = event.target.value.replace(/[\r\n]+/g, ' ');
               event.target.value = value;
@@ -220,12 +220,8 @@ export function HomeCandidateFinder({
           </div>
         ) : null}
       </div>
-      <p id={`${id}-help`} className="hc-help">
-        A city or ZIP code alone cannot identify your local races
-      </p>
       <p id={`${id}-privacy`} className="hc-help hc-privacy">
-        Your address is sent to Minnesota government services for this lookup. Alethical does not
-        save it.
+        Your address is sent to Minnesota government services for this lookup
       </p>
     </form>
   );

@@ -72,7 +72,10 @@ between press and release. Editing or browser autofill clears the old keyboard
 choice. Late replies cannot replace newer suggestions or reopen a dismissed list.
 
 The field is labelled **Full street address**, followed by **A city or ZIP code
-alone cannot identify your local races** before the box. Full addresses wrap.
+alone cannot identify your local races** before the box on the entry form. **Change
+address** on the results page prints no help line: the label sits 10px above the field,
+and the field's screen-reader description names only the message slot. The help line
+prints once per page. Full addresses wrap.
 On computer and tablet the list overlays content 8px below the box, exactly the
 box's width. In **Change address**, the form's containing layer keeps every
 suggestion above the following Election label and selector, including the rows
