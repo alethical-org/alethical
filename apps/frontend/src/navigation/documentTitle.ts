@@ -49,6 +49,7 @@ export const STATIC_PAGE_SUBJECTS: Record<string, string> = {
   '/confirm': 'Confirm email',
   '/reset': 'Reset password',
   '/candidates': 'Find My Candidates',
+  '/candidates/features': 'Candidate profile features',
   '/find-my-legislator': 'Find my legislator',
   '/about': 'About us',
   '/services': 'Political intelligence and campaign services',

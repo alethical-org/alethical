@@ -162,6 +162,29 @@ it('serves the public candidates destination without example records or data-ser
   expect(fetch).not.toHaveBeenCalled();
 });
 
+it('serves /candidates/features with its public words only, outside search results', async () => {
+  stubNetwork(() => ({ status: 500 }));
+  const { body, status, headers } = await serve({
+    path: `/candidates/features?candidate=${'a'.repeat(64)}`,
+  });
+  expect(status).toBe(200);
+  expect(body).toContain('<title>Candidate profile features | Alethical</title>');
+  expect(body).toContain('href="https://www.alethical.com/candidates/features"');
+  expect(body).toMatch(/noindex/);
+  const snapshot = body
+    .split('<!--alethical:page-snapshot-->')[1]
+    .split('<!--/alethical:page-snapshot-->')[0];
+  expect(snapshot).toContain('<h1>Candidate profile features</h1>');
+  expect(snapshot).toContain('On the roadmap');
+  expect(snapshot).toContain('Questions from voters');
+  expect(snapshot).toContain('Following puts voters in control');
+  expect(snapshot).toContain('href="/candidates"');
+  // A candidate id in the address never puts a name, claim action or account context in the page.
+  expect(snapshot).not.toContain('Continue claiming this candidate profile');
+  expect(fetch).not.toHaveBeenCalled();
+  expect(headers.get('Cache-Control')).toBeDefined();
+});
+
 it('keeps illustrative candidate profiles unavailable on the public server even with the review flag', async () => {
   vi.stubEnv('EXPO_PUBLIC_CANDIDATE_LOOKUP_PREVIEW', 'true');
   try {

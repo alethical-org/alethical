@@ -13,25 +13,30 @@ export function GoBackLink({
   onPress,
   mobile = false,
   outlined = false,
+  pressedColor,
   style,
 }: {
   href: string;
   onPress: () => void;
   mobile?: boolean;
   outlined?: boolean;
+  /** Candidate and profile claim pages darken a pressed link to #000000. */
+  pressedColor?: string;
   style?: StyleProp<ViewStyle>;
 }) {
-  const [active, setActive] = useState(false);
-  const color = active ? ACTIVE_COLOR : RESTING_COLOR;
+  const [hovered, setHovered] = useState(false);
+  const [pressed, setPressed] = useState(false);
+  const active = hovered || pressed;
+  const color = pressed && pressedColor ? pressedColor : active ? ACTIVE_COLOR : RESTING_COLOR;
 
   return (
     <Pressable
       {...backLinkProps(href, onPress)}
       accessibilityLabel="Go back"
-      onHoverIn={() => setActive(true)}
-      onHoverOut={() => setActive(false)}
-      onPressIn={() => setActive(true)}
-      onPressOut={() => setActive(false)}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
       style={[
         styles.link,
         mobile && styles.linkMobile,

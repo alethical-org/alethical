@@ -3,11 +3,12 @@ import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import {
   CandidateButton,
-  CandidateLink,
   CandidateNotice,
   candidateText,
 } from '../components/candidates/CandidateControls';
 import { PersonOverviewContent } from '../components/candidates/PersonOverviewContent';
+import { GoBackLink } from '../components/GoBackLink';
+import { useResponsive } from '../hooks/useResponsive';
 import { getPersonRecord, type PersonRecord } from '../data/personRecords';
 import { isNotFoundError } from '../data/api';
 import { useDocumentTitle } from '../navigation/documentTitle';
@@ -16,6 +17,7 @@ import { Footer, PageBackground, TopNav } from '../theme/primitives';
 import { NotFoundScreen } from './redesign/NotFoundScreen';
 
 export function PersonOverviewScreen({ navigation, route }: RootScreenProps<'PersonOverview'>) {
+  const { isMobile } = useResponsive();
   const { personId, fromCandidateId, fromLegislatorSlug } = route.params;
   const [state, setState] = useState<
     | { id: string; kind: 'loading' | 'error' | 'not-found'; record?: never }
@@ -51,11 +53,6 @@ export function PersonOverviewScreen({ navigation, route }: RootScreenProps<'Per
     current.kind === 'ready' &&
     fromLegislatorSlug &&
     current.record.legislator?.slug === fromLegislatorSlug;
-  const returnLabel = validCandidateReturn
-    ? 'Back to election record'
-    : validLegislatorReturn
-      ? 'Back to legislator profile'
-      : 'Find my candidates';
   const returnUrl = validCandidateReturn
     ? `/candidates/${fromCandidateId}`
     : validLegislatorReturn
@@ -82,7 +79,6 @@ export function PersonOverviewScreen({ navigation, route }: RootScreenProps<'Per
           <PersonOverviewContent
             key={personId}
             record={current.record}
-            returnLabel={returnLabel}
             returnUrl={returnUrl}
             onBack={onBack}
             onCandidate={(candidateId) => navigation.navigate('CandidateProfile', { candidateId })}
@@ -92,11 +88,12 @@ export function PersonOverviewScreen({ navigation, route }: RootScreenProps<'Per
           />
         ) : (
           <View style={{ padding: 32, maxWidth: 760, width: '100%', alignSelf: 'center', flex: 1 }}>
-            <CandidateLink
-              internal
-              label="Find my candidates"
-              url="/candidates"
+            <GoBackLink
+              href="/candidates"
               onPress={() => navigation.navigate('Candidates')}
+              mobile={isMobile}
+              pressedColor="#000000"
+              style={{ minHeight: 44, marginBottom: 0 }}
             />
             {current.kind === 'loading' ? (
               <Text accessibilityLiveRegion="polite" style={candidateText.body}>

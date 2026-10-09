@@ -1,7 +1,7 @@
 import { useIsFocused } from '@react-navigation/native';
 import { useEffect, useId, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import { ActivityIndicator, Platform, StyleSheet, Text, View, type TextStyle } from 'react-native';
+import Svg, { Path, Rect } from 'react-native-svg';
 import {
   getCandidateStatement,
   getMyCandidateClaims,
@@ -12,11 +12,21 @@ import {
 import { useAdminAccess } from '../../hooks/useAdminAccess';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useAuth } from '../../providers/AuthProvider';
-import { claimAccountBlock, profileClaimCopy } from './profileClaimCopy';
+import { claimAccountBlock, profileClaimCopy, statementDateLine } from './profileClaimCopy';
 import { CandidateReportDialog } from './CandidateReportDialog';
-import { CandidateButton, candidateDate, candidateText } from './CandidateControls';
+import { CandidateButton, candidateText } from './CandidateControls';
+import { ProfileClaimButton } from './ProfileClaimButton';
 import type { CandidateProfileRecord } from './types';
 
+/** Statement card spacing per band. Bottom paddings follow Candidates profile.dc.html while
+ * Design rules on the two drawings' disagreement; they are not an approved final choice. */
+const STATEMENT_SPACING = {
+  computer: { top: 26, side: 28, bottom: 20, quote: [20, 22, 8], body: 17, heading: 21 },
+  tablet: { top: 24, side: 24, bottom: 18, quote: [18, 20, 6], body: 17, heading: 20 },
+  phone: { top: 20, side: 18, bottom: 16, quote: [16, 16, 4], body: 16, heading: 19 },
+} as const;
+
+/** The campaign's own words first; one quiet line keeps what was checked and what was not. */
 export function CandidateCampaignStatement({
   statement,
   onReport,
@@ -27,78 +37,104 @@ export function CandidateCampaignStatement({
   onReport?(): void;
   preview?: boolean;
 }) {
-  const { isMobile } = useResponsive();
+  const { isMobile, isDesktop } = useResponsive();
+  const band = STATEMENT_SPACING[isMobile ? 'phone' : isDesktop ? 'computer' : 'tablet'];
+  const [width, setWidth] = useState(0);
+  const dateLine = statementDateLine(statement);
+  const narrow = width > 0 && width < 600;
   return (
-    <View style={[styles.statement, preview && { marginTop: 0 }]}>
-      <View style={{ padding: isMobile ? 20 : 24 }}>
+    <View
+      role="region"
+      aria-labelledby="campaign-statement-heading"
+      onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
+      style={[styles.statement, preview && { marginTop: 0 }]}
+    >
+      <View
+        style={{ paddingTop: band.top, paddingHorizontal: band.side, paddingBottom: band.bottom }}
+      >
         <View style={styles.headingRow}>
           <Text
-            accessibilityRole="header"
-            aria-level={2}
-            style={[candidateText.title, { fontSize: 22, lineHeight: 30 }]}
+            nativeID={preview ? undefined : 'campaign-statement-heading'}
+            accessibilityRole={preview ? undefined : 'header'}
+            aria-level={preview ? undefined : 2}
+            style={[
+              candidateText.title,
+              {
+                fontSize: band.heading,
+                lineHeight: band.heading * 1.3,
+                letterSpacing: band.heading * -0.01,
+              },
+            ]}
           >
-            From the campaign
+            Campaign statement
           </Text>
-          <View style={styles.attribution}>
-            <Svg width={15} height={15} viewBox="0 0 24 24" fill="none" aria-hidden>
-              <Path
-                d="M4 5.5H20V16H10L5.5 20V16H4Z"
-                stroke="#4f5651"
-                strokeWidth={2}
-                strokeLinejoin="round"
-              />
-            </Svg>
-            <Text style={[candidateText.strong, { fontSize: 13.5, flexShrink: 1 }]}>
-              Written by the campaign, not Alethical
+          {dateLine ? (
+            <Text
+              style={[
+                candidateText.body,
+                {
+                  fontSize: 14.5,
+                  lineHeight: 21,
+                  fontWeight: '600',
+                  fontVariant: ['tabular-nums'],
+                },
+              ]}
+            >
+              {dateLine}
             </Text>
-          </View>
+          ) : null}
         </View>
-        {statement.updated_at ? (
-          <Text style={[candidateText.body, { fontSize: 14.5, marginTop: 12 }]}>
-            Published {candidateDate(statement.updated_at.slice(0, 10))}
-          </Text>
-        ) : null}
-        <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'flex-start', gap: 9 }}>
-          <Svg
-            width={18}
-            height={18}
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden
-            style={{ marginTop: 1 }}
+        <View
+          style={[
+            styles.quote,
+            {
+              paddingTop: band.quote[0],
+              paddingHorizontal: band.quote[1],
+              paddingBottom: band.quote[2],
+            },
+          ]}
+        >
+          <Text
+            style={[
+              candidateText.body,
+              { color: '#2c322c', fontSize: band.body, lineHeight: band.body * 1.65 },
+              Platform.OS === 'web'
+                ? ({ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } as TextStyle)
+                : null,
+            ]}
           >
-            <Path
-              d="M12 3L19 6V11.5C19 15.8 16 19.2 12 21C8 19.2 5 15.8 5 11.5V6Z M9 12L11.2 14.2L15.2 10"
-              stroke="#4f5651"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </Svg>
-          <View style={{ gap: 2, flex: 1 }}>
-            <Text style={[candidateText.strong, { fontSize: 14.5 }]}>Campaign access verified</Text>
-            <Text style={[candidateText.body, { fontSize: 14, lineHeight: 20.3 }]}>
-              {profileClaimCopy.disclosure}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.quote}>
-          <Text style={[candidateText.body, { color: '#2c322c', lineHeight: 27 }]}>
             {statement.body}
           </Text>
         </View>
       </View>
-      {onReport ? (
-        <View style={[styles.reportFooter, { paddingHorizontal: isMobile ? 20 : 24 }]}>
+      <View
+        style={[
+          styles.statementFooter,
+          { paddingHorizontal: band.side },
+          narrow && { flexDirection: 'column', alignItems: 'flex-start', rowGap: 4 },
+        ]}
+      >
+        <Text
+          style={[
+            candidateText.body,
+            { paddingVertical: 8, fontSize: 15, lineHeight: 22.5, minWidth: 0 },
+            narrow ? null : { flexGrow: 1, flexShrink: 1, flexBasis: 280 },
+            Platform.OS === 'web' ? ({ textWrap: 'pretty' } as TextStyle) : null,
+          ]}
+        >
+          {profileClaimCopy.disclosure}
+        </Text>
+        {onReport ? (
           <CandidateButton
             kind="text"
             icon="none"
             label="Report this statement"
             onPress={onReport}
+            fontSize={15}
             style={{ minHeight: 44, paddingHorizontal: 0 }}
           />
-        </View>
-      ) : null}
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -108,6 +144,37 @@ function AccessLoading() {
       <ActivityIndicator size="small" color="#4f5651" />
       <Text style={[candidateText.strong, { fontSize: 15.5, color: '#4f5651' }]}>
         Loading profile claim status…
+      </Text>
+    </View>
+  );
+}
+function ClosedNotice() {
+  return (
+    <View style={{ maxWidth: 600 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <Rect x={5} y={10.5} width={14} height={10} rx={2.2} stroke="#4f5651" strokeWidth={2} />
+          <Path d="M8 10.5 V8 a4 4 0 0 1 8 0 V10.5" stroke="#4f5651" strokeWidth={2} />
+        </Svg>
+        <Text
+          accessibilityRole="header"
+          aria-level={2}
+          style={[
+            candidateText.strong,
+            { flex: 1, fontSize: 17, lineHeight: 22.95, fontWeight: '800' },
+          ]}
+        >
+          {profileClaimCopy.closedTitle}
+        </Text>
+      </View>
+      <Text
+        style={[
+          candidateText.body,
+          { marginTop: 6, marginLeft: 28, fontSize: 15, lineHeight: 22.5 },
+          Platform.OS === 'web' ? ({ textWrap: 'pretty' } as TextStyle) : null,
+        ]}
+      >
+        {profileClaimCopy.closed}
       </Text>
     </View>
   );
@@ -140,52 +207,45 @@ function AccountAction({
       ? 'Manage this profile'
       : saved
         ? 'View profile claim status'
-        : 'Claim this profile';
+        : profileClaimCopy.claimLabel;
   const explanation = isAdmin
     ? profileClaimCopy.admin
     : owner
       ? profileClaimCopy.manage
       : status === 'pending'
         ? closed
-          ? profileClaimCopy.ended
-          : profileClaimCopy.pending
+          ? profileClaimCopy.endedAction
+          : profileClaimCopy.pendingAction
         : status === 'rejected'
-          ? 'Your profile claim request was not approved. View its status and available next steps.'
+          ? profileClaimCopy.rejectedAction
           : status === 'withdrawn'
-            ? 'Your profile claim was withdrawn. View its status and available next steps.'
+            ? profileClaimCopy.withdrawnAction
             : status === 'revoked'
-              ? 'An Alethical administrator revoked your profile claim. View its status and available next steps.'
+              ? profileClaimCopy.revokedAction
               : profileClaimCopy.claim;
+  // An account's own saved state always comes before the closed-election notice.
+  if (!isAdmin && !owner && !saved && closed) return <ClosedNotice />;
   return (
     <View style={{ gap: 8, maxWidth: 600, width: '100%', alignItems: 'flex-start' }}>
-      {!isAdmin && !owner && !saved && closed ? (
-        <>
-          <Text style={candidateText.strong}>{profileClaimCopy.closedTitle}</Text>
-          <Text style={candidateText.body}>{profileClaimCopy.closed}</Text>
-        </>
-      ) : (
-        <>
-          <View style={{ width: isMobile ? '100%' : undefined }}>
-            <CandidateButton
-              href={
-                isAdmin
-                  ? `/admin/candidate-claims?candidate=${encodeURIComponent(record.candidate.id)}&from=profile`
-                  : `/candidates/${record.candidate.id}/${owner ? 'manage' : 'claim'}`
-              }
-              kind={!isAdmin && (owner || !saved) ? 'green' : 'black'}
-              icon="none"
-              label={label}
-              describedBy={description}
-              onPress={isAdmin ? onAdmin : owner ? onManage : onClaim}
-              textStyle={{ lineHeight: 20.8 }}
-              style={{ minHeight: 48, paddingVertical: 11, width: isMobile ? '100%' : undefined }}
-            />
-          </View>
-          <Text nativeID={description} style={[candidateText.body, { fontSize: 15 }]}>
-            {explanation}
-          </Text>
-        </>
-      )}
+      <View style={{ width: isMobile ? '100%' : undefined }}>
+        <CandidateButton
+          href={
+            isAdmin
+              ? `/admin/candidate-claims?candidate=${encodeURIComponent(record.candidate.id)}&from=profile`
+              : `/candidates/${record.candidate.id}/${owner ? 'manage' : 'claim'}`
+          }
+          kind={!isAdmin && (owner || !saved) ? 'green' : 'black'}
+          icon="none"
+          label={label}
+          describedBy={description}
+          onPress={isAdmin ? onAdmin : owner ? onManage : onClaim}
+          textStyle={{ lineHeight: 20.8 }}
+          style={{ minHeight: 48, paddingVertical: 11, width: isMobile ? '100%' : undefined }}
+        />
+      </View>
+      <Text nativeID={description} style={[candidateText.body, { fontSize: 15 }]}>
+        {explanation}
+      </Text>
     </View>
   );
 }
@@ -282,6 +342,7 @@ export function CandidateClaimPanel({
     null,
   );
   const [failed, setFailed] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const [reporting, setReporting] = useState<{ id: string; statement: CandidateStatement } | null>(
     null,
   );
@@ -289,14 +350,18 @@ export function CandidateClaimPanel({
   useEffect(() => {
     if (!focused) return;
     const controller = new AbortController();
-    setFailed(false);
+    // A retry keeps the failure box and its button in place until the answer arrives.
     void services.getStatement(record.candidate.id, controller.signal).then(
       (response) => {
-        if (!controller.signal.aborted)
-          setLoaded({ id: record.candidate.id, statement: response.statement });
+        if (controller.signal.aborted) return;
+        setLoaded({ id: record.candidate.id, statement: response.statement });
+        setFailed(false);
+        setRetrying(false);
       },
       () => {
-        if (!controller.signal.aborted) setFailed(true);
+        if (controller.signal.aborted) return;
+        setFailed(true);
+        setRetrying(false);
       },
     );
     return () => controller.abort();
@@ -313,13 +378,25 @@ export function CandidateClaimPanel({
       ) : null}
       {failed ? (
         <View role="alert" style={styles.campaignFailure}>
-          <Text style={candidateText.strong}>Campaign statement is unavailable</Text>
-          <CandidateButton
-            kind="outline"
+          <Text
+            style={[
+              candidateText.strong,
+              { flexShrink: 1, fontSize: 16.5, lineHeight: 23.925, fontWeight: '800' },
+              Platform.OS === 'web' ? ({ textWrap: 'pretty' } as TextStyle) : null,
+            ]}
+          >
+            We couldn’t load the campaign statement
+          </Text>
+          <ProfileClaimButton
             label="Try again"
-            icon="none"
-            style={{ minHeight: 44 }}
-            onPress={() => setAttempt((value) => value + 1)}
+            busyLabel="Trying again…"
+            busy={retrying}
+            announcement="Loading the campaign statement…"
+            style={{ minHeight: 44, borderRadius: 11, fontSize: 15.5, padding: '10px 20px' }}
+            onPress={() => {
+              setRetrying(true);
+              setAttempt((value) => value + 1);
+            }}
           />
         </View>
       ) : null}
@@ -401,29 +478,28 @@ const styles = StyleSheet.create({
   headingRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'center',
+    alignItems: 'baseline',
     justifyContent: 'space-between',
-    gap: 10,
-  },
-  attribution: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    flexShrink: 1,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: 'rgba(17,21,15,0.14)',
-    borderRadius: 999,
-    paddingHorizontal: 11,
-    paddingVertical: 6,
+    columnGap: 16,
+    rowGap: 4,
   },
   quote: {
-    marginTop: 18,
-    padding: 18,
+    marginTop: 14,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: 'rgba(17,21,15,0.08)',
     borderRadius: 12,
+  },
+  statementFooter: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(17,21,15,0.08)',
+    paddingVertical: 10,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    columnGap: 20,
+    rowGap: 4,
   },
   campaignFailure: {
     marginTop: 36,
@@ -437,14 +513,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 10,
-  },
-  reportFooter: {
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(17,21,15,0.08)',
-    paddingTop: 6,
-    paddingBottom: 12,
-    alignItems: 'flex-end',
+    columnGap: 18,
+    rowGap: 10,
   },
   accessRow: {
     minHeight: 48,

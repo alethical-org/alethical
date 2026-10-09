@@ -79,6 +79,7 @@ export type RootStackParamList = {
     | undefined;
   // Candidate addresses stay in memory, never in route parameters or URLs.
   Candidates: undefined;
+  CandidateFeatures: { candidateId?: string } | undefined;
   CandidateProfile: { candidateId: string };
   CandidateClaim: { candidateId: string };
   CandidateManage: { candidateId: string };

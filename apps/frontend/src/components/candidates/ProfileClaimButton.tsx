@@ -9,6 +9,8 @@ export function ProfileClaimButton({
   busy = false,
   disabled = false,
   kind = 'outline',
+  unavailable = false,
+  announcement,
   onPress,
   width,
   describedBy,
@@ -23,6 +25,10 @@ export function ProfileClaimButton({
   busy?: boolean;
   disabled?: boolean;
   kind?: 'green' | 'outline' | 'danger' | 'danger-text';
+  /** Unavailable while another request runs: keeps its ready look, no hover, no press. */
+  unavailable?: boolean;
+  /** Spoken while busy when it differs from the visible busy label. */
+  announcement?: string;
   onPress(): void;
   width?: CSSProperties['width'];
   describedBy?: string;
@@ -51,7 +57,7 @@ export function ProfileClaimButton({
         onPress={onPress}
       />
     );
-  const off = disabled || busy;
+  const off = disabled || busy || unavailable;
   const contentStyle: CSSProperties = {
     gridArea: '1 / 1',
     display: 'flex',
@@ -163,7 +169,7 @@ export function ProfileClaimButton({
           border: 0,
         }}
       >
-        {busy ? (busyLabel ?? label) : ''}
+        {busy ? (announcement ?? busyLabel ?? label) : ''}
       </span>
     </>
   );

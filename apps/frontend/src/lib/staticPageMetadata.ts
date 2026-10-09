@@ -78,6 +78,16 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
       'Enter a Minnesota street address to see source-backed candidates for state and local offices.',
     canonicalPath: '/candidates',
   }),
+  // Every feature on this page is on the roadmap; it stays out of search results
+  // until a feature it describes is available.
+  '/candidates/features': pageMetadata({
+    title: titleFor('Candidate profile features'),
+    socialTitle: 'Candidate profile features',
+    description:
+      'What a claimed candidate profile will offer campaigns and voters. Every feature listed is on the roadmap.',
+    canonicalPath: '/candidates/features',
+    noindex: true,
+  }),
   '/find-my-legislator': pageMetadata({
     title: titleFor('Find my legislator'),
     socialTitle: 'Find my legislator',
