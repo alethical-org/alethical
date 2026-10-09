@@ -12,16 +12,19 @@ it('reads a role only from an exact role prefix followed by 2 newlines', () => {
     role: 'Candidate',
     explanation: 'I am the candidate.',
   });
-  expect(savedProfileClaimRequest('Authorized campaign representative\n\nA\n\n\n\nB')).toEqual({
+  expect(savedProfileClaimRequest('Authorized campaign representative\n\nA\n\n\n\nB ')).toEqual({
     role: 'Authorized campaign representative',
-    explanation: 'A\n\nB',
+    explanation: 'A\n\n\n\nB ',
   });
   for (const value of [
     'Candidate\nOne newline',
     'candidate\n\nlower case',
     'Campaign manager\n\nX',
   ])
-    expect(savedProfileClaimRequest(value)).toEqual({ role: null, explanation: value.trim() });
+    expect(savedProfileClaimRequest(value)).toEqual({ role: null, explanation: value });
+  expect(savedProfileClaimRequest('  Legacy words\n\n\n\nkept  ').explanation).toBe(
+    '  Legacy words\n\n\n\nkept  ',
+  );
 });
 it('dates a statement from server evidence only, latest edit first', () => {
   expect(statementDateLine({ published_at: '2026-09-18T15:00:00Z', edited_at: null })).toBe(

@@ -120,14 +120,14 @@ export const profileClaimHeadings: Record<CandidateClaimStatus, string> = {
 };
 export const PROFILE_CLAIM_ROLES = ['Candidate', 'Authorized campaign representative'] as const;
 /** The saved request is role + 2 newlines + explanation. Only an exact role prefix is a role;
- * anything else, including older requests, is shown whole as the explanation. Never guessed. */
+ * the explanation is everything after it, exactly as saved. Anything else, including older
+ * requests, is shown whole and unchanged as the explanation. Never guessed or tidied. */
 export function savedProfileClaimRequest(value: string): {
   role: string | null;
   explanation: string;
 } {
   const role = PROFILE_CLAIM_ROLES.find((item) => value.startsWith(`${item}\n\n`)) ?? null;
-  const rest = role ? value.slice(role.length + 2) : value;
-  return { role, explanation: rest.trim().replace(/\n{3,}/g, '\n\n') };
+  return { role, explanation: role ? value.slice(role.length + 2) : value };
 }
 export function profileClaimErrorReason(error: unknown): string | null {
   if (!error || typeof error !== 'object') return null;

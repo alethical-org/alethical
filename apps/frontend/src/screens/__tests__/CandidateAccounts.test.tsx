@@ -1054,7 +1054,7 @@ it('prints the saved role only from an exact prefix and keeps the explanation as
     'Your explanation',
   ]);
   expect(list.querySelectorAll('dd')[0].textContent).toBe('Authorized campaign representative');
-  expect(list.querySelectorAll('dd')[2].textContent).toBe('Line one\n\nLine two');
+  expect(list.querySelectorAll('dd')[2].textContent).toBe('Line one\n\n\n\nLine two');
   // Minnesota time: 10:30 p.m. on October 8.
   expect(host.textContent).toContain('Submitted October 8, 2026');
   expect(host.textContent).toContain(

@@ -553,8 +553,8 @@ def _publication_dates(db: Session, row: CandidateStatement) -> dict:
 
     A removal starts a new publication, so the current one is the run of
     published revisions after this owner's last removal. Version numbers count
-    removals too, so they never decide this. Without revision evidence the row
-    date is the publication date and no edit is invented.
+    removals too, so they never decide this. Without revision evidence neither
+    date can be established (the row date may be an edit), so both are omitted.
     """
     if not row.body:
         return {"published_at": None, "edited_at": None}
@@ -570,7 +570,7 @@ def _publication_dates(db: Session, row: CandidateStatement) -> dict:
     for action, created_at in revisions:
         current = [] if action == "removed" else [*current, created_at]
     if not current:
-        return {"published_at": row.updated_at.isoformat(), "edited_at": None}
+        return {"published_at": None, "edited_at": None}
     return {
         "published_at": current[0].isoformat(),
         "edited_at": row.updated_at.isoformat() if len(current) > 1 else None,

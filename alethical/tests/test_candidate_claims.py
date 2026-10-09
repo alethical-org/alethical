@@ -707,16 +707,38 @@ def test_published_and_edited_dates_follow_the_current_publication(client):
     assert private["statement"]["published_at"] == again["published_at"]
 
 
-def test_publication_dates_never_invent_an_edit_without_revision_evidence(client):
+def test_publication_dates_are_omitted_without_revision_evidence(client):
     item = approved(client)
     statement(client, item, "Words")
     statement(client, item, "Edited words", 1)
     with get_session_factory()() as db:
         db.execute(delete(CandidateStatementRevision))
         db.commit()
+    # The row's own date could be an edit, so neither date is claimed.
     shown = public(client).json()["statement"]
-    assert shown["published_at"] == shown["updated_at"]
+    assert shown["body"] == "Edited words"
+    assert shown["published_at"] is None
     assert shown["edited_at"] is None
+
+
+def test_publication_dates_are_omitted_when_the_last_revision_is_a_removal(client):
+    item = approved(client)
+    statement(client, item, "Words")
+    with get_session_factory()() as db:
+        # A legacy row whose only evidence is a later removal cannot date the words.
+        db.execute(delete(CandidateStatementRevision))
+        db.add(
+            CandidateStatementRevision(
+                candidate_id=CANDIDATE,
+                claim_id=uuid.UUID(item["id"]),
+                body="",
+                action="removed",
+                created_at=datetime.now(timezone.utc),
+            )
+        )
+        db.commit()
+    shown = public(client).json()["statement"]
+    assert shown["published_at"] is None and shown["edited_at"] is None
 
 
 def test_new_owner_publication_is_dated_from_its_own_history(client):
