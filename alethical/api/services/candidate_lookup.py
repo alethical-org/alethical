@@ -250,12 +250,16 @@ def _parse_with_rows(
             ) from None
         key = (
             address.street,
-            address.city,
+            re.sub(r"^(?:SAINT|ST\.)\s+", "ST ", address.city),
             address.zip_code,
             address.house_number,
             address.house_number_suffix,
             address.unit,
         )
+        if key in matches and matches[key].city != address.city:
+            # Equivalent city spellings must not turn overlapping official
+            # records into choices a confirmation can use to select a range.
+            return []
         matches[key] = address
     return list(matches.values())
 

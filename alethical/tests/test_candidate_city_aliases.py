@@ -84,3 +84,26 @@ def test_city_alias_confirmation_must_keep_every_address_identity_field(
     assert lookup.resolve(
         "100 EXAMPLE ST N, ST PAUL, MN 99999", _choice(confirmed_address)
     ) == {"kind": "no-match"}
+
+
+@pytest.mark.parametrize("typed_city", ["ST PAUL", "SAINT PAUL", "ST. PAUL"])
+@pytest.mark.parametrize("confirmed_city", [None, "ST PAUL", "SAINT PAUL"])
+def test_mixed_city_spellings_cannot_select_an_overlapping_range(
+    typed_city, confirmed_city
+):
+    from alethical.api.services.candidate_lookup import _choice
+
+    lookup, _ = service(
+        rows=[
+            street(CityName="ST PAUL"),
+            street(CityName="SAINT PAUL", ProdAddressRangeId=124),
+        ]
+    )
+    address = f"100 EXAMPLE ST N, {typed_city}, MN 99999"
+    confirmed = (
+        _choice(f"100 EXAMPLE ST N, {confirmed_city}, MN 99999")
+        if confirmed_city
+        else None
+    )
+    assert lookup.suggest(address) == []
+    assert lookup.resolve(address, confirmed) == {"kind": "no-match"}
