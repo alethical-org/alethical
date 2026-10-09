@@ -31,7 +31,7 @@ that already names both sides of a money relationship.
 | `/money/lobbying/principals`               | LOBBYING                         | Retained because Principals alone does not explain that these are organisations represented by lobbyists |
 | A lobbying principal record                | PRINCIPAL · ENTITY ID `<number>` | LOBBYING PRINCIPAL PROFILE · ENTITY ID `<number>`                                                                |
 
-## Labels retained without a wording change
+## Other retained labels
 
 - `/money/committees` keeps CAMPAIGN MONEY because Committees can also mean
   legislative committees.

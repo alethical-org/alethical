@@ -154,6 +154,7 @@ a completed code release does not approve a held data run. Remove a finished pla
 lasting decisions and release evidence have their permanent homes.
 
 - [Candidate autofill and result recovery](implementation/candidate-autofill-recovery-plan.md) — shared address handling, stable results, related-use review and release evidence
+- [Public profile labels](implementation/profile-labels-plan.md) — record-kind labels, claim action, phone wrapping and release checks
 - [Candidate design acceptance](implementation/candidate-design-release-acceptance.md) — approved public search and profile controls, source limits, and release checks
 - [Candidate result notices](implementation/candidate-notices-last.md) — bottom notice placement, empty-race wording, affected uses and release evidence
 - [Candidate lookup delivery](implementation/candidate-lookup-build-plan.md) — staged candidate imports, private address handling, and the design and source requirements before launch
