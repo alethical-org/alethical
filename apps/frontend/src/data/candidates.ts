@@ -2,6 +2,7 @@ import { createCandidateFlow } from '../components/candidates/candidateFlow';
 import type {
   CandidateAddressChoice,
   CandidateElection,
+  CandidateLocationSuggestion,
   CandidateLookupResponse,
   CandidateProfileRecord,
   CandidateSearchServices,
@@ -34,6 +35,19 @@ export const candidateSearchServices: CandidateSearchServices = {
     }).catch((error: unknown) => {
       if (error instanceof ApiError && error.status === 429) return { kind: 'rate-limited' };
       throw error;
+    }),
+  // The reading travels only in this request body and is never kept afterwards.
+  locate: ({ latitude, longitude, accuracy }, signal) =>
+    publicApiPost<CandidateLocationSuggestion>(
+      '/candidates/locate',
+      { latitude, longitude, accuracy },
+      { signal, cache: 'no-store', credentials: 'omit' },
+    ).then((result) => {
+      if (result?.kind === 'address' && typeof result.address === 'string' && result.address.trim())
+        return { kind: 'address', address: result.address.trim() };
+      if (result?.kind === 'imprecise' || result?.kind === 'outside-minnesota')
+        return { kind: result.kind };
+      throw new Error('Invalid location suggestion');
     }),
 };
 

@@ -35,6 +35,7 @@ export function AddressSuggestionField<T>({
   busy,
   mobile,
   compact = false,
+  emptyRightPadding,
   suggestionsEnabled = true,
   onEscape,
   onClear,
@@ -50,6 +51,8 @@ export function AddressSuggestionField<T>({
   busy: boolean;
   mobile: boolean;
   compact?: boolean;
+  /** Right padding while the box is empty; the clear button's 60px returns with text. */
+  emptyRightPadding?: number;
   suggestionsEnabled?: boolean;
   onEscape?(): void;
   onClear?(): void;
@@ -393,7 +396,9 @@ export function AddressSuggestionField<T>({
           width: '100%',
           minHeight: compact ? 56 : 60,
           boxSizing: 'border-box',
-          padding: compact ? '15px 56px 15px 16px' : '17px 60px 17px 18px',
+          padding: compact
+            ? '15px 56px 15px 16px'
+            : `17px ${actualAddress || emptyRightPadding === undefined ? 60 : emptyRightPadding}px 17px 18px`,
           borderRadius: compact ? 12 : 14,
           border: `1px solid ${focused ? '#5b30d6' : invalid ? '#a3421a' : fieldHovered ? 'rgba(17,21,15,.4)' : 'rgba(17,21,15,.22)'}`,
           boxShadow: focused ? '0 0 0 3px rgba(91,48,214,.22)' : 'none',

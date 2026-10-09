@@ -21,7 +21,9 @@ from sqlalchemy.orm import Session
 
 from alethical.api.services.address_format import normalize_address_format
 from alethical.api.services.representative_lookup import (
+    _STREET_TYPE_ALIASES,
     MINNESOTA_ADDRESS_POINTS_URL,
+    AddressPointsIncomplete,
     MinnesotaAddressPointGeocoder,
     RepresentativeLookupNotFound,
     RepresentativeLookupOutsideMinnesota,
@@ -53,6 +55,13 @@ SUPPORTED_ELECTION = {
     "type": "general",
 }
 PRIVATE_HEADERS = {"Cache-Control": "private, no-store", "Vary": "Origin"}
+# Device-location suggestions. A browser's accuracy is a 95% radius in meters.
+# Address points can sit up to about 30m from where a person stands in the
+# building; neighbouring Minneapolis points are about 11m apart.
+MINNESOTA_BOUNDS = (43.499, 49.385, -97.24, -89.48)
+LOCATION_MAX_ACCURACY_METERS = 100
+LOCATION_PLACEMENT_SLACK_METERS = 30
+LOCATION_MIN_SEPARATION_METERS = 8
 
 
 class CandidateLookupUnavailable(Exception):
@@ -123,8 +132,14 @@ _ALIASES = {
 
 
 def _normal(value: str) -> str:
+    # Both spellings of a street type compare equal ("TER" and "TERRACE"), on both
+    # sides of every comparison, so the state's address points and the election
+    # source's abbreviations name the same street.
     return " ".join(
-        _ALIASES.get(word, word) for word in value.upper().replace(".", "").split()
+        _STREET_TYPE_ALIASES.get(word, word)
+        for word in (
+            _ALIASES.get(word, word) for word in value.upper().replace(".", "").split()
+        )
     )
 
 
@@ -137,7 +152,7 @@ def _choice(address: str) -> dict:
 
 
 _UNIT_PATTERN = re.compile(
-    r"(?:\b(?:APT|APARTMENT|UNIT|SUITE|STE)\s+|#\s*)[A-Z0-9-]+\b", re.IGNORECASE
+    r"(?:\b(?:APT|APARTMENT|UNIT|SUITE|STE)\.?\s+|#\s*)[A-Z0-9-]+\b", re.IGNORECASE
 )
 
 
@@ -184,7 +199,61 @@ def _street_json_object(pairs: list[tuple[str, object]]) -> dict:
 def _parse_with_rows(
     text: str, rows: list[dict], *, prefix: bool = False
 ) -> list[StreetAddress]:
-    """Match all supplied words against source streets, not coordinates or incumbents."""
+    """Match all supplied words against source streets, not coordinates or incumbents.
+
+    A unit normally ends the street segment. When the canonical reading finds
+    nothing, 1 unit elsewhere in the street or locality (after a comma, or after
+    the city) is read as that unit. 2 different units are never reconciled.
+    """
+    matches = _parse_rows_once(text, rows, prefix=prefix)
+    if matches:
+        return matches
+    upper = normalize_address_format(text).upper()
+    units = list(_UNIT_PATTERN.finditer(upper))
+    if len(units) != 1:
+        return matches
+    unit = units[0]
+    without = upper[: unit.start()] + upper[unit.end() :]
+    # Drop the empty segment the unit leaves behind ("street, , city").
+    without = ", ".join(
+        part
+        for part in (" ".join(piece.split()) for piece in without.split(","))
+        if part
+    )
+    unit_text = re.sub(r"\.(?=\s)", "", unit.group())
+    street, separator, locality = without.partition(",")
+    if separator:
+        matches = _parse_rows_once(
+            f"{street.strip()} {unit_text},{locality}", rows, prefix=prefix
+        )
+        if matches:
+            return matches
+    # Comma-free text, or a unit placed after the city: each source row's own
+    # city marks where the street ends.
+    return _parse_rows_once(without, rows, prefix=prefix, unit=unit_text)
+
+
+_UNIT_START = re.compile(r"(?:APT|APARTMENT|UNIT|SUITE|STE)\.?\s|#")
+
+
+def _trailing_unit_start(text: str) -> int | None:
+    """Where a unit begins in the last comma segment, after whitespace, or None.
+
+    A linear scan: the first unit label after whitespace in that segment that is
+    followed by more text, so "APT 2 APT 3" stays 1 unit for the matcher to refuse.
+    """
+    tail = text.rfind(",") + 1
+    for found in _UNIT_START.finditer(text, tail):
+        start = found.start()
+        if start > tail and text[start - 1].isspace() and text[found.end() :].strip():
+            return start
+    return None
+
+
+def _parse_rows_once(
+    text: str, rows: list[dict], *, prefix: bool = False, unit: str = ""
+) -> list[StreetAddress]:
+    supplied_unit = " ".join(unit.upper().split())
     text = normalize_address_format(text).upper()
     found = re.fullmatch(
         r"(\d{1,8})(?:\s+(1/2)|([A-Z]))?\s+(.+?)\s+(\d{5})(?:-\d{4})?", text
@@ -221,13 +290,14 @@ def _parse_with_rows(
             requested = requested[: city_match.start()].strip(" ,")
         elif "," in requested:
             continue
-        unit = ""
-        unit_match = re.search(
-            r"\s+((?:(?:APT|APARTMENT|UNIT|SUITE|STE)\s+|#\s*)[^,]+)$", requested
-        )
-        if unit_match:
-            unit = unit_match.group(1).strip()
-            requested = requested[: unit_match.start()]
+        unit = supplied_unit
+        unit_start = _trailing_unit_start(requested)
+        if unit_start is not None:
+            if supplied_unit:
+                continue
+            unit = re.sub(r"^([A-Z]+)\.(?=\s)", r"\1", requested[unit_start:].strip())
+            # "Street, Apt 3, City" leaves the separating comma behind.
+            requested = requested[:unit_start].strip(" ,")
         expected, supplied = _normal(street), _normal(requested)
         if not (expected.startswith(supplied) if prefix else expected == supplied):
             continue
@@ -400,6 +470,62 @@ class CandidateLookupService:
                 if (choice := _geocoded_choice(text, match.matched_address)) is not None
             ]
         )
+
+    def locate(self, latitude: float, longitude: float, accuracy: float) -> dict:
+        """Suggest 1 home address for the reader to confirm; never search with it.
+
+        A device reading is a point plus a 95% accuracy radius. The suggestion is
+        offered only when that reading separates the nearest building from every
+        other address; otherwise the reader types the address. Nothing is stored.
+        """
+        if not (
+            MINNESOTA_BOUNDS[0] <= latitude <= MINNESOTA_BOUNDS[1]
+            and MINNESOTA_BOUNDS[2] <= longitude <= MINNESOTA_BOUNDS[3]
+        ):
+            return {"kind": "outside-minnesota"}
+        if accuracy > LOCATION_MAX_ACCURACY_METERS:
+            return {"kind": "imprecise"}
+        reach = accuracy + LOCATION_PLACEMENT_SLACK_METERS
+        separation = max(accuracy, LOCATION_MIN_SEPARATION_METERS)
+        try:
+            # Look far enough past the nearest possible building to see every
+            # neighbour that the separation rule must rule out.
+            nearby = self.geocoder.nearby_addresses(
+                latitude, longitude, reach + separation
+            )
+        except AddressPointsIncomplete:
+            return {"kind": "imprecise"}
+        except Exception:
+            # Upstream text can include the submitted point. Report nothing of it.
+            raise CandidateLookupUnavailable(
+                "Government address service unavailable"
+            ) from None
+        if not nearby or nearby[0][1] > reach or nearby[0][0] is None:
+            # No building close enough, or the nearest point has no usable address.
+            return {"kind": "imprecise"}
+        if len(nearby) > 1 and nearby[1][1] - nearby[0][1] < separation:
+            return {"kind": "imprecise"}
+        return {"kind": "address", "address": self._official_spelling(nearby[0][0])}
+
+    def _official_spelling(self, label: str) -> str:
+        """Print the election source's spelling when exactly 1 of its streets matches.
+
+        Anything else keeps the state's address-point wording; the reader's
+        confirmed search still decides the match.
+        """
+        zip_code = re.search(r"\b(\d{5})$", label)
+        if not zip_code:
+            return label
+        try:
+            rows = self.streets(zip_code.group(1))
+            matches = _parse_with_rows(label, rows)
+            if not matches:
+                # Postal community names can differ from the source's city name.
+                street = label.partition(",")[0]
+                matches = _parse_with_rows(f"{street} MN {zip_code.group(1)}", rows)
+        except CandidateLookupUnavailable:
+            return label
+        return _address_label(matches[0]) if len(matches) == 1 else label
 
     def resolve(
         self, text: str, confirmed: dict | None = None
