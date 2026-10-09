@@ -428,6 +428,89 @@ it('uses the same explicit address-choice flow when changing an address and keep
   expect(host.textContent).toContain(choice.address);
 });
 
+it('selects the address once, keeps opening quiet, and clears without erasing results', async () => {
+  vi.useFakeTimers();
+  const service = services();
+  service.suggest = vi.fn(async () => []);
+  await act(async () =>
+    root.render(
+      <CandidateSearchContent
+        services={service}
+        initialAddress="100 Example Street"
+        onOpenProfile={() => {}}
+      />,
+    ),
+  );
+  await flush();
+  click(button('Change address'));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  expect(document.activeElement).toBe(input);
+  expect([input.selectionStart, input.selectionEnd]).toEqual([0, input.value.length]);
+  await act(async () => vi.advanceTimersByTimeAsync(200));
+  expect(service.suggest).not.toHaveBeenCalled();
+  act(() => input.setSelectionRange(3, 3));
+  await act(async () => vi.advanceTimersByTimeAsync(600));
+  expect([input.selectionStart, input.selectionEnd]).toEqual([3, 3]);
+  click(host.querySelector<HTMLButtonElement>('button[aria-label="Clear address"]')!);
+  expect(input.value).toBe('');
+  expect(document.activeElement).toBe(input);
+  expect(host.querySelector('a[href="/candidates/general-a"]')).toBeTruthy();
+  expect(host.textContent).toContain(result().matchedAddress);
+  click(button('Cancel'));
+  expect(host.querySelector('textarea')).toBeNull();
+  expect(document.activeElement).toBe(button('Change address'));
+  click(button('Change address'));
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe(result().matchedAddress);
+});
+
+it.each(['Cancel', 'Escape', 'Escape on Cancel', 'Escape on Find'])(
+  'cancels a pending edited address with %s and ignores its late response',
+  async (action) => {
+    let resolve!: (value: CandidateLookupResponse) => void;
+    let signal!: AbortSignal;
+    const lookup = vi
+      .fn<CandidateSearchServices['lookup']>()
+      .mockResolvedValueOnce(result())
+      .mockImplementationOnce(async (_, requestSignal) => {
+        signal = requestSignal;
+        return new Promise((done) => {
+          resolve = done;
+        });
+      });
+    const service = services(lookup);
+    const flow = createCandidateFlow(service);
+    await act(async () =>
+      root.render(
+        <CandidateSearchContent
+          services={service}
+          flow={flow}
+          initialAddress="100 Example Street"
+          onOpenProfile={() => {}}
+        />,
+      ),
+    );
+    await flush();
+    click(button('Change address'));
+    type('200 Example Street');
+    click(button('Find'));
+    await flush();
+    expect(flow.getState().status).toBe('updating');
+    expect(
+      host.querySelector<HTMLButtonElement>('button[aria-label="Clear address"]')?.style.visibility,
+    ).toBe('hidden');
+    if (action === 'Cancel') click(button('Cancel'));
+    else if (action === 'Escape on Cancel') press(button('Cancel'), 'Escape');
+    else if (action === 'Escape on Find') press(button('Finding candidates…'), 'Escape');
+    else press(host.querySelector<HTMLTextAreaElement>('textarea')!, 'Escape');
+    expect(signal.aborted).toBe(true);
+    expect(host.querySelector('textarea')).toBeNull();
+    expect(document.activeElement).toBe(button('Change address'));
+    await act(async () => resolve({ ...result(), matchedAddress: '200 Example Street' }));
+    expect(flow.getState().displayed?.results.matchedAddress).toBe(result().matchedAddress);
+    expect(host.textContent).not.toContain('200 Example Street');
+  },
+);
+
 it('keeps address editing open when typing the previous request and closes only after submitting', async () => {
   const lookup = vi.fn<CandidateSearchServices['lookup']>().mockResolvedValue(result());
   const service = services(lookup);

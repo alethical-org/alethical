@@ -13,9 +13,16 @@ import { preserveSuggestedUnit } from '../../lib/addressSuggestion';
 import { browserFillInputProps, ensureBrowserFillStyles } from '../../theme/browserFill';
 import { fieldFocusRing, fieldOutlineReset } from '../../theme/fieldFocus';
 import { theme } from '../../theme/tokens';
+import { ClearAddressButton } from './ClearAddressButton';
+import { useAddressInputValue } from './useAddressInputValue';
 
 export type AddressSuggestion<T> = { id: string; address: string; value: T };
-export type AddressFieldHandle = { focus(): void; value(): string; dismiss(): void };
+export type AddressFieldHandle = {
+  focus(): void;
+  selectAll(): void;
+  value(): string;
+  dismiss(): void;
+};
 export function AddressSuggestionField<T>({
   address,
   onAddress,
@@ -30,6 +37,7 @@ export function AddressSuggestionField<T>({
   compact = false,
   suggestionsEnabled = true,
   onEscape,
+  onClear,
 }: {
   address: string;
   onAddress(value: string): void;
@@ -44,6 +52,7 @@ export function AddressSuggestionField<T>({
   compact?: boolean;
   suggestionsEnabled?: boolean;
   onEscape?(): void;
+  onClear?(): void;
 }) {
   const id = useId().replace(/:/g, '');
   const field = useRef<HTMLTextAreaElement>(null);
@@ -51,6 +60,8 @@ export function AddressSuggestionField<T>({
   const wrapper = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const generation = useRef(0);
+  const suggestionController = useRef<AbortController | null>(null);
+  const quietUntilEdit = useRef(false);
   const lastRequestAt = useRef(-Infinity);
   const lastInputAt = useRef(-Infinity);
   // Field-local only: no browser storage or reuse across mounted search forms.
@@ -73,8 +84,10 @@ export function AddressSuggestionField<T>({
         ?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
   }, [open, active, id]);
   const value = () => field.current?.value ?? address;
-  const dismiss = () => {
+  const dismiss = (forgetOptions = false) => {
     generation.current += 1;
+    suggestionController.current?.abort();
+    if (forgetOptions) setOptions([]);
     setOpen(false);
     setActive(-1);
     setHovered(-1);
@@ -86,9 +99,16 @@ export function AddressSuggestionField<T>({
   };
   useImperativeHandle(fieldRef, () => ({
     focus,
+    selectAll: () => {
+      quietUntilEdit.current = true;
+      dismiss(true);
+      setEnabled(false);
+      focus();
+      field.current?.select();
+    },
     value,
     dismiss: () => {
-      dismiss();
+      dismiss(true);
       // External submit controls consume their click. Do not rely on outside
       // dismissal to prevent busy/result changes from restarting suggestions.
       setEnabled(false);
@@ -100,6 +120,7 @@ export function AddressSuggestionField<T>({
   useLayoutEffect(() => {
     if (field.current && field.current.value !== address) field.current.value = address;
   }, [address]);
+  const actualAddress = useAddressInputValue(field, address);
   useLayoutEffect(() => {
     const element = field.current;
     if (!element) return;
@@ -119,10 +140,11 @@ export function AddressSuggestionField<T>({
     });
     observer.observe(element);
     return () => observer.disconnect();
-  }, [address, compact]);
+  }, [address, actualAddress, compact]);
   useEffect(() => {
     const request = ++generation.current;
     const controller = new AbortController();
+    suggestionController.current = controller;
     setOptions([]);
     setOpen(false);
     setActive(-1);
@@ -272,10 +294,24 @@ export function AddressSuggestionField<T>({
     const current = value();
     const chosen = current === address ? option : undefined;
     const next = chosen?.address ?? current;
-    dismiss();
+    dismiss(true);
     setEnabled(false);
     if (field.current) field.current.value = next;
     onSubmit(next, chosen?.value);
+  };
+  const clear = () => {
+    if (busy) return;
+    quietUntilEdit.current = true;
+    dismiss(true);
+    setEnabled(false);
+    recent.current.clear();
+    if (field.current) {
+      field.current.value = '';
+      field.current.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    onAddress('');
+    onClear?.();
+    focus();
   };
   if (Platform.OS !== 'web')
     return (
@@ -316,7 +352,7 @@ export function AddressSuggestionField<T>({
           width: '100%',
           minHeight: compact ? 56 : 60,
           boxSizing: 'border-box',
-          padding: compact ? '15px 16px' : '17px 18px',
+          padding: compact ? '15px 56px 15px 16px' : '17px 60px 17px 18px',
           borderRadius: compact ? 12 : 14,
           border: `1px solid ${focused ? '#5b30d6' : invalid ? '#a3421a' : fieldHovered ? 'rgba(17,21,15,.4)' : 'rgba(17,21,15,.22)'}`,
           boxShadow: focused ? '0 0 0 3px rgba(91,48,214,.22)' : 'none',
@@ -334,6 +370,7 @@ export function AddressSuggestionField<T>({
         onMouseEnter={() => setFieldHovered(true)}
         onMouseLeave={() => setFieldHovered(false)}
         onChange={(event) => {
+          quietUntilEdit.current = false;
           dismiss();
           setEnabled(true);
           const next = event.target.value.replace(/[\r\n]+/g, ' ');
@@ -341,9 +378,9 @@ export function AddressSuggestionField<T>({
           onAddress(next);
         }}
         onFocus={() => {
-          if (value() !== address) onAddress(value());
+          if (!quietUntilEdit.current && value() !== address) onAddress(value());
           setFocused(true);
-          setEnabled(true);
+          setEnabled(!quietUntilEdit.current);
         }}
         onBlur={(event) => {
           setFocused(false);
@@ -383,6 +420,12 @@ export function AddressSuggestionField<T>({
             submit(open && active >= 0 ? options[active] : undefined);
           }
         }}
+      />
+      <ClearAddressButton
+        visible={Boolean(actualAddress) && !busy}
+        top={compact ? 6 : 8}
+        right={compact ? 6 : 8}
+        onClear={clear}
       />
       {open && (
         <div

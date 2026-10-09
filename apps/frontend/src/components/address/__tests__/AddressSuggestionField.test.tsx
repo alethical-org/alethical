@@ -136,7 +136,11 @@ it.each([
     expect(suggestMatches).toHaveBeenCalledOnce();
     // Pressable consumes the click, so document outside-click handling cannot
     // disable suggestions on behalf of the form's explicit dismissal.
-    act(() => host.querySelector<HTMLElement>('[role="button"]')!.click());
+    act(() =>
+      [...host.querySelectorAll<HTMLElement>('[role="button"]')]
+        .find((button) => button.textContent === 'Find')!
+        .click(),
+    );
     expect(host.querySelector('[role="listbox"]')).toBeNull();
     act(() => render(initialAddress, true));
     act(() => render(resultAddress, false));
@@ -341,4 +345,142 @@ it('keeps at most 8 positive replies and fetches an evicted input again', async 
   await act(async () => vi.advanceTimersByTimeAsync(181));
   expect(suggestMatches).toHaveBeenCalledTimes(10);
   expect(suggestMatches).toHaveBeenLastCalledWith('100 Main 0', expect.any(AbortSignal));
+});
+
+function changeField(field: HTMLTextAreaElement, value: string) {
+  act(() => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(
+      field,
+      value,
+    );
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+
+it('clears once, aborts suggestions, keeps focus and ignores their late response', async () => {
+  let resolve!: (matches: Awaited<ReturnType<typeof suggest>>) => void;
+  const pending = new Promise<Awaited<ReturnType<typeof suggest>>>((done) => (resolve = done));
+  const suggestMatches = vi.fn((_value: string, _signal: AbortSignal) => pending);
+  const onClear = vi.fn();
+  const onSubmit = vi.fn();
+  function ClearForm() {
+    const [address, setAddress] = useState('100 Ma');
+    return (
+      <>
+        <label id="clear-label">Full street address</label>
+        <AddressSuggestionField
+          address={address}
+          onAddress={setAddress}
+          onClear={onClear}
+          suggest={suggestMatches}
+          onSubmit={onSubmit}
+          labelId="clear-label"
+          busy={false}
+          mobile={false}
+        />
+      </>
+    );
+  }
+  act(() => root.render(<ClearForm />));
+  const field = host.querySelector('textarea')!;
+  act(() => field.focus());
+  await act(async () => vi.advanceTimersByTimeAsync(181));
+  const signal = suggestMatches.mock.calls[0][1];
+  const clear = host.querySelector<HTMLButtonElement>('[aria-label="Clear address"]')!;
+  act(() => clear.click());
+  expect(onClear).toHaveBeenCalledOnce();
+  expect(onSubmit).not.toHaveBeenCalled();
+  expect(field.value).toBe('');
+  expect(document.activeElement).toBe(field);
+  expect(signal.aborted).toBe(true);
+  expect(clear.style.visibility).toBe('hidden');
+  await act(async () => {
+    resolve(await suggest());
+    await pending;
+  });
+  expect(host.querySelector('[role="listbox"]')).toBeNull();
+  expect(field.value).toBe('');
+  suggestMatches.mockImplementation(suggest);
+  changeField(field, '100 Main');
+  await act(async () => vi.advanceTimersByTimeAsync(181));
+  expect(suggestMatches).toHaveBeenCalledTimes(2);
+  expect(host.querySelector('[role="listbox"]')).not.toBeNull();
+});
+
+it('selects the whole address only on explicit edit opening and keeps suggestions quiet until typing', async () => {
+  const suggestMatches = vi.fn(suggest);
+  const onEscape = vi.fn();
+  let handle: AddressFieldHandle | null = null;
+  function EditForm() {
+    const [address, setAddress] = useState('100 Main St, Minneapolis, MN 55415');
+    return (
+      <>
+        <label id="edit-label">Full street address</label>
+        <AddressSuggestionField
+          address={address}
+          onAddress={setAddress}
+          fieldRef={(next) => {
+            handle = next;
+          }}
+          suggest={suggestMatches}
+          onSubmit={() => {}}
+          onEscape={onEscape}
+          labelId="edit-label"
+          busy={false}
+          mobile={false}
+        />
+      </>
+    );
+  }
+  act(() => root.render(<EditForm />));
+  const field = host.querySelector('textarea')!;
+  act(() => handle!.selectAll());
+  expect(document.activeElement).toBe(field);
+  expect(field.selectionStart).toBe(0);
+  expect(field.selectionEnd).toBe(field.value.length);
+  await act(async () => vi.advanceTimersByTimeAsync(181));
+  expect(suggestMatches).not.toHaveBeenCalled();
+  field.setSelectionRange(4, 4);
+  act(() => field.blur());
+  act(() => field.focus());
+  expect(field.selectionStart).toBe(4);
+  expect(field.selectionEnd).toBe(4);
+  await act(async () => vi.advanceTimersByTimeAsync(181));
+  expect(suggestMatches).not.toHaveBeenCalled();
+  changeField(field, '100 Main Street');
+  await act(async () => vi.advanceTimersByTimeAsync(181));
+  expect(host.querySelector('[role="listbox"]')).not.toBeNull();
+  act(() => field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+  expect(onEscape).not.toHaveBeenCalled();
+  expect(host.querySelector('[role="listbox"]')).toBeNull();
+  act(() => field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+  expect(onEscape).toHaveBeenCalledOnce();
+});
+
+it('shows clear for a silent browser fill without searching and reserves its room while busy', async () => {
+  const suggestMatches = vi.fn(suggest);
+  const render = (busy: boolean) =>
+    root.render(
+      <ExternalSubmitForm
+        address=""
+        busy={busy}
+        onAddress={() => {}}
+        suggestMatches={suggestMatches}
+      />,
+    );
+  act(() => render(false));
+  const field = host.querySelector('textarea')!;
+  const clear = host.querySelector<HTMLButtonElement>('[aria-label="Clear address"]')!;
+  expect(clear.style.visibility).toBe('hidden');
+  const padding = field.style.paddingRight;
+  field.value = '100 Browser St, Minneapolis, MN 55415';
+  await act(async () => vi.advanceTimersByTimeAsync(501));
+  expect(clear.style.visibility).toBe('visible');
+  expect(suggestMatches).not.toHaveBeenCalled();
+  expect(field.style.paddingRight).toBe(padding);
+  act(() => render(true));
+  expect(clear.style.visibility).toBe('hidden');
+  expect(clear.tabIndex).toBe(-1);
+  expect(field.value).toBe('100 Browser St, Minneapolis, MN 55415');
+  expect(field.style.paddingRight).toBe(padding);
 });

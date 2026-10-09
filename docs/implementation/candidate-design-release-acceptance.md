@@ -1,5 +1,18 @@
 # Candidate design build acceptance inventory
 
+## Public profile claim button, October 9, 2026
+
+The newer accepted public-profile design changes Claim this profile to the same
+green filled treatment as Manage this profile. Account controls start at the
+same left edge as their explanation on desktop/tablet and stay full-width on
+phone. Saved-request status and administrator review actions remain outlined.
+The inactive legislator claim preview retains its pale appearance.
+
+This supersedes the outlined new-claim treatment in P20 below. The older table
+retains its original comparison; the current design requirements, bundle hash,
+affected uses and acceptance evidence are in
+[claim-profile-button-plan.md](claim-profile-button-plan.md).
+
 ## Candidate profile return link, October 9, 2026
 
 Public candidate profiles use the standard grey “Go back” control. Candidate-specific

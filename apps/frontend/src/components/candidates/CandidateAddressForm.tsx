@@ -60,7 +60,7 @@ export function CandidateAddressForm({
   const [missing, setMissing] = useState(false);
   const focusField = () => inputRef.current?.focus();
   useEffect(() => {
-    if (focus) focusField();
+    if (focus) inputRef.current?.selectAll();
   }, [focus]);
   const suggest = useCallback(
     async (value: string, signal: AbortSignal) =>
@@ -133,7 +133,19 @@ export function CandidateAddressForm({
   const invalid =
     !busy && (missing || errorKind === 'no-match' || errorKind === 'outside-minnesota');
   return (
-    <View style={[styles.form, compact && { marginTop: 0 }]}>
+    <View
+      style={[styles.form, compact && { marginTop: 0 }]}
+      {...(Platform.OS === 'web' && onCancel
+        ? {
+            onKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => {
+              // The field and open choice list handle their own Escape first.
+              if (event.key !== 'Escape' || event.defaultPrevented) return;
+              event.preventDefault();
+              onCancel();
+            },
+          }
+        : {})}
+    >
       <Text nativeID={`${id}-label`} style={candidateText.strong}>
         {CANDIDATE_LOOKUP_COPY.addressLabel}
       </Text>
@@ -167,23 +179,52 @@ export function CandidateAddressForm({
             }}
           />
         </View>
-        <CandidateButton
-          label="Find"
-          busyLabel="Finding candidates…"
-          buttonRef={buttonRef}
-          busy={busy}
-          // Keep suggestions from collapsing and moving this target between
-          // pointer press and release. Keyboard focus remains unchanged.
-          keepFieldFocus
-          onPress={() => submit()}
+        <View
           style={{
-            minHeight: compact ? 52 : 60,
-            width: isMobile || compact ? '100%' : isDesktop ? 248 : 220,
-            alignSelf: 'flex-start',
-            height: compact ? 52 : 60,
-            borderRadius: 14,
+            flexDirection: 'row',
+            gap: 12,
+            width: isMobile || compact ? '100%' : undefined,
+            alignSelf: 'center',
+            alignItems: 'stretch',
           }}
-        />
+        >
+          <CandidateButton
+            label="Find"
+            busyLabel="Finding candidates…"
+            reserveBusyLabel={compact}
+            buttonRef={buttonRef}
+            busy={busy}
+            // Keep suggestions from collapsing and moving this target between
+            // pointer press and release. Keyboard focus remains unchanged.
+            keepFieldFocus
+            onPress={() => submit()}
+            style={{
+              minHeight: compact ? 52 : 60,
+              width: isMobile || compact ? undefined : isDesktop ? 248 : 220,
+              flex: isMobile || compact ? 1 : undefined,
+              paddingHorizontal: compact ? 16 : 22,
+              alignSelf: 'stretch',
+              height: compact ? undefined : 60,
+              paddingVertical: compact ? 8 : 0,
+              borderRadius: 14,
+            }}
+          />
+          {onCancel ? (
+            <CandidateButton
+              label="Cancel"
+              kind="outline"
+              pressedStyle={{ backgroundColor: '#eceeed' }}
+              icon="none"
+              onPress={onCancel}
+              style={{
+                minHeight: 52,
+                paddingHorizontal: 16,
+                borderRadius: 12,
+                alignSelf: 'stretch',
+              }}
+            />
+          ) : null}
+        </View>
       </View>
       <View aria-live="polite" style={styles.hiddenStatus}>
         {busy && showBusyMessage ? <Text>Finding candidates…</Text> : null}

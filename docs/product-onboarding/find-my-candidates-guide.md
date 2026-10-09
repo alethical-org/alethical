@@ -12,7 +12,11 @@ it never puts the address in a link or saved browser storage.
 
 The full street address identifies the official street range, including house number,
 odd/even side, street direction, city, ZIP and any source-defined unit boundaries.
-Both address entry boxes grow to keep long addresses fully visible.
+Both address entry boxes grow to keep long addresses fully visible. A filled box shows a 44px
+**Clear address** button (×), including a browser-filled value. Clearing empties
+and focuses the box without searching, dismisses choices, and ignores late replies.
+It removes address-specific errors but retains service failures and existing results.
+The button's reserved space stays put when empty or busy.
 Typing, pasting and choosing a saved browser address use the same search. Keyboard
 Search and **Find** submit the address visible in the box, including
 a browser-filled value that arrived just before submission. The suggestion list
@@ -87,7 +91,9 @@ link keeps **Find my candidates**. Candidate profiles use the standard **Go back
 link, returning to the previous Alethical page in the tab or `/candidates` on a
 direct visit.
 Entry fields and buttons have a 60px minimum height. **Change address** retains
-its compact 56px field and 52px button. Both use the same suggestion component.
+its compact 56px field and 52px minimum button height. Wrapped or enlarged waiting
+text can grow the action row; the ready state reserves the same height and Cancel
+stays aligned. Both use the same suggestion component.
 Minnesota mapping services can supply a complete address when the ZIP is missing.
 The voter must confirm that complete address, even when only 1 choice is returned.
 Before offering a typing suggestion or submitted address choice, the candidate
@@ -191,9 +197,16 @@ A source outage, a missing address match, an empty candidate list and uncertain
 coverage remain distinct. The last successful results stay visible during a replacement
 and after a failed update, with their original address, election, source and dates.
 Only the newest request can replace them. Errors retain the typed address and offer retry.
+**Change address** selects the full address once when editing opens, with suggestions
+closed until the reader edits. Later clicks place the cursor normally. **Find** and
+outlined **Cancel** share a row; Cancel remains available during a search. Cancel
+restores the last successful address and election, cancels unfinished work, closes
+the editor, and returns focus to Change address. Escape first closes an open choice
+list; with no list open, Escape does the same as Cancel.
+
 Changing an address keeps the form open while typing, even when the draft equals the
 previous successful request. Only an explicitly submitted successful replacement or
-Escape cancellation closes editing; a submitted recent cached result follows the same transition.
+**Cancel** or Escape cancellation closes editing; a submitted recent cached result follows the same transition.
 While an address search runs, both **Find** buttons show a spinner
 and **Finding candidates…** inside their unchanged box. A screen reader receives
 1 polite waiting announcement; the line below stays reserved for errors without
