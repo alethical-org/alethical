@@ -497,7 +497,7 @@ Release preparation (9 October 2026):
   operator's deployment, uncertain flag writes, rollback and a delayed first build.
   Production activation time remains unmeasured until the actual operation.
 - Docker Hub refused the backend check twice before tests could start. GitHub's
-  fresh runner now configures Google's public cache before starting the same
+  fresh runner now pulls directly from Google's public cache before starting the same
   disposable PostgreSQL image. Matching public image manifests establish unchanged
   database contents. Cache misses still use Docker Hub; final-head CI must exercise
   the runner setup. Local and shared development databases remain untouched.

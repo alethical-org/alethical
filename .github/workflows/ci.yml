@@ -176,28 +176,22 @@ jobs:
     env:
       DATABASE_URL: postgresql+psycopg://alethical:alethical@localhost:5432/alethical
     steps:
-      # Job services start before any step can configure Docker's supported
-      # public-image cache. Start this disposable database after that setup so
-      # a shared Docker Hub download limit cannot prevent every test from running.
+      # Pull the same public image directly from Google's cache. Docker's daemon
+      # mirror fallback still reached Docker Hub's shared pull limit on CI.
       - name: Start the temporary test database through Google's public cache
         run: |
           set -euo pipefail
-          ci_database_config=$(mktemp)
-          if sudo test -f /etc/docker/daemon.json; then
-            sudo cat /etc/docker/daemon.json > "$ci_database_config"
-          else
-            printf '{}\n' > "$ci_database_config"
+          ci_database_image=mirror.gcr.io/pgvector/pgvector:pg17
+          if ! docker pull "$ci_database_image"; then
+            ci_database_image=pgvector/pgvector:pg17
+            docker pull "$ci_database_image"
           fi
-          jq '.["registry-mirrors"] = ["https://mirror.gcr.io"]' "$ci_database_config" > "$ci_database_config.updated"
-          sudo install -m 644 "$ci_database_config.updated" /etc/docker/daemon.json
-          rm "$ci_database_config" "$ci_database_config.updated"
-          sudo systemctl restart docker
           docker run --detach --rm --name alethical-ci-postgres \
             -e POSTGRES_DB=alethical -e POSTGRES_USER=alethical \
             -e POSTGRES_PASSWORD=alethical -p 5432:5432 \
             --health-cmd "pg_isready -U alethical -d alethical" \
             --health-interval 5s --health-timeout 5s --health-retries 20 \
-            pgvector/pgvector:pg17
+            "$ci_database_image"
           for attempt in $(seq 1 30); do
             if test "$(docker inspect --format '{{.State.Health.Status}}' alethical-ci-postgres)" = healthy; then
               exit 0

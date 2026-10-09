@@ -670,7 +670,7 @@ class ProviderTests(unittest.TestCase):
             if path == "/readyz":
                 return {"status": "ready"}
             self.assertEqual(path, "/api/v1/address-suggestions")
-            self.assertEqual(body, {"address_text": "350 S 5th St Minneapolis"})
+            self.assertEqual(body, {"address_text": "350 5th Street South"})
             return {
                 "data": {
                     "suggestions": [
