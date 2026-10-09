@@ -18,6 +18,7 @@ from alethical.api.services.candidate_lookup import (
     SOURCE_URL,
     STREETS_URL,
     CandidateLookupService,
+    load_profile,
     persist_catalogue,
 )
 from alethical.db.models import (
@@ -206,6 +207,12 @@ def test_forty_candidate_search_saves_and_reads_within_statement_budget(
                 snapshots |= set(db.scalars(select(CandidateSnapshot.id))) - known
             entries = [e for race in enriched["races"] for e in race["entries"]]
             assert len(entries) == 40
+            # Every linked profile opens from a separate connection, without the address.
+            with get_session_factory()() as other:
+                for entry in entries:
+                    profile = load_profile(other, entry["candidate"]["id"], now=now)
+                    assert profile["candidate"]["id"] == entry["candidate"]["id"]
+                    assert "EXAMPLE ST" not in json.dumps(profile)
             assert all(e["candidate"]["people"] == [] for e in entries)
             assert all(e["candidate"]["electionEnded"] is False for e in entries)
     finally:
@@ -254,20 +261,32 @@ def test_batch_matches_one_at_a_time_rules_for_new_newer_older_and_repeated_read
     assert rows[ids[3]][0]["source"]["checkedDate"] == "2026-10-01"
 
 
-def test_batch_identity_change_still_rejects_without_saving(seed_database):
-    cid = uuid4().hex * 2
-    with get_session_factory()() as db:
-        records.save_candidate_records(
-            db, profiles=[_profile(cid)], source_hash="a" * 64, checked_at=NOW
-        )
-        with pytest.raises(records.PublicRecordConflict):
+def test_batch_identity_change_rejects_the_whole_save(seed_database):
+    cid, fresh = uuid4().hex * 2, uuid4().hex * 2
+    factory = get_session_factory()
+    try:
+        with factory() as db:
             records.save_candidate_records(
-                db,
-                profiles=[_profile(cid, name="Different name")],
-                source_hash="b" * 64,
-                checked_at=NOW + timedelta(hours=1),
+                db, profiles=[_profile(cid)], source_hash="a" * 64, checked_at=NOW
             )
-        db.rollback()
+            db.commit()
+        with factory() as db:
+            with pytest.raises(records.PublicRecordConflict):
+                records.save_candidate_records(
+                    db,
+                    profiles=[_profile(fresh), _profile(cid, name="Different name")],
+                    source_hash="b" * 64,
+                    checked_at=NOW + timedelta(hours=1),
+                )
+            db.rollback()
+        with factory() as db:
+            rows, versions = _state(db, [cid, fresh])
+        # Nothing from the failed save remains, and the earlier read is untouched.
+        assert list(rows) == [cid]
+        assert rows[cid][1:] == ("a" * 64, NOW)
+        assert _history(versions) == {cid: [("a" * 64, NOW)]}
+    finally:
+        _cleanup([cid, fresh])
 
 
 def test_single_save_returns_current_row_after_batched_write(seed_database):
