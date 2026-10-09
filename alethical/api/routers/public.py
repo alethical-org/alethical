@@ -119,6 +119,7 @@ from alethical.api.services.legislator_finance import (
 )
 from alethical.api.services.representative_lookup import (
     DistrictMatch,
+    RepresentativeLookupAmbiguousLocation,
     RepresentativeLookupChoices,
     RepresentativeLookupNotFound,
     RepresentativeLookupOutsideMinnesota,
@@ -5468,6 +5469,7 @@ def address_suggestions(
                     "latitude": suggestion.latitude,
                     "longitude": suggestion.longitude,
                     "state_code": suggestion.state_code,
+                    "requires_location_check": suggestion.requires_location_check,
                 }
                 for suggestion in suggestions
             ]
@@ -5489,6 +5491,15 @@ def representative_lookup(
         if request.address_text:
             lookup_result = lookup_service.lookup(request.address_text)
             input_mode = "address"
+        elif request.selected_address:
+            assert request.latitude is not None
+            assert request.longitude is not None
+            lookup_result = lookup_service.lookup_selected(
+                request.selected_address,
+                latitude=request.latitude,
+                longitude=request.longitude,
+            )
+            input_mode = "address"
         else:
             assert request.latitude is not None
             assert request.longitude is not None
@@ -5503,7 +5514,7 @@ def representative_lookup(
                 "status": "address-choice",
                 "resolved_place": {
                     "input_mode": "address",
-                    "address_text": request.address_text,
+                    "address_text": request.address_text or request.selected_address,
                 },
                 "address_choices": [
                     {
@@ -5511,6 +5522,7 @@ def representative_lookup(
                         "latitude": choice.latitude,
                         "longitude": choice.longitude,
                         "state_code": choice.state_code,
+                        "requires_location_check": choice.requires_location_check,
                     }
                     for choice in exc.choices
                 ],
@@ -5522,6 +5534,14 @@ def representative_lookup(
             "Outside Minnesota",
             str(exc),
             type_slug="representative-lookup-outside-minnesota",
+        ) from None
+    except RepresentativeLookupAmbiguousLocation as exc:
+        # Same printed address, current official points in different districts.
+        raise problem_exception(
+            404,
+            "Not Found",
+            str(exc),
+            type_slug="representative-lookup-ambiguous-location",
         ) from None
     except RepresentativeLookupNotFound as exc:
         raise problem_exception(
