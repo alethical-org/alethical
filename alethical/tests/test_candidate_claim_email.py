@@ -49,6 +49,9 @@ def delivery(monkeypatch):
     }
     factory = get_session_factory()
     with factory() as db:
+        # Other claim suites queue real deliveries and clean only at their next start, so
+        # whichever of their tests runs last can leave one due. Each case here counts its own.
+        db.execute(delete(CandidateClaimEmailDelivery))
         db.execute(text("CREATE SCHEMA IF NOT EXISTS auth"))
         db.execute(
             text("""CREATE TABLE IF NOT EXISTS auth.users (

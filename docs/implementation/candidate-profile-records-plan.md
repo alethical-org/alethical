@@ -276,29 +276,31 @@ accepted it before implementation.
 Scope delivered in this round:
 
 1. `/candidates/features`: public page, every feature labelled on the roadmap, claim
-   context by public candidate id only, first response served without indexing, and the
-   claim page link in the same release.
+   context by public candidate id only, and the claim page link in the same release. The
+   plain address is indexed and in the sitemap; an address carrying a candidate is kept
+   out of search with no canonical.
 2. Claim page: introduction, sign-in return, human-review form wording, per-length
-   explanation errors, in-memory answers bound to account and candidate, receipt with
-   the server's latest submission date and exact-prefix role, and every status state.
+   explanation errors, in-memory answers bound to account and candidate (handed once to a
+   tab opened from a claim-step link with the browser's new-tab gesture, over the
+   same-site tab channel only), receipt with the server's latest submission date and the
+   saved explanation exactly as stored, and every status state.
 3. Manage page: new layout and wording, live count, publication date under the editor,
-   Save changes only after an edit, write checks on every path, read-before-retry, and
-   equal-width dialogs.
-4. Public statement card, failure retry and report dialog with the updated-statement
-   panel; first publication and latest edit derived from revision history (no schema
-   change).
+   Save changes only after an edit, write checks on every path, read-before-retry that
+   never overwrites a statement saved elsewhere, and equal-width dialogs.
+4. Public statement card with Design's settled spacing, failure retry and report dialog
+   with the updated-statement panel; first publication and latest edit derived from
+   revision history (no schema change), and no date where that history is missing.
 5. Admin request review labels, decision section, block order and placement, and
    per-submission history; profile claim email wording.
 6. Grey Go back on person overview and the admin request; legislator panel edge
    alignment on the candidate profile.
 
 Held: an applicant-facing rejection reason (not approved intent; the private review note
-stays private), and the statement card's bottom paddings, where 2 drawings disagree and
-Design rules on the final value.
+stays private).
 
-Verification: focused backend and frontend suites, the full frontend suite, and 2
-rendered Chromium specs with fictional intercepted data at 1280, 900 and 390 pixels
-(`apps/frontend/e2e/candidate-features-and-claim-round.spec.ts`,
-`apps/frontend/e2e/profile-claim-interactions.spec.ts`). No real claim, decision,
+Verification: focused backend and frontend suites, the full frontend suite, and rendered
+Chromium and WebKit specs with fictional intercepted data at 1280, 900 and 390 pixels
+(`apps/frontend/e2e/candidate-features-and-claim-round.spec.ts`, including a two-tab
+check, `apps/frontend/e2e/profile-claim-interactions.spec.ts`). No real claim, decision,
 statement, report or email was created to test. Remaining: independent product
 acceptance, current-head checks, merge, deployment and live comparison.

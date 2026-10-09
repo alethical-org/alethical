@@ -61,6 +61,7 @@ import { candidateFeaturesPath } from '../lib/candidateFeatures';
 import {
   clearProfileClaimDraft,
   readProfileClaimDraft,
+  requestProfileClaimDraftFromOtherTab,
   saveProfileClaimDraft,
 } from '../lib/profileClaimDraft';
 import { useDocumentTitle } from '../navigation/documentTitle';
@@ -485,6 +486,16 @@ function ClaimForm({
   const noteRef = useRef<TextInput>(null);
   const statusRef = useRef<View>(null);
   const seenFocus = useRef(false);
+  const auth = useAuth();
+  const live = useRef({ auth, role, evidence, note, errors, edited: false });
+  live.current = {
+    auth,
+    role,
+    evidence,
+    note,
+    errors,
+    edited: live.current.edited || Boolean(role || evidence || note || Object.keys(errors).length),
+  };
   useEffect(() => {
     saveProfileClaimDraft(accountKey, candidateId, {
       role,
@@ -493,6 +504,35 @@ function ClaimForm({
       errors,
     });
   }, [accountKey, candidateId, role, evidence, note, errors]);
+  // A claim step opened in a new tab asks once for the answers that tab was opened from.
+  // They are accepted only while this tab is still the same account and the form is
+  // still empty and untouched, so nothing newer is ever replaced.
+  useEffect(() => {
+    if (saved) return;
+    const controller = new AbortController();
+    const untouched = () => {
+      const now = live.current;
+      return (
+        now.auth.isSignedIn &&
+        now.auth.user?.id === accountKey &&
+        !now.edited &&
+        !readProfileClaimDraft(accountKey, candidateId)
+      );
+    };
+    void requestProfileClaimDraftFromOtherTab(
+      accountKey,
+      candidateId,
+      untouched,
+      controller.signal,
+    ).then((draft) => {
+      if (!draft || controller.signal.aborted || !untouched()) return;
+      setRole(draft.role);
+      setEvidence(draft.link);
+      setNote(draft.explanation);
+      setErrors(draft.errors);
+    });
+    return () => controller.abort();
+  }, []);
   const current = response?.claims.find((item) => item.candidate_id === candidateId);
   const reason = response?.request_eligibility?.reason;
   const closed =

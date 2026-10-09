@@ -456,6 +456,8 @@ for (const band of bands) {
       await expect(page.getByRole('link', { name: 'View public profile' })).toBeVisible();
       const editor = page.getByRole('textbox', { name: 'Campaign statement' });
       expect((await box(editor)).height).toBeGreaterThanOrEqual(136);
+      const showPreview = page.getByRole('button', { name: 'Preview' });
+      await showPreview.click();
       const preview = page
         .getByText('PREVIEW', { exact: true })
         .locator('xpath=following-sibling::*[1]');
@@ -464,6 +466,9 @@ for (const band of bands) {
       ).toBeVisible();
       await expect(preview.getByRole('button', { name: 'Report this statement' })).toHaveCount(0);
       await expectStatementSpacing(preview, band.name);
+      await shot(page, `manage-preview-${band.name}`);
+      await showPreview.click();
+      await expect(page.getByText('PREVIEW', { exact: true })).toHaveCount(0);
       await shot(page, `manage-published-${band.name}`);
       await editor.fill(`${'x'.repeat(1995)} and more`);
       await expect(page.getByRole('button', { name: 'Save changes' })).toBeVisible();
@@ -640,3 +645,58 @@ for (const band of bands) {
     });
   });
 }
+
+test('a claim step opened in a new tab carries unsent answers; a plain new tab does not', async ({
+  page,
+  context,
+}) => {
+  const api = await fixture(page);
+  const linkLabel = 'Link to a campaign website or official record';
+  const noteLabel = 'Explain your role and how Alethical can confirm it';
+  const typed = 'Illustrative: typed before opening a new tab.';
+  await page.goto(`${profilePath}/claim`);
+  await page.getByRole('radio', { name: 'Authorized campaign representative' }).check();
+  await page.getByLabel(linkLabel, { exact: true }).fill('https://example-campaign.org/new-tab');
+  await page.getByLabel(noteLabel, { exact: true }).fill(typed);
+  // An in-app trip to the features page; signed in, the claim page has no features link.
+  await page.evaluate((path) => {
+    window.history.pushState({}, '', path);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }, `/candidates/features?candidate=${candidateId}`);
+  const resume = page.getByRole('link', { name: 'Continue claiming this candidate profile' });
+  const [opened] = await Promise.all([
+    context.waitForEvent('page'),
+    resume.click({ modifiers: ['ControlOrMeta'] }),
+  ]);
+  await fixture(opened);
+  await expect(opened).toHaveURL(new RegExp(`${profilePath}/claim$`));
+  await expect(opened.getByLabel(linkLabel, { exact: true })).toHaveValue(
+    'https://example-campaign.org/new-tab',
+  );
+  await expect(
+    opened.getByRole('radio', { name: 'Authorized campaign representative' }),
+  ).toBeChecked();
+  await expect(opened.getByLabel(noteLabel, { exact: true })).toHaveValue(typed);
+  // Nothing private went through the address or browser storage.
+  expect(opened.url()).not.toContain('Illustrative');
+  for (const tab of [page, opened])
+    expect(
+      await tab.evaluate(() =>
+        JSON.stringify({ ...localStorage, ...sessionStorage }).includes('Illustrative'),
+      ),
+    ).toBe(false);
+  // The original tab keeps its own answers.
+  await resume.click();
+  await expect(page.getByLabel(linkLabel, { exact: true })).toHaveValue(
+    'https://example-campaign.org/new-tab',
+  );
+  // A tab opened without that gesture starts empty, and stays empty past the answer window.
+  const plain = await context.newPage();
+  await fixture(plain);
+  await plain.goto(`${profilePath}/claim`);
+  await expect(plain.getByLabel(linkLabel, { exact: true })).toHaveValue('');
+  await plain.waitForTimeout(2000);
+  await expect(plain.getByLabel(linkLabel, { exact: true })).toHaveValue('');
+  await expect(plain.getByLabel(noteLabel, { exact: true })).toHaveValue('');
+  expect(api.writes).toHaveLength(0);
+});
