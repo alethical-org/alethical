@@ -260,9 +260,15 @@ are now, not where you live**. **Street address** is editable and prefilled.
 the street segment before the first comma; a bare value such as `3` becomes `#3`,
 `Apt. 3` is read as `Apt 3`, and the same unit typed in both fields appears once:
 `Apt #250`, `Apt 250`, `Apt.250`, `#250` and a bare `250` beside a street already
-carrying `Apt #250` are all the same unit. A different number, a different label
-(`Unit 250` beside `Apt 250`) or extra words are kept, and the official match then
-refuses the address rather than choosing either.
+carrying `Apt #250` are all the same unit. Both fields count as the same only when
+each holds 1 complete supported unit (an optional Apt, Apartment, Unit, Suite or Ste
+label and 1 value of letters, digits and hyphens) with the same value, and the
+street's unit ends at a comma, the state and ZIP or the end of the line. Only the
+dot or `#` after the label is ignored; punctuation inside a value never is, so
+`Apt 2.50` is not `Apt 250`. Anything else, including a different number, a
+different label (`Unit 250` beside `Apt 250`), an unsupported word (`Floor 250`),
+extra words or text after the street's unit (`Apt #250.5`), is kept as typed, and
+the official match then refuses the address rather than choosing either.
 **This is my home address** (busy **Finding…** in the same box) runs the normal exact
 official match; Enter in either field does the same, except while an input method is
 composing text, and a second press cannot submit again. Editing either field cancels
