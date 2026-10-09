@@ -40,6 +40,14 @@ premerge checks. Missing unrelated eager fixture reads receive HTTP 503; they
 are not invented records or evidence that campaign figures loaded. The 3 named
 money fixture checks now require the rendered figures themselves.
 
+The required frontend job also runs
+[`check-candidate-return.mjs`](../../apps/frontend/scripts/check-candidate-return.mjs)
+against the same production build. Its explicitly illustrative candidate records
+exercise search, a collapsed group, a profile visit and return at desktop, tablet
+and phone widths. The same result text, group states and link position must return.
+Candidate API answers are supplied locally; unrelated outside requests receive
+HTTP 503. The test sends no address to a service and starts no sign-in or paid work.
+
 ### Campaign-money fixture evidence
 
 The retained [Jim Abeler profile](../../apps/frontend/scripts/fixtures/reader-legislator-jim-abeler.json)

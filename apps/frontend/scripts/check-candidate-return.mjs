@@ -42,8 +42,10 @@ try {
       isMobile: width === 390,
       hasTouch: width === 390,
     });
-    await page.route('**/candidates/**', async (route) => {
-      const path = new URL(route.request().url()).pathname;
+    await page.route('**/*', async (route) => {
+      const url = new URL(route.request().url());
+      if (url.origin === new URL(base).origin) return route.continue();
+      const path = url.pathname;
       let body;
       if (path.endsWith('/elections')) body = [election];
       else if (path.endsWith('/suggest')) body = [];
@@ -68,7 +70,7 @@ try {
           votingArea: race.votingArea,
           source,
         };
-      } else return route.continue();
+      } else return route.fulfill({ status: 503, json: { detail: 'No retained fixture' } });
       await route.fulfill({ json: body });
     });
     await page.goto(`${base}/candidates`);
