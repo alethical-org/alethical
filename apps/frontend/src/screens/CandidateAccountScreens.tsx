@@ -61,8 +61,9 @@ import { candidateFeaturesPath } from '../lib/candidateFeatures';
 import {
   clearProfileClaimDraft,
   readProfileClaimDraft,
-  requestProfileClaimDraftFromOtherTab,
+  requestProfileClaimDraftFromOpeningTab,
   saveProfileClaimDraft,
+  takeProfileClaimDraftCode,
 } from '../lib/profileClaimDraft';
 import { useDocumentTitle } from '../navigation/documentTitle';
 import { GuardedNavigationContext } from '../navigation/GuardedNavigationContext';
@@ -504,11 +505,13 @@ function ClaimForm({
       errors,
     });
   }, [accountKey, candidateId, role, evidence, note, errors]);
-  // A claim step opened in a new tab asks once for the answers that tab was opened from.
-  // They are accepted only while this tab is still the same account and the form is
-  // still empty and untouched, so nothing newer is ever replaced.
+  // A claim page opened from a link in a new tab carries a one-time code in its address
+  // fragment; it is removed at once and used to ask, once, for the answers that tab was
+  // opened from. They are accepted only while this tab is still the same account and the
+  // form is still empty and untouched, so nothing newer is ever replaced.
   useEffect(() => {
-    if (saved) return;
+    const code = takeProfileClaimDraftCode(candidateId);
+    if (saved || !code) return;
     const controller = new AbortController();
     const untouched = () => {
       const now = live.current;
@@ -519,7 +522,8 @@ function ClaimForm({
         !readProfileClaimDraft(accountKey, candidateId)
       );
     };
-    void requestProfileClaimDraftFromOtherTab(
+    void requestProfileClaimDraftFromOpeningTab(
+      code,
       accountKey,
       candidateId,
       untouched,

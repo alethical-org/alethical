@@ -1,4 +1,3 @@
-import { candidateFeaturesContext } from './candidateFeatures';
 import { registerCandidatePrivacyReset } from './candidatePrivacy';
 
 /** Unsent profile claim answers for one signed-in account and one candidate.
@@ -7,15 +6,19 @@ import { registerCandidatePrivacyReset } from './candidatePrivacy';
  * claim step as it was left. Never written to browser storage or an address: the
  * answers are private evidence. Any account change clears every draft.
  *
- * One bounded exception reaches another tab. When the reader explicitly opens a
- * claim-step link in a new tab or window (Cmd/Ctrl/Shift-click, middle click, or
- * the link's own menu), this tab offers that candidate's answers for 2 minutes.
- * A claim form that opens empty in another tab of this site asks once; only a tab
- * holding an offer for the same account and candidate answers, once, over the
- * browser's same-site tab channel (BroadcastChannel). Nothing goes through an
- * address, storage, history or a server. The receiving form accepts only while
- * still signed in to that account and still empty and untouched, so it never
- * replaces newer answers. */
+ * One bounded exception reaches another tab, and only the tab the reader opens.
+ * When the reader opens a claim page link in a new tab or window with the
+ * browser's own gesture (Cmd/Ctrl/Shift-click, middle click, or the link's menu)
+ * while this tab holds answers for that candidate, this tab adds a random one-time
+ * code to that link's address fragment (`#claim-draft=<code>`, which browsers never
+ * send to a server) and offers the answers to that code for 2 minutes. The opened
+ * claim page removes the code from its address at once and asks for the answers
+ * over the browser's same-site tab channel (BroadcastChannel). Only the tab holding
+ * the matching code answers, once, for the same account and candidate, and the
+ * receiving form accepts only while still signed in to that account and still
+ * empty and untouched, so it never replaces newer answers. A tab opened any other
+ * way has no code and starts empty. The code is not private text: it reveals
+ * nothing, works once, and expires. */
 export interface ProfileClaimDraft {
   role: string;
   link: string;
@@ -28,17 +31,17 @@ type DraftChannel = {
   onmessage: ((event: { data: unknown }) => void) | null;
   close(): void;
 };
-type Offer = { accountId: string; candidateId: string; expires: number };
-type Reply = { draft: ProfileClaimDraft; editedAt: number };
+type Offer = { code: string; accountId: string; candidateId: string; expires: number };
 
 const CHANNEL_NAME = 'alethical-profile-claim-draft';
 const REQUEST = 'profile-claim-draft-request';
 const REPLY = 'profile-claim-draft-reply';
+const FRAGMENT_KEY = 'claim-draft';
 export const PROFILE_CLAIM_DRAFT_OFFER_MS = 2 * 60 * 1000;
 const WAIT_MS = 1500;
-const SETTLE_MS = 100;
 const MAX_TEXT = 10000;
 const ERROR_KEYS = ['role', 'link', 'explanation'] as const;
+const CODE = /^[a-f0-9-]{36}$/;
 
 const text = (value: unknown) => typeof value === 'string' && value.length <= MAX_TEXT;
 function validDraft(value: unknown): value is ProfileClaimDraft {
@@ -64,8 +67,8 @@ function copyDraft(draft: ProfileClaimDraft): ProfileClaimDraft {
   return { role: draft.role, link: draft.link, explanation: draft.explanation, errors };
 }
 
-/** The candidate a same-site claim-step link leads to, or null for any other link. */
-export function claimStepCandidate(href: string, origin: string): string | null {
+/** The candidate a same-site claim page link leads to, or null for any other link. */
+export function claimPageCandidate(href: string, origin: string): string | null {
   let url: URL;
   try {
     url = new URL(href, origin);
@@ -73,11 +76,7 @@ export function claimStepCandidate(href: string, origin: string): string | null 
     return null;
   }
   if (url.origin !== origin) return null;
-  const claim = /^\/candidates\/([a-f0-9]{64})\/claim\/?$/.exec(url.pathname);
-  if (claim) return claim[1];
-  if (url.pathname.replace(/\/$/, '') === '/candidates/features')
-    return candidateFeaturesContext(url.searchParams.get('candidate'));
-  return null;
+  return /^\/candidates\/([a-f0-9]{64})\/claim\/?$/.exec(url.pathname)?.[1] ?? null;
 }
 
 /** One tab's drafts. A factory so tests can hold 2 tabs in one process. */
@@ -85,7 +84,7 @@ export function createProfileClaimDraftTab(
   options: {
     openChannel?: () => DraftChannel | null;
     now?: () => number;
-    nonce?: () => string;
+    newCode?: () => string | null;
   } = {},
 ) {
   const openChannel =
@@ -95,63 +94,45 @@ export function createProfileClaimDraftTab(
         ? (new BroadcastChannel(CHANNEL_NAME) as unknown as DraftChannel)
         : null);
   const now = options.now ?? (() => Date.now());
-  const nonce =
-    options.nonce ??
+  // Without a secure random source there is no code, so nothing is offered.
+  const newCode =
+    options.newCode ??
     (() =>
-      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
         ? crypto.randomUUID()
-        : `${Math.random()}${now()}`);
-  const drafts = new Map<string, Reply>();
+        : null);
+  const drafts = new Map<string, ProfileClaimDraft>();
   let offers: Offer[] = [];
   let channel: DraftChannel | null = null;
-  const waiting = new Map<
-    string,
-    (reply: Reply & { accountId: string; candidateId: string }) => void
-  >();
+  const waiting = new Map<string, (reply: Record<string, unknown>) => void>();
   const key = (accountId: string, candidateId: string) => `${accountId}\u0000${candidateId}`;
 
   const onMessage = (event: { data: unknown }) => {
     const message = event.data as Record<string, unknown> | null;
-    if (!message || typeof message !== 'object') return;
-    if (
-      message.type === REQUEST &&
-      typeof message.nonce === 'string' &&
-      typeof message.accountId === 'string' &&
-      typeof message.candidateId === 'string'
-    ) {
-      const { accountId, candidateId } = message as { accountId: string; candidateId: string };
-      offers = offers.filter((offer) => offer.expires > now());
-      const index = offers.findIndex(
-        (offer) => offer.accountId === accountId && offer.candidateId === candidateId,
-      );
-      const entry = drafts.get(key(accountId, candidateId));
-      if (index < 0 || !entry) return;
-      // One answer per explicit new-tab opening.
-      offers.splice(index, 1);
-      channel?.postMessage({
-        type: REPLY,
-        nonce: message.nonce,
-        accountId,
-        candidateId,
-        editedAt: entry.editedAt,
-        draft: copyDraft(entry.draft),
-      });
+    if (!message || typeof message !== 'object' || typeof message.code !== 'string') return;
+    if (message.type === REPLY) {
+      waiting.get(message.code)?.(message);
       return;
     }
-    if (
-      message.type === REPLY &&
-      typeof message.nonce === 'string' &&
-      typeof message.accountId === 'string' &&
-      typeof message.candidateId === 'string' &&
-      typeof message.editedAt === 'number' &&
-      validDraft(message.draft)
-    )
-      waiting.get(message.nonce)?.({
-        accountId: message.accountId,
-        candidateId: message.candidateId,
-        editedAt: message.editedAt,
-        draft: copyDraft(message.draft),
-      });
+    if (message.type !== REQUEST) return;
+    offers = offers.filter((item) => item.expires > now());
+    const index = offers.findIndex(
+      (item) =>
+        item.code === message.code &&
+        item.accountId === message.accountId &&
+        item.candidateId === message.candidateId,
+    );
+    if (index < 0) return;
+    const [offer] = offers.splice(index, 1);
+    const draft = drafts.get(key(offer.accountId, offer.candidateId));
+    if (!draft) return;
+    channel?.postMessage({
+      type: REPLY,
+      code: offer.code,
+      accountId: offer.accountId,
+      candidateId: offer.candidateId,
+      draft: copyDraft(draft),
+    });
   };
   const connect = () => {
     if (!channel) {
@@ -161,34 +142,35 @@ export function createProfileClaimDraftTab(
     return channel;
   };
 
-  /** The reader opened a claim-step link for this candidate in a new tab or window. */
+  /** The reader is opening a claim page link for this candidate in a new tab or window.
+   * Returns the one-time code to put in that link's fragment, or null to offer nothing. */
   const offer = (candidateId: string) => {
     const held = [...drafts.keys()]
       .map((value) => value.split('\u0000'))
-      .filter(([, candidate]) => candidate === candidateId);
-    if (!held.length) return;
-    const expires = now() + PROFILE_CLAIM_DRAFT_OFFER_MS;
+      .find(([, candidate]) => candidate === candidateId);
+    const code = held ? newCode() : null;
+    if (!held || !code || !connect()) return null;
     offers = [
-      ...offers.filter((item) => item.candidateId !== candidateId),
-      ...held.map(([accountId]) => ({ accountId, candidateId, expires })),
+      ...offers.filter((item) => item.expires > now()),
+      { code, accountId: held[0], candidateId, expires: now() + PROFILE_CLAIM_DRAFT_OFFER_MS },
     ];
-    connect();
+    return code;
   };
 
   return {
     read(accountId: string, candidateId: string) {
-      return drafts.get(key(accountId, candidateId))?.draft ?? null;
+      return drafts.get(key(accountId, candidateId)) ?? null;
     },
     save(accountId: string, candidateId: string, draft: ProfileClaimDraft) {
       const empty = !draft.role && !draft.link && !draft.explanation;
       if (empty && !Object.values(draft.errors).some(Boolean))
         drafts.delete(key(accountId, candidateId));
-      else drafts.set(key(accountId, candidateId), { draft, editedAt: now() });
+      else drafts.set(key(accountId, candidateId), draft);
     },
     clear(accountId: string, candidateId: string) {
       drafts.delete(key(accountId, candidateId));
       offers = offers.filter(
-        (offer) => offer.accountId !== accountId || offer.candidateId !== candidateId,
+        (item) => item.accountId !== accountId || item.candidateId !== candidateId,
       );
     },
     clearAll() {
@@ -196,44 +178,47 @@ export function createProfileClaimDraftTab(
       offers = [];
     },
     offer,
-    /** Ask other tabs once for answers offered to this account and candidate. Resolves
-     * with the most recently edited answer, or null. `isCurrent` re-checks the signed-in
-     * account and the empty form at the moment of acceptance. */
+    /** Ask, once, for the answers offered to this code, account and candidate. `isCurrent`
+     * re-checks the signed-in account and the empty, untouched form at acceptance. */
     request(
+      code: string,
       accountId: string,
       candidateId: string,
       isCurrent: () => boolean,
       signal?: AbortSignal,
     ): Promise<ProfileClaimDraft | null> {
       const open = connect();
-      if (!open || signal?.aborted) return Promise.resolve(null);
-      const id = nonce();
+      if (!open || signal?.aborted || !CODE.test(code)) return Promise.resolve(null);
       return new Promise((resolve) => {
-        let best: Reply | null = null;
-        let settle: ReturnType<typeof setTimeout> | null = null;
-        const finish = () => {
-          waiting.delete(id);
+        const finish = (draft: ProfileClaimDraft | null) => {
+          waiting.delete(code);
           clearTimeout(timeout);
-          if (settle) clearTimeout(settle);
           signal?.removeEventListener('abort', abort);
-          resolve(best && !signal?.aborted && isCurrent() ? best.draft : null);
+          resolve(draft && !signal?.aborted && isCurrent() ? draft : null);
         };
-        const abort = () => {
-          best = null;
-          finish();
-        };
-        const timeout = setTimeout(finish, WAIT_MS);
+        const abort = () => finish(null);
+        const timeout = setTimeout(() => finish(null), WAIT_MS);
         signal?.addEventListener('abort', abort);
-        waiting.set(id, (reply) => {
-          if (reply.accountId !== accountId || reply.candidateId !== candidateId) return;
-          if (!best || reply.editedAt > best.editedAt) best = reply;
-          settle ??= setTimeout(finish, SETTLE_MS);
+        waiting.set(code, (reply) => {
+          if (
+            reply.accountId !== accountId ||
+            reply.candidateId !== candidateId ||
+            !validDraft(reply.draft)
+          )
+            return;
+          finish(copyDraft(reply.draft));
         });
-        open.postMessage({ type: REQUEST, nonce: id, accountId, candidateId });
+        open.postMessage({ type: REQUEST, code, accountId, candidateId });
       });
     },
-    /** Arm an offer from the browser's own new-tab gestures on claim-step links. */
-    watchNewTabGestures(target: Pick<Document, 'addEventListener'>, origin: string) {
+    /** Put a one-time code on a claim page link as the browser opens it in a new tab or
+     * window. The link's own address comes back at the next press or after the offer ends. */
+    watchNewTabGestures(target: Document, origin: string) {
+      const restore = new Map<HTMLAnchorElement, string>();
+      const putBack = () => {
+        for (const [anchor, href] of restore) anchor.setAttribute('href', href);
+        restore.clear();
+      };
       const handle = (event: Event) => {
         const pointer = event as MouseEvent;
         if (
@@ -247,15 +232,49 @@ export function createProfileClaimDraftTab(
         )
           return;
         if (event.type === 'auxclick' && pointer.button !== 1) return;
-        const anchor = (event.target as Element | null)?.closest?.('a[href]');
-        const href = anchor?.getAttribute('href');
-        const candidateId = href ? claimStepCandidate(href, origin) : null;
-        if (candidateId) offer(candidateId);
+        const anchor = (event.target as Element | null)?.closest?.('a[href]') as
+          HTMLAnchorElement | null | undefined;
+        if (!anchor) return;
+        const href = restore.get(anchor) ?? anchor.getAttribute('href') ?? '';
+        const candidateId = claimPageCandidate(href, origin);
+        const code = candidateId ? offer(candidateId) : null;
+        if (!code) return;
+        putBack();
+        restore.set(anchor, href);
+        anchor.setAttribute('href', `${href.split('#')[0]}#${FRAGMENT_KEY}=${code}`);
+        setTimeout(putBack, PROFILE_CLAIM_DRAFT_OFFER_MS);
       };
       for (const type of ['click', 'auxclick', 'contextmenu'])
         target.addEventListener(type, handle, { capture: true });
+      // A later press is a new decision: the link shows its own address again.
+      for (const type of ['pointerdown', 'keydown'])
+        target.addEventListener(type, putBack, { capture: true });
     },
   };
+}
+
+/** The one-time code this page was opened with, for this candidate's claim page, read
+ * once and removed from the address before anything else can record it. */
+export function takeProfileClaimDraftCode(
+  candidateId: string,
+  where: Pick<Location, 'pathname' | 'search' | 'hash'> | undefined = typeof location ===
+  'undefined'
+    ? undefined
+    : location,
+  replace: ((url: string) => void) | undefined = typeof history === 'undefined'
+    ? undefined
+    : (url) => history.replaceState(history.state, '', url),
+): string | null {
+  if (!where?.hash) return null;
+  const fragment = new URLSearchParams(where.hash.slice(1));
+  const code = fragment.get(FRAGMENT_KEY);
+  if (code === null) return null;
+  fragment.delete(FRAGMENT_KEY);
+  const rest = fragment.toString();
+  replace?.(`${where.pathname}${where.search}${rest ? `#${rest}` : ''}`);
+  const forThisPage =
+    claimPageCandidate(where.pathname, 'https://alethical.invalid') === candidateId;
+  return forThisPage && CODE.test(code) ? code : null;
 }
 
 const tab = createProfileClaimDraftTab();
@@ -283,12 +302,13 @@ export function clearProfileClaimDraft(accountId: string, candidateId: string) {
 export function clearAllProfileClaimDrafts() {
   tab.clearAll();
 }
-export function requestProfileClaimDraftFromOtherTab(
+export function requestProfileClaimDraftFromOpeningTab(
+  code: string,
   accountId: string,
   candidateId: string,
   isCurrent: () => boolean,
   signal?: AbortSignal,
 ) {
-  return tab.request(accountId, candidateId, isCurrent, signal);
+  return tab.request(code, accountId, candidateId, isCurrent, signal);
 }
 registerCandidatePrivacyReset(clearAllProfileClaimDrafts);

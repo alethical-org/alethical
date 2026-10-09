@@ -646,14 +646,16 @@ for (const band of bands) {
   });
 }
 
-test('a claim step opened in a new tab carries unsent answers; a plain new tab does not', async ({
+test('a claim page opened from a link in a new tab carries unsent answers; no other tab does', async ({
   page,
   context,
+  browserName,
 }) => {
   const api = await fixture(page);
   const linkLabel = 'Link to a campaign website or official record';
   const noteLabel = 'Explain your role and how Alethical can confirm it';
   const typed = 'Illustrative: typed before opening a new tab.';
+  const claimUrl = new RegExp(`${profilePath}/claim$`);
   await page.goto(`${profilePath}/claim`);
   await page.getByRole('radio', { name: 'Authorized campaign representative' }).check();
   await page.getByLabel(linkLabel, { exact: true }).fill('https://example-campaign.org/new-tab');
@@ -664,39 +666,53 @@ test('a claim step opened in a new tab carries unsent answers; a plain new tab d
     window.dispatchEvent(new PopStateEvent('popstate'));
   }, `/candidates/features?candidate=${candidateId}`);
   const resume = page.getByRole('link', { name: 'Continue claiming this candidate profile' });
-  const [opened] = await Promise.all([
-    context.waitForEvent('page'),
-    resume.click({ modifiers: ['ControlOrMeta'] }),
-  ]);
-  await fixture(opened);
-  await expect(opened).toHaveURL(new RegExp(`${profilePath}/claim$`));
-  await expect(opened.getByLabel(linkLabel, { exact: true })).toHaveValue(
-    'https://example-campaign.org/new-tab',
-  );
-  await expect(
-    opened.getByRole('radio', { name: 'Authorized campaign representative' }),
-  ).toBeChecked();
-  await expect(opened.getByLabel(noteLabel, { exact: true })).toHaveValue(typed);
-  // Nothing private went through the address or browser storage.
-  expect(opened.url()).not.toContain('Illustrative');
-  for (const tab of [page, opened])
+  const expectAnswers = async (tab: Page) => {
+    await expect(tab).toHaveURL(claimUrl);
+    await expect(tab.getByLabel(linkLabel, { exact: true })).toHaveValue(
+      'https://example-campaign.org/new-tab',
+    );
+    await expect(
+      tab.getByRole('radio', { name: 'Authorized campaign representative' }),
+    ).toBeChecked();
+    await expect(tab.getByLabel(noteLabel, { exact: true })).toHaveValue(typed);
+    // The one-time code left the address at once; nothing private was ever in it.
+    expect(new URL(tab.url()).hash).toBe('');
     expect(
       await tab.evaluate(() =>
         JSON.stringify({ ...localStorage, ...sessionStorage }).includes('Illustrative'),
       ),
     ).toBe(false);
-  // The original tab keeps its own answers.
+  };
+  const expectEmpty = async (tab: Page) => {
+    await expect(tab.getByLabel(linkLabel, { exact: true })).toHaveValue('');
+    // Past the answer window, it is still empty.
+    await tab.waitForTimeout(2000);
+    await expect(tab.getByLabel(linkLabel, { exact: true })).toHaveValue('');
+    await expect(tab.getByLabel(noteLabel, { exact: true })).toHaveValue('');
+  };
+  const gestures: NonNullable<Parameters<Locator['click']>[0]>[] = [
+    { modifiers: ['ControlOrMeta'] },
+    // Playwright's WebKit opens no tab for a middle click, so only Chromium checks it.
+    ...(browserName === 'chromium' ? [{ button: 'middle' as const }] : []),
+  ];
+  for (const gesture of gestures) {
+    const [opened] = await Promise.all([context.waitForEvent('page'), resume.click(gesture)]);
+    await fixture(opened);
+    await expectAnswers(opened);
+    await opened.close();
+  }
+  // Opening the link's menu and dismissing it hands nothing to a tab opened another way.
+  await resume.click({ button: 'right' });
+  expect(await resume.getAttribute('href')).toMatch(/#claim-draft=[a-f0-9-]{36}$/);
+  await page.keyboard.press('Escape');
+  const plain = await context.newPage();
+  await fixture(plain);
+  await plain.goto(`${profilePath}/claim`);
+  await expectEmpty(plain);
+  // The original tab keeps its own answers, and the link shows its own address again.
   await resume.click();
   await expect(page.getByLabel(linkLabel, { exact: true })).toHaveValue(
     'https://example-campaign.org/new-tab',
   );
-  // A tab opened without that gesture starts empty, and stays empty past the answer window.
-  const plain = await context.newPage();
-  await fixture(plain);
-  await plain.goto(`${profilePath}/claim`);
-  await expect(plain.getByLabel(linkLabel, { exact: true })).toHaveValue('');
-  await plain.waitForTimeout(2000);
-  await expect(plain.getByLabel(linkLabel, { exact: true })).toHaveValue('');
-  await expect(plain.getByLabel(noteLabel, { exact: true })).toHaveValue('');
   expect(api.writes).toHaveLength(0);
 });
