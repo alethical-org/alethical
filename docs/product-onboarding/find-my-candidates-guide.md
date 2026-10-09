@@ -264,9 +264,11 @@ focus moves to it) and **Your device’s location can be approximate or show whe
 are now, not where you live**. **Street address** is editable and prefilled.
 **Apartment or unit**, marked **Optional** with placeholder **Apt 3**, is joined into
 the street segment before the first comma; a bare value such as `3` becomes `#3`,
-`Apt. 3` is read as `Apt 3`, and the same unit typed in both fields appears once
-(`3` beside a street already ending `Apt 3` is the same unit). A different unit in each field is
-kept, and the official match then refuses the address rather than choosing either.
+`Apt. 3` is read as `Apt 3`, and the same unit typed in both fields appears once:
+`Apt #250`, `Apt 250`, `Apt.250`, `#250` and a bare `250` beside a street already
+carrying `Apt #250` are all the same unit. A different number, a different label
+(`Unit 250` beside `Apt 250`) or extra words are kept, and the official match then
+refuses the address rather than choosing either.
 **This is my home address** (busy **Finding…** in the same box) runs the normal exact
 official match; Enter in either field does the same, except while an input method is
 composing text, and a second press cannot submit again. Editing either field cancels
