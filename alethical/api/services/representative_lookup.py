@@ -110,18 +110,23 @@ class _AddressPointSession(requests.Session):
         return super().send(request, **kwargs)
 
 
-_address_point_transport = threading.local()
+_public_source_transport = threading.local()
 
 
-def _address_point_session() -> requests.Session:
-    session = getattr(_address_point_transport, "session", None)
+def public_source_session() -> requests.Session:
+    """This worker thread's reusable connections to public government sources.
+
+    Census, Minnesota address points and MyBallot all use it. It keeps open
+    connections only: never cookies, credentials, environment proxies, saved
+    passwords, submitted queries or results. Each caller still passes its own
+    timeout, redirect and streaming choices on every request.
+    """
+    session = getattr(_public_source_transport, "session", None)
     if session is None:
         session = _AddressPointSession()
-        # Public source transport retains connections, not cookies, credentials,
-        # submitted queries or results. Each worker owns its own session.
         session.trust_env = False
         session.cookies.set_policy(_RejectSourceCookies())
-        _address_point_transport.session = session
+        _public_source_transport.session = session
     return session
 
 
@@ -751,6 +756,7 @@ class CensusGeocoder:
                 "format": "json",
             },
             timeout=self.timeout_seconds,
+            get=public_source_session().get,
         )
         raw_matches = payload.get("result", {}).get("addressMatches", [])
         return raw_matches if isinstance(raw_matches, list) else []
@@ -839,7 +845,7 @@ class MinnesotaAddressPointGeocoder:
         in a form body to the state's service, never in a URL. Callers decide
         whether the result is specific enough to suggest.
         """
-        response = _address_point_session().post(
+        response = public_source_session().post(
             self.base_url,
             data={
                 "geometry": f"{longitude:.7f},{latitude:.7f}",
@@ -1086,7 +1092,7 @@ class MinnesotaAddressPointGeocoder:
                 "f": "json",
             },
             timeout=self.timeout_seconds,
-            get=_address_point_session().get,
+            get=public_source_session().get,
         )
         if not isinstance(payload, dict) or payload.get("error"):
             raise RepresentativeLookupUpstreamError(

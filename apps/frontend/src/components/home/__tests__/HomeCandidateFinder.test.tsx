@@ -242,7 +242,26 @@ it.each([1440, 900, 375])('keeps the approved map and phone form choices at %ipx
   expect(host.textContent).toContain(
     'Explore the candidates in your Minnesota races, with links to official records',
   );
-  expect(host.textContent).toContain('Alethical does not save it');
+  const note = 'Your address is sent to Minnesota government services for this lookup';
+  const privacy = [...host.querySelectorAll('p')].find((node) => node.textContent === note);
+  expect(privacy).toBeDefined();
+  expect(host.textContent).not.toContain('Alethical does not save it');
+  expect(host.textContent).not.toContain('A city or ZIP code alone cannot identify');
+  // The note is described while no message shows; the message joins only when one does.
+  expect(host.querySelector('textarea')?.getAttribute('aria-describedby')).toBe(privacy!.id);
+});
+it('adds the message to the field description only while one shows', () => {
+  setup();
+  submit();
+  const field = host.querySelector('textarea')!;
+  const ids = field.getAttribute('aria-describedby')!.split(' ');
+  expect(ids).toHaveLength(2);
+  expect(document.getElementById(ids[0])?.textContent).toBe(
+    'Enter your full Minnesota street address',
+  );
+  expect(document.getElementById(ids[1])?.textContent).toBe(
+    'Your address is sent to Minnesota government services for this lookup',
+  );
 });
 it('ignores a late response after the homepage is removed', async () => {
   let resolve!: (value: CandidateLookupResponse) => void;

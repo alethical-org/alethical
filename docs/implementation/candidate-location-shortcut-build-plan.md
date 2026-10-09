@@ -89,6 +89,10 @@ The legislator finder keeps its coordinate-to-district lookup and map.
   that address to election records** wherever the election source lists no unit
   ranges, which is most buildings; the approved rule forbids falling back to the
   building's general range.
+- [x] Integrated the merged address-help change (pull request 2572): entry keeps its
+  help line below the divider and **Change address** prints none. Integrated the
+  renamed shared source connection (pull request 2571). Unit parsing scans text in a
+  single pass, clearing 3 slow-pattern security alerts.
 - [ ] 6 Browser checks pass in Chromium and WebKit at 1280, 900, 390, 320 and 200%
   zoom (`apps/frontend/scripts/check-candidate-location.mjs`); the open suggestion
   list was found under the outline and fixed. Independent review and release pending

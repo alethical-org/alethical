@@ -39,8 +39,10 @@ has no free-form question box because reader-written questions are not a live fe
 - A successful lookup opens `/candidates` with the results already available. An address
   requiring confirmation opens the same destination with its choices. Failure stays
   beside the homepage form with a retry. The address is carried in temporary memory,
-  never in the destination URL or browser storage. The form explains which government
-  services receive it and that Alethical does not save it.
+  never in the destination URL or browser storage. Below the message slot, 1 note
+  reads **Your address is sent to Minnesota government services for this lookup**.
+  The field's screen-reader description names that note, plus the message while one
+  shows. The form prints no city-or-ZIP help line.
 - The Minnesota outline sits to the right on desktop, beside the heading on tablet,
   and is omitted on phone, following the supplied homepage drawing. The example input
   is generic because the previously drawn city-hall address is absent from the official

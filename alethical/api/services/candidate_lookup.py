@@ -28,6 +28,7 @@ from alethical.api.services.representative_lookup import (
     RepresentativeLookupNotFound,
     RepresentativeLookupOutsideMinnesota,
     RepresentativeLookupUpstreamError,
+    public_source_session,
 )
 from alethical.api.services.zip_state_reference import SUPPORTED_STATES
 from alethical.pipeline.candidate_ballot import (
@@ -80,7 +81,7 @@ def official_bytes(url: str, params: dict[str, str | int]) -> bytes:
     # (which can contain the request parameters) in operational reports.
     try:
         started = time.monotonic()
-        with requests.get(
+        with public_source_session().get(
             url,
             params=params,
             timeout=(3.05, 12),
@@ -213,8 +214,12 @@ def _parse_with_rows(
         return matches
     unit = units[0]
     without = upper[: unit.start()] + upper[unit.end() :]
-    without = re.sub(r"\s*,(?:\s*,)+", ",", without)
-    without = re.sub(r"\s+,", ",", " ".join(without.split()))
+    # Drop the empty segment the unit leaves behind ("street, , city").
+    without = ", ".join(
+        part
+        for part in (" ".join(piece.split()) for piece in without.split(","))
+        if part
+    )
     unit_text = re.sub(r"\.(?=\s)", "", unit.group())
     street, separator, locality = without.partition(",")
     if separator:
@@ -226,6 +231,23 @@ def _parse_with_rows(
     # Comma-free text, or a unit placed after the city: each source row's own
     # city marks where the street ends.
     return _parse_rows_once(without, rows, prefix=prefix, unit=unit_text)
+
+
+_UNIT_START = re.compile(r"(?:APT|APARTMENT|UNIT|SUITE|STE)\.?\s|#")
+
+
+def _trailing_unit_start(text: str) -> int | None:
+    """Where a unit begins in the last comma segment, after whitespace, or None.
+
+    A linear scan: the first unit label after whitespace in that segment that is
+    followed by more text, so "APT 2 APT 3" stays 1 unit for the matcher to refuse.
+    """
+    tail = text.rfind(",") + 1
+    for found in _UNIT_START.finditer(text, tail):
+        start = found.start()
+        if start > tail and text[start - 1].isspace() and text[found.end() :].strip():
+            return start
+    return None
 
 
 def _parse_rows_once(
@@ -261,15 +283,13 @@ def _parse_rows_once(
         elif "," in requested:
             continue
         unit = supplied_unit
-        unit_match = re.search(
-            r"\s+((?:(?:APT|APARTMENT|UNIT|SUITE|STE)\.?\s+|#\s*)[^,]+)$", requested
-        )
-        if unit_match:
+        unit_start = _trailing_unit_start(requested)
+        if unit_start is not None:
             if supplied_unit:
                 continue
-            unit = re.sub(r"^([A-Z]+)\.(?=\s)", r"\1", unit_match.group(1).strip())
+            unit = re.sub(r"^([A-Z]+)\.(?=\s)", r"\1", requested[unit_start:].strip())
             # "Street, Apt 3, City" leaves the separating comma behind.
-            requested = requested[: unit_match.start()].strip(" ,")
+            requested = requested[:unit_start].strip(" ,")
         expected, supplied = _normal(street), _normal(requested)
         if not (expected.startswith(supplied) if prefix else expected == supplied):
             continue
@@ -739,8 +759,9 @@ def race_payload(race: BallotRace, catalogue: BallotCatalogue) -> dict:
 def persist_catalogue(db: Session, catalogue: BallotCatalogue) -> None:
     from alethical.db.models import CandidateSnapshot
     from alethical.api.services.person_records import (
-        retain_public_version,
-        save_candidate_record,
+        public_version,
+        retain_public_versions,
+        save_candidate_records,
         sync_reviewed_legislators,
     )
 
@@ -758,23 +779,27 @@ def persist_catalogue(db: Session, catalogue: BallotCatalogue) -> None:
     ).encode()
     snapshot_id = hashlib.sha256(canonical).hexdigest()
     old = db.get(CandidateSnapshot, snapshot_id)
-    if old is not None:
-        retain_public_version(
-            db,
+    versions = [
+        public_version(
             kind="ballot",
             record_id=snapshot_id,
-            payload=old.public_payload,
-            source_hash=old.source_sha256,
-            checked_at=old.checked_at,
+            payload=document,
+            source_hash=catalogue.source_sha256,
+            checked_at=catalogue.checked_at,
         )
-    retain_public_version(
-        db,
-        kind="ballot",
-        record_id=snapshot_id,
-        payload=document,
-        source_hash=catalogue.source_sha256,
-        checked_at=catalogue.checked_at,
-    )
+    ]
+    if old is not None:
+        versions.insert(
+            0,
+            public_version(
+                kind="ballot",
+                record_id=snapshot_id,
+                payload=old.public_payload,
+                source_hash=old.source_sha256,
+                checked_at=old.checked_at,
+            ),
+        )
+    retain_public_versions(db, versions)
     snapshot = insert(CandidateSnapshot).values(
         id=snapshot_id,
         election_id=catalogue.election.election_id,
@@ -807,14 +832,14 @@ def persist_catalogue(db: Session, catalogue: BallotCatalogue) -> None:
             if candidate.campaign_website:
                 profile["website"] = candidate.campaign_website
             profiles.append(profile)
-    # Stable order avoids crossed locks when simultaneous ballots share races.
-    for profile in sorted(profiles, key=lambda item: item["candidate"]["id"]):
-        save_candidate_record(
-            db,
-            profile=profile,
-            source_hash=catalogue.source_sha256,
-            checked_at=catalogue.checked_at,
-        )
+    # Every candidate lock is taken in 1 ordered statement, so simultaneous ballots
+    # sharing races cannot cross locks. Records apply in stable candidate order.
+    save_candidate_records(
+        db,
+        profiles=sorted(profiles, key=lambda item: item["candidate"]["id"]),
+        source_hash=catalogue.source_sha256,
+        checked_at=catalogue.checked_at,
+    )
     sync_reviewed_legislators(
         db,
         today=catalogue.checked_at.astimezone(ZoneInfo("America/Chicago")).date(),

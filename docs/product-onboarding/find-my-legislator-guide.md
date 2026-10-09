@@ -17,8 +17,10 @@ homepage has **Find my candidates**.
 The heading is **Find my legislators**, followed by **See who represents you in
 the Minnesota House and Senate**. This introduction uses the same responsive
 size, color and heading gap as the candidate introduction. The visible field label is **Full street
-address**, followed by **A city or ZIP code alone cannot identify your legislators**
-before the box. The signed-in homepage's separate finder retains its own introduction.
+address**, 8px above the box. **A city or ZIP code alone cannot identify your
+legislators** opens the notes at the foot of the page instead, and the field's
+screen-reader description still names it, so a screen reader hears it while typing.
+The signed-in homepage's separate finder retains its own introduction.
 
 Start with a house number and at least 2 street-name characters. `350 S` is not enough,
 because `S` could mean South or the start of a street name. `350 Su` can start a named-
@@ -36,9 +38,9 @@ address suggestions are saved in browser storage or a shared server cache.
 The shared suggestion service filters active status and state locally to reduce the
 source query wait. If the source reports omitted rows, it retries with both filters
 at the source so excluded records cannot crowd out valid choices. House, state,
-street, direction and unit matching remain unchanged. Minnesota address requests
-reuse a connection within each server worker without retaining cookies, credentials,
-queries or responses. The Census connection path is unchanged.
+street, direction and unit matching remain unchanged. Census and Minnesota address
+requests reuse a connection within each server worker without retaining cookies,
+credentials, queries or responses.
 
 No row is selected on opening. Down starts at the first row and Up at the last;
 both wrap. Enter chooses an active keyboard row, otherwise it searches the typed
@@ -247,8 +249,13 @@ The lookup uses public records and public map services:
 - [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) supply the
   background map.
 
-On phones and computers, the 3 map credit lines begin below the first map view. They
-remain available by scrolling farther down the page.
+On phones and computers, the notes at the foot begin below the first map view, under a
+thin grey line, in this order: the address help line, **© OpenStreetMap contributors**,
+**District lines from Minnesota’s Legislature**, and the Census notice. They remain
+available by scrolling farther down the page. Every line is the same size (14px, grey
+`#4f5651`, 6px apart). The 2 links are green and semibold, with the shared arrow 6px after
+the last word; on pointer hover the words turn black and underline while the arrow stays
+green. Each link tells screen readers it opens in a new tab.
 
 The complete Census notice reads: **This product uses the Census Bureau Data API
 but is not endorsed or certified by the Census Bureau**.

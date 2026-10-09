@@ -45,6 +45,8 @@ import { theme as t } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FindMyLegislator'>;
 const ADDRESS_ERROR_ID = 'find-legislator-address-error';
+const ADDRESS_HELP_ID = 'find-legislator-address-help';
+const ADDRESS_HELP = 'A city or ZIP code alone cannot identify your legislators';
 const LOCATION_ERROR_ID = 'find-legislator-location-error';
 const ADDRESS_CHOICES_ID = 'find-legislator-address-choices';
 const isWeb = Platform.OS === 'web';
@@ -583,6 +585,8 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       initialViewport={mapViewport}
       onViewportChange={setMapViewport}
       mobile={isMobile}
+      // Printed once, opening the notes at the foot; the address field still names it.
+      leadNote={{ id: ADDRESS_HELP_ID, text: ADDRESS_HELP }}
       onCoordinateChange={(coordinate) => {
         setPreserveMapViewport(true);
         runCoordinate(coordinate, 'map');
@@ -699,9 +703,6 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
             <Text nativeID="find-legislator-address-label" style={styles.addressLabel}>
               Full street address
             </Text>
-            <Text nativeID="find-legislator-address-help" style={styles.addressHint}>
-              A city or ZIP code alone cannot identify your legislators
-            </Text>
             <View style={[styles.controlRow, isMobile && styles.controlRowMobile]}>
               <View
                 style={{
@@ -722,7 +723,9 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                     choice ? chooseAddress(choice, value) : runAddress(value)
                   }
                   labelId="find-legislator-address-label"
-                  describedBy={`find-legislator-address-help ${ADDRESS_ERROR_ID}`}
+                  describedBy={
+                    addressError ? `${ADDRESS_HELP_ID} ${ADDRESS_ERROR_ID}` : ADDRESS_HELP_ID
+                  }
                   invalid={addressInvalid}
                   busy={lookup.isPending}
                   mobile={isMobile}

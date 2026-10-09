@@ -76,8 +76,9 @@ choice. Late replies cannot replace newer suggestions or reopen a dismissed list
 The field is labelled **Full street address**, 8px above the box. On entry, **A city
 or ZIP code alone cannot identify your local races** is the first of the 2 grey
 lines below the divider, and the box still names it as its description, so a screen
-reader hears it in the box. **Change address** keeps that line above its box. Full
-addresses wrap.
+reader hears it in the box. **Change address** on the results page prints no help
+line: the label sits 10px above the field, and the field's screen-reader description
+names only the message slot. The help line prints once per page. Full addresses wrap.
 On computer and tablet the list overlays content 8px below the box, exactly the
 box's width. In **Change address**, the form's containing layer keeps every
 suggestion above the following Election label and selector, including the rows
@@ -342,6 +343,10 @@ available, preserve its whole proportions, and disappear cleanly on failure. A
 joint ticket retains its shared identity; a linked member's portrait and service
 sit beside that member's name in the legislator panel.
 
+A search saves its whole ballot together: every candidate record and accepted read in
+1 database transaction, with candidate locks taken in candidate-ID order. Results return
+only after every record is saved, so each profile link works at once; a failed save
+returns an error and keeps nothing partial.
 Evidence saved from visitor searches contains candidate records and their source
 hash, not visitor addresses, coordinates, precinct names, range IDs or account
 associations. The separate recheck register retains independently collected public

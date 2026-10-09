@@ -27,7 +27,7 @@ def fake_address_transport(monkeypatch):
     # Existing source fixtures exercise parser behavior through the same fake GET.
     # The real pooled transport has separate HTTP-level privacy/reuse tests.
     monkeypatch.setattr(
-        "alethical.api.services.representative_lookup._address_point_session",
+        "alethical.api.services.representative_lookup.public_source_session",
         lambda: SimpleNamespace(
             get=lambda *args, **kwargs: requests.get(*args, **kwargs)
         ),
@@ -1474,7 +1474,7 @@ def test_nearby_addresses_post_the_point_and_merge_units_by_building(monkeypatch
         return FakeResponse(payload)
 
     monkeypatch.setattr(
-        "alethical.api.services.representative_lookup._address_point_session",
+        "alethical.api.services.representative_lookup.public_source_session",
         lambda: SimpleNamespace(post=post),
     )
     geocoder = MinnesotaAddressPointGeocoder(base_url="https://example.test/query")
@@ -1509,7 +1509,7 @@ def test_nearby_addresses_never_suggest_from_failed_or_truncated_answers(
     monkeypatch, response
 ):
     monkeypatch.setattr(
-        "alethical.api.services.representative_lookup._address_point_session",
+        "alethical.api.services.representative_lookup.public_source_session",
         lambda: SimpleNamespace(post=lambda *args, **kwargs: response),
     )
     with pytest.raises(RepresentativeLookupUpstreamError):
@@ -1522,7 +1522,7 @@ def test_nearby_addresses_report_a_capped_answer_separately(monkeypatch):
     from alethical.api.services.representative_lookup import AddressPointsIncomplete
 
     monkeypatch.setattr(
-        "alethical.api.services.representative_lookup._address_point_session",
+        "alethical.api.services.representative_lookup.public_source_session",
         lambda: SimpleNamespace(
             post=lambda *args, **kwargs: FakeResponse(
                 {"features": [], "exceededTransferLimit": True}

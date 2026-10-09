@@ -16,15 +16,22 @@ import {
 } from '../findMyLegislator';
 
 describe('Find My Legislator state and copy helpers', () => {
-  it('labels the shared field and places the legislator hint before it', () => {
+  it('labels the shared field and opens the foot notes with the legislator hint', () => {
     const source = readFileSync(
       join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
       'utf8',
     );
     expect(source).toContain('Find my legislators');
-    expect(
-      source.indexOf('A city or ZIP code alone cannot identify your legislators'),
-    ).toBeLessThan(source.indexOf('<AddressSuggestionField'));
+    expect(source.match(/A city or ZIP code alone cannot identify your legislators/g)).toHaveLength(
+      1,
+    );
+    const label = source.indexOf('Full street address');
+    const field = source.indexOf('<AddressSuggestionField');
+    expect(source.slice(label, field)).not.toContain('ADDRESS_HELP');
+    expect(source).toContain('leadNote={{ id: ADDRESS_HELP_ID, text: ADDRESS_HELP }}');
+    expect(source).toMatch(
+      /describedBy=\{\s*addressError \? `\$\{ADDRESS_HELP_ID\} \$\{ADDRESS_ERROR_ID\}` : ADDRESS_HELP_ID\s*\}/,
+    );
     expect(source).not.toContain('{FIND_MY_LEGISLATOR_INSTRUCTIONS}');
   });
   it('keeps all 10 page states distinct', () => {

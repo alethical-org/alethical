@@ -153,6 +153,7 @@ issues and pull requests establish what remains. Preserve explicit data-replacem
 a completed code release does not approve a held data run. Remove a finished plan once its
 lasting decisions and release evidence have their permanent homes.
 
+- [Faster address search results](implementation/address-result-speed-plan.md) — why both address searches waited, the fewer-database-trips fix, its tests and release evidence
 - [Candidate autofill and result recovery](implementation/candidate-autofill-recovery-plan.md) — shared address handling, stable results, related-use review and release evidence
 - [Public profile labels](implementation/profile-labels-plan.md) — record-kind labels, claim action, phone wrapping and release checks
 - [Candidate design acceptance](implementation/candidate-design-release-acceptance.md) — approved public search and profile controls, source limits, and release checks
@@ -161,6 +162,7 @@ lasting decisions and release evidence have their permanent homes.
 - [Candidate location shortcut and Find buttons](implementation/candidate-location-shortcut-build-plan.md) — Use my location with home address confirmation, unit joining, and Find button sizing and centring
 - [Candidate lookup delivery](implementation/candidate-lookup-build-plan.md) — staged candidate imports, private address handling, and the design and source requirements before launch
 - [Address controls delivery](implementation/address-controls-build-plan.md) — clear buttons, candidate address replacement and cancellation, and browser acceptance
+- [Address help lines and foot notes](implementation/address-help-notes-build-plan.md) — 1 help line per page, and the `/find-my-legislator` foot notes as 1 group
 - [Navigation design 47 delivery](implementation/navigation-design-47-plan.md) — approved navigation and account-menu changes, comparison evidence, and release dependencies
 - [Lobbyist donation proof release report](implementation/lobbyist-donation-proof.md) — live before/after coverage, source evidence, validation and remaining gaps
 - [Lobbyist donor evidence](operations/lobbyist-donor-evidence.md) — source matching, review, safe publication and rollback.

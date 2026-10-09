@@ -2241,6 +2241,31 @@ def test_representative_lookup_maps_service_district_codes_to_legislators(client
     assert "service_history" in payload["house_legislator"]
 
 
+def test_representative_lookup_reads_the_database_in_few_statements(client):
+    from sqlalchemy import event
+
+    from alethical.db.session import get_engine
+
+    address = {"address_text": "75 Rev Dr Martin Luther King Jr Blvd, Saint Paul, MN"}
+    client.post("/api/v1/representative-lookups", json=address)
+    statements = []
+
+    def before(conn, cursor, statement, *args):
+        statements.append(statement)
+
+    # Each statement is a round trip to the database server on every search.
+    event.listen(get_engine(), "before_cursor_execute", before)
+    try:
+        response = client.post("/api/v1/representative-lookups", json=address)
+    finally:
+        event.remove(get_engine(), "before_cursor_execute", before)
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["house_legislator"]["service_history"]["periods"]
+    assert payload["senate_legislator"]["current_service"]["district"]["code"] == "35"
+    assert len(statements) <= 9, statements
+
+
 def test_representative_lookup_matches_single_digit_district_codes(client):
     schema = load_schema()
     from alethical.api.routers.public import district_for_match
