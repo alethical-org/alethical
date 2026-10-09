@@ -206,7 +206,14 @@ def _parse_with_rows(
             continue
         requested = remainder
         # Postal city belongs to the address match, never to a municipal race.
-        city_pattern = r"(?:,?\s+)" + re.escape(city.strip()) + r"$"
+        city_words = city.strip().split()
+        city_name = re.escape(city.strip())
+        if len(city_words) > 1 and city_words[0].rstrip(".") in {"ST", "SAINT"}:
+            # Minnesota address points print SAINT PAUL; election street tables
+            # print ST PAUL. Accept that exact prefix spelling, preserving every
+            # remaining city word and the source's house/street/ZIP/range checks.
+            city_name = r"(?:ST\.?|SAINT)\s+" + re.escape(" ".join(city_words[1:]))
+        city_pattern = r"(?:,?\s+)" + city_name + r"$"
         city_match = re.search(city_pattern, requested)
         if city_match:
             requested = requested[: city_match.start()].strip(" ,")
@@ -436,17 +443,17 @@ class CandidateLookupService:
         if confirmed is not None and confirmed not in choices:
             # For no-ZIP geocoding the original confirmed string may have been
             # standardized. It must nevertheless resolve to exactly 1 official
-            # address, with the same words after harmless formatting changes.
+            # address, including the same unit, through the same exact parser.
+            confirmed_matches = _parse_with_rows(confirmed["address"], rows)
             if (
                 len(matches) != 1
                 or confirmed != _choice(confirmed["address"])
-                or _normal(confirmed["address"].replace(",", " "))
-                != _normal(choices[0]["address"].replace(",", " "))
+                or len(confirmed_matches) != 1
+                or _address_label(confirmed_matches[0]) != choices[0]["address"]
             ):
                 return {"kind": "no-match"}
-            # The complete choice's label/id are internally valid and every
-            # address word matches the sole official result after abbreviation
-            # expansion. Carry that canonical choice into the exact filter.
+            # The complete choice and input identify the same sole official
+            # address. Carry that canonical choice into the exact filter.
             confirmed = choices[0]
         if len(matches) > 1 and confirmed is None:
             eligible = self._eligible_choices(choices)

@@ -34,6 +34,11 @@ are treated as spaces. This cleanup preserves house numbers, units, directions,
 city, state and ZIP+4; it does not discard another country, unknown trailing words
 or other characters to force a match.
 
+For a postal city beginning with Saint, **SAINT**, **ST** and **ST.** are equivalent.
+The remaining city words still must match the election source exactly. This keeps
+Minnesota's **SAINT PAUL** map addresses usable with the election source's **ST PAUL**
+records without relaxing house number, street, ZIP, unit or election-range checks.
+
 A failed official match says **We couldn’t match that address to election records**,
 on `/candidates` and the homepage candidate search. A mapped street address can
 still lack a matching election street range; this message does not assert that
