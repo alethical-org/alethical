@@ -513,6 +513,61 @@ Release preparation (9 October 2026):
   hosted preview and production must pass their own measurements. Contact and
   address-lookup tests pass; live contact links remain part of final acceptance.
 
-Next step: publish the reviewed default-off release; then establish Railway capacity
-and charges before setting `ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED`, tracked in
+The reviewed default-off release is live from
+[pull request 2586](https://github.com/alethical-org/alethical/pull/2586).
+The first manual capacity read stopped before identity facts: Railway returned
+HTTP 403 to Python's default client. Holding the endpoint and request constant,
+a named client reached GraphQL. The shared reader now supplies
+`alethical-address-copy-capacity/1`; a regression fails without that header and
+63 capacity/control tests pass with it. Both operations use this reader, so the
+single correction covers reads and control calls. Authentication, privacy and
+activation gates are unchanged. Independent code acceptance passed; the actual
+authenticated workflow must still establish identity and capacity.
+
+The [authenticated branch read](https://github.com/alethical-org/alethical/actions/runs/37999460117)
+then succeeded: Pro plan,
+1 active deployment and running instance, 1 API-program process, matching start
+command, about 0.52 GB observed memory use and a 24 GB limit. The legacy dashboard
+replica field was null and instance-grouped disk usage was unavailable. The
+filesystem reported about 2.4 TB free; Railway limits a paid deployment to 100 GB,
+so that reading alone cannot prove quota headroom. The reader now privately reads
+the active deployment's explicit placement and saved environment configuration,
+and separately requests service-level disk usage. Activation requires explicit
+matching single-replica settings and fresh quota usage; missing facts still refuse.
+69 focused tests cover these fields, privacy and refusal when large filesystem
+free space accompanies missing or full quota usage. The
+[extended authenticated read](https://github.com/alethical-org/alethical/actions/runs/38000695624)
+established explicit saved and active replica counts of 1, about 0.3 GB memory
+use against 24 GB, and 1 API-program process. Both instance-grouped and separately
+requested whole-service disk usage were unavailable. The current Chrome login
+cannot open the production project; supported SSH and service-file reads require
+a registered key rather than the existing project token. No key was created.
+A whole-root folder scan was rejected as quota proof: it misses deleted-but-open
+files and hidden overlay storage, and Railway does not document the visible-file
+total as its quota accounting. Activation remains refused until provider storage
+use is available. The reader correction continues in
+[pull request 2590](https://github.com/alethical-org/alethical/pull/2590).
+
+Charges reviewed against Railway's
+[published container rates](https://docs.railway.com/pricing/plans) on 9 October:
+$10 per GB memory per month, $20 per vCPU per month and $0.05 per GB outbound.
+No separate incoming-download or ephemeral-storage price appears in the published
+table. Runtime copy building still consumes billable CPU and memory; added live
+use remains to be measured after activation. No new resource is requested, and
+published rates do not establish the account's invoice or special rates.
+
+Fresh-context live review passed normal legislator searches, pointer and keyboard
+selection, apartment/ZIP+4 submission, candidate selection and typed searches,
+changing addresses, retained old results and 375 px layouts. Candidate refusal for
+350 South 5th Street matches Minnesota's official 55415 election street table:
+no range covers house number 350; its 5TH ST S row covers only even number 600
+([official 55415 table](https://myballotmn.sos.mn.gov/api/Streets/GetStreets?ZipCode=55415)).
+1006 Summit Avenue matches the official 55105 range 1006–1220 and succeeds
+([official 55105 table](https://myballotmn.sos.mn.gov/api/Streets/GetStreets?ZipCode=55105)).
+Candidate results print the source's 5-digit ZIP, while cleanup/submission retains
+ZIP+4; this existing difference does not demonstrate a regression. Post-activation
+timings and live review remain pending.
+
+Next step: establish Railway capacity and charges before setting
+`ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED`, tracked in
 [issue 2585](https://github.com/alethical-org/alethical/issues/2585).

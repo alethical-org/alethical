@@ -175,14 +175,43 @@ deployment and running-instance IDs, sampled resource usage, and the filtered st
 capacity line. Raw provider replies, other log lines, commands and environment
 values remain private. Unknown values remain `null`; sampled disk usage does not
 prove free disk. A startup line describes only its container at its dated start.
+The shared provider reader identifies itself as
+`alethical-address-copy-capacity/1` in its `User-Agent` header. On 9 October 2026,
+the same unauthenticated endpoint returned HTTP 403 for Python's default client
+and reached GraphQL with the named client. This header applies to capacity reads
+and control calls; it does not change token access or activation gates.
+Replica counts come from the active deployment's
+`meta.serviceManifest.deploy.multiRegionConfig` and the saved environment
+configuration, read with `decryptVariables: false`. Only explicit numeric counts
+are reported; missing counts never mean 1. Raw metadata and configuration stay
+private. The nullable legacy dashboard count is reported separately. A separate
+exact-service disk request omits instance grouping, because disk usage may lack
+an instance tag.
+On 9 October, the authenticated service and instance disk requests both returned
+no usage. The supported SSH and service-file paths require a registered SSH key;
+the existing project token alone cannot use them. A visible-folder size scan
+does not replace provider quota usage: deleted-but-open files and hidden overlay
+storage can be absent from that total. Keep the switch off when storage remains
+unknown; do not create an access key or paid volume merely to bypass this gate.
+
+Railway's [published container rates](https://docs.railway.com/pricing/plans), read
+on 9 October, are $10 per GB memory per month, $20 per vCPU per month and $0.05 per
+GB outbound. The published table lists no separate incoming-download or ephemeral
+storage price. Runtime copy building uses billable CPU and memory; measure the
+added live use after activation. These rates are not an account invoice or proof
+of no added charge. This activation does not request another resource.
 
 The manual-only [Address copy control workflow](../../.github/workflows/address-copy-control.yml)
 accepts `enabled` (default `false`) and `release_commit` (the reviewed live API's
 40-character commit). Before turning on, it requires a Hobby or Pro plan, 1 configured
-replica, exactly 1 active deployment and running instance, the repository start
+replica in both saved settings and the active deployment, exactly 1 active
+deployment and running instance, the repository start
 command, a fresh off-state capacity line with 1 API-program process and at least
 3 GB free, and at least 256 MiB memory headroom above the higher of startup usage
-and that instance's observed usage peak. Missing, stale or conflicting facts refuse
+and that instance's observed usage peak. It also requires a fresh disk-usage sample
+leaving at least 3 GB within Railway's published 100 GB paid-deployment allowance;
+the host filesystem's larger free-space reading cannot replace that check.
+Missing, stale or conflicting facts refuse
 activation. Establish applicable charges separately; the automated gate cannot
 prove the account's invoice or authorize a new resource.
 
