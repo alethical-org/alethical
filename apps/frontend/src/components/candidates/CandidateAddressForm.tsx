@@ -133,7 +133,19 @@ export function CandidateAddressForm({
   const invalid =
     !busy && (missing || errorKind === 'no-match' || errorKind === 'outside-minnesota');
   return (
-    <View style={[styles.form, compact && { marginTop: 0 }]}>
+    <View
+      style={[styles.form, compact && { marginTop: 0 }]}
+      {...(Platform.OS === 'web' && onCancel
+        ? {
+            onKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => {
+              // The field and open choice list handle their own Escape first.
+              if (event.key !== 'Escape' || event.defaultPrevented) return;
+              event.preventDefault();
+              onCancel();
+            },
+          }
+        : {})}
+    >
       <Text nativeID={`${id}-label`} style={candidateText.strong}>
         {CANDIDATE_LOOKUP_COPY.addressLabel}
       </Text>

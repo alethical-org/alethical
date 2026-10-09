@@ -111,3 +111,8 @@ delivery; a passing static drawing is not runtime evidence.
   checks pass: 343 suites / 4,381 tests, type checking and formatting. Current-head
   release checks and live acceptance remain pending. Real phone keyboard behavior
   remains untested.
+
+- Fresh reader review reproduced Escape doing nothing from a focused Cancel
+  button during a search. The editor now handles Escape across its address
+  controls, while fields and open lists consume their dismissal first. Regression
+  checks include Escape from focused Find and Cancel and suppression of the late reply.

@@ -395,7 +395,7 @@ try {
       await expect(state.page.getByRole('button', { name: 'Cancel', exact: true })).toBeVisible();
       if (action === 'Cancel')
         await state.page.getByRole('button', { name: 'Cancel', exact: true }).click();
-      else await field.press('Escape');
+      else await state.page.getByRole('button', { name: 'Cancel', exact: true }).press('Escape');
       await expect(field).toHaveCount(0);
       await expect(
         state.page.getByRole('button', { name: 'Change address', exact: true }),

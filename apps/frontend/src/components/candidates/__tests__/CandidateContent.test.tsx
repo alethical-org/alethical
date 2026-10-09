@@ -463,7 +463,7 @@ it('selects the address once, keeps opening quiet, and clears without erasing re
   expect(host.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe(result().matchedAddress);
 });
 
-it.each(['Cancel', 'Escape'])(
+it.each(['Cancel', 'Escape', 'Escape on Cancel', 'Escape on Find'])(
   'cancels a pending edited address with %s and ignores its late response',
   async (action) => {
     let resolve!: (value: CandidateLookupResponse) => void;
@@ -499,6 +499,8 @@ it.each(['Cancel', 'Escape'])(
       host.querySelector<HTMLButtonElement>('button[aria-label="Clear address"]')?.style.visibility,
     ).toBe('hidden');
     if (action === 'Cancel') click(button('Cancel'));
+    else if (action === 'Escape on Cancel') press(button('Cancel'), 'Escape');
+    else if (action === 'Escape on Find') press(button('Finding candidates…'), 'Escape');
     else press(host.querySelector<HTMLTextAreaElement>('textarea')!, 'Escape');
     expect(signal.aborted).toBe(true);
     expect(host.querySelector('textarea')).toBeNull();
