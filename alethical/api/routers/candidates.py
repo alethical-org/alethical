@@ -53,6 +53,15 @@ class LookupRequest(AddressRequest):
     confirmedChoice: AddressChoice | None = None
 
 
+class LocationRequest(BaseModel):
+    """1 device reading, used once to suggest an address; never stored or logged."""
+
+    model_config = ConfigDict(extra="forbid")
+    latitude: float = Field(ge=-90, le=90, allow_inf_nan=False)
+    longitude: float = Field(ge=-180, le=180, allow_inf_nan=False)
+    accuracy: float = Field(ge=0, le=1_000_000, allow_inf_nan=False)
+
+
 def _unavailable():
     return problem_exception(
         503,
@@ -86,6 +95,24 @@ def suggest(
     response.headers.update(PRIVATE_HEADERS)
     try:
         return service.suggest(request.address)
+    except CandidateLookupUnavailable:
+        raise _unavailable() from None
+
+
+@router.post(
+    "/locate",
+    dependencies=[
+        Depends(rate_limit("lookup_limiter", "candidate-locate", trusted_client_ip))
+    ],
+)
+def locate(
+    request: LocationRequest,
+    response: Response,
+    service: CandidateLookupService = Depends(get_candidate_lookup_service),
+):
+    response.headers.update(PRIVATE_HEADERS)
+    try:
+        return service.locate(request.latitude, request.longitude, request.accuracy)
     except CandidateLookupUnavailable:
         raise _unavailable() from None
 

@@ -159,6 +159,7 @@ async def unexpected_exception_handler(request: Request, exc: Exception):
                 "/api/v1/candidate-claims",
                 "/api/v1/candidate-statements/",
                 "/api/v1/candidates/lookup",
+                "/api/v1/candidates/locate",
                 "/api/v1/candidates/suggest",
             )
         )

@@ -52,6 +52,13 @@ SUPPORTED_ELECTION = {
     "type": "general",
 }
 PRIVATE_HEADERS = {"Cache-Control": "private, no-store", "Vary": "Origin"}
+# Device-location suggestions. A browser's accuracy is a 95% radius in meters.
+# Address points can sit up to about 30m from where a person stands in the
+# building; neighbouring Minneapolis points are about 11m apart.
+MINNESOTA_BOUNDS = (43.499, 49.385, -97.24, -89.48)
+LOCATION_MAX_ACCURACY_METERS = 100
+LOCATION_PLACEMENT_SLACK_METERS = 30
+LOCATION_MIN_SEPARATION_METERS = 8
 
 
 class CandidateLookupUnavailable(Exception):
@@ -183,7 +190,41 @@ def _street_json_object(pairs: list[tuple[str, object]]) -> dict:
 def _parse_with_rows(
     text: str, rows: list[dict], *, prefix: bool = False
 ) -> list[StreetAddress]:
-    """Match all supplied words against source streets, not coordinates or incumbents."""
+    """Match all supplied words against source streets, not coordinates or incumbents.
+
+    A unit normally ends the street segment. When the canonical reading finds
+    nothing, 1 unit elsewhere in the street or locality (after a comma, or after
+    the city) is read as that unit. 2 different units are never reconciled.
+    """
+    matches = _parse_rows_once(text, rows, prefix=prefix)
+    if matches:
+        return matches
+    upper = normalize_address_format(text).upper()
+    units = list(_UNIT_PATTERN.finditer(upper))
+    if len(units) != 1:
+        return matches
+    unit = units[0]
+    without = upper[: unit.start()] + upper[unit.end() :]
+    without = re.sub(r"\s*,(?:\s*,)+", ",", without)
+    without = re.sub(r"\s+,", ",", " ".join(without.split()))
+    street, separator, locality = without.partition(",")
+    if not separator:
+        # Comma-free text: let each source row's own city mark the street's end.
+        return [
+            address
+            for address in _parse_rows_once(
+                without, rows, prefix=prefix, unit=unit.group()
+            )
+        ]
+    return _parse_rows_once(
+        f"{street.strip()} {unit.group()},{locality}", rows, prefix=prefix
+    )
+
+
+def _parse_rows_once(
+    text: str, rows: list[dict], *, prefix: bool = False, unit: str = ""
+) -> list[StreetAddress]:
+    supplied_unit = " ".join(unit.upper().split())
     text = normalize_address_format(text).upper()
     found = re.fullmatch(
         r"(\d{1,8})(?:\s+(1/2)|([A-Z]))?\s+(.+?)\s+(\d{5})(?:-\d{4})?", text
@@ -212,13 +253,16 @@ def _parse_with_rows(
             requested = requested[: city_match.start()].strip(" ,")
         elif "," in requested:
             continue
-        unit = ""
+        unit = supplied_unit
         unit_match = re.search(
             r"\s+((?:(?:APT|APARTMENT|UNIT|SUITE|STE)\s+|#\s*)[^,]+)$", requested
         )
         if unit_match:
+            if supplied_unit:
+                continue
             unit = unit_match.group(1).strip()
-            requested = requested[: unit_match.start()]
+            # "Street, Apt 3, City" leaves the separating comma behind.
+            requested = requested[: unit_match.start()].strip(" ,")
         expected, supplied = _normal(street), _normal(requested)
         if not (expected.startswith(supplied) if prefix else expected == supplied):
             continue
@@ -381,6 +425,36 @@ class CandidateLookupService:
                 if (choice := _geocoded_choice(text, match.matched_address)) is not None
             ]
         )
+
+    def locate(self, latitude: float, longitude: float, accuracy: float) -> dict:
+        """Suggest 1 home address for the reader to confirm; never search with it.
+
+        A device reading is a point plus a 95% accuracy radius. The suggestion is
+        offered only when that reading separates the nearest building from every
+        other address; otherwise the reader types the address. Nothing is stored.
+        """
+        if not (
+            MINNESOTA_BOUNDS[0] <= latitude <= MINNESOTA_BOUNDS[1]
+            and MINNESOTA_BOUNDS[2] <= longitude <= MINNESOTA_BOUNDS[3]
+        ):
+            return {"kind": "outside-minnesota"}
+        if accuracy > LOCATION_MAX_ACCURACY_METERS:
+            return {"kind": "imprecise"}
+        try:
+            nearby = self.geocoder.nearby_addresses(
+                latitude, longitude, accuracy + LOCATION_PLACEMENT_SLACK_METERS
+            )
+        except Exception:
+            # Upstream text can include the submitted point. Report nothing of it.
+            raise CandidateLookupUnavailable(
+                "Government address service unavailable"
+            ) from None
+        if not nearby:
+            return {"kind": "imprecise"}
+        separation = max(accuracy, LOCATION_MIN_SEPARATION_METERS)
+        if len(nearby) > 1 and nearby[1][1] - nearby[0][1] < separation:
+            return {"kind": "imprecise"}
+        return {"kind": "address", "address": nearby[0][0]}
 
     def resolve(
         self, text: str, confirmed: dict | None = None

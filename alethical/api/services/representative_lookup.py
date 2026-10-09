@@ -5,6 +5,7 @@ from collections.abc import Callable
 from http.cookiejar import DefaultCookiePolicy
 import json
 import logging
+import math
 import os
 import re
 import time
@@ -779,8 +780,126 @@ class CensusGeocoder:
         return text or None
 
 
+def _address_point_label(attributes: dict) -> tuple[str, str, str]:
+    """Base street address of 1 address point; unit fields are deliberately omitted."""
+    street = " ".join(
+        str(attributes.get(field) or "").strip()
+        for field in (
+            "anumberpre",
+            "anumber",
+            "anumbersuf",
+            "st_pre_mod",
+            "st_pre_dir",
+            "st_pre_typ",
+            "st_pre_sep",
+            "st_name",
+            "st_pos_typ",
+            "st_pos_dir",
+            "st_pos_mod",
+        )
+        if str(attributes.get(field) or "").strip()
+    )
+    locality = str(
+        attributes.get("postcomm") or attributes.get("ctu_name") or "Minnesota"
+    ).strip()
+    zip_code = str(attributes.get("zip") or "").strip()
+    matched_address = f"{street}, {locality}, MN"
+    if zip_code:
+        matched_address += f" {zip_code}"
+    return matched_address, locality, zip_code
+
+
+def _meters_between(
+    latitude: float, longitude: float, other_latitude: float, other_longitude: float
+) -> float:
+    lat1, lat2 = math.radians(latitude), math.radians(other_latitude)
+    half = (
+        math.sin((lat2 - lat1) / 2) ** 2
+        + math.cos(lat1)
+        * math.cos(lat2)
+        * math.sin(math.radians(other_longitude - longitude) / 2) ** 2
+    )
+    return 2 * 6_371_000 * math.asin(math.sqrt(half))
+
+
 class MinnesotaAddressPointGeocoder:
     """Use Minnesota's public address points after the Census has no match."""
+
+    def nearby_addresses(
+        self, latitude: float, longitude: float, radius_meters: float
+    ) -> list[tuple[str, float]]:
+        """Distinct base addresses within a radius, nearest first.
+
+        The point travels in a form body to the state's service, never in a URL.
+        Callers decide whether the result is specific enough to suggest.
+        """
+        response = _address_point_session().post(
+            self.base_url,
+            data={
+                "geometry": f"{longitude:.7f},{latitude:.7f}",
+                "geometryType": "esriGeometryPoint",
+                "inSR": "4326",
+                "spatialRel": "esriSpatialRelIntersects",
+                "distance": f"{radius_meters:.1f}",
+                "units": "esriSRUnit_Meter",
+                "where": "(state_code IS NULL OR UPPER(state_code) = 'MN') AND "
+                "(status IS NULL OR UPPER(status) <> 'RETIRED')",
+                "outFields": ",".join(_ADDRESS_POINT_FIELDS),
+                "returnGeometry": "false",
+                "resultRecordCount": "500",
+                "f": "json",
+            },
+            timeout=self.timeout_seconds,
+            allow_redirects=False,
+        )
+        if response.status_code != 200:
+            raise RepresentativeLookupUpstreamError(
+                "Minnesota address service unavailable"
+            )
+        try:
+            payload = response.json()
+        except ValueError:
+            raise RepresentativeLookupUpstreamError(
+                "Minnesota address service returned an invalid response"
+            ) from None
+        if not isinstance(payload, dict) or payload.get("error"):
+            raise RepresentativeLookupUpstreamError(
+                "Minnesota address service returned an error"
+            )
+        features = payload.get("features")
+        if not isinstance(features, list) or payload.get("exceededTransferLimit"):
+            # A truncated answer may omit the nearest building. Never suggest from it.
+            raise RepresentativeLookupUpstreamError(
+                "Minnesota address service response incomplete"
+            )
+        nearest: dict[str, tuple[str, float]] = {}
+        for feature in features:
+            attributes = (
+                feature.get("attributes") if isinstance(feature, dict) else None
+            )
+            if not isinstance(attributes, dict):
+                continue
+            state = self._normalize(attributes.get("state_code"))
+            if state and state != "MN":
+                continue
+            try:
+                int(str(attributes["anumber"]))
+                point_latitude = float(attributes["latitude"])
+                point_longitude = float(attributes["longitude"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if not self._normalize(attributes.get("st_name")):
+                continue
+            label, _, zip_code = _address_point_label(attributes)
+            if not re.fullmatch(r"\d{5}", zip_code):
+                continue
+            distance = _meters_between(
+                latitude, longitude, point_latitude, point_longitude
+            )
+            key = label.casefold()
+            if key not in nearest or distance < nearest[key][1]:
+                nearest[key] = (label, distance)
+        return sorted(nearest.values(), key=lambda item: (item[1], item[0]))
 
     def __init__(
         self,
@@ -1145,30 +1264,7 @@ class MinnesotaAddressPointGeocoder:
         if not (43.0 <= latitude <= 50.0 and -98.0 <= longitude <= -89.0):
             return None
 
-        street = " ".join(
-            str(attributes.get(field) or "").strip()
-            for field in (
-                "anumberpre",
-                "anumber",
-                "anumbersuf",
-                "st_pre_mod",
-                "st_pre_dir",
-                "st_pre_typ",
-                "st_pre_sep",
-                "st_name",
-                "st_pos_typ",
-                "st_pos_dir",
-                "st_pos_mod",
-            )
-            if str(attributes.get(field) or "").strip()
-        )
-        locality = str(
-            attributes.get("postcomm") or attributes.get("ctu_name") or "Minnesota"
-        ).strip()
-        zip_code = str(attributes.get("zip") or "").strip()
-        matched_address = f"{street}, {locality}, MN"
-        if zip_code:
-            matched_address += f" {zip_code}"
+        matched_address, locality, zip_code = _address_point_label(attributes)
         return (
             GeocodedAddress(
                 requested_address=requested_address,
