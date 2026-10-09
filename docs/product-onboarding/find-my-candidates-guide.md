@@ -135,6 +135,10 @@ source validation or guarantees the source remains available.
 
 Validation loads each distinct ZIP table once per suggestion request, with at most
 5 ZIP requests running together and the existing 5-minute public street-table cache.
+Simultaneous requests for the same ZIP share 1 download of its public table, and a
+failed download reaches each of them without being kept. When the legislator finder's
+copy of Minnesota's published address file is on, candidate suggestions can start
+from that copy and still pass this election street-range check before they appear.
 It does not fetch candidate ballots while typing or cache visitor addresses on the
 server. If an official table cannot be read, suggestions are unavailable rather than
 reported as a successful empty response.

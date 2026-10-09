@@ -176,6 +176,8 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 
 | Setting | Intended | Why | Automated check |
 | --- | --- | --- | --- |
+| `ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED` | Absent | Keeps address suggestions on Minnesota's live service until [deployment.md § Address suggestion copy activation](deployment.md#address-suggestion-copy-activation) establishes hosting capacity and charges; change to Present in the activating change. | Live |
+| `ALETHICAL_ADDRESS_SUGGESTION_INDEX_DIRECTORY` | Absent | The copy uses the container's temporary folder; set only if activation chooses a different shared folder. | Live |
 | `ALETHICAL_ADMIN_ACCOUNT_IDS` | Present | Binds private account visibility to explicitly approved Supabase identities; current confirmed email and active status are also required. An approved email needs an existing confirmed account and a listed identifier before access activates. | Live |
 | `ALETHICAL_COMMENT_EMAIL_ENABLED` | Present | Enables durable reader and administrator comment alerts after the release privacy checks; local and test environments keep it false. | Live |
 | `ALETHICAL_PROFILE_CLAIM_EMAIL_ENABLED` | Present; intended accepted-production value `true` | Staged absent/off until the profile-claim release checks pass, then enables saved request and decision notifications through the existing Resend service; local and test environments keep it false. | Live: presence only; value and activation gates are checked during release |

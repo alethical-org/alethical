@@ -141,6 +141,44 @@ owns recipient and message behavior.
 owns private retention and immediate deleted-reviewer cleanup, including while the
 sender is off. Keep all setting values in Railway, never in this repository.
 
+### Address suggestion copy activation
+
+`ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED` is absent in production, so address
+suggestions ask Minnesota's live address service. Setting it to `true` lets the API
+answer suggestions from a shared copy of the state's published address file
+(`alethical/api/services/address_suggestion_index.py`). The optional
+`ALETHICAL_ADDRESS_SUGGESTION_INDEX_DIRECTORY` names the shared folder; without it the
+copy lives in the system temporary folder, shared by every API process in 1 container.
+
+What the copy needs, measured on a Mac on 9 October 2026 from the saved official file:
+the source file is 1,057,136,640 bytes; the finished copy is 288,256,000 bytes; a build
+peaks at about 1.36 GB of folder space and about 48 MB of memory and takes about 12
+seconds after a download that took 39 seconds on that network. The refresher refuses
+to start a build with less than 3 GB free. A new container starts with no copy, so each
+release downloads the file once more and suggestions use the live service until that
+build finishes.
+
+Before activation:
+
+1. Establish the Railway service's actual free disk in its running container,
+   memory headroom, process count (`WEB_CONCURRENCY` or `--workers`), and whether the
+   plan charges for that disk, memory or the incoming 1.06 GB per release and per 12
+   hours. Do not assume these from another service or plan. A persistent volume would
+   avoid downloading on every release but is a new paid resource needing its own
+   approval.
+2. Set the flag to `true` in Railway and change its row in
+   [repo-and-service-settings.md § Railway environment variables](repo-and-service-settings.md#railway-environment-variables)
+   to Present in the same change.
+3. After the release finishes and the copy has had time to build, send a public
+   suggestion request such as `{"address_text": "350 S 5"}` to
+   `/api/v1/address-suggestions`. `requires_location_check: true` on a single-point
+   address shows the copy answered it. Compare server timings before and after.
+4. Choose that suggestion on `/find-my-legislator` and confirm the request carries
+   `selected_address` and the result shows the expected districts.
+
+Removing the flag or setting it to `false` stops copy reads at the next release; the
+live service answers again with no data change. The copy never holds reader input.
+
 ### Answer generation and error reporting
 
 `OPENAI_API_KEY` powers live Ask question sorting and search embeddings. It also
