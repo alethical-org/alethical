@@ -149,10 +149,19 @@ export function CandidateAddressForm({
       <Text nativeID={`${id}-label`} style={candidateText.strong}>
         {CANDIDATE_LOOKUP_COPY.addressLabel}
       </Text>
-      <Text nativeID={`${id}-help`} style={styles.help}>
-        A city or ZIP code alone cannot identify your local races
-      </Text>
-      <View style={[styles.controls, (isMobile || compact) && { flexDirection: 'column' }]}>
+      {/* The help line prints once per page: Change address on results omits it. */}
+      {!compact ? (
+        <Text nativeID={`${id}-help`} style={styles.help}>
+          {CANDIDATE_LOOKUP_COPY.addressHelp}
+        </Text>
+      ) : null}
+      <View
+        style={[
+          styles.controls,
+          compact && { marginTop: 10 },
+          (isMobile || compact) && { flexDirection: 'column' },
+        ]}
+      >
         <View
           style={[styles.fieldWrap, (isMobile || compact) && { flex: undefined, width: '100%' }]}
         >
@@ -168,7 +177,7 @@ export function CandidateAddressForm({
             suggest={suggest}
             onSubmit={(value, choice) => submit(choice, value)}
             labelId={`${id}-label`}
-            describedBy={`${id}-message ${id}-help`}
+            describedBy={compact ? `${id}-message` : `${id}-message ${id}-help`}
             invalid={invalid}
             busy={busy}
             mobile={isMobile}

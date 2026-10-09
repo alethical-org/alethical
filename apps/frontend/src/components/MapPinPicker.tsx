@@ -21,7 +21,7 @@ import {
 } from '../lib/districtMap';
 import { externalLinkProps } from '../navigation/links';
 import { theme as t } from '../theme/tokens';
-import { LinkArrowLabel, linkArrowRow } from './LinkArrow';
+import { GREEN_LINK_ARROW_COLOR, LinkArrowLabel, linkArrowRow } from './LinkArrow';
 
 const TILE_SIZE = 256;
 const MIN_ZOOM = 5;
@@ -72,6 +72,8 @@ export interface MapPinPickerProps {
   onCoordinateChange: (coordinate: RepresentativeLookupCoordinates) => void;
   onOutsideMinnesota?: (coordinate: RepresentativeLookupCoordinates) => void;
   mobile?: boolean;
+  /** A line that opens the notes at the foot, such as the address field's help. */
+  leadNote?: { id: string; text: string };
 }
 
 export function tileUrlForKey(key: string) {
@@ -231,6 +233,7 @@ export function MapPinPicker({
   onCoordinateChange,
   onOutsideMinnesota,
   mobile = false,
+  leadNote,
 }: MapPinPickerProps) {
   const [size, setSize] = useState<Size>({ width: 0, height: 0 });
   const [center, setCenter] = useState<RepresentativeLookupCoordinates>(initialViewport.center);
@@ -665,6 +668,11 @@ export function MapPinPicker({
       </Text>
 
       <View testID="district-map-credits" style={[styles.credits, mobile && styles.creditsMobile]}>
+        {leadNote ? (
+          <Text nativeID={leadNote.id} style={styles.creditText}>
+            {leadNote.text}
+          </Text>
+        ) : null}
         {tilesLoaded ? (
           <MapCredit href={OSM_COPYRIGHT} label="© OpenStreetMap contributors" />
         ) : null}
@@ -737,25 +745,29 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     gap: 6,
     marginTop: 160,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(17,21,15,0.08)',
   },
   creditsMobile: { marginTop: 240 },
   creditRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
   creditTarget: linkArrowRow,
   creditText: {
     fontFamily: t.typography.body,
-    fontSize: 12,
-    lineHeight: 18,
-    color: t.colors.text.faint,
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#4f5651',
   },
   creditLink: {
     fontFamily: t.typography.body,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 21,
     fontWeight: '600',
-    color: t.colors.brand.deep,
+    color: GREEN_LINK_ARROW_COLOR,
     textDecorationLine: 'none',
   },
-  creditLinkHovered: { textDecorationLine: 'underline' },
+  // The arrow keeps its green stroke; only the words change.
+  creditLinkHovered: { color: '#11150f', textDecorationLine: 'underline' },
   visuallyHidden: {
     position: 'absolute',
     width: 1,
