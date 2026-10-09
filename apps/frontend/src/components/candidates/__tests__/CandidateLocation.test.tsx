@@ -483,6 +483,37 @@ it('joins a unit once in the canonical place without dropping a conflicting unit
   expect(joinAddressUnit('100 8th Ave S Apt #250 Apt #251, Hopkins, MN 55343', '250')).toBe(
     '100 8th Ave S Apt #250 Apt #251 #250, Hopkins, MN 55343',
   );
+  // Only 2 complete, supported units can be the same. Punctuation inside a value, an
+  // unsupported label or text after the street's unit keeps both, so the match refuses.
+  for (const different of ['Apt 2.50', 'Apt #2.50', 'Apt. 2.50', '2.50', 'Apt 250.', 'Apt 25-0'])
+    expect(joinAddressUnit(HOPKINS, different)).toBe(
+      `100 8th Ave S Apt #250 ${normalizeAddressUnit(different)}, Hopkins, MN 55343`,
+    );
+  for (const unknown of ['Floor 250', 'GARBAGE 250', 'Apt Apt 250', 'Apt # # 250'])
+    expect(joinAddressUnit('100 8th Ave S #250, Hopkins, MN 55343', unknown)).toBe(
+      `100 8th Ave S #250 ${unknown}, Hopkins, MN 55343`,
+    );
+  expect(joinAddressUnit('100 8th Ave S Apt 2.50, Hopkins, MN 55343', 'Apt 2')).toBe(
+    '100 8th Ave S Apt 2.50 Apt 2, Hopkins, MN 55343',
+  );
+  expect(joinAddressUnit('100 8th Ave S Apt 2.50, Hopkins, MN 55343', 'Apt 2.50')).toBe(
+    '100 8th Ave S Apt 2.50 Apt 2.50, Hopkins, MN 55343',
+  );
+  expect(joinAddressUnit('100 8th Ave S Apt #250.5, Hopkins, MN 55343', 'Apt #250')).toBe(
+    '100 8th Ave S Apt #250.5 Apt #250, Hopkins, MN 55343',
+  );
+  expect(joinAddressUnit('100 8th Ave S Apt #250 rear, Hopkins, MN 55343', '250')).toBe(
+    '100 8th Ave S Apt #250 rear #250, Hopkins, MN 55343',
+  );
+  expect(joinAddressUnit('100 8th Ave S Apt #250 Hopkins MN 55343', 'Apt #250')).toBe(
+    '100 8th Ave S Apt #250 Hopkins Apt #250 MN 55343',
+  );
+  expect(joinAddressUnit('100 8th Ave S Apt #250 MN 55343', 'Apt #250')).toBe(
+    '100 8th Ave S Apt #250 MN 55343',
+  );
+  expect(joinAddressUnit('100 8th Ave S Apt #250b, Hopkins, MN 55343', 'APT 250B')).toBe(
+    '100 8th Ave S Apt #250b, Hopkins, MN 55343',
+  );
   expect(joinAddressUnit('4821 Sample Ave S Sample Lake MN 55999', '3')).toBe(
     '4821 Sample Ave S Sample Lake #3 MN 55999',
   );
