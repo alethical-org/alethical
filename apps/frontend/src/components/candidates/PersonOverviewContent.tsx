@@ -16,6 +16,7 @@ import {
 import { CandidateButton, CandidateLink, candidateDate, candidateText } from './CandidateControls';
 import { ElectionOutcome, ElectionResultStatus } from './ElectionResult';
 import { PersonResearch } from './PersonResearch';
+import { ProfileContextLabel } from '../ProfileContextLabel';
 
 export function PersonOverviewContent({
   record,
@@ -58,21 +59,14 @@ export function PersonOverviewContent({
     >
       <View style={{ maxWidth: 760, width: '100%', alignSelf: 'center' }}>
         <CandidateLink internal label={returnLabel} url={returnUrl} onPress={onBack} />
-        <Text
-          style={[
-            candidateText.strong,
-            { marginTop: 20, fontSize: 13, letterSpacing: 2.6, color: '#0f7a45' },
-          ]}
-        >
-          {PERSON_RECORD_COPY.eyebrow}
-        </Text>
+        <ProfileContextLabel>{PERSON_RECORD_COPY.eyebrow}</ProfileContextLabel>
         <Text
           accessibilityRole="header"
           aria-level={1}
           style={[
             candidateText.title,
             {
-              marginTop: 10,
+              marginTop: 14,
               fontSize: isMobile ? 32 : isDesktop ? 44 : 40,
               lineHeight: (isMobile ? 32 : isDesktop ? 44 : 40) * 1.08,
             },

@@ -14,7 +14,7 @@ import { linkProps, routePath } from '../../navigation/links';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme } from '../../theme/tokens';
 import { SharePopover } from '../billDetail/SharePopover';
-import { PageContextLabel } from '../PageContextLabel';
+import { ProfileContextLabel } from '../ProfileContextLabel';
 
 export function LobbyingPageFrame({
   eyebrow,
@@ -56,7 +56,11 @@ export function LobbyingPageFrame({
             <Text style={styles.backLabel}>Back to Lobbying</Text>
           </Pressable>
 
-          {eyebrow ? <PageContextLabel style={styles.eyebrow}>{eyebrow}</PageContextLabel> : null}
+          {eyebrow ? (
+            <ProfileContextLabel identifier={eyebrow.split(' · ')[1]}>
+              {eyebrow.split(' · ')[0]}
+            </ProfileContextLabel>
+          ) : null}
           {title ? (
             <View style={[styles.headingRow, isMobile && styles.headingRowMobile]}>
               <View style={styles.headingCopy}>
@@ -256,17 +260,8 @@ const styles: Record<string, any> = {
     fontSize: 16,
     fontWeight: '600',
   },
-  eyebrow: {
-    marginTop: 14,
-    color: '#0f7a45',
-    fontFamily: theme.typography.body,
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 2.6,
-    fontVariant: ['tabular-nums'],
-  },
   headingRow: {
-    marginTop: 12,
+    marginTop: 14,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',

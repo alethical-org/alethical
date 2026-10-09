@@ -10,7 +10,8 @@ context, but the Minnesota Legislature remains the source of record.
 
 ## Identity
 
-The heading uses the official title and name. The line under it spells out the chamber
+A green **Legislator profile** label identifies the loaded record above the
+portrait-and-name group, including former legislators. The heading uses the official title and name. The line under it spells out the chamber
 and the district, such as **Senate District 62**. Party names are spelled out and use a
 neutral grey badge. Alethical does not use red, blue, or its green action color to
 suggest a view of a party.
@@ -33,7 +34,7 @@ the loaded page overwrote an honest served page with 3 guesses about 6 real name
 [#1461](https://github.com/alethical-org/alethical/issues/1461)).
 
 A verified person connection adds **Elections and service over time** and
-**View person overview**, linking to `/people/<id>`. The overview retains this
+**View person profile**, linking to `/people/<id>`. The overview retains this
 legislator destination for its return link. The connection is omitted when the
 reviewed candidate/person/legislator identities do not agree; a matching name is
 insufficient. This link does not replace the legislator's bills, votes or service

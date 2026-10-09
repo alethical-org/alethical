@@ -1007,7 +1007,7 @@ describe('first-response page tags', () => {
     expect(status).toBe(200);
     expect(body).toContain('Elections and service over time');
     expect(body).toContain(
-      `href="/people/${publicPersonId}?legislator=aisha-gomez">View person overview</a>`,
+      `href="/people/${publicPersonId}?legislator=aisha-gomez">View person profile</a>`,
     );
   });
 
@@ -1045,7 +1045,7 @@ describe('first-response page tags', () => {
       const { body, status } = await serve({ path: '/legislators/aisha-gomez' });
       expect(status).toBe(200);
       expect(body).toContain('<h1>Rep. Aisha Gomez</h1>');
-      expect(body).not.toContain('View person overview');
+      expect(body).not.toContain('View person profile');
       expect(body).not.toContain('elsewhere.example');
     },
   );

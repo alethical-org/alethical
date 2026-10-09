@@ -378,6 +378,33 @@
         text-transform: uppercase;
         color: #0f7a45;
       }
+      .page-snapshot .ps-back:has(+ .ps-profile-label) {
+        min-height: 44px;
+        gap: 9px;
+        color: #4b524b;
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .page-snapshot .ps-profile-label {
+        margin-top: 14px;
+        line-height: 1.5;
+        font-variant-numeric: tabular-nums;
+      }
+      .page-snapshot .ps-profile-label + h1 {
+        margin-top: 14px;
+      }
+      .page-snapshot .ps-profile-identifier {
+        white-space: nowrap;
+      }
+      @media (max-width: 767px) {
+        .page-snapshot .ps-back:has(+ .ps-profile-label) {
+          font-size: 15px;
+        }
+        .page-snapshot .ps-profile-label {
+          margin-top: 6px;
+          font-size: 12px;
+        }
+      }
       .page-snapshot h1 {
         margin: 12px 0 0;
         font-size: 40px;

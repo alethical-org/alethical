@@ -14,6 +14,7 @@ import { candidateElectionLabel, candidateOfficeLabel, areaLabel } from './Candi
 import type { CandidateProfileRecord } from './types';
 import { PERSON_RECORD_COPY } from '../../lib/personRecords';
 import { ElectionResultBlock } from './ElectionResult';
+import { ProfileContextLabel } from '../ProfileContextLabel';
 
 import {
   candidateElectionHasPassed,
@@ -103,9 +104,10 @@ export function CandidateProfileContent({
           mobile={isMobile}
           style={{ minHeight: 44, marginBottom: 0 }}
         />
+        <ProfileContextLabel>Candidate profile</ProfileContextLabel>
         <View
           style={{
-            marginTop: 12,
+            marginTop: 14,
             flexDirection: 'row',
             alignItems: 'flex-start',
             gap: isMobile ? 14 : isDesktop ? 22 : 20,

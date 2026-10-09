@@ -100,11 +100,11 @@ export function PersonOverviewScreen({ navigation, route }: RootScreenProps<'Per
             />
             {current.kind === 'loading' ? (
               <Text accessibilityLiveRegion="polite" style={candidateText.body}>
-                Loading person overview…
+                Loading person profile…
               </Text>
             ) : (
               <CandidateNotice error>
-                <Text style={candidateText.strong}>Person overview is unavailable</Text>
+                <Text style={candidateText.strong}>Person profile is unavailable</Text>
                 <CandidateButton
                   label="Try again"
                   kind="outline"

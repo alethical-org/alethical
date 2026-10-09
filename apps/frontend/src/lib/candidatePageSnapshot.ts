@@ -175,6 +175,8 @@ export function candidateProfilePageSnapshot(
   return {
     backLink: { label: 'Go back', href: '/candidates' },
     heading: record.candidate.name,
+    eyebrow: 'Candidate profile',
+    profileLabel: true,
     subheading: '',
     bodyHeading: '',
     body: [],

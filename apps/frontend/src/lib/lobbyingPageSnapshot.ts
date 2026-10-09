@@ -300,8 +300,9 @@ export function lobbyingPrincipalSnapshot(data: LobbyingPrincipal): PageSnapshot
   return {
     ...base(
       data.name ?? `Entity ${data.entity_id}`,
-      `LOBBYING PRINCIPAL · ENTITY ID ${data.entity_id}`,
+      `Lobbying principal profile · Entity ID ${data.entity_id}`,
     ),
+    profileLabel: true,
     body: [
       principalCopy.gloss,
       ...principalSpellingLines(data.lobbyists.rows),
@@ -412,8 +413,9 @@ export function lobbyingLobbyistSnapshot(
   return {
     ...base(
       data.name ?? `Registration ${data.registration_number}`,
-      `LOBBYIST · REGISTRATION ${data.registration_number}`,
+      `Lobbyist profile · Registration ${data.registration_number}`,
     ),
+    profileLabel: true,
     body: [copied(data.copied_at)].filter(Boolean),
     sections: [
       {

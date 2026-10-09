@@ -370,6 +370,8 @@ export interface PageSnapshot {
   backLink?: SnapshotLink;
   /** The short capitalised label the app draws above the heading, e.g. `STATE PARTY COMMITTEE`. */
   eyebrow?: string;
+  /** Use the shared profile-label sizes and keep any source identifier together. */
+  profileLabel?: boolean;
   /** Only article builders opt into approved article reading limits in the first response. */
   article?: boolean;
   /** The page's `<h1>`. */
@@ -882,6 +884,8 @@ export function legislatorPageSnapshot(
   const party = servesNow && clean(service.party) ? partyFull(service.party ?? undefined) : '';
   return {
     heading: displayName,
+    eyebrow: 'Legislator profile',
+    profileLabel: true,
     subheading: [districtLine, party].filter(Boolean).join(' · '),
     bodyHeading: 'Committees',
     body: committees.length
@@ -2969,7 +2973,13 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
     snapshot.backLink
       ? `<a class="ps-back" href="${escapeHtml(snapshot.backLink.href)}">${BACK_CHEVRON}${escapeHtml(snapshot.backLink.label)}</a>`
       : '',
-    snapshot.eyebrow ? `<p class="ps-eyebrow">${escapeHtml(snapshot.eyebrow)}</p>` : '',
+    snapshot.eyebrow
+      ? `<p class="ps-eyebrow${snapshot.profileLabel ? ' ps-profile-label' : ''}">${
+          snapshot.profileLabel && snapshot.eyebrow.includes(' · ')
+            ? `${escapeHtml(snapshot.eyebrow.split(' · ')[0])}&nbsp;· <span class="ps-profile-identifier">${escapeHtml(snapshot.eyebrow.split(' · ')[1])}</span>`
+            : escapeHtml(snapshot.eyebrow)
+        }</p>`
+      : '',
     `<h1${titleAttributes}>${title}</h1>`,
     chips ||
       (snapshot.subheading ? `<p class="ps-sub">${escapeHtml(snapshot.subheading)}</p>` : ''),

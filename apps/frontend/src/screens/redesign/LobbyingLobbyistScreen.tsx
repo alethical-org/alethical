@@ -113,7 +113,7 @@ export function LobbyingLobbyistScreen({ route, navigation }: RootScreenProps<'L
   return (
     <LobbyingPageFrame
       narrow
-      eyebrow={`LOBBYIST · REGISTRATION ${lobbyist.registration_number}`}
+      eyebrow={`Lobbyist profile · Registration ${lobbyist.registration_number}`}
       title={displayName}
       details={<View>{copiedLine ? <Text style={styles.copyDate}>{copiedLine}</Text> : null}</View>}
       shareContent={shareContent}
