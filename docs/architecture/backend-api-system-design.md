@@ -2164,6 +2164,7 @@ Rationale:
 - exact ZIP and close city matches rank official results, while the supplied street type and direction break remaining ties; equally close addresses become choices, and an incomplete state result list is refused rather than guessed
 - House, Senate, and Congress are read from the Minnesota Legislative Coordinating Commission's official 2022 boundary files stored with the backend, including the May 26, 2023 legislative corrections; a person's precise point is not sent to the commission during a lookup
 - single-digit House and Senate numbers from that map are padded before the saved district lookup (`4A`/`4` becomes `04A`/`04`), matching the official records instead of falsely reporting no address match
+- each database round trip adds to every search, so the House and Senate districts are read in 1 query, each member's district, chamber and person are joined into the member query, and both freshness dates are read in 1 query; `test_representative_lookup_reads_the_database_in_few_statements` holds a found lookup to 9 statements
 - the bundled map is refused unless it has all 134 House and 67 Senate district codes and valid shapes; each returned shape must cover the selected point, and the smaller browser copy is made only after that check
 - the browser shares identical requests already in progress and reuses a successful result for 60s; the API still allows 10 lookup requests per public IP in 60s and returns the remaining wait in `Retry-After` when the limit is reached
 
@@ -2195,9 +2196,11 @@ Rationale:
 - state and active status are filtered locally to reduce source-query work; if the source
   reports omitted rows, retry the original state-and-active-filtered query before returning
   suggestions
-- Minnesota address-point requests reuse thread-local connections without cookies or
-  credentials, including redirects; no address/query result cache is added and Census
-  transport is unchanged
+- Census, Minnesota address-point and MyBallot requests share 1 thread-local connection
+  pool (`public_source_session`) without cookies, credentials, environment proxies or
+  saved passwords, including across redirects; each caller keeps its own timeout,
+  redirect and streaming settings, MyBallot redirects stay refused, and no
+  address/query result cache is added
 - choosing a suggestion gives the existing representative lookup its official point, so
   the reader does not need a second click or another geocoding request
 - the endpoint has its own 60-requests-per-public-IP-per-60-seconds limit, separate from

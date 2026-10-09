@@ -27,7 +27,7 @@ def fake_address_transport(monkeypatch):
     # Existing source fixtures exercise parser behavior through the same fake GET.
     # The real pooled transport has separate HTTP-level privacy/reuse tests.
     monkeypatch.setattr(
-        "alethical.api.services.representative_lookup._address_point_session",
+        "alethical.api.services.representative_lookup.public_source_session",
         lambda: SimpleNamespace(
             get=lambda *args, **kwargs: requests.get(*args, **kwargs)
         ),

@@ -545,27 +545,30 @@ def representative_source_updated_at(db: Session, legislator_ids) -> datetime | 
     """Oldest successful refresh among the displayed roster and authored bills."""
     ids = list(legislator_ids)
     dates: list[datetime] = []
-    roster_date = db.scalar(
-        select(func.max(IngestionRun.finished_at)).where(
-            IngestionRun.adapter == "minnesota_live",
-            IngestionRun.target_type == "legislator_roster",
-            IngestionRun.status == IngestionStatus.succeeded,
+    roster_date, bill_date = db.execute(
+        select(
+            select(func.max(IngestionRun.finished_at))
+            .where(
+                IngestionRun.adapter == "minnesota_live",
+                IngestionRun.target_type == "legislator_roster",
+                IngestionRun.status == IngestionStatus.succeeded,
+            )
+            .scalar_subquery(),
+            select(func.min(IngestionRun.finished_at))
+            .join(Bill, Bill.ingestion_run_id == IngestionRun.id)
+            .join(Sponsorship, Sponsorship.bill_id == Bill.id)
+            .where(
+                Sponsorship.legislator_id.in_(ids),
+                Sponsorship.role.in_(
+                    [SponsorshipRole.chief_author, SponsorshipRole.co_author]
+                ),
+                IngestionRun.status == IngestionStatus.succeeded,
+            )
+            .scalar_subquery(),
         )
-    )
+    ).one()
     if roster_date:
         dates.append(roster_date)
-    bill_date = db.scalar(
-        select(func.min(IngestionRun.finished_at))
-        .join(Bill, Bill.ingestion_run_id == IngestionRun.id)
-        .join(Sponsorship, Sponsorship.bill_id == Bill.id)
-        .where(
-            Sponsorship.legislator_id.in_(ids),
-            Sponsorship.role.in_(
-                [SponsorshipRole.chief_author, SponsorshipRole.co_author]
-            ),
-            IngestionRun.status == IngestionStatus.succeeded,
-        )
-    )
     if bill_date:
         dates.append(bill_date)
     return min(dates) if dates else None
@@ -858,7 +861,7 @@ def tracking_user_id(include_set: set[str], current_user):
     return current_user.id
 
 
-def district_for_match(db: Session, match: DistrictMatch | None):
+def _district_key(match: DistrictMatch | None) -> tuple[ChamberType, str] | None:
     if match is None:
         return None
     if match.chamber == "house":
@@ -874,14 +877,37 @@ def district_for_match(db: Session, match: DistrictMatch | None):
         if code_match
         else service_code
     )
-    return db.scalar(
-        select(District)
-        .join(Chamber, Chamber.id == District.chamber_id)
-        .where(
-            District.code == database_code,
-            Chamber.chamber_type == chamber_type,
-        )
-    )
+    return chamber_type, database_code
+
+
+def district_for_match(db: Session, match: DistrictMatch | None):
+    return districts_for_matches(db, match)[0]
+
+
+def districts_for_matches(db: Session, *matches: DistrictMatch | None) -> list:
+    """Each match's database district, read together in 1 query."""
+    keys = [_district_key(match) for match in matches]
+    wanted = [key for key in keys if key is not None]
+    found: dict[tuple[ChamberType, str], District] = {}
+    if wanted:
+        rows = db.execute(
+            select(District, Chamber.chamber_type)
+            .join(Chamber, Chamber.id == District.chamber_id)
+            .where(
+                or_(
+                    *(
+                        and_(
+                            District.code == code,
+                            Chamber.chamber_type == chamber_type,
+                        )
+                        for chamber_type, code in wanted
+                    )
+                )
+            )
+        ).all()
+        for district, chamber_type in rows:
+            found.setdefault((chamber_type, district.code), district)
+    return [found.get(key) if key is not None else None for key in keys]
 
 
 def status_filter_clause(status: str):
@@ -5509,8 +5535,9 @@ def representative_lookup(
             type_slug="representative-lookup-upstream-error",
         ) from None
 
-    house_district = district_for_match(db, lookup_result.house_district)
-    senate_district = district_for_match(db, lookup_result.senate_district)
+    house_district, senate_district = districts_for_matches(
+        db, lookup_result.house_district, lookup_result.senate_district
+    )
     district_ids = [
         district.id
         for district in [house_district, senate_district]
