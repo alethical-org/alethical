@@ -32,10 +32,23 @@ def report():
     return {
         "identity": IDS.copy(),
         "plan": "hobby",
+        "saved_configured_replicas": 1,
+        "service_disk_usage": {
+            "latest": 1.0,
+            "maximum": 2.0,
+            "latest_timestamp": NOW.timestamp(),
+            "sample_count": 2,
+        },
         "service": {
             "configured_replicas": 1,
             "dashboard_start_command_matches_repository": True,
-            "active_deployments": [{"id": OLD, "running_instance_ids": [INSTANCE]}],
+            "active_deployments": [
+                {
+                    "id": OLD,
+                    "running_instance_ids": [INSTANCE],
+                    "configured_replicas": 1,
+                }
+            ],
         },
         "startup_capacity": {
             "enabled": False,
@@ -83,6 +96,36 @@ class GateTests(unittest.TestCase):
         for plan in ("free", "trial", None, PRIVATE):
             value = report()
             value["plan"] = plan
+            self.reject(value)
+
+    def test_saved_or_active_placement_unknown_or_different_refused(self):
+        for count in (None, True, 2):
+            value = report()
+            value["saved_configured_replicas"] = count
+            self.reject(value)
+            value = report()
+            value["service"]["active_deployments"][0]["configured_replicas"] = count
+            self.reject(value)
+
+    def test_host_free_space_does_not_replace_storage_allowance_usage(self):
+        for replacement in (
+            None,
+            {
+                "latest": 1.0,
+                "maximum": 100.0,
+                "latest_timestamp": NOW.timestamp(),
+                "sample_count": 2,
+            },
+            {
+                "latest": 1.0,
+                "maximum": 1.0,
+                "latest_timestamp": NOW.timestamp() - 301,
+                "sample_count": 2,
+            },
+        ):
+            value = report()
+            value["startup_capacity"]["free_bytes"] = 2_400_000_000_000
+            value["service_disk_usage"] = replacement
             self.reject(value)
 
     def test_multiple_unknown_replicas_deployments_instances_refused(self):

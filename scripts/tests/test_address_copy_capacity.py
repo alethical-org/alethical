@@ -67,6 +67,86 @@ class CapacityTest(unittest.TestCase):
         report = capacity.metric_report(data, {ID})
         self.assertIsNone(report[0]["measurements"]["MEMORY_USAGE_GB"])
 
+    def test_replica_placement_requires_explicit_counts(self):
+        cases = [
+            (None, None),
+            ({}, None),
+            ({"multiRegionConfig": {}}, None),
+            ({"multiRegionConfig": {"removed": None}}, None),
+            ({"multiRegionConfig": {"east": {"numReplicas": True}}}, None),
+            ({"multiRegionConfig": {"east": {"numReplicas": "1"}}}, None),
+            ({"multiRegionConfig": {"east": {"numReplicas": 1}}}, 1),
+            ({"multiRegionConfig": {"east": {"numReplicas": 1}, "removed": None}}, 1),
+            (
+                {
+                    "multiRegionConfig": {
+                        "east": {"numReplicas": 1},
+                        "west": {"numReplicas": 2},
+                    }
+                },
+                3,
+            ),
+            ({"numReplicas": 1}, 1),
+        ]
+        for value, expected in cases:
+            with self.subTest(value=value):
+                self.assertEqual(capacity.replica_count(value), expected)
+
+    def test_active_placement_overrides_nullable_dashboard_count_without_leaking_meta(
+        self,
+    ):
+        report = capacity.service_report(
+            {
+                "serviceInstance": {
+                    "numReplicas": None,
+                    "startCommand": "reviewed",
+                    "activeDeployments": [
+                        {
+                            "id": ID,
+                            "instances": [],
+                            "meta": {
+                                "private": PRIVATE,
+                                "serviceManifest": {
+                                    "deploy": {
+                                        "multiRegionConfig": {
+                                            "east": {"numReplicas": 1}
+                                        },
+                                        "private": PRIVATE,
+                                    }
+                                },
+                            },
+                        }
+                    ],
+                }
+            },
+            "reviewed",
+        )
+        self.assertEqual(report["configured_replicas"], 1)
+        self.assertIsNone(report["dashboard_replicas"])
+        self.assertNotIn(PRIVATE, json.dumps(report))
+
+    def test_disk_service_query_can_read_untagged_usage_without_relabelling_instance_metrics(
+        self,
+    ):
+        data = {
+            "metrics": [
+                {
+                    "measurement": "EPHEMERAL_DISK_USAGE_GB",
+                    "tags": {},
+                    "values": [{"ts": 1_791_504_000, "value": 2.5}],
+                }
+            ]
+        }
+        self.assertIsNone(
+            capacity.metric_report(data, {ID})[0]["measurements"][
+                "EPHEMERAL_DISK_USAGE_GB"
+            ]
+        )
+        metric = capacity.metric_report(data, {ID}, service_scoped=True)[0][
+            "measurements"
+        ]["EPHEMERAL_DISK_USAGE_GB"]
+        self.assertEqual(metric["maximum"], 2.5)
+
     def test_only_running_instances_are_used_for_metrics(self):
         report = capacity.service_report(
             {
@@ -223,6 +303,23 @@ class CapacityTest(unittest.TestCase):
                 )
         self.assertNotIn(PRIVATE, str(raised.exception))
 
+    def test_provider_accepts_identified_client_and_refuses_default_python_client(self):
+        # The live endpoint returns HTTP 403 for Python-urllib, but reaches
+        # GraphQL with this application's identity. No service credential here.
+        def provider(request, timeout):
+            if request.get_header("User-agent") != "alethical-address-copy-capacity/1":
+                raise capacity.urllib.error.HTTPError(
+                    capacity.API, 403, PRIVATE, {}, None
+                )
+            response = unittest.mock.MagicMock()
+            response.__enter__.return_value.read.return_value = b'{"data":{"ok":true}}'
+            return response
+
+        with patch.object(capacity.urllib.request, "urlopen", side_effect=provider):
+            self.assertEqual(
+                capacity.query("fake-token", capacity.IDENTITY, {}), {"ok": True}
+            )
+
     def test_cli_errors_never_escape(self):
         process = unittest.mock.MagicMock(
             returncode=1, stdout=PRIVATE.encode(), stderr=PRIVATE.encode()
@@ -235,6 +332,75 @@ class CapacityTest(unittest.TestCase):
         self.assertTrue(run.call_args.kwargs["capture_output"])
         self.assertIn("--lines", run.call_args.args[0])
         self.assertIn("100", run.call_args.args[0])
+
+    def test_collect_keeps_saved_settings_private_and_reads_disk_without_instance_grouping(
+        self,
+    ):
+        placement = {"multiRegionConfig": {"east": {"numReplicas": 1}}}
+
+        def provider(token, statement, variables):
+            if statement == capacity.IDENTITY:
+                return {
+                    "projectToken": {
+                        "project": {
+                            "id": ID,
+                            "name": "alethical",
+                            "services": {
+                                "edges": [{"node": {"id": ID, "name": "alethical-api"}}]
+                            },
+                        },
+                        "environment": {"id": ID, "name": "production"},
+                    }
+                }
+            if statement == capacity.PLAN:
+                return {"project": {"subscriptionType": "pro"}}
+            if statement == capacity.SERVICE:
+                return {
+                    "serviceInstance": {
+                        "numReplicas": None,
+                        "startCommand": PRIVATE,
+                        "activeDeployments": [
+                            {
+                                "id": ID,
+                                "instances": [],
+                                "meta": {"serviceManifest": {"deploy": placement}},
+                            }
+                        ],
+                    }
+                }
+            if statement == capacity.CONFIG:
+                self.assertIn("decryptVariables: false", statement)
+                return {
+                    "environment": {
+                        "config": {
+                            "services": {
+                                ID: {"deploy": placement, "variables": PRIVATE}
+                            },
+                            "sharedVariables": PRIVATE,
+                        }
+                    }
+                }
+            if variables["measurements"] == ["EPHEMERAL_DISK_USAGE_GB"]:
+                self.assertNotIn("groupBy", statement)
+                return {
+                    "metrics": [
+                        {
+                            "measurement": "EPHEMERAL_DISK_USAGE_GB",
+                            "tags": {},
+                            "values": [{"ts": 1_791_504_000, "value": 2.5}],
+                        }
+                    ]
+                }
+            return {"metrics": []}
+
+        with (
+            patch.object(capacity, "query", side_effect=provider),
+            patch.object(capacity, "deployment_capacity", return_value=None),
+        ):
+            report = capacity.collect("fake-token")
+        self.assertEqual(report["saved_configured_replicas"], 1)
+        self.assertEqual(report["service_disk_usage"]["latest"], 2.5)
+        self.assertNotIn(PRIVATE, json.dumps(report))
 
 
 if __name__ == "__main__":
