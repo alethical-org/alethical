@@ -258,3 +258,47 @@ provider delivery to real recipients is deliberately not claimed as tested.
 The task retains its managed working folder for routine work at Eugene's request.
 Temporary drawings, private audit receipts and browser evidence remain under
 `~/.local/state/alethical-agent-jobs/` rather than in public product documentation.
+
+## Profile claim and candidate features round (Alethical UX 90)
+
+<!-- timeless-check-ignore: dated implementation checkpoint, not product instructions -->
+9 October 2026: authorized build of the 38-item review in `Alethical UX (90).zip`
+(SHA-256 `188f899d2b8fb9aa396897ef36642c992fd5ef68644c0287a18dfdbd47d711a3`), on branch
+`codex/profile-claim-features-90`. Items 1–5 (status block, badges, certified badge,
+source area, black claim buttons) shipped earlier in
+[pull request 2577](https://github.com/alethical-org/alethical/pull/2577) and
+[pull request 2582](https://github.com/alethical-org/alethical/pull/2582); this round
+re-verifies them and builds the remaining delta. The behaviour now lives in
+[How Find My Candidates works](../product-onboarding/find-my-candidates-guide.md).
+A private comparison record lists one entry per requirement; an independent review
+accepted it before implementation.
+
+Scope delivered in this round:
+
+1. `/candidates/features`: public page, every feature labelled on the roadmap, claim
+   context by public candidate id only, first response served without indexing, and the
+   claim page link in the same release.
+2. Claim page: introduction, sign-in return, human-review form wording, per-length
+   explanation errors, in-memory answers bound to account and candidate, receipt with
+   the server's latest submission date and exact-prefix role, and every status state.
+3. Manage page: new layout and wording, live count, publication date under the editor,
+   Save changes only after an edit, write checks on every path, read-before-retry, and
+   equal-width dialogs.
+4. Public statement card, failure retry and report dialog with the updated-statement
+   panel; first publication and latest edit derived from revision history (no schema
+   change).
+5. Admin request review labels, decision section, block order and placement, and
+   per-submission history; profile claim email wording.
+6. Grey Go back on person overview and the admin request; legislator panel edge
+   alignment on the candidate profile.
+
+Held: an applicant-facing rejection reason (not approved intent; the private review note
+stays private), and the statement card's bottom paddings, where 2 drawings disagree and
+Design rules on the final value.
+
+Verification: focused backend and frontend suites, the full frontend suite, and 2
+rendered Chromium specs with fictional intercepted data at 1280, 900 and 390 pixels
+(`apps/frontend/e2e/candidate-features-and-claim-round.spec.ts`,
+`apps/frontend/e2e/profile-claim-interactions.spec.ts`). No real claim, decision,
+statement, report or email was created to test. Remaining: independent product
+acceptance, current-head checks, merge, deployment and live comparison.

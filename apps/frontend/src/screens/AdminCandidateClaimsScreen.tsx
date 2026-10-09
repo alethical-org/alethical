@@ -902,6 +902,7 @@ function ClaimDetail({
                       fontWeight: 600,
                       color: '#11150f',
                       minHeight: 44,
+                      boxSizing: 'border-box',
                       padding: '12px 14px',
                       backgroundColor: '#f7f8fa',
                       border: `1px solid ${checkError ? '#a3421a' : 'rgba(17,21,15,0.1)'}`,
@@ -929,8 +930,10 @@ function ClaimDetail({
                         accentColor: '#0f7a45',
                       }}
                     />
-                    I independently verified this applicant’s identity and authority to represent
-                    this campaign
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      I independently verified this applicant’s identity and authority to represent
+                      this campaign
+                    </span>
                   </label>
                   {checkError || (busy && busyCheckErrorHeight > 0) ? (
                     <View style={{ minHeight: busy ? busyCheckErrorHeight : undefined }}>

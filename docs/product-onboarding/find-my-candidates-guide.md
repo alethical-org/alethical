@@ -1,6 +1,6 @@
 # How Find My Candidates works
 
-<!-- describes: alethical/api/services/address_format.py, apps/frontend/src/lib/currentAddressInput.ts, apps/frontend/src/lib/addressSuggestion.ts, apps/frontend/src/components/address/*.tsx, apps/frontend/src/components/home/HomeCandidateFinder.tsx, apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidateProfileScreen.tsx, apps/frontend/src/screens/CandidateAccountScreens.tsx, apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx, apps/frontend/src/components/candidates/*.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/lib/candidateAddressUnit.ts, apps/frontend/src/data/candidates.ts, apps/frontend/src/data/candidateClaims.ts, apps/frontend/src/hooks/useCandidatePrivacyBoundary.ts, apps/frontend/src/lib/candidatePrivacy.ts, apps/frontend/src/lib/candidatePageSnapshot.ts, apps/frontend/src/lib/candidatePublicCopy.ts, alethical/api/routers/candidates.py, alethical/api/routers/candidate_claims.py, alethical/api/services/candidate_lookup.py, alethical/api/services/candidate_legislators.py, alethical/api/data/candidate_legislator_links.json, alethical/api/services/candidate_claims.py, alethical/api/services/admin_access.py, alethical/api/services/candidate_claim_identity.py, alethical/api/services/candidate_claim_events.py, alethical/api/services/candidate_claim_email.py, alethical/api/services/candidate_claim_recheck.py, alethical/api/services/candidate_recheck.py, alethical/api/services/person_records.py, alethical/api/routers/people.py, alethical/api/data/candidate_person_records.json, alethical/pipeline/candidate_person_records.py, alethical/pipeline/data/candidate_recheck_references_2026_v1.json, alethical/alembic/versions/0068_profile_claim_review.py, alethical/alembic/versions/0069_candidate_person_records.py, apps/frontend/src/screens/PersonOverviewScreen.tsx, apps/frontend/src/components/candidates/PersonOverviewContent.tsx, apps/frontend/src/components/candidates/PersonResearch.tsx, apps/frontend/src/data/personRecords.ts, apps/frontend/src/lib/personRecords.ts, alethical/pipeline/candidate_ballot.py, alethical/db/models.py, alethical/alembic/versions/0066_candidate_lookup.py, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/lib/staticPageMetadata.ts, api/page.ts -->
+<!-- describes: alethical/api/services/address_format.py, apps/frontend/src/lib/currentAddressInput.ts, apps/frontend/src/lib/addressSuggestion.ts, apps/frontend/src/components/address/*.tsx, apps/frontend/src/components/home/HomeCandidateFinder.tsx, apps/frontend/src/screens/CandidatesScreen.tsx, apps/frontend/src/screens/CandidateProfileScreen.tsx, apps/frontend/src/screens/CandidateAccountScreens.tsx, apps/frontend/src/screens/AdminCandidateClaimsScreen.tsx, apps/frontend/src/components/candidates/*.tsx, apps/frontend/src/components/candidates/candidateFlow.ts, apps/frontend/src/lib/candidateAddressUnit.ts, apps/frontend/src/data/candidates.ts, apps/frontend/src/data/candidateClaims.ts, apps/frontend/src/hooks/useCandidatePrivacyBoundary.ts, apps/frontend/src/lib/candidatePrivacy.ts, apps/frontend/src/lib/candidatePageSnapshot.ts, apps/frontend/src/lib/candidatePublicCopy.ts, alethical/api/routers/candidates.py, alethical/api/routers/candidate_claims.py, alethical/api/services/candidate_lookup.py, alethical/api/services/candidate_legislators.py, alethical/api/data/candidate_legislator_links.json, alethical/api/services/candidate_claims.py, alethical/api/services/admin_access.py, alethical/api/services/candidate_claim_identity.py, alethical/api/services/candidate_claim_events.py, alethical/api/services/candidate_claim_email.py, alethical/api/services/candidate_claim_recheck.py, alethical/api/services/candidate_recheck.py, alethical/api/services/person_records.py, alethical/api/routers/people.py, alethical/api/data/candidate_person_records.json, alethical/pipeline/candidate_person_records.py, alethical/pipeline/data/candidate_recheck_references_2026_v1.json, alethical/alembic/versions/0068_profile_claim_review.py, alethical/alembic/versions/0069_candidate_person_records.py, apps/frontend/src/screens/PersonOverviewScreen.tsx, apps/frontend/src/components/candidates/PersonOverviewContent.tsx, apps/frontend/src/components/candidates/PersonResearch.tsx, apps/frontend/src/data/personRecords.ts, apps/frontend/src/lib/personRecords.ts, alethical/pipeline/candidate_ballot.py, alethical/db/models.py, alethical/alembic/versions/0066_candidate_lookup.py, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/lib/staticPageMetadata.ts, api/page.ts, apps/frontend/src/screens/CandidateFeaturesScreen.tsx, apps/frontend/src/lib/candidateFeatures.ts, apps/frontend/src/lib/profileClaimDraft.ts, apps/frontend/src/components/GoBackLink.tsx -->
 
 ## Public address lookup
 
@@ -466,7 +466,7 @@ both links; different dates remain under their own link. **Ballot record saved
 {date}** stays under the ballot source even when dates match. A missing results
 source adds no source date, and no date is invented.
 
-Candidate profile actions use filled buttons. **Claim this profile** and
+Candidate profile actions use filled buttons. **Claim this candidate profile** and
 **Manage this profile** are green. **View profile claim status** and
 **Review profile claim requests** are black with white text, regardless of
 request state. Their existing explanations, permissions and destinations remain
@@ -488,24 +488,75 @@ campaign-authored material and never become official research.
 ## Claiming and managing a profile
 
 `/candidates/<id>/claim` uses the existing Alethical account. Browsing remains public.
-**Claim this profile** is the feature name; it requests campaign access to publish a
-statement. Approval grants that permission, not ownership of official records.
-**Manage this profile** keeps the same profile terminology. The explanation sits
-below its applicable action, before the footer, across layout bands.
-**Claim this profile** uses the shared green filled button, as does **Manage this
-profile**. Claim-status and administrator actions stay outlined. The action and
-explanation share the left edge on computer and tablet; the button fills the
-column on phone. The inactive legislator claim preview retains its pale treatment.
+A profile claim requests access to manage campaign information on one candidate profile;
+approval grants that access, not ownership of official records. The profile action reads
+**Claim this candidate profile**, because the site also has person and legislator
+profiles, and its explanation underneath is: "Alethical reviews requests from candidates
+and authorized campaign representatives. Approved access lets you manage campaign
+information, not official records." An approved owner sees **Manage this profile** with
+"Manage your campaign’s information on this candidate profile". Claim-status and
+administrator actions are black. Each explanation sits below its action, before the
+footer, and the button fills the column on phone. The inactive legislator claim preview
+retains its pale treatment.
 
-The form requires **Candidate** or **Authorized campaign representative**, a public
-campaign or official-record link, and a private explanation of the role and how it
-can be confirmed. The explanation is 20–1900 characters; the stored role and
-explanation together fit within 2000. The link is at most 2000 characters and is
-not fetched automatically. There is no supporting upload, campaign code check,
-or **More information needed** workflow. A filing, certificate, email domain or
-ordinary sign-in alone never proves campaign authority. An existing pending
-request opens **View profile claim status** without changing its saved evidence
-or sending another notification.
+Signed out with claims open, the claim page shows the grey **Go back**, **Claim this
+candidate profile**, a paragraph about what a profile offers voters, **Explore candidate
+profile features**, the candidate card (name, **Candidate for**, office, voting area,
+election), **Sign in to continue**, and the review note under a dividing line. Signed in,
+the paragraph and features link are hidden and the form follows the card. Both the top
+bar's **Sign in** and **Sign in to continue** return to the same candidate's claim page.
+After election day a signed-out visitor sees **Profile claims closed for this election**,
+"This election has ended", **Sign in to view claim status** and **View public profile**;
+signing in shows that account's saved status and never reopens new requests.
+
+The form opens with "Alethical reviews each request. We may contact you, the candidate or
+the campaign by email or phone to confirm your identity and permission to manage this
+profile." It requires **Candidate** or **Authorized campaign representative**, a public
+campaign or official-record link, and a private explanation of the role and how it can be
+confirmed. Help under the link says a public record can confirm the candidacy but not the
+applicant's identity or permission; help under the explanation asks where Alethical can
+independently confirm the role. The explanation is 20–1900 characters, with separate
+messages when it is empty, shorter than 20 characters or longer than 1900; the stored role
+and explanation together fit within 2000. The link is at most 2000 characters and is not
+fetched automatically. An invalid submit keeps every answer, shows each message under its
+field, moves focus to the first invalid field and clears each message as its field becomes
+valid; a second press while saving is ignored. There is no supporting upload, campaign
+code check, **More information needed** workflow, automatic approval, identity upload or
+required phone number. A filing, certificate, email domain or ordinary sign-in alone never
+proves campaign authority.
+
+Unsent answers are kept in memory for the same signed-in account and candidate, so a trip
+to another page in the same tab returns the claim step as it was left. They are never
+written to browser storage or an address, and any account change clears them.
+
+A saved pending request shows a receipt: **Profile claim request received**, an
+explanation that an Alethical team member reviews it and may contact the applicant,
+candidate or campaign, a note that the applicant can leave and return, and **Your
+submitted information** with **Submitted {date}** (the latest submission or resubmission
+from the server; older requests without submission history use their creation date, and a
+missing date is omitted). The saved answers show **Your role** only when the stored value
+starts with an exact role name and 2 new lines; anything else shows whole as **Your
+explanation**. "This information is not shown on your public profile" sits under them.
+**View public profile** and **Withdraw request** follow. Submitting again opens the saved
+request without changing its evidence or sending another notification (**Request already
+submitted**). Not approved, withdrawn, revoked, already claimed, election ended and admin
+states each have their own heading and next step: **Request another review** after a
+decision, **Start a new request** after a withdrawal, **Request a review** on a profile
+another account manages, and none once claims close. Applicant and voter wording says
+"Alethical"; only admin screens name the administrator role. No applicant-facing
+rejection reason exists; private review notes are never shown to applicants or emailed.
+
+`/candidates/features` explains what a claimed candidate profile will offer. Every
+feature on it is on the roadmap and the page says so; none is available yet. Twelve
+features sit under 4 headings (**Who you are**, **Questions and answers**, **Keeping
+voters informed**, **Public records and your team**), followed by a **How it works** card.
+Reached from the claim page, the address carries only the public candidate id; a card
+under the introduction shows the candidate's name and office beside **Continue claiming
+this candidate profile**, and **Go back** returns to that claim step. A direct visit has
+no candidate name or claim action, **Go back** falls back to `/candidates`, and the page
+ends with **Find candidates**. The page has no comments, rankings, promise scores,
+donations, follower lists, paid placement or prices, and stays out of search results while
+everything it lists is still to come.
 
 Only an active account with a current confirmed email can request campaign access.
 There is 1 administrator role, with equal review powers. Admin accounts cannot
@@ -517,15 +568,24 @@ The private `/admin/candidate-claims` list has **Pending** and **All**, candidat
 filtering, exact request links and 25 rows per page, oldest-created first. Its
 pending count includes requests from ended elections. The open account menu
 shows the count beside **Profile claim requests**; it is not a public site badge.
-An exact request shows current confirmed account email when unambiguous, saved
-role/link/explanation, current official facts and source check date, private review
-notes and retained history. A historical missing role or event is not invented.
+An exact request, headed **Review profile claim request**, shows the applicant email
+with **Email confirmed** only when the current confirmed address is unambiguous (otherwise
+"No confirmed account email available"), **Submitted**, **Role** (only from an exact
+prefix), **Campaign website or official record**, **Explanation**, the official record
+source and check date, the private review note and **Request history**. History uses short
+event names, and each submission's own saved answers sit behind **View submitted
+information**; an older submission is never shown with the current values. A historical
+missing role or event is not invented.
 
 An admin independently confirms identity and campaign authority, checks the
 approval confirmation, and saves a private note of 20–2000 characters before
-approval. Approval requires an active confirmed non-admin applicant, no other
-approved owner, and official evidence checked within 24 hours. **Reject profile
-claim request** and **Revoke profile claim** also require a private note. Competing
+approval; the note shows a live count. Any approval block sits directly above
+**Approve request** and **Reject request**, in this order: ended election, an existing
+approved claim, the applicant's account (admin, deactivated or unconfirmed email), then
+the official record checks. An unconfirmed applicant email blocks approval and leaves
+rejection available. Approval requires an active confirmed non-admin applicant, no other
+approved owner, and official evidence checked within 24 hours. **Reject request** and
+**Revoke profile claim** also require a private note. Competing
 requests never transfer ownership automatically. There is no assignment or second
 admin role: the saved request version prevents an older screen from overwriting a
 newer decision. An unknown save outcome requires reloading the request before retry.
@@ -550,11 +610,30 @@ still needs admin review. Closed-election public states explain what a profile
 claim means and show no new-request button.
 
 An approved owner uses `/candidates/<id>/manage` for a plain-text statement of at
-most 2000 characters, including after the election. Preview, publication, edits and
-removal leave the official record intact. The public campaign block identifies
-its authorship and explains verified campaign access. Campaign statements stay
-out of official-record answers and search material used by Grounded Ask. Private
-statement revisions remain available to the owner and authorized admin review.
+most 2000 characters, including after the election. The page opens with **Go back** and
+**View public profile** (both ask before discarding unsaved edits), "Manage the campaign
+information voters see on this profile. Official records are shown separately and can’t be
+edited here.", and the candidate card with **Campaign access verified**. Under the editor,
+the left side shows **Published {date}** or **Edited {date}** once a statement is public,
+or "Your statement is not saved until you publish it" before the first publish; the right
+side shows a live "{n} / 2000 characters". **Save changes** appears only after the text
+changes; voters keep seeing the published version until saving succeeds. Every write,
+including **Try again**, refuses more than 2000 characters and an empty first publish,
+focusing the editor. **Try again** first reads what was saved, then repeats only the last
+action and only if it is still needed; a failed removal is retried as a removal, never as
+a save, and the owner's text is never changed. Preview shows the public card without the
+report link. Campaign statements stay out of official-record answers and search material
+used by Grounded Ask. Private statement revisions remain available to the owner and
+authorized admin review.
+
+The public card leads with **Campaign statement** and the campaign's own words, dated
+**Published {date}** for the first publication or **Edited {date}** for the latest saved
+edit, never an election, certification or check date. A removal followed by a new
+statement is a new publication. One quiet line beside **Report this statement** says
+"Alethical verified this account’s authority to represent the campaign, not the
+statement’s accuracy". A failed statement load shows "We couldn’t load the campaign
+statement" with **Try again**, which reloads only the statement and keeps its box steady;
+a successful response with no statement shows nothing.
 
 An unsaved statement stays in the editor until publication or a confirmed edit;
 there is no saved unpublished-draft feature. Leaving through an in-app link or
@@ -564,9 +643,12 @@ uses the browser's own warning. A never-published draft has no publication date,
 including in Preview. Clearing an existing published statement is an unsaved
 edit; typing and clearing a new draft back to empty is not.
 
-Applicants can withdraw pending requests. **Give up this profile claim** ends an
-approved owner's campaign access and removes a published statement if present.
-Its confirmation and success message mention removal only when a statement exists.
+Applicants can withdraw pending requests with **Withdraw request**. **Give up this
+profile claim** ends an approved owner's access and removes a published statement if
+present. Its confirmation, **Give up this profile claim?** with the candidate's name,
+mentions removal only when a statement is published and warns about unsaved edits only
+when there are any; **Keep profile claim** and Escape keep every edit and return focus.
+Removing a statement says voters will no longer see it and that access is kept.
 The saved claim state remains withdrawn, but new history distinguishes **given up**
 from an ordinary withdrawal. Revocation also removes a published statement if
 present. None of these actions removes the official candidate profile.
@@ -597,8 +679,12 @@ addresses are skipped instead of choosing one.
 
 Resend delivers from **Alethical <ask@alethical.com>**, with replies to
 **ask@alethical.com**. Messages identify the candidate, office, voting area and
-election. Admin decision messages also name the decision, retained reviewer and
-saved time. Private supporting links, explanations, review notes and reports stay
+election, and no message line repeats its subject. Admin request messages say "Ready for
+review"; applicant messages say "You can now manage your campaign’s information on this
+candidate profile", "View your profile claim status for available next steps" or "You can
+no longer manage your campaign’s information on this candidate profile", with the reminder
+"Sign in with the account you used to request access". Admin decision messages have no
+message line and name the decision, retained reviewer and saved time. Private supporting links, explanations, review notes and reports stay
 out of email. Admin links open the exact private request; applicant links open the
 matching profile status or management view after sign-in. An old approval link
 cannot restore revoked access.
@@ -616,10 +702,13 @@ Readers can report a published statement. Admins receive the reason and the exac
 and version reported, even if the campaign edits it before review. Reports and verification
 notes are private. Database failures return a generic unavailable response without
 passing private notes into server error logs. Public report submission is rate limited and sends no email.
-The browser submits the statement version shown. If it changed, the reason stays
-and **The campaign statement changed: reload it before reporting** appears with
-**Reload statement**. The refreshed text is shown before another report can be
-submitted. A removed statement cannot be reported. Rate-limit recovery uses the
+The browser submits the statement version shown. A live "{n} / 2000 characters" sits
+under **Reason**. If the statement changed, the reason stays and "The campaign statement
+changed. Review the updated statement before submitting your report." appears with
+**Reload statement**. Reloading opens an **Updated statement** panel above **Reason**
+with its date, moves focus to it, and never submits; **Submit report** needs its own
+press, and a further change shows the warning again. A failed reload says "We couldn’t
+load the campaign statement" and keeps **Reload statement**. A removed statement cannot be reported. Rate-limit recovery uses the
 server's actual wait and restores submission without a page reload.
 
 ## Later work

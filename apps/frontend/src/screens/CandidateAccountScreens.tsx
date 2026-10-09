@@ -798,7 +798,11 @@ function ClaimForm({
         ) : null}
         <ActionRow top={showSaved ? 28 : 22}>
           {unknown === 'withdraw' ? (
-            <ProfileClaimButton label="Reload profile claim status" onPress={() => void load()} />
+            <ProfileClaimButton
+              label="Reload profile claim status"
+              width={isMobile ? '100%' : undefined}
+              onPress={() => void load()}
+            />
           ) : null}
           {pending && unknown !== 'withdraw' ? (
             <>
@@ -823,7 +827,13 @@ function ClaimForm({
               onPress={onManage}
             />
           ) : null}
-          {again ? <ProfileClaimButton label={again} onPress={openForm} /> : null}
+          {again ? (
+            <ProfileClaimButton
+              label={again}
+              width={isMobile ? '100%' : undefined}
+              onPress={openForm}
+            />
+          ) : null}
           {pending && unknown !== 'withdraw' ? null : publicLink}
         </ActionRow>
       </>,
@@ -840,7 +850,11 @@ function ClaimForm({
         />
         <ActionRow>
           {!closed && canRequest ? (
-            <ProfileClaimButton label="Request a review" onPress={openForm} />
+            <ProfileClaimButton
+              label="Request a review"
+              width={isMobile ? '100%' : undefined}
+              onPress={openForm}
+            />
           ) : null}
           {publicLink}
         </ActionRow>
@@ -1088,6 +1102,13 @@ function ManageContent({
   const [discarding, setDiscarding] = useState(false);
   const editorRef = useRef<TextInput>(null);
   const giveUpRef = useRef<View>(null);
+  const removeRef = useRef<View>(null);
+  // Safari never focuses a clicked button, so closing a dialog names its return target.
+  const focusButtonIn = (ref: RefObject<View | null>, fallback?: () => void) => () => {
+    const button = (ref.current as unknown as HTMLElement | null)?.querySelector?.('button');
+    if (button) button.focus();
+    else fallback?.();
+  };
   const { cancelPendingNavigation, installHistoryGuard } = useContext(GuardedNavigationContext);
   useLayoutEffect(() => {
     installHistoryGuard(createGuardedWebHistory);
@@ -1708,16 +1729,15 @@ function ManageContent({
             />
           ) : null}
           {published && busy !== 'publish' ? (
-            <ProfileClaimButton
-              label="Remove statement"
-              kind="danger-text"
-              style={{ marginLeft: isMobile ? 0 : 'auto' }}
-              busyLabel="Removing statement…"
-              busy={busy === 'remove'}
-              unavailable={inert && busy !== 'remove'}
-              width={isMobile ? '100%' : undefined}
-              onPress={() => setDialog('remove')}
-            />
+            <View ref={removeRef} style={{ marginLeft: isMobile ? 0 : 'auto' }}>
+              <ProfileClaimButton
+                label="Remove statement"
+                kind="danger-text"
+                unavailable={inert}
+                width={isMobile ? '100%' : undefined}
+                onPress={() => setDialog('remove')}
+              />
+            </View>
           ) : null}
         </View>
         {preview ? (
@@ -1816,6 +1836,7 @@ function ManageContent({
           onClose={() => {
             if (busy !== 'withdraw') setDialog(null);
           }}
+          returnFocus={focusButtonIn(giveUpRef)}
         >
           <Text style={[candidateText.body, { color: '#2c322c', lineHeight: 24.8 }]}>
             {published ? copy.giveUpBodyPublished : copy.giveUpBodyUnpublished}
@@ -1841,6 +1862,7 @@ function ManageContent({
               kind="green"
               unavailable={busy === 'withdraw'}
               width="100%"
+              style={{ alignSelf: 'stretch' }}
               onPress={() => setDialog(null)}
             />
             <ProfileClaimButton
@@ -1849,6 +1871,7 @@ function ManageContent({
               busy={busy === 'withdraw'}
               kind="danger"
               width="100%"
+              style={{ alignSelf: 'stretch' }}
               onPress={() => void giveUp()}
             />
           </CandidateDialogActions>
@@ -1866,7 +1889,7 @@ function ManageContent({
               else setDialog(null);
             }
           }}
-          returnFocus={dialog === 'leave' ? focusEditor : undefined}
+          returnFocus={dialog === 'leave' ? focusEditor : focusButtonIn(removeRef, focusEditor)}
         >
           {dialog === 'remove' ? (
             <Text style={[candidateText.body, { color: '#2c322c', lineHeight: 24.8 }]}>
@@ -1877,6 +1900,7 @@ function ManageContent({
             <ProfileClaimButton
               kind="green"
               width="100%"
+              style={{ alignSelf: 'stretch' }}
               label={dialog === 'remove' ? 'Keep statement' : 'Keep editing'}
               unavailable={Boolean(busy)}
               onPress={() => (dialog === 'leave' ? keepEditing() : setDialog(null))}
@@ -1886,6 +1910,7 @@ function ManageContent({
               busyLabel={dialog === 'remove' ? 'Removing statement…' : undefined}
               busy={busy === 'remove'}
               width="100%"
+              style={{ alignSelf: 'stretch' }}
               kind="danger"
               onPress={() => (dialog === 'leave' ? setDiscarding(true) : void write('remove'))}
             />

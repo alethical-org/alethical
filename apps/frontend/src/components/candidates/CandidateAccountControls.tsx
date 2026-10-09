@@ -231,7 +231,15 @@ export function CandidateStatusHeading({
         >
           <CandidateStatusIcon kind={kind} />
         </View>
-        <View ref={headingRef} tabIndex={-1} style={{ flex: 1, minWidth: 0 }}>
+        {/* A programmatic focus target only: it announces the new state and is not a control. */}
+        <View
+          ref={headingRef}
+          tabIndex={-1}
+          style={[
+            { flex: 1, minWidth: 0 },
+            Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null,
+          ]}
+        >
           <Text
             accessibilityRole="header"
             aria-level={1}
