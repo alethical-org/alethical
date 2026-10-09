@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
+  type RefObject,
 } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -37,6 +38,11 @@ export function CandidateAddressForm({
   compact = false,
   privacyDisclosure,
   showBusyMessage = true,
+  fieldRef,
+  onUseLocation,
+  locating = false,
+  notice,
+  onFindPress,
 }: {
   services: CandidateSearchServices;
   address: string;
@@ -49,10 +55,19 @@ export function CandidateAddressForm({
   compact?: boolean;
   privacyDisclosure?: string;
   showBusyMessage?: boolean;
+  fieldRef?: RefObject<AddressFieldHandle | null>;
+  /** Entry only: offers Use my location, which suggests an address to confirm. */
+  onUseLocation?(): void;
+  locating?: boolean;
+  /** Information that leaves the typed address valid, such as a location failure. */
+  notice?: string | null;
+  /** Every Find activation, including an empty box that only shows an error. */
+  onFindPress?(): void;
 }) {
-  const { isMobile, isDesktop } = useResponsive();
+  const { isMobile } = useResponsive();
   const id = useId().replace(/:/g, '');
-  const inputRef = useRef<AddressFieldHandle>(null);
+  const localInputRef = useRef<AddressFieldHandle>(null);
+  const inputRef = fieldRef ?? localInputRef;
   const buttonRef = useRef<View>(null);
   const choicesRef = useRef<View>(null);
   const [choiceActive, setChoiceActive] = useState(0);
@@ -84,6 +99,7 @@ export function CandidateAddressForm({
   const choices = outcome?.kind === 'ambiguous' ? outcome.choices : [];
   const submit = (choice?: CandidateAddressChoice, suggestionAddress?: string) => {
     if (busy) return;
+    onFindPress?.();
     const value = suggestionAddress ?? inputRef.current?.value() ?? address;
     inputRef.current?.dismiss();
     if (value !== address) onAddress(value);
@@ -149,12 +165,8 @@ export function CandidateAddressForm({
       <Text nativeID={`${id}-label`} style={candidateText.strong}>
         {CANDIDATE_LOOKUP_COPY.addressLabel}
       </Text>
-      {/* The help line prints once per page: Change address on results omits it. */}
-      {!compact ? (
-        <Text nativeID={`${id}-help`} style={styles.help}>
-          {CANDIDATE_LOOKUP_COPY.addressHelp}
-        </Text>
-      ) : null}
+      {/* The help line prints once per page: entry shows it below the divider and
+          Change address on results omits it. */}
       <View
         style={[
           styles.controls,
@@ -182,6 +194,7 @@ export function CandidateAddressForm({
             busy={busy}
             mobile={isMobile}
             compact={compact}
+            emptyRightPadding={compact ? undefined : 18}
             onEscape={() => {
               if (choicesOpen) setChoicesOpen(false);
               else onCancel?.();
@@ -193,13 +206,14 @@ export function CandidateAddressForm({
             flexDirection: 'row',
             gap: 12,
             width: isMobile || compact ? '100%' : undefined,
-            alignSelf: 'center',
+            // Entry buttons keep their 60px row at the top when a long address wraps.
+            alignSelf: compact ? 'center' : 'flex-start',
             alignItems: 'stretch',
           }}
         >
           <CandidateButton
             label="Find"
-            busyLabel="Finding candidates…"
+            busyLabel="Finding…"
             reserveBusyLabel={compact}
             buttonRef={buttonRef}
             busy={busy}
@@ -207,15 +221,17 @@ export function CandidateAddressForm({
             // pointer press and release. Keyboard focus remains unchanged.
             keepFieldFocus
             onPress={() => submit()}
+            fontSize={compact ? 16.5 : 17}
+            // The magnifier carries less weight than the word: centre the pair 3px left.
             style={{
               minHeight: compact ? 52 : 60,
-              width: isMobile || compact ? undefined : isDesktop ? 248 : 220,
+              width: isMobile || compact ? undefined : 150,
               flex: isMobile || compact ? 1 : undefined,
-              paddingHorizontal: compact ? 16 : 22,
+              paddingLeft: 19,
+              paddingRight: 25,
               alignSelf: 'stretch',
-              height: compact ? undefined : 60,
-              paddingVertical: compact ? 8 : 0,
-              borderRadius: 14,
+              paddingVertical: compact ? 8 : 6,
+              borderRadius: compact ? 12 : 14,
             }}
           />
           {onCancel ? (
@@ -234,9 +250,28 @@ export function CandidateAddressForm({
             />
           ) : null}
         </View>
+        {onUseLocation && !compact ? (
+          <CandidateButton
+            label="Use my location"
+            busyLabel="Locating…"
+            kind="outline"
+            icon="location"
+            busy={locating}
+            onPress={onUseLocation}
+            style={{
+              width: isMobile ? '100%' : 200,
+              minHeight: 60,
+              paddingHorizontal: 20,
+              paddingVertical: 6,
+              borderRadius: 14,
+              borderColor: 'rgba(17,21,15,0.16)',
+              alignSelf: isMobile ? 'stretch' : 'flex-start',
+            }}
+          />
+        ) : null}
       </View>
       <View aria-live="polite" style={styles.hiddenStatus}>
-        {busy && showBusyMessage ? <Text>Finding candidates…</Text> : null}
+        {busy && showBusyMessage ? <Text>Finding…</Text> : locating ? <Text>Locating…</Text> : null}
       </View>
       <View
         nativeID={`${id}-message`}
@@ -245,7 +280,7 @@ export function CandidateAddressForm({
         style={[styles.message, compact && { marginTop: 10 }]}
       >
         {message ? (
-          <>
+          <View style={styles.messageLine}>
             {!busy ? <MessageIcon rate={errorKind === 'rate-limited'} /> : null}
             <Text
               style={[
@@ -260,7 +295,20 @@ export function CandidateAddressForm({
             >
               {message}
             </Text>
-          </>
+          </View>
+        ) : null}
+        {notice && !busy && !compact ? (
+          <View style={styles.messageLine}>
+            <InfoIcon />
+            <Text
+              style={[
+                candidateText.strong,
+                { fontSize: 15, lineHeight: 22, flexShrink: 1, color: '#11150f' },
+              ]}
+            >
+              {notice}
+            </Text>
+          </View>
         ) : null}
       </View>
       {outcome?.kind === 'historical-match-unavailable' && !busy ? (
@@ -294,6 +342,9 @@ export function CandidateAddressForm({
       ) : null}
       {!compact ? (
         <View style={[styles.privacy, !isMobile && styles.privacyWide]}>
+          <Text nativeID={`${id}-help`} style={styles.help}>
+            {CANDIDATE_LOOKUP_COPY.addressHelp}
+          </Text>
           <Text style={styles.help}>{privacyDisclosure ?? CANDIDATE_LOOKUP_COPY.privacy}</Text>
         </View>
       ) : null}
@@ -371,6 +422,26 @@ function Choice({
     </Pressable>
   );
 }
+function InfoIcon() {
+  return (
+    <Svg
+      width={17}
+      height={17}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+      style={{ flexShrink: 0, marginTop: 2 }}
+    >
+      <Circle cx={12} cy={12} r={9} stroke="#4f5651" strokeWidth={2} />
+      <Path
+        d="M12 11 V16.5 M12 7.6 V7.7"
+        stroke="#4f5651"
+        strokeWidth={2.2}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
 function MessageIcon({ rate }: { rate: boolean }) {
   const color = rate ? '#8f5a12' : '#a3421a';
   return (
@@ -413,8 +484,8 @@ const styles = StyleSheet.create({
     // the desktop dropdown receives clicks where it extends beyond the row.
     zIndex: 1,
   },
-  // Keep the source note clear of a short overlaid list without moving it as rows change.
-  privacyWide: { marginTop: 144 },
+  // The suggestion list overlays the help and source lines on computer and tablet.
+  privacyWide: { marginTop: 56 },
   privacy: {
     marginTop: 36,
     paddingTop: 20,
@@ -424,7 +495,8 @@ const styles = StyleSheet.create({
   },
   help: { ...candidateText.body, fontSize: 14, lineHeight: 21 },
   fieldWrap: { flex: 1, minWidth: 0, zIndex: 2 },
-  message: { minHeight: 22, marginTop: 12, flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  message: { minHeight: 22, marginTop: 12, gap: 6 },
+  messageLine: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   choice: {
     paddingHorizontal: 14,
     paddingVertical: 12,

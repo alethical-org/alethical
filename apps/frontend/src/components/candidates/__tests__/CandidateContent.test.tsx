@@ -386,13 +386,13 @@ it('keeps the same focused busy button and prevents repeat submission', async ()
   expect(document.activeElement).toBe(find);
   expect(find.getAttribute('aria-busy')).toBe('true');
   expect(find.getAttribute('aria-disabled')).toBe('true');
-  expect(find.textContent).toBe('Finding candidates…');
+  expect(find.textContent).toBe('Finding…');
   expect(find.getAttribute('disabled')).toBeNull();
   expect(
     [...host.querySelectorAll('[aria-live="polite"]')]
       .map((region) => region.textContent)
       .join(' '),
-  ).toContain('Finding candidates…');
+  ).toContain('Finding…');
   await act(async () => resolve(result()));
   await flush();
 });
@@ -500,7 +500,7 @@ it.each(['Cancel', 'Escape', 'Escape on Cancel', 'Escape on Find'])(
     ).toBe('hidden');
     if (action === 'Cancel') click(button('Cancel'));
     else if (action === 'Escape on Cancel') press(button('Cancel'), 'Escape');
-    else if (action === 'Escape on Find') press(button('Finding candidates…'), 'Escape');
+    else if (action === 'Escape on Find') press(button('Finding…'), 'Escape');
     else press(host.querySelector<HTMLTextAreaElement>('textarea')!, 'Escape');
     expect(signal.aborted).toBe(true);
     expect(host.querySelector('textarea')).toBeNull();

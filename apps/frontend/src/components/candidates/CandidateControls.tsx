@@ -54,13 +54,16 @@ export function CandidateButton({
   buttonRef,
   describedBy,
   accessibilityLabel,
+  fontSize,
 }: {
   label: string;
   onPress(): void;
   busy?: boolean;
   disabled?: boolean;
-  icon?: 'search' | 'none';
+  icon?: 'search' | 'none' | 'location';
   kind?: 'green' | 'black' | 'outline' | 'text';
+  /** Label size in px; the line height follows it. */
+  fontSize?: number;
   style?: StyleProp<ViewStyle>;
   href?: string;
   keepFieldFocus?: boolean;
@@ -89,6 +92,84 @@ export function CandidateButton({
     if (busy || disabled) element?.setAttribute('aria-disabled', 'true');
     else element?.removeAttribute('aria-disabled');
   }, [busy, disabled, control]);
+  const ink = kind === 'green' ? '#06231a' : candidateColors.ink;
+  const buttonIcon = (spinning: boolean) => {
+    if (spinning && (kind === 'green' || icon === 'location'))
+      return (
+        <View
+          aria-hidden
+          {...({ dataSet: { candidateSpinner: 'true' } } as object)}
+          style={{ width: 17, height: 17 }}
+        >
+          <Svg width={17} height={17} viewBox="0 0 24 24" fill="none" aria-hidden>
+            <Circle
+              cx={12}
+              cy={12}
+              r={9}
+              stroke={
+                kind === 'green'
+                  ? busyLabel
+                    ? 'rgba(6,35,26,0.25)'
+                    : '#6a8478'
+                  : 'rgba(17,21,15,0.18)'
+              }
+              strokeWidth={busyLabel ? 2.4 : 2}
+            />
+            <Path
+              d="M21 12a9 9 0 0 0-9-9"
+              stroke={ink}
+              strokeWidth={busyLabel ? 2.4 : 2}
+              strokeLinecap="round"
+            />
+          </Svg>
+        </View>
+      );
+    if (icon === 'location')
+      return (
+        <Svg width={19} height={19} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <Circle cx={12} cy={12} r={3.4} stroke={ink} strokeWidth={2} />
+          <Path
+            d="M12 2 V5 M12 19 V22 M22 12 H19 M5 12 H2"
+            stroke={ink}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+          <Circle cx={12} cy={12} r={8.5} stroke={ink} strokeWidth={2} />
+        </Svg>
+      );
+    if (kind === 'green' && icon === 'search')
+      return (
+        <View aria-hidden style={{ width: 17, height: 17 }}>
+          <Svg width={17} height={17} viewBox="0 0 24 24" fill="none" aria-hidden>
+            <Circle cx={11} cy={11} r={7} stroke={ink} strokeWidth={2} />
+            <Path d="M16.5 16.5L21 21" stroke={ink} strokeWidth={2} strokeLinecap="round" />
+          </Svg>
+        </View>
+      );
+    return null;
+  };
+  const buttonLabel = (text: string, visible: boolean) => (
+    <Text
+      style={[
+        styles.buttonText,
+        { flexShrink: 1 },
+        fontSize ? { fontSize, lineHeight: Math.round(fontSize * 1.4) } : null,
+        textStyle,
+        kind === 'green' && { color: '#06231a' },
+        kind === 'black' && { color: '#ffffff' },
+        kind === 'text' && { textDecorationLine: 'underline' },
+        kind === 'text' &&
+          visible &&
+          Platform.OS === 'web' &&
+          ({
+            textDecorationThickness: hovered ? '3px' : '1px',
+            textUnderlineOffset: '3px',
+          } as object),
+      ]}
+    >
+      {text}
+    </Text>
+  );
   return (
     <Pressable
       ref={control}
@@ -147,79 +228,29 @@ export function CandidateButton({
         style,
       ]}
     >
-      {kind === 'green' && (icon === 'search' || busy) ? (
-        <View
-          aria-hidden
-          {...({ dataSet: { candidateSpinner: busy ? 'true' : 'false' } } as object)}
-          style={{ width: 17, height: 17 }}
-        >
-          <Svg width={17} height={17} viewBox="0 0 24 24" fill="none" aria-hidden>
-            <Circle
-              cx={busy ? 12 : 11}
-              cy={busy ? 12 : 11}
-              r={busy ? 9 : 7}
-              stroke={busy ? (busyLabel ? 'rgba(6,35,26,0.25)' : '#6a8478') : '#06231a'}
-              strokeWidth={busy && busyLabel ? 2.4 : 2}
-            />
-            <Path
-              d={busy ? 'M21 12a9 9 0 0 0-9-9' : 'M16.5 16.5L21 21'}
-              stroke="#06231a"
-              strokeWidth={busy && busyLabel ? 2.4 : 2}
-              strokeLinecap="round"
-            />
-          </Svg>
-        </View>
-      ) : null}
       {reserveBusyLabel && busyLabel ? (
-        <View style={{ flexShrink: 1, minWidth: 0, position: 'relative' }}>
-          <Text
+        // The hidden busy group only reserves the box. The visible icon and word
+        // stay 1 centred group above it, so the reserved width never separates them.
+        <View style={styles.buttonLayers}>
+          <View
             aria-hidden
             accessibilityElementsHidden
-            style={[styles.buttonText, textStyle, { opacity: 0 }]}
+            importantForAccessibility="no-hide-descendants"
+            style={[styles.buttonGroup, { opacity: 0 }]}
           >
-            {busyLabel}
-          </Text>
-          <View
-            pointerEvents="none"
-            style={[StyleSheet.absoluteFill, { justifyContent: 'center' }]}
-          >
-            <Text
-              style={[
-                styles.buttonText,
-                textStyle,
-                kind === 'green' && { color: '#06231a' },
-                kind === 'black' && { color: '#ffffff' },
-                kind === 'text' && { textDecorationLine: 'underline' },
-                kind === 'text' &&
-                  Platform.OS === 'web' &&
-                  ({
-                    textDecorationThickness: hovered ? '3px' : '1px',
-                    textUnderlineOffset: '3px',
-                  } as object),
-              ]}
-            >
-              {busy && busyLabel ? busyLabel : label}
-            </Text>
+            {buttonIcon(true)}
+            {buttonLabel(busyLabel, false)}
+          </View>
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.buttonGroup]}>
+            {buttonIcon(busy)}
+            {buttonLabel(busy ? busyLabel : label, true)}
           </View>
         </View>
       ) : (
-        <Text
-          style={[
-            styles.buttonText,
-            textStyle,
-            kind === 'green' && { color: '#06231a' },
-            kind === 'black' && { color: '#ffffff' },
-            kind === 'text' && { textDecorationLine: 'underline' },
-            kind === 'text' &&
-              Platform.OS === 'web' &&
-              ({
-                textDecorationThickness: hovered ? '3px' : '1px',
-                textUnderlineOffset: '3px',
-              } as object),
-          ]}
-        >
-          {busy && busyLabel ? busyLabel : label}
-        </Text>
+        <>
+          {buttonIcon(busy)}
+          {buttonLabel(busy && busyLabel ? busyLabel : label, true)}
+        </>
       )}
     </Pressable>
   );
@@ -449,6 +480,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: candidateColors.ink,
     textAlign: 'center',
+  },
+  buttonLayers: { position: 'relative', flexShrink: 1, minWidth: 0 },
+  buttonGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    minWidth: 0,
   },
   link: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', maxWidth: '100%' },
   linkText: {

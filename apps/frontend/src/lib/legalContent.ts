@@ -18,7 +18,7 @@ export type LegalDocumentContent = {
 
 export const privacyContent: LegalDocumentContent = {
   title: 'Privacy Policy',
-  meta: 'Effective date: August 15, 2026 · Last updated: October 8, 2026',
+  meta: 'Effective date: August 15, 2026 · Last updated: October 9, 2026',
   sections: [
     {
       blocks: [
@@ -121,7 +121,7 @@ export const privacyContent: LegalDocumentContent = {
             'Sentry, which alerts us when the Service or a data import fails. It receives the error type, the place in our code that failed, the software release, a route pattern with real identifiers removed, and public operating labels such as a bill number or provider name. We do not send Sentry request bodies, questions, messages, account details, log lines, or the error sentence itself.',
             'AI providers who generate answers and summaries — Anthropic and OpenAI. When you ask a question, the question text and the bill passages it is answered from are sent to them. We do not send your name, email address, or account identifier with it.',
             'The United States Census Bureau, when you look up your legislators by address. The address you type is sent to its public geocoding service to find your district. We do not store it.',
-            'The Minnesota Geospatial Information Office, while we show Minnesota address suggestions and when the Census Bureau cannot match a Minnesota address. We send only the house number and street name entered so far to its public address list, not the city or ZIP. We do not store it.',
+            'The Minnesota Geospatial Information Office, while we show Minnesota address suggestions and when the Census Bureau cannot match a Minnesota address. For a typed address we send only the house number and street name entered so far to its public address list, not the city or ZIP. When you choose Use my location on Find my candidates, we send the position your device reports and a search distance to the same list once, to suggest an address you confirm before any search. We do not store either, or put the position in a link.',
             'Resend, when you subscribe to Unconcealed. It receives your account email address and the email content to deliver public research you chose to receive. Unconcealed emails do not use open or click tracking.',
             'Resend, when a comment email is sent. It receives the recipient address, public names used in the message, article title, contribution link and private stop links. Comment text is not included. Alethical’s Google Workspace inbox receives administrator alerts with the article title and contribution link.',
             'Resend, when profile claim notifications are sent. It receives each recipient’s current confirmed account email, candidate name, office, voting area, election, message and link. Administrator decision notifications also include the decision, reviewer name or retained account identifier, and saved time. Applicants and eligible administrators receive separate messages. Private supporting links, explanations, review notes and recipient lists are not included.',

@@ -102,10 +102,23 @@ export type CandidateLookupResponse =
     }
   | { kind: 'ambiguous'; choices: CandidateAddressChoice[] }
   | { kind: 'no-match' | 'outside-minnesota' | 'rate-limited' | 'no-elections' };
+/** 1 device reading, sent once in a request body to suggest an address. */
+export interface CandidateLocationReading {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+}
+export type CandidateLocationSuggestion =
+  { kind: 'address'; address: string } | { kind: 'imprecise' } | { kind: 'outside-minnesota' };
 export interface CandidateSearchServices {
   getElections(signal: AbortSignal): Promise<CandidateElection[]>;
   suggest(address: string, signal: AbortSignal): Promise<CandidateAddressChoice[]>;
   lookup(request: CandidateLookupRequest, signal: AbortSignal): Promise<CandidateLookupResponse>;
+  /** Present where Use my location is offered; the reader still confirms the address. */
+  locate?(
+    reading: CandidateLocationReading,
+    signal: AbortSignal,
+  ): Promise<CandidateLocationSuggestion>;
 }
 export interface CandidateSearchContentBaseProps {
   /** A public destination can exist before candidate records are connected. */

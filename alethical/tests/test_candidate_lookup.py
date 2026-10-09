@@ -741,3 +741,184 @@ def test_confirmed_map_choice_does_not_fetch_unselected_zip():
     assert not isinstance(result, dict)
     assert result[0].house_number == 100
     assert calls == ["99999"]
+
+
+UNIT_ROWS = [
+    street(DisplayUnitNbr=True, UnitNumberRange="APT 3", ProdAddressRangeId=301),
+    street(DisplayUnitNbr=True, UnitNumberRange="#4", ProdAddressRangeId=302),
+]
+
+
+@pytest.mark.parametrize(
+    "address",
+    [
+        "100 EXAMPLE ST N APT 3, EXAMPLE CITY, MN 99999",  # canonical join
+        "100 Example St N, Apt 3, Example City, MN 99999",  # comma before the unit
+        "100 EXAMPLE ST N EXAMPLE CITY APT 3 MN 99999",  # comma-free, after the city
+        "100 EXAMPLE ST N, EXAMPLE CITY APT 3, MN 99999",  # autofill line then unit
+        "100 EXAMPLE ST N APT 3 EXAMPLE CITY MN 99999",  # comma-free, canonical place
+        "100 EXAMPLE ST N EXAMPLE CITY APT 3, MN 99999",  # unit before a lone comma
+        "100 EXAMPLE ST N Apt. 3, EXAMPLE CITY, MN 99999",  # designator with a dot
+        "100 EXAMPLE ST N, Apt. 3, EXAMPLE CITY, MN 99999",
+    ],
+)
+def test_unit_joined_in_any_position_resolves_its_own_official_range(address):
+    lookup, calls = service(rows=UNIT_ROWS)
+    result, _ = lookup.lookup(address, "8334")
+    assert result["kind"] == "results"
+    assert result["matchedAddress"] == "100 EXAMPLE ST N APT 3, EXAMPLE CITY, MN 99999"
+    assert calls[-1] == (SOURCE_URL, {"prodAddressRangeId": 301})
+
+
+@pytest.mark.parametrize(
+    "address",
+    [
+        # 2 different units are never reconciled into either one.
+        "100 EXAMPLE ST N APT 3, #4, EXAMPLE CITY, MN 99999",
+        "100 EXAMPLE ST N APT 3 #4, EXAMPLE CITY, MN 99999",
+        "100 EXAMPLE ST N, APT 3, EXAMPLE CITY #4, MN 99999",
+        # A unit the source does not list never falls back to the building.
+        "100 EXAMPLE ST N APT 9, EXAMPLE CITY, MN 99999",
+        "100 EXAMPLE ST N, EXAMPLE CITY APT 9, MN 99999",
+    ],
+)
+def test_conflicting_or_unlisted_units_never_force_a_match(address):
+    lookup, calls = service(rows=UNIT_ROWS)
+    assert lookup.lookup(address, "8334")[0] == {"kind": "no-match"}
+    assert all(url != SOURCE_URL for url, _ in calls)
+
+
+def test_unit_against_a_general_building_range_stays_unsupported():
+    lookup, _ = service()
+    for address in (
+        "100 EXAMPLE ST N, APT 3, EXAMPLE CITY, MN 99999",
+        "100 EXAMPLE ST N EXAMPLE CITY APT 3 MN 99999",
+    ):
+        assert lookup.lookup(address, "8334")[0] == {"kind": "no-match"}
+
+
+class NearbyAddresses:
+    def __init__(self, nearby=None, error: Exception | None = None):
+        self.nearby = nearby or []
+        self.error = error
+        self.calls = []
+
+    def nearby_addresses(self, latitude, longitude, radius):
+        self.calls.append((latitude, longitude, radius))
+        if self.error:
+            raise self.error
+        return self.nearby
+
+
+def test_location_suggests_only_a_building_its_reading_separates():
+    point = (44.95, -93.10)
+    clear = NearbyAddresses([(ADDRESS, 4.0), ("102 EXAMPLE ST N", 14.0)])
+    lookup, calls = service(geocoder=clear)
+    assert lookup.locate(*point, 6) == {"kind": "address", "address": ADDRESS}
+    # Reach (6 + 30) plus the separation the rule must check (8).
+    assert clear.calls == [(*point, 44)]
+    # Neighbours closer together than the reading's own radius are not separable.
+    assert lookup.locate(*point, 12) == {"kind": "imprecise"}
+    # The minimum separation still applies to a very small reported radius.
+    close = NearbyAddresses([(ADDRESS, 1.0), ("102 EXAMPLE ST N", 8.5)])
+    assert service(geocoder=close)[0].locate(*point, 1) == {"kind": "imprecise"}
+    alone = NearbyAddresses([(ADDRESS, 40.0)])
+    assert service(geocoder=alone)[0].locate(*point, 60) == {
+        "kind": "address",
+        "address": ADDRESS,
+    }
+    assert service(geocoder=NearbyAddresses())[0].locate(*point, 10) == {
+        "kind": "imprecise"
+    }
+    # A nearer point with no usable address is never skipped for a farther one.
+    unlabelled = NearbyAddresses([(None, 2.0), (ADDRESS, 14.0)])
+    assert service(geocoder=unlabelled)[0].locate(*point, 5) == {"kind": "imprecise"}
+    # The nearest building must lie within reach of the reading itself.
+    far = NearbyAddresses([(ADDRESS, 45.0)])
+    assert service(geocoder=far)[0].locate(*point, 10) == {"kind": "imprecise"}
+    # Suggesting reads only the public street table to print the official spelling.
+    assert all(url == STREETS_URL for url, _ in calls)
+
+
+def test_location_prints_the_election_sources_spelling_of_the_suggestion():
+    rows = [street(FullStreetName="OAK RIDGE TER", CityName="ST PAUL")]
+    label = "100 Oak Ridge Terrace, SAINT PAUL, MN 99999"
+    lookup, _ = service(rows=rows, geocoder=NearbyAddresses([(label, 1.0)]))
+    suggestion = lookup.locate(44.95, -93.10, 5)
+    assert suggestion == {
+        "kind": "address",
+        "address": "100 OAK RIDGE TER, ST PAUL, MN 99999",
+    }
+    assert lookup.lookup(suggestion["address"], "8334")[0]["kind"] == "results"
+    # The full street type matches the abbreviation in a typed address too.
+    assert (
+        lookup.lookup("100 Oak Ridge Terrace, St Paul, MN 99999", "8334")[0]["kind"]
+        == "results"
+    )
+    # Without exactly 1 official street, the state's wording is kept unchanged.
+    other, _ = service(geocoder=NearbyAddresses([(label, 1.0)]))
+    assert other.locate(44.95, -93.10, 5)["address"] == label
+
+
+def test_location_capped_answer_is_imprecise_not_unavailable():
+    from alethical.api.services.representative_lookup import AddressPointsIncomplete
+
+    capped = NearbyAddresses(error=AddressPointsIncomplete("capped"))
+    assert service(geocoder=capped)[0].locate(44.95, -93.10, 50) == {
+        "kind": "imprecise"
+    }
+
+
+def test_location_limits_outside_state_and_source_failure_are_distinct():
+    nearby = NearbyAddresses([(ADDRESS, 1.0)])
+    lookup, _ = service(geocoder=nearby)
+    assert lookup.locate(44.95, -93.10, 100.5) == {"kind": "imprecise"}
+    assert lookup.locate(41.88, -87.63, 5) == {"kind": "outside-minnesota"}
+    assert lookup.locate(44.95, -86.0, 5) == {"kind": "outside-minnesota"}
+    assert nearby.calls == []
+    failing = NearbyAddresses(error=RuntimeError("44.95,-93.10 upstream text"))
+    with pytest.raises(CandidateLookupUnavailable) as raised:
+        service(geocoder=failing)[0].locate(44.95, -93.10, 5)
+    assert "44.95" not in str(raised.value)
+    assert raised.value.__cause__ is None and raised.value.__suppress_context__
+
+
+def test_locate_api_is_private_validated_and_rate_limited(client):
+    lookup, _ = service(geocoder=NearbyAddresses([(ADDRESS, 2.0)]))
+    client.app.dependency_overrides[get_candidate_lookup_service] = lambda: lookup
+    body = {"latitude": 44.95, "longitude": -93.1, "accuracy": 5}
+    response = client.post("/api/v1/candidates/locate", json=body)
+    assert response.status_code == 200
+    assert response.json() == {"kind": "address", "address": ADDRESS}
+    assert response.headers["cache-control"] == "private, no-store"
+    assert response.headers["referrer-policy"] == "no-referrer"
+    for invalid in (
+        {**body, "latitude": 91},
+        {**body, "accuracy": -1},
+        {**body, "extra": 1},
+        {"latitude": 44.95, "longitude": -93.1},
+    ):
+        rejected = client.post("/api/v1/candidates/locate", json=invalid)
+        assert rejected.status_code == 422
+        assert "44.95" not in rejected.text
+    # A point never travels in a page address; there is no GET form of this route.
+    assert client.get("/api/v1/candidates/locate").status_code == 404
+    for _ in range(12):
+        response = client.post("/api/v1/candidates/locate", json=body)
+        if response.status_code == 429:
+            break
+    assert response.status_code == 429
+    client.app.dependency_overrides.pop(get_candidate_lookup_service)
+
+
+def test_locate_api_source_failure_is_unavailable_without_the_point(client):
+    lookup, _ = service(geocoder=NearbyAddresses(error=RuntimeError("44.9512")))
+    client.app.dependency_overrides[get_candidate_lookup_service] = lambda: lookup
+    response = client.post(
+        "/api/v1/candidates/locate",
+        json={"latitude": 44.9512, "longitude": -93.1, "accuracy": 5},
+    )
+    assert response.status_code == 503
+    assert "44.9512" not in response.text
+    assert response.headers["cache-control"] == "private, no-store"
+    client.app.dependency_overrides.pop(get_candidate_lookup_service)

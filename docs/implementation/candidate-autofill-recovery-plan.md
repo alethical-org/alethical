@@ -169,13 +169,15 @@ changes retaining their immediate privacy reset.
 
 ### Follow-up scope and prevention
 
-- Both field labels and their location-specific hints remain above the address box.
+- Both field labels remain above the address box. The legislator hint stays above it; the
+  candidate entry hint is the first grey line below the divider and still describes the box.
 - Candidate introduction: “See who’s running where you live in Minnesota”.
 - Legislator introduction: “See who represents you in the Minnesota House and Senate”,
   matching candidate introduction size, color and 14px heading gap across all 3 bands.
 - Candidate source note: “Address lookup uses Minnesota’s Secretary of State and mapping services”.
-  Its divider uses a fixed 144px top margin after the message region at 768px and above;
-  phones retain 36px. The note does not move as typing suggestions change.
+  Its divider sits 56px below the message region at 768px and above, where an open
+  suggestion list overlays both grey lines; phones retain 36px. The note does not move
+  as typing suggestions change.
 - Both suggestion routes use the same Minnesota address service. The service omits
   the remote status filter but still filters ACTIVE locally, preserving state, house,
   direction and unit checks. A source transfer-limit flag retries the original query

@@ -1435,3 +1435,101 @@ def test_state_suggestion_parser_uses_same_country_cleanup():
     address = "350 S 5th St, Minneapolis, MN 55415"
     parse = MinnesotaAddressPointGeocoder._parse_suggestion_query
     assert parse(address + ", United States") == parse(address)
+
+
+def nearby_point(number, latitude, longitude, **attributes):
+    return address_point_feature(
+        **{
+            "anumber": number,
+            "st_name": "Example",
+            "st_pos_typ": "Street",
+            "postcomm": "Example City",
+            "zip": "55999",
+            "state_code": "MN",
+            "latitude": latitude,
+            "longitude": longitude,
+            **attributes,
+        }
+    )
+
+
+def test_nearby_addresses_post_the_point_and_merge_units_by_building(monkeypatch):
+    sent = []
+    payload = {
+        "features": [
+            nearby_point(102, 44.95010, -93.10000),
+            nearby_point(100, 44.95000, -93.10000, sub_type1="Apt", sub_id1="3"),
+            nearby_point(100, 44.95001, -93.10000, sub_type1="Apt", sub_id1="4"),
+            nearby_point(104, 44.95000, -93.10000, state_code="WI"),
+            nearby_point(106, 44.95000, -93.10000, status="Retired"),
+            nearby_point(108, float("nan"), -93.10000),
+            nearby_point("not a number", 44.95030, -93.10000),
+            nearby_point(110, 44.95040, -93.10000, zip=None),
+            {"attributes": None},
+        ]
+    }
+
+    def post(url, **kwargs):
+        sent.append((url, kwargs))
+        return FakeResponse(payload)
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.public_source_session",
+        lambda: SimpleNamespace(post=post),
+    )
+    geocoder = MinnesotaAddressPointGeocoder(base_url="https://example.test/query")
+    nearby = geocoder.nearby_addresses(44.95, -93.10, 40)
+    # Points without a usable address still count, unlabelled, as neighbours.
+    assert [label for label, _ in nearby] == [
+        "100 Example Street, Example City, MN 55999",
+        "102 Example Street, Example City, MN 55999",
+        None,
+        None,
+    ]
+    assert nearby[0][1] == pytest.approx(0, abs=0.01)
+    assert nearby[1][1] == pytest.approx(11.1, abs=0.2)
+    url, kwargs = sent[0]
+    assert url == "https://example.test/query"
+    assert "44.95" not in url and "params" not in kwargs
+    assert kwargs["data"]["geometry"] == "-93.1000000,44.9500000"
+    assert kwargs["data"]["distance"] == "40.0"
+    assert kwargs["allow_redirects"] is False
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        FakeResponse({"error": {"code": 400}}),
+        FakeResponse({"features": "none"}),
+        FakeResponse({"features": []}, status_code=302),
+        FakeResponse({"features": []}, status_code=500),
+    ],
+)
+def test_nearby_addresses_never_suggest_from_failed_or_truncated_answers(
+    monkeypatch, response
+):
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.public_source_session",
+        lambda: SimpleNamespace(post=lambda *args, **kwargs: response),
+    )
+    with pytest.raises(RepresentativeLookupUpstreamError):
+        MinnesotaAddressPointGeocoder(base_url="https://x.test").nearby_addresses(
+            44.95, -93.1, 20
+        )
+
+
+def test_nearby_addresses_report_a_capped_answer_separately(monkeypatch):
+    from alethical.api.services.representative_lookup import AddressPointsIncomplete
+
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup.public_source_session",
+        lambda: SimpleNamespace(
+            post=lambda *args, **kwargs: FakeResponse(
+                {"features": [], "exceededTransferLimit": True}
+            )
+        ),
+    )
+    with pytest.raises(AddressPointsIncomplete):
+        MinnesotaAddressPointGeocoder(base_url="https://x.test").nearby_addresses(
+            44.95, -93.1, 20
+        )
