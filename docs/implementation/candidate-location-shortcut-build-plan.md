@@ -98,8 +98,8 @@ The legislator finder keeps its coordinate-to-district lookup and map.
   location 200 × 60; the confirmation suggested `411 W 1ST ST, DULUTH, MN 55802`, Enter
   confirmed it and the official results loaded; no position or address appeared in any
   request address; blocked permission kept the typed text; **Change address** Find kept
-  a 9px magnifier gap (8.5 to 9 while busy, within half a pixel of rounding), a 3px left
-  nudge and an unchanged 52px box in ready and busy states with 1-line and 3-line
+  the CSS 9px magnifier gap (a frozen-animation measurement of the 17px spinner
+  confirms it while busy), a 3px left nudge and an unchanged 52px box in ready and busy states with 1-line and 3-line
   addresses; `/find-my-legislator` Find 150px with the same gap and nudge; the Privacy
   Policy carries the location sentence.
 - [x] Acceptance correction, 9 October: the unit field exposed a missing official
@@ -113,3 +113,9 @@ The legislator finder keeps its coordinate-to-district lookup and map.
   MyBallot asks for no unit there; the earlier refusal of every unit at an ordinary
   building is what made the optional unit field fail. An earlier statement here that
   few buildings have unit ranges was unsupported and is withdrawn.
+- [x] Acceptance correction, 9 October: reading a unit at an unmarked house as that
+  house's range (accepted against MyBallot's `setDisplayUnitNumber`, which hides the
+  unit field and allows submission when `DisplayUnitNbr` is false) had skipped unit
+  validation, so `Apt 3 #4`, `Apt 3 Apt 4` or a unit with extra words resolved there.
+  Every range now requires 1 label and 1 value first, and typed `Apt.250` reads as
+  `Apt 250`, the spelling the confirmation card already used.

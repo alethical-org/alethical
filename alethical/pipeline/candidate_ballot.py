@@ -401,6 +401,10 @@ def parse_unit_ranges(payload: object) -> tuple[UnitNumberRange, ...]:
 
 _UNIT_LABEL = re.compile(r"^(?:(?:APT|APARTMENT|UNIT|SUITE|STE)(?:\.\s*|\s+))?#?\s*")
 _DIGITS = re.compile(r"[0-9]+")
+# 1 optional label and 1 value: "APT 3", "Apt. 3", "Apt #3", "#3", "UNIT 3B".
+_ONE_UNIT = re.compile(
+    r"(?:(?:APT|APARTMENT|UNIT|SUITE|STE)(?:\.\s*|\s+)#?\s*|#\s*)?[A-Z0-9][A-Z0-9-]*"
+)
 
 
 def _unit_identifier(unit: str) -> str:
@@ -457,6 +461,12 @@ def match_street_range(
     zip_code = _text(address.zip_code, "ZIP")
     suffix = _text(address.house_number_suffix, "house suffix", optional=True)
     unit = _text(address.unit, "unit", optional=True)
+    if unit and (
+        not _ONE_UNIT.fullmatch(" ".join(unit.upper().split()))
+        or unit.upper().rstrip(".") in {"APT", "APARTMENT", "UNIT", "SUITE", "STE"}
+    ):
+        # 2 units, or a unit with extra words, never resolve through any range.
+        raise CandidateAddressNotFound("unit is not 1 label and 1 value")
     _require(state.upper() == "MN", "address must be in Minnesota")
     _require(bool(re.fullmatch(r"[0-9]{5}", zip_code)), "invalid ZIP")
     _require(

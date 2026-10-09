@@ -77,6 +77,9 @@ async function open(
   } = {},
 ) {
   const context = await browser.newContext({
+    // A spinning icon's box changes every frame; measure it with motion stopped,
+    // which the page's own reduced-motion rule does.
+    reducedMotion: 'reduce',
     viewport: { width, height: 1000 },
     hasTouch: width === 390,
     ...(location ? { geolocation: location, permissions: ['geolocation'] } : {}),
@@ -474,7 +477,10 @@ for (const engine of engines) {
         await compactBusy.waitFor();
         assert.deepEqual(await box(compactBusy), compactBox, `${tag} compact busy box steady`);
         const compactBusyGroup = await groupOf(compactBusy);
-        assert(Math.abs(compactBusyGroup.gap - 9) <= 0.6, `${tag} compact busy gap`);
+        assert(
+          Math.abs(compactBusyGroup.gap - 9) <= 0.6,
+          `${tag} compact busy gap ${compactBusyGroup.gap}`,
+        );
         assert(
           Math.abs(compactBusyGroup.offset + 3) <= 1,
           `${tag} compact busy nudge ${compactBusyGroup.offset}`,
@@ -486,7 +492,10 @@ for (const engine of engines) {
       await context.close();
 
       // Legislator finder: same width and nudge.
-      const legislatorContext = await browser.newContext({ viewport: { width, height: 1000 } });
+      const legislatorContext = await browser.newContext({
+        reducedMotion: 'reduce',
+        viewport: { width, height: 1000 },
+      });
       const legislator = await legislatorContext.newPage();
       await blockOutside(legislator);
       await legislator.route(isApi, (route) =>

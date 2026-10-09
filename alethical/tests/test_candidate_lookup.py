@@ -1124,3 +1124,75 @@ def test_official_unit_list_fetch_reads_the_sources_not_found_answer(monkeypatch
     assert (
         official_bytes(STREET_ID_URL, {"address": "8TH AVE S HOPKINS 55343"}) == b"[]"
     )
+
+
+@pytest.mark.parametrize(
+    "address",
+    [
+        "100 EXAMPLE ST N APT 3 #4, EXAMPLE CITY, MN 99999",
+        "100 EXAMPLE ST N APT 3 APT 4, EXAMPLE CITY, MN 99999",
+        "100 EXAMPLE ST N APT 3 GARBAGE, EXAMPLE CITY, MN 99999",
+        "100 EXAMPLE ST N, APT 3 #4, EXAMPLE CITY, MN 99999",
+        "100 EXAMPLE ST N APT 3, #4, EXAMPLE CITY, MN 99999",
+        "100 EXAMPLE ST N EXAMPLE CITY APT 3 #4 MN 99999",
+        # The confirmation card keeps 2 different units visible (joinAddressUnit).
+        "100 EXAMPLE ST N APT 3 #4, EXAMPLE CITY, MN 99999",
+        "100 EXAMPLE ST N Apt 3 Unit 4, EXAMPLE CITY, MN 99999",
+    ],
+)
+def test_conflicting_or_malformed_unit_text_never_resolves_at_an_unmarked_house(
+    address,
+):
+    lookup, calls = service()
+    assert lookup.resolve(address) == {"kind": "no-match"}
+    assert lookup.lookup(address, "8334")[0] == {"kind": "no-match"}
+    assert lookup.suggest(address) == []
+    assert all(url != SOURCE_URL for url, _ in calls)
+
+
+@pytest.mark.parametrize(
+    "unit",
+    ["APT 3", "Apt. 3", "Apt.3", "Apt #3", "#3", "UNIT 3B", "STE 100-A", "Suite 7"],
+)
+def test_a_single_well_formed_unit_still_reads_the_whole_house_range(unit):
+    lookup, _ = service()
+    result = lookup.resolve(f"100 EXAMPLE ST N {unit}, EXAMPLE CITY, MN 99999")
+    assert not isinstance(result, dict)
+    assert result[1].range_id == 123
+    assert lookup.suggest(f"100 EXAMPLE ST N {unit}, EXAMPLE CITY, MN 99999")
+
+
+def test_no_zip_confirmation_cannot_carry_2_units_onto_a_map_choice():
+    class Geocoder:
+        def geocode_matches(self, text):
+            return [SimpleNamespace(matched_address=ADDRESS, state_code="MN")]
+
+        def suggest_matches(self, text):
+            return self.geocode_matches(text)
+
+    lookup, calls = service(geocoder=Geocoder())
+    original = "100 EXAMPLE ST N APT 3 #4, EXAMPLE CITY, MN"
+    assert lookup.suggest(original) == []
+    assert lookup.lookup(original, "8334")[0] == {"kind": "no-match"}
+    assert all(url != SOURCE_URL for url, _ in calls)
+
+
+@pytest.mark.parametrize(
+    "address",
+    [
+        "100 8th Ave S Apt.250, Hopkins, MN 55343",  # typed, dot joined
+        "100 8th Ave S, Apt.250, Hopkins, MN 55343",
+        "100 8th Ave S Hopkins Apt.250 MN 55343",
+        "100 8th Ave S Apt 250, Hopkins, MN 55343",  # the card's joined spelling
+    ],
+)
+def test_dot_joined_unit_is_the_same_unit_everywhere(address):
+    lookup, _ = hopkins()
+    result = lookup.resolve(address)
+    assert not isinstance(result, dict)
+    assert result[1].range_id == 313578
+    assert result[0].unit == "APT 250"
+    lookup, _ = hopkins()
+    assert [choice["address"] for choice in lookup.suggest(address)] == [
+        "100 8TH AVE S APT 250, HOPKINS, MN 55343"
+    ]
