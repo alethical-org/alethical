@@ -37,7 +37,7 @@ export function preciseDate(date: PreciseDate) {
 }
 export function electionResultLabel(result: CandidateElectionResult) {
   return {
-    certified: result.certification?.date ? 'Election results' : 'Certified election results',
+    certified: 'Election results',
     unofficial: 'Unofficial election results',
     pending: 'Election results pending',
     recount: 'Election recount in progress',
