@@ -19,6 +19,11 @@ const browserType = process.argv.includes('--webkit')
     ? firefox
     : chromium;
 const browser = await browserType.launch({ headless: true });
+const fixtureHeaders = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'GET, POST, OPTIONS',
+  'access-control-allow-headers': 'content-type, authorization',
+};
 const publicAddress = '350 S 5th St, Minneapolis, MN 55415';
 const countryAddress = `${publicAddress}, United States`;
 const candidateId = 'a'.repeat(64);
@@ -73,6 +78,7 @@ async function fresh(contextOptions = {}) {
   const requests = [];
   const lookupReplies = [];
   const suggestions = [];
+  const suggestionRequests = [];
   const elections = [election];
   const pending = [];
   let holdLookups = false;
@@ -87,9 +93,19 @@ async function fresh(contextOptions = {}) {
     const url = new URL(request.url());
     const path = url.pathname;
     const json = (body) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+      route.fulfill({
+        status: 200,
+        headers: fixtureHeaders,
+        contentType: 'application/json',
+        body: JSON.stringify(body),
+      });
+    if (request.method() === 'OPTIONS' && /\/candidates\/(elections|suggest|lookup)$/.test(path))
+      return route.fulfill({ status: 204, headers: fixtureHeaders });
     if (path.endsWith('/candidates/elections')) return json(elections);
-    if (path.endsWith('/candidates/suggest')) return json(suggestions);
+    if (path.endsWith('/candidates/suggest')) {
+      suggestionRequests.push(url.search);
+      return json(suggestions);
+    }
     if (path.endsWith('/candidates/lookup')) {
       requests.push(request.postDataJSON());
       if (holdLookups) {
@@ -127,6 +143,7 @@ async function fresh(contextOptions = {}) {
     requests,
     lookupReplies,
     suggestions,
+    suggestionRequests,
     elections,
     pending,
     blocked,
@@ -156,7 +173,12 @@ function replacement(electionId, name, address = publicAddress) {
   };
 }
 async function answer(route, body, status = 200) {
-  await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+  await route.fulfill({
+    status,
+    headers: fixtureHeaders,
+    contentType: 'application/json',
+    body: JSON.stringify(body),
+  });
 }
 async function selectElection(page, label) {
   await page.getByRole('combobox', { name: /^Election/ }).click();
@@ -185,12 +207,18 @@ async function submitFixture(page, from, method) {
   });
   await field.waitFor();
   // Wait for supported-election retrieval before replacing the field silently.
-  const button = page.getByRole('button', { name: 'Find my candidates', exact: true });
+  const findLabel = from === '/' ? 'Find my candidates' : 'Find';
+  const button = page.getByRole('button', { name: findLabel, exact: true });
   await button.waitFor();
-  await page.waitForFunction(() =>
-    [...document.querySelectorAll('button')].some(
-      (node) => node.textContent?.trim() === 'Find my candidates' && !node.disabled,
-    ),
+  await page.waitForFunction(
+    (label) =>
+      [...document.querySelectorAll('button,[role="button"]')].some(
+        (node) =>
+          node.textContent?.trim() === label &&
+          !node.disabled &&
+          node.getAttribute('aria-disabled') !== 'true',
+      ),
+    findLabel,
   );
   if (method === 'blur-button') await field.focus();
   await silentFill(field, countryAddress);
@@ -226,8 +254,13 @@ async function check(name, operation, contextOptions) {
     report.push({ check: name, result: 'passed' });
     process.stdout.write(`PASS ${name}\n`);
   } catch (error) {
+    await state.page.screenshot({
+      path: '/tmp/address-controls-browser-failure.png',
+      fullPage: true,
+    });
     process.stderr.write(
       JSON.stringify({
+        screenText: (await state.page.locator('body').innerText()).slice(0, 1600),
         submitted: state.requests.length,
         blocked: state.blocked,
         lastSubmissionMatchedVisibleFixture: state.requests.at(-1)?.address === countryAddress,
@@ -251,7 +284,269 @@ async function check(name, operation, contextOptions) {
     await state.context.close();
   }
 }
+async function candidateEditor(state) {
+  await submitFixture(state.page, '/candidates', 'keyboard');
+  state.suggestionsBeforeEditor = state.suggestionRequests.length;
+  await state.page.getByRole('button', { name: 'Change address', exact: true }).click();
+  return state.page.getByRole('combobox', { name: 'Full street address', exact: true });
+}
+async function selection(field) {
+  return field.evaluate((node) => [node.selectionStart, node.selectionEnd]);
+}
+async function assertButtonTextContained(button) {
+  const overflow = await button.evaluate((node) => {
+    const box = node.getBoundingClientRect();
+    const walk = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    const outside = [];
+    while (walk.nextNode()) {
+      if (!walk.currentNode.textContent.trim()) continue;
+      const range = document.createRange();
+      range.selectNodeContents(walk.currentNode);
+      for (const rect of range.getClientRects()) {
+        if (
+          rect.left < box.left - 1 ||
+          rect.right > box.right + 1 ||
+          rect.top < box.top - 1 ||
+          rect.bottom > box.bottom + 1
+        )
+          outside.push(walk.currentNode.textContent.trim());
+      }
+    }
+    return outside;
+  });
+  assert.deepEqual(overflow, [], 'Button label extends outside its visible button');
+}
 try {
+  await check('address controls editor select once clear and cancel focus', async (state) => {
+    const field = await candidateEditor(state);
+    await expect(field).toBeFocused();
+    assert.deepEqual(await selection(field), [0, publicAddress.length]);
+    await state.page.waitForTimeout(250);
+    assert.equal(
+      state.suggestionRequests.length,
+      state.suggestionsBeforeEditor,
+      'Opening the editor requested old-address suggestions',
+    );
+    await field.evaluate((node) => node.setSelectionRange(4, 4));
+    await field.focus();
+    assert.deepEqual(
+      await selection(field),
+      [4, 4],
+      'Ordinary focus selected the whole address again',
+    );
+    const clear = state.page.getByRole('button', { name: 'Clear address', exact: true });
+    const initialField = await field.boundingBox();
+    const slot = await clear.boundingBox();
+    assert.equal(slot.width, 44);
+    assert.equal(slot.height, 44);
+    await clear.hover();
+    await expect(clear).toHaveCSS('background-color', 'rgb(241, 241, 244)');
+    await field.focus();
+    await field.press('Tab');
+    await expect(clear).toBeFocused();
+    await expect(clear).toHaveCSS('outline-style', 'solid');
+    await clear.press('Enter');
+    await expect(field).toHaveValue('');
+    await expect(field).toBeFocused();
+    await expect(clear).toHaveCount(0);
+    assert.equal(
+      (await field.boundingBox()).width,
+      initialField.width,
+      'Clear visibility changed the field width',
+    );
+    assert.equal(state.requests.length, 1, 'Clear submitted a lookup');
+    await expect(
+      state.page.getByText('Illustrative Browser Candidate', { exact: true }),
+    ).toBeVisible();
+    await expect(state.page.getByText(publicAddress, { exact: true })).toBeVisible();
+    await state.page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    const change = state.page.getByRole('button', { name: 'Change address', exact: true });
+    await expect(change).toBeFocused();
+    await change.click();
+    await expect(field).toHaveValue(publicAddress);
+  });
+  await check('address controls Escape dismisses suggestions before editor', async (state) => {
+    const field = await candidateEditor(state);
+    state.suggestions.push({ id: 'escape', label: publicAddress, address: publicAddress });
+    await field.fill('350 S 5th');
+    await state.page.getByRole('option').waitFor();
+    await field.press('Escape');
+    await expect(state.page.getByRole('option')).toHaveCount(0);
+    await expect(field).toBeVisible();
+    await expect(field).toHaveValue('350 S 5th');
+    await field.press('Escape');
+    await expect(field).toHaveCount(0);
+    await expect(
+      state.page.getByRole('button', { name: 'Change address', exact: true }),
+    ).toBeFocused();
+    assert.equal(state.requests.length, 1);
+  });
+  for (const action of ['Cancel', 'Escape']) {
+    await check(`address controls ${action} cancels pending replacement`, async (state) => {
+      const field = await candidateEditor(state);
+      const changed = '12805 St Croix Trl S, Hastings, MN 55033';
+      await field.fill(changed);
+      state.holdLookups();
+      await field.press('Enter');
+      await expect.poll(() => state.pending.length).toBe(1);
+      await expect(
+        state.page.getByRole('button', { name: 'Clear address', exact: true }),
+      ).toHaveCount(0);
+      await expect(state.page.getByRole('button', { name: 'Cancel', exact: true })).toBeVisible();
+      if (action === 'Cancel')
+        await state.page.getByRole('button', { name: 'Cancel', exact: true }).click();
+      else await state.page.getByRole('button', { name: 'Cancel', exact: true }).press('Escape');
+      await expect(field).toHaveCount(0);
+      await expect(
+        state.page.getByRole('button', { name: 'Change address', exact: true }),
+      ).toBeFocused();
+      await answer(
+        state.pending[0],
+        replacement(election.id, 'Cancelled Fixture Candidate', changed),
+      ).catch(() => {});
+      await state.page.evaluate(
+        () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+      );
+      await expect(
+        state.page.getByText('Illustrative Browser Candidate', { exact: true }),
+      ).toBeVisible();
+      await expect(
+        state.page.getByText('Cancelled Fixture Candidate', { exact: true }),
+      ).toHaveCount(0);
+      await expect(state.page.getByText(publicAddress, { exact: true })).toBeVisible();
+      await state.page.getByRole('button', { name: 'Change address', exact: true }).click();
+      await expect(field).toHaveValue(publicAddress);
+    });
+  }
+  for (const width of [390, 900, 1280]) {
+    for (const mode of ['entry', 'editor']) {
+      await check(
+        `address controls ${mode} suggestions placement and last row at ${width}px`,
+        async (state) => {
+          const { page } = state;
+          state.elections.push(...laterElections);
+          if (mode === 'editor') await candidateEditor(state);
+          else await page.goto(`${base}/candidates`, { waitUntil: 'domcontentloaded' });
+          const field = page.getByRole('combobox', { name: 'Full street address', exact: true });
+          await field.waitFor();
+          await field.fill('350 S 5th');
+          await expect.poll(() => state.suggestionRequests.length).toBeGreaterThan(0);
+          await page.evaluate(
+            () =>
+              new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+          );
+          const initialFind = await page
+            .getByRole('button', { name: 'Find', exact: true })
+            .boundingBox();
+          const initialField = await field.boundingBox();
+          state.suggestions.push(
+            ...Array.from({ length: 3 }, (_, index) => ({
+              id: `row-${index}`,
+              label: `${350 + index} S 5th St, Minneapolis, MN 55415`,
+              address: `${350 + index} S 5th St, Minneapolis, MN 55415`,
+            })),
+          );
+          await field.fill('350 S 5th ');
+          const rows = page.locator('[data-address-option]');
+          await expect(rows).toHaveCount(3);
+          const panel = page.getByRole('listbox').locator('..');
+          await expect(panel).toHaveCSS('position', width < 768 ? 'relative' : 'absolute');
+          const find = page.getByRole('button', { name: 'Find', exact: true });
+          const openFind = await find.boundingBox();
+          const openField = await field.boundingBox();
+          const displacement = openFind.y - openField.y - (initialFind.y - initialField.y);
+          assert.ok(
+            width < 768 ? displacement > 100 : Math.abs(displacement) <= 2,
+            'Suggestion panel moved controls contrary to its layout band',
+          );
+          const last = rows.last();
+          await last.scrollIntoViewIfNeeded();
+          const box = await last.boundingBox();
+          const clickable = await last.evaluate((node) => {
+            const rect = node.getBoundingClientRect();
+            return node.contains(
+              document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2),
+            );
+          });
+          assert.equal(clickable, true, 'Content behind the last suggestion intercepts its click');
+          if (mode === 'editor' && width >= 768) {
+            const menu = await page.getByRole('combobox', { name: /^Election/ }).boundingBox();
+            assert.ok(
+              box.y < menu.y + menu.height && box.y + box.height > menu.y,
+              'Fixture did not exercise overlap with the election control',
+            );
+          }
+          const expectedAddress = state.suggestions[2].address;
+          state.lookupReplies.push(
+            replacement(election.id, 'Last Row Fixture Candidate', expectedAddress),
+          );
+          await last.click();
+          await expect(page.getByText('Last Row Fixture Candidate', { exact: true })).toBeVisible();
+          assert.equal(state.requests.at(-1).address, expectedAddress);
+          assert.equal(
+            state.requests.at(-1).electionId,
+            election.id,
+            'Covered election control activated',
+          );
+          await expect(page.getByRole('option')).toHaveCount(0);
+        },
+        { viewport: { width, height: 1000 } },
+      );
+    }
+  }
+  for (const enlarged of [false, true]) {
+    await check(
+      `address controls busy Find Cancel at 320px${enlarged ? ' with larger text' : ''}`,
+      async (state) => {
+        const field = await candidateEditor(state);
+        await field.fill('12805 St Croix Trl S, Hastings, MN 55033');
+        const readyFind = state.page.getByRole('button', { name: 'Find', exact: true });
+        const cancel = state.page.getByRole('button', { name: 'Cancel', exact: true });
+        if (enlarged) {
+          for (const button of [readyFind, cancel])
+            await button.evaluate((node) => {
+              const walk = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+              while (walk.nextNode())
+                if (walk.currentNode.textContent.trim()) {
+                  walk.currentNode.parentElement.style.fontSize = '22px';
+                  walk.currentNode.parentElement.style.lineHeight = '30px';
+                }
+            });
+        }
+        await assertButtonTextContained(readyFind);
+        await assertButtonTextContained(cancel);
+        const readyBox = await readyFind.boundingBox();
+        const readyCancelBox = await cancel.boundingBox();
+        state.holdLookups();
+        await field.press('Enter');
+        await expect.poll(() => state.pending.length).toBe(1);
+        const find = state.page.getByRole('button', { name: 'Finding candidates…', exact: true });
+        await assertButtonTextContained(find);
+        await assertButtonTextContained(cancel);
+        const findBox = await find.boundingBox();
+        const cancelBox = await cancel.boundingBox();
+        for (const key of ['x', 'y', 'width', 'height']) {
+          assert.ok(
+            Math.abs(findBox[key] - readyBox[key]) <= 1,
+            `Find ${key} changed when lookup started`,
+          );
+          assert.ok(
+            Math.abs(cancelBox[key] - readyCancelBox[key]) <= 1,
+            `Cancel ${key} changed when lookup started`,
+          );
+        }
+        assert.ok(
+          findBox.height >= 52 && cancelBox.height >= 52,
+          'Editor actions are smaller than their approved minimum',
+        );
+        assert.ok(findBox.x + findBox.width <= cancelBox.x, 'Find and Cancel overlap');
+        await cancel.click();
+        await expect(field).toHaveCount(0);
+        await answer(state.pending[0], results).catch(() => {});
+      },
+      { viewport: { width: 320, height: 1000 } },
+    );
+  }
   for (const from of ['/', '/candidates']) {
     for (const method of ['keyboard', 'button', 'blur-button']) {
       await check(`${from} silent browser fill via ${method}`, async (state) => {
@@ -298,16 +593,17 @@ try {
           name: 'Full street address',
           exact: true,
         });
-        await field.fill(`${countryAddress} `);
+        await field.fill(`${publicAddress} `);
         await state.page.getByRole('option').waitFor();
-        const button = state.page.getByRole('button', { name: 'Find my candidates', exact: true });
+        const button = state.page.getByRole('button', { name: 'Find', exact: true });
         const box = await button.boundingBox();
         if (action === 'tap')
           await state.page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
         else await state.page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
         await state.page.waitForFunction(() => !document.querySelector('textarea'));
         await waitForResults(state.page);
-        assert.equal(state.requests.length, 1);
+        assert.equal(state.requests.length, 2);
+        assert.equal(state.requests[1].address, publicAddress);
       },
       { hasTouch: true },
     );

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
-import type { RefObject } from 'react';
+import type { Ref, RefObject } from 'react';
 import {
   Animated,
   Easing,
@@ -22,7 +22,9 @@ import {
 } from '../../lib/homeLegislatorFinder';
 import type { HomeFinderDestination, HomeFinderLayout } from '../../lib/homeLegislatorFinder';
 import { currentAddressInput } from '../../lib/currentAddressInput';
-import { browserFillTextInputProps } from '../../theme/browserFill';
+import { browserFillInputProps, browserFillTextInputProps } from '../../theme/browserFill';
+import { ClearAddressButton } from '../address/ClearAddressButton';
+import { useAddressInputValue } from '../address/useAddressInputValue';
 import { fieldFocusRing, fieldOutlineReset } from '../../theme/fieldFocus';
 import { prefersReducedMotion, theme as t } from '../../theme/tokens';
 
@@ -95,6 +97,7 @@ type FormProps = {
   onBlur: () => void;
   onFind: () => void;
   onUseLocation: () => void;
+  onClear?: () => void;
 };
 
 export function HomeLegislatorFinderForm({
@@ -109,14 +112,39 @@ export function HomeLegislatorFinderForm({
   onBlur,
   onFind,
   onUseLocation,
+  onClear,
 }: FormProps) {
   const localInputRef = useRef<TextInput>(null);
   const fieldRef = inputRef ?? localInputRef;
+  const browserFieldRef = fieldRef as unknown as RefObject<HTMLTextAreaElement | null>;
+  const fitAddress = () => {
+    if (Platform.OS !== 'web') return;
+    const field = browserFieldRef.current;
+    if (!field) return;
+    field.style.height = '0px';
+    field.style.height = `${field.scrollHeight}px`;
+  };
   useLayoutEffect(() => {
     if (Platform.OS !== 'web') return;
-    const field = fieldRef.current as unknown as HTMLInputElement | null;
+    const field = browserFieldRef.current;
     if (field && field.value !== value) field.value = value;
+    fitAddress();
   }, [value, fieldRef]);
+  const visibleValue = useAddressInputValue(browserFieldRef, value);
+  useLayoutEffect(fitAddress, [visibleValue, layout]);
+  useEffect(() => {
+    const field = browserFieldRef.current;
+    if (Platform.OS !== 'web' || !field || typeof ResizeObserver === 'undefined') return;
+    let width = -1;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry && entry.contentRect.width !== width) {
+        width = entry.contentRect.width;
+        fitAddress();
+      }
+    });
+    observer.observe(field.parentElement ?? field);
+    return () => observer.disconnect();
+  }, []);
   const desktop = layout === 'desktop';
   const tablet = layout === 'tablet';
   const [locationHovered, setLocationHovered] = useState(false);
@@ -176,27 +204,71 @@ export function HomeLegislatorFinderForm({
             ...fieldFocusRing(focused),
           ]}
         >
-          <MapPin size={22} color={t.colors.text.faint} strokeWidth={2} aria-hidden />
-          <TextInput
-            ref={fieldRef}
-            {...browserFillTextInputProps}
-            accessibilityLabel="Full street address"
-            aria-describedby={HOME_FINDER_HELP_ID}
-            autoComplete="street-address"
-            autoCapitalize="words"
-            enterKeyHint="search"
-            onBlur={onBlur}
-            onChangeText={onValueChange}
-            onFocus={onFocus}
-            onSubmitEditing={onFind}
-            placeholder={HOME_FINDER_EXAMPLE}
-            placeholderTextColor={t.colors.text.faint}
-            returnKeyType="search"
-            style={[styles.input, desktop && styles.inputDesktop, fieldOutlineReset]}
-            // Keep unreported browser fill through unrelated renders; the effect
-            // above synchronizes explicit address replacements on web.
-            {...(Platform.OS === 'web' ? { defaultValue: value } : { value })}
-          />
+          <View style={styles.addressPin}>
+            <MapPin size={22} color={t.colors.text.faint} strokeWidth={2} aria-hidden />
+          </View>
+          {Platform.OS === 'web' ? (
+            <div className="home-legislator-address">
+              <style>{webFieldCss}</style>
+              <textarea
+                ref={fieldRef as unknown as Ref<HTMLTextAreaElement>}
+                {...browserFillInputProps}
+                aria-label="Full street address"
+                aria-describedby={HOME_FINDER_HELP_ID}
+                autoComplete="street-address"
+                enterKeyHint="search"
+                rows={1}
+                defaultValue={value}
+                placeholder={HOME_FINDER_EXAMPLE}
+                data-desktop={desktop}
+                readOnly={findingLocation}
+                onFocus={onFocus}
+                onBlur={onBlur}
+                onChange={(event) => {
+                  const next = event.target.value.replace(/[\r\n]+/g, ' ');
+                  event.target.value = next;
+                  onValueChange(next);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                    event.preventDefault();
+                    onFind();
+                  }
+                }}
+              />
+              <ClearAddressButton
+                visible={!!visibleValue && !findingLocation}
+                top={2}
+                right={0}
+                onClear={() => {
+                  if (browserFieldRef.current) browserFieldRef.current.value = '';
+                  onValueChange('');
+                  onClear?.();
+                  fitAddress();
+                  browserFieldRef.current?.focus();
+                }}
+              />
+            </div>
+          ) : (
+            <TextInput
+              ref={fieldRef}
+              {...browserFillTextInputProps}
+              accessibilityLabel="Full street address"
+              aria-describedby={HOME_FINDER_HELP_ID}
+              autoComplete="street-address"
+              autoCapitalize="words"
+              enterKeyHint="search"
+              onBlur={onBlur}
+              onChangeText={onValueChange}
+              onFocus={onFocus}
+              onSubmitEditing={onFind}
+              placeholder={HOME_FINDER_EXAMPLE}
+              placeholderTextColor={t.colors.text.faint}
+              returnKeyType="search"
+              style={[styles.input, desktop && styles.inputDesktop, fieldOutlineReset]}
+              value={value}
+            />
+          )}
           {desktop ? findButton : null}
         </View>
         {desktop ? locationButton : null}
@@ -229,6 +301,7 @@ export function HomeLegislatorFinder({
   const [requestState, dispatchRequest] = useReducer(homeFinderRequestState, 'idle');
   const requestInFlight = useRef(false);
   const inputRef = useRef<TextInput>(null);
+  const locationGeneration = useRef(0);
   const findingLocation = requestState === 'waiting-location';
 
   const find = () => {
@@ -238,8 +311,8 @@ export function HomeLegislatorFinder({
     onNavigate(homeAddressDestination(visibleAddress));
   };
 
-  const finishLocation = (destination: HomeFinderDestination) => {
-    if (!requestInFlight.current) return;
+  const finishLocation = (destination: HomeFinderDestination, token: number) => {
+    if (!requestInFlight.current || token !== locationGeneration.current) return;
     requestInFlight.current = false;
     dispatchRequest('settle-location');
     onNavigate(destination);
@@ -248,10 +321,11 @@ export function HomeLegislatorFinder({
   const useLocation = () => {
     if (requestInFlight.current) return;
     requestInFlight.current = true;
+    const token = ++locationGeneration.current;
     dispatchRequest('start-location');
     const geolocation = browserGeolocation();
     if (!geolocation) {
-      finishLocation(homeLocationFailureDestination('unsupported'));
+      finishLocation(homeLocationFailureDestination('unsupported'), token);
       return;
     }
     try {
@@ -262,15 +336,26 @@ export function HomeLegislatorFinder({
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
             }),
+            token,
           ),
         (error) =>
-          finishLocation(homeLocationFailureDestination(locationFailureFromBrowserError(error))),
+          finishLocation(
+            homeLocationFailureDestination(locationFailureFromBrowserError(error)),
+            token,
+          ),
         { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 },
       );
     } catch {
-      finishLocation(homeLocationFailureDestination('unknown'));
+      finishLocation(homeLocationFailureDestination('unknown'), token);
     }
   };
+  useEffect(
+    () => () => {
+      locationGeneration.current += 1;
+      requestInFlight.current = false;
+    },
+    [],
+  );
 
   return (
     <HomeLegislatorFinderForm
@@ -291,18 +376,29 @@ export function HomeLegislatorFinder({
       }}
       onFind={find}
       onUseLocation={useLocation}
+      onClear={() => {
+        locationGeneration.current += 1;
+        requestInFlight.current = false;
+        dispatchRequest('settle-location');
+      }}
     />
   );
 }
 
 const webOnly = Platform.OS === 'web';
+const webFieldCss = `
+.home-legislator-address{position:relative;flex:1;min-width:0;padding-right:56px}
+.home-legislator-address textarea{display:block;box-sizing:border-box;width:100%;min-height:48px;padding:12px 6px;border:0;outline:none;background:transparent;color:#11150f;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-size:16px;line-height:24px;resize:none;overflow:hidden}
+.home-legislator-address textarea[data-desktop=true]{font-size:18px}
+.home-legislator-address textarea::placeholder{color:#6f756f}
+`;
 const styles = StyleSheet.create({
   form: { marginTop: 22, width: '100%' },
   formDesktop: { marginTop: 38, maxWidth: 830 },
   primaryRow: { width: '100%' },
   primaryRowDesktop: {
     flexDirection: 'row',
-    alignItems: 'stretch',
+    alignItems: 'center',
     flexWrap: 'wrap',
     gap: 12,
   },
@@ -318,7 +414,13 @@ const styles = StyleSheet.create({
     borderColor: t.colors.alpha.ink14,
     borderRadius: 14,
   },
-  fieldShellDesktop: { flex: 1, minWidth: 360, paddingRight: 6, paddingLeft: 24 },
+  fieldShellDesktop: {
+    flex: 1,
+    minWidth: webOnly ? ('min(100%, 416px)' as unknown as number) : 360,
+    paddingRight: 6,
+    paddingLeft: 24,
+  },
+  addressPin: { alignSelf: 'flex-start', marginTop: webOnly ? 13 : 16 },
   input: {
     flex: 1,
     minWidth: 0,
@@ -350,7 +452,7 @@ const styles = StyleSheet.create({
   actionButtonNarrow: { width: '100%', minHeight: 48 },
   actionButtonTablet: { flex: 1, width: 'auto' },
   locationButton: {
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

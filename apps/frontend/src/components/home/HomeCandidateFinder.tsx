@@ -7,6 +7,8 @@ import { browserFillInputProps } from '../../theme/browserFill';
 import { AlertCircle, MapPin } from '../icons';
 import { LinkArrow } from '../LinkArrow';
 import { currentAddressInput } from '../../lib/currentAddressInput';
+import { ClearAddressButton } from '../address/ClearAddressButton';
+import { useAddressInputValue } from '../address/useAddressInputValue';
 
 const loadCandidates = () => import('../../data/candidates');
 type CandidateModule = Awaited<ReturnType<typeof loadCandidates>>;
@@ -34,6 +36,7 @@ export function HomeCandidateFinder({
   const [address, setAddress] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<keyof typeof messages | null>(null);
+  const visibleAddress = useAddressInputValue(input, address);
   const invalid = error === 'empty' || error === 'no-match';
   const fitAddress = () => {
     const field = input.current;
@@ -41,7 +44,7 @@ export function HomeCandidateFinder({
     field.style.height = '0px';
     field.style.height = `${field.scrollHeight}px`;
   };
-  useLayoutEffect(fitAddress, [address, isMobile, isTablet]);
+  useLayoutEffect(fitAddress, [visibleAddress, isMobile, isTablet]);
   useEffect(() => {
     const field = input.current;
     if (!field || typeof ResizeObserver === 'undefined') return;
@@ -121,6 +124,21 @@ export function HomeCandidateFinder({
       }
     }
   };
+  const clearAddress = () => {
+    generation.current += 1;
+    controller.current?.abort();
+    controller.current = null;
+    active.current = false;
+    setBusy(false);
+    const current = flow.current;
+    if (current && ['loading', 'updating'].includes(current.getState().status))
+      current.setDraftAddress('');
+    if (input.current) input.current.value = '';
+    setAddress('');
+    setError((currentError) => (currentError === 'failed' ? currentError : null));
+    fitAddress();
+    input.current?.focus();
+  };
   if (Platform.OS !== 'web') return null;
   const outline = !isMobile ? (
     <Image
@@ -182,6 +200,12 @@ export function HomeCandidateFinder({
             }}
             onBlur={() => setAddress(currentAddressInput(input.current, address))}
           />
+          <ClearAddressButton
+            onClear={clearAddress}
+            visible={!!visibleAddress && !busy}
+            top={isMobile ? 6 : 7}
+            right={8}
+          />
         </div>
         <button type="submit" disabled={busy} aria-disabled={busy} aria-busy={busy}>
           {busy ? 'Finding candidates…' : error === 'failed' ? 'Try again' : 'Find my candidates'}
@@ -235,12 +259,12 @@ const css = `
 .hc-finder *{box-sizing:border-box}.hc-layout{display:grid;grid-template-columns:minmax(0,min(820px,calc(100% - 356px))) minmax(0,1fr);gap:56px;align-items:center}.hc-layout>[data-testid]{justify-self:center}.hc-main,.hc-copy{min-width:0}
 .hc-copy h2{margin:0;font-size:44px;line-height:1.06;font-weight:800;letter-spacing:-.02em;text-wrap:pretty}.hc-copy p{margin:18px 0 0;max-width:680px;font-size:21px;line-height:1.5;color:#4f5651;text-wrap:pretty}
 .hc-finder form{margin-top:34px;scroll-margin-bottom:96px}.hc-finder label{display:block;margin:0 0 10px;font-size:16px;font-weight:700;color:#2c322c}.hc-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.hc-field{flex:1 1 360px;min-width:0;display:flex;align-items:center;gap:12px;min-height:60px;padding:0 20px;background:#fff;border:1px solid rgba(17,21,15,.22);border-radius:14px;transition:border-color .18s ease,box-shadow .18s ease}.hc-field:focus-within{border-color:#5b30d6;box-shadow:0 0 0 4px rgba(91,48,214,.14)}.hc-field[data-invalid=true]{border-color:#c0392b}.hc-field[data-invalid=true]:focus-within{box-shadow:0 0 0 4px rgba(192,57,43,.12)}
+.hc-field{position:relative;flex:1 1 360px;min-width:0;display:flex;align-items:flex-start;gap:12px;min-height:60px;padding:0 64px 0 20px;background:#fff;border:1px solid rgba(17,21,15,.22);border-radius:14px;transition:border-color .18s ease,box-shadow .18s ease}.hc-field>svg{flex:none;margin-top:19px}.hc-field:focus-within{border-color:#5b30d6;box-shadow:0 0 0 4px rgba(91,48,214,.14)}.hc-field[data-invalid=true]{border-color:#c0392b}.hc-field[data-invalid=true]:focus-within{box-shadow:0 0 0 4px rgba(192,57,43,.12)}
 .hc-field textarea{flex:1;min-width:0;background:transparent;border:none;outline:none;color:#11150f;font:inherit;font-size:18px;line-height:24px;min-height:60px;padding:18px 0;resize:none;overflow:hidden}.hc-field textarea::placeholder{color:#6f756f}
-.hc-row button{flex:none;width:248px;min-height:60px;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:12px 24px;background:#fff;border:1px solid rgba(17,21,15,.16);border-radius:14px;color:#11150f;font:inherit;font-size:17px;font-weight:700;white-space:nowrap;cursor:pointer}.hc-row button:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}.hc-row button:active:not(:disabled){background:#eceeed;border-color:rgba(17,21,15,.3)}.hc-row button:disabled{color:#4f5651;cursor:progress}
+.hc-row>button{flex:none;width:248px;min-height:60px;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:12px 24px;background:#fff;border:1px solid rgba(17,21,15,.16);border-radius:14px;color:#11150f;font:inherit;font-size:17px;font-weight:700;white-space:nowrap;cursor:pointer}.hc-row>button:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}.hc-row>button:active:not(:disabled){background:#eceeed;border-color:rgba(17,21,15,.3)}.hc-row>button:disabled{color:#4f5651;cursor:progress}
 .hc-message{min-height:0}.hc-message>div{display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-size:15px;line-height:1.45;font-weight:600;color:#b42318}.hc-message svg{flex:none;margin-top:1px}.hc-finder .hc-help{margin:12px 0 0;font-size:15px;line-height:1.45;color:#4f5651}.hc-finder .hc-privacy{max-width:680px}
-@media(hover:hover) and (pointer:fine) and (min-width:768px){.hc-row button:hover:not(:disabled){background:#f7f8fa;border-color:rgba(17,21,15,.3)}}
+@media(hover:hover) and (pointer:fine) and (min-width:768px){.hc-row>button:hover:not(:disabled){background:#f7f8fa;border-color:rgba(17,21,15,.3)}}
 @media(prefers-reduced-motion:reduce){.hc-field{transition:none}}
 @media(min-width:768px) and (max-width:1099px){.hc-finder{margin-top:80px;padding:80px 40px 32px}.hc-layout{grid-template-columns:minmax(0,1fr) 150px;gap:40px}.hc-copy h2{font-size:36px;line-height:1.08}.hc-field{flex-basis:300px}}
-@media(max-width:767px){.hc-finder{margin-top:0;padding:48px 20px}.hc-layout{display:block}.hc-copy h2{font-size:30px;line-height:1.08}.hc-finder form{margin-top:26px}.hc-finder label{font-size:19px}.hc-row{display:block}.hc-field{min-height:58px;padding:0 16px}.hc-field textarea{font-size:17px;min-height:58px;padding:17px 0}.hc-row button{width:100%;min-height:58px;margin-top:12px;font-size:19px}.hc-message>div,.hc-finder .hc-help{font-size:17px}}
+@media(max-width:767px){.hc-finder{margin-top:0;padding:48px 20px}.hc-layout{display:block}.hc-copy h2{font-size:30px;line-height:1.08}.hc-finder form{margin-top:26px}.hc-finder label{font-size:19px}.hc-row{display:block}.hc-field{min-height:58px;padding:0 64px 0 16px}.hc-field textarea{font-size:17px;min-height:58px;padding:17px 0}.hc-row>button{width:100%;min-height:58px;margin-top:12px;font-size:19px}.hc-message>div,.hc-finder .hc-help{font-size:17px}}
 `;

@@ -213,7 +213,16 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const [shimmerEnabled, setShimmerEnabled] = useState(false);
   const [findHovered, setFindHovered] = useState(false);
   const [locationHovered, setLocationHovered] = useState(false);
+  const [retainedServiceError, setRetainedServiceError] = useState<unknown>(null);
+  const locationGeneration = useRef(0);
+  useEffect(
+    () => () => {
+      locationGeneration.current += 1;
+    },
+    [],
+  );
   const lookup = useRepresentativeLookup();
+  const lookupError = lookup.error ?? retainedServiceError;
   const autoRanFor = useRef<string | null>(null);
   const addressInputRef = useRef<AddressFieldHandle>(null);
   const suggest = useCallback(
@@ -237,7 +246,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const settledResult = lookup.isPending ? undefined : result;
   const retainLastFoundResult =
     lookup.isPending ||
-    Boolean(lookup.error) ||
+    Boolean(lookupError) ||
     Boolean(clientError) ||
     settledResult?.status !== 'found';
   const retainedMapResult = retainLastFoundResult ? lastFoundResult.current : undefined;
@@ -275,7 +284,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     found,
     choices: lookupChoices.length,
     vacant: hasVacancy,
-    error: clientError ?? (lookup.error ? errorKind(lookup.error) : undefined),
+    error: clientError ?? (lookupError ? errorKind(lookupError) : undefined),
   });
   const activeError =
     state === 'not-found' ||
@@ -286,6 +295,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       ? errorCopy(state)
       : null;
   const addressError = activeError && state !== 'location-error' ? activeError : null;
+  const addressInvalid = state === 'not-found' || state === 'outside-minnesota';
   const locationButtonError = state === 'location-error' ? activeError : null;
   const mapUpdateLabel = lookup.isPending
     ? 'Updating legislators: showing the previous results'
@@ -356,6 +366,9 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     if (rateLimitSeconds > 0) return;
     const { serviceAddress } = prepareAddressLookup(value);
     if (!serviceAddress) return;
+    locationGeneration.current += 1;
+    setFindingLocation(false);
+    setRetainedServiceError(null);
     setAddress(value);
     setClientError(null);
     setPreserveMapViewport(false);
@@ -377,6 +390,9 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     source: 'choice' | 'location' | 'map' = 'map',
   ) => {
     if (rateLimitSeconds > 0) return;
+    locationGeneration.current += 1;
+    setFindingLocation(false);
+    setRetainedServiceError(null);
     setClientError(null);
     setChoiceClosed(true);
     addressInputRef.current?.dismiss();
@@ -442,13 +458,16 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     setPreserveMapViewport(false);
     setSelectedCoordinate(undefined);
     setClientError(null);
+    setRetainedServiceError(null);
     if (!geolocation) {
       setClientError('location');
       return;
     }
     setFindingLocation(true);
+    const request = ++locationGeneration.current;
     geolocation.getCurrentPosition(
       (position) => {
+        if (request !== locationGeneration.current) return;
         setFindingLocation(false);
         runCoordinate(
           { latitude: position.coords.latitude, longitude: position.coords.longitude },
@@ -456,6 +475,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
         );
       },
       () => {
+        if (request !== locationGeneration.current) return;
         setFindingLocation(false);
         setClientError('location');
       },
@@ -464,11 +484,27 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   };
   const editAddress = (value: string) => {
     setAddress(value);
+    // Reset detaches this screen from unfinished mutation replies. Keep an
+    // already-reported service failure, which clearing text cannot repair.
+    if (lookupError && ['service-down', 'rate-limited'].includes(errorKind(lookupError)))
+      setRetainedServiceError(lookupError);
     lookup.reset();
     setClientError(null);
     setSelectedCoordinate(undefined);
     setChoiceClosed(false);
     setChoiceIndex(0);
+  };
+  const clearAddress = () => {
+    locationGeneration.current += 1;
+    setFindingLocation(false);
+    setChoiceClosed(true);
+    confirmedChoice.current = undefined;
+    navigation.setParams({
+      address: undefined,
+      coordinate: undefined,
+      lookupAddress: undefined,
+      locationFailure: undefined,
+    });
   };
   const findAddress = () => {
     if (lookup.isPending || rateLimitSeconds > 0) return;
@@ -679,15 +715,16 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                   fieldRef={addressInputRef}
                   address={address}
                   onAddress={editAddress}
-                  suggestionsEnabled={!choices.length}
+                  onClear={clearAddress}
+                  suggestionsEnabled={!choices.length && rateLimitSeconds === 0}
                   suggest={suggest}
                   onSubmit={(value, choice) =>
                     choice ? chooseAddress(choice, value) : runAddress(value)
                   }
                   labelId="find-legislator-address-label"
                   describedBy={`find-legislator-address-help ${ADDRESS_ERROR_ID}`}
-                  invalid={Boolean(addressError)}
-                  busy={lookupDisabled}
+                  invalid={addressInvalid}
+                  busy={lookup.isPending}
                   mobile={isMobile}
                 />
               </View>
@@ -948,10 +985,10 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     width: '100%',
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 12,
   },
-  controlRowMobile: { flexDirection: 'column' },
+  controlRowMobile: { flexDirection: 'column', alignItems: 'stretch' },
   findButton: {
     minHeight: 60,
     width: 160,
@@ -989,7 +1026,7 @@ const styles = StyleSheet.create({
   },
   locationButton: {
     height: 60,
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

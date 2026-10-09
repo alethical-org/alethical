@@ -69,7 +69,7 @@ it.each(['button', 'keyboard'])('uses current browser-filled address via %s', (m
   const { input, onSubmit } = setup();
   fill(input, newAddress);
   if (method === 'keyboard') key(input, 'Enter');
-  else act(() => (host.querySelector('button') as HTMLElement).click());
+  else act(() => (host.querySelector('button:not([data-clear-address])') as HTMLElement).click());
   expect(onSubmit).toHaveBeenCalledExactlyOnceWith(newAddress);
   expect(input.value).toBe(newAddress);
 });
@@ -102,7 +102,7 @@ it('keeps browser-filled text when tapping the search button blurs the field fir
   act(() => input.focus());
   fill(input, newAddress);
   act(() => input.blur());
-  act(() => (host.querySelector('button') as HTMLElement).click());
+  act(() => (host.querySelector('button:not([data-clear-address])') as HTMLElement).click());
   expect(onSubmit).toHaveBeenCalledExactlyOnceWith(newAddress);
   expect(input.value).toBe(newAddress);
 });

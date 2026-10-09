@@ -88,6 +88,8 @@ function CandidateSearchSession({
   const displayed = state.displayed;
   const resultsPhase = Boolean(displayed?.results.resultsAvailable);
   const previousDisplayed = useRef(displayed);
+  const changeAddressRef = useRef<View>(null);
+  const restoreEditFocus = useRef(false);
   const busy = state.status === 'loading' || state.status === 'updating';
   const retryBusy = retrying && busy;
   const addressRetry = retryBusy && (!displayed || changingAddress);
@@ -129,8 +131,22 @@ function CandidateSearchSession({
   }, [displayed]);
   const editAddress = (value: string) => {
     setAddress(value);
-    flow.setDraftAddress(value);
+    flow.setDraftAddress(value, !value.trim());
   };
+  const cancelAddressEdit = () => {
+    if (!displayed) return;
+    setAddress(displayed.results.matchedAddress);
+    setSelected(displayed.election.id);
+    flow.setDraftAddress(displayed.results.matchedAddress);
+    restoreEditFocus.current = true;
+    setChangingAddress(false);
+  };
+  useEffect(() => {
+    if (!changingAddress && restoreEditFocus.current) {
+      restoreEditFocus.current = false;
+      (changeAddressRef.current as unknown as HTMLElement | null)?.focus?.();
+    }
+  }, [changingAddress]);
   const submit = (value: string, choice?: CandidateAddressChoice) => {
     const election = elections.find((item) => item.id === selected);
     if (!election || busy) return;
@@ -181,7 +197,7 @@ function CandidateSearchSession({
         focus={changingAddress}
         compact={Boolean(displayed)}
         privacyDisclosure={privacyDisclosure}
-        onCancel={changingAddress ? () => setChangingAddress(false) : undefined}
+        onCancel={changingAddress ? cancelAddressEdit : undefined}
       />
     );
   const unavailable = electionLoad === 'error' || state.status === 'error';
@@ -282,6 +298,7 @@ function CandidateSearchSession({
                 <CandidateButton
                   kind="text"
                   label="Change address"
+                  buttonRef={changeAddressRef}
                   onPress={beginAddressEdit}
                   style={{ marginLeft: 26 }}
                 />

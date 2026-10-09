@@ -290,7 +290,7 @@ describe('Find My Legislator state and copy helpers', () => {
     );
 
     expect(source).toMatch(
-      /const retainLastFoundResult =[\s\S]*lookup\.isPending[\s\S]*lookup\.error[\s\S]*clientError/,
+      /const retainLastFoundResult =[\s\S]*lookup\.isPending[\s\S]*lookupError[\s\S]*clientError/,
     );
     expect(source).toContain('activeError && !retainedMapResult');
     expect(source).toContain('Couldn’t update legislators: showing the previous results');

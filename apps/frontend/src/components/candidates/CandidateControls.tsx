@@ -47,6 +47,8 @@ export function CandidateButton({
   href,
   keepFieldFocus = false,
   busyLabel,
+  reserveBusyLabel = false,
+  pressedStyle,
   buttonRef,
   describedBy,
   accessibilityLabel,
@@ -61,6 +63,8 @@ export function CandidateButton({
   href?: string;
   keepFieldFocus?: boolean;
   busyLabel?: string;
+  reserveBusyLabel?: boolean;
+  pressedStyle?: StyleProp<ViewStyle>;
   buttonRef?: RefObject<View | null>;
   describedBy?: string;
   accessibilityLabel?: string;
@@ -124,6 +128,7 @@ export function CandidateButton({
             : kind === 'outline'
               ? styles.outlinePressed
               : null),
+        pressed && !busy && !disabled && pressedStyle,
         disabled && { opacity: 0.5 },
         busy && busyLabel && Platform.OS === 'web' && ({ cursor: 'progress' } as object),
         style,
@@ -152,21 +157,49 @@ export function CandidateButton({
           </Svg>
         </View>
       ) : null}
-      <Text
-        style={[
-          styles.buttonText,
-          kind === 'green' && { color: '#06231a' },
-          kind === 'text' && { textDecorationLine: 'underline' },
-          kind === 'text' &&
-            Platform.OS === 'web' &&
-            ({
-              textDecorationThickness: hovered ? '3px' : '1px',
-              textUnderlineOffset: '3px',
-            } as object),
-        ]}
-      >
-        {busy && busyLabel ? busyLabel : label}
-      </Text>
+      {reserveBusyLabel && busyLabel ? (
+        <View style={{ flexShrink: 1, minWidth: 0, position: 'relative' }}>
+          <Text aria-hidden accessibilityElementsHidden style={[styles.buttonText, { opacity: 0 }]}>
+            {busyLabel}
+          </Text>
+          <View
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, { justifyContent: 'center' }]}
+          >
+            <Text
+              style={[
+                styles.buttonText,
+                kind === 'green' && { color: '#06231a' },
+                kind === 'text' && { textDecorationLine: 'underline' },
+                kind === 'text' &&
+                  Platform.OS === 'web' &&
+                  ({
+                    textDecorationThickness: hovered ? '3px' : '1px',
+                    textUnderlineOffset: '3px',
+                  } as object),
+              ]}
+            >
+              {busy && busyLabel ? busyLabel : label}
+            </Text>
+          </View>
+        </View>
+      ) : (
+        <Text
+          style={[
+            styles.buttonText,
+            kind === 'green' && { color: '#06231a' },
+            kind === 'text' && { textDecorationLine: 'underline' },
+            kind === 'text' &&
+              Platform.OS === 'web' &&
+              ({
+                textDecorationThickness: hovered ? '3px' : '1px',
+                textUnderlineOffset: '3px',
+              } as object),
+          ]}
+        >
+          {busy && busyLabel ? busyLabel : label}
+        </Text>
+      )}
     </Pressable>
   );
 }
