@@ -15,7 +15,7 @@ from functools import lru_cache
 from pathlib import Path
 
 import requests
-from shapely.geometry import MultiPoint, Point, mapping, shape
+from shapely.geometry import Point, mapping, shape
 from shapely.geometry.base import BaseGeometry
 
 from alethical.api.services.address_format import normalize_address_format
@@ -25,6 +25,8 @@ from alethical.api.services.address_suggestion_index import (
 from alethical.api.services.legislative_districts import (
     LegislativeDistrictDataError,
     legislative_districts_for_point,
+    one_shape_for_all,
+    points_share_legislative_districts,
 )
 from alethical.logging import configure_logging
 
@@ -1565,35 +1567,19 @@ class MinnesotaAddressPointGeocoder:
 
 class MinnesotaGisLookupClient:
     def points_share_districts(self, points: tuple[tuple[float, float], ...]) -> bool:
-        """True when every (latitude, longitude) point gives the same districts.
+        """True when every (latitude, longitude) point has the same unique districts.
 
-        Checks that the first point's House, Senate and congressional shapes cover
-        all of the points, so a building with many unit points costs 3 checks.
+        A point on a shared boundary is no unique answer, so it disagrees. A map
+        that cannot be read is a source failure, never a disagreement.
         """
-        latitude, longitude = points[0]
+        lon_lat = tuple((longitude, latitude) for latitude, longitude in points)
         try:
-            house, senate = legislative_districts_for_point(
-                longitude=longitude, latitude=latitude
-            )
-        except LegislativeDistrictDataError:
-            return False
-        first = Point(longitude, latitude)
-        congressional = [
-            geometry
-            for _, geometry in _congressional_district_geometries()
-            if geometry.covers(first)
-        ]
-        if house is None or senate is None or len(congressional) != 1:
-            return False
-        group = MultiPoint(
-            [
-                (point_longitude, point_latitude)
-                for point_latitude, point_longitude in points
-            ]
-        )
-        return all(
-            shape_.covers(group)
-            for shape_ in (house._shape, senate._shape, congressional[0])
+            legislative = points_share_legislative_districts(lon_lat)
+        except LegislativeDistrictDataError as exc:
+            raise RepresentativeLookupUpstreamError(str(exc)) from exc
+        return legislative and one_shape_for_all(
+            tuple(geometry for _, geometry in _congressional_district_geometries()),
+            lon_lat,
         )
 
     def lookup(

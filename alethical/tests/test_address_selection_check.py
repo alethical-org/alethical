@@ -145,6 +145,79 @@ def test_district_check_uses_stored_maps():
     assert not client.points_share_districts((MINNEAPOLIS, SAINT_PAUL))
 
 
+# On the stored maps: inside House 59B, on the 59B/43B border, and inside 43B.
+INSIDE_59B = (45.0040, -93.3150)
+ON_59B_43B_BORDER = (45.006042, -93.31852)
+INSIDE_43B = (45.0080, -93.3220)
+
+
+@pytest.mark.parametrize(
+    "points",
+    [
+        (INSIDE_59B, ON_59B_43B_BORDER),
+        (ON_59B_43B_BORDER, INSIDE_59B),
+        (INSIDE_59B, INSIDE_43B),
+    ],
+    ids=["inside-then-border", "border-then-inside", "either-side"],
+)
+def test_a_point_on_a_shared_border_is_never_a_shared_answer(points):
+    # The single-point lookup refuses the border point, so a group holding it
+    # cannot claim 1 answer either, whichever point comes first.
+    assert not MinnesotaGisLookupClient().points_share_districts(points)
+
+
+def test_side_by_side_districts_need_1_answer_for_every_point(monkeypatch):
+    from shapely.geometry import box
+
+    from alethical.api.services import legislative_districts as maps
+
+    def district(chamber, code, shape):
+        return maps.LegislativeDistrictGeometry(chamber, code, {}, shape)
+
+    west, east = box(-94, 45, -93.5, 46), box(-93.5, 45, -93, 46)
+    monkeypatch.setattr(
+        maps,
+        "_legislative_district_geometries",
+        lambda: {
+            "house": (district("house", "1A", west), district("house", "1B", east)),
+            "senate": (district("senate", "1", box(-94, 45, -93, 46)),),
+        },
+    )
+    monkeypatch.setattr(
+        "alethical.api.services.representative_lookup._congressional_district_geometries",
+        lambda: (("1", box(-94, 45, -93, 46)),),
+    )
+    client = MinnesotaGisLookupClient()
+
+    assert client.points_share_districts(((45.5, -93.8), (45.6, -93.7)))
+    assert not client.points_share_districts(((45.5, -93.8), (45.5, -93.5)))
+    assert not client.points_share_districts(((45.5, -93.8), (45.5, -93.2)))
+    # Outside every district everywhere is 1 shared answer: none.
+    assert client.points_share_districts(((47, -91), (47.1, -91.1)))
+    assert not client.points_share_districts(((45.5, -93.8), (47, -91)))
+
+
+def test_an_unreadable_district_map_is_a_source_failure_not_a_disagreement(
+    source, monkeypatch
+):
+    from alethical.api.services import legislative_districts as maps
+
+    def broken():
+        raise maps.LegislativeDistrictDataError(
+            "Legislative district map could not be loaded"
+        )
+
+    monkeypatch.setattr(maps, "_legislative_district_geometries", broken)
+    with pytest.raises(RepresentativeLookupUpstreamError):
+        MinnesotaGisLookupClient().points_share_districts((MINNEAPOLIS, SAINT_PAUL))
+
+    source.answers = [{"features": [row(*MINNEAPOLIS), row(*MINNEAPOLIS_NEARBY)]}]
+    with pytest.raises(RepresentativeLookupUpstreamError):
+        service(RecordingDistricts()).lookup_selected(
+            ADDRESS, latitude=MINNEAPOLIS[0], longitude=MINNEAPOLIS[1]
+        )
+
+
 def test_capped_exact_answer_is_retried_with_the_full_cap(source):
     source.answers = [
         {"features": [row(*MINNEAPOLIS)], "exceededTransferLimit": True},
