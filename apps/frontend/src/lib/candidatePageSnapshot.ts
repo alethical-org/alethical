@@ -173,7 +173,7 @@ export function candidateProfilePageSnapshot(
   });
   if (record.result) sections.push(electionResultSnapshot(record.result));
   return {
-    backLink: { label: CANDIDATE_LOOKUP_COPY.heading, href: '/candidates' },
+    backLink: { label: 'Go back', href: '/candidates' },
     heading: record.candidate.name,
     subheading: '',
     bodyHeading: '',

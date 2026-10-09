@@ -132,10 +132,12 @@ describe('public first-response copy matches the actual screens', () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2026-10-07T12:00:00Z'));
       const profile = { ...record, legislator: { ...record.legislator!, serviceStatus: status } };
+      expect(candidateProfilePageSnapshot(profile).backLink).toEqual({
+        label: 'Go back',
+        href: '/candidates',
+      });
       const shown = screenText(
-        renderToStaticMarkup(
-          <CandidateProfileContent record={profile} fromSearch={false} onBack={() => {}} />,
-        ),
+        renderToStaticMarkup(<CandidateProfileContent record={profile} onBack={() => {}} />),
       );
       for (const line of snapshotLines(candidateProfilePageSnapshot(profile)))
         expect(shown).toContain(line);
@@ -151,9 +153,7 @@ describe('public first-response copy matches the actual screens', () => {
     };
     const snapshot = candidateProfilePageSnapshot(profile);
     const shown = screenText(
-      renderToStaticMarkup(
-        <CandidateProfileContent record={profile} fromSearch={false} onBack={() => {}} />,
-      ),
+      renderToStaticMarkup(<CandidateProfileContent record={profile} onBack={() => {}} />),
     );
     for (const line of snapshotLines(snapshot)) expect(shown).toContain(line);
     expect(snapshot.sections?.[1].body).toContain('Candidate for');

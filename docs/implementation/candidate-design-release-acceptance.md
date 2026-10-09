@@ -1,5 +1,20 @@
 # Candidate design build acceptance inventory
 
+## Candidate profile return link, October 9, 2026
+
+Eugene approved the standard grey “Go back” control for public candidate profiles,
+replacing the candidate-specific green “Back to candidates” and “Find my candidates”
+links. The green right arrow on a directly opened profile suggested moving onward
+in the slot used for return navigation. A normal click returns to a prior Alethical page in this browser tab when
+available; otherwise `/candidates` is the safe destination. Apply the same control
+to loading and error states and the initial page snapshot. Keep search results and
+its address, election, open groups, and scroll position when returning from a
+search, and check that behavior in the working browser before reporting it.
+This decision replaces P02's earlier labels and the old direct-profile journey below.
+The local browser's illustrative search retained the address, election, results,
+closed county group and 500px scroll position on return. A direct profile visit
+followed the fallback on desktop and phone; the phone link measured 44px tall.
+
 ## Partial address suggestion match, October 8, 2026
 
 Authorized target: the supplied screenshot `Screenshot 2026-10-08 at 4.05.57 AM.jpg`
@@ -132,7 +147,7 @@ Group colors (tint / edge / square / pressed): State `e8f6ee/a8dcbf/15834a/d6efe
 | ID | Role / start / action | Expected result and source | Current gap / verification |
 |---|---|---|---|
 | P01 | Visitor, valid profile | Back/find → portrait/name → legislator panel when known → official candidate record → campaign statement when available → account action → footer.760px max; padding40/32/20;top24/22/16;name44/40/32. | Current name48/34 and identity outside record; whole profile restructuring needed. |
-| P02 | Visitor, entry from search/direct | Search entry “Back to candidates” restores search; direct entry “Find my candidates” opens empty search. Back stays reachable in loading/unavailable states. | Current always Back. Test cold URL, refresh, app back and browser back. |
+| P02 | Visitor, entry from search/direct | Both show the standard grey “Go back”. An earlier Alethical page in the same tab is restored; direct visits fall back to `/candidates`. Back stays reachable in loading/unavailable states. | Test cold URL, refresh, app back and browser back. |
 | P03 | Visitor, confirmed portrait | Real confirmed image beside name, entire image with its own ratio; width120/112/84,gap22/20/14,1px edge. No crop/circle/retouch/link or substitute illustration. Credit12 only when supplied/required. | Profile types/rendering currently have no portrait. Sitting legislator image may be used only for confirmed same person. Credible data source and valid URL required. |
 | P04 | Visitor, portrait loading/failure/missing | Loading holds image-sized space with drawn light placeholder; failure/missing cleanly omit image/frame, no broken symbol or empty permanent box. | Exercise successful, slow and broken image with long name. Joint ticket does not receive a misleading one-person hero portrait. |
 | P05 | Visitor, confirmed legislator connection | Near name, visible without opening anything. Existing same person's `/legislators/<slug>` link labeled “View legislator profile”; support “See their bills, votes, and work in office”. Panel white1px/r14,no shadow,padding18 20 8 /phone16 16 8. | No current connection data/rendering. Never match by name alone. Existing API must supply grounded association or no addition. |
@@ -192,7 +207,7 @@ Account state coverage: public, approved owner, pending, loading, failure. Campa
 2. Resolve data-backed conditional behavior through actual held fields: joint ticket name, source seat count, current/former service, verified legislator ID, portrait provenance, saved check time. A fixture makes a layout testable, not a production fact.
 3. Preserve current real production limitations. Current official election list may expose only general election; named local gaps must remain generic when records lack identifiers. Claim/manage are existing staff-reviewed flows, not the old prototype.
 4. For every row, append: implementation location; tested role/start/action; actual result; desktop/tablet/phone screenshot or measurement; keyboard/touch/error evidence; live result or approved exception. Use the evidence coverage table below; do not interpret the starting-code column as current behavior.
-5. Minimum realistic journeys: homepage→search→suggestion→results→profile→legislator→back; direct empty→ambiguous→choice; editing address failure with old results; election rapid changes/failure/retry; closed group jump/find/print; direct profile→Find my candidates; account role entrances; campaign/report all feedback outcomes.
+5. Minimum realistic journeys: homepage→search→suggestion→results→profile→legislator→back; direct empty→ambiguous→choice; editing address failure with old results; election rapid changes/failure/retry; closed group jump/find/print; direct profile→Go back→`/candidates`; account role entrances; campaign/report all feedback outcomes.
 6. Browser tests must inspect every whole authorized screen including reused header/footer and every hover state. Test long text, large text, phone keyboard, focus return, slow and instant responses. Check parent coordinates independent final review from drawings and live release evidence.
 7. Safe tests use controlled service responses for report submissions and source-dependent states. Actual production read-only navigation/data/portrait links can be inspected without writes. Do not send emails or create production claims/reports solely to prove appearance.
 8. Carry exact settled copy/source corrections and approved arrow precedence into saved implementation/design-update notes. A returned drawing is not a dependency for objective settled corrections.
