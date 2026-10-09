@@ -541,14 +541,29 @@ for (const band of bands) {
         version: 3,
       };
       await page.getByRole('button', { name: 'Try again', exact: true }).click();
-      await expect(
-        page.getByRole('alert').filter({
-          hasText:
-            'The published statement changed elsewhere. Your changes are still here and have not been saved.',
-        }),
-      ).toBeVisible();
-      await expect(page.getByText('Fictional words saved in another tab.')).toBeVisible();
+      const group = page.getByRole('group', {
+        name: 'The published statement changed elsewhere. Your changes are still here and have not been saved.',
+      });
+      await expect(group).toBeVisible();
+      await expect(group.getByText('Current public statement', { exact: true })).toBeVisible();
+      await expect(group.getByText('Edited October 5, 2026', { exact: true })).toBeVisible();
+      await expect(group.getByText('Fictional words saved in another tab.')).toBeVisible();
+      // The message holds focus with no ring; the group sits above the editor.
+      expect(await page.evaluate(() => document.activeElement?.id)).toBe(
+        'statement-changed-message',
+      );
+      expect(
+        await page.evaluate(
+          () =>
+            getComputedStyle(document.getElementById('statement-changed-message')!).outlineStyle,
+        ),
+      ).toBe('none');
+      expect((await box(group)).y).toBeLessThan((await box(editor)).y);
+      // The editor's own date line is hidden while the group shows.
+      await expect(page.getByText('Edited October 5, 2026', { exact: true })).toHaveCount(1);
       await expect(editor).toHaveValue('Fictional unsaved edit in this tab.');
+      await editor.fill('Fictional unsaved edit in this tab, still typing.');
+      await expect(group).toBeVisible();
       await expect(page.getByRole('button', { name: 'Save changes' })).toBeVisible();
       expect(api.writes).toHaveLength(1);
       await noHorizontalOverflow(page);

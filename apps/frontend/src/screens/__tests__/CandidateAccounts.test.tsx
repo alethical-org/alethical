@@ -1420,10 +1420,20 @@ it('never lets Try again overwrite or remove a statement saved somewhere else', 
   );
   expect(button('Save changes')).toBeDefined();
   // The owner is told, and sees what voters see now, before choosing to replace it.
-  expect(host.querySelector('[role="alert"]')?.textContent).toBe(
+  const group = host.querySelector('[role="group"][aria-labelledby="statement-changed-message"]')!;
+  expect(host.querySelector('#statement-changed-message')?.textContent).toBe(
     'The published statement changed elsewhere. Your changes are still here and have not been saved.',
   );
-  expect(host.textContent).toContain('Words saved in another tab');
+  expect(group.textContent).toContain('Current public statement');
+  expect(group.textContent).toContain('Words saved in another tab');
+  // The message takes focus, since Try again is gone.
+  expect(document.activeElement?.id).toBe('statement-changed-message');
+  // The group sits above the editor, and stays while the owner keeps typing.
+  const editor = host.querySelector('[aria-label="Campaign statement"]')!;
+  expect(group.compareDocumentPosition(editor) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  edit('Campaign statement', 'My edited campaign words, still editing');
+  expect(host.querySelector('#statement-changed-message')).not.toBeNull();
+  edit('Campaign statement', 'My edited campaign words');
   // A later Save is the owner's own choice, made against the version they now hold.
   act(() => button('Save changes').click());
   await flush();
@@ -1667,4 +1677,69 @@ it('drops a late answer after the account changes', async () => {
   await act(async () => answers[0](handedOver));
   await flush();
   expect(fieldValue('Link to a campaign website or official record')).toBe('');
+});
+
+it('shows that nothing is published when the statement was removed elsewhere, and asks for a fresh publish', async () => {
+  mocks.save.mockRejectedValueOnce(Object.assign(new Error('Changed'), { status: 409 }));
+  manage();
+  await flush();
+  edit('Campaign statement', 'My edited campaign words');
+  act(() => button('Save changes').click());
+  await flush();
+  mocks.privateStatement.mockResolvedValue({
+    account_id: 'account-a',
+    statement: { body: '', updated_at: '2026-10-01', version: 3 },
+    history: [],
+  });
+  act(() => button('Try again').click());
+  await flush();
+  const group = host.querySelector('[role="group"][aria-labelledby="statement-changed-message"]')!;
+  expect(group.textContent).toContain('No statement is currently published');
+  expect(host.querySelector<HTMLTextAreaElement>('[aria-label="Campaign statement"]')!.value).toBe(
+    'My edited campaign words',
+  );
+  expect(mocks.save).toHaveBeenCalledTimes(1);
+  // Publishing is the owner's own choice, against the version shown.
+  act(() => button('Publish statement').click());
+  await flush();
+  expect(mocks.save.mock.calls[1][2]).toMatchObject({
+    body: 'My edited campaign words',
+    expected_version: 3,
+  });
+});
+it('keeps the editor date hidden while the changed-elsewhere group shows', async () => {
+  mocks.save.mockRejectedValueOnce(Object.assign(new Error('Changed'), { status: 409 }));
+  mocks.privateStatement.mockResolvedValue({
+    account_id: 'account-a',
+    statement: {
+      body: 'Current campaign words',
+      updated_at: '2026-09-30T15:00:00Z',
+      published_at: '2026-09-30T15:00:00Z',
+      edited_at: null,
+      version: 2,
+    },
+    history: [],
+  });
+  manage();
+  await flush();
+  edit('Campaign statement', 'My edited campaign words');
+  act(() => button('Save changes').click());
+  await flush();
+  mocks.privateStatement.mockResolvedValue({
+    account_id: 'account-a',
+    statement: {
+      body: 'Words saved in another tab',
+      updated_at: '2026-10-03T15:00:00Z',
+      published_at: '2026-09-30T15:00:00Z',
+      edited_at: '2026-10-03T15:00:00Z',
+      version: 3,
+    },
+    history: [],
+  });
+  act(() => button('Try again').click());
+  await flush();
+  const group = host.querySelector('[role="group"][aria-labelledby="statement-changed-message"]')!;
+  // The group carries the current statement's own date; the line under the editor is empty.
+  expect(group.textContent).toContain('Edited October 3, 2026');
+  expect(host.textContent!.split('Edited October 3, 2026')).toHaveLength(2);
 });

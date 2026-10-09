@@ -97,6 +97,8 @@ export const profileClaimCopy = {
   writeFailed: 'We couldn’t complete this request',
   changedElsewhere:
     'The published statement changed elsewhere. Your changes are still here and have not been saved.',
+  currentStatement: 'Current public statement',
+  noCurrentStatement: 'No statement is currently published',
   checking: 'Checking whether your changes were saved…',
   changed: 'This profile claim request changed. Review the latest status before continuing.',
   decisionUnknown:

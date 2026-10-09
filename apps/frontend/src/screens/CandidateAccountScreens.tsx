@@ -1135,6 +1135,15 @@ function ManageContent({
   // response from a change saved somewhere else.
   const failedVersion = useRef<number | null>(null);
   const [changedElsewhere, setChangedElsewhere] = useState(false);
+  // The message takes focus when the group appears, unless the reader already moved on.
+  useEffect(() => {
+    if (!changedElsewhere || typeof document === 'undefined') return;
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    const message = document.getElementById('statement-changed-message');
+    message?.setAttribute('tabindex', '-1');
+    message?.focus();
+  }, [changedElsewhere]);
   const [failure, setFailure] = useState<'load' | 'write' | 'give' | null>(null);
   const [fieldError, setFieldError] = useState<'empty' | 'over' | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1308,7 +1317,6 @@ function ManageContent({
     setLastKind(kind);
     setMessage('');
     setFailure(null);
-    setChangedElsewhere(false);
     const expected = loaded?.statement?.version ?? 0;
     try {
       await send(kind, expected);
@@ -1654,7 +1662,7 @@ function ManageContent({
     : okMessage
       ? { kind: 'ok' as const, text: okMessage }
       : published
-        ? dateLine
+        ? dateLine && !changedElsewhere
           ? { kind: 'date' as const, text: dateLine }
           : null
         : { kind: 'guidance' as const, text: copy.notSavedUntilPublished };
@@ -1687,6 +1695,51 @@ function ManageContent({
         >
           {published ? copy.statementGuidancePublished : copy.statementGuidance}
         </Text>
+        {changedElsewhere ? (
+          <View
+            role="group"
+            aria-labelledby="statement-changed-message"
+            style={[claimStyles.changedGroup, isMobile && { padding: 14 }]}
+          >
+            <Text
+              nativeID="statement-changed-message"
+              style={[
+                candidateText.strong,
+                { fontSize: 15.5, lineHeight: 23.25, fontWeight: '800', color: '#11150f' },
+                web({ outlineStyle: 'none' }),
+              ]}
+            >
+              {copy.changedElsewhere}
+            </Text>
+            <View style={claimStyles.currentStatement}>
+              <View style={claimStyles.currentStatementTop}>
+                <Text style={[candidateText.strong, { fontSize: 15.5, lineHeight: 22 }]}>
+                  {copy.currentStatement}
+                </Text>
+                {published && dateLine ? (
+                  <Text
+                    style={[
+                      candidateText.body,
+                      { fontSize: 14.5, lineHeight: 21, fontWeight: '600' },
+                      web({ fontVariant: ['tabular-nums'] }),
+                    ]}
+                  >
+                    {dateLine}
+                  </Text>
+                ) : null}
+              </View>
+              <Text
+                style={[
+                  candidateText.body,
+                  { marginTop: 8, color: '#2c322c', fontSize: 16, lineHeight: 26.4 },
+                  web({ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }),
+                ]}
+              >
+                {published ? publicBody : copy.noCurrentStatement}
+              </Text>
+            </View>
+          </View>
+        ) : null}
         <ManageEditor
           editorRef={editorRef}
           value={draft}
@@ -1796,20 +1849,6 @@ function ManageContent({
               {busy === 'checking' ? copy.checking : ''}
             </Text>
           </View>
-        ) : null}
-        {changedElsewhere ? (
-          <>
-            <View role="alert" style={claimStyles.writeFailure}>
-              <Text style={[candidateText.strong, { flex: 1, fontSize: 15.5, fontWeight: '800' }]}>
-                {copy.changedElsewhere}
-              </Text>
-            </View>
-            {published && loaded?.statement ? (
-              <View style={{ marginTop: 12 }}>
-                <CandidateCampaignStatement preview record={record} statement={loaded.statement} />
-              </View>
-            ) : null}
-          </>
         ) : null}
         <View
           style={[
@@ -2456,6 +2495,31 @@ const claimStyles = {
     justifyContent: 'space-between' as const,
     columnGap: 16,
     rowGap: 10,
+  },
+  changedGroup: {
+    marginTop: 14,
+    padding: 18,
+    gap: 12,
+    backgroundColor: '#fdf6e7',
+    borderWidth: 1,
+    borderColor: '#efd9a8',
+    borderRadius: 14,
+  },
+  currentStatement: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.08)',
+    borderRadius: 12,
+  },
+  currentStatementTop: {
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'baseline' as const,
+    columnGap: 16,
+    rowGap: 2,
   },
   writeFailure: {
     marginTop: 12,
