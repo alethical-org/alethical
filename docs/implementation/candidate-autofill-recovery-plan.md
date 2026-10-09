@@ -489,8 +489,11 @@ Release preparation (9 October 2026):
   fresh capacity and memory facts, no competing deployment and the reviewed live
   commit. Unknown facts refuse activation. Failed on attempts restore off where
   ownership remains clear; outputs expose only allowlisted host facts and fixed
-  statuses. Neither workflow creates resources or runs on a schedule.
-- The control's 49 focused tests cover privacy, stale and unknown facts, another
+  statuses. Before redeploying off, a failed activation with a known owned ID
+  must end or reach success; only its own queued/building deployment may be
+  cancelled, and a cancellation reply alone is insufficient. Unknown or lost
+  identity remains unconfirmed. Neither workflow creates resources or runs on a schedule.
+- The control's 62 focused tests cover privacy, stale and unknown facts, another
   operator's deployment, uncertain flag writes, rollback and a delayed first build.
   Production activation time remains unmeasured until the actual operation.
 - Docker Hub refused the backend check twice before tests could start. GitHub's

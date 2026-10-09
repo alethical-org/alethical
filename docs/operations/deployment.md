@@ -194,10 +194,17 @@ switch. Turning on also requires the known `350 5th Street South, Minneapolis, M
 55415` suggestion to carry `requires_location_check: true`. The first 8 minutes
 include checks, deployment, download and building; 6 minutes remain for restoring
 off within the 15-minute workflow. These are safety budgets, not measured production
-activation times. A failed or uncertain on attempt saves `false` and redeploys the
-reviewed version unless another operator has replaced it; the result distinguishes
-confirmed off from an unconfirmed deployment or flag. Both workflows preserve
-the existing production-deployment queue and never create resources.
+activation times. A failed or uncertain on attempt saves `false`. When the job
+holds its exact activation deployment ID, it reads all ownership IDs and cancels
+only that deployment in `BUILDING` or `QUEUED`. It waits at most 90 seconds for
+that deployment to end or reach `SUCCESS`, reserving 200 seconds for off restoration.
+A cancellation reply alone does not establish that the activation has ended.
+Other pending states receive no cancellation. Only after the owned activation
+settles and no other operator has replaced or queued work does the job redeploy
+the reviewed version and inspect the off replacement. Lost deployment IDs,
+unknown ownership, and unsettled attempts remain explicitly unconfirmed; the job
+never guesses which deployment to cancel. Both workflows preserve the existing
+production-deployment queue and never create resources.
 
 Before activation, tracked in
 [issue 2585](https://github.com/alethical-org/alethical/issues/2585):

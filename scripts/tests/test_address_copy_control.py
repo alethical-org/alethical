@@ -198,6 +198,9 @@ class ControlTests(unittest.TestCase):
             patch.object(control, "replacement_ready", return_value=True)
         )
         self.gate = self.stack.enter_context(patch.object(control, "activation_gate"))
+        self.stack.enter_context(
+            patch.object(control, "settle_owned_activation", return_value=True)
+        )
 
     def test_on_deploys_exact_reviewed_active_id(self):
         result = control.control("fake-token", True, COMMIT)
@@ -260,6 +263,18 @@ class ControlTests(unittest.TestCase):
             self.set_flag.call_args_list[-1], unittest.mock.call(IDS, False)
         )
 
+    def test_lost_activation_receipt_with_old_target_cannot_claim_off_verified(self):
+        self.redeploy.side_effect = RuntimeError(PRIVATE)
+        result = control.control("fake-token", True, COMMIT)
+        self.assertEqual(result["rollback"], "off_flag_saved_deployment_unconfirmed")
+        self.assertNotIn(PRIVATE, json.dumps(result))
+        self.redeploy.assert_called_once_with("fake-token", OLD)
+        self.ready.assert_not_called()
+        self.assertEqual(self.target.call_count, 3)
+        self.assertEqual(
+            self.set_flag.call_args_list[-1], unittest.mock.call(IDS, False)
+        )
+
     def test_failed_restore_is_reported_without_private_error(self):
         self.set_flag.side_effect = RuntimeError(PRIVATE)
         result = control.control("fake-token", True, COMMIT)
@@ -307,6 +322,321 @@ class ControlTests(unittest.TestCase):
             result = control.control("fake-token", enabled, commit)
             self.assertEqual(result["reason"], "invalid_control_inputs")
         self.query.assert_not_called()
+
+
+class RollbackTests(unittest.TestCase):
+    """Exercise real restoration and provider queries against a delayed ON job."""
+
+    def setUp(self):
+        self.stack = contextlib.ExitStack()
+        self.addCleanup(self.stack.close)
+        self.seconds = 0.0
+        self.saved = True
+        self.own_status = "BUILDING"
+        self.active = OLD
+        self.other_pending = False
+        self.cancel_applies = True
+        self.cancel_reply = True
+        self.cancel_error = False
+        self.state_sequence = []
+        self.state_overrides = {}
+        self.delayed_finish = False
+        self.live_enabled = False
+        self.calls = []
+        self.stack.enter_context(
+            patch.object(control.time, "monotonic", side_effect=lambda: self.seconds)
+        )
+        self.stack.enter_context(
+            patch.object(control.time, "sleep", side_effect=self.tick)
+        )
+        self.stack.enter_context(
+            patch.object(control.capacity, "query", side_effect=self.query)
+        )
+        self.stack.enter_context(
+            patch.object(control, "set_flag", side_effect=self.save)
+        )
+        self.stack.enter_context(
+            patch.object(control, "version_matches", return_value=True)
+        )
+        self.ready = self.stack.enter_context(
+            patch.object(control, "replacement_ready", side_effect=self.off_ready)
+        )
+
+    def tick(self, seconds):
+        self.seconds += seconds
+        if (
+            self.delayed_finish
+            and self.seconds >= 100
+            and self.own_status in {"BUILDING", "QUEUED", "DEPLOYING"}
+        ):
+            self.own_status = "SUCCESS"
+            self.active = NEW
+            self.live_enabled = True  # ON's saved snapshot, regardless of saved flag.
+
+    def save(self, ids, enabled):
+        self.assertEqual(ids, IDS)
+        self.assertIs(enabled, False)
+        self.saved = enabled
+
+    def query(self, token, document, variables):
+        self.calls.append((document, variables))
+        if document == control.STATE:
+            self.assertEqual(variables, {"id": NEW})
+            if self.state_sequence:
+                self.own_status = self.state_sequence.pop(0)
+                if self.own_status == "SUCCESS":
+                    self.active = NEW
+            return {
+                "deployment": {
+                    "id": NEW,
+                    **IDS,
+                    "status": self.own_status,
+                    **self.state_overrides,
+                }
+            }
+        if document == control.CANCEL:
+            self.assertEqual(variables, {"id": NEW})
+            self.assertIn(self.own_status, {"BUILDING", "QUEUED"})
+            if self.cancel_applies:
+                self.own_status = "REMOVED"
+            if self.cancel_error:
+                raise RuntimeError(PRIVATE)
+            return {"deploymentCancel": self.cancel_reply}
+        if document == control.PENDING:
+            edges = []
+            if self.own_status not in control.TERMINAL:
+                edges.append({"node": {"id": NEW, "status": self.own_status}})
+            if self.other_pending:
+                edges.append({"node": {"id": INSTANCE, "status": "BUILDING"}})
+            return {"deployments": {"edges": edges, "pageInfo": {"hasNextPage": False}}}
+        if document == control.TARGET:
+            return {
+                "serviceInstance": {
+                    "activeDeployments": [
+                        {"id": self.active, "status": "SUCCESS", "canRedeploy": True}
+                    ]
+                }
+            }
+        if document == control.REDEPLOY:
+            self.assertEqual(variables, {"id": OLD})
+            self.assertIs(self.saved, False)
+            self.assertIn(self.own_status, control.TERMINAL)
+            self.active = INSTANCE
+            return {"deploymentRedeploy": {"id": INSTANCE}}
+        self.fail("Unexpected provider operation")
+
+    def off_ready(self, token, ids, new_id, commit, enabled, end_by):
+        self.assertEqual((ids, new_id, commit, enabled), (IDS, INSTANCE, COMMIT, False))
+        self.assertIs(self.saved, False)
+        self.assertIn(self.own_status, control.TERMINAL)
+        self.live_enabled = False
+        return True
+
+    def restore(self, requested_id=NEW, end_by=840):
+        result = control.restore_off(
+            "fake-token", IDS, OLD, COMMIT, requested_id, end_by=end_by
+        )
+        self.assertNotIn(PRIVATE, result)
+        return result
+
+    def mutations(self, document):
+        return [variables for query, variables in self.calls if query == document]
+
+    def test_delayed_owned_on_is_removed_before_verified_off_and_cannot_finish_later(
+        self,
+    ):
+        for status in ("BUILDING", "QUEUED"):
+            with self.subTest(status=status):
+                self.own_status = status
+                self.active = OLD
+                self.delayed_finish = True
+                self.calls.clear()
+                self.assertEqual(self.restore(), "off_verified")
+                self.assertEqual(self.mutations(control.CANCEL), [{"id": NEW}])
+                self.assertEqual(self.mutations(control.REDEPLOY), [{"id": OLD}])
+                # The fake provider cannot advance an ended ON snapshot to SUCCESS.
+                self.tick(600)
+                self.assertEqual(self.own_status, "REMOVED")
+                self.assertEqual(self.active, INSTANCE)
+                self.assertIs(self.saved, False)
+                self.assertIs(self.live_enabled, False)
+                self.seconds = 0
+
+    def test_false_or_lost_cancel_reply_requires_actual_terminal_proof(self):
+        for reply, error, applies in (
+            (False, False, True),
+            (True, True, True),
+            (False, False, False),
+            (True, True, False),
+            (True, False, False),
+        ):
+            with self.subTest(reply=reply, error=error, applies=applies):
+                self.own_status = "BUILDING"
+                self.active = OLD
+                self.seconds = 0
+                self.calls.clear()
+                self.cancel_reply, self.cancel_error, self.cancel_applies = (
+                    reply,
+                    error,
+                    applies,
+                )
+                self.assertEqual(
+                    self.restore(),
+                    "off_verified"
+                    if applies
+                    else "off_flag_saved_deployment_unconfirmed",
+                )
+                self.assertEqual(len(self.mutations(control.CANCEL)), 1)
+                self.assertEqual(len(self.mutations(control.REDEPLOY)), int(applies))
+
+    def test_deploying_race_to_success_restores_reviewed_off_without_cancel(self):
+        self.state_sequence = ["DEPLOYING", "SUCCESS"]
+        self.assertEqual(self.restore(), "off_verified")
+        self.assertEqual(self.mutations(control.CANCEL), [])
+        self.assertEqual(self.mutations(control.REDEPLOY), [{"id": OLD}])
+
+    def test_cancel_loses_race_to_success_then_restores_reviewed_off(self):
+        self.state_sequence = ["BUILDING", "SUCCESS"]
+        self.cancel_applies = False
+        self.cancel_reply = False
+        self.assertEqual(self.restore(), "off_verified")
+        self.assertEqual(self.mutations(control.CANCEL), [{"id": NEW}])
+        self.assertEqual(self.mutations(control.REDEPLOY), [{"id": OLD}])
+
+    def test_all_supported_failed_terminal_states_allow_restoration(self):
+        for status in ("FAILED", "CRASHED", "REMOVED", "SKIPPED"):
+            self.own_status, self.active = status, OLD
+            self.assertEqual(self.restore(), "off_verified")
+        self.assertEqual(self.mutations(control.CANCEL), [])
+
+    def test_deploying_timeout_preserves_off_setting_without_claiming_safe_deployment(
+        self,
+    ):
+        self.own_status = "DEPLOYING"
+        self.assertEqual(self.restore(), "off_flag_saved_deployment_unconfirmed")
+        self.assertEqual(self.mutations(control.CANCEL), [])
+        self.assertEqual(self.mutations(control.REDEPLOY), [])
+        self.assertIs(self.saved, False)
+        self.assertLessEqual(self.seconds, control.OWNED_SETTLE_SECONDS)
+
+    def test_other_operator_pending_or_active_deployment_is_never_changed(self):
+        for pending in (True, False):
+            with self.subTest(pending=pending):
+                self.other_pending = pending
+                self.own_status = "BUILDING"
+                self.active = OLD if pending else INSTANCE
+                self.calls.clear()
+                self.assertEqual(
+                    self.restore(), "off_flag_saved_deployment_unconfirmed"
+                )
+                self.assertEqual(self.mutations(control.CANCEL), [{"id": NEW}])
+                self.assertEqual(self.mutations(control.REDEPLOY), [])
+                self.assertEqual(self.other_pending, pending)
+                self.assertEqual(self.active, OLD if pending else INSTANCE)
+
+    def test_wrong_id_or_any_wrong_owner_and_unknown_state_refuse_cancellation(self):
+        for key, value in (
+            ("id", INSTANCE),
+            ("projectId", INSTANCE),
+            ("environmentId", INSTANCE),
+            ("serviceId", INSTANCE),
+            ("status", PRIVATE),
+        ):
+            with self.subTest(key=key):
+                self.state_overrides = {key: value}
+                self.assertEqual(
+                    self.restore(), "off_flag_saved_deployment_unconfirmed"
+                )
+        self.assertEqual(self.mutations(control.CANCEL), [])
+        self.assertEqual(self.mutations(control.REDEPLOY), [])
+
+    def test_missing_state_or_lost_state_read_is_unconfirmed_and_private(self):
+        for result in ({"deployment": None}, {}, RuntimeError(PRIVATE)):
+            with patch.object(
+                control.capacity,
+                "query",
+                side_effect=result if isinstance(result, Exception) else None,
+                return_value=result,
+            ):
+                self.assertEqual(
+                    self.restore(), "off_flag_saved_deployment_unconfirmed"
+                )
+        self.assertEqual(self.mutations(control.CANCEL), [])
+
+    def test_lost_redeploy_receipt_never_guesses_pending_or_active_identity(self):
+        self.assertEqual(
+            self.restore(requested_id=None), "off_flag_saved_deployment_unconfirmed"
+        )
+        self.own_status, self.active = "SUCCESS", NEW
+        self.assertEqual(
+            self.restore(requested_id=None), "off_flag_saved_deployment_unconfirmed"
+        )
+        self.assertEqual(self.mutations(control.CANCEL), [])
+        self.assertEqual(self.mutations(control.REDEPLOY), [])
+        self.assertFalse(any(document == control.STATE for document, _ in self.calls))
+
+    def test_actual_control_lost_on_receipt_with_delayed_empty_provider_view(self):
+        # The accepted ON snapshot exists, but provider reads still show only OLD
+        # with no pending deployment. Its lost receipt must prevent a second deploy.
+        original_query = self.query
+        self.own_status = "REMOVED"
+        self.saved = False
+
+        def delayed_query(token, document, variables):
+            if document == control.capacity.IDENTITY:
+                return {}
+            if document == control.REDEPLOY:
+                self.calls.append((document, variables))
+                self.assertEqual(variables, {"id": OLD})
+                self.assertIs(self.saved, True)
+                self.delayed_finish = True
+                self.own_status = "BUILDING"
+                raise RuntimeError(PRIVATE)
+            if document == control.PENDING:
+                # An empty, delayed response cannot prove an unknown ON job ended.
+                return {
+                    "deployments": {"edges": [], "pageInfo": {"hasNextPage": False}}
+                }
+            return original_query(token, document, variables)
+
+        with (
+            patch.object(control.capacity, "query", side_effect=delayed_query),
+            patch.object(control.capacity, "identity", return_value=IDS),
+            patch.object(control.capacity, "collect", return_value=report()),
+            patch.object(control, "activation_gate"),
+            patch.object(
+                control,
+                "set_flag",
+                side_effect=lambda ids, enabled: setattr(self, "saved", enabled),
+            ),
+        ):
+            result = control.control("fake-token", True, COMMIT)
+        self.assertEqual(result["rollback"], "off_flag_saved_deployment_unconfirmed")
+        self.assertNotIn(PRIVATE, json.dumps(result))
+        self.assertIs(self.saved, False)
+        self.assertEqual(self.mutations(control.REDEPLOY), [{"id": OLD}])
+        self.assertEqual(self.mutations(control.CANCEL), [])
+        self.ready.assert_not_called()
+        self.tick(600)
+        self.assertIs(self.live_enabled, True)
+        self.assertEqual(self.active, NEW)
+
+    def test_owned_wait_reserves_off_budget_and_no_read_begins_without_its_timeout(
+        self,
+    ):
+        self.own_status = "DEPLOYING"
+        self.assertEqual(
+            self.restore(end_by=250), "off_flag_saved_deployment_unconfirmed"
+        )
+        self.assertGreaterEqual(250 - self.seconds, control.OFF_RESTORE_RESERVE_SECONDS)
+        self.assertEqual(self.mutations(control.CANCEL), [])
+        self.calls.clear()
+        self.assertEqual(
+            self.restore(end_by=self.seconds + 220),
+            "off_flag_saved_deployment_unconfirmed",
+        )
+        self.assertEqual(self.calls, [])
+        self.assertEqual(self.restore(end_by=self.seconds + 89), "off_flag_unconfirmed")
 
 
 class ProviderTests(unittest.TestCase):

@@ -20,10 +20,12 @@ from scripts import address_copy_capacity as capacity
 FLAG = "ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED"
 PUBLIC = "https://alethical-api-production.up.railway.app"
 KNOWN_ADDRESS = "350 5th Street South, Minneapolis, MN 55415"
-KNOWN_QUERY = "350 S 5th St Minneapolis"
+KNOWN_QUERY = "350 5th Street South"
 ON_WAIT_SECONDS = 480
 OFF_WAIT_SECONDS = 240
 TOTAL_SECONDS = 840
+OWNED_SETTLE_SECONDS = 90
+OFF_RESTORE_RESERVE_SECONDS = 200
 MIN_FREE = 3_000_000_000
 MIN_ROOM = 256 * 1024 * 1024
 TERMINAL = ["SUCCESS", "CRASHED", "FAILED", "REMOVED", "SKIPPED"]
@@ -52,6 +54,9 @@ PENDING = """query CopyControlPending($input: DeploymentListInput!) {
 }"""
 REDEPLOY = """mutation CopyControlRedeploy($id: String!) {
   deploymentRedeploy(id: $id) { id }
+}"""
+CANCEL = """mutation CopyControlCancel($id: String!) {
+  deploymentCancel(id: $id)
 }"""
 STATE = """query CopyControlState($id: String!) {
   deployment(id: $id) { id status projectId environmentId serviceId }
@@ -331,6 +336,61 @@ def replacement_ready(
     return False
 
 
+def settle_owned_activation(
+    token: str, ids: dict, requested_id: str, end_by: float | None = None
+) -> bool:
+    """Prove this job's ON attempt cannot finish after the OFF replacement.
+
+    Railway supports cancelling BUILDING/QUEUED only. A cancellation reply,
+    including a successful one, is not proof: re-read the exact owned deployment
+    until it has ended or raced to SUCCESS. Other pending states may settle, but
+    never receive a cancellation request. Reserve time to deploy and inspect OFF.
+    """
+    deadline = time.monotonic() + OWNED_SETTLE_SECONDS
+    if end_by is not None:
+        deadline = min(deadline, end_by - OFF_RESTORE_RESERVE_SECONDS)
+    cancel_attempted = False
+    for attempt in range(OWNED_SETTLE_SECONDS // 10 + 1):
+        if time.monotonic() + 30 > deadline:
+            return False
+        try:
+            capacity.resource_id(requested_id)
+            row = capacity.query(token, STATE, {"id": requested_id})["deployment"]
+            if row["id"] != requested_id or any(
+                row[key] != value for key, value in ids.items()
+            ):
+                return False
+            status = row["status"]
+            if status in TERMINAL:
+                return True
+            if status not in {
+                "BUILDING",
+                "QUEUED",
+                "DEPLOYING",
+                "INITIALIZING",
+                "NEEDS_APPROVAL",
+                "REMOVING",
+                "SLEEPING",
+                "WAITING",
+            }:
+                return False
+            if status in {"BUILDING", "QUEUED"} and not cancel_attempted:
+                # Both the mutation and its required state read have 30s ceilings.
+                if time.monotonic() + 60 > deadline:
+                    return False
+                cancel_attempted = True
+                try:
+                    capacity.query(token, CANCEL, {"id": requested_id})
+                except Exception:
+                    pass  # A lost or rejected reply still needs the exact state.
+                continue
+        except Exception:
+            return False
+        if attempt < OWNED_SETTLE_SECONDS // 10:
+            time.sleep(max(0, min(10, deadline - time.monotonic())))
+    return False
+
+
 def restore_off(
     token: str,
     ids: dict,
@@ -338,6 +398,7 @@ def restore_off(
     commit: str,
     requested_id: str | None,
     end_by: float | None = None,
+    activation_redeploy_attempted: bool = False,
 ) -> str:
     if end_by is not None and time.monotonic() + 90 > end_by:
         return "off_flag_unconfirmed"
@@ -346,6 +407,14 @@ def restore_off(
     except Exception:
         return "off_flag_unconfirmed"
     try:
+        # The provider may not show a newly accepted ON deployment yet. Without
+        # its returned identity, no later state can prove it will not finish ON.
+        if activation_redeploy_attempted and requested_id is None:
+            return "off_flag_saved_deployment_unconfirmed"
+        if requested_id is not None and not settle_owned_activation(
+            token, ids, requested_id, end_by=end_by
+        ):
+            return "off_flag_saved_deployment_unconfirmed"
         if end_by is not None and time.monotonic() + 100 > end_by:
             return "off_flag_saved_deployment_unconfirmed"
         # Never overwrite another operator's replacement while restoring off.
@@ -372,6 +441,7 @@ def control(token: str, enabled: bool, commit: str) -> dict:
     ids = None
     reviewed_id = None
     requested_id = None
+    activation_redeploy_attempted = False
     started = time.monotonic()
     try:
         ids = capacity.identity(capacity.query(token, capacity.IDENTITY, {}))
@@ -391,6 +461,7 @@ def control(token: str, enabled: bool, commit: str) -> dict:
         set_flag(ids, enabled)
         if target(token, ids) != reviewed_id or not version_matches(commit):
             raise Refused("reviewed_release_changed")
+        activation_redeploy_attempted = enabled
         requested_id = redeploy(token, reviewed_id)
         # ON gets at most the first 8 minutes of this job; the remaining
         # 6 minutes are reserved for bounded OFF restoration if it fails.
@@ -418,6 +489,7 @@ def control(token: str, enabled: bool, commit: str) -> dict:
                 commit,
                 requested_id,
                 end_by=started + TOTAL_SECONDS,
+                activation_redeploy_attempted=activation_redeploy_attempted,
             )
         elif attempted:
             result["rollback"] = "off_request_unconfirmed"
