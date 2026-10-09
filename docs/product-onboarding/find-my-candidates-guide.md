@@ -45,7 +45,10 @@ Address suggestions begin with a house number plus at least 2 street-name charac
 (`29308 Cr`), or the first numbered-street digit (`350 5`). A house number alone
 does not trigger suggestions. The first eligible input starts a request immediately;
 continued typing waits for a 180-millisecond pause to group edits into 1 request.
-An edit after at least 180 milliseconds of idle time also starts immediately. Up to
+An edit after at least 180 milliseconds of idle time also starts immediately. Pasting,
+dropping or accepting a browser-provided replacement skips the typing pause. Spaces
+before or after the same address reuse its pending request or recent successful
+reply; spaces within the address remain distinct. Up to
 5 Minnesota matches appear with **Suggested address** or **Suggested addresses**.
 The field can reuse an exact successful input for 60 seconds, keeping at most 8
 entries only in that mounted field’s memory. Clearing the field, starting a search,

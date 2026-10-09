@@ -66,14 +66,20 @@ try {
       await field.waitFor();
       // Expo initially paints the HTML shell; the real editable field proves hydration.
       await field.fill('350 S 5');
+      await expect.poll(() => requests.length).toBe(1);
+      // A real space key must retain the reply already underway.
+      await field.press('End');
+      await field.press('Space');
       await expect(page.getByRole('option')).toHaveCount(1);
+      await page.waitForTimeout(200);
+      assert.equal(requests.length, 1, 'surrounding space reuses the pending query');
       const first = requests.length;
       assert.equal(first, 1);
       await field.fill('350 S 5th');
       await expect.poll(() => requests.length).toBe(2);
       await expect(page.getByRole('option')).toHaveCount(1);
       const cacheStart = Date.now();
-      await field.fill('350 S 5');
+      await field.fill(' 350 S 5  ');
       await expect(page.getByRole('option')).toHaveCount(1);
       const cacheMs = Date.now() - cacheStart;
       assert.equal(requests.length, 2, 'exact input reuses its successful response');
