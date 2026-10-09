@@ -223,6 +223,23 @@ class CapacityTest(unittest.TestCase):
                 )
         self.assertNotIn(PRIVATE, str(raised.exception))
 
+    def test_provider_accepts_identified_client_and_refuses_default_python_client(self):
+        # The live endpoint returns HTTP 403 for Python-urllib, but reaches
+        # GraphQL with this application's identity. No service credential here.
+        def provider(request, timeout):
+            if request.get_header("User-agent") != "alethical-address-copy-capacity/1":
+                raise capacity.urllib.error.HTTPError(
+                    capacity.API, 403, PRIVATE, {}, None
+                )
+            response = unittest.mock.MagicMock()
+            response.__enter__.return_value.read.return_value = b'{"data":{"ok":true}}'
+            return response
+
+        with patch.object(capacity.urllib.request, "urlopen", side_effect=provider):
+            self.assertEqual(
+                capacity.query("fake-token", capacity.IDENTITY, {}), {"ok": True}
+            )
+
     def test_cli_errors_never_escape(self):
         process = unittest.mock.MagicMock(
             returncode=1, stdout=PRIVATE.encode(), stderr=PRIVATE.encode()

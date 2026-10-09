@@ -175,6 +175,11 @@ deployment and running-instance IDs, sampled resource usage, and the filtered st
 capacity line. Raw provider replies, other log lines, commands and environment
 values remain private. Unknown values remain `null`; sampled disk usage does not
 prove free disk. A startup line describes only its container at its dated start.
+The shared provider reader identifies itself as
+`alethical-address-copy-capacity/1` in its `User-Agent` header. On 9 October 2026,
+the same unauthenticated endpoint returned HTTP 403 for Python's default client
+and reached GraphQL with the named client. This header applies to capacity reads
+and control calls; it does not change token access or activation gates.
 
 The manual-only [Address copy control workflow](../../.github/workflows/address-copy-control.yml)
 accepts `enabled` (default `false`) and `release_commit` (the reviewed live API's

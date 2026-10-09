@@ -59,7 +59,11 @@ def query(token: str, statement: str, variables: dict) -> dict:
     request = urllib.request.Request(
         API,
         data=json.dumps({"query": statement, "variables": variables}).encode(),
-        headers={"Project-Access-Token": token, "Content-Type": "application/json"},
+        headers={
+            "Project-Access-Token": token,
+            "Content-Type": "application/json",
+            "User-Agent": "alethical-address-copy-capacity/1",
+        },
         method="POST",
     )
     try:

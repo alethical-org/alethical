@@ -513,6 +513,17 @@ Release preparation (9 October 2026):
   hosted preview and production must pass their own measurements. Contact and
   address-lookup tests pass; live contact links remain part of final acceptance.
 
-Next step: publish the reviewed default-off release; then establish Railway capacity
-and charges before setting `ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED`, tracked in
+The reviewed default-off release is live from
+[pull request 2586](https://github.com/alethical-org/alethical/pull/2586).
+The first manual capacity read stopped before identity facts: Railway returned
+HTTP 403 to Python's default client. Holding the endpoint and request constant,
+a named client reached GraphQL. The shared reader now supplies
+`alethical-address-copy-capacity/1`; a regression fails without that header and
+63 capacity/control tests pass with it. Both operations use this reader, so the
+single correction covers reads and control calls. Authentication, privacy and
+activation gates are unchanged. Independent code acceptance passed; the actual
+authenticated workflow must still establish identity and capacity.
+
+Next step: establish Railway capacity and charges before setting
+`ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED`, tracked in
 [issue 2585](https://github.com/alethical-org/alethical/issues/2585).
