@@ -271,3 +271,49 @@ for this build.
 - Design accepted the containing-editor correction and updated its layer requirements, drawings and build notes. The drawing already showed an unobstructed list; the implementation introduced the lower parent layer and the handoff did not name Election explicitly.
 - Candidate no-match wording now reads “We couldn’t match that address to election records” in entry, retained-results editing and the homepage handoff. A mapped address can lack an official election street-range match, so this state must not imply that the reader mistyped it. Legislator and incomplete-input messages are unchanged.
 - Independent code and browser review accepted the containing-layer fix; parent acceptance covered the final candidate-only copy and required browser check. Remaining checks: final release and live browser acceptance, recorded on the linked issue. Native phone keyboards require physical phone testing; viewport and WebKit checks do not establish that.
+
+
+## Shared suggestion request timing
+
+Scope: improve `/candidates` entry and Change address and `/find-my-legislator`
+suggestions through live release. Preserve the approved visual treatment, separate
+matching services, privacy limits, 180ms grouping of continuous typing and full
+validation on submission. Homepage forms do not render suggestions.
+
+Cause and correction: a paste or browser replacement inside a typing burst waited
+180ms even though the replacement was complete. An outer-space edit aborted and
+repeated the same trimmed server query. The shared field starts explicit paste,
+drop and browser replacement events immediately; a matching in-flight promise
+survives outer-space edits, and positive field-local reuse keys trim outer spaces.
+Ordinary typing remains grouped, and addresses differing inside the text stay
+distinct. New input, disabled suggestions, search start, source changes, blur and
+unmount retain cancellation or newest-generation rejection as appropriate.
+
+Impact and prevention: both dedicated finders share the correction. Existing
+60-second/8-entry reuse, clear/search/source/unmount erasure, unit checks, quiet
+optional failures, keyboard selection and first-tap selection remain required.
+Focused fake-clock tests cover immediate replacements, pending reuse, 140ms typing,
+late responses and privacy boundaries. Rendered browser checks cover both routes
+at desktop, tablet and phone widths, with delayed local replies and real space-key
+input. Native phone keyboard autofill remains untested.
+
+Source measurements use public civic prefixes `350 South 5` and `15 West Kellogg`.
+On 9 October 2026, 3 live legislator calls took 1.003–1.374 seconds and 3 candidate
+calls took 0.852–1.419 seconds. Direct Minnesota requests took about 1.06–1.20
+seconds warm. Removing the numeric-prefix uppercase expression did not materially
+reduce the wait; house-number-only queries exceeded the 200-row response limit.
+No backend matching change is supported by those samples. These observations do
+not promise a fixed response time or identical suggestion sets: candidate results
+still require the separate official election-address check.
+
+Owner: Codex task “Speed up address suggestions”. The lead retains frontend
+implementation, integration and release; the backend helper completed bounded
+source measurements without edits. The independent reviewer checks pending request
+ownership and missed shared uses. Completion requires focused tests, type checks,
+rendered browser checks, current-head release checks and live acceptance.
+
+Model assessment: `gpt-6.1-sol` with `high` reasoning fits the bounded request
+lifecycle diagnosis and existing correctness tests. The strongest alternative is
+`gpt-6-astra` with `high`; current evidence exposes no new data architecture or
+unsettled privacy policy requiring it. Official OpenAI model guidance was read on
+9 October 2026. This is a task judgment, not a measured model comparison.

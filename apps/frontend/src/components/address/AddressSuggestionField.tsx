@@ -60,10 +60,15 @@ export function AddressSuggestionField<T>({
   const wrapper = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const generation = useRef(0);
-  const suggestionController = useRef<AbortController | null>(null);
   const quietUntilEdit = useRef(false);
   const lastRequestAt = useRef(-Infinity);
   const lastInputAt = useRef(-Infinity);
+  const immediateInput = useRef(false);
+  const pending = useRef<{
+    address: string;
+    controller: AbortController;
+    promise: Promise<AddressSuggestion<T>[]>;
+  } | null>(null);
   // Field-local only: no browser storage or reuse across mounted search forms.
   const recent = useRef(new Map<string, { expires: number; options: AddressSuggestion<T>[] }>());
   const suggestionSource = useRef(suggest);
@@ -86,7 +91,8 @@ export function AddressSuggestionField<T>({
   const value = () => field.current?.value ?? address;
   const dismiss = (forgetOptions = false) => {
     generation.current += 1;
-    suggestionController.current?.abort();
+    pending.current?.controller.abort();
+    pending.current = null;
     if (forgetOptions) setOptions([]);
     setOpen(false);
     setActive(-1);
@@ -141,67 +147,102 @@ export function AddressSuggestionField<T>({
     observer.observe(element);
     return () => observer.disconnect();
   }, [address, actualAddress, compact]);
+  useEffect(() => () => pending.current?.controller.abort(), []);
   useEffect(() => {
     const request = ++generation.current;
-    const controller = new AbortController();
-    suggestionController.current = controller;
+    const requestAddress = address.trim();
     setOptions([]);
     setOpen(false);
     setActive(-1);
     setHovered(-1);
-    const input = addressSuggestionInput(address);
+    const input = addressSuggestionInput(requestAddress);
+    const immediate = immediateInput.current;
+    immediateInput.current = false;
     const now = Date.now();
     const idle = now - lastInputAt.current >= 180;
     lastInputAt.current = now;
-    if (!address.trim() || busy || suggestionSource.current !== suggest) recent.current.clear();
+    if (!requestAddress || busy || suggestionSource.current !== suggest) recent.current.clear();
+    if (
+      pending.current &&
+      (pending.current.address !== requestAddress ||
+        suggestionSource.current !== suggest ||
+        !enabled ||
+        !suggestionsEnabled ||
+        busy)
+    ) {
+      pending.current.controller.abort();
+      pending.current = null;
+    }
     suggestionSource.current = suggest;
     for (const [key, entry] of recent.current) {
       if (entry.expires <= Date.now()) recent.current.delete(key);
     }
-    if (!enabled || !suggestionsEnabled || busy || !input) return () => controller.abort();
-    const cached = recent.current.get(address);
+    if (!enabled || !suggestionsEnabled || busy || !input) return;
+    const cached = recent.current.get(requestAddress);
     if (cached) {
       setOptions(cached.options);
       setOpen(cached.options.length > 0);
-      return () => controller.abort();
+      return;
     }
     // The first eligible input and edits after an idle period start immediately.
+    // Pasting, dropping or browser-replacing a complete value also skips the pause.
     // Continuing keystrokes share one trailing request to preserve the service
     // budget instead of spending a request on each letter.
-    const timer = setTimeout(
-      () => {
-        if (request !== generation.current) return;
+    const run = () => {
+      if (request !== generation.current) return;
+      let current = pending.current;
+      if (!current) {
+        const controller = new AbortController();
         lastRequestAt.current = Date.now();
-        void suggest(input, controller.signal)
-          .then((matches) => {
-            if (request !== generation.current || controller.signal.aborted || value() !== address)
-              return;
-            const safe = matches
-              .flatMap((option) => {
-                const preserved = preserveSuggestedUnit(address, option.address);
-                return preserved ? [{ ...option, address: preserved }] : [];
-              })
-              .slice(0, 5);
-            if (safe.length) {
-              recent.current.delete(address);
-              recent.current.set(address, { expires: Date.now() + 60_000, options: safe });
-              while (recent.current.size > 8)
-                recent.current.delete(recent.current.keys().next().value!);
-            }
-            setOptions(safe);
-            setOpen(safe.length > 0);
-            setActive(-1);
-          })
-          .catch(() => {
-            /* Optional suggestions never block typed search. */
-          });
-      },
-      lastRequestAt.current === -Infinity || idle ? 0 : 180,
-    );
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
+        current = {
+          address: requestAddress,
+          controller,
+          promise: suggest(input, controller.signal),
+        };
+        pending.current = current;
+      }
+      const activeRequest = current;
+      void activeRequest.promise
+        .then((matches) => {
+          if (
+            request !== generation.current ||
+            activeRequest.controller.signal.aborted ||
+            value().trim() !== requestAddress
+          )
+            return;
+          const safe = matches
+            .flatMap((option) => {
+              const preserved = preserveSuggestedUnit(requestAddress, option.address);
+              return preserved ? [{ ...option, address: preserved }] : [];
+            })
+            .slice(0, 5);
+          if (safe.length) {
+            recent.current.delete(requestAddress);
+            recent.current.set(requestAddress, { expires: Date.now() + 60_000, options: safe });
+            while (recent.current.size > 8)
+              recent.current.delete(recent.current.keys().next().value!);
+          }
+          setOptions(safe);
+          setOpen(safe.length > 0);
+          setActive(-1);
+        })
+        .catch(() => {
+          /* Optional suggestions never block typed search. */
+        })
+        .finally(() => {
+          if (pending.current === activeRequest) pending.current = null;
+        });
     };
+    // Attach before a pending reply can settle, without another network request.
+    if (pending.current) {
+      run();
+      return;
+    }
+    const timer = setTimeout(
+      run,
+      lastRequestAt.current === -Infinity || idle || immediate ? 0 : 180,
+    );
+    return () => clearTimeout(timer);
   }, [address, enabled, suggestionsEnabled, busy, suggest]);
 
   // Do not collapse an inline list between pointer-down and click: that moves
@@ -371,9 +412,18 @@ export function AddressSuggestionField<T>({
         onMouseLeave={() => setFieldHovered(false)}
         onChange={(event) => {
           quietUntilEdit.current = false;
-          dismiss();
-          setEnabled(true);
           const next = event.target.value.replace(/[\r\n]+/g, ' ');
+          // Spaces around the same query must not cancel its useful pending reply.
+          if (next.trim() !== address.trim()) {
+            dismiss();
+            const inputType = (event.nativeEvent as InputEvent).inputType;
+            immediateInput.current = [
+              'insertFromPaste',
+              'insertReplacementText',
+              'insertFromDrop',
+            ].includes(inputType);
+          }
+          setEnabled(true);
           event.target.value = next;
           onAddress(next);
         }}

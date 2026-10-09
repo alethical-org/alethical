@@ -484,3 +484,80 @@ it('shows clear for a silent browser fill without searching and reserves its roo
   expect(field.value).toBe('100 Browser St, Minneapolis, MN 55415');
   expect(field.style.paddingRight).toBe(padding);
 });
+it('does not restart a pending request when only surrounding spaces change', async () => {
+  let finish!: (options: Awaited<ReturnType<typeof suggest>>) => void;
+  const suggestMatches = vi.fn(
+    (_value: string, _signal: AbortSignal) =>
+      new Promise<Awaited<ReturnType<typeof suggest>>>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  function TypingForm() {
+    const [address, setAddress] = useState('100 Ma');
+    return (
+      <ExternalSubmitForm
+        address={address}
+        busy={false}
+        onAddress={setAddress}
+        suggestMatches={suggestMatches}
+      />
+    );
+  }
+  act(() => root.render(<TypingForm />));
+  const field = host.querySelector('textarea')!;
+  act(() => field.focus());
+  await act(async () => vi.advanceTimersByTimeAsync(0));
+  const signal = suggestMatches.mock.calls[0][1];
+  act(() => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(
+      field,
+      '100 Ma ',
+    );
+    field.dispatchEvent(
+      new InputEvent('input', { bubbles: true, inputType: 'insertText', data: ' ' }),
+    );
+  });
+  expect(signal.aborted).toBe(false);
+  await act(async () => {
+    finish(await suggest());
+  });
+  expect(host.querySelector('[role="listbox"]')).not.toBeNull();
+  await act(async () => vi.advanceTimersByTimeAsync(181));
+  expect(suggestMatches).toHaveBeenCalledOnce();
+});
+
+it.each(['insertFromPaste', 'insertReplacementText', 'insertFromDrop'])(
+  'starts %s immediately even during a typing burst',
+  async (inputType) => {
+    const suggestMatches = vi.fn(suggest);
+    function TypingForm() {
+      const [address, setAddress] = useState('100 Ma');
+      return (
+        <ExternalSubmitForm
+          address={address}
+          busy={false}
+          onAddress={setAddress}
+          suggestMatches={suggestMatches}
+        />
+      );
+    }
+    act(() => root.render(<TypingForm />));
+    const field = host.querySelector('textarea')!;
+    act(() => field.focus());
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    await act(async () => vi.advanceTimersByTimeAsync(40));
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(
+        field,
+        '350 S 5th St, Minneapolis, MN 55415',
+      );
+      field.dispatchEvent(new InputEvent('input', { bubbles: true, inputType }));
+    });
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    expect(suggestMatches).toHaveBeenCalledTimes(2);
+    expect(suggestMatches).toHaveBeenLastCalledWith(
+      '350 S 5th St, Minneapolis, MN 55415',
+      expect.any(AbortSignal),
+    );
+  },
+);

@@ -24,7 +24,7 @@ Start with a house number and at least 2 street-name characters. `350 S` is not 
 because `S` could mean South or the start of a street name. `350 Su` can start a named-
 street search, and `350 S 5` can start a numbered-street search. The first eligible
 input starts immediately; continuing edits share a request after a 180-millisecond
-typing pause. An edit after at least 180 milliseconds of idle time starts immediately.
+typing pause. An edit after at least 180 milliseconds of idle time starts immediately. Pasting, dropping or accepting a browser-provided replacement also starts immediately. Spaces before or after the same address reuse its pending request or recent successful reply; spaces within the address remain distinct.
 The shared address component shows **Suggested address** for 1 choice or
 **Suggested addresses** for 2 to 5 active Minnesota addresses. City and ZIP are
 optional, but adding either can narrow or reorder the choices. Slow, failed or empty
