@@ -10,7 +10,10 @@ import {
 } from 'react';
 import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useResponsive } from '../../hooks/useResponsive';
+import { joinAddressUnit } from '../../lib/candidateAddressUnit';
+import type { AddressFieldHandle } from '../address/AddressSuggestionField';
 import { CandidateAddressForm } from './CandidateAddressForm';
+import { CandidateLocationConfirm } from './CandidateLocationConfirm';
 import {
   CandidateButton,
   CandidateLink,
@@ -31,7 +34,27 @@ import type {
   CandidateSearchContentBaseProps,
 } from './types';
 
-type SearchProps = CandidateSearchContentBaseProps & { flow?: CandidateFlow };
+type SearchProps = CandidateSearchContentBaseProps & {
+  flow?: CandidateFlow;
+  /** False while another page covers this one; an unfinished location attempt ends. */
+  active?: boolean;
+};
+
+const LOCATION_NOTICES = {
+  blocked: 'Location access is blocked: enter your street address',
+  imprecise: 'Your location isn’t precise enough: enter your street address',
+  unavailable: 'Your location isn’t available right now: enter your street address',
+  'outside-minnesota': 'This search covers Minnesota addresses',
+} as const;
+type LocationNotice = keyof typeof LOCATION_NOTICES;
+type LocationState =
+  | { kind: 'idle' }
+  | { kind: 'locating' }
+  | { kind: 'notice'; notice: LocationNotice }
+  // previous is the text typed before the tap; the suggestion stays in this card only.
+  | { kind: 'confirm'; street: string; unit: string; previous: string; missing: boolean };
+// Covers a permission prompt nobody answers and a reverse lookup that never replies.
+const LOCATION_LIMIT_MS = 30_000;
 
 export function CandidateSearchContent(props: SearchProps) {
   const [localFlow] = useState(() => createCandidateFlow(props.services));
@@ -60,8 +83,17 @@ function CandidateSearchSession({
   privacyDisclosure,
   imageSource,
   flow,
+  active = true,
 }: SearchProps & { flow: CandidateFlow }) {
   const { isMobile, isDesktop } = useResponsive();
+  const fieldRef = useRef<AddressFieldHandle>(null);
+  const [location, setLocation] = useState<LocationState>({ kind: 'idle' });
+  const locationAttempt = useRef(0);
+  const locationCleanup = useRef<(() => void) | null>(null);
+  // The confirmed address whose search is running from the confirmation card.
+  const confirmPending = useRef<string | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const focusFieldSoon = useRef(false);
   const state = useSyncExternalStore(flow.subscribe, flow.getState, flow.getState);
   const [address, setAddress] = useState(
     () => state.draftAddress || state.requested?.address || initialAddress || '',
@@ -129,7 +161,17 @@ function CandidateSearchSession({
     if (displayed && displayed !== previousDisplayed.current) setChangingAddress(false);
     previousDisplayed.current = displayed;
   }, [displayed]);
+  const endLocationAttempt = () => {
+    locationAttempt.current += 1;
+    locationCleanup.current?.();
+    locationCleanup.current = null;
+  };
   const editAddress = (value: string) => {
+    // Typing wins over an unfinished location attempt, whichever finishes first.
+    endLocationAttempt();
+    setLocation((current) =>
+      current.kind === 'locating' || current.kind === 'notice' ? { kind: 'idle' } : current,
+    );
     setAddress(value);
     flow.setDraftAddress(value, !value.trim());
   };
@@ -150,6 +192,9 @@ function CandidateSearchSession({
   const submit = (value: string, choice?: CandidateAddressChoice) => {
     const election = elections.find((item) => item.id === selected);
     if (!election || busy) return;
+    // A manual search wins over an unfinished location attempt.
+    endLocationAttempt();
+    setLocation({ kind: 'idle' });
     void flow.search(
       { address: value, electionId: election.id, ...(choice ? { confirmedChoice: choice } : {}) },
       election,
@@ -180,14 +225,168 @@ function CandidateSearchSession({
     flow.setDraftAddress(draft);
     setChangingAddress(true);
   };
+  const showNotice = (notice: LocationNotice) => {
+    endLocationAttempt();
+    setLocation({ kind: 'notice', notice });
+    fieldRef.current?.focus();
+  };
+  const useLocation = () => {
+    if (location.kind === 'locating') return;
+    endLocationAttempt();
+    // The newest request wins: an unfinished typed search stops here.
+    if (busy) flow.setDraftAddress(address);
+    const geolocation =
+      Platform.OS === 'web' && typeof navigator !== 'undefined' ? navigator.geolocation : undefined;
+    const locate = services.locate;
+    if (!geolocation || !locate) {
+      showNotice('unavailable');
+      return;
+    }
+    const attempt = locationAttempt.current;
+    const controller = new AbortController();
+    const limit = setTimeout(() => {
+      if (attempt === locationAttempt.current) showNotice('unavailable');
+    }, LOCATION_LIMIT_MS);
+    locationCleanup.current = () => {
+      clearTimeout(limit);
+      controller.abort();
+    };
+    setLocation({ kind: 'locating' });
+    // Permission is requested only here, after the reader's tap.
+    geolocation.getCurrentPosition(
+      (position) => {
+        if (attempt !== locationAttempt.current) return;
+        const { latitude, longitude, accuracy } = position.coords;
+        locate({ latitude, longitude, accuracy }, controller.signal).then(
+          (suggestion) => {
+            if (attempt !== locationAttempt.current) return;
+            if (suggestion.kind !== 'address') {
+              showNotice(suggestion.kind);
+              return;
+            }
+            endLocationAttempt();
+            setLocation({
+              kind: 'confirm',
+              street: suggestion.address,
+              unit: '',
+              previous: address,
+              missing: false,
+            });
+          },
+          () => {
+            if (attempt === locationAttempt.current) showNotice('unavailable');
+          },
+        );
+      },
+      (error) => {
+        if (attempt !== locationAttempt.current) return;
+        showNotice(error.code === error.PERMISSION_DENIED ? 'blocked' : 'unavailable');
+      },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
+    );
+  };
+  const cancelConfirmSearch = (previous: string) => {
+    if (confirmPending.current === null) return;
+    confirmPending.current = null;
+    setConfirmBusy(false);
+    // Existing invalidation: the late reply can no longer replace anything.
+    flow.setDraftAddress(previous);
+  };
+  const editConfirm = (patch: { street?: string; unit?: string }) => {
+    if (location.kind !== 'confirm') return;
+    // Editing either field ends a running search; its reply cannot replace the edit.
+    cancelConfirmSearch(location.previous);
+    setLocation({ ...location, ...patch, missing: false });
+  };
+  const confirmHome = (street: string, unit: string) => {
+    if (location.kind !== 'confirm' || confirmPending.current !== null) return;
+    if (!street.trim()) {
+      setLocation({ ...location, street, unit, missing: true });
+      return;
+    }
+    const election = elections.find((item) => item.id === selected);
+    if (!election) return;
+    const confirmed = joinAddressUnit(street, unit);
+    confirmPending.current = confirmed;
+    setConfirmBusy(true);
+    void flow.search({ address: confirmed, electionId: election.id }, election);
+    const started = flow.getState().status;
+    if (started !== 'loading' && started !== 'updating' && !flow.getState().displayed) {
+      // The flow refused to start, for example during a privacy reset.
+      confirmPending.current = null;
+      setConfirmBusy(false);
+    }
+  };
+  const enterDifferentAddress = () => {
+    if (location.kind !== 'confirm') return;
+    const { previous } = location;
+    if (confirmPending.current !== null) cancelConfirmSearch(previous);
+    else flow.setDraftAddress(previous);
+    setAddress(previous);
+    focusFieldSoon.current = true;
+    setLocation({ kind: 'idle' });
+  };
+  useEffect(() => {
+    // A finished confirmed search leaves the card: results replace the page, and
+    // every other outcome returns to the form holding the address that was searched.
+    const confirmed = confirmPending.current;
+    if (confirmed === null || state.status === 'loading' || state.status === 'updating') return;
+    confirmPending.current = null;
+    setConfirmBusy(false);
+    setLocation({ kind: 'idle' });
+    if (!state.displayed) {
+      setAddress(confirmed);
+      focusFieldSoon.current = true;
+    }
+  }, [state.status, state.displayed]);
+  useEffect(() => {
+    if (location.kind === 'idle' && focusFieldSoon.current) {
+      focusFieldSoon.current = false;
+      fieldRef.current?.focus();
+    }
+  }, [location]);
+  useEffect(() => {
+    if (active) return;
+    // Leaving the page ends the attempt and discards an unconfirmed suggestion.
+    endLocationAttempt();
+    if (location.kind === 'confirm') {
+      cancelConfirmSearch(location.previous);
+      setAddress(location.previous);
+      setLocation({ kind: 'idle' });
+    } else if (location.kind === 'locating') setLocation({ kind: 'idle' });
+    // Only leaving the page acts here; later edits use their own handlers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+  useEffect(
+    () => () => {
+      locationAttempt.current += 1;
+      locationCleanup.current?.();
+    },
+    [],
+  );
   const noElection =
     !recordsAvailable ||
     (electionLoad === 'ready' && !selected) ||
     state.outcome?.kind === 'no-elections';
   const form =
-    noElection || electionLoad === 'error' ? null : (
+    noElection || electionLoad === 'error' ? null : location.kind === 'confirm' && !displayed ? (
+      <CandidateLocationConfirm
+        street={location.street}
+        unit={location.unit}
+        missing={location.missing}
+        busy={confirmBusy && busy}
+        onStreet={(street) => editConfirm({ street })}
+        onUnit={(unit) => editConfirm({ unit })}
+        onConfirm={confirmHome}
+        onDifferent={enterDifferentAddress}
+      />
+    ) : (
       <CandidateAddressForm
         services={services}
+        fieldRef={fieldRef}
+        onUseLocation={displayed || !services.locate ? undefined : useLocation}
+        locating={location.kind === 'locating'}
+        notice={location.kind === 'notice' ? LOCATION_NOTICES[location.notice] : null}
         address={address}
         onAddress={editAddress}
         onSubmit={submit}
@@ -383,12 +582,7 @@ function CandidateSearchSession({
           </View>
         </View>
       ) : (
-        <View
-          style={[
-            styles.entryLayout,
-            !isMobile && { flexDirection: 'row', gap: isDesktop ? 64 : 40 },
-          ]}
-        >
+        <View style={styles.entryLayout}>
           <View style={styles.entryWords}>
             <View style={styles.titleRow}>
               <Text
@@ -444,10 +638,10 @@ function CandidateSearchSession({
               accessible={false}
               resizeMode="contain"
               style={{
-                width: isMobile ? 160 : isDesktop ? 300 : 200,
-                height: isMobile ? 176 : isDesktop ? 330 : 220,
-                marginTop: isMobile ? 40 : isDesktop ? 6 : 10,
-                ...(isMobile ? { alignSelf: 'center' } : {}),
+                width: isMobile ? 160 : 200,
+                height: isMobile ? 176 : 220,
+                marginTop: 40,
+                alignSelf: 'center',
               }}
             />
           ) : null}
@@ -705,7 +899,8 @@ function ElectionMenu({
 
 const styles = StyleSheet.create({
   page: { width: '100%', paddingBottom: 64 },
-  entryLayout: { maxWidth: 1168, width: '100%', alignSelf: 'center', alignItems: 'flex-start' },
+  // 1 centred column on every band; the outline sits below the source line.
+  entryLayout: { maxWidth: 840, width: '100%', alignSelf: 'center' },
   entryWords: { flex: 1, minWidth: 0, width: '100%' },
   titleRow: {
     flexDirection: 'row',

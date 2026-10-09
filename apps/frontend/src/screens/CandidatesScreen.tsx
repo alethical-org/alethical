@@ -68,6 +68,7 @@ export function CandidatesScreen(props: RootScreenProps<'Candidates'>) {
           <CandidateSearchContent
             services={candidateSearchServices}
             flow={candidateFlow}
+            active={focused}
             initialAddress={candidateFlow.getState().draftAddress}
             privacyDisclosure={CANDIDATE_LOOKUP_COPY.privacy}
             imageSource={require('../../assets/mn-outline-candidates.svg')}
