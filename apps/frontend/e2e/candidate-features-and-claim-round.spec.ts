@@ -494,9 +494,15 @@ for (const band of bands) {
       await expect(dialog.getByText('Your unsaved changes will also be discarded.')).toBeVisible();
       const keep = await box(dialog.getByRole('button', { name: 'Keep profile claim' }));
       const risky = await box(dialog.getByRole('button', { name: 'Give up profile claim' }));
+      // Stacked on every band, safe choice first, full inner width, the same 48px height.
+      const phone = band.width < 768;
+      const inner = phone ? Math.min(390, band.width) - 44 : 424;
+      expect(risky.y).toBeGreaterThan(keep.y);
+      expect(Math.abs(keep.width - inner)).toBeLessThanOrEqual(1);
       expect(Math.abs(keep.width - risky.width)).toBeLessThanOrEqual(1);
-      if (band.width < 768) expect(risky.y).toBeGreaterThan(keep.y);
-      else expect(risky.x).toBeGreaterThan(keep.x);
+      expect(Math.abs(keep.height - 48)).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(keep.height - risky.height)).toBeLessThanOrEqual(0.5);
+      expect(Math.abs((await box(dialog)).width - (phone ? 390 : 480))).toBeLessThanOrEqual(1);
       await shot(page, `manage-give-up-${band.name}`);
       await page.keyboard.press('Escape');
       await expect(dialog).toHaveCount(0);
@@ -841,4 +847,90 @@ test('when the browser refuses the new tab, the reader stays in this tab with th
   await claimLink.click({ modifiers: ['ControlOrMeta'] });
   await expectClaimAnswers(page, link, note);
   expect(context.pages().length).toBe(pagesBefore);
+});
+
+test('manage dialogs on a short screen: words scroll above pinned, equal actions; busy locks both', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 740, height: 360 });
+  const api = await fixture(page);
+  api.me = { ...api.me, claims: [{ ...claim, status: 'approved', can_manage: true }] };
+  api.privateStatement = {
+    body: 'Fictional published words.',
+    updated_at: '2026-10-02T15:00:00Z',
+    published_at: '2026-10-02T15:00:00Z',
+    edited_at: null,
+    version: 2,
+  };
+  await page.goto(`${profilePath}/manage`);
+  const editor = page.getByRole('textbox', { name: 'Campaign statement' });
+  await editor.fill('Fictional unsaved edit.');
+  const giveUp = page.getByRole('button', { name: 'Give up this profile claim' });
+  await giveUp.click();
+  const dialog = page.getByRole('dialog', { name: 'Give up this profile claim?' });
+  const keepButton = dialog.getByRole('button', { name: 'Keep profile claim' });
+  await expect(keepButton).toBeFocused();
+  const frame = (await dialog.boundingBox())!;
+  expect(Math.abs(frame.y - 16)).toBeLessThanOrEqual(1);
+  expect(frame.height).toBeLessThanOrEqual(360 - 32 + 1);
+  const words = dialog.locator('.profile-claim-dialog-words');
+  const scroll = await words.evaluate((element) => ({
+    overflow: element.scrollHeight > element.clientHeight,
+    tabIndex: element.getAttribute('tabindex'),
+  }));
+  expect(scroll).toEqual({ overflow: true, tabIndex: '0' });
+  const keep = (await keepButton.boundingBox())!;
+  const risky = (await dialog
+    .getByRole('button', { name: 'Give up profile claim' })
+    .boundingBox())!;
+  expect(risky.y).toBeGreaterThan(keep.y);
+  expect(Math.abs(keep.height - risky.height)).toBeLessThanOrEqual(0.5);
+  await page.screenshot({ path: test.info().outputPath('manage-give-up-short.png') });
+  // Scrolling the words leaves the actions where they are.
+  await words.evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
+  expect((await keepButton.boundingBox())!.y).toBeCloseTo(keep.y, 0);
+  await page.screenshot({ path: test.info().outputPath('manage-give-up-short-scrolled.png') });
+  // Enlarged text grows both actions together.
+  await doubleText(page);
+  const bigKeep = (await keepButton.boundingBox())!;
+  const bigRisky = (await dialog
+    .getByRole('button', { name: 'Give up profile claim' })
+    .boundingBox())!;
+  expect(bigKeep.height).toBeGreaterThan(48);
+  expect(Math.abs(bigKeep.height - bigRisky.height)).toBeLessThanOrEqual(0.5);
+  await page.screenshot({ path: test.info().outputPath('manage-give-up-short-200.png') });
+});
+
+test('a give-up in progress locks both actions and Escape', async ({ page }) => {
+  const api = await fixture(page);
+  api.me = { ...api.me, claims: [{ ...claim, status: 'approved', can_manage: true }] };
+  api.privateStatement = {
+    body: 'Fictional published words.',
+    updated_at: '2026-10-02T15:00:00Z',
+    published_at: '2026-10-02T15:00:00Z',
+    edited_at: null,
+    version: 2,
+  };
+  await page.goto(`${profilePath}/manage`);
+  await page.getByRole('button', { name: 'Give up this profile claim' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Give up this profile claim?' });
+  await dialog.getByRole('button', { name: 'Give up profile claim' }).click();
+  await expect.poll(() => api.writes.length).toBe(1);
+  const keep = dialog.getByRole('button', { name: 'Keep profile claim' });
+  await expect(keep).toHaveAttribute('aria-disabled', 'true');
+  expect(await keep.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe(
+    'rgb(236, 239, 241)',
+  );
+  expect(await keep.evaluate((element) => getComputedStyle(element).color)).toBe(
+    'rgb(111, 117, 111)',
+  );
+  await expect(dialog.getByRole('button', { name: 'Giving up profile claim…' })).toHaveAttribute(
+    'aria-disabled',
+    'true',
+  );
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeVisible();
+  await keep.click({ force: true });
+  await expect(dialog).toBeVisible();
+  expect(api.writes).toHaveLength(1);
 });

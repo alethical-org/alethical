@@ -1956,6 +1956,27 @@ function ManageContent({
             if (busy !== 'withdraw') setDialog(null);
           }}
           returnFocus={focusButtonIn(giveUpRef)}
+          actions={
+            <CandidateDialogActions equal>
+              <ProfileClaimButton
+                label="Keep profile claim"
+                kind="green"
+                disabled={busy === 'withdraw'}
+                width="100%"
+                style={{ alignSelf: 'stretch' }}
+                onPress={() => setDialog(null)}
+              />
+              <ProfileClaimButton
+                label="Give up profile claim"
+                busyLabel="Giving up profile claim…"
+                busy={busy === 'withdraw'}
+                kind="danger"
+                width="100%"
+                style={{ alignSelf: 'stretch' }}
+                onPress={() => void giveUp()}
+              />
+            </CandidateDialogActions>
+          }
         >
           <Text style={[candidateText.body, { color: '#2c322c', lineHeight: 24.8 }]}>
             {published ? copy.giveUpBodyPublished : copy.giveUpBodyUnpublished}
@@ -1975,25 +1996,6 @@ function ManageContent({
               </Text>
             </View>
           ) : null}
-          <CandidateDialogActions equal>
-            <ProfileClaimButton
-              label="Keep profile claim"
-              kind="green"
-              unavailable={busy === 'withdraw'}
-              width="100%"
-              style={{ alignSelf: 'stretch' }}
-              onPress={() => setDialog(null)}
-            />
-            <ProfileClaimButton
-              label="Give up profile claim"
-              busyLabel="Giving up profile claim…"
-              busy={busy === 'withdraw'}
-              kind="danger"
-              width="100%"
-              style={{ alignSelf: 'stretch' }}
-              onPress={() => void giveUp()}
-            />
-          </CandidateDialogActions>
         </CandidateDialog>
       ) : dialog ? (
         <CandidateDialog
@@ -2009,31 +2011,33 @@ function ManageContent({
             }
           }}
           returnFocus={dialog === 'leave' ? focusEditor : focusButtonIn(removeRef, focusEditor)}
+          actions={
+            <CandidateDialogActions equal>
+              <ProfileClaimButton
+                kind="green"
+                width="100%"
+                style={{ alignSelf: 'stretch' }}
+                label={dialog === 'remove' ? 'Keep statement' : 'Keep editing'}
+                disabled={Boolean(busy)}
+                onPress={() => (dialog === 'leave' ? keepEditing() : setDialog(null))}
+              />
+              <ProfileClaimButton
+                label={dialog === 'remove' ? 'Remove statement' : 'Discard changes'}
+                busyLabel={dialog === 'remove' ? 'Removing statement…' : undefined}
+                busy={busy === 'remove'}
+                width="100%"
+                style={{ alignSelf: 'stretch' }}
+                kind="danger"
+                onPress={() => (dialog === 'leave' ? setDiscarding(true) : void write('remove'))}
+              />
+            </CandidateDialogActions>
+          }
         >
           {dialog === 'remove' ? (
             <Text style={[candidateText.body, { color: '#2c322c', lineHeight: 24.8 }]}>
               {copy.removeBody}
             </Text>
           ) : null}
-          <CandidateDialogActions equal>
-            <ProfileClaimButton
-              kind="green"
-              width="100%"
-              style={{ alignSelf: 'stretch' }}
-              label={dialog === 'remove' ? 'Keep statement' : 'Keep editing'}
-              unavailable={Boolean(busy)}
-              onPress={() => (dialog === 'leave' ? keepEditing() : setDialog(null))}
-            />
-            <ProfileClaimButton
-              label={dialog === 'remove' ? 'Remove statement' : 'Discard changes'}
-              busyLabel={dialog === 'remove' ? 'Removing statement…' : undefined}
-              busy={busy === 'remove'}
-              width="100%"
-              style={{ alignSelf: 'stretch' }}
-              kind="danger"
-              onPress={() => (dialog === 'leave' ? setDiscarding(true) : void write('remove'))}
-            />
-          </CandidateDialogActions>
         </CandidateDialog>
       ) : null}
     </>

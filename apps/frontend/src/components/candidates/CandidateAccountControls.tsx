@@ -1,4 +1,12 @@
-import { useEffect, useId, useRef, type ReactNode, type Ref } from 'react';
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from 'react';
 import {
   Platform,
   StyleSheet,
@@ -430,11 +438,42 @@ export function CandidateField({
     </View>
   );
 }
-/** Browser dialog supplies focus trapping and makes the safe action the initial focus. */
+/** What the reader can actually see, which an on-screen keyboard shrinks. */
+function visibleViewport() {
+  if (typeof window === 'undefined') return { height: 800, top: 0 };
+  const visual = window.visualViewport;
+  return { height: visual?.height ?? window.innerHeight, top: visual?.offsetTop ?? 0 };
+}
+function useVisibleViewport(active: boolean) {
+  const [viewport, setViewport] = useState(visibleViewport);
+  useEffect(() => {
+    if (!active || typeof window === 'undefined') return;
+    const update = () => setViewport(visibleViewport());
+    update();
+    const visual = window.visualViewport;
+    visual?.addEventListener('resize', update);
+    visual?.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+    return () => {
+      visual?.removeEventListener('resize', update);
+      visual?.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, [active]);
+  return viewport;
+}
+/** Browser dialog supplies focus trapping and makes the safe action the initial focus.
+ *
+ * With `actions`, it is a confirmation laid out as Design settled for the manage page:
+ * 480px wide (424px inside) on computer and tablet, up to 390px (22px sides) on phone;
+ * on a visible height under 640px it sits 16px from the top, at most the visible height
+ * less 32px, with its words scrolling on their own above the pinned actions and a fine
+ * line between. */
 export function CandidateDialog({
   title,
   subtitle,
   children,
+  actions,
   onClose,
   initialFocus = 'safe',
   returnFocus,
@@ -443,12 +482,18 @@ export function CandidateDialog({
   /** The candidate whose access a dialog affects, printed under its title. */
   subtitle?: string;
   children: ReactNode;
+  actions?: ReactNode;
   onClose(): void;
   initialFocus?: 'safe' | 'field';
   returnFocus?: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const words = useRef<HTMLDivElement>(null);
   const { isMobile } = useResponsive();
+  const confirm = Boolean(actions);
+  const viewport = useVisibleViewport(confirm);
+  const short = confirm && viewport.height < 640;
+  const [overflowing, setOverflowing] = useState(false);
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const prior = document.activeElement as HTMLElement | null;
@@ -457,19 +502,103 @@ export function CandidateDialog({
     if (element && !element.showModal) element.setAttribute('open', '');
     element
       ?.querySelector<HTMLElement>(initialFocus === 'field' ? 'textarea, input' : 'button')
-      ?.focus();
+      ?.focus({ preventScroll: true });
     return () => {
       element?.close?.();
       if (returnFocus) returnFocus();
       else prior?.focus();
     };
   }, []);
+  useLayoutEffect(() => {
+    const element = words.current;
+    if (element) setOverflowing(element.scrollHeight > element.clientHeight + 1);
+  });
   if (Platform.OS !== 'web')
     return (
       <View accessibilityRole="alert" style={candidateAccountStyles.identity}>
         {children}
+        {actions}
       </View>
     );
+  const heading = (
+    <>
+      <Text
+        accessibilityRole="header"
+        aria-level={2}
+        style={[candidateText.title, { fontSize: 21, lineHeight: 27.3 }]}
+      >
+        {title}
+      </Text>
+      {subtitle ? (
+        <Text
+          style={[
+            candidateText.strong,
+            { marginTop: -6, fontSize: 16, lineHeight: 23.2 },
+            Platform.OS === 'web' ? ({ overflowWrap: 'anywhere' } as TextStyle) : null,
+          ]}
+        >
+          {subtitle}
+        </Text>
+      ) : null}
+    </>
+  );
+  if (confirm) {
+    const top = (short ? 16 : 110) + viewport.top;
+    const maxHeight = Math.max(160, viewport.height - (short ? 32 : 110));
+    const side = isMobile ? 22 : 28;
+    return (
+      <dialog
+        ref={dialog}
+        aria-label={title}
+        onCancel={(event) => {
+          event.preventDefault();
+          onClose();
+        }}
+        style={{
+          border: 0,
+          borderRadius: 18,
+          padding: 0,
+          maxWidth: isMobile ? 390 : 480,
+          width: isMobile ? '100%' : 'calc(100% - 48px)',
+          boxSizing: 'border-box',
+          margin: `${top}px auto auto`,
+          maxHeight,
+          overflow: 'hidden',
+          color: '#11150f',
+          background: '#fff',
+        }}
+      >
+        <View style={{ maxHeight, flexDirection: 'column' }}>
+          <div
+            ref={words}
+            tabIndex={overflowing ? 0 : undefined}
+            className="profile-claim-dialog-words"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+              flexShrink: 1,
+              minHeight: 0,
+              overflowY: 'auto',
+              padding: `${isMobile ? 24 : 26}px ${side}px 16px`,
+            }}
+          >
+            {heading}
+            {children}
+          </div>
+          <View
+            style={[
+              { flexShrink: 0, paddingHorizontal: side, paddingTop: 16 },
+              { paddingBottom: isMobile ? 24 : 26 },
+              short && { borderTopWidth: 1, borderTopColor: 'rgba(17,21,15,0.1)' },
+            ]}
+          >
+            {actions}
+          </View>
+        </View>
+      </dialog>
+    );
+  }
   return (
     <dialog
       ref={dialog}
@@ -493,24 +622,7 @@ export function CandidateDialog({
       }}
     >
       <View style={{ gap: 12 }}>
-        <Text
-          accessibilityRole="header"
-          aria-level={2}
-          style={[candidateText.title, { fontSize: 21, lineHeight: 27.3 }]}
-        >
-          {title}
-        </Text>
-        {subtitle ? (
-          <Text
-            style={[
-              candidateText.strong,
-              { marginTop: -6, fontSize: 16, lineHeight: 23.2 },
-              Platform.OS === 'web' ? ({ overflowWrap: 'anywhere' } as TextStyle) : null,
-            ]}
-          >
-            {subtitle}
-          </Text>
-        ) : null}
+        {heading}
         {children}
       </View>
     </dialog>
@@ -521,19 +633,22 @@ export function CandidateDialogActions({
   equal = false,
 }: {
   children: ReactNode;
-  /** Safe choice first, both buttons the same width; stacked full width on phone. */
+  /** Stacked on every band, safe choice first, full width, and always the same height:
+   * the taller of the 2 sets both when a label wraps or text is enlarged. */
   equal?: boolean;
 }) {
   const { isMobile } = useResponsive();
   if (equal)
     return (
       <View
-        style={[
-          { marginTop: 10, gap: 10 },
-          isMobile
-            ? { flexDirection: 'column', alignItems: 'stretch' }
-            : ({ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' } as object),
-        ]}
+        style={
+          {
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1fr)',
+            gridAutoRows: '1fr',
+            gap: 10,
+          } as object
+        }
       >
         {children}
       </View>
