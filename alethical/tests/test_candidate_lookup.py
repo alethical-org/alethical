@@ -1264,3 +1264,27 @@ def test_dot_joined_unit_is_the_same_unit_everywhere(address):
     assert [choice["address"] for choice in lookup.suggest(address)] == [
         "100 8TH AVE S APT 250, HOPKINS, MN 55343"
     ]
+
+
+@pytest.mark.parametrize(
+    ("rows", "shown", "range_id"),
+    [
+        (UNIT_ROWS, "100 EXAMPLE ST N, APT 3, EXAMPLE CITY, MN 99999", 301),
+        (None, "100 EXAMPLE ST N, EXAMPLE CITY, MN 99999-1234", 123),
+        (UNIT_ROWS, "100 EXAMPLE ST N, APT 3, EXAMPLE CITY, MN 99999-1234", 301),
+    ],
+    ids=["apartment", "zip-plus-4", "both"],
+)
+def test_a_suggestion_carrying_typed_detail_is_checked_as_its_full_text(
+    rows, shown, range_id
+):
+    # The suggestion's official choice is the base address. Relabelling that
+    # choice with the reader's extra detail breaks its fingerprint and is refused;
+    # the website therefore sends the shown text through normal matching.
+    lookup, calls = service(rows=rows)
+    relabelled = {**candidate_lookup._choice(ADDRESS), "address": shown, "label": shown}
+    assert lookup.lookup(shown, "8334", relabelled)[0] == {"kind": "no-match"}
+
+    result, _ = lookup.lookup(shown, "8334")
+    assert result["kind"] == "results"
+    assert calls[-1] == (SOURCE_URL, {"prodAddressRangeId": range_id})

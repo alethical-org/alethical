@@ -111,12 +111,13 @@ export function CandidateAddressForm({
     setMissing(false);
     setChoicesOpen(false);
     if (Platform.OS === 'web') (buttonRef.current as unknown as HTMLElement | null)?.focus();
-    if (choice && (suggestionAddress !== undefined || value === address)) {
-      onSubmit(
-        value,
-        suggestionAddress === undefined ? choice : { ...choice, address: value, label: value },
-      );
-    } else onSubmit(value);
+    // A suggestion that carries the reader's own apartment or ZIP+4 detail is no
+    // longer the official choice, so its full text takes the normal address check.
+    if (choice && suggestionAddress !== undefined && suggestionAddress !== choice.address)
+      onSubmit(value);
+    else if (choice && (suggestionAddress !== undefined || value === address))
+      onSubmit(value, choice);
+    else onSubmit(value);
   };
   const pick = (choice: CandidateAddressChoice) => submit(choice);
   const choiceKey = (event: ReactKeyboardEvent<HTMLElement>) => {
