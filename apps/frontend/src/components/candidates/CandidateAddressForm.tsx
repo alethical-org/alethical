@@ -13,7 +13,12 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { AddressSuggestionField, type AddressFieldHandle } from '../address/AddressSuggestionField';
 import { useResponsive } from '../../hooks/useResponsive';
 import { theme as t } from '../../theme/tokens';
-import { CandidateButton, CandidateLink, candidateText } from './CandidateControls';
+import {
+  CANDIDATE_POINTER_FOCUS_ATTRIBUTE,
+  CandidateButton,
+  CandidateLink,
+  candidateText,
+} from './CandidateControls';
 import type {
   CandidateAddressChoice,
   CandidateLookupResponse,
@@ -73,6 +78,31 @@ export function CandidateAddressForm({
   const [choiceActive, setChoiceActive] = useState(0);
   const [choicesOpen, setChoicesOpen] = useState(false);
   const [missing, setMissing] = useState(false);
+  // Whether the latest press in this form came from a mouse, pen or finger.
+  const pointerInput = useRef(false);
+  const formRef = useRef<View>(null);
+  useEffect(() => {
+    const form = formRef.current as unknown as HTMLElement | null;
+    if (Platform.OS !== 'web' || !form?.addEventListener) return;
+    const clear = (event: Event) =>
+      (event.target as HTMLElement | null)?.removeAttribute?.(CANDIDATE_POINTER_FOCUS_ATTRIBUTE);
+    const pointer = () => {
+      pointerInput.current = true;
+    };
+    const key = (event: Event) => {
+      pointerInput.current = false;
+      clear(event);
+    };
+    form.addEventListener('pointerdown', pointer, true);
+    form.addEventListener('keydown', key, true);
+    // A later keyboard visit, such as Tab, shows the ring again.
+    form.addEventListener('focusout', clear, true);
+    return () => {
+      form.removeEventListener('pointerdown', pointer, true);
+      form.removeEventListener('keydown', key, true);
+      form.removeEventListener('focusout', clear, true);
+    };
+  }, []);
   const focusField = () => inputRef.current?.focus();
   useEffect(() => {
     if (focus) inputRef.current?.selectAll();
@@ -110,7 +140,14 @@ export function CandidateAddressForm({
     }
     setMissing(false);
     setChoicesOpen(false);
-    if (Platform.OS === 'web') (buttonRef.current as unknown as HTMLElement | null)?.focus();
+    if (Platform.OS === 'web') {
+      const button = buttonRef.current as unknown as HTMLElement | null;
+      // Moving focus here from the text box would inherit its always-visible ring.
+      // Show the ring for a keyboard search only; a pointer press keeps it hidden.
+      if (pointerInput.current) button?.setAttribute(CANDIDATE_POINTER_FOCUS_ATTRIBUTE, 'true');
+      else button?.removeAttribute(CANDIDATE_POINTER_FOCUS_ATTRIBUTE);
+      button?.focus();
+    }
     // A suggestion that carries the reader's own apartment or ZIP+4 detail is no
     // longer the official choice, so its full text takes the normal address check.
     if (choice && suggestionAddress !== undefined && suggestionAddress !== choice.address)
@@ -151,6 +188,7 @@ export function CandidateAddressForm({
     !busy && (missing || errorKind === 'no-match' || errorKind === 'outside-minnesota');
   return (
     <View
+      ref={formRef}
       style={[styles.form, compact && { marginTop: 0 }]}
       {...(Platform.OS === 'web' && onCancel
         ? {

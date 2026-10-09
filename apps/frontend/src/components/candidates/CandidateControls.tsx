@@ -37,6 +37,9 @@ function canHover() {
     Boolean(window.matchMedia?.('(hover: hover) and (pointer: fine)').matches)
   );
 }
+/** Marks focus a pointer press moved onto a button, which keeps its ring hidden. */
+export const CANDIDATE_POINTER_FOCUS_ATTRIBUTE = 'data-candidate-pointer-focus';
+
 export function CandidateButton({
   label,
   onPress,
@@ -83,7 +86,10 @@ export function CandidateButton({
     const sheet = document.createElement('style');
     sheet.id = 'alethical-candidate-controls';
     sheet.textContent =
-      '@keyframes alethical-candidate-spin{to{transform:rotate(360deg)}}[data-candidate-spinner="true"]{animation:alethical-candidate-spin .8s linear infinite}@media(prefers-reduced-motion:reduce){[data-candidate-spinner="true"]{animation:none}}';
+      '@keyframes alethical-candidate-spin{to{transform:rotate(360deg)}}[data-candidate-spinner="true"]{animation:alethical-candidate-spin .8s linear infinite}@media(prefers-reduced-motion:reduce){[data-candidate-spinner="true"]{animation:none}}' +
+      // Outranks the sitewide keyboard ring, whose [tabindex] branch is very
+      // specific, only while the pointer marker is set. The :not(#…) adds rank.
+      `button[${CANDIDATE_POINTER_FOCUS_ATTRIBUTE}="true"]:not(#candidate-pointer-focus):focus-visible{outline:none !important}`;
     document.head.append(sheet);
   }, []);
   useEffect(() => {

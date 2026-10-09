@@ -390,3 +390,21 @@ it('releases the blur guard when a scroll ends without a click', async () => {
   act(() => input.blur());
   expect(host.querySelector('[role="listbox"]')).toBeNull();
 });
+it('hides the moved focus ring only after a pointer press, never after keyboard use', () => {
+  const { input } = setup();
+  const find = host.querySelector<HTMLElement>('button:not([data-clear-address])')!;
+  act(() => input.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  act(() => find.click());
+  expect(document.activeElement).toBe(find);
+  expect(find.getAttribute('data-candidate-pointer-focus')).toBe('true');
+  expect(document.getElementById('alethical-candidate-controls')?.textContent).toContain(
+    'button[data-candidate-pointer-focus="true"]:not(#candidate-pointer-focus):focus-visible{outline:none !important}',
+  );
+  // A key press shows the ring again, and so does a later keyboard visit.
+  act(() => find.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true })));
+  expect(find.hasAttribute('data-candidate-pointer-focus')).toBe(false);
+  act(() => input.focus());
+  key(input, 'Enter');
+  expect(document.activeElement).toBe(find);
+  expect(find.hasAttribute('data-candidate-pointer-focus')).toBe(false);
+});
