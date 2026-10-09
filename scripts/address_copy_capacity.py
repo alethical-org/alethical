@@ -35,8 +35,11 @@ PLAN = """query CapacityPlan($projectId: String!) {
 SERVICE = """query CapacityService($environmentId: String!, $serviceId: String!) {
   serviceInstance(environmentId: $environmentId, serviceId: $serviceId) {
     numReplicas startCommand
-    activeDeployments { id status instances { id status } }
+    activeDeployments { id status meta instances { id status } }
   }
+}"""
+CONFIG = """query CapacityConfig($environmentId: String!) {
+  environment(id: $environmentId) { config(decryptVariables: false) }
 }"""
 METRICS = """query CapacityMetrics(
   $environmentId: String!, $serviceId: String!, $startDate: DateTime!,
@@ -90,6 +93,30 @@ def resource_id(value: object) -> str:
     return value
 
 
+def replica_count(deploy: object) -> int | None:
+    """Read explicit placement only; absent settings never mean 1."""
+    if not isinstance(deploy, dict):
+        return None
+    regions = deploy.get("multiRegionConfig")
+    if regions is None:
+        count = deploy.get("numReplicas")
+        return count if type(count) is int and 0 <= count <= 1000 else None
+    if not isinstance(regions, dict) or not regions or len(regions) > 1000:
+        return None
+    total, present = 0, False
+    for region in regions.values():
+        if region is None:
+            continue  # The provider uses null for removed regions.
+        if not isinstance(region, dict):
+            return None
+        count = region.get("numReplicas")
+        if type(count) is not int or not 0 <= count <= 1000:
+            return None
+        total += count
+        present = True
+    return total if present and total <= 1000 else None
+
+
 def identity(data: dict) -> dict:
     try:
         token = data["projectToken"]
@@ -141,13 +168,31 @@ def service_report(data: dict, expected_command: str) -> dict:
             for row in deployment.get("instances", [])
             if row.get("status") == "RUNNING"
         ]
-        result["active_deployments"].append(
-            {"id": deployment_id, "running_instance_ids": instances}
+        metadata = deployment.get("meta")
+        manifest = (
+            metadata.get("serviceManifest") if isinstance(metadata, dict) else None
         )
+        placement = manifest.get("deploy") if isinstance(manifest, dict) else None
+        result["active_deployments"].append(
+            {
+                "id": deployment_id,
+                "running_instance_ids": instances,
+                "configured_replicas": replica_count(placement),
+            }
+        )
+    if len(result["active_deployments"]) == 1:
+        # Deployment settings include repository overrides, unlike the nullable
+        # legacy dashboard field. Keep the dashboard field separate.
+        result["dashboard_replicas"] = result["configured_replicas"]
+        result["configured_replicas"] = result["active_deployments"][0][
+            "configured_replicas"
+        ]
     return result
 
 
-def metric_report(data: dict, active_ids: set[str]) -> list[dict]:
+def metric_report(
+    data: dict, active_ids: set[str], *, service_scoped: bool = False
+) -> list[dict]:
     series = data.get("metrics")
     if not isinstance(series, list):
         raise Unavailable
@@ -160,7 +205,7 @@ def metric_report(data: dict, active_ids: set[str]) -> list[dict]:
                 if not isinstance(row, dict) or row.get("measurement") != measurement:
                     continue
                 tags = row.get("tags") or {}
-                if (
+                if not service_scoped and (
                     not isinstance(tags, dict)
                     or tags.get("deploymentInstanceId") != instance_id
                 ):
@@ -283,6 +328,15 @@ def collect(token: str) -> dict:
         report["service"] = service_report(query(token, SERVICE, arguments), expected)
     except (Unavailable, TypeError, AttributeError):
         report["service"] = None
+    try:
+        config = query(token, CONFIG, {"environmentId": ids["environmentId"]})[
+            "environment"
+        ]["config"]
+        report["saved_configured_replicas"] = replica_count(
+            config["services"][ids["serviceId"]].get("deploy")
+        )
+    except (Unavailable, KeyError, TypeError, AttributeError):
+        report["saved_configured_replicas"] = None
     deployments = (report.get("service") or {}).get("active_deployments", [])
     active_ids = {
         instance for row in deployments for instance in row["running_instance_ids"]
@@ -304,6 +358,24 @@ def collect(token: str) -> dict:
         report["metrics"] = metric_report(data, active_ids)
     except (Unavailable, TypeError, AttributeError):
         report["metrics"] = None
+    try:
+        # Disk usage may be reported for a service without an instance tag.
+        disk = query(
+            token,
+            METRICS.replace("groupBy: [DEPLOYMENT_INSTANCE_ID], ", ""),
+            {
+                **arguments,
+                "startDate": start.isoformat(),
+                "endDate": end.isoformat(),
+                "measurements": ["EPHEMERAL_DISK_USAGE_GB"],
+            },
+        )
+        # No instance tag is required for this separate exact-service query.
+        report["service_disk_usage"] = metric_report(
+            disk, {ids["serviceId"]}, service_scoped=True
+        )[0]["measurements"]["EPHEMERAL_DISK_USAGE_GB"]
+    except (Unavailable, TypeError, AttributeError, IndexError):
+        report["service_disk_usage"] = None
     # Single active deployment is required so a record cannot come from an old release.
     report["startup_capacity"] = (
         deployment_capacity(ids, deployments[0]["id"])

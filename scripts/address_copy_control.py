@@ -28,6 +28,9 @@ OWNED_SETTLE_SECONDS = 90
 OFF_RESTORE_RESERVE_SECONDS = 200
 MIN_FREE = 3_000_000_000
 MIN_ROOM = 256 * 1024 * 1024
+# Paid Railway deployments have this storage allowance. Host filesystem free
+# space may be larger; both the allowance and filesystem must have room.
+PAID_DISK_ALLOWANCE = 100_000_000_000
 TERMINAL = ["SUCCESS", "CRASHED", "FAILED", "REMOVED", "SKIPPED"]
 REASONS = {
     "public_read_unavailable",
@@ -151,6 +154,11 @@ def activation_gate(report: dict, ids: dict, deployment_id: str, now: datetime) 
             raise ValueError
         if report["plan"] not in {"hobby", "pro"}:
             raise ValueError
+        if (
+            type(report["saved_configured_replicas"]) is not int
+            or report["saved_configured_replicas"] != 1
+        ):
+            raise ValueError
         service = report["service"]
         if (
             type(service["configured_replicas"]) is not int
@@ -159,7 +167,12 @@ def activation_gate(report: dict, ids: dict, deployment_id: str, now: datetime) 
         ):
             raise ValueError
         deployments = service["active_deployments"]
-        if len(deployments) != 1 or deployments[0]["id"] != deployment_id:
+        if (
+            len(deployments) != 1
+            or deployments[0]["id"] != deployment_id
+            or type(deployments[0]["configured_replicas"]) is not int
+            or deployments[0]["configured_replicas"] != 1
+        ):
             raise ValueError
         instances = deployments[0]["running_instance_ids"]
         if len(instances) != 1:
@@ -176,6 +189,16 @@ def activation_gate(report: dict, ids: dict, deployment_id: str, now: datetime) 
             if type(startup[key]) is not int or not 0 <= startup[key] <= 10**16:
                 raise ValueError
         if startup["free_bytes"] < MIN_FREE:
+            raise ValueError
+        disk = report["service_disk_usage"]
+        if type(disk["sample_count"]) is not int or disk["sample_count"] < 1:
+            raise ValueError
+        for key in ("latest", "maximum", "latest_timestamp"):
+            if capacity.number(disk[key]) is None:
+                raise ValueError
+        if not 0 <= now.timestamp() - disk["latest_timestamp"] <= 5 * 60:
+            raise ValueError
+        if PAID_DISK_ALLOWANCE - disk["maximum"] * 1024**3 < MIN_FREE:
             raise ValueError
         metrics = report["metrics"]
         if len(metrics) != 1 or metrics[0]["instance_id"] != instances[0]:

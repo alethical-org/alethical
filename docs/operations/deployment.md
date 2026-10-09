@@ -180,14 +180,25 @@ The shared provider reader identifies itself as
 the same unauthenticated endpoint returned HTTP 403 for Python's default client
 and reached GraphQL with the named client. This header applies to capacity reads
 and control calls; it does not change token access or activation gates.
+Replica counts come from the active deployment's
+`meta.serviceManifest.deploy.multiRegionConfig` and the saved environment
+configuration, read with `decryptVariables: false`. Only explicit numeric counts
+are reported; missing counts never mean 1. Raw metadata and configuration stay
+private. The nullable legacy dashboard count is reported separately. A separate
+exact-service disk request omits instance grouping, because disk usage may lack
+an instance tag.
 
 The manual-only [Address copy control workflow](../../.github/workflows/address-copy-control.yml)
 accepts `enabled` (default `false`) and `release_commit` (the reviewed live API's
 40-character commit). Before turning on, it requires a Hobby or Pro plan, 1 configured
-replica, exactly 1 active deployment and running instance, the repository start
+replica in both saved settings and the active deployment, exactly 1 active
+deployment and running instance, the repository start
 command, a fresh off-state capacity line with 1 API-program process and at least
 3 GB free, and at least 256 MiB memory headroom above the higher of startup usage
-and that instance's observed usage peak. Missing, stale or conflicting facts refuse
+and that instance's observed usage peak. It also requires a fresh disk-usage sample
+leaving at least 3 GB within Railway's published 100 GB paid-deployment allowance;
+the host filesystem's larger free-space reading cannot replace that check.
+Missing, stale or conflicting facts refuse
 activation. Establish applicable charges separately; the automated gate cannot
 prove the account's invoice or authorize a new resource.
 
