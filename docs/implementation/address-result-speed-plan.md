@@ -105,5 +105,34 @@ Neither evidence preservation nor source precedence may be removed for speed.
   13 statements for the 42-candidate Duluth ballot (was 343) and 9 for a found
   legislator search (was 15). Legislator responses match the previous code apart
   from randomly generated test record IDs.
-- Next: Codex review, merge, deployment and live before/after timings. Live
-  speed is not yet measured and is not claimed.
+- Complete: [pull request 2571](https://github.com/alethical-org/alethical/pull/2571)
+  is live at API [commit eb07ff42](https://github.com/alethical-org/alethical/commit/eb07ff42633cec695b883d101f82abb5f8c867d9).
+  Independent source review, the required checks on the released code, and live
+  acceptance passed on 9 October 2026. The normal local upload passed 5,032 backend
+  tests; a separate focused frontend run passed 23 tests. The unchanged frontend
+  was skipped by the required-check selection policy.
+- Live API medians, 5 requests before and 5 after for each address and search:
+
+  | Public address | Search | Before | After |
+  | --- | --- | ---: | ---: |
+  | 1006 Summit Ave, St Paul, MN 55105 | Candidates | 8.865 s | 0.727 s |
+  | 411 W 1st St, Duluth, MN 55802 | Candidates | 7.655 s | 0.750 s |
+  | 1006 Summit Ave, St Paul, MN 55105 | Legislators | 0.755 s | 0.609 s |
+  | 411 W 1st St, Duluth, MN 55802 | Legislators | 0.814 s | 0.677 s |
+
+- All 20 after-release responses matched the complete corresponding baseline
+  response. All 66 distinct candidate IDs, including ticket members, opened through
+  separate profile requests with matching identities. Submitted address strings
+  were absent from those profile responses; automated privacy checks and source
+  review also passed.
+- A fresh-context browser reviewer exercised both public addresses on both search
+  pages, replacement searches retaining their previous results and labels, keyboard
+  submission, profile links and browser-back behavior. Parent acceptance also
+  exercised the candidate results and candidate-to-person link at a 400-pixel width.
+  Phone-width legislator submission remains untested: browser-control input timed
+  out while another tab was in use. Desktop legislator searches passed.
+- Limits: these API times exclude browser startup and rendering. Browser checks
+  used fresh page memory, not cleared asset caches or a cold server. Government
+  source waits still vary. An initial rapid test reached the existing per-IP lookup
+  limit; the final comparison used 15-second spacing and all requests succeeded.
+  No rate limit, source check, freshness rule or privacy boundary was relaxed.
