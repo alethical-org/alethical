@@ -154,7 +154,9 @@ it('asks for location only after the tap and keeps typed text and Find usable wh
 it('lets a manual search win over location in either completion order', async () => {
   for (const order of ['location-first', 'search-first'] as const) {
     let finish!: (value: CandidateLookupResponse) => void;
-    const lookup = vi.fn(() => new Promise<CandidateLookupResponse>((yes) => (finish = yes)));
+    const lookup = vi.fn<CandidateSearchServices['lookup']>(
+      () => new Promise<CandidateLookupResponse>((yes) => (finish = yes)),
+    );
     const current = setup({ lookup });
     await render(current);
     setValue(textarea(), '12 Typed Street, Sample Lake, MN 55999');
@@ -178,7 +180,9 @@ it('lets a manual search win over location in either completion order', async ()
 
 it('lets typing cancel a pending location reply', async () => {
   let reply!: (value: CandidateLocationSuggestion) => void;
-  const current = setup({ locate: vi.fn(() => new Promise((yes) => (reply = yes))) });
+  const current = setup({
+    locate: vi.fn(() => new Promise<CandidateLocationSuggestion>((yes) => (reply = yes))),
+  });
   await render(current);
   click(button('Use my location')!);
   await act(async () => geo.success!(position()));
@@ -284,7 +288,9 @@ it('replaces the form with a focused confirmation that searches only the confirm
 
 it('submits on Enter with the latest browser-filled values, never during composition or twice', async () => {
   let finish!: (value: CandidateLookupResponse) => void;
-  const lookup = vi.fn(() => new Promise<CandidateLookupResponse>((yes) => (finish = yes)));
+  const lookup = vi.fn<CandidateSearchServices['lookup']>(
+    () => new Promise<CandidateLookupResponse>((yes) => (finish = yes)),
+  );
   await openConfirmation(setup({ lookup }));
   key(textarea(), { key: 'Enter', isComposing: true });
   key(textarea(), { key: 'Enter', keyCode: 229 });
@@ -307,7 +313,9 @@ it('submits on Enter with the latest browser-filled values, never during composi
 it('cancels a running confirmation search when either field changes', async () => {
   for (const edit of ['street', 'unit'] as const) {
     let finish!: (value: CandidateLookupResponse) => void;
-    const lookup = vi.fn(() => new Promise<CandidateLookupResponse>((yes) => (finish = yes)));
+    const lookup = vi.fn<CandidateSearchServices['lookup']>(
+      () => new Promise<CandidateLookupResponse>((yes) => (finish = yes)),
+    );
     const current = await openConfirmation(setup({ lookup }));
     click(button('This is my home address')!);
     expect(button('Finding…')).toBeTruthy();
@@ -351,7 +359,9 @@ it('returns other official outcomes to the form holding the searched address', a
 
 it('enters a different address by restoring the earlier text and invalidating the search', async () => {
   let finish!: (value: CandidateLookupResponse) => void;
-  const lookup = vi.fn(() => new Promise<CandidateLookupResponse>((yes) => (finish = yes)));
+  const lookup = vi.fn<CandidateSearchServices['lookup']>(
+    () => new Promise<CandidateLookupResponse>((yes) => (finish = yes)),
+  );
   const current = setup({ lookup });
   await render(current);
   setValue(textarea(), '77 Earlier Street');
