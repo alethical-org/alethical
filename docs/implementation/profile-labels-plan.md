@@ -32,5 +32,16 @@ The candidate Go back change is owned by candidate go back link in
 
 ## Progress
 
-- Newest design resolves typography and wrapping conflicts. Local implementation underway.
-- No production changes yet.
+- Labels, incoming links, initial responses and green claim action implemented.
+- All 4,359 frontend tests passed; type checks passed. After incorporating the
+  separate Go back release, the 22 affected candidate/home checks passed again.
+- Production-setting build passed at 297,147 compressed entry bytes, below 297,506.
+  Earlier exports retained a cached local API address; clearing the export cache
+  resolved the mismatch. No size-limit or app-code workaround was retained.
+- Browser: candidate and person headers, lobbyist/principal wrapping at 320/375,
+  tablet 768 and computer 1100, claim entry/return and keyboard order accepted.
+- Independent source review and fresh-context desktop user-path review found no
+  material defect. Spoken screen-reader pronunciation remains untested.
+- Initial-response return targets now reserve the same 44px height before labels;
+  this carries the already approved spacing through the first response.
+- Release checks, deployment and live acceptance remain in progress.
