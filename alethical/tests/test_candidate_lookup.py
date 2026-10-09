@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
@@ -215,6 +216,73 @@ def test_street_cache_is_bounded_and_short_lived():
     tick[0] = 301
     lookup.streets("10039")
     assert len(calls) == 41
+
+
+def _blocking_street_service(answer):
+    """A service whose street fetch waits until released, counting fetches."""
+    import threading
+
+    release = threading.Event()
+    started = threading.Event()
+    calls = []
+
+    def fetch(url, params):
+        assert url == STREETS_URL
+        calls.append(params["ZipCode"])
+        started.set()
+        release.wait(5)
+        if isinstance(answer, Exception):
+            raise answer
+        return json.dumps({"Streets": answer}).encode()
+
+    return CandidateLookupService(fetch=fetch, now=lambda: NOW), calls, started, release
+
+
+def _run_together(lookup, started, release, zip_codes):
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=len(zip_codes)) as executor:
+        futures = [executor.submit(lookup.streets, zip_code) for zip_code in zip_codes]
+        assert started.wait(5)
+        # Let the other requests reach the shared wait before the source answers.
+        time.sleep(0.1)
+        release.set()
+        return futures
+
+
+def test_simultaneous_requests_for_1_zip_share_1_street_fetch():
+    lookup, calls, started, release = _blocking_street_service([street()])
+
+    futures = _run_together(lookup, started, release, ["99999"] * 6)
+
+    assert [future.result() for future in futures] == [[street()]] * 6
+    assert calls == ["99999"]
+    assert lookup._street_fetches == {}
+    lookup.streets("99999")
+    assert calls == ["99999"]
+
+
+def test_a_shared_street_fetch_failure_reaches_every_waiter_and_is_not_kept():
+    lookup, calls, started, release = _blocking_street_service(
+        CandidateLookupUnavailable("Official ballot service unavailable")
+    )
+
+    futures = _run_together(lookup, started, release, ["99999"] * 4)
+
+    for future in futures:
+        with pytest.raises(CandidateLookupUnavailable):
+            future.result()
+    assert calls == ["99999"]
+    assert lookup._street_fetches == {} and len(lookup._streets) == 0
+
+
+def test_different_zips_still_fetch_separately():
+    lookup, calls, started, release = _blocking_street_service([street()])
+
+    futures = _run_together(lookup, started, release, ["99998", "99999"])
+
+    assert [future.result() for future in futures] == [[street()]] * 2
+    assert sorted(calls) == ["99998", "99999"]
 
 
 def test_official_fetch_allowlist_redirects_timeout_and_safe_error(monkeypatch):
