@@ -172,7 +172,7 @@ function AccountAction({
                   ? `/admin/candidate-claims?candidate=${encodeURIComponent(record.candidate.id)}&from=profile`
                   : `/candidates/${record.candidate.id}/${owner ? 'manage' : 'claim'}`
               }
-              kind={owner && !isAdmin ? 'green' : 'outline'}
+              kind={!isAdmin && (owner || !saved) ? 'green' : 'outline'}
               icon="none"
               label={label}
               describedBy={description}
