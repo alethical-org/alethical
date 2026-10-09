@@ -74,6 +74,42 @@ def candidate_identity(profile: dict) -> dict:
     }
 
 
+def public_version(
+    *,
+    kind: str,
+    record_id: str,
+    payload: dict,
+    source_hash: str,
+    checked_at: datetime,
+) -> dict:
+    """One accepted read, keyed by its exact facts, source and check time."""
+    if kind not in {"candidate", "ballot", "race", "person", "service", "research"}:
+        raise ValueError("Unsupported public record kind")
+    if checked_at.tzinfo is None or not re.fullmatch(r"[a-f0-9]{64}", source_hash):
+        raise ValueError("Public evidence requires a source hash and aware check time")
+    return {
+        "id": canonical_hash(
+            [kind, record_id, source_hash, checked_at.isoformat(), payload]
+        ),
+        "record_kind": kind,
+        "record_id": record_id,
+        "public_payload": payload,
+        "source_sha256": source_hash,
+        "checked_at": checked_at,
+    }
+
+
+def retain_public_versions(db: Session, versions: list[dict]) -> None:
+    """Retain accepted reads in 1 statement; an already-retained read is kept."""
+    unique = list({version["id"]: version for version in versions}.values())
+    if unique:
+        db.execute(
+            insert(PublicRecordVersion)
+            .values(unique)
+            .on_conflict_do_nothing(index_elements=["id"])
+        )
+
+
 def retain_public_version(
     db: Session,
     *,
@@ -84,81 +120,143 @@ def retain_public_version(
     checked_at: datetime,
 ) -> None:
     """Retain each accepted read unchanged, including identical facts read later."""
-    if kind not in {"candidate", "ballot", "race", "person", "service", "research"}:
-        raise ValueError("Unsupported public record kind")
-    if checked_at.tzinfo is None or not re.fullmatch(r"[a-f0-9]{64}", source_hash):
-        raise ValueError("Public evidence requires a source hash and aware check time")
-    key = canonical_hash(
-        [kind, record_id, source_hash, checked_at.isoformat(), payload]
+    retain_public_versions(
+        db,
+        [
+            public_version(
+                kind=kind,
+                record_id=record_id,
+                payload=payload,
+                source_hash=source_hash,
+                checked_at=checked_at,
+            )
+        ],
     )
-    db.execute(
-        insert(PublicRecordVersion)
-        .values(
-            id=key,
-            record_kind=kind,
-            record_id=record_id,
-            public_payload=payload,
-            source_sha256=source_hash,
-            checked_at=checked_at,
+
+
+def lock_candidate_records(db: Session, candidate_ids) -> None:
+    """Take every candidate's save lock in 1 statement, in ascending candidate-ID order.
+
+    Each save lock is ``hashtext(candidate_id)``. This is the same order, and the same
+    locks held to commit, as saving 1 record at a time in candidate-ID order, so a
+    batched writer and such a writer, including one still running on a previous
+    release, do not take shared candidates' locks in opposite orders. DISTINCT and
+    ORDER BY keep the subquery from being flattened, so the outer function runs once
+    per ID in sorted order. A lock this transaction already holds is taken again
+    without waiting.
+    """
+    ids = sorted(set(candidate_ids))
+    if ids:
+        db.execute(
+            text(
+                "SELECT count(pg_advisory_xact_lock(hashtext(ordered.candidate_id))) "
+                'FROM (SELECT DISTINCT candidate_id COLLATE "C" AS candidate_id '
+                "FROM unnest(CAST(:candidate_ids AS text[])) AS candidate_id "
+                "ORDER BY candidate_id) AS ordered"
+            ),
+            {"candidate_ids": ids},
         )
-        .on_conflict_do_nothing(index_elements=["id"])
-    )
+
+
+def save_candidate_records(
+    db: Session, *, profiles: list[dict], source_hash: str, checked_at: datetime
+) -> None:
+    """Save accepted official records from 1 source read in the caller's transaction.
+
+    Take these same advisory locks before any claim row lock. A title/name change
+    must be reviewed as a new identity, never overwrite an already-linked URL.
+    Every accepted read is retained, and an older read never replaces a newer one.
+    Person and result data live in separate tables and are not replaced here.
+    Profiles apply in the given order, exactly as 1-at-a-time saves would.
+    """
+    ids = [profile["candidate"]["id"] for profile in profiles]
+    if not all(re.fullmatch(r"[a-f0-9]{64}", cid) for cid in ids):
+        raise ValueError("Invalid candidate identity")
+    if not ids:
+        return
+    # Write pending changes before rows are read and replaced below.
+    db.flush()
+    lock_candidate_records(db, ids)
+    current = {
+        row.id: {
+            "public_payload": row.public_payload,
+            "source_sha256": row.source_sha256,
+            "checked_at": row.checked_at,
+        }
+        for row in db.execute(
+            select(
+                CandidateRecord.id,
+                CandidateRecord.public_payload,
+                CandidateRecord.source_sha256,
+                CandidateRecord.checked_at,
+            )
+            .where(CandidateRecord.id.in_(sorted(set(ids))))
+            .order_by(CandidateRecord.id)
+            .with_for_update()
+        )
+    }
+    versions: list[dict] = []
+    changed: dict[str, dict] = {}
+    for profile, cid in zip(profiles, ids, strict=True):
+        row = current.get(cid)
+        if row is not None:
+            if candidate_identity(row["public_payload"]) != candidate_identity(profile):
+                raise PublicRecordConflict("Candidacy identity changed")
+            versions.append(
+                public_version(
+                    kind="candidate",
+                    record_id=cid,
+                    payload=row["public_payload"],
+                    source_hash=row["source_sha256"],
+                    checked_at=row["checked_at"],
+                )
+            )
+        versions.append(
+            public_version(
+                kind="candidate",
+                record_id=cid,
+                payload=profile,
+                source_hash=source_hash,
+                checked_at=checked_at,
+            )
+        )
+        if row is None or checked_at >= row["checked_at"]:
+            current[cid] = changed[cid] = {
+                "id": cid,
+                "election_id": profile["election"]["id"],
+                "election_date": date.fromisoformat(profile["election"]["date"]),
+                "public_payload": copy.deepcopy(profile),
+                "source_sha256": source_hash,
+                "checked_at": checked_at,
+            }
+    retain_public_versions(db, versions)
+    if changed:
+        upsert = insert(CandidateRecord).values(list(changed.values()))
+        # Existing rows keep their election; an older read never replaces a newer one.
+        db.execute(
+            upsert.on_conflict_do_update(
+                index_elements=["id"],
+                set_={
+                    "public_payload": upsert.excluded.public_payload,
+                    "source_sha256": upsert.excluded.source_sha256,
+                    "checked_at": upsert.excluded.checked_at,
+                },
+                where=CandidateRecord.checked_at <= upsert.excluded.checked_at,
+            )
+        )
+        for instance in list(db.identity_map.values()):
+            if isinstance(instance, CandidateRecord) and instance.id in changed:
+                db.expire(instance)
 
 
 def save_candidate_record(
     db: Session, *, profile: dict, source_hash: str, checked_at: datetime
 ) -> CandidateRecord:
-    """Save exactly one accepted official record in the caller's transaction.
-
-    Take this same advisory lock before any claim row lock. A title/name change
-    must be reviewed as a new identity, never overwrite an already-linked URL.
-    Person and result data live in separate tables and are not replaced here.
-    """
-    cid = profile["candidate"]["id"]
-    if not re.fullmatch(r"[a-f0-9]{64}", cid):
-        raise ValueError("Invalid candidate identity")
-    db.execute(
-        text("SELECT pg_advisory_xact_lock(hashtext(:candidate_id))"),
-        {"candidate_id": cid},
+    """Save exactly one accepted official record in the caller's transaction."""
+    save_candidate_records(
+        db, profiles=[profile], source_hash=source_hash, checked_at=checked_at
     )
-    row = db.scalar(
-        select(CandidateRecord).where(CandidateRecord.id == cid).with_for_update()
-    )
-    if row is not None:
-        if candidate_identity(row.public_payload) != candidate_identity(profile):
-            raise PublicRecordConflict("Candidacy identity changed")
-        retain_public_version(
-            db,
-            kind="candidate",
-            record_id=cid,
-            payload=row.public_payload,
-            source_hash=row.source_sha256,
-            checked_at=row.checked_at,
-        )
-    retain_public_version(
-        db,
-        kind="candidate",
-        record_id=cid,
-        payload=profile,
-        source_hash=source_hash,
-        checked_at=checked_at,
-    )
-    if row is None:
-        row = CandidateRecord(
-            id=cid,
-            election_id=profile["election"]["id"],
-            election_date=date.fromisoformat(profile["election"]["date"]),
-            public_payload=copy.deepcopy(profile),
-            source_sha256=source_hash,
-            checked_at=checked_at,
-        )
-        db.add(row)
-    elif checked_at >= row.checked_at:
-        row.public_payload = copy.deepcopy(profile)
-        row.source_sha256 = source_hash
-        row.checked_at = checked_at
-    db.flush()
-    return row
+    return db.get(CandidateRecord, profile["candidate"]["id"], populate_existing=True)
 
 
 def supported_elections(db: Session | None = None) -> list[dict]:
@@ -202,16 +300,39 @@ def _person_link(person: PublicPerson) -> dict:
     }
 
 
+def _candidate_link_pairs(
+    db: Session, candidate_ids
+) -> dict[str, list[tuple[PersonCandidacy, PublicPerson]]]:
+    pairs: dict[str, list[tuple[PersonCandidacy, PublicPerson]]] = {}
+    for link, person in db.execute(
+        select(PersonCandidacy, PublicPerson)
+        .join(PublicPerson, PublicPerson.id == PersonCandidacy.person_id)
+        .where(PersonCandidacy.candidate_id.in_(list(candidate_ids)))
+    ).all():
+        pairs.setdefault(link.candidate_id, []).append((link, person))
+    return pairs
+
+
 def _valid_links(
     db: Session, candidate_id: str, profile: dict, *, today: date
 ) -> list[PublicPerson]:
+    return _valid_people(
+        db,
+        _candidate_link_pairs(db, [candidate_id]).get(candidate_id, []),
+        profile,
+        today=today,
+    )
+
+
+def _valid_people(
+    db: Session,
+    pairs: list[tuple[PersonCandidacy, PublicPerson]],
+    profile: dict,
+    *,
+    today: date,
+) -> list[PublicPerson]:
     from alethical.api.services.candidate_legislators import confirmed_legislator
 
-    pairs = db.execute(
-        select(PersonCandidacy, PublicPerson)
-        .join(PublicPerson, PublicPerson.id == PersonCandidacy.person_id)
-        .where(PersonCandidacy.candidate_id == candidate_id)
-    ).all()
     identity = candidate_identity(profile)
     result = []
     for link, person in pairs:
@@ -230,6 +351,17 @@ def candidate_result(db: Session, candidate_id: str, profile: dict) -> dict | No
     if membership is None or membership.identity != candidate_identity(profile):
         return None
     race = db.get(CandidateRaceRecord, membership.race_id)
+    return _race_result(candidate_id, profile, membership, race)
+
+
+def _race_result(
+    candidate_id: str,
+    profile: dict,
+    membership: CandidateRaceMember | None,
+    race: CandidateRaceRecord | None,
+) -> dict | None:
+    if membership is None or membership.identity != candidate_identity(profile):
+        return None
     if race is None or race.test_data:
         return None
     election = profile.get("election", {})
@@ -275,6 +407,29 @@ def add_profile_records(db: Session, profile: dict, *, today: date) -> dict:
     return profile
 
 
+def _loaded_profile_records(
+    db: Session,
+    profile: dict,
+    *,
+    today: date,
+    pairs: list[tuple[PersonCandidacy, PublicPerson]],
+    membership: CandidateRaceMember | None,
+    race: CandidateRaceRecord | None,
+) -> dict:
+    """add_profile_records for rows already loaded together for a whole ballot."""
+    profile = copy.deepcopy(profile)
+    profile["electionEnded"] = today > date.fromisoformat(profile["election"]["date"])
+    cid = profile["candidate"]["id"]
+    profile["people"] = [
+        _person_link(person)
+        for person in _valid_people(db, pairs, profile, today=today)
+    ]
+    result = _race_result(cid, profile, membership, race)
+    if result:
+        profile["result"] = result
+    return profile
+
+
 def enrich_lookup_results(db: Session, response: dict, *, today: date) -> dict:
     """Add result facts only for the exact saved row; preserve all address behavior."""
     if response.get("kind") != "results":
@@ -290,26 +445,74 @@ def enrich_lookup_results(db: Session, response: dict, *, today: date) -> dict:
     )
     if election:
         response["electionEnded"] = today > date.fromisoformat(election["date"])
-    for race in response.get("races", []):
-        for entry in race.get("entries", []):
-            # A joint ticket is one candidacy record; its verified people remain
-            # explicit members, never identities inferred from the display label.
-            candidate = entry["candidate"] if entry["kind"] == "candidate" else entry
-            record = db.get(CandidateRecord, candidate["id"])
-            if record is None:
-                continue
-            linked = add_profile_records(db, record.public_payload, today=today)
-            candidate["people"] = linked["people"]
-            candidate["electionEnded"] = linked["electionEnded"]
-            if linked.get("result"):
-                candidate["result"] = linked["result"]
-                # Every member here shares the same source race. Differing race
-                # results remain on their own race card, never a global heading.
-                race["result"] = {
-                    key: value
-                    for key, value in linked["result"].items()
-                    if key not in {"outcome", "withdrawalSource"}
-                }
+    # A joint ticket is one candidacy record; its verified people remain
+    # explicit members, never identities inferred from the display label.
+    entries = [
+        (race, entry["candidate"] if entry["kind"] == "candidate" else entry)
+        for race in response.get("races", [])
+        for entry in race.get("entries", [])
+    ]
+    # Load the whole ballot's saved rows together, then apply each profile's checks.
+    ids = sorted({candidate["id"] for _, candidate in entries})
+    records = (
+        {
+            record.id: record
+            for record in db.scalars(
+                select(CandidateRecord).where(CandidateRecord.id.in_(ids))
+            )
+        }
+        if ids
+        else {}
+    )
+    saved = sorted(records)
+    pairs = _candidate_link_pairs(db, saved) if saved else {}
+    memberships = (
+        {
+            member.candidate_id: member
+            for member in db.scalars(
+                select(CandidateRaceMember).where(
+                    CandidateRaceMember.candidate_id.in_(saved)
+                )
+            )
+        }
+        if saved
+        else {}
+    )
+    race_ids = sorted({member.race_id for member in memberships.values()})
+    race_records = (
+        {
+            item.id: item
+            for item in db.scalars(
+                select(CandidateRaceRecord).where(CandidateRaceRecord.id.in_(race_ids))
+            )
+        }
+        if race_ids
+        else {}
+    )
+    for race, candidate in entries:
+        record = records.get(candidate["id"])
+        if record is None:
+            continue
+        membership = memberships.get(record.id)
+        linked = _loaded_profile_records(
+            db,
+            record.public_payload,
+            today=today,
+            pairs=pairs.get(record.id, []),
+            membership=membership,
+            race=race_records.get(membership.race_id) if membership else None,
+        )
+        candidate["people"] = linked["people"]
+        candidate["electionEnded"] = linked["electionEnded"]
+        if linked.get("result"):
+            candidate["result"] = linked["result"]
+            # Every member here shares the same source race. Differing race
+            # results remain on their own race card, never a global heading.
+            race["result"] = {
+                key: value
+                for key, value in linked["result"].items()
+                if key not in {"outcome", "withdrawalSource"}
+            }
     response["resultsAvailable"] = any(
         race.get("result") for race in response.get("races", [])
     )
