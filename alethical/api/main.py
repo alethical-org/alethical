@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 from contextlib import asynccontextmanager
 
@@ -51,14 +52,22 @@ from alethical.api.request_admission import (
 from alethical.api.services.contact import log_contact_delivery_readiness
 from alethical.api.services.comment_email import comment_email_lifespan
 from alethical.api.services.candidate_claim_email import candidate_claim_email_lifespan
+from alethical.api.services.address_suggestion_index import get_address_suggestion_index
 from alethical.logging import configure_logging
 from alethical.release import release_commit
 
 
 @asynccontextmanager
 async def email_lifespan(app):
-    async with comment_email_lifespan(app), candidate_claim_email_lifespan(app):
-        yield
+    # Off unless ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED is set; starting an
+    # off copy does nothing. Stopping leaves the shared copy for other processes.
+    address_copy = get_address_suggestion_index()
+    address_copy.start()
+    try:
+        async with comment_email_lifespan(app), candidate_claim_email_lifespan(app):
+            yield
+    finally:
+        await asyncio.to_thread(address_copy.stop)
 
 
 def create_app() -> FastAPI:

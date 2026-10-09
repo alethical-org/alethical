@@ -19,6 +19,9 @@ from shapely.geometry import MultiPoint, Point, mapping, shape
 from shapely.geometry.base import BaseGeometry
 
 from alethical.api.services.address_format import normalize_address_format
+from alethical.api.services.address_suggestion_index import (
+    get_address_suggestion_index,
+)
 from alethical.api.services.legislative_districts import (
     LegislativeDistrictDataError,
     legislative_districts_for_point,
@@ -958,6 +961,24 @@ class MinnesotaAddressPointGeocoder:
         if query is None:
             return []
 
+        if self.base_url == MINNESOTA_ADDRESS_POINTS_URL:
+            copied = get_address_suggestion_index().suggestions(
+                house_number=query.house_number,
+                street_names=query.street_names,
+                house_suffix=query.house_suffix,
+            )
+            if copied is not None:
+                matches = self._suggestion_matches(address_text, query, copied)
+                if matches:
+                    # A copied point can lag the live records, so a chosen copy
+                    # suggestion is checked against them before districts.
+                    return [
+                        replace(match, requires_location_check=True)
+                        for match in matches
+                    ]
+            # A missing, expired, unusable or empty copy never blocks a live read.
+            # Local rows can exist but all fail the existing address checks.
+
         street_clauses = []
         for street_name in query.street_names:
             escaped = street_name.replace("'", "''")
@@ -986,6 +1007,14 @@ class MinnesotaAddressPointGeocoder:
                 ],
                 result_record_count=200,
             )
+        return self._suggestion_matches(address_text, query, features)
+
+    def _suggestion_matches(
+        self,
+        address_text: str,
+        query: _AddressPointQuery,
+        features: list[object],
+    ) -> list[GeocodedAddress]:
         active_features: list[object] = [
             feature
             for feature in features
