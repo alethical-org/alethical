@@ -42,6 +42,32 @@ street, direction and unit matching remain unchanged. Census and Minnesota addre
 requests reuse a connection within each server worker without retaining cookies,
 credentials, queries or responses.
 
+Suggestions can also come from Alethical's own copy of Minnesota's published address
+file. The copy stays off until the server switch
+(`ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED`) is turned on in production. When on, the
+server downloads the whole public file every 12 hours, checks it before using it, and
+never uses a copy more than 24 hours after its download. Typing then gets suggestions
+from the copy without asking the state's service. A missing, expired or damaged copy,
+more than 5,000 matching rows, or no usable match asks the state's live service
+instead. The state compiles the file from the counties that take part and updates it
+about every 3 months, so a newly added or removed address can lag the live service by
+the state's own delay plus up to 24 hours of ours. The copy holds public address
+records only, never what readers type.
+
+The same printed address can carry more than 1 official map point, for example 1 per
+unit. A suggestion from the copy, or one whose printed address has more than 1 point,
+is offered once. When chosen, the server checks the exact chosen text, including any
+apartment or ZIP+4 detail the reader typed, against Minnesota's current address points
+before finding districts. When every current point has the same single House, Senate
+and congressional answer, the result uses the point nearest the suggestion. A point on
+a district border has no single answer. When the points disagree, the page refuses to
+guess (see **What the messages mean**). When the check cannot settle the point,
+Alethical searches the chosen text as if it were typed. Pointing at, pressing or
+arrowing to such a suggestion starts this check early, for at most 2 suggestions per
+typed address, so a choice made after a glance usually finishes sooner. A reader whose
+browser asks to save data, or reports a slow connection, skips the early check; the
+choice itself still runs it. Each early check counts toward the lookup limit below.
+
 No row is selected on opening. Down starts at the first row and Up at the last;
 both wrap. Enter chooses an active keyboard row, otherwise it searches the typed
 address. Hover is grey and never changes the keyboard choice, which is pale green.
@@ -119,6 +145,12 @@ Alethical uses Minnesota's address list instead of ending the lookup immediately
 The formatting cleanup also applies to that Minnesota fallback and the Minnesota
 street-only retry sent to Census. It does not change which source is tried first
 or the matching rules below.
+
+An official answer that says its row list was cut short never counts as proof of a
+single address: Alethical asks again with the service's full 2,000-row allowance and
+reports the service as unavailable if the answer is still cut short. When rows printing
+the same address carry map points in different districts, Alethical shows **No match
+for that address** rather than choosing one.
 
 If 1 address is clearly closest, Alethical uses it. If several official addresses are
 equally close, **Choose your address** appears with up to 5 choices. Click or tap the
@@ -215,6 +247,10 @@ number, but it does not show a member of Congress.
 - **No match for that address:** The public address sources could not find 1 safe
   Minnesota match. Check the house number and street name, include `MN`, and try the
   full city and ZIP.
+- **We couldn’t safely identify your districts from this address:** Minnesota's
+  current records give this address points in different districts, or a point on a
+  district border, so Alethical will not guess. It says **Check your full street
+  address, or choose where you live on the map**.
 - **That address is outside Minnesota:** Alethical only covers Minnesota state
   legislative districts.
 - **We couldn't use your location:** The browser blocked location access, could not get
@@ -269,6 +305,9 @@ What happens to the location data:
 - While suggestions are open, Minnesota's address service receives the exact house
   number and the street-name prefix. It does not receive the city or ZIP. The same
   service later receives the house number and street name if Census search fails.
+- When the address copy answers a suggestion, typing sends nothing to Minnesota's
+  address service. Choosing a suggestion that needs the current-records check, or
+  pointing at one, sends its house number and street name to that service.
 - A successful address, browser location, or map point is checked against official
   district files stored with Alethical. Its latitude and longitude are not sent to the
   Minnesota Legislative Coordinating Commission.

@@ -385,6 +385,18 @@ def _parse_rows_once(
     return list(matches.values())
 
 
+# A shared street-table fetch is bounded by official_bytes (about 23 seconds).
+STREET_FETCH_WAIT_SECONDS = 30
+
+
+class _StreetFetch:
+    """1 in-flight public street-table fetch that simultaneous requests share."""
+
+    def __init__(self) -> None:
+        self.done = threading.Event()
+        self.rows: list[dict] | None = None
+
+
 class CandidateLookupService:
     def __init__(
         self,
@@ -402,6 +414,8 @@ class CandidateLookupService:
         )
         self._streets: OrderedDict[str, tuple[float, list[dict], int]] = OrderedDict()
         self._street_bytes = 0
+        # 1 fetch per ZIP at a time: simultaneous misses wait for the same answer.
+        self._street_fetches: dict[str, _StreetFetch] = {}
         self._lock = threading.Lock()
 
     def elections(self) -> list[dict]:
@@ -412,12 +426,40 @@ class CandidateLookupService:
     def streets(self, zip_code: str) -> list[dict]:
         if not re.fullmatch(r"\d{5}", zip_code):
             return []
-        now = self.clock()
         with self._lock:
             cached = self._streets.get(zip_code)
-            if cached and cached[0] > now:
+            if cached and cached[0] > self.clock():
                 self._streets.move_to_end(zip_code)
                 return cached[1]
+            pending = self._street_fetches.get(zip_code)
+            leader = pending is None
+            if pending is None:
+                pending = self._street_fetches[zip_code] = _StreetFetch()
+        if not leader:
+            # The leading request's own source deadline bounds this wait.
+            if not pending.done.wait(STREET_FETCH_WAIT_SECONDS) or pending.rows is None:
+                raise CandidateLookupUnavailable("Official street records unavailable")
+            return pending.rows
+        try:
+            rows, size = self._fetch_streets(zip_code)
+            with self._lock:
+                previous = self._streets.pop(zip_code, None)
+                if previous:
+                    self._street_bytes -= previous[2]
+                self._streets[zip_code] = (self.clock() + 300, rows, size)
+                self._street_bytes += size
+                self._streets.move_to_end(zip_code)
+                while len(self._streets) > 32 or self._street_bytes > 8_000_000:
+                    _, dropped = self._streets.popitem(last=False)
+                    self._street_bytes -= dropped[2]
+            pending.rows = rows
+            return rows
+        finally:
+            with self._lock:
+                self._street_fetches.pop(zip_code, None)
+            pending.done.set()
+
+    def _fetch_streets(self, zip_code: str) -> tuple[list[dict], int]:
         try:
             body = self.fetch(STREETS_URL, {"ZipCode": zip_code})
             if len(body) > 4_000_000:
@@ -439,17 +481,7 @@ class CandidateLookupService:
             raise CandidateLookupUnavailable(
                 "Official street records unavailable"
             ) from None
-        with self._lock:
-            previous = self._streets.pop(zip_code, None)
-            if previous:
-                self._street_bytes -= previous[2]
-            self._streets[zip_code] = (now + 300, rows, len(body))
-            self._street_bytes += len(body)
-            self._streets.move_to_end(zip_code)
-            while len(self._streets) > 32 or self._street_bytes > 8_000_000:
-                _, dropped = self._streets.popitem(last=False)
-                self._street_bytes -= dropped[2]
-        return rows
+        return rows, len(body)
 
     def _eligible_choices(self, choices: list[dict]) -> list[dict]:
         """Offer only complete addresses supported by one official ballot range.

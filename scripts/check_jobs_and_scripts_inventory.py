@@ -40,7 +40,7 @@ how a file hides inside one, and it failed twice inside a week:
   fire on correct edits.
 * Scripts a workflow reaches indirectly, through a ``just`` recipe or another script.
   Check 6 counts a script as run when its ``scripts/<name>`` path appears in a
-  workflow's ``run:`` step. The 3 quick document checks reached through
+  workflow's ``run:`` step, including ``python -m scripts.<name>``. The 3 quick document checks reached through
   ``local_checks.py quick-docs`` are named separately in the page's prose.
 
 A prose sentence that has been reworded so a pattern below no longer matches it exactly
@@ -79,6 +79,7 @@ WORKFLOW_PATH = re.compile(r"\.github/workflows/([\w.\-]+\.ya?ml)")
 #: A ``scripts/<name>`` path, not preceded by another path segment, so
 #: ``apps/frontend/scripts/traffic-token-expiry.mjs`` is not read as one of ours.
 WORKFLOW_SCRIPT_CALL = re.compile(r"(?<![\w./-])scripts/([\w.\-]+\.[A-Za-z0-9]+)")
+WORKFLOW_MODULE_CALL = re.compile(r"\bpython(?:3)?\s+-m\s+scripts\.([\w]+)(?![\w.])")
 
 #: Each prose count, as a pattern that must match the page exactly once. The key names
 #: what the number means; the value's ``count`` group holds the digits.
@@ -171,6 +172,9 @@ def scripts_run_by_workflows(root: Path) -> set[str]:
                 in_run = True
                 run_indent = len(opens_run.group(1))
                 called.update(WORKFLOW_SCRIPT_CALL.findall(line))
+                called.update(
+                    name + ".py" for name in WORKFLOW_MODULE_CALL.findall(line)
+                )
                 continue
             if not in_run:
                 continue
@@ -178,6 +182,7 @@ def scripts_run_by_workflows(root: Path) -> set[str]:
                 in_run = False
                 continue
             called.update(WORKFLOW_SCRIPT_CALL.findall(line))
+            called.update(name + ".py" for name in WORKFLOW_MODULE_CALL.findall(line))
     return called
 
 

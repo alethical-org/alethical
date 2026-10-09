@@ -355,22 +355,28 @@ it('keeps optional suggestion failures quiet and permits typed submission', asyn
   key(input, 'Enter');
   expect(onSubmit).toHaveBeenCalledExactlyOnceWith('100 Ex');
 });
-it('submits precisely the unit-preserving address shown in the chosen row', async () => {
-  vi.useFakeTimers();
-  const { input, onSubmit } = setup('100 Example Street Apt 4, Minneapolis, MN 55415');
-  act(() => input.focus());
-  await act(async () => vi.advanceTimersByTimeAsync(181));
-  const option = host.querySelector<HTMLElement>('[role="option"]')!;
-  const shown = option.textContent;
-  act(() => option.click());
-  expect(shown).toContain('Apt 4');
-  expect(onSubmit).toHaveBeenCalledExactlyOnceWith(shown, {
-    ...choice,
-    address: shown,
-    label: shown,
-  });
-  expect(input.value).toBe(shown);
-});
+it.each([
+  ['an apartment', '100 Example Street Apt 4, Minneapolis, MN 55415', 'Apt 4'],
+  ['a ZIP+4', '100 Example Street, Minneapolis, MN 55415-1234', '55415-1234'],
+  ['both', '100 Example Street Apt 4, Minneapolis, MN 55415-1234', 'Apt 4'],
+])(
+  'searches the shown address with %s as typed text, never as a relabelled official choice',
+  async (_, typed, detail) => {
+    vi.useFakeTimers();
+    const { input, onSubmit } = setup(typed);
+    act(() => input.focus());
+    await act(async () => vi.advanceTimersByTimeAsync(181));
+    const option = host.querySelector<HTMLElement>('[role="option"]')!;
+    const shown = option.textContent!;
+    act(() => option.click());
+    expect(shown).toContain(detail);
+    expect(shown).not.toBe(choice.address);
+    // The official choice's fingerprint belongs to its own text; the server
+    // checks this fuller text through its normal matching instead.
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith(shown);
+    expect(input.value).toBe(shown);
+  },
+);
 it('releases the blur guard when a scroll ends without a click', async () => {
   vi.useFakeTimers();
   const { input } = setup('100 Ex');
@@ -383,4 +389,22 @@ it('releases the blur guard when a scroll ends without a click', async () => {
   await act(async () => vi.advanceTimersByTimeAsync(1));
   act(() => input.blur());
   expect(host.querySelector('[role="listbox"]')).toBeNull();
+});
+it('hides the moved focus ring only after a pointer press, never after keyboard use', () => {
+  const { input } = setup();
+  const find = host.querySelector<HTMLElement>('button:not([data-clear-address])')!;
+  act(() => input.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  act(() => find.click());
+  expect(document.activeElement).toBe(find);
+  expect(find.getAttribute('data-candidate-pointer-focus')).toBe('true');
+  expect(document.getElementById('alethical-candidate-controls')?.textContent).toContain(
+    'button[data-candidate-pointer-focus="true"]:not(#candidate-pointer-focus):focus-visible{outline:none !important}',
+  );
+  // A key press shows the ring again, and so does a later keyboard visit.
+  act(() => find.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true })));
+  expect(find.hasAttribute('data-candidate-pointer-focus')).toBe(false);
+  act(() => input.focus());
+  key(input, 'Enter');
+  expect(document.activeElement).toBe(find);
+  expect(find.hasAttribute('data-candidate-pointer-focus')).toBe(false);
 });

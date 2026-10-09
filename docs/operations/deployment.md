@@ -141,6 +141,95 @@ owns recipient and message behavior.
 owns private retention and immediate deleted-reviewer cleanup, including while the
 sender is off. Keep all setting values in Railway, never in this repository.
 
+### Address suggestion copy activation
+
+`ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED` is absent in production, so address
+suggestions ask Minnesota's live address service. Setting it to `true` lets the API
+answer suggestions from a shared copy of the state's published address file
+(`alethical/api/services/address_suggestion_index.py`). The optional
+`ALETHICAL_ADDRESS_SUGGESTION_INDEX_DIRECTORY` names the shared folder; without it the
+copy lives in the system temporary folder, shared by every API process in 1 container.
+
+What the copy needs, measured on a Mac on 9 October 2026 from the saved official file:
+the source file is 1,057,136,640 bytes; the finished copy is 288,256,000 bytes; a build
+peaks at about 1.36 GB of folder space and about 48 MB of memory and takes about 12
+seconds after a download that took 39 seconds on that network. The refresher refuses
+to start a build with less than 3 GB free. A new container starts with no copy, so each
+release downloads the file once more and suggestions use the live service until that
+build finishes.
+
+Every API start prints 1 line, whether the copy is on or off, so these facts come
+from the real host. It starts with `ADDRESS_COPY_CAPACITY ` followed by JSON holding
+only `enabled` (true or false), `free_bytes` (free space where the copy folder lives,
+read from the nearest existing folder without creating it), `cgroup_current_bytes`
+and `cgroup_max_bytes` (the container's memory in use and its limit, `"max"` when
+unlimited), and `api_process_count` (running processes with the API's program name,
+read without arguments or environment). Any fact the host cannot report is `null`.
+A start on a Mac printed
+`ADDRESS_COPY_CAPACITY {"api_process_count": null, "cgroup_current_bytes": null, "cgroup_max_bytes": null, "enabled": false, "free_bytes": 394287038464}`.
+
+The manual-only [Address copy capacity workflow](../../.github/workflows/address-copy-capacity.yml)
+uses the existing project token to read the exact `alethical` production
+`alethical-api` service. Its report contains plan, configured replicas, active
+deployment and running-instance IDs, sampled resource usage, and the filtered startup
+capacity line. Raw provider replies, other log lines, commands and environment
+values remain private. Unknown values remain `null`; sampled disk usage does not
+prove free disk. A startup line describes only its container at its dated start.
+
+The manual-only [Address copy control workflow](../../.github/workflows/address-copy-control.yml)
+accepts `enabled` (default `false`) and `release_commit` (the reviewed live API's
+40-character commit). Before turning on, it requires a Hobby or Pro plan, 1 configured
+replica, exactly 1 active deployment and running instance, the repository start
+command, a fresh off-state capacity line with 1 API-program process and at least
+3 GB free, and at least 256 MiB memory headroom above the higher of startup usage
+and that instance's observed usage peak. Missing, stale or conflicting facts refuse
+activation. Establish applicable charges separately; the automated gate cannot
+prove the account's invoice or authorize a new resource.
+
+The control changes only `ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED`, without
+starting an automatic deployment, then redeploys the exact reviewed deployment.
+It uses the public Railway origin (`https://alethical-api-production.up.railway.app`)
+to require the same release, ready status and a fresh startup line with the requested
+switch. Turning on also requires the known `350 5th Street South, Minneapolis, MN
+55415` suggestion to carry `requires_location_check: true`. The first 8 minutes
+include checks, deployment, download and building; 6 minutes remain for restoring
+off within the 15-minute workflow. These are safety budgets, not measured production
+activation times. A failed or uncertain on attempt saves `false`. When the job
+holds its exact activation deployment ID, it reads all ownership IDs and cancels
+only that deployment in `BUILDING` or `QUEUED`. It waits at most 90 seconds for
+that deployment to end or reach `SUCCESS`, reserving 200 seconds for off restoration.
+A cancellation reply alone does not establish that the activation has ended.
+Other pending states receive no cancellation. Only after the owned activation
+settles and no other operator has replaced or queued work does the job redeploy
+the reviewed version and inspect the off replacement. Lost deployment IDs,
+unknown ownership, and unsettled attempts remain explicitly unconfirmed; the job
+never guesses which deployment to cancel. Both workflows preserve the existing
+production-deployment queue and never create resources.
+
+Before activation, tracked in
+[issue 2585](https://github.com/alethical-org/alethical/issues/2585):
+
+1. Establish the Railway service's actual free disk in its running container,
+   memory headroom and process count from the `ADDRESS_COPY_CAPACITY` line in
+   Railway's logs, and whether the plan charges for that disk, memory or the incoming
+   1.06 GB per release and per 12 hours. Do not assume these from another service or plan. A persistent volume would
+   avoid downloading on every release but is a new paid resource needing its own
+   approval.
+2. Run the Address copy control workflow with `enabled=true` and the reviewed live
+   release commit. Change the flag's row in
+   [repo-and-service-settings.md § Railway environment variables](repo-and-service-settings.md#railway-environment-variables)
+   to Present in the same change.
+3. After the release finishes and the copy has had time to build, send a public
+   suggestion request such as `{"address_text": "350 S 5"}` to
+   `/api/v1/address-suggestions`. `requires_location_check: true` on a single-point
+   address shows the copy answered it. Compare server timings before and after.
+4. Choose that suggestion on `/find-my-legislator` and confirm the request carries
+   `selected_address` and the result shows the expected districts.
+
+Run the Address copy control workflow with `enabled=false` and the reviewed live
+release commit to stop copy reads through a confirmed redeployment. The live service
+answers again with no data change. The copy never holds reader input.
+
 ### Answer generation and error reporting
 
 `OPENAI_API_KEY` powers live Ask question sorting and search embeddings. It also

@@ -14,9 +14,12 @@ const lookupRequest = vi.hoisted(() => vi.fn());
 vi.mock('../../hooks/useAppQueries', () => ({
   useRepresentativeLookup: () => useMutation({ mutationFn: lookupRequest }),
 }));
+const suggestions = vi.hoisted(() => vi.fn());
+const preparedLookup = vi.hoisted(() => vi.fn());
 vi.mock('../../data/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../data/api')>()),
-  suggestRepresentativeAddressesFromApi: async () => [],
+  suggestRepresentativeAddressesFromApi: suggestions,
+  lookupRepresentativeFromApi: preparedLookup,
 }));
 vi.mock('../../hooks/useHistoryScrollRestoration', () => ({
   useHistoryScrollRestoration: () => ({}),
@@ -71,6 +74,8 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
   lookupRequest.mockReset();
+  suggestions.mockReset().mockResolvedValue([]);
+  preparedLookup.mockReset().mockResolvedValue(null);
   client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
   host = document.createElement('div');
   document.body.append(host);
@@ -232,3 +237,140 @@ it('does not let an older location reply replace a newer map lookup', async () =
   expect(host.textContent).toContain(secondAddress);
   expect(host.textContent).not.toContain('Finding your location…');
 });
+it('sends a marked choice as an address for the server to check', async () => {
+  const marked = { matchedAddress: firstAddress, latitude: 44.97, longitude: -93.26 };
+  const plain = { matchedAddress: secondAddress, latitude: 44.98, longitude: -93.27 };
+  lookupRequest.mockResolvedValue({
+    status: 'address-choice',
+    address: '100 First St',
+    choices: [{ ...marked, requiresLocationCheck: true }, plain],
+  } as RepresentativeLookupResult);
+  type('100 First St');
+  await submit();
+  const options = () => [...host.querySelectorAll<HTMLElement>('[role="option"]')];
+  expect(options()).toHaveLength(2);
+  lookupRequest.mockResolvedValue(found(firstAddress));
+  act(() => options()[0].click());
+  await settle();
+  expect(lookupRequest.mock.calls[1][0]).toEqual({
+    latitude: 44.97,
+    longitude: -93.26,
+    selectedAddress: firstAddress,
+  });
+});
+it('sends an unmarked choice as its point', async () => {
+  lookupRequest.mockResolvedValue({
+    status: 'address-choice',
+    address: '200 Second St',
+    choices: [
+      { matchedAddress: firstAddress, latitude: 44.97, longitude: -93.26 },
+      { matchedAddress: secondAddress, latitude: 44.98, longitude: -93.27 },
+    ],
+  } as RepresentativeLookupResult);
+  type('200 Second St');
+  await submit();
+  lookupRequest.mockResolvedValue(found(secondAddress));
+  act(() => host.querySelectorAll<HTMLElement>('[role="option"]')[1].click());
+  await settle();
+  expect(lookupRequest.mock.calls[1][0]).toEqual({ latitude: 44.98, longitude: -93.27 });
+});
+it('starts the check for at most 2 marked rows the reader points at', async () => {
+  const row = (number: number, requiresLocationCheck: boolean) => ({
+    matchedAddress: `${number} Main Street, Minneapolis, MN 55415`,
+    latitude: 44.97,
+    longitude: -93.26,
+    ...(requiresLocationCheck ? { requiresLocationCheck } : {}),
+  });
+  suggestions.mockResolvedValue([row(100, true), row(102, false), row(104, true), row(106, true)]);
+  type('100 Main');
+  await act(async () => vi.advanceTimersByTimeAsync(200));
+  const rows = [...host.querySelectorAll<HTMLElement>('[role="listbox"] [role="option"]')];
+  expect(rows).toHaveLength(4);
+  for (const index of [0, 0, 1, 2, 3])
+    act(() => rows[index].dispatchEvent(new PointerEvent('pointerover', { bubbles: true })));
+  expect(preparedLookup.mock.calls.map(([input]) => input)).toEqual([
+    { latitude: 44.97, longitude: -93.26, selectedAddress: row(100, true).matchedAddress },
+    { latitude: 44.97, longitude: -93.26, selectedAddress: row(104, true).matchedAddress },
+  ]);
+  expect(lookupRequest).not.toHaveBeenCalled();
+});
+const shownRow = (requiresLocationCheck = true) => ({
+  matchedAddress: '100 Main St, Minneapolis, MN 55415',
+  latitude: 44.97,
+  longitude: -93.26,
+  ...(requiresLocationCheck ? { requiresLocationCheck } : {}),
+});
+async function openSuggestions(typed: string) {
+  suggestions.mockResolvedValue([shownRow()]);
+  type(typed);
+  await act(async () => vi.advanceTimersByTimeAsync(200));
+  return host.querySelector<HTMLElement>('[role="listbox"] [role="option"]')!;
+}
+it.each([
+  [
+    'an apartment',
+    '100 Main St Apt 4, Minneapolis, MN 55415',
+    '100 Main St, Apt 4, Minneapolis, MN 55415',
+  ],
+  ['a ZIP+4', '100 Main St, Minneapolis, MN 55415-1234', '100 Main St, Minneapolis, MN 55415-1234'],
+  [
+    'both',
+    '100 Main St Apt 4, Minneapolis, MN 55415-1234',
+    '100 Main St, Apt 4, Minneapolis, MN 55415-1234',
+  ],
+])('checks a marked pick with %s by its exact shown text', async (_, typed, shown) => {
+  const option = await openSuggestions(typed);
+  expect(option.textContent).toBe(shown);
+  act(() => option.dispatchEvent(new PointerEvent('pointerover', { bubbles: true })));
+  lookupRequest.mockResolvedValue(found(shown));
+  act(() => option.click());
+  await settle();
+  const picked = { latitude: 44.97, longitude: -93.26, selectedAddress: shown };
+  // The early check and the pick send the same request, so the pick reuses it.
+  expect(preparedLookup.mock.calls.map(([input]) => input)).toEqual([picked]);
+  expect(lookupRequest).toHaveBeenLastCalledWith(picked, expect.anything());
+  expect(field().value).toBe(shown);
+});
+it.each([
+  ['the data saver', { saveData: true }],
+  ['a slow connection', { effectiveType: '3g' }],
+])('skips only the early check for %s', async (_, connection) => {
+  Object.defineProperty(navigator, 'connection', { value: connection, configurable: true });
+  try {
+    const option = await openSuggestions('100 Main');
+    act(() => option.dispatchEvent(new PointerEvent('pointerover', { bubbles: true })));
+    act(() => option.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+    expect(preparedLookup).not.toHaveBeenCalled();
+    lookupRequest.mockResolvedValue(found(shownRow().matchedAddress));
+    act(() => option.click());
+    await settle();
+    expect(lookupRequest).toHaveBeenLastCalledWith(
+      { latitude: 44.97, longitude: -93.26, selectedAddress: shownRow().matchedAddress },
+      expect.anything(),
+    );
+  } finally {
+    delete (navigator as { connection?: unknown }).connection;
+  }
+});
+it.each([
+  [
+    new ApiError(404, 'disagree', 'representative-lookup-ambiguous-location'),
+    'We couldn’t safely identify your districts from this address',
+    'Check your full street address, or choose where you live on the map',
+  ],
+  [
+    new ApiError(502, 'map unavailable', 'representative-lookup-upstream-error'),
+    'Lookup unavailable right now',
+    'Try again later',
+  ],
+])(
+  'names disagreeing districts separately from a source failure',
+  async (error, field_, answer) => {
+    lookupRequest.mockRejectedValue(error);
+    type(firstAddress);
+    await submit();
+    expect(host.textContent).toContain(field_);
+    expect(host.textContent).toContain(answer);
+    expect(host.textContent).not.toContain('No match for that address');
+  },
+);
