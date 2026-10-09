@@ -93,6 +93,16 @@ The legislator finder keeps its coordinate-to-district lookup and map.
   help line below the divider and **Change address** prints none. Integrated the
   renamed shared source connection (pull request 2571). Unit parsing scans text in a
   single pass, clearing 3 slow-pattern security alerts.
-- [ ] 6 Browser checks pass in Chromium and WebKit at 1280, 900, 390, 320 and 200%
-  zoom (`apps/frontend/scripts/check-candidate-location.mjs`); the open suggestion
-  list was found under the outline and fixed. Independent review and release pending
+- [x] 6 Browser checks pass in Chromium and WebKit at 1280, 900, 390, 320 and 200%
+  zoom (`apps/frontend/scripts/check-candidate-location.mjs`, also run in CI); the open
+  suggestion list was found under the outline and fixed. Released in
+  [pull request 2574](https://github.com/alethical-org/alethical/pull/2574) (merge
+  `7ea6666e`). Live on 9 October in Chromium and WebKit at 1280, 900 and 390, using
+  Duluth City Hall as a fixed public test location: entry Find 150 × 60 and Use my
+  location 200 × 60; the confirmation suggested `411 W 1ST ST, DULUTH, MN 55802`, Enter
+  confirmed it and the official results loaded; no position or address appeared in any
+  request address; blocked permission kept the typed text; **Change address** Find kept
+  a 9px magnifier gap (8.5 to 9 while busy, within half a pixel of rounding), a 3px left
+  nudge and an unchanged 52px box in ready and busy states with 1-line and 3-line
+  addresses; `/find-my-legislator` Find 150px with the same gap and nudge; the Privacy
+  Policy carries the location sentence.
