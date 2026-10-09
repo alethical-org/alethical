@@ -35,7 +35,7 @@ import {
 } from '../lib/moneyByRaceReads';
 import type { SourceBlock } from '../lib/billText';
 import type { SiteMetricEventName } from '../lib/traffic';
-import { contactEmail, senateProfileUrl } from '../lib/findMyLegislator';
+import { contactEmail, senateProfileUrl } from '../lib/legislatorContact';
 import { LEGISLATOR_ROSTER_LIMIT } from '../lib/directoryPagination';
 import { META_READ_PATH, policyAreasReadPath, SESSIONS_READ_PATH } from '../lib/searchPageReads';
 import { servedClaimAgeMs } from '../lib/currentClaimFreshness';

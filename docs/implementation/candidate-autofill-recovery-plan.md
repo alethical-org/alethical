@@ -502,6 +502,13 @@ Release preparation (9 October 2026):
   Full local product suites passed before these release-only changes; inventory
   failures caused by the new files are corrected. Current-head checks remain the
   merge condition.
+- The hosted website preview exceeded its first-download budget by 173 bytes.
+  Contact links in the shared API pulled in the whole address-finder helper module.
+  Moving those 2 contact helpers to their own small module preserves public imports
+  and keeps address-entry and district-error code with finder screens. A local
+  settings-less export passes at 296,154 bytes against the unchanged 297,506 limit;
+  hosted preview and production must pass their own measurements. Contact and
+  address-lookup tests pass; live contact links remain part of final acceptance.
 
 Next step: publish the reviewed default-off release; then establish Railway capacity
 and charges before setting `ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED`, tracked in
