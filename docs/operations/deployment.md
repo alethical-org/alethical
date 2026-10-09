@@ -158,7 +158,8 @@ to start a build with less than 3 GB free. A new container starts with no copy, 
 release downloads the file once more and suggestions use the live service until that
 build finishes.
 
-Before activation:
+Before activation, tracked in
+[issue 2585](https://github.com/alethical-org/alethical/issues/2585):
 
 1. Establish the Railway service's actual free disk in its running container,
    memory headroom, process count (`WEB_CONCURRENCY` or `--workers`), and whether the

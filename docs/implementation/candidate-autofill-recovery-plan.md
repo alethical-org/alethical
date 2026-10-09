@@ -450,4 +450,5 @@ match for that address** message. Whether that case deserves its own wording is 
 for Codex to raise; the existing copy is used meanwhile.
 
 Next step: Codex independent acceptance; then establish Railway capacity and charges
-before setting `ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED`.
+before setting `ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED`, tracked in
+[issue 2585](https://github.com/alethical-org/alethical/issues/2585).
