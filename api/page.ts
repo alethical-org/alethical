@@ -168,7 +168,10 @@ import {
   publicPageUrl,
   type PageMetadata,
 } from "../apps/frontend/src/lib/share";
-import { STATIC_PAGE_METADATA } from "../apps/frontend/src/lib/staticPageMetadata";
+import {
+  STATIC_PAGE_METADATA,
+  candidateFeaturesPageMetadata,
+} from "../apps/frontend/src/lib/staticPageMetadata";
 import { candidateFeaturesPageSnapshot } from "../apps/frontend/src/lib/candidateFeatures";
 import { researchPageMetadata } from "../apps/frontend/src/lib/researchMetadata";
 import {
@@ -2160,9 +2163,14 @@ async function contentFor(
         snapshot: renderPageSnapshot(candidateLookupPageSnapshot()),
       };
     case "candidateFeatures":
-      // Public words only: no candidate name, claim state or account context.
+      // Public words only: no candidate name, claim state or account context. Any
+      // `candidate` parameter, valid or not, makes this a context view kept out of search.
       return {
-        metadata: STATIC_PAGE_METADATA["/candidates/features"],
+        metadata: candidateFeaturesPageMetadata({
+          candidateContext: new URLSearchParams(
+            pathWithQuery(query).split("?")[1] ?? "",
+          ).has("candidate"),
+        }),
         snapshot: renderPageSnapshot(candidateFeaturesPageSnapshot()),
       };
     case "personOverview": {

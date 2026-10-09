@@ -25,7 +25,7 @@ const COLLECTION_PAGE_ROWS =
  * adds one to the sitemap, and this stops failing on every publish for a reason
  * that is not a defect.
  */
-const FIXED_PAGE_ROWS = 18 + (PUBLISHED_EVENTS.length ? 1 : 0) + PUBLISHED_EVENTS.length;
+const FIXED_PAGE_ROWS = 19 + (PUBLISHED_EVENTS.length ? 1 : 0) + PUBLISHED_EVENTS.length;
 /** The numbered directory rows the live counts add: 2 for bills, 1 for
  *  legislators, 2 for the register of campaign committees. */
 const DIRECTORY_PAGE_ROWS = 5;
@@ -121,8 +121,9 @@ describe('sitemap endpoint', () => {
     }
     for (const item of IA.filter((item) => item.availability === 'roadmap'))
       expect(body).not.toContain(`<loc>https://www.alethical.com${item.path}</loc>`);
-    // Held candidate records are not a complete statewide address-free directory.
-    expect(body).not.toMatch(/<loc>[^<]*\/candidates\//);
+    // Held candidate records are not a complete statewide address-free directory. The
+    // features page is a fixed public page, not a candidate record.
+    expect(body).not.toMatch(/<loc>[^<]*\/candidates\/(?!features<)/);
   });
 
   it('lists fixed pages plus every numbered directory page from current record counts', async () => {
@@ -151,6 +152,7 @@ describe('sitemap endpoint', () => {
       '/legislators',
       '/find-my-legislator',
       '/candidates',
+      '/candidates/features',
       '/money',
       '/money/lobbying',
       '/money/lobbying/principals',
@@ -166,6 +168,7 @@ describe('sitemap endpoint', () => {
       expect(body).toContain(`<loc>https://www.alethical.com${path}</loc>`);
     }
     expect(body).not.toContain('<loc>https://www.alethical.com/site-metrics</loc>');
+    expect(body).not.toContain('/candidates/features?');
     expect(body).toContain('<loc>https://www.alethical.com/bills?page=2</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/bills?page=3</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/legislators?page=2</loc>');

@@ -9,6 +9,22 @@ import {
   type PageMetadata,
 } from './share';
 
+/** /candidates/features. The bare address is indexed with its canonical; an address carrying
+ * `?candidate=` is a claim-step context view of the same words, so like a filtered address it is
+ * kept out of search with no canonical. Neither ever names the candidate. */
+export function candidateFeaturesPageMetadata(
+  options: { candidateContext?: boolean } = {},
+): PageMetadata {
+  return pageMetadata({
+    title: titleFor('Candidate profile features'),
+    socialTitle: 'Candidate profile features',
+    description:
+      'What a claimed candidate profile will offer campaigns and voters. Every feature listed is on the roadmap.',
+    canonicalPath: options.candidateContext ? '' : '/candidates/features',
+    noindex: options.candidateContext,
+  });
+}
+
 /** Pages whose wording never varies. */
 export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
   // The campaign money landing (public, no sign-in gate). The description may
@@ -78,16 +94,9 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
       'Enter a Minnesota street address to see source-backed candidates for state and local offices.',
     canonicalPath: '/candidates',
   }),
-  // Every feature on this page is on the roadmap; it stays out of search results
-  // until a feature it describes is available.
-  '/candidates/features': pageMetadata({
-    title: titleFor('Candidate profile features'),
-    socialTitle: 'Candidate profile features',
-    description:
-      'What a claimed candidate profile will offer campaigns and voters. Every feature listed is on the roadmap.',
-    canonicalPath: '/candidates/features',
-    noindex: true,
-  }),
+  // An ordinary public page: its own label and this description say every feature is on
+  // the roadmap. The address carrying a candidate is a context view; see below.
+  '/candidates/features': candidateFeaturesPageMetadata(),
   '/find-my-legislator': pageMetadata({
     title: titleFor('Find my legislator'),
     socialTitle: 'Find my legislator',

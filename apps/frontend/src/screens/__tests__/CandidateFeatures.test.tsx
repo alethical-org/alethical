@@ -106,3 +106,12 @@ it('falls back to a direct visit when the candidate cannot be confirmed', async 
   expect(host.textContent).not.toContain('Continue claiming this candidate profile');
   expect(host.textContent).toContain('Find candidates');
 });
+it('offers no claim to continue once the election has ended, while Go back still returns to the claim step', async () => {
+  mocks.getProfile.mockResolvedValue({ ...record, electionEnded: true });
+  await render(id);
+  expect(host.textContent).not.toContain('Continue claiming this candidate profile');
+  expect(host.textContent).not.toContain('Example Person A');
+  expect(host.querySelector('a[aria-label="Go back"]')?.getAttribute('href')).toBe(
+    `/candidates/${id}/claim`,
+  );
+});

@@ -1371,3 +1371,135 @@ it('asks before saving an emptied public statement, because that removes it', as
   expect(mocks.save).not.toHaveBeenCalled();
   expect(mocks.remove).not.toHaveBeenCalled();
 });
+it('asks again before Try again saves an emptied statement, and sends nothing', async () => {
+  mocks.save.mockRejectedValueOnce(new Error('Lost response'));
+  manage();
+  await flush();
+  edit('Campaign statement', 'My edited campaign words');
+  act(() => button('Save changes').click());
+  await flush();
+  expect(host.textContent).toContain('We couldn’t complete this request');
+  edit('Campaign statement', '');
+  act(() => button('Try again').click());
+  await flush();
+  expect(host.querySelector('dialog')?.getAttribute('aria-label')).toBe(
+    'Remove your statement from the public profile?',
+  );
+  expect(mocks.save).toHaveBeenCalledTimes(1);
+  expect(mocks.remove).not.toHaveBeenCalled();
+});
+it('never lets Try again overwrite or remove a statement saved somewhere else', async () => {
+  mocks.save.mockRejectedValueOnce(Object.assign(new Error('Changed'), { status: 409 }));
+  manage();
+  await flush();
+  edit('Campaign statement', 'My edited campaign words');
+  act(() => button('Save changes').click());
+  await flush();
+  expect(mocks.save.mock.calls[0][2]).toMatchObject({ expected_version: 2 });
+  mocks.privateStatement.mockResolvedValue({
+    account_id: 'account-a',
+    statement: { body: 'Words saved in another tab', updated_at: '2026-10-01', version: 3 },
+    history: [],
+  });
+  act(() => button('Try again').click());
+  await flush();
+  expect(mocks.save).toHaveBeenCalledTimes(1);
+  expect(host.textContent).not.toContain('We couldn’t complete this request');
+  expect(host.textContent).not.toContain('Changes saved');
+  expect(host.querySelector<HTMLTextAreaElement>('[aria-label="Campaign statement"]')!.value).toBe(
+    'My edited campaign words',
+  );
+  expect(button('Save changes')).toBeDefined();
+  // A later Save is the owner's own choice, made against the version they now hold.
+  act(() => button('Save changes').click());
+  await flush();
+  expect(mocks.save.mock.calls[1][2]).toMatchObject({
+    body: 'My edited campaign words',
+    expected_version: 3,
+  });
+});
+it('dates statement history in Minnesota time, like the line under the editor', async () => {
+  mocks.privateStatement.mockResolvedValue({
+    account_id: 'account-a',
+    statement: { body: 'Current campaign words', updated_at: '2026-10-03T02:00:00Z', version: 2 },
+    history: [
+      {
+        id: 'revision-a',
+        action: 'published',
+        body: 'Current campaign words',
+        created_at: '2026-10-03T02:00:00Z',
+      },
+    ],
+  });
+  manage();
+  await flush();
+  expect(host.textContent).toContain('Statement saved · October 2, 2026');
+  expect(host.textContent).not.toContain('October 3, 2026');
+});
+it('ignores a slower earlier eligibility read that finishes after a submit', async () => {
+  const eligible = {
+    account_id: 'account-a',
+    claims: [],
+    request_eligibility: { allowed: true, reason: null },
+  };
+  let finishSilent: (value: unknown) => void = () => undefined;
+  mocks.mine
+    .mockResolvedValueOnce(eligible)
+    .mockImplementationOnce(() => new Promise((resolve) => (finishSilent = resolve)))
+    .mockResolvedValue({ account_id: 'account-a', claims: [{ ...approved, status: 'pending' }] });
+  mocks.apply.mockResolvedValue({});
+  const claimPage = () =>
+    act(() =>
+      root.render(<CandidateClaimScreen navigation={navigation as never} route={route as never} />),
+    );
+  claimPage();
+  await flush();
+  // Away and back (such as /candidates/features): a silent recheck starts and is slow.
+  mocks.focused = false;
+  claimPage();
+  mocks.focused = true;
+  claimPage();
+  await flush();
+  expect(mocks.mine).toHaveBeenCalledTimes(2);
+  act(() => host.querySelector<HTMLInputElement>('input[type="radio"]')!.click());
+  edit('Link to a campaign website or official record', 'https://example.org/campaign');
+  edit(
+    'Explain your role and how Alethical can confirm it',
+    'I am authorized to represent this campaign',
+  );
+  act(() => button('Submit profile claim request').click());
+  await flush();
+  expect(host.querySelector('[aria-level="1"]')?.textContent).toBe(
+    'Profile claim request received',
+  );
+  await act(async () => finishSilent(eligible));
+  await flush();
+  expect(host.querySelector('[aria-level="1"]')?.textContent).toBe(
+    'Profile claim request received',
+  );
+  expect(button('Submit profile claim request')).toBeUndefined();
+});
+it('brings back unsent answers when another review is requested again', async () => {
+  mocks.mine.mockResolvedValue({
+    account_id: 'account-a',
+    claims: [{ ...approved, status: 'rejected', can_manage: false, can_request_review: true }],
+    request_eligibility: { allowed: true, reason: null },
+  });
+  const claimPage = () =>
+    act(() =>
+      root.render(<CandidateClaimScreen navigation={navigation as never} route={route as never} />),
+    );
+  claimPage();
+  await flush();
+  act(() => button('Request another review').click());
+  edit('Link to a campaign website or official record', 'https://example.org/again');
+  act(() => root.render(<div />));
+  claimPage();
+  await flush();
+  act(() => button('Request another review').click());
+  expect(
+    host.querySelector<HTMLInputElement>(
+      '[aria-label="Link to a campaign website or official record"]',
+    )!.value,
+  ).toBe('https://example.org/again');
+});

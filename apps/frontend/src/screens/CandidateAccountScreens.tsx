@@ -24,7 +24,6 @@ import {
   CandidateButton,
   CandidateLink,
   CandidateNotice,
-  candidateDate,
   candidateText,
   safeCandidateUrl,
 } from '../components/candidates/CandidateControls';
@@ -500,24 +499,28 @@ function ClaimForm({
     current?.election_ended ?? (reason === 'election_ended' || record.electionEnded === true);
   const canRequest = response?.request_eligibility?.allowed === true;
   const sourceBlocked = reason === 'official_record_unavailable';
+  const loadSeq = useRef(0);
   const load = async (silent = false) => {
     const scope = signal();
+    // A slower earlier read (such as the silent recheck on return) never replaces a newer one.
+    const seq = ++loadSeq.current;
+    const latest = () => !scope.aborted && seq === loadSeq.current;
     if (!silent) {
       setLoading(true);
       setFailed(false);
     }
     try {
       const next = await getMyCandidateClaims(token, candidateId, scope);
-      if (!scope.aborted) {
+      if (latest()) {
         setResponse(next);
         if (!next.request_eligibility?.allowed) setFormOpen(false);
         setUnknown(null);
         setKnownError('');
       }
     } catch {
-      if (!scope.aborted && !silent) setFailed(true);
+      if (latest() && !silent) setFailed(true);
     } finally {
-      if (!scope.aborted && !silent) setLoading(false);
+      if (latest()) setLoading(false);
     }
   };
   useEffect(() => {
@@ -644,13 +647,9 @@ function ClaimForm({
       if (!scope.aborted) setBusy(null);
     }
   };
-  const openForm = () => {
-    setRole('');
-    setEvidence('');
-    setNote('');
-    setErrors({});
-    setFormOpen(true);
-  };
+  // Unsent answers for this account and candidate come back as they were left; a submitted
+  // request's answers were already cleared on success.
+  const openForm = () => setFormOpen(true);
   const publicLink = <PublicProfileLink candidateId={candidateId} onPublic={onPublic} />;
   const status = (content: ReactNode) => (
     <>
@@ -1089,6 +1088,9 @@ function ManageContent({
   const writing = useRef(false);
   const [busy, setBusy] = useState<WriteKind | 'checking' | 'withdraw' | null>(null);
   const [lastKind, setLastKind] = useState<WriteKind | null>(null);
+  // The statement version the failed write expected, so Try again can tell a lost
+  // response from a change saved somewhere else.
+  const failedVersion = useRef<number | null>(null);
   const [failure, setFailure] = useState<'load' | 'write' | 'give' | null>(null);
   const [fieldError, setFieldError] = useState<'empty' | 'over' | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1253,9 +1255,11 @@ function ManageContent({
     setLastKind(kind);
     setMessage('');
     setFailure(null);
+    const expected = loaded?.statement?.version ?? 0;
     try {
-      await send(kind, loaded?.statement?.version ?? 0);
+      await send(kind, expected);
     } catch (error) {
+      failedVersion.current = expected;
       if (!signal().aborted) failed(kind, error);
     } finally {
       writing.current = false;
@@ -1268,11 +1272,22 @@ function ManageContent({
     const scope = signal();
     writing.current = true;
     setBusy('checking');
+    let attempted: number | null = null;
     try {
       const fresh = await getPrivateCandidateStatement(token, claim.id, scope);
       if (scope.aborted) return;
       setLoaded(fresh);
       const saved = fresh.statement?.body ?? '';
+      const version = fresh.statement?.version ?? 0;
+      // Saved somewhere else since the failed write: never overwrite or remove what the
+      // owner has not seen. The editor keeps their text, now unsaved against the new state.
+      const changedElsewhere = () => {
+        if (failedVersion.current === null || version === failedVersion.current) return false;
+        setFailure(null);
+        setFieldError(null);
+        setMessage('');
+        return true;
+      };
       if (lastKind === 'remove') {
         if (!saved) {
           setFailure(null);
@@ -1280,8 +1295,10 @@ function ManageContent({
           setMessage('Statement removed');
           return;
         }
+        if (changedElsewhere()) return;
         setBusy('remove');
-        await send('remove', fresh.statement?.version ?? 0);
+        attempted = version;
+        await send('remove', version);
         setFailure(null);
         return;
       }
@@ -1291,7 +1308,15 @@ function ManageContent({
         setMessage(lastKind === 'publish' ? 'Statement published' : 'Changes saved');
         return;
       }
+      if (changedElsewhere()) return;
       const kind: WriteKind = saved ? 'save' : 'publish';
+      // The same checks as the first press: an emptied public statement asks before removal.
+      if (kind === 'save' && !draft.trim()) {
+        setFailure(null);
+        setFieldError(null);
+        setDialog('remove');
+        return;
+      }
       const invalid = check(kind, draft);
       setFieldError(invalid);
       if (invalid) {
@@ -1301,9 +1326,11 @@ function ManageContent({
       }
       setBusy(kind);
       setLastKind(kind);
-      await send(kind, fresh.statement?.version ?? 0);
+      attempted = version;
+      await send(kind, version);
       setFailure(null);
     } catch (error) {
+      if (attempted !== null) failedVersion.current = attempted;
       if (!scope.aborted) failed(lastKind, error);
     } finally {
       writing.current = false;
@@ -1828,7 +1855,7 @@ function ManageContent({
             <View key={revision.id} style={candidateAccountStyles.identity}>
               <Text style={candidateText.strong}>
                 {revision.action === 'removed' ? 'Statement removed' : 'Statement saved'} ·{' '}
-                {candidateDate(revision.created_at.slice(0, 10))}
+                {profileClaimDate(revision.created_at)}
               </Text>
               {revision.body ? <Text style={candidateText.body}>{revision.body}</Text> : null}
             </View>

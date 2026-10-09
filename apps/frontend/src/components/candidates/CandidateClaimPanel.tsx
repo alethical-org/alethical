@@ -18,12 +18,13 @@ import { CandidateButton, candidateText } from './CandidateControls';
 import { ProfileClaimButton } from './ProfileClaimButton';
 import type { CandidateProfileRecord } from './types';
 
-/** Statement card spacing per band. Bottom paddings follow Candidates profile.dc.html while
- * Design rules on the two drawings' disagreement; they are not an approved final choice. */
+/** Statement card spacing per band, as Design settled it for the public card and the manage
+ * preview: content area and white text box, each top / sides / bottom. The disclosure footer
+ * keeps 10px top and bottom with the content's side padding. */
 const STATEMENT_SPACING = {
-  computer: { top: 26, side: 28, bottom: 20, quote: [20, 22, 8], body: 17, heading: 21 },
-  tablet: { top: 24, side: 24, bottom: 18, quote: [18, 20, 6], body: 17, heading: 20 },
-  phone: { top: 20, side: 18, bottom: 16, quote: [16, 16, 4], body: 16, heading: 19 },
+  computer: { top: 26, side: 28, bottom: 24, quote: [20, 22, 20], body: 17, heading: 21 },
+  tablet: { top: 24, side: 24, bottom: 22, quote: [18, 20, 18], body: 17, heading: 20 },
+  phone: { top: 20, side: 18, bottom: 18, quote: [16, 16, 16], body: 16, heading: 19 },
 } as const;
 
 /** The campaign's own words first; one quiet line keeps what was checked and what was not. */
@@ -44,8 +45,8 @@ export function CandidateCampaignStatement({
   const narrow = width > 0 && width < 600;
   return (
     <View
-      role="region"
-      aria-labelledby="campaign-statement-heading"
+      role={preview ? undefined : 'region'}
+      aria-labelledby={preview ? undefined : 'campaign-statement-heading'}
       onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
       style={[styles.statement, preview && { marginTop: 0 }]}
     >

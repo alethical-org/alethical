@@ -152,6 +152,33 @@ async function box(control: Locator) {
   await control.scrollIntoViewIfNeeded();
   return (await control.boundingBox())!;
 }
+// Design's settled statement spacing, top / sides / bottom, for the content area and its white
+// text box; the disclosure footer keeps 10px top and bottom with the content's side padding.
+const statementSpacing = {
+  computer: { content: [26, 28, 24], quote: [20, 22, 20], footer: [10, 28] },
+  tablet: { content: [24, 24, 22], quote: [18, 20, 18], footer: [10, 24] },
+  phone: { content: [20, 18, 18], quote: [16, 16, 16], footer: [10, 18] },
+} as const;
+async function expectStatementSpacing(card: Locator, name: keyof typeof statementSpacing) {
+  const measured = await card.evaluate((element) => {
+    const [content, footer] = [...element.children] as HTMLElement[];
+    const quote = content.children[1] as HTMLElement;
+    const read = (node: HTMLElement) => {
+      const css = getComputedStyle(node);
+      return [css.paddingTop, css.paddingLeft, css.paddingRight, css.paddingBottom].map(parseFloat);
+    };
+    return { content: read(content), quote: read(quote), footer: read(footer) };
+  });
+  const want = statementSpacing[name];
+  expect(measured.content).toEqual([
+    want.content[0],
+    want.content[1],
+    want.content[1],
+    want.content[2],
+  ]);
+  expect(measured.quote).toEqual([want.quote[0], want.quote[1], want.quote[1], want.quote[2]]);
+  expect(measured.footer).toEqual([want.footer[0], want.footer[1], want.footer[1], want.footer[0]]);
+}
 async function doubleText(page: Page) {
   await page.evaluate(() => {
     // Controlled 200% text enlargement, not browser zoom or an OS text setting.
@@ -429,6 +456,14 @@ for (const band of bands) {
       await expect(page.getByRole('link', { name: 'View public profile' })).toBeVisible();
       const editor = page.getByRole('textbox', { name: 'Campaign statement' });
       expect((await box(editor)).height).toBeGreaterThanOrEqual(136);
+      const preview = page
+        .getByText('PREVIEW', { exact: true })
+        .locator('xpath=following-sibling::*[1]');
+      await expect(
+        preview.getByText(String(api.privateStatement.body), { exact: true }),
+      ).toBeVisible();
+      await expect(preview.getByRole('button', { name: 'Report this statement' })).toHaveCount(0);
+      await expectStatementSpacing(preview, band.name);
       await shot(page, `manage-published-${band.name}`);
       await editor.fill(`${'x'.repeat(1995)} and more`);
       await expect(page.getByRole('button', { name: 'Save changes' })).toBeVisible();
@@ -483,6 +518,10 @@ for (const band of bands) {
       await expect(
         page.getByRole('link', { name: 'Claim this candidate profile', exact: true }),
       ).toBeVisible();
+      await expectStatementSpacing(
+        page.getByRole('region', { name: 'Campaign statement' }),
+        band.name,
+      );
       await shot(page, `profile-statement-${band.name}`);
       await page.getByRole('button', { name: 'Report this statement' }).click();
       const dialog = page.getByRole('dialog', { name: 'Report this statement' });

@@ -185,7 +185,7 @@ export function CandidateFeaturesScreen({
                 {copy.intro}
               </Text>
             </View>
-            {record && claimPath ? (
+            {record && claimPath && !record.electionEnded ? (
               <View
                 style={[
                   styles.claimCard,
