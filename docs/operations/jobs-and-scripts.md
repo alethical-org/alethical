@@ -2,8 +2,8 @@
 
 <!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py, alethical/api/services/candidate_claim_email.py, alethical/api/main.py -->
 
-Net: The repository has 32 GitHub Actions workflows. 28 can start automatically
-and 4 run only when a person starts them. Scheduled checks, releases, and local
+Net: The repository has 34 GitHub Actions workflows. 28 can start automatically
+and 6 run only when a person starts them. Scheduled checks, releases, and local
 backups do not call paid AI services. Reader questions and deliberately started
 AI work do. The review of a failed campaign-money collection has a paid AI
 reviewer too, and its switch is off until its limits are approved.
@@ -61,10 +61,12 @@ Time and Central Daylight Time, so their local hour changes by 1 during the year
 
 ## What GitHub runs only by hand
 
-These 4 workflows complete the total of 32:
+These 6 workflows complete the total of 34:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |
+| `.github/workflows/address-copy-capacity.yml` | Read the existing Railway server’s capacity without exposing private logs | No paid AI call; bounded reads on the existing account |
+| `.github/workflows/address-copy-control.yml` | Switch copied address suggestions on after measured capacity and charges review, or restore live suggestions | No paid AI call or new resource; existing Railway deployment and hosting usage |
 | `.github/workflows/legislator-city-backfill.yml` | Preview or fill missing legislator residence cities | No paid AI call; reads public government sources and the database |
 | `.github/workflows/migrate.yml` | Apply database changes and check for structural drift when the normal Railway release path needs a fallback | No paid AI call; uses GitHub and the existing database service |
 | `.github/workflows/railway-deploy.yml` | Release the API when Railway's Git connection needs a fallback | No paid AI call; build and hosting usage stays on the existing Railway account |
@@ -75,7 +77,7 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 99 runnable files. GitHub jobs call 37 of them
+The `scripts/` folder has 101 runnable files. GitHub jobs call 40 of them
 directly and 3 document checks through `local_checks.py`. The 4 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`, which uses `worktree_inventory.py`
 for the complete folder report; the older shell command
@@ -98,6 +100,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Register approved jobs, record private activity and report outcomes | `agent_job_outcomes.py`, `agent_job_events.py` |
 | Read current completion sources and retain a private receipt | `check_agent_job_completion.py` |
 | Install pinned local coding hooks while preserving other settings | `install_agent_job_hooks.py` |
+| Read the current address-copy host capacity or safely switch the copy on or off | `address_copy_capacity.py`, `address_copy_control.py` |
 | Recover 1 proven missed website release with saved evidence | `website_release_recovery.py` |
 | Measure AI answers and search | `answer_eval.py`, `graph_retrieval_eval.py`, `retrieval_eval.py`, `try_queries.py`, `validate_query_rubric.py` |
 | Compare printed-name search offline without paid calls or live changes | `benchmark_campaign_finance_name_search.py` |

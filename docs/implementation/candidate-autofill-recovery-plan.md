@@ -477,6 +477,32 @@ Design record: no visual change. Settled wording and behavior for Design's build
 - Candidate **Find** button: no purple focus ring after a mouse, pen or touch search;
   the ring shows after a keyboard search and on later keyboard visits.
 
-Next step: Codex independent acceptance; then establish Railway capacity and charges
-before setting `ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED`, tracked in
+Product corrections passed independent code and browser acceptance. Codex owns the
+remaining release, capacity and charges check, activation and fresh-context live
+review. Claude's product-writing lane is complete and its preview remains available.
+The working folder and branch stay retained for follow-up.
+
+Release preparation (9 October 2026):
+
+- Added manual-only capacity reads and a bounded on/off control using the existing
+  Railway project token. Activation requires exactly 1 measured production instance,
+  fresh capacity and memory facts, no competing deployment and the reviewed live
+  commit. Unknown facts refuse activation. Failed on attempts restore off where
+  ownership remains clear; outputs expose only allowlisted host facts and fixed
+  statuses. Neither workflow creates resources or runs on a schedule.
+- The control's 49 focused tests cover privacy, stale and unknown facts, another
+  operator's deployment, uncertain flag writes, rollback and a delayed first build.
+  Production activation time remains unmeasured until the actual operation.
+- Docker Hub refused the backend check twice before tests could start. GitHub's
+  fresh runner now configures Google's public cache before starting the same
+  disposable PostgreSQL image. Matching public image manifests establish unchanged
+  database contents. Cache misses still use Docker Hub; final-head CI must exercise
+  the runner setup. Local and shared development databases remain untouched.
+- The scripts and manual workflow inventory now includes both new operations.
+  Full local product suites passed before these release-only changes; inventory
+  failures caused by the new files are corrected. Current-head checks remain the
+  merge condition.
+
+Next step: publish the reviewed default-off release; then establish Railway capacity
+and charges before setting `ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED`, tracked in
 [issue 2585](https://github.com/alethical-org/alethical/issues/2585).

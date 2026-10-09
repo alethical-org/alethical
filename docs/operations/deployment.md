@@ -168,6 +168,37 @@ read without arguments or environment). Any fact the host cannot report is `null
 A start on a Mac printed
 `ADDRESS_COPY_CAPACITY {"api_process_count": null, "cgroup_current_bytes": null, "cgroup_max_bytes": null, "enabled": false, "free_bytes": 394287038464}`.
 
+The manual-only [Address copy capacity workflow](../../.github/workflows/address-copy-capacity.yml)
+uses the existing project token to read the exact `alethical` production
+`alethical-api` service. Its report contains plan, configured replicas, active
+deployment and running-instance IDs, sampled resource usage, and the filtered startup
+capacity line. Raw provider replies, other log lines, commands and environment
+values remain private. Unknown values remain `null`; sampled disk usage does not
+prove free disk. A startup line describes only its container at its dated start.
+
+The manual-only [Address copy control workflow](../../.github/workflows/address-copy-control.yml)
+accepts `enabled` (default `false`) and `release_commit` (the reviewed live API's
+40-character commit). Before turning on, it requires a Hobby or Pro plan, 1 configured
+replica, exactly 1 active deployment and running instance, the repository start
+command, a fresh off-state capacity line with 1 API-program process and at least
+3 GB free, and at least 256 MiB memory headroom above the higher of startup usage
+and that instance's observed usage peak. Missing, stale or conflicting facts refuse
+activation. Establish applicable charges separately; the automated gate cannot
+prove the account's invoice or authorize a new resource.
+
+The control changes only `ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED`, without
+starting an automatic deployment, then redeploys the exact reviewed deployment.
+It uses the public Railway origin (`https://alethical-api-production.up.railway.app`)
+to require the same release, ready status and a fresh startup line with the requested
+switch. Turning on also requires the known `350 5th Street South, Minneapolis, MN
+55415` suggestion to carry `requires_location_check: true`. The first 8 minutes
+include checks, deployment, download and building; 6 minutes remain for restoring
+off within the 15-minute workflow. These are safety budgets, not measured production
+activation times. A failed or uncertain on attempt saves `false` and redeploys the
+reviewed version unless another operator has replaced it; the result distinguishes
+confirmed off from an unconfirmed deployment or flag. Both workflows preserve
+the existing production-deployment queue and never create resources.
+
 Before activation, tracked in
 [issue 2585](https://github.com/alethical-org/alethical/issues/2585):
 
@@ -177,7 +208,8 @@ Before activation, tracked in
    1.06 GB per release and per 12 hours. Do not assume these from another service or plan. A persistent volume would
    avoid downloading on every release but is a new paid resource needing its own
    approval.
-2. Set the flag to `true` in Railway and change its row in
+2. Run the Address copy control workflow with `enabled=true` and the reviewed live
+   release commit. Change the flag's row in
    [repo-and-service-settings.md § Railway environment variables](repo-and-service-settings.md#railway-environment-variables)
    to Present in the same change.
 3. After the release finishes and the copy has had time to build, send a public
@@ -187,8 +219,9 @@ Before activation, tracked in
 4. Choose that suggestion on `/find-my-legislator` and confirm the request carries
    `selected_address` and the result shows the expected districts.
 
-Removing the flag or setting it to `false` stops copy reads at the next release; the
-live service answers again with no data change. The copy never holds reader input.
+Run the Address copy control workflow with `enabled=false` and the reviewed live
+release commit to stop copy reads through a confirmed redeployment. The live service
+answers again with no data change. The copy never holds reader input.
 
 ### Answer generation and error reporting
 

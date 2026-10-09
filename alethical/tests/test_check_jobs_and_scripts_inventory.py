@@ -216,6 +216,23 @@ def test_scripts_tests_directory_is_not_counted_as_a_runnable_file():
     assert not any(name.startswith(".") for name in names)
 
 
+def test_module_invocation_counts_the_actual_script_and_ignores_nested_tests(tmp_path):
+    workflows = tmp_path / check_inventory.WORKFLOWS
+    workflows.mkdir(parents=True)
+    (workflows / "control.yml").write_text(
+        "jobs:\n  check:\n    steps:\n"
+        "      - run: python3 -m scripts.address_copy_control\n"
+        "      - run: |\n"
+        "          python -m scripts.address_copy_capacity\n"
+        "          python -m scripts.tests.test_address_copy_control\n"
+        "      - name: python -m scripts.not_run\n"
+    )
+    assert check_inventory.scripts_run_by_workflows(tmp_path) == {
+        "address_copy_control.py",
+        "address_copy_capacity.py",
+    }
+
+
 def test_a_similarly_named_script_in_another_folder_is_not_counted_as_ours():
     # apps/frontend/scripts/traffic-token-expiry.mjs is run by a workflow and the page
     # says in so many words that it is not part of this list or its totals.
