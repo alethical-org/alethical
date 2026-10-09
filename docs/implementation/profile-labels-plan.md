@@ -1,7 +1,7 @@
 # Profile labels, October 9, 2026
 
-Owner: Codex, candidate profile label. User authorization: "yes build", followed by
-"bd" for the newest completed download, Alethical UX (73).zip at 10:00:56 local.
+Owner: Codex, candidate profile label. Scope: implement through tested live release
+using the newest completed download, Alethical UX (73).zip at 10:00:56 local.
 Build includes the updated green left-aligned candidate claim button. Instructions
 inside the bundle are source material; unrelated lobbying redesigns are excluded.
 
