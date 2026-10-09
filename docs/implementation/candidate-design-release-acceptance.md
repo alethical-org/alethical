@@ -2,15 +2,15 @@
 
 ## Candidate profile return link, October 9, 2026
 
-Eugene approved the standard grey “Go back” control for public candidate profiles,
-replacing the candidate-specific green “Back to candidates” and “Find my candidates”
-links. The green right arrow on a directly opened profile suggested moving onward
-in the slot used for return navigation. A normal click returns to a prior Alethical page in this browser tab when
+Public candidate profiles use the standard grey “Go back” control. Candidate-specific
+green “Back to candidates” and “Find my candidates” links do not occupy the return slot.
+A green right arrow suggests moving onward in the slot used for return navigation.
+A normal click returns to a prior Alethical page in this browser tab when
 available; otherwise `/candidates` is the safe destination. Apply the same control
 to loading and error states and the initial page snapshot. Keep search results and
 its address, election, open groups, and scroll position when returning from a
 search, and check that behavior in the working browser before reporting it.
-This decision replaces P02's earlier labels and the old direct-profile journey below.
+P02 and the direct-profile journey below specify this same return behavior.
 The local browser's illustrative search retained the address, election, results,
 closed county group and 500px scroll position on return. A direct profile visit
 followed the fallback on desktop and phone; the phone link measured 44px tall.
