@@ -129,6 +129,8 @@ The legislator finder keeps its coordinate-to-district lookup and map.
   leading word, so `Apt 2.50` beside `Apt #250`, or `Floor 250` beside `#250`, was
   silently dropped as the same unit. The card now treats 2 units as the same only
   when both parse completely under the service's single-unit grammar with the same
-  value and the street's unit ends at a comma, the state and ZIP or the end; it
+  value, the card repeats the street's label or gives only the number, and the
+  street's unit is a whole word ending at a comma, the state and ZIP or the end; it
   ignores only the dot or `#` after a supported label and keeps everything else for
-  the official match to refuse.
+  the official match to refuse. The independent review found that `Unit#250` or
+  `Floor #250` in the street still swallowed a labelled card unit; both are now kept.
