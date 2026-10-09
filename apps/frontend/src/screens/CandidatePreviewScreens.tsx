@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, Text, View, StyleSheet, useWindowDimensions } from 'react-native';
+import { Platform, ScrollView, Text, View, StyleSheet, useWindowDimensions } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useResponsive } from '../hooks/useResponsive';
 import type { CandidateFlow } from '../components/candidates/candidateFlow';
@@ -123,6 +123,7 @@ function PreviewFrame({
     <PageBackground candidateSurface>
       <ScrollView
         ref={scroll}
+        style={search && Platform.OS === 'web' ? ({ overflowAnchor: 'none' } as object) : undefined}
         contentContainerStyle={{ flexGrow: 1 }}
         scrollEventThrottle={100}
         onScroll={

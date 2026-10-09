@@ -28,6 +28,20 @@ The local browser's illustrative search retained the address, election, results,
 closed county group and 500px scroll position on return. A direct profile visit
 followed the fallback on desktop and phone; the phone link measured 44px tall.
 
+Live phone acceptance exposed browser scroll anchoring moving returned results
+114px after the explicit saved-position restore. The same link moved from y400
+to y286 at 390px width. Disabling anchoring in the actual browser preserved both
+the 481px scroll position and y400 link position. Candidate results therefore
+disable browser scroll anchoring on their own ScrollView, as the legislator
+lookup already does. Preserve native scrolling and the approved visual treatment.
+The rendered `check-candidate-return.mjs` regression exercises a collapsed group,
+profile visit and return at desktop, tablet and phone widths with fixed public
+sample records. It compares the same link's position, complete result text and
+group states. CI runs it against the production build; live acceptance repeats
+the phone touch journey. The production-build check passes with the correction;
+reenabling browser anchoring reproduces the same 114px phone shift and fails the
+position assertion. Physical-device behavior remains outside emulated checks.
+
 ## Partial address suggestion match, October 8, 2026
 
 Authorized target: the supplied screenshot `Screenshot 2026-10-08 at 4.05.57 AM.jpg`
