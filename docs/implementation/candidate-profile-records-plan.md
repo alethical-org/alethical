@@ -281,13 +281,15 @@ Scope delivered in this round:
    out of search with no canonical.
 2. Claim page: introduction, sign-in return, human-review form wording, per-length
    explanation errors, in-memory answers bound to account and candidate (handed once to the
-   tab opened from a claim page link with the browser's new-tab gesture, matched by a
-   one-time code in the address fragment and sent over the same-site tab channel only), receipt with the server's latest submission date and the
+   exact tab the page itself opens on a Ctrl/Cmd-click or middle click of a claim page link,
+   by direct same-site message to that window only; the browser's link menu and Shift-click
+   hand over nothing), receipt with the server's latest submission date and the
    saved explanation exactly as stored, and every status state.
 3. Manage page: new layout and wording, live count, publication date under the editor,
    Save changes only after an edit, write checks on every path, read-before-retry that
    first rechecks access and never overwrites a statement saved elsewhere (it explains the
-   change and shows the published statement), and equal-width dialogs.
+   change in one recovery group with the current public statement), and stacked
+   confirmation dialogs as Design settled them.
 4. Public statement card with Design's settled spacing, failure retry and report dialog
    with the updated-statement panel; first publication and latest edit derived from
    revision history (no schema change); a first publication is dated only when that
@@ -298,8 +300,7 @@ Scope delivered in this round:
    alignment on the candidate profile.
 
 Held: an applicant-facing rejection reason (not approved intent; the private review note
-stays private), and the final visual treatment of the dialogs' equal button heights and of
-the changed-elsewhere notice, which Design is resolving; both are built provisionally.
+stays private).
 
 Verification: focused backend and frontend suites, the full frontend suite, and rendered
 Chromium and WebKit specs with fictional intercepted data at 1280, 900 and 390 pixels

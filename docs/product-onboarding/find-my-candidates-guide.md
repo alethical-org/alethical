@@ -547,18 +547,25 @@ proves campaign authority.
 Unsent answers are kept in memory for the same signed-in account and candidate, so a trip
 to another page in the same tab returns the claim step as it was left. They are never
 written to browser storage or an address, and any account change clears them. Reopening
-the form after a decision or a withdrawal brings back unsent answers too. Opening a
-link to that candidate's claim page in a new tab or window with the browser's own
-gesture (Ctrl- or Cmd-click, a middle click, Shift-click, or the link's menu) adds a
-random one-time code to that link's address after the `#` sign, a part browsers never send
-to a server. The opened claim page removes the code from its address at once and uses it,
-within 2 minutes, to ask the original tab for the answers over the browser's same-site
-tab channel; only the tab holding that code answers, once, for the same account and
-candidate. The code carries no answers and works once. The new tab accepts the answers
-only while still signed in to that account with an empty, untouched form, and the original
-tab keeps its own copy. A tab opened any other way, including after the link's menu was
-opened and dismissed, starts empty. `/candidates/features` takes no part: the only link
-to it is on the signed-out claim page, where there are no answers to hand over.
+the form after a decision or a withdrawal brings back unsent answers too. Answers held only in memory are lost when the page fully reloads, for example **Go back**
+on a claim page opened directly, with no earlier page in that tab.
+
+Ctrl- or Cmd-clicking, or middle-clicking, a link to that candidate's claim page while
+the tab holds answers for it opens the public claim address in a new tab from the page
+itself, which keeps that one window only in its own memory. Once the new tab's claim form
+has loaded, is signed in to the same account, can request and is still empty, it asks the
+tab that opened it directly. That tab answers only a same-site message from that exact
+window, once, within 2 minutes, and sends the answers to that window alone; no code or
+answer goes into an address, storage, history, the window name or a server. A form already
+typed in keeps what was typed. If the browser refuses to open the tab, the reader moves to
+the claim page in the same tab, where the answers already are. The original tab always
+keeps its answers. Without held answers, every gesture behaves as the browser's own.
+
+The browser's own link menu (**Open link in new tab**) and Shift-click (new window) tell
+the page neither the chosen command nor the window they open, so those tabs start empty,
+as do a copied address, a typed address and any tab opened after the link menu was
+dismissed. `/candidates/features` takes no part: the only link to it is on the signed-out
+claim page, where there are no answers to hand over.
 
 A saved pending request shows a receipt: **Profile claim request received**, an
 explanation that an Alethical team member reviews it and may contact the applicant,
@@ -659,10 +666,14 @@ action and only if it is still needed; a failed removal is retried as a removal,
 a save, and the owner's text is never changed. **Try again** first confirms the account still manages the profile; if access has ended,
 the page shows the current access state, clears the editor and sends nothing, and a write
 refused for lost access does the same. If the statement was saved somewhere else since the
-failed attempt, **Try again** sends nothing and says "The published statement changed
-elsewhere. Your changes are still here and have not been saved.", shows the statement voters
-now see, and keeps the owner's text in the editor; only a fresh **Save changes** replaces
-the published statement. Preview shows the public card, with the same spacing, without the
+failed attempt, **Try again** sends nothing. An amber group appears above the editor with
+"The published statement changed elsewhere. Your changes are still here and have not been
+saved." and a white box headed **Current public statement** showing that statement's own
+**Published** or **Edited** date and its full text, or "No statement is currently published"
+after a removal. The message takes focus. The owner's text stays in the editor, whose own
+date line is hidden while the group shows, and the group stays through further typing
+until a write is confirmed. Only a fresh **Save changes** or **Publish statement** writes,
+against the version shown; saving an emptied editor still asks before removal. Preview shows the public card, with the same spacing, without the
 report link. Campaign statements stay out of official-record answers and search material
 used by Grounded Ask. Private statement revisions remain available to the owner and
 authorized admin review.
@@ -682,7 +693,11 @@ a successful response with no statement shows nothing.
 
 An unsaved statement stays in the editor until publication or a confirmed edit;
 there is no saved unpublished-draft feature. Leaving through an in-app link or
-browser Back or Forward offers **Keep editing** and **Discard changes**. Keeping
+browser Back or Forward offers **Keep editing** and **Discard changes**. This dialog, the
+give-up dialog and the remove dialog stack their actions on every screen size, the safe
+choice first, full width and the same height; on a short visible screen (under 640 pixels,
+including when the on-screen keyboard is up) the dialog's words scroll on their own above
+the actions, and a give-up in progress disables both actions and Escape. Keeping
 the draft restores its text and keyboard focus. Closing or reloading the tab
 uses the browser's own warning. A never-published draft has no publication date,
 including in Preview. Clearing an existing published statement is an unsaved
