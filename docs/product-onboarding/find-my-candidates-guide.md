@@ -548,7 +548,11 @@ Unsent answers are kept in memory for the same signed-in account and candidate, 
 to another page in the same tab returns the claim step as it was left. They are never
 written to browser storage or an address, and any account change clears them. Reopening
 the form after a decision or a withdrawal brings back unsent answers too. Answers held only in memory are lost when the page fully reloads, for example **Go back**
-on a claim page opened directly, with no earlier page in that tab.
+on a claim page opened directly, with no earlier page in that tab. **Go back** on
+`/candidates/features` for a candidate never reloads: with no earlier page in the tab it
+returns to that claim step inside the app. A claim step that comes back into view shows
+exactly what the tab last kept for it, including changed messages, and is empty if those
+answers were emptied.
 
 On `/candidates/features` for a candidate, its 2 links back to that candidate's claim page
 (**Go back** and **Continue claiming this candidate profile**) can carry the answers to a
@@ -560,8 +564,9 @@ that candidate opens the public claim address in a new tab from the page itself,
 that one window only in its own memory. Once the new tab's claim form
 has loaded, is signed in to the same account, can request and is still empty, it asks the
 tab that opened it directly. That tab answers only a same-site message from that exact
-window, once, within 2 minutes, and sends the answers to that window alone; no code or
-answer goes into an address, storage, history, the window name or a server. A form already
+window, within 2 minutes, and sends the answers to that window alone until the new tab
+confirms it kept them; no code or answer goes into an address, storage, history, the window
+name or a server. A form already
 typed in keeps what was typed. If the browser refuses to open the tab, the reader moves to
 the claim page in the same tab, where the answers already are. The original tab always
 keeps its answers. Answers of any length, with their messages, pass unchanged. Without held
