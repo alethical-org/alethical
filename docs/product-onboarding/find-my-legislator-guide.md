@@ -42,9 +42,9 @@ street, direction and unit matching remain unchanged. Census and Minnesota addre
 requests reuse a connection within each server worker without retaining cookies,
 credentials, queries or responses.
 
-Suggestions can also come from Alethical's own copy of Minnesota's published address
-file. The copy stays off until the server switch
-(`ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED`) is turned on in production. When on, the
+Suggestions come from Alethical's own copy of Minnesota's published address
+file when a usable copy is available. The server switch
+(`ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED`) is on in production. The
 server downloads the whole public file every 12 hours, checks it before using it, and
 never uses a copy more than 24 hours after its download. Typing then gets suggestions
 from the copy without asking the state's service. A missing, expired or damaged copy,
