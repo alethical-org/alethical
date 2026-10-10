@@ -14,6 +14,7 @@ export function GoBackLink({
   mobile = false,
   outlined = false,
   pressedColor,
+  inAppWhenNoBack = false,
   style,
 }: {
   href: string;
@@ -22,6 +23,8 @@ export function GoBackLink({
   outlined?: boolean;
   /** Candidate and profile claim pages darken a pressed link to #000000. */
   pressedColor?: string;
+  /** With no prior entry in this tab, run onPress inside the app instead of a fresh load. */
+  inAppWhenNoBack?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const [hovered, setHovered] = useState(false);
@@ -31,7 +34,7 @@ export function GoBackLink({
 
   return (
     <Pressable
-      {...backLinkProps(href, onPress)}
+      {...backLinkProps(href, onPress, undefined, inAppWhenNoBack)}
       accessibilityLabel="Go back"
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}

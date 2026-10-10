@@ -115,3 +115,15 @@ it('offers no claim to continue once the election has ended, while Go back still
     `/candidates/${id}/claim`,
   );
 });
+
+it('returns to the claim step inside the app when Go back has no earlier page in this tab', async () => {
+  mocks.getProfile.mockResolvedValue(record);
+  await render(id);
+  const back = host.querySelector<HTMLAnchorElement>('a[aria-label="Go back"]')!;
+  const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+  act(() => {
+    back.dispatchEvent(event);
+  });
+  expect(event.defaultPrevented).toBe(true);
+  expect(navigation.navigate).toHaveBeenCalledWith('CandidateClaim', { candidateId: id });
+});

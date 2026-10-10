@@ -130,6 +130,9 @@ export function CandidateFeaturesScreen({
           >
             <GoBackLink
               href={claimPath ?? '/candidates'}
+              // Opened directly, there is no prior entry: return to the claim step in the app,
+              // where its unsent answers are held, rather than reloading and losing them.
+              inAppWhenNoBack={Boolean(record)}
               onPress={() => (record ? toClaim() : navigation.navigate('Candidates'))}
               mobile={isMobile}
               pressedColor="#000000"

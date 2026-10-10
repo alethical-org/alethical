@@ -878,7 +878,27 @@ test('signed-out claim, features, sign in there, answers typed, back to features
   await expect(page).toHaveURL(/\/candidates\/features\?candidate=/);
   const afterBack = await openedFrom(context, back.click(newTab));
   await expectClaimAnswers(afterBack, link, note);
+  // The ordinary Go back returns to the first claim page in this tab, which shows the answers.
+  await back.click();
+  await expectClaimAnswers(page, link, note);
   expect(api.writes).toHaveLength(0);
+});
+
+test('on a features page opened directly, both ordinary return links keep the answers in this tab', async ({
+  page,
+}) => {
+  await fixture(page);
+  await page.goto(`/candidates/features?candidate=${candidateId}`);
+  const link = 'https://example.org/direct';
+  const note = 'Illustrative: answers from a features page opened directly.';
+  const { back } = await typeFromFeatures(page, link, note, 'link');
+  // Nothing comes before the features page in this tab, so Go back stays inside the app.
+  await back.click();
+  await expectClaimAnswers(page, link, note);
+  await page.getByRole('link', { name: 'Go back' }).filter({ visible: true }).click();
+  await expect(page).toHaveURL(/\/candidates\/features\?candidate=/);
+  await page.getByRole('link', { name: continueName }).filter({ visible: true }).click();
+  await expectClaimAnswers(page, link, note);
 });
 
 test('2 tabs with answers for the same candidate each hand theirs only to the tab they open', async ({

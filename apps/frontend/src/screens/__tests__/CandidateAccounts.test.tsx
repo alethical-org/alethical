@@ -1808,3 +1808,65 @@ it('fills only the exact answers the transfer kept, never a copy replaced since'
   await flush();
   expect(fieldValue('Link to a campaign website or official record')).toBe('');
 });
+
+it('shows the answers this tab last kept when the claim step comes back into view', async () => {
+  mocks.mine.mockResolvedValue(eligibleList);
+  claimPage();
+  await flush();
+  expect(fieldValue('Link to a campaign website or official record')).toBe('');
+  // Another visit to the claim step in this tab keeps newer answers while this one is unseen.
+  mocks.focused = false;
+  claimPage();
+  saveProfileClaimDraft('account-a', id, handedOver);
+  mocks.focused = true;
+  claimPage();
+  await flush();
+  expect(fieldValue('Link to a campaign website or official record')).toBe(
+    'https://example.org/handed-over',
+  );
+  expect(fieldValue('Explain your role and how Alethical can confirm it')).toBe(
+    'Illustrative explanation typed in the opening tab',
+  );
+});
+
+it('takes changed messages for the same answers when the claim step comes back into view', async () => {
+  mocks.mine.mockResolvedValue(eligibleList);
+  saveProfileClaimDraft('account-a', id, handedOver);
+  claimPage();
+  await flush();
+  expect(host.textContent).not.toContain('Keep your explanation to 1900 characters or fewer');
+  mocks.focused = false;
+  claimPage();
+  saveProfileClaimDraft('account-a', id, {
+    ...handedOver,
+    errors: { explanation: 'Keep your explanation to 1900 characters or fewer' },
+  });
+  mocks.focused = true;
+  claimPage();
+  await flush();
+  expect(host.textContent).toContain('Keep your explanation to 1900 characters or fewer');
+});
+it('empties a waiting claim step when its answers were emptied elsewhere in this tab', async () => {
+  mocks.mine.mockResolvedValue(eligibleList);
+  saveProfileClaimDraft('account-a', id, {
+    ...handedOver,
+    errors: { link: 'Enter a valid public campaign or official-record web address' },
+  });
+  claimPage();
+  await flush();
+  expect(fieldValue('Link to a campaign website or official record')).toBe(
+    'https://example.org/handed-over',
+  );
+  mocks.focused = false;
+  claimPage();
+  // Another visit cleared every field; an empty form keeps nothing.
+  saveProfileClaimDraft('account-a', id, { role: '', link: '', explanation: '', errors: {} });
+  mocks.focused = true;
+  claimPage();
+  await flush();
+  expect(fieldValue('Link to a campaign website or official record')).toBe('');
+  expect(fieldValue('Explain your role and how Alethical can confirm it')).toBe('');
+  expect(host.textContent).not.toContain(
+    'Enter a valid public campaign or official-record web address',
+  );
+});

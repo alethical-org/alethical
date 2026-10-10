@@ -63,6 +63,7 @@ import {
   readProfileClaimDraft,
   requestProfileClaimDraftFromOpener,
   saveProfileClaimDraft,
+  type ProfileClaimDraft,
 } from '../lib/profileClaimDraft';
 import { useDocumentTitle } from '../navigation/documentTitle';
 import { GuardedNavigationContext } from '../navigation/GuardedNavigationContext';
@@ -444,6 +445,7 @@ function SubmittedInformation({ claim }: { claim: CandidateClaim }) {
     </View>
   );
 }
+const EMPTY_CLAIM_DRAFT: ProfileClaimDraft = { role: '', link: '', explanation: '', errors: {} };
 function ClaimForm({
   record,
   token,
@@ -577,6 +579,25 @@ function ClaimForm({
     if (!seenFocus.current) {
       seenFocus.current = true;
       return;
+    }
+    // Coming back to this claim step shows exactly what this tab last kept for it, which
+    // another visit to the claim step may have changed while this one waited unseen. Nothing
+    // kept means the answers were emptied (an empty form keeps nothing), so this one empties too.
+    const latest = readProfileClaimDraft(accountKey, candidateId) ?? EMPTY_CLAIM_DRAFT;
+    const now = live.current;
+    const errorsDiffer = (['role', 'link', 'explanation'] as const).some(
+      (name) => (latest.errors[name] ?? '') !== (now.errors[name] ?? ''),
+    );
+    if (
+      latest.role !== now.role ||
+      latest.link !== now.evidence ||
+      latest.explanation !== now.note ||
+      errorsDiffer
+    ) {
+      setRole(latest.role);
+      setEvidence(latest.link);
+      setNote(latest.explanation);
+      setErrors(latest.errors);
     }
     if (!writing.current) void load(true);
   }, [focused]);
