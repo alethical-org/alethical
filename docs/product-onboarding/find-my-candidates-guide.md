@@ -727,8 +727,9 @@ present. None of these actions removes the official candidate profile.
 
 Private history records 7 events: submitted, resubmitted, withdrawn, given up,
 approved, rejected and revoked. Every new event retains its own evidence and note.
-The latest submission date comes from a submission event, not a later decision;
-legacy requests retain their original creation date when later history is absent.
+The latest submission date comes from a submission event, not a later decision.
+Legacy requests retain their original creation date when no submission or resubmission
+event is recorded.
 History says when earlier events are unavailable rather than recreating them.
 
 Updates carry the expected account and saved version. Same-account sign-in refresh
