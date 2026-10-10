@@ -300,7 +300,9 @@ it('keeps admin review black and public claiming green', async () => {
     },
   };
   await render(<CandidateClaimPanel {...props} />);
-  expect(host.querySelector<HTMLAnchorElement>('a')?.textContent).toBe('Claim this profile');
+  expect(host.querySelector<HTMLAnchorElement>('a')?.textContent).toBe(
+    'Claim this candidate profile',
+  );
   expect(getComputedStyle(host.querySelector<HTMLAnchorElement>('a')!).backgroundColor).toBe(
     'rgb(46, 212, 126)',
   );

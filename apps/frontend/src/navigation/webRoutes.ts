@@ -39,6 +39,7 @@ type WebRouteTarget =
   | { kind: 'legislators'; params: Record<string, string> }
   | { kind: 'findMyLegislator'; address?: string }
   | { kind: 'candidates' }
+  | { kind: 'candidateFeatures'; candidateId?: string }
   | { kind: 'candidateProfile'; candidateId: string }
   | { kind: 'candidateClaim'; candidateId: string }
   | { kind: 'candidateManage'; candidateId: string }
@@ -252,6 +253,14 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   const segments = normalized.split('/').filter(Boolean);
 
   if (normalized === '/candidates') return { kind: 'candidates' };
+  if (normalized === '/candidates/features') {
+    // Only a real candidate id carries claim context; never private claim answers.
+    const candidateId = searchParams.get('candidate');
+    return {
+      kind: 'candidateFeatures',
+      ...(candidateId && /^[a-f0-9]{64}$/.test(candidateId) ? { candidateId } : {}),
+    };
+  }
   if (
     segments[0] === 'people' &&
     segments.length === 2 &&
@@ -762,6 +771,14 @@ export function pathForRoute(activeRoute: {
   params?: Record<string, unknown>;
 }): string {
   if (activeRoute.name === 'Candidates') return '/candidates';
+  if (activeRoute.name === 'CandidateFeatures') {
+    // Written for the smallest first download; a missing or invalid id reads as no candidate.
+    const candidateId = activeRoute.params?.candidateId as string;
+    return (
+      '/candidates/features' +
+      (/^[a-f0-9]{64}$/.test(candidateId) ? `?candidate=${candidateId}` : '')
+    );
+  }
   if (activeRoute.name === 'PersonOverview') {
     const personId = String(activeRoute.params?.personId ?? '');
     if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(personId))
@@ -1131,6 +1148,17 @@ export function stateFromPathname(pathname: string): WebNavigationState {
   };
 
   if (target.kind === 'candidates') return { routes: [homeTabs, { name: 'Candidates' }], index: 1 };
+  if (target.kind === 'candidateFeatures')
+    return {
+      routes: [
+        homeTabs,
+        {
+          name: 'CandidateFeatures',
+          ...(target.candidateId ? { params: { candidateId: target.candidateId } } : {}),
+        },
+      ],
+      index: 1,
+    };
   if (target.kind === 'personOverview') {
     const { kind: _kind, ...params } = target;
     return { routes: [homeTabs, { name: 'PersonOverview', params }], index: 1 };

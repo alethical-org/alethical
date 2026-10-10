@@ -42,7 +42,7 @@ RETRY_WINDOW = timedelta(hours=23)
 REQUEST_SPACING = 0.55
 DECISIONS = {"approved", "rejected", "revoked"}
 ADMIN_FOOTER = "Sign in with an Alethical administrator account to review this profile claim request"
-APPLICANT_FOOTER = "Sign in with the account that submitted this profile claim request"
+APPLICANT_FOOTER = "Sign in with the account you used to request access"
 
 
 def _now() -> datetime:
@@ -141,11 +141,11 @@ def _content(db: Session, row: CandidateClaimEmailDelivery) -> dict:
         footer = ADMIN_FOOTER
         if event.kind == "submitted":
             subject = "New candidate profile claim request"
-            message = "A new profile claim request is ready for review"
+            message = "Ready for review"
             action = "Review profile claim request"
         elif event.kind == "resubmitted":
             subject = "Candidate profile claim request resubmitted"
-            message = "A profile claim request has been resubmitted for review"
+            message = "Ready for review"
             action = "Review profile claim request"
         elif event.kind in DECISIONS:
             subject = (
@@ -153,7 +153,8 @@ def _content(db: Session, row: CandidateClaimEmailDelivery) -> dict:
                 if event.kind == "revoked"
                 else f"Profile claim request {event.kind}"
             )
-            message = subject
+            # The subject and the Decision row already state the outcome.
+            message = ""
             action = "View profile claim request"
             when = event.created_at.astimezone(ZoneInfo("America/Chicago"))
             fields.extend(
@@ -172,15 +173,15 @@ def _content(db: Session, row: CandidateClaimEmailDelivery) -> dict:
         footer = APPLICANT_FOOTER
         if event.kind == "approved":
             subject = "Your profile claim was approved"
-            message = "Your profile claim was approved. You can now add, edit or remove your campaign statement on this candidate profile."
+            message = "You can now manage your campaign’s information on this candidate profile"
             action, destination = "Manage this profile", "manage"
         elif event.kind == "rejected":
             subject = "Your profile claim request was not approved"
-            message = "Your profile claim request was not approved. View your profile claim status for available next steps."
+            message = "View your profile claim status for available next steps"
             action, destination = "View profile claim status", "claim"
         elif event.kind == "revoked":
             subject = "Your profile claim was revoked"
-            message = "Your profile claim was revoked. You no longer have campaign access to manage this candidate profile’s statement."
+            message = "You can no longer manage your campaign’s information on this candidate profile"
             action, destination = "View profile claim status", "claim"
         else:
             raise ValueError("Unsupported profile claim email")
@@ -197,6 +198,11 @@ def _content(db: Session, row: CandidateClaimEmailDelivery) -> dict:
 
 def _html(content: dict) -> str:
     """Email-safe table layout from the approved profile claim email drawing."""
+    message = (
+        f'<p class="message" style="margin:0 0 20px;font-size:21px;line-height:1.45;font-weight:800;letter-spacing:-.01em">{escape(content["message"])}</p>'
+        if content["message"]
+        else ""
+    )
     rows = "".join(
         f'<tr><td style="padding:{"14px" if i == 0 else "4px"} 16px {"14px" if i == len(content["fields"]) - 1 else "4px"};font-size:15px;line-height:1.5;color:#2c322c;overflow-wrap:anywhere"><strong style="color:#11150f">{escape(label)}:</strong> {escape(value)}</td></tr>'
         for i, (label, value) in enumerate(content["fields"])
@@ -209,8 +215,8 @@ def _html(content: dict) -> str:
     <table role="presentation" style="width:100%;border-collapse:collapse"><tr><td class="outer" style="padding:28px 24px">
     <table role="presentation" style="width:100%;max-width:600px;margin:0 auto;background:white;border:1px solid #e8e9e8;border-radius:14px;border-spacing:0;overflow:hidden">
     <tr><td class="brand" style="padding:20px 28px;border-bottom:1px solid #e8e9e8"><img src="https://www.alethical.com/profile-claim-email-mark.png" width="22" height="22" alt="" style="display:inline-block;vertical-align:middle;margin-right:10px"><span style="vertical-align:middle;font-weight:600;font-size:16px;letter-spacing:.15em;color:#11150f">ALETHICAL</span></td></tr>
-    <tr><td class="body" style="padding:26px 28px"><p class="message" style="margin:0;font-size:21px;line-height:1.45;font-weight:800;letter-spacing:-.01em">{escape(content["message"])}</p>
-    <table role="presentation" style="margin-top:20px;width:100%;border-collapse:collapse;background:#f7f8fa;border:1px solid #e8e9e8;border-radius:12px;font-variant-numeric:tabular-nums">{rows}</table>
+    <tr><td class="body" style="padding:26px 28px">{message}
+    <table role="presentation" style="width:100%;border-collapse:collapse;background:#f7f8fa;border:1px solid #e8e9e8;border-radius:12px;font-variant-numeric:tabular-nums">{rows}</table>
     <a class="claim-button" href="{escape(content["link"], quote=True)}" style="margin-top:22px;display:inline-block;min-height:48px;box-sizing:border-box;padding:14px 24px;background:#2ed47e;border:1px solid #2ed47e;border-radius:12px;font-size:16px;line-height:1.2;font-weight:700;color:#06231a;text-align:center;text-decoration:none">{escape(content["action"])}</a>
     <p style="margin:24px 0 0;padding-top:16px;border-top:1px solid #e8e9e8;font-size:14px;line-height:1.5;color:#4f5651">{escape(content["footer"])}</p>
     </td></tr></table></td></tr></table></body></html>'''
@@ -220,8 +226,7 @@ def _payload(db: Session, row: CandidateClaimEmailDelivery, recipient: str) -> d
     content = _content(db, row)
     body = "\n".join(
         [
-            content["message"],
-            "",
+            *([content["message"], ""] if content["message"] else []),
             *[f"{key}: {value}" for key, value in content["fields"]],
             "",
             f"{content['action']}: {content['link']}",

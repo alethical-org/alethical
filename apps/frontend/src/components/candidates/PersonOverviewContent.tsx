@@ -17,17 +17,17 @@ import { CandidateButton, CandidateLink, candidateDate, candidateText } from './
 import { ElectionOutcome, ElectionResultStatus } from './ElectionResult';
 import { PersonResearch } from './PersonResearch';
 import { ProfileContextLabel } from '../ProfileContextLabel';
+import { GoBackLink } from '../GoBackLink';
 
 export function PersonOverviewContent({
   record,
-  returnLabel,
   returnUrl,
   onBack,
   onCandidate,
   onLegislator,
 }: {
   record: PersonRecord;
-  returnLabel: string;
+  /** Where Go back leads on a fresh or shared visit; a normal click returns to the earlier page. */
   returnUrl: string;
   onBack(): void;
   onCandidate(id: string): void;
@@ -58,7 +58,13 @@ export function PersonOverviewContent({
       }}
     >
       <View style={{ maxWidth: 760, width: '100%', alignSelf: 'center' }}>
-        <CandidateLink internal label={returnLabel} url={returnUrl} onPress={onBack} />
+        <GoBackLink
+          href={returnUrl}
+          onPress={onBack}
+          mobile={isMobile}
+          pressedColor="#000000"
+          style={{ minHeight: 44, marginBottom: 0 }}
+        />
         <ProfileContextLabel>{PERSON_RECORD_COPY.eyebrow}</ProfileContextLabel>
         <Text
           accessibilityRole="header"

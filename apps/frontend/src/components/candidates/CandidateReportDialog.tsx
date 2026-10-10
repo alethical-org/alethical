@@ -1,9 +1,10 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { ApiError } from '../../data/api';
 import { reportCandidateStatement, type CandidateStatement } from '../../data/candidateClaims';
 import { useResponsive } from '../../hooks/useResponsive';
 import { CandidateButton } from './CandidateControls';
+import { statementDateLine } from './profileClaimCopy';
 
 type Status =
   'idle' | 'busy' | 'success' | 'error' | 'limited' | 'changed' | 'reloading' | 'removed';
@@ -26,6 +27,7 @@ export function CandidateReportDialog({
   const id = useId();
   const dialog = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLTextAreaElement>(null);
+  const updatedPanel = useRef<HTMLElement>(null);
   const scope = useRef<AbortController | null>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -106,6 +108,12 @@ export function CandidateReportDialog({
     };
   }, []);
 
+  // Focus the updated panel once it is on the page, not on a timer that can run before it.
+  const [revealUpdated, setRevealUpdated] = useState(0);
+  useEffect(() => {
+    if (revealUpdated) updatedPanel.current?.focus();
+  }, [revealUpdated]);
+
   useEffect(() => {
     if (status !== 'limited' || waitUntil === null) return;
     const remaining = waitUntil - Date.now();
@@ -174,6 +182,8 @@ export function CandidateReportDialog({
         setShown(latest);
         setUpdated(true);
         setStatus('idle');
+        // The person reads the new version first; Submit report needs its own press.
+        setRevealUpdated((count) => count + 1);
       }
     } catch {
       if (!controller.signal.aborted) {
@@ -197,7 +207,7 @@ export function CandidateReportDialog({
       <style>{`
         .candidate-report-layer{position:fixed;left:0;right:0;z-index:10000;background:rgba(10,14,12,.42);display:flex;justify-content:center;box-sizing:border-box;font-family:'Libre Franklin',sans-serif;color:#11150f}
         .candidate-report-dialog{position:relative;box-sizing:border-box;width:100%;max-width:520px;max-height:100%;overflow:auto;overscroll-behavior:contain;background:white;box-shadow:0 30px 80px rgba(10,14,12,.35)}
-        .candidate-report-dialog button:focus-visible,.candidate-report-dialog [role=button]:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}
+        .candidate-report-dialog button:focus-visible,.candidate-report-dialog [role=button]:focus-visible,.candidate-report-updated:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}
         .candidate-report-close{position:absolute;width:44px;height:44px;border:0;border-radius:10px;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer}
         .candidate-report-close:active{background:#e6e9e7}
         .candidate-report-reason{box-sizing:border-box;margin-top:8px;width:100%;overflow-y:auto;padding:12px 14px;background:white;border:1px solid rgba(17,21,15,.22);border-radius:12px;font:16px/24px 'Libre Franklin',sans-serif;color:#11150f;resize:vertical;outline:none}
@@ -279,10 +289,59 @@ export function CandidateReportDialog({
             style={{ marginTop: 18 }}
           >
             {updated ? (
-              <div style={{ marginBottom: 18 }}>
-                <strong>Updated campaign statement</strong>
-                <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.65 }}>{shown.body}</p>
-              </div>
+              <section
+                ref={updatedPanel}
+                tabIndex={-1}
+                aria-labelledby={`${id}-updated`}
+                style={{ marginBottom: 18, outline: 'none' }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'baseline',
+                    justifyContent: 'space-between',
+                    gap: '2px 14px',
+                  }}
+                >
+                  <h3 id={`${id}-updated`} style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
+                    Updated statement
+                  </h3>
+                  {statementDateLine(shown) ? (
+                    <span
+                      style={{
+                        fontSize: 14.5,
+                        fontWeight: 600,
+                        color: '#4f5651',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      {statementDateLine(shown)}
+                    </span>
+                  ) : null}
+                </div>
+                <div
+                  tabIndex={0}
+                  aria-label="Updated campaign statement"
+                  className="candidate-report-updated"
+                  style={{
+                    marginTop: 8,
+                    maxHeight: isMobile ? 160 : 200,
+                    overflowY: 'auto',
+                    padding: '14px 16px',
+                    background: '#f1f2f4',
+                    border: '1px solid rgba(17,21,15,0.1)',
+                    borderRadius: 12,
+                    fontSize: 16,
+                    lineHeight: 1.55,
+                    color: '#11150f',
+                    whiteSpace: 'pre-wrap',
+                    overflowWrap: 'anywhere',
+                  }}
+                >
+                  {shown.body}
+                </div>
+              </section>
             ) : null}
             <label
               htmlFor={`${id}-reason`}
@@ -290,9 +349,6 @@ export function CandidateReportDialog({
             >
               Reason
             </label>
-            <div id={`${id}-hint`} style={{ marginTop: 2, fontSize: 14.5, color: '#4f5651' }}>
-              Up to 2000 characters
-            </div>
             <textarea
               ref={field}
               id={`${id}-reason`}
@@ -304,39 +360,66 @@ export function CandidateReportDialog({
               }}
               readOnly={status === 'busy' || status === 'reloading'}
               aria-invalid={!!invalid}
-              aria-describedby={`${id}-hint ${id}-error`}
+              aria-describedby={`${id}-count ${id}-error`}
               style={{ minHeight: isMobile ? 168 : 216, maxHeight: isMobile ? 264 : 432 }}
             />
             <div
-              id={`${id}-error`}
-              aria-live="polite"
-              style={{ minHeight: 4, color: '#a3421a', fontWeight: 700 }}
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                gap: '0 16px',
+              }}
             >
-              {invalid}
+              <div
+                id={`${id}-error`}
+                aria-live="polite"
+                style={{ flex: '1 1 240px', minWidth: 0, minHeight: 4 }}
+              >
+                {invalid ? <ReportMessage>{invalid}</ReportMessage> : null}
+              </div>
+              <span
+                id={`${id}-count`}
+                style={{
+                  margin: '8px 0 0 auto',
+                  fontSize: 14.5,
+                  fontWeight: 600,
+                  color: Array.from(reason).length > 2000 ? '#a3421a' : '#4f5651',
+                  fontVariantNumeric: 'tabular-nums',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {Array.from(reason).length} / 2000 characters
+              </span>
             </div>
             {status === 'error' ? (
-              <p role="alert" style={{ color: '#a3421a', fontWeight: 700 }}>
-                We couldn’t submit your report
-              </p>
+              <ReportMessage role="alert">We couldn’t submit your report</ReportMessage>
             ) : null}
             {status === 'limited' ? (
-              <p role="status" style={{ fontWeight: 700 }}>
+              <p role="status" style={{ marginTop: 12, fontWeight: 700 }}>
                 Please wait before reporting again
               </p>
             ) : null}
-            {status === 'changed' || status === 'reloading' ? (
-              <p role="alert" style={{ fontWeight: 700 }}>
-                The campaign statement changed: reload it before reporting
-              </p>
+            {(status === 'changed' || status === 'reloading') && !reloadFailed ? (
+              <ReportMessage role="alert">
+                The campaign statement changed. Review the updated statement before submitting your
+                report.
+              </ReportMessage>
             ) : null}
-            {reloadFailed ? <p role="alert">Campaign statement is unavailable</p> : null}
+            {reloadFailed && (status === 'changed' || status === 'reloading') ? (
+              <ReportMessage role="alert">We couldn’t load the campaign statement</ReportMessage>
+            ) : null}
             {status === 'removed' ? (
-              <p role="status">The campaign statement is no longer available</p>
+              <p role="status" style={{ marginTop: 12 }}>
+                The campaign statement is no longer available
+              </p>
             ) : null}
             <div style={{ marginTop: 18, minHeight: 48 }}>
               {status === 'changed' || status === 'reloading' ? (
                 <CandidateButton
                   label="Reload statement"
+                  busyLabel="Reloading statement…"
                   icon="none"
                   busy={status === 'reloading'}
                   onPress={() => void reload()}
@@ -357,5 +440,42 @@ export function CandidateReportDialog({
       </div>
     </div>,
     document.body,
+  );
+}
+
+function ReportMessage({ children, role }: { children: ReactNode; role?: 'alert' }) {
+  return (
+    <div
+      role={role}
+      style={{
+        marginTop: 12,
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 8,
+        fontSize: 15,
+        lineHeight: 1.45,
+        fontWeight: 700,
+        color: '#a3421a',
+        textWrap: 'pretty',
+      }}
+    >
+      <svg
+        width="17"
+        height="17"
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden="true"
+        style={{ flex: 'none', marginTop: 2 }}
+      >
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+        <path
+          d="M12 7.5 V13 M12 16 V16.1"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      </svg>
+      <span>{children}</span>
+    </div>
   );
 }

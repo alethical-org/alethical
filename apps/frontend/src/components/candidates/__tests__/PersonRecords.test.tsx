@@ -140,7 +140,6 @@ it('never turns a passed expected month into actual service and preserves each r
     root.render(
       <PersonOverviewContent
         record={person}
-        returnLabel="Back to election record"
         returnUrl={`/candidates/${profile.candidate.id}`}
         onBack={() => {}}
         onCandidate={() => {}}
@@ -148,6 +147,10 @@ it('never turns a passed expected month into actual service and preserves each r
       />,
     ),
   );
+  // The return link is the shared grey Go back; its fallback keeps the validated destination.
+  const back = host.querySelector<HTMLAnchorElement>('a[aria-label="Go back"]')!;
+  expect(back.getAttribute('href')).toBe(`/candidates/${profile.candidate.id}`);
+  expect(host.textContent).not.toContain('Back to election record');
   expect(host.textContent).toContain('Expected start January 2025');
   expect(host.textContent).toContain('Current service not confirmed');
   expect(host.textContent).not.toContain('Started January');

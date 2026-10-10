@@ -41,6 +41,10 @@ export const screenChunks = {
     })),
   Candidates: () =>
     import('../screens/CandidatesScreen').then((m) => ({ default: m.CandidatesScreen })),
+  CandidateFeatures: () =>
+    import('../screens/CandidateFeaturesScreen').then((m) => ({
+      default: m.CandidateFeaturesScreen,
+    })),
   CandidateProfile: () =>
     import('../screens/CandidateProfileScreen').then((m) => ({
       default: m.CandidateProfileScreen,

@@ -196,6 +196,9 @@ export function backLinkProps(
   href: string,
   onNativePress: (event: GestureResponderEvent) => void,
   history: BackHistory = browserBackHistory,
+  /** With no prior entry, move inside the app instead of loading the href afresh, where a
+   * page holds answers in memory that a fresh load would lose. Off by default. */
+  inAppWhenNoBack = false,
 ): {
   accessibilityRole: 'link';
   href?: string;
@@ -209,7 +212,11 @@ export function backLinkProps(
     accessibilityRole: 'link',
     href,
     onPress: (event: GestureResponderEvent) => {
-      if (browserHandlesClick(event) || !history.hasBack()) {
+      if (browserHandlesClick(event)) return;
+      if (!history.hasBack()) {
+        if (!inAppWhenNoBack) return;
+        (event as unknown as WebClickFields)?.preventDefault?.();
+        onNativePress(event);
         return;
       }
       (event as unknown as WebClickFields)?.preventDefault?.();

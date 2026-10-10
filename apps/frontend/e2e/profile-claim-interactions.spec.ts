@@ -229,8 +229,10 @@ async function inactiveHover(page: Page, control: Locator) {
   expect(await style(control)).toEqual(resting);
 }
 async function keyboardFocus(page: Page, control: Locator) {
+  // WebKit moves Tab between text fields only; Option+Tab reaches every control, as in Safari.
+  const key = page.context().browser()?.browserType().name() === 'webkit' ? 'Alt+Tab' : 'Tab';
   for (let step = 0; step < 70; step++) {
-    await page.keyboard.press('Tab');
+    await page.keyboard.press(key);
     if (await control.evaluate((element) => element === document.activeElement)) return;
   }
   throw Error('Control was not reachable with the keyboard');
@@ -311,7 +313,7 @@ test.describe('phone touch', () => {
     api.state.claims = [{ ...pending }];
     await page.getByRole('button', { name: 'Reload profile claim status', exact: true }).tap();
     await expect(
-      page.getByRole('heading', { name: 'Profile claim pending review', exact: true }),
+      page.getByRole('heading', { name: 'Profile claim request received', exact: true }),
     ).toBeVisible();
     await noHorizontalOverflow(page);
   });
@@ -361,17 +363,27 @@ for (const width of [390, 1280]) {
     await expect.poll(() => api.state.writes.length).toBe(1);
     await api.state.writes[0].route.fulfill({ status: 503, json: {} });
     await expect(
-      page.getByText('Try again reads what is public before another save', { exact: true }),
+      page.getByText('We couldn’t complete this request', { exact: true }),
     ).toBeVisible();
     await expect(editor).toHaveValue('Unsaved fictional words that must survive a failed save');
-    await expect(editor).not.toBeEditable();
-    await page.getByRole('button', { name: 'Try again', exact: true }).click();
     await expect(editor).toBeEditable();
+    // Try again reads what is saved first; the save had not landed, so it is sent once more.
+    await page.getByRole('button', { name: 'Try again', exact: true }).click();
+    await expect.poll(() => api.state.writes.length).toBe(2);
+    expect(api.state.writes[1].body).toMatchObject({
+      body: 'Unsaved fictional words that must survive a failed save',
+    });
+    api.state.statement = {
+      body: 'Unsaved fictional words that must survive a failed save',
+      updated_at: '2026-10-09T12:00:00Z',
+      version: 2,
+    };
+    await api.state.writes[1].route.fulfill({ json: { statement: api.state.statement } });
+    await expect(page.getByText('Changes saved', { exact: true })).toBeVisible();
     await expect(editor).toHaveValue('Unsaved fictional words that must survive a failed save');
-    await expect(page.getByText('Current public statement', { exact: true })).toBeVisible();
     await screenshot(page, info, 'uncertain-save-recovered');
     await page.getByRole('button', { name: 'Give up this profile claim', exact: true }).click();
-    const dialog = page.getByRole('dialog', { name: 'Give up your profile claim?', exact: true });
+    const dialog = page.getByRole('dialog', { name: 'Give up this profile claim?', exact: true });
     const confirm = dialog.getByRole('button', { name: 'Give up profile claim', exact: true });
     if (width === 1280) await activeHover(page, confirm);
     const confirmBefore = await bounds(confirm);
@@ -382,9 +394,9 @@ for (const width of [390, 1280]) {
       dialog.getByRole('button', { name: 'Keep profile claim', exact: true }),
     ).toHaveAttribute('aria-disabled', 'true');
     await repeatPress(page, giving);
-    await expect.poll(() => api.state.writes.length).toBe(2);
+    await expect.poll(() => api.state.writes.length).toBe(3);
     await screenshot(page, info, 'give-up-busy');
-    await api.state.writes[1].route.fulfill({ status: 503, json: {} });
+    await api.state.writes[2].route.fulfill({ status: 503, json: {} });
     await expect(
       page.getByText(
         'We couldn’t confirm whether your profile claim was given up. Reload its status before trying again.',
@@ -429,7 +441,7 @@ test('I05 admin list slow failure retry and unknown decision recovery', async ({
     })
     .click();
   await page.getByLabel(noteLabel, { exact: true }).fill('x'.repeat(2001));
-  await page.getByRole('button', { name: 'Reject profile claim request', exact: true }).click();
+  await page.getByRole('button', { name: 'Reject request', exact: true }).click();
   await expect(
     page.getByText('Keep the private review note to 2000 characters or fewer', { exact: true }),
   ).toBeVisible();
@@ -437,10 +449,10 @@ test('I05 admin list slow failure retry and unknown decision recovery', async ({
   await page
     .getByLabel(noteLabel, { exact: true })
     .fill('Fictional independent review evidence for a controlled decision');
-  const reject = page.getByRole('button', { name: 'Reject profile claim request', exact: true });
+  const reject = page.getByRole('button', { name: 'Reject request', exact: true });
   const before = await bounds(reject);
   await reject.click();
-  const busy = page.getByRole('button', { name: 'Rejecting profile claim request…', exact: true });
+  const busy = page.getByRole('button', { name: 'Rejecting request…', exact: true });
   await sameBox(busy, before);
   await repeatPress(page, busy);
   await expect.poll(() => api.state.writes.length).toBe(1);
@@ -452,9 +464,7 @@ test('I05 admin list slow failure retry and unknown decision recovery', async ({
       { exact: true },
     ),
   ).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: 'Reject profile claim request', exact: true }),
-  ).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Reject request', exact: true })).toHaveCount(0);
   api.state.detail = { ...pending, status: 'rejected', version: 2 };
   await page.getByRole('button', { name: 'Reload profile claim request', exact: true }).click();
   await expect(page.getByText('Profile claim not approved', { exact: true })).toBeVisible();
@@ -471,8 +481,8 @@ test('I06 admin hover focus disabled hover and enlarged evidence', async ({ page
     approval_block: { reason: 'official_record_mismatch', message: 'Unused source message' },
   };
   await page.goto(`/admin/candidate-claims?claim=${claimId}`);
-  const reject = page.getByRole('button', { name: 'Reject profile claim request', exact: true });
-  const approve = page.getByRole('button', { name: 'Approve profile claim request', exact: true });
+  const reject = page.getByRole('button', { name: 'Reject request', exact: true });
+  const approve = page.getByRole('button', { name: 'Approve request', exact: true });
   await reject.scrollIntoViewIfNeeded();
   await page.mouse.move(1, 1);
   const ready = await style(reject);
@@ -487,7 +497,7 @@ test('I06 admin hover focus disabled hover and enlarged evidence', async ({ page
   await screenshot(page, info, 'admin-keyboard-focus');
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(
-    page.getByRole('heading', { name: 'Profile claim requests', exact: true }),
+    page.getByRole('heading', { name: 'Review profile claim request', exact: true }),
   ).toHaveCSS('font-size', '30px');
   await page.evaluate(() => {
     // Controlled 200% text enlargement, not browser zoom or an OS text setting.
@@ -520,9 +530,7 @@ test('I06 admin hover focus disabled hover and enlarged evidence', async ({ page
       }),
     ),
   });
-  const confirmed = await page
-    .getByText('Confirmed account address', { exact: true })
-    .boundingBox();
+  const confirmed = await page.getByText('Email confirmed', { exact: true }).boundingBox();
   const submitted = await page.getByText('Submitted', { exact: true }).boundingBox();
   await info.attach('enlarged-label-bounds', {
     contentType: 'application/json',
@@ -678,18 +686,14 @@ test('I09 applicant load retry and unknown withdrawal preserve joint ticket retu
   await page.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Election ended', exact: true })).toBeVisible();
   await expect(page.getByText(name, { exact: true })).toBeVisible();
-  await expect(page.getByText(linkLabel, { exact: true })).toBeVisible();
-  await expect(page.getByText(explanationLabel, { exact: true })).toBeVisible();
-  const withdraw = page.getByRole('button', {
-    name: 'Withdraw profile claim request',
-    exact: true,
-  });
+  await expect(
+    page.getByText('Campaign website or official record', { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText('Your explanation', { exact: true })).toBeVisible();
+  const withdraw = page.getByRole('button', { name: 'Withdraw request', exact: true });
   const before = await bounds(withdraw);
   await withdraw.click();
-  const busy = page.getByRole('button', {
-    name: 'Withdrawing profile claim request…',
-    exact: true,
-  });
+  const busy = page.getByRole('button', { name: 'Withdrawing request…', exact: true });
   await sameBox(busy, before);
   await repeatPress(page, busy);
   await expect.poll(() => api.state.writes.length).toBe(1);
@@ -700,14 +704,15 @@ test('I09 applicant load retry and unknown withdrawal preserve joint ticket retu
       { exact: true },
     ),
   ).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: 'Withdraw profile claim request', exact: true }),
-  ).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Withdraw request', exact: true })).toHaveCount(0);
   await screenshot(page, info, 'withdrawal-unknown-joint-ticket');
   api.state.claims = [{ ...api.state.claims[0], status: 'withdrawn', version: 2 }];
   await page.getByRole('button', { name: 'Reload profile claim status', exact: true }).click();
   await expect(
-    page.getByRole('heading', { name: 'Profile claim withdrawn', exact: true }),
+    page.getByRole('heading', { name: 'Profile claim request withdrawn', exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText('Profile claims are closed for this election', { exact: true }),
   ).toBeVisible();
   await page.getByRole('link', { name: 'View public profile', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`${profilePath}$`));
@@ -770,17 +775,12 @@ test('I11 already claimed after election keeps closed explanation and public ret
   );
   await page.goto(`${profilePath}/claim`);
   await expect(
-    page.getByText('Profile claims closed for this election', { exact: true }),
+    page.getByRole('heading', { name: 'This profile is already claimed', exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText(
-      'Claiming a candidate profile requests campaign access to add a statement. This election has ended, so new profile claim requests are closed.',
-      { exact: true },
-    ),
+    page.getByText('Profile claims are closed for this election', { exact: true }),
   ).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: 'Request a profile claim review', exact: true }),
-  ).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Request a review', exact: true })).toHaveCount(0);
   await expect(
     page.getByRole('button', { name: 'Submit profile claim request', exact: true }),
   ).toHaveCount(0);
@@ -833,7 +833,7 @@ test('I13 choosing Reject after an approval checkbox error keeps the busy action
   await page
     .getByLabel(noteLabel, { exact: true })
     .fill('Fictional review evidence explaining why this request should be rejected');
-  await page.getByRole('button', { name: 'Approve profile claim request', exact: true }).click();
+  await page.getByRole('button', { name: 'Approve request', exact: true }).click();
   await expect(
     page.getByText(
       'Confirm that you independently verified the applicant’s identity and campaign authority before approving',
@@ -841,10 +841,10 @@ test('I13 choosing Reject after an approval checkbox error keeps the busy action
     ),
   ).toBeVisible();
   expect(api.state.writes).toHaveLength(0);
-  const reject = page.getByRole('button', { name: 'Reject profile claim request', exact: true });
+  const reject = page.getByRole('button', { name: 'Reject request', exact: true });
   const before = await bounds(reject);
   await reject.click();
-  const busy = page.getByRole('button', { name: 'Rejecting profile claim request…', exact: true });
+  const busy = page.getByRole('button', { name: 'Rejecting request…', exact: true });
   await screenshot(page, info, 'reject-after-approval-error-busy');
   await sameBox(busy, before);
   await repeatPress(page, busy);

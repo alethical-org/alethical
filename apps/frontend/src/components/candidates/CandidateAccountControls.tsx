@@ -1,4 +1,12 @@
-import { useEffect, useId, useRef, type ReactNode, type Ref } from 'react';
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from 'react';
 import {
   Platform,
   StyleSheet,
@@ -12,34 +20,64 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { useResponsive } from '../../hooks/useResponsive';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { CandidateButton, candidateDate, candidateText } from './CandidateControls';
+import {
+  areaLabel,
+  candidateElectionLabel,
+  candidateOfficeLabel,
+} from '../../lib/candidatePublicCopy';
 import type { CandidateProfileRecord } from './types';
 
+/** The claim page's candidate card, in the profile's order: name, "Candidate for", office,
+ * voting area, election. Manage adds the owner's own access status underneath. */
 export function CandidateAccountIdentity({
   record,
   verified = false,
+  marginTop = 24,
 }: {
   record: CandidateProfileRecord;
   verified?: boolean;
+  marginTop?: number;
 }) {
+  const wrap = Platform.OS === 'web' ? ({ overflowWrap: 'anywhere' } as TextStyle) : undefined;
   return (
-    <View style={[candidateAccountStyles.identity, { padding: 0, gap: 0 }]}>
-      <View style={{ paddingVertical: 16, paddingHorizontal: 18, gap: 3 }}>
-        <Text style={[candidateText.strong, { fontSize: 19 }]}>{record.candidate.name}</Text>
-        <Text style={[candidateText.strong, { fontSize: 15.5, fontWeight: '600' }]}>
-          {record.office}
+    <View style={[candidateAccountStyles.identity, { marginTop, padding: 0, gap: 0 }]}>
+      <View style={{ paddingVertical: 20, paddingHorizontal: 22 }}>
+        <Text
+          style={[
+            candidateText.strong,
+            { fontSize: 19, lineHeight: 24.7, fontWeight: '800' },
+            wrap,
+          ]}
+        >
+          {record.candidate.name}
+        </Text>
+        <Text
+          style={[
+            candidateText.strong,
+            { marginTop: 12, fontSize: 14.5, lineHeight: 21, color: '#4f5651' },
+          ]}
+        >
+          Candidate for
+        </Text>
+        <Text
+          style={[candidateText.strong, { marginTop: 4, fontSize: 18, lineHeight: 23.4 }, wrap]}
+        >
+          {candidateOfficeLabel(record.office, record.votingArea)}
         </Text>
         {record.votingArea ? (
-          <Text style={[candidateText.body, { fontSize: 15 }]}>{record.votingArea}</Text>
+          <Text style={[candidateAccountStyles.cardLine, wrap]}>
+            {areaLabel(record.votingArea)}
+          </Text>
         ) : null}
-        <Text style={[candidateText.body, { fontSize: 15 }]}>
-          {record.election.label} · {candidateDate(record.election.date)}
+        <Text style={candidateAccountStyles.cardLine}>
+          {candidateElectionLabel(record.election)} · {candidateDate(record.election.date)}
         </Text>
       </View>
       {verified ? (
         <View
           style={{
             paddingVertical: 14,
-            paddingHorizontal: 18,
+            paddingHorizontal: 22,
             borderTopWidth: 1,
             borderColor: 'rgba(17,21,15,.08)',
             flexDirection: 'row',
@@ -165,56 +203,85 @@ export function CandidateRecordBoundary({
     </View>
   );
 }
+/** Status screens: a 44px tile beside the heading (the focus target), then the explanation,
+ * hanging under the heading on computer and tablet and full width under the tile on phone. */
 export function CandidateStatusHeading({
   title,
   body,
   kind,
   headingRef,
+  children,
 }: {
   title: string;
   body?: string;
   kind: Parameters<typeof CandidateStatusIcon>[0]['kind'];
   headingRef?: Ref<View>;
+  children?: ReactNode;
 }) {
   const { isMobile, isDesktop } = useResponsive();
   const size = isMobile ? 26 : isDesktop ? 32 : 30;
+  const wrap = Platform.OS === 'web' ? ({ textWrap: 'pretty' } as TextStyle) : undefined;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 14 }}>
-      <View
-        style={{
-          width: 44,
-          height: 44,
-          flexShrink: 0,
-          borderRadius: 12,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor:
-            kind === 'approved' ? '#e4f8ee' : kind === 'warning' ? '#fdf6e7' : '#f1f2f4',
-        }}
-      >
-        <CandidateStatusIcon kind={kind} />
-      </View>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <View ref={headingRef} tabIndex={-1}>
+    <View>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 14 }}>
+        <View
+          aria-hidden
+          style={{
+            width: 44,
+            height: 44,
+            flexShrink: 0,
+            borderRadius: 12,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor:
+              kind === 'approved' ? '#e4f8ee' : kind === 'warning' ? '#fdf6e7' : '#f1f2f4',
+          }}
+        >
+          <CandidateStatusIcon kind={kind} />
+        </View>
+        {/* A programmatic focus target only: it announces the new state and is not a control. */}
+        <View
+          ref={headingRef}
+          tabIndex={-1}
+          style={[
+            { flex: 1, minWidth: 0 },
+            Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null,
+          ]}
+        >
           <Text
             accessibilityRole="header"
             aria-level={1}
-            style={[candidateText.title, { marginTop: 2, fontSize: size, lineHeight: size * 1.12 }]}
+            style={[
+              candidateText.title,
+              {
+                marginTop: isMobile ? 7 : isDesktop ? 4 : 5,
+                fontSize: size,
+                lineHeight: size * 1.12,
+                letterSpacing: size * -0.02,
+              },
+              wrap,
+            ]}
           >
             {title}
           </Text>
         </View>
-        {body ? (
-          <Text
-            style={[
-              candidateText.body,
-              { marginTop: 10, fontSize: 16.5, lineHeight: 25.6, color: '#2c322c' },
-            ]}
-          >
-            {body}
-          </Text>
-        ) : null}
       </View>
+      {body || children ? (
+        <View style={{ marginTop: 10, marginLeft: isMobile ? 0 : 58, gap: 8, minWidth: 0 }}>
+          {body ? (
+            <Text
+              style={[
+                candidateText.body,
+                { fontSize: 16.5, lineHeight: 25.575, color: '#2c322c' },
+                wrap,
+              ]}
+            >
+              {body}
+            </Text>
+          ) : null}
+          {children}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -232,6 +299,11 @@ export function CandidateField({
   labelLevel,
   inputStyle,
   labelAside,
+  hideLabel = false,
+  labelledBy,
+  describedBy,
+  invalid,
+  errorIcon = false,
 }: {
   label: string;
   value: string;
@@ -246,42 +318,52 @@ export function CandidateField({
   labelLevel?: 2;
   inputStyle?: StyleProp<TextStyle>;
   labelAside?: ReactNode;
+  /** The visible label is a heading elsewhere on the page; name the field from it. */
+  hideLabel?: boolean;
+  labelledBy?: string;
+  /** Extra descriptions in the order a screen reader should hear them. */
+  describedBy?: string;
+  invalid?: boolean;
+  /** Profile claim forms draw a circled mark before each field error. */
+  errorIcon?: boolean;
 }) {
   const { focused, focusProps } = useFieldFocus();
   const id = useId();
   const { isMobile, isDesktop } = useResponsive();
   return (
     <View style={{ gap: 8 }}>
-      <View
-        style={{
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          gap: 4,
-        }}
-      >
-        <Text
-          nativeID={`${id}-label`}
-          accessibilityRole={labelLevel ? 'header' : undefined}
-          aria-level={labelLevel}
-          style={[
-            candidateText.strong,
-            labelLevel && { fontSize: isMobile ? 19 : isDesktop ? 21 : 20, fontWeight: '800' },
-          ]}
+      {hideLabel ? null : (
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            alignItems: 'baseline',
+            justifyContent: 'space-between',
+            gap: 4,
+          }}
         >
-          {label}
-        </Text>
-        {labelAside}
-      </View>
+          <Text
+            nativeID={`${id}-label`}
+            accessibilityRole={labelLevel ? 'header' : undefined}
+            aria-level={labelLevel}
+            style={[
+              candidateText.strong,
+              labelLevel && { fontSize: isMobile ? 19 : isDesktop ? 21 : 20, fontWeight: '800' },
+            ]}
+          >
+            {label}
+          </Text>
+          {labelAside}
+        </View>
+      )}
       {beforeInput ? <View nativeID={`${id}-help`}>{beforeInput}</View> : null}
       <TextInput
         ref={inputRef}
         accessibilityLabel={label}
-        aria-labelledby={`${id}-label`}
-        aria-invalid={Boolean(error)}
+        aria-labelledby={labelledBy ?? (hideLabel ? undefined : `${id}-label`)}
+        aria-invalid={Boolean(error) || Boolean(invalid)}
         aria-describedby={
-          [beforeInput && `${id}-help`, hint && `${id}-hint`, error && `${id}-error`]
+          [describedBy, beforeInput && `${id}-help`, hint && `${id}-hint`, error && `${id}-error`]
             .filter(Boolean)
             .join(' ') || undefined
         }
@@ -296,7 +378,7 @@ export function CandidateField({
         {...focusProps}
         style={[
           candidateAccountStyles.input,
-          error && { borderColor: '#a3421a' },
+          (error || invalid) && { borderColor: '#a3421a' },
           multiline && { minHeight: 150, textAlignVertical: 'top' },
           inputStyle,
           fieldOutlineReset,
@@ -304,11 +386,47 @@ export function CandidateField({
         ]}
       />
       {hint ? (
-        <Text nativeID={`${id}-hint`} style={candidateText.body}>
+        <Text
+          nativeID={`${id}-hint`}
+          style={[
+            candidateText.body,
+            errorIcon && { fontSize: 15, lineHeight: 22.5 },
+            Platform.OS === 'web' ? ({ textWrap: 'pretty' } as TextStyle) : null,
+          ]}
+        >
           {hint}
         </Text>
       ) : null}
-      {error ? (
+      {error && errorIcon ? (
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+          <Svg
+            width={17}
+            height={17}
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden
+            style={{ marginTop: 2 }}
+          >
+            <Circle cx={12} cy={12} r={9} stroke="#a3421a" strokeWidth={2} />
+            <Path
+              d="M12 7.5 V13 M12 16 V16.1"
+              stroke="#a3421a"
+              strokeWidth={2}
+              strokeLinecap="round"
+            />
+          </Svg>
+          <Text
+            nativeID={`${id}-error`}
+            role="alert"
+            style={[
+              candidateText.strong,
+              { flex: 1, color: '#a3421a', fontSize: 15, lineHeight: 21.75 },
+            ]}
+          >
+            {error}
+          </Text>
+        </View>
+      ) : error ? (
         <Text
           nativeID={`${id}-error`}
           role="alert"
@@ -320,22 +438,62 @@ export function CandidateField({
     </View>
   );
 }
-/** Browser dialog supplies focus trapping and makes the safe action the initial focus. */
+/** What the reader can actually see, which an on-screen keyboard shrinks. */
+function visibleViewport() {
+  if (typeof window === 'undefined') return { height: 800, top: 0 };
+  const visual = window.visualViewport;
+  return { height: visual?.height ?? window.innerHeight, top: visual?.offsetTop ?? 0 };
+}
+function useVisibleViewport(active: boolean) {
+  const [viewport, setViewport] = useState(visibleViewport);
+  useEffect(() => {
+    if (!active || typeof window === 'undefined') return;
+    const update = () => setViewport(visibleViewport());
+    update();
+    const visual = window.visualViewport;
+    visual?.addEventListener('resize', update);
+    visual?.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+    return () => {
+      visual?.removeEventListener('resize', update);
+      visual?.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, [active]);
+  return viewport;
+}
+/** Browser dialog supplies focus trapping and makes the safe action the initial focus.
+ *
+ * With `actions`, it is a confirmation laid out as Design settled for the manage page:
+ * 480px wide (424px inside) on computer and tablet, up to 390px (22px sides) on phone;
+ * on a visible height under 640px it sits 16px from the top, at most the visible height
+ * less 32px, with its words scrolling on their own above the pinned actions and a fine
+ * line between. */
 export function CandidateDialog({
   title,
+  subtitle,
   children,
+  actions,
   onClose,
   initialFocus = 'safe',
   returnFocus,
 }: {
   title: string;
+  /** The candidate whose access a dialog affects, printed under its title. */
+  subtitle?: string;
   children: ReactNode;
+  actions?: ReactNode;
   onClose(): void;
   initialFocus?: 'safe' | 'field';
   returnFocus?: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const words = useRef<HTMLDivElement>(null);
   const { isMobile } = useResponsive();
+  const confirm = Boolean(actions);
+  const viewport = useVisibleViewport(confirm);
+  const short = confirm && viewport.height < 640;
+  const [overflowing, setOverflowing] = useState(false);
   useEffect(() => {
     if (typeof document === 'undefined') return;
     const prior = document.activeElement as HTMLElement | null;
@@ -344,19 +502,103 @@ export function CandidateDialog({
     if (element && !element.showModal) element.setAttribute('open', '');
     element
       ?.querySelector<HTMLElement>(initialFocus === 'field' ? 'textarea, input' : 'button')
-      ?.focus();
+      ?.focus({ preventScroll: true });
     return () => {
       element?.close?.();
       if (returnFocus) returnFocus();
       else prior?.focus();
     };
   }, []);
+  useLayoutEffect(() => {
+    const element = words.current;
+    if (element) setOverflowing(element.scrollHeight > element.clientHeight + 1);
+  });
   if (Platform.OS !== 'web')
     return (
       <View accessibilityRole="alert" style={candidateAccountStyles.identity}>
         {children}
+        {actions}
       </View>
     );
+  const heading = (
+    <>
+      <Text
+        accessibilityRole="header"
+        aria-level={2}
+        style={[candidateText.title, { fontSize: 21, lineHeight: 27.3 }]}
+      >
+        {title}
+      </Text>
+      {subtitle ? (
+        <Text
+          style={[
+            candidateText.strong,
+            { marginTop: -6, fontSize: 16, lineHeight: 23.2 },
+            Platform.OS === 'web' ? ({ overflowWrap: 'anywhere' } as TextStyle) : null,
+          ]}
+        >
+          {subtitle}
+        </Text>
+      ) : null}
+    </>
+  );
+  if (confirm) {
+    const top = (short ? 16 : 110) + viewport.top;
+    const maxHeight = Math.max(160, viewport.height - (short ? 32 : 110));
+    const side = isMobile ? 22 : 28;
+    return (
+      <dialog
+        ref={dialog}
+        aria-label={title}
+        onCancel={(event) => {
+          event.preventDefault();
+          onClose();
+        }}
+        style={{
+          border: 0,
+          borderRadius: 18,
+          padding: 0,
+          maxWidth: isMobile ? 390 : 480,
+          width: isMobile ? '100%' : 'calc(100% - 48px)',
+          boxSizing: 'border-box',
+          margin: `${top}px auto auto`,
+          maxHeight,
+          overflow: 'hidden',
+          color: '#11150f',
+          background: '#fff',
+        }}
+      >
+        <View style={{ maxHeight, flexDirection: 'column' }}>
+          <div
+            ref={words}
+            tabIndex={overflowing ? 0 : undefined}
+            className="profile-claim-dialog-words"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+              flexShrink: 1,
+              minHeight: 0,
+              overflowY: 'auto',
+              padding: `${isMobile ? 24 : 26}px ${side}px 16px`,
+            }}
+          >
+            {heading}
+            {children}
+          </div>
+          <View
+            style={[
+              { flexShrink: 0, paddingHorizontal: side, paddingTop: 16 },
+              { paddingBottom: isMobile ? 24 : 26 },
+              short && { borderTopWidth: 1, borderTopColor: 'rgba(17,21,15,0.1)' },
+            ]}
+          >
+            {actions}
+          </View>
+        </View>
+      </dialog>
+    );
+  }
   return (
     <dialog
       ref={dialog}
@@ -380,20 +622,37 @@ export function CandidateDialog({
       }}
     >
       <View style={{ gap: 12 }}>
-        <Text
-          accessibilityRole="header"
-          aria-level={2}
-          style={[candidateText.title, { fontSize: 21, lineHeight: 27.3 }]}
-        >
-          {title}
-        </Text>
+        {heading}
         {children}
       </View>
     </dialog>
   );
 }
-export function CandidateDialogActions({ children }: { children: ReactNode }) {
+export function CandidateDialogActions({
+  children,
+  equal = false,
+}: {
+  children: ReactNode;
+  /** Stacked on every band, safe choice first, full width, and always the same height:
+   * the taller of the 2 sets both when a label wraps or text is enlarged. */
+  equal?: boolean;
+}) {
   const { isMobile } = useResponsive();
+  if (equal)
+    return (
+      <View
+        style={
+          {
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1fr)',
+            gridAutoRows: '1fr',
+            gap: 10,
+          } as object
+        }
+      >
+        {children}
+      </View>
+    );
   return (
     <View
       style={{
@@ -451,4 +710,11 @@ export const candidateAccountStyles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   actions: { marginTop: 16, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
+  cardLine: {
+    ...candidateText.body,
+    marginTop: 3,
+    fontSize: 16,
+    lineHeight: 23.2,
+    fontVariant: ['tabular-nums'],
+  },
 });

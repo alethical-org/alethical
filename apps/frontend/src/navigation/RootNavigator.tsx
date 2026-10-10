@@ -84,6 +84,7 @@ const EventScreen = loadOnDemand(screenChunks.Event, { kind: 'screen' });
 const ShortPostsScreen = loadOnDemand(screenChunks.ShortPosts, { kind: 'screen' });
 const NotFoundScreen = loadOnDemand(screenChunks.NotFound, { kind: 'screen' });
 const CandidatesScreen = loadOnDemand(screenChunks.Candidates, { kind: 'screen' });
+const CandidateFeaturesScreen = loadOnDemand(screenChunks.CandidateFeatures, { kind: 'screen' });
 const CandidateProfileScreen = loadOnDemand(screenChunks.CandidateProfile, { kind: 'screen' });
 const PersonOverviewScreen = loadOnDemand(screenChunks.PersonOverview, { kind: 'screen' });
 const CandidateClaimScreen = loadOnDemand(screenChunks.CandidateClaim, { kind: 'screen' });
@@ -699,6 +700,11 @@ export function RootNavigator() {
               <Stack.Screen
                 name="Candidates"
                 component={CandidatesScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="CandidateFeatures"
+                component={CandidateFeaturesScreen}
                 options={{ headerShown: false }}
               />
               <Stack.Screen

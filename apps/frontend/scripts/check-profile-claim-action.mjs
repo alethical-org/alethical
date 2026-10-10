@@ -42,7 +42,7 @@ try {
     await page.evaluate(() => document.fonts.ready);
     const account = page.getByLabel('Account', { exact: true });
     for (const [state, label, green, destination] of [
-      ['public', 'Claim this profile', true, 'claim'],
+      ['public', 'Claim this candidate profile', true, 'claim'],
       ['approved', 'Manage this profile', true, 'manage'],
       ['pending', 'View profile claim status', false, 'claim'],
     ]) {
@@ -98,12 +98,12 @@ try {
     await account.selectOption('loading');
     await page.getByText('Loading profile claim status…', { exact: true }).waitFor();
     assert.equal(
-      await page.getByRole('link', { name: 'Claim this profile', exact: true }).count(),
+      await page.getByRole('link', { name: 'Claim this candidate profile', exact: true }).count(),
       0,
     );
     await account.selectOption('error');
     await page.getByRole('button', { name: 'Try again', exact: true }).click();
-    await page.getByRole('link', { name: 'Claim this profile', exact: true }).waitFor();
+    await page.getByRole('link', { name: 'Claim this candidate profile', exact: true }).waitFor();
     await page.close();
     console.log(`Profile account action passed at ${width}px`);
   }

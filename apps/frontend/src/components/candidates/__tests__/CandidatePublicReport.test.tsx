@@ -25,7 +25,9 @@ vi.mock('react-native-svg', () => ({
 }));
 const statement = {
   body: 'Original statement\n\nSecond paragraph',
-  updated_at: '2026-10-01',
+  updated_at: '2026-10-01T15:00:00+00:00',
+  published_at: '2026-10-01T15:00:00+00:00',
+  edited_at: null,
   version: 3,
 };
 let host: HTMLDivElement;
@@ -151,17 +153,37 @@ it('uses the server wait, retains the reason, and brings submit back automatical
 });
 it('reloads and displays a changed statement before sending its new version, keeping the reason', async () => {
   report.mockRejectedValueOnce(new ApiError(409, 'changed')).mockResolvedValue({ received: true });
-  reload.mockResolvedValue({ ...statement, body: 'New statement', version: 4 });
+  reload.mockResolvedValue({
+    ...statement,
+    body: 'New statement',
+    version: 4,
+    edited_at: '2026-10-03T15:00:00+00:00',
+  });
   await mount();
   await input('Saved reason');
   await click('Submit report');
   expect(document.body.textContent).toContain(
-    'The campaign statement changed: reload it before reporting',
+    'The campaign statement changed. Review the updated statement before submitting your report.',
   );
   expect(document.body.textContent).not.toContain('Submit report');
   await click('Reload statement');
-  expect(document.body.textContent).toContain('New statement');
+  await act(
+    async () => new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve())),
+  );
+  const panel = document.querySelector<HTMLElement>('section[aria-labelledby]')!;
+  expect(document.activeElement).toBe(panel);
+  expect(panel.textContent).toContain('Updated statement');
+  expect(panel.textContent).toContain('Edited October 3, 2026');
+  expect(panel.textContent).toContain('New statement');
+  expect(panel.compareDocumentPosition(document.querySelector('textarea')!)).toBe(
+    Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+  expect(
+    document.querySelector('[aria-label="Updated campaign statement"]')?.getAttribute('tabindex'),
+  ).toBe('0');
   expect(document.querySelector('textarea')!.value).toBe('Saved reason');
+  // Reloading never submits; Submit report needs its own press.
+  expect(report).toHaveBeenCalledTimes(1);
   await click('Submit report');
   expect(report.mock.calls[1][2]).toBe(4);
 });
@@ -172,7 +194,8 @@ it('keeps reload available after failure and prevents reports after removal', as
   await input('Saved reason');
   await click('Submit report');
   await click('Reload statement');
-  expect(document.body.textContent).toContain('Campaign statement is unavailable');
+  expect(document.body.textContent).toContain('We couldn’t load the campaign statement');
+  expect(report).toHaveBeenCalledTimes(1);
   await click('Reload statement');
   expect(document.body.textContent).toContain('The campaign statement is no longer available');
   expect(document.body.textContent).not.toContain('Submit report');
@@ -214,9 +237,12 @@ it('keeps campaign text and reporting together and isolates preview account serv
   expect(host.textContent).not.toContain('Candidate name · Campaign');
   expect(host.textContent).toContain(statement.body);
   expect(host.textContent).toContain(
-    'Request campaign access to add a statement to this candidate profile.',
+    'Alethical reviews requests from candidates and authorized campaign representatives.',
   );
   expect(host.textContent).toContain('Report this statement');
+  expect(host.textContent).toContain(
+    'Alethical verified this account’s authority to represent the campaign, not the statement’s accuracy',
+  );
 });
 it('renders approved, pending, loading and error account actions without live requests', async () => {
   const record = {

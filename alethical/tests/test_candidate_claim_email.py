@@ -49,6 +49,9 @@ def delivery(monkeypatch):
     }
     factory = get_session_factory()
     with factory() as db:
+        # Other claim suites queue real deliveries and clean only at their next start, so
+        # whichever of their tests runs last can leave one due. Each case here counts its own.
+        db.execute(delete(CandidateClaimEmailDelivery))
         db.execute(text("CREATE SCHEMA IF NOT EXISTS auth"))
         db.execute(
             text("""CREATE TABLE IF NOT EXISTS auth.users (
@@ -234,8 +237,54 @@ def test_all_eight_messages_have_exact_identity_and_no_private_evidence(
     )
     assert destination in payload["text"]
     assert calls[0][1]["headers"]["Idempotency-Key"] == f"profile-claim-email/{row_id}"
+    subject, message, footer = EXPECTED_COPY[(kind, recipient)]
+    assert payload["subject"] == subject
+    # No body repeats its subject; other admins get no message line at all.
+    assert payload["subject"] not in payload["text"]
+    if message:
+        assert payload["text"].startswith(f"{message}\n\nCandidate: ")
+        assert f">{message}</p>" in payload["html"]
+    else:
+        assert payload["text"].startswith("Candidate: Example Candidate")
+        assert 'class="message"' not in payload["html"]
+    assert payload["text"].endswith(footer)
+    assert footer in payload["html"]
     assert service.drain_once() == 0
     assert len(calls) == 1
+
+
+ADMIN_FOOTER = "Sign in with an Alethical administrator account to review this profile claim request"
+APPLICANT_FOOTER = "Sign in with the account you used to request access"
+EXPECTED_COPY = {
+    ("submitted", "admin"): (
+        "New candidate profile claim request",
+        "Ready for review",
+        ADMIN_FOOTER,
+    ),
+    ("resubmitted", "admin"): (
+        "Candidate profile claim request resubmitted",
+        "Ready for review",
+        ADMIN_FOOTER,
+    ),
+    ("approved", "admin"): ("Profile claim request approved", "", ADMIN_FOOTER),
+    ("rejected", "admin"): ("Profile claim request rejected", "", ADMIN_FOOTER),
+    ("revoked", "admin"): ("Profile claim revoked", "", ADMIN_FOOTER),
+    ("approved", "applicant"): (
+        "Your profile claim was approved",
+        "You can now manage your campaign’s information on this candidate profile",
+        APPLICANT_FOOTER,
+    ),
+    ("rejected", "applicant"): (
+        "Your profile claim request was not approved",
+        "View your profile claim status for available next steps",
+        APPLICANT_FOOTER,
+    ),
+    ("revoked", "applicant"): (
+        "Your profile claim was revoked",
+        "You can no longer manage your campaign’s information on this candidate profile",
+        APPLICANT_FOOTER,
+    ),
+}
 
 
 @pytest.mark.parametrize(

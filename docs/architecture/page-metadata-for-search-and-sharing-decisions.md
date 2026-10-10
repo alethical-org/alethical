@@ -2276,6 +2276,10 @@ boundaries. The November 3, 2026 test result feed is excluded.
 `/people/<id>` and verified person links are public. This change does not create an
 automatic statewide sitemap catalogue from saved candidate records, visitor
 searches or person rows. `/candidates` remains a public sitemap destination.
+So is the plain `/candidates/features` page, which labels every feature it describes
+"On the roadmap"; its claim-step form, `/candidates/features?candidate=<id>`, is
+`noindex` with no canonical like a filtered address, and no first response of either
+names a candidate.
 Claim, manage and admin review addresses stay private, `noindex` and `no-store`,
 and excluded from analytics and public discovery. Their first response does not
 contain private supporting evidence, campaign revisions, review notes, claim
