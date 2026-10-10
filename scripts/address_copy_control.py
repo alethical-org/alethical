@@ -49,6 +49,11 @@ TARGET = """query CopyControlTarget($environmentId: String!, $serviceId: String!
     activeDeployments { id status canRedeploy }
   }
 }"""
+CONSOLE_INSTANCE = """query CopyControlInstance($environmentId: String!, $serviceId: String!) {
+  serviceInstance(environmentId: $environmentId, serviceId: $serviceId) {
+    activeDeployments { id status instances { id status } }
+  }
+}"""
 PENDING = """query CopyControlPending($input: DeploymentListInput!) {
   deployments(first: 100, input: $input) {
     edges { node { id status } }
@@ -147,7 +152,81 @@ def recent(timestamp: object, now: datetime, seconds: int) -> bool:
         return False
 
 
-def activation_gate(report: dict, ids: dict, deployment_id: str, now: datetime) -> None:
+def console_storage_gate(
+    evidence: dict, ids: dict, deployment_id: str, instance_id: str, now: datetime
+) -> None:
+    """Operator-reviewed fresh console assessment, not provider quota telemetry.
+
+    Only for a small OFF container with the expected runtime mounts. The 5 GB
+    ceiling leaves 95 GB of the paid allowance for unmeasured overlay bookkeeping
+    and the measured 1.36 GB build peak. Never infer this assessment from du alone.
+    """
+    expected = {
+        *ids,
+        "deployment_id",
+        "instance_id",
+        "recorded_at",
+        "root_bytes_before",
+        "root_bytes_after",
+        "free_bytes",
+        "deleted_open_bytes",
+        "deleted_mappings",
+        "read_errors",
+        "root_is_overlay",
+        "copy_on_root_mount",
+        "expected_runtime_mounts",
+        "expected_processes",
+        "api_process_count",
+    }
+    if not isinstance(evidence, dict) or set(evidence) != expected:
+        raise ValueError
+    if any(evidence[key] != value for key, value in ids.items()):
+        raise ValueError
+    if (
+        evidence["deployment_id"] != deployment_id
+        or evidence["instance_id"] != instance_id
+        or not recent(evidence["recorded_at"], now, 5 * 60)
+    ):
+        raise ValueError
+    for key in (
+        "root_is_overlay",
+        "copy_on_root_mount",
+        "expected_runtime_mounts",
+        "expected_processes",
+    ):
+        if evidence[key] is not True:
+            raise ValueError
+    for key in (
+        "root_bytes_before",
+        "root_bytes_after",
+        "free_bytes",
+        "deleted_open_bytes",
+        "deleted_mappings",
+        "read_errors",
+        "api_process_count",
+    ):
+        if type(evidence[key]) is not int or not 0 <= evidence[key] <= 10**16:
+            raise ValueError
+    if (
+        not 0 < evidence["root_bytes_before"] <= 5_000_000_000
+        or not 0 < evidence["root_bytes_after"] <= 5_000_000_000
+        or abs(evidence["root_bytes_after"] - evidence["root_bytes_before"]) > 1024**2
+        or evidence["free_bytes"] < MIN_FREE
+        or evidence["deleted_open_bytes"] != 0
+        or evidence["deleted_mappings"] != 0
+        or evidence["read_errors"] != 0
+        or evidence["api_process_count"] != 1
+    ):
+        raise ValueError
+
+
+def activation_gate(
+    report: dict,
+    ids: dict,
+    deployment_id: str,
+    now: datetime,
+    console_storage: dict | None = None,
+) -> None:
     """Unknown or multiple containers cannot stand in for measured capacity."""
     try:
         if any(report["identity"][key] != value for key, value in ids.items()):
@@ -190,16 +269,29 @@ def activation_gate(report: dict, ids: dict, deployment_id: str, now: datetime) 
                 raise ValueError
         if startup["free_bytes"] < MIN_FREE:
             raise ValueError
-        disk = report["service_disk_usage"]
-        if type(disk["sample_count"]) is not int or disk["sample_count"] < 1:
-            raise ValueError
-        for key in ("latest", "maximum", "latest_timestamp"):
-            if capacity.number(disk[key]) is None:
+        if console_storage is not None:
+            console_storage_gate(console_storage, ids, deployment_id, instances[0], now)
+            # A manual assessment cannot overrule any reported provider usage.
+            # Partially populated or conflicting telemetry is not unavailable.
+            disk = report.get("service_disk_usage")
+            if disk is not None and disk != {
+                "latest": None,
+                "maximum": None,
+                "latest_timestamp": None,
+                "sample_count": 0,
+            }:
                 raise ValueError
-        if not 0 <= now.timestamp() - disk["latest_timestamp"] <= 5 * 60:
-            raise ValueError
-        if PAID_DISK_ALLOWANCE - disk["maximum"] * 1024**3 < MIN_FREE:
-            raise ValueError
+        else:
+            disk = report["service_disk_usage"]
+            if type(disk["sample_count"]) is not int or disk["sample_count"] < 1:
+                raise ValueError
+            for key in ("latest", "maximum", "latest_timestamp"):
+                if capacity.number(disk[key]) is None:
+                    raise ValueError
+            if not 0 <= now.timestamp() - disk["latest_timestamp"] <= 5 * 60:
+                raise ValueError
+            if PAID_DISK_ALLOWANCE - disk["maximum"] * 1024**3 < MIN_FREE:
+                raise ValueError
         metrics = report["metrics"]
         if len(metrics) != 1 or metrics[0]["instance_id"] != instances[0]:
             raise ValueError
@@ -253,6 +345,34 @@ def set_flag(ids: dict, enabled: bool) -> None:
             raise ValueError
     except Exception:
         raise Refused("flag_update_unconfirmed") from None
+
+
+def current_console_instance(
+    token: str, ids: dict, evidence: dict, reviewed_id: str
+) -> None:
+    """An instance can restart without the deployment ID changing."""
+    try:
+        rows = capacity.query(
+            token,
+            CONSOLE_INSTANCE,
+            {key: ids[key] for key in ("environmentId", "serviceId")},
+        )["serviceInstance"]["activeDeployments"]
+        if (
+            len(rows) != 1
+            or rows[0]["id"] != reviewed_id
+            or rows[0]["status"] != "SUCCESS"
+        ):
+            raise ValueError
+        instances = [
+            row["id"] for row in rows[0]["instances"] if row["status"] == "RUNNING"
+        ]
+        if instances != [evidence["instance_id"]]:
+            raise ValueError
+        console_storage_gate(
+            evidence, ids, reviewed_id, instances[0], datetime.now(UTC)
+        )
+    except (KeyError, TypeError, ValueError, IndexError):
+        raise Refused("activation_capacity_insufficient_or_unknown") from None
 
 
 def redeploy(token: str, deployment_id: str) -> str:
@@ -453,7 +573,9 @@ def restore_off(
         return "off_flag_saved_deployment_unconfirmed"
 
 
-def control(token: str, enabled: bool, commit: str) -> dict:
+def control(
+    token: str, enabled: bool, commit: str, console_storage: dict | None = None
+) -> dict:
     if (
         type(enabled) is not bool
         or not isinstance(commit, str)
@@ -473,13 +595,19 @@ def control(token: str, enabled: bool, commit: str) -> dict:
         reviewed_id = target(token, ids)
         if enabled:
             activation_gate(
-                capacity.collect(token), ids, reviewed_id, datetime.now(UTC)
+                capacity.collect(token),
+                ids,
+                reviewed_id,
+                datetime.now(UTC),
+                console_storage=console_storage,
             )
         # The report may take time. Refuse if the target changed during that read.
         if target(token, ids) != reviewed_id or not version_matches(commit):
             raise Refused("reviewed_release_changed")
         if time.monotonic() - started > 180:
             raise Refused("preflight_read_budget_exceeded")
+        if enabled and console_storage is not None:
+            current_console_instance(token, ids, console_storage, reviewed_id)
         attempted = True  # A lost CLI response may still have saved the setting.
         set_flag(ids, enabled)
         if target(token, ids) != reviewed_id or not version_matches(commit):
@@ -525,13 +653,23 @@ def main() -> int:
     enabled = os.environ.get("ADDRESS_COPY_ENABLED")
     commit = os.environ.get("ADDRESS_COPY_RELEASE_COMMIT", "")
     token = os.environ.get("RAILWAY_TOKEN")
+    raw_storage = os.environ.get("ADDRESS_COPY_CONSOLE_STORAGE", "")
+    try:
+        if len(raw_storage) > 4096:
+            raise ValueError
+        storage = json.loads(raw_storage) if raw_storage else None
+        if raw_storage and not isinstance(storage, dict):
+            raise ValueError
+    except (ValueError, TypeError):
+        print(json.dumps({"status": "refused", "reason": "invalid_control_inputs"}))
+        return 1
     if enabled not in {"true", "false"} or not re.fullmatch(r"[0-9a-f]{40}", commit):
         result = {"status": "refused", "reason": "invalid_control_inputs"}
     elif not token:
         result = {"status": "refused", "reason": "missing_required_secret"}
     else:
         try:
-            result = control(token, enabled == "true", commit)
+            result = control(token, enabled == "true", commit, console_storage=storage)
         except Exception:
             result = {"status": "failed", "reason": "control_unavailable"}
     print(json.dumps(result, allow_nan=False))

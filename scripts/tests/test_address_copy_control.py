@@ -80,6 +80,128 @@ def report():
     }
 
 
+def console_evidence():
+    return {
+        **IDS,
+        "deployment_id": OLD,
+        "instance_id": INSTANCE,
+        "recorded_at": NOW.isoformat(),
+        "root_bytes_before": 787_292_160,
+        "root_bytes_after": 787_292_160,
+        "free_bytes": 3_000_000_000,
+        "deleted_open_bytes": 0,
+        "deleted_mappings": 0,
+        "read_errors": 0,
+        "root_is_overlay": True,
+        "copy_on_root_mount": True,
+        "expected_runtime_mounts": True,
+        "expected_processes": True,
+        "api_process_count": 1,
+    }
+
+
+class ConsoleStorageTests(unittest.TestCase):
+    def test_missing_telemetry_needs_complete_same_instance_console_evidence(self):
+        value = report()
+        value["service_disk_usage"] = None
+        with self.assertRaises(control.Refused):
+            control.activation_gate(value, IDS, OLD, NOW)
+        control.activation_gate(value, IDS, OLD, NOW, console_evidence())
+        value["service_disk_usage"] = {
+            "latest": None,
+            "maximum": None,
+            "latest_timestamp": None,
+            "sample_count": 0,
+        }
+        control.activation_gate(value, IDS, OLD, NOW, console_evidence())
+
+    def test_console_cannot_override_provider_usage_or_remaining_gates(self):
+        value = report()
+        for disk in (value["service_disk_usage"], {"maximum": 99}, {}):
+            value["service_disk_usage"] = disk
+            with self.assertRaises(control.Refused):
+                control.activation_gate(value, IDS, OLD, NOW, console_evidence())
+        value = report()
+        value["service_disk_usage"] = None
+        value["startup_capacity"]["enabled"] = True
+        with self.assertRaises(control.Refused):
+            control.activation_gate(value, IDS, OLD, NOW, console_evidence())
+
+    def test_wrong_identity_incomplete_unstable_or_old_scan_refused(self):
+        wrong = {
+            "projectId": NEW,
+            "environmentId": NEW,
+            "serviceId": NEW,
+            "deployment_id": NEW,
+            "instance_id": NEW,
+            "recorded_at": "2026-10-09T00:54:59+00:00",
+            "root_bytes_before": 5_000_000_001,
+            "root_bytes_after": 5_000_000_001,
+            "free_bytes": 2_999_999_999,
+            "deleted_open_bytes": 1,
+            "deleted_mappings": 1,
+            "read_errors": 1,
+            "root_is_overlay": False,
+            "copy_on_root_mount": False,
+            "expected_runtime_mounts": False,
+            "expected_processes": False,
+            "api_process_count": 2,
+        }
+        for key, bad in wrong.items():
+            evidence = console_evidence()
+            evidence[key] = bad
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                control.console_storage_gate(evidence, IDS, OLD, INSTANCE, NOW)
+        for key in console_evidence():
+            evidence = console_evidence()
+            del evidence[key]
+            with self.subTest(missing=key), self.assertRaises(ValueError):
+                control.console_storage_gate(evidence, IDS, OLD, INSTANCE, NOW)
+        for key, bad in (
+            ("read_errors", False),
+            ("root_bytes_before", float("nan")),
+            ("root_bytes_after", 788_340_737),
+            ("root_bytes_before", 0),
+            ("root_is_overlay", 1),
+            ("deleted_mappings", -1),
+            ("recorded_at", "2026-10-09T01:00:01+00:00"),
+            ("extra", PRIVATE),
+        ):
+            evidence = console_evidence()
+            evidence[key] = bad
+            with self.subTest(key=key, bad=bad), self.assertRaises(ValueError):
+                control.console_storage_gate(evidence, IDS, OLD, INSTANCE, NOW)
+
+    def test_instance_restart_before_flag_refused(self):
+        evidence = console_evidence()
+        data = {
+            "serviceInstance": {
+                "activeDeployments": [
+                    {
+                        "id": OLD,
+                        "status": "SUCCESS",
+                        "instances": [
+                            {"id": NEW, "status": "RUNNING"},
+                        ],
+                    }
+                ]
+            }
+        }
+        with patch.object(control.capacity, "query", return_value=data):
+            with self.assertRaises(control.Refused):
+                control.current_console_instance("fake-token", IDS, evidence, OLD)
+        data["serviceInstance"]["activeDeployments"][0]["instances"][0]["id"] = INSTANCE
+        with (
+            patch.object(control.capacity, "query", return_value=data),
+            patch.object(control, "datetime", wraps=datetime) as clock,
+        ):
+            clock.now.return_value = NOW
+            control.current_console_instance("fake-token", IDS, evidence, OLD)
+            clock.now.return_value = NOW.replace(minute=6)
+            with self.assertRaises(control.Refused):
+                control.current_console_instance("fake-token", IDS, evidence, OLD)
+
+
 class GateTests(unittest.TestCase):
     def test_known_single_paid_container_passes(self):
         control.activation_gate(report(), IDS, OLD, NOW)
@@ -233,6 +355,7 @@ class ControlTests(unittest.TestCase):
             patch.object(control, "target", return_value=OLD)
         )
         self.pending = self.stack.enter_context(patch.object(control, "pending_clear"))
+
         self.set_flag = self.stack.enter_context(patch.object(control, "set_flag"))
         self.redeploy = self.stack.enter_context(
             patch.object(control, "redeploy", return_value=NEW)
@@ -244,6 +367,29 @@ class ControlTests(unittest.TestCase):
         self.stack.enter_context(
             patch.object(control, "settle_owned_activation", return_value=True)
         )
+
+    def test_console_instance_refusal_happens_before_any_write(self):
+        with (
+            patch.object(
+                control,
+                "current_console_instance",
+                side_effect=control.Refused(
+                    "activation_capacity_insufficient_or_unknown"
+                ),
+            ),
+            patch.object(control, "set_flag") as flag,
+            patch.object(control, "redeploy") as deploy,
+        ):
+            result = control.control("fake-token", True, COMMIT, console_evidence())
+        self.assertEqual(
+            result,
+            {
+                "status": "refused",
+                "reason": "activation_capacity_insufficient_or_unknown",
+            },
+        )
+        flag.assert_not_called()
+        deploy.assert_not_called()
 
     def test_on_deploys_exact_reviewed_active_id(self):
         result = control.control("fake-token", True, COMMIT)

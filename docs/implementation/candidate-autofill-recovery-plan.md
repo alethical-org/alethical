@@ -571,3 +571,34 @@ timings and live review remain pending.
 Next step: establish Railway capacity and charges before setting
 `ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED`, tracked in
 [issue 2585](https://github.com/alethical-org/alethical/issues/2585).
+
+
+### Bounded Console capacity assessment
+
+The owning Railway workspace now opens the production service Console. Its Pro
+usage screen lists 100 GB shared disk, $20 included usage, and $3.22 current use
+for 22 September through 22 October, with memory, CPU and outgoing-traffic rates
+matching the published table. No new resource is needed. Added copy memory and CPU
+use still require post-activation measurement.
+
+Read-only Console measurements on the exact running instance found 787,292,160
+allocated bytes in visible root files, no deleted open-file allocation, no deleted
+memory mappings and no denied process reads. The mount layout contains only root
+overlay and provider runtime/system mounts; no separate application storage was
+found. Expected programs are 1 launch wrapper, 1 API program, the Console shell
+and the measurement program. The 2.3 TB host free-space number is not the quota.
+
+The shared control now accepts optional fresh, exact-instance Console evidence
+only for a complete, stable scan below 5 GB. This leaves a 95 GB operational margin
+against the confirmed account allowance; it is not an exact provider usage metric
+or an unconditional bound on hidden filesystem bookkeeping. Existing replica,
+off-state, process, memory, release ownership and restoration gates remain intact.
+Any populated provider disk reading cannot be overridden. Wrong or changed instance
+IDs, stale/future evidence, incomplete scans, unexpected mounts/processes and bad
+field types refuse activation. Missing evidence preserves the existing refusal.
+
+Independent capacity review accepted this approach with same-instance and freshness
+rechecks immediately before the flag write. Final code review, current-head checks,
+a fresh complete Console assessment, activation, full selection timings and fresh
+live user-flow acceptance remain owned by the parent. The copy remains off during
+preparation; no Design request, new resource or recurring paid check is introduced.

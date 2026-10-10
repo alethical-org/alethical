@@ -187,12 +187,46 @@ are reported; missing counts never mean 1. Raw metadata and configuration stay
 private. The nullable legacy dashboard count is reported separately. A separate
 exact-service disk request omits instance grouping, because disk usage may lack
 an instance tag.
-On 9 October, the authenticated service and instance disk requests both returned
-no usage. The supported SSH and service-file paths require a registered SSH key;
-the existing project token alone cannot use them. A visible-folder size scan
-does not replace provider quota usage: deleted-but-open files and hidden overlay
-storage can be absent from that total. Keep the switch off when storage remains
-unknown; do not create an access key or paid volume merely to bypass this gate.
+The authenticated service and instance disk requests can return no usage. The
+signed-in owning workspace's service Console provides a read-only terminal for
+the exact deployment and instance without registering another access key.
+A root-folder scan alone is insufficient: deleted files can remain allocated
+through open handles or memory mappings, and mounts can hide application storage.
+
+When disk telemetry is unavailable, the operator may supply `console_storage`
+to the control workflow after a complete read-only Console assessment. This is a
+conservative operational assessment, not Railway's exact quota measurement. The
+record contains the exact `projectId`, `environmentId`, `serviceId`,
+`deployment_id`, `instance_id`, and timezone-aware `recorded_at`, plus:
+
+- `root_bytes_before` and `root_bytes_after`: complete allocated-block root scans
+  (`du -sx -B1 /`), both greater than 0 and at most 5 GB, differing by at most 1 MiB
+- `free_bytes`: at least 3 GB on the copy destination's existing parent
+- `deleted_open_bytes`, `deleted_mappings`, `read_errors`: all 0 after examining
+  every live process's file handles and mapping list, including traversal errors
+- `root_is_overlay`, `copy_on_root_mount`, `expected_runtime_mounts`: exactly true
+  after inspecting the mount layout and confirming only provider runtime/system
+  mounts, with no separate application storage or concealed application directory
+- `expected_processes`: exactly true, and `api_process_count`: exactly 1, with only
+  the expected application, launch wrapper,
+  console shell and measurement programs present throughout the scan
+
+Read process names only, never arguments or environment values. Treat failed,
+denied, timed-out or unstable reads as incomplete; do not forward raw terminal
+output, paths, mount lists or memory maps into the workflow. Retain the private
+numeric assessment and the operator's mount/process review. These conditions are
+restricted to a small off-state service: the 5 GB ceiling leaves 95 GB of the
+published paid allowance for the measured 1.36 GB build and unmeasured filesystem
+bookkeeping. They do not establish an unconditional upper bound for hidden provider
+storage. Different mounts, unexplained processes or larger use require another
+capacity assessment; the console fallback must not be generalized to them.
+
+The evidence must be at most 5 minutes old. Immediately before changing the flag,
+the control re-reads the exact active deployment and running instance and validates
+freshness again. Missing evidence preserves the metric-only gate. Supplied evidence
+cannot override any populated provider disk reading, even a partial or stale one;
+that reading must be resolved through the provider path. All existing off-state,
+replica, process, memory, deployment ownership and rollback checks remain required.
 
 Railway's [published container rates](https://docs.railway.com/pricing/plans), read
 on 9 October, are $10 per GB memory per month, $20 per vCPU per month and $0.05 per
@@ -202,15 +236,17 @@ added live use after activation. These rates are not an account invoice or proof
 of no added charge. This activation does not request another resource.
 
 The manual-only [Address copy control workflow](../../.github/workflows/address-copy-control.yml)
-accepts `enabled` (default `false`) and `release_commit` (the reviewed live API's
-40-character commit). Before turning on, it requires a Hobby or Pro plan, 1 configured
+accepts `enabled` (default `false`), `release_commit` (the reviewed live API's
+40-character commit), and optional `console_storage` (the reviewed numeric JSON
+assessment; empty by default). Before turning on, it requires a Hobby or Pro plan, 1 configured
 replica in both saved settings and the active deployment, exactly 1 active
 deployment and running instance, the repository start
 command, a fresh off-state capacity line with 1 API-program process and at least
 3 GB free, and at least 256 MiB memory headroom above the higher of startup usage
-and that instance's observed usage peak. It also requires a fresh disk-usage sample
-leaving at least 3 GB within Railway's published 100 GB paid-deployment allowance;
-the host filesystem's larger free-space reading cannot replace that check.
+and that instance's observed usage peak. It also requires either a fresh disk-usage sample leaving at least 3 GB within
+Railway's published 100 GB paid-deployment allowance or the complete bounded
+Console assessment described above. The host filesystem's larger free-space
+reading alone cannot replace that check.
 Missing, stale or conflicting facts refuse
 activation. Establish applicable charges separately; the automated gate cannot
 prove the account's invoice or authorize a new resource.
