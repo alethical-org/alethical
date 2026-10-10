@@ -550,19 +550,25 @@ written to browser storage or an address, and any account change clears them. Re
 the form after a decision or a withdrawal brings back unsent answers too. Answers held only in memory are lost when the page fully reloads, for example **Go back**
 on a claim page opened directly, with no earlier page in that tab.
 
-Ctrl- or Cmd-clicking, or middle-clicking, a link to that candidate's claim page while
-the tab holds answers for it opens the public claim address in a new tab from the page
-itself, which keeps that one window only in its own memory. Once the new tab's claim form
+On `/candidates/features` for a candidate, its 2 links back to that candidate's claim page
+(**Go back** and **Continue claiming this candidate profile**) can carry the answers to a
+new tab. The reachable path is the signed-out claim page, **Explore candidate profile
+features**, signing in there, **Continue claiming this candidate profile**, typing answers,
+then **Go back** or the browser's Back to the features page. Ctrl- or Cmd-clicking one of
+those 2 links (with or without Shift), or middle-clicking it, while the tab holds answers for
+that candidate opens the public claim address in a new tab from the page itself, which keeps
+that one window only in its own memory. Once the new tab's claim form
 has loaded, is signed in to the same account, can request and is still empty, it asks the
 tab that opened it directly. That tab answers only a same-site message from that exact
 window, once, within 2 minutes, and sends the answers to that window alone; no code or
 answer goes into an address, storage, history, the window name or a server. A form already
 typed in keeps what was typed. If the browser refuses to open the tab, the reader moves to
 the claim page in the same tab, where the answers already are. The original tab always
-keeps its answers. Without held answers, every gesture behaves as the browser's own.
+keeps its answers. Answers of any length, with their messages, pass unchanged. Without held
+answers, and on every other link, every gesture behaves as the browser's own.
 
-The browser's own link menu (**Open link in new tab**) and Shift-click (new window) tell
-the page neither the chosen command nor the window they open, so those tabs start empty,
+The browser's own link menu (**Open link in new tab**) and a plain Shift-click (new window)
+tell the page neither the chosen command nor the window they open, so those tabs start empty,
 as do a copied address, a typed address and any tab opened after the link menu was
 dismissed. `/candidates/features` takes no part: the only link to it is on the signed-out
 claim page, where there are no answers to hand over.
@@ -665,7 +671,9 @@ and on **Try again**. **Try again** first reads what was saved, then repeats onl
 action and only if it is still needed; a failed removal is retried as a removal, never as
 a save, and the owner's text is never changed. **Try again** first confirms the account still manages the profile; if access has ended,
 the page shows the current access state, clears the editor and sends nothing, and a write
-refused for lost access does the same. If the statement was saved somewhere else since the
+refused for lost access does the same. The new state's heading then takes focus and scrolls
+into view, so a reader scrolled down at **Try again** sees it; a page that simply opens on
+such a state moves nothing. If the statement was saved somewhere else since the
 failed attempt, **Try again** sends nothing. An amber group appears above the editor with
 "The published statement changed elsewhere. Your changes are still here and have not been
 saved." and a white box headed **Current public statement** showing that statement's own

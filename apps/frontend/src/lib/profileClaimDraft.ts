@@ -14,8 +14,8 @@ import { registerCandidatePrivacyReset } from './candidatePrivacy';
  * address itself and keeps the returned window only in its own memory. That window, once its claim
  * form is ready, signed in to the same account, eligible and still empty, asks its
  * opener directly; this tab answers only a message whose origin is this site and whose
- * sender is that exact window, once, within 2 minutes, and sends the answers to that
- * window alone. Nothing is broadcast, and no code or answer enters an address.
+ * sender is that exact window, within 2 minutes, and sends the answers to that window
+ * alone, until that window confirms it filled its form; then the offer ends. Nothing is broadcast, and no code or answer enters an address.
  *
  * The browser's own link menu ("Open link in new tab") and a plain Shift-click (new
  * window) tell the page neither the chosen command nor the opened window, so those tabs
@@ -43,8 +43,10 @@ type Offer = { child: TargetWindow; accountId: string; candidateId: string; expi
 
 const REQUEST = 'alethical-profile-claim-draft-request';
 const REPLY = 'alethical-profile-claim-draft-reply';
+const RECEIVED = 'alethical-profile-claim-draft-received';
 export const PROFILE_CLAIM_DRAFT_OFFER_MS = 2 * 60 * 1000;
-const WAIT_MS = 1500;
+// The opened tab listens for as long as the offer can last; an edit before then wins.
+const WAIT_MS = PROFILE_CLAIM_DRAFT_OFFER_MS;
 const ERROR_KEYS = ['role', 'link', 'explanation'] as const;
 
 // Any length: the form keeps over-long answers (with their error) exactly as typed.
@@ -114,16 +116,22 @@ export function createProfileClaimDraftTab(
   const key = (accountId: string, candidateId: string) => `${accountId}\u0000${candidateId}`;
 
   // Opener side: answer only the exact window this tab opened, once.
+  // The offer lasts until that window confirms it filled its form, so a form that restarts
+  // while loading (for example as sign-in settles) can still ask; then it ends.
   const onRequest = (event: MessageLike) => {
     if (!host || event.origin !== host.origin) return;
     const message = event.data as Record<string, unknown> | null;
-    if (!message || typeof message !== 'object' || message.type !== REQUEST) return;
+    if (!message || typeof message !== 'object') return;
+    if (message.type !== REQUEST && message.type !== RECEIVED) return;
     offers = offers.filter((item) => item.expires > now());
     const index = offers.findIndex((item) => item.child === event.source);
     if (index < 0) return;
     const offer = offers[index];
     if (message.accountId !== offer.accountId || message.candidateId !== offer.candidateId) return;
-    offers.splice(index, 1);
+    if (message.type === RECEIVED) {
+      offers.splice(index, 1);
+      return;
+    }
     const draft = drafts.get(key(offer.accountId, offer.candidateId));
     if (!draft) return;
     offer.child.postMessage(
@@ -209,9 +217,20 @@ export function createProfileClaimDraftTab(
           stop();
           clearTimeout(timeout);
           signal?.removeEventListener('abort', abort);
-          // One exchange per opened tab: the link to the opener is not kept afterwards.
-          host.forgetOpener();
-          resolve(draft && !signal?.aborted && isCurrent() ? draft : null);
+          const accepted = draft && !signal?.aborted && isCurrent() ? draft : null;
+          if (accepted) {
+            // Kept in this tab's own memory too, so a form that restarts right after still
+            // shows the answers.
+            drafts.set(key(accountId, candidateId), accepted);
+            // One transfer per opened tab: say so, then drop the link to the opener.
+            try {
+              opener.postMessage({ type: RECEIVED, accountId, candidateId }, host.origin);
+            } catch {
+              // The opener is gone; its offer lapses on its own.
+            }
+            host.forgetOpener();
+          }
+          resolve(accepted);
         };
         const abort = () => finish(null);
         const timeout = setTimeout(() => finish(null), WAIT_MS);

@@ -520,20 +520,21 @@ function ClaimForm({
     askedOpener.current = true;
     // Lives as long as this form, so a later recheck of eligibility does not cancel it.
     const lifetime = signal();
-    const untouched = () => {
+    // Same account, still eligible, nothing typed here.
+    const current = () => {
       const now = live.current;
       return (
-        eligible.current &&
-        now.auth.isSignedIn &&
-        now.auth.user?.id === accountKey &&
-        !now.edited &&
-        !readProfileClaimDraft(accountKey, candidateId)
+        eligible.current && now.auth.isSignedIn && now.auth.user?.id === accountKey && !now.edited
       );
     };
+    // Before asking, and when the answers arrive, no answers of this tab's own are held.
+    const untouched = () => current() && !readProfileClaimDraft(accountKey, candidateId);
     if (!untouched()) return;
     void requestProfileClaimDraftFromOpener(accountKey, candidateId, untouched, lifetime).then(
       (draft) => {
-        if (!draft || lifetime.aborted || !untouched()) return;
+        // The transfer kept exactly these answers in this tab's memory; anything newer wins.
+        if (!draft || lifetime.aborted || !current()) return;
+        if (readProfileClaimDraft(accountKey, candidateId) !== draft) return;
         setRole(draft.role);
         setEvidence(draft.link);
         setNote(draft.explanation);

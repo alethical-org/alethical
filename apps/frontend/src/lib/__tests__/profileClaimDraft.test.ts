@@ -91,7 +91,7 @@ async function ask(
   isCurrent = () => true,
 ) {
   const answer = tabFor(window).requestFromOpener(account, id, isCurrent);
-  await vi.advanceTimersByTimeAsync(2000);
+  await vi.advanceTimersByTimeAsync(PROFILE_CLAIM_DRAFT_OFFER_MS + 1000);
   return answer;
 }
 
@@ -220,7 +220,7 @@ it('ignores replies that are malformed, from another sender or for someone else'
   new FakeWindow().handleTo(child).postMessage({ ...reply, draft }, origin);
   // As is one from another site.
   new FakeWindow('https://example.org').handleTo(child).postMessage({ ...reply, draft }, origin);
-  await vi.advanceTimersByTimeAsync(2000);
+  await vi.advanceTimersByTimeAsync(PROFILE_CLAIM_DRAFT_OFFER_MS + 1000);
   expect(await answer).toBeNull();
 });
 
@@ -344,4 +344,51 @@ it('keeps answers out of browser storage, the address and the page history', asy
   expect(replace).not.toHaveBeenCalled();
   // The request carries only the public candidate id and the account it is for.
   expect(JSON.stringify(original.received)).not.toContain('Illustrative');
+});
+
+it('lets the opened window ask again after a form restart, until it confirms it filled its form', async () => {
+  const original = new FakeWindow();
+  const tab = tabFor(original);
+  tab.save('account-a', candidate, draft);
+  tab.openWithAnswers(claimHref);
+  const child = original.opened[0];
+  // The first form instance goes away before it can use the answers.
+  expect(await ask(child, 'account-a', candidate, () => false)).toBeNull();
+  expect(child.opener).toBe(original);
+  // Its replacement asks again and fills; the window then confirms and lets go.
+  expect(await ask(child)).toEqual(draft);
+  expect(child.opener).toBeNull();
+  child.opener = original;
+  expect(await ask(child)).toBeNull();
+});
+
+it('keeps accepted answers in the opened tab’s own memory for a form that restarts', async () => {
+  const original = new FakeWindow();
+  const tab = tabFor(original);
+  tab.save('account-a', candidate, draft);
+  tab.openWithAnswers(claimHref);
+  const child = original.opened[0];
+  const childTab = tabFor(child);
+  const answer = childTab.requestFromOpener('account-a', candidate, () => true);
+  await vi.advanceTimersByTimeAsync(PROFILE_CLAIM_DRAFT_OFFER_MS + 1000);
+  expect(await answer).toEqual(draft);
+  expect(childTab.read('account-a', candidate)).toEqual(draft);
+});
+
+it('waits for a slow answer as long as the offer can last, while the form stays untouched', async () => {
+  const original = new FakeWindow();
+  const tab = tabFor(original);
+  tab.save('account-a', candidate, draft);
+  tab.openWithAnswers(claimHref);
+  const child = original.opened[0];
+  // Hold the opener's reply for 1.6 seconds, as a busy tab might.
+  const listeners = [...original.listeners];
+  original.listeners.clear();
+  original.listeners.add((event) => {
+    setTimeout(() => listeners.forEach((listener) => listener(event)), 1600);
+  });
+  const answer = tabFor(child).requestFromOpener('account-a', candidate, () => true);
+  await vi.advanceTimersByTimeAsync(1500);
+  await vi.advanceTimersByTimeAsync(500);
+  expect(await answer).toEqual(draft);
 });

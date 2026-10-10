@@ -7,7 +7,7 @@ import { AdminCandidateClaimsScreen } from '../AdminCandidateClaimsScreen';
 import { CandidateClaimPanel } from '../../components/candidates/CandidateClaimPanel';
 import type { CandidateProfileRecord } from '../../components/candidates/types';
 import { GuardedNavigationContext } from '../../navigation/GuardedNavigationContext';
-import { clearAllProfileClaimDrafts } from '../../lib/profileClaimDraft';
+import { clearAllProfileClaimDrafts, saveProfileClaimDraft } from '../../lib/profileClaimDraft';
 
 const mocks = vi.hoisted(() => {
   (globalThis as { __DEV__?: boolean }).__DEV__ = false;
@@ -1613,6 +1613,13 @@ const handedOver = {
   explanation: 'Illustrative explanation typed in the opening tab',
   errors: {},
 };
+/** As the transfer does: keep exactly these answers in this tab's memory, then return them. */
+function handOver(answers: typeof handedOver) {
+  return async (accountId: string, candidateId: string) => {
+    saveProfileClaimDraft(accountId, candidateId, answers);
+    return answers;
+  };
+}
 function claimPage() {
   act(() =>
     root.render(<CandidateClaimScreen navigation={navigation as never} route={route as never} />),
@@ -1624,7 +1631,7 @@ function fieldValue(label: string) {
 }
 it('asks the tab that opened it only once its form is ready and eligible, then fills the empty form', async () => {
   mocks.mine.mockResolvedValue(eligibleList);
-  mocks.fromOpener.mockResolvedValue(handedOver);
+  mocks.fromOpener.mockImplementation(handOver(handedOver));
   claimPage();
   await flush();
   await flush();
@@ -1758,7 +1765,7 @@ it('fills the opened tab with over-long answers and their messages exactly as ty
     errors: { explanation: 'Keep your explanation to 1900 characters or fewer' },
   };
   mocks.mine.mockResolvedValue(eligibleList);
-  mocks.fromOpener.mockResolvedValue(long);
+  mocks.fromOpener.mockImplementation(handOver(long));
   claimPage();
   await flush();
   await flush();
@@ -1783,4 +1790,21 @@ it('does not move focus when the page simply opens on a state without access', a
   expect(host.textContent).toContain('Profile claim revoked');
   expect(document.activeElement).toBe(document.body);
   expect(scrolled).not.toHaveBeenCalled();
+});
+
+it('fills only the exact answers the transfer kept, never a copy replaced since', async () => {
+  mocks.mine.mockResolvedValue(eligibleList);
+  mocks.fromOpener.mockImplementation(async (accountId: string, candidateId: string) => {
+    saveProfileClaimDraft(accountId, candidateId, handedOver);
+    // Newer answers replace them before the form gets the result.
+    saveProfileClaimDraft(accountId, candidateId, {
+      ...handedOver,
+      link: 'https://example.org/newer',
+    });
+    return handedOver;
+  });
+  claimPage();
+  await flush();
+  await flush();
+  expect(fieldValue('Link to a campaign website or official record')).toBe('');
 });
