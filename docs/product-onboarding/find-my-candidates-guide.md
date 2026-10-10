@@ -575,8 +575,7 @@ answers, and on every other link, every gesture behaves as the browser's own.
 The browser's own link menu (**Open link in new tab**) and a plain Shift-click (new window)
 tell the page neither the chosen command nor the window they open, so those tabs start empty,
 as do a copied address, a typed address and any tab opened after the link menu was
-dismissed. `/candidates/features` takes no part: the only link to it is on the signed-out
-claim page, where there are no answers to hand over.
+dismissed.
 
 A saved pending request shows a receipt: **Profile claim request received**, an
 explanation that an Alethical team member reviews it and may contact the applicant,
