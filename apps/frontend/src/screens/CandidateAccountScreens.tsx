@@ -1122,7 +1122,7 @@ function ManageContent({
   navigation: RootScreenProps<'CandidateManage'>['navigation'];
 }) {
   const signal = useRequestLifetime();
-  const { isMobile, h2 } = useBands();
+  const { isMobile, isDesktop, h2 } = useBands();
   const candidateId = record.candidate.id;
   const [claims, setClaims] = useState<CandidateClaimList | null>(null);
   const [loaded, setLoaded] = useState<PrivateCandidateStatement | null>(null);
@@ -1667,6 +1667,25 @@ function ManageContent({
           : null
         : { kind: 'guidance' as const, text: copy.notSavedUntilPublished };
   const inert = Boolean(busy) || loading;
+  // Design's measured recovery-group spacing, top / sides / bottom, per band.
+  const [groupPad, boxPad] = isMobile
+    ? [
+        [14, 14, 16],
+        [14, 16, 16],
+      ]
+    : isDesktop
+      ? [
+          [18, 20, 20],
+          [16, 20, 18],
+        ]
+      : [
+          [16, 18, 18],
+          [16, 18, 18],
+        ];
+  const recoverySpacing = {
+    group: { paddingTop: groupPad[0], paddingHorizontal: groupPad[1], paddingBottom: groupPad[2] },
+    box: { paddingTop: boxPad[0], paddingHorizontal: boxPad[1], paddingBottom: boxPad[2] },
+  };
   return (
     <>
       {topRow}
@@ -1699,7 +1718,7 @@ function ManageContent({
           <View
             role="group"
             aria-labelledby="statement-changed-message"
-            style={[claimStyles.changedGroup, isMobile && { padding: 14 }]}
+            style={[claimStyles.changedGroup, recoverySpacing.group]}
           >
             <Text
               nativeID="statement-changed-message"
@@ -1711,7 +1730,7 @@ function ManageContent({
             >
               {copy.changedElsewhere}
             </Text>
-            <View style={claimStyles.currentStatement}>
+            <View style={[claimStyles.currentStatement, recoverySpacing.box]}>
               <View style={claimStyles.currentStatementTop}>
                 <Text style={[candidateText.strong, { fontSize: 15.5, lineHeight: 22 }]}>
                   {copy.currentStatement}
@@ -2497,20 +2516,17 @@ const claimStyles = {
     rowGap: 10,
   },
   changedGroup: {
-    marginTop: 14,
-    padding: 18,
-    gap: 12,
+    marginTop: 28,
     backgroundColor: '#fdf6e7',
     borderWidth: 1,
     borderColor: '#efd9a8',
     borderRadius: 14,
   },
   currentStatement: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    marginTop: 14,
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: 'rgba(17,21,15,0.08)',
+    borderColor: 'rgba(17,21,15,0.1)',
     borderRadius: 12,
   },
   currentStatementTop: {

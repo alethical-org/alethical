@@ -7,18 +7,20 @@ import { registerCandidatePrivacyReset } from './candidatePrivacy';
  * window name: the answers are private evidence. Any account change clears every draft.
  *
  * One bounded exception reaches another tab, and only the exact tab this one opens.
- * When the reader Ctrl- or Cmd-clicks or middle-clicks a link to the claim page of a
- * candidate this tab holds answers for, this tab opens the public claim address itself
- * and keeps the returned window only in its own memory. That window, once its claim
+ * On /candidates/features for a candidate, its 2 return links to that candidate's claim
+ * page (Go back and Continue claiming this candidate profile) are the only links taken
+ * over. When the reader Ctrl- or Cmd-clicks (with or without Shift) or middle-clicks one
+ * while this tab holds answers for that candidate, this tab opens the public claim
+ * address itself and keeps the returned window only in its own memory. That window, once its claim
  * form is ready, signed in to the same account, eligible and still empty, asks its
  * opener directly; this tab answers only a message whose origin is this site and whose
  * sender is that exact window, once, within 2 minutes, and sends the answers to that
  * window alone. Nothing is broadcast, and no code or answer enters an address.
  *
- * The browser's own link menu ("Open link in new tab") and Shift-click (new window)
- * tell the page neither the chosen command nor the opened window, so those tabs start
- * empty; the original tab always keeps its answers. With no answers held, every
- * gesture stays the browser's own. */
+ * The browser's own link menu ("Open link in new tab") and a plain Shift-click (new
+ * window) tell the page neither the chosen command nor the opened window, so those tabs
+ * start empty; the original tab always keeps its answers. With no answers held, and on
+ * every other link, each gesture stays the browser's own. */
 export interface ProfileClaimDraft {
   role: string;
   link: string;
@@ -30,6 +32,8 @@ type TargetWindow = { postMessage(message: unknown, targetOrigin: string): void 
 type MessageLike = { data: unknown; origin: string; source: unknown };
 export type ProfileClaimDraftHost = {
   origin: string;
+  /** Where this tab is now, read at the moment of each gesture. */
+  where(): { pathname: string; search: string };
   open(url: string): TargetWindow | null;
   opener(): TargetWindow | null;
   forgetOpener(): void;
@@ -41,10 +45,10 @@ const REQUEST = 'alethical-profile-claim-draft-request';
 const REPLY = 'alethical-profile-claim-draft-reply';
 export const PROFILE_CLAIM_DRAFT_OFFER_MS = 2 * 60 * 1000;
 const WAIT_MS = 1500;
-const MAX_TEXT = 10000;
 const ERROR_KEYS = ['role', 'link', 'explanation'] as const;
 
-const text = (value: unknown) => typeof value === 'string' && value.length <= MAX_TEXT;
+// Any length: the form keeps over-long answers (with their error) exactly as typed.
+const text = (value: unknown) => typeof value === 'string';
 function validDraft(value: unknown): value is ProfileClaimDraft {
   if (!value || typeof value !== 'object') return false;
   const draft = value as Record<string, unknown>;
@@ -84,6 +88,7 @@ function browserHost(): ProfileClaimDraftHost | null {
   if (typeof window === 'undefined' || typeof location === 'undefined') return null;
   return {
     origin: location.origin,
+    where: () => ({ pathname: location.pathname, search: location.search }),
     open: (url) => window.open(url, '_blank'),
     opener: () => (window.opener as TargetWindow | null) ?? null,
     forgetOpener: () => {
@@ -231,24 +236,26 @@ export function createProfileClaimDraftTab(
         }
       });
     },
-    /** Take over Ctrl/Cmd-click and middle click on claim page links only while this tab
-     * holds answers for that candidate. A refused window keeps the reader in this tab,
-     * where the answers already are. */
+    /** Take over Ctrl/Cmd-click (with or without Shift) and middle click on the 2 return
+     * links of /candidates/features for a candidate, only while this tab holds answers for
+     * that candidate. A refused window keeps the reader in this tab, where the answers are. */
     watchNewTabGestures(target: Pick<Document, 'addEventListener'>) {
       const handle = (event: Event) => {
+        if (!host) return;
         const pointer = event as MouseEvent;
         const newTab =
           event.type === 'auxclick'
             ? pointer.button === 1
-            : pointer.button === 0 &&
-              (pointer.metaKey || pointer.ctrlKey) &&
-              !pointer.shiftKey &&
-              !pointer.altKey;
+            : pointer.button === 0 && (pointer.metaKey || pointer.ctrlKey) && !pointer.altKey;
         if (!newTab || pointer.defaultPrevented) return;
+        const page = host.where();
+        const context = new URLSearchParams(page.search).get('candidate');
+        if (page.pathname.replace(/\/$/, '') !== '/candidates/features' || !context) return;
         const anchor = (event.target as Element | null)?.closest?.('a[href]') as
           HTMLAnchorElement | null | undefined;
         const href = anchor?.getAttribute('href');
-        if (!anchor || !href || !holds(href)) return;
+        if (!anchor || !href || claimPageCandidate(href, host.origin) !== context) return;
+        if (!holds(href)) return;
         event.preventDefault();
         if (openWithAnswers(href) === 'blocked') anchor.click();
       };

@@ -33,6 +33,7 @@ class FakeWindow {
   opened: FakeWindow[] = [];
   blocked = false;
   received: unknown[] = [];
+  page = { pathname: '/', search: '' };
   constructor(public origin = 'https://www.alethical.com') {}
   handleTo(target: FakeWindow): Handle {
     if (!this.handles.has(target))
@@ -53,6 +54,7 @@ class FakeWindow {
   host(): ProfileClaimDraftHost {
     return {
       origin: this.origin,
+      where: () => this.page,
       open: () => {
         if (this.blocked) return null;
         const child = new FakeWindow(this.origin);
@@ -209,7 +211,6 @@ it('ignores replies that are malformed, from another sender or for someone else'
   const fromOpener = original.handleTo(child);
   for (const bad of [
     { ...draft, explanation: 42 },
-    { ...draft, link: 'x'.repeat(10001) },
     { ...draft, errors: { surprise: 'Not a field' } },
     { ...draft, errors: null },
   ])
@@ -232,35 +233,81 @@ it('recognises only same-site claim page links', () => {
   expect(claimPageCandidate(`https://example.org${claimHref}`, origin)).toBeNull();
 });
 
-it('takes over only Ctrl/Cmd-click and middle click on a claim link it holds answers for', () => {
+const featuresPage = { pathname: '/candidates/features', search: `?candidate=${candidate}` };
+it('takes over Ctrl/Cmd-click (with or without Shift) and middle click only on the features page return links', () => {
   const original = new FakeWindow(location.origin);
+  original.page = featuresPage;
   const tab = tabFor(original);
-  const page = document.implementation.createHTMLDocument('claim');
-  page.body.innerHTML = `<a id="claim" href="${claimHref}"><span>Claim</span></a><a id="away" href="https://example.org/">Away</a>`;
+  const page = document.implementation.createHTMLDocument('features');
+  page.body.innerHTML = `<a id="back" href="${claimHref}">Go back</a><a id="claim" href="${claimHref}"><span>Continue claiming this candidate profile</span></a><a id="other" href="/candidates/${other}/claim">Other</a><a id="away" href="https://example.org/">Away</a>`;
   tab.watchNewTabGestures(page);
-  const span = page.querySelector('#claim span')!;
-  const fire = (type: string, init: MouseEventInit) => {
+  const fire = (selector: string, type: string, init: MouseEventInit) => {
     const event = new MouseEvent(type, { bubbles: true, cancelable: true, ...init });
-    span.dispatchEvent(event);
+    page.querySelector(selector)!.dispatchEvent(event);
     return event.defaultPrevented;
   };
   // No answers held: every gesture stays the browser's own.
-  expect(fire('click', { metaKey: true })).toBe(false);
+  expect(fire('#claim span', 'click', { metaKey: true })).toBe(false);
   expect(original.opened).toHaveLength(0);
   tab.save('account-a', candidate, draft);
-  expect(fire('click', { button: 0 })).toBe(false);
-  expect(fire('click', { shiftKey: true })).toBe(false);
-  expect(fire('click', { metaKey: true, shiftKey: true })).toBe(false);
-  expect(fire('contextmenu', { button: 2 })).toBe(false);
+  expect(fire('#claim span', 'click', { button: 0 })).toBe(false);
+  // A plain Shift-click stays the browser's new window; the link menu stays native.
+  expect(fire('#claim span', 'click', { shiftKey: true })).toBe(false);
+  expect(fire('#claim span', 'contextmenu', { button: 2 })).toBe(false);
   expect(original.opened).toHaveLength(0);
-  expect(fire('click', { metaKey: true })).toBe(true);
-  expect(fire('click', { ctrlKey: true })).toBe(true);
-  expect(fire('auxclick', { button: 1 })).toBe(true);
-  expect(original.opened).toHaveLength(3);
-  const away = page.querySelector('#away')!;
-  const event = new MouseEvent('click', { bubbles: true, cancelable: true, metaKey: true });
-  away.dispatchEvent(event);
-  expect(event.defaultPrevented).toBe(false);
+  expect(fire('#claim span', 'click', { metaKey: true })).toBe(true);
+  expect(fire('#claim span', 'click', { ctrlKey: true })).toBe(true);
+  expect(fire('#claim span', 'click', { metaKey: true, shiftKey: true })).toBe(true);
+  expect(fire('#claim span', 'click', { ctrlKey: true, shiftKey: true })).toBe(true);
+  expect(fire('#back', 'auxclick', { button: 1 })).toBe(true);
+  expect(fire('#back', 'click', { metaKey: true })).toBe(true);
+  expect(original.opened).toHaveLength(6);
+  // Another candidate's claim link and other sites stay native.
+  expect(fire('#other', 'click', { metaKey: true })).toBe(false);
+  expect(fire('#away', 'click', { metaKey: true })).toBe(false);
+  expect(original.opened).toHaveLength(6);
+});
+
+it('leaves claim links alone anywhere but the features page for that candidate', () => {
+  const original = new FakeWindow(location.origin);
+  const tab = tabFor(original);
+  tab.save('account-a', candidate, draft);
+  const page = document.implementation.createHTMLDocument('profile');
+  page.body.innerHTML = `<a id="claim" href="${claimHref}">Claim this candidate profile</a>`;
+  tab.watchNewTabGestures(page);
+  const fire = () => {
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true, metaKey: true });
+    page.querySelector('#claim')!.dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+  for (const where of [
+    { pathname: `/candidates/${candidate}`, search: '' },
+    { pathname: `/candidates/${candidate}/claim`, search: '' },
+    { pathname: '/candidates/features', search: '' },
+    { pathname: '/candidates/features', search: `?candidate=${other}` },
+  ]) {
+    original.page = where;
+    expect(fire()).toBe(false);
+  }
+  expect(original.opened).toHaveLength(0);
+});
+
+it('hands over answers of any length, with their errors, exactly as typed', async () => {
+  const original = new FakeWindow();
+  const tab = tabFor(original);
+  const long = {
+    role: 'Authorized campaign representative',
+    link: `https://example.org/${'l'.repeat(10050)}`,
+    explanation: `Illustrative ${'e'.repeat(10050)}`,
+    errors: {
+      link: 'Use a web address with no more than 2000 characters',
+      explanation: 'Keep your explanation to 1900 characters or fewer',
+    },
+  };
+  tab.save('account-a', candidate, long);
+  tab.openWithAnswers(claimHref);
+  expect(await ask(original.opened[0])).toEqual(long);
+  expect(tab.read('account-a', candidate)).toEqual(long);
 });
 
 it('keeps the reader in this tab, with the answers, when the browser refuses the window', () => {
@@ -268,8 +315,9 @@ it('keeps the reader in this tab, with the answers, when the browser refuses the
   original.blocked = true;
   const tab = tabFor(original);
   tab.save('account-a', candidate, draft);
-  const page = document.implementation.createHTMLDocument('claim');
-  page.body.innerHTML = `<a id="claim" href="${claimHref}">Claim</a>`;
+  original.page = featuresPage;
+  const page = document.implementation.createHTMLDocument('features');
+  page.body.innerHTML = `<a id="claim" href="${claimHref}">Continue claiming this candidate profile</a>`;
   const link = page.querySelector<HTMLAnchorElement>('#claim')!;
   const plainClicks: boolean[] = [];
   link.addEventListener('click', (event) => plainClicks.push(event.metaKey));

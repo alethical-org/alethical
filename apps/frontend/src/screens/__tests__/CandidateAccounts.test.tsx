@@ -1743,3 +1743,23 @@ it('keeps the editor date hidden while the changed-elsewhere group shows', async
   expect(group.textContent).toContain('Edited October 3, 2026');
   expect(host.textContent!.split('Edited October 3, 2026')).toHaveLength(2);
 });
+it('fills the opened tab with over-long answers and their messages exactly as typed', async () => {
+  const long = {
+    role: 'Authorized campaign representative',
+    link: 'https://example.org/handed-over',
+    explanation: `Illustrative ${'e'.repeat(10050)}`,
+    errors: { explanation: 'Keep your explanation to 1900 characters or fewer' },
+  };
+  mocks.mine.mockResolvedValue(eligibleList);
+  mocks.fromOpener.mockResolvedValue(long);
+  claimPage();
+  await flush();
+  await flush();
+  expect(fieldValue('Explain your role and how Alethical can confirm it')).toBe(long.explanation);
+  expect(host.textContent).toContain('Keep your explanation to 1900 characters or fewer');
+  expect(
+    host.querySelector<HTMLInputElement>(
+      'input[type="radio"][value="Authorized campaign representative"]',
+    )?.checked ?? host.textContent!.includes('Authorized campaign representative'),
+  ).toBe(true);
+});
