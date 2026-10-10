@@ -108,6 +108,12 @@ export function CandidateReportDialog({
     };
   }, []);
 
+  // Focus the updated panel once it is on the page, not on a timer that can run before it.
+  const [revealUpdated, setRevealUpdated] = useState(0);
+  useEffect(() => {
+    if (revealUpdated) updatedPanel.current?.focus();
+  }, [revealUpdated]);
+
   useEffect(() => {
     if (status !== 'limited' || waitUntil === null) return;
     const remaining = waitUntil - Date.now();
@@ -177,7 +183,7 @@ export function CandidateReportDialog({
         setUpdated(true);
         setStatus('idle');
         // The person reads the new version first; Submit report needs its own press.
-        window.requestAnimationFrame(() => updatedPanel.current?.focus());
+        setRevealUpdated((count) => count + 1);
       }
     } catch {
       if (!controller.signal.aborted) {
