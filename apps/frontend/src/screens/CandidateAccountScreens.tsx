@@ -1135,6 +1135,9 @@ function ManageContent({
   // response from a change saved somewhere else.
   const failedVersion = useRef<number | null>(null);
   const [changedElsewhere, setChangedElsewhere] = useState(false);
+  // Set only by the reader's own retry or refused write, so a background read never moves focus.
+  const revealAccess = useRef(false);
+  const accessHeadingRef = useRef<View>(null);
   // The message takes focus when the group appears, unless the reader already moved on.
   useEffect(() => {
     if (!changedElsewhere || typeof document === 'undefined') return;
@@ -1176,6 +1179,15 @@ function ManageContent({
   };
   const claim = claims?.claims.find((item) => item.candidate_id === candidateId);
   const canManage = claims?.is_admin !== true && claim?.can_manage === true;
+  // When the reader's own retry or write finds access gone, the page shows the current access
+  // state instead of the editor; its heading takes focus and comes into view from any scroll.
+  useEffect(() => {
+    if (!revealAccess.current || canManage || !claims) return;
+    revealAccess.current = false;
+    const heading = accessHeadingRef.current as unknown as HTMLElement | null;
+    heading?.focus?.({ preventScroll: true });
+    heading?.scrollIntoView?.({ block: 'start' });
+  }, [canManage, claims]);
   const publicBody = loaded?.statement?.body ?? '';
   const published = Boolean(publicBody);
   const dirty = canManage && initialised.current && draft !== publicBody && !givenUp;
@@ -1291,6 +1303,7 @@ function ManageContent({
     // Access ended or the sign-in lapsed: drop the private text and show the current
     // access state from a fresh read, never offering to repeat the write.
     if ([401, 403].includes((error as { status?: number })?.status ?? 0)) {
+      revealAccess.current = true;
       clearPrivate();
       setFailure(null);
       void load();
@@ -1342,6 +1355,7 @@ function ManageContent({
       if (scope.aborted) return;
       const access = mine.claims.find((item) => item.candidate_id === candidateId);
       if (mine.is_admin === true || !access?.can_manage || access.id !== claim.id) {
+        revealAccess.current = true;
         clearPrivate();
         setFailure(null);
         setFieldError(null);
@@ -1481,7 +1495,7 @@ function ManageContent({
   );
   const statusHeading = (title: string, body: string, kind: 'warning' | 'admin') => (
     <View style={{ marginTop: 14 }}>
-      <CandidateStatusHeading title={title} body={body} kind={kind} />
+      <CandidateStatusHeading headingRef={accessHeadingRef} title={title} body={body} kind={kind} />
     </View>
   );
   if (givenUp)

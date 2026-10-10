@@ -51,23 +51,66 @@ const claim = {
   can_request_review: false,
 };
 type Held = { route: Route; path: string; method: string; body: unknown };
+const fictionalUser = {
+  id: accountId,
+  aud: 'authenticated',
+  role: 'authenticated',
+  email: 'fictional-applicant@example.invalid',
+  email_confirmed_at: '2026-01-01T00:00:00Z',
+  app_metadata: { provider: 'email', providers: ['email'] },
+  user_metadata: { full_name: 'Example Browser Applicant' },
+  created_at: '2026-01-01T00:00:00Z',
+};
+/** Sign in or out the way the sign-in library tells this browser's tabs about it: the saved
+ * session plus its same-site tab message. Fictional, local, and no request leaves the page. */
+async function announceSignIn(page: Page, signedIn: boolean) {
+  await page.evaluate(
+    ({ user, signedIn }) => {
+      const session = signedIn
+        ? {
+            access_token: 'clearly-fake-local-round-token',
+            refresh_token: 'clearly-fake-local-round-refresh',
+            token_type: 'bearer',
+            expires_in: 3600,
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+            user,
+          }
+        : null;
+      if (session) localStorage.setItem('sb-127-auth-token', JSON.stringify(session));
+      else localStorage.removeItem('sb-127-auth-token');
+      new BroadcastChannel('sb-127-auth-token').postMessage({
+        event: signedIn ? 'SIGNED_IN' : 'SIGNED_OUT',
+        session,
+      });
+    },
+    { user: fictionalUser, signedIn },
+  );
+}
 
+const pageHandlers = new WeakMap<Page, (route: Route) => Promise<unknown> | void>();
+const coveredContexts = new WeakSet<BrowserContext>();
+/** Every tab in the browser context, including one the page itself opens, is answered by its
+ * own fixture from its very first request, so nothing reaches a real or shared server. */
+async function coverContext(context: BrowserContext, appOrigin: string) {
+  if (coveredContexts.has(context)) return;
+  coveredContexts.add(context);
+  await context.route('**/*', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.origin === appOrigin && !url.pathname.startsWith('/api/')) return route.continue();
+    const page = route.request().frame().page();
+    for (let waited = 0; !pageHandlers.has(page) && waited < 10000; waited += 50)
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    const handle = pageHandlers.get(page);
+    return handle ? handle(route) : route.abort();
+  });
+}
 async function fixture(page: Page, options: { signedIn?: boolean; admin?: boolean } = {}) {
   const app = new URL(test.info().project.use.baseURL!);
   if (!['127.0.0.1', 'localhost'].includes(app.hostname))
     throw Error('Only a local app is allowed');
   const signedIn = options.signedIn ?? true;
-  const email = 'fictional-applicant@example.invalid';
-  const user = {
-    id: accountId,
-    aud: 'authenticated',
-    role: 'authenticated',
-    email,
-    email_confirmed_at: '2026-01-01T00:00:00Z',
-    app_metadata: { provider: 'email', providers: ['email'] },
-    user_metadata: { full_name: 'Example Browser Applicant' },
-    created_at: '2026-01-01T00:00:00Z',
-  };
+  const email = fictionalUser.email;
+  const user = fictionalUser;
   if (signedIn)
     await page.addInitScript(
       ({ user }) => {
@@ -100,7 +143,7 @@ async function fixture(page: Page, options: { signedIn?: boolean; admin?: boolea
     writes: [] as Held[],
     handlers: new Map<string, (route: Route) => Promise<unknown> | void>(),
   };
-  await page.route('**/*', async (route) => {
+  pageHandlers.set(page, async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     if (url.origin === app.origin && !url.pathname.startsWith('/api/')) return route.continue();
@@ -145,6 +188,7 @@ async function fixture(page: Page, options: { signedIn?: boolean; admin?: boolea
       return route.fulfill({ json: { account_id: accountId, pending_count: 1 } });
     return route.fulfill({ status: 404, json: { detail: 'Unconfigured fictional response' } });
   });
+  await coverContext(page.context(), app.origin);
   return state;
 }
 async function shot(page: Page, name: string) {
@@ -720,25 +764,39 @@ for (const band of bands) {
 
 const linkLabel = 'Link to a campaign website or official record';
 const noteLabel = 'Explain your role and how Alethical can confirm it';
-/** The reachable path: public profile, its claim link, answers typed, then Go back. */
-async function typeThenGoBack(page: Page, link: string, note: string) {
-  await page.goto(profilePath);
-  await page.getByRole('link', { name: 'Claim this candidate profile', exact: true }).click();
+const continueName = 'Continue claiming this candidate profile';
+/** Signed in on the features page: Continue claiming, type answers, then Go back to it. */
+async function typeFromFeatures(page: Page, link: string, note: string, back: 'link' | 'browser') {
+  await page.getByRole('link', { name: continueName }).filter({ visible: true }).click();
   await expect(page).toHaveURL(new RegExp(`${profilePath}/claim$`));
-  await page.getByRole('radio', { name: 'Authorized campaign representative' }).check();
-  await page.getByLabel(linkLabel, { exact: true }).fill(link);
-  await page.getByLabel(noteLabel, { exact: true }).fill(note);
-  await page.getByRole('link', { name: 'Go back' }).click();
-  await expect(page).toHaveURL(new RegExp(`${profilePath}$`));
-  return page.getByRole('link', { name: 'Claim this candidate profile', exact: true });
+  await page
+    .getByRole('radio', { name: 'Authorized campaign representative' })
+    .filter({ visible: true })
+    .check();
+  await page.getByLabel(linkLabel, { exact: true }).filter({ visible: true }).fill(link);
+  await page.getByLabel(noteLabel, { exact: true }).filter({ visible: true }).fill(note);
+  if (back === 'link')
+    await page.getByRole('link', { name: 'Go back' }).filter({ visible: true }).click();
+  else await page.goBack();
+  await expect(page).toHaveURL(/\/candidates\/features\?candidate=/);
+  return {
+    resume: page.getByRole('link', { name: continueName }).filter({ visible: true }),
+    back: page.getByRole('link', { name: 'Go back' }).filter({ visible: true }),
+  };
 }
 async function expectClaimAnswers(tab: Page, link: string, note: string) {
   await expect(tab).toHaveURL(new RegExp(`${profilePath}/claim$`));
-  await expect(tab.getByLabel(linkLabel, { exact: true })).toHaveValue(link);
+  await expect(tab.getByLabel(linkLabel, { exact: true }).filter({ visible: true })).toHaveValue(
+    link,
+  );
   await expect(
-    tab.getByRole('radio', { name: 'Authorized campaign representative' }),
+    tab
+      .getByRole('radio', { name: 'Authorized campaign representative' })
+      .filter({ visible: true }),
   ).toBeChecked();
-  await expect(tab.getByLabel(noteLabel, { exact: true })).toHaveValue(note);
+  await expect(tab.getByLabel(noteLabel, { exact: true }).filter({ visible: true })).toHaveValue(
+    note,
+  );
   expect(new URL(tab.url()).hash).toBe('');
   expect(
     await tab.evaluate(() =>
@@ -760,44 +818,66 @@ async function openedFrom(context: BrowserContext, action: Promise<unknown>) {
   await fixture(opened);
   return opened;
 }
+const newTab: NonNullable<Parameters<Locator['click']>[0]> = { modifiers: ['ControlOrMeta'] };
 
-test('claim, public profile, then a new-tab claim page carries the unsent answers; no other tab does', async ({
+test('signed-out claim, features, sign in there, answers typed, back to features: both return links carry the answers to a new tab', async ({
   page,
   context,
   browserName,
 }) => {
-  const api = await fixture(page);
+  const api = await fixture(page, { signedIn: false });
   const link = 'https://example-campaign.org/new-tab';
   const note = 'Illustrative: typed before opening a new tab.';
-  const claimLink = await typeThenGoBack(page, link, note);
-  const gestures: NonNullable<Parameters<Locator['click']>[0]>[] = [
-    { modifiers: ['ControlOrMeta'] },
+  await page.goto(`${profilePath}/claim`);
+  await page.getByRole('link', { name: 'Explore candidate profile features' }).click();
+  await expect(page).toHaveURL(/\/candidates\/features\?candidate=/);
+  // Sign in on the features page: opening Sign in starts the sign-in code, which then hears
+  // the fictional session the way it hears a sign-in finished in this browser.
+  await page.getByRole('button', { name: 'Sign in', exact: true }).first().click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await announceSignIn(page, true);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toHaveCount(0);
+  // Reading the features page for a while starts nothing.
+  await page.waitForTimeout(1500);
+  const { resume, back } = await typeFromFeatures(page, link, note, 'link');
+  const gestures: [Locator, NonNullable<Parameters<Locator['click']>[0]>][] = [
+    [resume, newTab],
+    [back, newTab],
+    [resume, { modifiers: ['ControlOrMeta', 'Shift'] }],
     // Playwright's WebKit opens no tab for a middle click, so only Chromium checks it.
-    ...(browserName === 'chromium' ? [{ button: 'middle' as const }] : []),
+    ...(browserName === 'chromium'
+      ? ([[back, { button: 'middle' }]] as [Locator, { button: 'middle' }][])
+      : []),
   ];
-  for (const gesture of gestures) {
-    const opened = await openedFrom(context, claimLink.click(gesture));
+  for (const [target, gesture] of gestures) {
+    const opened = await openedFrom(context, target.click(gesture));
     await expectClaimAnswers(opened, link, note);
     await opened.close();
   }
   // The copied address opens a plain tab: no answers.
   const copied = await context.newPage();
   await fixture(copied);
-  await copied.goto(new URL((await claimLink.getAttribute('href'))!, page.url()).href);
+  await copied.goto(new URL((await resume.getAttribute('href'))!, page.url()).href);
   await expectEmptyClaim(copied);
   await copied.close();
   // The link's own menu opened and dismissed: nothing opens and nothing is offered.
   const pagesBefore = context.pages().length;
-  await claimLink.click({ button: 'right' });
+  await resume.click({ button: 'right' });
   await page.keyboard.press('Escape');
   expect(context.pages().length).toBe(pagesBefore);
-  const plain = await context.newPage();
-  await fixture(plain);
-  await plain.goto(`${profilePath}/claim`);
-  await expectEmptyClaim(plain);
-  // The original tab keeps its own answers.
-  await claimLink.click();
+  const typed = await context.newPage();
+  await fixture(typed);
+  await typed.goto(`${profilePath}/claim`);
+  await expectEmptyClaim(typed);
+  await typed.close();
+  // Browser Back to the features page works the same way, and this tab keeps its answers.
+  await resume.click();
   await expectClaimAnswers(page, link, note);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/candidates\/features\?candidate=/);
+  const afterBack = await openedFrom(context, back.click(newTab));
+  await expectClaimAnswers(afterBack, link, note);
   expect(api.writes).toHaveLength(0);
 });
 
@@ -808,34 +888,36 @@ test('2 tabs with answers for the same candidate each hand theirs only to the ta
   await fixture(page);
   const second = await context.newPage();
   await fixture(second);
-  const firstLink = await typeThenGoBack(
+  await page.goto(`/candidates/features?candidate=${candidateId}`);
+  await second.goto(`/candidates/features?candidate=${candidateId}`);
+  const first = await typeFromFeatures(
     page,
     'https://example.org/first',
-    'Illustrative first tab.',
+    'Illustrative first.',
+    'link',
   );
-  const secondLink = await typeThenGoBack(
+  const other = await typeFromFeatures(
     second,
     'https://example.org/second',
-    'Illustrative second tab.',
+    'Illustrative second.',
+    'browser',
   );
-  const fromSecond = await openedFrom(context, secondLink.click({ modifiers: ['ControlOrMeta'] }));
-  const fromFirst = await openedFrom(context, firstLink.click({ modifiers: ['ControlOrMeta'] }));
-  await expectClaimAnswers(fromSecond, 'https://example.org/second', 'Illustrative second tab.');
-  await expectClaimAnswers(fromFirst, 'https://example.org/first', 'Illustrative first tab.');
+  const fromSecond = await openedFrom(context, other.resume.click(newTab));
+  const fromFirst = await openedFrom(context, first.back.click(newTab));
+  await expectClaimAnswers(fromSecond, 'https://example.org/second', 'Illustrative second.');
+  await expectClaimAnswers(fromFirst, 'https://example.org/first', 'Illustrative first.');
 });
 
-test('a slowly loading new-tab claim page still receives the answers once it is ready', async ({
+test('a slowly loading new tab still receives the answers once its form is ready', async ({
   page,
   context,
 }) => {
   await fixture(page);
+  await page.goto(`/candidates/features?candidate=${candidateId}`);
   const link = 'https://example.org/slow';
   const note = 'Illustrative: answers for a slow page.';
-  const claimLink = await typeThenGoBack(page, link, note);
-  const [opened] = await Promise.all([
-    context.waitForEvent('page'),
-    claimLink.click({ modifiers: ['ControlOrMeta'] }),
-  ]);
+  const { resume } = await typeFromFeatures(page, link, note, 'link');
+  const [opened] = await Promise.all([context.waitForEvent('page'), resume.click(newTab)]);
   const api = await fixture(opened);
   const held: Route[] = [];
   api.handlers.set(`/api/v1/candidates/${candidateId}`, (route) => {
@@ -847,6 +929,34 @@ test('a slowly loading new-tab claim page still receives the answers once it is 
   await expectClaimAnswers(opened, link, note);
 });
 
+test('signing out before the new tab asks hands nothing over', async ({ page, context }) => {
+  await fixture(page);
+  await page.goto(`/candidates/features?candidate=${candidateId}`);
+  const { resume } = await typeFromFeatures(
+    page,
+    'https://example.org/signed-out',
+    'Illustrative: answers before signing out.',
+    'link',
+  );
+  const [opened] = await Promise.all([context.waitForEvent('page'), resume.click(newTab)]);
+  const api = await fixture(opened);
+  const held: Route[] = [];
+  api.handlers.set(`/api/v1/candidates/${candidateId}`, (route) => {
+    held.push(route);
+  });
+  await expect.poll(() => held.length, { timeout: 15000 }).toBeGreaterThan(0);
+  await announceSignIn(page, false);
+  for (const route of held) await route.fulfill({ json: api.record });
+  await expect(
+    opened.getByRole('button', { name: 'Sign in to continue', exact: true }),
+  ).toBeVisible();
+  await expect(opened.getByLabel(linkLabel, { exact: true })).toHaveCount(0);
+  await opened.waitForTimeout(2000);
+  expect(
+    await opened.evaluate(() => document.body.innerText.includes('example.org/signed-out')),
+  ).toBe(false);
+});
+
 test('when the browser refuses the new tab, the reader stays in this tab with the answers', async ({
   page,
   context,
@@ -855,11 +965,12 @@ test('when the browser refuses the new tab, the reader stays in this tab with th
   await page.addInitScript(() => {
     window.open = () => null;
   });
+  await page.goto(`/candidates/features?candidate=${candidateId}`);
   const link = 'https://example.org/refused';
   const note = 'Illustrative: the new tab was refused.';
-  const claimLink = await typeThenGoBack(page, link, note);
+  const { resume } = await typeFromFeatures(page, link, note, 'link');
   const pagesBefore = context.pages().length;
-  await claimLink.click({ modifiers: ['ControlOrMeta'] });
+  await resume.click(newTab);
   await expectClaimAnswers(page, link, note);
   expect(context.pages().length).toBe(pagesBefore);
 });
@@ -948,4 +1059,46 @@ test('a give-up in progress locks both actions and Escape', async ({ page }) => 
   await keep.click({ force: true });
   await expect(dialog).toBeVisible();
   expect(api.writes).toHaveLength(1);
+});
+
+test('after an unknown removal and a revocation, Try again brings the revoked heading into view on a phone', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const api = await fixture(page);
+  api.me = { ...api.me, claims: [{ ...claim, status: 'approved', can_manage: true }] };
+  api.privateStatement = {
+    body: 'Fictional published words.',
+    updated_at: '2026-10-02T15:00:00Z',
+    published_at: '2026-10-02T15:00:00Z',
+    edited_at: null,
+    version: 2,
+  };
+  await page.goto(`${profilePath}/manage`);
+  await page.getByRole('button', { name: 'Remove statement', exact: true }).click();
+  const dialog = page.getByRole('dialog', {
+    name: 'Remove your statement from the public profile?',
+  });
+  await dialog.getByRole('button', { name: 'Remove statement' }).click();
+  await expect.poll(() => api.writes.length).toBe(1);
+  await api.writes[0].route.fulfill({ status: 503, json: {} });
+  const retry = page.getByRole('button', { name: 'Try again', exact: true });
+  await expect(retry).toBeVisible();
+  // The reader is scrolled down at the Try again box when access ends elsewhere.
+  await retry.scrollIntoViewIfNeeded();
+  await page.evaluate(() => window.scrollBy(0, 400));
+  api.me = { ...api.me, claims: [{ ...claim, status: 'revoked', can_manage: false }] };
+  api.privateStatement = { ...api.privateStatement, body: '', version: 3 };
+  await retry.click();
+  const heading = page.getByText('Profile claim revoked', { exact: true });
+  await expect(heading).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Campaign statement' })).toHaveCount(0);
+  const spot = (await heading.boundingBox())!;
+  expect(spot.y).toBeGreaterThanOrEqual(0);
+  expect(spot.y + spot.height).toBeLessThanOrEqual(844);
+  expect(
+    await heading.evaluate((element) => document.activeElement?.contains(element) ?? false),
+  ).toBe(true);
+  expect(api.writes).toHaveLength(1);
+  await page.screenshot({ path: test.info().outputPath('manage-revoked-after-retry-phone.png') });
 });

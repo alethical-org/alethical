@@ -1550,9 +1550,14 @@ it('rechecks access before Try again: a revoked owner sees the revoked state, no
     history: [],
   });
   const reads = mocks.privateStatement.mock.calls.length;
+  const scrolled = vi.fn();
+  Element.prototype.scrollIntoView = scrolled;
   act(() => button('Try again').click());
   await flush();
   expect(host.textContent).toContain('Profile claim revoked');
+  // The new state's heading takes focus and is brought into view from any scroll position.
+  expect(document.activeElement?.textContent).toContain('Profile claim revoked');
+  expect(scrolled).toHaveBeenCalledWith({ block: 'start' });
   expect(host.textContent).not.toContain('Statement removed');
   expect(host.querySelector('[aria-label="Campaign statement"]')).toBeNull();
   expect(mocks.privateStatement.mock.calls.length).toBe(reads);
@@ -1585,10 +1590,12 @@ it('shows the current access state when a write is refused for lost access, with
     account_id: 'account-a',
     claims: [{ ...approved, status: 'revoked', can_manage: false }],
   });
+  Element.prototype.scrollIntoView = vi.fn();
   act(() => button('Save changes').click());
   await flush();
   await flush();
   expect(host.textContent).toContain('Profile claim revoked');
+  expect(document.activeElement?.textContent).toContain('Profile claim revoked');
   expect(host.textContent).not.toContain('We couldn’t complete this request');
   expect(button('Try again')).toBeUndefined();
   expect(host.querySelector('[aria-label="Campaign statement"]')).toBeNull();
@@ -1762,4 +1769,18 @@ it('fills the opened tab with over-long answers and their messages exactly as ty
       'input[type="radio"][value="Authorized campaign representative"]',
     )?.checked ?? host.textContent!.includes('Authorized campaign representative'),
   ).toBe(true);
+});
+
+it('does not move focus when the page simply opens on a state without access', async () => {
+  const scrolled = vi.fn();
+  Element.prototype.scrollIntoView = scrolled;
+  mocks.mine.mockResolvedValue({
+    account_id: 'account-a',
+    claims: [{ ...approved, status: 'revoked', can_manage: false }],
+  });
+  manage();
+  await flush();
+  expect(host.textContent).toContain('Profile claim revoked');
+  expect(document.activeElement).toBe(document.body);
+  expect(scrolled).not.toHaveBeenCalled();
 });
