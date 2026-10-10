@@ -143,9 +143,8 @@ sender is off. Keep all setting values in Railway, never in this repository.
 
 ### Address suggestion copy activation
 
-`ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED` is absent in production, so address
-suggestions ask Minnesota's live address service. Setting it to `true` lets the API
-answer suggestions from a shared copy of the state's published address file
+`ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED` is `true` in production. The API
+answers suggestions from a shared copy of the state's published address file
 (`alethical/api/services/address_suggestion_index.py`). The optional
 `ALETHICAL_ADDRESS_SUGGESTION_INDEX_DIRECTORY` names the shared folder; without it the
 copy lives in the system temporary folder, shared by every API process in 1 container.
@@ -156,7 +155,13 @@ peaks at about 1.36 GB of folder space and about 48 MB of memory and takes about
 seconds after a download that took 39 seconds on that network. The refresher refuses
 to start a build with less than 3 GB free. A new container starts with no copy, so each
 release downloads the file once more and suggestions use the live service until that
-build finishes.
+build finishes. The refresher keeps the current and previous good copies,
+about 576.5 MB together for this file. With both retained, the source download and
+new copy give a calculated later-build file layout of about 1.92 GB. About 1.35 GB
+of that is new space during the rebuild; the 3 GB guard checks free space before it.
+The 1.36 GB first-build peak is measured. The later layout is calculated, not a
+measured maximum: database-index sorting can need additional temporary files, and
+a changed source can change these sizes.
 
 Every API start prints 1 line, whether the copy is on or off, so these facts come
 from the real host. It starts with `ADDRESS_COPY_CAPACITY ` followed by JSON holding
@@ -209,7 +214,7 @@ record contains the exact `projectId`, `environmentId`, `serviceId`,
   mounts, with no separate application storage or concealed application directory
 - `expected_processes`: exactly true, and `api_process_count`: exactly 1, with only
   the expected application, launch wrapper,
-  console shell and measurement programs present throughout the scan
+  reviewed Console shell processes and measurement programs present throughout the scan
 
 Read process names only, never arguments or environment values. Treat failed,
 denied, timed-out or unstable reads as incomplete; do not forward raw terminal
@@ -233,7 +238,14 @@ on 9 October, are $10 per GB memory per month, $20 per vCPU per month and $0.05 
 GB outbound. The published table lists no separate incoming-download or ephemeral
 storage price. Runtime copy building uses billable CPU and memory; measure the
 added live use after activation. These rates are not an account invoice or proof
-of no added charge. This activation does not request another resource.
+of no added charge. This activation does not request another resource. The owning Pro workspace has 100 GB shared disk
+and $20 included monthly usage. The completed live copy contains 2,220,021 rows
+in 288,256,000 bytes. The first post-activation provider samples report about
+0.80 GB total API memory, with a 1.70 GB peak against a 24 GB limit. At the published
+memory rate, holding 0.80 GB constant for a month would cost about $8 for the whole
+API, before CPU and outgoing traffic. This is not an added-copy estimate or an
+invoice: the samples are short, and the copy and normal requests share the process.
+The paid disk allowance already covers the copy; no new storage plan is needed.
 
 The manual-only [Address copy control workflow](../../.github/workflows/address-copy-control.yml)
 accepts `enabled` (default `false`), `release_commit` (the reviewed live API's
@@ -271,7 +283,7 @@ unknown ownership, and unsettled attempts remain explicitly unconfirmed; the job
 never guesses which deployment to cancel. Both workflows preserve the existing
 production-deployment queue and never create resources.
 
-Before activation, tracked in
+Activation and later capacity reviews are tracked in
 [issue 2585](https://github.com/alethical-org/alethical/issues/2585):
 
 1. Establish the Railway service's actual free disk in its running container,

@@ -358,8 +358,10 @@ Scope: the approved proposal to answer address suggestions from a shared public 
 check a chosen address against current official records before districts, share
 same-ZIP street-table downloads, and measure the reader-visible result. Delivery
 through live release belongs to Codex task “Address suggestion speed CB” after its
-independent acceptance; Claude Code session “Address suggestion speed CB build” is the
-sole implementation writer. The copy stays off until hosting capacity is established.
+independent acceptance. Claude Code session “Address suggestion speed CB build”
+completed the product implementation; Codex owns release operations and final records.
+The copy is on after the capacity and charges gates described in
+[Live copied-suggestion acceptance](#live-copied-suggestion-acceptance).
 
 Evidence and causes:
 
@@ -436,12 +438,14 @@ Measurements on 9 October 2026, from the saved official file (no new download):
   request stays quiet while Find still works, and earlier legislator results stay
   visible while a replacement loads.
 
-Uncertainty: Railway's free disk, memory headroom, process count and any charges are
-not established; this machine has no Railway access. Native phone keyboards remain
-untested. Laptop timings are not the production wait.
+Initial uncertainty: Railway capacity and charges were not established during the
+product build. [Live copied-suggestion acceptance](#live-copied-suggestion-acceptance)
+records the resolved access, capacity and charges review. Native phone keyboards
+remain untested. Laptop timings are not the production wait.
 
-Holds: the copy stays off; no new paid service or recurring agent; no Design send;
-Codex acceptance before merge or release; retain this folder and branch after delivery.
+Current holds: no new paid service or recurring agent; no Design send; retain this
+folder and branches after delivery. The initial off-state hold is satisfied by the
+completed capacity review and guarded activation.
 
 Acceptance corrections (independent review, 9 October 2026):
 
@@ -568,8 +572,8 @@ Candidate results print the source's 5-digit ZIP, while cleanup/submission retai
 ZIP+4; this existing difference does not demonstrate a regression. Post-activation
 timings and live review remain pending.
 
-Next step: establish Railway capacity and charges before setting
-`ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED`, tracked in
+The capacity/charges checkpoint before setting
+`ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED` is tracked in
 [issue 2585](https://github.com/alethical-org/alethical/issues/2585).
 
 
@@ -602,3 +606,81 @@ rechecks immediately before the flag write. Final code review, current-head chec
 a fresh complete Console assessment, activation, full selection timings and fresh
 live user-flow acceptance remain owned by the parent. The copy remains off during
 preparation; no Design request, new resource or recurring paid check is introduced.
+
+
+### Live copied-suggestion acceptance
+
+The address copy is on in production. The
+[guarded activation](https://github.com/alethical-org/alethical/actions/runs/38013019695)
+passed on the reviewed release from
+[pull request 2591](https://github.com/alethical-org/alethical/pull/2591), with the
+same commit, ready status, enabled startup record and marked known single-point
+suggestion. The earlier off-state and inaccessible-workspace reports above are
+historical checkpoints, superseded by this live result.
+
+The exact pre-activation Console assessment found 786,747,392 allocated root
+bytes in both scans, no deleted open files or mappings, no failed reads, the reviewed
+mount layout and 1 API process. It also found 2 stable terminal shell processes
+with distinct terminals and parent 0. Ownership of the additional shell is unproven;
+neither shell was changed or killed. Independent operational review accepted that
+exact layout, retaining program identity and before/after stability checks. This
+assessment is bounded operational evidence, not Railway quota accounting.
+
+The live copy has 2,220,021 rows, a 288,256,000-byte file and 288,264,192 allocated
+folder bytes at the post-build reading. Later refreshes retain 2 good copies:
+about 576.5 MB together. For this source version, 2 retained copies plus the
+1,057,136,640-byte source and a new copy give about 1.92 GB calculated file layout,
+including about 1.35 GB newly needed during a rebuild. This excludes additional
+database-index sorting temporary files and is not a proved refresh maximum. The
+measured 1.36 GB first-build peak does not describe later refresh peaks or a
+changed source. The 100 GB allowance and small root baseline leave room beyond
+this layout; the 3 GB free-space guard remains required.
+
+The owning Pro workspace lists 100 GB shared disk, $20 included monthly use,
+$3.22 current use for 22 September through 22 October, and rates matching the
+published table. No new resource or storage plan is used. The
+[post-activation capacity read](https://github.com/alethical-org/alethical/actions/runs/38013261568)
+reports 1 saved/active replica, 1 running instance, 1 API process, copy enabled,
+24 GB memory limit, about 0.80 GB latest total API memory and a 1.70 GB peak across
+4 samples. Provider disk usage remains unavailable. An independent cost review
+uses provider memory samples for pricing, not the container counter's file cache
+as a claimed billing definition. A constant 0.80 GB would mean about $8 per month
+for the whole API's memory at the published rate, before CPU and outgoing traffic.
+The short samples and different off/on containers cannot establish the added
+copy's monthly bill or a stable average.
+
+The parent measured 3 same-browser searches using `1006 Summit`, fresh entry
+navigation and an immediate click on the Saint Paul choice. Off-state suggestions
+took 848, 644 and 873 ms, median 848 ms; on-state suggestions took 109, 112 and
+109 ms, median 109 ms. Immediate click-to-legislators took 946, 605 and 508 ms
+off, median 605 ms, versus 1,575, 2,124 and 1,887 ms on, median 1,887 ms.
+These include tool overhead and are a small matched sample, not broad latency
+percentiles. Suggestions are faster; immediate legislator selection is slower
+while checking current official points. The existing bounded early check may
+reduce that later wait when readers point to or navigate a choice before choosing.
+All resulting Saint Paul districts remained 64A/64/4.
+
+Independent visitor review accepts the observed desktop and 375 px live flows:
+both finders, shared homepage entry, pointer and Arrow+Enter choice, Escape and
+outside dismissal, readable wrapping and visible keyboard focus. Lower choices
+above the map and Election controls receive the selection without activating
+underlying content. Existing results retain their original address while a
+replacement loads; failure, Clear and Cancel recover. Known Saint Paul and
+Minneapolis districts are correct. Legislator suggestion/result text preserves
+`Apt 2` and `55105-1234`; candidate results preserve `Apt 2` and print official
+`55105`, matching the earlier baseline. Real touch, native autofill, high contrast,
+and forced slow/out-of-order live replies remain untested by the available
+read-only browser controls; local rendered/browser regressions cover the approved
+request-order, slow/failure and touch behavior. No new material live defect appeared.
+
+The cause of the release delay was incomplete hosting evidence and an unavailable
+account route, not missing build approval. The shared personal working instructions
+now keep failed hosting links, capacity/charges investigation, activation and live
+review with the coding owner. The guarded control prevents activation on incomplete,
+stale or changed-host evidence and owns restoration after a failed activation.
+The API and both finder uses share this correction without changing district
+accuracy or election matching. Remaining uncertainty is the future resource average
+and real-device behavior outside the available browser checks. The parent owns
+shipping these live records, checking the final deployment and closing the activation
+issue. Folder and branches remain retained for follow-up; no Design send, new
+resource or paid recurring agent is introduced.
