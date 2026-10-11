@@ -270,6 +270,7 @@ export function CandidateLink({
   describedBy,
   direction,
   style,
+  textSize,
 }: {
   label: string;
   url: string;
@@ -279,6 +280,8 @@ export function CandidateLink({
   describedBy?: string;
   direction?: 'back';
   style?: StyleProp<ViewStyle>;
+  /** Profile claim screens draw their links at 16px; others keep 15px. */
+  textSize?: number;
 }) {
   const [hovered, setHovered] = useState(false);
   if (!internal && !safeCandidateUrl(url)) return null;
@@ -299,7 +302,13 @@ export function CandidateLink({
       onHoverOut={() => setHovered(false)}
       style={[styles.link, style]}
     >
-      <Text style={[styles.linkText, hovered && { color: '#11832b' }]}>
+      <Text
+        style={[
+          styles.linkText,
+          textSize ? { fontSize: textSize, lineHeight: Math.round(textSize * 1.45) } : null,
+          hovered && { color: '#11832b' },
+        ]}
+      >
         {Platform.OS === 'web' ? (
           direction === 'back' || label.startsWith('Back to ') ? (
             <span>

@@ -7,6 +7,7 @@ import { AdminCandidateClaimsScreen } from '../AdminCandidateClaimsScreen';
 import { CandidateClaimPanel } from '../../components/candidates/CandidateClaimPanel';
 import type { CandidateProfileRecord } from '../../components/candidates/types';
 import { GuardedNavigationContext } from '../../navigation/GuardedNavigationContext';
+import { clearAllProfileClaimDrafts, saveProfileClaimDraft } from '../../lib/profileClaimDraft';
 
 const mocks = vi.hoisted(() => {
   (globalThis as { __DEV__?: boolean }).__DEV__ = false;
@@ -37,8 +38,13 @@ const mocks = vi.hoisted(() => {
     resolve: vi.fn(),
     signIn: vi.fn(),
     prevent: vi.fn(),
+    fromOpener: vi.fn(),
   };
 });
+vi.mock('../../lib/profileClaimDraft', async (original) => ({
+  ...(await original<typeof import('../../lib/profileClaimDraft')>()),
+  requestProfileClaimDraftFromOpener: mocks.fromOpener,
+}));
 vi.mock('../../providers/AuthProvider', () => ({ useAuth: () => mocks.auth }));
 vi.mock('../../providers/signInModalContext', () => ({
   useSignInModal: () => ({ openSignIn: mocks.signIn }),
@@ -153,6 +159,9 @@ beforeEach(() => {
   };
   mocks.admin = 'restricted';
   mocks.focused = true;
+  mocks.fromOpener.mockResolvedValue(null);
+  // Unsent answers live in memory for the page's life; each case starts with none.
+  clearAllProfileClaimDrafts();
   mocks.getProfile.mockResolvedValue(record);
   mocks.mine.mockResolvedValue({ account_id: 'account-a', claims: [approved] });
   mocks.privateStatement.mockResolvedValue({
@@ -204,8 +213,12 @@ it('explains closed requests to signed-out visitors while preserving sign-in for
   expect(host.querySelector('[aria-level="1"]')?.textContent).toBe(
     'Profile claims closed for this election',
   );
-  expect(host.textContent).not.toContain('An approved profile claim lets you manage');
-  act(() => button('Sign in to view your profile claim status').click());
+  expect(host.textContent).toContain('This election has ended');
+  expect(
+    [...host.querySelectorAll(`a[href="/candidates/${id}"]`)].map((link) => link.textContent),
+  ).toEqual(['Go back', 'View public profile']);
+  expect(host.textContent).not.toContain('Explore candidate profile features');
+  act(() => button('Sign in to view claim status').click());
   expect(mocks.signIn).toHaveBeenLastCalledWith({
     intent: 'nav',
     returnTo: `/candidates/${id}/claim`,
@@ -252,11 +265,14 @@ it('submits a manual review request with selected role, evidence, account identi
     }),
     expect.any(AbortSignal),
   );
-  expect(host.textContent).toContain('Profile claim pending review');
-  expect(host.querySelector('[aria-level="1"]')?.textContent).toBe('Profile claim pending review');
-  expect(host.textContent).not.toContain('An approved profile claim lets you manage');
+  expect(host.querySelector('[aria-level="1"]')?.textContent).toBe(
+    'Profile claim request received',
+  );
+  expect(host.textContent).toContain('Your submitted information');
+  expect(host.textContent).toContain('This information is not shown on your public profile');
+  expect(button('Withdraw request')).toBeDefined();
   expect(host.textContent!.indexOf('Public Candidate')).toBeLessThan(
-    host.textContent!.indexOf('Profile claim pending review'),
+    host.textContent!.indexOf('Profile claim request received'),
   );
   expect(host.textContent).not.toContain('Enter your code');
 });
@@ -266,12 +282,17 @@ it('groups verified campaign access with identity and labels the editor before i
   const text = host.textContent!;
   expect(text.indexOf('Public Candidate')).toBeLessThan(text.indexOf('Campaign access verified'));
   expect(text.indexOf('Campaign access verified')).toBeLessThan(text.indexOf('Campaign statement'));
-  expect(text.indexOf('Campaign statement')).toBeLessThan(text.indexOf('Explain your record'));
+  expect(text.indexOf('Campaign statement')).toBeLessThan(
+    text.indexOf('Edit your statement, then save your changes to update the public profile'),
+  );
+  expect(text).not.toContain('Explanations attached to individual votes');
   const input = host.querySelector<HTMLTextAreaElement>(
     'textarea[aria-label="Campaign statement"]',
   )!;
-  expect(input.getAttribute('aria-describedby')).toContain('-help');
-  expect(input.style.minHeight).toBe('220px');
+  expect(input.getAttribute('aria-describedby')).toContain('campaign-statement-help');
+  expect(input.getAttribute('aria-describedby')).toContain('campaign-statement-count');
+  expect(input.style.minHeight).toBe('136px');
+  expect(text).toContain('22 / 2000 characters');
   expect(button('Preview').getAttribute('aria-expanded')).toBe('false');
   act(() => button('Preview').click());
   expect(button('Preview').getAttribute('aria-expanded')).toBe('true');
@@ -307,8 +328,12 @@ it('keeps the complete draft after an uncertain save and reads server state befo
   });
   act(() => button('Try again').click());
   await flush();
+  // The retry read the saved state first; the write had landed, so nothing is sent again.
   expect(mocks.save).toHaveBeenCalledTimes(1);
-  expect(host.textContent).toContain('Current public statement');
+  expect(host.textContent).toContain('Changes saved');
+  expect(
+    host.querySelector<HTMLTextAreaElement>('textarea[aria-label="Campaign statement"]')!.value,
+  ).toBe('Unsaved new campaign statement');
 });
 it('removes a statement only after the safe confirmation and the server reply', async () => {
   mocks.remove.mockResolvedValue({});
@@ -382,8 +407,13 @@ it('keeps public campaign words separate and renders them as text', async () => 
     ),
   );
   await flush();
-  expect(host.textContent).toContain('From the campaign');
-  expect(host.textContent).toContain('Written by the campaign, not Alethical');
+  expect(host.textContent).toContain('Campaign statement');
+  expect(host.textContent).toContain(
+    'Alethical verified this account’s authority to represent the campaign, not the statement’s accuracy',
+  );
+  expect(host.textContent).not.toContain('From the campaign');
+  expect(host.textContent).not.toContain('Written by the campaign, not Alethical');
+  expect(host.textContent).not.toContain('Campaign access verified');
   expect(host.querySelector('script')).toBeNull();
   expect(host.querySelector(`a[href="/candidates/${id}/claim"]`)).not.toBeNull();
 });
@@ -412,8 +442,8 @@ it('keeps an admin applicant blocked even with a complete note and identity chec
   await flush();
   edit('Private review note', 'Independent verification of ownership');
   act(() => host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
-  expect(button('Approve profile claim request').getAttribute('aria-disabled')).toBe('true');
-  act(() => button('Approve profile claim request').click());
+  expect(button('Approve request').getAttribute('aria-disabled')).toBe('true');
+  act(() => button('Approve request').click());
   expect(mocks.review).not.toHaveBeenCalled();
 });
 it('keeps the staff queues private for non-administrators', async () => {
@@ -568,7 +598,7 @@ it('groups the request, review form, and history together with instructions befo
   expect(help.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(field.getAttribute('aria-describedby')).toContain(help.id);
   expect(article.textContent).toContain('Applicant email');
-  expect(article.textContent).toContain('Profile claim history');
+  expect(article.textContent).toContain('Request history');
   const returnNav = host.querySelector('[aria-label="Profile claim navigation"]')!;
   const heading = host.querySelector('[aria-level="1"]')!;
   expect(
@@ -580,13 +610,16 @@ it('blocks admin accounts before reading private owner statements or offering a 
   mocks.auth.user.isAdmin = true;
   manage();
   await flush();
+  expect(host.querySelector('[aria-level="1"]')?.textContent).toBe('You’re signed in as an admin');
   expect(host.textContent).toContain(
-    'Admin accounts cannot claim candidate profiles or manage campaign statements',
+    'Admin accounts cannot claim candidate profiles or manage campaign information',
   );
   expect(mocks.privateStatement).not.toHaveBeenCalled();
   expect(mocks.mine).not.toHaveBeenCalled();
   expect(host.querySelector('textarea')).toBeNull();
-  expect(button('Review profile claim requests')).toBeDefined();
+  expect(host.querySelector(`a[href="/admin/candidate-claims?candidate=${id}"]`)?.textContent).toBe(
+    'Review profile claim requests',
+  );
 });
 it('validates each profile claim form field and focuses the first error without submitting', async () => {
   mocks.mine.mockResolvedValue({
@@ -601,10 +634,9 @@ it('validates each profile claim form field and focuses the first error without 
   act(() => button('Submit profile claim request').click());
   expect(host.textContent).toContain('Choose your role');
   expect(host.textContent).toContain('Add a link to a campaign website or official record');
-  expect(host.textContent).toContain(
-    'Explain your role and how Alethical can confirm it in at least 20 characters',
-  );
-  expect(document.activeElement?.tagName).toBe('FIELDSET');
+  const alerts = [...host.querySelectorAll('[role="alert"]')].map((node) => node.textContent);
+  expect(alerts).toContain('Explain your role and how Alethical can confirm it');
+  expect((document.activeElement as HTMLInputElement | null)?.type).toBe('radio');
   expect(mocks.apply).not.toHaveBeenCalled();
 });
 it('keeps ended pending evidence and withdrawal while new requests are unavailable', async () => {
@@ -619,9 +651,10 @@ it('keeps ended pending evidence and withdrawal while new requests are unavailab
   await flush();
   expect(host.textContent).toContain('Election ended');
   expect(host.textContent).toContain('Private authority details');
-  expect(host.textContent).toContain('Link to a campaign website or official record');
-  expect(button('Withdraw profile claim request')).toBeDefined();
-  expect(button('Request a profile claim review')).toBeUndefined();
+  expect(host.textContent).toContain('Campaign website or official record');
+  expect(host.textContent).toContain('Your profile claim request can no longer be approved');
+  expect(button('Withdraw request')).toBeDefined();
+  expect(button('Request another review')).toBeUndefined();
   expect(host.querySelector(`a[href="/candidates/${id}"]`)).not.toBeNull();
 });
 it('does not hide saved request evidence when the source cannot be confirmed', async () => {
@@ -635,8 +668,7 @@ it('does not hide saved request evidence when the source cannot be confirmed', a
   );
   await flush();
   expect(host.textContent).toContain('Private authority details');
-  expect(host.textContent).toContain('The official candidate record could not be confirmed');
-  expect(button('Withdraw profile claim request')).toBeDefined();
+  expect(button('Withdraw request')).toBeDefined();
 });
 it('keeps give-up confirmation busy and reports removed content only from the saved result', async () => {
   const saving = deferred();
@@ -646,8 +678,9 @@ it('keeps give-up confirmation busy and reports removed content only from the sa
   edit('Campaign statement', '');
   act(() => button('Give up this profile claim').click());
   expect(host.querySelector('dialog')?.textContent).toContain(
-    'Your unsaved changes will be discarded',
+    'Your unsaved changes will also be discarded.',
   );
+  expect(host.querySelector('dialog')?.textContent).toContain('Public Candidate');
   act(() => button('Give up profile claim').click());
   expect(host.querySelector('dialog')).not.toBeNull();
   expect(button('Giving up profile claim…').getAttribute('aria-disabled')).toBe('true');
@@ -669,7 +702,7 @@ it('keeps give-up confirmation busy and reports removed content only from the sa
   expect(host.querySelector('dialog')).toBeNull();
   expect(host.querySelector('textarea')).toBeNull();
   expect(host.textContent).toContain(
-    'You gave up your profile claim. You no longer have campaign access to manage this candidate profile’s statement. Your published campaign statement was removed.',
+    'You gave up your profile claim. You can no longer manage your campaign’s information on this candidate profile. Your published campaign statement was removed.',
   );
 });
 it('does not promise statement removal when giving up a profile with nothing published', async () => {
@@ -688,17 +721,17 @@ it('does not promise statement removal when giving up a profile with nothing pub
 it('requires a valid private note and independent verification before approval', async () => {
   adminRequest();
   await flush();
-  act(() => button('Approve profile claim request').click());
+  act(() => button('Approve request').click());
   expect(host.textContent).toContain('Write a private review note with at least 20 characters');
   expect(host.textContent).toContain('Confirm that you independently verified');
   edit('Private review note', 'x'.repeat(2001));
-  act(() => button('Reject profile claim request').click());
+  act(() => button('Reject request').click());
   expect(host.textContent).toContain('Keep the private review note to 2000 characters or fewer');
   expect(mocks.review).not.toHaveBeenCalled();
   edit('Private review note', 'Independently confirmed using official campaign contact');
   act(() => host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
   mocks.review.mockResolvedValue({ account_id: 'account-a', claim: approved });
-  act(() => button('Approve profile claim request').click());
+  act(() => button('Approve request').click());
   await flush();
   expect(mocks.review).toHaveBeenCalledWith(
     'token-a',
@@ -712,7 +745,7 @@ it('requires a valid private note and independent verification before approval',
     expect.any(AbortSignal),
   );
   expect(host.textContent).toContain('Profile claim request approved');
-  expect(button('Approve profile claim request')).toBeUndefined();
+  expect(button('Approve request')).toBeUndefined();
   expect(button('Revoke profile claim')).toBeDefined();
 });
 it('blocks a stale decision until reload and keeps the same admin’s unsaved note', async () => {
@@ -720,10 +753,10 @@ it('blocks a stale decision until reload and keeps the same admin’s unsaved no
   await flush();
   edit('Private review note', 'Independent verification complete through campaign contact');
   mocks.review.mockRejectedValue({ reason: 'profile_claim_changed', status: 409 });
-  act(() => button('Reject profile claim request').click());
+  act(() => button('Reject request').click());
   await flush();
   expect(host.textContent).toContain('This profile claim request changed');
-  expect(button('Reject profile claim request')).toBeUndefined();
+  expect(button('Reject request')).toBeUndefined();
   mocks.detail.mockResolvedValue({
     account_id: 'account-a',
     claim: { ...approved, status: 'pending', version: 4 },
@@ -733,7 +766,7 @@ it('blocks a stale decision until reload and keeps the same admin’s unsaved no
   expect(host.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe(
     'Independent verification complete through campaign contact',
   );
-  expect(button('Reject profile claim request')).toBeDefined();
+  expect(button('Reject request')).toBeDefined();
 });
 it('clears a revoke dialog and ignores its late response when admin access disappears', async () => {
   const saving = deferred();
@@ -853,15 +886,24 @@ it('reloads applicant eligibility failures without treating them as loss of admi
       },
     },
   });
-  act(() => button('Approve profile claim request').click());
+  act(() => button('Approve request').click());
   await flush();
   expect(host.textContent).toContain('Admin accounts cannot claim candidate profiles');
   expect(host.textContent).not.toContain('This account does not have permission');
-  expect(button('Reject profile claim request')).toBeDefined();
+  expect(button('Reject request')).toBeDefined();
 });
 
 it.each([
-  ['public', undefined, false, false, false, 'Claim this profile', 'rgb(46, 212, 126)', 'claim'],
+  [
+    'public',
+    undefined,
+    false,
+    false,
+    false,
+    'Claim this candidate profile',
+    'rgb(46, 212, 126)',
+    'claim',
+  ],
   ['approved', true, false, false, false, 'Manage this profile', 'rgb(46, 212, 126)', 'manage'],
   ['pending', false, false, false, false, 'View profile claim status', 'rgb(17, 21, 15)', 'claim'],
   ['rejected', false, false, false, false, 'View profile claim status', 'rgb(17, 21, 15)', 'claim'],
@@ -929,3 +971,902 @@ it.each([
     }
   },
 );
+
+it('shows signed-out visitors the claim introduction, the features link and the review note after the button', async () => {
+  mocks.auth.isSignedIn = false;
+  act(() =>
+    root.render(<CandidateClaimScreen navigation={navigation as never} route={route as never} />),
+  );
+  await flush();
+  const text = host.textContent!;
+  expect(host.querySelector('[aria-level="1"]')?.textContent).toBe('Claim this candidate profile');
+  expect(text).toContain('Help voters understand what you stand for');
+  const features = host.querySelector<HTMLAnchorElement>(
+    `a[href="/candidates/features?candidate=${id}"]`,
+  )!;
+  expect(features.textContent).toBe('Explore candidate profile features');
+  expect(text.indexOf('Candidate for')).toBeLessThan(text.indexOf('Sign in to continue'));
+  expect(text.indexOf('Sign in to continue')).toBeLessThan(
+    text.indexOf('Alethical reviews requests from candidates'),
+  );
+  expect(host.querySelector('a[aria-label="Go back"]')?.getAttribute('href')).toBe(
+    `/candidates/${id}`,
+  );
+  act(() => features.click());
+  expect(navigation.navigate).toHaveBeenCalledWith('CandidateFeatures', { candidateId: id });
+});
+it('keeps an account’s unsent answers for this candidate only and drops them for another account', async () => {
+  const eligible = {
+    account_id: 'account-a',
+    claims: [],
+    request_eligibility: { allowed: true, reason: null },
+  };
+  mocks.mine.mockResolvedValue(eligible);
+  const claimPage = () =>
+    act(() =>
+      root.render(<CandidateClaimScreen navigation={navigation as never} route={route as never} />),
+    );
+  claimPage();
+  await flush();
+  expect(host.textContent).not.toContain('Help voters understand');
+  expect(host.textContent).toContain('Alethical reviews each request.');
+  edit('Link to a campaign website or official record', 'https://example.org/kept');
+  edit('Explain your role and how Alethical can confirm it', 'short');
+  act(() => button('Submit profile claim request').click());
+  expect(host.textContent).toContain(
+    'Add more detail about how we can confirm your role (at least 20 characters)',
+  );
+  // Leave for /candidates/features and come back: the claim step is as it was left.
+  act(() => root.render(<div />));
+  claimPage();
+  await flush();
+  expect(
+    host.querySelector<HTMLInputElement>(
+      '[aria-label="Link to a campaign website or official record"]',
+    )!.value,
+  ).toBe('https://example.org/kept');
+  expect(host.textContent).toContain(
+    'Add more detail about how we can confirm your role (at least 20 characters)',
+  );
+  mocks.auth = { ...mocks.auth, user: { id: 'account-b', isAdmin: false }, accessToken: 'token-b' };
+  mocks.mine.mockResolvedValue({ ...eligible, account_id: 'account-b' });
+  claimPage();
+  await flush();
+  expect(
+    host.querySelector<HTMLInputElement>(
+      '[aria-label="Link to a campaign website or official record"]',
+    )!.value,
+  ).toBe('');
+  expect(mocks.apply).not.toHaveBeenCalled();
+});
+it('prints the saved role only from an exact prefix and keeps the explanation as written', async () => {
+  mocks.mine.mockResolvedValue({
+    account_id: 'account-a',
+    claims: [
+      {
+        ...approved,
+        status: 'pending',
+        request_note: 'Authorized campaign representative\n\nLine one\n\n\n\nLine two',
+        submitted_at: '2026-10-09T03:30:00+00:00',
+      },
+    ],
+    request_eligibility: { allowed: false, reason: 'profile_claim_pending' },
+  });
+  act(() =>
+    root.render(<CandidateClaimScreen navigation={navigation as never} route={route as never} />),
+  );
+  await flush();
+  const list = host.querySelector('dl')!;
+  expect([...list.querySelectorAll('dt')].map((node) => node.textContent)).toEqual([
+    'Your role',
+    'Campaign website or official record',
+    'Your explanation',
+  ]);
+  expect(list.querySelectorAll('dd')[0].textContent).toBe('Authorized campaign representative');
+  expect(list.querySelectorAll('dd')[2].textContent).toBe('Line one\n\n\n\nLine two');
+  // Minnesota time: 10:30 p.m. on October 8.
+  expect(host.textContent).toContain('Submitted October 8, 2026');
+  expect(host.textContent).toContain(
+    'You can leave this page and return to check your request’s status',
+  );
+  expect(list.getAttribute('aria-describedby')).toBe('profile-claim-privacy-note');
+});
+it('shows an older or unrecognized saved value whole with no role row and no invented date', async () => {
+  mocks.mine.mockResolvedValue({
+    account_id: 'account-a',
+    claims: [{ ...approved, status: 'pending', request_note: 'Campaign manager\n\nDetails' }],
+    request_eligibility: { allowed: false, reason: 'profile_claim_pending' },
+  });
+  act(() =>
+    root.render(<CandidateClaimScreen navigation={navigation as never} route={route as never} />),
+  );
+  await flush();
+  const list = host.querySelector('dl')!;
+  expect(list.textContent).not.toContain('Your role');
+  expect(list.querySelectorAll('dd')[1].textContent).toBe('Campaign manager\n\nDetails');
+  expect(host.textContent).not.toContain('Submitted ');
+});
+it.each([
+  [
+    'rejected',
+    false,
+    'Profile claim not approved',
+    'You can submit another request',
+    'Request another review',
+  ],
+  [
+    'rejected',
+    true,
+    'Profile claim not approved',
+    'Profile claims are closed for this election.',
+    null,
+  ],
+  [
+    'withdrawn',
+    false,
+    'Profile claim request withdrawn',
+    'Your request is no longer awaiting review',
+    'Start a new request',
+  ],
+  [
+    'withdrawn',
+    true,
+    'Profile claim request withdrawn',
+    'Profile claims are closed for this election',
+    null,
+  ],
+  [
+    'revoked',
+    false,
+    'Profile claim revoked',
+    'Alethical removed your access to manage this profile',
+    'Request another review',
+  ],
+  [
+    'approved',
+    false,
+    'Profile claim approved',
+    'Alethical approved your profile claim request.',
+    null,
+  ],
+] as const)(
+  'prints the %s status (closed=%s) exactly with its next step',
+  async (status, ended, heading, body, again) => {
+    mocks.mine.mockResolvedValue({
+      account_id: 'account-a',
+      claims: [
+        {
+          ...approved,
+          status,
+          election_ended: ended,
+          can_request_review: !ended && status !== 'approved',
+          review_note: 'PRIVATE REVIEW NOTE',
+        },
+      ],
+      request_eligibility: ended
+        ? { allowed: false, reason: 'election_ended' }
+        : { allowed: true, reason: null },
+    });
+    act(() =>
+      root.render(<CandidateClaimScreen navigation={navigation as never} route={route as never} />),
+    );
+    await flush();
+    expect(host.querySelector('[aria-level="1"]')?.textContent).toBe(heading);
+    expect(host.textContent).toContain(body);
+    expect(host.textContent).not.toContain('PRIVATE REVIEW NOTE');
+    expect(host.textContent).not.toContain('An Alethical administrator');
+    if (again) expect(button(again)).toBeDefined();
+    else {
+      expect(button('Request another review')).toBeUndefined();
+      expect(button('Start a new request')).toBeUndefined();
+    }
+    expect(
+      [...host.querySelectorAll(`a[href="/candidates/${id}"]`)].some(
+        (link) => link.textContent === 'View public profile',
+      ),
+    ).toBe(true);
+  },
+);
+it('shows the admin request with confirmed email, exact labels and the approval block above the decision', async () => {
+  mocks.admin = 'allowed';
+  mocks.detail.mockResolvedValue({
+    account_id: 'account-a',
+    claim: {
+      ...approved,
+      id: 'claim-z',
+      status: 'pending',
+      user_id: 'applicant',
+      account_email: 'a.campaign@example.com',
+      request_note: 'Candidate\n\nCall the county clerk to confirm.',
+      approval_block: null,
+      history: [
+        {
+          id: 'e2',
+          kind: 'resubmitted',
+          created_at: '2026-10-09T15:00:00+00:00',
+          evidence_url: 'https://example.org/current',
+          request_note: 'Candidate\n\nCall the county clerk to confirm.',
+        },
+        {
+          id: 'e1',
+          kind: 'submitted',
+          created_at: '2026-10-08T15:00:00+00:00',
+          evidence_url: 'https://example.org/older',
+          request_note: 'Older words only',
+        },
+      ],
+      history_complete: true,
+    },
+  });
+  act(() =>
+    root.render(
+      <AdminCandidateClaimsScreen
+        navigation={navigation as never}
+        route={{ params: { claimId: 'claim-z' } } as never}
+      />,
+    ),
+  );
+  await flush();
+  expect(host.querySelector('[aria-level="1"]')?.textContent).toBe('Review profile claim request');
+  const article = host.querySelector('[role="article"]')!;
+  const text = article.textContent!;
+  expect(text).toContain('Pending review');
+  expect(text).toContain('Email confirmed');
+  expect(text).not.toContain('Confirmed account address');
+  expect(text).toContain('RoleCandidate');
+  expect(text).toContain('Campaign website or official record');
+  expect(text).toContain('ExplanationCall the county clerk to confirm.');
+  expect(text).toContain('Before approving, confirm the applicant’s identity');
+  expect(text).toContain('At least 20 characters');
+  expect(text).toContain('0 / 2000 characters');
+  expect(text).toContain('Request history');
+  const details = [...article.querySelectorAll('details')];
+  expect(details).toHaveLength(2);
+  expect(details[1].textContent).toContain('Older words only');
+  expect(details[1].textContent).not.toContain('Call the county clerk');
+  expect(details.every((node) => !node.open)).toBe(true);
+});
+it('puts an unconfirmed applicant’s block directly above Approve and keeps Reject available', async () => {
+  mocks.admin = 'allowed';
+  mocks.detail.mockResolvedValue({
+    account_id: 'account-a',
+    claim: {
+      ...approved,
+      status: 'pending',
+      user_id: 'applicant',
+      account_email: null,
+      approval_block: {
+        reason: 'email_unconfirmed',
+        message:
+          'The applicant must confirm their account email before this profile claim request can be approved',
+      },
+      history: [],
+    },
+  });
+  act(() =>
+    root.render(
+      <AdminCandidateClaimsScreen
+        navigation={navigation as never}
+        route={{ params: { claimId: 'claim-a' } } as never}
+      />,
+    ),
+  );
+  await flush();
+  const block = host.querySelector('#profile-approval-block')!;
+  const approve = button('Approve request');
+  expect(block.textContent).toContain('The applicant must confirm their account email');
+  expect(block.compareDocumentPosition(approve) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(
+    host.querySelector('input[type="checkbox"]')!.compareDocumentPosition(block) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(approve.getAttribute('aria-disabled')).toBe('true');
+  expect(approve.getAttribute('aria-describedby')).toBe('profile-approval-block');
+  expect(button('Reject request').getAttribute('aria-disabled')).toBeNull();
+  expect(host.textContent).not.toContain('Email confirmed');
+  expect(host.textContent).toContain('No confirmed account email available');
+});
+
+it('shows Save changes only after an edit and dates the statement under the editor', async () => {
+  mocks.privateStatement.mockResolvedValue({
+    account_id: 'account-a',
+    statement: {
+      body: 'Current campaign words',
+      updated_at: '2026-10-02T15:00:00+00:00',
+      published_at: '2026-09-18T15:00:00+00:00',
+      edited_at: '2026-10-02T15:00:00+00:00',
+      version: 2,
+    },
+    history: [],
+  });
+  manage();
+  await flush();
+  expect(button('Save changes')).toBeUndefined();
+  expect(host.textContent).toContain('Edited October 2, 2026');
+  expect(host.textContent).not.toContain('Unsaved changes');
+  expect(host.querySelector('#campaign-statement-label')?.textContent).toBe('Campaign statement');
+  edit('Campaign statement', 'Current campaign words, edited');
+  expect(button('Save changes')).toBeDefined();
+  expect(host.textContent).not.toContain('Unsaved changes');
+  expect(host.textContent).toContain('30 / 2000 characters');
+});
+it('checks length and empty first publishes on every write and sends nothing', async () => {
+  mocks.privateStatement.mockResolvedValue({
+    account_id: 'account-a',
+    statement: null,
+    history: [],
+  });
+  manage();
+  await flush();
+  expect(host.textContent).toContain('Your statement is not saved until you publish it');
+  expect(host.textContent).toContain(
+    'Tell voters about your experience, priorities and plans in your own words',
+  );
+  act(() => button('Publish statement').click());
+  expect(host.textContent).toContain('Write a statement before publishing');
+  expect(document.activeElement?.getAttribute('aria-label')).toBe('Campaign statement');
+  edit('Campaign statement', 'x'.repeat(2001));
+  act(() => button('Publish statement').click());
+  expect(host.textContent).toContain('Keep your statement to 2000 characters or fewer');
+  expect(host.textContent).toContain('2001 / 2000 characters');
+  expect(
+    host.querySelector('textarea[aria-label="Campaign statement"]')!.getAttribute('aria-invalid'),
+  ).toBe('true');
+  expect(mocks.save).not.toHaveBeenCalled();
+  edit('Campaign statement', 'Fits now');
+  expect(host.textContent).not.toContain('Keep your statement to 2000 characters or fewer');
+});
+it('retries a failed removal as a removal after reading what is saved, never as a save', async () => {
+  mocks.remove.mockRejectedValueOnce(new Error('Lost response')).mockResolvedValue({});
+  manage();
+  await flush();
+  act(() => button('Remove statement').click());
+  const risky = [...host.querySelectorAll<HTMLButtonElement>('dialog button')].find(
+    (value) => value.getAttribute('aria-label') === 'Remove statement',
+  )!;
+  act(() => risky.click());
+  await flush();
+  expect(host.textContent).toContain('We couldn’t complete this request');
+  mocks.privateStatement
+    .mockResolvedValueOnce({
+      account_id: 'account-a',
+      statement: { body: 'Current campaign words', updated_at: '2026-09-30', version: 2 },
+      history: [],
+    })
+    .mockResolvedValue({
+      account_id: 'account-a',
+      statement: { body: '', updated_at: '2026-09-30', version: 3 },
+      history: [],
+    });
+  act(() => button('Try again').click());
+  await flush();
+  expect(mocks.remove).toHaveBeenCalledTimes(2);
+  expect(mocks.save).not.toHaveBeenCalled();
+  expect(host.textContent).toContain('Statement removed');
+});
+it('confirms giving up with equal choices, the candidate name and the access wording', async () => {
+  manage();
+  await flush();
+  expect(host.textContent).toContain('This ends your access and removes your published statement');
+  act(() => button('Give up this profile claim').click());
+  const dialog = host.querySelector('dialog')!;
+  expect(dialog.getAttribute('aria-label')).toBe('Give up this profile claim?');
+  expect(dialog.textContent).toContain('Public Candidate');
+  expect(dialog.textContent).toContain(
+    'You’ll lose access to manage campaign information, and your published statement will be removed. The public profile and official records will remain.',
+  );
+  expect(dialog.textContent).not.toContain('Your unsaved changes will also be discarded.');
+  const choices = [...dialog.querySelectorAll('button')].map((node) =>
+    node.getAttribute('aria-label'),
+  );
+  expect(choices).toEqual(['Keep profile claim', 'Give up profile claim']);
+});
+it('explains statement removal keeps access', async () => {
+  manage();
+  await flush();
+  act(() => button('Remove statement').click());
+  expect(host.querySelector('dialog')?.textContent).toContain(
+    'Voters will no longer see your statement. You keep access to manage this profile.',
+  );
+});
+it('asks before saving an emptied public statement, because that removes it', async () => {
+  manage();
+  await flush();
+  edit('Campaign statement', '   ');
+  act(() => button('Save changes').click());
+  expect(host.querySelector('dialog')?.getAttribute('aria-label')).toBe(
+    'Remove your statement from the public profile?',
+  );
+  expect(mocks.save).not.toHaveBeenCalled();
+  expect(mocks.remove).not.toHaveBeenCalled();
+});
+it('asks again before Try again saves an emptied statement, and sends nothing', async () => {
+  mocks.save.mockRejectedValueOnce(new Error('Lost response'));
+  manage();
+  await flush();
+  edit('Campaign statement', 'My edited campaign words');
+  act(() => button('Save changes').click());
+  await flush();
+  expect(host.textContent).toContain('We couldn’t complete this request');
+  edit('Campaign statement', '');
+  act(() => button('Try again').click());
+  await flush();
+  expect(host.querySelector('dialog')?.getAttribute('aria-label')).toBe(
+    'Remove your statement from the public profile?',
+  );
+  expect(mocks.save).toHaveBeenCalledTimes(1);
+  expect(mocks.remove).not.toHaveBeenCalled();
+});
+it('never lets Try again overwrite or remove a statement saved somewhere else', async () => {
+  mocks.save.mockRejectedValueOnce(Object.assign(new Error('Changed'), { status: 409 }));
+  manage();
+  await flush();
+  edit('Campaign statement', 'My edited campaign words');
+  act(() => button('Save changes').click());
+  await flush();
+  expect(mocks.save.mock.calls[0][2]).toMatchObject({ expected_version: 2 });
+  mocks.privateStatement.mockResolvedValue({
+    account_id: 'account-a',
+    statement: { body: 'Words saved in another tab', updated_at: '2026-10-01', version: 3 },
+    history: [],
+  });
+  act(() => button('Try again').click());
+  await flush();
+  expect(mocks.save).toHaveBeenCalledTimes(1);
+  expect(host.textContent).not.toContain('We couldn’t complete this request');
+  expect(host.textContent).not.toContain('Changes saved');
+  expect(host.querySelector<HTMLTextAreaElement>('[aria-label="Campaign statement"]')!.value).toBe(
+    'My edited campaign words',
+  );
+  expect(button('Save changes')).toBeDefined();
+  // The owner is told, and sees what voters see now, before choosing to replace it.
+  const group = host.querySelector('[role="group"][aria-labelledby="statement-changed-message"]')!;
+  expect(host.querySelector('#statement-changed-message')?.textContent).toBe(
+    'The published statement changed elsewhere. Your changes are still here and have not been saved.',
+  );
+  expect(group.textContent).toContain('Current public statement');
+  expect(group.textContent).toContain('Words saved in another tab');
+  // The message takes focus, since Try again is gone.
+  expect(document.activeElement?.id).toBe('statement-changed-message');
+  // The group sits above the editor, and stays while the owner keeps typing.
+  const editor = host.querySelector('[aria-label="Campaign statement"]')!;
+  expect(group.compareDocumentPosition(editor) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  edit('Campaign statement', 'My edited campaign words, still editing');
+  expect(host.querySelector('#statement-changed-message')).not.toBeNull();
+  edit('Campaign statement', 'My edited campaign words');
+  // A later Save is the owner's own choice, made against the version they now hold.
+  act(() => button('Save changes').click());
+  await flush();
+  expect(mocks.save.mock.calls[1][2]).toMatchObject({
+    body: 'My edited campaign words',
+    expected_version: 3,
+  });
+  expect(host.textContent).not.toContain('The published statement changed elsewhere.');
+});
+it('dates statement history in Minnesota time, like the line under the editor', async () => {
+  mocks.privateStatement.mockResolvedValue({
+    account_id: 'account-a',
+    statement: { body: 'Current campaign words', updated_at: '2026-10-03T02:00:00Z', version: 2 },
+    history: [
+      {
+        id: 'revision-a',
+        action: 'published',
+        body: 'Current campaign words',
+        created_at: '2026-10-03T02:00:00Z',
+      },
+    ],
+  });
+  manage();
+  await flush();
+  expect(host.textContent).toContain('Statement saved · October 2, 2026');
+  expect(host.textContent).not.toContain('October 3, 2026');
+});
+it('ignores a slower earlier eligibility read that finishes after a submit', async () => {
+  const eligible = {
+    account_id: 'account-a',
+    claims: [],
+    request_eligibility: { allowed: true, reason: null },
+  };
+  let finishSilent: (value: unknown) => void = () => undefined;
+  mocks.mine
+    .mockResolvedValueOnce(eligible)
+    .mockImplementationOnce(() => new Promise((resolve) => (finishSilent = resolve)))
+    .mockResolvedValue({ account_id: 'account-a', claims: [{ ...approved, status: 'pending' }] });
+  mocks.apply.mockResolvedValue({});
+  const claimPage = () =>
+    act(() =>
+      root.render(<CandidateClaimScreen navigation={navigation as never} route={route as never} />),
+    );
+  claimPage();
+  await flush();
+  // Away and back (such as /candidates/features): a silent recheck starts and is slow.
+  mocks.focused = false;
+  claimPage();
+  mocks.focused = true;
+  claimPage();
+  await flush();
+  expect(mocks.mine).toHaveBeenCalledTimes(2);
+  act(() => host.querySelector<HTMLInputElement>('input[type="radio"]')!.click());
+  edit('Link to a campaign website or official record', 'https://example.org/campaign');
+  edit(
+    'Explain your role and how Alethical can confirm it',
+    'I am authorized to represent this campaign',
+  );
+  act(() => button('Submit profile claim request').click());
+  await flush();
+  expect(host.querySelector('[aria-level="1"]')?.textContent).toBe(
+    'Profile claim request received',
+  );
+  await act(async () => finishSilent(eligible));
+  await flush();
+  expect(host.querySelector('[aria-level="1"]')?.textContent).toBe(
+    'Profile claim request received',
+  );
+  expect(button('Submit profile claim request')).toBeUndefined();
+});
+it('brings back unsent answers when another review is requested again', async () => {
+  mocks.mine.mockResolvedValue({
+    account_id: 'account-a',
+    claims: [{ ...approved, status: 'rejected', can_manage: false, can_request_review: true }],
+    request_eligibility: { allowed: true, reason: null },
+  });
+  const claimPage = () =>
+    act(() =>
+      root.render(<CandidateClaimScreen navigation={navigation as never} route={route as never} />),
+    );
+  claimPage();
+  await flush();
+  act(() => button('Request another review').click());
+  edit('Link to a campaign website or official record', 'https://example.org/again');
+  act(() => root.render(<div />));
+  claimPage();
+  await flush();
+  act(() => button('Request another review').click());
+  expect(
+    host.querySelector<HTMLInputElement>(
+      '[aria-label="Link to a campaign website or official record"]',
+    )!.value,
+  ).toBe('https://example.org/again');
+});
+it('rechecks access before Try again: a revoked owner sees the revoked state, not Statement removed', async () => {
+  mocks.remove.mockRejectedValueOnce(new Error('Lost response'));
+  manage();
+  await flush();
+  act(() => button('Remove statement').click());
+  const risky = [...host.querySelectorAll<HTMLButtonElement>('dialog button')].find(
+    (value) => value.getAttribute('aria-label') === 'Remove statement',
+  )!;
+  act(() => risky.click());
+  await flush();
+  expect(host.textContent).toContain('We couldn’t complete this request');
+  // Revocation removed the statement; the former owner can still read the empty history.
+  mocks.mine.mockResolvedValue({
+    account_id: 'account-a',
+    claims: [{ ...approved, status: 'revoked', can_manage: false }],
+  });
+  mocks.privateStatement.mockResolvedValue({
+    account_id: 'account-a',
+    statement: { body: '', updated_at: '2026-10-01', version: 3 },
+    history: [],
+  });
+  const reads = mocks.privateStatement.mock.calls.length;
+  const scrolled = vi.fn();
+  Element.prototype.scrollIntoView = scrolled;
+  act(() => button('Try again').click());
+  await flush();
+  expect(host.textContent).toContain('Profile claim revoked');
+  // The new state's heading takes focus and is brought into view from any scroll position.
+  expect(document.activeElement?.textContent).toContain('Profile claim revoked');
+  expect(scrolled).toHaveBeenCalledWith({ block: 'start' });
+  expect(host.textContent).not.toContain('Statement removed');
+  expect(host.querySelector('[aria-label="Campaign statement"]')).toBeNull();
+  expect(mocks.privateStatement.mock.calls.length).toBe(reads);
+  expect(mocks.remove).toHaveBeenCalledTimes(1);
+  expect(mocks.save).not.toHaveBeenCalled();
+});
+it('rechecks access before reconciling a change saved elsewhere, and writes nothing once access ends', async () => {
+  mocks.save.mockRejectedValueOnce(Object.assign(new Error('Changed'), { status: 409 }));
+  manage();
+  await flush();
+  edit('Campaign statement', 'My edited campaign words');
+  act(() => button('Save changes').click());
+  await flush();
+  mocks.mine.mockResolvedValue({
+    account_id: 'account-a',
+    claims: [{ ...approved, status: 'revoked', can_manage: false }],
+  });
+  act(() => button('Try again').click());
+  await flush();
+  expect(host.textContent).toContain('Profile claim revoked');
+  expect(host.textContent).not.toContain('My edited campaign words');
+  expect(mocks.save).toHaveBeenCalledTimes(1);
+});
+it('shows the current access state when a write is refused for lost access, without offering to repeat it', async () => {
+  mocks.save.mockRejectedValueOnce(Object.assign(new Error('Not approved'), { status: 403 }));
+  manage();
+  await flush();
+  edit('Campaign statement', 'My edited campaign words');
+  mocks.mine.mockResolvedValue({
+    account_id: 'account-a',
+    claims: [{ ...approved, status: 'revoked', can_manage: false }],
+  });
+  Element.prototype.scrollIntoView = vi.fn();
+  act(() => button('Save changes').click());
+  await flush();
+  await flush();
+  expect(host.textContent).toContain('Profile claim revoked');
+  expect(document.activeElement?.textContent).toContain('Profile claim revoked');
+  expect(host.textContent).not.toContain('We couldn’t complete this request');
+  expect(button('Try again')).toBeUndefined();
+  expect(host.querySelector('[aria-label="Campaign statement"]')).toBeNull();
+  expect(mocks.save).toHaveBeenCalledTimes(1);
+});
+
+const eligibleList = {
+  account_id: 'account-a',
+  claims: [],
+  request_eligibility: { allowed: true, reason: null },
+};
+const handedOver = {
+  role: 'Candidate',
+  link: 'https://example.org/handed-over',
+  explanation: 'Illustrative explanation typed in the opening tab',
+  errors: {},
+};
+/** As the transfer does: keep exactly these answers in this tab's memory, then return them. */
+function handOver(answers: typeof handedOver) {
+  return async (accountId: string, candidateId: string) => {
+    saveProfileClaimDraft(accountId, candidateId, answers);
+    return answers;
+  };
+}
+function claimPage() {
+  act(() =>
+    root.render(<CandidateClaimScreen navigation={navigation as never} route={route as never} />),
+  );
+}
+function fieldValue(label: string) {
+  return host.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[aria-label="${label}"]`)!
+    .value;
+}
+it('asks the tab that opened it only once its form is ready and eligible, then fills the empty form', async () => {
+  mocks.mine.mockResolvedValue(eligibleList);
+  mocks.fromOpener.mockImplementation(handOver(handedOver));
+  claimPage();
+  await flush();
+  await flush();
+  expect(mocks.fromOpener).toHaveBeenCalledTimes(1);
+  expect(mocks.fromOpener).toHaveBeenCalledWith(
+    'account-a',
+    id,
+    expect.any(Function),
+    expect.any(AbortSignal),
+  );
+  expect(fieldValue('Link to a campaign website or official record')).toBe(
+    'https://example.org/handed-over',
+  );
+  expect(fieldValue('Explain your role and how Alethical can confirm it')).toBe(
+    'Illustrative explanation typed in the opening tab',
+  );
+});
+it('never asks the opening tab while this account cannot request', async () => {
+  mocks.mine.mockResolvedValue({
+    account_id: 'account-a',
+    claims: [{ ...approved, status: 'pending', can_manage: false }],
+    request_eligibility: { allowed: false, reason: 'profile_claim_pending' },
+  });
+  claimPage();
+  await flush();
+  await flush();
+  expect(mocks.fromOpener).not.toHaveBeenCalled();
+});
+it('keeps what the reader typed when the opening tab answers late', async () => {
+  mocks.mine.mockResolvedValue(eligibleList);
+  let answer: (value: unknown) => void = () => undefined;
+  mocks.fromOpener.mockImplementation(() => new Promise((resolve) => (answer = resolve)));
+  claimPage();
+  await flush();
+  edit('Link to a campaign website or official record', 'https://example.org/typed-here');
+  await act(async () => answer(handedOver));
+  await flush();
+  expect(fieldValue('Link to a campaign website or official record')).toBe(
+    'https://example.org/typed-here',
+  );
+  expect(fieldValue('Explain your role and how Alethical can confirm it')).toBe('');
+});
+it('drops a late answer after the account changes', async () => {
+  mocks.mine.mockResolvedValue(eligibleList);
+  const answers: ((value: unknown) => void)[] = [];
+  mocks.fromOpener.mockImplementation(() => new Promise((resolve) => answers.push(resolve)));
+  claimPage();
+  await flush();
+  const [, , , lifetime] = mocks.fromOpener.mock.calls[0];
+  mocks.auth = { ...mocks.auth, user: { id: 'account-b', isAdmin: false }, accessToken: 'token-b' };
+  mocks.mine.mockResolvedValue({ ...eligibleList, account_id: 'account-b' });
+  claimPage();
+  await flush();
+  // The form for the old account is gone, and with it the request it made.
+  expect((lifetime as AbortSignal).aborted).toBe(true);
+  // The old account's request is answered late; the new account's form stays empty.
+  await act(async () => answers[0](handedOver));
+  await flush();
+  expect(fieldValue('Link to a campaign website or official record')).toBe('');
+});
+
+it('shows that nothing is published when the statement was removed elsewhere, and asks for a fresh publish', async () => {
+  mocks.save.mockRejectedValueOnce(Object.assign(new Error('Changed'), { status: 409 }));
+  manage();
+  await flush();
+  edit('Campaign statement', 'My edited campaign words');
+  act(() => button('Save changes').click());
+  await flush();
+  mocks.privateStatement.mockResolvedValue({
+    account_id: 'account-a',
+    statement: { body: '', updated_at: '2026-10-01', version: 3 },
+    history: [],
+  });
+  act(() => button('Try again').click());
+  await flush();
+  const group = host.querySelector('[role="group"][aria-labelledby="statement-changed-message"]')!;
+  expect(group.textContent).toContain('No statement is currently published');
+  expect(host.querySelector<HTMLTextAreaElement>('[aria-label="Campaign statement"]')!.value).toBe(
+    'My edited campaign words',
+  );
+  expect(mocks.save).toHaveBeenCalledTimes(1);
+  // Publishing is the owner's own choice, against the version shown.
+  act(() => button('Publish statement').click());
+  await flush();
+  expect(mocks.save.mock.calls[1][2]).toMatchObject({
+    body: 'My edited campaign words',
+    expected_version: 3,
+  });
+});
+it('keeps the editor date hidden while the changed-elsewhere group shows', async () => {
+  mocks.save.mockRejectedValueOnce(Object.assign(new Error('Changed'), { status: 409 }));
+  mocks.privateStatement.mockResolvedValue({
+    account_id: 'account-a',
+    statement: {
+      body: 'Current campaign words',
+      updated_at: '2026-09-30T15:00:00Z',
+      published_at: '2026-09-30T15:00:00Z',
+      edited_at: null,
+      version: 2,
+    },
+    history: [],
+  });
+  manage();
+  await flush();
+  edit('Campaign statement', 'My edited campaign words');
+  act(() => button('Save changes').click());
+  await flush();
+  mocks.privateStatement.mockResolvedValue({
+    account_id: 'account-a',
+    statement: {
+      body: 'Words saved in another tab',
+      updated_at: '2026-10-03T15:00:00Z',
+      published_at: '2026-09-30T15:00:00Z',
+      edited_at: '2026-10-03T15:00:00Z',
+      version: 3,
+    },
+    history: [],
+  });
+  act(() => button('Try again').click());
+  await flush();
+  const group = host.querySelector('[role="group"][aria-labelledby="statement-changed-message"]')!;
+  // The group carries the current statement's own date; the line under the editor is empty.
+  expect(group.textContent).toContain('Edited October 3, 2026');
+  expect(host.textContent!.split('Edited October 3, 2026')).toHaveLength(2);
+});
+it('fills the opened tab with over-long answers and their messages exactly as typed', async () => {
+  const long = {
+    role: 'Authorized campaign representative',
+    link: 'https://example.org/handed-over',
+    explanation: `Illustrative ${'e'.repeat(10050)}`,
+    errors: { explanation: 'Keep your explanation to 1900 characters or fewer' },
+  };
+  mocks.mine.mockResolvedValue(eligibleList);
+  mocks.fromOpener.mockImplementation(handOver(long));
+  claimPage();
+  await flush();
+  await flush();
+  expect(fieldValue('Explain your role and how Alethical can confirm it')).toBe(long.explanation);
+  expect(host.textContent).toContain('Keep your explanation to 1900 characters or fewer');
+  expect(
+    host.querySelector<HTMLInputElement>(
+      'input[type="radio"][value="Authorized campaign representative"]',
+    )?.checked ?? host.textContent!.includes('Authorized campaign representative'),
+  ).toBe(true);
+});
+
+it('does not move focus when the page simply opens on a state without access', async () => {
+  const scrolled = vi.fn();
+  Element.prototype.scrollIntoView = scrolled;
+  mocks.mine.mockResolvedValue({
+    account_id: 'account-a',
+    claims: [{ ...approved, status: 'revoked', can_manage: false }],
+  });
+  manage();
+  await flush();
+  expect(host.textContent).toContain('Profile claim revoked');
+  expect(document.activeElement).toBe(document.body);
+  expect(scrolled).not.toHaveBeenCalled();
+});
+
+it('fills only the exact answers the transfer kept, never a copy replaced since', async () => {
+  mocks.mine.mockResolvedValue(eligibleList);
+  mocks.fromOpener.mockImplementation(async (accountId: string, candidateId: string) => {
+    saveProfileClaimDraft(accountId, candidateId, handedOver);
+    // Newer answers replace them before the form gets the result.
+    saveProfileClaimDraft(accountId, candidateId, {
+      ...handedOver,
+      link: 'https://example.org/newer',
+    });
+    return handedOver;
+  });
+  claimPage();
+  await flush();
+  await flush();
+  expect(fieldValue('Link to a campaign website or official record')).toBe('');
+});
+
+it('shows the answers this tab last kept when the claim step comes back into view', async () => {
+  mocks.mine.mockResolvedValue(eligibleList);
+  claimPage();
+  await flush();
+  expect(fieldValue('Link to a campaign website or official record')).toBe('');
+  // Another visit to the claim step in this tab keeps newer answers while this one is unseen.
+  mocks.focused = false;
+  claimPage();
+  saveProfileClaimDraft('account-a', id, handedOver);
+  mocks.focused = true;
+  claimPage();
+  await flush();
+  expect(fieldValue('Link to a campaign website or official record')).toBe(
+    'https://example.org/handed-over',
+  );
+  expect(fieldValue('Explain your role and how Alethical can confirm it')).toBe(
+    'Illustrative explanation typed in the opening tab',
+  );
+});
+
+it('takes changed messages for the same answers when the claim step comes back into view', async () => {
+  mocks.mine.mockResolvedValue(eligibleList);
+  saveProfileClaimDraft('account-a', id, handedOver);
+  claimPage();
+  await flush();
+  expect(host.textContent).not.toContain('Keep your explanation to 1900 characters or fewer');
+  mocks.focused = false;
+  claimPage();
+  saveProfileClaimDraft('account-a', id, {
+    ...handedOver,
+    errors: { explanation: 'Keep your explanation to 1900 characters or fewer' },
+  });
+  mocks.focused = true;
+  claimPage();
+  await flush();
+  expect(host.textContent).toContain('Keep your explanation to 1900 characters or fewer');
+});
+it('empties a waiting claim step when its answers were emptied elsewhere in this tab', async () => {
+  mocks.mine.mockResolvedValue(eligibleList);
+  saveProfileClaimDraft('account-a', id, {
+    ...handedOver,
+    errors: { link: 'Enter a valid public campaign or official-record web address' },
+  });
+  claimPage();
+  await flush();
+  expect(fieldValue('Link to a campaign website or official record')).toBe(
+    'https://example.org/handed-over',
+  );
+  mocks.focused = false;
+  claimPage();
+  // Another visit cleared every field; an empty form keeps nothing.
+  saveProfileClaimDraft('account-a', id, { role: '', link: '', explanation: '', errors: {} });
+  mocks.focused = true;
+  claimPage();
+  await flush();
+  expect(fieldValue('Link to a campaign website or official record')).toBe('');
+  expect(fieldValue('Explain your role and how Alethical can confirm it')).toBe('');
+  expect(host.textContent).not.toContain(
+    'Enter a valid public campaign or official-record web address',
+  );
+});

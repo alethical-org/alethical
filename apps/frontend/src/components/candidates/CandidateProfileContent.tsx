@@ -98,6 +98,7 @@ export function CandidateProfileContent({
           href="/candidates"
           onPress={onBack}
           mobile={isMobile}
+          pressedColor="#000000"
           style={{ minHeight: 44, marginBottom: 0 }}
         />
         <ProfileContextLabel>Candidate profile</ProfileContextLabel>
@@ -196,7 +197,8 @@ export function CandidateProfileContent({
             <View
               style={{
                 paddingTop: isMobile ? 16 : 18,
-                paddingHorizontal: isMobile ? 16 : 20,
+                // One left edge with its source line and the record card below.
+                paddingHorizontal: inset,
                 paddingBottom: 8,
                 flexDirection: 'row',
                 alignItems: 'flex-start',

@@ -672,3 +672,138 @@ def test_database_boundary_suppresses_private_exception_traceback():
     else:
         pytest.fail("Expected a safe unavailable response")
     db.rollback.assert_called_once()
+
+
+def remove(client, item, version, headers=FIRST):
+    return client.request(
+        "DELETE",
+        f"{BASE}/{item['id']}/statement",
+        headers=headers,
+        json={
+            "expected_account_id": account(client, headers),
+            "expected_version": version,
+        },
+    )
+
+
+def test_published_and_edited_dates_follow_the_current_publication(client):
+    item = approved(client)
+    first = statement(client, item, "First published text").json()["statement"]
+    assert first["published_at"] is not None and first["edited_at"] is None
+    assert public(client).json()["statement"]["published_at"] == first["published_at"]
+    edited = statement(client, item, "Edited text", 1).json()["statement"]
+    # An edit keeps the first publication and adds the latest saved edit.
+    assert edited["published_at"] == first["published_at"]
+    assert edited["edited_at"] == edited["updated_at"]
+    assert public(client).json()["statement"]["edited_at"] == edited["edited_at"]
+    removed = remove(client, item, 2).json()["statement"]
+    assert removed["published_at"] is None and removed["edited_at"] is None
+    # Version 4 after a removal is a new publication, not an edit.
+    again = statement(client, item, "Published again", 3).json()["statement"]
+    assert again["version"] == 4
+    assert again["edited_at"] is None
+    assert again["published_at"] > first["published_at"]
+    private = client.get(f"{BASE}/{item['id']}/statement", headers=FIRST).json()
+    assert private["statement"]["published_at"] == again["published_at"]
+
+
+def test_publication_dates_are_omitted_without_revision_evidence(client):
+    item = approved(client)
+    statement(client, item, "Words")
+    statement(client, item, "Edited words", 1)
+    with get_session_factory()() as db:
+        db.execute(delete(CandidateStatementRevision))
+        db.commit()
+    # The row's own date could be an edit, so neither date is claimed.
+    shown = public(client).json()["statement"]
+    assert shown["body"] == "Edited words"
+    assert shown["published_at"] is None
+    assert shown["edited_at"] is None
+
+
+def test_publication_dates_are_omitted_when_the_last_revision_is_a_removal(client):
+    item = approved(client)
+    statement(client, item, "Words")
+    with get_session_factory()() as db:
+        # A legacy row whose only evidence is a later removal cannot date the words.
+        db.execute(delete(CandidateStatementRevision))
+        db.add(
+            CandidateStatementRevision(
+                candidate_id=CANDIDATE,
+                claim_id=uuid.UUID(item["id"]),
+                body="",
+                action="removed",
+                created_at=datetime.now(timezone.utc),
+            )
+        )
+        db.commit()
+    shown = public(client).json()["statement"]
+    assert shown["published_at"] is None and shown["edited_at"] is None
+
+
+def test_new_owner_publication_is_dated_from_its_own_history(client):
+    item = approved(client)
+    statement(client, item, "Old owner words")
+    statement(client, item, "Old owner edit", 1)
+    assert review(client, item, action="revoke").status_code == 200
+    successor = claim(client, SECOND)
+    assert review(client, successor).status_code == 200
+    successor = client.get(f"{BASE}/me", headers=SECOND).json()["claims"][0]
+    fresh = statement(client, successor, "New owner words", headers=SECOND)
+    assert fresh.status_code == 200, fresh.text
+    shown = public(client).json()["statement"]
+    assert shown["body"] == "New owner words"
+    assert shown["edited_at"] is None
+    assert shown["published_at"] == fresh.json()["statement"]["published_at"]
+
+
+def make_legacy(version, body=None):
+    """An older statement row: no revision history and a later version number."""
+    with get_session_factory()() as db:
+        db.execute(delete(CandidateStatementRevision))
+        row = db.get(CandidateStatement, CANDIDATE)
+        row.version = version
+        if body is not None:
+            row.body = body
+        db.commit()
+
+
+def test_editing_a_legacy_statement_is_not_dated_as_a_first_publication(client):
+    item = approved(client)
+    statement(client, item, "Legacy words")
+    make_legacy(7)
+    edited = statement(client, item, "Edited legacy words", 7)
+    assert edited.status_code == 200, edited.text
+    shown = edited.json()["statement"]
+    assert shown["version"] == 8
+    # 1 retained revision after unrecorded words: an edit or a republish, unknown.
+    assert shown["published_at"] is None and shown["edited_at"] is None
+    assert public(client).json()["statement"]["published_at"] is None
+    # A second edit is known to be an edit, while its first publication stays unknown.
+    again = statement(client, item, "Edited twice", 8).json()["statement"]
+    assert again["edited_at"] == again["updated_at"]
+    assert again["published_at"] is None
+
+
+def test_republishing_after_a_recorded_removal_of_a_legacy_statement_is_dated(client):
+    item = approved(client)
+    statement(client, item, "Legacy words")
+    make_legacy(7)
+    assert remove(client, item, 7).status_code == 200
+    republished = statement(client, item, "Published again", 8).json()["statement"]
+    assert republished["version"] == 9
+    # The recorded removal ended the unrecorded publication, so this one starts here.
+    assert republished["published_at"] is not None
+    assert republished["edited_at"] is None
+    edited = statement(client, item, "Published again, edited", 9).json()["statement"]
+    assert edited["published_at"] == republished["published_at"]
+    assert edited["edited_at"] == edited["updated_at"]
+
+
+def test_publishing_over_an_emptied_legacy_statement_is_not_dated(client):
+    item = approved(client)
+    statement(client, item, "Legacy words")
+    make_legacy(7, body="")
+    shown = statement(client, item, "New words", 7).json()["statement"]
+    # No recorded removal: the empty row's history is unknown, so no date is claimed.
+    assert shown["published_at"] is None and shown["edited_at"] is None

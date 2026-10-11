@@ -9,6 +9,8 @@ export function ProfileClaimButton({
   busy = false,
   disabled = false,
   kind = 'outline',
+  unavailable = false,
+  announcement,
   onPress,
   width,
   describedBy,
@@ -23,6 +25,10 @@ export function ProfileClaimButton({
   busy?: boolean;
   disabled?: boolean;
   kind?: 'green' | 'outline' | 'danger' | 'danger-text';
+  /** Unavailable while another request runs: keeps its ready look, no hover, no press. */
+  unavailable?: boolean;
+  /** Spoken while busy when it differs from the visible busy label. */
+  announcement?: string;
   onPress(): void;
   width?: CSSProperties['width'];
   describedBy?: string;
@@ -36,7 +42,7 @@ export function ProfileClaimButton({
     if (typeof document === 'undefined' || document.getElementById('profile-claim-buttons')) return;
     const sheet = document.createElement('style');
     sheet.id = 'profile-claim-buttons';
-    sheet.textContent = `.profile-claim-button:focus-visible,.profile-claim-input:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}.profile-claim-button[aria-disabled=true]{cursor:default}.profile-claim-button[aria-busy=true]{cursor:progress}@media(hover:hover) and (pointer:fine){.profile-claim-button:not([aria-disabled=true]):hover{background:#f7f8fa!important;border-color:rgba(17,21,15,.3)!important}.profile-claim-button.green:not([aria-disabled=true]):hover{background:#28bf71!important;border-color:#28bf71!important}.profile-claim-button.danger:not([aria-disabled=true]):hover{background:#fdf3ee!important;border-color:#c98a6d!important}}.profile-claim-button:not([aria-disabled=true]):active{background:#eceff1!important}.profile-claim-button.green:not([aria-disabled=true]):active{background:#23ad66!important}.profile-claim-button.danger:not([aria-disabled=true]):active{background:#f9e6dc!important}@keyframes profile-claim-spin{to{transform:rotate(360deg)}}.profile-claim-spinner{animation:profile-claim-spin .8s linear infinite}@media(prefers-reduced-motion:reduce){.profile-claim-spinner{animation:none}}`;
+    sheet.textContent = `.profile-claim-dialog-words:focus-visible{outline:2px solid #7c5cff;outline-offset:-2px}.profile-claim-button:focus-visible,.profile-claim-input:focus-visible,.profile-claim-history-details summary:focus-visible,.profile-claim-saved-link:focus-visible,.profile-claim-source-link:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}.profile-claim-history-details summary:focus:not(:focus-visible){outline:none}@media(hover:hover) and (pointer:fine){.profile-claim-history-details summary:hover{color:#11832b!important;text-decoration:underline}.profile-claim-saved-link:hover,.profile-claim-source-link:hover{color:#11832b!important}}.profile-claim-button[aria-disabled=true]{cursor:default}.profile-claim-button[aria-busy=true]{cursor:progress}@media(hover:hover) and (pointer:fine){.profile-claim-button:not([aria-disabled=true]):hover{background:#f7f8fa!important;border-color:rgba(17,21,15,.3)!important}.profile-claim-button.green:not([aria-disabled=true]):hover{background:#28bf71!important;border-color:#28bf71!important}.profile-claim-button.danger:not([aria-disabled=true]):hover{background:#fdf3ee!important;border-color:#c98a6d!important}}.profile-claim-button:not([aria-disabled=true]):active{background:#eceff1!important}.profile-claim-button.green:not([aria-disabled=true]):active{background:#23ad66!important}.profile-claim-button.danger:not([aria-disabled=true]):active{background:#f9e6dc!important}@keyframes profile-claim-spin{to{transform:rotate(360deg)}}.profile-claim-spinner{animation:profile-claim-spin .8s linear infinite}@media(prefers-reduced-motion:reduce){.profile-claim-spinner{animation:none}}`;
     document.head.append(sheet);
   }, []);
   if (Platform.OS !== 'web')
@@ -51,7 +57,7 @@ export function ProfileClaimButton({
         onPress={onPress}
       />
     );
-  const off = disabled || busy;
+  const off = disabled || busy || unavailable;
   const contentStyle: CSSProperties = {
     gridArea: '1 / 1',
     display: 'flex',
@@ -84,7 +90,7 @@ export function ProfileClaimButton({
           maxWidth: '100%',
           alignSelf: 'flex-start',
           borderRadius: 12,
-          border: `1px solid ${selected !== undefined ? (selected ? 'rgba(17,21,15,.16)' : 'transparent') : kind === 'green' ? '#2ed47e' : kind === 'danger' ? '#d9a58c' : 'rgba(17,21,15,.2)'}`,
+          border: `1px solid ${disabled && !busy ? '#eceff1' : selected !== undefined ? (selected ? 'rgba(17,21,15,.16)' : 'transparent') : kind === 'green' ? '#2ed47e' : kind === 'danger' ? '#d9a58c' : 'rgba(17,21,15,.2)'}`,
           background:
             disabled && !busy
               ? '#eceff1'
@@ -163,7 +169,7 @@ export function ProfileClaimButton({
           border: 0,
         }}
       >
-        {busy ? (busyLabel ?? label) : ''}
+        {busy ? (announcement ?? busyLabel ?? label) : ''}
       </span>
     </>
   );

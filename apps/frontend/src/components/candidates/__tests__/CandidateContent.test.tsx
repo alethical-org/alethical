@@ -198,7 +198,7 @@ it('shows notices after races, alphabetical names and real profile links without
   click(link);
   expect(open).toHaveBeenCalledWith('general-a');
   expect(host.textContent).toContain('Candidate records from Example election office');
-  expect(host.textContent).not.toContain('Claim this profile');
+  expect(host.textContent).not.toMatch(/Claim this (candidate )?profile/);
 });
 it('keeps old results and election attached while changing selection by keyboard, then retries failure', async () => {
   let reject!: (error: Error) => void;

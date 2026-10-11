@@ -162,6 +162,48 @@ it('serves the public candidates destination without example records or data-ser
   expect(fetch).not.toHaveBeenCalled();
 });
 
+it('serves the bare /candidates/features as an ordinary indexed page with its public words', async () => {
+  stubNetwork(() => ({ status: 500 }));
+  const { body, status, headers } = await serve({ path: '/candidates/features' });
+  expect(status).toBe(200);
+  expect(body).toContain('<title>Candidate profile features | Alethical</title>');
+  expect(body).toContain('rel="canonical" href="https://www.alethical.com/candidates/features"');
+  expect(body).not.toMatch(/noindex/);
+  expect(headers.get('X-Robots-Tag')).toBeUndefined();
+  expect(body).toContain('Every feature listed is on the roadmap.');
+  const snapshot = body
+    .split('<!--alethical:page-snapshot-->')[1]
+    .split('<!--/alethical:page-snapshot-->')[0];
+  expect(snapshot).toContain('<h1>Candidate profile features</h1>');
+  expect(snapshot).toContain('On the roadmap');
+  expect(snapshot).toContain('Questions from voters');
+  expect(snapshot).toContain('Following puts voters in control');
+  expect(snapshot).toContain('href="/candidates"');
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it('keeps /candidates/features with a candidate out of search, with no canonical or candidate detail', async () => {
+  stubNetwork(() => ({ status: 500 }));
+  for (const candidate of ['a'.repeat(64), 'not-a-record']) {
+    const { body, status, headers } = await serve({
+      path: `/candidates/features?candidate=${candidate}`,
+    });
+    expect(status).toBe(200);
+    expect(body).toContain('<title>Candidate profile features | Alethical</title>');
+    expect(body).toMatch(/noindex/);
+    expect(headers.get('X-Robots-Tag')).toBe('noindex');
+    expect(body).not.toContain('rel="canonical"');
+    // A candidate id in the address never puts a name, claim action or account context in the page.
+    expect(body).not.toContain(candidate);
+    const snapshot = body
+      .split('<!--alethical:page-snapshot-->')[1]
+      .split('<!--/alethical:page-snapshot-->')[0];
+    expect(snapshot).toContain('<h1>Candidate profile features</h1>');
+    expect(snapshot).not.toContain('Continue claiming this candidate profile');
+  }
+  expect(fetch).not.toHaveBeenCalled();
+});
+
 it('keeps illustrative candidate profiles unavailable on the public server even with the review flag', async () => {
   vi.stubEnv('EXPO_PUBLIC_CANDIDATE_LOOKUP_PREVIEW', 'true');
   try {

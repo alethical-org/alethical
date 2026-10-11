@@ -647,3 +647,62 @@ def test_claim_migration_round_trip_keeps_official_records_and_private_tables_cl
                 )
         finally:
             engine.dispose()
+
+
+def test_applicant_sees_latest_submission_time_not_a_decision_time(client):
+    item = claim(client)
+    rejected = review(client, item, action="reject", identity_verified=False)
+    assert rejected.status_code == 200, rejected.text
+    again = apply(client, version=rejected.json()["claim"]["version"])
+    assert again.status_code == 200, again.text
+    with get_session_factory()() as db:
+        events = {
+            kind: created
+            for kind, created in db.execute(
+                select(CandidateClaimEvent.kind, CandidateClaimEvent.created_at).where(
+                    CandidateClaimEvent.claim_id == UUID(item["id"])
+                )
+            ).all()
+        }
+    own = client.get(f"{BASE}/me?candidate_id={CANDIDATE}", headers=FIRST).json()
+    shown = datetime.fromisoformat(own["claims"][0]["submitted_at"])
+    assert shown == events["resubmitted"]
+    assert shown != events["rejected"]
+    assert "review_note" not in own["claims"][0]
+
+
+def test_claim_without_submission_history_falls_back_only_to_creation(client):
+    item = claim(client)
+    with get_session_factory()() as db:
+        db.execute(
+            delete(CandidateClaimEmailDelivery).where(
+                CandidateClaimEmailDelivery.event_id.in_(
+                    select(CandidateClaimEvent.id).where(
+                        CandidateClaimEvent.claim_id == UUID(item["id"])
+                    )
+                )
+            )
+        )
+        db.execute(
+            delete(CandidateClaimEvent).where(
+                CandidateClaimEvent.claim_id == UUID(item["id"])
+            )
+        )
+        created = db.get(CandidateClaim, UUID(item["id"])).created_at
+        db.commit()
+    own = client.get(f"{BASE}/me", headers=FIRST).json()["claims"][0]
+    assert datetime.fromisoformat(own["submitted_at"]) == created
+
+
+def test_existing_approved_claim_block_precedes_applicant_email_check(client):
+    approved(client)
+    competitor = claim(client, SECOND)
+    with get_session_factory()() as db:
+        db.execute(
+            text("""UPDATE auth.users SET email_confirmed_at=NULL
+            WHERE id::text IN (SELECT provider_subject FROM auth_identity WHERE user_id=:user_id)"""),
+            {"user_id": UUID(account(client, SECOND))},
+        )
+        db.commit()
+    detail = admin_detail(client, competitor)
+    assert detail["approval_block"]["reason"] == "profile_already_claimed"

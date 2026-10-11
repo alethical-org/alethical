@@ -120,6 +120,7 @@ export function CandidateProfileScreen(props: RootScreenProps<'CandidateProfile'
               href="/candidates"
               onPress={returnToCandidates}
               mobile={isMobile}
+              pressedColor="#000000"
               style={{ minHeight: 44, marginBottom: 0 }}
             />
             {current.kind === 'error' ? (

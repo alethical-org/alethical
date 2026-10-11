@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 import {
   CandidateDialog,
   CandidateDialogActions,
+  CandidateStatusIcon,
   candidateAccountStyles,
 } from '../components/candidates/CandidateAccountControls';
 import {
@@ -14,12 +16,14 @@ import {
   safeCandidateUrl,
 } from '../components/candidates/CandidateControls';
 import { ProfileClaimButton } from '../components/candidates/ProfileClaimButton';
+import { GoBackLink } from '../components/GoBackLink';
 import {
   profileClaimCopy as copy,
   profileClaimHeadings,
   profileClaimErrorReason,
   profileClaimNoteError,
   profileClaimTime,
+  savedProfileClaimRequest,
 } from '../components/candidates/profileClaimCopy';
 import {
   getAdminCandidateClaims,
@@ -88,7 +92,28 @@ const adminStyles = StyleSheet.create({
   },
   historyLabel: { ...candidateText.strong, fontSize: 13.5, lineHeight: 20, color: '#4f5651' },
   historyBody: { ...candidateText.body, fontSize: 15, lineHeight: 22.5, color: '#2c322c' },
+  preWrap:
+    Platform.OS === 'web' ? ({ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' } as object) : {},
+  block: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#fdf6e7',
+    borderWidth: 1,
+    borderColor: '#efd9a8',
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
 });
+const hiddenText = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+} as const;
 function ClaimContext({
   claim,
   status = true,
@@ -180,14 +205,17 @@ function ReviewNoteField({
   readOnly,
   error,
   inputRef,
+  revoking,
 }: {
   value: string;
   onChange(value: string): void;
   readOnly: boolean;
   error?: string;
   inputRef: React.Ref<TextInput>;
+  revoking: boolean;
 }) {
   const { focused, focusProps } = useFieldFocus();
+  const count = [...value].length;
   return (
     <View>
       <Text
@@ -196,17 +224,33 @@ function ReviewNoteField({
       >
         Private review note
       </Text>
+      {revoking ? null : (
+        <Text
+          nativeID="profile-review-note-guidance"
+          style={[
+            candidateText.strong,
+            { marginTop: 6, fontSize: 15.5, lineHeight: 23.25, fontWeight: '600' },
+          ]}
+        >
+          {copy.noteGuidance}
+        </Text>
+      )}
       <Text
         nativeID="profile-review-note-help"
-        style={[adminStyles.body, { marginTop: 4, fontSize: 14.5, lineHeight: 21.75 }]}
+        style={[adminStyles.body, { marginTop: 4, fontSize: 15, lineHeight: 22.5 }]}
       >
-        {copy.noteHelp}
+        {revoking ? copy.noteHelpRevoke : copy.noteHelp}
       </Text>
       <TextInput
         ref={inputRef}
         accessibilityLabel="Private review note"
         aria-labelledby="profile-review-note-label"
-        aria-describedby={['profile-review-note-help', error && 'profile-review-note-error']
+        aria-describedby={[
+          revoking ? null : 'profile-review-note-guidance',
+          'profile-review-note-help',
+          'profile-review-note-error',
+          'profile-review-note-count',
+        ]
           .filter(Boolean)
           .join(' ')}
         aria-invalid={Boolean(error)}
@@ -233,31 +277,86 @@ function ReviewNoteField({
           ...fieldFocusRing(focused),
         ]}
       />
-      {error ? (
-        <Text
+      <View
+        style={{
+          marginTop: 8,
+          minHeight: 22,
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          columnGap: 16,
+          rowGap: 4,
+        }}
+      >
+        <View
           nativeID="profile-review-note-error"
-          role="alert"
-          style={[candidateText.strong, { marginTop: 8, color: '#a3421a', fontSize: 15 }]}
+          style={{ flexGrow: 1, flexShrink: 1, flexBasis: 240, minWidth: 0 }}
         >
-          {error}
+          {error ? (
+            <View role="alert" style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+              <ErrorMark />
+              <Text
+                style={[
+                  candidateText.strong,
+                  { flex: 1, color: '#a3421a', fontSize: 15, lineHeight: 21.75 },
+                ]}
+              >
+                {error}
+              </Text>
+            </View>
+          ) : (
+            <Text style={[adminStyles.body, { fontSize: 15, lineHeight: 21.75 }]}>
+              {copy.noteMinimum}
+            </Text>
+          )}
+        </View>
+        <Text
+          nativeID="profile-review-note-count"
+          style={[
+            adminStyles.body,
+            {
+              marginLeft: 'auto',
+              fontSize: 14.5,
+              lineHeight: 21,
+              fontWeight: '600',
+              color: count > 2000 ? '#a3421a' : '#4f5651',
+            },
+          ]}
+        >
+          {count} / 2000 characters
         </Text>
-      ) : null}
+      </View>
     </View>
   );
 }
-const eventNames: Record<ProfileClaimEvent['kind'], string> = {
-  submitted: 'Profile claim request submitted',
-  resubmitted: 'Profile claim request resubmitted',
-  withdrawn: 'Profile claim request withdrawn',
-  given_up: 'Profile claim given up',
-  approved: 'Profile claim approved',
-  rejected: 'Profile claim request rejected',
-  revoked: 'Profile claim revoked',
-};
-function ClaimHistory({ claim }: { claim: CandidateClaim }) {
-  const submissions = claim.history?.filter((event) =>
-    ['submitted', 'resubmitted'].includes(event.kind),
+function ErrorMark() {
+  return (
+    <Svg
+      width={17}
+      height={17}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+      style={{ marginTop: 2 }}
+    >
+      <Circle cx={12} cy={12} r={9} stroke="#a3421a" strokeWidth={2} />
+      <Path d="M12 7.5 V13 M12 16 V16.1" stroke="#a3421a" strokeWidth={2} strokeLinecap="round" />
+    </Svg>
   );
+}
+const eventNames: Record<ProfileClaimEvent['kind'], string> = {
+  submitted: 'Submitted',
+  resubmitted: 'Resubmitted',
+  withdrawn: 'Withdrawn',
+  given_up: 'Given up',
+  approved: 'Approved',
+  rejected: 'Rejected',
+  revoked: 'Revoked',
+};
+/** Each submission keeps the answers it was sent with; an older one is never shown with
+ * the current values, and missing history is never inferred. */
+function ClaimHistory({ claim }: { claim: CandidateClaim }) {
   return (
     <View>
       <Text
@@ -265,7 +364,7 @@ function ClaimHistory({ claim }: { claim: CandidateClaim }) {
         aria-level={3}
         style={[candidateText.strong, { fontSize: 18, fontWeight: '800' }]}
       >
-        Profile claim history
+        Request history
       </Text>
       <View style={{ marginTop: 12 }}>
         {claim.history?.map((event, index) => {
@@ -275,6 +374,9 @@ function ClaimHistory({ claim }: { claim: CandidateClaim }) {
             ['candidate_name', 'office', 'voting_area', 'election_name', 'election_date'].some(
               (key) => prior[key as keyof typeof prior] !== claim[key as keyof CandidateClaim],
             );
+          const submission =
+            ['submitted', 'resubmitted'].includes(event.kind) && Boolean(event.evidence_url);
+          const answers = submission ? savedProfileClaimRequest(event.request_note ?? '') : null;
           return (
             <View
               key={event.id}
@@ -303,27 +405,44 @@ function ClaimHistory({ claim }: { claim: CandidateClaim }) {
                   </Text>
                 </View>
               ) : null}
-              {(event.evidence_url || event.request_note) &&
-              (['submitted', 'resubmitted'].includes(event.kind) ||
-                !submissions?.some(
-                  (submission) =>
-                    submission.evidence_url === event.evidence_url &&
-                    submission.request_note === event.request_note,
-                )) ? (
-                <View style={adminStyles.historyBox}>
-                  {event.evidence_url ? (
+              {answers ? (
+                <details className="profile-claim-history-details" style={{ marginTop: 4 }}>
+                  <summary
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      minHeight: 44,
+                      fontFamily: candidateText.body.fontFamily,
+                      fontSize: 15,
+                      fontWeight: 700,
+                      color: '#0f7a45',
+                      cursor: 'pointer',
+                      listStylePosition: 'inside',
+                    }}
+                  >
+                    View submitted information
+                  </summary>
+                  <View style={adminStyles.historyBox}>
+                    {answers.role ? (
+                      <View style={{ gap: 3 }}>
+                        <Text style={adminStyles.historyLabel}>Role</Text>
+                        <Text style={adminStyles.historyBody}>{answers.role}</Text>
+                      </View>
+                    ) : null}
                     <View style={{ gap: 3 }}>
-                      <Text style={adminStyles.historyLabel}>{copy.link}</Text>
-                      <CandidateLink label={event.evidence_url} url={event.evidence_url} />
+                      <Text style={adminStyles.historyLabel}>
+                        Campaign website or official record
+                      </Text>
+                      <CandidateLink label={event.evidence_url!} url={event.evidence_url!} />
                     </View>
-                  ) : null}
-                  {event.request_note ? (
                     <View style={{ gap: 3 }}>
-                      <Text style={adminStyles.historyLabel}>{copy.explanation}</Text>
-                      <Text style={adminStyles.historyBody}>{event.request_note}</Text>
+                      <Text style={adminStyles.historyLabel}>Explanation</Text>
+                      <Text style={[adminStyles.historyBody, adminStyles.preWrap]}>
+                        {answers.explanation}
+                      </Text>
                     </View>
-                  ) : null}
-                </View>
+                  </View>
+                </details>
               ) : null}
               {event.review_note ? (
                 <View style={adminStyles.historyBox}>
@@ -575,6 +694,38 @@ function ClaimDetail({
   const ownRequest = claim.user_id === result?.account_id;
   const block = claim.approval_block;
   const disabled = Boolean(busy) || loading || Boolean(failure);
+  const answers = savedProfileClaimRequest(claim.request_note);
+  const blockMessage = block
+    ? recheckFailed && ['official_record_stale', 'official_record_mismatch'].includes(block.reason)
+      ? 'We couldn’t refresh the official candidate record. Approval remains unavailable; try again.'
+      : (blocks[block.reason] ?? block.message)
+    : '';
+  const approvalBlock =
+    block && claim.status === 'pending' ? (
+      <View nativeID="profile-approval-block" role="alert" style={adminStyles.block}>
+        <View style={{ marginTop: 2 }}>
+          <CandidateStatusIcon kind="warning" size={18} />
+        </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[candidateText.strong, { fontSize: 15.5, lineHeight: 23.25 }]}>
+            {blockMessage}
+          </Text>
+          {['official_record_stale', 'official_record_mismatch'].includes(block.reason) ? (
+            <View style={{ marginTop: 12 }}>
+              <ProfileClaimButton
+                label="Recheck official record"
+                busyLabel="Rechecking official record…"
+                busy={busy === 'recheck'}
+                width={isMobile ? '100%' : 270}
+                unavailable={disabled && busy !== 'recheck'}
+                style={{ minHeight: 44, fontSize: 15, borderRadius: 11 }}
+                onPress={() => void recheck()}
+              />
+            </View>
+          ) : null}
+        </View>
+      </View>
+    ) : null;
   return (
     <View style={{ gap: 22 }}>
       <View
@@ -602,11 +753,24 @@ function ClaimDetail({
           <View style={{ flexDirection: isMobile ? 'column' : 'row', columnGap: 24, rowGap: 16 }}>
             <View style={{ gap: 4, flex: isMobile ? undefined : 1, minWidth: 0 }}>
               <Text style={adminStyles.label}>Applicant email</Text>
-              <Text style={adminStyles.value}>
+              <Text style={[adminStyles.value, adminStyles.preWrap]}>
                 {claim.account_email ?? 'No confirmed account email available'}
               </Text>
               {claim.account_email ? (
-                <Text style={[adminStyles.body, { fontSize: 14 }]}>Confirmed account address</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <Path
+                      d="M5 12.5 L10 17.5 L19 7.5"
+                      stroke="#0f7a45"
+                      strokeWidth={2.6}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </Svg>
+                  <Text style={[adminStyles.body, { fontSize: 14, lineHeight: 20 }]}>
+                    Email confirmed
+                  </Text>
+                </View>
               ) : null}
             </View>
             <View style={{ gap: 4, flex: isMobile ? undefined : 1, minWidth: 0 }}>
@@ -616,61 +780,92 @@ function ClaimDetail({
               </Text>
             </View>
           </View>
+          {answers.role ? (
+            <View style={{ gap: 4 }}>
+              <Text style={adminStyles.label}>Role</Text>
+              <Text style={adminStyles.value}>{answers.role}</Text>
+            </View>
+          ) : null}
           <View style={{ gap: 4 }}>
-            <Text style={adminStyles.label}>{copy.link}</Text>
+            <Text style={adminStyles.label}>Campaign website or official record</Text>
             <CandidateLink label={claim.evidence_url} url={claim.evidence_url} />
           </View>
           <View style={{ gap: 6 }}>
-            <Text style={adminStyles.label}>{copy.explanation}</Text>
+            <Text style={adminStyles.label}>Explanation</Text>
             <View style={adminStyles.evidence}>
-              <Text style={[adminStyles.body, { lineHeight: 24, color: '#2c322c' }]}>
-                {claim.request_note}
+              <Text
+                style={[
+                  adminStyles.body,
+                  adminStyles.preWrap,
+                  { lineHeight: 24, color: '#2c322c' },
+                ]}
+              >
+                {answers.explanation}
               </Text>
             </View>
           </View>
           <View style={{ gap: 4 }}>
             <Text style={adminStyles.label}>Official candidate record</Text>
-            <View
-              style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 6 }}
-            >
+            <Text style={[adminStyles.body, { fontSize: 16, lineHeight: 24 }]}>
               {safeCandidateUrl(claim.official_source?.url ?? '') ? (
-                <CandidateLink
-                  label={claim.official_source?.authority ?? 'Official candidate record'}
-                  url={claim.official_source!.url!}
-                />
+                <a
+                  href={claim.official_source!.url!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="profile-claim-source-link"
+                  style={{
+                    color: '#0f7a45',
+                    fontWeight: 700,
+                    textDecoration: 'underline',
+                    textUnderlineOffset: 2,
+                    overflowWrap: 'anywhere',
+                  }}
+                >
+                  {claim.official_source?.authority ?? 'Official candidate record'}
+                  <span style={hiddenText}> (opens in a new tab)</span>
+                </a>
               ) : (
-                <Text style={adminStyles.body}>Official source unavailable</Text>
+                'Official source unavailable'
               )}
-              {claim.official_checked_at ? (
-                <Text style={adminStyles.value}>
-                  · Checked {profileClaimTime(claim.official_checked_at)}
-                </Text>
-              ) : null}
-            </View>
+              {claim.official_checked_at
+                ? ` · Checked ${profileClaimTime(claim.official_checked_at)}`
+                : ''}
+            </Text>
           </View>
         </View>
         <View aria-label="Decision" style={[cardPadding, adminStyles.divider, { gap: 16 }]}>
           {loading || notice ? (
-            <Text role="status" style={[candidateText.strong, { color: '#0b4f2c' }]}>
-              {loading ? 'Loading profile claim request…' : notice}
-            </Text>
+            <View role="status" style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+              {notice && !loading ? <CandidateStatusIcon kind="success" size={19} /> : null}
+              <Text style={[candidateText.strong, { color: '#0b4f2c', fontWeight: '800' }]}>
+                {loading ? 'Loading profile claim request…' : notice}
+              </Text>
+            </View>
           ) : null}
           {failure ? (
-            <CandidateNotice error>
-              <Text role="alert" style={candidateText.body}>
-                {failure === 'changed'
-                  ? copy.changed
-                  : failure === 'unknown'
-                    ? copy.decisionUnknown
-                    : 'We couldn’t load this profile claim request'}
-              </Text>
-              <ProfileClaimButton
-                label="Reload profile claim request"
-                busy={loading}
-                busyLabel="Loading profile claim request…"
-                onPress={() => void load()}
-              />
-            </CandidateNotice>
+            <View role="alert" style={adminStyles.block}>
+              <View style={{ marginTop: 2 }}>
+                <CandidateStatusIcon kind="warning" size={18} />
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={[candidateText.strong, { fontSize: 15.5, lineHeight: 23.25 }]}>
+                  {failure === 'changed'
+                    ? copy.changed
+                    : failure === 'unknown'
+                      ? copy.decisionUnknown
+                      : 'We couldn’t load this profile claim request'}
+                </Text>
+                <View style={{ marginTop: 12 }}>
+                  <ProfileClaimButton
+                    label="Reload profile claim request"
+                    busy={loading}
+                    busyLabel="Loading profile claim request…"
+                    style={{ minHeight: 44, fontSize: 15, borderRadius: 11 }}
+                    onPress={() => void load()}
+                  />
+                </View>
+              </View>
+            </View>
           ) : null}
           {ownRequest ? (
             <CandidateNotice>
@@ -682,30 +877,7 @@ function ClaimDetail({
           {(claim.status === 'pending' || claim.status === 'approved') &&
           !failure &&
           !ownRequest ? (
-            <View style={{ gap: 16 }}>
-              {block && claim.status === 'pending' ? (
-                <CandidateNotice error>
-                  <Text nativeID="profile-approval-block" style={candidateText.body}>
-                    {blocks[block.reason] ?? block.message}
-                  </Text>
-                  {['official_record_stale', 'official_record_mismatch'].includes(block.reason) ? (
-                    <ProfileClaimButton
-                      label="Recheck official record"
-                      busyLabel="Rechecking official record…"
-                      busy={busy === 'recheck'}
-                      width={isMobile ? '100%' : 270}
-                      disabled={disabled}
-                      onPress={() => void recheck()}
-                    />
-                  ) : null}
-                </CandidateNotice>
-              ) : null}
-              {recheckFailed ? (
-                <Text role="alert" style={[candidateText.strong, { color: '#a3421a' }]}>
-                  We couldn’t refresh the official candidate record. Approval remains unavailable;
-                  try again.
-                </Text>
-              ) : null}
+            <View>
               <ReviewNoteField
                 value={note}
                 onChange={(value) => {
@@ -715,9 +887,10 @@ function ClaimDetail({
                 readOnly={disabled}
                 error={noteError}
                 inputRef={noteRef}
+                revoking={claim.status === 'approved'}
               />
               {claim.status === 'pending' ? (
-                <View style={{ gap: 7 }}>
+                <View style={{ marginTop: 16, gap: 7 }}>
                   <label
                     style={{
                       display: 'flex',
@@ -727,10 +900,12 @@ function ClaimDetail({
                       fontSize: 15.5,
                       lineHeight: '22.5px',
                       fontWeight: 600,
+                      color: '#11150f',
                       minHeight: 44,
+                      boxSizing: 'border-box',
                       padding: '12px 14px',
                       backgroundColor: '#f7f8fa',
-                      border: `1px solid ${checkError ? '#a3421a' : 'rgba(17,21,15,0.16)'}`,
+                      border: `1px solid ${checkError ? '#a3421a' : 'rgba(17,21,15,0.1)'}`,
                       borderRadius: 12,
                       cursor: disabled ? 'not-allowed' : 'pointer',
                     }}
@@ -755,52 +930,64 @@ function ClaimDetail({
                         accentColor: '#0f7a45',
                       }}
                     />
-                    I independently verified this applicant’s identity and authority to represent
-                    this campaign
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      I independently verified this applicant’s identity and authority to represent
+                      this campaign
+                    </span>
                   </label>
                   {checkError || (busy && busyCheckErrorHeight > 0) ? (
                     <View style={{ minHeight: busy ? busyCheckErrorHeight : undefined }}>
                       {checkError ? (
-                        <Text
-                          nativeID="profile-identity-error"
+                        <View
                           role="alert"
                           onLayout={(event) => {
                             checkErrorHeight.current = event.nativeEvent.layout.height;
                           }}
-                          style={[candidateText.strong, { color: '#a3421a' }]}
+                          style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}
                         >
-                          {copy.verifyError}
-                        </Text>
+                          <ErrorMark />
+                          <Text
+                            nativeID="profile-identity-error"
+                            style={[
+                              candidateText.strong,
+                              { flex: 1, color: '#a3421a', fontSize: 15, lineHeight: 21.75 },
+                            ]}
+                          >
+                            {copy.verifyError}
+                          </Text>
+                        </View>
                       ) : null}
                     </View>
                   ) : null}
                 </View>
               ) : null}
+              {approvalBlock ? <View style={{ marginTop: 18 }}>{approvalBlock}</View> : null}
               <View
                 style={[
                   candidateAccountStyles.actions,
-                  { marginTop: 2, columnGap: 12, rowGap: 10 },
+                  { marginTop: 18, columnGap: 12, rowGap: 10 },
                   isMobile && { flexDirection: 'column', alignItems: 'stretch' },
                 ]}
               >
                 {claim.status === 'pending' ? (
                   <>
                     <ProfileClaimButton
-                      label="Approve profile claim request"
-                      busyLabel="Approving profile claim request…"
+                      label="Approve request"
+                      busyLabel="Approving request…"
                       busy={busy === 'approve'}
                       kind="green"
                       width={isMobile ? '100%' : 340}
-                      disabled={disabled || Boolean(block)}
+                      disabled={Boolean(block)}
+                      unavailable={disabled && busy !== 'approve'}
                       describedBy={block ? 'profile-approval-block' : undefined}
                       onPress={() => void act('approve')}
                     />
                     <ProfileClaimButton
-                      label="Reject profile claim request"
-                      busyLabel="Rejecting profile claim request…"
+                      label="Reject request"
+                      busyLabel="Rejecting request…"
                       busy={busy === 'reject'}
                       width={isMobile ? '100%' : 340}
-                      disabled={disabled}
+                      unavailable={disabled && busy !== 'reject'}
                       onPress={() => void act('reject')}
                     />
                   </>
@@ -808,7 +995,7 @@ function ClaimDetail({
                   <ProfileClaimButton
                     label="Revoke profile claim"
                     kind="danger"
-                    disabled={disabled}
+                    unavailable={disabled}
                     width={isMobile ? '100%' : 250}
                     onPress={() => {
                       if (validate('revoke')) setDialog(true);
@@ -831,7 +1018,8 @@ function ClaimDetail({
           }}
         >
           <Text style={candidateText.body}>
-            This account will lose campaign access to manage the candidate profile’s statement
+            This account will no longer be able to manage the campaign’s information on this
+            candidate profile
           </Text>
           {claim.has_published_statement ? (
             <Text style={candidateText.body}>
@@ -1349,15 +1537,17 @@ export function AdminCandidateClaimsScreen({
                   style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 22, rowGap: 4 }}
                 >
                   {candidateId && fromProfile ? (
-                    <CandidateLink
-                      internal
-                      label="Back to candidate profile"
-                      url={`/candidates/${candidateId}`}
+                    <GoBackLink
+                      href={`/candidates/${candidateId}`}
                       onPress={() => navigation.navigate('CandidateProfile', { candidateId })}
+                      mobile={isMobile}
+                      pressedColor="#000000"
+                      style={{ minHeight: 44, marginBottom: 0 }}
                     />
                   ) : null}
                   <CandidateLink
                     internal
+                    textSize={16}
                     label="View all profile claim requests"
                     url="/admin/candidate-claims"
                     onPress={() => navigation.navigate('AdminCandidateClaims', {})}
@@ -1385,7 +1575,9 @@ export function AdminCandidateClaimsScreen({
                     },
                   ]}
                 >
-                  Profile claim requests
+                  {claimId && state === 'allowed'
+                    ? 'Review profile claim request'
+                    : 'Profile claim requests'}
                 </Text>
                 {state === 'allowed' ? (
                   <Text
@@ -1399,8 +1591,9 @@ export function AdminCandidateClaimsScreen({
                       },
                     ]}
                   >
-                    Review requests for campaign access to candidate profiles. Approval lets an
-                    account manage its campaign statement, not official records.
+                    {claimId
+                      ? 'Approval lets this account manage campaign information, not official records'
+                      : 'Review requests for campaign access to candidate profiles. Approval lets an account manage its campaign’s information, not official records.'}
                   </Text>
                 ) : null}
               </View>

@@ -298,7 +298,7 @@ for (const role of [
       role === 'admin'
         ? 'Review profile claim requests'
         : role === 'claim'
-          ? 'Claim this profile'
+          ? 'Claim this candidate profile'
           : role === 'approved'
             ? 'Manage this profile'
             : 'View profile claim status';

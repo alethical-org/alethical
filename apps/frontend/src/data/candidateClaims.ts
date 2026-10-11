@@ -69,6 +69,10 @@ export interface CandidateStatement {
   body: string;
   updated_at: string;
   version: number;
+  /** First publication of the statement now public; null when nothing is published. */
+  published_at?: string | null;
+  /** Latest saved edit of that publication; null until it is edited. */
+  edited_at?: string | null;
 }
 export interface CandidateStatementResponse {
   statement: CandidateStatement | null;
