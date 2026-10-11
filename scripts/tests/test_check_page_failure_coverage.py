@@ -691,3 +691,155 @@ class WorkflowTest(TestCase):
         self.assertIn("GH_TOKEN: ${{ github.token }}", block)
         self.assertNotIn("secrets.", block)
         self.assertIn("page-failure-coverage.json", text)
+
+
+def catchup_bundle(end, hours=12, state="collected"):
+    reports = []
+    for i in range(hours, 0, -1):
+        start = end - timedelta(hours=i)
+        value = report(start, state)
+        value.update(
+            schema_version=2,
+            recovery_collection=health.aggregate_recoveries(
+                b"", start, start + timedelta(hours=1)
+            ),
+        )
+        value["recovery_collection"]["attempt_count"] = 1
+        reports.append(value)
+    return health.bundle(reports)
+
+
+class CatchupCoverageTest(TestCase):
+    def test_delayed_six_or_eight_hour_runs_cover_day(self):
+        for spacing in (6, 8):
+            client = FakeGitHub()
+            client.runs = [
+                run(i + 1, client.windows[index])
+                for i, index in enumerate(range(spacing - 1, 24, spacing))
+            ]
+            client.artifact = lambda identifier: catchup_bundle(
+                health.complete_hour(
+                    coverage.github_timestamp(
+                        next(r for r in client.runs if r["id"] == identifier)[
+                            "run_started_at"
+                        ]
+                    )
+                )[1]
+            )
+            result, code = coverage.coverage(client, NOW)
+            self.assertEqual(
+                (result["collected_hours"], result["recovery_collected_hours"], code),
+                (24, 24, 0),
+            )
+            self.assertLessEqual(result["artifacts_read"], 4)
+
+    def test_legacy_mixture_and_newer_failed_duplicate(self):
+        client = FakeGitHub()
+        original = client.artifact
+        latest = client.windows[-1]
+        client.runs.append(
+            run(
+                1000,
+                latest,
+                run_started_at=health.iso(latest + timedelta(hours=1, minutes=50)),
+                updated_at=health.iso(latest + timedelta(hours=1, minutes=51)),
+            )
+        )
+        client.artifact = lambda identifier: (
+            catchup_bundle(latest + timedelta(hours=1), state="failed")
+            if identifier == 1000
+            else original(identifier)
+        )
+        result, code = coverage.coverage(client, NOW)
+        # Failed duplicate consumes one bounded download, older reports still win.
+        self.assertEqual(result["failed_hours"], 0)
+        self.assertEqual(result["collected_hours"], 23)
+        self.assertEqual(code, 0)
+        self.assertEqual(result["artifacts_read"], coverage.MAX_ARTIFACTS)
+
+    def test_every_hour_and_envelope_are_strict_even_outside_eligible_day(self):
+        base = catchup_bundle(NOW.replace(minute=0))
+        mutations = [
+            lambda b: b.update(private=SECRET),
+            lambda b: b.update(hours=True),
+            lambda b: b.update(bundle_version=True),
+            lambda b: b.update(hours=13),
+            lambda b: b["window"].update(private=SECRET),
+            lambda b: b["reports"][0].update(private=SECRET),
+            lambda b: b["reports"].reverse(),
+            lambda b: b["reports"].pop(),
+            lambda b: b["reports"][0].update(schema_version=1),
+        ]
+        for mutate in mutations:
+            value = deepcopy(base)
+            mutate(value)
+            with self.assertRaises(coverage.CoverageFailure):
+                coverage.validate_collection(value)
+        self.assertEqual(len(coverage.validate_collection(base)), 12)
+
+    def test_future_and_too_old_bundle_rejected(self):
+        for shift in (-13, 1):
+            client = FakeGitHub()
+            client.runs = [client.runs[-1]]
+            end = client.windows[-1] + timedelta(hours=1 + shift)
+            client.artifact = lambda identifier: catchup_bundle(end)
+            with self.assertRaises(coverage.CoverageFailure):
+                coverage.coverage(client, NOW)
+
+    def test_mixed_legacy_and_bundle_and_failed_overlap_cover_all_hours(self):
+        client = FakeGitHub()
+        client.runs = [
+            run(1, client.windows[7]),
+            run(2, client.windows[15]),
+            run(3, client.windows[22]),
+            run(4, client.windows[23]),
+        ]
+        end = client.windows[23] + timedelta(hours=1)
+        client.runs.append(
+            run(
+                5,
+                client.windows[23],
+                run_started_at=health.iso(end + timedelta(minutes=50)),
+                updated_at=health.iso(end + timedelta(minutes=51)),
+            )
+        )
+
+        def artifact(identifier):
+            if identifier == 5:
+                return catchup_bundle(end, state="failed")
+            if identifier == 4:
+                return report(client.windows[23])
+            current = next(r for r in client.runs if r["id"] == identifier)
+            return catchup_bundle(
+                health.complete_hour(
+                    coverage.github_timestamp(current["run_started_at"])
+                )[1]
+            )
+
+        client.artifact = artifact
+        result, code = coverage.coverage(client, NOW)
+        self.assertEqual(
+            (
+                result["collected_hours"],
+                result["failed_hours"],
+                result["missing_hours"],
+                result["failure_only_hours"],
+                code,
+            ),
+            (24, 0, 0, 1, 0),
+        )
+
+    def test_recovery_cap_and_failure_never_become_healthy_coverage(self):
+        for state in ("failed", "saturated"):
+            value = catchup_bundle(NOW.replace(minute=0))
+            for hour in value["reports"]:
+                recovery = hour["recovery_collection"]
+                if state == "failed":
+                    recovery.update(
+                        collection_status="failed", failure="command-output-limit"
+                    )
+                else:
+                    recovery.update(rows_received=100, saturated=True)
+            self.assertEqual(
+                {item[2] for item in coverage.validate_collection(value)}, {state}
+            )

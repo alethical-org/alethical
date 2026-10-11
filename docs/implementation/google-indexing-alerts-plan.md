@@ -269,8 +269,8 @@ The current chat (seo, 01a117ab-5b6b-7b01-8a5d-f46e3a3c01b5) owns the remaining
 Google and coverage follow-up. Inspect the next 2 daily coverage
 reports after the 24-hour startup period. If either has at least 3 missing hours,
 review and build bounded catch-up collection; measure eligible-hour coverage rather
-than the number of timer executions. A 3-hour catch-up query is a candidate, not a
-settled implementation. Keep all request, privacy, saturation and evidence bounds.
+than the number of timer executions. The original 3-hour candidate is superseded by the measured 12-hour
+window in the 11 October catch-up acceptance section. Keep all request, privacy, saturation and evidence bounds.
 Weekly AI review still waits for the separate recurring-usage approval.
 
 ## Work sequence
@@ -343,3 +343,43 @@ the selection. A longer-running Fable review was considered but the review is bo
 no comparative speed or quality benchmark is claimed. Consultation is read-only.
 Material peer claims are checked against code, current provider responses and official
 Google documentation before adoption. Agreement is not evidence.
+
+
+### Bounded catch-up after the daily gap trigger (11 October 2026)
+
+The next daily reports found 19, 20 and 20 missing eligible hours out of 24.
+The third report again had 4 collected, 20 missing, 0 failed and 0 saturated.
+The approved trigger for catch-up has been met. Saved single-hour reads worked;
+actual scheduled starts were commonly about 6 hours apart. Missing recording is
+not proof of a website outage, and historical failure causes remain uncertain.
+
+The shared recorder now reads the last 12 completed UTC hours in 1 bounded read
+per channel, then makes 12 existing hourly reports locally. The 12-hour window
+covers the observed 6-to-8-hour delays with overlap, including midnight and setup
+crossing an hour boundary. The command's default remains the previous single-hour
+report for existing callers. The scheduled workflow, setup-failure fallback and
+coverage reader use the same strict bundle. Older single-hour evidence remains
+accepted. Complete, unsaturated reads take priority over failed duplicates.
+
+Each channel retains its 100-row, 4-MiB, 75-second, 2-attempt bounds. A global
+row cap marks every hourly bin saturated; a failed or truncated read marks every
+bin incomplete. Coverage validates every enclosed hour, including hours outside
+the eligible day, before accepting the artifact. Trusted main-branch runs may
+supply at most 12 completed hours before their start and no future hours. Coverage
+retains its 100-request, 24-download, 180-second bounds and exact single artifact
+filename. No raw provider fields enter saved evidence.
+
+The parent established the production Vercel team uses Pro. Vercel's official
+Pro log retention is 1 day; retention does not guarantee complete results, prevent
+caps or guarantee scheduled starts. A bounded real 12-hour read returned 2 failure
+rows and 1 recovery row without either channel hitting its cap. The recovery was
+won by attempt 1 after a slow trigger, not evidence that the backup rescued it.
+The private failure details remain outside public evidence.
+
+Affected uses are the scheduled collector, manual collection, setup-failure
+records, and the daily coverage reader. Legacy single-hour callers deliberately
+keep their original behavior. Prevention checks cover delayed starts, mixed
+versions, boundaries, failed channels, caps, strict fields and download bounds.
+The parent chat retains delivery ownership and the routine folder hold. Acceptance
+requires focused tests, independent review, live delivery and subsequent real
+eligible-hour coverage; changing the recorder alone does not prove 24-hour coverage.
