@@ -309,7 +309,7 @@ check, `apps/frontend/e2e/profile-claim-interactions.spec.ts`). No real claim, d
 statement, report or email was created to test. Remaining: independent product
 acceptance, current-head checks, merge, deployment and live comparison.
 
-11 October 2026: Eugene approved the limited new-window exception on the 2 return
+11 October 2026: The limited new-window exception was approved on the 2 return
 links at `/candidates/features`: the browser's **Open link in new tab** command and
 a plain Shift-click may open an empty form, while the original tab keeps every
 answer. Ordinary returns and supported Ctrl/Cmd or middle-click paths keep their
