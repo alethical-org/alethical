@@ -308,3 +308,12 @@ Chromium and WebKit specs with fictional intercepted data at 1280, 900 and 390 p
 check, `apps/frontend/e2e/profile-claim-interactions.spec.ts`). No real claim, decision,
 statement, report or email was created to test. Remaining: independent product
 acceptance, current-head checks, merge, deployment and live comparison.
+
+11 October 2026: Eugene approved the limited new-window exception on the 2 return
+links at `/candidates/features`: the browser's **Open link in new tab** command and
+a plain Shift-click may open an empty form, while the original tab keeps every
+answer. Ordinary returns and supported Ctrl/Cmd or middle-click paths keep their
+existing answer transfer. Private answers remain in memory and pass only to the
+exact window opened by the page. This approval clears that product release hold;
+final acceptance, release checks and live review remain required. The continuing
+task retains its working folder indefinitely for follow-up.

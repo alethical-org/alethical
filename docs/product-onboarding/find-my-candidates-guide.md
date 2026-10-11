@@ -576,6 +576,8 @@ The browser's own link menu (**Open link in new tab**) and a plain Shift-click (
 tell the page neither the chosen command nor the window they open, so those tabs start empty,
 as do a copied address, a typed address and any tab opened after the link menu was
 dismissed.
+This limited exception was approved on 11 October 2026: the original tab keeps the
+answers, while private answers are shared only with the exact window the page opens.
 
 A saved pending request shows a receipt: **Profile claim request received**, an
 explanation that an Alethical team member reviews it and may contact the applicant,
