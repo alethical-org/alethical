@@ -622,3 +622,67 @@ class WorkflowTest(TestCase):
         self.assertNotIn("secrets.", install)
         self.assertIn("retention-days: 35", text)
         self.assertIn("if: always()", text)
+
+
+class CatchupTest(TestCase):
+    @patch.dict(
+        os.environ,
+        {"VERCEL_TOKEN": SECRET, "VERCEL_ORG_ID": "fake", "VERCEL_PROJECT_ID": "fake"},
+    )
+    def test_one_read_per_channel_bins_midnight_and_boundaries(self):
+        now = datetime(2026, 10, 8, 3, 43, tzinfo=timezone.utc)
+        end = health.complete_hour(now)[1]
+        start = end - timedelta(hours=12)
+        rows = [
+            row(id=str(i), timestamp=int(t.timestamp() * 1000))
+            for i, t in enumerate((start, start + timedelta(hours=1), end))
+        ]
+        with patch.object(
+            health, "run_command", side_effect=[encoded(rows), b""]
+        ) as command:
+            result, code = health.collect("vercel", now, 12)
+        self.assertEqual((command.call_count, code, result["hours"]), (2, 0, 12))
+        self.assertEqual(
+            [r["failures_count"] for r in result["reports"]], [1, 1] + [0] * 10
+        )
+        self.assertEqual(
+            result["window"], {"start": health.iso(start), "end": health.iso(end)}
+        )
+        for call in command.call_args_list:
+            args = call.args[0]
+            self.assertEqual(args[args.index("--since") + 1], health.iso(start))
+            self.assertEqual(args[args.index("--until") + 1], health.iso(end))
+        self.assertNotIn(SECRET, json.dumps(result))
+
+    @patch.dict(
+        os.environ,
+        {"VERCEL_TOKEN": SECRET, "VERCEL_ORG_ID": "fake", "VERCEL_PROJECT_ID": "fake"},
+    )
+    def test_global_cap_and_channel_failure_apply_to_all_hours(self):
+        rows = encoded([row(id=str(i)) for i in range(100)])
+        with patch.object(
+            health,
+            "run_command",
+            side_effect=[rows, health.CollectionFailure("command-output-limit")],
+        ):
+            result, code = health.collect("vercel", NOW, 12)
+        self.assertEqual(code, 1)
+        for hour in result["reports"]:
+            self.assertTrue(hour["saturated"])
+            self.assertEqual(
+                hour["recovery_collection"]["failure"], "command-output-limit"
+            )
+
+    def test_missing_credentials_and_invalid_bounds(self):
+        with patch.dict(os.environ, {}, clear=True):
+            result, code = health.collect("vercel", NOW, 12)
+        self.assertEqual(code, 1)
+        self.assertTrue(
+            all(
+                r["failure"] == "provider-credentials-missing"
+                for r in result["reports"]
+            )
+        )
+        for hours in (0, 13, True):
+            with self.assertRaises(ValueError):
+                health.empty_collection(NOW, hours)

@@ -65,7 +65,7 @@ but deliberately does not replace the release ancestry checks.
 
 ## Hourly: retain temporary failure evidence
 
-The **Page failure health** workflow reads the previous completed UTC hour of
+The **Page failure health** workflow reads the previous 12 completed UTC hours of
 production serverless 5xx records through the pinned official Vercel CLI at
 43 minutes past each hour. It runs
 on trusted `main`, never pull-request code. The existing Vercel access key is
@@ -88,7 +88,10 @@ Artifacts remain available for 35 days.
 The same run separately requests only successful responses containing the fixed
 `page_read_recovery` marker. The provider filters this query; the collector does
 not read every successful request. Each query has its own 100-row and 4 MiB cap,
-75-second command limit and at most 2 attempts. Schema 2 keeps recovery collection
+75-second command limit and at most 2 attempts across the whole 12-hour read.
+The collector bins those records into 12 strict hourly reports inside 1 bundle.
+The single-hour command default remains available for existing manual callers.
+Schema 2 keeps recovery collection
 status independent from failure collection. Counts distinguish the original read
 winning from the backup winning, plus the trigger and timing bucket. An original
 winner is not proof that the backup rescued a page. A recovered data read on a page
@@ -111,11 +114,17 @@ format of saved reports. Invalid provider dates retain a fixed error without raw
 provider text. Queued or in-progress runs missing dates cannot supply coverage and
 do not hide older completed evidence. Setup crossing an hour boundary does not
 change which hour is counted: the validated report supplies the hour, bounded by
-the trusted run's start and end. Coverage allows at most 24 artifact downloads,
+the trusted run's bounded lookback and end. Bundles may contain at most 12
+completed hours before the run starts, and no future hours. Every enclosed report
+is validated, including hours outside the eligible day; a complete read takes
+priority over a failed duplicate. Coverage allows at most 24 artifact downloads,
 100 total requests and 180 seconds. Redirects count as requests; listing headroom
 covers duplicate and unfinished runs without weakening saved-report validation.
-GitHub can delay or drop scheduled runs. A run delayed past the next hour collects
-that later completed hour, leaving the missed hour visible as a coverage gap.
+GitHub can delay or drop scheduled runs. The 12-hour overlapping read catches
+hours missed by the observed 6-to-8-hour delays. Longer delays, provider retention,
+failed reads or global row caps can still leave gaps. A global cap marks every
+hour in that read saturated. Vercel Pro retains runtime logs for 1 day; retention
+does not guarantee complete reads or timely runs.
 The daily check tolerates 1 or 2 missing or failed hours, but never saturation.
 This is evidence collection, not automatic proof of a cause or permission to
 change cache, timeout, deployment or data behavior without diagnosis.

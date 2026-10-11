@@ -401,6 +401,34 @@ class GitHub:
             raise CoverageFailure("aggregate-archive-invalid") from None
 
 
+def validate_collection(value: object) -> list[tuple[dict, datetime, str]]:
+    """Validate all hours, including hours outside the daily eligible window."""
+    if not isinstance(value, dict) or "bundle_version" not in value:
+        start, state = validate_report(value)
+        return [(value, start, state)]
+    if (
+        set(value) != {"bundle_version", "hours", "window", "reports"}
+        or type(value["bundle_version"]) is not int
+        or value["bundle_version"] != 1
+        or not number(value["hours"], 1, health.MAX_HOURS)
+        or not isinstance(value["reports"], list)
+        or len(value["reports"]) != value["hours"]
+        or not isinstance(value["window"], dict)
+        or set(value["window"]) != {"start", "end"}
+    ):
+        raise CoverageFailure("aggregate-shape-invalid")
+    start, end = timestamp(value["window"]["start"]), timestamp(value["window"]["end"])
+    if start.minute or start.second or end != start + timedelta(hours=value["hours"]):
+        raise CoverageFailure("aggregate-shape-invalid")
+    results = []
+    for i, report in enumerate(value["reports"]):
+        hour, state = validate_report(report)
+        if report["schema_version"] != 2 or hour != start + timedelta(hours=i):
+            raise CoverageFailure("aggregate-shape-invalid")
+        results.append((report, hour, state))
+    return results
+
+
 def expected_windows(now: datetime, activation: datetime) -> list[datetime]:
     # Daily 17:17 runs before the hourly 17:43 collector. The newest completed
     # hour therefore gets a full extra hour before it can count as missing.
@@ -469,17 +497,28 @@ def coverage(client: GitHub, now: datetime) -> tuple[dict, int]:
             trusted.append((began, ended, run))
     trusted.sort(key=lambda item: item[0], reverse=True)
     observed, downloaded = {}, 0
-    failure_only_hours = recovery_collected_hours = 0
-    for began, ended, run in trusted:
+    processed = set()
+    # Prefer runs whose newest possible hour is still uncovered. This preserves
+    # the 24-download budget during migration from single-hour artifacts.
+    candidates = [(False, item) for item in trusted] + [
+        (True, item) for item in trusted
+    ]
+    for catchup, (began, ended, run) in candidates:
+        key = (run["id"], run["run_attempt"])
+        if key in processed:
+            continue
         # Setup can cross an hour boundary. Consider every eligible hour this
         # run could have saved; only its validated artifact identifies the hour.
         earliest_end = began.replace(minute=0, second=0, microsecond=0)
         if not any(
-            start not in observed
-            and earliest_end <= start + timedelta(hours=1) <= ended
+            observed.get(start, (None,))[0] != "collected"
+            and earliest_end - timedelta(hours=health.MAX_HOURS if catchup else 1)
+            <= start
+            and start + timedelta(hours=1) <= ended
             for start in windows
         ):
             continue
+        processed.add(key)
         listing = client.json(f"/actions/runs/{run['id']}/artifacts?per_page=10")
         if (
             not isinstance(listing, dict)
@@ -514,28 +553,39 @@ def coverage(client: GitHub, now: datetime) -> tuple[dict, int]:
             break
         downloaded += 1
         aggregate = client.artifact(artifact["id"])
-        start, status = validate_report(aggregate)
-        # Setup may cross an hour boundary. Accept only a window whose end fell
-        # during this trusted run, and which is part of the eligible day.
-        if (
-            not began.replace(minute=0, second=0, microsecond=0)
-            <= start + timedelta(hours=1)
-            <= ended
-        ):
-            raise CoverageFailure("aggregate-run-window-invalid")
-        if start in windows and start not in observed:
-            observed[start] = status
-            if aggregate["schema_version"] == 1:
-                failure_only_hours += 1
-            elif (
-                validate_recovery_report(
-                    aggregate["recovery_collection"], start, start + timedelta(hours=1)
+        results = validate_collection(aggregate)
+        is_bundle = "bundle_version" in aggregate
+        earliest_start = began.replace(minute=0, second=0, microsecond=0) - timedelta(
+            hours=health.MAX_HOURS if is_bundle else 1
+        )
+        for report, start, status in results:
+            if not earliest_start <= start or start + timedelta(hours=1) > ended:
+                raise CoverageFailure("aggregate-run-window-invalid")
+            if start not in windows:
+                continue
+            recovery_ok = (
+                report["schema_version"] == 2
+                and validate_recovery_report(
+                    report["recovery_collection"], start, start + timedelta(hours=1)
                 )
                 == "collected"
+            )
+            candidate = (status, report["schema_version"], recovery_ok)
+            previous = observed.get(start)
+            # A newer failed/capped duplicate must not erase a complete read.
+            if (
+                previous is None
+                or (status == "saturated" and previous[0] == "failed")
+                or (
+                    status == "collected"
+                    and (previous[0] != "collected" or candidate[1] > previous[1])
+                )
             ):
-                recovery_collected_hours += 1
+                observed[start] = candidate
+    failure_only_hours = sum(value[1] == 1 for value in observed.values())
+    recovery_collected_hours = sum(value[2] for value in observed.values())
     counts = {
-        state: sum(observed.get(window, "missing") == state for window in windows)
+        state: sum(observed.get(window, ("missing",))[0] == state for window in windows)
         for state in ("collected", "failed", "saturated", "missing")
     }
     warmup = now - activation < timedelta(hours=24)

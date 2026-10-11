@@ -577,16 +577,49 @@ def aggregate_recoveries(raw: bytes, start: datetime, end: datetime) -> dict:
     return report
 
 
-def collect(cli: str, now: datetime) -> tuple[dict, int]:
-    start, end = complete_hour(now)
-    report = empty_report(start, end)
+MAX_HOURS = 12
+
+
+def bundle(reports: list[dict]) -> dict:
+    return {
+        "bundle_version": 1,
+        "hours": len(reports),
+        "window": {
+            "start": reports[0]["window"]["start"],
+            "end": reports[-1]["window"]["end"],
+        },
+        "reports": reports,
+    }
+
+
+def empty_collection(now: datetime, hours: int = 1) -> dict:
+    if type(hours) is not int or not 1 <= hours <= MAX_HOURS:
+        raise ValueError("hours must be between 1 and 12")
+    end = complete_hour(now)[1]
+    reports = [
+        empty_report(end - timedelta(hours=i), end - timedelta(hours=i - 1))
+        for i in range(hours, 0, -1)
+    ]
+    return reports[0] if hours == 1 else bundle(reports)
+
+
+def collect(cli: str, now: datetime, hours: int = 1) -> tuple[dict, int]:
+    report = empty_collection(now, hours)
+    reports = report.get("reports", [report])
+    end = complete_hour(now)[1]
+    start = end - timedelta(hours=hours)
+    windows = [
+        (start + timedelta(hours=i), start + timedelta(hours=i + 1))
+        for i in range(hours)
+    ]
     credentials = [
         os.environ.get(name)
         for name in ("VERCEL_TOKEN", "VERCEL_ORG_ID", "VERCEL_PROJECT_ID")
     ]
     if not all(credentials):
-        report["failure"] = "provider-credentials-missing"
-        report["recovery_collection"]["failure"] = "provider-credentials-missing"
+        for hour in reports:
+            hour["failure"] = "provider-credentials-missing"
+            hour["recovery_collection"]["failure"] = "provider-credentials-missing"
         return report, 1
     token, org, project = credentials
     command = [
@@ -615,47 +648,62 @@ def collect(cli: str, now: datetime) -> tuple[dict, int]:
 
     def channel(filters, initial, parser):
         for attempt in range(1, 3):
-            initial["attempt_count"] = attempt
+            for hour in initial:
+                hour["attempt_count"] = attempt
             try:
-                result = parser(run_command(command + filters), start, end)
-                result["attempt_count"] = attempt
+                raw = run_command(command + filters)
+                # Global caps remain visible in every local hourly bin.
+                result = [parser(raw, a, b) for a, b in windows]
+                for hour in result:
+                    hour["attempt_count"] = attempt
                 return result, 0
             except CollectionFailure as error:
-                initial["failure"] = str(error)
+                for hour in initial:
+                    hour["failure"] = str(error)
                 if error.transient and attempt == 1:
                     continue
                 return initial, 0 if error.transient else 1
         return initial, 1
 
     failures, failure_code = channel(
-        ["--status-code", "5xx"], empty_report(start, end, schema_version=1), aggregate
+        ["--status-code", "5xx"],
+        [empty_report(a, b, schema_version=1) for a, b in windows],
+        aggregate,
     )
     # Server-side filtering is essential: do not enumerate every successful request.
     recoveries, recovery_code = channel(
         ["--status-code", "200", "--query", "page_read_recovery"],
-        empty_recovery_report(),
+        [empty_recovery_report() for _ in windows],
         aggregate_recoveries,
     )
-    report = {**failures, "schema_version": 2, "recovery_collection": recoveries}
-    return report, max(failure_code, recovery_code)
+    reports = [
+        {**f, "schema_version": 2, "recovery_collection": r}
+        for f, r in zip(failures, recoveries)
+    ]
+    return (reports[0] if hours == 1 else bundle(reports)), max(
+        failure_code, recovery_code
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cli", default="vercel")
+    parser.add_argument("--hours", type=int, choices=range(1, MAX_HOURS + 1), default=1)
     parser.add_argument("--output", type=Path, default=Path("page-failure-health.json"))
     args = parser.parse_args(argv)
     now = datetime.now(timezone.utc)
     try:
-        report, code = collect(args.cli, now)
+        report, code = collect(args.cli, now, args.hours)
     except Exception:
-        report = empty_report(*complete_hour(now))
-        report["failure"] = "unexpected-collection-failure"
+        report = empty_collection(now, args.hours)
+        for hour in report.get("reports", [report]):
+            hour["failure"] = "unexpected-collection-failure"
         code = 1
     args.output.write_text(
         json.dumps(report, sort_keys=True, separators=(",", ":")) + "\n",
         encoding="utf-8",
     )
+    report = report.get("reports", [report])[-1]
     print(f"Page failure collection: {report['collection_status']}")
     print(
         f"Page recovery collection: {report['recovery_collection']['collection_status']}"
