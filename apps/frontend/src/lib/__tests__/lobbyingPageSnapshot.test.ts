@@ -17,6 +17,28 @@ import type {
 } from '../lobbyingTypes';
 
 describe('lobbying before the app starts', () => {
+  it('names both fixed directory returns in the first response', () => {
+    for (const [kind, data] of [
+      ['lobbyists', live.lobbyists_page_2],
+      ['principals', live.principals_page_2],
+    ] as const) {
+      const snapshot = lobbyingDirectorySnapshot(
+        data as LobbyingLobbyistsPage | LobbyingPrincipalsPage,
+        kind,
+        2,
+      );
+      expect(snapshot.links).toContainEqual({ label: 'Back to Lobbying', href: '/money/lobbying' });
+    }
+  });
+  it('keeps the fixed return on both record types beside their source and browse links', () => {
+    for (const snapshot of [
+      lobbyingPrincipalSnapshot(live.principal as LobbyingPrincipal),
+      lobbyingLobbyistSnapshot(live.kozak as LobbyingLobbyist),
+    ]) {
+      expect(snapshot.links).toContainEqual({ label: 'Back to Lobbying', href: '/money/lobbying' });
+      expect(snapshot.links.length).toBeGreaterThan(1);
+    }
+  });
   it('rejects non-positive and unsafe record numbers before starting a read', () => {
     expect(lobbyingRecordNumberFromSlug('kozak-andrew-141')).toBe('141');
     expect(lobbyingRecordNumberFromSlug('unlisted-0')).toBeNull();

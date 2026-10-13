@@ -140,6 +140,27 @@ async function serve(query: Record<string, string>) {
   return recorder.read();
 }
 
+it.each([
+  ['/blog/research', '1', 'Back to Research reports'],
+  ['/blog/short-posts', '1', 'Back to Short posts'],
+  ['/blog/guides', '1', 'Back to Guides'],
+  ['/blog/sets/how-the-money-works', '1', 'Back to How the Money Works'],
+  ['/blog/topics/campaign-finance', '2', 'Back to Campaign finance'],
+])('keeps the %s return on an article clicked before the app starts', async (path, page, label) => {
+  stubNetwork(() => ({ status: 500 }));
+  const collection = await serve({ path, page });
+  const href = collection.body.match(/href="(\/blog\/(?:research|guides)\/[^"\s]+)"/)?.[1];
+  expect(href).toBeDefined();
+  const article = new URL(href!.replaceAll('&amp;', '&'), 'https://www.alethical.com');
+  const from = article.searchParams.get('from');
+  expect(from).toBe(
+    `${path}?${page === '1' ? '' : `page=${page}&`}post=${article.pathname.split('/').at(-1)}`,
+  );
+  const response = await serve({ path: article.pathname, from: from! });
+  expect(response.status).toBe(200);
+  expect(response.body).toContain(`href="${escapeHtml(from!)}">${label}</a>`);
+});
+
 it('serves the public candidates destination without example records or data-service requests', async () => {
   stubNetwork(() => ({ status: 500 }));
   const { body, status, headers } = await serve({ path: '/candidates' });
@@ -1487,8 +1508,14 @@ describe('first-response page tags', () => {
     const topic = await serve({ path: '/blog/topics/campaign-finance' });
     expect(topic.status).toBe(200);
     expect(topic.body).toContain('<h1>Campaign finance</h1>');
-    expect(topic.body).toContain('href="/blog/research/realtor-pacs-shared-candidates"');
-    expect(topic.body).toContain('href="/blog/research/committee-officers-and-the-firms-they-pay"');
+    for (const slug of [
+      'realtor-pacs-shared-candidates',
+      'committee-officers-and-the-firms-they-pay',
+    ]) {
+      expect(topic.body).toContain(
+        `href="/blog/research/${slug}?from=${encodeURIComponent(`/blog/topics/campaign-finance?post=${slug}`)}"`,
+      );
+    }
     expect(topic.body.match(/class="ps-record-label"/g)).toHaveLength(6);
     const topicPieces = publishedResearch().filter((piece) =>
       piece.topics?.includes('campaign-finance'),
@@ -1505,7 +1532,10 @@ describe('first-response page tags', () => {
       expect(selection.items.length).toBeLessThanOrEqual(6);
       for (const piece of topicPieces) {
         const expected = selection.items.some((entry) => entry.slug === piece.slug);
-        expect(response.body.includes(`href="${piecePath(piece)}"`)).toBe(expected);
+        const source = `/blog/topics/campaign-finance?${page === 1 ? '' : `page=${page}&`}post=${piece.slug}`;
+        expect(
+          response.body.includes(`href="${piecePath(piece)}?from=${encodeURIComponent(source)}"`),
+        ).toBe(expected);
         if (expected) seen.push(piece.slug);
       }
       if (page < pageCount)

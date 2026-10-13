@@ -71,6 +71,7 @@ const recordPath = (kind: 'principals' | 'lobbyists', name: string, id: string |
 const copied = (date: string | null) =>
   date ? `Lobbying records copied ${centralDateLabel(date)}` : '';
 const amount = (value: string | null) => formatMoney(value) ?? 'Not reported';
+const lobbyingReturnLink = { label: `Back to ${directory.title}`, href: '/money/lobbying' };
 const base = (heading: string, subheading = ''): PageSnapshot => ({
   heading,
   subheading,
@@ -78,7 +79,7 @@ const base = (heading: string, subheading = ''): PageSnapshot => ({
   body: [],
   bodyIsList: false,
   facts: [],
-  links: [{ label: `Back to ${directory.title}`, href: '/money/lobbying' }],
+  links: [lobbyingReturnLink],
 });
 
 export function lobbyingLandingSnapshot(data: LobbyingSummary): PageSnapshot {
@@ -232,7 +233,7 @@ export function lobbyingDirectorySnapshot(
         : []),
       ...(page > 1 ? [{ label: 'Previous', href: pagePath(page - 1) }] : []),
       ...(page < pages ? [{ label: 'Next', href: pagePath(page + 1) }] : []),
-      { label: directory.title, href: '/money/lobbying' },
+      lobbyingReturnLink,
     ],
   };
 }
@@ -332,6 +333,7 @@ export function lobbyingPrincipalSnapshot(data: LobbyingPrincipal): PageSnapshot
       },
     ],
     links: [
+      lobbyingReturnLink,
       { label: principalCopy.sourceLabel, href: PRINCIPAL_SOURCE_URL },
       { label: lobbyistCopy.sourceLabel, href: LOBBYIST_SOURCE_URL },
       { label: directory.principals.title, href: '/money/lobbying/principals' },
@@ -494,6 +496,7 @@ export function lobbyingLobbyistSnapshot(
       ...donations,
     ],
     links: [
+      lobbyingReturnLink,
       ...(data.contributions.source_url
         ? [{ label: CAMPAIGN_CONTRIBUTION_SOURCE_LABEL, href: data.contributions.source_url }]
         : []),

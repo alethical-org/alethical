@@ -604,7 +604,9 @@ new pages, edits to existing pages, loading/error states and the first HTML resp
   to campaign money.
 - Keep a name established for the same record through temporary loading or failure.
   Never retain another record's name after changing records. With no established identity,
-  use the named safe list. When destination information becomes available, update the
+  use the named safe list as the fallback when no safe earlier destination exists.
+  A confirmed missing record or lost access invalidates its affected name and context.
+  When destination information becomes available, update the
   words, accessible name, address and activation together. Do not expose private candidate
   addresses, unsent answers, account data or authentication details in return state.
 - Preserve approved chevrons, spacing, hover, pressed and keyboard-focus treatments.

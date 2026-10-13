@@ -8,7 +8,11 @@ import {
 import { SOCIAL_ACCOUNTS } from './socialLinks';
 import { SERVICES_CONTACT_HREF } from './services';
 import { servicesPrintSnapshot } from './servicesPrint';
-import { articleReturnDestination } from './articleReturn';
+import {
+  articleHrefWithReturn,
+  articleReturnDestination,
+  articleReturnHref,
+} from './articleReturn';
 import {
   collectionPage,
   guideCollectionItems,
@@ -1214,13 +1218,13 @@ export function shortPostPageSnapshot(piece: ResearchPiece, from?: string): Page
   };
 }
 
-function collectionRecord(piece: ResearchPiece): SnapshotRecordLink {
+function collectionRecord(piece: ResearchPiece, from?: string): SnapshotRecordLink {
   return {
     label: piece.title,
     detail: [pieceKindLabel(piece), pieceCardMetaLine(piece), piece.dek]
       .filter(Boolean)
       .join(' · '),
-    href: piecePath(piece),
+    href: from ? articleHrefWithReturn(piecePath(piece), from) : piecePath(piece),
   };
 }
 
@@ -1246,7 +1250,9 @@ export function shortPostsPageSnapshot(page: number): PageSnapshot {
     body: selection.total === 0 ? ['No short posts yet.'] : [],
     bodyIsList: false,
     facts: [],
-    records: (selection.items as ResearchPiece[]).map(collectionRecord),
+    records: (selection.items as ResearchPiece[]).map((piece) =>
+      collectionRecord(piece, articleReturnHref('archive', piece.slug, String(page))),
+    ),
     links,
   };
 }
@@ -1267,7 +1273,9 @@ export function readTopicPageSnapshot(topic: TopicSlug, page: number): PageSnaps
     body: selection.total === 0 ? ['No articles about this topic yet.'] : [],
     bodyIsList: false,
     facts: [],
-    records: (selection.items as ResearchPiece[]).map(collectionRecord),
+    records: (selection.items as ResearchPiece[]).map((piece) =>
+      collectionRecord(piece, articleReturnHref('topic', piece.slug, String(page), topic)),
+    ),
     links,
   };
 }
@@ -1321,7 +1329,9 @@ export function readCollectionPageSnapshot(
     body: [],
     bodyIsList: false,
     facts: [],
-    records: records.map(collectionRecord),
+    records: records.map((piece) =>
+      collectionRecord(piece, articleReturnHref(kind, piece.slug, String(page))),
+    ),
     links,
   };
 }
