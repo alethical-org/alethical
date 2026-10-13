@@ -720,7 +720,11 @@ export function TVFolder({ recordKey, notFound }: { recordKey: string; notFound:
       </div>
       {feedback}
       {data.files.length ? (
-        <table className="tv-table tv-folder-table">
+        <table
+          className="tv-table tv-folder-table"
+          aria-busy={read.loading}
+          style={{ opacity: read.loading ? 0.85 : 1 }}
+        >
           <thead>
             <tr>
               <th>FILE</th>
@@ -800,7 +804,11 @@ export function TVAgency({ recordKey, notFound }: { recordKey: string; notFound:
         </p>
       )}
       {feedback}
-      <div className="tv-grid3" style={{ marginTop: 32 }}>
+      <div
+        className="tv-grid3"
+        aria-busy={read.loading}
+        style={{ marginTop: 32, opacity: read.loading ? 0.85 : 1 }}
+      >
         {[...new Set(data.groups.map((group) => group.station))].map((station) => (
           <section className="tv-card" key={station}>
             <h2>{station}</h2>

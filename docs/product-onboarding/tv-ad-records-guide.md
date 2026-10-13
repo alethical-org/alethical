@@ -18,7 +18,7 @@ A station category describes the station's filing choice. It does not identify a
 
 Changing a filter or page keeps the previous results visible with an updating notice until the replacement arrives. A failed request keeps usable results and offers retry. A new search starts at page 1. An empty result explains that there are no matching approved records; it does not mean no ads existed. Counts and source dates load separately, so a failure in one does not hide the other.
 
-Folder and printed-name screens retain the authorized heading, metadata and results during retries and temporary failures. Before a name has loaded, their headings are “Station folder” and “Printed agency name”. Changing the record or account clears prior content; missing or withdrawn records never retain old details. An approved folder with no approved file copies says “No approved files to show in this folder”, without claiming no private originals exist.
+Folder and printed-name screens retain the authorized heading, metadata and results during retries and temporary failures. While replacement results load, retained rows use the existing 85% opacity treatment with an updating status. Before a name has loaded, their headings are “Station folder” and “Printed agency name”. Changing the record or account clears prior content; missing or withdrawn records never retain old details. An approved folder with no approved file copies says “No approved files to show in this folder”, without claiming no private originals exist.
 
 ## What counts mean
 
