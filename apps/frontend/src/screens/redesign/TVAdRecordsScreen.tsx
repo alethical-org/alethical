@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useAuth } from '../../providers/AuthProvider';
-import { PageBackground, TopNav, Footer } from '../../theme/primitives';
+import { TopNav, Footer } from '../../theme/primitives';
 import type { RootScreenProps } from '../../navigation/types';
 import { NotFoundScreen } from './NotFoundScreen';
 import { useTVAdAccess } from '../../components/tvAds/useTVAdAccess';
@@ -35,14 +35,14 @@ export function TVAdRecordsScreen({ navigation, route }: RootScreenProps<'TVAdRe
     );
   if (access.state !== 'allowed' || !accessToken)
     return (
-      <PageBackground>
+      <View style={{ flex: 1, backgroundColor: '#f5f6f7' }}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
         <div className="tv">
           <style>{tvStyles}</style>
           <Busy label="Loading" />
         </div>
         <Footer />
-      </PageBackground>
+      </View>
     );
   const params = route.params;
   if (params.kind === 'guide') return <TVGuide navigation={navigation} />;
@@ -51,7 +51,7 @@ export function TVAdRecordsScreen({ navigation, route }: RootScreenProps<'TVAdRe
       key={`${user?.id}:${accessToken}`}
       value={{ token: accessToken, denied: reject }}
     >
-      <PageBackground>
+      <View style={{ flex: 1, backgroundColor: '#f5f6f7' }}>
         <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
           <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
           <main className="tv">
@@ -60,7 +60,23 @@ export function TVAdRecordsScreen({ navigation, route }: RootScreenProps<'TVAdRe
               className="tv-back"
               href={params.kind === 'landing' ? '/money' : safeTVReturn(params.from || null)}
             >
-              ‹ {params.kind === 'landing' ? 'Back to Money in politics' : 'Back to TV ad records'}
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+                style={{ flex: 'none' }}
+              >
+                <path
+                  d="M15 5 L8 12 L15 19"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {params.kind === 'landing' ? 'Back to Money in politics' : 'Back to TV ad records'}
             </a>
             <AdminMarker />
             {params.kind === 'landing' ? (
@@ -87,7 +103,7 @@ export function TVAdRecordsScreen({ navigation, route }: RootScreenProps<'TVAdRe
           </main>
           <Footer />
         </ScrollView>
-      </PageBackground>
+      </View>
     </TVSession.Provider>
   );
 }

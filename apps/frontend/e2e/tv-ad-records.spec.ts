@@ -169,6 +169,7 @@ async function fixture(page: Page, allowed = true) {
         copy_status: 'approved',
         copy_id: copy,
         version_id: version,
+        fcc_url: 'https://publicfiles.fcc.gov/tv-profile/kare',
         newest_approved_version: hash,
         current_source_version: hash,
         source_changed: version !== hash,
@@ -228,7 +229,7 @@ async function fixture(page: Page, allowed = true) {
             checked_at: stamp,
           },
         ],
-        other_files: [],
+        other_files: [{ ...fileRow, key: 'other-file', name: 'Synthetic second invoice' }],
       });
     }
     if (path === '/api/v1/ads/files/related-file')
@@ -373,7 +374,23 @@ test('file image pages, text, history, versions and exact expense evidence', asy
   const versions = page.getByRole('combobox', {
     name: 'Saved versions, newest first, Central Time',
   });
-  await versions.click();
+  for (const width of [1280, 900, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await versions.scrollIntoViewIfNeeded();
+    await versions.click();
+    const menu = page.getByRole('listbox');
+    const bounds = await menu.boundingBox();
+    expect(bounds!.x).toBeGreaterThanOrEqual(19);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width - 19);
+    await expect(menu.getByText('Shown', { exact: true })).toHaveCount(0);
+    await page.screenshot({ path: resolve(output, `versions-${width}.png`) });
+    await versions.press('Escape');
+    await expect(menu).toHaveCount(0);
+  }
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await versions.press('Enter');
+  await versions.press('End');
+  await page.screenshot({ path: resolve(output, 'versions-open.png') });
   await page.getByRole('option').last().click();
   await expect(page.getByText('An older approved copy', { exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: /Synthetic related order/ })).toHaveAttribute(
@@ -384,6 +401,17 @@ test('file image pages, text, history, versions and exact expense evidence', asy
   await page.setViewportSize({ width: 900, height: 1000 });
   await page.getByRole('region', { name: 'Page images' }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: resolve(output, 'file-tablet.png') });
+  for (const width of [1280, 900, 390]) {
+    await page.setViewportSize({ width, height: 1100 });
+    await page
+      .locator('.tv-file-lower')
+      .evaluate((node) => node.scrollIntoView({ block: 'start' }));
+    await page.screenshot({ path: resolve(output, `file-lower-${width}.png`) });
+    await page
+      .getByRole('heading', { name: 'Other files in this folder' })
+      .scrollIntoViewIfNeeded();
+    await page.screenshot({ path: resolve(output, `file-other-${width}.png`) });
+  }
   await page.getByRole('link', { name: 'Open retained expense row' }).click();
   await expect(page.getByRole('heading', { name: 'Synthetic retained expense' })).toBeVisible();
   await expect(
@@ -495,8 +523,26 @@ for (const width of [390, 900, 1280]) {
         key: 'printed-name',
         name: 'SYNTHETIC & PRINTED NAME',
         payments_href: '/money/payments?name=SYNTHETIC%20%26%20PRINTED%20NAME&role=vendor',
-        groups: [],
-        addresses: [{ address: '123 SYNTHETIC AVE', role: 'BILLING OFFICE', evidence: [] }],
+        groups: [
+          { station: 'KARE', year: '2026', files: [{ ...fileRow, agency_unchecked: true }] },
+        ],
+        addresses: [
+          {
+            address: '123 SYNTHETIC AVE',
+            role: 'BILLING OFFICE',
+            evidence: [
+              {
+                file_key: 'fixture-file',
+                file_name: 'Synthetic invoice',
+                page: 1,
+                version_id: hash,
+                copy_id: copy,
+                uploaded_at: stamp,
+                checked_at: stamp,
+              },
+            ],
+          },
+        ],
       }),
     );
     await page.goto('/money/ads/agencies/printed-name');
@@ -511,6 +557,32 @@ for (const width of [390, 900, 1280]) {
     ).toHaveAttribute('href', '/money/payments?name=SYNTHETIC%20%26%20PRINTED%20NAME&role=vendor');
     await expect(page.getByText('Role as printed: BILLING OFFICE')).toBeVisible();
     await page.screenshot({ path: resolve(output, `agency-copy-${width}.png`), fullPage: true });
+    const addressLink = page
+      .locator('.tv-address')
+      .getByRole('link', { name: /Synthetic invoice/ });
+    await addressLink.scrollIntoViewIfNeeded();
+    await expect(addressLink).toHaveAttribute(
+      'href',
+      new RegExp(`version=${hash}.*copy=${copy}.*page=1`),
+    );
+    await page.screenshot({ path: resolve(output, `agency-address-${width}.png`) });
+    await expect(addressLink).toHaveCSS('display', 'inline-flex');
+    await expect(addressLink).toHaveCSS('min-height', '44px');
+    await addressLink.focus();
+    await page.screenshot({ path: resolve(output, `address-link-focus-${width}.png`) });
+    await addressLink.blur();
+    await addressLink.hover();
+    await page.screenshot({ path: resolve(output, `address-link-hover-${width}.png`) });
+    const agencyRow = page.locator('.tv-agency-file').first();
+    await agencyRow.focus();
+    await expect(agencyRow).toHaveCSS('outline-offset', '-2px');
+    await expect(agencyRow).toHaveCSS('padding-left', '12px');
+    await expect(agencyRow).toHaveCSS('padding-right', '12px');
+    await page.screenshot({ path: resolve(output, `agency-row-focus-${width}.png`) });
+    await agencyRow.blur();
+    await agencyRow.hover();
+    await page.screenshot({ path: resolve(output, `agency-row-hover-${width}.png`) });
+    await expect(agencyRow.locator('.tv-small').first()).toHaveCSS('font-weight', '400');
     await page.route('**/api/v1/ads/files/printed-name', (r) =>
       json(r, {
         ...fileRow,
@@ -555,4 +627,225 @@ for (const width of [390, 900, 1280]) {
     await expect(page.getByText('None to a Minnesota committee', { exact: true })).toBeVisible();
     await page.screenshot({ path: resolve(output, `file-copy-${width}.png`), fullPage: true });
   });
+}
+
+for (const width of [390, 900, 1280]) {
+  test(`folder row targets and unnamed station category ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await fixture(page);
+    await page.route('**/api/v1/ads/folders/fixture-folder', (r) =>
+      json(r, {
+        key: 'fixture-folder',
+        station: 'KARE',
+        year: '2026',
+        category: 'State',
+        label: 'Synthetic campaign folder',
+        fcc_url: 'https://publicfiles.fcc.gov/tv-profile/kare',
+        files: [
+          { ...fileRow, version_id: hash, copy_id: copy, airing_periods: [], version_count: 2 },
+        ],
+      }),
+    );
+    await page.goto('/money/ads/folders/fixture-folder');
+    await expect(page.getByText('1 file', { exact: true })).toBeVisible();
+    const row = page.locator('.tv-folder-records tbody tr');
+    await row.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: resolve(output, `folder-${width}.png`) });
+    await row.getByRole('link').focus();
+    await expect(row.getByRole('link')).toHaveCSS('outline-style', 'none');
+    expect(
+      await row.getByRole('link').evaluate((el) => getComputedStyle(el, '::after').outlineWidth),
+    ).toBe('2px');
+    await page.screenshot({ path: resolve(output, `folder-row-focus-${width}.png`) });
+    await row.getByRole('link').blur();
+    await row.hover();
+    await page.screenshot({ path: resolve(output, `folder-row-hover-${width}.png`) });
+    // The blank/right-hand part of a row opens the same record as its title.
+    const box = (await row.boundingBox())!;
+    await page.mouse.click(box.x + box.width - 8, box.y + box.height / 2);
+    await expect(page.getByRole('heading', { name: fileRow.name, exact: true })).toBeVisible();
+    await page.route('**/api/v1/ads/stations/kare', (r) =>
+      json(r, {
+        call_sign: 'KARE',
+        facility_id: '23079',
+        fcc_url: 'https://publicfiles.fcc.gov/tv-profile/kare',
+        last_file_copy: stamp,
+        folder_count: 4,
+        folder_failures: 0,
+        counts,
+        years: [
+          {
+            year: '2026',
+            file_count: 12,
+            categories: [
+              { name: '', count: 3 },
+              { name: 'State', count: 1 },
+            ],
+          },
+        ],
+      }),
+    );
+    await page.goto('/money/ads/stations/kare');
+    await expect(page.getByRole('heading', { name: 'KARE', exact: true })).toBeVisible();
+    const unnamed = page.locator('[data-label="Not identified"]');
+    await expect(unnamed).toHaveText(width < 768 ? 'Category not identified3 folders' : '3');
+    await expect(unnamed.getByRole('link')).toHaveCount(0);
+    await unnamed.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: resolve(output, `station-${width}.png`), fullPage: true });
+    const yearLink = page.getByRole('link', { name: /2026/ });
+    await expect(yearLink).toHaveAttribute('href', '/money/ads?tab=folders&station=KARE&year=2026');
+    await yearLink.focus();
+    if (width >= 768) {
+      await expect(yearLink).toHaveCSS('outline-style', 'none');
+      expect(await yearLink.evaluate((el) => getComputedStyle(el, '::after').outlineWidth)).toBe(
+        '2px',
+      );
+    }
+    await page.screenshot({ path: resolve(output, `station-row-focus-${width}.png`) });
+    await yearLink.blur();
+    await yearLink.hover();
+    await page.screenshot({ path: resolve(output, `station-row-hover-${width}.png`) });
+    await yearLink.click();
+    await expect(page.getByRole('heading', { name: 'TV ad records', exact: true })).toBeVisible();
+  });
+}
+
+for (const width of [390, 900, 1280]) {
+  test(`folder failure retry and empty state ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await fixture(page);
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let attempt = 0;
+    await page.route('**/api/v1/ads/folders/state-folder', async (r) => {
+      if (attempt++ === 0) {
+        await pending;
+        return json(r, { detail: 'Synthetic failure' }, 503);
+      }
+      return json(r, {
+        key: 'state-folder',
+        station: 'KARE',
+        year: '2026',
+        category: 'State',
+        label: 'Synthetic empty folder',
+        fcc_url: 'https://publicfiles.fcc.gov/tv-profile/kare',
+        files: [],
+      });
+    });
+    await page.goto('/money/ads/folders/state-folder');
+    await expect(page.getByRole('status')).toHaveText('Loading this folder’s files');
+    await page.screenshot({ path: resolve(output, `loading-${width}.png`) });
+    release();
+    await expect(page.getByRole('alert')).toContainText('We couldn’t load this folder right now');
+    const retry = page.getByRole('button', { name: 'Try again', exact: true });
+    await page.keyboard.press('Tab');
+    await retry.focus();
+    await expect(retry).toBeFocused();
+    await page.screenshot({ path: resolve(output, `error-focus-${width}.png`) });
+    await retry.hover();
+    await page.screenshot({ path: resolve(output, `error-hover-${width}.png`) });
+    await page.keyboard.press('Enter');
+    await expect(page.getByText('No files to show in this folder', { exact: true })).toBeVisible();
+    await expect(page.getByText('0 files', { exact: true })).toHaveCount(0);
+    await page.screenshot({ path: resolve(output, `empty-${width}.png`) });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
+      true,
+    );
+  });
+}
+
+for (const [surface, data, expected] of [
+  [
+    'agencies',
+    { name: 'Synthetic agency', groups: [], addresses: [] },
+    'No address has been checked yet',
+  ],
+  [
+    'stations',
+    {
+      call_sign: 'KARE',
+      facility_id: '23079',
+      fcc_url: 'https://publicfiles.fcc.gov/tv-profile/kare',
+      counts: Object.fromEntries(Object.keys(counts).map((key) => [key, 0])),
+      folder_count: 0,
+      folder_failures: 0,
+      years: [],
+    },
+    'Years and categories held',
+  ],
+  [
+    'files',
+    {
+      ...fileRow,
+      copy_status: 'not_ready',
+      version_id: hash,
+      copy_id: copy,
+      versions: [],
+      pages: [],
+      facts: [],
+      dates: [],
+      connections: [],
+      related: [],
+      other_files: [],
+    },
+    'We hold this file; its approved copy is not ready',
+  ],
+] as const) {
+  for (const width of [390, 900, 1280]) {
+    test(`${surface} loading error recovery ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 1100 });
+      await fixture(page);
+      let release!: () => void;
+      const pending = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let attempt = 0;
+      await page.route(`**/api/v1/ads/${surface}/state-record`, async (route) => {
+        if (attempt++ === 0) {
+          await pending;
+          return json(route, { detail: 'Synthetic failure' }, 503);
+        }
+        return json(route, data);
+      });
+      await page.goto(`/money/ads/${surface}/state-record`);
+      await expect(
+        page.getByRole('heading', {
+          name:
+            surface === 'agencies'
+              ? 'Printed agency name'
+              : surface === 'stations'
+                ? 'Station'
+                : 'Station file',
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(page.locator('.tv-loading')).toBeVisible();
+      await page.screenshot({ path: resolve(output, `${surface}-loading-${width}.png`) });
+      release();
+      await expect(page.getByRole('alert')).toBeVisible();
+      if (surface !== 'agencies') {
+        await expect(page.getByRole('alert')).toContainText(
+          `We couldn’t load this ${surface === 'stations' ? 'station' : 'file'} right now`,
+        );
+        await expect(page.getByRole('alert')).toContainText('This is a problem on our side');
+      }
+      await page.screenshot({ path: resolve(output, `${surface}-error-${width}.png`) });
+      await page.getByRole('button', { name: 'Try again', exact: true }).click();
+      await expect(page.getByText(expected, { exact: true })).toBeVisible();
+      if (surface === 'stations')
+        await expect(
+          page.getByText('No folders held for this station', { exact: true }),
+        ).toBeVisible();
+      if (surface === 'agencies')
+        await expect(
+          page.getByText('No files to show for this name', { exact: true }),
+        ).toBeVisible();
+      await page.screenshot({ path: resolve(output, `${surface}-empty-${width}.png`) });
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+      ).toBe(true);
+    });
+  }
 }

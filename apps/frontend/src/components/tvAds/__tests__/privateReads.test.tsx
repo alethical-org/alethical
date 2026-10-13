@@ -953,7 +953,9 @@ describe('folder and printed-name retry continuity', () => {
       expect(mount.querySelector('[role=status]')?.textContent).toBe('Updating records');
       await act(async () => pending.reject(new ApiError(503, 'Temporary')));
       expect(mount.querySelector('h1')?.textContent).toContain(oldName);
-      expect(mount.querySelector('[role=alert]')?.textContent).toContain('Please try again.');
+      expect(mount.querySelector('[role=alert]')?.textContent).toContain(
+        'This is a problem on our side',
+      );
       await act(async () => mount.querySelector<HTMLButtonElement>('.tv-error button')!.click());
       expect(mount.querySelector('h1')?.textContent).toContain(oldName);
       await act(async () => retry.resolve(next));

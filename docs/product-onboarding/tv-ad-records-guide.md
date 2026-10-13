@@ -60,4 +60,25 @@ Source or target changes clear earlier review attestations. Saving and retry con
 
 The source archive and operational limits are documented in [fcc-political-files.md](../implementation/fcc-political-files.md). FCC political files must be retained for at least 2 years; older available files are not complete history. There is no coverage of other stations, cable, radio, streaming or online advertising.
 
-Reader requests send search and filter choices to Alethical. Private responses are not cached for shared reuse. Administrator permission is checked on every API request. Original documents and review notes remain private and do not enter reader search. No feature here submits an ad request, contacts a campaign, changes a filed expense, or subscribes a reader to messages.
+Reader requests send search and filter choices to Alethical. Private responses are not cached for shared reuse. Administrator permission is checked on every API request. Original documents and review notes remain private. Administrator TV search can match held originals; private review notes do not enter search. No feature here submits an ad request, contacts a campaign, changes a filed expense, or subscribes a reader to messages.
+
+## Visual layout and review
+
+The TV screens use the approved flat background, shared search and menu controls, and neutral document-kind labels. Search occupies at most 780 pixels on larger screens. Folder file rows and station year rows each have one whole-row link, including a visible keyboard outline. Phone folder rows show the document kind below the filename and retain separate airing, upload and version details.
+
+Printed-agency station cards and checked-address cards use 2 columns at computer width and 1 below 1100 pixels. Station and year headings apply to their contained file rows; upload dates remain beside each file. A long filename may wrap without hiding its date or checking status. Address evidence links retain the exact file version, copy and source page.
+
+Station summaries put held counts before source dates. The station-year table presents folders by the 6 standard category headings, followed by any additional source category names. A missing category value says Unavailable, never an invented zero. Below 768 pixels, each year becomes one card with category labels beside their counts.
+
+Visual acceptance compares rendered computer, tablet and phone screens with Claude Design's drawings and saved standards. It includes open menus, keyboard focus, pointer hover, disabled controls, loading, failures and empty records. Browser checks separately exercise whole-row links, menu selection, page images, text, saved versions and failure recovery; screenshots do not establish working behavior. Publication statuses and private administrator access remain separate.
+
+File, agency and station loading or failure states keep their identifying heading. Empty agency and station lists use a white message surface. A metadata-only exact publication link can show that its copy is not ready; ordinary administrator archive links still open the original. Saved-version menus stay within the viewport, retain keyboard and touch selection, and show saved time, station upload date and status on separate lines.
+
+Whole-row folder and station links show one keyboard outline around the row, without a second outline around the title. Hover fills the row; pointer clicks do not add a keyboard-only outline. Other-file cards stack title, kind and station upload date at every width.
+
+Final review refinements: address evidence links keep a 44px target while their
+keyboard outline follows the link width. Agency row outlines sit 2px inside an
+8px corner radius, with 12px horizontal content padding. Empty file and address
+surfaces span the available width. An agency with no checked addresses uses the same white empty
+surface as its missing file list. Station and file failures name the affected
+record and explain “This is a problem on our side” beside the retry action.
