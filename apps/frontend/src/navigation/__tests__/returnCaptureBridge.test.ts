@@ -46,6 +46,10 @@ it('never captures unknown routes, private addresses or account editors before r
   for (const source of [
     '/unknown',
     '/admin/users',
+    '/money/ads?q=private-search',
+    '/money/ads/files/kstp-tv-private?version=abc&copy=123',
+    '/money/ads/guide',
+    '/admin/political-ads',
     '/candidates/example/claim',
     '/candidates?address=private',
     '/bills?token=private',

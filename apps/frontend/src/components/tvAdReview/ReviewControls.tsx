@@ -15,17 +15,65 @@ export function ReviewAction({
   disabled?: boolean;
   busy?: boolean;
 }) {
+  const busyLabel = 'Saving…';
+  // Both labels share one grid cell so wrapping reserves the tallest and widest
+  // box at this viewport. Only the real button participates in accessibility.
   return (
-    <CandidateButton
-      label={label}
-      onPress={onPress}
-      disabled={disabled}
-      busy={busy}
-      busyLabel="Saving…"
-      reserveBusyLabel
-      icon="none"
-      kind="outline"
-    />
+    <div
+      data-tv-review-action="true"
+      style={{
+        display: 'inline-grid',
+        gridTemplateColumns: 'minmax(0, 1fr)',
+        position: 'relative',
+        alignSelf: 'flex-start',
+        maxWidth: '100%',
+        minWidth: 0,
+      }}
+    >
+      {[label, busyLabel].map((text, index) => (
+        <span
+          key={index}
+          aria-hidden="true"
+          style={{
+            gridArea: '1 / 1',
+            visibility: 'hidden',
+            pointerEvents: 'none',
+            userSelect: 'none',
+            fontFamily: t.typography.body,
+            fontSize: 16,
+            fontWeight: 700,
+            lineHeight: '24px',
+            textAlign: 'center',
+            overflowWrap: 'anywhere',
+            padding: '11px 22px',
+            border: '1px solid transparent',
+            minHeight: 48,
+            boxSizing: 'border-box',
+          }}
+        >
+          {text}
+        </span>
+      ))}
+      <CandidateButton
+        label={label}
+        accessibilityLabel={busy ? busyLabel : label}
+        onPress={onPress}
+        disabled={disabled}
+        busy={busy}
+        busyLabel={busyLabel}
+        icon="none"
+        kind="outline"
+        style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+          width: '100%',
+          paddingVertical: 11,
+        }}
+      />
+    </div>
   );
 }
 export function ReviewField({
