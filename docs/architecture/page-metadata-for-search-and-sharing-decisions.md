@@ -1,4 +1,4 @@
-<!-- describes: api/page.ts, api/sitemap.ts, apps/frontend/src/lib/share.ts, apps/frontend/src/navigation/documentTitle.ts, apps/frontend/public/index.html, apps/frontend/public/robots.txt, apps/frontend/scripts/generate-brand-assets.mjs, vercel.json, apps/frontend/src/lib/committeePaymentsPage.ts, apps/frontend/src/lib/committeeMoneyShared.ts -->
+<!-- describes: api/page.ts, api/sitemap.ts, apps/frontend/src/lib/share.ts, apps/frontend/src/navigation/documentTitle.ts, apps/frontend/public/index.html, apps/frontend/public/robots.txt, apps/frontend/scripts/generate-brand-assets.mjs, vercel.json, apps/frontend/src/lib/committeePaymentsPage.ts, apps/frontend/src/lib/committeeMoneyShared.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/components/tvAds/Guide.tsx -->
 
 # What each page tells search engines and link previews — decisions
 
@@ -2299,3 +2299,16 @@ and account deletion without implying that official public records are deleted
 with a campaign account. Other legal terms and traffic/account policies remain
 unchanged. [How Find My Candidates works](../product-onboarding/find-my-candidates-guide.md)
 owns the detailed public record, review, source recheck and notification behavior.
+
+
+## Private TV ad records
+
+The `/money/ads` routes, including `/money/ads/guide`, and
+`/admin/political-ads` have no public record snapshot, indexed article, sitemap
+entry or shared preview of their contents. Their first response is the existing
+not-found result with `noindex` and `Cache-Control: private, no-store`; the loaded
+app checks current administrator access before fetching private records. A public
+candidate or money page keeps its public first response; its administrator-only
+TV group loads separately after permission succeeds. The private guide reuses the
+article presentation without adding Share or reader comments. See
+[tv-ad-records-guide.md](../product-onboarding/tv-ad-records-guide.md).

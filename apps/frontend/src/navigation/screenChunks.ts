@@ -87,6 +87,12 @@ export const screenChunks = {
     import('../screens/redesign/LobbyingLobbyistScreen').then((m) => ({
       default: m.LobbyingLobbyistScreen,
     })),
+  TVAdRecords: () =>
+    import('../screens/redesign/TVAdRecordsScreen').then((m) => ({ default: m.TVAdRecordsScreen })),
+  AdminPoliticalAds: () =>
+    import('../screens/redesign/AdminPoliticalAdsScreen').then((m) => ({
+      default: m.AdminPoliticalAdsScreen,
+    })),
   MoneyLanding: () =>
     import('../screens/redesign/MoneyLandingScreen').then((m) => ({
       default: m.MoneyLandingScreen,

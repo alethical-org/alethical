@@ -1,3 +1,4 @@
+import { TVAdConnectionCard } from '../tvAds/OnDemand';
 import { contributionDetailRows, withContributionDetailRows } from '../../lib/contributionDetails';
 import { CommitteeDonationCards } from './CommitteeDonationCards';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
@@ -362,6 +363,19 @@ export function CampaignMoneyTab({
           showFreshness={false}
         />
       )}
+
+      {money && !committeesWithheld && !isLoading
+        ? [...money.committees, ...money.committeesOutsideThisYear].map((committee) => (
+            <TVAdConnectionCard
+              key={`tv-${committee.registrationNumber}`}
+              kind="committee"
+              target={committee.registrationNumber}
+              name={committee.committeeNameAsReviewed}
+              scopeLabel={committee.committeeNameAsReviewed}
+              hideEmpty
+            />
+          ))
+        : null}
 
       <FreshnessNote
         filingsCopiedAt={money?.filingsCopiedAt}

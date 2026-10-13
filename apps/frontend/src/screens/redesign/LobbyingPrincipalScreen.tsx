@@ -1,3 +1,4 @@
+import { TVAdConnectionCard } from '../../components/tvAds/OnDemand';
 import React, { useEffect } from 'react';
 import { Platform, Text, View } from 'react-native';
 
@@ -175,6 +176,11 @@ export function LobbyingPrincipalScreen({
             slug: lobbyingRecordSlug(row.name, row.registration_number),
           })
         }
+      />
+      <TVAdConnectionCard
+        kind="principal"
+        target={String(principal.entity_id)}
+        name={principal.name}
       />
     </LobbyingPageFrame>
   );

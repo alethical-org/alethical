@@ -221,6 +221,12 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
+      - name: Install PDF renderer used by TV ad record tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y poppler-utils
+          pdftoppm -v
+
       # Guard against multiple Alembic heads: when two branches each add a
       # migration off the same parent, `alembic upgrade head` (incl. the prod
       # migrate-on-merge) fails. Catch it here at PR time — three such

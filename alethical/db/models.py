@@ -5392,3 +5392,200 @@ class PublicRecordVersion(Base):
         ),
         Index("ix_public_record_version_record", "record_kind", "record_id"),
     )
+
+
+class TVAdPublication(UUIDPrimaryKeyMixin, Base):
+    """One immutable, separately reviewed privacy copy of an exact FCC identity."""
+
+    __tablename__ = "tv_ad_publication"
+    facility_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    file_id: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
+    metadata_approved: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    metadata_reviewed_by: Mapped[Optional[str]] = mapped_column(Text)
+    metadata_reviewed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+    safe_title: Mapped[str] = mapped_column(Text, nullable=False)
+    safe_folder: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(Text, nullable=False)
+    safe_pages: Mapped[list] = mapped_column(JSONB, nullable=False)
+    artifacts: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    redactions: Mapped[list] = mapped_column(JSONB, nullable=False)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_by: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    reviewed_by: Mapped[Optional[str]] = mapped_column(Text)
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    withdrawn_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["facility_id", "file_id", "content_hash"],
+            [
+                "fcc_document.facility_id",
+                "fcc_document.file_id",
+                "fcc_document.content_hash",
+            ],
+        ),
+        CheckConstraint(
+            "status IN ('draft','approved','withdrawn')", name="publication_status"
+        ),
+        CheckConstraint(
+            "status != 'approved' OR (reviewed_by IS NOT NULL AND reviewed_at IS NOT NULL)",
+            name="publication_review",
+        ),
+        Index("ix_tv_ad_publication_file", "facility_id", "file_id", "status"),
+        Index(
+            "uq_tv_ad_publication_approved_version",
+            "facility_id",
+            "file_id",
+            "content_hash",
+            unique=True,
+            postgresql_where=text("status = 'approved'"),
+        ),
+    )
+
+
+class TVAdFact(UUIDPrimaryKeyMixin, Base):
+    """A checked value with immutable evidence from one privacy-approved copy."""
+
+    __tablename__ = "tv_ad_fact"
+    publication_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tv_ad_publication.id"), nullable=False, index=True
+    )
+    field: Mapped[str] = mapped_column(String(40), nullable=False)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    organization_name: Mapped[Optional[str]] = mapped_column(Text)
+    agency_address_reviewed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    history_publication_approved: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    qualifier: Mapped[Optional[str]] = mapped_column(Text)
+    role: Mapped[Optional[str]] = mapped_column(Text)
+    supersedes_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("tv_ad_fact.id")
+    )
+    page: Mapped[int] = mapped_column(Integer, nullable=False)
+    quote: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="checked")
+    evidence: Mapped[str] = mapped_column(Text, nullable=False)
+    reviewed_by: Mapped[str] = mapped_column(Text, nullable=False)
+    checked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    publication_approved: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    withdrawn_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (
+        CheckConstraint("status IN ('checked','withdrawn')", name="fact_status"),
+        CheckConstraint("page > 0", name="fact_page"),
+    )
+
+
+class TVAdConnection(UUIDPrimaryKeyMixin, Base):
+    """A file or folder connection; file matches never inherit folder review."""
+
+    __tablename__ = "tv_ad_connection"
+    scope: Mapped[str] = mapped_column(String(12), nullable=False)
+    publication_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("tv_ad_publication.id"), index=True
+    )
+    facility_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    folder_id: Mapped[str] = mapped_column(Text, nullable=False)
+    folder_content_hash: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("fcc_source_body.content_hash")
+    )
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    target_id: Mapped[str] = mapped_column(Text, nullable=False)
+    target_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    page: Mapped[Optional[int]] = mapped_column(Integer)
+    quote: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="checked")
+    evidence: Mapped[str] = mapped_column(Text, nullable=False)
+    reviewed_by: Mapped[str] = mapped_column(Text, nullable=False)
+    checked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    publication_approved: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    withdrawn_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (
+        CheckConstraint("status IN ('checked','withdrawn')", name="connection_status"),
+        CheckConstraint(
+            "kind IN ('committee','candidate','election','expense','principal','related_document','issue')",
+            name="connection_kind",
+        ),
+        CheckConstraint(
+            "(scope = 'file' AND publication_id IS NOT NULL AND folder_content_hash IS NULL AND page > 0) OR (scope = 'folder' AND publication_id IS NULL AND folder_content_hash IS NOT NULL AND kind = 'committee' AND page IS NULL)",
+            name="connection_scope",
+        ),
+        Index("ix_tv_ad_connection_target", "kind", "target_id", "status"),
+    )
+
+
+class TVAdReviewEvent(UUIDPrimaryKeyMixin, Base):
+    """Append-only actor, decision, exact revision and evidence history."""
+
+    __tablename__ = "tv_ad_review_event"
+    entity_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    action: Mapped[str] = mapped_column(String(20), nullable=False)
+    actor: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence: Mapped[str] = mapped_column(Text, nullable=False)
+    snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class TVAdFolderApproval(UUIDPrimaryKeyMixin, Base):
+    """Reviewed safe metadata for an exact saved folder, including empty folders."""
+
+    __tablename__ = "tv_ad_folder_approval"
+    facility_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    folder_id: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(
+        ForeignKey("fcc_source_body.content_hash"), nullable=False
+    )
+    safe_label: Mapped[str] = mapped_column(Text, nullable=False)
+    safe_path: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(Text, nullable=False)
+    year: Mapped[Optional[int]] = mapped_column(Integer)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
+    created_by: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    reviewed_by: Mapped[Optional[str]] = mapped_column(Text)
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    withdrawn_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('draft','approved','withdrawn')", name="folder_approval_status"
+        ),
+        CheckConstraint(
+            "status != 'approved' OR (reviewed_by IS NOT NULL AND reviewed_at IS NOT NULL)",
+            name="folder_approval_review",
+        ),
+        Index("ix_tv_ad_folder_approval_folder", "facility_id", "folder_id", "status"),
+        Index(
+            "uq_tv_ad_folder_approval_version",
+            "facility_id",
+            "folder_id",
+            "content_hash",
+            unique=True,
+            postgresql_where=text("status = 'approved'"),
+        ),
+    )

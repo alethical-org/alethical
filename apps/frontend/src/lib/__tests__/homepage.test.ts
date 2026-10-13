@@ -25,13 +25,13 @@ describe('signed-out copy is separate from signed-in Home', () => {
     expect(HOME_PUBLIC_SERVICES_BODY).toContain('political intelligence');
   });
 
-  it('keeps reported-record limits and preserves signed-in wording', () => {
-    expect(HOME_PUBLIC_MONEY_BODY).toContain('records reported to the state');
+  it('keeps the approved public wording shared across home layouts', () => {
+    expect(HOME_PUBLIC_MONEY_BODY).toBe(MONEY_PROMO_BODY);
     expect(HOME_PUBLIC_MONEY_CTA).toBe('Search the money records');
     expect(MONEY_PROMO_BODY).toBe(
-      'Explore Minnesota’s campaign finance and lobbying records, as reported to the state.',
+      'Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.',
     );
-    expect(MONEY_PROMO_CTA).toBe('Money in politics');
+    expect(MONEY_PROMO_CTA).toBe('Search the money records');
   });
 });
 

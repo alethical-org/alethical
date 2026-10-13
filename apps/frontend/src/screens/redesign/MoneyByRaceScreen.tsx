@@ -1,3 +1,4 @@
+import { TVAdConnectionCard } from '../../components/tvAds/OnDemand';
 import { useEffect, useId, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -556,6 +557,10 @@ function ContestBlock({
           />
         ))}
       </View>
+      <TVAdConnectionCard
+        kind="race"
+        target={JSON.stringify({ office: contest.office, district: contest.district, year })}
+      />
     </View>
   );
 }

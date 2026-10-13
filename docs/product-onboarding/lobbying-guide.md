@@ -298,6 +298,12 @@ At phone widths, Share sits below the copied-date line so the title, definition 
 each use the full content width. At tablet and computer widths, Share stays beside the
 heading block.
 
+Approved administrators also see **TV ad records** after a principal’s ordinary
+records. Connections use the exact Board entity ID and retain a checked printed
+role when supplied. With no checked connection, a name-search invitation does not
+establish identity. Other readers see no TV group; spending totals and public
+snapshots remain unchanged. See [tv-ad-records-guide.md](tv-ad-records-guide.md).
+
 ## The lobbyist address
 
 “Organisations represented” lists distinct principal IDs from the copied list, retaining the

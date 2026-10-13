@@ -94,6 +94,13 @@ unfinished clerical job of ours.
 
 ---
 
+Approved administrators may also see **TV ad records** for each confirmed campaign
+committee, below the money sections and before source dates. Each group names its
+committee; an empty group is hidden, and an unavailable committee match exposes no
+TV group. The TV records have their own checked source version and do not change
+filed totals or imply that an ad aired. Other readers see no TV group. See
+[tv-ad-records-guide.md](tv-ad-records-guide.md).
+
 ## Getting to it
 
 - The **Campaign money** tab sits next to **Overview** at the top of every legislator

@@ -1,3 +1,4 @@
+import { TVAdConnectionCard } from '../../components/tvAds/OnDemand';
 import { OutsideSpendingBrowseScreen } from './OutsideSpendingBrowseScreen';
 import { useOutsideSpendingReturn } from '../../hooks/useOutsideSpendingReturn';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
@@ -271,6 +272,13 @@ function OutsideSpendingSubjectScreen({ navigation, route }: RootScreenProps<'Ou
               goTo={(change) => go(withChange(change))}
             />
           )}
+          {view === 'spender' && page?.spender?.registrationNumber ? (
+            <TVAdConnectionCard
+              kind="committee"
+              target={page.spender.registrationNumber}
+              name={page.spender.name || undefined}
+            />
+          ) : null}
         </Container>
         <Footer />
       </ScrollView>

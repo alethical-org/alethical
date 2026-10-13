@@ -77,6 +77,7 @@ export function sanitizePublicReturnPath(path: string): string | null {
       url.pathname,
     ) ||
     /^\/candidates\/[^/]+\/(claim|manage)(\/|$)/.test(url.pathname) ||
+    /^\/money\/ads(\/|$)/.test(url.pathname) ||
     (url.hash && !/^#[a-z0-9_-]+$/i.test(url.hash))
   )
     return null;

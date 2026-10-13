@@ -1,12 +1,10 @@
-import { MONEY_SECTION_NAME } from './moneySectionName';
-
 /** Exact signed-out Home introduction used before and after the app starts. */
 export const HOME_PUBLIC_INTRO =
   'We turn scattered public records into clear information you can use. Understand what’s happening, check the evidence, and get practical support to act on what you learn.';
 
 /** Signed-out card wording; signed-in Home keeps its current wording and layout. */
 export const HOME_PUBLIC_MONEY_BODY =
-  'See who gives, who spends, who gets paid, and who is registered to lobby, using records reported to the state';
+  'Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.';
 export const HOME_PUBLIC_MONEY_CTA = 'Search the money records';
 export const HOME_PUBLIC_BILLS_HEADING = 'Bills and votes';
 export const HOME_PUBLIC_BILLS_BODY =
@@ -47,7 +45,8 @@ export const HOME_BILL_GROUP_CONTINUATIONS = {
  */
 export const MONEY_PROMO_EYEBROW = 'MONEY IN POLITICS';
 export const MONEY_PROMO_HEADING = 'Follow the money';
-export const MONEY_PROMO_BODY =
-  'Explore Minnesota’s campaign finance and lobbying records, as reported to the state.';
+export const MONEY_PROMO_BODY = HOME_PUBLIC_MONEY_BODY;
+export const MONEY_PROMO_ADMIN_BODY =
+  'Explore records of campaign donations, political spending, lobbying, and TV ads. Browse campaign money by legislator, committee, or race.';
 export const MONEY_PROMO_COUNT_UNIT = 'registered campaigns, parties, and funds';
-export const MONEY_PROMO_CTA = MONEY_SECTION_NAME;
+export const MONEY_PROMO_CTA = 'Search the money records';

@@ -1,6 +1,6 @@
 # Alethical Backend API System Design
 
-<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/services/independent_spending.py, alethical/api/services/committee_finance.py, alethical/api/services/committee_stated_by_kind.py, alethical/api/services/committee_donor_states.py, alethical/api/services/committee_name_connections.py, alethical/api/services/zip_state_reference.py, scripts/build_zip_state_reference.py, alethical/api/services/legislator_finance.py, alethical/api/services/campaign_finance_payments.py, alethical/api/services/campaign_finance_register.py, alethical/api/services/campaign_finance_search.py, alethical/api/services/lobbying.py, alethical/api/auth.py, alethical/api/services/auth.py -->
+<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/services/independent_spending.py, alethical/api/services/committee_finance.py, alethical/api/services/committee_stated_by_kind.py, alethical/api/services/committee_donor_states.py, alethical/api/services/committee_name_connections.py, alethical/api/services/zip_state_reference.py, scripts/build_zip_state_reference.py, alethical/api/services/legislator_finance.py, alethical/api/services/campaign_finance_payments.py, alethical/api/services/campaign_finance_register.py, alethical/api/services/campaign_finance_search.py, alethical/api/services/lobbying.py, alethical/api/auth.py, alethical/api/services/auth.py, alethical/api/services/tv_ads.py, alethical/api/services/tv_ad_review.py, alethical/api/tv_ad_schemas.py -->
 
 Status: **design reference, not an inventory of what exists.** Much of this document is the
 target shape rather than the shipped API, so every unbuilt endpoint is marked **NOT BUILT**
@@ -2639,6 +2639,30 @@ current accounts. `excluded_accounts` is an independent array of `{id, email}` r
 `email` may be null. It contains eligible current team/test accounts excluded from
 normal results and totals. Search, filters, and pagination never change this array.
 The same fresh administrator check and `private, no-store` policy apply.
+
+### Private TV ad records and review
+
+`/api/v1/ads/*` serves the administrator reader: access, counts, source dates,
+recent files, browse/search, connections, exact file/folder/agency/station views,
+retained expense evidence and approved page images. `/api/v1/admin/political-ads/*`
+serves the private review queue, original page previews, preparation, target
+inspection, approvals, corrections and withdrawals. Every route requires a fresh
+administrator check; other callers receive 404. Responses, including failures and
+images, use `Cache-Control: private, no-store`.
+
+Reader JSON uses the explicit nested response fields in
+`alethical/api/tv_ad_schemas.py`. Originals, object-store keys, administrator
+identities and review notes are never reader response fields. Original images
+are confined to the review routes. Reader image routes serve only the exact
+approved burned-in copy; withdrawal returns 410 for that copy’s images and never
+falls through to another copy or the original. Metadata-only approval exposes
+safe labels without unapproved image, text, facts or connections.
+
+Preparation and approval are separate writes. Approval checks the exact prepared
+fingerprint and required attestations; a connection checks the inspected target’s
+fingerprint. The authenticated server subject supplies the audit actor, never a
+submitted identity. [tv-ad-records-guide.md](../product-onboarding/tv-ad-records-guide.md)
+owns evidence, correction and connection rules.
 
 ## Internal Operations API
 

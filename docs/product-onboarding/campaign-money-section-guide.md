@@ -99,6 +99,17 @@ the page reads them with the same code it uses for records it fetches itself, an
 arrives whole, so a figure and the freshness date beside it always come from one reading of
 the files. If any of it is missing or unreadable the page just asks for the records itself.
 
+## Administrator-only TV records
+
+Approved administrators also see a 7th card, **TV ad records**, after Lobbying,
+linking to `/money/ads`. Its station-file count loads independently and never
+substitutes zero for a failed read. `/money/search` adds a separate TV result group;
+committee, outside-spender and race views add their own checked connections.
+Payment-name views for vendors offer exact printed-name records or a name search,
+not an identity claim. These additions occupy no space for other readers and do
+not change campaign-money totals, public snapshots or shared previews.
+[tv-ad-records-guide.md](tv-ad-records-guide.md) owns their source and review rules.
+
 ## The landing page (`/money`)
 
 The heading, browser title and shared-link title name this destination **Money in
@@ -118,7 +129,7 @@ Top to bottom:
    Clicking inside the drawn field focuses it; arrival never does. Matching accepts
    partial names without guessing spelling corrections. A short query reaches the
    results page, which explains its 3-character minimum.
-3. **6 navigation cards**, in this order: Legislators, Committees, Who got paid,
+3. **6 public navigation cards**, in this order: Legislators, Committees, Who got paid,
    Money by race, Outside spending and Lobbying. Every card opens its named route.
    Legislators opens `/legislators?tab=money`; profiles chosen from that directory open
    Campaign money. The ordinary `/legislators` directory and direct profile addresses

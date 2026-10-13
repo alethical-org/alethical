@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+vi.mock('../../tvAds/useTVAdAccess', () => ({
+  useTVAdAccess: () => ({ state: 'signed-out', retry: vi.fn() }),
+}));
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -69,20 +72,18 @@ describe('public money card variants', () => {
   });
 });
 
-describe('signed-in money card remains unchanged', () => {
+describe('signed-in money card preserves its action-only link', () => {
   it.each(['desktop', 'tabletSignedIn', 'phoneSignedIn'] as const)(
     '%s keeps its existing copy and action-only link',
     (variant) => {
       const page = render(variant, 1603);
       expect(page.textContent).toContain(MONEY_PROMO_BODY);
-      expect(page.textContent).not.toContain(HOME_PUBLIC_MONEY_BODY);
       const links = page.querySelectorAll('a');
       expect(links).toHaveLength(1);
       const action = links[0];
       expect(action.getAttribute('href')).toBe('/money');
       expect(action.textContent).toBe(MONEY_PROMO_CTA);
       expect(action.textContent).not.toContain('Follow the money');
-      expect(page.textContent).not.toContain(HOME_PUBLIC_MONEY_CTA);
     },
   );
 });

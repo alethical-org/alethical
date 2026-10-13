@@ -29,12 +29,14 @@
  */
 
 import { useMemo } from 'react';
+import { useTVAdAccess } from '../tvAds/useTVAdAccess';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { isWeb, useFineHover, useHover } from '../billDetail/interactions';
 import {
   MONEY_PROMO_BODY,
+  MONEY_PROMO_ADMIN_BODY,
   MONEY_PROMO_COUNT_UNIT,
   MONEY_PROMO_CTA,
   MONEY_PROMO_EYEBROW,
@@ -182,6 +184,7 @@ export function MoneyPromoCard({
   dimmed?: boolean;
   onPress: () => void;
 }) {
+  const admin = useTVAdAccess();
   const publicCard =
     variant === 'desktopSignedOut' || variant === 'tabletSignedOut' || variant === 'phoneSignedOut';
   const s =
@@ -269,7 +272,11 @@ export function MoneyPromoCard({
           { fontSize: s.body, lineHeight: Math.round(s.body * 1.52), marginTop: s.bodyTop },
         ]}
       >
-        {publicCard ? HOME_PUBLIC_MONEY_BODY : MONEY_PROMO_BODY}
+        {admin.state === 'allowed'
+          ? MONEY_PROMO_ADMIN_BODY
+          : publicCard
+            ? HOME_PUBLIC_MONEY_BODY
+            : MONEY_PROMO_BODY}
       </Text>
 
       {/* The count, its skeleton, or nothing at all. Three outcomes, never two:

@@ -70,6 +70,8 @@ const LobbyingPrincipalsScreen = loadOnDemand(screenChunks.LobbyingPrincipals, {
 const LobbyingLobbyistsScreen = loadOnDemand(screenChunks.LobbyingLobbyists, { kind: 'screen' });
 const LobbyingPrincipalScreen = loadOnDemand(screenChunks.LobbyingPrincipal, { kind: 'screen' });
 const LobbyingLobbyistScreen = loadOnDemand(screenChunks.LobbyingLobbyist, { kind: 'screen' });
+const TVAdRecordsScreen = loadOnDemand(screenChunks.TVAdRecords, { kind: 'screen' });
+const AdminPoliticalAdsScreen = loadOnDemand(screenChunks.AdminPoliticalAds, { kind: 'screen' });
 const MoneyLandingScreen = loadOnDemand(screenChunks.MoneyLanding, { kind: 'screen' });
 const EmailPreferencesScreen = loadOnDemand(screenChunks.EmailPreferences, { kind: 'screen' });
 const CommentEmailsScreen = loadOnDemand(screenChunks.CommentEmails, { kind: 'screen' });
@@ -101,6 +103,8 @@ type RailRouteName =
   | 'NotFound'
   | 'SiteMetrics'
   | 'AdminUsers'
+  | 'AdminPoliticalAds'
+  | 'TVAdRecords'
   | 'AdminSiteMetrics';
 
 const navigationTheme = {
@@ -201,6 +205,8 @@ function MainTabs() {
 
 function activeRailRouteFromRootState(state: any): RailRouteName | undefined {
   const rootRoute = state?.routes[state.index ?? 0];
+  if (rootRoute?.name === 'TVAdRecords') return 'TVAdRecords';
+  if (rootRoute?.name === 'AdminPoliticalAds') return 'AdminPoliticalAds';
   if (rootRoute?.name === 'AdminUsers') return 'AdminUsers';
   if (rootRoute?.name === 'AdminSiteMetrics') return 'AdminSiteMetrics';
   if (rootRoute?.name === 'FindMyLegislator') {
@@ -280,6 +286,8 @@ export function RootNavigator() {
     activeRailRoute === 'NotFound' ||
     activeRailRoute === 'SiteMetrics' ||
     activeRailRoute === 'AdminUsers' ||
+    activeRailRoute === 'TVAdRecords' ||
+    activeRailRoute === 'AdminPoliticalAds' ||
     activeRailRoute === 'AdminSiteMetrics';
 
   const initialState = useMemo(() => {
@@ -481,6 +489,16 @@ export function RootNavigator() {
               <Stack.Screen
                 name="LobbyingLobbyist"
                 component={LobbyingLobbyistScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="TVAdRecords"
+                component={TVAdRecordsScreen}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="AdminPoliticalAds"
+                component={AdminPoliticalAdsScreen}
                 options={{ headerShown: false }}
               />
               <Stack.Screen

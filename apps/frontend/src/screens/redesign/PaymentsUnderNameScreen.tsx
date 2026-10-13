@@ -1,3 +1,4 @@
+import { TVAdConnectionCard } from '../../components/tvAds/OnDemand';
 import { useRef, useState, type ComponentProps } from 'react';
 import {
   Pressable,
@@ -316,6 +317,10 @@ export function PaymentsUnderNameScreen({
               navigation={navigation}
             />
           )}
+
+          {role === 'vendor' || role === 'independent_vendor' ? (
+            <TVAdConnectionCard kind="name" target={name} name={name} />
+          ) : null}
 
           <View style={styles.notCoveredBox}>
             <Text style={styles.notCoveredLabel}>{MONEY_LIST_COVERAGE_HEADING.toUpperCase()}</Text>

@@ -1,9 +1,9 @@
-# FCC political files: archive before the reader feature
+# FCC political files: archive and private TV records
 
 <!-- describes: alethical/pipeline/fcc_*.py, scripts/fcc_political_files.py, .github/workflows/fcc-political-files.yml, .github/scripts/fcc-refresh-report*.cjs -->
 
 Net: Preserve and search the complete political-file folders of KSTP-TV, KARE and
-KMSP-TV before building a public-facing feature.
+KMSP-TV, with separately reviewed copies for the administrator-only TV records screens.
 
 ## Authorization and owner
 
@@ -11,7 +11,7 @@ The scope approved on 8 October 2026 covers collection, source storage, text and
 search, backup, and reviewable links to held campaign expense records through a
 working deployed backend and initial collection. Ongoing automatic collection is
 also approved for KSTP-TV, KARE and KMSP-TV, across every available year and
-political folder. The frontend remains on hold. Additional stations require a
+political folder. The 13 October 2026 approval in [issue 2595](https://github.com/alethical-org/alethical/issues/2595) authorizes the administrator-only TV records screens and review tools described in [tv-ad-records-guide.md](../product-onboarding/tv-ad-records-guide.md). Public access remains on hold. Additional stations require a
 separate scope decision. No paid recurring AI job is authorized.
 
 Owner: Codex chat (FCC media-vendor, 01a11a9b-d455-7d51-9baf-7d821afd0d6f),
@@ -99,8 +99,7 @@ chain of evidence. Remove tracking parameters when recording starting addresses.
 7. Add the approved daily source refresh, with bounded downloads, backup, local
    text reading and honest reporting of source gaps and unfinished work. Accept
    it only after a production run proves those stages and the saved schedule.
-8. Keep the frontend held. Record the measured result and recoverable folder hold
-   or native archive after acceptance.
+8. Keep public access held. Administrator-only reader delivery follows [tv-ad-records-guide.md](../product-onboarding/tv-ad-records-guide.md). Retain the working folder after acceptance unless cleanup is requested.
 
 ## Shared impact and prevention
 
@@ -124,7 +123,7 @@ capacity passes between those groups.
 
 This change affects FCC collection, private source storage, backup and current
 text readings. Existing manual `collect`, financial interpretation, expense-link
-review and the public frontend hold retain their existing behavior. Focused
+review and the public-access hold retain their existing behavior. Focused
 checks must cover complete folder discovery with bounded downloads, fair retries,
 unchanged metadata observations, changed contents under unchanged names, source
 refusals versus operational failures, retained work after failures, backlog
@@ -137,7 +136,7 @@ through completion within the approved 3-station scope.
 
 ## Progress
 
-- Proposal accepted for backend-first implementation; no frontend work started.
+- The initial release was backend-first. The subsequent administrator-only TV records build is authorized by [issue 2595](https://github.com/alethical-org/alethical/issues/2595); this is separate from public access.
 - Independent source, text-reading and acceptance reviews informed the build;
   the owner reviewed source PDFs and exercised the production archive personally.
 - Initial proposal listed 4,507 files. This is a changing FCC listing count, not a
@@ -328,7 +327,7 @@ versions, page text or review history, and does not stop the separate backup job
 ## Operator commands and limits
 
 The private command accepts `--target prod` explicitly. Its default, `dev`, only
-accepts a database on the operator's machine. No public API or screen is added.
+accepts a database on the operator's machine. The collector adds no public API; the separate TV records routes require administrator access.
 The manual GitHub trigger defaults to a dry run; scheduled refreshes write within
 the fixed 3-station scope and the bounds described above.
 No command calls an AI service. Local PDF text reading and image recognition use
@@ -525,3 +524,17 @@ considering a production change.
   with the reported collection of 41 local PDFs, complete human review of money
   fields and the public frontend remain outside this release. Ongoing collection
   is authorized only for KSTP-TV, KARE and KMSP-TV.
+
+## Administrator-only TV records delivery
+
+[Issue 2595](https://github.com/alethical-org/alethical/issues/2595) adds private reader routes under `/money/ads` and review tools at `/admin/political-ads`. The archive remains the original source, not a publication approval. [tv-ad-records-guide.md](../product-onboarding/tv-ad-records-guide.md) explains the reader and review behavior.
+
+Five review tables preserve exact copied evidence: `tv_ad_publication`, `tv_ad_fact`, `tv_ad_connection`, `tv_ad_folder_approval`, and `tv_ad_review_event`. Migration `0070_tv_ad_records` adds them without changing the seven source archive tables. Review tables have no public database access. Every HTTP reader, image and review route checks current administrator access and returns private, no-store responses. Signed-out and ordinary accounts receive the existing not-found response.
+
+A prepared copy binds station ID, file ID, source hash, safe metadata, page text, redactions and generated artifact hashes into an immutable fingerprint. Approving requires the inspected fingerprint and separate privacy, metadata and text attestations. Newly encoded page images burn in redactions; the source PDF is never returned by reader routes. Poppler is installed in the production runtime through `railpack.json` and in the local backend container; Libre Franklin Bold is bundled under `alethical/assets/fonts/`. Metadata-only approval permits a safe label without publishing an image, text, facts or connections. A folder approval binds its exact retained listing and can represent an empty folder.
+
+Checked facts and connections also require separate publication permission. Quotes must exist in approved text on the cited page. Target previews return fingerprints so changed identities require a fresh review. Candidate roles separate merely named, advertiser and payer. Race connections bind the exact contest and stage; a campaign-money contest link requires separately inspected office, district and year. Folder connections do not propagate to files. Related-document links bind exact source and copy IDs. Expense evidence retains its dataset, snapshot, source hash, row number and copied row; a later filing never silently replaces it. An agency address requires its own explicit reviewed agency association, not equal spelling alone.
+
+Withdrawal blocks exact image links immediately and removes unsafe text, facts, search matches and dependent connections. Ordinary corrections may retain an earlier public value only with separate privacy approval; privacy withdrawal removes that history value too. Current source selection follows last successful download, including A→B→A; displayed version history follows first saved time. Counts use distinct identities and do not add overlapping measures.
+
+Release completion requires the actual HTTP preparation, image, approval, reader and withdrawal paths, phone/tablet/computer review, non-administrator denial and current permission revocation. Synthetic approvals prove software behavior only. Publishing real copied files, facts and relationships still requires a person's review; an agent must not supply those decisions. Deployment and real approval receipts belong on [issue 2595](https://github.com/alethical-org/alethical/issues/2595), not in this implementation description as assumed completion.

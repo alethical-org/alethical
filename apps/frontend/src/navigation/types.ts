@@ -84,6 +84,23 @@ export type RootStackParamList = {
   CandidateClaim: { candidateId: string };
   CandidateManage: { candidateId: string };
   PersonOverview: { personId: string; fromCandidateId?: string; fromLegislatorSlug?: string };
+  TVAdRecords: {
+    kind: 'landing' | 'file' | 'folder' | 'agency' | 'station' | 'guide';
+    key?: string;
+    q?: string;
+    tab?: string;
+    station?: string;
+    year?: string;
+    category?: string;
+    page?: string;
+    version?: string;
+    text?: string;
+    history?: string;
+    from?: string;
+    expense?: string;
+    copy?: string;
+  };
+  AdminPoliticalAds: undefined;
   AdminCandidateClaims:
     { candidateId?: string; claimId?: string; fromProfile?: boolean } | undefined;
   // Campaign money section (campaign money IA handoff, Aug 2026). All public —

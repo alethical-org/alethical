@@ -1,3 +1,4 @@
+import { TVAdConnectionCard } from '../../components/tvAds/OnDemand';
 import {
   CONFIRMATION_LOADING_LINE,
   CONFIRMATION_UNAVAILABLE_LINE,
@@ -743,6 +744,7 @@ function CommitteeBody({
               </View>
             )}
           </PaymentsSection>
+          <TVAdConnectionCard kind="committee" target={registrationNumber} name={name} />
         </Container>
       </View>
     </View>

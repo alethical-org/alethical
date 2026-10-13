@@ -425,6 +425,13 @@ address requests bypass browser and shared caches. Source exceptions do not expo
 submitted addresses. Illustrative records remain restricted to an explicitly enabled
 development preview and cannot appear in production.
 
+Approved administrators also see **TV ad records** after the official candidate
+sources. A checked file connection retains the candidate’s exact identity and
+election stage; advertiser/payer connections stay separate from a candidate merely
+named. A name-search invitation is not proof of identity. Other readers see no TV
+group, and candidate public snapshots contain no TV records. See
+[tv-ad-records-guide.md](tv-ad-records-guide.md).
+
 ## People, election results and service
 
 `/people/<id>` joins explicitly verified candidacies, supported service and official

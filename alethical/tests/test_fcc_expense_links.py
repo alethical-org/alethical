@@ -534,6 +534,8 @@ def test_accepting_on_write_requires_review_and_existing_link_needs_explicit_rev
     )
     assert first_evidence in link.evidence
     assert "Exact source review" in link.evidence
+    assert "Test reviewer" not in link.evidence
+    assert link.reviewed_by == "Test reviewer"
     assert link.status == "rejected"
 
 
