@@ -1,7 +1,7 @@
 # Contextual page returns: release checks
 
-Status: source and local browser acceptance passed; production build size, upload,
-release and independent live review remain in progress. This task owns the full
+Status: source, local build size and local browser acceptance passed; upload,
+hosted build, release and independent live review remain in progress. This task owns the full
 release. The working folder is retained for follow-up.
 
 Release task: [issue 2596](https://github.com/alethical-org/alethical/issues/2596).
@@ -66,6 +66,13 @@ type and format checks passed. Independent browser review passed 21 scenarios at
 390, 900 and 1280 pixels, including actual new-tab activation, keyboard/touch,
 long names and exact saved reading positions. Live production evidence remains
 required. Public live review does not substitute for protected-path tests.
+
+The final local export measures 297,487 compressed startup bytes against the
+unchanged 297,506-byte limit. Existing deferred sections now hold legacy header
+and desktop navigation contents that ordinary public pages do not need. The outer
+desktop navigation frame, labels, actions and styling remain unchanged. This
+settings-less export establishes no production headroom; the hosted build must
+pass its own enforced measurement.
 
 TV ad records remain admin-only. No shipped admin parent exists in the reviewed
 source, so this change invents no TV ad address or parent label. Protected account
