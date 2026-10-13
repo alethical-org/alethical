@@ -385,6 +385,14 @@ def browse(db, *, tab="folders", q="", station="", year=None, category="", page=
         and (not year or docs[p.id].year == year)
         and (not category or p.category == category)
     ]
+    # Count the same safe folder identities available through folder browsing,
+    # including reviewed empty folders, once per station and year.
+    folder_years = {
+        (f.facility_id, f.folder_id): _folder_date_parts(f)[0] for f in folders
+    }
+    folder_years.update(
+        {(p.facility_id, docs[p.id].folder_id): docs[p.id].year for p in copies}
+    )
     rows = []
     if q:
         query = q.casefold()
@@ -475,7 +483,14 @@ def browse(db, *, tab="folders", q="", station="", year=None, category="", page=
                 ):
                     groups[f.value].add((p.facility_id, p.file_id))
         rows = [
-            {"key": agency_key(name), "label": name, "file_count": len(ids)}
+            {
+                "key": agency_key(name),
+                "label": name,
+                "file_count": len(ids),
+                "stations": sorted(
+                    {STATIONS[facility].call_sign for facility, _ in ids}
+                ),
+            }
             for name, ids in groups.items()
         ]
     elif tab == "stations":
@@ -484,6 +499,9 @@ def browse(db, *, tab="folders", q="", station="", year=None, category="", page=
                 "key": s.slug,
                 "label": s.call_sign,
                 "station": s.call_sign,
+                "folder_count": sum(
+                    facility == s.facility_id for facility, _ in folder_years
+                ),
                 "file_count": len(
                     [p for p in selected if p.facility_id == s.facility_id]
                 ),
@@ -496,6 +514,9 @@ def browse(db, *, tab="folders", q="", station="", year=None, category="", page=
                 "key": str(y),
                 "label": str(y),
                 "year": y,
+                "folder_count": sum(
+                    folder_year == y for folder_year in folder_years.values()
+                ),
                 "file_count": len([p for p in selected if docs[p.id].year == y]),
             }
             for y in years

@@ -72,6 +72,8 @@ class Recent(ReaderModel):
 
 
 class BrowseGroup(ReaderModel):
+    folder_count: int | None = None
+    stations: list[str] | None = None
     key: str
     label: str
     file_count: int
