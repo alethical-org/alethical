@@ -61,16 +61,17 @@ scroll-restoration hook to the mobile profile, and place the reading bookmark on
 its source entry before opening an article. The built regression exercises all
 3 failures across the supported layout bands.
 
-Local acceptance on 13 October 2026: 4,610 frontend tests passed across 355 suites;
+Local acceptance on 13 October 2026: 4,612 frontend tests passed across 355 suites;
 type and format checks passed. Independent browser review passed 21 scenarios at
 390, 900 and 1280 pixels, including actual new-tab activation, keyboard/touch,
 long names and exact saved reading positions. Live production evidence remains
 required. Public live review does not substitute for protected-path tests.
 
-The final local export measures 297,487 compressed startup bytes against the
-unchanged 297,506-byte limit. Existing deferred sections now hold legacy header
-and desktop navigation contents that ordinary public pages do not need. The outer
-desktop navigation frame, labels, actions and styling remain unchanged. This
+The final local export measures 280,107 compressed startup bytes against the
+unchanged 297,506-byte limit. A preceding hosted preview measured 297,535 bytes
+and was refused by that same limit. Existing deferred sections now hold legacy
+header, desktop navigation and mobile tab contents until needed. The outer
+navigation frames, visibility conditions, labels, actions and styling remain unchanged. This
 settings-less export establishes no production headroom; the hosted build must
 pass its own enforced measurement.
 

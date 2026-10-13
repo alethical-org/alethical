@@ -6,9 +6,8 @@ import {
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BottomTabBarProps, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { BookmarkCheck, MessageSquareText, Home, UserCircle, type Icon } from '../components/icons';
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../providers/AuthProvider';
@@ -18,7 +17,6 @@ import { documentTitleForRoute } from './documentTitle';
 import { candidateEditorId, candidateEditorRouter } from './candidateEditorRouter';
 import { defaultGuardedNavigation, GuardedNavigationContext } from './GuardedNavigationContext';
 import { createWebNavigationHistory } from './webNavigationHistory';
-import { linkProps, routePath } from './links';
 import { initializeWebHistory } from './webHistory';
 import { setReturnAccess } from './returnCaptureBridge';
 import { MainTabParamList, MainTabScreenProps, RootStackParamList } from './types';
@@ -38,6 +36,9 @@ const navigationRef = createNavigationContainerRef<RootStackParamList>();
  * campaign-money page also downloaded the bill page, both chat screens, the
  * address lookup, the traffic dashboard and the sign-in screens (#1966).
  */
+const LegacyMobileTabBarContent = loadOnDemand(() => import('./LegacyMobileTabBarContent'), {
+  kind: 'section',
+});
 const LegacyDesktopRailContent = loadOnDemand(() => import('./LegacyDesktopRailContent'), {
   kind: 'section',
 });
@@ -94,7 +95,6 @@ const SearchBillsScreen = loadOnDemand(screenChunks.Bills, { kind: 'screen' });
 const SearchLegislatorsScreen = loadOnDemand(screenChunks.Legislators, { kind: 'screen' });
 const TrackedScreen = loadOnDemand(screenChunks.Tracked, { kind: 'screen' });
 const ContactUsScreen = loadOnDemand(screenChunks.ContactUs, { kind: 'screen' });
-type NavIcon = Icon;
 type RailRouteName =
   | keyof MainTabParamList
   | 'FindMyLegislator'
@@ -102,28 +102,6 @@ type RailRouteName =
   | 'SiteMetrics'
   | 'AdminUsers'
   | 'AdminSiteMetrics';
-const tabMeta: Record<keyof MainTabParamList, { label: string; Icon: NavIcon }> = {
-  Home: { label: 'Home', Icon: Home },
-  Tracked: { label: 'Tracked', Icon: BookmarkCheck },
-  Chat: { label: 'Chat', Icon: MessageSquareText },
-  Account: { label: 'Account', Icon: UserCircle },
-};
-/**
- * The tabs a person can actually reach from the sidebar and the phone tab row.
- * Chat and Account are deliberately absent: both are pre-redesign screens wired
- * to fixture data, and now that signing in works, a link to either would land
- * someone on a page we stopped maintaining. Their URLs already redirect Home
- * (navigation/webRoutes.ts).
- *
- * This comment used to add "and the bill-scoped chat is untouched — it opens
- * from a bill page". That is false and was false when written: webRoutes.ts
- * redirects /chat/new and /chat/sessions/{id} to Home as well, so hiding the tab
- * is not the only thing standing between a reader and a chat, and the bill-page
- * entry it referred to was deleted with BillDetailScreen.tsx (#1071). The screen
- * and the server endpoints both still work — only the way in is gone. Tracked in
- * #1032; grounded-answers.md rule 8 carries the detail.
- */
-const VISIBLE_TABS: ReadonlySet<keyof MainTabParamList> = new Set(['Home', 'Tracked']);
 
 const navigationTheme = {
   ...DefaultTheme,
@@ -151,56 +129,13 @@ function DesktopRail({ activeRouteName }: { activeRouteName?: RailRouteName }) {
   );
 }
 
-function MobileTabBar({ state, navigation }: BottomTabBarProps) {
+function MobileTabBar(props: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const routes = state.routes.filter((route) =>
-    VISIBLE_TABS.has(route.name as keyof MainTabParamList),
-  );
-
   return (
     <View
       style={[styles.mobileTabBar, { paddingBottom: Math.max(theme.spacing.xs, insets.bottom) }]}
     >
-      {routes.map((route) => {
-        const routeName = route.name as keyof MainTabParamList;
-        const focused = state.routes[state.index]?.key === route.key;
-        const { Icon, label } = tabMeta[routeName];
-        const color = focused ? theme.colors.accent : theme.colors.ink;
-        const navigateToTab = () => {
-          const event = navigation.emit({
-            type: 'tabPress',
-            target: route.key,
-            canPreventDefault: true,
-          });
-
-          if (!focused && !event.defaultPrevented) {
-            navigation.navigate(routeName);
-          }
-        };
-        // Same round-trip rule as the desktop rail (see DesktopRail above): only
-        // Home's URL lands back on Home, so it's the only tab that gets a href.
-        const home = routeName === 'Home' ? linkProps(routePath.home(), navigateToTab) : null;
-
-        return (
-          <Pressable
-            key={route.key}
-            {...(home ?? { onPress: navigateToTab })}
-            accessibilityRole={home ? 'link' : 'button'}
-            accessibilityLabel={label}
-            aria-current={focused ? 'page' : undefined}
-            style={({ pressed }) => [
-              styles.mobileTabItem,
-              focused && styles.mobileTabItemActive,
-              pressed && styles.mobileTabItemPressed,
-            ]}
-          >
-            <Icon color={color} size={21} strokeWidth={focused ? 2.8 : 2.1} />
-            <Text style={[styles.mobileTabLabel, focused && styles.mobileTabLabelActive]}>
-              {label}
-            </Text>
-          </Pressable>
-        );
-      })}
+      <LegacyMobileTabBarContent {...props} />
     </View>
   );
 }
@@ -317,34 +252,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.xs,
     paddingTop: theme.spacing.xs,
     paddingBottom: theme.spacing.xs,
-  },
-  mobileTabItem: {
-    flex: 1,
-    minWidth: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 3,
-    borderTopWidth: 3,
-    borderTopColor: 'transparent',
-    paddingHorizontal: 2,
-  },
-  mobileTabItemActive: {
-    borderTopColor: theme.colors.accent,
-    backgroundColor: theme.colors.surfaceAlt,
-  },
-  mobileTabItemPressed: {
-    opacity: 0.82,
-  },
-  mobileTabLabel: {
-    color: theme.colors.ink,
-    fontFamily: theme.typography.ui,
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0,
-    lineHeight: 12,
-  },
-  mobileTabLabelActive: {
-    color: theme.colors.ink,
   },
   desktopRail: {
     width: 248,
