@@ -58,7 +58,13 @@ export function TVFile({
     return (
       <>
         <h1 className="tv-record-title">{file?.name || 'Station file'}</h1>
-        {request.error ? <Failure retry={request.retry} /> : <Busy label="Loading saved record" />}
+        {request.error ? (
+          <Failure retry={request.retry} detail="This is a problem on our side">
+            We couldn’t load this file right now
+          </Failure>
+        ) : (
+          <Busy label="Loading saved record" />
+        )}
       </>
     );
   if (!file) return null;
@@ -1010,7 +1016,7 @@ export function TVAgency({ recordKey, notFound }: { recordKey: string; notFound:
             ))}
           </div>
         ) : (
-          <p>No address has been checked yet</p>
+          <p className="tv-notice tv-neutral-notice">No address has been checked yet</p>
         )}
       </section>
     </>
@@ -1026,7 +1032,13 @@ export function TVStation({ recordKey, notFound }: { recordKey: string; notFound
     return (
       <>
         <h1>{read.data?.call_sign || 'Station'}</h1>
-        {read.error ? <Failure retry={read.retry} /> : <Busy label="Loading station records" />}
+        {read.error ? (
+          <Failure retry={read.retry} detail="This is a problem on our side">
+            We couldn’t load this station right now
+          </Failure>
+        ) : (
+          <Busy label="Loading station records" />
+        )}
       </>
     );
   const data = read.data;

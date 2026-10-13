@@ -566,6 +566,8 @@ for (const width of [390, 900, 1280]) {
       new RegExp(`version=${hash}.*copy=${copy}.*page=1`),
     );
     await page.screenshot({ path: resolve(output, `agency-address-${width}.png`) });
+    await expect(addressLink).toHaveCSS('display', 'inline-flex');
+    await expect(addressLink).toHaveCSS('min-height', '44px');
     await addressLink.focus();
     await page.screenshot({ path: resolve(output, `address-link-focus-${width}.png`) });
     await addressLink.blur();
@@ -573,6 +575,7 @@ for (const width of [390, 900, 1280]) {
     await page.screenshot({ path: resolve(output, `address-link-hover-${width}.png`) });
     const agencyRow = page.locator('.tv-agency-file').first();
     await agencyRow.focus();
+    await expect(agencyRow).toHaveCSS('outline-offset', '-2px');
     await page.screenshot({ path: resolve(output, `agency-row-focus-${width}.png`) });
     await agencyRow.blur();
     await agencyRow.hover();
@@ -820,6 +823,12 @@ for (const [surface, data, expected] of [
       await page.screenshot({ path: resolve(output, `${surface}-loading-${width}.png`) });
       release();
       await expect(page.getByRole('alert')).toBeVisible();
+      if (surface !== 'agencies') {
+        await expect(page.getByRole('alert')).toContainText(
+          `We couldn’t load this ${surface === 'stations' ? 'station' : 'file'} right now`,
+        );
+        await expect(page.getByRole('alert')).toContainText('This is a problem on our side');
+      }
       await page.screenshot({ path: resolve(output, `${surface}-error-${width}.png`) });
       await page.getByRole('button', { name: 'Try again', exact: true }).click();
       await expect(page.getByText(expected, { exact: true })).toBeVisible();

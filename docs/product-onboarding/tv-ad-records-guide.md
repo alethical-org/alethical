@@ -75,3 +75,9 @@ Visual acceptance compares rendered computer, tablet and phone screens with Clau
 File, agency and station loading or failure states keep their identifying heading. Empty agency and station lists use a white message surface. A metadata-only exact publication link can show that its copy is not ready; ordinary administrator archive links still open the original. Saved-version menus stay within the viewport, retain keyboard and touch selection, and show saved time, station upload date and status on separate lines.
 
 Whole-row folder and station links show one keyboard outline around the row, without a second outline around the title. Hover fills the row; pointer clicks do not add a keyboard-only outline. Other-file cards stack title, kind and station upload date at every width.
+
+Final review refinements: address evidence links keep a 44px target while their
+keyboard outline follows the link width. Agency row outlines sit 2px inside an
+8px corner radius. An agency with no checked addresses uses the same white empty
+surface as its missing file list. Station and file failures name the affected
+record and explain “This is a problem on our side” beside the retry action.
