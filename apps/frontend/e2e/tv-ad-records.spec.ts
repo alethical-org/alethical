@@ -140,7 +140,9 @@ async function fixture(page: Page, allowed = true) {
         tab: u.searchParams.get('tab') || 'folders',
         q: u.searchParams.get('q') || '',
         station: u.searchParams.get('station') || '',
-        year: u.searchParams.get('year') || '',
+        year:
+          u.searchParams.get('year') ||
+          (u.searchParams.get('default_year') === 'true' ? '2026' : ''),
         category: u.searchParams.get('category') || '',
         page: Number(u.searchParams.get('page') || 1),
         page_size: 12,
@@ -849,3 +851,56 @@ for (const [surface, data, expected] of [
     });
   }
 }
+
+test('TV navigation reuses the loaded app and restores all-years browsing', async ({ page }) => {
+  await fixture(page);
+  const documents: string[] = [];
+  const browseReads: string[] = [];
+  let accessReads = 0;
+  page.on('request', (r) => {
+    if (r.resourceType() === 'document') documents.push(r.url());
+    if (new URL(r.url()).pathname === '/api/v1/ads/browse') browseReads.push(r.url());
+    if (new URL(r.url()).pathname === '/api/v1/ads/access') accessReads += 1;
+  });
+  await page.goto('/money/ads');
+  await expect(page.getByText('Synthetic campaign folder 1', { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/year=2026/);
+  expect(browseReads).toHaveLength(1);
+  expect(new URL(browseReads[0]).searchParams.get('default_year')).toBe('true');
+  await page.getByRole('combobox', { name: 'Folder year', exact: true }).click();
+  await page.getByRole('option', { name: 'All years', exact: true }).click();
+  await expect(page).toHaveURL(/year=all/);
+  const before = accessReads;
+  await page
+    .getByRole('link', { name: /Synthetic station invoice/ })
+    .first()
+    .click();
+  await expect(page.getByRole('heading', { name: fileRow.name, exact: true })).toBeVisible();
+  await expect.poll(() => accessReads).toBeGreaterThan(before);
+  expect(documents).toHaveLength(1);
+  await page.getByRole('link', { name: 'Back to TV ad records', exact: true }).click();
+  await expect(page.getByText('Synthetic campaign folder 1', { exact: true })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Folder year', exact: true })).toHaveText(
+    'All years',
+  );
+  expect(new URL(browseReads.at(-1)!).searchParams.has('default_year')).toBe(false);
+  expect(documents).toHaveLength(1);
+  await page.goBack();
+  await expect(page.getByRole('heading', { name: fileRow.name, exact: true })).toBeVisible();
+  expect(documents).toHaveLength(1);
+});
+
+test('a revoked administrator cannot enter another TV record through app navigation', async ({
+  page,
+}) => {
+  const state = await fixture(page);
+  await page.goto('/money/ads?year=all');
+  await expect(page.getByText('Synthetic campaign folder 1', { exact: true })).toBeVisible();
+  state.allowed = false;
+  await page
+    .getByRole('link', { name: /Synthetic station invoice/ })
+    .first()
+    .click();
+  await expect(page.getByRole('heading', { name: 'We couldn’t find that page' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: fileRow.name, exact: true })).toHaveCount(0);
+});

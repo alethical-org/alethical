@@ -1,7 +1,8 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useAuth } from '../../providers/AuthProvider';
 import { TopNav, Footer } from '../../theme/primitives';
+import { targetFromPathname } from '../../navigation/webRoutes';
 import type { RootScreenProps } from '../../navigation/types';
 import { NotFoundScreen } from './NotFoundScreen';
 import { useTVAdAccess } from '../../components/tvAds/useTVAdAccess';
@@ -12,12 +13,49 @@ import { TVLanding } from '../../components/tvAds/Landing';
 import { TVAgency, TVExpense, TVFile, TVFolder, TVStation } from '../../components/tvAds/Records';
 
 export function TVAdRecordsScreen({ navigation, route }: RootScreenProps<'TVAdRecords'>) {
-  const access = useTVAdAccess();
+  const screenIdentity = `${route.params.kind}:${route.params.key || ''}`;
+  const access = useTVAdAccess(screenIdentity);
+  const scroll = useRef<ScrollView>(null);
+  useEffect(() => {
+    scroll.current?.scrollTo({ y: 0, animated: false });
+  }, [screenIdentity, access.state]);
   const { user, accessToken } = useAuth();
   const [denied, setDenied] = useState(false);
   const reject = useCallback(() => setDenied(true), []);
   const onParams = useCallback(
     (params: Record<string, string | undefined>) => navigation.setParams(params),
+    [navigation],
+  );
+  const followTVLink = useCallback(
+    (event: React.MouseEvent<HTMLElement>) => {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      )
+        return;
+      const anchor = (event.target as Element).closest?.('a[href]');
+      if (
+        !(anchor instanceof HTMLAnchorElement) ||
+        anchor.hasAttribute('download') ||
+        (anchor.target && anchor.target !== '_self')
+      )
+        return;
+      const href = anchor.getAttribute('href') || '';
+      if (!(
+        href === '/money/ads' ||
+        href.startsWith('/money/ads?') ||
+        href.startsWith('/money/ads/')
+      ))
+        return;
+      const target = targetFromPathname(href);
+      if (target.kind !== 'tvAdRecords') return;
+      event.preventDefault();
+      navigation.navigate('TVAdRecords', target.params);
+    },
     [navigation],
   );
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '/money/ads';
@@ -52,9 +90,9 @@ export function TVAdRecordsScreen({ navigation, route }: RootScreenProps<'TVAdRe
       value={{ token: accessToken, denied: reject }}
     >
       <View style={{ flex: 1, backgroundColor: '#f5f6f7' }}>
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+        <ScrollView ref={scroll} contentContainerStyle={{ flexGrow: 1 }}>
           <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
-          <main className="tv">
+          <main className="tv" key={screenIdentity} onClick={followTVLink}>
             <style>{tvStyles}</style>
             <a
               className="tv-back"

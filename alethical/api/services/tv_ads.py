@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections import defaultdict
-from functools import wraps
+from functools import partial, wraps
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
@@ -27,30 +28,62 @@ from alethical.pipeline.fcc_public_files import DEFAULT_STATIONS
 STATIONS = {s.facility_id: s for s in DEFAULT_STATIONS}
 
 
-def projection(function):
+def projection(function=None, *, scope=None):
+    if function is None:
+        return partial(projection, scope=scope)
+
     @wraps(function)
     def read(db, *args, **kwargs):
         include_archive = kwargs.pop("include_archive", False)
         previous = db.info.get("tv_projection")
         if previous is not None:
             return function(db, *args, **kwargs)
-        documents = list(
-            db.scalars(
-                select(m.FCCDocument).where(m.FCCDocument.facility_id.in_(STATIONS))
-            )
-        )
+        document_query = _documents(db)
+        if scope:
+            key = args[0] if args else kwargs["key"]
+            if scope == "station":
+                station = next(
+                    (s for s in DEFAULT_STATIONS if key in (s.slug, s.call_sign)), None
+                )
+                if station is None:
+                    raise LookupError("Not found")
+                document_query = document_query.where(
+                    m.FCCDocument.facility_id == station.facility_id
+                )
+            else:
+                facility, identifier = identity(key)
+                # Include every version of files ever in the relevant folders. A
+                # source can move folders, and an older approved copy can still
+                # refer to its original folder. Current selection happens below.
+                folder_ids = (
+                    select(m.FCCDocument.folder_id).where(
+                        m.FCCDocument.facility_id == facility,
+                        m.FCCDocument.file_id == identifier,
+                    )
+                    if scope == "file"
+                    else [identifier]
+                )
+                file_ids = select(m.FCCDocument.file_id).where(
+                    m.FCCDocument.facility_id == facility,
+                    m.FCCDocument.folder_id.in_(folder_ids),
+                )
+                document_query = document_query.where(
+                    m.FCCDocument.facility_id == facility,
+                    m.FCCDocument.file_id.in_(file_ids),
+                )
+        documents = list(db.scalars(document_query))
         versions = defaultdict(int)
         current = {}
         for d in documents:
-            identity = (d.facility_id, d.file_id)
-            versions[identity] += 1
-            prior = current.get(identity)
+            file_identity = (d.facility_id, d.file_id)
+            versions[file_identity] += 1
+            prior = current.get(file_identity)
             if prior is None or (
                 d.last_downloaded_at,
                 d.last_seen_at,
                 d.content_hash,
             ) > (prior.last_downloaded_at, prior.last_seen_at, prior.content_hash):
-                current[identity] = d
+                current[file_identity] = d
         facts = defaultdict(list)
         for f in db.scalars(
             select(m.TVAdFact)
@@ -70,6 +103,8 @@ def projection(function):
             "current": current,
             "facts": facts,
             "include_archive": include_archive,
+            "document_query": document_query,
+            "scoped": bool(scope),
         }
         try:
             return function(db, *args, **kwargs)
@@ -172,7 +207,11 @@ def _approved(db, facility_id=None):
 def _document(db, p):
     key = (p.facility_id, p.file_id, p.content_hash)
     cache = db.info.get("tv_projection")
-    return cache["documents"][key] if cache else db.get(m.FCCDocument, key)
+    return (
+        cache["documents"][key]
+        if cache and key in cache["documents"]
+        else db.get(m.FCCDocument, key)
+    )
 
 
 def _facts(db, publication_id):
@@ -228,7 +267,8 @@ def _row(db, p):
     )
     current = (
         db.info["tv_projection"]["current"].get((p.facility_id, p.file_id))
-        if "tv_projection" in db.info
+        if (p.facility_id, p.file_id)
+        in db.info.get("tv_projection", {}).get("current", {})
         else db.scalar(
             _documents(db, p.facility_id)
             .where(m.FCCDocument.file_id == p.file_id)
@@ -263,7 +303,8 @@ def _row(db, p):
         "version_count": db.info["tv_projection"]["versions"][
             (p.facility_id, p.file_id)
         ]
-        if "tv_projection" in db.info
+        if (p.facility_id, p.file_id)
+        in db.info.get("tv_projection", {}).get("versions", {})
         else db.scalar(
             select(func.count())
             .select_from(m.FCCDocument)
@@ -288,6 +329,18 @@ def _latest_copies(db, facility_id=None, *, metadata=True):
     )
     if facility_id:
         query = query.where(m.TVAdPublication.facility_id == facility_id)
+    cache = db.info.get("tv_projection", {})
+    if cache.get("scoped"):
+        # The scope query includes complete file histories, never just one body.
+        scope_docs = cache["document_query"].subquery()
+        query = query.where(
+            select(scope_docs.c.file_id)
+            .where(
+                scope_docs.c.facility_id == m.TVAdPublication.facility_id,
+                scope_docs.c.file_id == m.TVAdPublication.file_id,
+            )
+            .exists()
+        )
     copies = list(db.scalars(query))
     copies.sort(
         key=lambda p: (_document(db, p).last_downloaded_at, p.created_at, str(p.id)),
@@ -309,7 +362,10 @@ def _latest_copies(db, facility_id=None, *, metadata=True):
                 or copy.status != "approved"
             ):
                 found[key] = _archive_copy(doc)
-    return list(found.values())
+    return sorted(
+        found.values(),
+        key=lambda p: (p.safe_title.casefold(), file_key(p.facility_id, p.file_id)),
+    )
 
 
 def _archive_access(db):
@@ -367,10 +423,11 @@ def _agency_names(db, copy):
         cache = db.info["tv_projection"]
         if "extractions" not in cache:
             cache["extractions"] = {
-                e.content_hash: e.facts
-                for e in db.scalars(
-                    select(m.FCCExtraction).where(
-                        m.FCCExtraction.version == EXTRACTOR_VERSION
+                row.content_hash: row.facts
+                for row in db.execute(
+                    select(m.FCCExtraction.content_hash, m.FCCExtraction.facts).where(
+                        m.FCCExtraction.version == EXTRACTOR_VERSION,
+                        m.FCCExtraction.facts.contains([{"field": "agency_name"}]),
                     )
                 )
             }
@@ -384,69 +441,79 @@ def _agency_names(db, copy):
     return result
 
 
+def _upload_date(raw):
+    for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%m/%d/%Y %I:%M %p"):
+        try:
+            return datetime.strptime((raw or "").strip(), fmt)
+        except ValueError:
+            pass
+    return datetime.min
+
+
 def sources(db: Session, station: str | None = None):
-    result = []
-    for item in DEFAULT_STATIONS:
-        if station and station not in (item.call_sign, item.slug):
-            continue
-        latest = db.execute(
-            select(func.max(m.FCCDocument.last_downloaded_at)).where(
-                m.FCCDocument.facility_id == item.facility_id
-            )
-        ).scalar()
-        listed = db.scalar(
-            select(func.max(m.FCCObservation.observed_at)).where(
-                m.FCCObservation.facility_id == item.facility_id,
+    stations = [
+        s for s in DEFAULT_STATIONS if not station or station in (s.call_sign, s.slug)
+    ]
+    facilities = [s.facility_id for s in stations]
+    copies, uploads = {}, defaultdict(list)
+    for facility, raw, latest in db.execute(
+        select(
+            m.FCCDocument.facility_id,
+            m.FCCDocument.uploaded_at,
+            func.max(m.FCCDocument.last_downloaded_at),
+        )
+        .where(m.FCCDocument.facility_id.in_(facilities))
+        .group_by(m.FCCDocument.facility_id, m.FCCDocument.uploaded_at)
+    ):
+        copies[facility] = max(latest, copies.get(facility, latest))
+        parsed = _upload_date(raw)
+        if parsed != datetime.min:
+            uploads[facility].append(parsed.date())
+    listed = dict(
+        db.execute(
+            select(m.FCCObservation.facility_id, func.max(m.FCCObservation.observed_at))
+            .where(
+                m.FCCObservation.facility_id.in_(facilities),
                 m.FCCObservation.kind == "folder",
                 m.FCCObservation.status == "stored",
             )
-        )
-        # Source upload strings vary. Only parse known complete dates; never sort labels lexically.
-        uploads = []
-        for raw in db.scalars(
-            select(m.FCCDocument.uploaded_at).where(
-                m.FCCDocument.facility_id == item.facility_id
-            )
-        ):
-            if raw:
-                for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%m/%d/%Y %I:%M %p"):
-                    try:
-                        uploads.append(datetime.strptime(raw.strip(), fmt).date())
-                        break
-                    except ValueError:
-                        pass
-        result.append(
+            .group_by(m.FCCObservation.facility_id)
+        ).all()
+    )
+    return {
+        "stations": [
             {
-                "call_sign": item.call_sign,
-                "facility_id": item.facility_id,
-                "fcc_url": item.root_url,
-                "newest_upload": iso(max(uploads)) if uploads else None,
-                "last_list_check": iso(listed),
-                "last_file_copy": iso(latest),
+                "call_sign": s.call_sign,
+                "facility_id": s.facility_id,
+                "fcc_url": s.root_url,
+                "newest_upload": iso(max(uploads[s.facility_id]))
+                if uploads[s.facility_id]
+                else None,
+                "last_list_check": iso(listed.get(s.facility_id)),
+                "last_file_copy": iso(copies.get(s.facility_id)),
             }
-        )
-    return {"stations": result, "text_reader_version": EXTRACTOR_VERSION}
+            for s in stations
+        ],
+        "text_reader_version": EXTRACTOR_VERSION,
+    }
 
 
 @projection
 def recent(db):
+    copies = _latest_copies(db)
     groups = []
     for station in DEFAULT_STATIONS:
-        copies = _latest_copies(db, station.facility_id)
-        # An unknown upload date stays unknown rather than borrowing the storage time.
-        rows = [_row(db, p) for p in copies]
-
-        def upload_key(row):
-            raw = row["uploaded_at"] or ""
-            for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%m/%d/%Y %I:%M %p"):
-                try:
-                    return datetime.strptime(raw.strip(), fmt)
-                except ValueError:
-                    pass
-            return datetime.min
-
-        rows.sort(key=lambda r: (upload_key(r), r["key"]), reverse=True)
-        groups.append({"call_sign": station.call_sign, "files": rows[:3]})
+        group = [p for p in copies if p.facility_id == station.facility_id]
+        group.sort(
+            key=lambda p: (
+                _upload_date(_document(db, p).uploaded_at),
+                file_key(p.facility_id, p.file_id),
+            ),
+            reverse=True,
+        )
+        groups.append(
+            {"call_sign": station.call_sign, "files": [_row(db, p) for p in group[:3]]}
+        )
     return {"stations": groups}
 
 
@@ -455,7 +522,17 @@ def agency_key(name):
 
 
 @projection
-def browse(db, *, tab="folders", q="", station="", year=None, category="", page=1):
+def browse(
+    db,
+    *,
+    tab="folders",
+    q="",
+    station="",
+    year=None,
+    category="",
+    page=1,
+    default_year=False,
+):
     # These controls exist only in folder browsing; hidden constraints must not filter other tabs.
     if tab != "folders":
         station, year, category = "", None, ""
@@ -467,6 +544,8 @@ def browse(db, *, tab="folders", q="", station="", year=None, category="", page=
         | {y for y, c in map(_folder_date_parts, folders) if y},
         reverse=True,
     )
+    if default_year and tab == "folders" and not q and year is None and years:
+        year = years[0]
     categories = sorted(
         {p.category for p in copies if p.category}
         | {c for y, c in map(_folder_date_parts, folders) if c}
@@ -492,14 +571,29 @@ def browse(db, *, tab="folders", q="", station="", year=None, category="", page=
             page_cache = defaultdict(list)
             hashes = {p.content_hash for p in selected if p.status == "archive"}
             if hashes:
-                for part in db.scalars(
-                    select(m.FCCPage)
-                    .where(
-                        m.FCCPage.content_hash.in_(hashes),
-                        m.FCCPage.version == EXTRACTOR_VERSION,
-                    )
-                    .order_by(m.FCCPage.page)
-                ):
+                page_query = select(
+                    m.FCCPage.content_hash, m.FCCPage.page, m.FCCPage.text
+                ).where(
+                    m.FCCPage.content_hash.in_(hashes),
+                    m.FCCPage.version == EXTRACTOR_VERSION,
+                )
+                if q.isascii():
+                    # A conservative indexed candidate search; Python below still
+                    # owns exact Unicode casefold matching and excerpt selection.
+                    # These letters can be produced by non-ASCII casefold
+                    # expansions (e.g. ß -> ss, ﬂ -> fl). Search the longest
+                    # unaffected run so those matches cannot be discarded.
+                    needle = max(re.split("[afhijklnstwy]", q.casefold()), key=len)
+                    if needle:
+                        escaped = (
+                            needle.replace("\\", "\\\\")
+                            .replace("%", "\\%")
+                            .replace("_", "\\_")
+                        )
+                        page_query = page_query.where(
+                            m.FCCPage.text.ilike("%" + escaped + "%", escape="\\")
+                        )
+                for part in db.execute(page_query.order_by(m.FCCPage.page)):
                     page_cache[part.content_hash].append(part)
             db.info["tv_projection"]["source_pages"] = page_cache
         query = q.casefold()
@@ -688,7 +782,7 @@ def _connection_payload(db, c, version_id, key):
     return item
 
 
-@projection
+@projection(scope="file")
 def file_detail(db, key, version=None, copy_id=None):
     facility, file_id = identity(key)
     docs = list(
@@ -977,7 +1071,7 @@ def _folder_date_parts(folder):
     return folder.year, folder.category
 
 
-@projection
+@projection(scope="folder")
 def folder_detail(db, key):
     facility, folder_id = identity(key)
     copies = [
@@ -1096,7 +1190,7 @@ def agency_detail(db, key):
     }
 
 
-@projection
+@projection(scope="station")
 def station_detail(db, key):
     station = next((s for s in DEFAULT_STATIONS if key in (s.slug, s.call_sign)), None)
     if station is None:
@@ -1131,7 +1225,10 @@ def station_detail(db, key):
             {
                 "year": year,
                 "categories": [
-                    {"name": name, "count": len(ids)} for name, ids in cats.items()
+                    {"name": name, "count": len(ids)}
+                    for name, ids in sorted(
+                        cats.items(), key=lambda item: item[0] or ""
+                    )
                 ],
                 "file_count": len(files[year]),
             }

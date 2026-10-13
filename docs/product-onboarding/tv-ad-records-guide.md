@@ -12,13 +12,15 @@ Related records may also appear beside a committee, a legislator's confirmed cam
 
 ## Search and browse at `/money/ads`
 
-Administrator search matches held file labels, checked facts and machine-read text, including originals awaiting publication review. Text matches remain labelled Not checked. Browse by station folders, agency names, stations or years. Machine-read agency names are marked Not checked; each exact spelling stays separate. Folder filters cover station, folder year and the literal station category. The newest available folder year is selected first. Results have 12 rows per page; search is capped at 500 and says when more exist.
+Administrator search matches held file labels, checked facts and machine-read text, including originals awaiting publication review. Text matches remain labelled Not checked. Browse by station folders, agency names, stations or years. Machine-read agency names are marked Not checked; each exact spelling stays separate. Folder filters cover station, folder year and the literal station category. The newest available folder year is selected in the first response. An explicit All years choice stays in the address and survives a file visit and return. Results have 12 rows per page; search is capped at 500 and says when more exist.
 
 A station category describes the station's filing choice. It does not identify an election office or establish a connection. Unknown categories stay unknown. Spelling variations remain separate. A checked empty folder can appear with zero files.
 
 Changing a filter or page keeps the previous results visible with an updating notice until the replacement arrives. A failed request keeps usable results and offers retry. A new search starts at page 1. An empty result explains that there are no matching collected records; it does not mean no ads existed. Counts and source dates load separately, so a failure in one does not hide the other.
 
 Folder and printed-name screens retain the authorized heading, metadata and results during retries and temporary failures. While replacement results load, retained rows use the existing 85% opacity treatment with an updating status. Before a name has loaded, their headings are “Station folder” and “Printed agency name”. Changing the record or account clears prior content; missing or withdrawn records never retain old details. A folder with no held files says “No files to show in this folder”.
+
+Ordinary links between TV records use the running app rather than reloading its scripts. Real addresses, open-in-new-tab behavior, browser Back, and search return context remain available. Changing the record starts a fresh administrator access check and clears the previous record. Folder files and other-file suggestions use a stable filename order, with file identity breaking ties.
 
 ## What counts mean
 
@@ -60,7 +62,7 @@ Source or target changes clear earlier review attestations. Saving and retry con
 
 The source archive and operational limits are documented in [fcc-political-files.md](../implementation/fcc-political-files.md). FCC political files must be retained for at least 2 years; older available files are not complete history. There is no coverage of other stations, cable, radio, streaming or online advertising.
 
-Reader requests send search and filter choices to Alethical. Private responses are not cached for shared reuse. Administrator permission is checked on every API request. Original documents and review notes remain private. Administrator TV search can match held originals; private review notes do not enter search. No feature here submits an ad request, contacts a campaign, changes a filed expense, or subscribes a reader to messages.
+Reader requests send search and filter choices to Alethical. Private responses are not cached for shared reuse. Original page pixels may be reused inside the server process under a 32 MiB / 128-page bound, keyed by immutable content hash and page number. Every image request still checks current administrator access and the exact retained source before that reuse. Approved publication images and withdrawal decisions do not use this original-page cache. Administrator permission is checked on every API request. Original documents and review notes remain private. Administrator TV search can match held originals; private review notes do not enter search. No feature here submits an ad request, contacts a campaign, changes a filed expense, or subscribes a reader to messages.
 
 ## Visual layout and review
 

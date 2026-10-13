@@ -7,6 +7,9 @@ commit. No command here automatically reviews source data or publishes a draft.
 
 from __future__ import annotations
 
+from collections import OrderedDict
+from threading import Lock
+
 import hashlib
 import io
 import html
@@ -1106,6 +1109,34 @@ def original_page_count(db, facility_id, file_id, content_hash, store=None):
     return count
 
 
+# Immutable source pixels only, never permission or publication decisions. Bounded
+# process memory avoids downloading and rasterizing the same source page again.
+_SOURCE_PREVIEW_LIMIT = 32 * 1024 * 1024
+_source_previews: OrderedDict[tuple[str, int], bytes] = OrderedDict()
+_source_preview_lock = Lock()
+
+
+def _source_preview_get(key):
+    with _source_preview_lock:
+        value = _source_previews.get(key)
+        if value is not None:
+            _source_previews.move_to_end(key)
+        return value
+
+
+def _source_preview_put(key, value):
+    if len(value) > _SOURCE_PREVIEW_LIMIT:
+        return
+    with _source_preview_lock:
+        _source_previews[key] = value
+        _source_previews.move_to_end(key)
+        while (
+            len(_source_previews) > 128
+            or sum(map(len, _source_previews.values())) > _SOURCE_PREVIEW_LIMIT
+        ):
+            _source_previews.popitem(last=False)
+
+
 def render_original_page(db, facility_id, file_id, content_hash, page, store=None):
     """Authenticated administrator source preview, separate from an approved copy."""
     _source(db, facility_id, file_id, content_hash)
@@ -1118,16 +1149,24 @@ def render_original_page(db, facility_id, file_id, content_hash, page, store=Non
     body_row = db.get(m.FCCSourceBody, content_hash)
     if body_row is None:
         raise ValueError("Source contents unavailable")
+    # Keep both source-identity reads ahead of a cache hit. The route also
+    # authenticates the current administrator on every request.
+    cache_key = (content_hash, page)
+    cached = _source_preview_get(cache_key)
+    if cached is not None:
+        return cached
     rendered = tv_ad_redaction.render_redacted(
         fcc_archive.read_body(store or raw_file_store_from_env(), body_row),
         [],
         only_page=page,
+        include_pdf=False,
     )
     result = next(
         (item["bytes"] for item in rendered["pages"] if item["page"] == page), None
     )
     if result is None:
         raise ValueError("Source page not found")
+    _source_preview_put(cache_key, result)
     return result
 
 
