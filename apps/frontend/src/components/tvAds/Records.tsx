@@ -54,8 +54,13 @@ export function TVFile({
     if (request.error instanceof ApiError && request.error.status === 404) notFound();
   }, [request.error, notFound]);
   // A different version must never show the previous version while loading.
-  if (request.loading) return <Busy label="Loading saved record" />;
-  if (request.error) return <Failure retry={request.retry} />;
+  if (request.loading || request.error)
+    return (
+      <>
+        <h1 className="tv-record-title">{file?.name || 'Station file'}</h1>
+        {request.error ? <Failure retry={request.retry} /> : <Busy label="Loading saved record" />}
+      </>
+    );
   if (!file) return null;
   if (file.copy_status === 'withdrawn')
     return (
@@ -69,7 +74,7 @@ export function TVFile({
     return (
       <>
         <h1>Record unavailable</h1>
-        <p className="tv-notice">An approved copy is not ready</p>
+        <p className="tv-notice tv-neutral-notice">An approved copy is not ready</p>
       </>
     );
   return (
@@ -148,7 +153,7 @@ function NewestCopy({ file }: { file: FileDetail }) {
       <Arrow />
     </a>
   ) : (
-    <p className="tv-notice">An approved copy is not ready</p>
+    <p className="tv-notice tv-neutral-notice">An approved copy is not ready</p>
   );
 }
 function FileContents({
@@ -216,25 +221,49 @@ function FileContents({
         {file.category ? `STATION CATEGORY: ${file.category}` : 'CATEGORY NOT IDENTIFIED'}
       </div>
       <h1 className="tv-record-title">{file.name}</h1>
-      <Kind value={file.kind} />
-      <p className="tv-small">{uploaded(file.uploaded_at)}</p>
-      {file.folder && (
-        <a className="tv-block-link" href={tvHref('folder', file.folder.key)}>
-          Folder “{file.folder.label}”<Arrow />
-        </a>
-      )}
-      <div className="tv-inline" style={{ margin: '12px 0 24px' }}>
+      <div className="tv-file-meta">
+        <Kind value={file.kind} />
+        <p className="tv-small">{uploaded(file.uploaded_at)}</p>
+        {file.folder && (
+          <a href={tvHref('folder', file.folder.key)}>
+            Folder “{file.folder.label}”<Arrow />
+          </a>
+        )}
+      </div>
+      <div className="tv-inline" style={{ margin: '12px 0 24px', gap: '6px 22px' }}>
         {file.versions.length > 1 && (
-          <div style={{ maxWidth: '100%', width: 360 }}>
+          <div className="tv-versions">
             <ChoiceMenu
               label="Saved versions, newest first, Central Time"
+              labelInMenu
+              menuWidth={420}
               triggerLabel={`${file.versions.length - 1} other saved ${file.versions.length === 2 ? 'version' : 'versions'}`}
               value={file.version_id || ''}
-              choices={file.versions.map((entry) => ({
-                value: entry.id,
-                label: `First saved ${centralDate(entry.first_saved_at, true)} · ${uploaded(entry.uploaded_at)}${entry.status === 'archive' ? ' · Original station file' : entry.status === 'pending' ? ' · Not shown yet: awaiting approval' : entry.status === 'withdrawn' ? ' · Not shown: its approval was withdrawn' : entry.id === file.version_id ? ' · Shown' : ' · An older approved copy'}`,
-                disabled: entry.status !== 'approved' && entry.status !== 'archive',
-              }))}
+              choices={file.versions.map((entry) => {
+                const saved = `First saved ${centralDate(entry.first_saved_at, true)}`;
+                const status =
+                  entry.status === 'archive'
+                    ? 'Original station file'
+                    : entry.status === 'pending'
+                      ? 'Not shown yet: awaiting approval'
+                      : entry.status === 'withdrawn'
+                        ? 'Not shown: its approval was withdrawn'
+                        : entry.id === file.version_id
+                          ? ''
+                          : 'An older approved copy';
+                return {
+                  value: entry.id,
+                  label: `${saved} · ${uploaded(entry.uploaded_at)}${status ? ` · ${status}` : ''}`,
+                  content: (
+                    <>
+                      <span className="tv-version-saved">{saved}</span>
+                      <span className="tv-version-detail">{uploaded(entry.uploaded_at)}</span>
+                      {status && <span className="tv-version-detail">{status}</span>}
+                    </>
+                  ),
+                  disabled: entry.status !== 'approved' && entry.status !== 'archive',
+                };
+              })}
               onChange={(id) => onParams({ version: id, copy: undefined, page: undefined })}
             />
           </div>
@@ -251,7 +280,19 @@ function FileContents({
       </div>
       {file.copy_status !== 'archive' && newest && newest.id !== file.version_id && (
         <div className="tv-notice tv-error">
-          <span>An older approved copy</span>
+          <div>
+            <span>An older approved copy</span>
+            {file.source_changed && (
+              <p className="tv-small">
+                The station file changed after this copy was saved; this page shows the saved copy
+              </p>
+            )}
+            {file.fcc_url && file.fcc_available !== false && (
+              <p className="tv-small">
+                The FCC website may now show a newer version of this file than this copy
+              </p>
+            )}
+          </div>
           <NewestCopy file={file} />
         </div>
       )}
@@ -260,20 +301,22 @@ function FileContents({
           A newer version is saved and awaiting approval: this is the newest approved copy
         </p>
       )}
-      {((newest && newest.id !== file.version_id) || pendingNewer) &&
+      {!(file.copy_status !== 'archive' && newest && newest.id !== file.version_id) &&
+        ((newest && newest.id !== file.version_id) || pendingNewer) &&
         file.fcc_url &&
         file.fcc_available !== false && (
           <p className="tv-small" style={{ marginBottom: 16 }}>
             The FCC website may now show a newer version of this file than this copy
           </p>
         )}
-      {file.source_changed && (
-        <p className="tv-small" style={{ marginBottom: 24 }}>
-          The station file changed after this copy was saved; this page shows the saved copy
-        </p>
-      )}
+      {file.source_changed &&
+        !(file.copy_status !== 'archive' && newest && newest.id !== file.version_id) && (
+          <p className="tv-small" style={{ marginBottom: 24 }}>
+            The station file changed after this copy was saved; this page shows the saved copy
+          </p>
+        )}
       {file.copy_status !== 'approved' && file.copy_status !== 'archive' ? (
-        <p className="tv-notice">
+        <p className="tv-notice tv-neutral-notice">
           We hold this file; its approved copy is not ready
           {file.fcc_url ? ', and the FCC’s own copy is linked above' : ''}
         </p>
@@ -288,14 +331,14 @@ function FileContents({
                 setPage={choosePage}
                 onWithdrawn={onWithdrawn}
               />
-              <p className="tv-small">
+              <p className="tv-small tv-viewer-caption">
                 {file.copy_status === 'archive'
                   ? 'Original station file · Not checked or approved for publication'
                   : 'Blank boxes cover personal details we do not publish'}
               </p>
             </div>
             <aside className="tv-file-side">
-              <section className="tv-card">
+              <section className={`tv-card${facts.length ? '' : ' tv-empty-facts'}`}>
                 <h2>{facts.length ? 'Checked' : 'No facts have been checked yet'}</h2>
                 {facts.map(dateValue)}
               </section>
@@ -310,9 +353,7 @@ function FileContents({
               <div className="tv-inline" style={{ justifyContent: 'space-between' }}>
                 <div>
                   <h2 style={{ marginBottom: 4 }}>Machine-read text</h2>
-                  <span className="tv-small" style={{ color: '#7a5a12' }}>
-                    Not checked
-                  </span>
+                  <span className="tv-small">Not checked</span>
                 </div>
                 {!isDesktop && (
                   <button
@@ -347,13 +388,13 @@ function FileContents({
                     </div>
                   )}
                   {item?.text_status === 'failed' || item?.text_status === 'partial' ? (
-                    <p className="tv-notice">
+                    <p className="tv-notice tv-neutral-notice">
                       This page’s text could not be {item.text_status === 'partial' ? 'fully ' : ''}
                       read by machine
                     </p>
                   ) : null}
                   {item?.text_status === 'pending' && (
-                    <p className="tv-notice">This page’s text is not ready</p>
+                    <p className="tv-notice tv-neutral-notice">This page’s text is not ready</p>
                   )}
                   {item?.text && (
                     <div className="tv-text" style={{ marginTop: 16 }}>
@@ -428,7 +469,7 @@ function FileContents({
               <section className="tv-card">
                 <h2>Other files in this folder</h2>
                 {file.other_files?.length ? (
-                  <FileRows files={file.other_files} />
+                  <FileRows files={file.other_files} folderContext={file} />
                 ) : (
                   <p className="tv-small">No other files to show</p>
                 )}
@@ -492,7 +533,11 @@ function FactValue({
           <Checked date={fact.checked_at} />
           {!!fact.history?.length && (
             <>
-              <button className="tv-link-button" aria-expanded={historyOpen} onClick={onHistory}>
+              <button
+                className="tv-link-button tv-history"
+                aria-expanded={historyOpen}
+                onClick={onHistory}
+              >
                 History
               </button>
               {historyOpen &&
@@ -524,7 +569,19 @@ function ConnectionItem({
     );
   return (
     <div className="tv-fact">
-      <h3 className="tv-fact-label">{value.kind}</h3>
+      <h3 className="tv-fact-label">
+        {(
+          {
+            committee: 'Campaign committee',
+            candidate: 'Candidate',
+            election: 'Election',
+            expense: 'Reported expense',
+            principal: 'Lobbying principal',
+            related_document: 'Related document',
+            issue: 'Issue',
+          } as Record<string, string>
+        )[value.kind] || value.kind}
+      </h3>
       <Internal href={value.href}>{value.label}</Internal>
       {value.role && <p>{value.role}</p>}
       {value.quote && <q className="tv-quote">{value.quote}</q>}
@@ -657,22 +714,59 @@ function Viewer({
         </button>
       )}
       <div className="tv-toolbar" role="group" aria-label="Document controls">
-        {button('Previous page', '‹', page <= 1, () => setPage(page - 1))}
+        {button('Previous page', <ViewerIcon path="M15 5 L8 12 L15 19" />, page <= 1, () =>
+          setPage(page - 1),
+        )}
         <output aria-live="polite">
           {page} / {file.page_count}
         </output>
-        {button('Next page', '›', page >= (file.page_count || 1), () => setPage(page + 1))}
-        {button('Zoom out', '−', !ready || zoomIndex <= 0, () => setZoom(steps[zoomIndex - 1]))}
-        {!isMobile && <output>{zoom}%</output>}
-        {button('Zoom in', '+', !ready || zoomIndex >= steps.length - 1, () =>
-          setZoom(steps[zoomIndex + 1]),
+        {button(
+          'Next page',
+          <ViewerIcon path="M9 5 L16 12 L9 19" />,
+          page >= (file.page_count || 1),
+          () => setPage(page + 1),
         )}
-        {!isMobile && button('Fit width', 'Fit width', !ready, () => setZoom(100))}
+        <span className="tv-toolbar-divider" aria-hidden="true" />
+        {button('Zoom out', <ViewerIcon path="M5 12 H19" />, !ready || zoomIndex <= 0, () =>
+          setZoom(steps[zoomIndex - 1]),
+        )}
+        {!isMobile && <output>{zoom}%</output>}
+        {button(
+          'Zoom in',
+          <ViewerIcon path="M12 5 V19 M5 12 H19" />,
+          !ready || zoomIndex >= steps.length - 1,
+          () => setZoom(steps[zoomIndex + 1]),
+        )}
+        {!isMobile && (
+          <>
+            <span className="tv-toolbar-divider" aria-hidden="true" />
+            {button(
+              'Fit width',
+              <ViewerIcon size={20} path="M3 12 H21 M7 8 L3 12 L7 16 M17 8 L21 12 L17 16" />,
+              !ready,
+              () => setZoom(100),
+            )}
+          </>
+        )}
       </div>
       <span className="tv-sr" role="status">
         Zoom {zoom}%
       </span>
     </div>
+  );
+}
+
+function ViewerIcon({ path, size = 18 }: { path: string; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d={path}
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -712,7 +806,7 @@ export function TVFolder({ recordKey, notFound }: { recordKey: string; notFound:
       <External href={data.fcc_url} suffix={`for this ${data.station} folder`}>
         This folder on the FCC website
       </External>
-      <div className="tv-notice">
+      <div className="tv-notice tv-folder-relationship">
         {data.relationship ? (
           <div>
             <p>
@@ -727,9 +821,14 @@ export function TVFolder({ recordKey, notFound }: { recordKey: string; notFound:
         )}
       </div>
       {feedback}
+      {!!data.files.length && (
+        <p className="tv-folder-count">
+          {data.files.length} {data.files.length === 1 ? 'file' : 'files'}
+        </p>
+      )}
       {data.files.length ? (
         <table
-          className="tv-table tv-folder-table"
+          className="tv-table tv-folder-table tv-folder-records"
           aria-busy={read.loading}
           style={{ opacity: read.loading ? 0.85 : 1 }}
         >
@@ -753,7 +852,6 @@ export function TVFolder({ recordKey, notFound }: { recordKey: string; notFound:
                     })}
                   >
                     {file.name}
-                    <Arrow />
                   </a>
                 </td>
                 <td data-label="Kind">
@@ -767,13 +865,19 @@ export function TVFolder({ recordKey, notFound }: { recordKey: string; notFound:
                 <td data-label="Uploaded by the station">
                   {file.uploaded_at ? centralDate(file.uploaded_at) : 'Upload date unavailable'}
                 </td>
-                <td data-label="Versions">{file.version_count}</td>
+                <td className="tv-folder-versions">
+                  {file.version_count}
+                  <span className="tv-phone-only">
+                    {' '}
+                    {file.version_count === 1 ? 'version' : 'versions'}
+                  </span>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       ) : (
-        <p className="tv-notice">No files to show in this folder</p>
+        <p className="tv-notice tv-neutral-notice">No files to show in this folder</p>
       )}
     </>
   );
@@ -805,63 +909,106 @@ export function TVAgency({ recordKey, notFound }: { recordKey: string; notFound:
   return (
     <>
       <h1 className="tv-record-title">Station files printing the agency name “{data.name}”</h1>
-      <p className="tv-lead">{PRINTED_NAME_NOTICE}</p>
+      <p className="tv-agency-intro">{PRINTED_NAME_NOTICE}</p>
       {data.unchecked && (
         <p className="tv-small">Includes machine-read agency names marked Not checked</p>
       )}
       {data.payments_href && (
-        <p style={{ marginTop: 18 }}>
+        <p className="tv-agency-payments" style={{ marginTop: 18 }}>
           <Internal href={data.payments_href}>{PRINTED_NAME_PAYMENTS}</Internal>
         </p>
       )}
       {feedback}
       <div
-        className="tv-grid3"
+        className="tv-agency-grid"
         aria-busy={read.loading}
         style={{ marginTop: 32, opacity: read.loading ? 0.85 : 1 }}
       >
+        {!data.groups.some((group) => group.files.length > 0) && (
+          <p className="tv-notice tv-neutral-notice">No files to show for this name</p>
+        )}
         {[...new Set(data.groups.map((group) => group.station))].map((station) => (
-          <section className="tv-card" key={station}>
-            <h2>{station}</h2>
+          <section className="tv-card tv-agency-card" key={station}>
+            <div className="tv-agency-card-heading">
+              <h2>{station}</h2>
+              <span>UPLOADED BY THE STATION</span>
+            </div>
             {data.groups
               .filter((group) => group.station === station)
               .map((group) => (
                 <div key={group.year}>
-                  <h3>{group.year}</h3>
-                  <FileRows files={group.files} />
+                  <h3 className="tv-agency-year">{group.year}</h3>
+                  <div className="tv-file-rows tv-rows">
+                    {group.files.map((file) => (
+                      <a
+                        className="tv-row tv-agency-file"
+                        key={file.key}
+                        href={tvHref('file', file.key, {
+                          version: file.version_id,
+                          copy: file.copy_id,
+                        })}
+                      >
+                        <div className="tv-row-main">
+                          <div className="tv-inline">
+                            <Kind value={file.kind} />
+                            <strong>{file.name}</strong>
+                          </div>
+                          <p className="tv-small">
+                            {file.category
+                              ? `Station category: ${file.category}`
+                              : 'Category not identified'}
+                            {file.agency_unchecked && ' · Agency name: Not checked'}
+                          </p>
+                          {file.role && <p className="tv-small">{file.role}</p>}
+                          {file.source_changed && (
+                            <p className="tv-small">
+                              The station file changed; this is the saved copy used for the check
+                            </p>
+                          )}
+                        </div>
+                        <span className="tv-small tv-agency-upload">
+                          {file.uploaded_at
+                            ? centralDate(file.uploaded_at)
+                            : 'Upload date unavailable'}
+                        </span>
+                      </a>
+                    ))}
+                  </div>
                 </div>
               ))}
           </section>
         ))}
       </div>
-      <section className="tv-section">
+      <section className="tv-section tv-agency-addresses">
         <h2>Addresses as printed</h2>
         {data.addresses.length ? (
-          data.addresses.map((address) => (
-            <div className="tv-address" key={address.address}>
-              <strong>{address.address}</strong>
-              {address.role && <p className="tv-small">Role as printed: {address.role}</p>}
-              {address.evidence.map((source) => (
-                <div key={`${source.file_key}-${source.page}`}>
-                  <a
-                    className="tv-block-link"
-                    href={tvHref('file', source.file_key, {
-                      version: source.version_id,
-                      copy: source.copy_id,
-                      page: source.page,
-                    })}
-                  >
-                    {source.file_name}
-                    <Arrow />
-                  </a>
-                  <p className="tv-small">
-                    {uploaded(source.uploaded_at)} · page {source.page} · Checked on{' '}
-                    {centralDate(source.checked_at)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ))
+          <div className="tv-address-grid">
+            {data.addresses.map((address) => (
+              <div className="tv-address" key={address.address}>
+                <strong>{address.address}</strong>
+                {address.role && <p className="tv-small">Role as printed: {address.role}</p>}
+                {address.evidence.map((source) => (
+                  <div key={`${source.file_key}-${source.page}`}>
+                    <a
+                      className="tv-block-link"
+                      href={tvHref('file', source.file_key, {
+                        version: source.version_id,
+                        copy: source.copy_id,
+                        page: source.page,
+                      })}
+                    >
+                      {source.file_name}
+                      <Arrow />
+                    </a>
+                    <p className="tv-small">
+                      {uploaded(source.uploaded_at)} · page {source.page} · Checked on{' '}
+                      {centralDate(source.checked_at)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
         ) : (
           <p>No address has been checked yet</p>
         )}
@@ -870,82 +1017,144 @@ export function TVAgency({ recordKey, notFound }: { recordKey: string; notFound:
   );
 }
 export function TVStation({ recordKey, notFound }: { recordKey: string; notFound: () => void }) {
+  const { isMobile } = useResponsive();
   const read = useTVRead<StationDetail>(`/stations/${encodeURIComponent(recordKey)}`);
   useEffect(() => {
     if (read.error instanceof ApiError && read.error.status === 404) notFound();
   }, [read.error, notFound]);
-  if (read.loading) return <Busy />;
-  if (read.error) return <Failure retry={read.retry} />;
+  if (read.loading || read.error)
+    return (
+      <>
+        <h1>{read.data?.call_sign || 'Station'}</h1>
+        {read.error ? <Failure retry={read.retry} /> : <Busy label="Loading station records" />}
+      </>
+    );
   const data = read.data;
   if (!data) return null;
+  // Keep the familiar category order without turning absent counts into invented zeros.
+  const knownCategories = ['Federal', 'State', 'Local', 'Non-candidate issue ads', 'Terms', ''];
   const categories = [
-    ...new Set(data.years.flatMap((year) => year.categories.map((category) => category.name))),
+    ...knownCategories,
+    ...new Set(
+      data.years
+        .flatMap((year) => year.categories.map((category) => category.name))
+        .filter((name) => !knownCategories.includes(name)),
+    ),
   ];
+  const categoryLabel = (category: string) => category.trim() || 'Not identified';
   return (
     <>
       <h1>{data.call_sign}</h1>
-      <div className="tv-inline tv-small">
+      <div className="tv-metrics tv-station-metrics">
+        <Metric label="Station files held" value={data.counts.station_files_held} />
+        <Metric label="Station folders" value={data.folder_count} />
+        <Metric label="Files with an approved copy" value={data.counts.files_with_approved_copy} />
+      </div>
+      <div className="tv-inline tv-small tv-station-meta">
         <span>Last successful file copy: {centralDate(data.last_file_copy)}</span>
         <span>Facility ID {data.facility_id}</span>
         <External href={data.fcc_url} suffix={`for ${data.call_sign}`}>
           Public records on the FCC website
         </External>
       </div>
-      <p className="tv-small">The copy date does not mean every listed file has been copied</p>
-      <div className="tv-metrics" style={{ marginTop: 32 }}>
-        <Metric label="Station files held" value={data.counts.station_files_held} />
-        <Metric label="Station folders" value={data.folder_count} />
-        <Metric label="Files with an approved copy" value={data.counts.files_with_approved_copy} />
-      </div>
-      <section className="tv-section">
+      <p className="tv-small tv-station-copy-note">
+        The copy date does not mean every listed file has been copied
+      </p>
+      <section className="tv-section tv-station-years">
         <h2>Years and categories held</h2>
-        <p className="tv-small">Folders by station category</p>
-        <div style={{ overflowX: 'auto' }}>
-          <table className="tv-table tv-folder-table">
-            <thead>
-              <tr>
-                <th>FOLDER YEAR</th>
-                {categories.map((category) => (
-                  <th key={category}>{category}</th>
-                ))}
-                <th>FILES</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.years.map((year) => (
-                <tr key={year.year}>
-                  <td>
-                    <a
-                      href={`/money/ads${queryString({ tab: 'folders', station: data.call_sign, year: year.year })}`}
+        {isMobile ? (
+          <div className="tv-station-year-cards">
+            {!data.years.length && (
+              <p className="tv-notice tv-neutral-notice">No folders held for this station</p>
+            )}
+            {data.years.map((year) => (
+              <a
+                className="tv-station-year-card"
+                key={year.year}
+                href={`/money/ads${queryString({ tab: 'folders', station: data.call_sign, year: year.year })}`}
+              >
+                <div className="tv-station-year-heading">
+                  <strong>{year.year}</strong>
+                  <span>
+                    {year.file_count} {year.file_count === 1 ? 'file' : 'files'}
+                  </span>
+                </div>
+                {categories.map((category) => {
+                  const count = year.categories.find((entry) => entry.name === category)?.count;
+                  return (
+                    <div
+                      className="tv-station-category"
+                      key={category}
+                      data-label={categoryLabel(category)}
                     >
-                      {year.year}
-                      <Arrow />
-                    </a>
-                  </td>
-                  {categories.map((category) => {
-                    const count = year.categories.find((entry) => entry.name === category)?.count;
-                    return (
-                      <td key={category} data-label={category}>
-                        {count === undefined ? (
-                          'Unavailable'
-                        ) : (
-                          <a
-                            href={`/money/ads${queryString({ tab: 'folders', station: data.call_sign, year: year.year, category })}`}
-                          >
-                            {count} {count === 1 ? 'folder' : 'folders'}
-                          </a>
-                        )}
-                      </td>
-                    );
-                  })}
-                  <td data-label="Files">{year.file_count}</td>
+                      <span>{category.trim() || 'Category not identified'}</span>
+                      <span>
+                        {count === undefined
+                          ? 'Unavailable'
+                          : `${count} ${count === 1 ? 'folder' : 'folders'}`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </a>
+            ))}
+          </div>
+        ) : (
+          <div className="tv-station-table-wrap">
+            <table className="tv-table tv-station-table">
+              <thead>
+                <tr>
+                  <th rowSpan={2}>FOLDER YEAR</th>
+                  <th
+                    colSpan={categories.length}
+                    scope="colgroup"
+                    className="tv-station-category-group"
+                  >
+                    FOLDERS BY STATION CATEGORY
+                  </th>
+                  <th rowSpan={2}>FILES</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                <tr>
+                  {categories.map((category) => (
+                    <th key={category} scope="col">
+                      {categoryLabel(category)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {!data.years.length && (
+                  <tr>
+                    <td colSpan={categories.length + 2} className="tv-station-empty">
+                      No folders held for this station
+                    </td>
+                  </tr>
+                )}
+                {data.years.map((year) => (
+                  <tr key={year.year}>
+                    <td>
+                      <a
+                        href={`/money/ads${queryString({ tab: 'folders', station: data.call_sign, year: year.year })}`}
+                      >
+                        {year.year}
+                        <span className="tv-sr"> folders at {data.call_sign}</span>
+                      </a>
+                    </td>
+                    {categories.map((category) => (
+                      <td key={category} data-label={categoryLabel(category)}>
+                        {year.categories.find((entry) => entry.name === category)?.count ??
+                          'Unavailable'}
+                      </td>
+                    ))}
+                    <td>{year.file_count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
-      <section className="tv-section">
+      <section className="tv-section tv-source-gaps">
         <h2>Source gaps</h2>
         <div className="tv-metrics">
           <Metric

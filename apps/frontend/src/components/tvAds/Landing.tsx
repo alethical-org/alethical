@@ -146,6 +146,17 @@ export function TVLanding({
         }}
       >
         <div className="tv-search-field">
+          <svg
+            className="tv-search-icon"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="6.5" stroke="#6f756f" strokeWidth="2" />
+            <path d="M16 16 L21 21" stroke="#6f756f" strokeWidth="2" strokeLinecap="round" />
+          </svg>
           <input
             aria-label="Search TV ad records"
             aria-describedby={isMobile ? 'tv-search-help' : undefined}
@@ -377,6 +388,15 @@ export function TVLanding({
                   disabled={result.page <= 1 || browse.loading}
                   onClick={() => change({ page: result.page - 1 }, 'page')}
                 >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path
+                      d="M15 5 L8 12 L15 19"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                   Previous
                 </button>
                 <span>
@@ -388,6 +408,15 @@ export function TVLanding({
                   onClick={() => change({ page: result.page + 1 }, 'page')}
                 >
                   Next
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path
+                      d="M9 5 L16 12 L9 19"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                 </button>
               </nav>
             )}
@@ -428,7 +457,7 @@ export function TVLanding({
           </p>
         </section>
       )}
-      <section className="tv-section">
+      <section className="tv-section tv-recent-section">
         <h2>Recent station uploads</h2>
         {recent.loading && !recent.data ? (
           <Busy />
@@ -437,7 +466,10 @@ export function TVLanding({
         ) : (
           <div className="tv-grid3">
             {recent.data?.stations.map((station) => (
-              <div className="tv-card tv-recent-card" key={station.call_sign}>
+              <div
+                className={`tv-card tv-recent-card${station.files.length ? '' : ' tv-recent-card-empty'}`}
+                key={station.call_sign}
+              >
                 <h3>{station.call_sign}</h3>
                 {station.files.length ? (
                   <FileRows files={station.files} recent />
@@ -449,7 +481,7 @@ export function TVLanding({
           </div>
         )}
       </section>
-      <p className="tv-section">
+      <p className="tv-section tv-guide-link">
         <a href="/money/ads/guide">
           How to read TV ad records
           <Arrow />
@@ -539,7 +571,7 @@ export function SourceDates() {
     );
   };
   return (
-    <section className="tv-section">
+    <section className="tv-section tv-source-section">
       <h2>Sources and copy dates</h2>
       <p className="tv-small">The copy date does not mean every listed file has been copied</p>
       <span className="tv-sr" role="status">
@@ -572,7 +604,7 @@ export function SourceDates() {
         <Failure retry={initial.retry}>We couldn’t load the copy dates</Failure>
       )}
       {initial.loading && !data && <Busy label="Loading copy dates" />}
-      <div className="tv-grid3" style={{ marginTop: 24 }}>
+      <div className="tv-grid3" style={{ marginTop: 16 }}>
         {(
           data?.stations || [
             {
