@@ -6,6 +6,8 @@ import {
   initializeWebHistory,
   markNextWebHistoryChangeAsReplace,
   pushWebHistory,
+  readCurrentScrollPosition,
+  saveCurrentScrollPosition,
 } from '../webHistory';
 
 const profile = '/candidates/candidate-a';
@@ -259,4 +261,56 @@ it('guards Forward as well as Back and retains the selected destination entry', 
   expect(window.history.length).toBe(originalLength);
   window.history.back();
   await vi.waitFor(() => expect(history.path).toBe(editor));
+});
+
+it('keeps the chosen earlier entry and scroll when Discard accepts canonical filter order', async () => {
+  const raw = '/bills?q=schools&page=2&chamber=house';
+  const canonical = '/bills?q=schools&chamber=house&page=2';
+  window.history.replaceState(window.history.state, '', raw);
+  const sourceEntry = currentWebHistoryEntry();
+  saveCurrentScrollPosition(812);
+  pushWebHistory(editor);
+  let navigationPath = editor;
+  let dirty = true;
+  let pendingPath: string | undefined;
+  const reset = (path: string) => {
+    if (dirty) pendingPath = path;
+    else {
+      navigationPath = path === raw ? canonical : path;
+      history.onStateChange(navigationPath);
+    }
+  };
+  const history = createGuardedWebHistory({
+    getNavigationPath: () => navigationPath,
+    resetNavigationToPath: reset,
+    shouldGuardCurrentRoute: () => navigationPath === editor,
+  });
+  window.addEventListener('popstate', history.onPopState);
+  dispose = () => {
+    window.removeEventListener('popstate', history.onPopState);
+    history.dispose();
+  };
+  const length = window.history.length;
+  window.history.back();
+  await vi.waitFor(() => expect(pendingPath).toBe(raw));
+  dirty = false;
+  reset(pendingPath!);
+  await vi.waitFor(() => expect(currentWebHistoryEntry()).toEqual(sourceEntry));
+  expect(window.location.pathname + window.location.search).toBe(raw);
+  expect(readCurrentScrollPosition()).toBe(812);
+  expect(window.history.length).toBe(length);
+});
+
+it('honors an explicit equivalent-alias replacement after a guard has been installed', () => {
+  const state = mountHistory(false);
+  state.navigate('/search?q=schools');
+  const entry = currentWebHistoryEntry();
+  const length = window.history.length;
+  markNextWebHistoryChangeAsReplace();
+  state.navigate('/bills?q=schools');
+  expect(window.location.pathname).toBe('/bills');
+  expect(currentWebHistoryEntry()).toEqual(entry);
+  expect(window.history.length).toBe(length);
+  state.navigate('/money');
+  expect(window.history.length).toBe(length + 1);
 });

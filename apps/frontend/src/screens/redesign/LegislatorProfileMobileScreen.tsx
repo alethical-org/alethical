@@ -1,3 +1,6 @@
+import { isNotFoundError } from '../../data/api';
+import { useEntityReturnPageNames } from '../../hooks/useEntityReturnPageNames';
+import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { LegislatorPersonLink } from '../../components/candidates/LegislatorPersonLink';
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import {
@@ -394,6 +397,7 @@ export function LegislatorProfileMobileScreen() {
   const legislatorId = typeof params.legislatorId === 'string' ? params.legislatorId : '';
 
   const legQuery = useLegislator(legislatorId);
+  const scrollRestoration = useHistoryScrollRestoration(!legQuery.isLoading, legislatorId);
   const billsQuery = useLegislatorBills(legislatorId, { limit: 100, role: 'chief_author' });
   const votesQuery = useLegislatorVotes(legislatorId, 1);
   const sessionsQuery = useSessions();
@@ -428,6 +432,12 @@ export function LegislatorProfileMobileScreen() {
   const [seeMoreHovered, seeMoreHover] = useFineHover();
 
   const leg = legQuery.data;
+  useEntityReturnPageNames(
+    legislatorId ? `/legislators/${legislatorId}` : null,
+    leg ? `/legislators/${leg.slug ?? leg.id}` : null,
+    leg ? legislatorDisplayName(leg.name, leg.chamber) : null,
+    isNotFoundError(legQuery.error),
+  );
   // Same shared builder api/page.ts used for the first response (#1325).
   useDocumentTitle(
     legislatorId ? `/legislators/${legislatorId}` : null,
@@ -470,15 +480,7 @@ export function LegislatorProfileMobileScreen() {
     }
   };
 
-  // Native uses the navigation stack when it has one, then the directory. Web's
-  // shared GoBackLink makes the stricter decision from marked browser history.
-  const goToLegislatorList = () => {
-    if (navigation.canGoBack?.()) {
-      navigation.goBack();
-    } else {
-      navigation.navigate('Legislators');
-    }
-  };
+  const goToLegislatorList = () => navigation.navigate('Legislators');
 
   const shellProps = {
     openMenu,
@@ -525,7 +527,11 @@ export function LegislatorProfileMobileScreen() {
 
   return (
     <PageBackground>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        {...scrollRestoration}
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+      >
         <TopNav {...shellProps} />
 
         {/* Every state of this page holds a screenful, so the footer below it
@@ -555,14 +561,24 @@ export function LegislatorProfileMobileScreen() {
           ) : legQuery.isError || !leg ? (
             <View style={styles.stateBox}>
               <Text style={styles.stateText}>We couldn’t load this legislator.</Text>
-              <GoBackLink href={routePath.legislators()} onPress={goToLegislatorList} mobile />
+              <GoBackLink
+                destinationName="Search legislators"
+                href={routePath.legislators()}
+                onPress={goToLegislatorList}
+                mobile
+              />
             </View>
           ) : (
             <>
               {/* HERO */}
               <View style={styles.heroOuter}>
                 <View style={styles.column}>
-                  <GoBackLink href={routePath.legislators()} onPress={goToLegislatorList} mobile />
+                  <GoBackLink
+                    destinationName="Search legislators"
+                    href={routePath.legislators()}
+                    onPress={goToLegislatorList}
+                    mobile
+                  />
                   <PageContextLabel style={styles.eyebrow}>Legislator profile</PageContextLabel>
                   <View testID="profile-hero-row" style={styles.heroIdentity}>
                     <View style={styles.portrait}>

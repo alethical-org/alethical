@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { Pressable, StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { backLinkProps } from '../navigation/links';
+import {
+  resolveReturnDestination,
+  canRestoreReturnDestination,
+} from '../navigation/returnDestination';
 import { theme as t } from '../theme/tokens';
 
 const RESTING_COLOR = '#4b524b';
@@ -10,6 +14,7 @@ const ACTIVE_COLOR = '#11150f';
 
 export function GoBackLink({
   href,
+  destinationName,
   onPress,
   mobile = false,
   outlined = false,
@@ -18,6 +23,7 @@ export function GoBackLink({
   style,
 }: {
   href: string;
+  destinationName: string;
   onPress: () => void;
   mobile?: boolean;
   outlined?: boolean;
@@ -29,13 +35,34 @@ export function GoBackLink({
 }) {
   const [hovered, setHovered] = useState(false);
   const [pressed, setPressed] = useState(false);
+  const [, setRevision] = useState(0);
+  useLayoutEffect(() => {
+    const refresh = () => setRevision((value) => value + 1);
+    if (typeof window === 'undefined') return;
+    window.addEventListener('alethical-return-context', refresh);
+    window.addEventListener('popstate', refresh);
+    return () => {
+      window.removeEventListener('alethical-return-context', refresh);
+      window.removeEventListener('popstate', refresh);
+    };
+  }, []);
+  const destination = resolveReturnDestination(href, destinationName);
+  const label = `Back to ${destination.name}`;
   const active = hovered || pressed;
   const color = pressed && pressedColor ? pressedColor : active ? ACTIVE_COLOR : RESTING_COLOR;
 
   return (
     <Pressable
-      {...backLinkProps(href, onPress, undefined, inAppWhenNoBack)}
-      accessibilityLabel="Go back"
+      {...backLinkProps(
+        destination.href,
+        onPress,
+        {
+          hasBack: () => canRestoreReturnDestination(destination),
+          goBack: () => window.history.back(),
+        },
+        inAppWhenNoBack && !destination.historyEntryId,
+      )}
+      accessibilityLabel={label}
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
       onPressIn={() => setPressed(true)}
@@ -48,7 +75,14 @@ export function GoBackLink({
         style,
       ]}
     >
-      <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <Svg
+        style={{ flexShrink: 0 }}
+        width={18}
+        height={18}
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden
+      >
         <Path
           d="M15 5 L8 12 L15 19"
           stroke={color}
@@ -65,7 +99,7 @@ export function GoBackLink({
           { color: outlined ? ACTIVE_COLOR : color },
         ]}
       >
-        Go back
+        {label}
       </Text>
     </Pressable>
   );
@@ -78,6 +112,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: 9,
+    maxWidth: '100%',
   },
   linkMobile: {
     minHeight: 44,
@@ -94,6 +129,7 @@ const styles = StyleSheet.create({
   },
   linkOutlinedActive: { borderColor: 'rgba(17,21,15,0.32)' },
   label: {
+    flexShrink: 1,
     fontFamily: t.typography.ui,
     fontSize: 16,
     fontWeight: t.fontWeights.semibold,

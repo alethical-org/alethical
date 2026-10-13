@@ -61,7 +61,7 @@ import {
   visibleLobbyingDonationYears,
 } from './lobbyingRecordCopy';
 import { centralDateLabel } from './moneyLanding';
-import { MONEY_SECTION_NAME } from './moneySectionName';
+import { BACK_TO_MONEY_SECTION } from './moneySectionName';
 import { committeeSlug, registerKindLabel } from './committeeMoneyShared';
 import { formatDay, formatMoney } from './moneyFormat';
 import { directoryTotalPages } from './directoryPagination';
@@ -78,7 +78,7 @@ const base = (heading: string, subheading = ''): PageSnapshot => ({
   body: [],
   bodyIsList: false,
   facts: [],
-  links: [{ label: directory.title, href: '/money/lobbying' }],
+  links: [{ label: `Back to ${directory.title}`, href: '/money/lobbying' }],
 });
 
 export function lobbyingLandingSnapshot(data: LobbyingSummary): PageSnapshot {
@@ -86,7 +86,7 @@ export function lobbyingLandingSnapshot(data: LobbyingSummary): PageSnapshot {
     ...base(directory.title),
     links: [
       { label: directory.sourceLabel, href: LOBBYING_SOURCE_URL },
-      { label: MONEY_SECTION_NAME, href: '/money' },
+      { label: BACK_TO_MONEY_SECTION, href: '/money' },
     ],
     body: [directory.intro],
     records: [

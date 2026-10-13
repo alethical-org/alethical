@@ -142,7 +142,7 @@ function readPageNumber(searchParams: URLSearchParams): number | null {
 }
 
 /** Reuse the address reader's published-list checks for article return links. */
-function safeArticleReturnHref(href: string): boolean {
+export function safeArticleReturnHref(href: string): boolean {
   if (!href.startsWith('/') || href.startsWith('//') || href.includes('\\') || href.includes('#'))
     return false;
   if (href !== '/blog' && !href.startsWith('/blog?') && !href.startsWith('/blog/')) return false;
@@ -163,7 +163,7 @@ function safeArticleReturnHref(href: string): boolean {
 
 // URL-addressable Search Bills filters (issue #135). One list drives both
 // directions so the query string and the Bills route params stay in lockstep.
-const BILLS_FILTER_PARAMS = [
+export const BILLS_FILTER_PARAMS = [
   'q',
   'topic',
   'scope',
@@ -197,7 +197,14 @@ function billsFilterParams(searchParams: URLSearchParams): Record<string, string
 // shareable and reload-safe. `tab=money` marks the route from /money, so every
 // member link it draws opens Campaign money while the ordinary directory keeps
 // opening Overview.
-const LEGISLATORS_FILTER_PARAMS = ['tab', 'q', 'chamber', 'party', 'session', 'page'] as const;
+export const LEGISLATORS_FILTER_PARAMS = [
+  'tab',
+  'q',
+  'chamber',
+  'party',
+  'session',
+  'page',
+] as const;
 
 function legislatorsFilterParams(searchParams: URLSearchParams): Record<string, string> {
   return selectedSearchParams(searchParams, LEGISLATORS_FILTER_PARAMS);
@@ -1146,49 +1153,35 @@ export function stateFromPathname(pathname: string): WebNavigationState {
     name: 'Tabs',
     state: tabState('Home'),
   };
+  const pageState = (route: WebNavigationState['routes'][number]): WebNavigationState => ({
+    routes: [homeTabs, route],
+    index: 1,
+  });
 
-  if (target.kind === 'candidates') return { routes: [homeTabs, { name: 'Candidates' }], index: 1 };
+  if (target.kind === 'candidates') return pageState({ name: 'Candidates' });
   if (target.kind === 'candidateFeatures')
-    return {
-      routes: [
-        homeTabs,
-        {
-          name: 'CandidateFeatures',
-          ...(target.candidateId ? { params: { candidateId: target.candidateId } } : {}),
-        },
-      ],
-      index: 1,
-    };
+    return pageState({
+      name: 'CandidateFeatures',
+      ...(target.candidateId ? { params: { candidateId: target.candidateId } } : {}),
+    });
   if (target.kind === 'personOverview') {
     const { kind: _kind, ...params } = target;
-    return { routes: [homeTabs, { name: 'PersonOverview', params }], index: 1 };
+    return pageState({ name: 'PersonOverview', params });
   }
   if (target.kind === 'candidateClaim' || target.kind === 'candidateManage')
-    return {
-      routes: [
-        homeTabs,
-        {
-          name: target.kind === 'candidateClaim' ? 'CandidateClaim' : 'CandidateManage',
-          params: { candidateId: target.candidateId },
-        },
-      ],
-      index: 1,
-    };
+    return pageState({
+      name: target.kind === 'candidateClaim' ? 'CandidateClaim' : 'CandidateManage',
+      params: { candidateId: target.candidateId },
+    });
   if (target.kind === 'adminCandidateClaims') {
     const { kind: _kind, ...params } = target;
-    return {
-      routes: [
-        homeTabs,
-        { name: 'AdminCandidateClaims', ...(Object.keys(params).length ? { params } : {}) },
-      ],
-      index: 1,
-    };
+    return pageState({
+      name: 'AdminCandidateClaims',
+      ...(Object.keys(params).length ? { params } : {}),
+    });
   }
   if (target.kind === 'candidateProfile')
-    return {
-      routes: [homeTabs, { name: 'CandidateProfile', params: { candidateId: target.candidateId } }],
-      index: 1,
-    };
+    return pageState({ name: 'CandidateProfile', params: { candidateId: target.candidateId } });
 
   switch (target.kind) {
     case 'tab':
@@ -1202,262 +1195,138 @@ export function stateFromPathname(pathname: string): WebNavigationState {
         index: 0,
       };
     case 'bill':
-      return {
-        routes: [
-          homeTabs,
-          {
-            name: 'BillDetail',
-            params: { billId: target.billId, tab: target.tab, track: target.track },
-          },
-        ],
-        index: 1,
-      };
+      return pageState({
+        name: 'BillDetail',
+        params: { billId: target.billId, tab: target.tab, track: target.track },
+      });
     case 'legislator':
-      return {
-        routes: [
-          homeTabs,
-          {
-            name: 'LegislatorProfile',
-            params: {
-              legislatorId: target.legislatorId,
-              contributionDetails: target.contributionDetails,
-              tab: target.tab,
-              year: target.year,
-            },
-          },
-        ],
-        index: 1,
-      };
+      return pageState({
+        name: 'LegislatorProfile',
+        params: {
+          legislatorId: target.legislatorId,
+          contributionDetails: target.contributionDetails,
+          tab: target.tab,
+          year: target.year,
+        },
+      });
     case 'findMyLegislator':
-      return {
-        routes: [homeTabs, { name: 'FindMyLegislator', params: { address: target.address } }],
-        index: 1,
-      };
+      return pageState({ name: 'FindMyLegislator', params: { address: target.address } });
     case 'bills':
-      return {
-        routes: [homeTabs, { name: 'Bills', params: target.params }],
-        index: 1,
-      };
+      return pageState({ name: 'Bills', params: target.params });
     case 'legislators':
-      return {
-        routes: [homeTabs, { name: 'Legislators', params: target.params }],
-        index: 1,
-      };
+      return pageState({ name: 'Legislators', params: target.params });
     case 'lobbyingLanding':
-      return {
-        routes: [
-          homeTabs,
-          { name: 'LobbyingLanding', ...(target.params ? { params: target.params } : {}) },
-        ],
-        index: 1,
-      };
+      return pageState({
+        name: 'LobbyingLanding',
+        ...(target.params ? { params: target.params } : {}),
+      });
     case 'lobbyingPrincipals':
     case 'lobbyingLobbyists':
-      return {
-        routes: [
-          homeTabs,
-          {
-            name: target.kind === 'lobbyingPrincipals' ? 'LobbyingPrincipals' : 'LobbyingLobbyists',
-            params: target.params,
-          },
-        ],
-        index: 1,
-      };
+      return pageState({
+        name: target.kind === 'lobbyingPrincipals' ? 'LobbyingPrincipals' : 'LobbyingLobbyists',
+        params: target.params,
+      });
     case 'lobbyingPrincipal':
     case 'lobbyingLobbyist':
-      return {
-        routes: [
-          homeTabs,
-          {
-            name: target.kind === 'lobbyingPrincipal' ? 'LobbyingPrincipal' : 'LobbyingLobbyist',
-            params: { slug: target.slug, ...(target.year ? { year: target.year } : {}) },
-          },
-        ],
-        index: 1,
-      };
+      return pageState({
+        name: target.kind === 'lobbyingPrincipal' ? 'LobbyingPrincipal' : 'LobbyingLobbyist',
+        params: { slug: target.slug, ...(target.year ? { year: target.year } : {}) },
+      });
     case 'moneyLanding':
-      return {
-        routes: [homeTabs, { name: 'MoneyLanding' }],
-        index: 1,
-      };
+      return pageState({ name: 'MoneyLanding' });
     case 'emailPreferences':
-      return { routes: [homeTabs, { name: 'EmailPreferences' }], index: 1 };
+      return pageState({ name: 'EmailPreferences' });
     case 'commentEmails':
-      return { routes: [homeTabs, { name: 'CommentEmails' }], index: 1 };
+      return pageState({ name: 'CommentEmails' });
     case 'unsubscribe':
-      return { routes: [homeTabs, { name: 'Unsubscribe' }], index: 1 };
+      return pageState({ name: 'Unsubscribe' });
     case 'read':
-      return {
-        routes: [homeTabs, { name: 'Read' }],
-        index: 1,
-      };
+      return pageState({ name: 'Read' });
     case 'events':
-      return { routes: [homeTabs, { name: 'Events' }], index: 1 };
+      return pageState({ name: 'Events' });
     case 'event':
-      return { routes: [homeTabs, { name: 'Event', params: { slug: target.slug } }], index: 1 };
+      return pageState({ name: 'Event', params: { slug: target.slug } });
     case 'readResearch':
     case 'readGuides':
-      return {
-        routes: [
-          homeTabs,
-          {
-            name: target.kind === 'readResearch' ? 'ReadResearch' : 'ReadGuides',
-            params: { page: target.page, post: target.post },
-          },
-        ],
-        index: 1,
-      };
+      return pageState({
+        name: target.kind === 'readResearch' ? 'ReadResearch' : 'ReadGuides',
+        params: { page: target.page, post: target.post },
+      });
     case 'readSet':
-      return {
-        routes: [homeTabs, { name: 'ReadSet', params: { slug: target.slug, post: target.post } }],
-        index: 1,
-      };
+      return pageState({ name: 'ReadSet', params: { slug: target.slug, post: target.post } });
     case 'shortPosts':
-      return {
-        routes: [
-          homeTabs,
-          { name: 'ShortPosts', params: { page: target.page, post: target.post } },
-        ],
-        index: 1,
-      };
+      return pageState({ name: 'ShortPosts', params: { page: target.page, post: target.post } });
     case 'readTopic':
-      return {
-        routes: [
-          homeTabs,
-          {
-            name: 'ReadTopic',
-            params: { topic: target.topic, page: target.page, post: target.post },
-          },
-        ],
-        index: 1,
-      };
+      return pageState({
+        name: 'ReadTopic',
+        params: { topic: target.topic, page: target.page, post: target.post },
+      });
     case 'research':
-      return {
-        routes: [
-          homeTabs,
-          {
-            name: 'Research',
-            params: {
-              slug: target.slug,
-              returnContext: target.from ? { href: target.from } : undefined,
-            },
-          },
-        ],
-        index: 1,
-      };
+      return pageState({
+        name: 'Research',
+        params: {
+          slug: target.slug,
+          returnContext: target.from ? { href: target.from } : undefined,
+        },
+      });
     case 'guide':
-      return {
-        routes: [
-          homeTabs,
-          {
-            name: 'Guide',
-            params: {
-              slug: target.slug,
-              returnContext: target.from ? { href: target.from } : undefined,
-            },
-          },
-        ],
-        index: 1,
-      };
+      return pageState({
+        name: 'Guide',
+        params: {
+          slug: target.slug,
+          returnContext: target.from ? { href: target.from } : undefined,
+        },
+      });
     case 'moneyCommittee':
     case 'moneyCommitteePayments': {
       const { kind, ...params } = target;
-      return {
-        routes: [
-          homeTabs,
-          {
-            name: kind === 'moneyCommittee' ? 'CommitteeMoney' : 'CommitteePayments',
-            params,
-          },
-        ],
-        index: 1,
-      };
+      return pageState({
+        name: kind === 'moneyCommittee' ? 'CommitteeMoney' : 'CommitteePayments',
+        params,
+      });
     }
     case 'moneyCommitteeList':
-      return {
-        routes: [homeTabs, { name: 'CommitteeList', params: target.params }],
-        index: 1,
-      };
+      return pageState({ name: 'CommitteeList', params: target.params });
     case 'moneyByRace':
-      return {
-        routes: [homeTabs, { name: 'MoneyByRace', params: target.params }],
-        index: 1,
-      };
+      return pageState({ name: 'MoneyByRace', params: target.params });
     case 'moneyRaceGroup':
-      return {
-        routes: [
-          homeTabs,
-          {
-            name: 'MoneyByRace',
-            params: { group: target.group, ...(target.year ? { year: target.year } : {}) },
-          },
-        ],
-        index: 1,
-      };
+      return pageState({
+        name: 'MoneyByRace',
+        params: { group: target.group, ...(target.year ? { year: target.year } : {}) },
+      });
     case 'moneySearch':
-      return {
-        routes: [homeTabs, { name: 'MoneySearch', params: target.params }],
-        index: 1,
-      };
+      return pageState({ name: 'MoneySearch', params: target.params });
     case 'outsideSpending':
-      return {
-        routes: [homeTabs, { name: 'OutsideSpending', params: target.params }],
-        index: 1,
-      };
+      return pageState({ name: 'OutsideSpending', params: target.params });
     case 'paymentsUnderName':
-      return {
-        routes: [
-          homeTabs,
-          {
-            name: 'PaymentsUnderName',
-            params: {
-              name: target.name,
-              role: target.role,
-              ...(target.q !== undefined ? { q: target.q } : {}),
-            },
-          },
-        ],
-        index: 1,
-      };
+      return pageState({
+        name: 'PaymentsUnderName',
+        params: {
+          name: target.name,
+          role: target.role,
+          ...(target.q !== undefined ? { q: target.q } : {}),
+        },
+      });
     case 'privacy':
-      return {
-        routes: [homeTabs, { name: 'Privacy' }],
-        index: 1,
-      };
+      return pageState({ name: 'Privacy' });
     case 'adminUsers':
-      return { routes: [homeTabs, { name: 'AdminUsers' }], index: 1 };
+      return pageState({ name: 'AdminUsers' });
     case 'adminSiteMetrics':
-      return { routes: [homeTabs, { name: 'AdminSiteMetrics' }], index: 1 };
+      return pageState({ name: 'AdminSiteMetrics' });
     case 'siteMetrics':
-      return {
-        routes: [homeTabs, { name: 'SiteMetrics' }],
-        index: 1,
-      };
+      return pageState({ name: 'SiteMetrics' });
     case 'terms':
-      return {
-        routes: [homeTabs, { name: 'Terms' }],
-        index: 1,
-      };
+      return pageState({ name: 'Terms' });
     case 'aboutUs':
-      return {
-        routes: [homeTabs, { name: 'AboutUs' }],
-        index: 1,
-      };
+      return pageState({ name: 'AboutUs' });
     case 'services':
-      return {
-        routes: [homeTabs, { name: 'Services' }],
-        index: 1,
-      };
+      return pageState({ name: 'Services' });
     case 'contactUs':
-      return {
-        routes: [
-          homeTabs,
-          target.article
-            ? { name: 'ContactUs', params: { article: target.article } }
-            : { name: 'ContactUs' },
-        ],
-        index: 1,
-      };
+      return pageState(
+        target.article
+          ? { name: 'ContactUs', params: { article: target.article } }
+          : { name: 'ContactUs' },
+      );
     case 'confirmEmail':
       return {
         routes: [{ name: 'ConfirmEmail' }],
@@ -1483,15 +1352,25 @@ export function stateFromPathname(pathname: string): WebNavigationState {
         index: 1,
       };
     case 'ask':
-      return {
-        routes: [homeTabs, { name: 'Ask', params: target.params }],
-        index: 1,
-      };
+      return pageState({ name: 'Ask', params: target.params });
     case 'notFound':
     default:
-      return {
-        routes: [homeTabs, { name: 'NotFound', params: { path: pathname } }],
-        index: 1,
-      };
+      return pageState({ name: 'NotFound', params: { path: pathname } });
+  }
+}
+
+/** Compare the page state the address owner actually reads, without rewriting history. */
+export function sameNavigationPath(a: string, b: string): boolean {
+  if (a === b) return true;
+  const key = (path: string) => {
+    const [address, fragment] = path.split('#', 2);
+    return (
+      pathnameFromNavigationState(stateFromPathname(address)) + (fragment ? `#${fragment}` : '')
+    );
+  };
+  try {
+    return key(a) === key(b);
+  } catch {
+    return false;
   }
 }

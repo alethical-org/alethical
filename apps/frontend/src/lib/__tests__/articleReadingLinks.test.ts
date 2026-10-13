@@ -45,6 +45,14 @@ it('keeps a published local list as the return link in a new tab', () => {
   }
 });
 
+it.each([
+  ['/blog/research?page=2&post=example', 'Back to Research reports'],
+  ['/blog/short-posts?page=3&post=example', 'Back to Short posts'],
+  ['/blog/guides?post=example', 'Back to Guides'],
+])('names the same retained collection address in an article return: %s', (href, label) => {
+  expect(articleReturnDestination(href)).toEqual({ href, label });
+});
+
 describe('first HTML correction contact', () => {
   for (const piece of [MONEY_ONLY_GOES_ONE_WAY, WHO_HAS_TO_REPORT_THEIR_MONEY, LOBBYIST_GIVING]) {
     it(`links Contact us within the closing note of ${piece.slug}`, () => {

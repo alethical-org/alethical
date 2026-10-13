@@ -592,7 +592,7 @@ describe('the legislator snapshot says only what the profile draws', () => {
     expect(former.subheading).toBe('');
     expect(former.body).toEqual([]);
     expect(former.facts).toEqual([]);
-    expect(former.links).toEqual([{ label: 'Legislators', href: '/legislators' }]);
+    expect(former.links).toEqual([{ label: 'Back to Search legislators', href: '/legislators' }]);
 
     // The 2 invented claims, and the 3 stale committee rows, in the text that
     // actually ships. `Senate` is banned outright here: this record names the
@@ -647,7 +647,9 @@ describe('the legislator snapshot says only what the profile draws', () => {
     expect(unnamedChamber.subheading).toBe('');
     expect(unnamedChamber.body).toEqual([]);
     expect(unnamedChamber.facts).toEqual([]);
-    expect(unnamedChamber.links).toEqual([{ label: 'Legislators', href: '/legislators' }]);
+    expect(unnamedChamber.links).toEqual([
+      { label: 'Back to Search legislators', href: '/legislators' },
+    ]);
     for (const guess of [
       'Sen.',
       'Rep.',
@@ -705,7 +707,7 @@ describe('the legislator snapshot says only what the profile draws', () => {
         label: `Official ${member.chamberWord} profile`,
         href: 'https://www.example.mn.gov/members/profile/99999',
       },
-      { label: 'Legislators', href: '/legislators' },
+      { label: 'Back to Search legislators', href: '/legislators' },
     ]);
     for (const kept of [
       `${member.title} Pat Doe`,
@@ -1676,6 +1678,7 @@ describe('a committee’s record in the first response', () => {
   const moneyOut = committeeFixture.money_out;
 
   it('is headed by the register’s own name and its registration number', () => {
+    expect(snapshot.backLink).toEqual({ label: 'Back to Money in politics', href: '/money' });
     expect(snapshot.heading).toBe('Jane Fonda Climate PAC');
     // Reads 'Political committee', not the register's broad 3-way kind: this fixture is
     // a `PC` filer and issue #1694 spells out all 6 of the Board's finer codes. The
@@ -2245,6 +2248,10 @@ describe('a committee’s full payments list in the first response', () => {
   });
 
   it('links back to the committee whose payments these are', () => {
+    expect(snapshot.backLink).toEqual({
+      label: 'Back to Jane Fonda Climate PAC',
+      href: '/money/committees/jane-fonda-climate-pac-41326?tab=gave&year=2026',
+    });
     expect(snapshot.links.map((link) => link.href)).toContain(
       '/money/committees/jane-fonda-climate-pac-41326?tab=gave&year=2026',
     );

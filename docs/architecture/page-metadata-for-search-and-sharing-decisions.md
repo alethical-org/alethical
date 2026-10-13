@@ -472,6 +472,12 @@ If the bullet was meant literally, it is a one-line change to `buildLegislatorSh
 bullet is now corrected to match. A description says what a reader will find *on the page*, and
 party is an attribute of the person rather than a section of it.
 
+**Current return-link requirement.** The historical review below describes the earlier
+“Go back” implementation. [Contextual page-return links](../design/design-principles.md#contextual-page-return-links)
+now require **Back to <destination name>** with matching words, address and activation.
+The no-breadcrumb ruling remains: naming a contextual return does not establish a fixed
+hierarchy or authorize adding breadcrumb markup.
+
 **3. The breadcrumb is two levels, and the visible path it claims is a link, not a labelled trail.**
 §6 says `BreadcrumbList` belongs on detail pages "only where the page really shows that path". What a
 detail page shows is a link back to its list, labelled "Go back" rather than "Bills". The shipped

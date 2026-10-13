@@ -1,11 +1,28 @@
+import {
+  capturePageReturn,
+  returnAccessVersion,
+  accountReturn,
+  keepAccountReturn,
+} from './returnCaptureBridge';
+
 const HISTORY_STATE_KEY = '__alethical';
 const SESSION_STORAGE_KEY = 'alethical:history-session';
 const SCROLL_STORAGE_PREFIX = 'alethical:scroll';
+
+export type AppReturnDestination = {
+  sessionId: string;
+  depth: number;
+  entryId: string;
+  href: string;
+  name?: string;
+  accessVersion?: number;
+};
 
 export type AppHistoryEntry = {
   sessionId: string;
   depth: number;
   entryId: string;
+  returnTo?: AppReturnDestination;
 };
 
 type HistoryState = Record<string, unknown>;
@@ -66,10 +83,19 @@ function currentSessionId() {
   if (cachedSessionId) {
     return cachedSessionId;
   }
-  const stored = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
+  let stored: string | null = null;
+  try {
+    stored = window.sessionStorage.getItem(SESSION_STORAGE_KEY);
+  } catch {
+    /* Memory-only tab. */
+  }
   cachedSessionId = stored || newId();
   if (!stored) {
-    window.sessionStorage.setItem(SESSION_STORAGE_KEY, cachedSessionId);
+    try {
+      window.sessionStorage.setItem(SESSION_STORAGE_KEY, cachedSessionId);
+    } catch {
+      /* Memory-only tab. */
+    }
   }
   return cachedSessionId;
 }
@@ -96,7 +122,24 @@ export function initializeWebHistory() {
 
 export function pushWebHistory(path: string) {
   const sessionId = currentSessionId();
-  window.history.pushState(nextHistoryState(window.history.state, sessionId, newId()), '', path);
+  const previous = currentWebHistoryEntry();
+  const pathBefore = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  const captured = capturePageReturn(pathBefore);
+  const href = captured?.href;
+  const name = captured?.name;
+  const next = nextHistoryState(window.history.state, sessionId, newId());
+  if (previous && href) {
+    const destination = { sessionId, depth: previous.depth, entryId: previous.entryId, href, name };
+    if (captured?.public) (next[HISTORY_STATE_KEY] as AppHistoryEntry).returnTo = destination;
+    else {
+      keepAccountReturn((next[HISTORY_STATE_KEY] as AppHistoryEntry).entryId, {
+        ...destination,
+        accessVersion: returnAccessVersion()!,
+      });
+    }
+  }
+  window.history.pushState(next, '', path);
+  window.dispatchEvent(new window.Event('alethical-return-context'));
 }
 
 export function hasInAppBackEntry() {
@@ -106,8 +149,10 @@ export function hasInAppBackEntry() {
 
 /** The current local entry, for a named return link that skips intermediate filters. */
 export function currentWebHistoryEntry(): AppHistoryEntry | null {
-  if (typeof window === 'undefined') return null;
-  return historyEntryFromState(window.history.state, currentSessionId());
+  if (typeof window === 'undefined' || !window.history) return null;
+  const entry = historyEntryFromState(window.history.state, currentSessionId());
+  const protectedReturn = entry ? accountReturn(entry.entryId) : undefined;
+  return entry && protectedReturn ? { ...entry, returnTo: protectedReturn } : entry;
 }
 
 function currentScrollStorageKey() {
@@ -119,7 +164,11 @@ function currentScrollStorageKey() {
 export function saveCurrentScrollPosition(y: number) {
   const key = currentScrollStorageKey();
   if (key) {
-    window.sessionStorage.setItem(key, String(Math.max(0, Math.round(y))));
+    try {
+      window.sessionStorage.setItem(key, String(Math.max(0, Math.round(y))));
+    } catch {
+      /* Scrolling stays native. */
+    }
   }
 }
 
@@ -128,7 +177,12 @@ export function readCurrentScrollPosition() {
   if (!key) {
     return 0;
   }
-  const saved = Number(window.sessionStorage.getItem(key));
+  let saved = 0;
+  try {
+    saved = Number(window.sessionStorage.getItem(key));
+  } catch {
+    /* No saved position. */
+  }
   return Number.isFinite(saved) && saved > 0 ? saved : 0;
 }
 
@@ -156,4 +210,5 @@ export function consumeWebHistoryReplaceMark(): boolean {
 export function replaceWebHistoryPath(path: string) {
   if (typeof window === 'undefined') return;
   window.history.replaceState(window.history.state, '', path);
+  window.dispatchEvent(new window.Event('alethical-return-context'));
 }

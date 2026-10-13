@@ -113,7 +113,7 @@ scroll-restoration protections remain integrated.
   transparent boundary. Hover and arrow-key selection change that boundary to bright
   green (`#2ed47e`) without filling the row or moving its contents. Each list scrolls
   vertically within 300 pixels and cannot scroll sideways.
-- The focused race uses a flat warm-grey page, matched outlined Go back and Share
+- The focused race uses a flat warm-grey page, matched outlined named page-return and Share
   controls, a cyan context label, corrected type hierarchy, and a full-width divider
   before Limits of the campaign records.
 - The contributions card places the donor explanation and payment-copy date before its

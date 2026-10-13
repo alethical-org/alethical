@@ -1,3 +1,4 @@
+import { returnPageName } from '../../navigation/returnDestination';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -533,21 +534,36 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   const backBill = answeringBill ?? resolvedBill;
   const fallbackBillId = backBill?.id ?? route.params?.billId;
   const fallbackLegislatorId = route.params?.legislatorId;
-  const fallbackHref = fallbackBillId
-    ? routePath.bill(fallbackBillId)
-    : fallbackLegislatorId
-      ? routePath.legislator(fallbackLegislatorId)
-      : isLegislators
+  const fallbackBillName =
+    backBill?.identifier ??
+    (fallbackBillId ? returnPageName(routePath.bill(fallbackBillId)) : null);
+  const fallbackLegislatorName = fallbackLegislatorId
+    ? returnPageName(routePath.legislator(fallbackLegislatorId))
+    : null;
+  const useBillFallback = Boolean(fallbackBillId && fallbackBillName);
+  const useLegislatorFallback =
+    !fallbackBillId && Boolean(fallbackLegislatorId && fallbackLegislatorName);
+  const useLegislatorsList = !fallbackBillId && Boolean(fallbackLegislatorId || isLegislators);
+  const fallbackHref = useBillFallback
+    ? routePath.bill(fallbackBillId!)
+    : useLegislatorFallback
+      ? routePath.legislator(fallbackLegislatorId!)
+      : useLegislatorsList
         ? routePath.legislators()
         : routePath.bills();
+  const fallbackName = useBillFallback
+    ? fallbackBillName!
+    : useLegislatorFallback
+      ? fallbackLegislatorName!
+      : useLegislatorsList
+        ? 'Search legislators'
+        : 'Search bills';
   const goBackOrFallback = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-    } else if (fallbackBillId) {
-      navigation.navigate('BillDetail', { billId: fallbackBillId });
-    } else if (fallbackLegislatorId) {
-      navigation.navigate('LegislatorProfile', { legislatorId: fallbackLegislatorId });
-    } else if (isLegislators) {
+    if (useBillFallback) {
+      navigation.navigate('BillDetail', { billId: fallbackBillId! });
+    } else if (useLegislatorFallback) {
+      navigation.navigate('LegislatorProfile', { legislatorId: fallbackLegislatorId! });
+    } else if (useLegislatorsList) {
       navigation.navigate('Legislators');
     } else {
       navigation.navigate('Bills');
@@ -612,7 +628,12 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   const hero = displayQuestion ? (
     <View style={[styles.header, isIssueAnswer && styles.headerIssueAnswer]}>
       <View style={styles.headerMain}>
-        <GoBackLink href={fallbackHref} onPress={goBackOrFallback} mobile={!isDesktop} />
+        <GoBackLink
+          destinationName={fallbackName}
+          href={fallbackHref}
+          onPress={goBackOrFallback}
+          mobile={!isDesktop}
+        />
         {eyebrow ? (
           <View style={styles.eyebrowRow}>
             <Text style={[styles.eyebrow, eyebrow.muted && styles.eyebrowMuted]}>

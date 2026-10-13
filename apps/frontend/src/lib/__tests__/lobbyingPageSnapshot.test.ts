@@ -60,7 +60,7 @@ describe('lobbying before the app starts', () => {
         label: 'View Minnesota’s lobbying source files',
         href: 'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/',
       },
-      { label: 'Money in politics', href: '/money' },
+      { label: 'Back to Money in politics', href: '/money' },
     ]);
     const html = renderPageSnapshot(snapshot);
     expect(html).toContain('/money/lobbying/lobbyists');

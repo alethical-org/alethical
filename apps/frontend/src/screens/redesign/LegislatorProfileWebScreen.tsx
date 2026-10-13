@@ -1,3 +1,5 @@
+import { isNotFoundError } from '../../data/api';
+import { useEntityReturnPageNames } from '../../hooks/useEntityReturnPageNames';
 import { LegislatorPersonLink } from '../../components/candidates/LegislatorPersonLink';
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import {
@@ -113,6 +115,12 @@ export function LegislatorProfileWebScreen() {
 
   const legislatorQuery = useLegislator(legislatorId);
   const legislator = legislatorQuery.data;
+  useEntityReturnPageNames(
+    legislatorId ? `/legislators/${legislatorId}` : null,
+    legislator ? `/legislators/${legislator.slug ?? legislator.id}` : null,
+    legislator ? legislatorDisplayName(legislator.name, legislator.chamber) : null,
+    isNotFoundError(legislatorQuery.error),
+  );
   const moneyQuery = useLegislatorCampaignMoney(legislatorId, moneyYear, {
     enabled: activeTab === 'money',
   });
@@ -191,15 +199,7 @@ export function LegislatorProfileWebScreen() {
     }
   };
 
-  // Native uses the navigation stack when it has one, then the directory. Web's
-  // shared GoBackLink makes the stricter decision from marked browser history.
-  const goToLegislatorList = () => {
-    if (navigation.canGoBack?.()) {
-      navigation.goBack();
-    } else {
-      navigation.navigate('Legislators');
-    }
-  };
+  const goToLegislatorList = () => navigation.navigate('Legislators');
 
   const shell = (children: React.ReactNode, hero: React.ReactNode) => (
     <SearchPageShell
@@ -226,7 +226,11 @@ export function LegislatorProfileWebScreen() {
   if (legislatorQuery.isError || !legislator) {
     return shell(
       <View style={styles.stateBox}>
-        <GoBackLink href={routePath.legislators()} onPress={goToLegislatorList} />
+        <GoBackLink
+          destinationName="Search legislators"
+          href={routePath.legislators()}
+          onPress={goToLegislatorList}
+        />
         <Text style={styles.stateText}>
           We couldn’t load this legislator right now. Please try again in a moment.
         </Text>
@@ -504,6 +508,7 @@ function Hero({
   return (
     <View>
       <GoBackLink
+        destinationName="Search legislators"
         href={routePath.legislators()}
         onPress={onAllLegislators}
         style={styles.backLink}

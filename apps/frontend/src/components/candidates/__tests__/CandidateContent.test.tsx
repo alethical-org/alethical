@@ -750,7 +750,7 @@ it('keeps confirmed service distinct, links the same legislator and removes fail
   expect(host.textContent).not.toContain('Formerly served as');
   expect(host.querySelector('a[href="/legislators/sample-person"]')).toBeTruthy();
 });
-it('shows a reelection office once and keeps a safe Go back link on direct entry', () => {
+it('shows a reelection office once and keeps a safe Back to Find my candidates link on direct entry', () => {
   act(() =>
     root.render(
       <CandidateProfileContent
@@ -777,9 +777,9 @@ it('shows a reelection office once and keeps a safe Go back link on direct entry
   );
   expect(host.textContent).toContain('Running for reelection');
   expect(host.textContent!.match(/State Senator/g)).toHaveLength(1);
-  const back = host.querySelector<HTMLAnchorElement>('a[aria-label="Go back"]');
+  const back = host.querySelector<HTMLAnchorElement>('a[aria-label="Back to Find my candidates"]');
   expect(back?.getAttribute('href')).toBe('/candidates');
-  expect(back?.textContent).toBe('Go back');
+  expect(back?.textContent).toBe('Back to Find my candidates');
   expect(back?.querySelector('svg path')?.getAttribute('d')).toBe('M15 5 L8 12 L15 19');
   expect(host.textContent).not.toContain('Back to candidates');
 });

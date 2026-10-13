@@ -95,6 +95,7 @@ export function CandidateProfileContent({
     >
       <View style={styles.content}>
         <GoBackLink
+          destinationName="Find my candidates"
           href="/candidates"
           onPress={onBack}
           mobile={isMobile}

@@ -134,6 +134,10 @@ describe('public first-response copy matches the actual screens', () => {
         ],
       });
       for (const snapshot of [candidateProfilePageSnapshot(profile), person]) {
+        expect(snapshot.backLink).toEqual({
+          label: 'Back to Find my candidates',
+          href: '/candidates',
+        });
         expect(snapshotLines(snapshot)).toContain('Election results');
         expect(snapshotLines(snapshot)).toContain(expected);
       }
@@ -174,7 +178,7 @@ describe('public first-response copy matches the actual screens', () => {
       vi.setSystemTime(new Date('2026-10-07T12:00:00Z'));
       const profile = { ...record, legislator: { ...record.legislator!, serviceStatus: status } };
       expect(candidateProfilePageSnapshot(profile).backLink).toEqual({
-        label: 'Go back',
+        label: 'Back to Find my candidates',
         href: '/candidates',
       });
       const shown = screenText(

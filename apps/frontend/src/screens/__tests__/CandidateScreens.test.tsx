@@ -92,13 +92,17 @@ it('opens a direct public profile with the record’s own election and source da
   getProfile.mockResolvedValue(record);
   render();
   expect(host.textContent).toContain('Loading candidate record');
-  expect(host.querySelector('a[aria-label="Go back"]')?.getAttribute('href')).toBe('/candidates');
+  expect(
+    host.querySelector('a[aria-label="Back to Find my candidates"]')?.getAttribute('href'),
+  ).toBe('/candidates');
   await flush();
   expect(host.textContent).toContain('Public Candidate');
   expect(host.textContent).toContain('November 3, 2026');
   expect(host.textContent).toContain('Checked September 30, 2026');
   expect(host.textContent).toContain('May be out of date');
-  expect(host.querySelector('a[aria-label="Go back"]')?.getAttribute('href')).toBe('/candidates');
+  expect(
+    host.querySelector('a[aria-label="Back to Find my candidates"]')?.getAttribute('href'),
+  ).toBe('/candidates');
   expect(host.textContent).not.toContain('Back to candidates');
 });
 it('opens this candidate’s admin requests from both the profile link and its click handler', async () => {

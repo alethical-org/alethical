@@ -4,13 +4,14 @@ import { describe, expect, it } from 'vitest';
 import { IA } from '../../navigation/ia';
 import { MONEY_PROMO_CTA, MONEY_PROMO_HEADING } from '../homepage';
 import { MONEY_LANDING_HEADING } from '../moneyLanding';
-import { MONEY_SECTION_NAME } from '../moneySectionName';
+import { BACK_TO_MONEY_SECTION, MONEY_SECTION_NAME } from '../moneySectionName';
 import { STATIC_PAGE_METADATA } from '../staticPageMetadata';
 import { LOBBYING_DIRECTORY_COPY } from '../lobbyingDirectoryCopy';
 
 describe('one name for the /money destination', () => {
   it('uses the short nav label while keeping the full destination name elsewhere', () => {
     expect(MONEY_SECTION_NAME).toBe('Money in politics');
+    expect(BACK_TO_MONEY_SECTION).toBe('Back to Money in politics');
     expect(IA.find((item) => item.path === '/money')?.label).toBe('Money');
     expect(MONEY_PROMO_CTA).toBe(MONEY_SECTION_NAME);
     expect(MONEY_LANDING_HEADING).toBe(MONEY_SECTION_NAME);
@@ -35,7 +36,7 @@ describe('one name for the /money destination', () => {
       new URL(`../../screens/redesign/${screen}.tsx`, import.meta.url),
       'utf8',
     );
-    expect(source).toMatch(/style=\{styles\.back(?:Label|Text)\}>\{MONEY_SECTION_NAME\}/);
+    expect(source).toMatch(/style=\{styles\.back(?:Label|Text)\}>\{BACK_TO_MONEY_SECTION\}/);
     expect(source).not.toContain('Follow the money');
   });
 

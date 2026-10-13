@@ -28,6 +28,7 @@ import { lobbyingNoSpendingRows } from '../../lib/lobbyingDirectoryCopy';
 import { lobbyingPageMetadata } from '../../lib/lobbyingMetadata';
 import { publicPageUrl, type ShareContent } from '../../lib/share';
 import type { LobbyingPrincipalLobbyist } from '../../lib/lobbyingTypes';
+import { forgetReturnPageName, useReturnPageName } from '../../navigation/returnDestination';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
@@ -63,6 +64,26 @@ export function LobbyingPrincipalScreen({
       ? lobbyingPageMetadata(pagePath, principal.name, { kind: 'principal' }).title
       : null;
   useDocumentTitle(pagePath, pageTitle);
+  useReturnPageName(
+    pagePath,
+    !missing &&
+      principal &&
+      String(principal.entity_id) === entityId &&
+      principal.state === 'reported'
+      ? principal.name
+      : null,
+  );
+
+  useEffect(() => {
+    if (
+      pagePath &&
+      query.isError &&
+      query.error instanceof ApiError &&
+      query.error.status === 404
+    ) {
+      forgetReturnPageName(pagePath);
+    }
+  }, [pagePath, query.isError, query.error]);
 
   const shell = (children: React.ReactNode) => (
     <LobbyingPageFrame

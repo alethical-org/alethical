@@ -109,9 +109,11 @@ centred, 40px below it: 200 × 220 on computer and tablet, 160 × 176 on phones.
 
 The submit button says **Find** on entry and in **Change address**, matching
 `/find-my-legislator`; the page heading supplies the search context. The homepage
-link keeps **Find my candidates**. Candidate profiles use the standard **Go back**
-link, returning to the previous Alethical page in the tab or `/candidates` on a
-direct visit.
+link keeps **Find my candidates**. Candidate profiles use **Back to <destination name>**
+for a known safe earlier Alethical page, or **Back to Find my candidates** at
+`/candidates` on a direct visit. Keep 1 stable finder name with or without results.
+The visible and accessible words, copied address and click name the same page,
+following [contextual page-return links](../design/design-principles.md#contextual-page-return-links).
 Entry fields and buttons have a 60px minimum height. Entry **Find** is 150px wide on
 computer and tablet and full width on phones. The magnifier and word form 1 group
 with a 9px gap, centred 3px left of true centre because the thin icon carries less
@@ -518,7 +520,7 @@ administrator actions are black. Each explanation sits below its action, before 
 footer, and the button fills the column on phone. The inactive legislator claim preview
 retains its pale treatment.
 
-Signed out with claims open, the claim page shows the grey **Go back**, **Claim this
+Signed out with claims open, the claim page shows the grey named page-return link (direct entry: **Back to <name>’s candidate profile**), **Claim this
 candidate profile**, a paragraph about what a profile offers voters, **Explore candidate
 profile features**, the candidate card (name, **Candidate for**, office, voting area,
 election), **Sign in to continue**, and the review note under a dividing line. Signed in,
@@ -547,18 +549,18 @@ proves campaign authority.
 Unsent answers are kept in memory for the same signed-in account and candidate, so a trip
 to another page in the same tab returns the claim step as it was left. They are never
 written to browser storage or an address, and any account change clears them. Reopening
-the form after a decision or a withdrawal brings back unsent answers too. Answers held only in memory are lost when the page fully reloads, for example **Go back**
-on a claim page opened directly, with no earlier page in that tab. **Go back** on
-`/candidates/features` for a candidate never reloads: with no earlier page in the tab it
+the form after a decision or a withdrawal brings back unsent answers too. Answers held only in memory are lost when the page fully reloads, for example the named page-return link
+on a claim page opened directly, with no earlier page in that tab. **Back to <name>’s
+profile claim** on `/candidates/features` for an established candidate never reloads: with no earlier page in the tab it
 returns to that claim step inside the app. A claim step that comes back into view shows
 exactly what the tab last kept for it, including changed messages, and is empty if those
 answers were emptied.
 
 On `/candidates/features` for a candidate, its 2 links back to that candidate's claim page
-(**Go back** and **Continue claiming this candidate profile**) can carry the answers to a
+(**Back to <name>’s profile claim** and **Continue claiming this candidate profile**) can carry the answers to a
 new tab. The reachable path is the signed-out claim page, **Explore candidate profile
 features**, signing in there, **Continue claiming this candidate profile**, typing answers,
-then **Go back** or the browser's Back to the features page. Ctrl- or Cmd-clicking one of
+then **Back to Candidate profile features** or the browser's Back to the features page. Ctrl- or Cmd-clicking one of
 those 2 links (with or without Shift), or middle-clicking it, while the tab holds answers for
 that candidate opens the public claim address in a new tab from the page itself, which keeps
 that one window only in its own memory. Once the new tab's claim form
@@ -602,9 +604,9 @@ features sit under 4 headings (**Who you are**, **Questions and answers**, **Kee
 voters informed**, **Public records and your team**), followed by a **How it works** card.
 Reached from the claim page, the address carries only the public candidate id; a card
 under the introduction shows the candidate's name and office beside **Continue claiming
-this candidate profile** (no card once that election has ended), and **Go back** returns
-to that claim step. A direct visit has
-no candidate name or claim action, **Go back** falls back to `/candidates`, and the page
+this candidate profile** (no card once that election has ended), and **Back to <name>’s profile claim** returns
+to that claim step, including its closed-election status when claims have ended. A direct visit has
+no candidate name or claim action, **Back to Find my candidates** opens `/candidates`, and the page
 ends with **Find candidates**. The page has no comments, rankings, promise scores,
 donations, follower lists, paid placement or prices. The plain `/candidates/features`
 address is an ordinary public page that search engines may list; an address carrying a
@@ -662,7 +664,7 @@ still needs admin review. Closed-election public states explain what a profile
 claim means and show no new-request button.
 
 An approved owner uses `/candidates/<id>/manage` for a plain-text statement of at
-most 2000 characters, including after the election. The page opens with **Go back** and
+most 2000 characters, including after the election. The page opens with the named page-return link (direct entry: **Back to <name>’s candidate profile**) and
 **View public profile** (both ask before discarding unsaved edits), "Manage the campaign
 information voters see on this profile. Official records are shown separately and can’t be
 edited here.", and the candidate card with **Campaign access verified**. Under the editor,

@@ -61,6 +61,7 @@ import {
   SEARCH_ANOTHER_NAME,
 } from '../../lib/paymentsUnderName';
 import { formatMoney } from '../../lib/moneyFormat';
+import { useReturnPageName } from '../../navigation/returnDestination';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
@@ -148,6 +149,10 @@ export function PaymentsUnderNameScreen({
     role ? paymentsUnderNamePageMetadata(name, role).title : null,
   );
 
+  useReturnPageName(
+    role && name.trim() ? routePath.moneyPaymentsUnderName(name, role, route.params?.q) : null,
+    role && name.trim() ? paymentsUnderNameHeading(name, role) : null,
+  );
   const pages = list.data?.pages ?? [];
   const firstPage = pages[0];
   const rows = pages.flatMap((page) => page.payments);

@@ -1,3 +1,5 @@
+import { returnPageName } from '../navigation/returnDestination';
+import { useEntityReturnPageNames } from '../hooks/useEntityReturnPageNames';
 import { personPageMetadata } from '../lib/personMetadata';
 import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
@@ -25,6 +27,12 @@ export function PersonOverviewScreen({ navigation, route }: RootScreenProps<'Per
   >({ id: personId, kind: 'loading' });
   const [retry, setRetry] = useState(0);
   const current = state.id === personId ? state : { id: personId, kind: 'loading' as const };
+  useEntityReturnPageNames(
+    `/people/${personId}`,
+    current.kind === 'ready' ? `/people/${current.record.id}` : null,
+    current.kind === 'ready' ? current.record.name : null,
+    current.kind === 'not-found',
+  );
   useEffect(() => {
     const controller = new AbortController();
     setState({ id: personId, kind: 'loading' });
@@ -45,24 +53,36 @@ export function PersonOverviewScreen({ navigation, route }: RootScreenProps<'Per
       ? personPageMetadata(current.record).title
       : 'Public record | Alethical',
   );
-  const validCandidateReturn =
-    current.kind === 'ready' &&
-    fromCandidateId &&
-    current.record.elections.some((item) => item.candidateId === fromCandidateId);
+  const candidateReturn =
+    current.kind === 'ready' && fromCandidateId
+      ? current.record.elections.find((item) => item.candidateId === fromCandidateId)
+      : null;
   const validLegislatorReturn =
     current.kind === 'ready' &&
     fromLegislatorSlug &&
     current.record.legislator?.slug === fromLegislatorSlug;
-  const returnUrl = validCandidateReturn
-    ? `/candidates/${fromCandidateId}`
+  const legislatorReturnName = validLegislatorReturn
+    ? returnPageName(`/legislators/${fromLegislatorSlug}`)
+    : null;
+  const returnUrl = candidateReturn
+    ? `/candidates/${candidateReturn.candidateId}`
     : validLegislatorReturn
-      ? `/legislators/${fromLegislatorSlug}`
+      ? legislatorReturnName
+        ? `/legislators/${fromLegislatorSlug}`
+        : '/legislators'
       : '/candidates';
+  const returnName = candidateReturn
+    ? `${candidateReturn.name}’s candidate profile`
+    : validLegislatorReturn
+      ? (legislatorReturnName ?? 'Search legislators')
+      : 'Find my candidates';
   const onBack = () =>
-    validCandidateReturn
-      ? navigation.navigate('CandidateProfile', { candidateId: fromCandidateId! })
+    candidateReturn
+      ? navigation.navigate('CandidateProfile', { candidateId: candidateReturn.candidateId })
       : validLegislatorReturn
-        ? navigation.navigate('LegislatorProfile', { legislatorId: fromLegislatorSlug! })
+        ? legislatorReturnName
+          ? navigation.navigate('LegislatorProfile', { legislatorId: fromLegislatorSlug! })
+          : navigation.navigate('Legislators')
         : navigation.navigate('Candidates');
   if (current.kind === 'not-found')
     return (
@@ -80,6 +100,7 @@ export function PersonOverviewScreen({ navigation, route }: RootScreenProps<'Per
             key={personId}
             record={current.record}
             returnUrl={returnUrl}
+            returnName={returnName}
             onBack={onBack}
             onCandidate={(candidateId) => navigation.navigate('CandidateProfile', { candidateId })}
             onLegislator={(slug) =>
@@ -89,6 +110,7 @@ export function PersonOverviewScreen({ navigation, route }: RootScreenProps<'Per
         ) : (
           <View style={{ padding: 32, maxWidth: 760, width: '100%', alignSelf: 'center', flex: 1 }}>
             <GoBackLink
+              destinationName="Find my candidates"
               href="/candidates"
               onPress={() => navigation.navigate('Candidates')}
               mobile={isMobile}

@@ -22,7 +22,7 @@ import { useSearchMetric } from '../../hooks/useSearchMetric';
 import { moneySearchPageMetadata } from '../../lib/screenPageMetadata';
 import { committeeRowMeta } from '../../lib/committeeList';
 import { closedChipLabel, committeeSlug } from '../../lib/committeeMoneyShared';
-import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
+import { BACK_TO_MONEY_SECTION } from '../../lib/moneySectionName';
 import { moneySearchShareContent } from '../../lib/moneyResultsShare';
 import {
   BROWSE_ALL_COMMITTEES,
@@ -179,7 +179,7 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
             style={styles.backLink}
           >
             <ChevronLeft size={18} strokeWidth={2.2} color={t.colors.text.secondary} aria-hidden />
-            <Text style={styles.backLabel}>{MONEY_SECTION_NAME}</Text>
+            <Text style={styles.backLabel}>{BACK_TO_MONEY_SECTION}</Text>
           </Pressable>
 
           <ResultsHeading
@@ -650,6 +650,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   backLabel: {
+    flexShrink: 1,
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,

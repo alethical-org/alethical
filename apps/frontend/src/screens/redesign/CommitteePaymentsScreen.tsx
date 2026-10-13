@@ -1,4 +1,4 @@
-import { useRef, useState, type ComponentProps } from 'react';
+import { useEffect, useRef, useState, type ComponentProps } from 'react';
 import {
   Linking,
   Pressable,
@@ -73,6 +73,7 @@ import {
 import { campaignMoneyYear } from '../../lib/legislatorCampaignMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { committeePaymentsShareContent } from '../../lib/moneyResultsShare';
+import { forgetReturnPageName, useReturnPageName } from '../../navigation/returnDestination';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
@@ -142,6 +143,38 @@ export function CommitteePaymentsScreen({
     list.data?.pages[0] === null &&
     !list.isPending &&
     !list.isError;
+  // Hold only a served identity for this committee, never a slug spelling or
+  // another committee’s placeholder data. A missing record clears that identity.
+  const knownIdentity = useRef<{ registrationNumber: string; name: string } | null>(null);
+  if (knownIdentity.current?.registrationNumber !== registrationNumber || notFound) {
+    knownIdentity.current = null;
+  }
+  if (
+    registrationNumber &&
+    money?.registrationNumber === registrationNumber &&
+    name &&
+    !moneyQuery.isPlaceholderData &&
+    !notFound
+  ) {
+    knownIdentity.current = { registrationNumber, name };
+  }
+  const returnName = knownIdentity.current?.name;
+  const returnHref = returnName
+    ? routePath.moneyCommittee(slug, { tab, year: String(year) })
+    : routePath.moneyCommittees();
+  useReturnPageName(
+    registrationNumber ? routePath.moneyCommittee(slug, { tab, year: String(year) }) : null,
+    returnName,
+  );
+  useReturnPageName(
+    registrationNumber ? routePath.moneyCommitteePayments(slug, { tab, year: String(year) }) : null,
+    returnName ? paymentsTitle(tab, returnName) : null,
+  );
+  useEffect(() => {
+    if (!notFound || !registrationNumber) return;
+    forgetReturnPageName(routePath.moneyCommittee(slug));
+    forgetReturnPageName(routePath.moneyCommitteePayments(slug, { tab, year: String(year) }));
+  }, [notFound, registrationNumber, slug, tab, year]);
   const registerKind = money
     ? money.register.state === 'reported'
       ? money.register.kind
@@ -241,8 +274,10 @@ export function CommitteePaymentsScreen({
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
           <FocusPressable
-            {...linkProps(routePath.moneyCommittee(slug, { tab, year: String(year) }), () =>
-              navigation.navigate('CommitteeMoney', { slug, tab, year: String(year) }),
+            {...linkProps(returnHref, () =>
+              returnName
+                ? navigation.navigate('CommitteeMoney', { slug, tab, year: String(year) })
+                : navigation.navigate('CommitteeList'),
             )}
             style={styles.backLink}
           >
@@ -255,7 +290,9 @@ export function CommitteePaymentsScreen({
                 strokeLinejoin="round"
               />
             </Svg>
-            <Text style={styles.backLabel}>{name ?? 'Committee'}</Text>
+            <Text style={styles.backLabel}>
+              {returnName ? `Back to ${returnName}` : 'Back to Committees'}
+            </Text>
           </FocusPressable>
           {notFound && registrationNumber ? (
             <View style={styles.notFoundWrap}>
@@ -658,6 +695,7 @@ const styles = StyleSheet.create({
   main: { paddingTop: 28, paddingBottom: 64 },
   mainMobile: { paddingTop: 18 },
   backLink: {
+    maxWidth: '100%',
     minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
@@ -713,6 +751,7 @@ const styles = StyleSheet.create({
   listNameMobile: { fontSize: 16 },
   sourceLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
   backLabel: {
+    flexShrink: 1,
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,

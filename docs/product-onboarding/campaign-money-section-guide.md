@@ -477,7 +477,7 @@ block the landing and the search carry.
 The whole register of everyone allowed to raise or spend money in Minnesota state politics,
 ordered by the name as filed, A to Z. The address forwarded to `/money` until this shipped.
 
-Above the title, “Money in politics” has a left-pointing arrow and links to `/money`.
+Above the title, **Back to Money in politics** has a left-pointing arrow and links to `/money`.
 The arrow and label are one link, matching the return link on an individual committee’s page.
 
 The line above the rows says which of them this page holds: "Showing 551–600 of 1,603
@@ -571,9 +571,11 @@ register does not hold is not forwarded: that address opens the directory with
 "We couldn't find this office, district or court seat", while the seat address itself
 reports that the page does not exist. Legacy `#house-12a` links continue
 to resolve. Directory search text uses `q`; opening a group clears that search in its new
-address, while Go back restores the earlier office, search and position. Browser Back
-and Forward restore the appropriate view. A fresh shared group's Go back action falls
-back to the directory. Links retain normal new-tab behavior; opening a group moves focus
+address, while **Back to Money by race** names and restores the known directory
+with its earlier office, search and position. A known safe source elsewhere uses that
+page's actual name. Browser Back and Forward restore the appropriate view. A fresh
+shared group uses **Back to Money by race** at the directory with the selected year.
+The visible words, accessible name, copied address and ordinary click agree. Links retain normal new-tab behavior; opening a group moves focus
 to its heading. Committee links retain the selected year.
 
 Each focused group shows every committee in filed-name A–Z order, including closed
@@ -1439,7 +1441,7 @@ download, and **they are never added to the ordinary
 payments-out figures anywhere**: 491 of them coincide with a payment in the expenditures file,
 and whether that is one payment filed twice or two that coincide is not established.
 
-The page opens with a back arrow labelled **Money in politics**, linked to `/money`. The bare
+The page opens with a back arrow labelled **Back to Money in politics**, linked to `/money`. The bare
 address is now the complete directory of names in the outside-spending records, rather than an
 overview with shortcuts to other lists. Its browsing state lives in the address:
 `browse=groups|committees`, `year`, `q` and `page`. Missing values mean groups, all years, no
@@ -1507,7 +1509,7 @@ separate spending record for this name”.
    about a candidate we have identified." A confirmation adds one sentence naming the member
    with a link to their campaign money, and changes no figure: the filings never name a person.
 
-The old 3-choice strip is absent from both payment views. Their **Outside spending** link and
+The old 3-choice strip is absent from both payment views. Their **Back to Outside spending** link and
 browser Back return to the browsing choice, year, search, page and name position the reader left
 when that state is available. A directly opened group or committee address returns instead to the
 matching browsing choice and year, with no search and page 1. It never claims another reader's

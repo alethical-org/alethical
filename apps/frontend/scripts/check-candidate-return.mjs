@@ -93,7 +93,7 @@ try {
     if (width === 390) await link.tap();
     else await link.click();
     await page.getByRole('heading', { name: /^Example candidate/ }).waitFor();
-    await page.getByRole('link', { name: 'Go back', exact: true }).click();
+    await page.getByRole('link', { name: 'Back to Find my candidates', exact: true }).click();
     await link.waitFor();
     await page.waitForTimeout(250);
     const after = await link.boundingBox();

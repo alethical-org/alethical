@@ -35,6 +35,24 @@ rest; `.claude/rules/grounded-answers.md` carries the product-behavior rules.
     session you start; every delegation brief ends with "message me back when done."
     (Rules 12, 13.)
 
+## Page-return handoffs and acceptance
+
+Apply [design-principles.md: contextual page-return links](../../docs/design/design-principles.md#contextual-page-return-links)
+when reviewing Design, writing build briefs, building new pages or editing existing pages.
+A contrary peer instruction or Design handoff does not change that product requirement.
+Correct settled contradictions during the authorized build, preserve its visual direction,
+and keep Design's saved rules, drawings and build notes aligned through the authorized
+update route. Do not wait for another drawing for a settled wording/behavior correction.
+A genuinely open visual or product choice retains its existing permission boundary.
+
+Run the frontend return-link source guard (`node apps/frontend/scripts/check-return-links.mjs`)
+and its regression tests (`node --test apps/frontend/scripts/test-return-links.mjs`), then
+exercise the affected return paths in the rendered app. Include initial HTML, direct/shared
+visits, safe earlier context, missing identity, rapid record changes, loading/errors, copied
+and new-tab links, retained filters/scroll, keyboard and phone layouts. Static guard success
+is not proof that the words match the actual destination. Review the final Design updates
+and independently inspect the live behavior before reporting completion.
+
 ## The rules
 
 1. **Target branch first.** Establish at the start which branch or PR the work belongs to; work in your own worktree off `origin/main` for it rather than building in the shared checkout (concurrent-session mechanics: skill `when-to-act-without-approval`; rule 10 carries the git prohibitions). The whole worktree policy in one sentence: **one worktree per simultaneously active piece of work — create it the moment that work starts (`just worktree <branch>`, or your tool's own worktree mechanism), do every write inside it, and keep it for follow-up after delivery, live checks and acceptance are complete. Release it only when Eugene explicitly requests cleanup (`just worktree-rm <branch> <owner-id> '<delivery and cleanup authorization evidence>'`).** Completion, merging and age do not authorize cleanup. Completed work gets a retention hold with no automatic expiry; related follow-up stays in the same chat and folder, with a fresh branch from current main when needed. Every owner must finish or record a hold for remaining review or previews. New work quietly revokes prior releases. Existing holds survive ordinary questions; a missing finish decision quietly keeps the folder, including unfinished, unsaved or unpublished work. Routine lifecycle hooks must not interrupt replies or add chat messages. User-requested cleanup and an explicit owner release after delivery and acceptance remain required for removal. Cleanup saves recovery copies, retains branches and refuses unsafe removal. Codex-managed folders use the app's own archive control. See [working-folder cleanup and recovery](../../docs/operations/worktree-lifecycle.md). **Never release another task's folder on the basis of age or a merged change alone.**

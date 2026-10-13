@@ -351,6 +351,7 @@ export function ContactUsScreen({ navigation, route }: RootScreenProps<'ContactU
         />
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
           <GoBackLink
+            destinationName="Home"
             href={routePath.home()}
             onPress={() => navigation.navigate('Tabs', { screen: 'Home' })}
             mobile={isMobile}

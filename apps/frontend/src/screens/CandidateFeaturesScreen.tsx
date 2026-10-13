@@ -129,6 +129,9 @@ export function CandidateFeaturesScreen({
             style={{ width: '100%', maxWidth: isDesktop ? 1120 : undefined, alignSelf: 'center' }}
           >
             <GoBackLink
+              destinationName={
+                record ? `${record.candidate.name}’s profile claim` : 'Find my candidates'
+              }
               href={claimPath ?? '/candidates'}
               // Opened directly, there is no prior entry: return to the claim step in the app,
               // where its unsent answers are held, rather than reloading and losing them.

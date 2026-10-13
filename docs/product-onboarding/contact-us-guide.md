@@ -10,7 +10,7 @@ copy.
 
 - Choose **About**, then **Contact us** in the shared top menu.
 - Open `/about/contact` directly.
-- Choose **Go back** to return to the prior Alethical page, or Home when there is no prior page.
+- Use **Back to <destination name>** for a known safe earlier Alethical page, or **Back to Home** on a direct visit. The words, copied address and click name the same page; an article prefill alone does not establish a return destination.
 
 ## The form
 

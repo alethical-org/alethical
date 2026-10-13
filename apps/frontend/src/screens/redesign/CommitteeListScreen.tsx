@@ -37,7 +37,7 @@ import {
   type CommitteeKindFilter,
 } from '../../lib/committeeList';
 import { closedChipLabel, committeeSlug } from '../../lib/committeeMoneyShared';
-import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
+import { BACK_TO_MONEY_SECTION } from '../../lib/moneySectionName';
 import {
   directoryPageNumber,
   directoryPagePath,
@@ -159,7 +159,7 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
             style={styles.backLink}
           >
             <ChevronLeft size={18} strokeWidth={2.2} color={t.colors.text.secondary} aria-hidden />
-            <Text style={styles.backLabel}>{MONEY_SECTION_NAME}</Text>
+            <Text style={styles.backLabel}>{BACK_TO_MONEY_SECTION}</Text>
           </Pressable>
 
           <PageContextLabel style={styles.eyebrow}>Campaign money</PageContextLabel>
@@ -435,6 +435,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   backLabel: {
+    flexShrink: 1,
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,

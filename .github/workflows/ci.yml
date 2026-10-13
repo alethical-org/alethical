@@ -362,6 +362,9 @@ jobs:
       # the code is spelled correctly, not that it does the right thing (#751).
       # Run the complete saved suite, including logic and rendered snapshots.
       # The built reader paths below supplement these component tests.
+      - name: Check named page returns
+        run: node --test scripts/test-return-links.mjs && node scripts/check-return-links.mjs
+
       - name: Test frontend
         run: pnpm run test
 
@@ -397,6 +400,7 @@ jobs:
           BASE_URL=http://127.0.0.1:4173 node scripts/check-address-suggestion-layering.mjs
           BASE_URL=http://127.0.0.1:4173 node scripts/check-address-recovery.mjs --skip-recovery --only 'address controls'
           node scripts/check-candidate-return.mjs http://127.0.0.1:4173
+          node scripts/check-contextual-return.mjs http://127.0.0.1:4173
           node scripts/check-candidate-location.mjs http://127.0.0.1:4173 /tmp/candidate-location-check --chromium
           E2E_STATIC_BUILD=1 E2E_BASE_URL=http://127.0.0.1:4173 pnpm exec playwright test \
             e2e/services-print.spec.ts e2e/candidate-record-status.spec.ts --project=chromium

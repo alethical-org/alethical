@@ -115,7 +115,7 @@ export function ReadCollectionScreen({ navigation, route }: Props) {
           <div className="read-collection-column">
             <a className="read-collection-back" href={setPage ? '/blog/guides' : '/blog'}>
               <ChevronLeft size={18} strokeWidth={2.2} aria-hidden />
-              <span>{setPage ? 'All guides' : 'Back to Blog'}</span>
+              <span>{setPage ? 'Back to Guides' : 'Back to Blog'}</span>
             </a>
             {!setPage && (
               <h1 ref={heading} tabIndex={-1}>

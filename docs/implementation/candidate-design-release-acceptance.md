@@ -13,13 +13,14 @@ retains its original comparison; the current design requirements, bundle hash,
 affected uses and acceptance evidence are in
 [claim-profile-button-plan.md](claim-profile-button-plan.md).
 
-## Candidate profile return link, October 9, 2026
+## Candidate profile return link
 
-Public candidate profiles use the standard grey “Go back” control. Candidate-specific
+Public candidate profiles use the grey **Back to <destination name>** control, with **Back to Find my candidates** on direct entry. Apply [contextual page-return links](../design/design-principles.md#contextual-page-return-links). Candidate-specific
 green “Back to candidates” and “Find my candidates” links do not occupy the return slot.
 A green right arrow suggests moving onward in the slot used for return navigation.
-A normal click returns to a prior Alethical page in this browser tab when
-available; otherwise `/candidates` is the safe destination. Apply the same control
+A normal click opens the safe earlier destination named by the link, restoring its
+permitted context only when it matches; otherwise **Back to Find my candidates**
+opens `/candidates`. Copied and new-tab addresses name that same destination. Apply the same control
 to loading and error states and the initial page snapshot. Keep search results and
 its address, election, open groups, and scroll position when returning from a
 search, and check that behavior in the working browser before reporting it.
@@ -174,7 +175,7 @@ Group colors (tint / edge / square / pressed): State `e8f6ee/a8dcbf/15834a/d6efe
 | ID | Role / start / action | Expected result and source | Current gap / verification |
 |---|---|---|---|
 | P01 | Visitor, valid profile | Back/find → portrait/name → legislator panel when known → official candidate record → campaign statement when available → account action → footer.760px max; padding40/32/20;top24/22/16;name44/40/32. | Current name48/34 and identity outside record; whole profile restructuring needed. |
-| P02 | Visitor, entry from search/direct | Both show the standard grey “Go back”. An earlier Alethical page in the same tab is restored; direct visits fall back to `/candidates`. Back stays reachable in loading/unavailable states. | Test cold URL, refresh, app back and browser back. |
+| P02 | Visitor, entry from search/direct | Both show a grey **Back to <destination name>** link naming a known safe earlier page; direct visits use **Back to Find my candidates** at `/candidates`. Its visible/accessible words, copied/new-tab address and ordinary click agree. The named return stays reachable in loading/unavailable states. | Test cold URL, refresh, app back and browser back. |
 | P03 | Visitor, confirmed portrait | Real confirmed image beside name, entire image with its own ratio; width120/112/84,gap22/20/14,1px edge. No crop/circle/retouch/link or substitute illustration. Credit12 only when supplied/required. | Profile types/rendering currently have no portrait. Sitting legislator image may be used only for confirmed same person. Credible data source and valid URL required. |
 | P04 | Visitor, portrait loading/failure/missing | Loading holds image-sized space with drawn light placeholder; failure/missing cleanly omit image/frame, no broken symbol or empty permanent box. | Exercise successful, slow and broken image with long name. Joint ticket does not receive a misleading one-person hero portrait. |
 | P05 | Visitor, confirmed legislator connection | Near name, visible without opening anything. Existing same person's `/legislators/<slug>` link labeled “View legislator profile”; support “See their bills, votes, and work in office”. Panel white1px/r14,no shadow,padding18 20 8 /phone16 16 8. | No current connection data/rendering. Never match by name alone. Existing API must supply grounded association or no addition. |
@@ -234,7 +235,7 @@ Account state coverage: public, approved owner, pending, loading, failure. Campa
 2. Resolve data-backed conditional behavior through actual held fields: joint ticket name, source seat count, current/former service, verified legislator ID, portrait provenance, saved check time. A fixture makes a layout testable, not a production fact.
 3. Preserve current real production limitations. Current official election list may expose only general election; named local gaps must remain generic when records lack identifiers. Claim/manage are existing staff-reviewed flows, not the old prototype.
 4. For every row, append: implementation location; tested role/start/action; actual result; desktop/tablet/phone screenshot or measurement; keyboard/touch/error evidence; live result or approved exception. Use the evidence coverage table below; do not interpret the starting-code column as current behavior.
-5. Minimum realistic journeys: homepage→search→suggestion→results→profile→legislator→back; direct empty→ambiguous→choice; editing address failure with old results; election rapid changes/failure/retry; closed group jump/find/print; direct profile→Go back→`/candidates`; account role entrances; campaign/report all feedback outcomes.
+5. Minimum realistic journeys: homepage→search→suggestion→results→profile→legislator→back; direct empty→ambiguous→choice; editing address failure with old results; election rapid changes/failure/retry; closed group jump/find/print; direct profile→Back to Find my candidates→`/candidates`; account role entrances; campaign/report all feedback outcomes.
 6. Browser tests must inspect every whole authorized screen including reused header/footer and every hover state. Test long text, large text, phone keyboard, focus return, slow and instant responses. Check parent coordinates independent final review from drawings and live release evidence.
 7. Safe tests use controlled service responses for report submissions and source-dependent states. Actual production read-only navigation/data/portrait links can be inspected without writes. Do not send emails or create production claims/reports solely to prove appearance.
 8. Carry exact settled copy/source corrections and approved arrow precedence into saved implementation/design-update notes. A returned drawing is not a dependency for objective settled corrections.

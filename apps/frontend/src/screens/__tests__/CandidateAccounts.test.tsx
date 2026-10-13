@@ -1,3 +1,8 @@
+import {
+  setReturnAccess,
+  returnPageName,
+  forgetReturnPageName,
+} from '../../navigation/returnDestination';
 // @vitest-environment jsdom
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -188,6 +193,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   act(() => root.unmount());
+  setReturnAccess(null, false);
   host.remove();
 });
 
@@ -216,7 +222,7 @@ it('explains closed requests to signed-out visitors while preserving sign-in for
   expect(host.textContent).toContain('This election has ended');
   expect(
     [...host.querySelectorAll(`a[href="/candidates/${id}"]`)].map((link) => link.textContent),
-  ).toEqual(['Go back', 'View public profile']);
+  ).toEqual(['Back to Public Candidate’s candidate profile', 'View public profile']);
   expect(host.textContent).not.toContain('Explore candidate profile features');
   act(() => button('Sign in to view claim status').click());
   expect(mocks.signIn).toHaveBeenLastCalledWith({
@@ -989,9 +995,11 @@ it('shows signed-out visitors the claim introduction, the features link and the 
   expect(text.indexOf('Sign in to continue')).toBeLessThan(
     text.indexOf('Alethical reviews requests from candidates'),
   );
-  expect(host.querySelector('a[aria-label="Go back"]')?.getAttribute('href')).toBe(
-    `/candidates/${id}`,
-  );
+  expect(
+    host
+      .querySelector('a[aria-label="Back to Public Candidate’s candidate profile"]')
+      ?.getAttribute('href'),
+  ).toBe(`/candidates/${id}`);
   act(() => features.click());
   expect(navigation.navigate).toHaveBeenCalledWith('CandidateFeatures', { candidateId: id });
 });
@@ -1869,4 +1877,44 @@ it('empties a waiting claim step when its answers were emptied elsewhere in this
   expect(host.textContent).not.toContain(
     'Enter a valid public campaign or official-record web address',
   );
+});
+
+it('names a profile claim only after the signed-in account’s claim response arrives', async () => {
+  setReturnAccess('account-a', false);
+  forgetReturnPageName(`/candidates/${id}/claim`);
+  act(() =>
+    root.render(<CandidateClaimScreen navigation={navigation as never} route={route as never} />),
+  );
+  expect(returnPageName(`/candidates/${id}/claim`)).toBeNull();
+  await flush();
+  expect(returnPageName(`/candidates/${id}/claim`)).toBe('Public Candidate’s profile claim');
+});
+it('forgets the claim return when the current account loses access during its return recheck', async () => {
+  setReturnAccess('account-a', false);
+  act(() =>
+    root.render(<CandidateClaimScreen navigation={navigation as never} route={route as never} />),
+  );
+  await flush();
+  expect(returnPageName(`/candidates/${id}/claim`)).toBe('Public Candidate’s profile claim');
+  mocks.focused = false;
+  act(() =>
+    root.render(<CandidateClaimScreen navigation={navigation as never} route={route as never} />),
+  );
+  mocks.mine.mockRejectedValue({ status: 403 });
+  mocks.focused = true;
+  act(() =>
+    root.render(<CandidateClaimScreen navigation={navigation as never} route={route as never} />),
+  );
+  await flush();
+  expect(returnPageName(`/candidates/${id}/claim`)).toBeNull();
+});
+it('names profile management after its authorized private read and clears it on an account change', async () => {
+  setReturnAccess('account-a', false);
+  forgetReturnPageName(`/candidates/${id}/manage`);
+  manage();
+  expect(returnPageName(`/candidates/${id}/manage`)).toBeNull();
+  await flush();
+  expect(returnPageName(`/candidates/${id}/manage`)).toBe('Public Candidate’s profile management');
+  setReturnAccess('account-b', false);
+  expect(returnPageName(`/candidates/${id}/manage`)).toBeNull();
 });

@@ -6,6 +6,8 @@ import {
   currentWebHistoryEntry,
   initializeWebHistory,
   markNextWebHistoryChangeAsReplace,
+  readCurrentScrollPosition,
+  saveCurrentScrollPosition,
 } from '../webHistory';
 
 const profile = '/candidates/candidate-a';
@@ -139,4 +141,67 @@ it('can install during editor layout before Root records the editor address', as
   state.history.cancelPendingNavigation();
   state.navigate('/money');
   expect(window.location.pathname).toBe('/money');
+});
+
+it.each([false, true])(
+  'keeps original entry and scroll on Back to reordered filter queries, installed guard=%s',
+  async (installed) => {
+    const raw = '/bills?q=schools&page=2&chamber=house';
+    const canonical = '/bills?q=schools&chamber=house&page=2';
+    window.history.replaceState(window.history.state, '', raw);
+    const sourceEntry = currentWebHistoryEntry();
+    saveCurrentScrollPosition(731);
+    let navigationPath = canonical;
+    const history = createWebNavigationHistory({
+      getNavigationPath: () => navigationPath,
+      resetNavigationToPath: (path) => {
+        navigationPath = path === raw ? canonical : path;
+        history.onStateChange(navigationPath);
+      },
+      shouldGuardCurrentRoute: () => false,
+    });
+    if (installed) history.installHistoryGuard(createGuardedWebHistory);
+    window.addEventListener('popstate', history.onPopState);
+    history.onStateChange(canonical);
+    expect(currentWebHistoryEntry()).toEqual(sourceEntry);
+    navigationPath = '/bills/example-bill';
+    history.onStateChange(navigationPath);
+    const detailEntry = currentWebHistoryEntry();
+    const length = window.history.length;
+    window.history.back();
+    await vi.waitFor(() => expect(currentWebHistoryEntry()).toEqual(sourceEntry));
+    expect(window.location.pathname + window.location.search).toBe(raw);
+    expect(readCurrentScrollPosition()).toBe(731);
+    expect(window.history.length).toBe(length);
+    window.history.forward();
+    await vi.waitFor(() => expect(currentWebHistoryEntry()).toEqual(detailEntry));
+    expect(window.history.length).toBe(length);
+  },
+);
+
+it('still records a different selected filter as a new visit', () => {
+  window.history.replaceState(window.history.state, '', '/bills?q=schools&page=2&chamber=house');
+  const history = createWebNavigationHistory({
+    getNavigationPath: () => '',
+    resetNavigationToPath: () => {},
+    shouldGuardCurrentRoute: () => false,
+  });
+  const before = currentWebHistoryEntry();
+  history.onStateChange('/bills?q=parks&chamber=house&page=2');
+  expect(currentWebHistoryEntry()?.entryId).not.toBe(before?.entryId);
+  expect(window.location.search).toContain('q=parks');
+});
+
+it('honors an explicit replacement between equivalent route aliases and consumes its mark', () => {
+  const state = mountHistory();
+  state.navigate('/search?q=schools');
+  const entry = currentWebHistoryEntry();
+  const length = window.history.length;
+  markNextWebHistoryChangeAsReplace();
+  state.navigate('/bills?q=schools');
+  expect(window.location.pathname).toBe('/bills');
+  expect(currentWebHistoryEntry()).toEqual(entry);
+  expect(window.history.length).toBe(length);
+  state.navigate('/money');
+  expect(window.history.length).toBe(length + 1);
 });
