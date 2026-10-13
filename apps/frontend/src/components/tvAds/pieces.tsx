@@ -203,6 +203,7 @@ export function FileRows({
               </>
             )}
             <strong>{file.name}</strong>
+            {file.agency_unchecked && <p className="tv-small">Agency name: Not checked</p>}
             {!recent && (
               <>
                 <div className="tv-inline">

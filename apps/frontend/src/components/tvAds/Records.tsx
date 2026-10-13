@@ -79,7 +79,7 @@ export function TVFile({
       params={params}
       onParams={onParams}
       onWithdrawn={() => {
-        onParams({ copy: file.copy_id, version: file.version_id });
+        onParams({ copy: file.copy_id || undefined, version: file.version_id });
         request.clearRefresh();
       }}
     />
@@ -232,8 +232,8 @@ function FileContents({
               value={file.version_id || ''}
               choices={file.versions.map((entry) => ({
                 value: entry.id,
-                label: `First saved ${centralDate(entry.first_saved_at, true)} · ${uploaded(entry.uploaded_at)}${entry.status === 'pending' ? ' · Not shown yet: awaiting approval' : entry.status === 'withdrawn' ? ' · Not shown: its approval was withdrawn' : entry.id === file.version_id ? ' · Shown' : ' · An older approved copy'}`,
-                disabled: entry.status !== 'approved',
+                label: `First saved ${centralDate(entry.first_saved_at, true)} · ${uploaded(entry.uploaded_at)}${entry.status === 'archive' ? ' · Original station file' : entry.status === 'pending' ? ' · Not shown yet: awaiting approval' : entry.status === 'withdrawn' ? ' · Not shown: its approval was withdrawn' : entry.id === file.version_id ? ' · Shown' : ' · An older approved copy'}`,
+                disabled: entry.status !== 'approved' && entry.status !== 'archive',
               }))}
               onChange={(id) => onParams({ version: id, copy: undefined, page: undefined })}
             />
@@ -249,7 +249,7 @@ function FileContents({
           )
         )}
       </div>
-      {newest && newest.id !== file.version_id && (
+      {file.copy_status !== 'archive' && newest && newest.id !== file.version_id && (
         <div className="tv-notice tv-error">
           <span>An older approved copy</span>
           <NewestCopy file={file} />
@@ -272,7 +272,7 @@ function FileContents({
           The station file changed after this copy was saved; this page shows the saved copy
         </p>
       )}
-      {file.copy_status !== 'approved' ? (
+      {file.copy_status !== 'approved' && file.copy_status !== 'archive' ? (
         <p className="tv-notice">
           We hold this file; its approved copy is not ready
           {file.fcc_url ? ', and the FCC’s own copy is linked above' : ''}
@@ -288,7 +288,11 @@ function FileContents({
                 setPage={choosePage}
                 onWithdrawn={onWithdrawn}
               />
-              <p className="tv-small">Blank boxes cover personal details we do not publish</p>
+              <p className="tv-small">
+                {file.copy_status === 'archive'
+                  ? 'Original station file · Not checked or approved for publication'
+                  : 'Blank boxes cover personal details we do not publish'}
+              </p>
             </div>
             <aside className="tv-file-side">
               <section className="tv-card">
@@ -426,7 +430,7 @@ function FileContents({
                 {file.other_files?.length ? (
                   <FileRows files={file.other_files} />
                 ) : (
-                  <p className="tv-small">No other approved files to show</p>
+                  <p className="tv-small">No other files to show</p>
                 )}
               </section>
             </div>
@@ -636,7 +640,11 @@ function Viewer({
           <img
             className="tv-viewer-image"
             src={image.url}
-            alt={`Page ${page} of ${file.page_count} of the approved copy of ${file.name}, with personal details blanked`}
+            alt={
+              file.copy_status === 'archive'
+                ? `Page ${page} of ${file.page_count} of the original station file ${file.name}`
+                : `Page ${page} of ${file.page_count} of the approved copy of ${file.name}, with personal details blanked`
+            }
             style={{ width: `${zoom}%` }}
           />
         ) : (
@@ -765,7 +773,7 @@ export function TVFolder({ recordKey, notFound }: { recordKey: string; notFound:
           </tbody>
         </table>
       ) : (
-        <p className="tv-notice">No approved files to show in this folder</p>
+        <p className="tv-notice">No files to show in this folder</p>
       )}
     </>
   );
@@ -798,6 +806,9 @@ export function TVAgency({ recordKey, notFound }: { recordKey: string; notFound:
     <>
       <h1 className="tv-record-title">Station files printing the agency name “{data.name}”</h1>
       <p className="tv-lead">{PRINTED_NAME_NOTICE}</p>
+      {data.unchecked && (
+        <p className="tv-small">Includes machine-read agency names marked Not checked</p>
+      )}
       {data.payments_href && (
         <p style={{ marginTop: 18 }}>
           <Internal href={data.payments_href}>{PRINTED_NAME_PAYMENTS}</Internal>

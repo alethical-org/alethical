@@ -2644,19 +2644,23 @@ The same fresh administrator check and `private, no-store` policy apply.
 
 `/api/v1/ads/*` serves the administrator reader: access, counts, source dates,
 recent files, browse/search, connections, exact file/folder/agency/station views,
-retained expense evidence and approved page images. `/api/v1/admin/political-ads/*`
+retained expense evidence, approved copy images and private original page images. `/api/v1/admin/political-ads/*`
 serves the private review queue, original page previews, preparation, target
 inspection, approvals, corrections and withdrawals. Every route requires a fresh
 administrator check; other callers receive 404. Responses, including failures and
 images, use `Cache-Control: private, no-store`.
 
 Reader JSON uses the explicit nested response fields in
-`alethical/api/tv_ad_schemas.py`. Originals, object-store keys, administrator
-identities and review notes are never reader response fields. Original images
-are confined to the review routes. Reader image routes serve only the exact
-approved burned-in copy; withdrawal returns 410 for that copy’s images and never
-falls through to another copy or the original. Metadata-only approval exposes
-safe labels without unapproved image, text, facts or connections.
+`alethical/api/tv_ad_schemas.py`. Object-store keys, administrator identities and
+review notes never enter browsing responses. Administrator browsing includes held
+original names and machine-read text without requiring publication approval.
+`/ads/files/{key}/source-pages/{page}?version=<hash>` renders the exact held source
+version after the same fresh administrator check, with private, no-store responses.
+Original records carry `copy_status=archive`; extracted agency names carry an
+unchecked flag. Checked facts and connections remain separate approved projections.
+Exact approved-copy image routes still require a version and copy ID; withdrawal
+returns 410 and never silently substitutes a different copy or original. Private
+source access does not change any publication state.
 
 Preparation and approval are separate writes. Approval checks the exact prepared
 fingerprint and required attestations; a connection checks the inspected target’s

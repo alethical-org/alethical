@@ -2,7 +2,7 @@ import { apiRequest, ApiError } from '../../data/api';
 
 export type TVKind = 'landing' | 'file' | 'folder' | 'agency' | 'station' | 'guide';
 export type BrowseTab = 'folders' | 'agencies' | 'stations' | 'years';
-export type CopyStatus = 'approved' | 'pending' | 'not_ready' | 'withdrawn';
+export type CopyStatus = 'approved' | 'pending' | 'not_ready' | 'withdrawn' | 'archive';
 export interface Counts {
   station_files_held: number;
   unique_file_contents: number;
@@ -26,11 +26,12 @@ export interface Sources {
 }
 export interface CopyReference {
   version_id?: string;
-  copy_id?: string;
+  copy_id?: string | null;
   source_changed?: boolean;
   current_source_version?: string;
 }
 export interface FileRow extends CopyReference {
+  agency_unchecked?: boolean;
   key: string;
   name: string;
   station: string;
@@ -41,6 +42,7 @@ export interface FileRow extends CopyReference {
   role?: string;
 }
 export interface BrowseRow extends CopyReference {
+  unchecked?: boolean;
   key: string;
   label: string;
   station?: string;
@@ -137,7 +139,7 @@ export interface FileDetail {
   fcc_available?: boolean;
   versions: SavedVersion[];
   version_id?: string;
-  copy_id?: string;
+  copy_id?: string | null;
   page_count?: number;
   pages?: Array<{
     number: number;
@@ -162,6 +164,7 @@ export interface FolderDetail {
   files: Array<FileRow & { airing_periods: string[]; version_count: number }>;
 }
 export interface AgencyDetail {
+  unchecked?: boolean;
   key: string;
   name: string;
   payments_href?: string;
@@ -173,7 +176,7 @@ export interface AgencyDetail {
       file_key: string;
       file_name: string;
       version_id: string;
-      copy_id?: string;
+      copy_id?: string | null;
       page: number;
       uploaded_at: string | null;
       checked_at: string;
@@ -257,9 +260,13 @@ export function isAccessFailure(error: unknown) {
 }
 /** A server-provided media path may never send the bearer token to another origin. */
 export async function readTVImage(token: string, path: string, signal: AbortSignal) {
-  if (!/^\/ads\/files\/[^/?#]+\/pages\/\d+\?/.test(path)) throw new Error('Invalid image path');
+  const kind = path.match(/^\/ads\/files\/[^/?#]+\/(pages|source-pages)\/\d+\?/);
+  if (!kind) throw new Error('Invalid image path');
   const params = new URLSearchParams(path.split('?')[1]);
-  if (!params.get('version') || !params.get('copy')) throw new Error('Unbound image path');
+  if (!params.get('version') || (kind[1] === 'pages' && !params.get('copy')))
+    throw new Error('Unbound image path');
+  if (kind[1] === 'source-pages' && !/^[a-f0-9]{64}$/.test(params.get('version') || ''))
+    throw new Error('Unbound image path');
   const origin = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
   if (!origin) throw new Error('API is not configured');
   const response = await fetch(`${origin}/api/v1${path}`, {

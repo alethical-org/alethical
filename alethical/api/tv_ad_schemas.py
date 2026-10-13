@@ -41,6 +41,7 @@ class Sources(ReaderModel):
 
 
 class FileRow(ReaderModel):
+    agency_unchecked: bool = False
     key: str
     name: str
     label: str
@@ -50,7 +51,7 @@ class FileRow(ReaderModel):
     kind: str | None
     uploaded_at: str | None
     version_id: str
-    copy_id: str
+    copy_id: str | None
     airing_periods: list[str]
     version_count: int
     source_changed: bool
@@ -72,6 +73,7 @@ class Recent(ReaderModel):
 
 
 class BrowseGroup(ReaderModel):
+    unchecked: bool = False
     folder_count: int | None = None
     stations: list[str] | None = None
     key: str
@@ -165,7 +167,7 @@ class FileDetail(FileRow):
     fcc_url: str
     fcc_available: bool
     versions: list[Version]
-    copy_status: Literal["approved", "not_ready"]
+    copy_status: Literal["approved", "not_ready", "archive"]
     page_count: int
     pages: list[Page]
     facts: list[Fact]
@@ -211,6 +213,7 @@ class AgencyGroup(ReaderModel):
 
 
 class Agency(ReaderModel):
+    unchecked: bool = False
     key: str
     name: str
     payments_href: str

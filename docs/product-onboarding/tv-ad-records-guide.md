@@ -12,13 +12,13 @@ Related records may also appear beside a committee, a legislator's confirmed cam
 
 ## Search and browse at `/money/ads`
 
-Search matches approved safe file labels, checked facts and approved machine-read text. Text matches remain labelled Not checked. Browse by station folders, exact printed agency names, stations or years. Folder filters cover station, folder year and the literal station category. The newest available folder year is selected first. Results have 12 rows per page; search is capped at 500 and says when more exist.
+Administrator search matches held file labels, checked facts and machine-read text, including originals awaiting publication review. Text matches remain labelled Not checked. Browse by station folders, agency names, stations or years. Machine-read agency names are marked Not checked; each exact spelling stays separate. Folder filters cover station, folder year and the literal station category. The newest available folder year is selected first. Results have 12 rows per page; search is capped at 500 and says when more exist.
 
 A station category describes the station's filing choice. It does not identify an election office or establish a connection. Unknown categories stay unknown. Spelling variations remain separate. A checked empty folder can appear with zero files.
 
-Changing a filter or page keeps the previous results visible with an updating notice until the replacement arrives. A failed request keeps usable results and offers retry. A new search starts at page 1. An empty result explains that there are no matching approved records; it does not mean no ads existed. Counts and source dates load separately, so a failure in one does not hide the other.
+Changing a filter or page keeps the previous results visible with an updating notice until the replacement arrives. A failed request keeps usable results and offers retry. A new search starts at page 1. An empty result explains that there are no matching collected records; it does not mean no ads existed. Counts and source dates load separately, so a failure in one does not hide the other.
 
-Folder and printed-name screens retain the authorized heading, metadata and results during retries and temporary failures. While replacement results load, retained rows use the existing 85% opacity treatment with an updating status. Before a name has loaded, their headings are “Station folder” and “Printed agency name”. Changing the record or account clears prior content; missing or withdrawn records never retain old details. An approved folder with no approved file copies says “No approved files to show in this folder”, without claiming no private originals exist.
+Folder and printed-name screens retain the authorized heading, metadata and results during retries and temporary failures. While replacement results load, retained rows use the existing 85% opacity treatment with an updating status. Before a name has loaded, their headings are “Station folder” and “Printed agency name”. Changing the record or account clears prior content; missing or withdrawn records never retain old details. A folder with no held files says “No files to show in this folder”.
 
 ## What counts mean
 
@@ -32,11 +32,11 @@ These counts overlap. They are not ad counts, spending totals or proof of comple
 
 ## Read a saved file
 
-At `/money/ads/files/<key>`, the station, safe filename, folder year and station category identify the file. The approved page image, machine-read text, checked facts, dates and connections keep their own meanings. Open a fact's page link to see its quoted evidence. Page controls and phone zoom help inspect an image. Machine-read text begins closed below computer width and remains labelled Not checked.
+At `/money/ads/files/<key>`, the station, filename, folder year and station category identify the file. Administrators can open original page images and machine-read text without publication approval. An available approved copy remains separately identified. Checked facts, dates and connections retain their own evidence and status. Open a fact's page link to see its quoted evidence. Page controls and phone zoom help inspect an image. Machine-read text begins closed below computer width and remains labelled Not checked.
 
-A safe title can be approved before an image is ready. That state shows no unpublished page text, facts or connections. A failed image can be retried. An unreadable text page does not imply an unavailable image. Personal contact details are removed before served images and text are generated; a browser overlay is not the redaction.
+Opening an original does not approve it. Originals say “Original station file · Not checked or approved for publication”. Exact links to metadata-only publication copies retain their not-ready state. A failed image can be retried. An unreadable text page does not imply an unavailable image. Personal contact details are removed before approved publication images and text are generated; a browser overlay is not the redaction.
 
-Saved versions are ordered by first saved time in Central time. The current source follows the latest successful download, so a source changing A to B and then back to A makes A current. Checks never transfer to replacement contents. Links to evidence preserve both source version and exact approved copy. Older approved records stay identified when the current source changes. A withdrawn copy shows its withdrawal state instead of falling through to another copy.
+Saved versions are ordered by first saved time in Central time. The current source follows the latest successful download, so a source changing A to B and then back to A makes A current. Checks never transfer to replacement contents. Links to evidence preserve both source version and exact approved copy. Older approved records stay identified when the current source changes. An exact withdrawn publication-copy link shows its withdrawal state instead of falling through to another copy. Administrators may separately inspect the held original without restoring its approval.
 
 Dollar figures omit cents without rounding; quotations preserve source precision. Gross, net, commission, credits, ordered amounts and reported expenses are separate. Multiple airing periods stay separate. The screens never add documents or versions into spending totals.
 

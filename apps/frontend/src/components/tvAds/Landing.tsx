@@ -329,6 +329,7 @@ export function TVLanding({
                                 ? `${row.file_count.toLocaleString('en-US')} ${row.file_count === 1 ? 'file' : 'files'}`
                                 : null,
                               result.tab === 'agencies' ? row.stations?.join(', ') : null,
+                              row.unchecked ? 'Includes names not checked' : null,
                             ]
                               .filter(Boolean)
                               .join(' · ')}
@@ -441,7 +442,7 @@ export function TVLanding({
                 {station.files.length ? (
                   <FileRows files={station.files} recent />
                 ) : (
-                  <p className="tv-small">No approved records to show</p>
+                  <p className="tv-small">No records to show</p>
                 )}
               </div>
             ))}
