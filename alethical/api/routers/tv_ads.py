@@ -6,7 +6,7 @@ from uuid import UUID
 import re
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, tuple_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -149,6 +149,7 @@ def browse(
     year: int | None = Query(None, ge=1900, le=2200),
     category: str = Query("", max_length=200),
     page: int = Query(1, ge=1, le=42),
+    default_year: bool = False,
     db: Session = Depends(tv_database),
 ):
     return reader.browse(
@@ -159,6 +160,7 @@ def browse(
         year=year,
         category=category,
         page=page,
+        default_year=default_year,
         include_archive=True,
     )
 
@@ -296,40 +298,51 @@ def queue(
             )
         )
     total = db.scalar(select(func.count()).select_from(query.subquery()))
-    docs = db.scalars(
-        query.order_by(
-            m.FCCDocument.first_seen_at.desc(),
-            m.FCCDocument.facility_id,
-            m.FCCDocument.file_id,
-            m.FCCDocument.content_hash,
+    docs = list(
+        db.scalars(
+            query.order_by(
+                m.FCCDocument.first_seen_at.desc(),
+                m.FCCDocument.facility_id,
+                m.FCCDocument.file_id,
+                m.FCCDocument.content_hash,
+            )
+            .offset((page - 1) * 25)
+            .limit(25)
         )
-        .offset((page - 1) * 25)
-        .limit(25)
     )
-    rows = []
-    for doc in docs:
-        copy = db.scalar(
+    copies = {}
+    page_counts = {}
+    if docs:
+        identities = [(d.facility_id, d.file_id, d.content_hash) for d in docs]
+        for copy in db.scalars(
             select(m.TVAdPublication)
             .where(
-                m.TVAdPublication.facility_id == doc.facility_id,
-                m.TVAdPublication.file_id == doc.file_id,
-                m.TVAdPublication.content_hash == doc.content_hash,
+                tuple_(
+                    m.TVAdPublication.facility_id,
+                    m.TVAdPublication.file_id,
+                    m.TVAdPublication.content_hash,
+                ).in_(identities)
             )
-            .order_by(m.TVAdPublication.created_at.desc())
-            .limit(1)
+            .order_by(m.TVAdPublication.created_at.desc(), m.TVAdPublication.id.desc())
+        ):
+            copies.setdefault((copy.facility_id, copy.file_id, copy.content_hash), copy)
+        page_counts = dict(
+            db.execute(
+                select(m.FCCPage.content_hash, func.count())
+                .where(
+                    m.FCCPage.content_hash.in_({d.content_hash for d in docs}),
+                    m.FCCPage.version == EXTRACTOR_VERSION,
+                )
+                .group_by(m.FCCPage.content_hash)
+            ).all()
         )
-        page_count = db.scalar(
-            select(func.count())
-            .select_from(m.FCCPage)
-            .where(
-                m.FCCPage.content_hash == doc.content_hash,
-                m.FCCPage.version == EXTRACTOR_VERSION,
-            )
-        )
+    rows = []
+    for doc in docs:
+        copy = copies.get((doc.facility_id, doc.file_id, doc.content_hash))
         rows.append(
             {
                 **_private_doc(doc),
-                "page_count": page_count,
+                "page_count": page_counts.get(doc.content_hash, 0),
                 "status": copy.status if copy else "unprepared",
                 "copy_id": str(copy.id) if copy else None,
             }

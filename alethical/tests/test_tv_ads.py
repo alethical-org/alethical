@@ -864,3 +864,167 @@ def test_admin_can_open_unapproved_current_and_older_source_without_approval(
         original.content_hash: "approved",
     }
     assert detail["page_count"] == 1
+
+
+@pytest.mark.parametrize(
+    "query,text",
+    [
+        ("Crowley", "Other CROWLEY record"),
+        ("strasse", "Straße"),
+        ("office", "oﬃce"),
+        ("s", "ſ"),
+        ("W", "ẘ"),
+        ("A", "ẚ"),
+        ("K", "K"),
+        ("CAFÉ", "café"),
+        ("50%_", "literal 50%_"),
+        ("\\record", "path \\record"),
+    ],
+)
+def test_archive_search_candidate_filter_preserves_casefold_and_literals(
+    db, source, query, text
+):
+    document, _ = source
+    db.add(
+        m.FCCExtraction(
+            content_hash=document.content_hash,
+            version=EXTRACTOR_VERSION,
+            document_kind="unknown",
+            status="readable",
+            facts=[],
+            errors=[],
+        )
+    )
+    db.flush()
+    db.add_all(
+        [
+            m.FCCPage(
+                content_hash=document.content_hash,
+                version=EXTRACTOR_VERSION,
+                page=1,
+                text=text,
+                status="readable",
+                method="native",
+            ),
+            m.FCCPage(
+                content_hash=document.content_hash,
+                version=EXTRACTOR_VERSION,
+                page=2,
+                text="unrelated data",
+                status="readable",
+                method="native",
+            ),
+        ]
+    )
+    db.flush()
+    answer = reader.browse(db, q=query, include_archive=True)
+    assert any(
+        row["key"] == reader.file_key(document.facility_id, document.file_id)
+        for row in answer["rows"]
+    )
+
+
+def test_default_year_is_resolved_in_first_browse_response(db, source):
+    document, _ = source
+    document.year = 2026
+    db.flush()
+    result = reader.browse(db, default_year=True, include_archive=True)
+    assert result["year"] == 2026
+    assert len(result["rows"]) == 1
+    assert reader.browse(db, include_archive=True)["year"] is None
+    assert (
+        reader.browse(db, tab="stations", default_year=True, include_archive=True)[
+            "year"
+        ]
+        is None
+    )
+
+
+def test_scoped_file_projection_keeps_related_other_station(db, source):
+    document, store = source
+    publication = approved(db, source)
+    # Related records may be outside the requested file's folder and station.
+    other = m.FCCDocument(
+        facility_id="23079",
+        file_id="other-file",
+        content_hash=document.content_hash,
+        call_sign="KARE",
+        folder_id="other-folder",
+        folder_path="political-files/2025/State/Other",
+        name="Other source",
+        url="https://publicfiles.fcc.gov/other",
+        year=2025,
+    )
+    db.add(other)
+    db.flush()
+    other_publication = approved(db, (other, store))
+    db.add(
+        m.TVAdConnection(
+            publication_id=publication.id,
+            facility_id=document.facility_id,
+            folder_id=document.folder_id,
+            scope="file",
+            kind="related_document",
+            target_id=str(other_publication.id),
+            target_snapshot={},
+            quote="Related source",
+            page=1,
+            status="checked",
+            publication_approved=True,
+            reviewed_by=ACTOR,
+            evidence="Related source on page 1",
+            checked_at=datetime.now(timezone.utc),
+        )
+    )
+    db.flush()
+    detail = reader.file_detail(
+        db,
+        reader.file_key(document.facility_id, document.file_id),
+        include_archive=True,
+    )
+    assert detail["related"][0]["key"] == reader.file_key(
+        other.facility_id, other.file_id
+    )
+    assert detail["related"][0]["version_count"] == 1
+    assert reader.folder_detail(
+        db, reader.file_key(other.facility_id, other.folder_id), include_archive=True
+    )["files"][0]["key"] == reader.file_key(other.facility_id, other.file_id)
+
+
+def test_scoped_folder_reads_preserve_moved_files_and_older_approved_versions(
+    db, source
+):
+    from datetime import timedelta
+
+    document, store = source
+    approved(db, source)
+    digest = fcc_archive.archive_body(
+        db, store, pdf() + b"\n% another retained version"
+    )
+    moved = m.FCCDocument(
+        facility_id=document.facility_id,
+        file_id=document.file_id,
+        content_hash=digest,
+        call_sign=document.call_sign,
+        folder_id="moved-folder",
+        folder_path="2026/State/Moved",
+        name="Moved source",
+        url=document.url,
+        year=2026,
+        last_seen_at=document.last_seen_at + timedelta(days=1),
+        last_downloaded_at=document.last_downloaded_at + timedelta(days=1),
+    )
+    db.add(moved)
+    db.flush()
+    old_key = reader.file_key(document.facility_id, document.folder_id)
+    new_key = reader.file_key(document.facility_id, moved.folder_id)
+    with pytest.raises(LookupError):
+        reader.folder_detail(db, old_key, include_archive=True)
+    current = reader.folder_detail(db, new_key, include_archive=True)["files"]
+    assert len(current) == 1
+    assert current[0]["version_count"] == 2
+    assert current[0]["version_id"] == digest
+    previous = reader.folder_detail(db, old_key)["files"]
+    assert len(previous) == 1
+    assert previous[0]["version_id"] == document.content_hash
+    assert previous[0]["version_count"] == 2

@@ -2336,3 +2336,79 @@ the guard has been seen to fail, and the change has been reverted. Reviewing
 2 people over a guard's source does not substitute: both of the above were
 reviewed and neither reader could have seen it, because the guard's text looks
 correct and only its reach is wrong.
+
+
+## TV records: 13 October 2026
+
+[Issue 2606](https://github.com/alethical-org/alethical/issues/2606) covers TV
+browse tabs, file/folder/agency/station pages, search, source dates, recent files
+and the private review list. The accepted visual treatment stays.
+
+The causes were whole-archive reads for individual records, transferring all
+extracted text before matching search, repeated recent-file shaping, 2 database
+reads per review row, a second initial year request, full reloads on internal TV
+links, and repeated original-page rendering.
+
+The corrections scope deep reads to their station or complete relevant file
+histories, select only agency-bearing extraction fields, filter conservative
+indexed search candidates before exact Python casefold matching, group station
+dates into 2 reads, and shape only the 9 selected recent files. Review status and
+page counts are batched: 4 reads for 25 rows instead of 52. Copy selection remains
+bound to station, file and hash. Files that moved folders keep their full history;
+related approved copies outside the local scope use exact identity reads.
+
+The first browse response resolves the default year. All years and recent-file
+return context survive navigation. Internal TV links use the running application
+with fresh administrator access for the destination. Folder files and other-file
+suggestions use stable filename/identity order.
+
+Immutable original-page pixels use a process-local LRU bounded to 128 entries and
+32 MiB. Fresh authorization and exact retained-source existence checks precede
+every hit. PNG-only requests skip generating an unused PDF. Approved-copy images,
+checks, permissions and withdrawal decisions are not cached.
+
+### Paired read-only comparison
+
+3 before and 3 after calls per surface, alternating code order against the same
+production database in read-only transactions. These medians cover service work
+and database transport, excluding connection opening, HTTP, authorization, image
+transfer and browser rendering. They are not full-page loading promises. Small
+differences on unchanged reads reflect network variance. The held dataset had
+4,636 source rows; no production records were written.
+
+| Surface | Before, ms | After, ms |
+|---|---:|---:|
+| Station folders | 625.3 | 272.3 |
+| Agency names | 687.4 | 440.6 |
+| Stations tab | 285.5 | 320.6 |
+| Years tab | 287.4 | 311.2 |
+| Search for Crowley | 4,269.3 | 945.0 |
+| File | 391.6 | 300.7 |
+| Folder | 268.7 | 166.0 |
+| Agency | 609.0 | 408.6 |
+| Station | 604.7 | 509.7 |
+| Counts | 203.2 | 198.2 |
+| Sources | 129.8 | 138.3 |
+| Recent files | 348.1 | 276.6 |
+| Review files | 1,759.7 | 173.6 |
+| Review folders | 177.7 | 193.6 |
+
+All 14 responses retained equal data after normalizing previously unspecified
+row/category ordering. Search transferred 6,376 database rows instead of 26,344.
+Search service time fell 77.9%; review-file read time fell 90.1%.
+
+### Prevention and limits
+
+Regression checks cover Unicode expansions and literal wildcard searches, moved
+folders and older approved versions, cross-station related copies, the 4-query
+review bound and exact source binding, bounded pixel reuse and missing-source
+rejection. Browser tests cover the first year response, All years return, no
+document reload, browser Back and revoked permission during a record change.
+Existing slow/failure/out-of-order, withdrawal, menu, image and three-band checks
+remain in the acceptance suite.
+
+No shared private-response cache is added. First original renders and uncached
+network requests still incur their actual work. The reading guide and expense
+page share the navigation improvement; their evidence and rendering semantics
+are unchanged. Future archive growth may justify database-side aggregation of
+browse projections, but does not justify an unmeasured rewrite now.

@@ -946,3 +946,112 @@ def test_candidate_role_requires_explicit_quote_and_stays_in_preview(db, source)
         {**data, "expected_target_fingerprint": preview["target_fingerprint"]},
     )
     assert checked.target_snapshot["role"] == "named"
+
+
+def test_source_preview_reuses_pixels_but_requires_exact_source(
+    db, source, monkeypatch
+):
+    document, store = source
+    service._source_previews.clear()
+    calls = []
+    real_render = tv_ad_redaction.render_redacted
+
+    def render(*args, **kwargs):
+        calls.append(kwargs)
+        return real_render(*args, **kwargs)
+
+    monkeypatch.setattr(tv_ad_redaction, "render_redacted", render)
+    args = (db, document.facility_id, document.file_id, document.content_hash, 1)
+    first = service.render_original_page(*args, store=store)
+    assert service.render_original_page(*args, store=store) == first
+    assert len(calls) == 1
+    assert calls[0]["include_pdf"] is False
+    with pytest.raises(ValueError, match="Exact source"):
+        service.render_original_page(
+            db,
+            document.facility_id,
+            "missing-file",
+            document.content_hash,
+            1,
+            store=store,
+        )
+    db.delete(document)
+    db.flush()
+    with pytest.raises(ValueError, match="Exact source"):
+        service.render_original_page(*args, store=store)
+    service._source_previews.clear()
+
+
+def test_source_preview_memory_is_bounded(monkeypatch):
+    service._source_previews.clear()
+    monkeypatch.setattr(service, "_SOURCE_PREVIEW_LIMIT", 8)
+    service._source_preview_put(("first", 1), b"1234")
+    service._source_preview_put(("second", 1), b"5678")
+    assert service._source_preview_get(("first", 1)) == b"1234"
+    service._source_preview_put(("third", 1), b"9012")
+    assert service._source_preview_get(("second", 1)) is None
+    service._source_preview_put(("large", 1), b"012345678")
+    assert service._source_preview_get(("large", 1)) is None
+    service._source_previews.clear()
+
+
+def test_review_queue_batches_status_and_page_reads(db, source):
+    from sqlalchemy import event
+    from alethical.api.routers import tv_ads as routes
+
+    document, store = source
+    prepared = service.prepare_copy(db, ACTOR, preparation(source), store=store)
+    db.add(
+        m.FCCExtraction(
+            content_hash=document.content_hash,
+            version=EXTRACTOR_VERSION,
+            document_kind="unknown",
+            status="readable",
+            facts=[],
+            errors=[],
+        )
+    )
+    db.flush()
+    db.add(
+        m.FCCPage(
+            content_hash=document.content_hash,
+            version=EXTRACTOR_VERSION,
+            page=1,
+            text="Synthetic page",
+            status="readable",
+            method="native",
+        )
+    )
+    for i in range(24):
+        db.add(
+            m.FCCDocument(
+                facility_id=document.facility_id,
+                file_id=f"queue-{i}",
+                content_hash=document.content_hash,
+                call_sign=document.call_sign,
+                folder_id=document.folder_id,
+                folder_path=document.folder_path,
+                name=f"Queue {i}",
+                url=document.url,
+            )
+        )
+    db.flush()
+    statements = []
+    connection = db.connection()
+
+    def record(conn, cursor, statement, parameters, context, executemany):
+        statements.append(statement)
+
+    event.listen(connection, "before_cursor_execute", record)
+    try:
+        answer = routes.queue(station="", q="", page=1, db=db)
+    finally:
+        event.remove(connection, "before_cursor_execute", record)
+    assert len(statements) == 4
+    assert answer["total"] == 25
+    assert len(answer["rows"]) == 25
+    assert all(row["page_count"] == 1 for row in answer["rows"])
+    own = next(row for row in answer["rows"] if row["file_id"] == document.file_id)
+    assert own["copy_id"] == str(prepared.id)
+    assert own["status"] == "draft"
+    assert all(row["copy_id"] is None for row in answer["rows"] if row is not own)

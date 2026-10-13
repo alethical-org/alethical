@@ -164,9 +164,13 @@ def _png(width: int, height: int, pixels: bytes) -> bytes:
 
 
 def render_redacted(
-    source: bytes, redactions: list, *, only_page: int | None = None
+    source: bytes,
+    redactions: list,
+    *,
+    only_page: int | None = None,
+    include_pdf: bool = True,
 ) -> dict:
-    """Return newly encoded PNG pages and a pixel-only PDF, with strict limits."""
+    """Return bounded PNG pages and, by default, a pixel-only PDF."""
     if len(source) > MAX_SOURCE_BYTES or not source.lstrip().startswith(b"%PDF-"):
         raise ValueError("Use a PDF within the source size limit")
     reader = PdfReader(io.BytesIO(source), strict=True)
@@ -225,6 +229,8 @@ def render_redacted(
             if total > MAX_ARTIFACT_BYTES:
                 raise ValueError("Prepared pages exceed storage limit")
             pages.append({"page": page, "width": width, "height": height, "bytes": png})
+            if not include_pdf:
+                continue
             image = DecodedStreamObject()
             image.set_data(pixels)
             image.update(
@@ -252,7 +258,8 @@ def render_redacted(
             )
             out_page[NameObject("/Contents")] = writer._add_object(content)
         output = io.BytesIO()
-        writer.write(output)
+        if include_pdf:
+            writer.write(output)
         pdf = output.getvalue()
     if len(pdf) > MAX_ARTIFACT_BYTES:
         raise ValueError("Prepared PDF exceeds storage limit")

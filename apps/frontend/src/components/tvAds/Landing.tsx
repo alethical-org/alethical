@@ -61,7 +61,10 @@ export function initialBrowse(params: Record<string, unknown>): BrowseQuery {
     tab,
     q: typeof params.q === 'string' ? params.q.slice(0, 200) : '',
     station: tab === 'folders' && typeof params.station === 'string' ? params.station : '',
-    year: tab === 'folders' && typeof params.year === 'string' ? params.year : '',
+    year:
+      tab === 'folders' && typeof params.year === 'string' && params.year !== 'all'
+        ? params.year
+        : '',
     category: tab === 'folders' && typeof params.category === 'string' ? params.category : '',
     page: Math.max(1, Number(params.page) || 1),
   };
@@ -76,24 +79,20 @@ export function TVLanding({
   const { isMobile } = useResponsive();
   const [query, setQuery] = useState(() => initialBrowse(params));
   const [draft, setDraft] = useState(query.q);
+  const [defaultYear, setDefaultYear] = useState(
+    () => !params.year && !query.q && query.tab === 'folders',
+  );
   const browse = useTVRead<BrowseResult>(
-    `/browse${queryString(query as unknown as Record<string, unknown>)}`,
+    `/browse${queryString({ ...query, default_year: defaultYear || undefined })}`,
   );
   const counts = useTVRead<Counts>('/counts');
   const recent = useTVRead<Recent>('/recent');
   const countRef = useRef<HTMLParagraphElement>(null);
   const moveToResult = useRef<'page' | 'search' | null>(null);
-  const usedDefaultYear = useRef(Boolean(query.year));
   const result = browse.data;
   useEffect(() => {
-    if (!result || usedDefaultYear.current || query.q || query.tab !== 'folders') return;
-    const year = [...result.years].map(String).sort((a, b) => Number(b) - Number(a))[0];
-    usedDefaultYear.current = true;
-    if (year && query.year !== year) {
-      setQuery((old) => ({ ...old, year, page: 1 }));
-      onParams({ year, page: undefined });
-    }
-  }, [result, query.q, query.tab, query.year, onParams]);
+    if (defaultYear && result?.year) onParams({ year: String(result.year), page: undefined });
+  }, [defaultYear, result?.year, onParams]);
   useEffect(() => {
     if (browse.loading || !moveToResult.current) return;
     if (moveToResult.current === 'page') countRef.current?.scrollIntoView?.({ block: 'start' });
@@ -101,14 +100,19 @@ export function TVLanding({
     moveToResult.current = null;
   }, [browse.loading]);
   const change = (patch: Partial<BrowseQuery>, action?: 'page' | 'search') => {
-    const next = { ...query, page: 1, ...patch };
-    if (patch.year !== undefined) usedDefaultYear.current = true;
+    const next = {
+      ...query,
+      year: defaultYear ? String(result?.year || '') : query.year,
+      page: 1,
+      ...patch,
+    };
+    setDefaultYear(false);
     setQuery(next);
     onParams({
       q: next.q || undefined,
       tab: next.tab,
       station: next.station || undefined,
-      year: next.year || undefined,
+      year: next.tab === 'folders' ? next.year || 'all' : undefined,
       category: next.category || undefined,
       page: next.page > 1 ? String(next.page) : undefined,
     });
@@ -116,7 +120,7 @@ export function TVLanding({
   };
   // Build the return address from query fields alone, never serialize response rows.
   const from = result
-    ? `/money/ads${queryString({ tab: result.tab, q: result.q, station: result.station, year: result.year, category: result.category, page: result.page })}`
+    ? `/money/ads${queryString({ tab: result.tab, q: result.q, station: result.station, year: result.year || (result.tab === 'folders' && !result.q ? 'all' : undefined), category: result.category, page: result.page })}`
     : `/money/ads${queryString(query as unknown as Record<string, unknown>)}`;
   const totalPages = result
     ? Math.max(
@@ -128,7 +132,9 @@ export function TVLanding({
     !!result &&
     Object.keys(query).some(
       (key) =>
-        String(query[key as keyof BrowseQuery]) !== String(result[key as keyof BrowseQuery] ?? ''),
+        String(
+          key === 'year' && defaultYear ? result.year || '' : query[key as keyof BrowseQuery],
+        ) !== String(result[key as keyof BrowseQuery] ?? ''),
     );
   return (
     <>
@@ -225,7 +231,7 @@ export function TVLanding({
           />
           <ChoiceMenu
             label="Folder year"
-            value={query.year}
+            value={defaultYear ? String(result?.year || '') : query.year}
             choices={[
               { value: '', label: 'All years' },
               ...(result?.years || []).map((y) => ({ value: String(y), label: String(y) })),
@@ -472,7 +478,7 @@ export function TVLanding({
               >
                 <h3>{station.call_sign}</h3>
                 {station.files.length ? (
-                  <FileRows files={station.files} recent />
+                  <FileRows files={station.files} returnTo={from} recent />
                 ) : (
                   <p className="tv-small">No records to show</p>
                 )}
