@@ -366,7 +366,7 @@ test('file image pages, text, history, versions and exact expense evidence', asy
   await expect(page.locator('.tv-viewer img')).toHaveAttribute('src', /^blob:/);
   await page.screenshot({ path: resolve(output, 'file-top.png') });
   await page.getByRole('button', { name: 'Next page', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Approved document, page 2' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Page images' })).toBeVisible();
   await expect(page.getByText('Synthetic machine text page 2', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'History', exact: true }).click();
   await expect(page.getByText(/\$12,300 · Corrected/)).toBeVisible();
@@ -382,7 +382,7 @@ test('file image pages, text, history, versions and exact expense evidence', asy
   );
   await page.screenshot({ path: resolve(output, 'file-desktop.png'), fullPage: true });
   await page.setViewportSize({ width: 900, height: 1000 });
-  await page.getByRole('region', { name: 'Approved document, page 1' }).scrollIntoViewIfNeeded();
+  await page.getByRole('region', { name: 'Page images' }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: resolve(output, 'file-tablet.png') });
   await page.getByRole('link', { name: 'Open retained expense row' }).click();
   await expect(page.getByRole('heading', { name: 'Synthetic retained expense' })).toBeVisible();
@@ -462,7 +462,7 @@ test.describe('touch record controls', () => {
     await page.getByRole('button', { name: 'Next page', exact: true }).tap();
     await page.getByRole('button', { name: 'Show text', exact: true }).tap();
     await expect(page.getByText('Synthetic machine text page 2', { exact: true })).toBeVisible();
-    await page.getByRole('region', { name: 'Approved document, page 2' }).scrollIntoViewIfNeeded();
+    await page.getByRole('region', { name: 'Page images' }).scrollIntoViewIfNeeded();
     await page.screenshot({ path: resolve(output, 'file-phone.png') });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
       true,
@@ -485,3 +485,74 @@ test('related evidence opens the checked copy and a withdrawn copy stays unavail
   await expect(page.locator('.tv-viewer img')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Synthetic related order' })).toHaveCount(0);
 });
+
+for (const width of [390, 900, 1280]) {
+  test(`approved printed-name copy ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await fixture(page);
+    await page.route('**/api/v1/ads/agencies/printed-name', (r) =>
+      json(r, {
+        key: 'printed-name',
+        name: 'SYNTHETIC & PRINTED NAME',
+        payments_href: '/money/payments?name=SYNTHETIC%20%26%20PRINTED%20NAME&role=vendor',
+        groups: [],
+        addresses: [{ address: '123 SYNTHETIC AVE', role: 'BILLING OFFICE', evidence: [] }],
+      }),
+    );
+    await page.goto('/money/ads/agencies/printed-name');
+    await expect(
+      page.getByText(
+        'A name on a file is the spelling the station printed, and a matching name alone does not establish identity',
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: 'Campaign payments with this exact printed name' }),
+    ).toHaveAttribute('href', '/money/payments?name=SYNTHETIC%20%26%20PRINTED%20NAME&role=vendor');
+    await expect(page.getByText('Role as printed: BILLING OFFICE')).toBeVisible();
+    await page.screenshot({ path: resolve(output, `agency-copy-${width}.png`), fullPage: true });
+    await page.route('**/api/v1/ads/files/printed-name', (r) =>
+      json(r, {
+        ...fileRow,
+        key: 'printed-name',
+        copy_status: 'approved',
+        copy_id: copy,
+        version_id: hash,
+        page_count: 1,
+        pages: [],
+        versions: [
+          { id: hash, status: 'approved', first_saved_at: stamp },
+          { id: oldHash, status: 'approved', first_saved_at: stamp },
+        ],
+        facts: [
+          {
+            id: 'name',
+            kind: 'Advertiser',
+            status: 'checked',
+            value: 'SYNTHETIC & PRINTED NAME',
+            quote: 'Synthetic exact name',
+            page: 1,
+            checked_at: stamp,
+          },
+        ],
+        dates: [],
+        connections: [],
+      }),
+    );
+    await page.goto('/money/ads/files/printed-name');
+    await expect(
+      page.getByRole('combobox', { name: 'Saved versions, newest first, Central Time' }),
+    ).toHaveText(/1 other saved version/);
+    const payments = page.getByRole('link', {
+      name: 'Campaign payments with this exact printed name',
+    });
+    await payments.scrollIntoViewIfNeeded();
+    await expect(payments).toHaveAttribute(
+      'href',
+      '/money/payments?name=SYNTHETIC+%26+PRINTED+NAME&role=vendor',
+    );
+    await expect(page.getByText('Advertiser, as printed', { exact: true })).toBeVisible();
+    await expect(page.getByText('None to a Minnesota committee', { exact: true })).toBeVisible();
+    await page.screenshot({ path: resolve(output, `file-copy-${width}.png`), fullPage: true });
+  });
+}

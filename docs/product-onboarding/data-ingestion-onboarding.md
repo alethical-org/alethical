@@ -1104,7 +1104,11 @@ hosting a file is not proof that every billed spot aired on that station.
 Run `uv run python scripts/fcc_political_files.py collect --target prod --dry-run`
 to inspect the collection plan. Collection, text reading, backup and search are
 separate restartable commands. The daily GitHub workflow runs bounded collection,
-backup and text-reading batches through `refresh`, with no paid AI service. Public screens remain on hold. The
+backup and text-reading batches through `refresh`, with no paid AI service.
+An administrator-only reader and separate preparation/review flow use these saved
+versions; public access remains on hold. Preparation never approves a copy or
+changes the original. [tv-ad-records-guide.md](tv-ad-records-guide.md) owns this
+private review and reader boundary. The
 [FCC political-file implementation and operator instructions](../implementation/fcc-political-files.md)
 own the commands, bounds, source gaps and acceptance evidence. This archive uses
 its own tables and does not change published campaign expense totals.
@@ -1288,7 +1292,8 @@ just pipeline local --write --allow-writes     # commit after review
   [`.env.example`](../../.env.example) for every variable, grouped by source, and
   [`CONTRIBUTING.md`](../../CONTRIBUTING.md) for setup.
 - **System deps:** `uv`, Postgres **with pgvector**, and **`pdftotext`
-  (poppler-utils)** for Senate votes; the `codex` CLI only for the Codex backend.
+  (poppler-utils)** for Senate votes, plus **`pdftoppm`** from the same package for
+  administrator TV page preparation; the `codex` CLI only for the Codex backend.
 
 ## Gotchas
 

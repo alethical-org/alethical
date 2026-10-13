@@ -18,6 +18,8 @@ A station category describes the station's filing choice. It does not identify a
 
 Changing a filter or page keeps the previous results visible with an updating notice until the replacement arrives. A failed request keeps usable results and offers retry. A new search starts at page 1. An empty result explains that there are no matching approved records; it does not mean no ads existed. Counts and source dates load separately, so a failure in one does not hide the other.
 
+Folder and printed-name screens retain the authorized heading, metadata and results during retries and temporary failures. Before a name has loaded, their headings are “Station folder” and “Printed agency name”. Changing the record or account clears prior content; missing or withdrawn records never retain old details. An approved folder with no approved file copies says “No approved files to show in this folder”, without claiming no private originals exist.
+
 ## What counts mean
 
 - Station files held counts station plus FCC file ID once when original contents have been saved.
@@ -46,11 +48,13 @@ Agency addresses need a separately checked agency association and preserve the p
 
 ## Review at `/admin/political-ads`
 
+Administrators reach `/admin/political-ads` through “Review TV ad records” in the existing administrator menu on phone, tablet and desktop.
+
 The private review queue lists source files and retained folders. Select a source version, inspect original pages privately, prepare safe metadata and page text, and mark redaction rectangles. A prepared preview shows the pixels readers would receive. Inspect every page before approving the exact prepared fingerprint and the privacy, metadata and text attestations. Preparation does not approve publication.
 
 Facts require a supported field, value, source page and exact quote. Connections require an inspected target and exact evidence. Correctness and publication permission are separate decisions. Candidate connections require the election stage and named/advertiser/payer role. A race needs its exact contest; adding a campaign-money office and district requires a separate association check. Review cannot promote a folder relationship to its files.
 
-Source or target changes clear earlier review attestations. Saving and retry controls keep their positions and prevent repeat submissions. Failed operations report the failure and allow correction. Withdrawal takes effect on later reader and image requests; old links do not restore approval. Review actions remain in private audit history.
+Source or target changes clear earlier review attestations. Saving and retry controls keep their positions and prevent repeat submissions. Failed operations report the failure and allow correction. Withdrawal takes effect on later reader and image requests; old links do not restore approval. Review actions remain in private audit history. Account or sign-in identity deletion removes the reviewer’s account identifier while retaining the source evidence and decisions, including older campaign-payment review history; [user-data-retention-policy.md §6](user-data-retention-policy.md#6-what-deletion-should-mean) owns that policy.
 
 ## Sources, privacy and limits
 

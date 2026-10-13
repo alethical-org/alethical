@@ -14,10 +14,9 @@ has no free-form question box because reader-written questions are not a live fe
   to act on what you learn.** It describes the overall purpose; the cards explain
   the individual tools.
 - **Follow the money** remains beside the introduction on desktop, stacks below
-  it on tablet, and follows it in a green band on phone. Its body reads **See who gives, who spends, who gets paid,
-  and who is registered to lobby, using records reported to the state**. Its action
-  says **Search the money records** and opens `/money`. This approved signed-out
-  homepage wording is an exception to the destination name **Money in politics**.
+  it on tablet, and follows it in a green band on phone. Its body reads **Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.** Its action
+  says **Search the money records** and opens `/money`. This approved homepage
+  wording is an exception to the destination name **Money in politics**.
 - **Bills and votes** follows money. Its body reads **Read plain-language bill
   summaries, see where they stand, and find out how legislators voted**. Its action
   says **Search bills** and opens `/bills`. This card replaces the full bill-activity
@@ -107,9 +106,7 @@ bill-activity and legislator-finder sections described here.
   does.
 - A reader tracking nothing retains the existing bill search and link to bill
   activity already on Home. This signed-out update does not remove that target.
-- The signed-in money body remains **Explore Minnesota’s campaign finance and
-  lobbying records, as reported to the state.** Its action remains **Money in
-  politics**, opening `/money`.
+- The signed-in money body and **Search the money records** action match the signed-out card. Approved administrators instead see **Explore records of campaign donations, political spending, lobbying, and TV ads. Browse campaign money by legislator, committee, or race.** The action still opens `/money`; TV access follows [tv-ad-records-guide.md](tv-ad-records-guide.md).
 - The signed-in Search Bills and Search Legislators pair remains in place.
 - The money card sits below the signed-in greeting and tracked card, inside the
   same hero background, with 120px above it and 120px below.

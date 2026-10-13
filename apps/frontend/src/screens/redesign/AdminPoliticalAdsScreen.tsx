@@ -238,7 +238,8 @@ function ReviewWorkspace({ token, onDenied }: { token: string; onDenied(): void 
         {queue ? (
           <>
             <Text style={s.note}>
-              {queue.total.toLocaleString('en-US')} source versions · page {queue.page}
+              {queue.total.toLocaleString('en-US')} source{' '}
+              {queue.total === 1 ? 'version' : 'versions'} · page {queue.page}
             </Text>
             {queue.rows.length === 0 ? (
               <Text style={s.body}>No station files match this search</Text>
@@ -254,7 +255,7 @@ function ReviewWorkspace({ token, onDenied }: { token: string; onDenied(): void 
                     {row.uploaded_at
                       ? `Source upload: ${centralDate(row.uploaded_at)}`
                       : 'Upload date unavailable'}{' '}
-                    · {row.page_count} pages · {row.status}
+                    · {row.page_count} {row.page_count === 1 ? 'page' : 'pages'} · {row.status}
                   </Text>
                   <ReviewAction
                     label={`Review ${row.name}`}

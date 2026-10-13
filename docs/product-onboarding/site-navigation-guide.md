@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/theme/primitives.tsx, apps/frontend/src/components/auth/AccountControl.tsx, apps/frontend/src/components/auth/AccountMenuIcon.tsx -->
+<!-- describes: apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/theme/primitives.tsx, apps/frontend/src/components/auth/AccountControl.tsx, apps/frontend/src/components/auth/AccountMenuIcon.tsx, apps/frontend/src/lib/homepage.ts -->
 
 # How the top bar works (plain English)
 
@@ -42,7 +42,7 @@ shared navigation described here. See [services-guide.md](services-guide.md).
   sign-in is enabled; an account whose sign-in methods are not yet known says **Password**.
   Approved administrators see an **Admin** group between Email preferences and Sign out,
   with **User Accounts** (`/admin/users`), **Site Metrics** (`/admin/site-metrics`),
-  **Operations** (`/admin/operations`), and **Profile claim requests** (`/admin/candidate-claims`), in that order. These navigation labels
+  **Operations** (`/admin/operations`), **Profile claim requests** (`/admin/candidate-claims`), and **Review TV ad records** (`/admin/political-ads`), in that order. These navigation labels
   do not authorize changes to report-page copy.
   Desktop and phone use this same order. The signed-in profile supplies
   the menu hint; older responses use a separate access check. Every private read
@@ -58,7 +58,7 @@ The account menu uses matching outline pictures for Tracked, password, email, an
 Every action label has the same bold weight and size within its layout band. Tablet
 keeps its existing bottom sheet but uses the desktop action text size; phone action
 text is larger. The desktop popover has room for longer labels.
-The Admin group has 1 divider above its label and no divider between its 4 links.
+The Admin group has 1 divider above its label and no divider between its 5 links.
 Empty icon spaces keep its labels aligned with the ordinary actions.
 The count uses Libre Franklin with equal-width digits, and expands to fit the full number.
 It appears only after both the bill and committee lists have loaded and the total is positive.
@@ -102,7 +102,7 @@ panel's pointer-hover treatment and a keyboard-only focus outline.
 ## The name of `/money`
 
 **Money in politics** is the destination name for `/money`. Use those exact words
-in the signed-in homepage money card's button, the `/money` heading, browser
+in the `/money` heading, browser
 title and shared-link title, and every link or empty-state button returning to
 `/money`, including campaign and lobbying pages. A browser title may append the
 site name in the usual format.
@@ -112,13 +112,13 @@ decision moves Money from the Search submenu to its own top-level website
 navigation item immediately before Search. Money opens `/money` directly
 on desktop and in the phone drawer; it is not a dropdown and is not a Search child.
 The order is Money, Search, Blog, About. This navigation exception does not rename
-the `/money` page, its browser or shared title, or other return links. The signed-out
-homepage button has its own approved wording, described next.
+the `/money` page, its browser or shared title, or other return links. The homepage
+button has its own approved wording, described next.
 
 **Follow the money** remains the homepage money card's headline, an invitation rather
-than a second destination name. The signed-in button beneath it says **Money in
-politics**, without “Explore”. The signed-out homepage button says **Search the
-money records**, approved on 30 Sep 2026. This exception applies only to that
+than a second destination name. Both signed-in and signed-out homepage buttons say
+**Search the money records**. The TV ad records build extends the approved homepage
+action wording to signed-in readers. This exception applies only to that
 homepage action and does not rename `/money` or its return links. **Campaign money**
 remains the narrower name on legislator and
 committee tabs that show campaign records rather than the whole `/money` section.
@@ -181,6 +181,12 @@ A page IS its address, and old addresses keep working:
 - `/admin` opens `/admin/users`, the private account list for approved administrators.
 - An address that is not a page shows the missing-page screen
   (`docs/product-onboarding/sharing-guide.md`, "What search engines get").
+
+The `/money/ads` reader routes, `/money/ads/guide` and `/admin/political-ads` require
+current administrator access. Direct visits by other readers show not found. The
+ordinary top bar gains no TV destination; administrators enter through `/money`,
+related records or **Review TV ad records** in the account menu.
+[tv-ad-records-guide.md](tv-ad-records-guide.md) owns these private routes.
 
 ## Look and feel
 

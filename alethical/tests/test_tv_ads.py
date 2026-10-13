@@ -58,7 +58,12 @@ def api(client, db, monkeypatch):
     monkeypatch.setattr(router, "administrator_access", lambda *args: state["allowed"])
     client.app.dependency_overrides[get_db] = lambda: db
     client.app.dependency_overrides[get_auth_service] = lambda: SimpleNamespace(
-        authenticate=lambda token: SimpleNamespace(provider_subject=ACTOR)
+        authenticate=lambda token: SimpleNamespace(
+            provider_subject=ACTOR,
+            provider="supabase",
+            email="tv-api@example.invalid",
+            email_verified=True,
+        )
     )
     client.headers["Authorization"] = "Bearer synthetic-admin-token"
     return client, state

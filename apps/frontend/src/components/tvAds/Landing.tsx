@@ -1,3 +1,4 @@
+import { RETRY_EXPLANATION } from './copy';
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
@@ -233,8 +234,8 @@ export function TVLanding({
       )}
       <div aria-busy={browse.loading}>
         {!!browse.error && (
-          <Failure retry={browse.retry}>
-            {result ? 'We couldn’t update these results' : 'We couldn’t load these records'}
+          <Failure retry={browse.retry} detail={RETRY_EXPLANATION}>
+            We couldn’t search these records just now
           </Failure>
         )}
         {result && (requestedDiffers || !!browse.error) && (
@@ -255,13 +256,28 @@ export function TVLanding({
             <p className="tv-result-count" ref={countRef} tabIndex={-1}>
               {result.capped ? 'More than 500' : result.total.toLocaleString('en-US')}{' '}
               {result.q
-                ? 'files'
+                ? result.total === 1 && !result.capped
+                  ? 'file'
+                  : 'files'
                 : result.tab === 'folders'
-                  ? 'station folders'
+                  ? result.total === 1
+                    ? 'station folder'
+                    : 'station folders'
                   : result.tab === 'agencies'
-                    ? 'ad agency names'
-                    : result.tab}
+                    ? result.total === 1
+                      ? 'ad agency name'
+                      : 'ad agency names'
+                    : result.tab === 'stations'
+                      ? result.total === 1
+                        ? 'station'
+                        : 'stations'
+                      : result.total === 1
+                        ? 'year'
+                        : 'years'}
             </p>
+            {result.capped && (
+              <p className="tv-small">Showing the first 500: add a word to narrow the search</p>
+            )}
             {result.rows.length ? (
               <div className="tv-rows">
                 {result.rows.map((row) => {
@@ -304,7 +320,7 @@ export function TVLanding({
                                   ? 'Category not identified'
                                   : null,
                               typeof row.file_count === 'number'
-                                ? `${row.file_count.toLocaleString('en-US')} files`
+                                ? `${row.file_count.toLocaleString('en-US')} ${row.file_count === 1 ? 'file' : 'files'}`
                                 : null,
                             ]
                               .filter(Boolean)
@@ -336,7 +352,14 @@ export function TVLanding({
               </div>
             ) : (
               <p className="tv-notice">
-                {result.q ? `No files found for “${result.q}”` : 'No records match these choices'}
+                {result.q
+                  ? `No station files match “${result.q}”`
+                  : 'No records match these choices'}
+                {result.q && (
+                  <span style={{ display: 'block', marginTop: 10 }}>
+                    Try a shorter part of the name or number, or a different spelling
+                  </span>
+                )}
               </p>
             )}
             {totalPages > 1 && (
@@ -390,7 +413,8 @@ export function TVLanding({
             These counts can overlap
           </p>
           <p style={{ marginTop: 24 }}>
-            {counts.data.checked_connection_files.toLocaleString('en-US')} files have a checked
+            {counts.data.checked_connection_files.toLocaleString('en-US')}{' '}
+            {counts.data.checked_connection_files === 1 ? 'file has' : 'files have'} a checked
             connection to a campaign, candidate, lobbying principal, election, issue, or reported
             expense
           </p>

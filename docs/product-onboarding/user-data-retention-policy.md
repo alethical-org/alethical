@@ -1,4 +1,4 @@
-<!-- describes: alethical/db/models.py, alethical/api/auth.py, alethical/api/routers/me.py, alethical/api/routers/contact.py, alethical/api/services/auth.py, alethical/api/services/contact.py, alethical/api/services/candidate_claims.py, alethical/api/services/candidate_claim_events.py, alethical/api/services/candidate_claim_email.py, alethical/alembic/versions/0068_profile_claim_review.py, alethical/api/services/representative_lookup.py, alethical/logging.py, alethical/monitoring.py, apps/frontend/src/screens/LegalScreens.tsx, apps/frontend/src/lib/legalContent.ts -->
+<!-- describes: alethical/db/models.py, alethical/api/auth.py, alethical/api/routers/me.py, alethical/api/routers/contact.py, alethical/api/services/auth.py, alethical/api/services/contact.py, alethical/api/services/candidate_claims.py, alethical/api/services/candidate_claim_events.py, alethical/api/services/candidate_claim_email.py, alethical/alembic/versions/0068_profile_claim_review.py, alethical/alembic/versions/0070_tv_ad_records.py, alethical/api/routers/tv_ads.py, alethical/api/services/tv_ad_review.py, alethical/pipeline/fcc_expense_links.py, alethical/api/services/representative_lookup.py, alethical/logging.py, alethical/monitoring.py, apps/frontend/src/screens/LegalScreens.tsx, apps/frontend/src/lib/legalContent.ts -->
 
 # What we keep about readers, and for how long
 
@@ -515,7 +515,7 @@ small.
 ## 6. What deletion should mean
 
 There is no reader-facing account deletion flow yet (§7). This specifies the
-whole operation; the comment and profile claim tables enforce the erasure described
+whole operation; the comment, profile claim and TV review tables enforce the erasure described
 here when an account row is deleted.
 
 **"Delete my account" should mean:**
@@ -535,7 +535,22 @@ here when an account row is deleted.
 | Candidate profile claims, their events, published statements, revisions, reports and event deliveries | Deleted with the requesting account | Private campaign access records belong to that account (§2.10) |
 | Profile claim deliveries to the deleted account | Deleted | No recipient remains (§2.10) |
 | Profile claims reviewed by a deleted administrator | Retain the decision with no actor reference; clear copied reviewer identity from prepared administrator messages immediately | Preserve the applicant's history without keeping the deleted reviewer's identity in queued mail (§2.10) |
+| TV ad copies, facts, connections, folder decisions and review events | Retain evidence and decisions; replace the deleted administrator’s account identifier with the shared `deleted-account` marker | Preserve source history without retaining the reviewer’s identity |
 | Official candidate, election, person, service and research records | Retained independently | These public records do not belong to the deleted campaign account |
+
+**TV review identity.** Review writes first establish the administrator's local account
+and sign-in link. The transaction holds those records while saving the decision, so
+account deletion cannot race a new review into retained history. Deleting either the
+account or its Supabase identity replaces that identity in copy preparation, metadata
+checks, publication decisions, facts, connections, folder approvals and review events.
+The shared `deleted-account` value is a text marker, not an account or a shadow user.
+
+The same removal covers the archive's campaign-payment connection reviewer and older
+generated review-history lines, even when another administrator later reviewed the
+connection. New generated history keeps dates, decisions and evidence without copying
+account identifiers into prose. Original public documents, quoted source evidence,
+redaction masks, approval state and source links retain their existing meaning.
+Administrator accounts and review notes remain private; this does not publish them.
 
 **What we would keep.** Anonymous action counts and hourly totals of local first use,
 bill-follow creation, and committee-follow creation have no account, email, bill, or

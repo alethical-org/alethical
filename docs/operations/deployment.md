@@ -1,4 +1,4 @@
-<!-- describes: alethical/api/services/candidate_claim_email.py, alethical/alembic/versions/0068_profile_claim_review.py, alethical/release.py, alethical/api/main.py, apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, api/page.ts, alethical/api/routers/me.py, alethical/api/main.py, alethical/api/request_admission.py, alethical/api/services/ask_router.py, alethical/pipeline/rag_ingest.py, alethical/logging.py, alethical/monitoring.py, railway.json, vercel.json, apps/frontend/metro.config.js, patches/@expo__metro-config@57.0.7.patch, pnpm-workspace.yaml, pnpm-lock.yaml -->
+<!-- describes: alethical/api/services/candidate_claim_email.py, alethical/alembic/versions/0068_profile_claim_review.py, alethical/release.py, alethical/api/main.py, apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, api/page.ts, alethical/api/routers/me.py, alethical/api/main.py, alethical/api/request_admission.py, alethical/api/services/ask_router.py, alethical/pipeline/rag_ingest.py, alethical/logging.py, alethical/monitoring.py, railway.json, vercel.json, apps/frontend/metro.config.js, patches/@expo__metro-config@57.0.7.patch, pnpm-workspace.yaml, pnpm-lock.yaml, railpack.json, Dockerfile.backend, alethical/pipeline/tv_ad_redaction.py, alethical/assets/fonts/* -->
 
 # Production setup and recovery
 
@@ -339,6 +339,19 @@ The build installs dependencies with:
 ```bash
 uv sync --frozen
 ```
+
+TV copy preparation also needs the system program `pdftoppm`. The repository-root
+`railpack.json` installs `poppler-utils` in the Railway runtime;
+`Dockerfile.backend` installs it for container builds. The Python dependencies
+include Pillow, and `alethical/assets/fonts/LibreFranklin-Bold.ttf` supplies the
+font for burned-in “Name withheld” labels, with its license alongside it.
+Preparation uses the configured private raw-file store for originals and generated
+artifacts. A missing renderer or failed render rejects preparation; it must never
+serve an original as a substitute. Release checks must exercise a prepared PNG
+through the authenticated review route, approved PNG delivery, and withdrawal
+revocation using synthetic records. Preparation and approval of real source files
+remain separate administrator actions. See
+[tv-ad-records-guide.md](../product-onboarding/tv-ad-records-guide.md).
 
 The service start command starts Uvicorn:
 

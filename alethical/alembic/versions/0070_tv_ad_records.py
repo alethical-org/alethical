@@ -226,6 +226,66 @@ def upgrade():
         unique=True,
         postgresql_where=sa.text("status = 'approved'"),
     )
+    # Public evidence survives account deletion, but a review must not retain
+    # the deleted account's sign-in identity. The marker identifies no person.
+    op.execute("""
+        CREATE FUNCTION public.anonymize_tv_review_subject(subject text)
+        RETURNS void LANGUAGE plpgsql AS $$
+        BEGIN
+            UPDATE public.tv_ad_publication SET created_by = 'deleted-account' WHERE created_by = subject;
+            UPDATE public.tv_ad_publication SET metadata_reviewed_by = 'deleted-account' WHERE metadata_reviewed_by = subject;
+            UPDATE public.tv_ad_publication SET reviewed_by = 'deleted-account' WHERE reviewed_by = subject;
+            UPDATE public.tv_ad_fact SET reviewed_by = 'deleted-account' WHERE reviewed_by = subject;
+            UPDATE public.tv_ad_connection SET reviewed_by = 'deleted-account' WHERE reviewed_by = subject;
+            UPDATE public.tv_ad_review_event SET actor = 'deleted-account' WHERE actor = subject;
+            UPDATE public.tv_ad_folder_approval SET created_by = 'deleted-account' WHERE created_by = subject;
+            UPDATE public.tv_ad_folder_approval SET reviewed_by = 'deleted-account' WHERE reviewed_by = subject;
+            UPDATE public.fcc_expense_link SET reviewed_by = 'deleted-account' WHERE reviewed_by = subject;
+            -- Older review_link versions copied the actor into generated history.
+            -- Remove that field even when a later reviewer now owns reviewed_by.
+            -- Match generated review headers only, preserving dates and evidence.
+            UPDATE public.fcc_expense_link AS link SET evidence = (
+                SELECT string_agg(
+                    CASE WHEN line ~ '^Review [0-9]{4}-[0-9T:.+-]+: (accepted|rejected) by '
+                        THEN replace(line, ' by ' || subject || '; ', '; ')
+                        ELSE line END,
+                    E'\n' ORDER BY ordinal
+                )
+                FROM unnest(string_to_array(link.evidence, E'\n')) WITH ORDINALITY AS history(line, ordinal)
+            ) WHERE strpos(link.evidence, ' by ' || subject || '; ') > 0;
+        END;
+        $$;
+        CREATE FUNCTION public.clear_deleted_tv_review_identity()
+        RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN
+            IF OLD.provider = 'supabase' THEN
+                PERFORM public.anonymize_tv_review_subject(OLD.provider_subject);
+            END IF;
+            RETURN OLD;
+        END;
+        $$;
+        CREATE TRIGGER clear_deleted_tv_review_identity
+        BEFORE DELETE ON public.auth_identity
+        FOR EACH ROW EXECUTE FUNCTION public.clear_deleted_tv_review_identity();
+        CREATE FUNCTION public.clear_deleted_tv_review_account()
+        RETURNS trigger LANGUAGE plpgsql AS $$
+        DECLARE identity_row record;
+        BEGIN
+            FOR identity_row IN SELECT provider_subject FROM public.auth_identity
+                WHERE user_id = OLD.id AND provider = 'supabase'
+            LOOP
+                PERFORM public.anonymize_tv_review_subject(identity_row.provider_subject);
+            END LOOP;
+            RETURN OLD;
+        END;
+        $$;
+        CREATE TRIGGER clear_deleted_tv_review_account
+        BEFORE DELETE ON public.user_account
+        FOR EACH ROW EXECUTE FUNCTION public.clear_deleted_tv_review_account();
+        REVOKE ALL ON FUNCTION public.anonymize_tv_review_subject(text) FROM PUBLIC;
+        REVOKE ALL ON FUNCTION public.clear_deleted_tv_review_identity() FROM PUBLIC;
+        REVOKE ALL ON FUNCTION public.clear_deleted_tv_review_account() FROM PUBLIC;
+    """)
     # Neither anonymous nor ordinary authenticated Supabase clients get a second
     # database route around server authorization. Backend database role remains
     # the sole data access path, matching the private FCC archive.
@@ -244,6 +304,11 @@ def upgrade():
 
 
 def downgrade():
+    op.execute("DROP TRIGGER clear_deleted_tv_review_account ON public.user_account")
+    op.execute("DROP TRIGGER clear_deleted_tv_review_identity ON public.auth_identity")
+    op.execute("DROP FUNCTION public.clear_deleted_tv_review_account()")
+    op.execute("DROP FUNCTION public.clear_deleted_tv_review_identity()")
+    op.execute("DROP FUNCTION public.anonymize_tv_review_subject(text)")
     for table in (
         "tv_ad_review_event",
         "tv_ad_folder_approval",

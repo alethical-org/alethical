@@ -1,3 +1,4 @@
+import { PRINTED_NAME_NOTICE, PRINTED_NAME_PAYMENTS, RETRY_EXPLANATION } from './copy';
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { useResponsive } from '../../hooks/useResponsive';
 import { ApiError } from '../../data/api';
@@ -103,8 +104,8 @@ export function TVExpense({ expenseId, notFound }: { expenseId: string; notFound
       </p>
       {data.source_changed && (
         <p className="tv-notice tv-error">
-          The committee’s filing changed after this connection was checked; the check is shown
-          against the filing it covered
+          The committee’s filing changed; this connection was checked against the saved filing shown
+          here
         </p>
       )}
       <section className="tv-card" style={{ marginTop: 28 }}>
@@ -227,6 +228,7 @@ function FileContents({
           <div style={{ maxWidth: '100%', width: 360 }}>
             <ChoiceMenu
               label="Saved versions, newest first, Central Time"
+              triggerLabel={`${file.versions.length - 1} other saved ${file.versions.length === 2 ? 'version' : 'versions'}`}
               value={file.version_id || ''}
               choices={file.versions.map((entry) => ({
                 value: entry.id,
@@ -258,6 +260,13 @@ function FileContents({
           A newer version is saved and awaiting approval: this is the newest approved copy
         </p>
       )}
+      {((newest && newest.id !== file.version_id) || pendingNewer) &&
+        file.fcc_url &&
+        file.fcc_available !== false && (
+          <p className="tv-small" style={{ marginBottom: 16 }}>
+            The FCC website may now show a newer version of this file than this copy
+          </p>
+        )}
       {file.source_changed && (
         <p className="tv-small" style={{ marginBottom: 24 }}>
           The station file changed after this copy was saved; this page shows the saved copy
@@ -360,7 +369,7 @@ function FileContents({
                 ))
               ) : (
                 <>
-                  <p>No checked connections</p>
+                  <p>None to a Minnesota committee</p>
                   {facts
                     .filter(
                       (fact) =>
@@ -369,13 +378,17 @@ function FileContents({
                         /advertiser|payer/i.test(fact.kind),
                     )
                     .map((fact) => (
-                      <a
-                        className="tv-block-link"
-                        key={fact.id}
-                        href={`/money/search${queryString({ q: fact.value })}`}
-                      >
-                        Search money records for “{fact.value}”<Arrow />
-                      </a>
+                      <div key={fact.id}>
+                        <h3 className="tv-fact-label">{fact.kind}, as printed</h3>
+                        <p>{fact.value}</p>
+                        <a
+                          className="tv-block-link"
+                          href={`/money/payments${queryString({ name: fact.value, role: 'vendor' })}`}
+                        >
+                          {PRINTED_NAME_PAYMENTS}
+                          <Arrow />
+                        </a>
+                      </div>
                     ))}
                 </>
               )}
@@ -521,8 +534,8 @@ function ConnectionItem({
       <Checked date={value.checked_at} />
       {value.source_changed && (
         <p className="tv-notice tv-error">
-          The committee’s filing changed after this connection was checked; the check is shown
-          against the filing it covered
+          The committee’s filing changed; this connection was checked against the saved filing shown
+          here
         </p>
       )}
       {value.evidence_label && (
@@ -607,7 +620,7 @@ function Viewer({
         ref={refEl}
         tabIndex={0}
         role="region"
-        aria-label={`Approved document, page ${page}`}
+        aria-label="Page images"
         className="tv-viewer-scroll"
       >
         {!path ? (
@@ -616,16 +629,18 @@ function Viewer({
             {file.fcc_url && <p className="tv-small">The FCC’s own copy is linked above</p>}
           </div>
         ) : image.error && image.path === path ? (
-          <Failure retry={() => setAttempt((n) => n + 1)}>We couldn’t load this page image</Failure>
+          <Failure retry={() => setAttempt((n) => n + 1)} detail={RETRY_EXPLANATION}>
+            We couldn’t load this page image
+          </Failure>
         ) : ready ? (
           <img
             className="tv-viewer-image"
             src={image.url}
-            alt={`Approved copy of ${file.name}, page ${page}`}
+            alt={`Page ${page} of ${file.page_count} of the approved copy of ${file.name}, with personal details blanked`}
             style={{ width: `${zoom}%` }}
           />
         ) : (
-          <Busy label={`Loading page ${page}`} />
+          <Busy label={`Loading page ${page} of ${file.page_count}`} />
         )}
       </div>
       {isMobile && zoom !== 100 && (
@@ -654,14 +669,29 @@ function Viewer({
 }
 
 export function TVFolder({ recordKey, notFound }: { recordKey: string; notFound: () => void }) {
-  const read = useTVRead<FolderDetail>(`/folders/${encodeURIComponent(recordKey)}`);
+  const read = useTVRead<FolderDetail>(`/folders/${encodeURIComponent(recordKey)}`, true, false);
   useEffect(() => {
     if (read.error instanceof ApiError && read.error.status === 404) notFound();
   }, [read.error, notFound]);
-  if (read.loading) return <Busy />;
-  if (read.error) return <Failure retry={read.retry} />;
   const data = read.data;
-  if (!data) return null;
+  const feedback = read.error ? (
+    <Failure retry={read.retry} detail={RETRY_EXPLANATION}>
+      We couldn’t load this folder right now
+    </Failure>
+  ) : read.loading ? (
+    data ? (
+      <p role="status">Updating records</p>
+    ) : (
+      <Busy label="Loading this folder’s files" />
+    )
+  ) : null;
+  if (!data)
+    return (
+      <>
+        <h1 className="tv-record-title">Station folder</h1>
+        {feedback}
+      </>
+    );
   return (
     <>
       <p className="tv-eyebrow">
@@ -688,6 +718,7 @@ export function TVFolder({ recordKey, notFound }: { recordKey: string; notFound:
           <p>No checked connection to a Minnesota committee</p>
         )}
       </div>
+      {feedback}
       {data.files.length ? (
         <table className="tv-table tv-folder-table">
           <thead>
@@ -736,23 +767,39 @@ export function TVFolder({ recordKey, notFound }: { recordKey: string; notFound:
   );
 }
 export function TVAgency({ recordKey, notFound }: { recordKey: string; notFound: () => void }) {
-  const read = useTVRead<AgencyDetail>(`/agencies/${encodeURIComponent(recordKey)}`);
+  const read = useTVRead<AgencyDetail>(`/agencies/${encodeURIComponent(recordKey)}`, true, false);
   useEffect(() => {
     if (read.error instanceof ApiError && read.error.status === 404) notFound();
   }, [read.error, notFound]);
-  if (read.loading) return <Busy />;
-  if (read.error) return <Failure retry={read.retry} />;
   const data = read.data;
-  if (!data) return null;
+  const feedback = read.error ? (
+    <Failure retry={read.retry} detail={RETRY_EXPLANATION}>
+      We couldn’t load the files for this name right now
+    </Failure>
+  ) : read.loading ? (
+    data ? (
+      <p role="status">Updating records</p>
+    ) : (
+      <Busy label="Loading the files that print this name" />
+    )
+  ) : null;
+  if (!data)
+    return (
+      <>
+        <h1 className="tv-record-title">Printed agency name</h1>
+        {feedback}
+      </>
+    );
   return (
     <>
       <h1 className="tv-record-title">Station files printing the agency name “{data.name}”</h1>
-      <p className="tv-lead">This is a name as printed, not a confirmed identity</p>
+      <p className="tv-lead">{PRINTED_NAME_NOTICE}</p>
       {data.payments_href && (
         <p style={{ marginTop: 18 }}>
-          <Internal href={data.payments_href}>Payments under this name</Internal>
+          <Internal href={data.payments_href}>{PRINTED_NAME_PAYMENTS}</Internal>
         </p>
       )}
+      {feedback}
       <div className="tv-grid3" style={{ marginTop: 32 }}>
         {[...new Set(data.groups.map((group) => group.station))].map((station) => (
           <section className="tv-card" key={station}>

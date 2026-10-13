@@ -1,3 +1,4 @@
+import { PRINTED_NAME_NOTICE, RETRY_EXPLANATION } from './copy';
 import React, { useCallback, useState } from 'react';
 import { useAuth } from '../../providers/AuthProvider';
 import { queryString, tvHref, uploaded, type BrowseResult, type ConnectionResult } from './api';
@@ -82,10 +83,13 @@ function ConnectionCard({ kind, target, name, searchOnly, scopeLabel, hideEmpty 
         ) : read.loading && !read.data ? (
           <Busy label="Loading TV ad records" />
         ) : read.error ? (
-          <Failure retry={read.retry} />
+          <Failure retry={read.retry} detail={RETRY_EXPLANATION}>
+            We couldn’t load TV ad records right now
+          </Failure>
         ) : read.data?.agency_key && kind === 'name' ? (
           <a className="tv-block-link" href={tvHref('agency', read.data.agency_key)}>
-            This exact name also appears on {read.data.exact_name_count} station files
+            This exact name also appears on {read.data.exact_name_count} station{' '}
+            {read.data.exact_name_count === 1 ? 'file' : 'files'}
             <Arrow />
           </a>
         ) : count ? (
@@ -103,7 +107,12 @@ function ConnectionCard({ kind, target, name, searchOnly, scopeLabel, hideEmpty 
             )}
           </>
         ) : name ? (
-          <NameSearch name={name} />
+          <>
+            {kind === 'committee' && (
+              <p>No station file has a checked connection to this committee yet</p>
+            )}
+            <NameSearch name={name} />
+          </>
         ) : (
           <p className="tv-small">No checked connections to TV ad records</p>
         )}
@@ -118,7 +127,7 @@ function NameSearch({ name }: { name: string }) {
         Search TV ad records for this name
         <Arrow />
       </a>
-      <p className="tv-small">A matching name alone does not establish identity</p>
+      <p className="tv-small">{PRINTED_NAME_NOTICE}</p>
     </>
   );
 }
@@ -154,7 +163,12 @@ function SearchGroup({ query }: { query: string }) {
         <AdminMarker />
       </div>
       {read.loading && !data ? <Busy /> : null}
-      {!!read.error && <Failure retry={read.retry}>We couldn’t search TV ad records</Failure>}
+      {!!read.error && (
+        <Failure retry={read.retry}>
+          We could not search this part of our records just now. This does not mean there are no
+          matching records.
+        </Failure>
+      )}
       {data && (
         <>
           {(!matching || read.loading) && (
@@ -162,9 +176,12 @@ function SearchGroup({ query }: { query: string }) {
               Still showing the earlier results for “{data.q}”
             </p>
           )}
-          <p className="tv-result-count">
-            {data.capped ? 'MORE THAN 500' : data.total.toLocaleString('en-US')} FILES
-          </p>
+          {(data.total > 0 || data.capped) && (
+            <p className="tv-result-count">
+              {data.capped ? 'MORE THAN 500' : data.total.toLocaleString('en-US')}{' '}
+              {data.total === 1 && !data.capped ? 'FILE' : 'FILES'}
+            </p>
+          )}
           {data.rows.length ? (
             <div className="tv-rows">
               {data.rows.slice(0, 3).map((file) => (
@@ -205,15 +222,19 @@ function SearchGroup({ query }: { query: string }) {
               ))}
             </div>
           ) : (
-            <p>No TV ad records found for “{data.q}”</p>
+            <p>No station file matches this search</p>
           )}
           <p className="tv-small" style={{ marginTop: 16 }}>
-            Station files matching this name, not confirmed identities
+            Matches folder labels, checked names, and file text
           </p>
-          <a className="tv-block-link" href={`/money/ads${queryString({ q: data.q })}`}>
-            Search all TV ad records
-            <Arrow />
-          </a>
+          {(data.total > 0 || data.capped) && (
+            <a className="tv-block-link" href={`/money/ads${queryString({ q: data.q })}`}>
+              {data.capped
+                ? 'The first 500 in TV ad records'
+                : `All ${data.total.toLocaleString('en-US')} in TV ad records`}
+              <Arrow />
+            </a>
+          )}
         </>
       )}
     </section>

@@ -5,13 +5,17 @@ from __future__ import annotations
 from uuid import UUID
 import re
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from alethical.api import tv_ad_schemas as response
-from alethical.api.auth import get_auth_service
+from alethical.api.auth import (
+    get_auth_service,
+    get_current_user,
+    get_optional_current_user,
+)
 from alethical.api.problems import problem_exception
 from alethical.api.routers.admin import administrator_access
 from alethical.api.services import tv_ads as reader
@@ -22,6 +26,7 @@ from alethical.pipeline.fcc_document_text import EXTRACTOR_VERSION
 
 
 def tv_administrator(
+    request: Request,
     authorization: str | None = Header(default=None),
     auth_service=Depends(get_auth_service),
     db: Session = Depends(get_db),
@@ -35,6 +40,27 @@ def tv_administrator(
     # The access check authenticates and confirms this subject against fresh account records.
     assert authorization is not None
     principal = auth_service.authenticate(authorization[7:])
+    if request.method not in {"GET", "HEAD", "OPTIONS"}:
+        # Use the normal account provisioning path so every saved reviewer has
+        # a deletion mapping. Lock it until the review transaction commits:
+        # deletion either follows this write and anonymizes it, or wins first.
+        user = get_current_user(
+            request,
+            get_optional_current_user(request, authorization, db, auth_service),
+        )
+        identity = db.scalar(
+            select(m.AuthIdentity)
+            .join(m.UserAccount, m.UserAccount.id == m.AuthIdentity.user_id)
+            .where(
+                m.AuthIdentity.provider == "supabase",
+                m.AuthIdentity.provider_subject == principal.provider_subject,
+                m.UserAccount.id == user.id,
+                m.UserAccount.is_active.is_(True),
+            )
+            .with_for_update(read=True, key_share=True)
+        )
+        if identity is None:
+            raise problem_exception(404, "Not Found", "Not found.")
     return principal.provider_subject
 
 

@@ -1,6 +1,6 @@
 # How sharing works
 
-<!-- describes: apps/frontend/src/lib/shareIntents.ts, apps/frontend/src/components/share/SharePanelContent.tsx, apps/frontend/src/components/share/ShareDestinationIcon.tsx -->
+<!-- describes: apps/frontend/src/lib/shareIntents.ts, apps/frontend/src/components/share/SharePanelContent.tsx, apps/frontend/src/components/share/ShareDestinationIcon.tsx, apps/frontend/src/components/tvAds/Guide.tsx, apps/frontend/src/components/tvAds/Connected.tsx -->
 
 <!-- describes: apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/lib/committeeMoneyPreferences.ts, apps/frontend/src/lib/share.ts, apps/frontend/src/lib/screenPageMetadata.ts, apps/frontend/src/lib/pageSnapshot.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/lib/legislatorProfile.ts, apps/frontend/src/components/billDetail/SharePopover.tsx, apps/frontend/src/components/share/MobileShareSheet.tsx, apps/frontend/src/screens/redesign/BillDetailScreen.tsx, apps/frontend/src/screens/redesign/BillDetailWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/navigation/documentTitle.ts, apps/frontend/public/index.html, apps/frontend/public/robots.txt, apps/frontend/scripts/generate-brand-assets.mjs, api/page.ts, api/sitemap.ts, vercel.json -->
 
@@ -105,6 +105,14 @@ Instagram has no direct button. It cannot open a prepared visitor post containin
 - A successful copy shows **Copied** on desktop or **Link copied** on a sheet for about 2 seconds. A failed copy gives a visible explanation and leaves the full link available to select and copy manually.
 - All 9 content types, including results, use `SharePanelContent.tsx`; `SharePopover.tsx` and `MobileShareSheet.tsx` own its placement. Shared platform artwork lives in `ShareDestinationIcon.tsx`.
 - No share includes a reader's account details, saved bills, address, or sign-in information.
+
+## Private TV ad records
+
+The `/money/ads` routes and `/admin/political-ads` have no Share control or public
+content preview. The private `/money/ads/guide` is excluded from the public article
+list and sitemap. Administrator-only TV groups on otherwise public candidate and
+money pages never enter those pages’ shared content or first-response records.
+[tv-ad-records-guide.md](tv-ad-records-guide.md) owns their access and evidence rules.
 
 ## Link preview cards
 

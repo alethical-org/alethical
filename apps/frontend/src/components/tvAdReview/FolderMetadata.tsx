@@ -133,7 +133,8 @@ export function FolderMetadata({ token, onDenied }: { token: string; onDenied():
       {queue ? (
         <>
           <Text style={s.note}>
-            {queue.total} retained folder versions · page {queue.page}
+            {queue.total} retained folder {queue.total === 1 ? 'version' : 'versions'} · page{' '}
+            {queue.page}
           </Text>
           {queue.rows.map((row) => (
             <View style={s.card} key={`${row.facility_id}:${row.folder_id}:${row.content_hash}`}>

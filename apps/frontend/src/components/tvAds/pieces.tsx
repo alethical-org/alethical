@@ -8,40 +8,64 @@ import React, {
   useState,
   type ReactNode,
 } from 'react';
+import { ApiError } from '../../data/api';
 import { readTV, isAccessFailure, centralDate, uploaded, tvHref, type FileRow } from './api';
 
 export const TVSession = createContext({ token: '', denied: () => {} });
-export function useTVRead<T>(path: string, enabled = true) {
+export function useTVRead<T>(path: string, enabled = true, retainAcrossPaths = true) {
   const { token, denied } = useContext(TVSession);
   const [attempt, setAttempt] = useState(0);
-  const [state, setState] = useState<{ path: string; data?: T; error?: unknown; loading: boolean }>(
-    { path, loading: true },
-  );
+  const [state, setState] = useState<{
+    path: string;
+    token: string;
+    data?: T;
+    error?: unknown;
+    loading: boolean;
+  }>({ path, token, loading: true });
   useEffect(() => {
     if (!enabled) return;
     const controller = new AbortController();
-    setState((old) => ({ path, data: old.data, loading: true }));
+    setState((old) => ({
+      path,
+      token,
+      data: old.token === token && (retainAcrossPaths || old.path === path) ? old.data : undefined,
+      loading: true,
+    }));
     void readTV<T>(token, path, controller.signal).then(
       (data) => {
-        if (!controller.signal.aborted) setState({ path, data, loading: false });
+        if (!controller.signal.aborted) setState({ path, token, data, loading: false });
       },
       (error: unknown) => {
         if (controller.signal.aborted) return;
         if (isAccessFailure(error)) {
+          setState({ path, token, error, loading: false });
           denied();
           return;
         }
-        setState((old) => ({ path, data: old.data, error, loading: false }));
+        setState((old) => ({
+          path,
+          token,
+          data:
+            old.token === token &&
+            (retainAcrossPaths || old.path === path) &&
+            !(error instanceof ApiError && [404, 410].includes(error.status))
+              ? old.data
+              : undefined,
+          error,
+          loading: false,
+        }));
       },
     );
     return () => controller.abort();
-  }, [token, path, attempt, enabled, denied]);
+  }, [token, path, attempt, enabled, denied, retainAcrossPaths]);
   const clearRefresh = useCallback(() => {
-    setState((old) => ({ path: old.path, loading: true }));
+    setState((old) => ({ path: old.path, token: old.token, loading: true }));
     setAttempt((n) => n + 1);
   }, []);
   return {
     ...state,
+    data:
+      state.token === token && (retainAcrossPaths || state.path === path) ? state.data : undefined,
     loading: state.path !== path || state.loading,
     retry: () => setAttempt((n) => n + 1),
     clearRefresh,
@@ -123,13 +147,18 @@ export function Busy({ label = 'Loading records' }: { label?: string }) {
 export function Failure({
   children = 'We couldn’t load these records',
   retry,
+  detail,
 }: {
   children?: ReactNode;
+  detail?: string;
   retry: () => void;
 }) {
   return (
     <div className="tv-notice tv-error" role="alert">
-      <span>{children}</span>
+      <div>
+        <span>{children}</span>
+        {detail && <p className="tv-small">{detail}</p>}
+      </div>
       <button className="tv-button" onClick={retry}>
         Try again
       </button>
@@ -227,8 +256,10 @@ export function ChoiceMenu({
   value,
   choices,
   onChange,
+  triggerLabel,
 }: {
   label: string;
+  triggerLabel?: string;
   value: string;
   choices: Choice[];
   onChange: (value: string) => void;
@@ -312,7 +343,8 @@ export function ChoiceMenu({
           }
         }}
       >
-        {choices.find((choice) => choice.value === value)?.label ||
+        {triggerLabel ||
+          choices.find((choice) => choice.value === value)?.label ||
           value ||
           `All ${label.toLowerCase()}`}
         <span aria-hidden="true">⌄</span>

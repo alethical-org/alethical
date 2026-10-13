@@ -507,9 +507,7 @@ def review_link(
         raise ValueError("expense link does not exist")
     state = link_state(db, link)
     timestamp = datetime.now(timezone.utc).isoformat()
-    link.evidence += (
-        f"\n\nReview {timestamp}: {status} by {reviewer}; {state['reason']}\n{evidence}"
-    )
+    link.evidence += f"\n\nReview {timestamp}: {status}; {state['reason']}\n{evidence}"
     link.status, link.reviewed_by = status, reviewer
     db.flush()
     return link

@@ -30,7 +30,8 @@ import { ApiError } from '../../../data/api';
 import { readTVImage, readTV, onTVDenied, denyTV, safeTVReturn, type BrowseResult } from '../api';
 import { TVSession, useTVRead, ChoiceMenu, FileRows } from '../pieces';
 import { TVLanding, initialBrowse } from '../Landing';
-import { TVFile, TVExpense } from '../Records';
+import { TVAdConnectionCard, TVAdSearchGroup } from '../Connected';
+import { TVFile, TVExpense, TVAgency, TVFolder } from '../Records';
 
 let mount: HTMLDivElement;
 let root: Root;
@@ -229,9 +230,9 @@ describe('result replacement', () => {
     );
     expect(mount.textContent).toContain('Still showing station folders for 2026');
     expect(mount.textContent).toContain('Old folder');
-    expect(mount.textContent).toContain('1 station folders');
+    expect(mount.textContent).toContain('1 station folder');
     await act(async () => changed.reject(new Error('Offline')));
-    expect(mount.textContent).toContain('We couldn’t update these results');
+    expect(mount.textContent).toContain('We couldn’t search these records just now');
     expect(mount.textContent).toContain('Old folder');
   });
 });
@@ -433,7 +434,9 @@ describe('approved content and evidence', () => {
     expect(mount.querySelector('a')?.getAttribute('href')).toBe(
       '/money/ads/files/kare-file?version=source-hash&copy=approved-copy&page=2',
     );
-    expect(mount.textContent).toContain('the check is shown against the filing it covered');
+    expect(mount.textContent).toContain(
+      'this connection was checked against the saved filing shown here',
+    );
     expect(mount.textContent).toContain('PRINTED REFERENCE');
   });
 });
@@ -649,4 +652,256 @@ describe('browse scope and exact search destinations', () => {
     expect(params.get('copy')).toBe('copy-a');
     expect(params.get('from')).toContain('q=synthetic');
   });
+});
+
+describe('approved reader wording and exact printed names', () => {
+  it.each([0, 1, 2])(
+    'uses the correct count grammar for %s files and connections',
+    async (count) => {
+      request.mockImplementation((path: string) =>
+        Promise.resolve(
+          path.startsWith('/ads/browse')
+            ? {
+                ...initialBrowse({ q: 'sample' }),
+                page_size: 12,
+                total: count,
+                capped: false,
+                years: [],
+                categories: [],
+                rows: count ? [{ key: 'record', label: 'Sample', file_count: count }] : [],
+              }
+            : path === '/ads/counts'
+              ? {
+                  station_files_held: count,
+                  unique_file_contents: count,
+                  files_with_approved_copy: count,
+                  text_read_failures: 0,
+                  download_failures: 0,
+                  checked_connection_files: count,
+                }
+              : { stations: [] },
+        ),
+      );
+      await act(async () =>
+        root.render(
+          <TVSession.Provider value={{ token: 'one', denied: vi.fn() }}>
+            <TVLanding params={{ q: 'sample' }} onParams={vi.fn()} />
+          </TVSession.Provider>,
+        ),
+      );
+      expect(mount.querySelector('.tv-result-count')?.textContent).toBe(
+        `${count} ${count === 1 ? 'file' : 'files'}`,
+      );
+      expect(mount.textContent).toContain(
+        `${count} ${count === 1 ? 'file has' : 'files have'} a checked connection`,
+      );
+      if (count === 0) {
+        expect(mount.textContent).toContain('No station files match “sample”');
+        expect(mount.textContent).toContain(
+          'Try a shorter part of the name or number, or a different spelling',
+        );
+      }
+    },
+  );
+  it('identifies each exact printed name before its payment search and keeps saved version details in the menu', async () => {
+    request.mockResolvedValue({
+      key: 'file',
+      name: 'Safe record',
+      copy_status: 'approved',
+      version_id: 'a',
+      page_count: 1,
+      pages: [],
+      versions: [
+        { id: 'a', first_saved_at: '2026-10-01', status: 'approved' },
+        { id: 'b', first_saved_at: '2026-09-01', status: 'approved' },
+      ],
+      facts: [
+        {
+          id: 'name',
+          kind: 'Advertiser',
+          status: 'checked',
+          value: 'PRINTED & NAME',
+          quote: 'source quote',
+          page: 1,
+        },
+      ],
+      dates: [],
+      connections: [],
+    });
+    await act(async () =>
+      root.render(
+        <TVSession.Provider value={{ token: 'one', denied: vi.fn() }}>
+          <TVFile fileKey="file" params={{}} onParams={vi.fn()} notFound={vi.fn()} />
+        </TVSession.Provider>,
+      ),
+    );
+    const payments = Array.from(mount.querySelectorAll<HTMLAnchorElement>('a')).find((link) =>
+      link.textContent?.includes('Campaign payments with this exact printed name'),
+    )!;
+    expect(new URL(payments.href).pathname).toBe('/money/payments');
+    expect(new URL(payments.href).searchParams.get('name')).toBe('PRINTED & NAME');
+    expect(new URL(payments.href).searchParams.get('role')).toBe('vendor');
+    expect(payments.parentElement?.textContent).toContain('Advertiser, as printedPRINTED & NAME');
+    const versions = mount.querySelector<HTMLButtonElement>('[role=combobox]')!;
+    expect(versions.textContent).toContain('1 other saved version');
+    await act(async () => versions.click());
+    expect(mount.querySelector('[role=listbox]')?.textContent).toContain('First saved');
+    expect(mount.querySelector('[role=listbox]')?.textContent).toContain('Upload date unavailable');
+  });
+  it('keeps the complete identity limit beside agency payments and the printed address role', async () => {
+    request.mockResolvedValue({
+      key: 'agency',
+      name: 'PRINTED NAME',
+      payments_href: '/money/payments?name=PRINTED%20NAME&role=vendor',
+      groups: [],
+      addresses: [{ address: '123 SAMPLE ST', role: 'BILLING OFFICE', evidence: [] }],
+    });
+    await act(async () =>
+      root.render(
+        <TVSession.Provider value={{ token: 'one', denied: vi.fn() }}>
+          <TVAgency recordKey="agency" notFound={vi.fn()} />
+        </TVSession.Provider>,
+      ),
+    );
+    expect(mount.textContent).toContain(
+      'A name on a file is the spelling the station printed, and a matching name alone does not establish identity',
+    );
+    expect(mount.textContent).toContain('Campaign payments with this exact printed name');
+    expect(mount.textContent).toContain('Role as printed: BILLING OFFICE');
+  });
+});
+
+describe('connected reader copy', () => {
+  it.each([0, 1, 501])(
+    'keeps search scope and result action accurate for %s matches',
+    async (count) => {
+      request.mockImplementation((path: string) =>
+        Promise.resolve(
+          path === '/ads/access'
+            ? { allowed: true }
+            : {
+                ...initialBrowse({ q: 'printed' }),
+                total: count,
+                capped: count > 500,
+                page_size: 12,
+                years: [],
+                categories: [],
+                rows: count
+                  ? [{ key: 'match', label: 'Printed match', version_id: 'v', copy_id: 'c' }]
+                  : [],
+              },
+        ),
+      );
+      await act(async () => root.render(<TVAdSearchGroup query="printed" />));
+      expect(mount.textContent).toContain('Matches folder labels, checked names, and file text');
+      if (count === 0) {
+        expect(mount.textContent).toContain('No station file matches this search');
+        expect(mount.querySelector('.tv-result-count')).toBeNull();
+        expect(mount.textContent).not.toContain('All 0');
+      } else {
+        expect(mount.querySelector('.tv-result-count')?.textContent).toBe(
+          count === 1 ? '1 FILE' : 'MORE THAN 500 FILES',
+        );
+        expect(mount.textContent).toContain(
+          count === 1 ? 'All 1 in TV ad records' : 'The first 500 in TV ad records',
+        );
+      }
+    },
+  );
+  it('gives a singular exact-name connection and identifies an empty committee separately from name matching', async () => {
+    request.mockImplementation((path: string) =>
+      Promise.resolve(
+        path === '/ads/access'
+          ? { allowed: true }
+          : path.includes('kind=name')
+            ? { agency_key: 'agency', exact_name_count: 1 }
+            : { files: [] },
+      ),
+    );
+    await act(async () => root.render(<TVAdConnectionCard kind="name" target="PRINTED NAME" />));
+    expect(mount.textContent).toContain('This exact name also appears on 1 station file');
+    expect(mount.textContent).not.toContain('1 station files');
+    await act(async () =>
+      root.render(<TVAdConnectionCard kind="committee" target="123" name="PRINTED NAME" />),
+    );
+    expect(mount.textContent).toContain(
+      'No station file has a checked connection to this committee yet',
+    );
+    expect(mount.textContent).toContain(
+      'A name on a file is the spelling the station printed, and a matching name alone does not establish identity',
+    );
+  });
+});
+
+describe('folder and printed-name retry continuity', () => {
+  it.each(['folder', 'agency'])(
+    'retains authorized %s data through retry but clears it across records and accounts',
+    async (kind) => {
+      const first =
+        kind === 'folder'
+          ? {
+              key: 'first',
+              station: 'KARE',
+              label: 'Original folder',
+              year: 2026,
+              category: 'State',
+              files: [],
+              fcc_url: 'https://publicfiles.fcc.gov/',
+            }
+          : { key: 'first', name: 'Original agency', groups: [], addresses: [] };
+      const oldName = kind === 'folder' ? 'Original folder' : 'Original agency';
+      const fallback = kind === 'folder' ? 'Station folder' : 'Printed agency name';
+      const next =
+        kind === 'folder'
+          ? { ...first, label: 'Replacement folder' }
+          : { ...first, name: 'Replacement agency' };
+      const pending = deferred<unknown>();
+      const retry = deferred<unknown>();
+      const different = deferred<unknown>();
+      const account = deferred<unknown>();
+      request
+        .mockResolvedValueOnce(first)
+        .mockReturnValueOnce(pending.promise)
+        .mockReturnValueOnce(retry.promise)
+        .mockReturnValueOnce(different.promise)
+        .mockReturnValueOnce(account.promise);
+      const notFound = vi.fn();
+      let denied = vi.fn();
+      const render = (key = 'first', token = 'one') =>
+        root.render(
+          <TVSession.Provider value={{ token, denied }}>
+            {kind === 'folder' ? (
+              <TVFolder recordKey={key} notFound={notFound} />
+            ) : (
+              <TVAgency recordKey={key} notFound={notFound} />
+            )}
+          </TVSession.Provider>,
+        );
+      await act(async () => render());
+      expect(mount.querySelector('h1')?.textContent).toContain(oldName);
+      denied = vi.fn();
+      await act(async () => render());
+      expect(mount.querySelector('h1')?.textContent).toContain(oldName);
+      expect(mount.querySelector('[role=status]')?.textContent).toBe('Updating records');
+      await act(async () => pending.reject(new ApiError(503, 'Temporary')));
+      expect(mount.querySelector('h1')?.textContent).toContain(oldName);
+      expect(mount.querySelector('[role=alert]')?.textContent).toContain('Please try again.');
+      await act(async () => mount.querySelector<HTMLButtonElement>('.tv-error button')!.click());
+      expect(mount.querySelector('h1')?.textContent).toContain(oldName);
+      await act(async () => retry.resolve(next));
+      expect(mount.querySelector('h1')?.textContent).toContain('Replacement');
+      expect(mount.querySelector('[role=alert]')).toBeNull();
+      await act(async () => render('different'));
+      expect(mount.querySelector('h1')?.textContent).toBe(fallback);
+      expect(mount.textContent).not.toContain('Replacement');
+      await act(async () => different.resolve(first));
+      expect(mount.querySelector('h1')?.textContent).toContain(oldName);
+      await act(async () => render('different', 'another-account'));
+      expect(mount.querySelector('h1')?.textContent).toBe(fallback);
+      expect(mount.textContent).not.toContain(oldName);
+      await act(async () => account.reject(new ApiError(403, 'Forbidden')));
+      expect(mount.textContent).not.toContain(oldName);
+      expect(denied).toHaveBeenCalled();
+    },
+  );
 });

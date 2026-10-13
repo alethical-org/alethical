@@ -413,7 +413,9 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                 title="TV ad records"
                 body="Orders, invoices, and agreements for political ads from 3 Twin Cities TV stations"
                 countLine={
-                  tvCount === null ? null : `${tvCount.toLocaleString('en-US')} STATION FILES`
+                  tvCount === null
+                    ? null
+                    : `${tvCount.toLocaleString('en-US')} STATION ${tvCount === 1 ? 'FILE' : 'FILES'}`
                 }
                 href="/money/ads"
                 onOpen={() => navigation.navigate('TVAdRecords', { kind: 'landing' })}
