@@ -78,7 +78,7 @@ describe('private TV data boundaries', () => {
     const previous = process.env.EXPO_PUBLIC_API_URL;
     process.env.EXPO_PUBLIC_API_URL = 'https://api.example.test';
     const fetch = vi.fn().mockResolvedValue(
-      new Response(new Blob(['safe'], { type: 'image/png' }), {
+      new Response('safe', {
         headers: { 'Content-Type': 'image/png' },
       }),
     );
@@ -322,7 +322,7 @@ describe('approved content and evidence', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
-        new Response(new Blob(['safe'], { type: 'image/png' }), {
+        new Response('safe', {
           headers: { 'Content-Type': 'image/png' },
         }),
       ),
