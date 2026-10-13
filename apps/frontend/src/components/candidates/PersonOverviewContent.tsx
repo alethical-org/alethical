@@ -22,13 +22,15 @@ import { GoBackLink } from '../GoBackLink';
 export function PersonOverviewContent({
   record,
   returnUrl,
+  returnName,
   onBack,
   onCandidate,
   onLegislator,
 }: {
   record: PersonRecord;
-  /** Where Go back leads on a fresh or shared visit; a normal click returns to the earlier page. */
+  /** Named fallback used when no safe earlier page is known. */
   returnUrl: string;
+  returnName: string;
   onBack(): void;
   onCandidate(id: string): void;
   onLegislator(slug: string): void;
@@ -59,6 +61,7 @@ export function PersonOverviewContent({
     >
       <View style={{ maxWidth: 760, width: '100%', alignSelf: 'center' }}>
         <GoBackLink
+          destinationName={returnName}
           href={returnUrl}
           onPress={onBack}
           mobile={isMobile}

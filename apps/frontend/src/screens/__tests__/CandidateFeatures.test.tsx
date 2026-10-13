@@ -72,10 +72,12 @@ it('labels every feature as on the roadmap and lists all twelve under four headi
   for (const banned of ['donation', 'ranking', 'promise score', 'price', 'follower list'])
     expect(text.toLowerCase()).not.toContain(banned);
 });
-it('treats a direct visit as having no candidate: Go back to /candidates and Find candidates', async () => {
+it('treats a direct visit as having no candidate: return to /candidates and Find candidates', async () => {
   await render();
   expect(mocks.getProfile).not.toHaveBeenCalled();
-  expect(host.querySelector('a[aria-label="Go back"]')?.getAttribute('href')).toBe('/candidates');
+  expect(
+    host.querySelector('a[aria-label="Back to Find my candidates"]')?.getAttribute('href'),
+  ).toBe('/candidates');
   expect(host.querySelector('a[href="/candidates"]:not([aria-label])')?.textContent).toBe(
     'Find candidates',
   );
@@ -94,9 +96,11 @@ it('returns to the same candidate’s claim step from a card under the introduct
   expect(resume.textContent).toBe('Continue claiming this candidate profile');
   expect(text.indexOf('Continue claiming')).toBeLessThan(text.indexOf('Who you are'));
   expect(text).not.toContain('Find candidates');
-  expect(host.querySelector('a[aria-label="Go back"]')?.getAttribute('href')).toBe(
-    `/candidates/${id}/claim`,
-  );
+  expect(
+    host
+      .querySelector('a[aria-label="Back to Example Person A’s profile claim"]')
+      ?.getAttribute('href'),
+  ).toBe(`/candidates/${id}/claim`);
   act(() => resume.click());
   expect(navigation.navigate).toHaveBeenCalledWith('CandidateClaim', { candidateId: id });
 });
@@ -106,20 +110,26 @@ it('falls back to a direct visit when the candidate cannot be confirmed', async 
   expect(host.textContent).not.toContain('Continue claiming this candidate profile');
   expect(host.textContent).toContain('Find candidates');
 });
-it('offers no claim to continue once the election has ended, while Go back still returns to the claim step', async () => {
+it('offers no claim to continue once the election has ended, while the named return link still returns to the claim step', async () => {
   mocks.getProfile.mockResolvedValue({ ...record, electionEnded: true });
   await render(id);
   expect(host.textContent).not.toContain('Continue claiming this candidate profile');
-  expect(host.textContent).not.toContain('Example Person A');
-  expect(host.querySelector('a[aria-label="Go back"]')?.getAttribute('href')).toBe(
-    `/candidates/${id}/claim`,
-  );
+  expect(
+    host.querySelector('a[aria-label="Back to Example Person A’s profile claim"]')?.textContent,
+  ).toBe('Back to Example Person A’s profile claim');
+  expect(
+    host
+      .querySelector('a[aria-label="Back to Example Person A’s profile claim"]')
+      ?.getAttribute('href'),
+  ).toBe(`/candidates/${id}/claim`);
 });
 
-it('returns to the claim step inside the app when Go back has no earlier page in this tab', async () => {
+it('returns to the claim step inside the app when the return link has no earlier page in this tab', async () => {
   mocks.getProfile.mockResolvedValue(record);
   await render(id);
-  const back = host.querySelector<HTMLAnchorElement>('a[aria-label="Go back"]')!;
+  const back = host.querySelector<HTMLAnchorElement>(
+    'a[aria-label="Back to Example Person A’s profile claim"]',
+  )!;
   const event = new MouseEvent('click', { bubbles: true, cancelable: true });
   act(() => {
     back.dispatchEvent(event);

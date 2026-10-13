@@ -347,7 +347,7 @@ export function outsideSpendingViewLabel(
     : OUTSIDE_SPENDING_VIEW_LINK_LABELS[option];
 }
 
-export const BACK_TO_OUTSIDE_SPENDING = 'Outside spending';
+export const BACK_TO_OUTSIDE_SPENDING = 'Back to Outside spending';
 
 export const WHAT_THE_RECORD_HOLDS = 'What the record holds';
 export const DIRECTION_AS_FILED = 'Payments by direction, as the filing states it';

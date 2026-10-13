@@ -87,6 +87,7 @@ export function BillHeader({
   return (
     <View>
       <GoBackLink
+        destinationName="Search bills"
         href={routePath.bills()}
         onPress={onAllBills}
         mobile={isMobile}

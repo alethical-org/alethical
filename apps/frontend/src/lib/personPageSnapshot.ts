@@ -274,7 +274,7 @@ export function personPageSnapshot(record: PersonRecord): PageSnapshot {
     })),
   ];
   return {
-    backLink: { label: 'Find my candidates', href: '/candidates' },
+    backLink: { label: 'Back to Find my candidates', href: '/candidates' },
     heading: record.name,
     eyebrow: PERSON_RECORD_COPY.eyebrow,
     profileLabel: true,

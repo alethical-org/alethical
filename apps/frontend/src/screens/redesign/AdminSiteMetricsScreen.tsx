@@ -1,3 +1,4 @@
+import { useReturnPageName, forgetReturnPageName } from '../../navigation/returnDestination';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -119,6 +120,9 @@ function PrivateMetrics({ accessToken }: { accessToken: string }) {
     return () => controller.abort();
   }, [accessToken, attempt]);
   const current = loaded?.attempt === attempt ? loaded : null;
+  useEffect(() => {
+    if (current?.restricted) forgetReturnPageName('/admin/operations');
+  }, [current?.restricted]);
   if (!current) return <Message>Loading Admin metrics…</Message>;
   if (current.restricted)
     return <Message>Restricted access. This account cannot view Admin metrics.</Message>;
@@ -404,6 +408,11 @@ function PrivateMetrics({ accessToken }: { accessToken: string }) {
 export function AdminSiteMetricsScreen({ navigation }: RootScreenProps<'AdminSiteMetrics'>) {
   const { user, accessToken, isLoading, isSignedIn } = useAuth();
   const access = useAdminAccess();
+  useReturnPageName('/admin/operations', access.state === 'allowed' ? 'Admin metrics' : null);
+  useEffect(() => {
+    if (access.state === 'restricted' || access.state === 'signed-out')
+      forgetReturnPageName('/admin/operations');
+  }, [access.state]);
   const { openSignIn } = useSignInModal();
   const { isMobile } = useResponsive();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
@@ -419,13 +428,10 @@ export function AdminSiteMetricsScreen({ navigation }: RootScreenProps<'AdminSit
       hero={
         <View>
           <GoBackLink
+            destinationName="Home"
             href={routePath.home()}
             mobile={isMobile}
-            onPress={() =>
-              navigation.canGoBack()
-                ? navigation.goBack()
-                : navigation.navigate('Tabs', { screen: 'Home' })
-            }
+            onPress={() => navigation.navigate('Tabs', { screen: 'Home' })}
           />
           <Text style={styles.adminLabel}>Admin</Text>
           <Text

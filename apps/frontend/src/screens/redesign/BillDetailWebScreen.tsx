@@ -1,3 +1,4 @@
+import { useEntityReturnPageNames } from '../../hooks/useEntityReturnPageNames';
 import { useEffect, useRef, useState } from 'react';
 import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -64,6 +65,12 @@ export function BillDetailWebScreen() {
     includeVotes: billDetailNeedsVotes(true, activeTab),
   });
   const bill = billQuery.data;
+  useEntityReturnPageNames(
+    billId ? `/bills/${billId}` : null,
+    bill ? `/bills/${bill.id}` : null,
+    bill?.identifier,
+    isNotFoundError(billQuery.error),
+  );
   // The server already put this bill's number and year in the tab (api/page.ts).
   // Hand over the fuller title once the short title arrives, from the same
   // builder the server used so the two cannot disagree (#1325).
@@ -151,15 +158,7 @@ export function BillDetailWebScreen() {
     }
   };
 
-  // Native uses the navigation stack when it has one, then the bill list. Web's
-  // shared GoBackLink makes the stricter decision from marked browser history.
-  const goToBillList = () => {
-    if (navigation.canGoBack?.()) {
-      navigation.goBack();
-    } else {
-      navigation.navigate('Bills');
-    }
-  };
+  const goToBillList = () => navigation.navigate('Bills');
 
   const shell = (children: React.ReactNode, hero: React.ReactNode) => (
     <SearchPageShell
@@ -201,7 +200,11 @@ export function BillDetailWebScreen() {
   if (isNotFoundError(billQuery.error)) {
     return shell(
       <View>
-        <GoBackLink href={routePath.bills()} onPress={goToBillList} />
+        <GoBackLink
+          destinationName="Search bills"
+          href={routePath.bills()}
+          onPress={goToBillList}
+        />
         <BillNotFound
           billId={billId}
           onBrowseBills={goToBillList}
@@ -215,7 +218,11 @@ export function BillDetailWebScreen() {
   if (billQuery.isError || !bill) {
     return shell(
       <View style={styles.stateBox}>
-        <GoBackLink href={routePath.bills()} onPress={goToBillList} />
+        <GoBackLink
+          destinationName="Search bills"
+          href={routePath.bills()}
+          onPress={goToBillList}
+        />
         <Text style={styles.stateText}>
           We couldn’t load this bill right now. Please try again in a moment.
         </Text>

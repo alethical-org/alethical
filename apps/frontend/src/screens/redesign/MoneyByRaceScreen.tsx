@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import Svg, { Path } from 'react-native-svg';
+import { forgetReturnPageName, useReturnPageName } from '../../navigation/returnDestination';
 import { GoBackLink } from '../../components/GoBackLink';
 import { PageContextLabel } from '../../components/PageContextLabel';
 import { ChevronLeft } from '../../components/icons';
@@ -15,7 +16,7 @@ import { useResponsive } from '../../hooks/useResponsive';
 import { moneyByRacePageMetadata } from '../../lib/share';
 import { closedChipLabel, committeeSlug } from '../../lib/committeeMoneyShared';
 import { campaignMoneyYear } from '../../lib/legislatorCampaignMoney';
-import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
+import { BACK_TO_MONEY_SECTION } from '../../lib/moneySectionName';
 import { moneyByRaceShareContent } from '../../lib/moneyResultsShare';
 import {
   ALL_OFFICES_LABEL,
@@ -91,6 +92,16 @@ function MoneyByRaceView({ navigation, route }: RootScreenProps<'MoneyByRace'>) 
     q: undefined,
   };
   const directoryHref = routePath.moneyRaces(directoryParams);
+  useReturnPageName(
+    routePath.moneyRaces(route.params ?? {}),
+    selected && served ? contestSeatLabel(selected) : group ? null : MONEY_BY_RACE_TITLE,
+  );
+
+  const groupPath = routePath.moneyRaces(route.params ?? {});
+  const groupMissing = Boolean(group && served && !selected && !races.isError);
+  useEffect(() => {
+    if (groupMissing) forgetReturnPageName(groupPath);
+  }, [groupMissing, groupPath]);
 
   useDocumentTitle(
     '/money/races',
@@ -166,6 +177,7 @@ function MoneyByRaceView({ navigation, route }: RootScreenProps<'MoneyByRace'>) 
         >
           {group ? (
             <GoBackLink
+              destinationName="Money by race"
               href={directoryHref}
               onPress={() => navigation.setParams(directoryParams)}
               mobile={isMobile}
@@ -182,7 +194,7 @@ function MoneyByRaceView({ navigation, route }: RootScreenProps<'MoneyByRace'>) 
                 color={t.colors.text.secondary}
                 aria-hidden
               />
-              <Text style={styles.backLabel}>{MONEY_SECTION_NAME}</Text>
+              <Text style={styles.backLabel}>{BACK_TO_MONEY_SECTION}</Text>
             </Pressable>
           )}
           {selected ? (
@@ -680,6 +692,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   backLabel: {
+    flexShrink: 1,
     fontFamily: t.typography.body,
     fontSize: 16,
     fontWeight: '700',

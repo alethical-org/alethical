@@ -457,7 +457,9 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
       current &&
       origin?.depth !== undefined &&
       origin.sessionId === current.sessionId &&
-      current.depth === origin.depth + 1
+      current.depth === origin.depth + 1 &&
+      current.returnTo?.entryId === origin.entryId &&
+      current.returnTo?.href === returnLink.href
     ) {
       event.preventDefault();
       window.history.back();

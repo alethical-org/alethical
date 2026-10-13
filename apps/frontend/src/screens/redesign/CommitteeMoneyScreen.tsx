@@ -27,7 +27,7 @@ import {
   committeeMoneyPreferenceParams,
 } from '../../lib/committeeMoneyPreferences';
 import { committeeOutsideSpending } from '../../lib/committeeOutsideSpending';
-import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
+import { BACK_TO_MONEY_SECTION, MONEY_SECTION_NAME } from '../../lib/moneySectionName';
 import { committeeCardStyles, detailsStyles } from '../../components/campaignMoney/detailsStyles';
 import { YearControl } from '../../components/campaignMoney/YearControl';
 import {
@@ -138,6 +138,7 @@ import {
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { publicPageUrl, type ShareContent } from '../../lib/share';
 import { committeeMoneyPageMetadata } from '../../lib/screenPageMetadata';
+import { forgetReturnPageName, useReturnPageName } from '../../navigation/returnDestination';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { screenLoaderForPath } from '../../navigation/screenPreload';
@@ -263,6 +264,15 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
   // number, then the address is rewritten in place to the current spelling —
   // never pushed, so the Back button is not trapped between the two.
   const canonicalName = money ? (money.register.name ?? money.committeeName) : null;
+  useReturnPageName(
+    registrationNumber ? routePath.moneyCommittee(slug) : null,
+    money?.registrationNumber === registrationNumber && !moneyQuery.isPlaceholderData
+      ? canonicalName
+      : null,
+  );
+  useEffect(() => {
+    if (notFound && registrationNumber) forgetReturnPageName(routePath.moneyCommittee(slug));
+  }, [notFound, registrationNumber, slug]);
   useEffect(() => {
     if (!isWeb || !money || !registrationNumber || !canonicalName) return;
     const canonical = committeeSlug(canonicalName, registrationNumber);
@@ -304,7 +314,7 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
               style={styles.backLink}
             >
               <BackChevron />
-              <Text style={styles.backLabel}>{MONEY_SECTION_NAME}</Text>
+              <Text style={styles.backLabel}>{BACK_TO_MONEY_SECTION}</Text>
             </Pressable>
           </Container>
           {notFound && registrationNumber ? (
@@ -1602,6 +1612,7 @@ const styles = StyleSheet.create({
   bodyWrap: { marginTop: 22 },
   backLink: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
   backLabel: {
+    flexShrink: 1,
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,

@@ -1,3 +1,4 @@
+import { useReturnPageName, forgetReturnPageName } from '../navigation/returnDestination';
 import {
   useContext,
   useEffect,
@@ -511,6 +512,14 @@ function ClaimForm({
   const closed =
     current?.election_ended ?? (reason === 'election_ended' || record.electionEnded === true);
   const canRequest = response?.request_eligibility?.allowed === true;
+  const [returnAccessDenied, setReturnAccessDenied] = useState(false);
+  useReturnPageName(
+    `/candidates/${candidateId}/claim`,
+    response && !loading && !returnAccessDenied ? `${record.candidate.name}’s profile claim` : null,
+  );
+  useEffect(() => {
+    if (returnAccessDenied) forgetReturnPageName(`/candidates/${candidateId}/claim`);
+  }, [candidateId, returnAccessDenied]);
   // A claim page this site opened from another tab's link asks that exact tab, once, for
   // its unsent answers: only after this form has loaded, while signed in to the same
   // account, eligible to request and still empty and untouched. Nothing newer is replaced.
@@ -559,12 +568,17 @@ function ClaimForm({
       const next = await getMyCandidateClaims(token, candidateId, scope);
       if (latest()) {
         setResponse(next);
+        setReturnAccessDenied(false);
         if (!next.request_eligibility?.allowed) setFormOpen(false);
         setUnknown(null);
         setKnownError('');
       }
-    } catch {
-      if (latest() && !silent) setFailed(true);
+    } catch (error) {
+      if (latest()) {
+        if ([401, 403].includes((error as { status?: number })?.status ?? 0))
+          setReturnAccessDenied(true);
+        if (!silent) setFailed(true);
+      }
     } finally {
       if (latest()) setLoading(false);
     }
@@ -936,6 +950,7 @@ function ClaimForm({
     return (
       <>
         <GoBackLink
+          destinationName={`${record.candidate.name}’s candidate profile`}
           href={`/candidates/${candidateId}`}
           onPress={onBack}
           mobile={isMobile}
@@ -951,6 +966,7 @@ function ClaimForm({
   return (
     <>
       <GoBackLink
+        destinationName={`${record.candidate.name}’s candidate profile`}
         href={`/candidates/${candidateId}`}
         onPress={onBack}
         mobile={isMobile}
@@ -1201,6 +1217,13 @@ function ManageContent({
   };
   const claim = claims?.claims.find((item) => item.candidate_id === candidateId);
   const canManage = claims?.is_admin !== true && claim?.can_manage === true;
+  useReturnPageName(
+    `/candidates/${candidateId}/manage`,
+    canManage && loaded && !loading ? `${record.candidate.name}’s profile management` : null,
+  );
+  useEffect(() => {
+    if (claims && !canManage) forgetReturnPageName(`/candidates/${candidateId}/manage`);
+  }, [candidateId, claims, canManage]);
   // When the reader's own retry or write finds access gone, the page shows the current access
   // state instead of the editor; its heading takes focus and comes into view from any scroll.
   useEffect(() => {
@@ -1215,6 +1238,7 @@ function ManageContent({
   const dirty = canManage && initialised.current && draft !== publicBody && !givenUp;
   const characters = [...draft].length;
   const clearPrivate = () => {
+    forgetReturnPageName(`/candidates/${candidateId}/manage`);
     setChangedElsewhere(false);
     setLoaded(null);
     setDraft('');
@@ -1500,6 +1524,7 @@ function ManageContent({
       }}
     >
       <GoBackLink
+        destinationName={`${record.candidate.name}’s candidate profile`}
         href={`/candidates/${candidateId}`}
         onPress={onPublic}
         mobile={isMobile}
@@ -2246,6 +2271,15 @@ function CandidateAccountScreen({
   const admin = useAdminAccess();
   const title = mode === 'claim' ? copy.claimLabel : 'Manage this profile';
   useDocumentTitle(`/candidates/${id}/${mode}`, `${title} | Alethical`);
+  useReturnPageName(
+    `/candidates/${id}/claim`,
+    mode === 'claim' && !isLoading && !isSignedIn && !error && record?.candidate.id === id
+      ? `${record.candidate.name}’s profile claim`
+      : null,
+  );
+  useEffect(() => {
+    if (error === 'not-found') forgetReturnPageName(`/candidates/${id}/${mode}`);
+  }, [error, id, mode]);
   useEffect(() => {
     const controller = new AbortController();
     setRecord(null);
@@ -2273,6 +2307,7 @@ function CandidateAccountScreen({
   const signedOutClaim = (current: CandidateProfileRecord) => (
     <>
       <GoBackLink
+        destinationName={`${current.candidate.name}’s candidate profile`}
         href={`/candidates/${id}`}
         onPress={onPublic}
         mobile={isMobile}
@@ -2388,6 +2423,7 @@ function CandidateAccountScreen({
               ) : (
                 <>
                   <GoBackLink
+                    destinationName={`${record.candidate.name}’s candidate profile`}
                     href={`/candidates/${id}`}
                     onPress={onPublic}
                     mobile={isMobile}
@@ -2421,6 +2457,7 @@ function CandidateAccountScreen({
                     }}
                   >
                     <GoBackLink
+                      destinationName={`${record.candidate.name}’s candidate profile`}
                       href={`/candidates/${id}`}
                       onPress={onPublic}
                       mobile={isMobile}

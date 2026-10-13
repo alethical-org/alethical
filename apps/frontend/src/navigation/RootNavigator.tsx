@@ -7,7 +7,6 @@ import {
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BottomTabBarProps, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import {
-  ArrowLeft,
   BookmarkCheck,
   MessageSquareText,
   Home,
@@ -28,6 +27,7 @@ import { defaultGuardedNavigation, GuardedNavigationContext } from './GuardedNav
 import { createWebNavigationHistory } from './webNavigationHistory';
 import { linkProps, routePath } from './links';
 import { initializeWebHistory } from './webHistory';
+import { setReturnAccess } from './returnCaptureBridge';
 import { MainTabParamList, MainTabScreenProps, RootStackParamList } from './types';
 import { pathnameFromNavigationState, stateFromPathname } from './webRoutes';
 import { loadOnDemand } from '../lib/loadOnDemand';
@@ -45,6 +45,8 @@ const navigationRef = createNavigationContainerRef<RootStackParamList>();
  * campaign-money page also downloaded the bill page, both chat screens, the
  * address lookup, the traffic dashboard and the sign-in screens (#1966).
  */
+const LegacyHeaderReturn = loadOnDemand(() => import('./LegacyHeaderReturn'), { kind: 'section' });
+
 const AccountScreen = loadOnDemand(screenChunks.Account, { kind: 'screen' });
 const ChatScreen = loadOnDemand(screenChunks.Chat, { kind: 'screen' });
 const ChatSessionScreen = loadOnDemand(screenChunks.ChatSession, { kind: 'screen' });
@@ -392,15 +394,6 @@ const styles = StyleSheet.create({
     marginLeft: 0,
     marginRight: theme.spacing.md,
   },
-  headerBackButton: {
-    width: 40,
-    height: 44,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-  },
-  headerBackButtonPressed: {
-    opacity: 0.72,
-  },
   mobileTabBar: {
     minHeight: 64,
     flexDirection: 'row',
@@ -551,7 +544,7 @@ export function RootNavigator() {
   useCandidatePrivacyBoundary();
   const isWeb = Platform.OS === 'web';
   const { isDesktop } = useResponsive();
-  const { isSignedIn, user } = useAuth();
+  const { isSignedIn, user, isLoading: accountLoading } = useAuth();
   const accountIdentity = isSignedIn ? user?.id : null;
   const [activeRailRoute, setActiveRailRoute] = useState<RailRouteName | undefined>('Home');
   const isHome = useIsHome(activeRailRoute === 'Home' ? 'Home' : undefined);
@@ -593,8 +586,9 @@ export function RootNavigator() {
     return () => window.removeEventListener('popstate', onPopState);
   }, [webHistory]);
   useLayoutEffect(() => {
+    setReturnAccess(accountIdentity ?? null, Boolean(user?.isAdmin), !accountLoading);
     webHistory?.cancelPendingNavigation();
-  }, [webHistory, accountIdentity, user?.isAdmin]);
+  }, [webHistory, accountIdentity, user?.isAdmin, accountLoading]);
 
   return (
     <GuardedNavigationContext.Provider value={webHistory ?? defaultGuardedNavigation}>
@@ -640,7 +634,7 @@ export function RootNavigator() {
           <View style={styles.globalContent}>
             <Stack.Navigator
               UNSTABLE_router={candidateEditorRouter}
-              screenOptions={({ navigation }) => ({
+              screenOptions={({ navigation, route }) => ({
                 headerShown: !isDesktop,
                 headerBackVisible: false,
                 headerTitleAlign: 'left',
@@ -651,18 +645,14 @@ export function RootNavigator() {
                 headerTintColor: theme.colors.ink,
                 headerLeft: () =>
                   navigation.canGoBack() ? (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel="Go back"
-                      hitSlop={10}
-                      onPress={() => navigation.goBack()}
-                      style={({ pressed }) => [
-                        styles.headerBackButton,
-                        pressed && styles.headerBackButtonPressed,
-                      ]}
-                    >
-                      <ArrowLeft color={theme.colors.ink} size={32} strokeWidth={2.4} />
-                    </Pressable>
+                    <LegacyHeaderReturn
+                      voteDetail={route.name === 'VoteDetail'}
+                      onPress={() =>
+                        route.name === 'VoteDetail'
+                          ? navigation.navigate('Bills')
+                          : navigation.navigate('Tabs', { screen: 'Home' })
+                      }
+                    />
                   ) : null,
                 headerLeftContainerStyle: styles.headerLeftContainer,
                 headerTitleContainerStyle: styles.headerTitleContainer,

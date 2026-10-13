@@ -28,7 +28,7 @@ import {
   principalLaneCount,
 } from '../../lib/lobbyingDirectoryCopy';
 import { centralDateLabel } from '../../lib/moneyLanding';
-import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
+import { BACK_TO_MONEY_SECTION } from '../../lib/moneySectionName';
 import { lobbyingPageMetadata } from '../../lib/lobbyingMetadata';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
@@ -107,7 +107,7 @@ export function LobbyingLandingScreen({ navigation, route }: RootScreenProps<'Lo
             <Svg width={18} height={18} viewBox="0 0 24 24" aria-hidden>
               <Path d="M15 5 L8 12 L15 19" stroke="#4f5651" strokeWidth={2.2} fill="none" />
             </Svg>
-            <Text style={styles.backText}>{MONEY_SECTION_NAME}</Text>
+            <Text style={styles.backText}>{BACK_TO_MONEY_SECTION}</Text>
           </Pressable>
           <Text
             accessibilityRole="header"
@@ -295,7 +295,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 9,
   },
-  backText: { fontFamily: t.typography.body, fontSize: 16, fontWeight: '600', color: '#4f5651' },
+  backText: {
+    flexShrink: 1,
+    fontFamily: t.typography.body,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4f5651',
+  },
   h1: {
     marginTop: 14,
     fontFamily: t.typography.title,

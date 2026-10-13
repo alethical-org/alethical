@@ -1,3 +1,4 @@
+import { sameNavigationPath } from './webRoutes';
 import type { createGuardedWebHistory } from './guardedWebHistory';
 import { consumeWebHistoryReplaceMark, pushWebHistory, replaceWebHistoryPath } from './webHistory';
 
@@ -34,6 +35,13 @@ export function createWebNavigationHistory(options: Options) {
         return;
       }
       if (nextPath === path) return;
+      if (sameNavigationPath(nextPath, path)) {
+        if (consumeWebHistoryReplaceMark()) {
+          replaceWebHistoryPath(nextPath);
+          path = nextPath;
+        }
+        return;
+      }
       if (consumeWebHistoryReplaceMark()) replaceWebHistoryPath(nextPath);
       else pushWebHistory(nextPath);
       path = nextPath;

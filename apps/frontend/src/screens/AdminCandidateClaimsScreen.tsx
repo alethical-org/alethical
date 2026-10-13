@@ -1,3 +1,8 @@
+import {
+  returnPageName,
+  useReturnPageName,
+  forgetReturnPageName,
+} from '../navigation/returnDestination';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -1514,6 +1519,18 @@ export function AdminCandidateClaimsScreen({
   if (candidateId && fromProfile) params.set('from', 'profile');
   const returnTo = `/admin/candidate-claims${params.size ? `?${params}` : ''}`;
   const state = denied && denied === user?.id ? 'restricted' : admin.state;
+  useReturnPageName(
+    returnTo,
+    state === 'allowed'
+      ? claimId
+        ? 'Review profile claim request'
+        : 'Profile claim requests'
+      : null,
+  );
+  useEffect(() => {
+    if (state === 'restricted' || state === 'signed-out') forgetReturnPageName(returnTo);
+  }, [state, returnTo]);
+  const candidateReturnName = candidateId ? returnPageName(`/candidates/${candidateId}`) : null;
   useDocumentTitle('/admin/candidate-claims', 'Profile claim requests | Alethical');
   return (
     <PageBackground>
@@ -1538,8 +1555,13 @@ export function AdminCandidateClaimsScreen({
                 >
                   {candidateId && fromProfile ? (
                     <GoBackLink
-                      href={`/candidates/${candidateId}`}
-                      onPress={() => navigation.navigate('CandidateProfile', { candidateId })}
+                      destinationName={candidateReturnName ?? 'Find my candidates'}
+                      href={candidateReturnName ? `/candidates/${candidateId}` : '/candidates'}
+                      onPress={() =>
+                        candidateReturnName
+                          ? navigation.navigate('CandidateProfile', { candidateId })
+                          : navigation.navigate('Candidates')
+                      }
                       mobile={isMobile}
                       pressedColor="#000000"
                       style={{ minHeight: 44, marginBottom: 0 }}

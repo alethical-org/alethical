@@ -539,12 +539,10 @@ names wrap inside their available width instead of creating a horizontal scrollb
 - **State lives in the URL.** Filters, tabs, pagination, and expanded panels are URL-addressable, not
   buried in component state — this is also `grounded-answers.md` rule 5 (anything linked-to must be
   URL-addressable). Same principle, restated for design.
-- **Every detail-page back link tells the truth.** A link labelled “Go back” stays a real link whose
-  address is the safe list or parent page. A normal click returns to the earlier Alethical page in
-  that browser tab when one exists, including its filters, page number, and scroll position; a fresh
-  or shared visit follows the fallback address instead. A link that names a destination, such as
-  “Back to Lobbying”, always opens that destination. Modified clicks stay native browser actions.
-  Top-level pages do not show this control.
+- **Every page-return link names its actual destination.** Apply the
+  [contextual page-return links](#contextual-page-return-links) requirement to new pages,
+  existing page edits, initial HTML, drawings and build handoffs. Top-level pages do not
+  acquire a return control merely to satisfy this requirement.
 - **A link to another article opens at its title.** Guides, research articles, and short posts
   start at the top when a reader follows a link to a different article. A link to a named
   section of an article opens at that section. Browser Back and Forward return to the saved
@@ -580,6 +578,55 @@ names wrap inside their available width instead of creating a horizontal scrollb
   Source: [`LoadingButton.tsx`, `LoadingButton`, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/components/auth/LoadingButton.tsx#L19-L145)
   and [`SignInDialog.tsx`, `SignInDialog`, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/components/auth/SignInDialog.tsx#L486-L493)
   ([#1533](https://github.com/alethical-org/alethical/issues/1533)).
+
+### Contextual page-return links
+
+This requirement governs every page-return control at every page depth, including
+new pages, edits to existing pages, loading/error states and the first HTML response.
+
+- Write **Back to <destination name>**, in sentence case, without an ending period.
+  Name the actual page in words readers recognize. Generic **Go back**, bare **Back**,
+  **Return** and an unnamed arrow are not page-return labels.
+- Resolve a safe destination and its name together before rendering the link. Its visible
+  text, accessible name, copied address, ordinary activation and new-tab address must
+  describe the same page. An earlier history entry alone does not establish its address
+  or name. Restore that entry only when it is the presented destination; otherwise open
+  the presented address. Native browser Back and Forward remain independent.
+- Existing contextual returns retain a known safe earlier Alethical page and its permitted
+  search, filter, page and scroll context. Existing fixed returns keep their fixed
+  destinations. Without usable context, use the screen's explicit named safe list or
+  parent. Never guess a parent by removing address segments, trust outside history, or
+  turn a person/candidate identifier or slug into a display name.
+- Use 1 stable name for each destination, including filtered searches: **Back to Search
+  bills**, **Back to Search legislators**, **Back to Find my candidates**, and **Back to
+  money search**. Filters remain in the permitted address/state, not in a second name for
+  that page. The money search includes lobbying, so its return label does not narrow it
+  to campaign money.
+- Keep a name established for the same record through temporary loading or failure.
+  Never retain another record's name after changing records. With no established identity,
+  use the named safe list. When destination information becomes available, update the
+  words, accessible name, address and activation together. Do not expose private candidate
+  addresses, unsent answers, account data or authentication details in return state.
+- Preserve approved chevrons, spacing, hover, pressed and keyboard-focus treatments.
+  Long names wrap without clipping or covering controls. Naming corrections do not add
+  breadcrumbs or authorize a visual redesign. **Previous**, **Close**, **Cancel**, recovery
+  actions and sign-in step returns describe their own actions; they are not page returns.
+- This requirement takes precedence over contradictory drawings, build notes, prompts,
+  peer coding advice and older saved instructions. Only a later explicit instruction from
+  the human product owner changes it. During an authorized build, the coding agent corrects
+  a settled contradiction in the implementation and records the exact words, destination
+  and behavior for Design. A replacement drawing is not a dependency for that correction.
+- Send settled corrections directly to Design when authorized and safely separate from
+  other Design work; apply the existing destination, activity and model-control checks.
+  If direct delivery cannot be made safely, provide a complete relay prompt. Inspect the
+  returned drawings, build notes and saved-rule changes. This does not authorize new visual
+  choices, a new Design round beyond the approved correction, or sending when the user
+  requested a prompt only.
+- Build checks must reject generic page-return labels and missing destination names.
+  Review drawings for direct entry, known earlier context, unknown names, loading/errors,
+  long names and narrow layouts. Exercise actual clicks, copied/new-tab links, browser
+  history and restored searches in the built screen. Static wording checks do not establish
+  that destinations agree or that context restoration works.
 
 ## 4. What to avoid (directionally wrong for Alethical)
 

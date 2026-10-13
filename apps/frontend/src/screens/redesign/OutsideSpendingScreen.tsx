@@ -1,7 +1,7 @@
 import { OutsideSpendingBrowseScreen } from './OutsideSpendingBrowseScreen';
 import { useOutsideSpendingReturn } from '../../hooks/useOutsideSpendingReturn';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -18,7 +18,7 @@ import { outsideSpendingPageMetadata } from '../../lib/screenPageMetadata';
 import { committeeSlug, registerKindLabel } from '../../lib/committeeMoneyShared';
 import { campaignMoneyYears, formatMoney } from '../../lib/legislatorCampaignMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
-import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
+import { BACK_TO_MONEY_SECTION } from '../../lib/moneySectionName';
 import { outsideSubjectShareContent } from '../../lib/moneyResultsShare';
 import {
   ALL_YEARS,
@@ -89,6 +89,7 @@ import {
   type OutsideSpendingSubject,
   type OutsideSpendingView,
 } from '../../lib/outsideSpending';
+import { forgetReturnPageName, useReturnPageName } from '../../navigation/returnDestination';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps, RootStackParamList } from '../../navigation/types';
@@ -193,6 +194,19 @@ function OutsideSpendingSubjectScreen({ navigation, route }: RootScreenProps<'Ou
   const serviceDown = query.isError;
   const page =
     query.data !== undefined ? query.data : serviceDown ? (lastAccepted.current ?? null) : null;
+  const returnSubject = view === 'spender' ? page?.spender : page?.about;
+  useReturnPageName(
+    routePath.moneyOutsideSpending(address),
+    returnSubject &&
+      returnSubject.registrationNumber === (view === 'spender' ? address.spender : address.about)
+      ? `Outside spending ${view === 'spender' ? 'by' : 'about'} ${subjectName(returnSubject)}`
+      : null,
+  );
+  const confirmedMissing = query.data === null && !query.isPending && !query.isError;
+  const subjectPath = routePath.moneyOutsideSpending(address);
+  useEffect(() => {
+    if (confirmedMissing) forgetReturnPageName(subjectPath);
+  }, [confirmedMissing, subjectPath]);
   const checkedOn = page?.fetchedAt ? centralDateLabel(page.fetchedAt) : null;
 
   const go = (next: Address) => {
@@ -224,7 +238,7 @@ function OutsideSpendingSubjectScreen({ navigation, route }: RootScreenProps<'Ou
             style={styles.moneyBackLink}
           >
             <BackChevron />
-            <Text style={styles.backLabel}>{MONEY_SECTION_NAME}</Text>
+            <Text style={styles.backLabel}>{BACK_TO_MONEY_SECTION}</Text>
           </Pressable>
 
           {query.isPending && !page ? (
@@ -919,6 +933,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   backLabel: {
+    flexShrink: 1,
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,

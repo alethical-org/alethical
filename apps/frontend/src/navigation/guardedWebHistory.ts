@@ -1,3 +1,4 @@
+import { sameNavigationPath } from './webRoutes';
 import {
   consumeWebHistoryReplaceMark,
   currentWebHistoryEntry,
@@ -54,7 +55,7 @@ export function createGuardedWebHistory(options: Options) {
   let disposed = false;
 
   function write({ path, replace }: Write) {
-    if (path !== current.path) {
+    if (path !== current.path && (replace || !sameNavigationPath(path, current.path))) {
       if (replace) replaceWebHistoryPath(path);
       else pushWebHistory(path);
     }
@@ -86,7 +87,7 @@ export function createGuardedWebHistory(options: Options) {
           traversal.phase = 'waiting';
           // An account/navigation change may have superseded the attempted Back.
           const path = options.getNavigationPath();
-          if (path !== traversal.from.path) {
+          if (!sameNavigationPath(path, traversal.from.path)) {
             pending = undefined;
             write({ path, replace: consumeWebHistoryReplaceMark() });
           } else {
@@ -126,16 +127,22 @@ export function createGuardedWebHistory(options: Options) {
       if (disposed) return;
       // Different history entries can share a URL. An accepted reset still
       // needs to finish that traversal even when the printed address is equal.
-      if (pending?.phase === 'waiting' && nextPath === pending.to.path) {
+      if (pending?.phase === 'waiting' && sameNavigationPath(nextPath, pending.to.path)) {
+        if (nextPath !== pending.to.path && consumeWebHistoryReplaceMark())
+          pending.write = { path: nextPath, replace: true };
         complete(pending);
         return;
       }
       if (nextPath === current.path) return;
+      if (sameNavigationPath(nextPath, current.path)) {
+        if (consumeWebHistoryReplaceMark()) write({ path: nextPath, replace: true });
+        return;
+      }
       const nextWrite = { path: nextPath, replace: consumeWebHistoryReplaceMark() };
       if (pending?.phase === 'restoring' || pending?.phase === 'traversing') {
         // Do not push while a traversal is in flight: it would erase the entry
         // being restored and the browser's remaining Forward history.
-        if (pending.phase === 'traversing' && nextPath === pending.to.path) return;
+        if (pending.phase === 'traversing' && sameNavigationPath(nextPath, pending.to.path)) return;
         pending.write = nextWrite;
         return;
       }

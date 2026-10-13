@@ -1,3 +1,4 @@
+import { useEntityReturnPageNames } from '../hooks/useEntityReturnPageNames';
 import { CandidateClaimPanel } from '../components/candidates/CandidateClaimPanel';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
@@ -50,6 +51,12 @@ export function CandidateProfileScreen(props: RootScreenProps<'CandidateProfile'
   const [state, setState] = useState<ProfileState>({ id, kind: 'loading' });
   const [retry, setRetry] = useState(0);
   const current = state.id === id ? state : { id, kind: 'loading' as const };
+  useEntityReturnPageNames(
+    `/candidates/${id}`,
+    current.kind === 'ready' ? `/candidates/${current.record.candidate.id}` : null,
+    current.kind === 'ready' ? `${current.record.candidate.name}’s candidate profile` : null,
+    current.kind === 'not-found',
+  );
   useEffect(() => {
     if (illustrative) return;
     const controller = new AbortController();
@@ -117,6 +124,7 @@ export function CandidateProfileScreen(props: RootScreenProps<'CandidateProfile'
         ) : (
           <View style={{ padding: 32, maxWidth: 760, width: '100%', alignSelf: 'center', flex: 1 }}>
             <GoBackLink
+              destinationName="Find my candidates"
               href="/candidates"
               onPress={returnToCandidates}
               mobile={isMobile}

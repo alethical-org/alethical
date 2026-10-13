@@ -66,7 +66,7 @@ export function renderEventArticle(event: PublishedEvent, now = Date.now()): str
     timeZone: 'UTC',
   }).format(new Date(`${event.publishedOn}T12:00:00Z`));
   return `<article class="event-content event-article"><style>${eventCss}</style>
-<a class="event-back" href="${EVENTS_PATH}">‹ All events</a>
+<a class="event-back" href="${EVENTS_PATH}">‹ Back to Events</a>
 <a href="${e(event.image)}" aria-label="Open the full-size ${e(event.name)} flyer"><img class="event-flyer" src="${e(event.image)}" width="${event.imageWidth}" height="${event.imageHeight}" alt="${e(event.imageAlt)}" fetchpriority="high" decoding="async"></a>
 <p class="event-image-link"><a href="${e(event.image)}">Open full-size flyer to zoom in</a></p>
 <h1>${e(event.title)}</h1>

@@ -1676,6 +1676,7 @@ describe('a committee’s record in the first response', () => {
   const moneyOut = committeeFixture.money_out;
 
   it('is headed by the register’s own name and its registration number', () => {
+    expect(snapshot.backLink).toEqual({ label: 'Back to Money in politics', href: '/money' });
     expect(snapshot.heading).toBe('Jane Fonda Climate PAC');
     // Reads 'Political committee', not the register's broad 3-way kind: this fixture is
     // a `PC` filer and issue #1694 spells out all 6 of the Board's finer codes. The
@@ -2245,6 +2246,10 @@ describe('a committee’s full payments list in the first response', () => {
   });
 
   it('links back to the committee whose payments these are', () => {
+    expect(snapshot.backLink).toEqual({
+      label: 'Back to Jane Fonda Climate PAC',
+      href: '/money/committees/jane-fonda-climate-pac-41326?tab=gave&year=2026',
+    });
     expect(snapshot.links.map((link) => link.href)).toContain(
       '/money/committees/jane-fonda-climate-pac-41326?tab=gave&year=2026',
     );

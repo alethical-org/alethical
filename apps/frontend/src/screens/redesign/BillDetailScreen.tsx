@@ -1,3 +1,4 @@
+import { useEntityReturnPageNames } from '../../hooks/useEntityReturnPageNames';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Linking,
@@ -383,6 +384,12 @@ function BillDetailMobileScreen() {
 
   const billQuery = useBill(billId);
   const bill = billQuery.data;
+  useEntityReturnPageNames(
+    billId ? `/bills/${billId}` : null,
+    bill ? `/bills/${bill.id}` : null,
+    bill?.identifier,
+    isNotFoundError(billQuery.error),
+  );
   // Same shared builder api/page.ts used for the first response, so the tab
   // title never disagrees with the one the server sent (#1325).
   useDocumentTitle(
@@ -520,15 +527,7 @@ function BillDetailMobileScreen() {
     }
   };
 
-  // Native uses the navigation stack when it has one, then the bill list. Web's
-  // shared GoBackLink makes the stricter decision from marked browser history.
-  const goToBillList = () => {
-    if (navigation.canGoBack?.()) {
-      navigation.goBack();
-    } else {
-      navigation.navigate('Bills');
-    }
-  };
+  const goToBillList = () => navigation.navigate('Bills');
 
   // --- share ---
   const shareContent = bill
@@ -769,14 +768,24 @@ function BillDetailMobileScreen() {
               <Text style={styles.stateText}>
                 We couldn’t load this bill right now. Please try again in a moment.
               </Text>
-              <GoBackLink href={routePath.bills()} onPress={goToBillList} mobile />
+              <GoBackLink
+                destinationName="Search bills"
+                href={routePath.bills()}
+                onPress={goToBillList}
+                mobile
+              />
             </View>
           ) : (
             <>
               {/* 1 — bill header */}
               <View style={styles.headerOuter}>
                 <View style={styles.column}>
-                  <GoBackLink href={routePath.bills()} onPress={goToBillList} mobile />
+                  <GoBackLink
+                    destinationName="Search bills"
+                    href={routePath.bills()}
+                    onPress={goToBillList}
+                    mobile
+                  />
                   <Text
                     accessibilityRole="header"
                     aria-level={1}

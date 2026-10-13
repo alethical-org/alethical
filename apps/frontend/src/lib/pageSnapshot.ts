@@ -48,7 +48,7 @@ import {
   MONEY_SOURCES_PERIOD_NOTE,
   MONEY_SOURCE_GROUPS,
 } from './moneyLandingSources';
-import { MONEY_SECTION_NAME } from './moneySectionName';
+import { BACK_TO_MONEY_SECTION, MONEY_SECTION_NAME } from './moneySectionName';
 import { itemsByMenu, NAV_BAR } from '../navigation/ia';
 import { MONEY_LIST_COVERAGE, MONEY_LIST_COVERAGE_HEADING } from './moneyListCopy';
 import {
@@ -1303,7 +1303,7 @@ export function readCollectionPageSnapshot(
   const pages = kind === 'research' ? research.pageCount : collectionPage(guides, page).pageCount;
   const links: SnapshotLink[] = [
     {
-      label: kind === 'set' ? 'All guides' : 'Back to Blog',
+      label: kind === 'set' ? 'Back to Guides' : 'Back to Blog',
       href: kind === 'set' ? '/blog/guides' : '/blog',
     },
   ];
@@ -1700,7 +1700,7 @@ export function moneyByRacePageSnapshot(
       sections: [limits],
       links: [
         ...(office ? [{ label: 'Show all offices', href: directoryHref }] : []),
-        { label: 'Money in politics', href: '/money' },
+        { label: BACK_TO_MONEY_SECTION, href: '/money' },
       ],
     };
   }
@@ -1741,8 +1741,8 @@ export function moneyByRacePageSnapshot(
     recordsBeforeSections: true,
     sections: [limits],
     links: [
-      { label: 'Go back', href: directoryHref },
-      { label: 'Money in politics', href: '/money' },
+      { label: 'Back to Money by race', href: directoryHref },
+      { label: BACK_TO_MONEY_SECTION, href: '/money' },
     ],
   };
 }
@@ -2487,7 +2487,7 @@ export function committeePageSnapshot(
   });
 
   return {
-    backLink: { label: MONEY_SECTION_NAME, href: '/money' },
+    backLink: { label: BACK_TO_MONEY_SECTION, href: '/money' },
     eyebrow: (identity.eyebrow ?? 'Committee').toUpperCase(),
     heading: identity.name,
     subheading: identity.subheading,
@@ -2640,7 +2640,7 @@ export function committeePaymentsPageSnapshot(
     : null;
   return {
     backLink: {
-      label: identity.name,
+      label: `Back to ${identity.name}`,
       href: `/money/committees/${encodeURIComponent(identity.slug)}?tab=${tab}&year=${year}`,
     },
     eyebrow: (identity.eyebrow ?? 'Committee').toUpperCase(),
