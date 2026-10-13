@@ -122,6 +122,7 @@ describe.each([
       'Site Metrics',
       'Operations',
       'Profile claim requests',
+      'Review TV ad records',
     ];
     for (const label of labels) {
       const text = [...row(label)!.querySelectorAll<HTMLElement>('*')].find(
@@ -173,22 +174,29 @@ describe.each([
     expect(row('Change password')).toBeUndefined();
   });
 
-  it('shows the 4 administrator links only after access is allowed', () => {
+  it('shows the 5 administrator links only after access is allowed', () => {
     open();
     expect(row('User Accounts')).toBeUndefined();
+    expect(row('Review TV ad records')).toBeUndefined();
     state.admin = 'restricted';
     render(control);
     expect(row('User Accounts')).toBeUndefined();
+    expect(row('Review TV ad records')).toBeUndefined();
     state.admin = 'allowed';
     render(control);
-    const links = ['User Accounts', 'Site Metrics', 'Operations', 'Profile claim requests'].map(
-      (label) => row(label),
-    );
+    const links = [
+      'User Accounts',
+      'Site Metrics',
+      'Operations',
+      'Profile claim requests',
+      'Review TV ad records',
+    ].map((label) => row(label));
     expect(links.map((element) => element?.getAttribute('href'))).toEqual([
       '/admin/users',
       '/admin/site-metrics',
       '/admin/operations',
       '/admin/candidate-claims',
+      '/admin/political-ads',
     ]);
     expect(
       links[0]!.compareDocumentPosition(links[1]!) & Node.DOCUMENT_POSITION_FOLLOWING,
@@ -196,9 +204,10 @@ describe.each([
     expect(
       links[1]!.compareDocumentPosition(links[2]!) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    click(links[0]!);
-    expect(state.navigate).toHaveBeenCalledWith('AdminUsers');
+    click(links[4]!);
+    expect(state.navigate).toHaveBeenCalledWith('AdminPoliticalAds');
     expect(row('User Accounts')).toBeUndefined();
+    expect(row('Review TV ad records')).toBeUndefined();
   });
 });
 

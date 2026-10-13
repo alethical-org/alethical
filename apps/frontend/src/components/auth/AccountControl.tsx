@@ -770,6 +770,7 @@ function AdminGroup({
           ['Site Metrics', routePath.siteMetrics(), 'SiteMetrics'],
           ['Operations', routePath.adminSiteMetrics(), 'AdminSiteMetrics'],
           ['Profile claim requests', '/admin/candidate-claims', 'AdminCandidateClaims'],
+          ['Review TV ad records', '/admin/political-ads', 'AdminPoliticalAds'],
         ] as const
       ).map(([label, href, screen]) => (
         <AdminRow
