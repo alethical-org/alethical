@@ -240,7 +240,7 @@ export async function runReaderChecks(options) {
       activeCheck = 'research-article-has-title-and-return-link';
       await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
       const returnLink = page
-        .getByRole('link', { name: /^(Back to Blog|All research reports)$/ })
+        .getByRole('link', { name: 'Back to Research reports', exact: true })
         .first();
       await expect(returnLink).toBeVisible();
       await returnLink.click();

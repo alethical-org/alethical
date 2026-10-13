@@ -618,7 +618,9 @@ new pages, edits to existing pages, loading/error states and the first HTML resp
   and behavior for Design. A replacement drawing is not a dependency for that correction.
 - Send settled corrections directly to Design when authorized and safely separate from
   other Design work; apply the existing destination, activity and model-control checks.
-  If direct delivery cannot be made safely, provide a complete relay prompt. Inspect the
+  A `bd` build includes direct Design coordination: resolve access or ownership boundaries
+  and continue independent work instead of defaulting to a relay. For other work where
+  relay delivery is permitted, provide a complete prompt if direct sending is unsafe. Inspect the
   returned drawings, build notes and saved-rule changes. This does not authorize new visual
   choices, a new Design round beyond the approved correction, or sending when the user
   requested a prompt only.
