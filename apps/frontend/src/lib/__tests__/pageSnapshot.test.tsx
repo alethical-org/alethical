@@ -592,7 +592,7 @@ describe('the legislator snapshot says only what the profile draws', () => {
     expect(former.subheading).toBe('');
     expect(former.body).toEqual([]);
     expect(former.facts).toEqual([]);
-    expect(former.links).toEqual([{ label: 'Legislators', href: '/legislators' }]);
+    expect(former.links).toEqual([{ label: 'Back to Search legislators', href: '/legislators' }]);
 
     // The 2 invented claims, and the 3 stale committee rows, in the text that
     // actually ships. `Senate` is banned outright here: this record names the
@@ -647,7 +647,9 @@ describe('the legislator snapshot says only what the profile draws', () => {
     expect(unnamedChamber.subheading).toBe('');
     expect(unnamedChamber.body).toEqual([]);
     expect(unnamedChamber.facts).toEqual([]);
-    expect(unnamedChamber.links).toEqual([{ label: 'Legislators', href: '/legislators' }]);
+    expect(unnamedChamber.links).toEqual([
+      { label: 'Back to Search legislators', href: '/legislators' },
+    ]);
     for (const guess of [
       'Sen.',
       'Rep.',
@@ -705,7 +707,7 @@ describe('the legislator snapshot says only what the profile draws', () => {
         label: `Official ${member.chamberWord} profile`,
         href: 'https://www.example.mn.gov/members/profile/99999',
       },
-      { label: 'Legislators', href: '/legislators' },
+      { label: 'Back to Search legislators', href: '/legislators' },
     ]);
     for (const kept of [
       `${member.title} Pat Doe`,

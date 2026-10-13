@@ -766,7 +766,7 @@ export function billPageSnapshot(bill: BillSnapshotSource): PageSnapshot {
             },
           ]
         : []),
-      { label: 'Bills', href: '/bills' },
+      { label: 'Back to Search bills', href: '/bills' },
     ],
   };
 }
@@ -906,7 +906,7 @@ export function legislatorPageSnapshot(
       ...(servesNow && service.profile_url
         ? [{ label: `Official ${chamber} profile`, href: service.profile_url }]
         : []),
-      { label: 'Legislators', href: '/legislators' },
+      { label: 'Back to Search legislators', href: '/legislators' },
     ],
   };
 }
