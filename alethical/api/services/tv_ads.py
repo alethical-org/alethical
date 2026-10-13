@@ -1,4 +1,4 @@
-"""Approved TV-record projections. Raw archive text never enters reader responses."""
+"""Private administrator archive access and separate approved-copy projections."""
 
 from __future__ import annotations
 
@@ -9,13 +9,17 @@ from functools import wraps
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
+from types import SimpleNamespace
 from urllib.parse import quote
 
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from alethical.db import models as m
-from alethical.api.services.tv_ad_review import _folder_observations
+from alethical.api.services.tv_ad_review import (
+    _folder_observations,
+    original_page_count,
+)
 from alethical.pipeline.fcc_document_text import EXTRACTOR_VERSION
 from alethical.pipeline import fcc_expense_links
 from alethical.pipeline.fcc_public_files import DEFAULT_STATIONS
@@ -26,6 +30,7 @@ STATIONS = {s.facility_id: s for s in DEFAULT_STATIONS}
 def projection(function):
     @wraps(function)
     def read(db, *args, **kwargs):
+        include_archive = kwargs.pop("include_archive", False)
         previous = db.info.get("tv_projection")
         if previous is not None:
             return function(db, *args, **kwargs)
@@ -64,6 +69,7 @@ def projection(function):
             "versions": versions,
             "current": current,
             "facts": facts,
+            "include_archive": include_archive,
         }
         try:
             return function(db, *args, **kwargs)
@@ -170,6 +176,8 @@ def _document(db, p):
 
 
 def _facts(db, publication_id):
+    if not isinstance(publication_id, UUID):
+        return []
     cache = db.info.get("tv_projection")
     if cache is not None:
         return cache["facts"].get(publication_id, [])
@@ -244,7 +252,7 @@ def _row(db, p):
         "kind": kind,
         "uploaded_at": doc.uploaded_at,
         "version_id": p.content_hash,
-        "copy_id": str(p.id),
+        "copy_id": None if p.status == "archive" else str(p.id),
         "airing_periods": [
             f.value
             for f in facts
@@ -288,7 +296,92 @@ def _latest_copies(db, facility_id=None, *, metadata=True):
     found = {}
     for p in copies:
         found.setdefault((p.facility_id, p.file_id), p)
+    if metadata and _archive_access(db):
+        # Access to a source is not an approval. Use current held bytes even when
+        # an older version has a publishable derivative.
+        for key, doc in db.info["tv_projection"]["current"].items():
+            if facility_id and doc.facility_id != facility_id:
+                continue
+            copy = found.get(key)
+            if (
+                copy is None
+                or copy.content_hash != doc.content_hash
+                or copy.status != "approved"
+            ):
+                found[key] = _archive_copy(doc)
     return list(found.values())
+
+
+def _archive_access(db):
+    return db.info.get("tv_projection", {}).get("include_archive", False)
+
+
+def _archive_copy(doc):
+    parts = doc.folder_path.split("/")
+    category = next(
+        (
+            part
+            for part in parts[1:]
+            if part.casefold()
+            in {"federal", "state", "local", "non-candidate issue ads", "terms"}
+        ),
+        "",
+    )
+    return SimpleNamespace(
+        id=(doc.facility_id, doc.file_id, doc.content_hash),
+        facility_id=doc.facility_id,
+        file_id=doc.file_id,
+        content_hash=doc.content_hash,
+        status="archive",
+        safe_title=doc.name,
+        safe_folder=parts[-1],
+        category=category.capitalize(),
+        safe_pages=[],
+    )
+
+
+def _source_pages(db, content_hash):
+    cache = db.info.get("tv_projection", {})
+    if "source_pages" in cache:
+        return cache["source_pages"].get(content_hash, [])
+    return list(
+        db.scalars(
+            select(m.FCCPage)
+            .where(
+                m.FCCPage.content_hash == content_hash,
+                m.FCCPage.version == EXTRACTOR_VERSION,
+            )
+            .order_by(m.FCCPage.page)
+        )
+    )
+
+
+def _agency_names(db, copy):
+    checked = {
+        f.value
+        for f in _facts(db, copy.id)
+        if f.field == "agency_name" and f.status == "checked" and f.publication_approved
+    }
+    result = {name: False for name in checked}
+    if _archive_access(db):
+        cache = db.info["tv_projection"]
+        if "extractions" not in cache:
+            cache["extractions"] = {
+                e.content_hash: e.facts
+                for e in db.scalars(
+                    select(m.FCCExtraction).where(
+                        m.FCCExtraction.version == EXTRACTOR_VERSION
+                    )
+                )
+            }
+        for f in cache["extractions"].get(copy.content_hash, []):
+            if (
+                f.get("field") == "agency_name"
+                and isinstance(f.get("value"), str)
+                and f["value"].strip()
+            ):
+                result.setdefault(f["value"], True)
+    return result
 
 
 def sources(db: Session, station: str | None = None):
@@ -395,6 +488,20 @@ def browse(db, *, tab="folders", q="", station="", year=None, category="", page=
     )
     rows = []
     if q:
+        if _archive_access(db):
+            page_cache = defaultdict(list)
+            hashes = {p.content_hash for p in selected if p.status == "archive"}
+            if hashes:
+                for part in db.scalars(
+                    select(m.FCCPage)
+                    .where(
+                        m.FCCPage.content_hash.in_(hashes),
+                        m.FCCPage.version == EXTRACTOR_VERSION,
+                    )
+                    .order_by(m.FCCPage.page)
+                ):
+                    page_cache[part.content_hash].append(part)
+            db.info["tv_projection"]["source_pages"] = page_cache
         query = q.casefold()
         for p in selected:
             row = _row(db, p)
@@ -416,7 +523,13 @@ def browse(db, *, tab="folders", q="", station="", year=None, category="", page=
                         match = ("Checked fact", fact.value, False)
                         break
             if match is None:
-                for part in p.safe_pages if p.status == "approved" else []:
+                parts = p.safe_pages if p.status == "approved" else []
+                if p.status == "archive":
+                    parts = [
+                        {"page": part.page, "text": part.text}
+                        for part in _source_pages(db, p.content_hash)
+                    ]
+                for part in parts:
                     value = part.get("text", "")
                     idx = value.casefold().find(query)
                     if idx >= 0:
@@ -474,19 +587,17 @@ def browse(db, *, tab="folders", q="", station="", year=None, category="", page=
             )
     elif tab == "agencies":
         groups = defaultdict(set)
+        unchecked = defaultdict(bool)
         for p in selected:
-            for f in _facts(db, p.id):
-                if (
-                    f.status == "checked"
-                    and f.publication_approved
-                    and f.field == "agency_name"
-                ):
-                    groups[f.value].add((p.facility_id, p.file_id))
+            for name, pending in _agency_names(db, p).items():
+                groups[name].add((p.facility_id, p.file_id))
+                unchecked[name] |= pending
         rows = [
             {
                 "key": agency_key(name),
                 "label": name,
                 "file_count": len(ids),
+                "unchecked": unchecked[name],
                 "stations": sorted(
                     {STATIONS[facility].call_sign for facility, _ in ids}
                 ),
@@ -639,19 +750,37 @@ def file_detail(db, key, version=None, copy_id=None):
                 "versions": [],
             }
         selected = exact if exact.metadata_approved else None
+    if _archive_access(db) and copy_id is None:
+        requested = (
+            next((d for d in docs if d.content_hash == version), None)
+            if version
+            else current_docs[0]
+        )
+        if requested is None:
+            raise LookupError("Not found")
+        if (
+            selected is None
+            or selected.content_hash != requested.content_hash
+            or selected.status != "approved"
+        ):
+            return _archive_detail(db, key, requested, docs, current_docs[0], pubs)
     versions = [
         {
             "id": d.content_hash,
             "first_saved_at": iso(d.first_seen_at),
             "uploaded_at": d.uploaded_at,
-            "status": by_hash[d.content_hash].status
-            if d.content_hash in by_hash
-            else "withdrawn"
-            if any(
-                p.content_hash == d.content_hash and p.status == "withdrawn"
-                for p in pubs
-            )
-            else "pending",
+            "status": _version_status(d.content_hash, pubs)
+            if _archive_access(db)
+            else (
+                by_hash[d.content_hash].status
+                if d.content_hash in by_hash
+                else "withdrawn"
+                if any(
+                    p.content_hash == d.content_hash and p.status == "withdrawn"
+                    for p in pubs
+                )
+                else "pending"
+            ),
         }
         for d in docs
     ]
@@ -752,6 +881,71 @@ def file_detail(db, key, version=None, copy_id=None):
     }
 
 
+def _version_status(content_hash, pubs):
+    return (
+        "approved"
+        if any(p.content_hash == content_hash and p.status == "approved" for p in pubs)
+        else "archive"
+    )
+
+
+def _archive_detail(db, key, doc, docs, current, pubs):
+    pages = _source_pages(db, doc.content_hash)
+    # Text extraction is optional; source pages remain usable before extraction.
+    count = max((p.page for p in pages), default=0) or original_page_count(
+        db, doc.facility_id, doc.file_id, doc.content_hash
+    )
+    numbers = range(1, count + 1)
+    text_by_page = {p.page: p for p in pages}
+    copy = _archive_copy(doc)
+    return {
+        **_row(db, copy),
+        "folder": {
+            "key": file_key(doc.facility_id, doc.folder_id),
+            "label": copy.safe_folder,
+        },
+        "fcc_url": doc.url,
+        "fcc_available": _fcc_available(db, doc.facility_id, doc.file_id),
+        "versions": [
+            {
+                "id": d.content_hash,
+                "first_saved_at": iso(d.first_seen_at),
+                "uploaded_at": d.uploaded_at,
+                "status": _version_status(d.content_hash, pubs),
+            }
+            for d in docs
+        ],
+        "copy_status": "archive",
+        "page_count": len(numbers),
+        "pages": [
+            {
+                "number": n,
+                "text": text_by_page[n].text if n in text_by_page else None,
+                "text_status": "ready"
+                if n in text_by_page and text_by_page[n].status == "readable"
+                else "partial"
+                if n in text_by_page and text_by_page[n].text
+                else "pending",
+                "image_path": f"/ads/files/{quote(key)}/source-pages/{n}?version={doc.content_hash}",
+            }
+            for n in numbers
+        ],
+        "facts": [],
+        "dates": [],
+        "connections": [],
+        "related": [],
+        "other_files": [
+            _row(db, p)
+            for p in _latest_copies(db, doc.facility_id)
+            if p.file_id != doc.file_id and _document(db, p).folder_id == doc.folder_id
+        ][:12],
+        "current_source_version": current.content_hash,
+        "newest_approved_version": next(
+            (p.content_hash for p in pubs if p.status == "approved"), None
+        ),
+    }
+
+
 def approved_media(db, key, version, copy_id):
     facility, file_id = identity(key)
     p = db.get(m.TVAdPublication, copy_id, populate_existing=True)
@@ -848,24 +1042,21 @@ def agency_detail(db, key):
     groups = defaultdict(list)
     name = None
     addresses = []
+    unchecked = False
     for p in _latest_copies(db):
         facts = [
             f
             for f in _facts(db, p.id)
             if f.status == "checked" and f.publication_approved
         ]
-        match = next(
-            (
-                f
-                for f in facts
-                if f.field == "agency_name" and agency_key(f.value) == key
-            ),
-            None,
-        )
-        if not match:
+        candidates = _agency_names(db, p)
+        candidate = next((name for name in candidates if agency_key(name) == key), None)
+        if candidate is None:
             continue
-        name = match.value
-        row = _row(db, p)
+        name = candidate
+        pending = candidates[name]
+        unchecked |= pending
+        row = {**_row(db, p), "agency_unchecked": pending}
         groups[(row["station"], row["year"])].append(row)
         for f in facts:
             if (
@@ -895,6 +1086,7 @@ def agency_detail(db, key):
     return {
         "key": key,
         "name": name,
+        "unchecked": unchecked,
         "payments_href": f"/money/payments?name={quote(name)}&role=vendor",
         "groups": [
             {"station": station, "year": year, "files": files}

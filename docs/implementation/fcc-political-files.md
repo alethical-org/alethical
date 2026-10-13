@@ -3,7 +3,7 @@
 <!-- describes: alethical/pipeline/fcc_*.py, scripts/fcc_political_files.py, .github/workflows/fcc-political-files.yml, .github/scripts/fcc-refresh-report*.cjs -->
 
 Net: Preserve and search the complete political-file folders of KSTP-TV, KARE and
-KMSP-TV, with separately reviewed copies for the administrator-only TV records screens.
+KMSP-TV, with private administrator access to originals and separately reviewed publication copies.
 
 ## Authorization and owner
 
@@ -529,24 +529,26 @@ considering a production change.
 
 [Issue 2595](https://github.com/alethical-org/alethical/issues/2595) adds private reader routes under `/money/ads` and review tools at `/admin/political-ads`. The archive remains the original source, not a publication approval. [tv-ad-records-guide.md](../product-onboarding/tv-ad-records-guide.md) explains the reader and review behavior.
 
+Eugene clarified on 13 October 2026 that administrator builds must be fully usable with access to the collected records. Publication approval does not gate private administrator browsing. The earlier restriction came from Design wording, not a user decision. Administrators can browse folders, stations and years, search original labels and machine-read text, and open source pages and saved versions. Machine-read agency names appear with Not checked labels. Access does not create publication approvals or checked facts and connections. Public access remains on hold.
+
 Five review tables preserve exact copied evidence: `tv_ad_publication`, `tv_ad_fact`, `tv_ad_connection`, `tv_ad_folder_approval`, and `tv_ad_review_event`. Migration `0070_tv_ad_records` adds them without changing the seven source archive tables. Review tables have no public database access. Every HTTP reader, image and review route checks current administrator access and returns private, no-store responses. Signed-out and ordinary accounts receive the existing not-found response.
 
 A prepared copy binds station ID, file ID, source hash, safe metadata, page text, redactions and generated artifact hashes into an immutable fingerprint. Approving requires the inspected fingerprint and separate privacy, metadata and text attestations. Newly encoded page images burn in redactions; the source PDF is never returned by reader routes. Poppler is installed in the production runtime through `railpack.json` and in the local backend container; Libre Franklin Bold is bundled under `alethical/assets/fonts/`. Metadata-only approval permits a safe label without publishing an image, text, facts or connections. A folder approval binds its exact retained listing and can represent an empty folder.
 
 Checked facts and connections also require separate publication permission. Quotes must exist in approved text on the cited page. Target previews return fingerprints so changed identities require a fresh review. Candidate roles separate merely named, advertiser and payer. Race connections bind the exact contest and stage; a campaign-money contest link requires separately inspected office, district and year. Folder connections do not propagate to files. Related-document links bind exact source and copy IDs. Expense evidence retains its dataset, snapshot, source hash, row number and copied row; a later filing never silently replaces it. An agency address requires its own explicit reviewed agency association, not equal spelling alone.
 
-Withdrawal blocks exact image links immediately and removes unsafe text, facts, search matches and dependent connections. Ordinary corrections may retain an earlier public value only with separate privacy approval; privacy withdrawal removes that history value too. Current source selection follows last successful download, including A→B→A; displayed version history follows first saved time. Counts use distinct identities and do not add overlapping measures.
+Withdrawal blocks exact approved-copy image links immediately and removes that copy’s text, facts and dependent connections from approved projections. Private administrator access to the separately held original continues with its unchecked status. Ordinary corrections may retain an earlier public value only with separate privacy approval; privacy withdrawal removes that history value too. Current source selection follows last successful download, including A→B→A; displayed version history follows first saved time. Counts use distinct identities and do not add overlapping measures.
 
-Release completion requires the actual HTTP preparation, image, approval, reader and withdrawal paths, phone/tablet/computer review, non-administrator denial and current permission revocation. Synthetic approvals prove software behavior only. Publishing real copied files, facts and relationships still requires a person's review; an agent must not supply those decisions. Deployment and real approval receipts belong on [issue 2595](https://github.com/alethical-org/alethical/issues/2595), not in this implementation description as assumed completion.
+Release completion requires the actual HTTP preparation, image, approval, reader and withdrawal paths, phone/tablet/computer review, non-administrator denial and current permission revocation. Synthetic approvals prove software behavior only. Administrators must be able to browse and open real collected files before release completion; real publication approval is not a prerequisite for that access. Publishing real copied files, facts and relationships still requires a person's review; an agent must not supply those decisions. Deployment and real approval receipts belong on [issue 2595](https://github.com/alethical-org/alethical/issues/2595), not in this implementation description as assumed completion.
 
 ### Live TV browse acceptance, 13 October 2026
 
-Station and year browse rows show safe folder counts and file counts; agency-name
+Station and year browse rows show collected folder counts and file counts; agency-name
 rows show file counts and the contributing stations. Only folder rows show station,
-year and station category. Browse counts use the same currently approved safe
-records as the corresponding lists, including separately approved empty folders,
-and never count a withdrawn or unreviewed folder label. The held archive totals
-remain separate from these browse counts.
+year and station category. Browse counts use the same held records as the lists,
+including separately approved empty folders. Agency rows distinguish machine-read
+names from checked names. Held archive totals and publication-approved copy counts
+remain separate.
 
 The API service needs the existing 4 Storage-scoped S3 settings used by the private
 archive store to open retained evidence and prepare copies. Deployment acceptance

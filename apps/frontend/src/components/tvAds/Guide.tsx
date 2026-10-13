@@ -54,7 +54,7 @@ export const TV_AD_GUIDE: ResearchPiece = {
       railLabel: 'Names',
       blocks: [
         paragraph(
-          'An agency name is the spelling printed in the agency role on a checked file. Similar spellings are kept separate. The same name on a station file and a payment record is a search clue, not proof that they describe the same organization or transaction.',
+          'Agency names come from checked facts or machine-read text. Machine-read names are marked Not checked and may contain reading errors. Each spelling is kept separate. The same name on a station file and a payment record is a search clue, not proof that they describe the same organization or transaction.',
         ),
         paragraph(
           'A checked connection names its role and carries its own quoted evidence. A candidate merely named on a document is kept separate from a candidate checked as the advertiser or payer. An election connection covers the particular contest and stage it names.',
@@ -87,7 +87,7 @@ export const TV_AD_GUIDE: ResearchPiece = {
           'Station files, distinct contents, approved copies, text-reading failures, and download failures count different things. The counts can overlap. None is a count of ads, purchases, viewers, or votes.',
         ),
         paragraph(
-          'Safe labels may be available before an approved image is ready. Personal contact details are withheld from approved copies. A missing file or unreadable page is a gap in the records available here, not evidence that an event did not happen.',
+          'Administrators can open collected original files before publication approval. Opening an original does not mark it checked or approved. Personal contact details are withheld from approved copies. A missing file or unreadable page is a gap in the records available here, not evidence that an event did not happen.',
         ),
       ],
     },

@@ -72,6 +72,9 @@ describe('private TV data boundaries', () => {
     await expect(
       readTVImage('private', '/ads/files/file/pages/1?version=abc', signal),
     ).rejects.toThrow('Unbound image path');
+    await expect(
+      readTVImage('private', '/ads/files/file/source-pages/1?version=abc', signal),
+    ).rejects.toThrow('Unbound image path');
     expect(fetch).not.toHaveBeenCalled();
   });
   it('uses an authenticated non-cacheable image request with redirects disabled', async () => {
@@ -318,51 +321,64 @@ describe('approved content and evidence', () => {
     );
     expect(mount.textContent).toContain('This copy is no longer shown');
   });
-  it('releases private image URLs when the record unmounts', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        new Response('safe', {
-          headers: { 'Content-Type': 'image/png' },
-        }),
-      ),
-    );
-    const create = vi.fn(() => 'blob:private-image');
-    const revoke = vi.fn();
-    Object.defineProperty(URL, 'createObjectURL', { value: create, configurable: true });
-    Object.defineProperty(URL, 'revokeObjectURL', { value: revoke, configurable: true });
-    request.mockResolvedValue({
-      key: 'safe-id',
-      copy_status: 'approved',
-      name: 'SAFE NAME',
-      station: 'KARE',
-      year: '2026',
-      version_id: 'hash',
-      copy_id: 'copy-id',
-      versions: [],
-      page_count: 1,
-      pages: [
-        {
-          number: 1,
-          image_path: '/ads/files/safe-id/pages/1?version=hash&copy=copy-id',
-          text_status: 'ready',
-        },
-      ],
-      facts: [],
-      dates: [],
-      connections: [],
-    });
-    await act(async () =>
-      root.render(
-        <TVSession.Provider value={{ token: 'one', denied: vi.fn() }}>
-          <TVFile fileKey="safe-id" params={{}} onParams={vi.fn()} notFound={vi.fn()} />
-        </TVSession.Provider>,
-      ),
-    );
-    expect(mount.querySelector('img')?.getAttribute('src')).toBe('blob:private-image');
-    await act(async () => root.render(null));
-    expect(revoke).toHaveBeenCalledWith('blob:private-image');
-  });
+  it.each(['approved', 'archive'])(
+    'releases private %s image URLs when the record unmounts',
+    async (status) => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response('safe', {
+            headers: { 'Content-Type': 'image/png' },
+          }),
+        ),
+      );
+      const create = vi.fn(() => 'blob:private-image');
+      const revoke = vi.fn();
+      Object.defineProperty(URL, 'createObjectURL', { value: create, configurable: true });
+      Object.defineProperty(URL, 'revokeObjectURL', { value: revoke, configurable: true });
+      request.mockResolvedValue({
+        key: 'safe-id',
+        copy_status: status,
+        name: 'SAFE NAME',
+        station: 'KARE',
+        year: '2026',
+        version_id: 'hash',
+        copy_id: 'copy-id',
+        versions: [],
+        page_count: 1,
+        pages: [
+          {
+            number: 1,
+            image_path:
+              status === 'archive'
+                ? `/ads/files/safe-id/source-pages/1?version=${'a'.repeat(64)}`
+                : '/ads/files/safe-id/pages/1?version=hash&copy=copy-id',
+            text_status: 'ready',
+          },
+        ],
+        facts: [],
+        dates: [],
+        connections: [],
+      });
+      await act(async () =>
+        root.render(
+          <TVSession.Provider value={{ token: 'one', denied: vi.fn() }}>
+            <TVFile fileKey="safe-id" params={{}} onParams={vi.fn()} notFound={vi.fn()} />
+          </TVSession.Provider>,
+        ),
+      );
+      expect(mount.querySelector('img')?.getAttribute('src')).toBe('blob:private-image');
+      if (status === 'archive') {
+        expect(mount.textContent).toContain(
+          'Original station file · Not checked or approved for publication',
+        );
+        expect(mount.querySelector('img')?.getAttribute('alt')).toContain('original station file');
+        expect(mount.textContent).not.toContain('Blank boxes cover personal details');
+      }
+      await act(async () => root.render(null));
+      expect(revoke).toHaveBeenCalledWith('blob:private-image');
+    },
+  );
 
   it('renders a withdrawn tombstone without accidentally supplied old metadata', async () => {
     request.mockResolvedValue({

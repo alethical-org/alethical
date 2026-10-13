@@ -136,7 +136,7 @@ def sources(
     "/ads/recent", response_model=response.Recent, response_model_exclude_unset=True
 )
 def recent(db: Session = Depends(tv_database)):
-    return reader.recent(db)
+    return reader.recent(db, include_archive=True)
 
 
 @router.get(
@@ -152,7 +152,14 @@ def browse(
     db: Session = Depends(tv_database),
 ):
     return reader.browse(
-        db, tab=tab, q=q, station=station, year=year, category=category, page=page
+        db,
+        tab=tab,
+        q=q,
+        station=station,
+        year=year,
+        category=category,
+        page=page,
+        include_archive=True,
     )
 
 
@@ -180,7 +187,22 @@ def file_detail(
     copy: UUID | None = None,
     db: Session = Depends(tv_database),
 ):
-    return reader.file_detail(db, key, version, copy)
+    return reader.file_detail(db, key, version, copy, include_archive=True)
+
+
+@router.get("/ads/files/{key}/source-pages/{page}")
+def source_image(
+    key: str,
+    page: int,
+    version: str = Query(pattern=r"^[a-f0-9]{64}$"),
+    db: Session = Depends(tv_database),
+):
+    facility, file_id = reader.identity(key)
+    return Response(
+        review.render_original_page(db, facility, file_id, version, page),
+        media_type="image/png",
+        headers={"Cache-Control": "private, no-store"},
+    )
 
 
 @router.get("/ads/files/{key}/pages/{page}")
@@ -207,7 +229,7 @@ def image(
     response_model_exclude_unset=True,
 )
 def folder(key: str, db: Session = Depends(tv_database)):
-    return reader.folder_detail(db, key)
+    return reader.folder_detail(db, key, include_archive=True)
 
 
 @router.get(
@@ -216,7 +238,7 @@ def folder(key: str, db: Session = Depends(tv_database)):
     response_model_exclude_unset=True,
 )
 def agency(key: str, db: Session = Depends(tv_database)):
-    return reader.agency_detail(db, key)
+    return reader.agency_detail(db, key, include_archive=True)
 
 
 @router.get(
@@ -225,7 +247,7 @@ def agency(key: str, db: Session = Depends(tv_database)):
     response_model_exclude_unset=True,
 )
 def station(key: str, db: Session = Depends(tv_database)):
-    return reader.station_detail(db, key)
+    return reader.station_detail(db, key, include_archive=True)
 
 
 ADMIN = "/admin/political-ads"

@@ -748,3 +748,119 @@ def test_all_reader_json_models_accept_real_approved_projections(db, source, api
     )
     assert result.status_code == 200
     assert result.json()["copy_status"] == "withdrawn"
+
+
+def test_admin_browses_and_opens_unapproved_archive_without_approving(
+    db, source, api, monkeypatch
+):
+    document, store = source
+    document.year = 2026
+    document.folder_path = "political-files/2026/State/Sample Committee"
+    db.add(
+        m.FCCExtraction(
+            content_hash=document.content_hash,
+            version=EXTRACTOR_VERSION,
+            document_kind="unknown",
+            status="readable",
+            errors=[],
+            facts=[
+                {
+                    "field": "agency_name",
+                    "value": "Example Media",
+                    "page": 1,
+                    "quote": "Agency: Example Media",
+                }
+            ],
+        )
+    )
+    db.flush()
+    db.add(
+        m.FCCPage(
+            content_hash=document.content_hash,
+            version=EXTRACTOR_VERSION,
+            page=1,
+            text="Agency: Example Media. PRIVATE CONTACT NAME",
+            status="readable",
+            method="native",
+        )
+    )
+    db.flush()
+    client, state = api
+    key = reader.file_key(document.facility_id, document.file_id)
+    folders = client.get("/api/v1/ads/browse").json()
+    assert folders["total"] == 1
+    assert folders["rows"][0]["label"] == "Sample Committee"
+    assert folders["rows"][0]["file_count"] == 1
+    folder = client.get("/api/v1/ads/folders/" + folders["rows"][0]["key"]).json()
+    assert folder["files"][0]["name"] == document.name
+    assert folder["files"][0]["copy_id"] is None
+    for tab in ("years", "stations"):
+        result = client.get("/api/v1/ads/browse", params={"tab": tab}).json()
+        assert sum(row["file_count"] for row in result["rows"]) == 1
+    names = client.get("/api/v1/ads/browse?tab=agencies").json()
+    assert names["rows"][0]["unchecked"] is True
+    agency = client.get("/api/v1/ads/agencies/" + names["rows"][0]["key"]).json()
+    assert agency["unchecked"] is True
+    assert agency["groups"][0]["files"][0]["agency_unchecked"] is True
+    assert agency["addresses"] == []
+    detail = client.get("/api/v1/ads/files/" + key)
+    assert detail.status_code == 200
+    body = detail.json()
+    assert body["copy_status"] == "archive"
+    assert body["facts"] == body["dates"] == body["connections"] == []
+    assert body["pages"][0]["text"].endswith("PRIVATE CONTACT NAME")
+    assert body["versions"][0]["status"] == "archive"
+    assert "no-store" in detail.headers["cache-control"]
+    assert client.get("/api/v1/ads/browse?q=PRIVATE").json()["total"] == 1
+    monkeypatch.setattr(review, "raw_file_store_from_env", lambda: store)
+    image_path = "/api/v1" + body["pages"][0]["image_path"]
+    image = client.get(image_path)
+    assert image.status_code == 200
+    assert image.content.startswith(b"\x89PNG")
+    assert "no-store" in image.headers["cache-control"]
+    assert reader.counts(db)["files_with_approved_copy"] == 0
+    assert db.query(m.TVAdPublication).count() == 0
+    state["allowed"] = False
+    for url in ("/api/v1/ads/browse", "/api/v1/ads/files/" + key, image_path):
+        denied = client.get(url)
+        assert denied.status_code == 404
+        assert "PRIVATE CONTACT NAME" not in denied.text
+
+
+def test_admin_can_open_unapproved_current_and_older_source_without_approval(
+    db, source, monkeypatch
+):
+    original, store = source
+    monkeypatch.setattr(review, "raw_file_store_from_env", lambda: store)
+    approved(db, source)
+    other_hash = fcc_archive.archive_body(db, store, pdf() + b"\n% new source")
+    other = m.FCCDocument(
+        facility_id=original.facility_id,
+        file_id=original.file_id,
+        content_hash=other_hash,
+        call_sign=original.call_sign,
+        folder_id=original.folder_id,
+        folder_path=original.folder_path,
+        name="New source",
+        url=original.url,
+        first_seen_at=datetime(2027, 1, 1, tzinfo=timezone.utc),
+        last_seen_at=datetime(2027, 1, 1, tzinfo=timezone.utc),
+        last_downloaded_at=datetime(2027, 1, 1, tzinfo=timezone.utc),
+    )
+    db.add(other)
+    db.flush()
+    key = reader.file_key(original.facility_id, original.file_id)
+    detail = reader.file_detail(db, key, include_archive=True)
+    assert detail["version_id"] == other_hash
+    assert detail["copy_status"] == "archive"
+    assert detail["name"] == "New source"
+    prior = reader.file_detail(
+        db, key, version=original.content_hash, include_archive=True
+    )
+    assert prior["copy_status"] == "approved"
+    assert {v["id"] for v in prior["versions"]} == {other_hash, original.content_hash}
+    assert {v["id"]: v["status"] for v in prior["versions"]} == {
+        other_hash: "archive",
+        original.content_hash: "approved",
+    }
+    assert detail["page_count"] == 1

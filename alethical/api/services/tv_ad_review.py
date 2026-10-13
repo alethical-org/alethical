@@ -8,6 +8,7 @@ commit. No command here automatically reviews source data or publishes a draft.
 from __future__ import annotations
 
 import hashlib
+import io
 import html
 import json
 import re
@@ -16,6 +17,8 @@ import uuid
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+
+from pypdf import PdfReader
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -1087,8 +1090,24 @@ def read_artifact(publication, store=None, *, page=None):
     return body
 
 
+def original_page_count(db, facility_id, file_id, content_hash, store=None):
+    """Count held source pages when machine reading has not run yet."""
+    _source(db, facility_id, file_id, content_hash)
+    body_row = db.get(m.FCCSourceBody, content_hash)
+    if body_row is None:
+        raise ValueError("Source contents unavailable")
+    body = fcc_archive.read_body(store or raw_file_store_from_env(), body_row)
+    if len(body) > tv_ad_redaction.MAX_SOURCE_BYTES:
+        raise ValueError("Source exceeds preview limit")
+    reader = PdfReader(io.BytesIO(body), strict=True)
+    count = len(reader.pages)
+    if reader.is_encrypted or not 1 <= count <= tv_ad_redaction.MAX_PAGES:
+        raise ValueError("Source cannot be previewed")
+    return count
+
+
 def render_original_page(db, facility_id, file_id, content_hash, page, store=None):
-    """Review-only raster preview, never a reader fallback or original PDF URL."""
+    """Authenticated administrator source preview, separate from an approved copy."""
     _source(db, facility_id, file_id, content_hash)
     if (
         isinstance(page, bool)
