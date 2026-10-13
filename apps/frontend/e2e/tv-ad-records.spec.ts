@@ -576,6 +576,8 @@ for (const width of [390, 900, 1280]) {
     const agencyRow = page.locator('.tv-agency-file').first();
     await agencyRow.focus();
     await expect(agencyRow).toHaveCSS('outline-offset', '-2px');
+    await expect(agencyRow).toHaveCSS('padding-left', '12px');
+    await expect(agencyRow).toHaveCSS('padding-right', '12px');
     await page.screenshot({ path: resolve(output, `agency-row-focus-${width}.png`) });
     await agencyRow.blur();
     await agencyRow.hover();

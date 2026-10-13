@@ -78,6 +78,7 @@ Whole-row folder and station links show one keyboard outline around the row, wit
 
 Final review refinements: address evidence links keep a 44px target while their
 keyboard outline follows the link width. Agency row outlines sit 2px inside an
-8px corner radius. An agency with no checked addresses uses the same white empty
+8px corner radius, with 12px horizontal content padding. Empty file and address
+surfaces span the available width. An agency with no checked addresses uses the same white empty
 surface as its missing file list. Station and file failures name the affected
 record and explain “This is a problem on our side” beside the retry action.
