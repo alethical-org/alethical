@@ -47,6 +47,8 @@ export interface BrowseRow extends CopyReference {
   year?: string | number;
   category?: string | null;
   file_count?: number;
+  folder_count?: number;
+  stations?: string[] | null;
   kind?: string | null;
   uploaded_at?: string | null;
   match_label?: string;

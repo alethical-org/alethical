@@ -312,16 +312,23 @@ export function TVLanding({
                         {!result.q && (
                           <div className="tv-small">
                             {[
-                              row.station,
-                              row.year,
-                              row.category
-                                ? `Station category: ${row.category}`
-                                : row.station
-                                  ? 'Category not identified'
-                                  : null,
+                              ...(result.tab === 'folders'
+                                ? [
+                                    row.station,
+                                    row.year,
+                                    row.category
+                                      ? `Station category: ${row.category}`
+                                      : 'Category not identified',
+                                  ]
+                                : []),
+                              (result.tab === 'stations' || result.tab === 'years') &&
+                              typeof row.folder_count === 'number'
+                                ? `${row.folder_count.toLocaleString('en-US')} ${row.folder_count === 1 ? 'folder' : 'folders'}`
+                                : null,
                               typeof row.file_count === 'number'
                                 ? `${row.file_count.toLocaleString('en-US')} ${row.file_count === 1 ? 'file' : 'files'}`
                                 : null,
+                              result.tab === 'agencies' ? row.stations?.join(', ') : null,
                             ]
                               .filter(Boolean)
                               .join(' · ')}

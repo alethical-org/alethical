@@ -548,6 +548,58 @@ describe('version-bound evidence', () => {
 });
 
 describe('browse scope and exact search destinations', () => {
+  it.each([
+    {
+      tab: 'stations',
+      row: { key: 'kare', label: 'KARE', station: 'KARE', folder_count: 2, file_count: 4 },
+      expected: '2 folders · 4 files',
+    },
+    {
+      tab: 'years',
+      row: { key: '2026', label: '2026', year: 2026, folder_count: 1, file_count: 1 },
+      expected: '1 folder · 1 file',
+    },
+    {
+      tab: 'agencies',
+      row: { key: 'agency', label: 'Example agency', stations: ['KARE', 'KSTP-TV'], file_count: 4 },
+      expected: '4 files · KARE, KSTP-TV',
+    },
+  ])('shows the matching metadata for $tab rows', async ({ tab, row, expected }) => {
+    request.mockImplementation((path: string) =>
+      Promise.resolve(
+        path.startsWith('/ads/browse')
+          ? {
+              ...initialBrowse({ tab }),
+              page_size: 12,
+              total: 1,
+              capped: false,
+              years: [],
+              categories: [],
+              rows: [row],
+            }
+          : path === '/ads/counts'
+            ? {
+                station_files_held: 0,
+                unique_file_contents: 0,
+                files_with_approved_copy: 0,
+                text_read_failures: 0,
+                download_failures: 0,
+                checked_connection_files: 0,
+              }
+            : { stations: [], text_reader_version: 'test' },
+      ),
+    );
+    await act(async () =>
+      root.render(
+        <TVSession.Provider value={{ token: 'one', denied: vi.fn() }}>
+          <TVLanding params={{ tab }} onParams={vi.fn()} />
+        </TVSession.Provider>,
+      ),
+    );
+    const rendered = mount.querySelector('.tv-row')!;
+    expect(rendered.querySelector('.tv-small')?.textContent).toBe(expected);
+    expect(rendered.textContent).not.toContain('Category not identified');
+  });
   it.each(['agencies', 'stations', 'years'])(
     'clears folder-only filters when changing to %s',
     async (tab) => {

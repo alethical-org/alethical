@@ -538,3 +538,17 @@ Checked facts and connections also require separate publication permission. Quot
 Withdrawal blocks exact image links immediately and removes unsafe text, facts, search matches and dependent connections. Ordinary corrections may retain an earlier public value only with separate privacy approval; privacy withdrawal removes that history value too. Current source selection follows last successful download, including A→B→A; displayed version history follows first saved time. Counts use distinct identities and do not add overlapping measures.
 
 Release completion requires the actual HTTP preparation, image, approval, reader and withdrawal paths, phone/tablet/computer review, non-administrator denial and current permission revocation. Synthetic approvals prove software behavior only. Publishing real copied files, facts and relationships still requires a person's review; an agent must not supply those decisions. Deployment and real approval receipts belong on [issue 2595](https://github.com/alethical-org/alethical/issues/2595), not in this implementation description as assumed completion.
+
+### Live TV browse acceptance, 13 October 2026
+
+Station and year browse rows show safe folder counts and file counts; agency-name
+rows show file counts and the contributing stations. Only folder rows show station,
+year and station category. Browse counts use the same currently approved safe
+records as the corresponding lists, including separately approved empty folders,
+and never count a withdrawn or unreviewed folder label. The held archive totals
+remain separate from these browse counts.
+
+The API service needs the existing 4 Storage-scoped S3 settings used by the private
+archive store to open retained evidence and prepare copies. Deployment acceptance
+must open a real source version and render a private draft, without supplying any
+privacy, fact or relationship approval on a person's behalf.

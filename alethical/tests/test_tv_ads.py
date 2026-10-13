@@ -219,6 +219,9 @@ def test_same_file_id_in_different_stations_counts_as_separate_files(db, source)
     review.add_fact(db, copy2.id, ACTOR, fact())
     agency = reader.browse(db, tab="agencies")
     assert agency["rows"][0]["file_count"] == 2
+    assert agency["rows"][0]["stations"] == ["KARE", "KSTP-TV"]
+    station_rows = reader.browse(db, tab="stations")["rows"]
+    assert all(row["folder_count"] == 1 for row in station_rows if row["file_count"])
     assert reader.counts(db)["station_files_held"] == 2
     assert reader.counts(db)["unique_file_contents"] == 1
 
@@ -283,8 +286,20 @@ def test_reviewed_empty_folder_appears_without_inventing_files(db):
     rows = reader.browse(db, tab="folders")["rows"]
     assert len(rows) == 1 and rows[0]["file_count"] == 0
     assert reader.counts(db)["station_files_held"] == 0
+    station = next(
+        row
+        for row in reader.browse(db, tab="stations")["rows"]
+        if row["key"] == "kstp-tv"
+    )
+    assert station["folder_count"] == 1 and station["file_count"] == 0
+    year = reader.browse(db, tab="years")["rows"][0]
+    assert year["folder_count"] == 1 and year["file_count"] == 0
     review.withdraw_folder(db, folder.id, ACTOR, "Synthetic withdrawal")
     assert reader.browse(db, tab="folders")["rows"] == []
+    assert reader.browse(db, tab="years")["rows"] == []
+    assert all(
+        row["folder_count"] == 0 for row in reader.browse(db, tab="stations")["rows"]
+    )
 
 
 @pytest.mark.parametrize("change", ["published_source", "link_row", "link_identity"])
