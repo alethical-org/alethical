@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+vi.mock('../../tvAds/useTVAdAccess', () => ({
+  useTVAdAccess: () => ({ state: 'signed-out', retry: vi.fn() }),
+}));
 import type { ReactNode } from 'react';
 import { createRequire } from 'node:module';
 import { renderToStaticMarkup } from 'react-dom/server';

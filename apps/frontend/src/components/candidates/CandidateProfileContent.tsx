@@ -1,3 +1,4 @@
+import { TVAdConnectionCard } from '../tvAds/OnDemand';
 import { useId, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -358,6 +359,11 @@ export function CandidateProfileContent({
           </View>
           <CandidateRecordSources source={record.source} result={record.result} inset={inset} />
         </View>
+        <TVAdConnectionCard
+          kind="candidate"
+          target={record.candidate.id}
+          name={record.candidate.name}
+        />
         {children}
       </View>
     </View>

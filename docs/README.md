@@ -171,7 +171,8 @@ lasting decisions and release evidence have their permanent homes.
 - [Candidate profile records and profile claim review](implementation/candidate-profile-records-plan.md) — approved public history, campaign access, administrator review and release checks
 - [Private account activation](implementation/admin-users-plan.md) — approved account access and the remaining administrator activation
 - [Campaign-finance history refresh](implementation/campaign-finance-history-refresh.md) — source-replacement boundaries, failed-source handling and saved recovery evidence
-- [FCC political-file archive](implementation/fcc-political-files.md) — station source addresses, collection and refresh steps, private storage, recovery, searchable readings and limits before any reader feature
+- [TV ad records guide](product-onboarding/tv-ad-records-guide.md) — private reader routes, reviewed evidence, counts, version history and administrator review tools
+- [FCC political-file archive](implementation/fcc-political-files.md) — station source addresses, collection and refresh steps, private storage, recovery, searchable readings and the private TV records review boundary
 - [Legislator campaign-money delivery](implementation/legislator-campaign-money-tab-plan.md) — coordinated releases, outstanding decisions and held data work
 - [Campaign-money review scope](implementation/campaign-money-final-review-prompt.md) — the releases to inspect and the work still excluded from that review
 - [Committee search and payment design](implementation/committee-search-payment-design.md) — the accepted committee and payment-list behavior

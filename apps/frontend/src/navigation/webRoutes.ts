@@ -51,6 +51,8 @@ type WebRouteTarget =
     }
   | { kind: 'adminCandidateClaims'; candidateId?: string; claimId?: string; fromProfile?: boolean }
   | { kind: 'moneyLanding' }
+  | { kind: 'tvAdRecords'; params: RootStackParamList['TVAdRecords'] }
+  | { kind: 'adminPoliticalAds' }
   | { kind: 'emailPreferences' }
   | { kind: 'unsubscribe' }
   | { kind: 'commentEmails' }
@@ -289,6 +291,53 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   if (segments[0] === 'candidates' && segments.length === 3 && /^[a-f0-9]{64}$/.test(segments[1])) {
     if (segments[2] === 'claim') return { kind: 'candidateClaim', candidateId: segments[1] };
     if (segments[2] === 'manage') return { kind: 'candidateManage', candidateId: segments[1] };
+  }
+  if (normalized === '/admin/political-ads') return { kind: 'adminPoliticalAds' };
+  if (normalized === '/money/ads' || normalized.startsWith('/money/ads/')) {
+    const parts = normalized.split('/').filter(Boolean);
+    const types = {
+      files: 'file',
+      folders: 'folder',
+      agencies: 'agency',
+      stations: 'station',
+    } as const;
+    const kind =
+      parts.length === 2
+        ? 'landing'
+        : parts.length === 3 && parts[2] === 'guide'
+          ? 'guide'
+          : types[parts[2] as keyof typeof types];
+    if (!kind || (kind !== 'landing' && kind !== 'guide' && (parts.length !== 4 || !parts[3])))
+      return { kind: 'notFound', path: pathname };
+    const search = new URLSearchParams(pathname.split('?')[1] || '');
+    let recordKey: string | undefined;
+    try {
+      recordKey = parts[3] ? decodeURIComponent(parts[3]) : undefined;
+    } catch {
+      return { kind: 'notFound', path: pathname };
+    }
+    const params: RootStackParamList['TVAdRecords'] = {
+      kind,
+      ...(recordKey ? { key: recordKey } : {}),
+    };
+    for (const key of [
+      'q',
+      'tab',
+      'station',
+      'year',
+      'category',
+      'page',
+      'version',
+      'text',
+      'history',
+      'from',
+      'expense',
+      'copy',
+    ] as const) {
+      const value = search.get(key);
+      if (value && value.length <= 1000) params[key] = value;
+    }
+    return { kind: 'tvAdRecords', params };
   }
   if (normalized === '/admin/candidate-claims') {
     const candidateId = searchParams.get('candidate');
@@ -910,6 +959,40 @@ export function pathForRoute(activeRoute: {
         ? `/find-my-legislator?address=${encodeURIComponent(String(address))}`
         : '/find-my-legislator';
     }
+    case 'TVAdRecords': {
+      const p = activeRoute.params as RootStackParamList['TVAdRecords'];
+      const segments = {
+        file: 'files',
+        folder: 'folders',
+        agency: 'agencies',
+        station: 'stations',
+      };
+      const base =
+        p.kind === 'landing'
+          ? '/money/ads'
+          : p.kind === 'guide'
+            ? '/money/ads/guide'
+            : `/money/ads/${segments[p.kind]}/${encodeURIComponent(p.key || '')}`;
+      const query = new URLSearchParams();
+      for (const key of [
+        'q',
+        'tab',
+        'station',
+        'year',
+        'category',
+        'page',
+        'version',
+        'text',
+        'history',
+        'from',
+        'expense',
+        'copy',
+      ] as const)
+        if (p[key]) query.set(key, p[key]!);
+      return base + (query.size ? `?${query}` : '');
+    }
+    case 'AdminPoliticalAds':
+      return '/admin/political-ads';
     case 'MoneyLanding':
       return '/money';
     case 'EmailPreferences':
@@ -1232,6 +1315,10 @@ export function stateFromPathname(pathname: string): WebNavigationState {
         name: target.kind === 'lobbyingPrincipal' ? 'LobbyingPrincipal' : 'LobbyingLobbyist',
         params: { slug: target.slug, ...(target.year ? { year: target.year } : {}) },
       });
+    case 'tvAdRecords':
+      return pageState({ name: 'TVAdRecords', params: target.params });
+    case 'adminPoliticalAds':
+      return pageState({ name: 'AdminPoliticalAds' });
     case 'moneyLanding':
       return pageState({ name: 'MoneyLanding' });
     case 'emailPreferences':

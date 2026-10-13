@@ -1,0 +1,59 @@
+# TV ad records guide
+
+<!-- describes: alethical/api/routers/tv_ads.py, alethical/api/services/tv_ads.py, alethical/api/services/tv_ad_review.py, alethical/pipeline/tv_ad_redaction.py, apps/frontend/src/components/tvAds/**, apps/frontend/src/components/tvAdReview/**, apps/frontend/src/screens/redesign/TVAdRecordsScreen.tsx, apps/frontend/src/screens/redesign/AdminPoliticalAdsScreen.tsx -->
+
+TV ad records collect station files from KSTP-TV, KARE and KMSP-TV. They help readers distinguish what was ordered, billed, credited or reported in campaign records. A title alone does not prove an ad aired or a bill was paid. The first reader release is for signed-in administrators. Public access is not approved.
+
+## Where to begin
+
+Administrators can enter from the TV ad records card at `/money`, from its separate group at `/money/search`, or directly at `/money/ads`. A short reading guide lives at `/money/ads/guide`. The guide is not in public article search, sharing controls or the sitemap. Signed-out and ordinary signed-in readers see the existing not-found result for direct TV addresses. Their money pages keep the existing six cards and no TV groups or gaps.
+
+Related records may also appear beside a committee, a legislator's confirmed campaign committee, a candidate, an outside spender, a particular race, or a lobbying principal. Each connection belongs to the exact checked file. A candidate merely named on a document appears separately from a checked advertiser or payer. Race connections retain their stage. Search under a printed agency spelling is a name search, not proof that the records describe the same organization.
+
+## Search and browse at `/money/ads`
+
+Search matches approved safe file labels, checked facts and approved machine-read text. Text matches remain labelled Not checked. Browse by station folders, exact printed agency names, stations or years. Folder filters cover station, folder year and the literal station category. The newest available folder year is selected first. Results have 12 rows per page; search is capped at 500 and says when more exist.
+
+A station category describes the station's filing choice. It does not identify an election office or establish a connection. Unknown categories stay unknown. Spelling variations remain separate. A checked empty folder can appear with zero files.
+
+Changing a filter or page keeps the previous results visible with an updating notice until the replacement arrives. A failed request keeps usable results and offers retry. A new search starts at page 1. An empty result explains that there are no matching approved records; it does not mean no ads existed. Counts and source dates load separately, so a failure in one does not hide the other.
+
+## What counts mean
+
+- Station files held counts station plus FCC file ID once when original contents have been saved.
+- Unique file contents counts different saved byte sequences, including older versions. Identical contents count once across files.
+- Files with an approved copy counts a file once when any saved version still has an approved viewable copy.
+- Files whose text could not be fully read uses the current text reader and latest successfully downloaded contents.
+- Files we couldn't download from the FCC uses each file's latest conclusive download attempt, including never-saved files.
+
+These counts overlap. They are not ad counts, spending totals or proof of complete history. Folder-list failures count folders separately. Missing values never become zero. Sources name the newest known upload, last successful listing check and last successful file copy separately for each station.
+
+## Read a saved file
+
+At `/money/ads/files/<key>`, the station, safe filename, folder year and station category identify the file. The approved page image, machine-read text, checked facts, dates and connections keep their own meanings. Open a fact's page link to see its quoted evidence. Page controls and phone zoom help inspect an image. Machine-read text begins closed below computer width and remains labelled Not checked.
+
+A safe title can be approved before an image is ready. That state shows no unpublished page text, facts or connections. A failed image can be retried. An unreadable text page does not imply an unavailable image. Personal contact details are removed before served images and text are generated; a browser overlay is not the redaction.
+
+Saved versions are ordered by first saved time in Central time. The current source follows the latest successful download, so a source changing A to B and then back to A makes A current. Checks never transfer to replacement contents. Links to evidence preserve both source version and exact approved copy. Older approved records stay identified when the current source changes. A withdrawn copy shows its withdrawal state instead of falling through to another copy.
+
+Dollar figures omit cents without rounding; quotations preserve source precision. Gross, net, commission, credits, ordered amounts and reported expenses are separate. Multiple airing periods stay separate. The screens never add documents or versions into spending totals.
+
+## Follow connections and history
+
+Each checked connection has its own quote, page and check date. A folder relationship says only that the folder relates to a committee; files require separate checks. Related documents open the exact checked copy. Expense evidence opens the exact saved campaign-finance row. A changed current filing is labelled without replacing the older evidence.
+
+Agency addresses need a separately checked agency association and preserve the printed role. Equal names alone do not qualify. Facts may have correction history when each older value remains safe to publish. Withdrawing unsafe information removes the value and quote, including previously approved history.
+
+## Review at `/admin/political-ads`
+
+The private review queue lists source files and retained folders. Select a source version, inspect original pages privately, prepare safe metadata and page text, and mark redaction rectangles. A prepared preview shows the pixels readers would receive. Inspect every page before approving the exact prepared fingerprint and the privacy, metadata and text attestations. Preparation does not approve publication.
+
+Facts require a supported field, value, source page and exact quote. Connections require an inspected target and exact evidence. Correctness and publication permission are separate decisions. Candidate connections require the election stage and named/advertiser/payer role. A race needs its exact contest; adding a campaign-money office and district requires a separate association check. Review cannot promote a folder relationship to its files.
+
+Source or target changes clear earlier review attestations. Saving and retry controls keep their positions and prevent repeat submissions. Failed operations report the failure and allow correction. Withdrawal takes effect on later reader and image requests; old links do not restore approval. Review actions remain in private audit history.
+
+## Sources, privacy and limits
+
+The source archive and operational limits are documented in [fcc-political-files.md](../implementation/fcc-political-files.md). FCC political files must be retained for at least 2 years; older available files are not complete history. There is no coverage of other stations, cable, radio, streaming or online advertising.
+
+Reader requests send search and filter choices to Alethical. Private responses are not cached for shared reuse. Administrator permission is checked on every API request. Original documents and review notes remain private and do not enter reader search. No feature here submits an ad request, contacts a campaign, changes a filed expense, or subscribes a reader to messages.

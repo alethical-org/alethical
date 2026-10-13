@@ -1,4 +1,10 @@
 // @vitest-environment jsdom
+vi.mock('../../../components/tvAds/useTVAdAccess', () => ({
+  useTVAdAccess: () => ({ state: 'signed-out', retry: vi.fn() }),
+}));
+vi.mock('../../../providers/AuthProvider', () => ({
+  useAuth: () => ({ accessToken: null, isSignedIn: false }),
+}));
 import { act, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

@@ -13,7 +13,7 @@ describe('one name for the /money destination', () => {
     expect(MONEY_SECTION_NAME).toBe('Money in politics');
     expect(BACK_TO_MONEY_SECTION).toBe('Back to Money in politics');
     expect(IA.find((item) => item.path === '/money')?.label).toBe('Money');
-    expect(MONEY_PROMO_CTA).toBe(MONEY_SECTION_NAME);
+    expect(MONEY_PROMO_CTA).toBe('Search the money records');
     expect(MONEY_LANDING_HEADING).toBe(MONEY_SECTION_NAME);
     expect(STATIC_PAGE_METADATA['/money'].title).toBe('Money in politics in Minnesota | Alethical');
     expect(STATIC_PAGE_METADATA['/money'].socialTitle).toBe(MONEY_SECTION_NAME);

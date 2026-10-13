@@ -2198,6 +2198,8 @@ async function contentFor(
         noStore: true,
       };
     }
+    case "tvAdRecords":
+    case "adminPoliticalAds":
     case "notFound":
       throw new UnknownAddress(`unknown address ${path}`);
   }
@@ -2329,6 +2331,8 @@ export default async function handler(
   const isAdminPage = [
     "candidateClaim",
     "candidateManage",
+    "tvAdRecords",
+    "adminPoliticalAds",
     "adminCandidateClaims",
     "adminUsers",
     "adminSiteMetrics",
@@ -2436,7 +2440,7 @@ export default async function handler(
   }
   response.setHeader(
     "Cache-Control",
-    content.noStore ? "no-store" : status === 404 ? NOT_FOUND_CACHE : OK_CACHE,
+    isAdminPage ? "private, no-store" : content.noStore ? "no-store" : status === 404 ? NOT_FOUND_CACHE : OK_CACHE,
   );
   if (content.metadata.noindex) response.setHeader("X-Robots-Tag", "noindex");
   response.status(status).send(html);

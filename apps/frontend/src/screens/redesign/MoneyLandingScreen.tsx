@@ -1,8 +1,11 @@
-import { useCallback, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import { useTVAdAccess } from '../../components/tvAds/useTVAdAccess';
+import { useAuth } from '../../providers/AuthProvider';
+import { readTV } from '../../components/tvAds/api';
 import { Skeleton } from '../../components/Skeleton';
 import { LinkArrow, LinkArrowLabel, linkArrowRow } from '../../components/LinkArrow';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
@@ -109,6 +112,7 @@ function LaneCard({
   tablet,
   wide,
   cardWidth,
+  administrator = false,
 }: {
   title: string;
   body: string;
@@ -123,6 +127,7 @@ function LaneCard({
   tablet: boolean;
   wide: boolean;
   cardWidth: number;
+  administrator?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
   const reduceMotion = useReducedMotion();
@@ -143,6 +148,24 @@ function LaneCard({
         hovered && hasHoverPointer() && !reduceMotion && styles.laneCardLift,
       ]}
     >
+      {administrator ? (
+        <Text
+          style={{
+            alignSelf: 'flex-start',
+            minHeight: 24,
+            paddingHorizontal: 8,
+            borderWidth: 1,
+            borderColor: '#11150f',
+            borderRadius: 7,
+            fontSize: 12.5,
+            fontFamily: t.typography.body,
+            fontWeight: '700',
+            marginBottom: 12,
+          }}
+        >
+          Administrators only
+        </Text>
+      ) : null}
       <View
         style={[styles.laneTitleRow, { minHeight: stacked ? 0 : tablet ? 30 : wide ? 50 : 32 }]}
       >
@@ -194,7 +217,25 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
   const { isMobile, isTablet, width } = useResponsive();
   const narrow = isMobile || isTablet;
   const wide = width >= 1440;
-  const columns = isMobile ? 1 : isTablet ? 2 : wide ? 6 : 3;
+  const admin = useTVAdAccess();
+  const { accessToken } = useAuth();
+  const [tvCount, setTvCount] = useState<number | null>(null);
+  const tvAllowed = admin.state === 'allowed';
+  useEffect(() => {
+    setTvCount(null);
+    if (admin.state !== 'allowed' || !accessToken) return;
+    const controller = new AbortController();
+    void readTV<{ station_files_held: number }>(accessToken, '/counts', controller.signal).then(
+      (value) => {
+        if (!controller.signal.aborted) {
+          setTvCount(value.station_files_held);
+        }
+      },
+      () => {},
+    );
+    return () => controller.abort();
+  }, [admin.state, accessToken]);
+  const columns = isMobile ? 1 : isTablet ? 2 : tvAllowed ? 4 : wide ? 6 : 3;
   const gap = isMobile ? 12 : isTablet ? 14 : 16;
   const gutter = isMobile ? 20 : isTablet ? 32 : 56;
   const cardWidth = (width - 2 * gutter - gap * (columns - 1)) / columns;
@@ -366,6 +407,19 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
               onOpen={() => navigation.navigate('LobbyingLanding')}
               {...laneLayout}
             />
+            {tvAllowed ? (
+              <LaneCard
+                administrator
+                title="TV ad records"
+                body="Orders, invoices, and agreements for political ads from 3 Twin Cities TV stations"
+                countLine={
+                  tvCount === null ? null : `${tvCount.toLocaleString('en-US')} STATION FILES`
+                }
+                href="/money/ads"
+                onOpen={() => navigation.navigate('TVAdRecords', { kind: 'landing' })}
+                {...laneLayout}
+              />
+            ) : null}
           </View>
 
           {/* Research has its own boundary, separate from the records below it. */}

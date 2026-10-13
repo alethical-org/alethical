@@ -1,0 +1,132 @@
+export type Redaction = {
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  kind: 'name_withheld' | 'blank';
+};
+export type SafePage = {
+  page: number;
+  text: string;
+  text_status: 'readable' | 'unreadable' | 'blank';
+};
+export type SourceVersion = {
+  facility_id: string;
+  file_id: string;
+  content_hash: string;
+  station: string;
+  first_saved_at: string;
+  uploaded_at?: string | null;
+  page_count: number;
+  source_title: string;
+  source_folder: string;
+  category: string;
+  pages: { page: number; text: string; width?: number; height?: number }[];
+  publications?: { id: string; status: string }[];
+};
+export type ReviewPublication = {
+  id: string;
+  facility_id: string;
+  file_id: string;
+  content_hash: string;
+  status: string;
+  metadata_only?: boolean;
+  metadata_approved?: boolean;
+  metadata_reviewed_at?: string | null;
+  safe_title: string;
+  safe_folder: string;
+  category: string;
+  safe_pages: SafePage[];
+  fingerprint: string;
+  created_at: string;
+  reviewed_at: string | null;
+  pages: { page: number; width: number; height: number }[];
+};
+export type ReviewFact = {
+  id: string;
+  field: string;
+  value: string;
+  page: number;
+  quote: string;
+  publication_approved?: boolean;
+  qualifier?: string | null;
+  organization_name?: string | null;
+  role?: string | null;
+  status?: string;
+  withdrawn_at?: string | null;
+};
+export type ReviewConnection = {
+  id: string;
+  kind: string;
+  target_id: string;
+  page?: number;
+  quote: string;
+  scope: string;
+  publication_approved?: boolean;
+  status?: string;
+  withdrawn_at?: string | null;
+};
+export type ReviewPayload = {
+  publication: ReviewPublication;
+  facts: ReviewFact[];
+  connections: ReviewConnection[];
+  events: { id?: string; action: string; created_at: string; evidence?: string }[];
+};
+export type PrepareCopy = {
+  facility_id: string;
+  file_id: string;
+  content_hash: string;
+  safe_title: string;
+  safe_folder: string;
+  category: string;
+  metadata_only?: boolean;
+  safe_pages?: SafePage[];
+  redactions?: Redaction[];
+  evidence: string;
+};
+export const FACT_FIELDS = [
+  'agency_name',
+  'organization_address',
+  'document_kind',
+  'advertiser',
+  'payer',
+  'order_number',
+  'invoice_number',
+  'gross_amount',
+  'net_amount',
+  'commission_rate',
+  'commission_amount',
+  'invoice_date',
+  'start_date',
+  'end_date',
+  'total_order_amount',
+  'paid_amount',
+  'credit_amount',
+  'officer_name',
+  'officer_role',
+  'principal',
+  'issue',
+  'scheduled_airing',
+] as const;
+export function validRedaction(value: Redaction) {
+  return (
+    [value.x, value.y, value.width, value.height].every(Number.isFinite) &&
+    value.x >= 0 &&
+    value.y >= 0 &&
+    value.width > 0 &&
+    value.height > 0 &&
+    value.x + value.width <= 1 &&
+    value.y + value.height <= 1
+  );
+}
+export function centralDate(value: string | null | undefined) {
+  if (!value || !Number.isFinite(new Date(value).valueOf())) return 'Date unavailable';
+  return (
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Chicago',
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date(value)) + ' CT'
+  );
+}

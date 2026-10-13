@@ -1,3 +1,4 @@
+import { TVAdSearchGroup } from '../../components/tvAds/OnDemand';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -343,6 +344,7 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
               <Text style={styles.matchedOn}>{campaignFilesCopied}</Text>
             ) : null}
           </View>
+          <TVAdSearchGroup query={query} />
         </Container>
         <Footer />
       </ScrollView>

@@ -23,6 +23,7 @@ from alethical.api.rate_limit import (
     DEFAULT_PENDING_ACTION_PER_MINUTE,
     limiter_from_env,
 )
+from alethical.api.routers.tv_ads import router as tv_ads_router
 from alethical.api.routers.admin import router as admin_router
 from alethical.api.routers.ask import router as ask_router
 from alethical.api.routers.contact import router as contact_router
@@ -151,6 +152,7 @@ def create_app() -> FastAPI:
         if request.url.path.startswith(
             (
                 "/api/v1/admin/",
+                "/api/v1/ads/",
                 "/api/v1/email-subscriptions/",
                 "/api/v1/me/email-",
                 "/api/v1/comments/",
@@ -231,6 +233,7 @@ def create_app() -> FastAPI:
                 "/api/v1/candidates/",
                 "/api/v1/candidate-claims",
                 "/api/v1/candidate-statements/",
+                "/api/v1/admin/political-ads",
                 "/api/v1/admin/candidate-claims",
                 "/api/v1/admin/candidate-statement-reports",
             )
@@ -293,6 +296,7 @@ def create_app() -> FastAPI:
             return JSONResponse(status_code=503, content={"status": "not_ready"})
         return JSONResponse(content={"status": "ready"})
 
+    app.include_router(tv_ads_router, prefix="/api/v1")
     app.include_router(admin_router, prefix="/api/v1", tags=["admin"])
     app.include_router(public_router, prefix="/api/v1", tags=["public"])
     app.include_router(lobbying_router, prefix="/api/v1", tags=["lobbying"])
