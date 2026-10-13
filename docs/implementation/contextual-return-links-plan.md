@@ -1,10 +1,8 @@
 # Contextual page returns: release checks
 
-Status: source, local build size and local browser acceptance passed; upload,
-hosted build, release and independent live review remain in progress. This task owns the full
-release. The working folder is retained for follow-up.
-
-Release task: [issue 2596](https://github.com/alethical-org/alethical/issues/2596).
+[Issue 2596](https://github.com/alethical-org/alethical/issues/2596) carries the
+current delivery status and final live evidence. This task owns the full release;
+the working folder is retained for follow-up.
 
 ## Approved outcome
 
@@ -52,6 +50,15 @@ with a required name in the shared control, source validation, rendered destinat
 agreement tests and review of contradictory handoffs. Static drawings and source
 scans do not establish runtime behavior.
 
+The first public review also exposed the boundary before the app starts: article
+links in the initial collection response omitted their safe source, so an early
+click became a direct visit with the Blog fallback. Initial collection links now
+carry the same source page and item bookmark as the app. Endpoint regressions
+follow those links through Research reports, Short posts, Guides, a guide set and
+a paged topic. The lobbying snapshots also replaced their common return links:
+2 directory labels and 2 record returns now keep `Back to Lobbying`, preserving
+separate source and directory-browse links. Tests cover every affected snapshot.
+
 Independent rendered review also exposed 3 confirmed consistency gaps: reordered
 search parameters could create a new entry during Back and lose saved scroll;
 phone/tablet legislator profiles did not save their inner scroll position; and
@@ -65,7 +72,10 @@ Local acceptance on 13 October 2026: 4,612 frontend tests passed across 355 suit
 type and format checks passed. Independent browser review passed 21 scenarios at
 390, 900 and 1280 pixels, including actual new-tab activation, keyboard/touch,
 long names and exact saved reading positions. Live production evidence remains
-required. Public live review does not substitute for protected-path tests.
+part of the release task's acceptance record. The first live browser pass covered
+15 public paths at all 3 widths; the final release still requires first-response
+and live-reader acceptance for its deployed commit. Public live review does not
+substitute for protected-path tests.
 
 The final local export measures 280,107 compressed startup bytes against the
 unchanged 297,506-byte limit. A preceding hosted preview measured 297,535 bytes
