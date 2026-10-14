@@ -1,5 +1,4 @@
 import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
-import { PNG } from 'pngjs';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -950,7 +949,20 @@ test('a revoked administrator cannot enter another TV record through app navigat
 /** Clear space between the marker's border and its text ink, measured from real pixels. */
 async function inkGaps(marker: Locator) {
   const box = (await marker.boundingBox())!;
-  const png = PNG.sync.read(await marker.screenshot({ animations: 'disabled', scale: 'css' }));
+  const shot = await marker.screenshot({ animations: 'disabled', scale: 'css' });
+  // Decode the screenshot in the page itself, so the check needs no image package.
+  const png = await marker.page().evaluate(async (base64) => {
+    const image = new Image();
+    image.src = `data:image/png;base64,${base64}`;
+    await image.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const context = canvas.getContext('2d')!;
+    context.drawImage(image, 0, 0);
+    const { data } = context.getImageData(0, 0, image.width, image.height);
+    return { width: image.width, height: image.height, data: Array.from(data) };
+  }, shot.toString('base64'));
   const dark = (x: number, y: number) => {
     const i = (y * png.width + x) * 4;
     return png.data[i] + png.data[i + 1] + png.data[i + 2] < 3 * 140;
@@ -979,14 +991,17 @@ async function inkGaps(marker: Locator) {
     halfPixel: Math.abs((box.y % 1) - 0.5) < 0.25,
   };
 }
-function expectCentredMarker(gaps: Awaited<ReturnType<typeof inkGaps>>) {
-  expect(gaps.height).toBeGreaterThanOrEqual(26);
+function expectCentredMarker(
+  gaps: Awaited<ReturnType<typeof inkGaps>>,
+  { height = 26, side = 10 } = {},
+) {
+  expect(gaps.height).toBeGreaterThanOrEqual(height);
   // A marker drawn on a half pixel (beside a taller title) splits 1 row of ink across 2.
   expect(Math.abs(gaps.above - gaps.below), JSON.stringify(gaps)).toBeLessThanOrEqual(
     gaps.halfPixel ? 2 : 1,
   );
-  expect(gaps.left).toBeGreaterThanOrEqual(10);
-  expect(gaps.right).toBeGreaterThanOrEqual(10);
+  expect(gaps.left).toBeGreaterThanOrEqual(side);
+  expect(gaps.right).toBeGreaterThanOrEqual(side);
 }
 
 for (const width of [390, 900, 1280]) {
@@ -1022,6 +1037,14 @@ for (const width of [390, 900, 1280]) {
     await page
       .locator('.tv-title-row')
       .screenshot({ path: resolve(output, `search-group-marker-${width}.png`) });
+    // The kind chips share the same rule: their own text centred, whatever the row.
+    const kind = page.locator('.tv-kind').first();
+    await expect(kind).toBeVisible();
+    expectCentredMarker(await inkGaps(kind), { height: 24, side: 8 });
+    await page.goto('/money/ads/files/fixture-file');
+    const fileKind = page.locator('.tv-kind').first();
+    await expect(fileKind).toBeVisible();
+    expectCentredMarker(await inkGaps(fileKind), { height: 24, side: 8 });
   });
 }
 

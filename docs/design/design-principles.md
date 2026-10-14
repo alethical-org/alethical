@@ -970,6 +970,16 @@ release checked; a local preview does not prove the live result. Keep temporary
 drawings and screenshots with the task or review evidence, not in permanent
 product documentation.
 
+**Review every host of a repeated element, including entrances on other pages.**
+A marker, chip or label that appears in more than one place is one shared
+component that sets its own size, padding and text centring; a host supplies
+placement only. Inventory every host from the code, including cards and groups on
+pages outside the feature, and review the rendered element in each one at every
+layout band, even where the drawing is faithful. For bordered text, a rendered
+browser check measures the clear space between border and text from screenshot
+pixels in each host; a stylesheet assertion does not establish what a reader sees.
+Report any host without rendered evidence as untested.
+
 Use the loaded web font explicitly on shared buttons. Review browser-computed
 font family, weight and size, not just declarations in a stylesheet: a form
 reset or a more specific selector can override the intended style. Include
