@@ -73,15 +73,18 @@ export function MachineText({ text, query }: { text: string; query: string }) {
               </p>
             );
           case 'grid': {
-            const pairs = piece.columns.length <= 2;
+            const pairs = piece.columns.length === 2;
+            const single = piece.columns.length === 1;
             return (
               <div key={index} className="tv-mt-scroll">
                 <div
-                  className={`tv-mt-grid${pairs ? ' tv-mt-wrap' : ''}`}
+                  className={`tv-mt-grid${pairs || single ? ' tv-mt-wrap' : ''}`}
                   style={{
-                    gridTemplateColumns: pairs
-                      ? 'max-content minmax(0,1fr)'
-                      : `repeat(${piece.columns.length}, max-content)`,
+                    gridTemplateColumns: single
+                      ? 'minmax(0,1fr)'
+                      : pairs
+                        ? 'max-content minmax(0,1fr)'
+                        : `repeat(${piece.columns.length}, max-content)`,
                   }}
                 >
                   {piece.rows.map((row, rowIndex) =>

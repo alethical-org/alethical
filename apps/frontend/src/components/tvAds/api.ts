@@ -230,7 +230,12 @@ export function orderStationCategories(names: readonly string[]): string[] {
     const index = STATION_CATEGORY_ORDER.indexOf(name);
     return index === -1 ? STATION_CATEGORY_ORDER.length : index;
   };
-  return unique.sort((a, b) => rank(a) - rank(b) || (a < b ? -1 : a > b ? 1 : 0));
+  return unique.sort(
+    (a, b) =>
+      rank(a) - rank(b) ||
+      a.localeCompare(b, 'en', { sensitivity: 'base' }) ||
+      (a < b ? -1 : a > b ? 1 : 0),
+  );
 }
 export function queryString(values: Record<string, unknown>) {
   const params = new URLSearchParams();

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { layoutMachineText, type Piece } from '../machineTextLayout';
+import { orderStationCategories } from '../api';
 
 // Invented text shaped like the station files' extracted layout (pdftotext -layout).
 const ORDER = `Print Date 01/02/26 10:00:00          Page 1 of 2
@@ -126,5 +127,13 @@ describe('layoutMachineText', () => {
 
   it('keeps signs as printed', () => {
     expect(words(layoutMachineText(FORM))).toContain('-$500.00');
+  });
+});
+
+describe('orderStationCategories', () => {
+  it('orders by level of government, then other names A to Z ignoring case', () => {
+    expect(
+      orderStationCategories(['Zeta', 'Local', 'apple', 'Federal', 'Ballot', 'State', 'Terms']),
+    ).toEqual(['Federal', 'State', 'Local', 'Terms', 'apple', 'Ballot', 'Zeta']);
   });
 });

@@ -13,9 +13,7 @@ export const ADMIN_MARKER_LABEL = 'Admins only';
 export function AdminMarkerChip({ style }: { style?: StyleProp<ViewStyle> }) {
   return (
     <View style={[styles.chip, style]} testID="tv-admin-marker">
-      <Text style={styles.label} numberOfLines={1}>
-        {ADMIN_MARKER_LABEL}
-      </Text>
+      <Text style={styles.label}>{ADMIN_MARKER_LABEL}</Text>
     </View>
   );
 }
@@ -42,5 +40,7 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     fontWeight: '700',
     lineHeight: 12.5,
+    // No wrapping and no clipping, so the tail of the "y" is never cut off.
+    ...({ whiteSpace: 'nowrap' } as object),
   },
 });

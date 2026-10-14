@@ -3,7 +3,8 @@ import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 // Invented records and sessions only. All non-static network traffic is intercepted.
-const output = resolve('../../.task-notes/tv-browser');
+// Local evidence screenshots stay with the task's private notes; CI keeps its own copy.
+const output = resolve(process.env.CI ? 'test-results/tv-browser' : '../../.task-notes/tv-browser');
 const stamp = '2026-10-01T12:00:00Z';
 const hash = 'a'.repeat(64);
 const oldHash = 'b'.repeat(64);
@@ -749,6 +750,10 @@ for (const width of [390, 900, 1280]) {
     const unnamed = page.locator('[data-label="Not identified"]');
     await expect(unnamed).toHaveText(width < 768 ? 'Category not identified3 folders' : '3');
     await expect(unnamed.getByRole('link')).toHaveCount(0);
+    // Categories with no folders held in any year are named once, as an absence.
+    await expect(page.locator('.tv-station-note').first()).toHaveText(
+      'No Federal, Local, Non-candidate issue ads or Terms folders are held for this station',
+    );
     await unnamed.scrollIntoViewIfNeeded();
     await page.screenshot({ path: resolve(output, `station-${width}.png`), fullPage: true });
     const yearLink = page.getByRole('link', { name: /2026/ });
@@ -1094,11 +1099,12 @@ for (const width of [390, 1280]) {
     await expect(year2024).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Years' })).toHaveAttribute('aria-selected', 'true');
 
+    await expect(page.getByText('2 years', { exact: true })).toBeVisible();
     // A modified click leaves this page alone and opens the address in a new tab.
     const opened = context.waitForEvent('page');
     await year2024.click({ modifiers: ['ControlOrMeta'] });
     const other = await opened;
-    expect(new URL(other.url()).search).toBe('?tab=folders&year=2024');
+    await other.waitForURL(/\/money\/ads\?tab=folders&year=2024$/);
     await other.close();
     await expect(page.getByRole('tab', { name: 'Years' })).toHaveAttribute('aria-selected', 'true');
 
@@ -1465,15 +1471,15 @@ for (const width of [390, 1280]) {
   test(`TV text meets contrast on its real background ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
     await fixture(page);
-    for (const address of [
-      '/money/ads?year=all',
-      '/money/ads/files/fixture-file?text=open',
-      '/money/ads?tab=years',
-      '/money/ads?q=Synthetic',
+    for (const [address, ready] of [
+      ['/money/ads?year=all', 'These counts can overlap'],
+      ['/money/ads/files/fixture-file?text=open', '111222'],
+      ['/money/ads?tab=years', '2024'],
+      ['/money/ads?q=Synthetic', 'Recent station uploads'],
     ]) {
       await page.goto(address);
-      await expect(page.locator('h1').first()).toBeVisible();
-      await page.waitForTimeout(300);
+      await expect(page.getByText(ready, { exact: true }).first()).toBeVisible();
+      await expect(page.locator('.tv-skeleton, .tv-loading')).toHaveCount(0);
       const { failures, checked } = await lowContrast(page);
       expect(checked, address).toBeGreaterThan(10);
       expect(failures, address).toEqual([]);

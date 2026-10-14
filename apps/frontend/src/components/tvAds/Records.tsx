@@ -1091,13 +1091,17 @@ export function TVStation({ recordKey, notFound }: { recordKey: string; notFound
   const counted = (category: string) =>
     data.years.some((year) => year.categories.some((entry) => entry.name === category));
   const categories = data.years.length ? allCategories.filter(counted) : allCategories;
-  const omitted = data.years.length ? allCategories.filter((category) => !counted(category)) : [];
+  // Named in the note only when it is a station category; an absent "not identified"
+  // group needs no sentence.
+  const omitted = data.years.length
+    ? allCategories.filter((category) => category.trim() && !counted(category))
+    : [];
   const categoryLabel = (category: string) => category.trim() || 'Not identified';
   const figure = (value: number) => value.toLocaleString('en-US');
   const omittedNames = omitted.map(categoryLabel);
   const omittedList =
     omittedNames.length > 1
-      ? `${omittedNames.slice(0, -1).join(', ')} and ${omittedNames.at(-1)}`
+      ? `${omittedNames.slice(0, -1).join(', ')} or ${omittedNames.at(-1)}`
       : omittedNames[0];
   const yearHref = (year: string | number) =>
     `/money/ads${queryString({ tab: 'folders', station: data.call_sign, year })}`;
@@ -1201,9 +1205,7 @@ export function TVStation({ recordKey, notFound }: { recordKey: string; notFound
           </div>
         )}
         {omitted.length > 0 && (
-          <p className="tv-station-note">
-            {omittedList} folder counts are unavailable for this station
-          </p>
+          <p className="tv-station-note">No {omittedList} folders are held for this station</p>
         )}
       </section>
       <section className="tv-section tv-station-gaps">
