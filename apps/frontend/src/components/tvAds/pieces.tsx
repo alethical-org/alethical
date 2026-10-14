@@ -177,10 +177,12 @@ export function FileRows({
   returnTo,
   recent = false,
   folderContext,
+  withElection = false,
 }: {
   files: FileRow[];
   returnTo?: string;
   recent?: boolean;
+  withElection?: boolean;
   folderContext?: Partial<Pick<FileRow, 'station' | 'year' | 'category'>>;
 }) {
   return (
@@ -220,7 +222,13 @@ export function FileRows({
               <>
                 <div className="tv-inline">
                   <Kind value={file.kind} />
-                  {file.role && <span>{file.role}</span>}
+                  {file.role && (
+                    <span className="tv-row-role">
+                      {withElection && file.election
+                        ? `${file.role} · ${file.election}`
+                        : file.role}
+                    </span>
+                  )}
                 </div>
                 {!folderContext && <div className="tv-small">{uploaded(file.uploaded_at)}</div>}
               </>
@@ -493,4 +501,5 @@ export const tvStyles = `
 @media(max-width:767px){.tv-versions{width:100%}.tv .tv-versions .tv-choice-trigger{width:100%}.tv-folder-table td[data-label=Kind]:before{display:none}.tv-folder-table td[data-label]:before{font-weight:400}.tv-folder-table td:not(:first-child){font-size:14px;color:#2c322c}.tv-phone-only{display:inline}.tv .tv-viewer-caption{padding:0 16px}}
 .tv-card>h2+.tv-fact{padding-top:0}.tv-card>h2+.tv-plain-list{margin-top:0}.tv .tv-history{font-size:13px;font-weight:800;color:#4f5651;text-transform:uppercase;padding:0;margin-top:12px}.tv-version-saved{display:block;font-size:15px;font-weight:700}.tv-version-detail{display:block;font-size:14px;font-weight:400;color:#4f5651}
 .tv h3.tv-fact-label{font-size:11px;font-weight:700;line-height:1.5}.tv-printed{margin-top:14px;padding-top:12px;border-top:1px solid rgba(17,21,15,.08)}.tv .tv-printed h3.tv-fact-label{font-family:'JetBrains Mono',monospace;letter-spacing:.12em}.tv .tv-printed h3+p{margin-top:6px;font-weight:700}.tv-nowrap{white-space:nowrap}.tv .tv-recent-section .tv-grid3{gap:16px}.tv details>summary{padding:11px 0;font-size:14px;font-weight:700;line-height:1.4;color:#11150f;cursor:pointer}.tv-card:not(.tv-recent-card)>.tv-file-rows:last-child>.tv-row:last-child,.tv-agency-card .tv-file-rows:last-child>.tv-row:last-child{padding-bottom:0}.tv-file-rows .tv-agency-file{border-radius:8px}.tv .tv-dates-card h2{margin-bottom:18px}.tv .tv-other-files h2{margin-bottom:14px}.tv-file-side-column{display:flex;flex-direction:column;gap:24px;min-width:0}@media(max-width:767px){.tv .tv-title-row h2{line-height:30px}.tv a.tv-tap{display:inline-block;padding:13px 0;margin:-13px 0}}@media(max-width:767px){.tv .tv-tabs{column-gap:2px}.tv .tv-tabs button{padding:8px 0 7px}}@media(max-width:359px){.tv .tv-tabs{column-gap:0}.tv .tv-tabs button{font-size:13px}}@media(prefers-reduced-motion:reduce){.tv *{scroll-behavior:auto!important;transition:none!important}}
+.tv .tv-match-label{margin-top:10px;font-weight:800;color:#11150f;font-size:15px;line-height:1.5}.tv .tv-excerpt{margin-top:4px;font-size:15px;line-height:1.5;color:#2c322c;overflow-wrap:anywhere}.tv-fact-entry+.tv-fact-entry{margin-top:14px;padding-top:14px;border-top:1px dashed rgba(17,21,15,.1)}.tv-mt-withheld{display:inline-flex;align-items:center;min-height:22px;padding:0 10px;background:#eef0ef;border:1px solid #8d948e;border-radius:3px;white-space:nowrap;font-size:12.5px;font-weight:700;line-height:1;color:#2c322c;vertical-align:1px}.tv-mt-blanked{display:inline-block;width:120px;height:13px;background:#d6dad7;border-radius:2px;vertical-align:-1px}.tv-placeholder-line{display:block;width:132px;height:14px;border-radius:4px;background:#e6e9e7}.tv a .tv-link-status{font-weight:400;color:#4f5651}.tv-row-role{font-size:14px;line-height:1.45;color:#2c322c}
 `;

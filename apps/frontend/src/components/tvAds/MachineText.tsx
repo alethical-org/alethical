@@ -1,5 +1,28 @@
-import React, { Fragment, useMemo } from 'react';
+import React, { createContext, Fragment, useContext, useMemo } from 'react';
 import { BLANK, layoutMachineText } from './machineTextLayout';
+
+/**
+ * The approved copy's redactions as its reviewed text carries them: "Name withheld"
+ * where an individual contact name was withheld, and "[Blanked]" where a blank box
+ * covers other personal details. Only approved copies are read this way; a held
+ * original's machine-read text is the station's own words.
+ */
+export const REDACTION = /(Name withheld|\[Blanked\])/;
+const Redacted = createContext(false);
+
+function redactions(part: string, key: string): React.ReactNode[] {
+  return part.split(REDACTION).map((piece, index) =>
+    piece === 'Name withheld' ? (
+      <span key={`${key}-w${index}`} className="tv-mt-withheld">
+        Name withheld
+      </span>
+    ) : piece === '[Blanked]' ? (
+      <span key={`${key}-x${index}`} className="tv-mt-blanked" role="img" aria-label="Blanked" />
+    ) : (
+      piece
+    ),
+  );
+}
 
 type Range = [number, number];
 
@@ -37,6 +60,7 @@ function rangesAcross(parts: string[], query: string): Range[][] {
 
 /** Source words with fill-in blanks drawn as a line and the search term marked. */
 function Words({ text, marks }: { text: string; marks: Range[] }) {
+  const redacted = useContext(Redacted);
   const nodes: React.ReactNode[] = [];
   const blank = (segment: string, key: string) =>
     segment
@@ -52,7 +76,7 @@ function Words({ text, marks }: { text: string; marks: Range[] }) {
               />,
             ]
           : []),
-        part,
+        ...(redacted ? redactions(part, `${key}-${index}`) : [part]),
       ]);
   let at = 0;
   marks.forEach(([a, b], index) => {
@@ -82,100 +106,110 @@ function rowMarks(row: Array<string | null>, query: string): Range[][] {
 }
 
 /** Machine-read text on the grids its printed positions support (layoutMachineText). */
-export function MachineText({ text, query }: { text: string; query: string }) {
+export function MachineText({
+  text,
+  query,
+  redacted = false,
+}: {
+  text: string;
+  query: string;
+  redacted?: boolean;
+}) {
   const pieces = useMemo(() => layoutMachineText(text), [text]);
   return (
-    <div className="tv-text">
-      {pieces.map((piece, index) => {
-        switch (piece.kind) {
-          case 'gap':
-            return <div key={index} className="tv-mt-gap" aria-hidden="true" />;
-          case 'centred':
-            return (
-              <p key={index} className="tv-mt-centred">
-                <Words text={piece.text} marks={rangesIn(piece.text, query)} />
-              </p>
-            );
-          case 'paragraph':
-            return (
-              <p key={index} className="tv-mt-p">
-                <Words text={piece.text} marks={rangesIn(piece.text, query)} />
-              </p>
-            );
-          case 'choice':
-            return (
-              <div key={index} className="tv-mt-choice">
-                <span className="tv-mt-mark">{piece.marker}</span>
-                <span>
+    <Redacted.Provider value={redacted}>
+      <div className="tv-text">
+        {pieces.map((piece, index) => {
+          switch (piece.kind) {
+            case 'gap':
+              return <div key={index} className="tv-mt-gap" aria-hidden="true" />;
+            case 'centred':
+              return (
+                <p key={index} className="tv-mt-centred">
                   <Words text={piece.text} marks={rangesIn(piece.text, query)} />
-                </span>
-              </div>
-            );
-          case 'fields':
-            return (
-              <div key={index} className="tv-mt-pairs">
-                {piece.pairs.map(([label, value], row) => {
-                  const [labelMarks, valueMarks] = rangesAcross([label, value], query);
-                  return (
-                    <Fragment key={row}>
-                      <span>
-                        <Words text={label} marks={labelMarks} />
-                      </span>
-                      <span>
-                        <Words text={value} marks={valueMarks} />
-                      </span>
-                    </Fragment>
-                  );
-                })}
-              </div>
-            );
-          case 'line':
-            return (
-              <p key={index} className="tv-mt-line">
-                {piece.runs.map((run, cell) => (
-                  <span key={cell}>
-                    <Words text={run} marks={rangesIn(run, query)} />
+                </p>
+              );
+            case 'paragraph':
+              return (
+                <p key={index} className="tv-mt-p">
+                  <Words text={piece.text} marks={rangesIn(piece.text, query)} />
+                </p>
+              );
+            case 'choice':
+              return (
+                <div key={index} className="tv-mt-choice">
+                  <span className="tv-mt-mark">{piece.marker}</span>
+                  <span>
+                    <Words text={piece.text} marks={rangesIn(piece.text, query)} />
                   </span>
-                ))}
-              </p>
-            );
-          case 'grid': {
-            const pairs = piece.columns.length === 2;
-            const single = piece.columns.length === 1;
-            return (
-              <div key={index} className="tv-mt-scroll">
-                <div
-                  className={`tv-mt-grid${pairs || single ? ' tv-mt-wrap' : ''}`}
-                  style={{
-                    gridTemplateColumns: single
-                      ? 'minmax(0,1fr)'
-                      : pairs
-                        ? 'max-content minmax(0,1fr)'
-                        : `repeat(${piece.columns.length}, max-content)`,
-                  }}
-                >
-                  {piece.rows.map((row, rowIndex) =>
-                    row === 'gap' ? (
-                      <span key={rowIndex} className="tv-mt-gaprow" aria-hidden="true" />
-                    ) : (
-                      rowMarks(row, query)
-                        .map((marks, column) => ({ cell: row[column], marks, column }))
-                        .map(({ cell, marks, column }) => (
-                          <span
-                            key={`${rowIndex}-${column}`}
-                            className={piece.columns[column].right ? 'tv-mt-r' : undefined}
-                          >
-                            {cell === null ? null : <Words text={cell} marks={marks} />}
-                          </span>
-                        ))
-                    ),
-                  )}
                 </div>
-              </div>
-            );
+              );
+            case 'fields':
+              return (
+                <div key={index} className="tv-mt-pairs">
+                  {piece.pairs.map(([label, value], row) => {
+                    const [labelMarks, valueMarks] = rangesAcross([label, value], query);
+                    return (
+                      <Fragment key={row}>
+                        <span>
+                          <Words text={label} marks={labelMarks} />
+                        </span>
+                        <span>
+                          <Words text={value} marks={valueMarks} />
+                        </span>
+                      </Fragment>
+                    );
+                  })}
+                </div>
+              );
+            case 'line':
+              return (
+                <p key={index} className="tv-mt-line">
+                  {piece.runs.map((run, cell) => (
+                    <span key={cell}>
+                      <Words text={run} marks={rangesIn(run, query)} />
+                    </span>
+                  ))}
+                </p>
+              );
+            case 'grid': {
+              const pairs = piece.columns.length === 2;
+              const single = piece.columns.length === 1;
+              return (
+                <div key={index} className="tv-mt-scroll">
+                  <div
+                    className={`tv-mt-grid${pairs || single ? ' tv-mt-wrap' : ''}`}
+                    style={{
+                      gridTemplateColumns: single
+                        ? 'minmax(0,1fr)'
+                        : pairs
+                          ? 'max-content minmax(0,1fr)'
+                          : `repeat(${piece.columns.length}, max-content)`,
+                    }}
+                  >
+                    {piece.rows.map((row, rowIndex) =>
+                      row === 'gap' ? (
+                        <span key={rowIndex} className="tv-mt-gaprow" aria-hidden="true" />
+                      ) : (
+                        rowMarks(row, query)
+                          .map((marks, column) => ({ cell: row[column], marks, column }))
+                          .map(({ cell, marks, column }) => (
+                            <span
+                              key={`${rowIndex}-${column}`}
+                              className={piece.columns[column].right ? 'tv-mt-r' : undefined}
+                            >
+                              {cell === null ? null : <Words text={cell} marks={marks} />}
+                            </span>
+                          ))
+                      ),
+                    )}
+                  </div>
+                </div>
+              );
+            }
           }
-        }
-      })}
-    </div>
+        })}
+      </div>
+    </Redacted.Provider>
   );
 }

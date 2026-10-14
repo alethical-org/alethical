@@ -233,7 +233,7 @@ describe('result replacement', () => {
     );
     expect(mount.textContent).toContain('Still showing station folders for 2026');
     expect(mount.textContent).toContain('Old folder');
-    expect(mount.textContent).toContain('1 station folder');
+    expect(mount.textContent).toContain('1 folder');
     await act(async () => changed.reject(new Error('Offline')));
     expect(mount.textContent).toContain('We couldn’t search these records just now');
     expect(mount.textContent).toContain('Old folder');
@@ -757,8 +757,9 @@ describe('approved reader wording and exact printed names', () => {
           </TVSession.Provider>,
         ),
       );
+      // No results draws no count line; the empty message says it instead.
       expect(mount.querySelector('.tv-result-count')?.textContent).toBe(
-        `${count} ${count === 1 ? 'file' : 'files'}`,
+        count === 0 ? undefined : `${count} ${count === 1 ? 'file' : 'files'}`,
       );
       expect(mount.textContent).toContain(
         `${count} ${count === 1 ? 'file has' : 'files have'} a checked connection`,

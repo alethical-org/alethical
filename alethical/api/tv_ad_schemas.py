@@ -56,6 +56,7 @@ class FileRow(ReaderModel):
     version_count: int
     source_changed: bool
     role: str | None = None
+    election: str | None = None
     reference: str | None = None
     checked_at: str | None = None
     match_label: str | None = None
@@ -162,7 +163,14 @@ class WithdrawnFile(ReaderModel):
     versions: list[Version]
 
 
+class AgencyName(ReaderModel):
+    key: str
+    name: str
+    unchecked: bool
+
+
 class FileDetail(FileRow):
+    agencies: list[AgencyName] = Field(default_factory=list)
     folder: FolderLink
     fcc_url: str
     fcc_available: bool
@@ -198,6 +206,7 @@ class AddressEvidence(ReaderModel):
     page: int
     uploaded_at: str | None
     checked_at: str
+    role: str | None = None
 
 
 class Address(ReaderModel):
@@ -217,6 +226,7 @@ class Agency(ReaderModel):
     key: str
     name: str
     payments_href: str
+    independent_payments_href: str
     groups: list[AgencyGroup]
     addresses: list[Address]
 
@@ -244,7 +254,14 @@ class ConnectionGroup(ReaderModel):
     files: list[FileRow]
 
 
+class CommitteeIdentity(ReaderModel):
+    name: str
+    office: str | None
+    district: str | None
+
+
 class Connected(ReaderModel):
+    committee: CommitteeIdentity | None = None
     agency_key: str | None
     exact_name_count: int
     files: list[FileRow]

@@ -33,11 +33,17 @@ superseded text. The incidents included a database-storage recommendation
 after Supabase Storage had been selected, and a display rule contradicted by
 already available measurements.
 
-- **The owner** is the task **Committees** (`01a0ab8e-ab12-7fa2-80ff-c2b6f042fcd9`),
-  on branch `codex/committee-empty-year`, for the empty-year and contribution-terminology
-  refinements in [issue 2274](https://github.com/alethical-org/alethical/issues/2274).
+- **The owner** is the task **2611 Close TV ad records design gaps**, in the worktree
+  `.claude/worktrees/tv-ad-records-design-gaps-0ce312` on branch
+  `claude/tv-ad-records-design-gaps-0ce312`, for §10 (where the TV ad records decisions live)
+  in [issue 2611](https://github.com/alethical-org/alethical/issues/2611).
   The task **money** (`01a0ab28-d848-7890-9741-70e5ff7027fd`) explicitly disclaims ownership
   of this file and owns the separate selected-tab treatment.
+  - The previous claim named the task **Committees** (`01a0ab8e-ab12-7fa2-80ff-c2b6f042fcd9`)
+    on branch `codex/committee-empty-year`, for
+    [issue 2274](https://github.com/alethical-org/alethical/issues/2274). That issue is closed,
+    the branch is gone and the task is in no live list on 14 Oct 2026, which is what permits
+    this handover.
   - The previous claim named `.claude/worktrees/zealous-curie-c0f954` on branch
     `claude/legislator-money-tab-review-6bf9e7`, appointed 12 Sep 2026. That worktree now
     holds `claude/tab-order-consult-only`. Its decisions came from
@@ -3270,3 +3276,25 @@ Recorded as not run, never as passed:
 Codex reviewed this section adversarially before it was committed and could not reach
 cfb.mn.gov from its own environment, so its objections about rate limits, blocking and current
 response contents are unverified by it as well as by us.
+
+## 10. TV ad records: where their decisions live
+
+TV ad records are the station political files Alethical copies from the Federal
+Communications Commission's public file website for KSTP-TV, KARE and KMSP-TV. They sit
+beside the campaign-finance records this document describes and connect to them only
+through checked connections (a checked committee, candidate, election, lobbying principal
+or reported expense). This document does not repeat their rules. 3 documents own them:
+
+- [tv-ad-records-guide.md](../product-onboarding/tv-ad-records-guide.md) owns what an
+  administrator sees and can do: who can reach the section (signed-in administrators
+  only; everyone else gets the existing not-found page), the counts and what they mean,
+  the file, folder, agency and station pages, the connection cards on money pages, and
+  how review works.
+- [fcc-political-files.md](../implementation/fcc-political-files.md) owns how the files
+  are collected, stored, backed up and read by machine, and what each collection run
+  checks.
+- [backend-api-system-design.md, "Private TV ad records and review"](backend-api-system-design.md#private-tv-ad-records-and-review)
+  owns the private reader and review interfaces, their response allowlists and the
+  separation between administrator access to held originals and approved publication
+  copies.
+

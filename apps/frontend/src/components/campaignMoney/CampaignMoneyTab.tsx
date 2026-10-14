@@ -372,6 +372,7 @@ export function CampaignMoneyTab({
               target={committee.registrationNumber}
               name={committee.committeeNameAsReviewed}
               scopeLabel={committee.committeeNameAsReviewed}
+              legislatorTab
               hideEmpty
             />
           ))
