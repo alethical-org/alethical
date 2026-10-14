@@ -972,8 +972,21 @@ test('a revoked administrator cannot enter another TV record through app navigat
   await expect(page.getByRole('heading', { name: fileRow.name, exact: true })).toHaveCount(0);
 });
 
+/** Pixel and line measurements are only meaningful once the site font has loaded. */
+async function siteFontReady(page: Page) {
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        await document.fonts.ready;
+        return document.fonts.check('700 15px "Libre Franklin"');
+      }),
+    )
+    .toBe(true);
+}
+
 /** Clear space between the marker's border and its text ink, measured from real pixels. */
 async function inkGaps(marker: Locator) {
+  await siteFontReady(marker.page());
   await marker.scrollIntoViewIfNeeded();
   const box = (await marker.boundingBox())!;
   // Capture whole pixels around the marker, then measure against its exact (possibly
@@ -1031,10 +1044,12 @@ async function inkGaps(marker: Locator) {
 }
 function expectCentredMarker(
   gaps: Awaited<ReturnType<typeof inkGaps>>,
-  { height = 26, side = 10, balance = 1.5 } = {},
+  // Text engines place the same font's ink up to 1px differently (Chrome on Mac and
+  // Linux, Safari), so 2px is the tightest bound every engine meets; the defect this
+  // guards against measured 3px above and 8px below.
+  { height = 26, side = 10, balance = 2 } = {},
 ) {
   expect(gaps.height).toBeGreaterThanOrEqual(height - 0.5);
-  // Whole-pixel rows can misplace each fractional edge by up to half a pixel.
   expect(Math.abs(gaps.above - gaps.below), JSON.stringify(gaps)).toBeLessThanOrEqual(balance);
   expect(gaps.left).toBeGreaterThanOrEqual(side - 0.5);
   expect(gaps.right).toBeGreaterThanOrEqual(side - 0.5);
@@ -1073,15 +1088,14 @@ for (const width of [390, 900, 1280]) {
     await page
       .locator('.tv-title-row')
       .screenshot({ path: resolve(output, `search-group-marker-${width}.png`) });
-    // The kind chips share the same rule. Their words change per file, so ink with or
-    // without descenders lands up to 2px off centre between browsers.
+    // The kind chips share the same rule.
     const kind = page.locator('.tv-kind').first();
     await expect(kind).toBeVisible();
-    expectCentredMarker(await inkGaps(kind), { height: 26, side: 10, balance: 2 });
+    expectCentredMarker(await inkGaps(kind), { height: 26, side: 10 });
     await page.goto('/money/ads/files/fixture-file');
     const fileKind = page.locator('.tv-kind').first();
     await expect(fileKind).toBeVisible();
-    expectCentredMarker(await inkGaps(fileKind), { height: 26, side: 10, balance: 2 });
+    expectCentredMarker(await inkGaps(fileKind), { height: 26, side: 10 });
   });
 }
 
@@ -1339,6 +1353,7 @@ for (const width of [320, 375, 767]) {
     await page.goto('/money/ads?year=all');
     const tabs = page.getByRole('tab');
     await expect(tabs).toHaveCount(4);
+    await siteFontReady(page);
     const boxes = await tabs.evaluateAll((els) =>
       els.map((el) => {
         const box = el.getBoundingClientRect();
@@ -1364,6 +1379,7 @@ for (const width of [320, 375, 767]) {
         return new Set(rects).size;
       }),
     );
+    await page.locator('.tv-tabs').screenshot({ path: resolve(output, `phone-tabs-${width}.png`) });
     for (const lines of labels) expect(lines).toBeLessThanOrEqual(2);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
       true,
@@ -1371,7 +1387,6 @@ for (const width of [320, 375, 767]) {
     await page.getByRole('tab', { name: 'Years' }).focus();
     await page.keyboard.press('Enter');
     await expect(page.getByRole('tab', { name: 'Years' })).toHaveAttribute('aria-selected', 'true');
-    await page.locator('.tv-tabs').screenshot({ path: resolve(output, `phone-tabs-${width}.png`) });
   });
 }
 

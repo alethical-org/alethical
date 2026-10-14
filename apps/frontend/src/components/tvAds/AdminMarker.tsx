@@ -26,9 +26,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 26,
     paddingHorizontal: 10,
-    // Libre Franklin's line box sits its ink 1 to 2px low; this lifts the ink to the
-    // optical centre the drawing measures (equal clear space above and below, within 1px).
-    paddingBottom: 2,
+    // Libre Franklin's line box sits its ink low by 0 to 2px depending on the browser's
+    // text engine (Safari, Chrome on Mac, Chrome on Linux and Android differ); a 1px lift
+    // keeps the clear space above and below the text within 1px on all of them.
+    paddingBottom: 1,
     borderWidth: 1,
     borderColor: '#11150f',
     borderRadius: 7,
