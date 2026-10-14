@@ -106,6 +106,14 @@ describe('file page', () => {
       { id: 'a', kind: 'Gross amount', status: 'checked', value: '$100', version_id: 'old' },
       { id: 'b', kind: 'Gross amount', status: 'checked', value: '$50', version_id: 'old' },
       { id: 'c', kind: 'Advertiser', status: 'checked', value: 'SAMPLE CMTE', version_id: 'old' },
+      {
+        id: 'd',
+        kind: 'Requested by',
+        status: 'checked',
+        value: 'SAMPLE BUYER',
+        role: 'Buyer',
+        version_id: 'old',
+      },
     ],
     dates: [],
     connections: [],
@@ -119,6 +127,7 @@ describe('file page', () => {
     );
     const labels = Array.from(mount.querySelectorAll('.tv-fact-label')).map((n) => n.textContent);
     expect(labels.filter((label) => label === 'Gross amount')).toHaveLength(1);
+    expect(mount.textContent).toContain('Role as printed: Buyer');
     expect(mount.textContent).toContain(
       'A newer saved version has no approved copy yet: its original opens from the versions menu',
     );

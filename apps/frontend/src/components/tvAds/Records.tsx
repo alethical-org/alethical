@@ -629,6 +629,7 @@ function FactValue({
         <>
           <div className="tv-fact-value">{fact.value}</div>
           {fact.qualifier && <p>{fact.qualifier}</p>}
+          {fact.role && <p className="tv-small">Role as printed: {fact.role}</p>}
           {fact.quote && <q className="tv-quote">{fact.quote}</q>}
           <div className="tv-evidence-row">
             {fact.page && (

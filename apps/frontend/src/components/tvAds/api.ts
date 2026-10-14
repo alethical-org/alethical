@@ -92,6 +92,8 @@ export interface Fact {
   kind: string;
   value?: string;
   qualifier?: string;
+  /** The role the document prints beside a checked name, such as "Requested by". */
+  role?: string | null;
   quote?: string;
   page?: number;
   version_id: string;
