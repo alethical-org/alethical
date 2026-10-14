@@ -243,7 +243,7 @@ export function PrepareReview({
                   multiline
                   disabled={busy || current.text_status !== 'readable'}
                   onChange={(text) => setPageField({ text })}
-                  hint="Enter text with private details removed. Use Name withheld for individual contact names. This text can appear in search and quotations."
+                  hint="Enter text with private details removed. Use Name withheld for individual contact names and [Blanked] where a blank box covers other private details. This text can appear in search and quotations."
                 />
               </>
             ) : null}
