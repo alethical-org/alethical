@@ -2,10 +2,10 @@ import React from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { theme as t } from '../../theme/tokens';
 
-export const ADMIN_MARKER_LABEL = 'Administrators only';
+export const ADMIN_MARKER_LABEL = 'Admins only';
 
 /**
- * The one "Administrators only" marker for every TV entrance and page. It centres its own
+ * The one "Admins only" marker for every TV entrance and page. It centres its own
  * text and never takes line height or alignment from its host, so a lane card, a
  * connection card and a TV page all draw the same chip. Hosts own placement only, via
  * `style` (React Native hosts) or a wrapping element (TV pages).

@@ -1,5 +1,6 @@
 import { RETRY_EXPLANATION } from './copy';
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { markNextWebHistoryChangeAsReplace } from '../../navigation/webHistory';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
   readTV,
@@ -119,7 +120,11 @@ export function TVLanding({
   const moveToResult = useRef<'page' | 'search' | null>(null);
   const result = browse.data;
   useEffect(() => {
-    if (defaultYear && result?.year) writeParams({ year: String(result.year), page: undefined });
+    if (!defaultYear || !result?.year) return;
+    // Filling in the newest year rewrites this address rather than adding an entry, so
+    // Back leaves the page instead of returning to an address that fills it in again.
+    markNextWebHistoryChangeAsReplace();
+    writeParams({ year: String(result.year), page: undefined });
   }, [defaultYear, result?.year, writeParams]);
   useEffect(() => {
     if (browse.loading || !moveToResult.current) return;
@@ -128,19 +133,26 @@ export function TVLanding({
     moveToResult.current = null;
   }, [browse.loading]);
   const change = (patch: Partial<BrowseQuery>, action?: 'page' | 'search') => {
+    // A filter chosen before the first answer keeps the newest-year default still pending.
+    const keepDefault =
+      defaultYear &&
+      !result?.year &&
+      !('year' in patch) &&
+      (patch.tab ?? query.tab) === 'folders' &&
+      !(patch.q ?? query.q);
     const next = {
       ...query,
       year: defaultYear ? String(result?.year || '') : query.year,
       page: 1,
       ...patch,
     };
-    setDefaultYear(false);
+    setDefaultYear(keepDefault);
     setQuery(next);
     writeParams({
       q: next.q || undefined,
       tab: next.tab,
       station: next.station || undefined,
-      year: next.tab === 'folders' ? next.year || 'all' : undefined,
+      year: next.tab !== 'folders' || keepDefault ? undefined : next.year || 'all',
       category: next.category || undefined,
       page: next.page > 1 ? String(next.page) : undefined,
     });
@@ -188,8 +200,8 @@ export function TVLanding({
             fill="none"
             aria-hidden="true"
           >
-            <circle cx="11" cy="11" r="6.5" stroke="#6f756f" strokeWidth="2" />
-            <path d="M16 16 L21 21" stroke="#6f756f" strokeWidth="2" strokeLinecap="round" />
+            <circle cx="11" cy="11" r="6.5" stroke="#6b716b" strokeWidth="2" />
+            <path d="M16 16 L21 21" stroke="#6b716b" strokeWidth="2" strokeLinecap="round" />
           </svg>
           <input
             aria-label="Search TV ad records"

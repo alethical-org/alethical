@@ -72,7 +72,7 @@ Printed-agency station cards and checked-address cards use 2 columns at computer
 
 Station summaries put held counts before source dates. The station-year table presents folders by the 6 standard category headings (Federal, State, Local, Non-candidate issue ads, Terms, Not identified), followed by any additional source category names from A to Z. A missing category value says Unavailable, never an invented zero. Below 768 pixels, each year becomes one card with category labels beside their counts.
 
-One shared “Administrators only” marker serves the `/money` card, every TV page, connection cards and the `/money/search` group. It centres its own text, so a host's line height or alignment cannot crowd it against a border; a browser check measures the clear space around its text in each host at all 3 widths.
+One shared “Admins only” marker serves the `/money` card, every TV page, connection cards and the `/money/search` group. It centres its own text, so a host's line height or alignment cannot crowd it against a border; a browser check measures the clear space around its text in each host at all 3 widths.
 
 Visual acceptance compares rendered computer, tablet and phone screens with Claude Design's drawings and saved standards. It includes open menus, keyboard focus, pointer hover, disabled controls, loading, failures and empty records. Browser checks separately exercise whole-row links, menu selection, page images, text, saved versions and failure recovery; screenshots do not establish working behavior. Publication statuses and private administrator access remain separate.
 

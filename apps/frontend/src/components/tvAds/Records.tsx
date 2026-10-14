@@ -33,7 +33,7 @@ import {
   TVSession,
   useTVRead,
 } from './pieces';
-import { highlight } from './Landing';
+import { MachineText } from './MachineText';
 
 export function TVFile({
   fileKey,
@@ -225,7 +225,10 @@ function FileContents({
   return (
     <>
       <div className="tv-eyebrow">
-        <a href={tvHref('station', file.station || '')}>{file.station}</a> · {file.year} ·{' '}
+        <a className="tv-tap" href={tvHref('station', file.station || '')}>
+          {file.station}
+        </a>{' '}
+        · {file.year} ·{' '}
         {file.category ? `STATION CATEGORY: ${file.category}` : 'CATEGORY NOT IDENTIFIED'}
       </div>
       <h1 className="tv-record-title">{file.name}</h1>
@@ -233,7 +236,7 @@ function FileContents({
         <Kind value={file.kind} />
         <p className="tv-small">{uploaded(file.uploaded_at)}</p>
         {file.folder && (
-          <a href={tvHref('folder', file.folder.key)}>
+          <a className="tv-tap" href={tvHref('folder', file.folder.key)}>
             Folder “{file.folder.label}”<Arrow />
           </a>
         )}
@@ -357,7 +360,7 @@ function FileContents({
                 </section>
               )}
             </aside>
-            <section className="tv-file-text">
+            <section className="tv-card tv-file-text">
               <div className="tv-inline" style={{ justifyContent: 'space-between' }}>
                 <div>
                   <h2 style={{ marginBottom: 4 }}>Machine-read text</h2>
@@ -378,7 +381,7 @@ function FileContents({
               </div>
               {(isDesktop || textOpen) && (
                 <>
-                  <p className="tv-small">
+                  <p className="tv-mt-page">
                     Page {page} of {file.page_count}
                   </p>
                   {query && (
@@ -396,19 +399,15 @@ function FileContents({
                     </div>
                   )}
                   {item?.text_status === 'failed' || item?.text_status === 'partial' ? (
-                    <p className="tv-notice tv-neutral-notice">
+                    <p className="tv-mt-notice">
                       This page’s text could not be {item.text_status === 'partial' ? 'fully ' : ''}
                       read by machine
                     </p>
                   ) : null}
-                  {item?.text_status === 'pending' && (
-                    <p className="tv-notice tv-neutral-notice">This page’s text is not ready</p>
+                  {(!item || item.text_status === 'pending') && (
+                    <p className="tv-mt-notice">This page’s text is not ready</p>
                   )}
-                  {item?.text && (
-                    <div className="tv-text" style={{ marginTop: 16 }}>
-                      {highlight(item.text, query)}
-                    </div>
-                  )}
+                  {item?.text && <MachineText text={item.text} query={query} />}
                 </>
               )}
             </section>
@@ -1046,8 +1045,9 @@ export function TVStation({ recordKey, notFound }: { recordKey: string; notFound
   const data = read.data;
   if (!data) return null;
   // Keep the familiar category order without turning absent counts into invented zeros.
+  // A category with no count in any year is left out of the table and named once below it.
   const knownCategories = [...STATION_CATEGORY_ORDER, ''];
-  const categories = [
+  const allCategories = [
     ...knownCategories,
     ...orderStationCategories(
       data.years
@@ -1055,7 +1055,19 @@ export function TVStation({ recordKey, notFound }: { recordKey: string; notFound
         .filter((name) => !knownCategories.includes(name)),
     ),
   ];
+  const counted = (category: string) =>
+    data.years.some((year) => year.categories.some((entry) => entry.name === category));
+  const categories = data.years.length ? allCategories.filter(counted) : allCategories;
+  const omitted = data.years.length ? allCategories.filter((category) => !counted(category)) : [];
   const categoryLabel = (category: string) => category.trim() || 'Not identified';
+  const figure = (value: number) => value.toLocaleString('en-US');
+  const omittedNames = omitted.map(categoryLabel);
+  const omittedList =
+    omittedNames.length > 1
+      ? `${omittedNames.slice(0, -1).join(', ')} and ${omittedNames.at(-1)}`
+      : omittedNames[0];
+  const yearHref = (year: string | number) =>
+    `/money/ads${queryString({ tab: 'folders', station: data.call_sign, year })}`;
   return (
     <>
       <h1>{data.call_sign}</h1>
@@ -1064,29 +1076,22 @@ export function TVStation({ recordKey, notFound }: { recordKey: string; notFound
         <Metric label="Station folders" value={data.folder_count} />
         <Metric label="Files with an approved copy" value={data.counts.files_with_approved_copy} />
       </div>
-      <div className="tv-inline tv-small tv-station-meta">
+      <div className="tv-station-meta">
         <span>Last successful file copy: {centralDate(data.last_file_copy)}</span>
-        <span>Facility ID {data.facility_id}</span>
         <External href={data.fcc_url} suffix={`for ${data.call_sign}`}>
           Public records on the FCC website
         </External>
       </div>
-      <p className="tv-small tv-station-copy-note">
-        The copy date does not mean every listed file has been copied
-      </p>
       <section className="tv-section tv-station-years">
         <h2>Years and categories held</h2>
+        <p className="tv-station-intro">Folders in each station category, and files in each year</p>
         {isMobile ? (
           <div className="tv-station-year-cards">
             {!data.years.length && (
               <p className="tv-notice tv-neutral-notice">No folders held for this station</p>
             )}
             {data.years.map((year) => (
-              <a
-                className="tv-station-year-card"
-                key={year.year}
-                href={`/money/ads${queryString({ tab: 'folders', station: data.call_sign, year: year.year })}`}
-              >
+              <a className="tv-station-year-card" key={year.year} href={yearHref(year.year)}>
                 <div className="tv-station-year-heading">
                   <strong>{year.year}</strong>
                   <span>
@@ -1102,7 +1107,7 @@ export function TVStation({ recordKey, notFound }: { recordKey: string; notFound
                       data-label={categoryLabel(category)}
                     >
                       <span>{category.trim() || 'Category not identified'}</span>
-                      <span>
+                      <span className={count === undefined ? 'tv-unavailable' : undefined}>
                         {count === undefined
                           ? 'Unavailable'
                           : `${count} ${count === 1 ? 'folder' : 'folders'}`}
@@ -1114,26 +1119,17 @@ export function TVStation({ recordKey, notFound }: { recordKey: string; notFound
             ))}
           </div>
         ) : (
-          <div className="tv-station-table-wrap">
-            <table className="tv-table tv-station-table">
+          <div className="tv-station-card tv-station-table-wrap">
+            <table className="tv-station-table">
               <thead>
                 <tr>
-                  <th rowSpan={2}>FOLDER YEAR</th>
-                  <th
-                    colSpan={categories.length}
-                    scope="colgroup"
-                    className="tv-station-category-group"
-                  >
-                    FOLDERS BY STATION CATEGORY
-                  </th>
-                  <th rowSpan={2}>FILES</th>
-                </tr>
-                <tr>
+                  <th scope="col">Folder year</th>
                   {categories.map((category) => (
                     <th key={category} scope="col">
                       {categoryLabel(category)}
                     </th>
                   ))}
+                  <th scope="col">Files</th>
                 </tr>
               </thead>
               <tbody>
@@ -1147,19 +1143,23 @@ export function TVStation({ recordKey, notFound }: { recordKey: string; notFound
                 {data.years.map((year) => (
                   <tr key={year.year}>
                     <td>
-                      <a
-                        href={`/money/ads${queryString({ tab: 'folders', station: data.call_sign, year: year.year })}`}
-                      >
+                      <a href={yearHref(year.year)}>
                         {year.year}
                         <span className="tv-sr"> folders at {data.call_sign}</span>
                       </a>
                     </td>
-                    {categories.map((category) => (
-                      <td key={category} data-label={categoryLabel(category)}>
-                        {year.categories.find((entry) => entry.name === category)?.count ??
-                          'Unavailable'}
-                      </td>
-                    ))}
+                    {categories.map((category) => {
+                      const count = year.categories.find((entry) => entry.name === category)?.count;
+                      return (
+                        <td
+                          key={category}
+                          data-label={categoryLabel(category)}
+                          className={count === undefined ? 'tv-unavailable' : undefined}
+                        >
+                          {count ?? 'Unavailable'}
+                        </td>
+                      );
+                    })}
                     <td>{year.file_count}</td>
                   </tr>
                 ))}
@@ -1167,23 +1167,29 @@ export function TVStation({ recordKey, notFound }: { recordKey: string; notFound
             </table>
           </div>
         )}
+        {omitted.length > 0 && (
+          <p className="tv-station-note">
+            {omittedList} folder counts are unavailable for this station
+          </p>
+        )}
       </section>
-      <section className="tv-section tv-source-gaps">
+      <section className="tv-section tv-station-gaps">
         <h2>Source gaps</h2>
-        <div className="tv-metrics">
-          <Metric
-            label="Files whose text could not be fully read"
-            value={data.counts.text_read_failures}
-          />
-          <Metric
-            label="Files we couldn’t download from the FCC"
-            value={data.counts.download_failures}
-          />
-        </div>
-        <p className="tv-small">A file can be in both of these, or in neither</p>
-        <div className="tv-count-divider" />
-        <Metric label="Folders we couldn’t list" value={data.folder_failures} />
-        <p className="tv-small" style={{ marginTop: 24 }}>
+        <dl className="tv-station-card tv-gap-rows">
+          <div>
+            <dt>Files whose text could not be fully read</dt>
+            <dd>{figure(data.counts.text_read_failures)}</dd>
+          </div>
+          <div>
+            <dt>Files we couldn’t download from the FCC</dt>
+            <dd>{figure(data.counts.download_failures)}</dd>
+          </div>
+          <div>
+            <dt>Folders we couldn’t list</dt>
+            <dd>{figure(data.folder_failures)}</dd>
+          </div>
+        </dl>
+        <p className="tv-station-note">
           Stations must keep these files for at least 2 years, so older files may be gone from the
           FCC
         </p>

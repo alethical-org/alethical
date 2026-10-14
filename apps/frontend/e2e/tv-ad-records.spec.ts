@@ -385,7 +385,7 @@ test('nonadministrator cannot enter reader or private guide', async ({ page }) =
   for (const path of ['/money/ads', '/money/ads/guide']) {
     await page.goto(path);
     await expect(page.getByRole('heading', { name: 'We couldn’t find that page' })).toBeVisible();
-    await expect(page.getByText('Administrators only', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Admins only', { exact: true })).toHaveCount(0);
   }
 });
 test('administrator private guide has no sharing or comments', async ({ page }) => {
@@ -948,8 +948,17 @@ test('a revoked administrator cannot enter another TV record through app navigat
 
 /** Clear space between the marker's border and its text ink, measured from real pixels. */
 async function inkGaps(marker: Locator) {
+  await marker.scrollIntoViewIfNeeded();
   const box = (await marker.boundingBox())!;
-  const shot = await marker.screenshot({ animations: 'disabled', scale: 'css' });
+  // Capture whole pixels around the marker, then measure against its exact (possibly
+  // fractional) border box, so a marker drawn between pixels is measured fairly.
+  const clip = {
+    x: Math.floor(box.x) - 2,
+    y: Math.floor(box.y) - 2,
+    width: Math.ceil(box.width) + 4,
+    height: Math.ceil(box.height) + 4,
+  };
+  const shot = await marker.page().screenshot({ clip, animations: 'disabled', scale: 'css' });
   // Decode the screenshot in the page itself, so the check needs no image package.
   const png = await marker.page().evaluate(async (base64) => {
     const image = new Image();
@@ -967,45 +976,46 @@ async function inkGaps(marker: Locator) {
     const i = (y * png.width + x) * 4;
     return png.data[i] + png.data[i + 1] + png.data[i + 2] < 3 * 140;
   };
-  // Skip the 1px border plus its anti-aliased edge and the rounded corners.
-  const inset = 3;
-  let top = Infinity,
-    bottom = -1,
-    left = Infinity,
-    right = -1;
-  for (let y = inset; y < png.height - inset; y++)
-    for (let x = inset + 4; x < png.width - inset - 4; x++)
+  // Border edges in image coordinates; skip the border, its anti-aliasing and corners.
+  const top = box.y - clip.y + 1,
+    bottom = box.y + box.height - clip.y - 1,
+    left = box.x - clip.x + 1,
+    right = box.x + box.width - clip.x - 1;
+  let inkTop = Infinity,
+    inkBottom = -1,
+    inkLeft = Infinity,
+    inkRight = -1;
+  for (let y = Math.ceil(top + 1); y < Math.floor(bottom - 1); y++)
+    for (let x = Math.ceil(left + 5); x < Math.floor(right - 5); x++)
       if (dark(x, y)) {
-        top = Math.min(top, y);
-        bottom = Math.max(bottom, y);
-        left = Math.min(left, x);
-        right = Math.max(right, x);
+        inkTop = Math.min(inkTop, y);
+        inkBottom = Math.max(inkBottom, y);
+        inkLeft = Math.min(inkLeft, x);
+        inkRight = Math.max(inkRight, x);
       }
-  expect(bottom, 'marker text ink found').toBeGreaterThan(0);
+  expect(inkBottom, 'marker text ink found').toBeGreaterThan(0);
+  const round = (value: number) => Math.round(value * 10) / 10;
   return {
-    above: top - 1,
-    below: png.height - 2 - bottom,
-    left: left - 1,
-    right: png.width - 2 - right,
-    height: png.height,
-    halfPixel: Math.abs((box.y % 1) - 0.5) < 0.25,
+    above: round(inkTop - top),
+    below: round(bottom - (inkBottom + 1)),
+    left: round(inkLeft - left),
+    right: round(right - (inkRight + 1)),
+    height: box.height,
   };
 }
 function expectCentredMarker(
   gaps: Awaited<ReturnType<typeof inkGaps>>,
-  { height = 26, side = 10 } = {},
+  { height = 26, side = 10, balance = 1.5 } = {},
 ) {
-  expect(gaps.height).toBeGreaterThanOrEqual(height);
-  // A marker drawn on a half pixel (beside a taller title) splits 1 row of ink across 2.
-  expect(Math.abs(gaps.above - gaps.below), JSON.stringify(gaps)).toBeLessThanOrEqual(
-    gaps.halfPixel ? 2 : 1,
-  );
-  expect(gaps.left).toBeGreaterThanOrEqual(side);
-  expect(gaps.right).toBeGreaterThanOrEqual(side);
+  expect(gaps.height).toBeGreaterThanOrEqual(height - 0.5);
+  // Whole-pixel rows can misplace each fractional edge by up to half a pixel.
+  expect(Math.abs(gaps.above - gaps.below), JSON.stringify(gaps)).toBeLessThanOrEqual(balance);
+  expect(gaps.left).toBeGreaterThanOrEqual(side - 0.5);
+  expect(gaps.right).toBeGreaterThanOrEqual(side - 0.5);
 }
 
 for (const width of [390, 900, 1280]) {
-  test(`Administrators only marker centres its text in every host ${width}px`, async ({ page }) => {
+  test(`Admins only marker centres its text in every host ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
     await fixture(page);
     await page.goto('/money');
@@ -1037,14 +1047,15 @@ for (const width of [390, 900, 1280]) {
     await page
       .locator('.tv-title-row')
       .screenshot({ path: resolve(output, `search-group-marker-${width}.png`) });
-    // The kind chips share the same rule: their own text centred, whatever the row.
+    // The kind chips share the same rule. Their words change per file, so ink with or
+    // without descenders lands up to 2px off centre between browsers.
     const kind = page.locator('.tv-kind').first();
     await expect(kind).toBeVisible();
-    expectCentredMarker(await inkGaps(kind), { height: 24, side: 8 });
+    expectCentredMarker(await inkGaps(kind), { height: 26, side: 10, balance: 2 });
     await page.goto('/money/ads/files/fixture-file');
     const fileKind = page.locator('.tv-kind').first();
     await expect(fileKind).toBeVisible();
-    expectCentredMarker(await inkGaps(fileKind), { height: 24, side: 8 });
+    expectCentredMarker(await inkGaps(fileKind), { height: 26, side: 10, balance: 2 });
   });
 }
 
@@ -1169,3 +1180,40 @@ for (const width of [390, 900, 1280]) {
     expect(browse.at(-1)!.searchParams.get('category')).toBe('State');
   });
 }
+
+test('a filter chosen before the first answer keeps the newest-year default', async ({ page }) => {
+  const state = await fixture(page);
+  const browse: URL[] = [];
+  page.on('request', (r) => {
+    const u = new URL(r.url());
+    if (u.pathname === '/api/v1/ads/browse') browse.push(u);
+  });
+  let release!: () => void;
+  const held = new Promise<void>((done) => (release = done));
+  state.browseDelay = async (u) => {
+    if (!u.searchParams.get('station')) await held;
+  };
+  await page.goto('/money/ads');
+  const station = page.getByRole('combobox', { name: 'Station', exact: true });
+  await station.click();
+  await page.getByRole('option', { name: 'KARE', exact: true }).click();
+  release();
+  await expect(page.getByText('Synthetic KARE campaign folder 1', { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/station=KARE/);
+  await expect(page).toHaveURL(/year=2026/);
+  await expect(page).not.toHaveURL(/year=all/);
+  const last = browse.at(-1)!;
+  expect(last.searchParams.get('default_year')).toBe('true');
+  expect(last.searchParams.get('station')).toBe('KARE');
+});
+
+test('Back from the TV records landing returns to the money page', async ({ page }) => {
+  await fixture(page);
+  await page.goto('/money');
+  await page.getByRole('link', { name: /TV ad records/ }).click();
+  await expect(page).toHaveURL(/\/money\/ads\?year=2026$/);
+  await expect(page.getByText('Synthetic campaign folder 1', { exact: true })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/money$/);
+  await expect(page.getByRole('link', { name: /TV ad records/ })).toBeVisible();
+});
