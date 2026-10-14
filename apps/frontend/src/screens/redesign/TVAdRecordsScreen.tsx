@@ -3,6 +3,8 @@ import { ScrollView, View } from 'react-native';
 import { useAuth } from '../../providers/AuthProvider';
 import { TopNav, Footer } from '../../theme/primitives';
 import { targetFromPathname } from '../../navigation/webRoutes';
+import { useDocumentTitle } from '../../navigation/documentTitle';
+import { notFoundPageMetadata, titleFor } from '../../lib/share';
 import type { RootScreenProps } from '../../navigation/types';
 import { NotFoundScreen } from './NotFoundScreen';
 import { useTVAdAccess } from '../../components/tvAds/useTVAdAccess';
@@ -59,12 +61,21 @@ export function TVAdRecordsScreen({ navigation, route }: RootScreenProps<'TVAdRe
     [navigation],
   );
   const pathname = typeof window !== 'undefined' ? window.location.pathname : '/money/ads';
-  if (
+  const notFound =
     denied ||
     access.state === 'signed-out' ||
     access.state === 'restricted' ||
-    access.state === 'error'
-  )
+    access.state === 'error';
+  // The server answers every TV address with the not-found page, so the tab keeps that
+  // title until a fresh administrator check passes; a pending check or any refusal
+  // shows it again, so no TV wording reaches another reader's tab.
+  useDocumentTitle(
+    pathname,
+    !notFound && access.state === 'allowed' && accessToken
+      ? titleFor(route.params.kind === 'guide' ? 'How to read TV ad records' : 'TV ad records')
+      : notFoundPageMetadata().title,
+  );
+  if (notFound)
     return (
       <NotFoundScreen
         navigation={navigation as unknown as RootScreenProps<'NotFound'>['navigation']}

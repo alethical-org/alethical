@@ -292,6 +292,29 @@ def test_reviewed_empty_folder_appears_without_inventing_files(db):
         if row["key"] == "kstp-tv"
     )
     assert station["folder_count"] == 1 and station["file_count"] == 0
+    # FCC folder pages we only listed (the root, a year or office level, a failed
+    # listing) are not held folders: the station page counts the same unit as the tab.
+    for path, status in [
+        ("", "stored"),
+        ("/2026", "stored"),
+        ("/2026/federal", "failed"),
+    ]:
+        db.add(
+            m.FCCObservation(
+                scan_id=scan.id,
+                url="https://publicfiles.fcc.gov/tv-profile/kstp-tv/political-files"
+                + path,
+                facility_id="28010",
+                kind="folder",
+                status=status,
+                details={},
+            )
+        )
+    db.flush()
+    page = reader.station_detail(db, "kstp-tv")
+    assert page["folder_count"] == station["folder_count"] == 1
+    assert sum(c["count"] for y in page["years"] for c in y["categories"]) == 1
+    assert page["folder_failures"] == 1
     year = reader.browse(db, tab="years")["rows"][0]
     assert year["folder_count"] == 1 and year["file_count"] == 0
     review.withdraw_folder(db, folder.id, ACTOR, "Synthetic withdrawal")

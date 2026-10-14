@@ -63,6 +63,9 @@ const orderText = [
   'Name of advertiser (list the full legal name as disclosed to the Federal Election Commission [for federal',
   'committees] with no acronyms):',
   'Signature: ____________________',
+  '',
+  'Agency name: Sample Media LLC',
+  'Address: PO Box 100',
 ].join('\n');
 const counts = {
   station_files_held: 27,
@@ -408,6 +411,7 @@ test('nonadministrator cannot enter reader or private guide', async ({ page }) =
     await page.goto(path);
     await expect(page.getByRole('heading', { name: 'We couldn’t find that page' })).toBeVisible();
     await expect(page.getByText('Admins only', { exact: true })).toHaveCount(0);
+    await expect(page).toHaveTitle('Page not found | Alethical');
   }
 });
 test('administrator private guide has no sharing or comments', async ({ page }) => {
@@ -970,6 +974,20 @@ test('a revoked administrator cannot enter another TV record through app navigat
     .click();
   await expect(page.getByRole('heading', { name: 'We couldn’t find that page' })).toBeVisible();
   await expect(page.getByRole('heading', { name: fileRow.name, exact: true })).toHaveCount(0);
+  await expect(page).toHaveTitle('Page not found | Alethical');
+});
+
+test('administrator TV pages carry their own browser title after a reload', async ({ page }) => {
+  await fixture(page);
+  await page.goto('/money/ads?tab=folders&station=KARE&year=2024&category=State');
+  await expect(
+    page.getByText('Synthetic KARE 2024 State campaign folder 1', { exact: true }),
+  ).toBeVisible();
+  await expect(page).toHaveTitle('TV ad records | Alethical');
+  await page.reload();
+  await expect(page).toHaveTitle('TV ad records | Alethical');
+  await page.goto('/money/ads/guide');
+  await expect(page).toHaveTitle('How to read TV ad records | Alethical');
 });
 
 /** Pixel and line measurements are only meaningful once the site font has loaded. */
@@ -1514,3 +1532,16 @@ for (const width of [390, 1280]) {
     }
   });
 }
+
+test('search highlighting marks a label and its value together', async ({ page }) => {
+  await fixture(page);
+  await page.goto(
+    `/money/ads/files/fixture-file?text=open&q=${encodeURIComponent('Agency name: Sample')}`,
+  );
+  const panel = page.locator('.tv-file-text');
+  await expect(panel.getByText('Sample Media LLC')).toBeVisible();
+  await expect(panel.locator('mark')).toHaveText(['Agency name:', 'Sample']);
+  // A term inside one cell is still marked on its own.
+  await page.goto('/money/ads/files/fixture-file?text=open&q=media');
+  await expect(panel.locator('mark')).toHaveText(['Media']);
+});

@@ -1233,7 +1233,17 @@ def station_detail(db, key):
     return {
         **dates,
         "counts": counts(db, station.facility_id),
-        "folder_count": len(observations),
+        # Folders holding saved records, the same unit as the Stations tab and this
+        # page's year table; FCC folder pages we listed (including empty, year and
+        # office folders) only feed "Folders we couldn't list".
+        "folder_count": len(
+            {
+                folder
+                for cats in grouped.values()
+                for ids in cats.values()
+                for folder in ids
+            }
+        ),
         "folder_failures": sum(s == "failed" for s in observations),
         "years": [
             {
