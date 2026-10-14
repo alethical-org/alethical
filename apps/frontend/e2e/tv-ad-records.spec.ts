@@ -63,6 +63,9 @@ const orderText = [
   'Name of advertiser (list the full legal name as disclosed to the Federal Election Commission [for federal',
   'committees] with no acronyms):',
   'Signature: ____________________',
+  '',
+  'Agency name: Sample Media LLC',
+  'Address: PO Box 100',
 ].join('\n');
 const counts = {
   station_files_held: 27,
@@ -1514,3 +1517,16 @@ for (const width of [390, 1280]) {
     }
   });
 }
+
+test('search highlighting marks a label and its value together', async ({ page }) => {
+  await fixture(page);
+  await page.goto(
+    `/money/ads/files/fixture-file?text=open&q=${encodeURIComponent('Agency name: Sample')}`,
+  );
+  const panel = page.locator('.tv-file-text');
+  await expect(panel.getByText('Sample Media LLC')).toBeVisible();
+  await expect(panel.locator('mark')).toHaveText(['Agency name:', 'Sample']);
+  // A term inside one cell is still marked on its own.
+  await page.goto('/money/ads/files/fixture-file?text=open&q=media');
+  await expect(panel.locator('mark')).toHaveText(['Media']);
+});
