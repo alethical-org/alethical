@@ -58,6 +58,7 @@ describe('count line', () => {
     [{ ...base, total: 214, rows: rows(12) }, 'Showing 1–12 of 214 folders'],
     [{ ...base, page: 18, total: 214, rows: rows(10) }, 'Showing 205–214 of 214 folders'],
     [{ ...base, tab: 'agencies' as const, total: 4, rows: rows(4) }, '4 agency names'],
+    [{ ...base, page: 99, total: 214, rows: rows(0) }, '214 folders'],
     [{ ...base, tab: 'years' as const, total: 1, rows: rows(1) }, '1 year'],
     [
       { ...base, q: 'lakes', total: 500, capped: true, rows: rows(12) },
@@ -228,6 +229,34 @@ describe('connection cards', () => {
       'Station files that name this candidate',
     ]);
     expect(mount.textContent).not.toMatch(/\bnamed\b|\badvertiser\b/);
+  });
+  it('counts a file in both candidate groups once', async () => {
+    const file = (key: string) => ({
+      key,
+      name: key,
+      station: 'KSTP-TV',
+      year: 2026,
+      category: 'State',
+      uploaded_at: null,
+    });
+    request.mockImplementation((path: string) =>
+      Promise.resolve(
+        path === '/ads/access'
+          ? { allowed: true }
+          : {
+              files: [],
+              groups: [
+                { label: 'Files with a checked connection to A', files: ['a', 'b'].map(file) },
+                {
+                  label: 'Station files that name this candidate',
+                  files: ['a', 'b', 'c', 'd'].map(file),
+                },
+              ],
+            },
+      ),
+    );
+    await act(async () => root.render(<TVAdConnectionCard kind="candidate" target="c" name="A" />));
+    expect(mount.querySelector('.tv-link-button')?.textContent).toBe('Show all 4');
   });
 });
 

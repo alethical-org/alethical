@@ -75,7 +75,9 @@ function ConnectionCard({
     );
   };
   const groups = read.data?.groups || [{ label: '', files: read.data?.files || [] }];
-  const count = groups.reduce((sum, group) => sum + group.files.length, 0);
+  // A file can sit in 2 groups (bought by the committee and naming the candidate),
+  // so the count is of distinct files.
+  const count = new Set(groups.flatMap((group) => group.files.map((file) => file.key))).size;
   const committee = read.data?.committee;
   const seat =
     legislatorTab && committee?.office

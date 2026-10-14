@@ -1129,8 +1129,11 @@ export function TVAgency({ recordKey, notFound }: { recordKey: string; notFound:
               <div className="tv-address" key={address.address}>
                 <strong>{address.address}</strong>
                 {address.role && <p className="tv-small">Role as printed: {address.role}</p>}
-                {address.evidence.map((source) => (
-                  <div className="tv-address-source" key={`${source.file_key}-${source.page}`}>
+                {address.evidence.map((source, index) => (
+                  <div
+                    className="tv-address-source"
+                    key={`${source.file_key}-${source.page}-${source.role ?? ''}-${index}`}
+                  >
                     <a
                       className="tv-block-link"
                       href={tvHref('file', source.file_key, {
