@@ -287,6 +287,7 @@ def _row(db, p):
         "key": file_key(p.facility_id, p.file_id),
         "name": p.safe_title,
         "label": p.safe_title,
+        "folder_label": p.safe_folder,
         "station": STATIONS[p.facility_id].call_sign,
         "year": doc.year,
         "category": p.category,
@@ -651,9 +652,12 @@ def browse(
                     value = part.get("text", "")
                     idx = value.casefold().find(query)
                     if idx >= 0:
+                        start, end = max(0, idx - 80), idx + len(q) + 160
                         match = (
                             f"Matched the file text, page {part['page']}",
-                            value[max(0, idx - 80) : idx + len(q) + 160],
+                            ("…" if start else "")
+                            + value[start:end]
+                            + ("…" if end < len(value) else ""),
                             True,
                         )
                         break
@@ -790,6 +794,16 @@ def _election_name(snapshot):
     return f"{year} {stage} election" if year and stage else ""
 
 
+def _race_seat(snapshot):
+    """The seat as the race page names it ("House District 99A"), when the check
+    established the campaign-money contest; otherwise the checked office as stored."""
+    context = snapshot.get("money_context") or {}
+    office, district = context.get("office"), context.get("district")
+    if office in ("House", "Senate") and district:
+        return f"{office} District {district}"
+    return snapshot.get("label", "")
+
+
 def _race_href(snapshot):
     """The race page for a checked election connection, only when the check also
     established the campaign-money contest; never a page guessed from a name."""
@@ -820,15 +834,19 @@ def _connection_payload(db, c, version_id, key):
     snapshot = c.target_snapshot or {}
     label, href = snapshot.get("label", c.target_id), snapshot.get("href", "")
     if c.kind == "election":
-        label = " · ".join(part for part in (_election_name(snapshot), label) if part)
+        label = " · ".join(
+            part for part in (_election_name(snapshot), _race_seat(snapshot)) if part
+        )
         href = _race_href(snapshot)
     item = {
         "id": str(c.id),
         "kind": c.kind,
         "label": label,
         "href": href,
-        # The page link follows the role on the file page, so the role omits it.
-        "role": _role_line(c.kind, snapshot),
+        # The file page prints "{role} on page {n}" with the page as its link.
+        "role": "Named"
+        if c.kind == "candidate" and snapshot.get("role") == "named" and c.page
+        else _role_line(c.kind, snapshot),
         "quote": c.quote,
         "page": c.page,
         "version_id": version_id,

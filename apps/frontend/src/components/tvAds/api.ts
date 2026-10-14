@@ -40,6 +40,8 @@ export interface FileRow extends CopyReference {
   kind?: string | null;
   uploaded_at: string | null;
   role?: string;
+  /** The station's own label for the folder that holds the file. */
+  folder_label?: string | null;
   /** The checked election and stage, e.g. "2026 general election". */
   election?: string | null;
 }

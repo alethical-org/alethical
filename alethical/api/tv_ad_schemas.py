@@ -45,6 +45,7 @@ class FileRow(ReaderModel):
     key: str
     name: str
     label: str
+    folder_label: str | None = None
     station: str
     year: int | None
     category: str

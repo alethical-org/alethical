@@ -42,6 +42,7 @@ const fileRow = {
   category: 'State',
   kind: 'Invoice',
   uploaded_at: stamp,
+  folder_label: 'Synthetic campaign folder',
 };
 // Invented order page, shaped like the stations' extracted layout (columns as spaces).
 const orderText = [
@@ -1610,7 +1611,7 @@ const gapFile = {
       kind: 'candidate',
       label: 'Synthetic Candidate A',
       href: '/candidates/' + 'c'.repeat(64),
-      role: 'Named on the file',
+      role: 'Named',
       quote: 'CANDIDATE: SYNTHETIC CANDIDATE A',
       page: 1,
       version_id: oldHash,
@@ -1620,7 +1621,7 @@ const gapFile = {
     {
       id: 'c-election',
       kind: 'election',
-      label: '2026 general election · State Representative District 99A',
+      label: '2026 general election · House District 99A',
       href: '/money/races/house-99a?year=2026',
       role: '',
       quote: 'FOR SYNTHETIC CANDIDATE A',
@@ -1696,9 +1697,11 @@ for (const width of [390, 900, 1280]) {
       page.getByRole('link', { name: /Agency name “SYNTHETIC MEDIA LLC”/ }),
     ).toHaveAttribute('href', '/money/ads/agencies/agency-checked');
     await expect(
-      page.getByRole('link', { name: /2026 general election · State Representative/ }),
+      page.getByRole('link', { name: /2026 general election · House District/ }),
     ).toHaveAttribute('href', '/money/races/house-99a?year=2026');
-    await expect(page.getByText('Named on the file', { exact: true })).toBeVisible();
+    await expect(
+      page.locator('.tv-connection-role', { hasText: /^Named on page 1$/ }),
+    ).toBeVisible();
     const text = page.locator('.tv-file-text');
     await expect(text.locator('.tv-mt-withheld')).toHaveText('Name withheld');
     await expect(text.getByRole('img', { name: 'Blanked' })).toBeVisible();
@@ -1721,7 +1724,7 @@ for (const width of [390, 900, 1280]) {
     await page.goto('/money/ads/agencies/agency-checked');
     await expect(
       page.getByRole('link', {
-        name: 'Independent-spending payments with this exact printed name',
+        name: 'Outside spending payments with this exact printed name',
       }),
     ).toHaveAttribute(
       'href',

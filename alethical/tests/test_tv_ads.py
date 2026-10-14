@@ -1218,15 +1218,14 @@ def test_file_page_prints_plain_roles_election_stage_and_race_link(db, source):
         include_archive=True,
     )
     roles = [c["role"] for c in detail["connections"] if c["kind"] == "candidate"]
-    assert roles == ["Named on the file", "Advertiser, as printed"]
+    # The file page adds " on page {n}" after the role, with the page as a link.
+    assert roles == ["Named", "Advertiser, as printed"]
     elections = [c for c in detail["connections"] if c["kind"] == "election"]
-    assert (
-        elections[0]["label"]
-        == "2026 general election · State Representative District 99A"
-    )
+    assert elections[0]["label"] == "2026 general election · House District 99A"
     assert elections[0]["href"] == "/money/races/house-99a?year=2026"
     # No checked campaign-money contest: the election prints, but links nowhere.
     assert elections[1]["href"] == ""
+    assert elections[1]["label"].endswith("State Representative District 99A")
     assert detail["agencies"] == [
         {
             "key": reader.agency_key("Example Media"),

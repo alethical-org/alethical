@@ -613,7 +613,10 @@ describe('browse scope and exact search destinations', () => {
       ),
     );
     const rendered = mount.querySelector('.tv-row')!;
-    expect(rendered.querySelector('.tv-small')?.textContent).toBe(expected);
+    // A count keeps its number and noun together with a no-break space.
+    expect(rendered.querySelector('.tv-small')?.textContent?.replace(/\u00a0/g, ' ')).toBe(
+      expected,
+    );
     expect(rendered.textContent).not.toContain('Category not identified');
   });
   it.each(['agencies', 'stations', 'years'])(

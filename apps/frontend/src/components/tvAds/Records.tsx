@@ -305,9 +305,11 @@ function FileContents({
         {file.agencies?.map((agency) => (
           <a className="tv-tap" href={tvHref('agency', agency.key)} key={agency.key}>
             Agency name “{agency.name}”
-            {/* The status belongs to this name, so it travels inside its link. */}
-            {agency.unchecked && <span className="tv-link-status"> · {'Not\u00a0checked'}</span>}
-            <Arrow />
+            {/* The status belongs to this name, so it travels inside its link with the arrow. */}
+            <span className="tv-nowrap">
+              {agency.unchecked && <span className="tv-link-status"> · Not checked</span>}
+              <Arrow />
+            </span>
           </a>
         ))}
       </div>
@@ -627,12 +629,17 @@ function FactValue({
           <div className="tv-fact-value">{fact.value}</div>
           {fact.qualifier && <p>{fact.qualifier}</p>}
           {fact.quote && <q className="tv-quote">{fact.quote}</q>}
-          {fact.page && (
-            <button className="tv-link-button" onClick={() => evidence(fact.page, fact.version_id)}>
-              page {fact.page}
-            </button>
-          )}
-          <Checked date={fact.checked_at} />
+          <div className="tv-evidence-row">
+            {fact.page && (
+              <button
+                className="tv-link-button tv-page-link"
+                onClick={() => evidence(fact.page, fact.version_id)}
+              >
+                Page {fact.page}
+              </button>
+            )}
+            <Checked date={fact.checked_at} />
+          </div>
           {!!fact.history?.length && (
             <>
               <button
@@ -685,16 +692,36 @@ function ConnectionItem({
         )[value.kind] || value.kind}
       </h3>
       <Internal href={value.href}>{value.label}</Internal>
-      {value.role && <p>{value.role}</p>}
-      {value.quote && <q className="tv-quote">{value.quote}</q>}
-      {value.page && (
-        <button className="tv-link-button" onClick={() => evidence(value.page, value.version_id)}>
-          page {value.page}
-        </button>
+      {value.role && (
+        <p className="tv-connection-role">
+          {value.role}
+          {value.page && (
+            <>
+              {' on '}
+              <button
+                className="tv-link-button tv-page-link"
+                onClick={() => evidence(value.page, value.version_id)}
+              >
+                page {value.page}
+              </button>
+            </>
+          )}
+        </p>
       )}
+      {value.quote && <q className="tv-quote">{value.quote}</q>}
       {value.reported_amount !== undefined && <p>Reported expense: {value.reported_amount}</p>}
       {value.reported_date && <p>Reported date: {centralDate(value.reported_date)}</p>}
-      <Checked date={value.checked_at} />
+      <div className="tv-evidence-row">
+        {!value.role && value.page && (
+          <button
+            className="tv-link-button tv-page-link"
+            onClick={() => evidence(value.page, value.version_id)}
+          >
+            Page {value.page}
+          </button>
+        )}
+        <Checked date={value.checked_at} />
+      </div>
       {value.source_changed && (
         <p className="tv-notice tv-error">
           The committee’s filing changed; this connection was checked against the saved filing shown
@@ -1062,12 +1089,16 @@ export function TVAgency({ recordKey, notFound }: { recordKey: string; notFound:
                             <Kind value={file.kind} />
                             <strong>{file.name}</strong>
                           </div>
-                          <p className="tv-small">
-                            {file.category
-                              ? `Station category: ${file.category}`
-                              : 'Category not identified'}
-                            {file.agency_unchecked && ' · Agency name: Not checked'}
-                          </p>
+                          {(file.folder_label || file.agency_unchecked) && (
+                            <p className="tv-small">
+                              {[
+                                file.folder_label ? `Folder “${file.folder_label}”` : null,
+                                file.agency_unchecked ? 'Agency name: Not checked' : null,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </p>
+                          )}
                           {file.role && <p className="tv-small">{file.role}</p>}
                           {file.source_changed && (
                             <p className="tv-small">
@@ -1097,7 +1128,7 @@ export function TVAgency({ recordKey, notFound }: { recordKey: string; notFound:
                 <strong>{address.address}</strong>
                 {address.role && <p className="tv-small">Role as printed: {address.role}</p>}
                 {address.evidence.map((source) => (
-                  <div key={`${source.file_key}-${source.page}`}>
+                  <div className="tv-address-source" key={`${source.file_key}-${source.page}`}>
                     <a
                       className="tv-block-link"
                       href={tvHref('file', source.file_key, {

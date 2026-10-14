@@ -366,10 +366,10 @@ export function TVLanding({
                                 : []),
                               (result.tab === 'stations' || result.tab === 'years') &&
                               typeof row.folder_count === 'number'
-                                ? `${row.folder_count.toLocaleString('en-US')} ${row.folder_count === 1 ? 'folder' : 'folders'}`
+                                ? `${row.folder_count.toLocaleString('en-US')}\u00a0${row.folder_count === 1 ? 'folder' : 'folders'}`
                                 : null,
                               typeof row.file_count === 'number'
-                                ? `${row.file_count.toLocaleString('en-US')} ${row.file_count === 1 ? 'file' : 'files'}`
+                                ? `${row.file_count.toLocaleString('en-US')}\u00a0${row.file_count === 1 ? 'file' : 'files'}`
                                 : null,
                               result.tab === 'agencies' ? row.stations?.join(', ') : null,
                               row.unchecked ? 'Includes names not checked' : null,

@@ -276,9 +276,7 @@ describe('folder, agency and station pages', () => {
     expect(mount.querySelectorAll('.tv-address')).toHaveLength(1);
     expect(mount.textContent).toContain('Role as printed: Agency address');
     expect(mount.textContent).toContain('Role as printed: Remit to');
-    expect(mount.textContent).toContain(
-      'Independent-spending payments with this exact printed name',
-    );
+    expect(mount.textContent).toContain('Outside spending payments with this exact printed name');
   });
   it('says a category with no held folder is none held, never unavailable', async () => {
     request.mockResolvedValue({
