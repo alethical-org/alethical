@@ -38,6 +38,7 @@ vi.mock('../../candidates/CandidateControls', () => ({
     </button>
   ),
 }));
+vi.mock('../../LinkArrow', () => ({ LinkArrow: () => null }));
 vi.mock('../ReviewImage', () => ({
   ReviewImage: ({ label, onLoaded }: any) => {
     useEffect(() => {

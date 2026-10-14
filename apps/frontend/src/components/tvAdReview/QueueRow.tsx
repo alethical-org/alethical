@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { LinkArrow } from '../LinkArrow';
 import { finePointerHovered } from '../campaignMoney/finePointerHover';
 import { theme as t, prefersReducedMotion } from '../../theme/tokens';
 import type { QueueRow as Row } from './api';
@@ -64,22 +65,8 @@ export function QueueRow({
           ].join(' · ')}
         </Text>
       </View>
-      <svg
-        width="19"
-        height="19"
-        viewBox="0 0 24 24"
-        fill="none"
-        aria-hidden="true"
-        style={{ flex: 'none' }}
-      >
-        <path
-          d="M5 12 H19 M14 7 L19 12 L14 17"
-          stroke="#0f7a45"
-          strokeWidth="2.27"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
+      {/* Opens the review here, not another address: the neutral action arrow. */}
+      <LinkArrow color={t.colors.text.primary} />
     </Pressable>
   );
 }
