@@ -1276,6 +1276,23 @@ def review_payload(db, id):
     }
 
 
+def _one_per_value(items, key):
+    """One suggestion per value: machine reading repeats a value on every page.
+
+    The representative is the first occurrence whose quote is in the safe text,
+    else the first; every page that printed it is kept beside it.
+    """
+    groups = {}
+    for item in sorted(items, key=lambda i: i["page"]):
+        groups.setdefault(key(item), []).append(item)
+    result = []
+    for group in groups.values():
+        chosen = next((i for i in group if i["in_safe_text"]), group[0])
+        pages = {p for i in group for p in i.get("pages", [i["page"]])}
+        result.append({**chosen, "pages": sorted(pages)})
+    return result
+
+
 def _printed_name(value):
     return " ".join(value.split()).lower() if isinstance(value, str) else ""
 
@@ -1316,12 +1333,18 @@ def _committee_suggestions(db, row, names, connections):
                     "office": filer.office,
                     "district": filer.district,
                     "terminated": filer.termination_date is not None,
-                    "evidence": name,
+                    "evidence": {k: v for k, v in name.items() if k != "pages"},
+                    "pages": name.get("pages", [name["page"]]),
                     "in_safe_text": _in_safe_text(row, name["page"], name["quote"]),
                     "already_connected": filer.registration_number in connected,
                 }
             )
-    return result
+    for item in result:
+        item["page"] = item["evidence"]["page"]
+    return [
+        {key: value for key, value in item.items() if key != "page"}
+        for item in _one_per_value(result, lambda i: i["registration_number"])
+    ]
 
 
 def _in_safe_text(row, page, quote):
@@ -1360,6 +1383,7 @@ def _expense_suggestions(db, row, connections):
         for link in db.scalars(
             select(m.FCCExpenseLink).where(
                 m.FCCExpenseLink.content_hash == row.content_hash,
+                m.FCCExpenseLink.extraction_version == found["extraction_version"],
                 m.FCCExpenseLink.source_snapshot_id.in_({k[1] for k in keys}),
             )
         ):
@@ -1458,6 +1482,7 @@ def review_suggestions(db, id):
             or not isinstance(quote, str)
             or isinstance(page, bool)
             or not isinstance(page, int)
+            or page < 1
         ):
             continue
         drafts.append(
@@ -1471,12 +1496,14 @@ def review_suggestions(db, id):
                 "already_checked": (field, value) in checked,
             }
         )
+    drafts = _one_per_value(drafts, lambda d: (d["field"], d["value"]))
     names = [
         {
             "field": d["field"],
             "value": d["value"],
             "page": d["page"],
             "quote": d["quote"],
+            "pages": d["pages"],
             "source": "machine_read",
         }
         for d in drafts

@@ -68,8 +68,13 @@ function ReviewWorkspace({ token, onDenied }: { token: string; onDenied(): void 
   const [suggestionRetry, setSuggestionRetry] = useState(0);
   const [dismissed, setDismissed] = useState<{ copyId: string; keys: Set<string> } | null>(null);
   const suggestionCopy = review?.publication.status === 'approved' ? review.publication.id : null;
+  // A withdrawal keeps its row and changes only its status, so the key carries both.
   const suggestionRefresh = review
-    ? `${review.facts.length}:${review.connections.length}:${review.publication.fingerprint}`
+    ? [
+        review.publication.fingerprint,
+        ...review.facts.map((fact) => `${fact.id}:${fact.status}`),
+        ...review.connections.map((connection) => `${connection.id}:${connection.status}`),
+      ].join('|')
     : null;
   // Suggestions belong to one approved copy. Keep the last list visible while a
   // refresh after a saved decision loads; a different copy starts empty.

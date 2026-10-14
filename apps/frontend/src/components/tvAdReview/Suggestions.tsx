@@ -37,6 +37,17 @@ const day = (value: string) => {
 /** Display only; the stored and matched values stay exactly as returned. */
 const shown = (field: string, value: string) =>
   /amount$/i.test(field) ? money(value) : /date$/i.test(field) ? day(value) : value;
+const list = (items: number[]) =>
+  items.length < 2
+    ? items.join('')
+    : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+/** Machine reading repeats a value on each page; the card names the other pages once. */
+const alsoOn = (pages: number[] | undefined, page: number) => {
+  const others = (pages ?? []).filter((item) => item !== page);
+  return others.length
+    ? `Also printed on ${others.length === 1 ? 'page' : 'pages'} ${list(others)}`
+    : null;
+};
 const MATCHES: Record<string, string> = {
   normalized_exact: 'Same name',
   exact_amount: 'Same amount',
@@ -318,6 +329,9 @@ export function FactSuggestions({
           <Text selectable style={[c.line, wrap, { marginTop: 6 }]}>
             Page {item.page} · “{item.quote}”
           </Text>
+          {alsoOn(item.pages, item.page) ? (
+            <Text style={[c.line, { marginTop: 2 }]}>{alsoOn(item.pages, item.page)}</Text>
+          ) : null}
         </Card>
       )}
     />
@@ -364,6 +378,9 @@ export function CommitteeSuggestions({
             Page {item.evidence.page} · printed {factLabel(item.evidence.field)}
             {item.evidence.source === 'checked' ? ' · Checked' : ''} · “{item.evidence.quote}”
           </Text>
+          {alsoOn(item.pages, item.evidence.page) ? (
+            <Text style={[c.line, { marginTop: 2 }]}>{alsoOn(item.pages, item.evidence.page)}</Text>
+          ) : null}
         </Card>
       )}
     />

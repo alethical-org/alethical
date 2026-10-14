@@ -1192,6 +1192,12 @@ def test_suggestions_carry_evidence_and_never_save_or_check_anything(db, source)
                     "quote": "Agency address: 1 Main St",
                 },
                 {"field": "unsupported", "value": "x", "page": 1, "quote": "x"},
+                {
+                    "field": "advertiser",
+                    "value": "Example Committee",
+                    "page": 3,
+                    "quote": "Advertiser: Example Committee",
+                },
             ],
             errors=[],
         )
@@ -1224,6 +1230,11 @@ def test_suggestions_carry_evidence_and_never_save_or_check_anything(db, source)
     assert match["evidence"]["source"] == "machine_read"
     assert match["evidence"]["quote"] == "Advertiser: Example  Committee"
     assert match["already_connected"] is False
+    # A value repeated on later pages is one suggestion that lists every page.
+    assert facts["advertiser"]["pages"] == [1, 3]
+    assert facts["advertiser"]["page"] == 1
+    assert match["pages"] == [1, 3]
+    assert [f["field"] for f in result["facts"]].count("advertiser") == 1
 
     service.add_fact(
         db,
@@ -1302,7 +1313,7 @@ def test_queue_puts_checked_agency_and_checked_folder_files_first(db, source):
         fact(value="Example Media", quote="Agency: Example Media"),
     )
 
-    def doc(name, folder="folder-new", agency=None):
+    def doc(name, folder="folder-new", agency=None, file_id=None):
         digest = uuid.uuid4().hex + uuid.uuid4().hex
         db.add(
             m.FCCSourceBody(
@@ -1318,7 +1329,7 @@ def test_queue_puts_checked_agency_and_checked_folder_files_first(db, source):
         db.add(
             m.FCCDocument(
                 facility_id="28010",
-                file_id=f"queue-{name}",
+                file_id=file_id or f"queue-{name}",
                 content_hash=digest,
                 call_sign="KSTP-TV",
                 folder_id=folder,
@@ -1340,7 +1351,9 @@ def test_queue_puts_checked_agency_and_checked_folder_files_first(db, source):
                             "value": agency,
                             "page": 1,
                             "quote": agency,
-                        }
+                        },
+                        # A malformed reading must not break the queue.
+                        {"field": "agency_name", "value": ["x"], "page": 0},
                     ],
                     errors=[],
                 )
@@ -1367,6 +1380,8 @@ def test_queue_puts_checked_agency_and_checked_folder_files_first(db, source):
     doc("Older same agency", agency="Example Media")
     doc("Different spelling", agency="EXAMPLE MEDIA")
     doc("Checked folder", folder="folder-checked")
+    # A newer version of the reviewed file is not suggested by its own check.
+    doc("Own newer version", agency="Example Media", file_id=document.file_id)
     doc("Newest plain")
     db.add(
         m.TVAdConnection(

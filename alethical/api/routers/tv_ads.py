@@ -301,11 +301,18 @@ def _queue_priority():
                 )
             ),
         )
+        .join(m.TVAdPublication, m.TVAdPublication.id == m.TVAdFact.publication_id)
         .where(
             m.FCCExtraction.content_hash == doc.content_hash,
             m.FCCExtraction.version == EXTRACTOR_VERSION,
             m.TVAdFact.field == "agency_name",
             m.TVAdFact.status == "checked",
+            # Checked on ANOTHER file: a file's own earlier version never
+            # suggests the file itself.
+            ~and_(
+                m.TVAdPublication.facility_id == doc.facility_id,
+                m.TVAdPublication.file_id == doc.file_id,
+            ),
         )
         .exists()
     )
@@ -336,28 +343,34 @@ def _queue_priority():
 def _first_reasons(db, docs):
     """Exact evidence behind each suggested-first row on this page."""
     hashes = {d.content_hash for d in docs}
-    checked = set(
-        db.scalars(
-            select(m.TVAdFact.value).where(
-                m.TVAdFact.field == "agency_name", m.TVAdFact.status == "checked"
-            )
+    checked: dict[str, set[tuple[str, str]]] = {}
+    for value, facility_id, file_id in db.execute(
+        select(
+            m.TVAdFact.value, m.TVAdPublication.facility_id, m.TVAdPublication.file_id
         )
-    )
-    agencies: dict[str, list[str]] = {}
+        .join(m.TVAdPublication, m.TVAdPublication.id == m.TVAdFact.publication_id)
+        .where(m.TVAdFact.field == "agency_name", m.TVAdFact.status == "checked")
+    ):
+        checked.setdefault(value, set()).add((facility_id, file_id))
+    agencies: dict[tuple[str, str, str], list[str]] = {}
     if checked and hashes:
-        for content_hash, facts in db.execute(
-            select(m.FCCExtraction.content_hash, m.FCCExtraction.facts).where(
-                m.FCCExtraction.content_hash.in_(hashes),
-                m.FCCExtraction.version == EXTRACTOR_VERSION,
-            )
-        ):
-            agencies[content_hash] = sorted(
+        readings = dict(
+            db.execute(
+                select(m.FCCExtraction.content_hash, m.FCCExtraction.facts).where(
+                    m.FCCExtraction.content_hash.in_(hashes),
+                    m.FCCExtraction.version == EXTRACTOR_VERSION,
+                )
+            ).all()
+        )
+        for d in docs:
+            agencies[(d.facility_id, d.file_id, d.content_hash)] = sorted(
                 {
                     f["value"]
-                    for f in facts
+                    for f in readings.get(d.content_hash) or []
                     if isinstance(f, dict)
                     and f.get("field") == "agency_name"
-                    and f.get("value") in checked
+                    and isinstance(f.get("value"), str)
+                    and checked.get(f["value"], set()) - {(d.facility_id, d.file_id)}
                 }
             )
     folders: dict[tuple[str, str], list[str]] = {}
@@ -466,7 +479,7 @@ def queue(
                 "status": copy.status if copy else "unprepared",
                 "copy_id": str(copy.id) if copy else None,
                 "suggested_first": identity in suggested,
-                "checked_agency_names": agencies.get(doc.content_hash, [])
+                "checked_agency_names": agencies.get(identity, [])
                 if identity in suggested
                 else [],
                 "folder_committees": folders.get((doc.facility_id, doc.folder_id), [])

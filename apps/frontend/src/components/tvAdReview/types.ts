@@ -126,6 +126,8 @@ export type SuggestedEvidence = {
 };
 export type SuggestedFact = SuggestedEvidence & {
   machine_field: string;
+  /** Every page that printed this value; the card's quote is from `page`. */
+  pages?: number[];
   in_safe_text: boolean;
   already_checked: boolean;
 };
@@ -139,6 +141,7 @@ export type SuggestedCommittee = {
   evidence: SuggestedEvidence;
   in_safe_text: boolean;
   already_connected: boolean;
+  pages?: number[];
 };
 export type SuggestedExpense = {
   target_id: string;

@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { finePointerHovered } from '../campaignMoney/finePointerHover';
 import { theme as t, prefersReducedMotion } from '../../theme/tokens';
@@ -21,6 +22,7 @@ export function QueueRow({
   disabled: boolean;
   onOpen(): void;
 }) {
+  const details = useId();
   const reasons = [
     ...(row.checked_agency_names ?? []).map((name) => `Agency name already checked: ${name}`),
     ...(row.folder_committees ?? []).map((name) => `Folder checked as relating to ${name}`),
@@ -29,6 +31,9 @@ export function QueueRow({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Review ${row.name}`}
+      // The name says what the control does; the station, reason and status
+      // stay available as its description rather than being replaced.
+      aria-describedby={details}
       disabled={disabled}
       onPress={onOpen}
       style={(state) => [
@@ -38,7 +43,7 @@ export function QueueRow({
         disabled && { opacity: 0.6 },
       ]}
     >
-      <View style={styles.main}>
+      <View nativeID={details} style={styles.main}>
         <Text style={styles.name}>
           {row.call_sign} · {row.name}
         </Text>
