@@ -646,7 +646,7 @@ def browse(
                     ):
                         match = (
                             "Matched a checked fact",
-                            f"{fact.field.replace('_', ' ').capitalize()}: {fact.value}",
+                            f"{_fact_kind(fact.field)}: {fact.value}",
                             False,
                         )
                         break
