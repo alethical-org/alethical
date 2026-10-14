@@ -3,10 +3,10 @@
 **Status: proposed, not approved.** Nothing here is built. Once approved, this file becomes
 the build specification and the drawing brief's source of truth.
 
-Net: A sitting Minnesota legislator, or staff in their office, can claim their Alethical
-profile in 3 steps: sign in, type a code we email to the address the Legislature publishes for
-them, and wait for an Alethical admin to approve. Approval lets them add their own words
-beside the record (a candidate survey, an introduction, vote explanations) and send private
+Net: A sitting Minnesota legislator, or staff in their office, claims their Alethical profile
+by signing in with their official legislative email address and pressing 1 button. An
+Alethical admin checks the request and approves it. Approval lets them add their own words
+beside the record (survey answers, an introduction, later vote explanations) and send
 correction requests. It never lets them change or hide any record.
 
 ## 1. What this builds on
@@ -33,22 +33,31 @@ Approved intent this spec carries forward, unchanged:
   what a legislator claim needs that a candidate claim does not.
 - **The candidate features page already commits to fair, comparable answers.** "Answer the
   same questions offered to other candidates in your race" and "Campaign voices and official
-  facts stay distinct" (`apps/frontend/src/lib/candidateFeatures.ts`). The candidate survey in
-  §7 is the first piece of that promise.
+  facts stay distinct" (`apps/frontend/src/lib/candidateFeatures.ts`). The survey in §7 is
+  the first piece of that promise.
+- **Account sign-up already proves an inbox.** Creating an account with an email address
+  requires typing a code sent to that address before a password can be used
+  ([sign-in-guide.md, The 12 account journeys](sign-in-guide.md)). This spec reuses that
+  proof instead of adding a second code.
 
 What this spec changes or adds:
 
-1. **An official-email code.** Candidate claims deliberately have no code check, because a
-   campaign has no official mailbox. A sitting legislator does, so a code sent to the
-   published address becomes the main proof, with admin approval still required. This is
-   what the roadmap card's "Verified against official legislative records" means in practice.
+1. **Official-email sign-in as the proof.** Candidate claims deliberately take any account,
+   because a campaign has no official mailbox. A sitting legislator and their office staff
+   do: the Legislature says "Every member of the Legislature has an email address based on
+   the member's name", at `@house.mn.gov` for representatives and `@mnsenate.gov` for
+   senators ([Minnesota Legislature FAQ 145](https://www.leg.mn.gov/leg/FAQ/faq?id=145), read
+   14 Oct 2026). So a legislator claim requires an account whose confirmed email is on one of
+   those 2 domains, with admin approval still required. This is what the roadmap card's
+   "Verified against official legislative records" means in practice.
 2. **The candidate survey**, offered first to claimed legislator profiles (§7).
 3. **One review list for both kinds of claim** (§4).
 
 ## 2. Who can claim
 
 - **Current members only.** On 14 Oct 2026 Alethical's records hold 133 current House members
-  and 67 current senators.
+  and 67 current senators. All 201 seats are on the 3 Nov 2026 ballot, so the launch roster is
+  the Legislature sworn in during January 2027 (§11).
 - **The legislator, or staff in the legislator's office.** The request asks which one. The
   public label says which one (§8), so a staff-managed profile never reads as the member
   speaking personally.
@@ -60,74 +69,49 @@ What this spec changes or adds:
 
 ## 3. The claim, from the claimant's side
 
-The path is 3 steps, and the second has at most 2 buttons. Wording in quotes is proposed
-fixed text. `{Title Name}` means "Representative {full name}" or "Senator {full name}".
+Wording in quotes is proposed fixed text. `{Title Name}` means "Representative {full name}"
+or "Senator {full name}".
 
-### Step 1: start and sign in
+### Step 1: start
 
 On `/legislators/<id>`, the roadmap card's inactive preview becomes a working button,
 **Claim this legislator profile**, with the explanation underneath: "Alethical reviews
 requests from legislators and their office staff. Approved access lets you add your own
 words to this profile, not change official records." The button opens
-`/legislators/<id>/claim`. Signed out, that page shows the legislator card and **Sign in to
-continue**, and sign-in returns to the same page (the existing candidate behaviour).
+`/legislators/<id>/claim`.
 
-### Step 2: confirm the official address
+### Step 2: sign in with the official address
 
-Signed in, the page shows the legislator card (name, chamber, district) and 2 parts:
+Signed out, the claim page shows the legislator card (name, chamber, district), the line
+"Sign in with your official legislative email address, ending in @house.mn.gov or
+@mnsenate.gov", and **Sign in to continue**. Sign-in returns to the same page (the existing
+candidate behaviour). A legislator or staffer without an Alethical account creates one with
+that address and types the code the sign-up screen emails them; that code is the proof.
 
-1. **Who is making this request?** **I am {Title Name}** or **I work in {Title Name}’s office**.
-2. **Confirm your official email.** "We’ll send a 6-digit code to {address}, the address the
-   Minnesota {House|Senate} publishes for {Title Name}". **Send code**, then a code box and
-   **Send request**.
+Signed in with an address on either domain, the page shows the card, 1 question and 1
+button:
 
-The address is never typed by the claimant. Alethical sends only to the address it copied
-from the Legislature's own member page, and the page names that address in full, since it is
-already public. This is the whole security property: nobody can point the code at an inbox
-they control.
+- **Who is making this request?** **I am {Title Name}** or **I work in {Title Name}’s office**.
+- **Send request**.
 
-Three variations, each replacing part 2 and nothing else:
+Signed in with any other address, the page shows the card and "This account uses {address}.
+To claim this profile, sign in with your official legislative email address, ending in
+@house.mn.gov or @mnsenate.gov", with **Use another account** and the line "Can’t use it?
+Email ask@alethical.com". There is no other route in: a personal address, a campaign
+address, a filing or a phone call alone never opens a legislator claim.
 
-- **The account already uses that address.** If the signed-in account's confirmed email is
-  the official address, part 2 reads "Your account uses {address}, the official address for
-  {Title Name}" and shows only **Send request**. The sign-in code already proved the inbox.
-- **No published address.** Part 2 reads "The Minnesota Senate doesn’t publish an email
-  address for {Title Name}. Alethical will call the Capitol office at {phone} to confirm this
-  request." and shows only **Send request**. On 14 Oct 2026 this is 50 of 67 senators, whose
-  Senate pages show a mail form instead of an address (Senator Alice Mann's page, checked the
-  same day), and 1 House member with no address in our copy (Leigh Finke).
-- **Already claimed.** The page says another account manages this profile and offers
-  **Request a review**, which uses the same steps (the existing candidate behaviour).
-
-Code rules:
-
-- 6 digits, valid for 15 minutes, tied to this account and this profile.
-- 5 wrong entries end that code. **Send a new code** appears after 60 seconds; at most 3
-  codes per account per profile per hour.
-- A code, not a link: workplace email security often opens links automatically to scan them,
-  which can use up a one-time link before the person sees it.
-- Wrong code: "That code doesn’t match. Check the latest email or send a new code." Expired:
-  "That code has expired. Send a new code to try again."
-- Help under the code box: "Didn’t get it? Check your junk or quarantine folder. You can also
-  send the request without a code, and Alethical will call your Capitol office instead." That
-  link switches part 2 to the no-published-address version, so a mail filter never dead-ends
-  the request.
-- Codes are stored only as a one-way fingerprint (a hash) and never written to logs, addresses
-  or browser storage.
-
-The code email, from **Alethical <ask@alethical.com>**:
-
-- Subject: "Your Alethical profile code"
-- Body: "{Account display name} asked to manage {Title Name}’s profile on Alethical. Use this
-  code to confirm: {code}. It expires in 15 minutes. If you didn’t expect this, you can ignore
-  this email. Nothing changes without the code."
+Already claimed: the page says another account manages this profile and offers **Request a
+review**, which uses the same question and button (the existing candidate behaviour).
 
 ### Step 3: wait for review
 
 **Send request** shows the existing receipt, **Profile claim request received**, adapted:
 Alethical reviews each request and may call the legislator's Capitol office; the person can
 leave and return; **Withdraw request**. There is no written explanation, link or upload to
-fill in: the code does the work those fields do for candidates. No review time is promised.
+fill in. No review time is promised.
+
+The whole claim is 1 sign-in and 1 button, and the only rule the claimant has to learn is
+printed on the page: use your official address.
 
 ## 4. The admin side
 
@@ -137,34 +121,41 @@ menu's existing **Profile claim requests** count covers both.
 
 A legislator request page shows:
 
-- The legislator card and a link to the official member page the address came from, with the
-  date Alethical copied it.
+- The legislator card and a link to the official member page, with the date Alethical copied
+  its contact details.
 - **Role** (legislator or office staff), the account's display name and confirmed email.
-- **Official email**: the address, then **Code confirmed {date and time}**, or **No published
-  address: call the Capitol office at {phone}**, or **Code not confirmed: call the Capitol
-  office at {phone}**.
+- **Official email check**, 1 of 3 lines:
+  - **Matches the address the {House|Senate} publishes for {Title Name}**.
+  - **Legislative address, but not the one published for {Title Name} ({published address}).
+    Call the Capitol office at {phone} to confirm**.
+  - **Legislative address. The Senate publishes no address for {Title Name}. Call the Capitol
+    office at {phone} to confirm**. On 14 Oct 2026 this is 50 of 67 senators, whose Senate
+    pages show a mail form instead of an address (Senator Alice Mann's and Senator Robert
+    Farnsworth's pages, read the same day), and 1 House member with no address in our copy
+    (Leigh Finke).
 - **Request history**, as today.
 
 To approve, the admin:
 
-1. Checks the code line. When it says to call, calls the number from the Legislature's own
+1. Reads the check line. When it says to call, calls the number from the Legislature's own
    page (never a number the applicant supplies), confirms the member authorized the request,
    and ticks **I called the Capitol office at {phone} and the office confirmed this request**.
 2. Calls anyway when anything looks wrong, for example an account name that matches neither
    the member nor a plausible staffer.
 3. Writes the existing private note (20 to 2000 characters), recording what was checked.
 
-Approval is blocked, with the reason shown above **Approve request**, when: no code is
-confirmed and the call box is not ticked; another account already has approved access;
-the applicant account is an admin, deactivated or unconfirmed; the legislator is no longer a
-current member; or the official address changed after the code was sent.
+Approval is blocked, with the reason shown above **Approve request**, when: the account
+email is not on an official domain (also refused by the server, whatever the screen shows);
+the email does not match the published address and the call box is not ticked; another
+account already has approved access; the applicant account is an admin, deactivated or
+unconfirmed; or the legislator is no longer a current member.
 
-On approval, 2 emails go out. The applicant gets the existing approval message. **The
-official address, when one is published, gets a notice**, even when no code was used: "{Account display name} can now
-manage {Title Name}’s profile on Alethical as {the legislator | staff in their office}. If
-this is unexpected, reply to this email and we’ll remove access." This is the safety net that
-costs the claimant nothing: if a staffer claims without the member knowing, the member's own
-inbox finds out.
+On approval, the applicant gets the existing approval message. When the approved account's
+address is not the member's published address, and an address is published, **the published
+address also gets a notice**: "{Account display name} can now manage {Title Name}’s profile
+on Alethical as staff in your office. If this is unexpected, reply to this email and we’ll
+remove access." This is the safety net that costs the claimant nothing: if a staffer claims
+without the member knowing, the member's own inbox finds out.
 
 ## 5. When access ends
 
@@ -172,8 +163,9 @@ inbox finds out.
   owner published.
 - **Leaving office** ends editing automatically when Alethical's roster shows the person is no
   longer a current member. What they published stays, with its dates, as a record of what
-  they said while serving, and cannot be edited. A former member can ask Alethical to remove
-  it.
+  they said while serving; the "Managed by" line (§8) becomes "Written by {Title Name}
+  while in office" or "Written by {Title Name}’s office while in office". The owner can still
+  remove it, and cannot edit it.
 - **A new term** changes nothing while the person stays a current member.
 - **Staff turnover**: the new staffer requests a review; the admin revokes the old access and
   approves the new one. Ownership never transfers automatically.
@@ -184,28 +176,36 @@ inbox finds out.
 
 ## 6. What a claimed profile unlocks
 
-### At launch
+### Phase 1, with the claim
 
 | Feature | What the owner does | What voters see | Limit |
 | --- | --- | --- | --- |
-| Candidate survey | Answers the same questions every candidate gets (§7) | Public answers, dated | §7 |
+| Survey answers | Answers the same questions every candidate and legislator gets (§7) | Public answers, dated | §7 |
 | Introduction | Writes a short introduction | A labelled box near the top, below the official facts | 1,000 characters, plain text |
-| Vote explanations | Picks any roll call they voted in and explains it | The explanation under that vote, labelled | 1,000 characters each, plain text |
-| Correction requests | Reports a factual error in a record, including the campaign committee linked to them, with a source | Nothing; private to admins | Fixed only from an official source |
+| Correction requests | Opens the existing Contact Us form with the profile already named and sends a factual error with its official source | Nothing; private to admins | Fixed only from an official source |
 
-Why these 4: the survey is the required feature; the introduction and vote explanations are
-already promised on the live profile and About Us page; correction requests turn the people
-who know their record best into a check on our accuracy, including a wrong or missing link to
-their campaign committee. A correction request never changes a record by itself. An admin checks it against the official
-source and fixes the record only when the source supports it.
+The survey is the required feature; the introduction is the roadmap card's "manage your
+biography"; correction requests cost no new screen and turn the people who know their record
+best into a check on our accuracy, including a wrong or missing link to their campaign
+committee. A correction request never changes a record by itself. An admin checks it against
+the official source and fixes the record only when the source supports it.
 
-### Next, in this order
+### Phase 2, the promised explanations
 
-1. **Bill notes**: "Why I wrote this bill" on bills they chief-authored, fulfilling the
+1. **Vote explanations**: the owner picks any roll call they voted in and explains it, up to
+   1,000 characters of plain text, shown under that vote and labelled. This is the live
+   profile's "Why the votes?" card.
+2. **Bill notes**: "Why I wrote this bill" on bills they chief-authored, fulfilling the
    roadmap card's "write up the bills you’ve worked on".
-2. **Public events**: town halls and listening sessions, with date, place and changes.
-3. **Office links**: the office newsletter and official social accounts, as plain links out.
-4. **A private reach summary**: how many people opened the profile each week, as a count only.
+
+Phase 2 needs owner text inside the votes and bills lists, which is a larger drawing and
+build than phase 1, so it ships second rather than holding the claim back.
+
+### Phase 3, keeping people informed
+
+1. **Public events**: town halls and listening sessions, with date, place and changes.
+2. **Office links**: the office newsletter and official social accounts, as plain links out.
+3. **A private reach summary**: how many people opened the profile each week, as a count only.
    No names, emails or reading history, and no number under 10.
 
 ### Never
@@ -223,12 +223,11 @@ priority; replying to individual readers through Alethical.
 
 ### Who gets it, and fairness
 
-- At launch, the owner of a claimed legislator profile.
+- At launch, the owner of a claimed legislator profile. Every current member just ran in the
+  November 2026 election, so the questions about running for office apply to all of them.
 - It is built once and shared. **Before candidate profile claims next open, claimed
   candidate profiles get the identical survey**, so every candidate in a race faces the same
   questions in the same order with the same limits.
-- Public answers do not appear before the 2026 general election ends on 3 Nov 2026, so no
-  2026 race shows answers from sitting members while their challengers could not answer.
 - No party, district or any other trait changes what anyone is asked or how answers appear.
 - Question wording changes only between election cycles. Every answer stays attached to the
   exact wording it answered.
@@ -270,16 +269,18 @@ priority; replying to individual readers through Alethical.
   House employee "must not participate in campaign activity during working hours" and "House
   equipment must not be used for campaign activities"
   ([House Rule 9.05](https://www.house.mn.gov/cco/rules/permrule/905.htm)). The Senate's
-  rule was not read, and the same precaution applies there. The official address therefore receives only the one code and the approval
-  notice, and every later email goes to the account's own address.
+  rule was not read, and the same precaution applies there. Alethical's emails to the
+  official address are the account's own messages about the profile (sign-up code, claim
+  decisions, the staff notice in §4) and nothing about campaigns.
 
 ### What voters see
 
-- A section on the profile, **Candidate survey**, under the introduction. Each answered public
-  question shows the question word for word, the answer, and **Answered {date}** or **Edited
-  {date}**.
-- The section heading's line names the author: "Answers from {Title Name}" for a legislator
-  owner, "Answers from {Title Name}’s office" for a staff owner.
+- A section on the profile, **Survey answers**, under the introduction, opening with the
+  line "Alethical asks every candidate and legislator the same questions". Each answered
+  public question shows the question word for word, the answer, and **Answered {date}** or
+  **Edited {date}**.
+- The section's author line: "Answers from {Title Name}" for a legislator owner, "Answers
+  from {Title Name}’s office" for a staff owner.
 - Unanswered questions are not listed. No answers means no section, and no "declined to
   answer" wording.
 
@@ -289,7 +290,7 @@ priority; replying to individual readers through Alethical.
   any campaign, party or client of Alethical's campaign services (`/services`).
 - Reported only as group totals of 10 or more people, with no split that could single anyone
   out (no district, no small party groups).
-- Contact happens only after a **Yes** to question 12.
+- Contact happens only after a **Yes** to question 12, at the account's address.
 - Taking the survey, or anything anyone answers, never changes how Alethical shows a person's
   record.
 
@@ -314,8 +315,8 @@ priority; replying to individual readers through Alethical.
 | What | Who sees it | Kept until |
 | --- | --- | --- |
 | The request, role, history, call notes | The applicant and admins | The applicant's account is deleted |
-| The code | Nobody; stored as a hash | 24 hours after sending |
-| Private survey answers, correction requests | Admins | The owner deletes them or the account is deleted |
+| Private survey answers | Admins | The owner deletes them or the account is deleted |
+| Correction requests | Admins, through the existing contact records | The existing contact retention rule |
 | Public answers, introduction, vote explanations | Everyone | The owner removes them, gives up, is revoked, or the account is deleted |
 
 The privacy policy page and
@@ -326,22 +327,26 @@ change that ships the feature.
 
 - Reuse the candidate claim services, history events, review list, email delivery records and
   editor. Add a profile kind so 1 list and 1 set of rules serve both.
-- New pieces: the code record (account, profile, address used, code hash, sent, expires,
-  wrong-entry count, confirmed); owner content for the introduction and vote explanations; the
-  survey questions (fixed wording, version, public or private, answer type, limit) and answers
-  (question version, owner, text or choices, dates, public state).
-- Read the official address the way the site's contact links already do (`contactEmail` in
-  `apps/frontend/src/lib/legislatorContact.ts`): strip a leading `mailto:`, and treat anything
-  that is not an email address, such as the Senate's mail-form links, as no published address.
-  Recheck Leigh Finke's House page before launch.
-- The roadmap card and the About Us line become true only when this ships.
+- New pieces: the official-domain rule, checked on the server for every legislator request
+  and approval; owner content for the introduction; the survey questions (fixed wording,
+  version, public or private, answer type, limit) and answers (question version, owner, text
+  or choices, dates, public state); the contact form's profile field.
+- Read the published member address the way the site's contact links already do
+  (`contactEmail` in `apps/frontend/src/lib/legislatorContact.ts`): strip a leading
+  `mailto:`, and treat anything that is not an email address, such as the Senate's mail-form
+  links, as no published address. Recheck Leigh Finke's House page before launch.
+- The roadmap card and the About Us line become true only when phase 2 ships; until then the
+  card's second half ("explain any vote") stays labelled as planned.
 
 ## 11. Launch
 
 1. Approve this spec.
 2. Design draws the claim page states, the admin request page additions, the manage page with
    the survey, the public profile sections and the email text.
-3. Build and release.
+3. Build and release phase 1, timed for the new Legislature: members sworn in during January
+   2027 are the first roster that can claim, and nobody who loses in November spends effort on
+   a profile that closes 2 months later.
 4. Invite members: 1 email to each published official address, saying what claiming offers
    and how. This is an outbound message to about 150 real people and needs its own go before
-   it is sent.
+   it is sent. Senators without a published address are reached through their office phone
+   or the Senate's mail form, by hand.
