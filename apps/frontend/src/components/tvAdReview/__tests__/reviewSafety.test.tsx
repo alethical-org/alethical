@@ -32,8 +32,8 @@ vi.mock('../../../components/GoBackLink', () => ({ GoBackLink: () => null }));
 vi.mock('../../../screens/redesign/NotFoundScreen', () => ({ NotFoundScreen: () => <p>404</p> }));
 vi.mock('../../candidates/CandidateControls', () => ({
   CandidateLink: () => null,
-  CandidateButton: ({ label, onPress, disabled, busy }: any) => (
-    <button disabled={disabled || busy} onClick={onPress}>
+  CandidateButton: ({ label, accessibilityLabel, onPress, disabled, busy }: any) => (
+    <button aria-label={accessibilityLabel} disabled={disabled || busy} onClick={onPress}>
       {label}
     </button>
   ),
@@ -97,7 +97,7 @@ async function render(element: React.ReactNode) {
 }
 function button(text: string) {
   return Array.from(host.querySelectorAll('button')).find(
-    (element) => element.textContent === text,
+    (element) => (element.getAttribute('aria-label') ?? element.textContent) === text,
   )!;
 }
 async function click(text: string) {
@@ -608,5 +608,141 @@ describe('administrator TV review safety', () => {
     expect(
       host.querySelector('[aria-label="Folder committee registration number"]'),
     ).not.toBeNull();
+  });
+
+  it('uses a suggestion only to fill the form; saving still needs the reviewer’s own checks', async () => {
+    const onMutation = vi.fn();
+    const text = 'Advertiser: Example Committee\nAgency: Example Agency';
+    const approvedReview = {
+      ...review,
+      publication: {
+        ...review.publication,
+        status: 'approved',
+        safe_pages: [{ page: 1, text, text_status: 'readable' as const }],
+      },
+    };
+    const evidence = {
+      field: 'advertiser',
+      value: 'Example Committee',
+      page: 1,
+      quote: 'Advertiser: Example Committee',
+      source: 'machine_read' as const,
+    };
+    const dismissed = new Set<string>();
+    const props = {
+      token: 'test-token',
+      review: approvedReview,
+      busy: false,
+      onDenied: vi.fn(),
+      onEdit: vi.fn(),
+      onMutation,
+      suggestions: {
+        copyId: 'copy-1',
+        busy: false,
+        error: false,
+        data: {
+          copy_id: 'copy-1',
+          facts: [
+            {
+              field: 'agency_name',
+              machine_field: 'agency_name',
+              value: 'Example Agency',
+              page: 1,
+              quote: 'Agency: Example Agency',
+              in_safe_text: true,
+              already_checked: false,
+            },
+          ],
+          committees: [
+            {
+              registration_number: '18000',
+              name: 'Example Committee',
+              filer_kind: 'candidate_committee',
+              terminated: false,
+              evidence,
+              in_safe_text: true,
+              already_connected: false,
+            },
+          ],
+          expenses: { suggestions: [], reason: 'extraction_not_found', truncated: false },
+        },
+      },
+      dismissed,
+      onDismiss: (key: string) => dismissed.add(key),
+    };
+    await render(<CheckedReview {...props} />);
+    expect(host.textContent).toContain('Suggested · Not checked');
+    expect(host.textContent).toContain('No machine reading is saved for this file');
+    await click('Use suggestion: agency name Example Agency');
+    const value = host.querySelector<HTMLInputElement>('[aria-label="Printed value"]')!;
+    const quote = host.querySelector<HTMLTextAreaElement>(
+      '[aria-label="Exact quote from the safe page text"]',
+    )!;
+    expect(value.value).toBe('Example Agency');
+    expect(quote.value).toBe('Agency: Example Agency');
+    expect(onMutation).not.toHaveBeenCalled();
+    expect(button('Save checked fact').disabled).toBe(true);
+    await fill('Fact review evidence', 'Read the agency line on page 1');
+    expect(button('Save checked fact').disabled).toBe(true);
+    const checkbox = Array.from(host.querySelectorAll<HTMLLabelElement>('label'))
+      .find((label) => label.textContent?.includes('I checked this fact against'))!
+      .querySelector<HTMLInputElement>('input')!;
+    await act(async () => checkbox.click());
+    await click('Save checked fact');
+    expect(onMutation.mock.calls[0][1]).toMatchObject({
+      field: 'agency_name',
+      value: 'Example Agency',
+      quote: 'Agency: Example Agency',
+      page: 1,
+      correctness_reviewed: true,
+      publication_approved: false,
+    });
+
+    await click('Use suggestion: committee Example Committee');
+    expect(
+      host.querySelector<HTMLInputElement>('[aria-label="Committee registration number"]')!.value,
+    ).toBe('18000');
+    expect(
+      host.querySelector<HTMLInputElement>(
+        '[aria-label="Connection role printed in the source (if stated)"]',
+      )!.value,
+    ).toBe('Advertiser');
+    expect(button('Save checked connection').disabled).toBe(true);
+    expect(onMutation).toHaveBeenCalledTimes(1);
+
+    await click('Dismiss suggestion: committee Example Committee');
+    await render(<CheckedReview {...props} dismissed={new Set(dismissed)} />);
+    expect(button('Use suggestion: committee Example Committee')).toBeUndefined();
+    expect(button('Show 1 dismissed suggestion')).toBeDefined();
+  });
+
+  it('labels files suggested first with the checked evidence behind them', async () => {
+    state.request.mockResolvedValue({
+      rows: [
+        {
+          facility_id: '28010',
+          file_id: 'file-1',
+          content_hash: 'a'.repeat(64),
+          name: 'Order 1',
+          call_sign: 'KSTP-TV',
+          folder_path: 'Political Files/2026',
+          uploaded_at: null,
+          first_saved_at: '2026-10-13T12:00:00Z',
+          page_count: 1,
+          status: 'unprepared',
+          suggested_first: true,
+          checked_agency_names: ['Example Agency'],
+          folder_committees: ['Example Committee'],
+        },
+      ],
+      total: 3,
+      first_total: 1,
+      page: 1,
+      page_size: 25,
+    });
+    await render(screen());
+    expect(host.textContent).toContain('3 source versions · 1 suggested first · page 1');
+    expect(host.textContent).toContain('Agency name already checked: Example Agency');
+    expect(host.textContent).toContain('Folder checked as relating to Example Committee');
   });
 });

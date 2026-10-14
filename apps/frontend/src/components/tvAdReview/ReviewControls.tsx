@@ -6,11 +6,14 @@ import { theme as t } from '../../theme/tokens';
 
 export function ReviewAction({
   label,
+  accessibilityLabel,
   onPress,
   disabled = false,
   busy = false,
 }: {
   label: string;
+  /** A fuller name for assistive technology; it must begin with the visible label. */
+  accessibilityLabel?: string;
   onPress(): void;
   disabled?: boolean;
   busy?: boolean;
@@ -56,7 +59,7 @@ export function ReviewAction({
       ))}
       <CandidateButton
         label={label}
-        accessibilityLabel={busy ? busyLabel : label}
+        accessibilityLabel={busy ? busyLabel : (accessibilityLabel ?? label)}
         onPress={onPress}
         disabled={disabled}
         busy={busy}

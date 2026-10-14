@@ -108,7 +108,62 @@ export const FACT_FIELDS = [
   'principal',
   'issue',
   'scheduled_airing',
+  'billing_recipient',
+  'requested_by',
 ] as const;
+/** The printed form label where the stored field name is not the document's words. */
+const FACT_LABELS: Record<string, string> = {
+  billing_recipient: 'bill to',
+  requested_by: 'requested by',
+};
+export const factLabel = (field: string) => FACT_LABELS[field] ?? field.replaceAll('_', ' ');
+export type SuggestedEvidence = {
+  field: string;
+  value: string;
+  page: number;
+  quote: string;
+  source?: 'machine_read' | 'checked';
+};
+export type SuggestedFact = SuggestedEvidence & {
+  machine_field: string;
+  in_safe_text: boolean;
+  already_checked: boolean;
+};
+export type SuggestedCommittee = {
+  registration_number: string;
+  name: string;
+  filer_kind: string;
+  office?: string | null;
+  district?: string | null;
+  terminated: boolean;
+  evidence: SuggestedEvidence;
+  in_safe_text: boolean;
+  already_connected: boolean;
+};
+export type SuggestedExpense = {
+  target_id: string;
+  source_dataset: string;
+  source_row_number: number;
+  fields: { label: string; value: string }[];
+  matches: {
+    fcc_field: string;
+    fcc_value: string;
+    page: number;
+    match: string;
+    expense_value: string;
+  }[];
+  evidence: SuggestedEvidence | null;
+  in_safe_text: boolean;
+  limitations: string[];
+  existing_link_status: string | null;
+  already_connected: boolean;
+};
+export type ReviewSuggestions = {
+  copy_id: string;
+  facts: SuggestedFact[];
+  committees: SuggestedCommittee[];
+  expenses: { suggestions: SuggestedExpense[]; reason: string; truncated: boolean };
+};
 export function validRedaction(value: Redaction) {
   return (
     [value.x, value.y, value.width, value.height].every(Number.isFinite) &&

@@ -14,8 +14,17 @@ export type QueueRow = {
   page_count: number;
   status: string;
   copy_id?: string;
+  suggested_first?: boolean;
+  checked_agency_names?: string[];
+  folder_committees?: string[];
 };
-export type QueuePayload = { rows: QueueRow[]; total: number; page: number; page_size: number };
+export type QueuePayload = {
+  rows: QueueRow[];
+  total: number;
+  first_total?: number;
+  page: number;
+  page_size: number;
+};
 export type VersionPayload = {
   document: Omit<QueueRow, 'page_count' | 'status'> & {
     folder_id: string;

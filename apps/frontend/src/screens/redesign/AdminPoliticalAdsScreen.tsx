@@ -6,6 +6,7 @@ import { FolderMetadata } from '../../components/tvAdReview/FolderMetadata';
 import { FolderReview } from '../../components/tvAdReview/FolderReview';
 import { CheckedReview } from '../../components/tvAdReview/CheckedReview';
 import { PrepareReview } from '../../components/tvAdReview/PrepareReview';
+import type { SuggestionState } from '../../components/tvAdReview/Suggestions';
 import {
   ReviewAction,
   ReviewField,
@@ -25,6 +26,7 @@ import {
   centralDate,
   type PrepareCopy,
   type ReviewPayload,
+  type ReviewSuggestions,
 } from '../../components/tvAdReview/types';
 import { useAdminAccess } from '../../hooks/useAdminAccess';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -50,6 +52,45 @@ function ReviewWorkspace({ token, onDenied }: { token: string; onDenied(): void 
   const [reloadCopy, setReloadCopy] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const controller = useRef<AbortController | null>(null);
+  const [suggestions, setSuggestions] = useState<SuggestionState | null>(null);
+  const [suggestionRetry, setSuggestionRetry] = useState(0);
+  const [dismissed, setDismissed] = useState<{ copyId: string; keys: Set<string> } | null>(null);
+  const suggestionCopy = review?.publication.status === 'approved' ? review.publication.id : null;
+  const suggestionRefresh = review
+    ? `${review.facts.length}:${review.connections.length}:${review.publication.fingerprint}`
+    : null;
+  // Suggestions belong to one approved copy. Keep the last list visible while a
+  // refresh after a saved decision loads; a different copy starts empty.
+  useEffect(() => {
+    if (!suggestionCopy || suggestionRefresh === null) return;
+    const request = new AbortController();
+    setSuggestions((current) =>
+      current?.copyId === suggestionCopy
+        ? { ...current, busy: true, error: false }
+        : { copyId: suggestionCopy, busy: true, error: false },
+    );
+    void reviewRequest<ReviewSuggestions>(
+      token,
+      `/copies/${encodeURIComponent(suggestionCopy)}/suggestions`,
+      request.signal,
+    ).then(
+      (data) => {
+        if (!request.signal.aborted)
+          setSuggestions({ copyId: suggestionCopy, data, busy: false, error: false });
+      },
+      (error: unknown) => {
+        if (request.signal.aborted) return;
+        if (denied(error)) onDenied();
+        else
+          setSuggestions((current) =>
+            current?.copyId === suggestionCopy
+              ? { ...current, busy: false, error: true }
+              : { copyId: suggestionCopy, busy: false, error: true },
+          );
+      },
+    );
+    return () => request.abort();
+  }, [token, suggestionCopy, suggestionRefresh, suggestionRetry, onDenied]);
 
   useEffect(() => () => controller.current?.abort(), []);
   useEffect(() => {
@@ -237,33 +278,64 @@ function ReviewWorkspace({ token, onDenied }: { token: string; onDenied(): void 
         ) : null}
         {queue ? (
           <>
-            <Text style={s.note}>
-              {queue.total.toLocaleString('en-US')} source{' '}
-              {queue.total === 1 ? 'version' : 'versions'} · page {queue.page}
-            </Text>
+            <View style={{ gap: 4, marginBottom: 12 }}>
+              <Text style={s.note}>
+                {queue.total.toLocaleString('en-US')} source{' '}
+                {queue.total === 1 ? 'version' : 'versions'}
+                {queue.first_total
+                  ? ` · ${queue.first_total.toLocaleString('en-US')} suggested first`
+                  : ''}{' '}
+                · page {queue.page}
+              </Text>
+              <Text style={s.note}>
+                Suggested first: files without an approved copy whose machine-read agency name is
+                already checked on another file, or whose folder was checked as relating to a
+                committee. Newest first after those.
+              </Text>
+            </View>
             {queue.rows.length === 0 ? (
               <Text style={s.body}>No station files match this search</Text>
             ) : (
-              queue.rows.map((row) => (
-                <View key={`${row.facility_id}:${row.file_id}:${row.content_hash}`} style={s.card}>
-                  <Text style={s.label}>
-                    {row.call_sign} · {row.name}
-                  </Text>
-                  <Text style={s.note}>{row.folder_path}</Text>
-                  <Text style={s.note}>First saved: {centralDate(row.first_saved_at)}</Text>
-                  <Text style={s.note}>
-                    {row.uploaded_at
-                      ? `Source upload: ${centralDate(row.uploaded_at)}`
-                      : 'Upload date unavailable'}{' '}
-                    · {row.page_count} {row.page_count === 1 ? 'page' : 'pages'} · {row.status}
-                  </Text>
-                  <ReviewAction
-                    label={`Review ${row.name}`}
-                    disabled={busy}
-                    onPress={() => void select(row)}
-                  />
-                </View>
-              ))
+              <View style={{ gap: 12 }}>
+                {queue.rows.map((row) => (
+                  <View
+                    key={`${row.facility_id}:${row.file_id}:${row.content_hash}`}
+                    style={s.card}
+                  >
+                    {row.suggested_first ? (
+                      <View style={s.stack}>
+                        <Text style={s.note}>Suggested first</Text>
+                        {(row.checked_agency_names ?? []).map((name) => (
+                          <Text key={`agency:${name}`} style={s.body}>
+                            Agency name already checked: {name}
+                          </Text>
+                        ))}
+                        {(row.folder_committees ?? []).map((name) => (
+                          <Text key={`folder:${name}`} style={s.body}>
+                            Folder checked as relating to {name}
+                          </Text>
+                        ))}
+                      </View>
+                    ) : null}
+                    <Text style={s.label}>
+                      {row.call_sign} · {row.name}
+                    </Text>
+                    <Text style={s.note}>{row.folder_path}</Text>
+                    <Text style={s.note}>First saved: {centralDate(row.first_saved_at)}</Text>
+                    <Text style={s.note}>
+                      {row.uploaded_at
+                        ? `Source upload: ${centralDate(row.uploaded_at)}`
+                        : 'Upload date unavailable'}{' '}
+                      · {row.page_count} {row.page_count === 1 ? 'page' : 'pages'} · {row.status}
+                    </Text>
+                    <ReviewAction
+                      label={`Review ${row.name}`}
+                      disabled={busy}
+                      onPress={() => void select(row)}
+                    />
+                  </View>
+                ))}
+              </View>
             )}
             <View style={s.row}>
               <ReviewAction
@@ -328,6 +400,30 @@ function ReviewWorkspace({ token, onDenied }: { token: string; onDenied(): void 
               busy={busy}
               onDenied={onDenied}
               onMutation={(path, data, done) => void mutate(path, data, done)}
+              suggestions={suggestions?.copyId === review.publication.id ? suggestions : null}
+              dismissed={
+                dismissed?.copyId === review.publication.id ? dismissed.keys : new Set<string>()
+              }
+              onDismiss={(key) =>
+                setDismissed((current) => ({
+                  copyId: review.publication.id,
+                  keys: new Set([
+                    ...(current?.copyId === review.publication.id ? current.keys : []),
+                    key,
+                  ]),
+                }))
+              }
+              onRestore={(keys) =>
+                setDismissed((current) =>
+                  current
+                    ? {
+                        ...current,
+                        keys: new Set([...current.keys].filter((key) => !keys.includes(key))),
+                      }
+                    : current,
+                )
+              }
+              onRetrySuggestions={() => setSuggestionRetry((value) => value + 1)}
               onEdit={() => {
                 setReview(null);
                 setMessage(
