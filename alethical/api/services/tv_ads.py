@@ -658,7 +658,7 @@ def browse(
                         for part in _source_pages(db, p.content_hash)
                     ]
                 for part in parts:
-                    value = part.get("text", "")
+                    value = part.get("text") or ""
                     idx = value.casefold().find(query)
                     if idx >= 0:
                         start, end = max(0, idx - 80), idx + len(q) + 160
@@ -1437,8 +1437,13 @@ def connected(db, kind, target):
     committees = _candidate_committees(db, target) if kind == "candidate" else []
     # Files bought or named by the candidate's own committee come first, and are
     # never mixed with files that merely print the candidate's name.
-    for _, name in committees:
-        groups[f"Files with a checked connection to {name}"]
+    # Keyed by registration number: 2 committees may share a reviewed name.
+    labels = {}
+    for registration_number, name in committees:
+        labels[("committee", registration_number)] = (
+            f"Files with a checked connection to {name}"
+        )
+        groups[("committee", registration_number)]
     named = "Station files that name this candidate"
     for p in _latest_copies(db, metadata=False):
         checked = list(
@@ -1478,7 +1483,7 @@ def connected(db, kind, target):
             ]
             if hits:
                 row = row or _row(db, p)
-                groups[f"Files with a checked connection to {name}"].append(
+                groups[("committee", registration_number)].append(
                     {
                         **row,
                         "role": _joined(
@@ -1531,7 +1536,9 @@ def connected(db, kind, target):
         "files": rows,
         "total": len(rows),
         "groups": [
-            {"label": label, "files": items} for label, items in groups.items() if items
+            {"label": labels.get(key, key), "files": items}
+            for key, items in groups.items()
+            if items
         ],
     }
     if kind == "committee":

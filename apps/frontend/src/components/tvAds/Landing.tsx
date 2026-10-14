@@ -712,7 +712,9 @@ export function resultCountLine(
 ) {
   const [one, many] = COUNT_NOUNS[result.q ? 'files' : result.tab] ?? COUNT_NOUNS.folders;
   const total = result.total.toLocaleString('en-US');
-  if (!result.capped && result.total <= result.page_size)
+  // A page past the end has no range to show, only the total.
+  if (!result.rows.length && result.capped) return `More than 500 ${many}`;
+  if ((!result.capped && result.total <= result.page_size) || !result.rows.length)
     return `${total} ${result.total === 1 ? one : many}`;
   const first = (result.page - 1) * result.page_size + 1;
   const last = first + result.rows.length - 1;

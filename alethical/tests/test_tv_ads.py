@@ -1171,6 +1171,18 @@ def test_candidate_card_puts_confirmed_committee_files_before_named_files(
     assert result["groups"][0]["files"][0]["role"] == "Advertiser, as printed"
     assert result["groups"][1]["files"][0]["role"] == "Named on page 2"
     assert result["total"] == 1
+    # 2 confirmed committees sharing a reviewed name stay 2 groups.
+    monkeypatch.setattr(
+        legislator_finance,
+        "confirmed_committee_links",
+        lambda db, legislator_id: [
+            SimpleNamespace(registration_number=number, committee_name="Example Cmte")
+            for number in ("19001", "19003")
+        ],
+    )
+    _connection(db, publication, "committee", "19003", {"role": "Payer"})
+    twin = reader.connected(db, "candidate", candidate.id)["groups"]
+    assert [len(g["files"]) for g in twin] == [1, 1, 1]
     # Without a confirmed committee, only the named group is drawn.
     monkeypatch.setattr(
         candidate_legislators, "confirmed_legislator", lambda *a, **k: None
