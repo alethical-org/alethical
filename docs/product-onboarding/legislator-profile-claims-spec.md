@@ -1,11 +1,12 @@
-# Legislator profile claims and the candidate survey
+# Legislator profile claims and the legislator survey
 
 **Status: proposed, not approved.** Nothing here is built. Once approved, this file becomes
 the build specification and the drawing brief's source of truth.
 
 Net: A sitting Minnesota legislator, or staff in their office, claims their Alethical profile
 by signing in with their official legislative email address and pressing 1 button. An
-Alethical admin checks the request and approves it. Approval lets them add their own words
+Alethical admin checks the request and approves it. This is for legislator profiles only;
+candidate profiles keep their existing claim process and get nothing from this spec. Approval lets them add their own words
 beside the record (survey answers, an introduction, later vote explanations) and send
 correction requests. It never lets them change or hide any record.
 
@@ -29,12 +30,8 @@ Approved intent this spec carries forward, unchanged:
   give-up and revoke, the statement editor and its unsaved-edit protections, the report link
   and the "verified authority, not accuracy" line are all built
   ([find-my-candidates-guide.md, Claiming and managing a profile](find-my-candidates-guide.md#claiming-and-managing-a-profile);
-  [issue 2553](https://github.com/alethical-org/alethical/issues/2553)). This spec adds only
-  what a legislator claim needs that a candidate claim does not.
-- **The candidate features page already commits to fair, comparable answers.** "Answer the
-  same questions offered to other candidates in your race" and "Campaign voices and official
-  facts stay distinct" (`apps/frontend/src/lib/candidateFeatures.ts`). The survey in §7 is
-  the first piece of that promise.
+  [issue 2553](https://github.com/alethical-org/alethical/issues/2553)). This spec copies
+  that pattern for legislator profiles and changes nothing on candidate profiles.
 - **Account sign-up already proves an inbox.** Creating an account with an email address
   requires typing a code sent to that address before a password can be used
   ([sign-in-guide.md, The 12 account journeys](sign-in-guide.md)). This spec reuses that
@@ -50,8 +47,8 @@ What this spec changes or adds:
    14 Oct 2026). So a legislator claim requires an account whose confirmed email is on one of
    those 2 domains, with admin approval still required. This is what the roadmap card's
    "Verified against official legislative records" means in practice.
-2. **The candidate survey**, offered first to claimed legislator profiles (§7).
-3. **One review list for both kinds of claim** (§4).
+2. **A message field for the cases an admin cannot settle from the address alone** (§3).
+3. **The survey**, for claimed legislator profiles (§7).
 
 ## 2. Who can claim
 
@@ -94,6 +91,17 @@ button:
 - **Who is making this request?** **I am {Title Name}** or **I work in {Title Name}’s office**.
 - **Send request**.
 
+When the account's address is not the address the Legislature publishes for the member, or
+the Legislature publishes none (§4 has the counts), 2 more parts sit between the question
+and the button:
+
+- **Your official legislative email**: the account's address, printed and not editable, with
+  the line "We’ll use this address to confirm your request".
+- **How can we reach you, or confirm this request?** A text box, up to 1,000 characters,
+  with the help line "For example: the best phone number and time to call, or where
+  Alethical can confirm that you are {Title Name} or are authorized to speak for them".
+  Submitting with it empty is allowed; the request then waits on the admin's call.
+
 Signed in with any other address, the page shows the card and "This account uses {address}.
 To claim this profile, sign in with your official legislative email address, ending in
 @house.mn.gov or @mnsenate.gov", with **Use another account** and the line "Can’t use it?
@@ -115,15 +123,16 @@ printed on the page: use your official address.
 
 ## 4. The admin side
 
-**One review list for both kinds of claim**, at `/admin/profile-claims`, with a filter for
-**Legislator** and **Candidate** requests. `/admin/candidate-claims` forwards there. The account
-menu's existing **Profile claim requests** count covers both.
+Legislator requests get their own private list at `/admin/legislator-claims`, built from the
+same parts as `/admin/candidate-claims`, which stays as it is. The account menu shows
+**Legislator claim requests** with its own pending count beside the existing candidate row.
 
 A legislator request page shows:
 
 - The legislator card and a link to the official member page, with the date Alethical copied
   its contact details.
 - **Role** (legislator or office staff), the account's display name and confirmed email.
+- **How to reach or confirm**: the applicant's message, when one was written.
 - **Official email check**, 1 of 3 lines:
   - **Matches the address the {House|Senate} publishes for {Title Name}**.
   - **Legislative address, but not the one published for {Title Name} ({published address}).
@@ -137,16 +146,18 @@ A legislator request page shows:
 
 To approve, the admin:
 
-1. Reads the check line. When it says to call, calls the number from the Legislature's own
-   page (never a number the applicant supplies), confirms the member authorized the request,
-   and ticks **I called the Capitol office at {phone} and the office confirmed this request**.
+1. Reads the check line. When it says to call, calls the Capitol office number from the
+   Legislature's own page, confirms the member authorized the request, and ticks **I
+   confirmed this request with {Title Name}’s office**. The applicant's message can say when
+   to call or point at other evidence, and the admin may use it to reach them; it never
+   replaces the call to the published number.
 2. Calls anyway when anything looks wrong, for example an account name that matches neither
    the member nor a plausible staffer.
 3. Writes the existing private note (20 to 2000 characters), recording what was checked.
 
 Approval is blocked, with the reason shown above **Approve request**, when: the account
 email is not on an official domain (also refused by the server, whatever the screen shows);
-the email does not match the published address and the call box is not ticked; another
+the email does not match the published address and the confirmation box is not ticked; another
 account already has approved access; the applicant account is an admin, deactivated or
 unconfirmed; or the legislator is no longer a current member.
 
@@ -180,7 +191,7 @@ without the member knowing, the member's own inbox finds out.
 
 | Feature | What the owner does | What voters see | Limit |
 | --- | --- | --- | --- |
-| Survey answers | Answers the same questions every candidate and legislator gets (§7) | Public answers, dated | §7 |
+| Survey answers | Answers the same questions every legislator gets (§7) | Public answers, dated | §7 |
 | Introduction | Writes a short introduction | A labelled box near the top, below the official facts | 1,000 characters, plain text |
 | Correction requests | Opens the existing Contact Us form with the profile already named and sends a factual error with its official source | Nothing; private to admins | Fixed only from an official source |
 
@@ -214,21 +225,20 @@ Editing, hiding or reordering any record (votes, bills, money, summaries, photo,
 district); donation or fundraising buttons; seeing who follows them; paid placement or
 priority; replying to individual readers through Alethical.
 
-## 7. The candidate survey
+## 7. The survey
 
 ### Purpose
 
-1. Give voters each person's own answers to the **same questions** every candidate gets.
+1. Give voters each legislator's own answers to the **same questions** every legislator gets.
 2. Teach Alethical what candidates find hard and what they need, privately.
 
 ### Who gets it, and fairness
 
-- At launch, the owner of a claimed legislator profile. Every current member just ran in the
-  November 2026 election, so the questions about running for office apply to all of them.
-- It is built once and shared. **Before candidate profile claims next open, claimed
-  candidate profiles get the identical survey**, so every candidate in a race faces the same
-  questions in the same order with the same limits.
-- No party, district or any other trait changes what anyone is asked or how answers appear.
+- The owner of a claimed legislator profile, and nobody else. Candidate profiles are outside
+  this spec. Every current member just ran in the November 2026 election, so the questions
+  about running for office apply to all of them.
+- Every legislator gets the same questions in the same order with the same limits. No party,
+  district or any other trait changes what anyone is asked or how answers appear.
 - Question wording changes only between election cycles. Every answer stays attached to the
   exact wording it answered.
 
@@ -276,7 +286,7 @@ priority; replying to individual readers through Alethical.
 ### What voters see
 
 - A section on the profile, **Survey answers**, under the introduction, opening with the
-  line "Alethical asks every candidate and legislator the same questions". Each answered
+  line "Alethical asks every legislator the same questions". Each answered
   public question shows the question word for word, the answer, and **Answered {date}** or
   **Edited {date}**.
 - The section's author line: "Answers from {Title Name}" for a legislator owner, "Answers
@@ -325,8 +335,8 @@ change that ships the feature.
 
 ## 10. Build outline
 
-- Reuse the candidate claim services, history events, review list, email delivery records and
-  editor. Add a profile kind so 1 list and 1 set of rules serve both.
+- Reuse the candidate claim services, history events, review list parts, email delivery
+  records and editor as copies for legislator profiles. Candidate claims are not changed.
 - New pieces: the official-domain rule, checked on the server for every legislator request
   and approval; owner content for the introduction; the survey questions (fixed wording,
   version, public or private, answer type, limit) and answers (question version, owner, text
