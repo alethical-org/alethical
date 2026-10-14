@@ -375,7 +375,7 @@ export function TVLanding({
                               row.unchecked ? 'Includes names not checked' : null,
                             ]
                               .filter(Boolean)
-                              .join(' · ')}
+                              .join(' \u00b7\u00a0')}
                           </div>
                         )}
                         {result.q && (

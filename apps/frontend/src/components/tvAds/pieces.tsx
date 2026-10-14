@@ -125,17 +125,35 @@ export function External({
   }
   return safe ? (
     <a className="tv-tap" href={href} target="_blank" rel="noopener noreferrer">
-      {children}
-      <Arrow />
+      <WithArrow>{children}</WithArrow>
       <span className="tv-sr"> {suffix} (opens in a new tab)</span>
     </a>
   ) : null;
 }
+/** The link's last word and its arrow never part across a line break. */
+export function WithArrow({ children }: { children: ReactNode }) {
+  if (typeof children !== 'string')
+    return (
+      <>
+        {children}
+        <Arrow />
+      </>
+    );
+  const at = children.trimEnd().lastIndexOf(' ');
+  return (
+    <>
+      {at > 0 ? children.slice(0, at + 1) : ''}
+      <span className="tv-nowrap">
+        {at > 0 ? children.slice(at + 1) : children}
+        <Arrow />
+      </span>
+    </>
+  );
+}
 export function Internal({ href, children }: { href?: string; children: ReactNode }) {
   return href?.startsWith('/') && !href.startsWith('//') && !href.includes('\\') ? (
     <a href={href}>
-      {children}
-      <Arrow />
+      <WithArrow>{children}</WithArrow>
     </a>
   ) : (
     <>{children}</>
@@ -503,4 +521,5 @@ export const tvStyles = `
 .tv h3.tv-fact-label{font-size:11px;font-weight:700;line-height:1.5}.tv-printed{margin-top:14px;padding-top:12px;border-top:1px solid rgba(17,21,15,.08)}.tv .tv-printed h3.tv-fact-label{font-family:'JetBrains Mono',monospace;letter-spacing:.12em}.tv .tv-printed h3+p{margin-top:6px;font-weight:700}.tv-nowrap{white-space:nowrap}.tv .tv-recent-section .tv-grid3{gap:16px}.tv details>summary{padding:11px 0;font-size:14px;font-weight:700;line-height:1.4;color:#11150f;cursor:pointer}.tv-card:not(.tv-recent-card)>.tv-file-rows:last-child>.tv-row:last-child,.tv-agency-card .tv-file-rows:last-child>.tv-row:last-child{padding-bottom:0}.tv-file-rows .tv-agency-file{border-radius:8px}.tv .tv-dates-card h2{margin-bottom:18px}.tv .tv-other-files h2{margin-bottom:14px}.tv-file-side-column{display:flex;flex-direction:column;gap:24px;min-width:0}@media(max-width:767px){.tv .tv-title-row h2{line-height:30px}.tv a.tv-tap{display:inline-block;padding:13px 0;margin:-13px 0}}@media(max-width:767px){.tv .tv-tabs{column-gap:2px}.tv .tv-tabs button{padding:8px 0 7px}}@media(max-width:359px){.tv .tv-tabs{column-gap:0}.tv .tv-tabs button{font-size:13px}}@media(prefers-reduced-motion:reduce){.tv *{scroll-behavior:auto!important;transition:none!important}}
 .tv .tv-match-label{margin-top:10px;font-weight:800;color:#11150f;font-size:15px;line-height:1.5}.tv .tv-excerpt{margin-top:4px;font-size:15px;line-height:1.5;color:#2c322c;overflow-wrap:anywhere}.tv-fact-entry+.tv-fact-entry{margin-top:14px;padding-top:14px;border-top:1px dashed rgba(17,21,15,.1)}.tv-mt-withheld{display:inline-flex;align-items:center;min-height:22px;padding:0 10px;background:#eef0ef;border:1px solid #8d948e;border-radius:3px;white-space:nowrap;font-size:12.5px;font-weight:700;line-height:1;color:#2c322c;vertical-align:1px}.tv-mt-blanked{display:inline-block;width:120px;height:13px;background:#d6dad7;border-radius:2px;vertical-align:-1px}.tv-placeholder-line{display:block;width:132px;height:14px;border-radius:4px;background:#e6e9e7}.tv a .tv-link-status{font-weight:400;color:#4f5651}.tv-row-role{font-size:14px;line-height:1.45;color:#2c322c}
 .tv mark{background:#fff0a6;color:inherit;padding:0 1px;border-radius:2px}.tv-evidence-row{display:flex;flex-wrap:wrap;align-items:center;gap:0 14px;margin-top:4px}.tv .tv-evidence-row p.tv-small{margin:0;font-size:13.5px}.tv .tv-page-link{font-weight:700;color:#11150f;min-height:44px;padding:0}.tv .tv-connection-role{margin-top:4px;line-height:1.5}.tv .tv-connection-role .tv-page-link{display:inline;min-height:0;padding:12px 0;margin:-12px 0}.tv-nowrap{white-space:nowrap}.tv-address-source+.tv-address-source{margin-top:16px}.tv .tv-address-source .tv-block-link+p,.tv .tv-address-source p+p{margin-top:6px}.tv .tv-address-source .tv-block-link{padding-bottom:4px}.tv-row-main .tv-inline{row-gap:4px}.tv-row-role{flex:1 1 0;min-width:8ch}@media(max-width:767px){.tv-station-year-cards{gap:0;margin-top:16px;background:white;border:1px solid rgba(17,21,15,.1);border-radius:14px;overflow:hidden}.tv a.tv-station-year-card{border:0;border-radius:0;border-top:1px solid rgba(17,21,15,.08);padding:14px 16px}.tv a.tv-station-year-card:first-child{border-top:0}}
+.tv-station-table{table-layout:fixed}.tv p.tv-station-note{margin-left:17px}.tv p.tv-station-intro{text-wrap:pretty}@media(max-width:767px){.tv-file-rows .tv-agency-file{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;row-gap:4px}.tv-agency-file .tv-row-main,.tv-agency-file .tv-row-main>.tv-inline{display:contents}.tv-agency-file .tv-kind{grid-row:1;grid-column:1;justify-self:start}.tv-agency-file .tv-agency-upload{grid-row:1;grid-column:2;align-self:center}.tv-agency-file .tv-row-main strong,.tv-agency-file .tv-row-main>p{grid-column:1/-1}}
 `;

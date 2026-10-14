@@ -34,6 +34,7 @@ import {
   FileRows,
   Internal,
   Kind,
+  WithArrow,
   Metric,
   TVSession,
   useTVRead,
@@ -299,7 +300,7 @@ function FileContents({
         <p className="tv-small">{uploaded(file.uploaded_at)}</p>
         {file.folder && (
           <a className="tv-tap" href={tvHref('folder', file.folder.key)}>
-            Folder “{file.folder.label}”<Arrow />
+            <WithArrow>{`Folder “${file.folder.label}”`}</WithArrow>
           </a>
         )}
         {file.agencies?.map((agency) => (
