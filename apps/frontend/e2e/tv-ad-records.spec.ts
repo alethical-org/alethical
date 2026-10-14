@@ -1100,7 +1100,7 @@ for (const width of [390, 900, 1280]) {
 }
 
 for (const width of [390, 1280]) {
-  test(`year rows open that year's station folders ${width}px`, async ({ page, context }) => {
+  test(`year rows open that year's station folders ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
     const state = await fixture(page);
     const browse: URL[] = [];
@@ -1114,12 +1114,25 @@ for (const width of [390, 1280]) {
     await expect(page.getByRole('tab', { name: 'Years' })).toHaveAttribute('aria-selected', 'true');
 
     await expect(page.getByText('2 years', { exact: true })).toBeVisible();
-    // A modified click leaves this page alone and opens the address in a new tab.
-    const opened = context.waitForEvent('page');
-    await year2024.click({ modifiers: ['ControlOrMeta'] });
-    const other = await opened;
-    await other.waitForURL(/\/money\/ads\?tab=folders&year=2024$/);
-    await other.close();
+    // A modified click is left to the browser (a new tab), so the app neither handles
+    // it nor changes this page. A synthetic event proves the app's side without
+    // depending on how a headless browser opens background tabs.
+    const leftToBrowser = await year2024.evaluate((link) => {
+      let prevented: boolean | null = null;
+      const record = (event: Event) => {
+        prevented = event.defaultPrevented;
+        // Stop the synthetic click from following the link itself.
+        event.preventDefault();
+      };
+      window.addEventListener('click', record);
+      link.dispatchEvent(
+        new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true, metaKey: true }),
+      );
+      window.removeEventListener('click', record);
+      return prevented;
+    });
+    expect(leftToBrowser).toBe(false);
+    await expect(year2024).toHaveAttribute('href', '/money/ads?tab=folders&year=2024');
     await expect(page.getByRole('tab', { name: 'Years' })).toHaveAttribute('aria-selected', 'true');
 
     await year2024.click();
