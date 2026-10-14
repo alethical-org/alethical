@@ -330,9 +330,10 @@ change that ships the feature.
   wrong-entry count, confirmed); owner content for the introduction and vote explanations; the
   survey questions (fixed wording, version, public or private, answer type, limit) and answers
   (question version, owner, text or choices, dates, public state).
-- Fix the official-address data first: store the Senate's `mailto:` addresses without the
-  `mailto:` prefix, store mail-form links as "no published address" rather than as an email,
-  and recheck Leigh Finke's House page.
+- Read the official address the way the site's contact links already do (`contactEmail` in
+  `apps/frontend/src/lib/legislatorContact.ts`): strip a leading `mailto:`, and treat anything
+  that is not an email address, such as the Senate's mail-form links, as no published address.
+  Recheck Leigh Finke's House page before launch.
 - The roadmap card and the About Us line become true only when this ships.
 
 ## 11. Launch
