@@ -111,6 +111,7 @@ class Fact(ReaderModel):
     version_id: str
     value: str | None = None
     qualifier: str | None = None
+    role: str | None = None
     quote: str | None = None
     page: int | None = None
     checked_at: str | None = None

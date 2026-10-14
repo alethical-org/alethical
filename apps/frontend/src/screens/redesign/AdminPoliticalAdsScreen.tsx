@@ -6,9 +6,12 @@ import { FolderMetadata } from '../../components/tvAdReview/FolderMetadata';
 import { FolderReview } from '../../components/tvAdReview/FolderReview';
 import { CheckedReview } from '../../components/tvAdReview/CheckedReview';
 import { PrepareReview } from '../../components/tvAdReview/PrepareReview';
+import type { SuggestionState } from '../../components/tvAdReview/Suggestions';
+import { QueueRow as QueueFileRow } from '../../components/tvAdReview/QueueRow';
 import {
   ReviewAction,
   ReviewField,
+  ReviewSelect,
   reviewStyles as s,
 } from '../../components/tvAdReview/ReviewControls';
 import {
@@ -25,6 +28,7 @@ import {
   centralDate,
   type PrepareCopy,
   type ReviewPayload,
+  type ReviewSuggestions,
 } from '../../components/tvAdReview/types';
 import { useAdminAccess } from '../../hooks/useAdminAccess';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -36,7 +40,17 @@ import { useAuth } from '../../providers/AuthProvider';
 import { theme as t } from '../../theme/tokens';
 import { NotFoundScreen } from './NotFoundScreen';
 
+const groupHeading = {
+  fontFamily: t.typography.ui,
+  fontSize: 17,
+  lineHeight: 24,
+  fontWeight: '800' as const,
+  color: t.colors.text.primary,
+};
+const groupNote = { ...s.note, fontSize: 14.5, color: '#4f5651' };
+
 function ReviewWorkspace({ token, onDenied }: { token: string; onDenied(): void }) {
+  const { isMobile, isTablet } = useResponsive();
   const [station, setStation] = useState('');
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState({ station: '', query: '', page: 1 });
@@ -50,6 +64,50 @@ function ReviewWorkspace({ token, onDenied }: { token: string; onDenied(): void 
   const [reloadCopy, setReloadCopy] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const controller = useRef<AbortController | null>(null);
+  const [suggestions, setSuggestions] = useState<SuggestionState | null>(null);
+  const [suggestionRetry, setSuggestionRetry] = useState(0);
+  const [dismissed, setDismissed] = useState<{ copyId: string; keys: Set<string> } | null>(null);
+  const suggestionCopy = review?.publication.status === 'approved' ? review.publication.id : null;
+  // A withdrawal keeps its row and changes only its status, so the key carries both.
+  const suggestionRefresh = review
+    ? [
+        review.publication.fingerprint,
+        ...review.facts.map((fact) => `${fact.id}:${fact.status}`),
+        ...review.connections.map((connection) => `${connection.id}:${connection.status}`),
+      ].join('|')
+    : null;
+  // Suggestions belong to one approved copy. Keep the last list visible while a
+  // refresh after a saved decision loads; a different copy starts empty.
+  useEffect(() => {
+    if (!suggestionCopy || suggestionRefresh === null) return;
+    const request = new AbortController();
+    setSuggestions((current) =>
+      current?.copyId === suggestionCopy
+        ? { ...current, busy: true, error: false }
+        : { copyId: suggestionCopy, busy: true, error: false },
+    );
+    void reviewRequest<ReviewSuggestions>(
+      token,
+      `/copies/${encodeURIComponent(suggestionCopy)}/suggestions`,
+      request.signal,
+    ).then(
+      (data) => {
+        if (!request.signal.aborted)
+          setSuggestions({ copyId: suggestionCopy, data, busy: false, error: false });
+      },
+      (error: unknown) => {
+        if (request.signal.aborted) return;
+        if (denied(error)) onDenied();
+        else
+          setSuggestions((current) =>
+            current?.copyId === suggestionCopy
+              ? { ...current, busy: false, error: true }
+              : { copyId: suggestionCopy, busy: false, error: true },
+          );
+      },
+    );
+    return () => request.abort();
+  }, [token, suggestionCopy, suggestionRefresh, suggestionRetry, onDenied]);
 
   useEffect(() => () => controller.current?.abort(), []);
   useEffect(() => {
@@ -193,33 +251,52 @@ function ReviewWorkspace({ token, onDenied }: { token: string; onDenied(): void 
   return (
     <View style={s.stack}>
       <View style={version ? { display: 'none' } : undefined}>
-        <View style={s.row}>
-          <ReviewField
-            label="Find a station file"
-            value={query}
-            onChange={setQuery}
-            disabled={busy}
-          />
-          <label style={{ fontFamily: 'Libre Franklin', lineHeight: '25px' }}>
-            Station
-            <select
-              aria-label="Station"
+        <View
+          style={
+            isMobile
+              ? { gap: 12 }
+              : isTablet
+                ? { gap: 12 }
+                : { flexDirection: 'row', alignItems: 'flex-end', gap: 12 }
+          }
+        >
+          <View style={isMobile || isTablet ? undefined : { flex: 1, minWidth: 0 }}>
+            <ReviewField
+              label="Find a station file"
+              value={query}
+              onChange={setQuery}
+              disabled={busy}
+            />
+          </View>
+          <View
+            style={
+              isTablet
+                ? { flexDirection: 'row', alignItems: 'flex-end', gap: 12 }
+                : isMobile
+                  ? { gap: 12 }
+                  : { flexDirection: 'row', alignItems: 'flex-end', gap: 12 }
+            }
+          >
+            <ReviewSelect
+              label="Station"
               value={station}
               disabled={busy}
-              onChange={(event) => setStation(event.target.value)}
-              style={{ display: 'block', minHeight: 48, font: 'inherit' }}
-            >
-              <option value="">All 3 stations</option>
-              {['KSTP-TV', 'KARE', 'KMSP-TV'].map((name) => (
-                <option key={name}>{name}</option>
-              ))}
-            </select>
-          </label>
-          <ReviewAction
-            label="Search private queue"
-            disabled={busy}
-            onPress={() => setSearch({ station, query: query.trim(), page: 1 })}
-          />
+              fill={isMobile}
+              onChange={setStation}
+              options={[
+                { value: '', label: 'All 3 stations' },
+                ...['KSTP-TV', 'KARE', 'KMSP-TV'].map((name) => ({ value: name, label: name })),
+              ]}
+            />
+            <View style={isMobile ? undefined : { alignSelf: 'flex-end' }}>
+              <ReviewAction
+                label="Search private queue"
+                disabled={busy}
+                fill={isMobile}
+                onPress={() => setSearch({ station, query: query.trim(), page: 1 })}
+              />
+            </View>
+          </View>
         </View>
         <View style={s.notice} accessibilityLiveRegion="polite">
           <Text style={s.note}>
@@ -237,33 +314,44 @@ function ReviewWorkspace({ token, onDenied }: { token: string; onDenied(): void 
         ) : null}
         {queue ? (
           <>
-            <Text style={s.note}>
+            <Text style={[s.note, { marginBottom: 24 }]}>
               {queue.total.toLocaleString('en-US')} source{' '}
               {queue.total === 1 ? 'version' : 'versions'} · page {queue.page}
             </Text>
             {queue.rows.length === 0 ? (
               <Text style={s.body}>No station files match this search</Text>
             ) : (
-              queue.rows.map((row) => (
-                <View key={`${row.facility_id}:${row.file_id}:${row.content_hash}`} style={s.card}>
-                  <Text style={s.label}>
-                    {row.call_sign} · {row.name}
-                  </Text>
-                  <Text style={s.note}>{row.folder_path}</Text>
-                  <Text style={s.note}>First saved: {centralDate(row.first_saved_at)}</Text>
-                  <Text style={s.note}>
-                    {row.uploaded_at
-                      ? `Source upload: ${centralDate(row.uploaded_at)}`
-                      : 'Upload date unavailable'}{' '}
-                    · {row.page_count} {row.page_count === 1 ? 'page' : 'pages'} · {row.status}
-                  </Text>
-                  <ReviewAction
-                    label={`Review ${row.name}`}
-                    disabled={busy}
-                    onPress={() => void select(row)}
-                  />
-                </View>
-              ))
+              [
+                queue.rows.filter((row) => row.suggested_first),
+                queue.rows.filter((row) => !row.suggested_first),
+              ].map((rows, index, groups) =>
+                rows.length ? (
+                  <View key={index} style={{ gap: 12, marginBottom: 24 }}>
+                    {groups[0].length ? (
+                      <View style={{ gap: 4 }}>
+                        <Text accessibilityRole="header" aria-level={3} style={groupHeading}>
+                          {index === 0 ? 'Suggested first' : 'Newest first'}
+                        </Text>
+                        {index === 0 ? (
+                          <Text style={groupNote}>
+                            Files without an approved copy whose machine-read agency name is already
+                            checked on another file, or whose folder was checked as relating to a
+                            committee
+                          </Text>
+                        ) : null}
+                      </View>
+                    ) : null}
+                    {rows.map((row) => (
+                      <QueueFileRow
+                        key={`${row.facility_id}:${row.file_id}:${row.content_hash}`}
+                        row={row}
+                        disabled={busy}
+                        onOpen={() => void select(row)}
+                      />
+                    ))}
+                  </View>
+                ) : null,
+              )
             )}
             <View style={s.row}>
               <ReviewAction
@@ -328,6 +416,30 @@ function ReviewWorkspace({ token, onDenied }: { token: string; onDenied(): void 
               busy={busy}
               onDenied={onDenied}
               onMutation={(path, data, done) => void mutate(path, data, done)}
+              suggestions={suggestions?.copyId === review.publication.id ? suggestions : null}
+              dismissed={
+                dismissed?.copyId === review.publication.id ? dismissed.keys : new Set<string>()
+              }
+              onDismiss={(key) =>
+                setDismissed((current) => ({
+                  copyId: review.publication.id,
+                  keys: new Set([
+                    ...(current?.copyId === review.publication.id ? current.keys : []),
+                    key,
+                  ]),
+                }))
+              }
+              onRestore={(keys) =>
+                setDismissed((current) =>
+                  current
+                    ? {
+                        ...current,
+                        keys: new Set([...current.keys].filter((key) => !keys.includes(key))),
+                      }
+                    : current,
+                )
+              }
+              onRetrySuggestions={() => setSuggestionRetry((value) => value + 1)}
               onEdit={() => {
                 setReview(null);
                 setMessage(

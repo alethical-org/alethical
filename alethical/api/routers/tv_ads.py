@@ -6,7 +6,7 @@ from uuid import UUID
 import re
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
-from sqlalchemy import func, or_, select, tuple_
+from sqlalchemy import and_, case, func, or_, select, tuple_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -280,6 +280,117 @@ def _private_doc(doc):
     } | {"first_saved_at": reader.iso(doc.first_seen_at)}
 
 
+def _queue_priority():
+    """Reasons a file is suggested first. Ordering only; nothing is checked.
+
+    A file comes first while it has no approved copy and either its machine-read
+    agency name exactly matches an agency name checked on another file, or its
+    folder was checked as relating to a committee.
+    """
+    doc = m.FCCDocument
+    agency = (
+        select(1)
+        .select_from(m.FCCExtraction)
+        .join(
+            m.TVAdFact,
+            m.FCCExtraction.facts.contains(
+                func.jsonb_build_array(
+                    func.jsonb_build_object(
+                        "field", "agency_name", "value", m.TVAdFact.value
+                    )
+                )
+            ),
+        )
+        .join(m.TVAdPublication, m.TVAdPublication.id == m.TVAdFact.publication_id)
+        .where(
+            m.FCCExtraction.content_hash == doc.content_hash,
+            m.FCCExtraction.version == EXTRACTOR_VERSION,
+            m.TVAdFact.field == "agency_name",
+            m.TVAdFact.status == "checked",
+            # Checked on ANOTHER file: a file's own earlier version never
+            # suggests the file itself.
+            ~and_(
+                m.TVAdPublication.facility_id == doc.facility_id,
+                m.TVAdPublication.file_id == doc.file_id,
+            ),
+        )
+        .exists()
+    )
+    folder = (
+        select(1)
+        .where(
+            m.TVAdConnection.scope == "folder",
+            m.TVAdConnection.kind == "committee",
+            m.TVAdConnection.status == "checked",
+            m.TVAdConnection.facility_id == doc.facility_id,
+            m.TVAdConnection.folder_id == doc.folder_id,
+        )
+        .exists()
+    )
+    approved = (
+        select(1)
+        .where(
+            m.TVAdPublication.facility_id == doc.facility_id,
+            m.TVAdPublication.file_id == doc.file_id,
+            m.TVAdPublication.content_hash == doc.content_hash,
+            m.TVAdPublication.status == "approved",
+        )
+        .exists()
+    )
+    return and_(~approved, or_(agency, folder))
+
+
+def _first_reasons(db, docs):
+    """Exact evidence behind each suggested-first row on this page."""
+    hashes = {d.content_hash for d in docs}
+    checked: dict[str, set[tuple[str, str]]] = {}
+    for value, facility_id, file_id in db.execute(
+        select(
+            m.TVAdFact.value, m.TVAdPublication.facility_id, m.TVAdPublication.file_id
+        )
+        .join(m.TVAdPublication, m.TVAdPublication.id == m.TVAdFact.publication_id)
+        .where(m.TVAdFact.field == "agency_name", m.TVAdFact.status == "checked")
+    ):
+        checked.setdefault(value, set()).add((facility_id, file_id))
+    agencies: dict[tuple[str, str, str], list[str]] = {}
+    if checked and hashes:
+        readings = dict(
+            db.execute(
+                select(m.FCCExtraction.content_hash, m.FCCExtraction.facts).where(
+                    m.FCCExtraction.content_hash.in_(hashes),
+                    m.FCCExtraction.version == EXTRACTOR_VERSION,
+                )
+            ).all()
+        )
+        for d in docs:
+            agencies[(d.facility_id, d.file_id, d.content_hash)] = sorted(
+                {
+                    f["value"]
+                    for f in readings.get(d.content_hash) or []
+                    if isinstance(f, dict)
+                    and f.get("field") == "agency_name"
+                    and isinstance(f.get("value"), str)
+                    and checked.get(f["value"], set()) - {(d.facility_id, d.file_id)}
+                }
+            )
+    folders: dict[tuple[str, str], list[str]] = {}
+    for connection in db.scalars(
+        select(m.TVAdConnection).where(
+            m.TVAdConnection.scope == "folder",
+            m.TVAdConnection.kind == "committee",
+            m.TVAdConnection.status == "checked",
+            tuple_(m.TVAdConnection.facility_id, m.TVAdConnection.folder_id).in_(
+                {(d.facility_id, d.folder_id) for d in docs}
+            ),
+        )
+    ):
+        label = (connection.target_snapshot or {}).get("label") or connection.target_id
+        folders.setdefault((connection.facility_id, connection.folder_id), [])
+        if label not in folders[(connection.facility_id, connection.folder_id)]:
+            folders[(connection.facility_id, connection.folder_id)].append(label)
+    return agencies, folders
+
+
 @router.get(ADMIN + "/queue")
 def queue(
     station: str = "",
@@ -297,21 +408,33 @@ def queue(
                 m.FCCDocument.file_id == q,
             )
         )
-    total = db.scalar(select(func.count()).select_from(query.subquery()))
-    docs = list(
-        db.scalars(
-            query.order_by(
-                m.FCCDocument.first_seen_at.desc(),
-                m.FCCDocument.facility_id,
-                m.FCCDocument.file_id,
-                m.FCCDocument.content_hash,
-            )
-            .offset((page - 1) * 25)
-            .limit(25)
+    first = _queue_priority()
+    total, first_total = db.execute(
+        query.with_only_columns(
+            func.count(), func.count().filter(first), maintain_column_froms=True
         )
-    )
+    ).one()
+    rows_with_rank = db.execute(
+        query.add_columns(first.label("first"))
+        .order_by(
+            case((first, 0), else_=1),
+            m.FCCDocument.first_seen_at.desc(),
+            m.FCCDocument.facility_id,
+            m.FCCDocument.file_id,
+            m.FCCDocument.content_hash,
+        )
+        .offset((page - 1) * 25)
+        .limit(25)
+    ).all()
+    docs = [row[0] for row in rows_with_rank]
+    suggested = {
+        (d.facility_id, d.file_id, d.content_hash)
+        for d, is_first in rows_with_rank
+        if is_first
+    }
     copies = {}
     page_counts = {}
+    agencies, folders = {}, {}
     if docs:
         identities = [(d.facility_id, d.file_id, d.content_hash) for d in docs]
         for copy in db.scalars(
@@ -336,18 +459,41 @@ def queue(
                 .group_by(m.FCCPage.content_hash)
             ).all()
         )
+        if suggested:
+            agencies, folders = _first_reasons(
+                db,
+                [
+                    d
+                    for d in docs
+                    if (d.facility_id, d.file_id, d.content_hash) in suggested
+                ],
+            )
     rows = []
     for doc in docs:
         copy = copies.get((doc.facility_id, doc.file_id, doc.content_hash))
+        identity = (doc.facility_id, doc.file_id, doc.content_hash)
         rows.append(
             {
                 **_private_doc(doc),
                 "page_count": page_counts.get(doc.content_hash, 0),
                 "status": copy.status if copy else "unprepared",
                 "copy_id": str(copy.id) if copy else None,
+                "suggested_first": identity in suggested,
+                "checked_agency_names": agencies.get(identity, [])
+                if identity in suggested
+                else [],
+                "folder_committees": folders.get((doc.facility_id, doc.folder_id), [])
+                if identity in suggested
+                else [],
             }
         )
-    return {"rows": rows, "total": total, "page": page, "page_size": 25}
+    return {
+        "rows": rows,
+        "total": total,
+        "first_total": first_total,
+        "page": page,
+        "page_size": 25,
+    }
 
 
 @router.get(ADMIN + "/files/{facility_id}/{file_id}/versions/{content_hash}")
@@ -431,6 +577,11 @@ def prepare(
 @router.get(ADMIN + "/copies/{copy_id}/review")
 def copy_review(copy_id: UUID, db: Session = Depends(tv_database)):
     return review.review_payload(db, copy_id)
+
+
+@router.get(ADMIN + "/copies/{copy_id}/suggestions")
+def copy_suggestions(copy_id: UUID, db: Session = Depends(tv_database)):
+    return review.review_suggestions(db, copy_id)
 
 
 @router.get(ADMIN + "/copies/{copy_id}/pages/{page}")

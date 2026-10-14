@@ -23,11 +23,12 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from alethical.db import models as m
 from alethical.pipeline import fcc_archive, fcc_expense_links, tv_ad_redaction
+from alethical.pipeline.fcc_document_text import EXTRACTOR_VERSION
 from alethical.pipeline.raw_file_store import raw_file_store_from_env
 
 STATIONS = {"28010", "23079", "68883"}
@@ -55,7 +56,12 @@ FACT_FIELDS = {
     "principal",
     "issue",
     "scheduled_airing",
+    "billing_recipient",
+    "requested_by",
 }
+# Machine reading labels an agency address separately; the checked field is the
+# organization address, whose organization name and role a reviewer adds.
+SUGGESTED_FIELDS = {"agency_address": "organization_address"}
 MONEY_FIELDS = {
     "gross_amount",
     "net_amount",
@@ -1267,6 +1273,260 @@ def review_payload(db, id):
             }
             for e in events
         ],
+    }
+
+
+def _one_per_value(items, key):
+    """One suggestion per value: machine reading repeats a value on every page.
+
+    The representative is the first occurrence whose quote is in the safe text,
+    else the first; every page that printed it is kept beside it.
+    """
+    groups = {}
+    for item in sorted(items, key=lambda i: i["page"]):
+        groups.setdefault(key(item), []).append(item)
+    result = []
+    for group in groups.values():
+        chosen = next((i for i in group if i["in_safe_text"]), group[0])
+        pages = {p for i in group for p in i.get("pages", [i["page"]])}
+        result.append({**chosen, "pages": sorted(pages)})
+    return result
+
+
+def _printed_name(value):
+    return " ".join(value.split()).lower() if isinstance(value, str) else ""
+
+
+def _committee_suggestions(db, row, names, connections):
+    """Exact printed-spelling matches against the current committee register."""
+    pointer = db.get(m.CampaignFinanceFilingCurrentSnapshot, True)
+    wanted = {_printed_name(n["value"]) for n in names} - {""}
+    if pointer is None or pointer.snapshot_id is None or not wanted:
+        return []
+    held = func.lower(
+        func.regexp_replace(func.btrim(m.CampaignFinanceFiler.name), r"\s+", " ", "g")
+    )
+    filers = db.execute(
+        select(m.CampaignFinanceFiler, held)
+        .where(
+            m.CampaignFinanceFiler.snapshot_id == pointer.snapshot_id,
+            held.in_(wanted),
+        )
+        .order_by(m.CampaignFinanceFiler.registration_number)
+        .limit(50)
+    ).all()
+    connected = {
+        c.target_id
+        for c in connections
+        if c.kind == "committee" and c.status == "checked"
+    }
+    result = []
+    for filer, printed in filers:
+        for name in names:
+            if _printed_name(name["value"]) != printed:
+                continue
+            result.append(
+                {
+                    "registration_number": filer.registration_number,
+                    "name": filer.name,
+                    "filer_kind": getattr(filer.kind, "value", str(filer.kind)),
+                    "office": filer.office,
+                    "district": filer.district,
+                    "terminated": filer.termination_date is not None,
+                    "evidence": {k: v for k, v in name.items() if k != "pages"},
+                    "pages": name.get("pages", [name["page"]]),
+                    "in_safe_text": _in_safe_text(row, name["page"], name["quote"]),
+                    "already_connected": filer.registration_number in connected,
+                }
+            )
+    for item in result:
+        item["page"] = item["evidence"]["page"]
+    return [
+        {key: value for key, value in item.items() if key != "page"}
+        for item in _one_per_value(result, lambda i: i["registration_number"])
+    ]
+
+
+def _in_safe_text(row, page, quote):
+    source = next((p for p in row.safe_pages if p["page"] == page), None)
+    return bool(
+        source
+        and source["text_status"] == "readable"
+        and isinstance(quote, str)
+        and quote.strip()
+        and quote.strip() in source["text"]
+    )
+
+
+_EXPENSE_FIELDS = (
+    ("committee_name", "Reported by"),
+    ("spender", "Reported by"),
+    ("vendor_name", "Paid to"),
+    ("amount", "Amount"),
+    ("transaction_date", "Date"),
+    ("purpose", "Purpose"),
+)
+
+
+def _expense_suggestions(db, row, connections):
+    found = fcc_expense_links.suggest_links(db, row.content_hash)
+    keys = [
+        (
+            s["source_dataset"],
+            uuid.UUID(s["source_snapshot_id"]),
+            s["source_row_number"],
+        )
+        for s in found["suggestions"]
+    ]
+    links = {}
+    if keys:
+        for link in db.scalars(
+            select(m.FCCExpenseLink).where(
+                m.FCCExpenseLink.content_hash == row.content_hash,
+                m.FCCExpenseLink.extraction_version == found["extraction_version"],
+                m.FCCExpenseLink.source_snapshot_id.in_({k[1] for k in keys}),
+            )
+        ):
+            links[
+                (link.source_dataset, link.source_snapshot_id, link.source_row_number)
+            ] = link
+    connected = {
+        c.target_id
+        for c in connections
+        if c.kind == "expense" and c.status == "checked"
+    }
+    suggestions = []
+    for item, key in zip(found["suggestions"], keys, strict=True):
+        link = links.get(key)
+        names = item["clues"]["names"]
+        evidence = names[0]["fcc_fact"] if names else None
+        suggestions.append(
+            {
+                "target_id": f"{key[0]}:{key[1]}:{key[2]}",
+                "source_dataset": key[0],
+                "source_row_number": key[2],
+                "fields": [
+                    {"label": label, "value": str(item["source_row"][name])}
+                    for name, label in _EXPENSE_FIELDS
+                    if item["source_row"].get(name) not in (None, "")
+                ],
+                "matches": [
+                    {
+                        "fcc_field": clue["fcc_fact"]["field"],
+                        "fcc_value": clue["fcc_fact"]["value"],
+                        "page": clue["fcc_fact"]["page"],
+                        "match": clue["match"],
+                        "expense_value": clue["expense_value"],
+                    }
+                    for clue in names + item["clues"]["amounts"]
+                ]
+                + [
+                    {
+                        "fcc_field": "flight_dates"
+                        if "fcc_facts" in clue
+                        else clue["fcc_fact"]["field"],
+                        "fcc_value": " to ".join(f["value"] for f in clue["fcc_facts"])
+                        if "fcc_facts" in clue
+                        else clue["fcc_fact"]["value"],
+                        "page": (clue.get("fcc_fact") or clue["fcc_facts"][0])["page"],
+                        "match": clue["match"],
+                        "expense_value": clue["expense_value"],
+                    }
+                    for clue in item["clues"]["dates"]
+                ],
+                "evidence": evidence,
+                "in_safe_text": bool(evidence)
+                and _in_safe_text(row, evidence["page"], evidence["quote"]),
+                "limitations": item["clues"]["limitations"],
+                "existing_link_status": link.status if link else None,
+                "already_connected": link is not None and str(link.id) in connected,
+            }
+        )
+    return {
+        "suggestions": suggestions,
+        "reason": found["reason"],
+        "truncated": found["truncated"],
+        "extraction_version": found["extraction_version"],
+    }
+
+
+def review_suggestions(db, id):
+    """Private reviewer suggestions. Nothing here is checked, saved or shown to readers.
+
+    Every suggestion carries its machine-read or register evidence; accepting one
+    only fills the reviewer's own form, which still requires every explicit check.
+    """
+    row = _publication(db, id)
+    extraction = db.get(m.FCCExtraction, (row.content_hash, EXTRACTOR_VERSION))
+    facts = db.scalars(
+        select(m.TVAdFact).where(
+            m.TVAdFact.publication_id == row.id, m.TVAdFact.status == "checked"
+        )
+    ).all()
+    connections = db.scalars(
+        select(m.TVAdConnection).where(m.TVAdConnection.publication_id == row.id)
+    ).all()
+    checked = {(f.field, f.value) for f in facts}
+    drafts = []
+    for item in extraction.facts if extraction else []:
+        if not isinstance(item, dict):
+            continue
+        name, value, page, quote = (
+            item.get(key) for key in ("field", "value", "page", "quote")
+        )
+        field = SUGGESTED_FIELDS.get(name, name)
+        if (
+            field not in FACT_FIELDS
+            or not isinstance(value, str)
+            or not value.strip()
+            or not isinstance(quote, str)
+            or isinstance(page, bool)
+            or not isinstance(page, int)
+            or page < 1
+        ):
+            continue
+        drafts.append(
+            {
+                "field": field,
+                "machine_field": name,
+                "value": value,
+                "page": page,
+                "quote": quote,
+                "in_safe_text": _in_safe_text(row, page, quote),
+                "already_checked": (field, value) in checked,
+            }
+        )
+    drafts = _one_per_value(drafts, lambda d: (d["field"], d["value"]))
+    names = [
+        {
+            "field": d["field"],
+            "value": d["value"],
+            "page": d["page"],
+            "quote": d["quote"],
+            "pages": d["pages"],
+            "source": "machine_read",
+        }
+        for d in drafts
+        if d["field"] in {"advertiser", "payer"}
+    ] + [
+        {
+            "field": f.field,
+            "value": f.value,
+            "page": f.page,
+            "quote": f.quote,
+            "source": "checked",
+        }
+        for f in facts
+        if f.field in {"advertiser", "payer"}
+    ]
+    return {
+        "copy_id": str(row.id),
+        "content_hash": row.content_hash,
+        "facts": drafts,
+        "committees": _committee_suggestions(db, row, names, connections),
+        "expenses": _expense_suggestions(db, row, connections)
+        if row.status == "approved"
+        else {"suggestions": [], "reason": "copy_not_approved", "truncated": False},
     }
 
 

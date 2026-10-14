@@ -229,20 +229,29 @@ def _facts(db, publication_id):
     )
 
 
+# Printed form labels where the field name is not the words on the document.
+FACT_LABELS = {"billing_recipient": "Bill to", "requested_by": "Requested by"}
+
+
+def _fact_kind(field):
+    return FACT_LABELS.get(field) or field.replace("_", " ").capitalize()
+
+
 def _fact_payload(db, fact, version_id):
     if fact.status == "withdrawn":
         return {
             "id": str(fact.id),
-            "kind": fact.field.replace("_", " ").capitalize(),
+            "kind": _fact_kind(fact.field),
             "status": "withdrawn",
             "withdrawn_at": iso(fact.withdrawn_at),
             "version_id": version_id,
         }
     return {
         "id": str(fact.id),
-        "kind": fact.field.replace("_", " ").capitalize(),
+        "kind": _fact_kind(fact.field),
         "value": _money(fact.value) if fact.field.endswith("_amount") else fact.value,
         "qualifier": getattr(fact, "qualifier", None),
+        "role": getattr(fact, "role", None),
         "quote": fact.quote,
         "page": fact.page,
         "version_id": version_id,

@@ -10,7 +10,7 @@ import pytest
 from PIL import Image
 from pypdf import PdfReader, PdfWriter
 from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from alethical.api.services import tv_ad_review as service
 from alethical.db import models as m
@@ -1055,3 +1055,361 @@ def test_review_queue_batches_status_and_page_reads(db, source):
     assert own["copy_id"] == str(prepared.id)
     assert own["status"] == "draft"
     assert all(row["copy_id"] is None for row in answer["rows"] if row is not own)
+
+
+AGREEMENT = (
+    "Advertiser: Example  Committee\n"
+    "Agency: Example Media\n"
+    "Bill to: Example Committee Treasurer\n"
+    "Requested by: Pat Example, Treasurer"
+)
+
+
+def approved_text(db, source, text):
+    _, store = source
+    row = service.prepare_copy(
+        db,
+        ACTOR,
+        preparation(
+            source, safe_pages=[{"page": 1, "text": text, "text_status": "readable"}]
+        ),
+        store=store,
+    )
+    return service.approve_copy(
+        db,
+        row.id,
+        ACTOR,
+        {
+            "expected_fingerprint": row.fingerprint,
+            "privacy_reviewed": True,
+            "metadata_reviewed": True,
+            "text_reviewed": True,
+            "evidence": "Synthetic approval",
+        },
+        store=store,
+    )
+
+
+def _filer(db, *names):
+    filings = m.CampaignFinanceFilingSnapshot(
+        fetch_started_at=service.now(),
+        fetch_completed_at=service.now(),
+        status=m.CampaignFinanceSnapshotStatus.loaded,
+    )
+    db.add(filings)
+    db.flush()
+    pointer = db.get(m.CampaignFinanceFilingCurrentSnapshot, True)
+    if pointer:
+        pointer.snapshot_id = filings.id
+    else:
+        db.add(m.CampaignFinanceFilingCurrentSnapshot(id=True, snapshot_id=filings.id))
+    for number, name in enumerate(names, 1):
+        db.add(
+            m.CampaignFinanceFiler(
+                snapshot_id=filings.id,
+                registration_number=f"tv-suggest-{number}",
+                kind=m.CampaignFinanceFilerKind.candidate_committee,
+                name=name,
+            )
+        )
+    db.flush()
+
+
+def test_bill_to_and_requested_by_are_checked_with_their_printed_role(db, source):
+    publication = approved_text(db, source, AGREEMENT)
+    bill_to = service.add_fact(
+        db,
+        publication.id,
+        ACTOR,
+        fact(
+            field="billing_recipient",
+            value="Example Committee Treasurer",
+            quote="Bill to: Example Committee Treasurer",
+        ),
+    )
+    requested = service.add_fact(
+        db,
+        publication.id,
+        ACTOR,
+        fact(
+            field="requested_by",
+            value="Pat Example",
+            role="Treasurer",
+            quote="Requested by: Pat Example, Treasurer",
+        ),
+    )
+    assert (bill_to.field, requested.role) == ("billing_recipient", "Treasurer")
+    with pytest.raises(ValueError, match="Role must be printed"):
+        service.add_fact(
+            db,
+            publication.id,
+            ACTOR,
+            fact(
+                field="requested_by",
+                value="Pat Example",
+                role="Chair",
+                quote="Requested by: Pat Example, Treasurer",
+            ),
+        )
+    from alethical.api.services import tv_ads as reader
+
+    labels = {
+        reader._fact_payload(db, row, publication.content_hash)["kind"]
+        for row in (bill_to, requested)
+    }
+    assert labels == {"Bill to", "Requested by"}
+    assert (
+        reader._fact_payload(db, requested, publication.content_hash)["role"]
+        == "Treasurer"
+    )
+
+
+def test_suggestions_carry_evidence_and_never_save_or_check_anything(db, source):
+    publication = approved_text(db, source, AGREEMENT)
+    db.add(
+        m.FCCExtraction(
+            content_hash=publication.content_hash,
+            version=EXTRACTOR_VERSION,
+            document_kind="order",
+            status="pending_review",
+            facts=[
+                {
+                    "field": "advertiser",
+                    "value": "Example Committee",
+                    "page": 1,
+                    "quote": "Advertiser: Example  Committee",
+                },
+                {
+                    "field": "agency_name",
+                    "value": "Example Media",
+                    "page": 1,
+                    "quote": "Agency: Example Media",
+                },
+                {
+                    "field": "agency_address",
+                    "value": "1 Main St",
+                    "page": 2,
+                    "quote": "Agency address: 1 Main St",
+                },
+                {"field": "unsupported", "value": "x", "page": 1, "quote": "x"},
+                {
+                    "field": "advertiser",
+                    "value": "Example Committee",
+                    "page": 3,
+                    "quote": "Advertiser: Example Committee",
+                },
+            ],
+            errors=[],
+        )
+    )
+    _filer(db, "EXAMPLE committee", "Example Committee Fund")
+    db.flush()
+    before = (
+        db.scalar(select(func.count()).select_from(m.TVAdFact)),
+        db.scalar(select(func.count()).select_from(m.TVAdConnection)),
+        db.scalar(select(func.count()).select_from(m.FCCExpenseLink)),
+        db.scalar(select(func.count()).select_from(m.TVAdReviewEvent)),
+    )
+    result = service.review_suggestions(db, publication.id)
+    after = (
+        db.scalar(select(func.count()).select_from(m.TVAdFact)),
+        db.scalar(select(func.count()).select_from(m.TVAdConnection)),
+        db.scalar(select(func.count()).select_from(m.FCCExpenseLink)),
+        db.scalar(select(func.count()).select_from(m.TVAdReviewEvent)),
+    )
+    assert before == after
+    facts = {f["field"]: f for f in result["facts"]}
+    assert set(facts) == {"advertiser", "agency_name", "organization_address"}
+    assert facts["agency_name"]["in_safe_text"] is True
+    assert facts["organization_address"]["in_safe_text"] is False
+    assert facts["organization_address"]["machine_field"] == "agency_address"
+    assert not any(f["already_checked"] for f in result["facts"])
+    # Exact printed spelling only: case and repeated spaces, never extra words.
+    assert [c["registration_number"] for c in result["committees"]] == ["tv-suggest-1"]
+    match = result["committees"][0]
+    assert match["evidence"]["source"] == "machine_read"
+    assert match["evidence"]["quote"] == "Advertiser: Example  Committee"
+    assert match["already_connected"] is False
+    # A value repeated on later pages is one suggestion that lists every page.
+    assert facts["advertiser"]["pages"] == [1, 3]
+    assert facts["advertiser"]["page"] == 1
+    assert match["pages"] == [1, 3]
+    assert [f["field"] for f in result["facts"]].count("advertiser") == 1
+
+    service.add_fact(
+        db,
+        publication.id,
+        ACTOR,
+        fact(value="Example Media", quote="Agency: Example Media"),
+    )
+    again = service.review_suggestions(db, publication.id)
+    assert next(f for f in again["facts"] if f["field"] == "agency_name")[
+        "already_checked"
+    ]
+
+
+def test_expense_suggestions_come_from_the_existing_matcher(db, source):
+    text = "Advertiser: Example Candidate Committee\nGross amount: $17,378.25"
+    publication = approved_text(db, source, text)
+    snapshots = _release(db)
+    _expense(db, snapshots["expenditures"])
+    db.add(
+        m.FCCExtraction(
+            content_hash=publication.content_hash,
+            version=EXTRACTOR_VERSION,
+            document_kind="invoice",
+            status="pending_review",
+            facts=[
+                {
+                    "field": "advertiser",
+                    "value": "Example Candidate Committee",
+                    "page": 1,
+                    "quote": "Advertiser: Example Candidate Committee",
+                },
+                {
+                    "field": "gross_amount",
+                    "value": "17378.25",
+                    "page": 1,
+                    "quote": "Gross amount: $17,378.25",
+                },
+            ],
+            errors=[],
+        )
+    )
+    db.flush()
+    db.add(
+        m.FCCPage(
+            content_hash=publication.content_hash,
+            version=EXTRACTOR_VERSION,
+            page=1,
+            text=text,
+            method="synthetic",
+            status="extracted",
+        )
+    )
+    db.flush()
+    result = service.review_suggestions(db, publication.id)["expenses"]
+    assert result["reason"] == "review_required"
+    [suggestion] = result["suggestions"]
+    assert suggestion["target_id"] == (f"expenditures:{snapshots['expenditures'].id}:1")
+    assert suggestion["existing_link_status"] is None
+    assert suggestion["in_safe_text"] is True
+    assert {m["match"] for m in suggestion["matches"]} >= {
+        "normalized_exact",
+        "exact_amount",
+    }
+    assert db.scalar(select(func.count()).select_from(m.FCCExpenseLink)) == 0
+
+
+def test_queue_puts_checked_agency_and_checked_folder_files_first(db, source):
+    from alethical.api.routers import tv_ads as routes
+
+    document, _ = source
+    reviewed = approved_text(db, source, AGREEMENT)
+    service.add_fact(
+        db,
+        reviewed.id,
+        ACTOR,
+        fact(value="Example Media", quote="Agency: Example Media"),
+    )
+
+    def doc(name, folder="folder-new", agency=None, file_id=None):
+        digest = uuid.uuid4().hex + uuid.uuid4().hex
+        db.add(
+            m.FCCSourceBody(
+                content_hash=digest,
+                object_key=f"fcc/{digest}",
+                byte_size=1,
+                compressed_hash="a" * 64,
+                compressed_byte_size=1,
+                compression="gzip",
+            )
+        )
+        db.flush()
+        db.add(
+            m.FCCDocument(
+                facility_id="28010",
+                file_id=file_id or f"queue-{name}",
+                content_hash=digest,
+                call_sign="KSTP-TV",
+                folder_id=folder,
+                folder_path="political-files/2026",
+                name=name,
+                url="https://files.fcc.gov/x.pdf",
+            )
+        )
+        if agency:
+            db.add(
+                m.FCCExtraction(
+                    content_hash=digest,
+                    version=EXTRACTOR_VERSION,
+                    document_kind="order",
+                    status="pending_review",
+                    facts=[
+                        {
+                            "field": "agency_name",
+                            "value": agency,
+                            "page": 1,
+                            "quote": agency,
+                        },
+                        # A malformed reading must not break the queue.
+                        {"field": "agency_name", "value": ["x"], "page": 0},
+                    ],
+                    errors=[],
+                )
+            )
+        db.flush()
+
+    db.add(
+        m.FCCExtraction(
+            content_hash=document.content_hash,
+            version=EXTRACTOR_VERSION,
+            document_kind="order",
+            status="pending_review",
+            facts=[
+                {
+                    "field": "agency_name",
+                    "value": "Example Media",
+                    "page": 1,
+                    "quote": "Agency: Example Media",
+                }
+            ],
+            errors=[],
+        )
+    )
+    doc("Older same agency", agency="Example Media")
+    doc("Different spelling", agency="EXAMPLE MEDIA")
+    doc("Checked folder", folder="folder-checked")
+    # A newer version of the reviewed file is not suggested by its own check.
+    doc("Own newer version", agency="Example Media", file_id=document.file_id)
+    doc("Newest plain")
+    db.add(
+        m.TVAdConnection(
+            scope="folder",
+            facility_id="28010",
+            folder_id="folder-checked",
+            folder_content_hash=document.content_hash,
+            kind="committee",
+            target_id="tv-suggest-1",
+            target_snapshot={"label": "Example Committee"},
+            quote="Example Committee",
+            status="checked",
+            evidence="Synthetic",
+            reviewed_by=ACTOR,
+            checked_at=service.now(),
+            publication_approved=False,
+        )
+    )
+    db.flush()
+    answer = routes.queue(station="", q="", page=1, db=db)
+    names = [row["name"] for row in answer["rows"]]
+    assert answer["first_total"] == 2
+    assert set(names[:2]) == {"Older same agency", "Checked folder"}
+    first = {row["name"]: row for row in answer["rows"][:2]}
+    assert first["Older same agency"]["checked_agency_names"] == ["Example Media"]
+    assert first["Checked folder"]["folder_committees"] == ["Example Committee"]
+    rest = answer["rows"][2:]
+    assert not any(row["suggested_first"] for row in rest)
+    # The file already approved is not suggested first even though it matches.
+    own = next(row for row in rest if row["file_id"] == document.file_id)
+    assert own["status"] == "approved"

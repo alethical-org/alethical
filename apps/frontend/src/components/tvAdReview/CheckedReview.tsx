@@ -1,7 +1,19 @@
-import { useCallback, useState } from 'react';
-import { Text, View } from 'react-native';
-import { ReviewAction, ReviewField, ReviewSection, reviewStyles as s } from './ReviewControls';
-import { FACT_FIELDS, centralDate, type ReviewPayload } from './types';
+import { useCallback, useRef, useState } from 'react';
+import { Text, View, type TextInput } from 'react-native';
+import {
+  ReviewAction,
+  ReviewField,
+  ReviewSection,
+  ReviewSelect,
+  reviewStyles as s,
+} from './ReviewControls';
+import {
+  CommitteeSuggestions,
+  ExpenseSuggestions,
+  FactSuggestions,
+  type SuggestionState,
+} from './Suggestions';
+import { FACT_FIELDS, centralDate, factLabel, type ReviewPayload } from './types';
 import { ReviewImage } from './ReviewImage';
 import { TargetPreview, type ConnectionTarget } from './TargetPreview';
 
@@ -40,6 +52,8 @@ function Attestation({
     </label>
   );
 }
+const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+const afterUse = { ...s.body, fontSize: 15.5, lineHeight: 23, color: '#2c322c' };
 export function CheckedReview({
   token,
   review,
@@ -48,6 +62,11 @@ export function CheckedReview({
   onMutation,
   onEdit,
   extractionVersion,
+  suggestions = null,
+  dismissed = new Set<string>(),
+  onDismiss = () => {},
+  onRestore = () => {},
+  onRetrySuggestions = () => {},
 }: {
   token: string;
   extractionVersion?: string;
@@ -56,6 +75,11 @@ export function CheckedReview({
   onDenied(): void;
   onEdit(): void;
   onMutation(path: string, data: object, done?: () => void): void;
+  suggestions?: SuggestionState | null;
+  dismissed?: Set<string>;
+  onDismiss?(key: string): void;
+  onRestore?(keys: string[]): void;
+  onRetrySuggestions?(): void;
 }) {
   const copy = review.publication;
   const [page, setPage] = useState(1);
@@ -136,6 +160,33 @@ export function CheckedReview({
     setConnectionPublish(false);
     setMoneyChecked(false);
   };
+  const [used, setUsed] = useState('');
+  const valueInput = useRef<TextInput>(null);
+  const targetInput = useRef<TextInput>(null);
+  // Move focus after the filled fields render, so keyboard and screen-reader
+  // users land where the values went.
+  const focusLater = (input: { current: TextInput | null }) =>
+    setTimeout(() => input.current?.focus(), 0);
+  // Using a suggestion fills the reviewer's own fields and clears every check,
+  // exactly as typing would; nothing is saved until the reviewer saves it.
+  const resetChecks = () => {
+    setFactChecked(false);
+    setFactPublish(false);
+    setAgencyAddress(false);
+    setKeepHistory(false);
+    setHistoryPrivacy(false);
+    setMoneyChecked(false);
+    setConnectionChecked(false);
+    setConnectionPublish(false);
+  };
+  const shared = {
+    state: suggestions,
+    dismissed,
+    disabled: busy,
+    onDismiss,
+    onRestore,
+    onRetry: onRetrySuggestions,
+  };
   return (
     <>
       <ReviewSection title="2. Inspect the prepared copy">
@@ -157,14 +208,7 @@ export function CheckedReview({
                 disabled={busy || page <= 1}
                 onPress={() => {
                   setPage(page - 1);
-                  setFactChecked(false);
-                  setFactPublish(false);
-                  setAgencyAddress(false);
-                  setKeepHistory(false);
-                  setHistoryPrivacy(false);
-                  setMoneyChecked(false);
-                  setConnectionChecked(false);
-                  setConnectionPublish(false);
+                  resetChecks();
                 }}
               />
               <Text style={s.body}>
@@ -175,14 +219,7 @@ export function CheckedReview({
                 disabled={busy || page >= copy.pages.length}
                 onPress={() => {
                   setPage(page + 1);
-                  setFactChecked(false);
-                  setFactPublish(false);
-                  setAgencyAddress(false);
-                  setKeepHistory(false);
-                  setHistoryPrivacy(false);
-                  setMoneyChecked(false);
-                  setConnectionChecked(false);
-                  setConnectionPublish(false);
+                  resetChecks();
                 }}
               />
             </View>
@@ -292,29 +329,45 @@ export function CheckedReview({
       </ReviewSection>
       {approved ? (
         <>
-          <ReviewSection title="3. Check a fact">
+          <ReviewSection title="3. Check a fact" narrow>
             <Text style={s.note}>
               A fact belongs to this source version and the prepared page shown above. Enter the
               printed value without inferring payment, identity or a total.
             </Text>
-            <label style={{ fontFamily: 'Libre Franklin', lineHeight: '25px' }}>
-              Fact kind
-              <select
-                aria-label="Fact kind"
-                value={field}
-                disabled={busy}
-                onChange={(event) => fieldChanged(setField)(event.target.value)}
-                style={{ display: 'block', minHeight: 48, width: '100%', font: 'inherit' }}
-              >
-                {FACT_FIELDS.map((item) => (
-                  <option key={item} value={item}>
-                    {item.replaceAll('_', ' ')}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <FactSuggestions
+              {...shared}
+              onUse={(item) => {
+                setField(item.field);
+                setValue(item.value);
+                setQuote(item.quote);
+                setQualifier('');
+                setRole('');
+                setOrganization('');
+                setSupersedes('');
+                setPage(item.page);
+                resetChecks();
+                setUsed(
+                  `Suggested ${factLabel(item.field)} copied into the form. Check it against page ${item.page} before saving.`,
+                );
+                focusLater(valueInput);
+              }}
+            />
+            <View accessibilityLiveRegion="polite">
+              <Text style={afterUse}>{used.startsWith('Suggested ') ? used : ''}</Text>
+            </View>
+            <ReviewSelect
+              label="Fact kind"
+              value={field}
+              disabled={busy}
+              onChange={fieldChanged(setField)}
+              options={FACT_FIELDS.map((item) => ({
+                value: item,
+                label: sentence(factLabel(item)),
+              }))}
+            />
             <ReviewField
               label="Printed value"
+              inputRef={valueInput}
               value={value}
               onChange={fieldChanged(setValue)}
               disabled={busy}
@@ -340,6 +393,11 @@ export function CheckedReview({
               value={role}
               onChange={fieldChanged(setRole)}
               disabled={busy}
+              hint={
+                field === 'requested_by'
+                  ? 'Copy the role printed beside the name, such as Treasurer, when the agreement states one'
+                  : undefined
+              }
             />
             {field === 'organization_address' ? (
               <ReviewField
@@ -450,40 +508,67 @@ export function CheckedReview({
               }
             />
           </ReviewSection>
-          <ReviewSection title="4. Check a connection">
+          <ReviewSection title="4. Check a connection" narrow>
             <Text style={s.note}>
               A matching name is not evidence of identity. This decision applies to this file only.
               An expense connection needs an exact retained expense row, with its identity checked
               separately.
             </Text>
-            <label style={{ fontFamily: 'Libre Franklin', lineHeight: '25px' }}>
-              Connection kind
-              <select
-                aria-label="Connection kind"
-                value={kind}
-                disabled={busy}
-                onChange={(event) => {
-                  connectionChanged(setKind)(event.target.value);
-                  setTarget('');
-                }}
-                style={{ display: 'block', minHeight: 48, width: '100%', font: 'inherit' }}
-              >
-                {[
-                  'committee',
-                  'candidate',
-                  'election',
-                  'expense',
-                  'principal',
-                  'related_document',
-                  'issue',
-                ].map((item) => (
-                  <option key={item} value={item}>
-                    {item.replaceAll('_', ' ')}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <CommitteeSuggestions
+              {...shared}
+              onUse={(item) => {
+                const printed = /\b(advertiser|payer)\b/i.exec(item.evidence.quote)?.[1] ?? '';
+                setKind('committee');
+                setTarget(item.registration_number);
+                setConnectionRole(printed);
+                setConnectionQuote(item.evidence.quote);
+                setPage(item.evidence.page);
+                resetChecks();
+                setUsed(
+                  `Connection: committee ${item.registration_number} copied into the form. Inspect the target and check it before saving.`,
+                );
+                focusLater(targetInput);
+              }}
+            />
+            <ExpenseSuggestions
+              {...shared}
+              onUse={(item) => {
+                setKind('expense');
+                setTarget(item.target_id);
+                setConnectionQuote(item.evidence?.quote ?? '');
+                if (item.evidence) setPage(item.evidence.page);
+                resetChecks();
+                setUsed(
+                  'Connection: expense copied into the form. Inspect the retained row and check it before saving.',
+                );
+                focusLater(targetInput);
+              }}
+            />
+            <View accessibilityLiveRegion="polite">
+              <Text style={afterUse}>
+                {used.startsWith('Connection: ') ? used.slice('Connection: '.length) : ''}
+              </Text>
+            </View>
+            <ReviewSelect
+              label="Connection kind"
+              value={kind}
+              disabled={busy}
+              onChange={(next) => {
+                connectionChanged(setKind)(next);
+                setTarget('');
+              }}
+              options={[
+                'committee',
+                'candidate',
+                'election',
+                'expense',
+                'principal',
+                'related_document',
+                'issue',
+              ].map((item) => ({ value: item, label: sentence(item.replaceAll('_', ' ')) }))}
+            />
             <ReviewField
+              inputRef={targetInput}
               label={
                 kind === 'expense'
                   ? 'Exact expense source and row, or accepted match ID'
@@ -529,21 +614,19 @@ export function CheckedReview({
               />
             ) : null}
             {kind === 'candidate' ? (
-              <label style={{ fontFamily: 'Libre Franklin', lineHeight: '25px' }}>
-                Candidate role printed in the file
-                <select
-                  aria-label="Candidate role printed in the file"
-                  value={candidateRole}
-                  disabled={busy}
-                  onChange={(event) => connectionChanged(setCandidateRole)(event.target.value)}
-                  style={{ display: 'block', minHeight: 48, width: '100%', font: 'inherit' }}
-                >
-                  <option value="named">Named</option>
-                  <option value="advertiser">Advertiser</option>
-                  <option value="payer">Payer</option>
-                </select>
+              <ReviewSelect
+                label="Candidate role printed in the file"
+                value={candidateRole}
+                disabled={busy}
+                onChange={connectionChanged(setCandidateRole)}
+                options={[
+                  { value: 'named', label: 'Named' },
+                  { value: 'advertiser', label: 'Advertiser' },
+                  { value: 'payer', label: 'Payer' },
+                ]}
+              >
                 <Text style={s.note}>Advertiser and payer must be stated in the source quote</Text>
-              </label>
+              </ReviewSelect>
             ) : null}
             {kind === 'election' ? (
               <>
@@ -686,7 +769,8 @@ export function CheckedReview({
         {review.facts.map((fact) => (
           <View key={fact.id} style={s.card}>
             <Text style={s.body}>
-              {fact.field.replaceAll('_', ' ')}: {fact.value}
+              {sentence(factLabel(fact.field))}: {fact.value}
+              {fact.role ? ` · ${fact.role}` : ''}
             </Text>
             <Text style={s.note}>
               Page {fact.page} · “{fact.quote}”
@@ -701,7 +785,7 @@ export function CheckedReview({
             {approved && !fact.withdrawn_at && fact.status !== 'withdrawn' ? (
               <View style={s.row}>
                 <ReviewAction
-                  label={`Correct ${fact.field.replaceAll('_', ' ')}`}
+                  label={`Correct ${factLabel(fact.field)}`}
                   disabled={busy}
                   onPress={() => {
                     setField(fact.field);
@@ -720,7 +804,7 @@ export function CheckedReview({
                   }}
                 />
                 <ReviewAction
-                  label={`Withdraw ${fact.field.replaceAll('_', ' ')}`}
+                  label={`Withdraw ${factLabel(fact.field)}`}
                   disabled={busy || !withdrawal.trim()}
                   onPress={() =>
                     onMutation(`/facts/${encodeURIComponent(fact.id)}/withdraw`, {

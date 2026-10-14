@@ -81,6 +81,7 @@ def api(client, db, monkeypatch):
         + str(uuid.UUID(int=1)),
         "/api/v1/admin/political-ads/queue",
         "/api/v1/admin/political-ads/folders",
+        "/api/v1/admin/political-ads/copies/" + str(uuid.UUID(int=1)) + "/suggestions",
     ],
 )
 def test_every_surface_denies_ordinary_accounts_without_details(api, path):
