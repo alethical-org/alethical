@@ -389,6 +389,18 @@ sources. Multiple invoices may link to a filed expense and the reverse; no amoun
 is allocated or added to a total. Federal invoices remain searchable even where
 Alethical holds no matching federal expense source.
 
+The administrator review screen shows the same `suggest-links` results for an
+approved copy (`GET /admin/political-ads/copies/{id}/suggestions`), beside the
+draft facts and exact-spelling committee matches from the current filer register.
+That request is read-only: it writes no link, fact, connection or review event.
+An expense connection is saved only through the normal checked-connection form,
+which writes its own accepted link with the reviewer's evidence. The private
+queue suggests files first, without checking anything, when they have no approved
+copy and either their draft agency name exactly equals a checked agency-name fact
+or their folder has a checked committee relationship;
+[tv-ad-records-guide.md](../product-onboarding/tv-ad-records-guide.md) owns that
+reviewer-facing description.
+
 The existing source-file backup job discovers the FCC body table automatically.
 `mirror` also supports an immediate second copy and full read-back, including
 decompression and the original fingerprint. Database backups retain the catalogue,
