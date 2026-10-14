@@ -69,7 +69,7 @@ function ConnectionCard({ kind, target, name, searchOnly, scopeLabel, hideEmpty 
     <div className="tv" style={{ padding: 0, marginTop: 24 }}>
       <style>{tvStyles}</style>
       <section className="tv-card">
-        <div className="tv-inline">
+        <div className="tv-inline tv-title-row">
           <h2 style={{ margin: 0 }}>TV ad records</h2>
           <AdminMarker />
         </div>
@@ -158,7 +158,7 @@ function SearchGroup({ query }: { query: string }) {
   const matching = data?.q === query;
   return (
     <section className="tv-card">
-      <div className="tv-inline">
+      <div className="tv-inline tv-title-row">
         <h2 style={{ margin: 0 }}>TV ad records</h2>
         <AdminMarker />
       </div>

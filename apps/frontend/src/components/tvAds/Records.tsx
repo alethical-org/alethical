@@ -5,8 +5,10 @@ import { ApiError } from '../../data/api';
 import {
   centralDate,
   isAccessFailure,
+  orderStationCategories,
   queryString,
   readTVImage,
+  STATION_CATEGORY_ORDER,
   tvHref,
   uploaded,
   type AgencyDetail,
@@ -1044,10 +1046,10 @@ export function TVStation({ recordKey, notFound }: { recordKey: string; notFound
   const data = read.data;
   if (!data) return null;
   // Keep the familiar category order without turning absent counts into invented zeros.
-  const knownCategories = ['Federal', 'State', 'Local', 'Non-candidate issue ads', 'Terms', ''];
+  const knownCategories = [...STATION_CATEGORY_ORDER, ''];
   const categories = [
     ...knownCategories,
-    ...new Set(
+    ...orderStationCategories(
       data.years
         .flatMap((year) => year.categories.map((category) => category.name))
         .filter((name) => !knownCategories.includes(name)),

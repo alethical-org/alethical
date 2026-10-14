@@ -1,4 +1,5 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
+import { PNG } from 'pngjs';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
@@ -57,6 +58,7 @@ async function fixture(page: Page, allowed = true) {
     media: [] as string[],
     writes: [] as { path: string; body: any }[],
     approved: false,
+    browseDelay: null as null | ((u: URL) => Promise<void>),
   };
   const session = syntheticSession();
   await page.addInitScript(
@@ -135,28 +137,63 @@ async function fixture(page: Page, allowed = true) {
           files: [{ ...fileRow, station: call_sign }],
         })),
       });
-    if (path === '/api/v1/ads/browse')
+    if (path === '/api/v1/ads/browse') {
+      const tab = u.searchParams.get('tab') || 'folders';
+      const station = u.searchParams.get('station') || '';
+      const year =
+        u.searchParams.get('year') || (u.searchParams.get('default_year') === 'true' ? '2026' : '');
+      const category = u.searchParams.get('category') || '';
+      // Rows match the requested tab and filters, so a test can tell which records loaded.
+      const scope = [station, year === '2026' ? '' : year, category].filter(Boolean).join(' ');
+      const rows =
+        tab === 'years'
+          ? ['2026', '2024'].map((key, i) => ({
+              key,
+              label: key,
+              folder_count: 5 - i,
+              file_count: 9 - i,
+            }))
+          : tab === 'stations'
+            ? ['KSTP-TV', 'KARE', 'KMSP-TV'].map((key) => ({
+                key,
+                label: key,
+                folder_count: 4,
+                file_count: 8,
+              }))
+            : tab === 'agencies'
+              ? [
+                  {
+                    key: 'printed-name',
+                    label: 'Synthetic Agency',
+                    file_count: 2,
+                    stations: ['KARE'],
+                  },
+                ]
+              : Array.from({ length: 12 }, (_, i) => ({
+                  ...fileRow,
+                  ...(station ? { station } : {}),
+                  ...(year ? { year } : {}),
+                  key: `folder-${i}`,
+                  label: `Synthetic ${scope ? `${scope} ` : ''}campaign folder ${i + 1}`,
+                  file_count: i + 1,
+                }));
+      if (state.browseDelay) await state.browseDelay(u);
       return json(r, {
-        tab: u.searchParams.get('tab') || 'folders',
+        tab,
         q: u.searchParams.get('q') || '',
-        station: u.searchParams.get('station') || '',
-        year:
-          u.searchParams.get('year') ||
-          (u.searchParams.get('default_year') === 'true' ? '2026' : ''),
-        category: u.searchParams.get('category') || '',
+        station,
+        year,
+        category,
         page: Number(u.searchParams.get('page') || 1),
         page_size: 12,
-        total: 12,
+        total: rows.length,
         capped: false,
         years: ['2026', '2024'],
-        categories: ['State', 'Local', 'Non-candidate issue ads'],
-        rows: Array.from({ length: 12 }, (_, i) => ({
-          ...fileRow,
-          key: `folder-${i}`,
-          label: `Synthetic campaign folder ${i + 1}`,
-          file_count: i + 1,
-        })),
+        // Alphabetical, as the server sends them; the menu orders them by level of government.
+        categories: ['Apple custom', 'Federal', 'Local', 'Non-candidate issue ads', 'State'],
+        rows,
       });
+    }
     if (path === '/api/v1/ads/files/fixture-file') {
       if (state.withdrawn)
         return json(r, {
@@ -709,6 +746,11 @@ for (const width of [390, 900, 1280]) {
     await page.screenshot({ path: resolve(output, `station-row-hover-${width}.png`) });
     await yearLink.click();
     await expect(page.getByRole('heading', { name: 'TV ad records', exact: true })).toBeVisible();
+    await expect(page.getByText('Synthetic KARE campaign folder 1', { exact: true })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Station', exact: true })).toHaveText(/KARE/);
+    await expect(page.getByRole('combobox', { name: 'Folder year', exact: true })).toHaveText(
+      /2026/,
+    );
   });
 }
 
@@ -904,3 +946,203 @@ test('a revoked administrator cannot enter another TV record through app navigat
   await expect(page.getByRole('heading', { name: 'We couldn’t find that page' })).toBeVisible();
   await expect(page.getByRole('heading', { name: fileRow.name, exact: true })).toHaveCount(0);
 });
+
+/** Clear space between the marker's border and its text ink, measured from real pixels. */
+async function inkGaps(marker: Locator) {
+  const box = (await marker.boundingBox())!;
+  const png = PNG.sync.read(await marker.screenshot({ animations: 'disabled', scale: 'css' }));
+  const dark = (x: number, y: number) => {
+    const i = (y * png.width + x) * 4;
+    return png.data[i] + png.data[i + 1] + png.data[i + 2] < 3 * 140;
+  };
+  // Skip the 1px border plus its anti-aliased edge and the rounded corners.
+  const inset = 3;
+  let top = Infinity,
+    bottom = -1,
+    left = Infinity,
+    right = -1;
+  for (let y = inset; y < png.height - inset; y++)
+    for (let x = inset + 4; x < png.width - inset - 4; x++)
+      if (dark(x, y)) {
+        top = Math.min(top, y);
+        bottom = Math.max(bottom, y);
+        left = Math.min(left, x);
+        right = Math.max(right, x);
+      }
+  expect(bottom, 'marker text ink found').toBeGreaterThan(0);
+  return {
+    above: top - 1,
+    below: png.height - 2 - bottom,
+    left: left - 1,
+    right: png.width - 2 - right,
+    height: png.height,
+    halfPixel: Math.abs((box.y % 1) - 0.5) < 0.25,
+  };
+}
+function expectCentredMarker(gaps: Awaited<ReturnType<typeof inkGaps>>) {
+  expect(gaps.height).toBeGreaterThanOrEqual(26);
+  // A marker drawn on a half pixel (beside a taller title) splits 1 row of ink across 2.
+  expect(Math.abs(gaps.above - gaps.below), JSON.stringify(gaps)).toBeLessThanOrEqual(
+    gaps.halfPixel ? 2 : 1,
+  );
+  expect(gaps.left).toBeGreaterThanOrEqual(10);
+  expect(gaps.right).toBeGreaterThanOrEqual(10);
+}
+
+for (const width of [390, 900, 1280]) {
+  test(`Administrators only marker centres its text in every host ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await fixture(page);
+    await page.goto('/money');
+    const card = page.getByRole('link', { name: /TV ad records/ });
+    const laneMarker = card.getByTestId('tv-admin-marker');
+    await expect(laneMarker).toBeVisible();
+    await laneMarker.scrollIntoViewIfNeeded();
+    expectCentredMarker(await inkGaps(laneMarker));
+    // 12px between the marker and the card title, as drawn.
+    const title = card.getByText('TV ad records', { exact: true });
+    const gap = (await title.boundingBox())!.y - (await laneMarker.boundingBox())!.y - 26;
+    expect(Math.abs(gap - 12)).toBeLessThanOrEqual(4);
+    await card.screenshot({ path: resolve(output, `money-card-marker-${width}.png`) });
+
+    await page.goto('/money/ads?year=all');
+    const pageMarker = page.getByTestId('tv-admin-marker');
+    await expect(pageMarker).toHaveCount(1);
+    expectCentredMarker(await inkGaps(pageMarker));
+
+    await page.goto('/money/search?q=Synthetic');
+    const groupMarker = page.locator('.tv-title-row').getByTestId('tv-admin-marker');
+    await expect(groupMarker).toBeVisible();
+    expectCentredMarker(await inkGaps(groupMarker));
+    // Beside the group title, vertically centred on it.
+    const heading = page.locator('.tv-title-row h2');
+    const [hb, mb] = [(await heading.boundingBox())!, (await groupMarker.boundingBox())!];
+    if (Math.abs(hb.y - mb.y) < hb.height)
+      expect(Math.abs(hb.y + hb.height / 2 - (mb.y + mb.height / 2))).toBeLessThanOrEqual(2);
+    await page
+      .locator('.tv-title-row')
+      .screenshot({ path: resolve(output, `search-group-marker-${width}.png`) });
+  });
+}
+
+for (const width of [390, 1280]) {
+  test(`year rows open that year's station folders ${width}px`, async ({ page, context }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const state = await fixture(page);
+    const browse: URL[] = [];
+    page.on('request', (r) => {
+      const u = new URL(r.url());
+      if (u.pathname === '/api/v1/ads/browse') browse.push(u);
+    });
+    await page.goto('/money/ads?tab=years');
+    const year2024 = page.getByRole('link', { name: /^2024/ });
+    await expect(year2024).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Years' })).toHaveAttribute('aria-selected', 'true');
+
+    // A modified click leaves this page alone and opens the address in a new tab.
+    const opened = context.waitForEvent('page');
+    await year2024.click({ modifiers: ['ControlOrMeta'] });
+    const other = await opened;
+    expect(new URL(other.url()).search).toBe('?tab=folders&year=2024');
+    await other.close();
+    await expect(page.getByRole('tab', { name: 'Years' })).toHaveAttribute('aria-selected', 'true');
+
+    await year2024.click();
+    await expect(page).toHaveURL(/\/money\/ads\?tab=folders&year=2024$/);
+    await expect(page.getByText('Synthetic 2024 campaign folder 1', { exact: true })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Station folders' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(page.getByRole('combobox', { name: 'Folder year', exact: true })).toHaveText(
+      /2024/,
+    );
+    const last = browse.at(-1)!;
+    expect([last.searchParams.get('tab'), last.searchParams.get('year')]).toEqual([
+      'folders',
+      '2024',
+    ]);
+    expect(last.searchParams.has('default_year')).toBe(false);
+
+    await page.goBack();
+    await expect(page).toHaveURL(/tab=years/);
+    await expect(page.getByRole('tab', { name: 'Years' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('link', { name: /^2024/ })).toBeVisible();
+    await page.goForward();
+    await expect(page.getByText('Synthetic 2024 campaign folder 1', { exact: true })).toBeVisible();
+
+    // Keyboard: Enter on a year row opens it the same way.
+    await page.goBack();
+    await page.getByRole('link', { name: /^2026/ }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/tab=folders&year=2026$/);
+    await expect(page.getByText('Synthetic campaign folder 1', { exact: true })).toBeVisible();
+
+    // A slow earlier answer never replaces the newer selection.
+    await page.goBack();
+    let release!: () => void;
+    const held = new Promise<void>((done) => (release = done));
+    state.browseDelay = async (u) => {
+      if (u.searchParams.get('year') === '2024') await held;
+    };
+    await page.getByRole('link', { name: /^2024/ }).click();
+    await expect(page).toHaveURL(/year=2024$/);
+    await page.goBack();
+    await page.getByRole('link', { name: /^2026/ }).click();
+    await expect(page.getByText('Synthetic campaign folder 1', { exact: true })).toBeVisible();
+    release();
+    await page.waitForTimeout(500);
+    await expect(page.getByText('Synthetic campaign folder 1', { exact: true })).toBeVisible();
+    await expect(page.getByText('Synthetic 2024 campaign folder 1', { exact: true })).toHaveCount(
+      0,
+    );
+    await expect(page.getByRole('combobox', { name: 'Folder year', exact: true })).toHaveText(
+      /2026/,
+    );
+  });
+}
+
+for (const width of [390, 900, 1280]) {
+  test(`category menu lists levels of government first ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await fixture(page);
+    const browse: URL[] = [];
+    page.on('request', (r) => {
+      const u = new URL(r.url());
+      if (u.pathname === '/api/v1/ads/browse') browse.push(u);
+    });
+    await page.goto('/money/ads?year=all');
+    const category = page.getByRole('combobox', { name: 'Category', exact: true });
+    await category.click();
+    const expected = [
+      'All categories',
+      'Federal',
+      'State',
+      'Local',
+      'Non-candidate issue ads',
+      'Apple custom',
+    ];
+    await expect(page.getByRole('option')).toHaveText(expected);
+    await page.screenshot({ path: resolve(output, `category-menu-${width}.png`) });
+    await page.keyboard.press('Escape');
+    await category.focus();
+    await page.keyboard.press('ArrowDown');
+    const active = page.locator('.tv-option-active');
+    const seen: string[] = [(await active.textContent()) || ''];
+    for (let i = 1; i < expected.length; i++) {
+      await page.keyboard.press('ArrowDown');
+      seen.push((await active.textContent()) || '');
+    }
+    expect(seen.map((x) => x.trim())).toEqual(expected);
+    // Back up to State and choose it from the keyboard.
+    for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowUp');
+    await expect(active).toHaveText('State');
+    await page.keyboard.press('Enter');
+    await expect(category).toHaveText(/State/);
+    await expect(page).toHaveURL(/category=State/);
+    await expect(
+      page.getByText('Synthetic State campaign folder 1', { exact: true }),
+    ).toBeVisible();
+    expect(browse.at(-1)!.searchParams.get('category')).toBe('State');
+  });
+}

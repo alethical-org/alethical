@@ -1,10 +1,11 @@
 import { RETRY_EXPLANATION } from './copy';
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
   readTV,
   isAccessFailure,
   queryString,
+  orderStationCategories,
   centralDate,
   uploaded,
   tvHref,
@@ -69,6 +70,14 @@ export function initialBrowse(params: Record<string, unknown>): BrowseQuery {
     page: Math.max(1, Number(params.page) || 1),
   };
 }
+/** A folders address with no year and no search shows the newest folder year. */
+function usesDefaultYear(params: Record<string, unknown>) {
+  const browse = initialBrowse(params);
+  return !params.year && !browse.q && browse.tab === 'folders';
+}
+function browseKey(params: Record<string, unknown>) {
+  return JSON.stringify([initialBrowse(params), usesDefaultYear(params)]);
+}
 export function TVLanding({
   params,
   onParams,
@@ -79,9 +88,28 @@ export function TVLanding({
   const { isMobile } = useResponsive();
   const [query, setQuery] = useState(() => initialBrowse(params));
   const [draft, setDraft] = useState(query.q);
-  const [defaultYear, setDefaultYear] = useState(
-    () => !params.year && !query.q && query.tab === 'folders',
+  const [defaultYear, setDefaultYear] = useState(() => usesDefaultYear(params));
+  // The landing stays mounted when a link or Back/Forward changes only its address, so
+  // follow every address this component did not write itself.
+  const latestParams = useRef(params);
+  latestParams.current = params;
+  const written = useRef(browseKey(params));
+  const writeParams = useCallback(
+    (values: Record<string, string | undefined>) => {
+      written.current = browseKey({ ...latestParams.current, ...values });
+      onParams(values);
+    },
+    [onParams],
   );
+  const addressKey = browseKey(params);
+  useEffect(() => {
+    if (addressKey === written.current) return;
+    written.current = addressKey;
+    const next = initialBrowse(latestParams.current);
+    setQuery(next);
+    setDraft(next.q);
+    setDefaultYear(usesDefaultYear(latestParams.current));
+  }, [addressKey]);
   const browse = useTVRead<BrowseResult>(
     `/browse${queryString({ ...query, default_year: defaultYear || undefined })}`,
   );
@@ -91,8 +119,8 @@ export function TVLanding({
   const moveToResult = useRef<'page' | 'search' | null>(null);
   const result = browse.data;
   useEffect(() => {
-    if (defaultYear && result?.year) onParams({ year: String(result.year), page: undefined });
-  }, [defaultYear, result?.year, onParams]);
+    if (defaultYear && result?.year) writeParams({ year: String(result.year), page: undefined });
+  }, [defaultYear, result?.year, writeParams]);
   useEffect(() => {
     if (browse.loading || !moveToResult.current) return;
     if (moveToResult.current === 'page') countRef.current?.scrollIntoView?.({ block: 'start' });
@@ -108,7 +136,7 @@ export function TVLanding({
     };
     setDefaultYear(false);
     setQuery(next);
-    onParams({
+    writeParams({
       q: next.q || undefined,
       tab: next.tab,
       station: next.station || undefined,
@@ -243,7 +271,10 @@ export function TVLanding({
             value={query.category}
             choices={[
               { value: '', label: 'All categories' },
-              ...(result?.categories || []).map((c) => ({ value: c, label: c })),
+              ...orderStationCategories(result?.categories || []).map((c) => ({
+                value: c,
+                label: c,
+              })),
             ]}
             onChange={(category) => change({ category })}
           />
