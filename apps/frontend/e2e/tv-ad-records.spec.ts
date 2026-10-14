@@ -343,6 +343,15 @@ async function fixture(page: Page, allowed = true) {
           copies: [],
           page_count: 1,
         });
+      // An approved copy loads its suggestions; an unanswered route reads as a 404,
+      // which the review screen correctly treats as lost access.
+      if (suffix.endsWith('/suggestions'))
+        return json(r, {
+          copy_id: copy,
+          facts: [],
+          committees: [],
+          expenses: { suggestions: [], reason: '', truncated: false },
+        });
       if (suffix === '/copies' || suffix.endsWith('/review'))
         return json(r, { publication: publication(), facts: [], connections: [], events: [] });
       if (suffix.endsWith('/approve')) return json(r, { ok: true });
