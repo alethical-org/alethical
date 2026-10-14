@@ -131,8 +131,8 @@ fill in: the code does the work those fields do for candidates. No review time i
 
 ## 4. The admin side
 
-**One review list for both kinds of claim**, at `/admin/profile-claims`, with a **Kind**
-filter (**Legislator**, **Candidate**). `/admin/candidate-claims` forwards there. The account
+**One review list for both kinds of claim**, at `/admin/profile-claims`, with a filter for
+**Legislator** and **Candidate** requests. `/admin/candidate-claims` forwards there. The account
 menu's existing **Profile claim requests** count covers both.
 
 A legislator request page shows:
@@ -160,7 +160,7 @@ the applicant account is an admin, deactivated or unconfirmed; the legislator is
 current member; or the official address changed after the code was sent.
 
 On approval, 2 emails go out. The applicant gets the existing approval message. **The
-official address gets a notice**, even when no code was used: "{Account display name} can now
+official address, when one is published, gets a notice**, even when no code was used: "{Account display name} can now
 manage {Title Name}’s profile on Alethical as {the legislator | staff in their office}. If
 this is unexpected, reply to this email and we’ll remove access." This is the safety net that
 costs the claimant nothing: if a staffer claims without the member knowing, the member's own
