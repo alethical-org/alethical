@@ -283,10 +283,11 @@ function ReviewWorkspace({ token, onDenied }: { token: string; onDenied(): void 
                 ...['KSTP-TV', 'KARE', 'KMSP-TV'].map((name) => ({ value: name, label: name })),
               ]}
             />
-            <View style={isMobile ? { alignSelf: 'stretch' } : undefined}>
+            <View style={isMobile ? undefined : { alignSelf: 'flex-end' }}>
               <ReviewAction
                 label="Search private queue"
                 disabled={busy}
+                fill={isMobile}
                 onPress={() => setSearch({ station, query: query.trim(), page: 1 })}
               />
             </View>
@@ -308,7 +309,7 @@ function ReviewWorkspace({ token, onDenied }: { token: string; onDenied(): void 
         ) : null}
         {queue ? (
           <>
-            <Text style={[s.note, { marginBottom: 12 }]}>
+            <Text style={[s.note, { marginBottom: 24 }]}>
               {queue.total.toLocaleString('en-US')} source{' '}
               {queue.total === 1 ? 'version' : 'versions'} · page {queue.page}
             </Text>

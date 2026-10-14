@@ -69,7 +69,7 @@ export function QueueRow({
       >
         <path
           d="M5 12 H19 M14 7 L19 12 L14 17"
-          stroke={t.colors.text.muted}
+          stroke="#0f7a45"
           strokeWidth="2.27"
           strokeLinecap="round"
           strokeLinejoin="round"

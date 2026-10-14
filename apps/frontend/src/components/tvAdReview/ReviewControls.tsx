@@ -10,10 +10,13 @@ export function ReviewAction({
   onPress,
   disabled = false,
   busy = false,
+  fill = false,
 }: {
   label: string;
   /** A fuller name for assistive technology; it must begin with the visible label. */
   accessibilityLabel?: string;
+  /** Full column width, as a phone's action button under its field. */
+  fill?: boolean;
   onPress(): void;
   disabled?: boolean;
   busy?: boolean;
@@ -28,7 +31,8 @@ export function ReviewAction({
         display: 'inline-grid',
         gridTemplateColumns: 'minmax(0, 1fr)',
         position: 'relative',
-        alignSelf: 'flex-start',
+        alignSelf: fill ? 'stretch' : 'flex-start',
+        width: fill ? '100%' : undefined,
         maxWidth: '100%',
         minWidth: 0,
       }}
@@ -274,7 +278,10 @@ export const reviewStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: t.colors.border,
     borderRadius: 8,
-    padding: 12,
+    paddingHorizontal: 12,
+    // 11 + 24 + 11 + the 2 border pixels keeps a one-line field at 48px,
+    // level with the menus and buttons beside it.
+    paddingVertical: 11,
     minHeight: 48,
     backgroundColor: '#ffffff',
   },
