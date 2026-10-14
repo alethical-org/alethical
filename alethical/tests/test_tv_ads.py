@@ -1028,3 +1028,21 @@ def test_scoped_folder_reads_preserve_moved_files_and_older_approved_versions(
     assert len(previous) == 1
     assert previous[0]["version_id"] == document.content_hash
     assert previous[0]["version_count"] == 2
+
+
+def test_folder_row_describes_itself_by_approved_then_newest_copy():
+    # The folder label and category come from one file; list order must not pick it.
+    now = datetime(2026, 10, 1, tzinfo=timezone.utc)
+    later = datetime(2026, 10, 5, tzinfo=timezone.utc)
+    held_newer = SimpleNamespace(id="a", status="archive", safe_folder="a raw name")
+    approved_older = SimpleNamespace(id="b", status="approved", safe_folder="Reviewed")
+    held_older = SimpleNamespace(
+        id="c", status="archive", safe_folder="an older raw name"
+    )
+    downloads = {"a": later, "b": now, "c": now}
+    document = lambda copy: SimpleNamespace(last_downloaded_at=downloads[copy.id])  # noqa: E731
+    copies = [held_newer, approved_older, held_older]
+    assert reader._representative(copies, document) is approved_older
+    assert reader._representative([held_older, held_newer], document) is held_newer
+    downloads["a"] = None
+    assert reader._representative([held_newer, held_older], document) is held_older

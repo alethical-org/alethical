@@ -57,6 +57,7 @@ import { externalLinkProps, linkProps, routePath } from '../../navigation/links'
 import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
+import { AdminMarkerChip } from '../../components/tvAds/AdminMarker';
 
 const UnconcealedInvite = loadOnDemand(
   () =>
@@ -148,24 +149,7 @@ function LaneCard({
         hovered && hasHoverPointer() && !reduceMotion && styles.laneCardLift,
       ]}
     >
-      {administrator ? (
-        <Text
-          style={{
-            alignSelf: 'flex-start',
-            minHeight: 24,
-            paddingHorizontal: 8,
-            borderWidth: 1,
-            borderColor: '#11150f',
-            borderRadius: 7,
-            fontSize: 12.5,
-            fontFamily: t.typography.body,
-            fontWeight: '700',
-            marginBottom: 12,
-          }}
-        >
-          Administrators only
-        </Text>
-      ) : null}
+      {administrator ? <AdminMarkerChip style={{ marginBottom: 12 }} /> : null}
       <View
         style={[styles.laneTitleRow, { minHeight: stacked ? 0 : tablet ? 30 : wide ? 50 : 32 }]}
       >

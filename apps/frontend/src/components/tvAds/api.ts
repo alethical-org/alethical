@@ -215,6 +215,28 @@ export interface ExpenseDetail {
   file: { key: string; name: string; copy_id: string; version_id: string };
 }
 
+/** Station categories by level of government, then the station's other folder kinds. */
+export const STATION_CATEGORY_ORDER = [
+  'Federal',
+  'State',
+  'Local',
+  'Non-candidate issue ads',
+  'Terms',
+];
+/** Known categories in STATION_CATEGORY_ORDER, then any other literal source name A to Z. */
+export function orderStationCategories(names: readonly string[]): string[] {
+  const unique = [...new Set(names)];
+  const rank = (name: string) => {
+    const index = STATION_CATEGORY_ORDER.indexOf(name);
+    return index === -1 ? STATION_CATEGORY_ORDER.length : index;
+  };
+  return unique.sort(
+    (a, b) =>
+      rank(a) - rank(b) ||
+      a.localeCompare(b, 'en', { sensitivity: 'base' }) ||
+      (a < b ? -1 : a > b ? 1 : 0),
+  );
+}
 export function queryString(values: Record<string, unknown>) {
   const params = new URLSearchParams();
   Object.entries(values).forEach(([key, value]) => {

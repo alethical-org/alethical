@@ -1,9 +1,10 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
+import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 // Invented records and sessions only. All non-static network traffic is intercepted.
-const output = resolve('../../.task-notes/tv-browser');
+// Local evidence screenshots stay with the task's private notes; CI keeps its own copy.
+const output = resolve(process.env.CI ? 'test-results/tv-browser' : '../../.task-notes/tv-browser');
 const stamp = '2026-10-01T12:00:00Z';
 const hash = 'a'.repeat(64);
 const oldHash = 'b'.repeat(64);
@@ -42,6 +43,27 @@ const fileRow = {
   kind: 'Invoice',
   uploaded_at: stamp,
 };
+// Invented order page, shaped like the stations' extracted layout (columns as spaces).
+const orderText = [
+  'Print Date 01/02/26 10:00:00          Page 1 of 2',
+  '',
+  '                                               ORDER',
+  '',
+  'Orders              Order / Rev:              111222',
+  '                    Product Desc:             Synthetic Lakes Fund',
+  '',
+  '                    Estimate:                 4471                     Primary AE:        Pat Example',
+  '                    Flight Dates:             01/05/26 - 01/11/26      Sales Office:      H-XYZ',
+  '',
+  'Bill Plan',
+  'Start Date      End Date            # Spots      Gross Amount',
+  '01/05/26        01/31/26                 48        $9,650.00',
+  '02/01/26        02/01/26                  9          $950.00',
+  '',
+  'Name of advertiser (list the full legal name as disclosed to the Federal Election Commission [for federal',
+  'committees] with no acronyms):',
+  'Signature: ____________________',
+].join('\n');
 const counts = {
   station_files_held: 27,
   unique_file_contents: 24,
@@ -57,6 +79,7 @@ async function fixture(page: Page, allowed = true) {
     media: [] as string[],
     writes: [] as { path: string; body: any }[],
     approved: false,
+    browseDelay: null as null | ((u: URL) => Promise<void>),
   };
   const session = syntheticSession();
   await page.addInitScript(
@@ -135,28 +158,63 @@ async function fixture(page: Page, allowed = true) {
           files: [{ ...fileRow, station: call_sign }],
         })),
       });
-    if (path === '/api/v1/ads/browse')
+    if (path === '/api/v1/ads/browse') {
+      const tab = u.searchParams.get('tab') || 'folders';
+      const station = u.searchParams.get('station') || '';
+      const year =
+        u.searchParams.get('year') || (u.searchParams.get('default_year') === 'true' ? '2026' : '');
+      const category = u.searchParams.get('category') || '';
+      // Rows match the requested tab and filters, so a test can tell which records loaded.
+      const scope = [station, year === '2026' ? '' : year, category].filter(Boolean).join(' ');
+      const rows =
+        tab === 'years'
+          ? ['2026', '2024'].map((key, i) => ({
+              key,
+              label: key,
+              folder_count: 5 - i,
+              file_count: 9 - i,
+            }))
+          : tab === 'stations'
+            ? ['KSTP-TV', 'KARE', 'KMSP-TV'].map((key) => ({
+                key,
+                label: key,
+                folder_count: 4,
+                file_count: 8,
+              }))
+            : tab === 'agencies'
+              ? [
+                  {
+                    key: 'printed-name',
+                    label: 'Synthetic Agency',
+                    file_count: 2,
+                    stations: ['KARE'],
+                  },
+                ]
+              : Array.from({ length: 12 }, (_, i) => ({
+                  ...fileRow,
+                  ...(station ? { station } : {}),
+                  ...(year ? { year } : {}),
+                  key: `folder-${i}`,
+                  label: `Synthetic ${scope ? `${scope} ` : ''}campaign folder ${i + 1}`,
+                  file_count: i + 1,
+                }));
+      if (state.browseDelay) await state.browseDelay(u);
       return json(r, {
-        tab: u.searchParams.get('tab') || 'folders',
+        tab,
         q: u.searchParams.get('q') || '',
-        station: u.searchParams.get('station') || '',
-        year:
-          u.searchParams.get('year') ||
-          (u.searchParams.get('default_year') === 'true' ? '2026' : ''),
-        category: u.searchParams.get('category') || '',
+        station,
+        year,
+        category,
         page: Number(u.searchParams.get('page') || 1),
         page_size: 12,
-        total: 12,
+        total: rows.length,
         capped: false,
         years: ['2026', '2024'],
-        categories: ['State', 'Local', 'Non-candidate issue ads'],
-        rows: Array.from({ length: 12 }, (_, i) => ({
-          ...fileRow,
-          key: `folder-${i}`,
-          label: `Synthetic campaign folder ${i + 1}`,
-          file_count: i + 1,
-        })),
+        // Alphabetical, as the server sends them; the menu orders them by level of government.
+        categories: ['Apple custom', 'Federal', 'Local', 'Non-candidate issue ads', 'State'],
+        rows,
       });
+    }
     if (path === '/api/v1/ads/files/fixture-file') {
       if (state.withdrawn)
         return json(r, {
@@ -189,7 +247,7 @@ async function fixture(page: Page, allowed = true) {
         pages: [1, 2].map((number) => ({
           number,
           image_path: `/ads/files/fixture-file/pages/${number}?version=${version}&copy=${copy}`,
-          text: `Synthetic machine text page ${number}`,
+          text: number === 1 ? orderText : `Synthetic machine text page ${number}`,
           text_status: 'ready',
         })),
         facts: [
@@ -349,7 +407,7 @@ test('nonadministrator cannot enter reader or private guide', async ({ page }) =
   for (const path of ['/money/ads', '/money/ads/guide']) {
     await page.goto(path);
     await expect(page.getByRole('heading', { name: 'We couldn’t find that page' })).toBeVisible();
-    await expect(page.getByText('Administrators only', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Admins only', { exact: true })).toHaveCount(0);
   }
 });
 test('administrator private guide has no sharing or comments', async ({ page }) => {
@@ -692,6 +750,10 @@ for (const width of [390, 900, 1280]) {
     const unnamed = page.locator('[data-label="Not identified"]');
     await expect(unnamed).toHaveText(width < 768 ? 'Category not identified3 folders' : '3');
     await expect(unnamed.getByRole('link')).toHaveCount(0);
+    // Categories with no folders held in any year are named once, as an absence.
+    await expect(page.locator('.tv-station-note').first()).toHaveText(
+      'No Federal, Local, Non-candidate issue ads or Terms folders are held for this station',
+    );
     await unnamed.scrollIntoViewIfNeeded();
     await page.screenshot({ path: resolve(output, `station-${width}.png`), fullPage: true });
     const yearLink = page.getByRole('link', { name: /2026/ });
@@ -709,6 +771,11 @@ for (const width of [390, 900, 1280]) {
     await page.screenshot({ path: resolve(output, `station-row-hover-${width}.png`) });
     await yearLink.click();
     await expect(page.getByRole('heading', { name: 'TV ad records', exact: true })).toBeVisible();
+    await expect(page.getByText('Synthetic KARE campaign folder 1', { exact: true })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Station', exact: true })).toHaveText(/KARE/);
+    await expect(page.getByRole('combobox', { name: 'Folder year', exact: true })).toHaveText(
+      /2026/,
+    );
   });
 }
 
@@ -904,3 +971,546 @@ test('a revoked administrator cannot enter another TV record through app navigat
   await expect(page.getByRole('heading', { name: 'We couldn’t find that page' })).toBeVisible();
   await expect(page.getByRole('heading', { name: fileRow.name, exact: true })).toHaveCount(0);
 });
+
+/** Pixel and line measurements are only meaningful once the site font has loaded. */
+async function siteFontReady(page: Page) {
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        await document.fonts.ready;
+        return document.fonts.check('700 15px "Libre Franklin"');
+      }),
+    )
+    .toBe(true);
+}
+
+/** Clear space between the marker's border and its text ink, measured from real pixels. */
+async function inkGaps(marker: Locator) {
+  await siteFontReady(marker.page());
+  await marker.scrollIntoViewIfNeeded();
+  const box = (await marker.boundingBox())!;
+  // Capture whole pixels around the marker, then measure against its exact (possibly
+  // fractional) border box, so a marker drawn between pixels is measured fairly.
+  const clip = {
+    x: Math.floor(box.x) - 2,
+    y: Math.floor(box.y) - 2,
+    width: Math.ceil(box.width) + 4,
+    height: Math.ceil(box.height) + 4,
+  };
+  const shot = await marker.page().screenshot({ clip, animations: 'disabled', scale: 'css' });
+  // Decode the screenshot in the page itself, so the check needs no image package.
+  const png = await marker.page().evaluate(async (base64) => {
+    const image = new Image();
+    image.src = `data:image/png;base64,${base64}`;
+    await image.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const context = canvas.getContext('2d')!;
+    context.drawImage(image, 0, 0);
+    const { data } = context.getImageData(0, 0, image.width, image.height);
+    return { width: image.width, height: image.height, data: Array.from(data) };
+  }, shot.toString('base64'));
+  const dark = (x: number, y: number) => {
+    const i = (y * png.width + x) * 4;
+    return png.data[i] + png.data[i + 1] + png.data[i + 2] < 3 * 140;
+  };
+  // Border edges in image coordinates; skip the border, its anti-aliasing and corners.
+  const top = box.y - clip.y + 1,
+    bottom = box.y + box.height - clip.y - 1,
+    left = box.x - clip.x + 1,
+    right = box.x + box.width - clip.x - 1;
+  let inkTop = Infinity,
+    inkBottom = -1,
+    inkLeft = Infinity,
+    inkRight = -1;
+  for (let y = Math.ceil(top + 1); y < Math.floor(bottom - 1); y++)
+    for (let x = Math.ceil(left + 5); x < Math.floor(right - 5); x++)
+      if (dark(x, y)) {
+        inkTop = Math.min(inkTop, y);
+        inkBottom = Math.max(inkBottom, y);
+        inkLeft = Math.min(inkLeft, x);
+        inkRight = Math.max(inkRight, x);
+      }
+  expect(inkBottom, 'marker text ink found').toBeGreaterThan(0);
+  const round = (value: number) => Math.round(value * 10) / 10;
+  return {
+    above: round(inkTop - top),
+    below: round(bottom - (inkBottom + 1)),
+    left: round(inkLeft - left),
+    right: round(right - (inkRight + 1)),
+    height: box.height,
+  };
+}
+function expectCentredMarker(
+  gaps: Awaited<ReturnType<typeof inkGaps>>,
+  // Text engines place the same font's ink up to 1px differently (Chrome on Mac and
+  // Linux, Safari), so 2px is the tightest bound every engine meets; the defect this
+  // guards against measured 3px above and 8px below.
+  { height = 26, side = 10, balance = 2 } = {},
+) {
+  expect(gaps.height).toBeGreaterThanOrEqual(height - 0.5);
+  expect(Math.abs(gaps.above - gaps.below), JSON.stringify(gaps)).toBeLessThanOrEqual(balance);
+  expect(gaps.left).toBeGreaterThanOrEqual(side - 0.5);
+  expect(gaps.right).toBeGreaterThanOrEqual(side - 0.5);
+}
+
+for (const width of [390, 900, 1280]) {
+  test(`Admins only marker centres its text in every host ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await fixture(page);
+    await page.goto('/money');
+    const card = page.getByRole('link', { name: /TV ad records/ });
+    const laneMarker = card.getByTestId('tv-admin-marker');
+    await expect(laneMarker).toBeVisible();
+    await laneMarker.scrollIntoViewIfNeeded();
+    expectCentredMarker(await inkGaps(laneMarker));
+    // 12px between the marker and the card title, as drawn.
+    const title = card.getByText('TV ad records', { exact: true });
+    const gap = (await title.boundingBox())!.y - (await laneMarker.boundingBox())!.y - 26;
+    expect(Math.abs(gap - 12)).toBeLessThanOrEqual(4);
+    await card.screenshot({ path: resolve(output, `money-card-marker-${width}.png`) });
+
+    await page.goto('/money/ads?year=all');
+    const pageMarker = page.getByTestId('tv-admin-marker');
+    await expect(pageMarker).toHaveCount(1);
+    expectCentredMarker(await inkGaps(pageMarker));
+
+    await page.goto('/money/search?q=Synthetic');
+    const groupMarker = page.locator('.tv-title-row').getByTestId('tv-admin-marker');
+    await expect(groupMarker).toBeVisible();
+    expectCentredMarker(await inkGaps(groupMarker));
+    // Beside the group title, vertically centred on it.
+    const heading = page.locator('.tv-title-row h2');
+    const [hb, mb] = [(await heading.boundingBox())!, (await groupMarker.boundingBox())!];
+    if (Math.abs(hb.y - mb.y) < hb.height)
+      expect(Math.abs(hb.y + hb.height / 2 - (mb.y + mb.height / 2))).toBeLessThanOrEqual(2);
+    await page
+      .locator('.tv-title-row')
+      .screenshot({ path: resolve(output, `search-group-marker-${width}.png`) });
+    // The kind chips share the same rule.
+    const kind = page.locator('.tv-kind').first();
+    await expect(kind).toBeVisible();
+    expectCentredMarker(await inkGaps(kind), { height: 26, side: 10 });
+    await page.goto('/money/ads/files/fixture-file');
+    const fileKind = page.locator('.tv-kind').first();
+    await expect(fileKind).toBeVisible();
+    expectCentredMarker(await inkGaps(fileKind), { height: 26, side: 10 });
+  });
+}
+
+for (const width of [390, 1280]) {
+  test(`year rows open that year's station folders ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const state = await fixture(page);
+    const browse: URL[] = [];
+    page.on('request', (r) => {
+      const u = new URL(r.url());
+      if (u.pathname === '/api/v1/ads/browse') browse.push(u);
+    });
+    await page.goto('/money/ads?tab=years');
+    const year2024 = page.getByRole('link', { name: /^2024/ });
+    await expect(year2024).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Years' })).toHaveAttribute('aria-selected', 'true');
+
+    await expect(page.getByText('2 years', { exact: true })).toBeVisible();
+    // A modified click is left to the browser (a new tab), so the app neither handles
+    // it nor changes this page. A synthetic event proves the app's side without
+    // depending on how a headless browser opens background tabs.
+    const leftToBrowser = await year2024.evaluate((link) => {
+      let prevented: boolean | null = null;
+      const record = (event: Event) => {
+        prevented = event.defaultPrevented;
+        // Stop the synthetic click from following the link itself.
+        event.preventDefault();
+      };
+      window.addEventListener('click', record);
+      link.dispatchEvent(
+        new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true, metaKey: true }),
+      );
+      window.removeEventListener('click', record);
+      return prevented;
+    });
+    expect(leftToBrowser).toBe(false);
+    await expect(year2024).toHaveAttribute('href', '/money/ads?tab=folders&year=2024');
+    await expect(page.getByRole('tab', { name: 'Years' })).toHaveAttribute('aria-selected', 'true');
+
+    await year2024.click();
+    await expect(page).toHaveURL(/\/money\/ads\?tab=folders&year=2024$/);
+    await expect(page.getByText('Synthetic 2024 campaign folder 1', { exact: true })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Station folders' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(page.getByRole('combobox', { name: 'Folder year', exact: true })).toHaveText(
+      /2024/,
+    );
+    const last = browse.at(-1)!;
+    expect([last.searchParams.get('tab'), last.searchParams.get('year')]).toEqual([
+      'folders',
+      '2024',
+    ]);
+    expect(last.searchParams.has('default_year')).toBe(false);
+
+    await page.goBack();
+    await expect(page).toHaveURL(/tab=years/);
+    await expect(page.getByRole('tab', { name: 'Years' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('link', { name: /^2024/ })).toBeVisible();
+    await page.goForward();
+    await expect(page.getByText('Synthetic 2024 campaign folder 1', { exact: true })).toBeVisible();
+
+    // Keyboard: Enter on a year row opens it the same way.
+    await page.goBack();
+    await page.getByRole('link', { name: /^2026/ }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/tab=folders&year=2026$/);
+    await expect(page.getByText('Synthetic campaign folder 1', { exact: true })).toBeVisible();
+
+    // A slow earlier answer never replaces the newer selection.
+    await page.goBack();
+    let release!: () => void;
+    const held = new Promise<void>((done) => (release = done));
+    state.browseDelay = async (u) => {
+      if (u.searchParams.get('year') === '2024') await held;
+    };
+    await page.getByRole('link', { name: /^2024/ }).click();
+    await expect(page).toHaveURL(/year=2024$/);
+    await page.goBack();
+    await page.getByRole('link', { name: /^2026/ }).click();
+    await expect(page.getByText('Synthetic campaign folder 1', { exact: true })).toBeVisible();
+    release();
+    await page.waitForTimeout(500);
+    await expect(page.getByText('Synthetic campaign folder 1', { exact: true })).toBeVisible();
+    await expect(page.getByText('Synthetic 2024 campaign folder 1', { exact: true })).toHaveCount(
+      0,
+    );
+    await expect(page.getByRole('combobox', { name: 'Folder year', exact: true })).toHaveText(
+      /2026/,
+    );
+  });
+}
+
+for (const width of [390, 900, 1280]) {
+  test(`category menu lists levels of government first ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await fixture(page);
+    const browse: URL[] = [];
+    page.on('request', (r) => {
+      const u = new URL(r.url());
+      if (u.pathname === '/api/v1/ads/browse') browse.push(u);
+    });
+    await page.goto('/money/ads?year=all');
+    const category = page.getByRole('combobox', { name: 'Category', exact: true });
+    await category.click();
+    const expected = [
+      'All categories',
+      'Federal',
+      'State',
+      'Local',
+      'Non-candidate issue ads',
+      'Apple custom',
+    ];
+    await expect(page.getByRole('option')).toHaveText(expected);
+    await page.screenshot({ path: resolve(output, `category-menu-${width}.png`) });
+    await page.keyboard.press('Escape');
+    await category.focus();
+    await page.keyboard.press('ArrowDown');
+    const active = page.locator('.tv-option-active');
+    const seen: string[] = [(await active.textContent()) || ''];
+    for (let i = 1; i < expected.length; i++) {
+      await page.keyboard.press('ArrowDown');
+      seen.push((await active.textContent()) || '');
+    }
+    expect(seen.map((x) => x.trim())).toEqual(expected);
+    // Back up to State and choose it from the keyboard.
+    for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowUp');
+    await expect(active).toHaveText('State');
+    await page.keyboard.press('Enter');
+    await expect(category).toHaveText(/State/);
+    await expect(page).toHaveURL(/category=State/);
+    await expect(
+      page.getByText('Synthetic State campaign folder 1', { exact: true }),
+    ).toBeVisible();
+    expect(browse.at(-1)!.searchParams.get('category')).toBe('State');
+  });
+}
+
+test('a filter chosen before the first answer keeps the newest-year default', async ({ page }) => {
+  const state = await fixture(page);
+  const browse: URL[] = [];
+  page.on('request', (r) => {
+    const u = new URL(r.url());
+    if (u.pathname === '/api/v1/ads/browse') browse.push(u);
+  });
+  let release!: () => void;
+  const held = new Promise<void>((done) => (release = done));
+  state.browseDelay = async (u) => {
+    if (!u.searchParams.get('station')) await held;
+  };
+  await page.goto('/money/ads');
+  const station = page.getByRole('combobox', { name: 'Station', exact: true });
+  await station.click();
+  await page.getByRole('option', { name: 'KARE', exact: true }).click();
+  release();
+  await expect(page.getByText('Synthetic KARE campaign folder 1', { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/station=KARE/);
+  await expect(page).toHaveURL(/year=2026/);
+  await expect(page).not.toHaveURL(/year=all/);
+  const last = browse.at(-1)!;
+  expect(last.searchParams.get('default_year')).toBe('true');
+  expect(last.searchParams.get('station')).toBe('KARE');
+});
+
+test('Back from the TV records landing returns to the money page', async ({ page }) => {
+  await fixture(page);
+  await page.goto('/money');
+  await page.getByRole('link', { name: /TV ad records/ }).click();
+  await expect(page).toHaveURL(/\/money\/ads\?year=2026$/);
+  await expect(page.getByText('Synthetic campaign folder 1', { exact: true })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/money$/);
+  await expect(page.getByRole('link', { name: /TV ad records/ })).toBeVisible();
+});
+
+for (const width of [390, 900, 1280]) {
+  test(`landing section spacing matches the drawing ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await fixture(page);
+    await page.goto('/money/ads?year=all');
+    await expect(page.getByText('These counts can overlap')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Recent station uploads' })).toBeVisible();
+    const gaps = await page.evaluate(() => {
+      const box = (el: Element | null | undefined) => el!.getBoundingClientRect();
+      const byText = (text: string) =>
+        [...document.querySelectorAll('.tv p, .tv h2, .tv h3')].find(
+          (el) => el.textContent?.trim() === text,
+        )!;
+      const overlap = byText('These counts can overlap');
+      const recent = document.querySelector('.tv-recent-card')!;
+      const sources = byText('Sources and copy dates');
+      const sourceNote = sources.nextElementSibling!;
+      const firstSource = document.querySelector('.tv-source')!;
+      return {
+        overlapAbove: box(overlap).top - box(overlap.previousElementSibling).bottom,
+        overlapBelow: box(overlap.nextElementSibling).top - box(overlap).bottom,
+        recentNameToRow:
+          box(recent.querySelector('.tv-row')).top - box(recent.querySelector('h3')).bottom,
+        sourcesHeadingToNote: box(sourceNote).top - box(sources).bottom,
+        sourcesNoteToColumns: box(firstSource).top - box(sourceNote).bottom,
+        searchToBrowse:
+          box(document.querySelector('.tv-tabs')).top -
+          box(document.querySelector('.tv-search-form')).bottom,
+      };
+    });
+    // Drawing values (live corrections items 6, 7, 7b and 11).
+    expect(gaps).toEqual({
+      overlapAbove: 14,
+      overlapBelow: 24,
+      recentNameToRow: 12,
+      sourcesHeadingToNote: 8,
+      sourcesNoteToColumns: 16,
+      searchToBrowse: 48,
+    });
+  });
+}
+
+for (const width of [390, 900, 1280]) {
+  test(`machine-read text keeps printed columns inside its panel ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await fixture(page);
+    await page.goto('/money/ads/files/fixture-file?text=open');
+    const panel = page.locator('.tv-file-text');
+    await expect(panel.getByText('111222', { exact: true })).toBeVisible();
+    const x = async (text: string) =>
+      (await panel.getByText(text, { exact: true }).boundingBox())!.x;
+    // Every value in the Orders block starts at one x, figures included.
+    expect(await x('111222')).toBeCloseTo(await x('Synthetic Lakes Fund'), 0);
+    expect(await x('4471')).toBeCloseTo(await x('01/05/26 - 01/11/26'), 0);
+    expect(await x('Pat Example')).toBeCloseTo(await x('H-XYZ'), 0);
+    // Figures right-align under one edge.
+    const right = async (text: string) => {
+      const box = (await panel.getByText(text, { exact: true }).boundingBox())!;
+      return box.x + box.width;
+    };
+    expect(await right('$9,650.00')).toBeCloseTo(await right('$950.00'), 0);
+    // The wrapped sentence is rejoined, the blank is drawn and named, words unchanged.
+    await expect(
+      panel.getByText(
+        'Name of advertiser (list the full legal name as disclosed to the Federal Election Commission [for federal committees] with no acronyms):',
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(panel.getByRole('img', { name: 'Blank line' })).toHaveCount(1);
+    await expect(panel.locator('.tv-mt-centred')).toHaveText('ORDER');
+    // The text sits inside the white panel at its padding, never on the page background.
+    const [outer, body] = [
+      (await panel.boundingBox())!,
+      (await panel.locator('.tv-text').boundingBox())!,
+    ];
+    expect(body.x - outer.x).toBeGreaterThanOrEqual(18);
+    expect(await panel.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(
+      'rgb(255, 255, 255)',
+    );
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
+      true,
+    );
+    await panel.scrollIntoViewIfNeeded();
+    await panel.screenshot({ path: resolve(output, `machine-text-${width}.png`) });
+  });
+}
+
+for (const width of [320, 375, 767]) {
+  test(`phone browse tabs stay one row of 4 ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await fixture(page);
+    await page.goto('/money/ads?year=all');
+    const tabs = page.getByRole('tab');
+    await expect(tabs).toHaveCount(4);
+    await siteFontReady(page);
+    const boxes = await tabs.evaluateAll((els) =>
+      els.map((el) => {
+        const box = el.getBoundingClientRect();
+        const line = parseFloat(getComputedStyle(el).lineHeight);
+        return {
+          top: box.top,
+          height: box.height,
+          width: box.width,
+          lines: Math.round((el.scrollHeight - 15) / line),
+        };
+      }),
+    );
+    for (const box of boxes) {
+      expect(box.top).toBeCloseTo(boxes[0].top, 0);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(box.width).toBeGreaterThan(0);
+    }
+    const labels = await tabs.evaluateAll((els) =>
+      els.map((el) => {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const rects = [...range.getClientRects()].map((r) => Math.round(r.top));
+        return new Set(rects).size;
+      }),
+    );
+    await page.locator('.tv-tabs').screenshot({ path: resolve(output, `phone-tabs-${width}.png`) });
+    for (const lines of labels) expect(lines).toBeLessThanOrEqual(2);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
+      true,
+    );
+    await page.getByRole('tab', { name: 'Years' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('tab', { name: 'Years' })).toHaveAttribute('aria-selected', 'true');
+  });
+}
+
+test('phone standalone links have 44px targets that do not steal clicks', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await fixture(page);
+  for (const address of [
+    '/money/ads/files/fixture-file',
+    '/money/ads/folders/fixture-folder-tap',
+  ]) {
+    if (address.includes('folders'))
+      await page.route('**/api/v1/ads/folders/fixture-folder-tap', (r) =>
+        json(r, {
+          key: 'fixture-folder-tap',
+          station: 'KARE',
+          year: '2026',
+          category: 'State',
+          label: 'Synthetic campaign folder',
+          fcc_url: 'https://publicfiles.fcc.gov/tv-profile/kare',
+          files: [
+            { ...fileRow, version_id: hash, copy_id: copy, airing_periods: [], version_count: 1 },
+          ],
+        }),
+      );
+    await page.goto(address);
+    const links = page.locator('a.tv-tap');
+    await expect(links.first()).toBeVisible();
+    const results = await links.evaluateAll((els) =>
+      els.map((el) => {
+        const box = el.getBoundingClientRect();
+        const centre = document.elementFromPoint(
+          box.left + Math.min(8, box.width / 2),
+          box.top + box.height / 2,
+        );
+        return {
+          text: el.textContent?.trim().slice(0, 30),
+          height: box.height,
+          own: !!centre && (centre === el || el.contains(centre)),
+        };
+      }),
+    );
+    for (const result of results) {
+      expect(result.height, result.text).toBeGreaterThanOrEqual(44);
+      expect(result.own, result.text).toBe(true);
+    }
+  }
+});
+
+/** Reader-facing text in the TV pages that falls below WCAG AA on its real background. */
+async function lowContrast(page: Page) {
+  return page.evaluate(() => {
+    const parse = (value: string) => {
+      const m = value.match(/rgba?\(([^)]+)\)/);
+      if (!m) return null;
+      const [r, g, b, a = '1'] = m[1].split(/[ ,/]+/).filter(Boolean);
+      return { r: +r, g: +g, b: +b, a: +a };
+    };
+    const lum = ({ r, g, b }: { r: number; g: number; b: number }) => {
+      const c = [r, g, b].map((v) => {
+        const s = v / 255;
+        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    };
+    const background = (el: Element | null) => {
+      for (let node = el; node; node = node.parentElement) {
+        const bg = parse(getComputedStyle(node).backgroundColor);
+        if (bg && bg.a > 0.5) return bg;
+      }
+      return { r: 245, g: 246, b: 247, a: 1 };
+    };
+    const failures: string[] = [];
+    let checked = 0;
+    for (const el of document.querySelectorAll('.tv *')) {
+      if (el.closest('.tv-viewer, [aria-disabled=true], :disabled, .tv-sr')) continue;
+      const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent!.trim());
+      if (!own) continue;
+      const style = getComputedStyle(el);
+      const box = el.getBoundingClientRect();
+      if (!box.width || style.visibility === 'hidden' || +style.opacity < 0.9) continue;
+      const fg = parse(style.color)!;
+      checked += 1;
+      const ratio = (() => {
+        const [a, b] = [lum(fg), lum(background(el))].sort((x, y) => y - x);
+        return (a + 0.05) / (b + 0.05);
+      })();
+      const size = parseFloat(style.fontSize);
+      const large = size >= 24 || (size >= 18.66 && +style.fontWeight >= 700);
+      if (ratio < (large ? 3 : 4.5))
+        failures.push(`${el.textContent!.trim().slice(0, 40)} ${ratio.toFixed(2)}`);
+    }
+    return { failures, checked };
+  });
+}
+
+for (const width of [390, 1280]) {
+  test(`TV text meets contrast on its real background ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await fixture(page);
+    for (const [address, ready] of [
+      ['/money/ads?year=all', 'These counts can overlap'],
+      ['/money/ads/files/fixture-file?text=open', '111222'],
+      ['/money/ads?tab=years', '2024'],
+      ['/money/ads?q=Synthetic', 'Recent station uploads'],
+    ]) {
+      await page.goto(address);
+      await expect(page.getByText(ready, { exact: true }).first()).toBeVisible();
+      await expect(page.locator('.tv-skeleton, .tv-loading')).toHaveCount(0);
+      const { failures, checked } = await lowContrast(page);
+      expect(checked, address).toBeGreaterThan(10);
+      expect(failures, address).toEqual([]);
+    }
+  });
+}
