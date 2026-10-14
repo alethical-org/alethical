@@ -1411,5 +1411,8 @@ def test_queue_puts_checked_agency_and_checked_folder_files_first(db, source):
     rest = answer["rows"][2:]
     assert not any(row["suggested_first"] for row in rest)
     # The file already approved is not suggested first even though it matches.
-    own = next(row for row in rest if row["file_id"] == document.file_id)
+    # 2 versions share its file ID, so pick each by its exact contents.
+    own = next(row for row in rest if row["content_hash"] == document.content_hash)
     assert own["status"] == "approved"
+    newer = next(row for row in rest if row["name"] == "Own newer version")
+    assert newer["file_id"] == document.file_id and newer["status"] == "unprepared"
