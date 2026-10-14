@@ -157,8 +157,11 @@ function NewestCopy({ file }: { file: FileDetail }) {
   );
   return newest ? (
     <a className="tv-block-link" href={tvHref('file', file.key, { version: newest.id })}>
-      Show the newest approved copy
-      <Arrow />
+      Show the newest approved{' '}
+      <span className="tv-nowrap">
+        copy
+        <Arrow />
+      </span>
     </a>
   ) : (
     <p className="tv-notice tv-neutral-notice">An approved copy is not ready</p>
@@ -222,6 +225,61 @@ function FileContents({
       }}
     />
   );
+  const relatedCard = !!file.related?.length && (
+    <section className="tv-card">
+      <h2>Related documents</h2>
+      {file.related.map((related) => (
+        <div className="tv-fact" key={related.key}>
+          <Kind value={related.kind} />
+          <a
+            className="tv-block-link"
+            href={tvHref('file', related.key, {
+              version: related.version_id,
+              copy: related.copy_id,
+            })}
+          >
+            {related.name}
+            <Arrow />
+          </a>
+          <p>{related.reference}</p>
+          <Checked date={related.checked_at} />
+          {related.source_changed && (
+            <p className="tv-small">
+              The station file changed; this is the saved copy used for the check
+            </p>
+          )}
+        </div>
+      ))}
+    </section>
+  );
+  const otherFilesCard = (
+    <section className="tv-card tv-other-files">
+      <h2>Other files in this folder</h2>
+      {file.other_files?.length ? (
+        <FileRows files={file.other_files} folderContext={file} />
+      ) : (
+        <p className="tv-small">No other files to show</p>
+      )}
+    </section>
+  );
+  const limitsCard = (
+    <section className="tv-card tv-file-limits">
+      <h2>Limits of this record</h2>
+      <ul className="tv-plain-list">
+        {kindLimits(file.kind).map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+    </section>
+  );
+
+  const datesCard = dates.length > 0 && (
+    <section className="tv-card tv-dates-card">
+      <h2>Dates</h2>
+      {dates.map(dateValue)}
+    </section>
+  );
+
   return (
     <>
       <div className="tv-eyebrow">
@@ -353,11 +411,14 @@ function FileContents({
                 <h2>{facts.length ? 'Checked' : 'No facts have been checked yet'}</h2>
                 {facts.map(dateValue)}
               </section>
-              {dates.length > 0 && (
-                <section className="tv-card">
-                  <h2>Dates</h2>
-                  {dates.map(dateValue)}
-                </section>
+              {isDesktop || isMobile ? (
+                datesCard
+              ) : (
+                <div className="tv-file-side-column">
+                  {datesCard}
+                  {relatedCard}
+                  {limitsCard}
+                </div>
               )}
             </aside>
             <section className="tv-card tv-file-text">
@@ -430,7 +491,7 @@ function FileContents({
                         /advertiser|payer/i.test(fact.kind),
                     )
                     .map((fact) => (
-                      <div key={fact.id}>
+                      <div className="tv-printed" key={fact.id}>
                         <h3 className="tv-fact-label">{fact.kind}, as printed</h3>
                         <p>{fact.value}</p>
                         <a
@@ -445,51 +506,23 @@ function FileContents({
                 </>
               )}
             </section>
-            <div className="tv-file-related">
-              {!!file.related?.length && (
-                <section className="tv-card">
-                  <h2>Related documents</h2>
-                  {file.related.map((related) => (
-                    <div className="tv-fact" key={related.key}>
-                      <Kind value={related.kind} />
-                      <a
-                        className="tv-block-link"
-                        href={tvHref('file', related.key, {
-                          version: related.version_id,
-                          copy: related.copy_id,
-                        })}
-                      >
-                        {related.name}
-                        <Arrow />
-                      </a>
-                      <p>{related.reference}</p>
-                      <Checked date={related.checked_at} />
-                      {related.source_changed && (
-                        <p className="tv-small">
-                          The station file changed; this is the saved copy used for the check
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </section>
-              )}
-              <section className="tv-card">
-                <h2>Other files in this folder</h2>
-                {file.other_files?.length ? (
-                  <FileRows files={file.other_files} folderContext={file} />
-                ) : (
-                  <p className="tv-small">No other files to show</p>
-                )}
-              </section>
-            </div>
-            <section className="tv-card tv-file-limits">
-              <h2>Limits of this record</h2>
-              <ul className="tv-plain-list">
-                {kindLimits(file.kind).map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            </section>
+            {isDesktop ? (
+              <>
+                {otherFilesCard}
+                <div className="tv-file-related">
+                  {relatedCard}
+                  {limitsCard}
+                </div>
+              </>
+            ) : isMobile ? (
+              <>
+                {relatedCard}
+                {otherFilesCard}
+                {limitsCard}
+              </>
+            ) : (
+              otherFilesCard
+            )}
           </div>
         </>
       )}

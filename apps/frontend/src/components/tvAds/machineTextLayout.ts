@@ -94,6 +94,12 @@ function grid(lines: Array<Run[] | 'gap'>): Piece {
     const ends = all.filter((o) => o !== run && o.numeric && o.end === run.end).length;
     right.set(run, ends >= starts && ends > 0);
   }
+  // A column heading the source prints flush with the right-aligned figures under it
+  // shares their column, so the figures sit under their heading.
+  for (const run of all) {
+    if (run.numeric || all.some((o) => o !== run && o.start === run.start)) continue;
+    if (all.some((o) => right.get(o) && Math.abs(o.end - run.end) <= 1)) right.set(run, true);
+  }
   const anchorOf = (run: Run) => (right.get(run) ? run.end : run.start);
   const anchors = all.map((run) => ({ at: anchorOf(run), right: !!right.get(run) }));
   anchors.sort((a, b) => a.at - b.at);

@@ -42,6 +42,27 @@ const fileRow = {
   kind: 'Invoice',
   uploaded_at: stamp,
 };
+// Invented order page, shaped like the stations' extracted layout (columns as spaces).
+const orderText = [
+  'Print Date 01/02/26 10:00:00          Page 1 of 2',
+  '',
+  '                                               ORDER',
+  '',
+  'Orders              Order / Rev:              111222',
+  '                    Product Desc:             Synthetic Lakes Fund',
+  '',
+  '                    Estimate:                 4471                     Primary AE:        Pat Example',
+  '                    Flight Dates:             01/05/26 - 01/11/26      Sales Office:      H-XYZ',
+  '',
+  'Bill Plan',
+  'Start Date      End Date            # Spots      Gross Amount',
+  '01/05/26        01/31/26                 48        $9,650.00',
+  '02/01/26        02/01/26                  9          $950.00',
+  '',
+  'Name of advertiser (list the full legal name as disclosed to the Federal Election Commission [for federal',
+  'committees] with no acronyms):',
+  'Signature: ____________________',
+].join('\n');
 const counts = {
   station_files_held: 27,
   unique_file_contents: 24,
@@ -225,7 +246,7 @@ async function fixture(page: Page, allowed = true) {
         pages: [1, 2].map((number) => ({
           number,
           image_path: `/ads/files/fixture-file/pages/${number}?version=${version}&copy=${copy}`,
-          text: `Synthetic machine text page ${number}`,
+          text: number === 1 ? orderText : `Synthetic machine text page ${number}`,
           text_status: 'ready',
         })),
         facts: [
@@ -1217,3 +1238,245 @@ test('Back from the TV records landing returns to the money page', async ({ page
   await expect(page).toHaveURL(/\/money$/);
   await expect(page.getByRole('link', { name: /TV ad records/ })).toBeVisible();
 });
+
+for (const width of [390, 900, 1280]) {
+  test(`landing section spacing matches the drawing ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await fixture(page);
+    await page.goto('/money/ads?year=all');
+    await expect(page.getByText('These counts can overlap')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Recent station uploads' })).toBeVisible();
+    const gaps = await page.evaluate(() => {
+      const box = (el: Element | null | undefined) => el!.getBoundingClientRect();
+      const byText = (text: string) =>
+        [...document.querySelectorAll('.tv p, .tv h2, .tv h3')].find(
+          (el) => el.textContent?.trim() === text,
+        )!;
+      const overlap = byText('These counts can overlap');
+      const recent = document.querySelector('.tv-recent-card')!;
+      const sources = byText('Sources and copy dates');
+      const sourceNote = sources.nextElementSibling!;
+      const firstSource = document.querySelector('.tv-source')!;
+      return {
+        overlapAbove: box(overlap).top - box(overlap.previousElementSibling).bottom,
+        overlapBelow: box(overlap.nextElementSibling).top - box(overlap).bottom,
+        recentNameToRow:
+          box(recent.querySelector('.tv-row')).top - box(recent.querySelector('h3')).bottom,
+        sourcesHeadingToNote: box(sourceNote).top - box(sources).bottom,
+        sourcesNoteToColumns: box(firstSource).top - box(sourceNote).bottom,
+        searchToBrowse:
+          box(document.querySelector('.tv-tabs')).top -
+          box(document.querySelector('.tv-search-form')).bottom,
+      };
+    });
+    // Drawing values (live corrections items 6, 7, 7b and 11).
+    expect(gaps).toEqual({
+      overlapAbove: 14,
+      overlapBelow: 24,
+      recentNameToRow: 12,
+      sourcesHeadingToNote: 8,
+      sourcesNoteToColumns: 16,
+      searchToBrowse: 48,
+    });
+  });
+}
+
+for (const width of [390, 900, 1280]) {
+  test(`machine-read text keeps printed columns inside its panel ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await fixture(page);
+    await page.goto('/money/ads/files/fixture-file?text=open');
+    const panel = page.locator('.tv-file-text');
+    await expect(panel.getByText('111222', { exact: true })).toBeVisible();
+    const x = async (text: string) =>
+      (await panel.getByText(text, { exact: true }).boundingBox())!.x;
+    // Every value in the Orders block starts at one x, figures included.
+    expect(await x('111222')).toBeCloseTo(await x('Synthetic Lakes Fund'), 0);
+    expect(await x('4471')).toBeCloseTo(await x('01/05/26 - 01/11/26'), 0);
+    expect(await x('Pat Example')).toBeCloseTo(await x('H-XYZ'), 0);
+    // Figures right-align under one edge.
+    const right = async (text: string) => {
+      const box = (await panel.getByText(text, { exact: true }).boundingBox())!;
+      return box.x + box.width;
+    };
+    expect(await right('$9,650.00')).toBeCloseTo(await right('$950.00'), 0);
+    // The wrapped sentence is rejoined, the blank is drawn and named, words unchanged.
+    await expect(
+      panel.getByText(
+        'Name of advertiser (list the full legal name as disclosed to the Federal Election Commission [for federal committees] with no acronyms):',
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(panel.getByRole('img', { name: 'Blank line' })).toHaveCount(1);
+    await expect(panel.locator('.tv-mt-centred')).toHaveText('ORDER');
+    // The text sits inside the white panel at its padding, never on the page background.
+    const [outer, body] = [
+      (await panel.boundingBox())!,
+      (await panel.locator('.tv-text').boundingBox())!,
+    ];
+    expect(body.x - outer.x).toBeGreaterThanOrEqual(18);
+    expect(await panel.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(
+      'rgb(255, 255, 255)',
+    );
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
+      true,
+    );
+    await panel.scrollIntoViewIfNeeded();
+    await panel.screenshot({ path: resolve(output, `machine-text-${width}.png`) });
+  });
+}
+
+for (const width of [320, 375, 767]) {
+  test(`phone browse tabs stay one row of 4 ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await fixture(page);
+    await page.goto('/money/ads?year=all');
+    const tabs = page.getByRole('tab');
+    await expect(tabs).toHaveCount(4);
+    const boxes = await tabs.evaluateAll((els) =>
+      els.map((el) => {
+        const box = el.getBoundingClientRect();
+        const line = parseFloat(getComputedStyle(el).lineHeight);
+        return {
+          top: box.top,
+          height: box.height,
+          width: box.width,
+          lines: Math.round((el.scrollHeight - 15) / line),
+        };
+      }),
+    );
+    for (const box of boxes) {
+      expect(box.top).toBeCloseTo(boxes[0].top, 0);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(box.width).toBeGreaterThan(0);
+    }
+    const labels = await tabs.evaluateAll((els) =>
+      els.map((el) => {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const rects = [...range.getClientRects()].map((r) => Math.round(r.top));
+        return new Set(rects).size;
+      }),
+    );
+    for (const lines of labels) expect(lines).toBeLessThanOrEqual(2);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
+      true,
+    );
+    await page.getByRole('tab', { name: 'Years' }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('tab', { name: 'Years' })).toHaveAttribute('aria-selected', 'true');
+    await page.locator('.tv-tabs').screenshot({ path: resolve(output, `phone-tabs-${width}.png`) });
+  });
+}
+
+test('phone standalone links have 44px targets that do not steal clicks', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await fixture(page);
+  for (const address of [
+    '/money/ads/files/fixture-file',
+    '/money/ads/folders/fixture-folder-tap',
+  ]) {
+    if (address.includes('folders'))
+      await page.route('**/api/v1/ads/folders/fixture-folder-tap', (r) =>
+        json(r, {
+          key: 'fixture-folder-tap',
+          station: 'KARE',
+          year: '2026',
+          category: 'State',
+          label: 'Synthetic campaign folder',
+          fcc_url: 'https://publicfiles.fcc.gov/tv-profile/kare',
+          files: [
+            { ...fileRow, version_id: hash, copy_id: copy, airing_periods: [], version_count: 1 },
+          ],
+        }),
+      );
+    await page.goto(address);
+    const links = page.locator('a.tv-tap');
+    await expect(links.first()).toBeVisible();
+    const results = await links.evaluateAll((els) =>
+      els.map((el) => {
+        const box = el.getBoundingClientRect();
+        const centre = document.elementFromPoint(
+          box.left + Math.min(8, box.width / 2),
+          box.top + box.height / 2,
+        );
+        return {
+          text: el.textContent?.trim().slice(0, 30),
+          height: box.height,
+          own: !!centre && (centre === el || el.contains(centre)),
+        };
+      }),
+    );
+    for (const result of results) {
+      expect(result.height, result.text).toBeGreaterThanOrEqual(44);
+      expect(result.own, result.text).toBe(true);
+    }
+  }
+});
+
+/** Reader-facing text in the TV pages that falls below WCAG AA on its real background. */
+async function lowContrast(page: Page) {
+  return page.evaluate(() => {
+    const parse = (value: string) => {
+      const m = value.match(/rgba?\(([^)]+)\)/);
+      if (!m) return null;
+      const [r, g, b, a = '1'] = m[1].split(/[ ,/]+/).filter(Boolean);
+      return { r: +r, g: +g, b: +b, a: +a };
+    };
+    const lum = ({ r, g, b }: { r: number; g: number; b: number }) => {
+      const c = [r, g, b].map((v) => {
+        const s = v / 255;
+        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    };
+    const background = (el: Element | null) => {
+      for (let node = el; node; node = node.parentElement) {
+        const bg = parse(getComputedStyle(node).backgroundColor);
+        if (bg && bg.a > 0.5) return bg;
+      }
+      return { r: 245, g: 246, b: 247, a: 1 };
+    };
+    const failures: string[] = [];
+    let checked = 0;
+    for (const el of document.querySelectorAll('.tv *')) {
+      if (el.closest('.tv-viewer, [aria-disabled=true], :disabled, .tv-sr')) continue;
+      const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent!.trim());
+      if (!own) continue;
+      const style = getComputedStyle(el);
+      const box = el.getBoundingClientRect();
+      if (!box.width || style.visibility === 'hidden' || +style.opacity < 0.9) continue;
+      const fg = parse(style.color)!;
+      checked += 1;
+      const ratio = (() => {
+        const [a, b] = [lum(fg), lum(background(el))].sort((x, y) => y - x);
+        return (a + 0.05) / (b + 0.05);
+      })();
+      const size = parseFloat(style.fontSize);
+      const large = size >= 24 || (size >= 18.66 && +style.fontWeight >= 700);
+      if (ratio < (large ? 3 : 4.5))
+        failures.push(`${el.textContent!.trim().slice(0, 40)} ${ratio.toFixed(2)}`);
+    }
+    return { failures, checked };
+  });
+}
+
+for (const width of [390, 1280]) {
+  test(`TV text meets contrast on its real background ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await fixture(page);
+    for (const address of [
+      '/money/ads?year=all',
+      '/money/ads/files/fixture-file?text=open',
+      '/money/ads?tab=years',
+      '/money/ads?q=Synthetic',
+    ]) {
+      await page.goto(address);
+      await expect(page.locator('h1').first()).toBeVisible();
+      await page.waitForTimeout(300);
+      const { failures, checked } = await lowContrast(page);
+      expect(checked, address).toBeGreaterThan(10);
+      expect(failures, address).toEqual([]);
+    }
+  });
+}

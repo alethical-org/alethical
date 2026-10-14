@@ -368,6 +368,20 @@ def _latest_copies(db, facility_id=None, *, metadata=True):
     )
 
 
+def _representative(copies, document):
+    """The file a folder row describes itself by: an approved copy before a held
+    original, then the most recently downloaded, never whichever sorts first."""
+
+    def rank(p):
+        downloaded = document(p).last_downloaded_at
+        return (
+            p.status == "approved",
+            downloaded.timestamp() if downloaded else float("-inf"),
+        )
+
+    return max(copies, key=rank)
+
+
 def _archive_access(db):
     return db.info.get("tv_projection", {}).get("include_archive", False)
 
@@ -647,7 +661,7 @@ def browse(
         for p in selected:
             groups[(p.facility_id, docs[p.id].folder_id)].append(p)
         for (facility, folder), group in groups.items():
-            p = group[0]
+            p = _representative(group, lambda c: docs[c.id])
             rows.append(
                 {
                     "key": file_key(facility, folder),
@@ -1082,7 +1096,7 @@ def folder_detail(db, key):
     folder = next((f for f in _folders(db, facility) if f.folder_id == folder_id), None)
     if not copies and folder is None:
         raise LookupError("Not found")
-    first = copies[0] if copies else None
+    first = _representative(copies, lambda c: _document(db, c)) if copies else None
     doc = _document(db, first) if first else None
     if folder:
         year, category = _folder_date_parts(folder)
