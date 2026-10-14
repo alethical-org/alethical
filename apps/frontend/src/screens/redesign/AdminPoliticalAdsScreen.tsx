@@ -7,9 +7,11 @@ import { FolderReview } from '../../components/tvAdReview/FolderReview';
 import { CheckedReview } from '../../components/tvAdReview/CheckedReview';
 import { PrepareReview } from '../../components/tvAdReview/PrepareReview';
 import type { SuggestionState } from '../../components/tvAdReview/Suggestions';
+import { QueueRow as QueueFileRow } from '../../components/tvAdReview/QueueRow';
 import {
   ReviewAction,
   ReviewField,
+  ReviewSelect,
   reviewStyles as s,
 } from '../../components/tvAdReview/ReviewControls';
 import {
@@ -38,7 +40,17 @@ import { useAuth } from '../../providers/AuthProvider';
 import { theme as t } from '../../theme/tokens';
 import { NotFoundScreen } from './NotFoundScreen';
 
+const groupHeading = {
+  fontFamily: t.typography.ui,
+  fontSize: 17,
+  lineHeight: 24,
+  fontWeight: '800' as const,
+  color: t.colors.text.primary,
+};
+const groupNote = { ...s.note, fontSize: 14.5, color: '#4f5651' };
+
 function ReviewWorkspace({ token, onDenied }: { token: string; onDenied(): void }) {
+  const { isMobile, isTablet } = useResponsive();
   const [station, setStation] = useState('');
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState({ station: '', query: '', page: 1 });
@@ -234,33 +246,51 @@ function ReviewWorkspace({ token, onDenied }: { token: string; onDenied(): void 
   return (
     <View style={s.stack}>
       <View style={version ? { display: 'none' } : undefined}>
-        <View style={s.row}>
-          <ReviewField
-            label="Find a station file"
-            value={query}
-            onChange={setQuery}
-            disabled={busy}
-          />
-          <label style={{ fontFamily: 'Libre Franklin', lineHeight: '25px' }}>
-            Station
-            <select
-              aria-label="Station"
+        <View
+          style={
+            isMobile
+              ? { gap: 12 }
+              : isTablet
+                ? { gap: 12 }
+                : { flexDirection: 'row', alignItems: 'flex-end', gap: 12 }
+          }
+        >
+          <View style={isMobile || isTablet ? undefined : { flex: 1, minWidth: 0 }}>
+            <ReviewField
+              label="Find a station file"
+              value={query}
+              onChange={setQuery}
+              disabled={busy}
+            />
+          </View>
+          <View
+            style={
+              isTablet
+                ? { flexDirection: 'row', alignItems: 'flex-end', gap: 12 }
+                : isMobile
+                  ? { gap: 12 }
+                  : { flexDirection: 'row', alignItems: 'flex-end', gap: 12 }
+            }
+          >
+            <ReviewSelect
+              label="Station"
               value={station}
               disabled={busy}
-              onChange={(event) => setStation(event.target.value)}
-              style={{ display: 'block', minHeight: 48, font: 'inherit' }}
-            >
-              <option value="">All 3 stations</option>
-              {['KSTP-TV', 'KARE', 'KMSP-TV'].map((name) => (
-                <option key={name}>{name}</option>
-              ))}
-            </select>
-          </label>
-          <ReviewAction
-            label="Search private queue"
-            disabled={busy}
-            onPress={() => setSearch({ station, query: query.trim(), page: 1 })}
-          />
+              fill={isMobile}
+              onChange={setStation}
+              options={[
+                { value: '', label: 'All 3 stations' },
+                ...['KSTP-TV', 'KARE', 'KMSP-TV'].map((name) => ({ value: name, label: name })),
+              ]}
+            />
+            <View style={isMobile ? { alignSelf: 'stretch' } : undefined}>
+              <ReviewAction
+                label="Search private queue"
+                disabled={busy}
+                onPress={() => setSearch({ station, query: query.trim(), page: 1 })}
+              />
+            </View>
+          </View>
         </View>
         <View style={s.notice} accessibilityLiveRegion="polite">
           <Text style={s.note}>
@@ -278,64 +308,44 @@ function ReviewWorkspace({ token, onDenied }: { token: string; onDenied(): void 
         ) : null}
         {queue ? (
           <>
-            <View style={{ gap: 4, marginBottom: 12 }}>
-              <Text style={s.note}>
-                {queue.total.toLocaleString('en-US')} source{' '}
-                {queue.total === 1 ? 'version' : 'versions'}
-                {queue.first_total
-                  ? ` · ${queue.first_total.toLocaleString('en-US')} suggested first`
-                  : ''}{' '}
-                · page {queue.page}
-              </Text>
-              <Text style={s.note}>
-                Suggested first: files without an approved copy whose machine-read agency name is
-                already checked on another file, or whose folder was checked as relating to a
-                committee. Newest first after those.
-              </Text>
-            </View>
+            <Text style={[s.note, { marginBottom: 12 }]}>
+              {queue.total.toLocaleString('en-US')} source{' '}
+              {queue.total === 1 ? 'version' : 'versions'} · page {queue.page}
+            </Text>
             {queue.rows.length === 0 ? (
               <Text style={s.body}>No station files match this search</Text>
             ) : (
-              <View style={{ gap: 12 }}>
-                {queue.rows.map((row) => (
-                  <View
-                    key={`${row.facility_id}:${row.file_id}:${row.content_hash}`}
-                    style={s.card}
-                  >
-                    {row.suggested_first ? (
-                      <View style={s.stack}>
-                        <Text style={s.note}>Suggested first</Text>
-                        {(row.checked_agency_names ?? []).map((name) => (
-                          <Text key={`agency:${name}`} style={s.body}>
-                            Agency name already checked: {name}
+              [
+                queue.rows.filter((row) => row.suggested_first),
+                queue.rows.filter((row) => !row.suggested_first),
+              ].map((rows, index, groups) =>
+                rows.length ? (
+                  <View key={index} style={{ gap: 12, marginBottom: 24 }}>
+                    {groups[0].length ? (
+                      <View style={{ gap: 4 }}>
+                        <Text accessibilityRole="header" aria-level={3} style={groupHeading}>
+                          {index === 0 ? 'Suggested first' : 'Newest first'}
+                        </Text>
+                        {index === 0 ? (
+                          <Text style={groupNote}>
+                            Files without an approved copy whose machine-read agency name is already
+                            checked on another file, or whose folder was checked as relating to a
+                            committee
                           </Text>
-                        ))}
-                        {(row.folder_committees ?? []).map((name) => (
-                          <Text key={`folder:${name}`} style={s.body}>
-                            Folder checked as relating to {name}
-                          </Text>
-                        ))}
+                        ) : null}
                       </View>
                     ) : null}
-                    <Text style={s.label}>
-                      {row.call_sign} · {row.name}
-                    </Text>
-                    <Text style={s.note}>{row.folder_path}</Text>
-                    <Text style={s.note}>First saved: {centralDate(row.first_saved_at)}</Text>
-                    <Text style={s.note}>
-                      {row.uploaded_at
-                        ? `Source upload: ${centralDate(row.uploaded_at)}`
-                        : 'Upload date unavailable'}{' '}
-                      · {row.page_count} {row.page_count === 1 ? 'page' : 'pages'} · {row.status}
-                    </Text>
-                    <ReviewAction
-                      label={`Review ${row.name}`}
-                      disabled={busy}
-                      onPress={() => void select(row)}
-                    />
+                    {rows.map((row) => (
+                      <QueueFileRow
+                        key={`${row.facility_id}:${row.file_id}:${row.content_hash}`}
+                        row={row}
+                        disabled={busy}
+                        onOpen={() => void select(row)}
+                      />
+                    ))}
                   </View>
-                ))}
-              </View>
+                ) : null,
+              )
             )}
             <View style={s.row}>
               <ReviewAction

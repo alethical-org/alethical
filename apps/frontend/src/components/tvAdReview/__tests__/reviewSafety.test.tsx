@@ -671,7 +671,8 @@ describe('administrator TV review safety', () => {
       onDismiss: (key: string) => dismissed.add(key),
     };
     await render(<CheckedReview {...props} />);
-    expect(host.textContent).toContain('Suggested · Not checked');
+    expect(host.textContent).toContain('Not checked');
+    expect(host.textContent).not.toContain('Checked ·');
     expect(host.textContent).toContain('No machine reading is saved for this file');
     await click('Use suggestion: agency name Example Agency');
     const value = host.querySelector<HTMLInputElement>('[aria-label="Printed value"]')!;
@@ -741,7 +742,10 @@ describe('administrator TV review safety', () => {
       page_size: 25,
     });
     await render(screen());
-    expect(host.textContent).toContain('3 source versions · 1 suggested first · page 1');
+    expect(host.textContent).toContain('3 source versions · page 1');
+    expect(host.textContent).toContain('Suggested first');
+    expect(host.textContent).toContain('Not prepared');
+    expect(host.querySelector('[aria-label="Review Order 1"]')).not.toBeNull();
     expect(host.textContent).toContain('Agency name already checked: Example Agency');
     expect(host.textContent).toContain('Folder checked as relating to Example Committee');
   });

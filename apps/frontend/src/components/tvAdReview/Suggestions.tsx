@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
-import { Text, View } from 'react-native';
+import { Fragment, type ReactNode } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { theme as t } from '../../theme/tokens';
 import { ReviewAction, reviewStyles as s } from './ReviewControls';
 import {
   factLabel,
@@ -42,6 +43,36 @@ const MATCHES: Record<string, string> = {
   exact_date: 'Same date',
   within_stated_flight_dates: 'Date within the printed flight dates',
 };
+const identical = (match: SuggestedExpense['matches'][number]) =>
+  match.match === 'exact_amount'
+    ? Number(match.fcc_value) === Number(match.expense_value)
+    : match.match !== 'within_stated_flight_dates' && match.fcc_value === match.expense_value;
+/** Identical values print once, in the grid; only a difference in form prints both. */
+function matchLines(matches: SuggestedExpense['matches']) {
+  const pages = new Map<number, string[]>();
+  const lines: string[] = [];
+  for (const match of matches) {
+    if (identical(match)) {
+      const fields = pages.get(match.page) ?? [];
+      if (!fields.includes(factLabel(match.fcc_field))) fields.push(factLabel(match.fcc_field));
+      pages.set(match.page, fields);
+    } else {
+      lines.push(
+        `${MATCHES[match.match] ?? match.match}: printed ${factLabel(match.fcc_field)} “${shown(
+          match.fcc_field,
+          match.fcc_value,
+        )}” on page ${match.page}, reported ${shown(
+          match.fcc_field === 'flight_dates' ? 'date' : match.fcc_field,
+          match.expense_value,
+        )}`,
+      );
+    }
+  }
+  return [
+    ...[...pages].map(([page, fields]) => `Matches page ${page}: ${fields.join(', ')}`),
+    ...lines,
+  ];
+}
 const EXPENSE_REASONS: Record<string, string> = {
   extraction_not_found: 'No machine reading is saved for this file, so no expense is suggested',
   need_page_grounded_name_and_amount_or_date:
@@ -57,9 +88,76 @@ export const committeeKey = (item: SuggestedCommittee) =>
   `committee:${item.registration_number}:${item.evidence.field}:${item.evidence.page}:${item.evidence.quote}`;
 export const expenseKey = (item: SuggestedExpense) => `expense:${item.target_id}`;
 
+const c = StyleSheet.create({
+  card: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(17,21,15,0.32)',
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    paddingVertical: 16,
+    paddingHorizontal: 17,
+  },
+  status: {
+    fontFamily: t.typography.ui,
+    fontSize: 14.5,
+    lineHeight: 21,
+    fontWeight: '600',
+    color: '#7a5a12',
+  },
+  kind: {
+    fontFamily: t.typography.ui,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '600',
+    color: '#4f5651',
+  },
+  value: {
+    fontFamily: t.typography.body,
+    fontSize: 17,
+    lineHeight: 24,
+    fontWeight: '700',
+    color: '#11150f',
+    fontVariant: ['tabular-nums'],
+  },
+  line: {
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#4f5651',
+    fontVariant: ['tabular-nums'],
+  },
+  warn: {
+    fontFamily: t.typography.ui,
+    fontSize: 14.5,
+    lineHeight: 21,
+    fontWeight: '600',
+    color: '#7a5a12',
+  },
+  info: {
+    fontFamily: t.typography.body,
+    fontSize: 14.5,
+    lineHeight: 21,
+    color: '#4f5651',
+  },
+  match: {
+    fontFamily: t.typography.body,
+    fontSize: 14.5,
+    lineHeight: 21,
+    color: '#2c322c',
+    fontVariant: ['tabular-nums'],
+  },
+});
+const wrap = { overflowWrap: 'anywhere' } as object;
+type Notice = { text: string; tone: 'warn' | 'info' };
+const missingLine = (page: number): Notice => ({
+  text: `This quote is not in the safe text for page ${page}. Edit it to match before saving.`,
+  tone: 'warn',
+});
+
 function Card({
   children,
-  status,
+  notice,
   useLabel,
   dismissLabel,
   disabled,
@@ -67,7 +165,7 @@ function Card({
   onDismiss,
 }: {
   children: ReactNode;
-  status?: string;
+  notice?: Notice;
   useLabel: string;
   dismissLabel: string;
   disabled: boolean;
@@ -75,11 +173,15 @@ function Card({
   onDismiss: () => void;
 }) {
   return (
-    <View style={s.card}>
-      <Text style={s.note}>Suggested · Not checked</Text>
-      {children}
-      {status ? <Text style={s.body}>{status}</Text> : null}
-      <View style={s.row}>
+    <View style={c.card}>
+      <Text style={c.status}>Not checked</Text>
+      <View style={{ marginTop: 8 }}>{children}</View>
+      {notice ? (
+        <Text style={[notice.tone === 'warn' ? c.warn : c.info, { marginTop: 8 }]}>
+          {notice.text}
+        </Text>
+      ) : null}
+      <View style={[s.row, { marginTop: 14 }]}>
         {onUse ? (
           <ReviewAction
             label="Use suggestion"
@@ -150,9 +252,13 @@ function Group<T>({
         </View>
       </View>
       {state?.error ? <ReviewAction label="Retry suggestions" onPress={onRetry} /> : null}
-      {shown.map((item) => (
-        <View key={keyOf(item)}>{render(item)}</View>
-      ))}
+      {shown.length ? (
+        <View style={{ gap: 12 }}>
+          {shown.map((item) => (
+            <View key={keyOf(item)}>{render(item)}</View>
+          ))}
+        </View>
+      ) : null}
       {hidden.length ? (
         <ReviewAction
           label={`Show ${hidden.length} dismissed ${hidden.length === 1 ? 'suggestion' : 'suggestions'}`}
@@ -181,7 +287,7 @@ export function FactSuggestions({
     <Group
       {...shared}
       title="Suggested facts"
-      intro="Machine-read values from the original. Using one copies it into the form below; check it against the prepared page before saving."
+      intro="Machine-read from the original. Use suggestion copies a value into the form below."
       items={shared.state?.data?.facts ?? []}
       keyOf={factKey}
       empty="Machine reading found no facts on this file"
@@ -192,21 +298,24 @@ export function FactSuggestions({
           dismissLabel={`Dismiss suggestion: ${factLabel(item.field)} ${item.value}`}
           onUse={item.already_checked ? undefined : () => onUse(item)}
           onDismiss={() => shared.onDismiss(factKey(item))}
-          status={
+          notice={
             item.already_checked
-              ? 'Already checked on this copy'
+              ? { text: 'Already checked on this copy', tone: 'info' }
               : !item.in_safe_text
-                ? `This line is not in the safe text for page ${item.page}. Edit the quote to match the safe text before saving.`
+                ? missingLine(item.page)
                 : item.field === 'organization_address'
-                  ? 'Add the organization named in the address and its printed role before saving'
+                  ? {
+                      text: 'Add the organization named in the address and its printed role before saving',
+                      tone: 'info',
+                    }
                   : undefined
           }
         >
-          <Text style={s.label}>{sentence(factLabel(item.field))}</Text>
-          <Text selectable style={s.body}>
+          <Text style={c.kind}>{sentence(factLabel(item.field))}</Text>
+          <Text selectable style={[c.value, wrap, { marginTop: 2 }]}>
             {item.value}
           </Text>
-          <Text selectable style={s.note}>
+          <Text selectable style={[c.line, wrap, { marginTop: 6 }]}>
             Page {item.page} · “{item.quote}”
           </Text>
         </Card>
@@ -223,7 +332,7 @@ export function CommitteeSuggestions({
     <Group
       {...shared}
       title="Possible committees"
-      intro="Registered committees whose name has the same spelling as the printed advertiser or payer"
+      intro="Registered committees with the same spelling as the printed advertiser or payer"
       items={shared.state?.data?.committees ?? []}
       keyOf={committeeKey}
       empty="No registered committee has the same spelling as the printed advertiser or payer"
@@ -234,25 +343,26 @@ export function CommitteeSuggestions({
           dismissLabel={`Dismiss suggestion: committee ${item.name}`}
           onUse={item.already_connected ? undefined : () => onUse(item)}
           onDismiss={() => shared.onDismiss(committeeKey(item))}
-          status={
+          notice={
             item.already_connected
-              ? 'Already connected to this copy'
+              ? { text: 'Already connected to this copy', tone: 'info' }
               : !item.in_safe_text
-                ? `This line is not in the safe text for page ${item.evidence.page}. Edit the quote to match the safe text before saving.`
+                ? missingLine(item.evidence.page)
                 : undefined
           }
         >
-          <Text style={s.label}>{item.name}</Text>
-          <Text style={s.note}>
+          <Text selectable style={[c.value, wrap]}>
+            {item.name}
+          </Text>
+          <Text style={[c.line, { marginTop: 2 }]}>
             Registration {item.registration_number}
             {item.office ? ` · ${item.office}` : ''}
             {item.district ? ` ${item.district}` : ''}
             {item.terminated ? ' · Registration ended' : ''}
           </Text>
-          <Text selectable style={s.note}>
-            Same spelling as the printed {factLabel(item.evidence.field)} on page{' '}
-            {item.evidence.page} ({item.evidence.source === 'checked' ? 'Checked' : 'Machine-read'}
-            ): “{item.evidence.quote}”
+          <Text selectable style={[c.line, wrap, { marginTop: 6 }]}>
+            Page {item.evidence.page} · printed {factLabel(item.evidence.field)}
+            {item.evidence.source === 'checked' ? ' · Checked' : ''} · “{item.evidence.quote}”
           </Text>
         </Card>
       )}
@@ -276,43 +386,59 @@ export function ExpenseSuggestions({
         (result && EXPENSE_REASONS[result.reason]) ??
         'No reported expense is suggested for this file'
       }
-      render={(item) => (
-        <Card
-          disabled={shared.disabled}
-          useLabel={`Use suggestion: expense row ${item.source_row_number}`}
-          dismissLabel={`Dismiss suggestion: expense row ${item.source_row_number}`}
-          onUse={item.already_connected || !item.evidence ? undefined : () => onUse(item)}
-          onDismiss={() => shared.onDismiss(expenseKey(item))}
-          status={
-            item.already_connected
-              ? 'Already connected to this copy'
-              : item.existing_link_status === 'rejected'
-                ? 'An earlier review rejected this match'
-                : item.evidence && !item.in_safe_text
-                  ? `This line is not in the safe text for page ${item.evidence.page}. Edit the quote to match the safe text before saving.`
-                  : undefined
-          }
-        >
-          <Text style={s.label}>
-            {item.source_dataset === 'independent_expenditures'
-              ? 'Independent expenditure'
-              : 'Campaign expense'}{' '}
-            · row {item.source_row_number}
-          </Text>
-          {item.fields.map((field) => (
-            <Text key={field.label} selectable style={s.body}>
-              {field.label}: {shown(field.label, field.value)}
+      render={(item) => {
+        const paidTo = item.fields.find((field) => field.label === 'Paid to')?.value;
+        const amount = item.fields.find((field) => field.label === 'Amount')?.value;
+        const name = `${paidTo ? `paid to ${paidTo}` : `row ${item.source_row_number}`}${
+          amount ? `, ${shown('Amount', amount)}` : ''
+        }`;
+        return (
+          <Card
+            disabled={shared.disabled}
+            useLabel={`Use suggestion: expense ${name}`}
+            dismissLabel={`Dismiss suggestion: expense ${name}`}
+            onUse={item.already_connected || !item.evidence ? undefined : () => onUse(item)}
+            onDismiss={() => shared.onDismiss(expenseKey(item))}
+            notice={
+              item.already_connected
+                ? { text: 'Already connected to this copy', tone: 'info' }
+                : item.existing_link_status === 'rejected'
+                  ? { text: 'An earlier review rejected this match', tone: 'warn' }
+                  : item.evidence && !item.in_safe_text
+                    ? missingLine(item.evidence.page)
+                    : undefined
+            }
+          >
+            <Text style={c.kind}>
+              {item.source_dataset === 'independent_expenditures'
+                ? 'Independent expenditure'
+                : 'Campaign expense'}
             </Text>
-          ))}
-          {item.matches.map((match, index) => (
-            <Text key={index} selectable style={s.note}>
-              {MATCHES[match.match] ?? match.match}: printed {factLabel(match.fcc_field)} “
-              {shown(match.fcc_field, match.fcc_value)}” on page {match.page}, reported “
-              {shown(match.fcc_field, match.expense_value)}”
-            </Text>
-          ))}
-        </Card>
-      )}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'max-content minmax(0, 1fr)',
+                gap: '4px 16px',
+                marginTop: 6,
+              }}
+            >
+              {item.fields.map((field) => (
+                <Fragment key={field.label}>
+                  <Text style={c.kind}>{field.label}</Text>
+                  <Text selectable style={[c.match, wrap, { color: '#11150f', fontSize: 15.5 }]}>
+                    {shown(field.label, field.value)}
+                  </Text>
+                </Fragment>
+              ))}
+            </div>
+            {matchLines(item.matches).map((line) => (
+              <Text key={line} selectable style={[c.match, wrap, { marginTop: 10 }]}>
+                {line}
+              </Text>
+            ))}
+          </Card>
+        );
+      }}
     />
   );
 }
