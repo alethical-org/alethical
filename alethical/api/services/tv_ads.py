@@ -22,6 +22,7 @@ from alethical.api.services.tv_ad_review import (
     original_page_count,
 )
 from alethical.pipeline.fcc_document_text import EXTRACTOR_VERSION
+from alethical.api.services.campaign_finance_races import contest_anchor
 from alethical.pipeline import fcc_expense_links
 from alethical.pipeline.fcc_public_files import DEFAULT_STATIONS
 
@@ -295,6 +296,7 @@ def _row(db, p):
         "key": file_key(p.facility_id, p.file_id),
         "name": p.safe_title,
         "label": p.safe_title,
+        "folder_label": p.safe_folder,
         "station": STATIONS[p.facility_id].call_sign,
         "year": doc.year,
         "category": p.category,
@@ -623,12 +625,17 @@ def browse(
         for p in selected:
             row = _row(db, p)
             match = None
-            for label, value in [
-                ("File name", p.safe_title),
-                ("Folder label", p.safe_folder),
+            for label, value, shown in [
+                # The row's own title already shows the matching name.
+                ("Matched the file name", p.safe_title, None),
+                (
+                    "Matched the folder label",
+                    p.safe_folder,
+                    f"Folder “{p.safe_folder}”",
+                ),
             ]:
                 if query in value.casefold():
-                    match = (label, value, False)
+                    match = (label, shown, False)
                     break
             if match is None:
                 for fact in _facts(db, p.id):
@@ -637,7 +644,11 @@ def browse(
                         and fact.publication_approved
                         and query in fact.value.casefold()
                     ):
-                        match = ("Checked fact", fact.value, False)
+                        match = (
+                            "Matched a checked fact",
+                            f"{fact.field.replace('_', ' ').capitalize()}: {fact.value}",
+                            False,
+                        )
                         break
             if match is None:
                 parts = p.safe_pages if p.status == "approved" else []
@@ -650,9 +661,12 @@ def browse(
                     value = part.get("text", "")
                     idx = value.casefold().find(query)
                     if idx >= 0:
+                        start, end = max(0, idx - 80), idx + len(q) + 160
                         match = (
-                            f"Machine-read text · page {part['page']}",
-                            value[max(0, idx - 80) : idx + len(q) + 160],
+                            f"Matched the file text, page {part['page']}",
+                            ("…" if start else "")
+                            + value[start:end]
+                            + ("…" if end < len(value) else ""),
                             True,
                         )
                         break
@@ -770,6 +784,53 @@ def browse(
     }
 
 
+def _printed_role(role):
+    """A printed role as a line: "Advertiser, as printed"."""
+    role = (role or "").strip()
+    return f"{role[:1].upper()}{role[1:]}, as printed" if role else ""
+
+
+def _candidate_role(role, page=None):
+    """Plain words for a candidate connection's role; never the stored code."""
+    if role in ("advertiser", "payer"):
+        return f"{role.capitalize()}, as printed"
+    return f"Named on page {page}" if page else "Named on the file"
+
+
+def _election_name(snapshot):
+    """ "2026 general election", from the checked election's own year and stage."""
+    year, stage = snapshot.get("year"), snapshot.get("election_stage")
+    return f"{year} {stage} election" if year and stage else ""
+
+
+def _race_seat(snapshot):
+    """The seat as the race page names it ("House District 99A"), when the check
+    established the campaign-money contest; otherwise the checked office as stored."""
+    context = snapshot.get("money_context") or {}
+    office, district = context.get("office"), context.get("district")
+    if office in ("House", "Senate") and district:
+        return f"{office} District {district}"
+    return snapshot.get("label", "")
+
+
+def _race_href(snapshot):
+    """The race page for a checked election connection, only when the check also
+    established the campaign-money contest; never a page guessed from a name."""
+    context = snapshot.get("money_context") or {}
+    if not context.get("office") or not context.get("year"):
+        return ""
+    anchor = contest_anchor(context["office"], context.get("district"))
+    return f"/money/races/{quote(anchor)}?year={context['year']}"
+
+
+def _role_line(kind, snapshot, page=None):
+    if kind == "candidate":
+        return _candidate_role(snapshot.get("role"), page)
+    if kind in ("committee", "principal"):
+        return _printed_role(snapshot.get("role"))
+    return snapshot.get("role", "")
+
+
 def _connection_payload(db, c, version_id, key):
     if c.status == "withdrawn":
         return {
@@ -780,12 +841,21 @@ def _connection_payload(db, c, version_id, key):
             "version_id": version_id,
         }
     snapshot = c.target_snapshot or {}
+    label, href = snapshot.get("label", c.target_id), snapshot.get("href", "")
+    if c.kind == "election":
+        label = " · ".join(
+            part for part in (_election_name(snapshot), _race_seat(snapshot)) if part
+        )
+        href = _race_href(snapshot)
     item = {
         "id": str(c.id),
         "kind": c.kind,
-        "label": snapshot.get("label", c.target_id),
-        "href": snapshot.get("href", ""),
-        "role": snapshot.get("role", ""),
+        "label": label,
+        "href": href,
+        # The file page prints "{role} on page {n}" with the page as its link.
+        "role": "Named"
+        if c.kind == "candidate" and snapshot.get("role") == "named" and c.page
+        else _role_line(c.kind, snapshot),
         "quote": c.quote,
         "page": c.page,
         "version_id": version_id,
@@ -967,6 +1037,7 @@ def file_detail(db, key, version=None, copy_id=None):
     ][:12]
     return {
         **_row(db, selected),
+        "agencies": _file_agencies(db, selected),
         "folder": {
             "key": file_key(facility, doc.folder_id),
             "label": selected.safe_folder,
@@ -998,6 +1069,14 @@ def file_detail(db, key, version=None, copy_id=None):
     }
 
 
+def _file_agencies(db, copy):
+    """Each printed agency name on this file, with its page of files printing it."""
+    return [
+        {"key": agency_key(name), "name": name, "unchecked": pending}
+        for name, pending in sorted(_agency_names(db, copy).items())
+    ]
+
+
 def _version_status(content_hash, pubs):
     return (
         "approved"
@@ -1017,6 +1096,7 @@ def _archive_detail(db, key, doc, docs, current, pubs):
     copy = _archive_copy(doc)
     return {
         **_row(db, copy),
+        "agencies": _file_agencies(db, copy),
         "folder": {
             "key": file_key(doc.facility_id, doc.folder_id),
             "label": copy.safe_folder,
@@ -1158,7 +1238,8 @@ def folder_detail(db, key):
 def agency_detail(db, key):
     groups = defaultdict(list)
     name = None
-    addresses = []
+    # One entry per identical printed address, listing every file that prints it.
+    addresses = {}
     unchecked = False
     for p in _latest_copies(db):
         facts = [
@@ -1181,21 +1262,20 @@ def agency_detail(db, key):
                 and getattr(f, "agency_address_reviewed", False)
                 and getattr(f, "organization_name", None) == name
             ):
-                addresses.append(
+                entry = addresses.setdefault(
+                    f.value, {"address": f.value, "roles": [], "evidence": []}
+                )
+                entry["roles"].append(f.role)
+                entry["evidence"].append(
                     {
-                        "address": f.value,
+                        "file_key": row["key"],
+                        "file_name": row["name"],
+                        "version_id": p.content_hash,
+                        "copy_id": str(p.id),
+                        "page": f.page,
+                        "uploaded_at": row["uploaded_at"],
+                        "checked_at": iso(f.checked_at),
                         "role": f.role,
-                        "evidence": [
-                            {
-                                "file_key": row["key"],
-                                "file_name": row["name"],
-                                "version_id": p.content_hash,
-                                "copy_id": str(p.id),
-                                "page": f.page,
-                                "uploaded_at": row["uploaded_at"],
-                                "checked_at": iso(f.checked_at),
-                            }
-                        ],
                     }
                 )
     if name is None:
@@ -1204,13 +1284,33 @@ def agency_detail(db, key):
         "key": key,
         "name": name,
         "unchecked": unchecked,
-        "payments_href": f"/money/payments?name={quote(name)}&role=vendor",
+        "payments_href": _payments_href(name, "vendor"),
+        "independent_payments_href": _payments_href(name, "independent_vendor"),
         "groups": [
             {"station": station, "year": year, "files": files}
             for (station, year), files in groups.items()
         ],
-        "addresses": addresses,
+        "addresses": [
+            {
+                "address": entry["address"],
+                # A role shared by every file is stated once for the address;
+                # differing roles stay beside the file that prints each.
+                "role": entry["roles"][0] if len(set(entry["roles"])) == 1 else None,
+                "evidence": [
+                    {**source, "role": None}
+                    if len(set(entry["roles"])) == 1
+                    else source
+                    for source in entry["evidence"]
+                ],
+            }
+            for entry in addresses.values()
+        ],
     }
+
+
+def _payments_href(name, role):
+    """Campaign payments under this exact printed name, for one paid-to role."""
+    return f"/money/payments?name={quote(name)}&role={role}"
 
 
 @projection(scope="station")
@@ -1272,6 +1372,48 @@ def station_detail(db, key):
     }
 
 
+def _joined(lines):
+    return " · ".join(dict.fromkeys(line for line in lines if line))
+
+
+def _candidate_committees(db, candidate_id):
+    """The committees confirmed as this candidate's: the candidate's confirmed
+    legislator, then that legislator's confirmed committees. Names alone never
+    connect them, so an unconfirmed candidate has none."""
+    from zoneinfo import ZoneInfo
+
+    from alethical.api.services.candidate_legislators import confirmed_legislator
+    from alethical.api.services.legislator_finance import confirmed_committee_links
+
+    record = db.get(m.CandidateRecord, candidate_id)
+    if record is None:
+        return []
+    person = confirmed_legislator(
+        db,
+        record.public_payload,
+        today=datetime.now(ZoneInfo("America/Chicago")).date(),
+    )
+    if not person:
+        return []
+    return [
+        (link.registration_number, link.committee_name)
+        for link in confirmed_committee_links(db, UUID(person["id"]))
+    ]
+
+
+def _committee_identity(db, registration_number):
+    """The register's own name, office and district for a committee, if held."""
+    pointer = db.get(m.CampaignFinanceFilingCurrentSnapshot, True)
+    filer = (
+        db.get(m.CampaignFinanceFiler, (pointer.snapshot_id, registration_number))
+        if pointer and pointer.snapshot_id
+        else None
+    )
+    if filer is None:
+        return None
+    return {"name": filer.name, "office": filer.office, "district": filer.district}
+
+
 @projection
 def connected(db, kind, target):
     rows = []
@@ -1292,28 +1434,23 @@ def connected(db, kind, target):
             race_context["year"], int
         ):
             raise ValueError("Invalid race context")
+    committees = _candidate_committees(db, target) if kind == "candidate" else []
+    # Files bought or named by the candidate's own committee come first, and are
+    # never mixed with files that merely print the candidate's name.
+    for _, name in committees:
+        groups[f"Files with a checked connection to {name}"]
+    named = "Station files that name this candidate"
     for p in _latest_copies(db, metadata=False):
-        query = select(m.TVAdConnection).where(
-            m.TVAdConnection.publication_id == p.id,
-            m.TVAdConnection.scope == "file",
-            m.TVAdConnection.status == "checked",
-            m.TVAdConnection.publication_approved.is_(True),
-        )
-        if kind == "race":
-            matches = [
-                c
-                for c in db.scalars(query.where(m.TVAdConnection.kind == "election"))
-                if c.target_snapshot.get("money_context") == race_context
-            ]
-        else:
-            matches = list(
-                db.scalars(
-                    query.where(
-                        m.TVAdConnection.kind == kind,
-                        m.TVAdConnection.target_id == target,
-                    )
+        checked = list(
+            db.scalars(
+                select(m.TVAdConnection).where(
+                    m.TVAdConnection.publication_id == p.id,
+                    m.TVAdConnection.scope == "file",
+                    m.TVAdConnection.status == "checked",
+                    m.TVAdConnection.publication_approved.is_(True),
                 )
             )
+        )
         if kind == "name":
             matches = [
                 f
@@ -1323,37 +1460,83 @@ def connected(db, kind, target):
                 and f.status == "checked"
                 and f.publication_approved
             ]
+        elif kind == "race":
+            matches = [
+                c
+                for c in checked
+                if c.kind == "election"
+                and (c.target_snapshot or {}).get("money_context") == race_context
+            ]
+        else:
+            matches = [c for c in checked if c.kind == kind and c.target_id == target]
+        row = None
+        for registration_number, name in committees:
+            hits = [
+                c
+                for c in checked
+                if c.kind == "committee" and c.target_id == registration_number
+            ]
+            if hits:
+                row = row or _row(db, p)
+                groups[f"Files with a checked connection to {name}"].append(
+                    {
+                        **row,
+                        "role": _joined(
+                            _printed_role((c.target_snapshot or {}).get("role"))
+                            for c in hits
+                        ),
+                    }
+                )
         if not matches:
+            if row:
+                rows.append(row)
             continue
-        row = _row(db, p)
-        roles = set()
-        for match in matches:
-            snapshot = getattr(match, "target_snapshot", {}) or {}
-            role = snapshot.get("role", "")
-            label = (
-                (
-                    "Advertiser or payer"
-                    if role in ("advertiser", "payer")
-                    else "Named on the document"
-                )
-                if kind == "candidate"
-                else (
-                    str(snapshot.get("election_stage", "")).capitalize() + " election"
-                    if kind == "race"
-                    else role
-                )
+        row = row or _row(db, p)
+        snapshots = [(getattr(c, "target_snapshot", {}) or {}, c) for c in matches]
+        if kind == "race":
+            for label in sorted(
+                {
+                    str(s.get("election_stage", "")).capitalize() + " election"
+                    for s, _ in snapshots
+                }
+            ):
+                groups[label].append({**row, "role": label})
+        elif kind == "candidate":
+            groups[named].append(
+                {
+                    **row,
+                    "role": _joined(
+                        _candidate_role(s.get("role"), getattr(c, "page", None))
+                        for s, c in snapshots
+                    ),
+                }
             )
-            roles.add(label)
-        for label in sorted(roles):
-            groups[label].append({**row, "role": label})
+        else:
+            groups[""].append(
+                {
+                    **row,
+                    "role": _joined(_role_line(kind, s) for s, _ in snapshots),
+                    "election": _joined(
+                        _election_name(c.target_snapshot or {})
+                        for c in checked
+                        if c.kind == "election"
+                    )
+                    or None,
+                }
+            )
         rows.append(row)
-    return {
+    result = {
         "agency_key": agency_key(target) if kind == "name" and rows else None,
         "exact_name_count": len(rows),
         "files": rows,
         "total": len(rows),
-        "groups": [{"label": label, "files": items} for label, items in groups.items()],
+        "groups": [
+            {"label": label, "files": items} for label, items in groups.items() if items
+        ],
     }
+    if kind == "committee":
+        result["committee"] = _committee_identity(db, target)
+    return result
 
 
 def _fcc_available(db, facility, file_id):

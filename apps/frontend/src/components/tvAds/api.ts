@@ -40,6 +40,10 @@ export interface FileRow extends CopyReference {
   kind?: string | null;
   uploaded_at: string | null;
   role?: string;
+  /** The station's own label for the folder that holds the file. */
+  folder_label?: string | null;
+  /** The checked election and stage, e.g. "2026 general election". */
+  election?: string | null;
 }
 export interface BrowseRow extends CopyReference {
   unchecked?: boolean;
@@ -135,6 +139,8 @@ export interface FileDetail {
   kind?: string | null;
   uploaded_at?: string | null;
   folder?: { key: string; label: string };
+  /** Each printed agency name on this file, with its own page. */
+  agencies?: Array<{ key: string; name: string; unchecked: boolean }>;
   fcc_url?: string;
   fcc_available?: boolean;
   versions: SavedVersion[];
@@ -168,6 +174,7 @@ export interface AgencyDetail {
   key: string;
   name: string;
   payments_href?: string;
+  independent_payments_href?: string;
   groups: Array<{ station: string; year: string | number; files: FileRow[] }>;
   addresses: Array<{
     address: string;
@@ -180,6 +187,7 @@ export interface AgencyDetail {
       page: number;
       uploaded_at: string | null;
       checked_at: string;
+      role?: string | null;
     }>;
   }>;
 }
@@ -198,6 +206,8 @@ export interface StationDetail {
   }>;
 }
 export interface ConnectionResult {
+  /** The register's own name and seat for a committee card. */
+  committee?: { name: string; office: string | null; district: string | null } | null;
   files: FileRow[];
   groups?: Array<{ label: string; files: FileRow[] }>;
   agency_key?: string;

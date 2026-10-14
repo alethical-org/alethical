@@ -114,6 +114,7 @@ function LaneCard({
   wide,
   cardWidth,
   administrator = false,
+  countLoading = false,
 }: {
   title: string;
   body: string;
@@ -129,6 +130,8 @@ function LaneCard({
   wide: boolean;
   cardWidth: number;
   administrator?: boolean;
+  /** Holds the count line's place with a grey bar while the count loads. */
+  countLoading?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
   const reduceMotion = useReducedMotion();
@@ -167,6 +170,10 @@ function LaneCard({
       <Text style={[styles.laneBody, (tablet || stacked) && styles.laneBodyNarrow]}>{body}</Text>
       {countLine ? (
         <Text style={[styles.laneCount, stacked && styles.laneCountMobile]}>{countLine}</Text>
+      ) : countLoading ? (
+        <View style={styles.laneCountSlot} accessibilityElementsHidden>
+          <View style={styles.laneCountPlaceholder} />
+        </View>
       ) : null}
     </Pressable>
   );
@@ -203,10 +210,12 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
   const wide = width >= 1440;
   const admin = useTVAdAccess();
   const { accessToken } = useAuth();
-  const [tvCount, setTvCount] = useState<number | null>(null);
+  // undefined while loading; null when the count could not be read, which removes
+  // the line rather than printing 0.
+  const [tvCount, setTvCount] = useState<number | null | undefined>(undefined);
   const tvAllowed = admin.state === 'allowed';
   useEffect(() => {
-    setTvCount(null);
+    setTvCount(undefined);
     if (admin.state !== 'allowed' || !accessToken) return;
     const controller = new AbortController();
     void readTV<{ station_files_held: number }>(accessToken, '/counts', controller.signal).then(
@@ -215,7 +224,9 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
           setTvCount(value.station_files_held);
         }
       },
-      () => {},
+      () => {
+        if (!controller.signal.aborted) setTvCount(null);
+      },
     );
     return () => controller.abort();
   }, [admin.state, accessToken]);
@@ -397,10 +408,11 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                 title="TV ad records"
                 body="Orders, invoices, and agreements for political ads from 3 Twin Cities TV stations"
                 countLine={
-                  tvCount === null
-                    ? null
-                    : `${tvCount.toLocaleString('en-US')} STATION ${tvCount === 1 ? 'FILE' : 'FILES'}`
+                  typeof tvCount === 'number'
+                    ? `${tvCount.toLocaleString('en-US')} STATION ${tvCount === 1 ? 'FILE' : 'FILES'}`
+                    : null
                 }
+                countLoading={tvCount === undefined}
                 href="/money/ads"
                 onOpen={() => navigation.navigate('TVAdRecords', { kind: 'landing' })}
                 {...laneLayout}
@@ -769,6 +781,8 @@ const styles = StyleSheet.create({
   laneTitleMobile: { fontSize: 20, lineHeight: 25 },
   laneBodyNarrow: { fontSize: 16.5, lineHeight: 25 },
   laneCountMobile: { fontSize: 12 },
+  laneCountSlot: { marginTop: 'auto', paddingTop: 18 },
+  laneCountPlaceholder: { width: 132, height: 14, borderRadius: 4, backgroundColor: '#e6e9e7' },
   // `flex: 1` shares a ROW; in a stacked column it would share the column's height
   // instead and let a long body spill past its card, so stacked cards size to content.
   // Spelled out as the 3 properties: react-native-web drops a bare `flex: 0`.

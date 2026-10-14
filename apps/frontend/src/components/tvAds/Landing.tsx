@@ -313,28 +313,11 @@ export function TVLanding({
         )}
         {result && (
           <div style={{ opacity: browse.loading ? 0.85 : 1 }}>
-            <p className="tv-result-count" ref={countRef} tabIndex={-1}>
-              {result.capped ? 'More than 500' : result.total.toLocaleString('en-US')}{' '}
-              {result.q
-                ? result.total === 1 && !result.capped
-                  ? 'file'
-                  : 'files'
-                : result.tab === 'folders'
-                  ? result.total === 1
-                    ? 'station folder'
-                    : 'station folders'
-                  : result.tab === 'agencies'
-                    ? result.total === 1
-                      ? 'ad agency name'
-                      : 'ad agency names'
-                    : result.tab === 'stations'
-                      ? result.total === 1
-                        ? 'station'
-                        : 'stations'
-                      : result.total === 1
-                        ? 'year'
-                        : 'years'}
-            </p>
+            {(result.total > 0 || result.capped) && (
+              <p className="tv-result-count" ref={countRef} tabIndex={-1}>
+                {resultCountLine(result)}
+              </p>
+            )}
             {result.capped && (
               <p className="tv-small">Showing the first 500: add a word to narrow the search</p>
             )}
@@ -383,27 +366,25 @@ export function TVLanding({
                                 : []),
                               (result.tab === 'stations' || result.tab === 'years') &&
                               typeof row.folder_count === 'number'
-                                ? `${row.folder_count.toLocaleString('en-US')} ${row.folder_count === 1 ? 'folder' : 'folders'}`
+                                ? `${row.folder_count.toLocaleString('en-US')}\u00a0${row.folder_count === 1 ? 'folder' : 'folders'}`
                                 : null,
                               typeof row.file_count === 'number'
-                                ? `${row.file_count.toLocaleString('en-US')} ${row.file_count === 1 ? 'file' : 'files'}`
+                                ? `${row.file_count.toLocaleString('en-US')}\u00a0${row.file_count === 1 ? 'file' : 'files'}`
                                 : null,
                               result.tab === 'agencies' ? row.stations?.join(', ') : null,
                               row.unchecked ? 'Includes names not checked' : null,
                             ]
                               .filter(Boolean)
-                              .join(' · ')}
+                              .join(' \u00b7\u00a0')}
                           </div>
                         )}
                         {result.q && (
                           <>
                             <Kind value={row.kind} />
                             <p className="tv-small">{uploaded(row.uploaded_at)}</p>
+                            {row.match_label && <p className="tv-match-label">{row.match_label}</p>}
                             {row.excerpt && (
-                              <p style={{ marginTop: 8 }}>
-                                <b>{row.match_label}: </b>
-                                {highlight(row.excerpt, result.q)}
-                              </p>
+                              <p className="tv-excerpt">{highlight(row.excerpt, result.q)}</p>
                             )}
                             {row.text_match && (
                               <p className="tv-small" style={{ color: '#7a5a12' }}>
@@ -419,7 +400,11 @@ export function TVLanding({
                 })}
               </div>
             ) : (
-              <p className="tv-notice">
+              <p
+                className="tv-notice tv-neutral-notice"
+                ref={result.total > 0 || result.capped ? undefined : countRef}
+                tabIndex={-1}
+              >
                 {result.q
                   ? `No station files match “${result.q}”`
                   : 'No records match these choices'}
@@ -712,4 +697,27 @@ export function SourceDates() {
       )}
     </section>
   );
+}
+
+const COUNT_NOUNS: Record<string, [string, string]> = {
+  files: ['file', 'files'],
+  folders: ['folder', 'folders'],
+  agencies: ['agency name', 'agency names'],
+  stations: ['station', 'stations'],
+  years: ['year', 'years'],
+};
+/** "Showing 1–12 of 214 folders" over more than 1 page; "4 agency names" on 1 page. */
+export function resultCountLine(
+  result: Pick<BrowseResult, 'q' | 'tab' | 'total' | 'capped' | 'page' | 'page_size' | 'rows'>,
+) {
+  const [one, many] = COUNT_NOUNS[result.q ? 'files' : result.tab] ?? COUNT_NOUNS.folders;
+  const total = result.total.toLocaleString('en-US');
+  if (!result.capped && result.total <= result.page_size)
+    return `${total} ${result.total === 1 ? one : many}`;
+  const first = (result.page - 1) * result.page_size + 1;
+  const last = first + result.rows.length - 1;
+  const range = `${first.toLocaleString('en-US')}–${last.toLocaleString('en-US')}`;
+  return result.capped
+    ? `Showing ${range} of more than 500 ${many}`
+    : `Showing ${range} of ${total} ${many}`;
 }

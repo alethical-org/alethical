@@ -15,6 +15,7 @@ import {
   useTVRead,
 } from './pieces';
 import { highlight } from './Landing';
+import { contestSeatLabel } from '../../lib/moneyByRace';
 
 export interface CardProps {
   kind: 'committee' | 'candidate' | 'principal' | 'election' | 'race' | 'name';
@@ -22,6 +23,9 @@ export interface CardProps {
   name?: string;
   searchOnly?: boolean;
   scopeLabel?: string;
+  /** The legislator money tab: names the committee's seat under the title and the
+   *  checked election after each row's role. */
+  legislatorTab?: boolean;
   hideEmpty?: boolean;
 }
 /** No space, loading title, or request to a TV read endpoint before fresh permission. */
@@ -40,7 +44,15 @@ export function TVAdConnectionCard(props: CardProps) {
     </TVSession.Provider>
   );
 }
-function ConnectionCard({ kind, target, name, searchOnly, scopeLabel, hideEmpty }: CardProps) {
+function ConnectionCard({
+  kind,
+  target,
+  name,
+  searchOnly,
+  scopeLabel,
+  legislatorTab,
+  hideEmpty,
+}: CardProps) {
   const read = useTVRead<ConnectionResult>(
     `/connections${queryString({ kind, target })}`,
     !searchOnly,
@@ -64,6 +76,11 @@ function ConnectionCard({ kind, target, name, searchOnly, scopeLabel, hideEmpty 
   };
   const groups = read.data?.groups || [{ label: '', files: read.data?.files || [] }];
   const count = groups.reduce((sum, group) => sum + group.files.length, 0);
+  const committee = read.data?.committee;
+  const seat =
+    legislatorTab && committee?.office
+      ? contestSeatLabel({ office: committee.office, district: committee.district })
+      : null;
   if (hideEmpty && !read.loading && !read.error && !count) return null;
   return (
     <div className="tv" style={{ padding: 0, marginTop: 24 }}>
@@ -75,7 +92,7 @@ function ConnectionCard({ kind, target, name, searchOnly, scopeLabel, hideEmpty 
         </div>
         {scopeLabel && (
           <p className="tv-small" style={{ marginBottom: 16 }}>
-            {scopeLabel}
+            {seat ? `${scopeLabel} · registered for ${seat}` : scopeLabel}
           </p>
         )}
         {searchOnly ? (
@@ -97,7 +114,10 @@ function ConnectionCard({ kind, target, name, searchOnly, scopeLabel, hideEmpty 
             {groups.map((group, index) => (
               <div key={`${group.label}-${index}`}>
                 {group.label && <h3 style={{ margin: '18px 0 12px' }}>{group.label}</h3>}
-                <FileRows files={all ? group.files : group.files.slice(0, 3)} />
+                <FileRows
+                  files={all ? group.files : group.files.slice(0, 3)}
+                  withElection={legislatorTab}
+                />
               </div>
             ))}
             {groups.some((group) => group.files.length > 3) && (
@@ -205,11 +225,9 @@ function SearchGroup({ query }: { query: string }) {
                     <strong>{file.label}</strong>
                     <Kind value={file.kind} />
                     <p className="tv-small">{uploaded(file.uploaded_at)}</p>
+                    {file.match_label && <p className="tv-match-label">{file.match_label}</p>}
                     {file.excerpt && (
-                      <p>
-                        <b>{file.match_label}: </b>
-                        {highlight(file.excerpt, data.q)}
-                      </p>
+                      <p className="tv-excerpt">{highlight(file.excerpt, data.q)}</p>
                     )}
                     {file.text_match && (
                       <p className="tv-small" style={{ color: '#7a5a12' }}>

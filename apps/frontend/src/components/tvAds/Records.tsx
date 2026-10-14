@@ -1,4 +1,9 @@
-import { PRINTED_NAME_NOTICE, PRINTED_NAME_PAYMENTS, RETRY_EXPLANATION } from './copy';
+import {
+  PRINTED_NAME_INDEPENDENT_PAYMENTS,
+  PRINTED_NAME_NOTICE,
+  PRINTED_NAME_PAYMENTS,
+  RETRY_EXPLANATION,
+} from './copy';
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { useResponsive } from '../../hooks/useResponsive';
 import { ApiError } from '../../data/api';
@@ -29,6 +34,7 @@ import {
   FileRows,
   Internal,
   Kind,
+  WithArrow,
   Metric,
   TVSession,
   useTVRead,
@@ -78,13 +84,7 @@ export function TVFile({
         <NewestCopy file={file} />
       </>
     );
-  if (!file.name)
-    return (
-      <>
-        <h1>Record unavailable</h1>
-        <p className="tv-notice tv-neutral-notice">An approved copy is not ready</p>
-      </>
-    );
+  if (!file.name) return null;
   return (
     <FileContents
       key={`${fileKey}:${file.version_id}:${file.copy_id}`}
@@ -163,9 +163,7 @@ function NewestCopy({ file }: { file: FileDetail }) {
         <Arrow />
       </span>
     </a>
-  ) : (
-    <p className="tv-notice tv-neutral-notice">An approved copy is not ready</p>
-  );
+  ) : null;
 }
 function FileContents({
   file,
@@ -190,11 +188,13 @@ function FileContents({
   const newest = file.versions.find(
     (entry) => entry.id === file.newest_approved_version && entry.status === 'approved',
   );
-  const pendingNewer =
-    file.source_changed &&
+  // The newest approved copy, with a newer saved version that has no approved copy:
+  // that version's held original opens from the versions menu.
+  const newerOriginal =
+    newest?.id === file.version_id &&
     file.current_source_version !== file.version_id &&
     file.versions.some(
-      (entry) => entry.id === file.current_source_version && entry.status === 'pending',
+      (entry) => entry.id === file.current_source_version && entry.status === 'archive',
     );
   const choosePage = (number: number) => {
     setPage(number);
@@ -276,7 +276,12 @@ function FileContents({
   const datesCard = dates.length > 0 && (
     <section className="tv-card tv-dates-card">
       <h2>Dates</h2>
-      {dates.map(dateValue)}
+      {groupByKind(dates).map(([kind, values]) => (
+        <div className="tv-fact" key={kind}>
+          <h3 className="tv-fact-label">{kind}</h3>
+          {values.map(dateValue)}
+        </div>
+      ))}
     </section>
   );
 
@@ -295,9 +300,19 @@ function FileContents({
         <p className="tv-small">{uploaded(file.uploaded_at)}</p>
         {file.folder && (
           <a className="tv-tap" href={tvHref('folder', file.folder.key)}>
-            Folder “{file.folder.label}”<Arrow />
+            <WithArrow>{`Folder “${file.folder.label}”`}</WithArrow>
           </a>
         )}
+        {file.agencies?.map((agency) => (
+          <a className="tv-tap" href={tvHref('agency', agency.key)} key={agency.key}>
+            Agency name “{agency.name}”
+            {/* The status belongs to this name, so it travels inside its link with the arrow. */}
+            <span className="tv-nowrap">
+              {agency.unchecked && <span className="tv-link-status"> · Not checked</span>}
+              <Arrow />
+            </span>
+          </a>
+        ))}
       </div>
       <div className="tv-inline" style={{ margin: '12px 0 24px', gap: '6px 22px' }}>
         {file.versions.length > 1 && (
@@ -313,13 +328,9 @@ function FileContents({
                 const status =
                   entry.status === 'archive'
                     ? 'Original station file'
-                    : entry.status === 'pending'
-                      ? 'Not shown yet: awaiting approval'
-                      : entry.status === 'withdrawn'
-                        ? 'Not shown: its approval was withdrawn'
-                        : entry.id === file.version_id
-                          ? ''
-                          : 'An older approved copy';
+                    : entry.id === file.version_id
+                      ? ''
+                      : 'An older approved copy';
                 return {
                   value: entry.id,
                   label: `${saved} · ${uploaded(entry.uploaded_at)}${status ? ` · ${status}` : ''}`,
@@ -330,7 +341,6 @@ function FileContents({
                       {status && <span className="tv-version-detail">{status}</span>}
                     </>
                   ),
-                  disabled: entry.status !== 'approved' && entry.status !== 'archive',
                 };
               })}
               onChange={(id) => onParams({ version: id, copy: undefined, page: undefined })}
@@ -365,25 +375,41 @@ function FileContents({
           <NewestCopy file={file} />
         </div>
       )}
-      {pendingNewer && newest?.id === file.version_id && (
-        <p className="tv-notice">
-          A newer version is saved and awaiting approval: this is the newest approved copy
-        </p>
+      {newerOriginal ? (
+        // One notice for one state: the newer version is the reason the FCC copy and
+        // the station file may differ from this one, so both lines sit in the same box.
+        <div className="tv-notice tv-neutral-notice">
+          <div>
+            <span>
+              A newer saved version has no approved copy yet: its original opens from the versions
+              menu
+            </span>
+            {file.fcc_url && file.fcc_available !== false && (
+              <p className="tv-small">
+                The FCC website may now show a newer version of this file than this copy
+              </p>
+            )}
+          </div>
+        </div>
+      ) : (
+        <>
+          {!(file.copy_status !== 'archive' && newest && newest.id !== file.version_id) &&
+            newest &&
+            newest.id !== file.version_id &&
+            file.fcc_url &&
+            file.fcc_available !== false && (
+              <p className="tv-small" style={{ marginBottom: 16 }}>
+                The FCC website may now show a newer version of this file than this copy
+              </p>
+            )}
+          {file.source_changed &&
+            !(file.copy_status !== 'archive' && newest && newest.id !== file.version_id) && (
+              <p className="tv-small" style={{ marginBottom: 24 }}>
+                The station file changed after this copy was saved; this page shows the saved copy
+              </p>
+            )}
+        </>
       )}
-      {!(file.copy_status !== 'archive' && newest && newest.id !== file.version_id) &&
-        ((newest && newest.id !== file.version_id) || pendingNewer) &&
-        file.fcc_url &&
-        file.fcc_available !== false && (
-          <p className="tv-small" style={{ marginBottom: 16 }}>
-            The FCC website may now show a newer version of this file than this copy
-          </p>
-        )}
-      {file.source_changed &&
-        !(file.copy_status !== 'archive' && newest && newest.id !== file.version_id) && (
-          <p className="tv-small" style={{ marginBottom: 24 }}>
-            The station file changed after this copy was saved; this page shows the saved copy
-          </p>
-        )}
       {file.copy_status !== 'approved' && file.copy_status !== 'archive' ? (
         <p className="tv-notice tv-neutral-notice">
           We hold this file; its approved copy is not ready
@@ -409,7 +435,12 @@ function FileContents({
             <aside className="tv-file-side">
               <section className={`tv-card${facts.length ? '' : ' tv-empty-facts'}`}>
                 <h2>{facts.length ? 'Checked' : 'No facts have been checked yet'}</h2>
-                {facts.map(dateValue)}
+                {groupByKind(facts).map(([kind, values]) => (
+                  <div className="tv-fact" key={kind}>
+                    <h3 className="tv-fact-label">{kind}</h3>
+                    {values.map(dateValue)}
+                  </div>
+                ))}
               </section>
               {isDesktop || isMobile ? (
                 datesCard
@@ -468,7 +499,13 @@ function FileContents({
                   {(!item || item.text_status === 'pending') && (
                     <p className="tv-mt-notice">This page’s text is not ready</p>
                   )}
-                  {item?.text && <MachineText text={item.text} query={query} />}
+                  {item?.text && (
+                    <MachineText
+                      text={item.text}
+                      query={query}
+                      redacted={file.copy_status === 'approved'}
+                    />
+                  )}
                 </>
               )}
             </section>
@@ -494,13 +531,7 @@ function FileContents({
                       <div className="tv-printed" key={fact.id}>
                         <h3 className="tv-fact-label">{fact.kind}, as printed</h3>
                         <p>{fact.value}</p>
-                        <a
-                          className="tv-block-link"
-                          href={`/money/payments${queryString({ name: fact.value, role: 'vendor' })}`}
-                        >
-                          {PRINTED_NAME_PAYMENTS}
-                          <Arrow />
-                        </a>
+                        <PaymentsLinks name={fact.value || ''} />
                       </div>
                     ))}
                 </>
@@ -529,6 +560,35 @@ function FileContents({
     </>
   );
 }
+/** Campaign payments under this exact printed name, for both paid-to roles. */
+function PaymentsLinks({
+  name,
+  vendor,
+  independent,
+}: {
+  name: string;
+  vendor?: string;
+  independent?: string;
+}) {
+  return (
+    <>
+      <a
+        className="tv-block-link"
+        href={vendor || `/money/payments${queryString({ name, role: 'vendor' })}`}
+      >
+        {PRINTED_NAME_PAYMENTS}
+        <Arrow />
+      </a>
+      <a
+        className="tv-block-link"
+        href={independent || `/money/payments${queryString({ name, role: 'independent_vendor' })}`}
+      >
+        {PRINTED_NAME_INDEPENDENT_PAYMENTS}
+        <Arrow />
+      </a>
+    </>
+  );
+}
 export function kindLimits(kind?: string | null) {
   const specific: Record<string, string> = {
     Order: 'An order books airtime',
@@ -542,6 +602,12 @@ export function kindLimits(kind?: string | null) {
     'A document’s title alone does not establish that an ad aired or a bill was paid',
   ];
 }
+/** One kind label, with every value of that kind listed under it, in checked order. */
+function groupByKind(facts: Fact[]): Array<[string, Fact[]]> {
+  const groups = new Map<string, Fact[]>();
+  facts.forEach((fact) => groups.set(fact.kind, [...(groups.get(fact.kind) || []), fact]));
+  return [...groups];
+}
 function FactValue({
   fact,
   evidence,
@@ -554,8 +620,7 @@ function FactValue({
   onHistory: () => void;
 }) {
   return (
-    <div className="tv-fact">
-      <h3 className="tv-fact-label">{fact.kind}</h3>
+    <div className="tv-fact-entry">
       {fact.status === 'withdrawn' ? (
         <p className="tv-small">
           This fact was withdrawn{fact.withdrawn_at ? ` on ${centralDate(fact.withdrawn_at)}` : ''}
@@ -565,12 +630,17 @@ function FactValue({
           <div className="tv-fact-value">{fact.value}</div>
           {fact.qualifier && <p>{fact.qualifier}</p>}
           {fact.quote && <q className="tv-quote">{fact.quote}</q>}
-          {fact.page && (
-            <button className="tv-link-button" onClick={() => evidence(fact.page, fact.version_id)}>
-              page {fact.page}
-            </button>
-          )}
-          <Checked date={fact.checked_at} />
+          <div className="tv-evidence-row">
+            {fact.page && (
+              <button
+                className="tv-link-button tv-page-link"
+                onClick={() => evidence(fact.page, fact.version_id)}
+              >
+                Page {fact.page}
+              </button>
+            )}
+            <Checked date={fact.checked_at} />
+          </div>
           {!!fact.history?.length && (
             <>
               <button
@@ -623,16 +693,36 @@ function ConnectionItem({
         )[value.kind] || value.kind}
       </h3>
       <Internal href={value.href}>{value.label}</Internal>
-      {value.role && <p>{value.role}</p>}
-      {value.quote && <q className="tv-quote">{value.quote}</q>}
-      {value.page && (
-        <button className="tv-link-button" onClick={() => evidence(value.page, value.version_id)}>
-          page {value.page}
-        </button>
+      {value.role && (
+        <p className="tv-connection-role">
+          {value.role}
+          {value.page && (
+            <>
+              {' on '}
+              <button
+                className="tv-link-button tv-page-link"
+                onClick={() => evidence(value.page, value.version_id)}
+              >
+                page {value.page}
+              </button>
+            </>
+          )}
+        </p>
       )}
+      {value.quote && <q className="tv-quote">{value.quote}</q>}
       {value.reported_amount !== undefined && <p>Reported expense: {value.reported_amount}</p>}
       {value.reported_date && <p>Reported date: {centralDate(value.reported_date)}</p>}
-      <Checked date={value.checked_at} />
+      <div className="tv-evidence-row">
+        {!value.role && value.page && (
+          <button
+            className="tv-link-button tv-page-link"
+            onClick={() => evidence(value.page, value.version_id)}
+          >
+            Page {value.page}
+          </button>
+        )}
+        <Checked date={value.checked_at} />
+      </div>
       {value.source_changed && (
         <p className="tv-notice tv-error">
           The committee’s filing changed; this connection was checked against the saved filing shown
@@ -837,7 +927,10 @@ export function TVFolder({ recordKey, notFound }: { recordKey: string; notFound:
   return (
     <>
       <p className="tv-eyebrow">
-        {data.year} ·{' '}
+        <a className="tv-tap" href={tvHref('station', data.station)}>
+          {data.station}
+        </a>{' '}
+        · {data.year} ·{' '}
         {data.category ? `STATION CATEGORY: ${data.category}` : 'CATEGORY NOT IDENTIFIED'}
       </p>
       <h1 className="tv-record-title">
@@ -954,9 +1047,13 @@ export function TVAgency({ recordKey, notFound }: { recordKey: string; notFound:
         <p className="tv-small">Includes machine-read agency names marked Not checked</p>
       )}
       {data.payments_href && (
-        <p className="tv-agency-payments" style={{ marginTop: 18 }}>
-          <Internal href={data.payments_href}>{PRINTED_NAME_PAYMENTS}</Internal>
-        </p>
+        <div className="tv-agency-payments" style={{ marginTop: 18 }}>
+          <PaymentsLinks
+            name={data.name}
+            vendor={data.payments_href}
+            independent={data.independent_payments_href}
+          />
+        </div>
       )}
       {feedback}
       <div
@@ -993,12 +1090,16 @@ export function TVAgency({ recordKey, notFound }: { recordKey: string; notFound:
                             <Kind value={file.kind} />
                             <strong>{file.name}</strong>
                           </div>
-                          <p className="tv-small">
-                            {file.category
-                              ? `Station category: ${file.category}`
-                              : 'Category not identified'}
-                            {file.agency_unchecked && ' · Agency name: Not checked'}
-                          </p>
+                          {(file.folder_label || file.agency_unchecked) && (
+                            <p className="tv-small">
+                              {[
+                                file.folder_label ? `Folder “${file.folder_label}”` : null,
+                                file.agency_unchecked ? 'Agency name: Not checked' : null,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </p>
+                          )}
                           {file.role && <p className="tv-small">{file.role}</p>}
                           {file.source_changed && (
                             <p className="tv-small">
@@ -1028,7 +1129,7 @@ export function TVAgency({ recordKey, notFound }: { recordKey: string; notFound:
                 <strong>{address.address}</strong>
                 {address.role && <p className="tv-small">Role as printed: {address.role}</p>}
                 {address.evidence.map((source) => (
-                  <div key={`${source.file_key}-${source.page}`}>
+                  <div className="tv-address-source" key={`${source.file_key}-${source.page}`}>
                     <a
                       className="tv-block-link"
                       href={tvHref('file', source.file_key, {
@@ -1040,6 +1141,7 @@ export function TVAgency({ recordKey, notFound }: { recordKey: string; notFound:
                       {source.file_name}
                       <Arrow />
                     </a>
+                    {source.role && <p className="tv-small">Role as printed: {source.role}</p>}
                     <p className="tv-small">
                       {uploaded(source.uploaded_at)} · page {source.page} · Checked on{' '}
                       {centralDate(source.checked_at)}
@@ -1146,7 +1248,7 @@ export function TVStation({ recordKey, notFound }: { recordKey: string; notFound
                       <span>{category.trim() || 'Category not identified'}</span>
                       <span className={count === undefined ? 'tv-unavailable' : undefined}>
                         {count === undefined
-                          ? 'Unavailable'
+                          ? 'None held'
                           : `${count} ${count === 1 ? 'folder' : 'folders'}`}
                       </span>
                     </div>
@@ -1193,7 +1295,7 @@ export function TVStation({ recordKey, notFound }: { recordKey: string; notFound
                           data-label={categoryLabel(category)}
                           className={count === undefined ? 'tv-unavailable' : undefined}
                         >
-                          {count ?? 'Unavailable'}
+                          {count ?? 'None held'}
                         </td>
                       );
                     })}
@@ -1204,9 +1306,7 @@ export function TVStation({ recordKey, notFound }: { recordKey: string; notFound
             </table>
           </div>
         )}
-        {omitted.length > 0 && (
-          <p className="tv-station-note">No {omittedList} folders are held for this station</p>
-        )}
+        {omitted.length > 0 && <p className="tv-station-note">No {omittedList} folders are held</p>}
       </section>
       <section className="tv-section tv-station-gaps">
         <h2>Source gaps</h2>

@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 // Invented records and sessions only. All non-static network traffic is intercepted.
@@ -42,6 +42,7 @@ const fileRow = {
   category: 'State',
   kind: 'Invoice',
   uploaded_at: stamp,
+  folder_label: 'Synthetic campaign folder',
 };
 // Invented order page, shaped like the stations' extracted layout (columns as spaces).
 const orderText = [
@@ -756,7 +757,7 @@ for (const width of [390, 900, 1280]) {
     await expect(unnamed.getByRole('link')).toHaveCount(0);
     // Categories with no folders held in any year are named once, as an absence.
     await expect(page.locator('.tv-station-note').first()).toHaveText(
-      'No Federal, Local, Non-candidate issue ads or Terms folders are held for this station',
+      'No Federal, Local, Non-candidate issue ads or Terms folders are held',
     );
     await unnamed.scrollIntoViewIfNeeded();
     await page.screenshot({ path: resolve(output, `station-${width}.png`), fullPage: true });
@@ -1545,3 +1546,408 @@ test('search highlighting marks a label and its value together', async ({ page }
   await page.goto('/money/ads/files/fixture-file?text=open&q=media');
   await expect(panel.locator('mark')).toHaveText(['Media']);
 });
+
+// Invented records for the gaps between the live screens and the accepted drawing.
+const gapFile = {
+  ...fileRow,
+  key: 'gap-file',
+  name: 'Synthetic gap order',
+  kind: 'Order',
+  copy_status: 'approved',
+  copy_id: copy,
+  version_id: oldHash,
+  newest_approved_version: oldHash,
+  current_source_version: hash,
+  source_changed: true,
+  page_count: 1,
+  fcc_url: 'https://publicfiles.fcc.gov/tv-profile/kare',
+  folder: { key: 'kare-folder-1', label: 'Synthetic campaign folder' },
+  agencies: [
+    { key: 'agency-checked', name: 'SYNTHETIC MEDIA LLC', unchecked: false },
+    { key: 'agency-read', name: 'SYNTHETIC MEDIA', unchecked: true },
+  ],
+  versions: [
+    { id: hash, first_saved_at: stamp, uploaded_at: stamp, status: 'archive' },
+    { id: oldHash, first_saved_at: '2026-09-01T12:00:00Z', uploaded_at: stamp, status: 'approved' },
+  ],
+  pages: [
+    {
+      number: 1,
+      image_path: `/ads/files/gap-file/pages/1?version=${oldHash}&copy=${copy}`,
+      text: 'BUYER: Name withheld\nBUYER EMAIL: [Blanked]\nGross amount: $9,650.00',
+      text_status: 'ready',
+    },
+  ],
+  facts: [
+    ['gross-1', 'Gross amount', '$9,650', 'Gross amount: $9,650.00'],
+    ['gross-2', 'Gross amount', '$950', 'Gross amount: $950.00'],
+    ['advertiser', 'Advertiser', 'SYNTHETIC LAKES CMTE', 'Advertiser: SYNTHETIC LAKES CMTE'],
+  ].map(([id, kind, value, quote]) => ({
+    id,
+    kind,
+    value,
+    quote,
+    page: 1,
+    version_id: oldHash,
+    checked_at: stamp,
+    status: 'checked',
+  })),
+  dates: [],
+  connections: [
+    {
+      id: 'c-committee',
+      kind: 'committee',
+      label: 'Synthetic Lakes Committee',
+      href: '/money/committees/synthetic-lakes-committee-19002',
+      role: 'Advertiser, as printed',
+      quote: 'Advertiser: SYNTHETIC LAKES CMTE',
+      page: 1,
+      version_id: oldHash,
+      checked_at: stamp,
+      status: 'checked',
+    },
+    {
+      id: 'c-candidate',
+      kind: 'candidate',
+      label: 'Synthetic Candidate A',
+      href: '/candidates/' + 'c'.repeat(64),
+      role: 'Named',
+      quote: 'CANDIDATE: SYNTHETIC CANDIDATE A',
+      page: 1,
+      version_id: oldHash,
+      checked_at: stamp,
+      status: 'checked',
+    },
+    {
+      id: 'c-election',
+      kind: 'election',
+      label: '2026 general election · House District 99A',
+      href: '/money/races/house-99a?year=2026',
+      role: '',
+      quote: 'FOR SYNTHETIC CANDIDATE A',
+      page: 1,
+      version_id: oldHash,
+      checked_at: stamp,
+      status: 'checked',
+    },
+  ],
+  related: [],
+  other_files: [],
+};
+async function gapRoutes(page: Page) {
+  await page.route('**/api/v1/ads/files/gap-file', (r) => json(r, gapFile));
+  await page.route('**/api/v1/ads/folders/kare-folder-1', (r) =>
+    json(r, {
+      key: 'kare-folder-1',
+      label: 'Synthetic campaign folder',
+      station: 'KARE',
+      year: 2026,
+      category: 'State',
+      fcc_url: 'https://publicfiles.fcc.gov/tv-profile/kare',
+      relationship: null,
+      files: [{ ...fileRow, airing_periods: [], version_count: 1 }],
+    }),
+  );
+  await page.route('**/api/v1/ads/agencies/agency-checked', (r) =>
+    json(r, {
+      key: 'agency-checked',
+      name: 'SYNTHETIC MEDIA LLC',
+      payments_href: '/money/payments?name=SYNTHETIC%20MEDIA%20LLC&role=vendor',
+      independent_payments_href:
+        '/money/payments?name=SYNTHETIC%20MEDIA%20LLC&role=independent_vendor',
+      groups: [{ station: 'KARE', year: 2026, files: [{ ...fileRow, key: 'gap-file' }] }],
+      addresses: [
+        {
+          address: 'PO BOX 100, SAMPLE CITY',
+          role: null,
+          evidence: [
+            ['gap-file', 'Synthetic gap order', 'Agency address'],
+            ['fixture-file', 'Synthetic station invoice', 'Remit to'],
+          ].map(([file_key, file_name, role]) => ({
+            file_key,
+            file_name,
+            role,
+            page: 1,
+            version_id: hash,
+            copy_id: copy,
+            uploaded_at: stamp,
+            checked_at: stamp,
+          })),
+        },
+      ],
+    }),
+  );
+}
+
+for (const width of [390, 900, 1280]) {
+  test(`design gaps on the file, folder and agency pages ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await fixture(page);
+    await gapRoutes(page);
+    await page.goto('/money/ads/files/gap-file?text=open');
+    await expect(page.getByRole('heading', { name: 'Synthetic gap order' })).toBeVisible();
+    // One kind label, its values under it.
+    await expect(page.locator('.tv-fact-label', { hasText: /^Gross amount$/ })).toHaveCount(1);
+    await expect(
+      page.getByText(
+        'A newer saved version has no approved copy yet: its original opens from the versions menu',
+      ),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: /Agency name “SYNTHETIC MEDIA LLC”/ }),
+    ).toHaveAttribute('href', '/money/ads/agencies/agency-checked');
+    await expect(
+      page.getByRole('link', { name: /2026 general election · House District/ }),
+    ).toHaveAttribute('href', '/money/races/house-99a?year=2026');
+    await expect(
+      page.locator('.tv-connection-role', { hasText: /^Named on page 1$/ }),
+    ).toBeVisible();
+    const text = page.locator('.tv-file-text');
+    await expect(text.locator('.tv-mt-withheld')).toHaveText('Name withheld');
+    await expect(text.getByRole('img', { name: 'Blanked' })).toBeVisible();
+    await expect(text).not.toContainText('[Blanked]');
+    await page.screenshot({ path: resolve(output, `gap-file-${width}.png`), fullPage: true });
+    await page
+      .locator('.tv-file-side .tv-card')
+      .first()
+      .screenshot({ path: resolve(output, `gap-file-checked-${width}.png`) });
+    await text.screenshot({ path: resolve(output, `gap-file-text-${width}.png`) });
+    await page
+      .locator('.tv-file-lower')
+      .screenshot({ path: resolve(output, `gap-file-connections-${width}.png`) });
+
+    await page.goto('/money/ads/folders/kare-folder-1');
+    const station = page.locator('.tv-eyebrow').getByRole('link', { name: 'KARE' });
+    await expect(station).toHaveAttribute('href', '/money/ads/stations/KARE');
+    await page.screenshot({ path: resolve(output, `gap-folder-${width}.png`), fullPage: true });
+
+    await page.goto('/money/ads/agencies/agency-checked');
+    await expect(
+      page.getByRole('link', {
+        name: 'Outside spending payments with this exact printed name',
+      }),
+    ).toHaveAttribute(
+      'href',
+      '/money/payments?name=SYNTHETIC%20MEDIA%20LLC&role=independent_vendor',
+    );
+    await expect(page.locator('.tv-address')).toHaveCount(1);
+    await expect(page.getByText('Role as printed: Remit to')).toBeVisible();
+    await page.screenshot({ path: resolve(output, `gap-agency-${width}.png`), fullPage: true });
+    await page
+      .locator('.tv-agency-addresses')
+      .screenshot({ path: resolve(output, `gap-agency-addresses-${width}.png`) });
+  });
+
+  test(`design gaps on the landing count and search labels ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await fixture(page);
+    await page.route('**/api/v1/ads/browse**', (r) => {
+      const q = new URL(r.request().url()).searchParams.get('q') || '';
+      return json(r, {
+        tab: 'folders',
+        q,
+        station: '',
+        year: q ? '' : '2026',
+        category: '',
+        page: 1,
+        page_size: 12,
+        total: q ? 3 : 214,
+        capped: false,
+        years: ['2026'],
+        categories: ['State'],
+        rows: q
+          ? [
+              ['Matched the file text, page 1', '…PLACED BY AGENCY FOR SAMPLE LAKES…', true],
+              ['Matched the folder label', 'Folder “Sample Lakes Cmte”', false],
+              ['Matched a checked fact', 'Advertiser: SAMPLE LAKES CMTE', false],
+            ].map(([match_label, excerpt, text_match], i) => ({
+              ...fileRow,
+              key: `match-${i}`,
+              match_label,
+              excerpt,
+              text_match,
+            }))
+          : Array.from({ length: 12 }, (_, i) => ({
+              ...fileRow,
+              key: `folder-${i}`,
+              label: `Synthetic folder ${i + 1}`,
+              file_count: 2,
+            })),
+      });
+    });
+    await page.goto('/money/ads');
+    await expect(page.locator('.tv-result-count')).toHaveText('Showing 1–12 of 214 folders');
+    await page.locator('.tv-result-count').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: resolve(output, `gap-count-${width}.png`) });
+    await page.goto('/money/ads?q=sample%20lakes');
+    await expect(page.locator('.tv-result-count')).toHaveText('3 files');
+    await expect(page.locator('.tv-match-label').first()).toHaveText(
+      'Matched the file text, page 1',
+    );
+    await page.locator('.tv-result-count').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: resolve(output, `gap-search-${width}.png`) });
+  });
+
+  test(`station table says none held ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await fixture(page);
+    await page.route('**/api/v1/ads/stations/kare', (r) =>
+      json(r, {
+        call_sign: 'KARE',
+        facility_id: '23079',
+        fcc_url: 'https://publicfiles.fcc.gov/tv-profile/kare',
+        newest_upload: stamp,
+        last_list_check: stamp,
+        last_file_copy: stamp,
+        counts,
+        folder_count: 4,
+        folder_failures: 0,
+        years: [
+          { year: '2026', file_count: 9, categories: [{ name: 'State', count: 3 }] },
+          { year: '2024', file_count: 2, categories: [{ name: 'Federal', count: 1 }] },
+        ],
+      }),
+    );
+    await page.goto('/money/ads/stations/kare');
+    await expect(page.getByText('None held').first()).toBeVisible();
+    await expect(page.locator('.tv-station-note').first()).toHaveText(
+      'No Local, Non-candidate issue ads or Terms folders are held',
+    );
+    await page
+      .locator('.tv-station-years')
+      .screenshot({ path: resolve(output, `gap-station-${width}.png`) });
+  });
+
+  test(`candidate card groups and lane card placeholder ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await fixture(page);
+    const id = 'c'.repeat(64);
+    await page.route(`**/api/v1/candidates/${id}`, (r) =>
+      json(r, {
+        candidate: { id, name: 'Synthetic Candidate A', sortName: 'Candidate A, Synthetic' },
+        office: 'State Representative District 99A',
+        votingArea: 'House District 99A',
+        election: {
+          id: 'fictional',
+          label: 'General election',
+          date: '2026-11-03',
+          type: 'general',
+        },
+        source: {
+          authority: 'Example Election Office',
+          url: 'https://example.org',
+          checkedDate: '2026-10-08',
+        },
+      }),
+    );
+    await page.route(`**/api/v1/candidate-statements/${id}`, (r) => json(r, { statement: null }));
+    await page.route('**/api/v1/ads/connections**', (r) =>
+      json(r, {
+        agency_key: null,
+        exact_name_count: 1,
+        total: 1,
+        files: [fileRow],
+        groups: [
+          {
+            label: 'Files with a checked connection to Synthetic Lakes Committee',
+            files: [{ ...fileRow, role: 'Advertiser, as printed' }],
+          },
+          {
+            label: 'Station files that name this candidate',
+            files: [{ ...fileRow, role: 'Named on page 1' }],
+          },
+        ],
+      }),
+    );
+    await page.goto(`/candidates/${id}`);
+    const card = page.locator('.tv-card', { hasText: 'TV ad records' });
+    await expect(card.getByRole('heading', { level: 3 })).toHaveText([
+      'Files with a checked connection to Synthetic Lakes Committee',
+      'Station files that name this candidate',
+    ]);
+    await card.screenshot({ path: resolve(output, `gap-candidate-${width}.png`) });
+
+    let release!: () => void;
+    const held = new Promise<void>((done) => (release = done));
+    await page.route('**/api/v1/ads/counts', async (r) => {
+      await held;
+      return json(r, counts);
+    });
+    await page.goto('/money');
+    const lane = page.getByRole('link', { name: /TV ad records/ });
+    await expect(lane).toBeVisible();
+    await lane.screenshot({ path: resolve(output, `gap-lane-loading-${width}.png`) });
+    release();
+    await expect(lane).toContainText('27 STATION FILES');
+  });
+}
+
+for (const width of [390, 900, 1280]) {
+  test(`legislator money tab card names the seat and the checked election ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await fixture(page);
+    // The public reader check's saved profile and committee snapshots.
+    const read = async (path: string) => JSON.parse(await readFile(resolve(path), 'utf8'));
+    const profile = await read('scripts/fixtures/reader-legislator-jim-abeler.json');
+    const committee = await read(
+      'src/components/campaignMoney/__tests__/fixtures/committee-donation-cards-17868-2025.json',
+    );
+    await page.route('**/api/v1/legislators/**', (r) => {
+      const path = new URL(r.request().url()).pathname;
+      if (
+        path === `/api/v1/legislators/${profile.slug}` ||
+        path === `/api/v1/legislators/${profile.id}`
+      )
+        return json(r, { data: profile });
+      if (path.endsWith('/campaign-finance'))
+        return json(r, {
+          data: {
+            legislator_id: profile.id,
+            year: 2025,
+            link_state: 'confirmed',
+            release_id: 'synthetic-release',
+            fetched_at: stamp,
+            filings_copied_at: null,
+            committees: [committee],
+            other_office_committees: 0,
+            committees_outside_this_year: [],
+          },
+        });
+      return json(r, { detail: 'Unused local fixture' }, 404);
+    });
+    await page.route('**/api/v1/ads/connections**', (r) =>
+      json(r, {
+        committee: { name: 'Abeler, Jim Senate Committee', office: 'Senate', district: '35' },
+        agency_key: null,
+        exact_name_count: 2,
+        total: 2,
+        files: [fileRow, fileRow],
+        groups: [
+          {
+            label: '',
+            files: [
+              {
+                ...fileRow,
+                kind: 'Order',
+                name: 'Synthetic order',
+                role: 'Advertiser, as printed',
+                election: '2026 general election',
+              },
+              { ...fileRow, key: 'second', role: 'Billing recipient, as printed', election: null },
+            ],
+          },
+        ],
+      }),
+    );
+    await page.goto('/legislators/jim-abeler?tab=money&year=2025');
+    const card = page.locator('.tv-card', { hasText: 'TV ad records' });
+    await expect(card).toContainText(
+      'Abeler, Jim Senate Committee · registered for Senate District 35',
+    );
+    await expect(card).toContainText('Advertiser, as printed · 2026 general election');
+    await expect(card.getByText('Billing recipient, as printed', { exact: true })).toBeVisible();
+    await card.screenshot({ path: resolve(output, `gap-legislator-card-${width}.png`) });
+  });
+}

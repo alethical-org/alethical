@@ -1070,3 +1070,236 @@ def test_folder_row_describes_itself_by_approved_then_newest_copy():
     assert reader._representative([held_older, held_newer], document) is held_newer
     downloads["a"] = None
     assert reader._representative([held_newer, held_older], document) is held_older
+
+
+def _connection(db, publication, kind, target_id, snapshot, page=1):
+    """A synthetic checked connection written directly; never a real check."""
+    row = m.TVAdConnection(
+        scope="file",
+        publication_id=publication.id,
+        facility_id=publication.facility_id,
+        folder_id="folder-1",
+        kind=kind,
+        target_id=target_id,
+        target_snapshot=snapshot,
+        page=page,
+        quote="Synthetic quote.",
+        evidence="Synthetic connection",
+        reviewed_by=ACTOR,
+        checked_at=review.now(),
+        publication_approved=True,
+    )
+    db.add(row)
+    db.flush()
+    return row
+
+
+def _register(db, registration_number, name, office=None, district=None):
+    filings = m.CampaignFinanceFilingSnapshot(
+        fetch_started_at=review.now(),
+        fetch_completed_at=review.now(),
+        status=m.CampaignFinanceSnapshotStatus.loaded,
+    )
+    db.add(filings)
+    db.flush()
+    pointer = db.get(m.CampaignFinanceFilingCurrentSnapshot, True)
+    if pointer:
+        pointer.snapshot_id = filings.id
+    else:
+        db.add(m.CampaignFinanceFilingCurrentSnapshot(id=True, snapshot_id=filings.id))
+    db.add(
+        m.CampaignFinanceFiler(
+            snapshot_id=filings.id,
+            registration_number=registration_number,
+            name=name,
+            office=office,
+            district=district,
+            kind=m.CampaignFinanceFilerKind.candidate_committee,
+        )
+    )
+    db.flush()
+
+
+ELECTION = {
+    "label": "State Representative District 99A",
+    "election_stage": "general",
+    "year": 2026,
+    "money_context": {"office": "House", "district": "99A", "year": 2026},
+}
+
+
+def test_candidate_card_puts_confirmed_committee_files_before_named_files(
+    db, source, monkeypatch
+):
+    from alethical.api.services import candidate_legislators, legislator_finance
+
+    publication = approved(db, source)
+    candidate = m.CandidateRecord(
+        id="tv-card-candidate",
+        election_id="tv-card-election",
+        election_date=date(2026, 11, 3),
+        public_payload={"name": "Example Candidate"},
+        source_sha256="a" * 64,
+        checked_at=review.now(),
+    )
+    db.add(candidate)
+    db.flush()
+    person = str(uuid.uuid4())
+    monkeypatch.setattr(
+        candidate_legislators, "confirmed_legislator", lambda *a, **k: {"id": person}
+    )
+    monkeypatch.setattr(
+        legislator_finance,
+        "confirmed_committee_links",
+        lambda db, legislator_id: (
+            [
+                SimpleNamespace(
+                    registration_number="19001", committee_name="Example Cmte"
+                )
+            ]
+            if str(legislator_id) == person
+            else []
+        ),
+    )
+    _connection(db, publication, "committee", "19001", {"role": "Advertiser"})
+    _connection(db, publication, "candidate", candidate.id, {"role": "named"}, page=2)
+    result = reader.connected(db, "candidate", candidate.id)
+    assert [g["label"] for g in result["groups"]] == [
+        "Files with a checked connection to Example Cmte",
+        "Station files that name this candidate",
+    ]
+    assert result["groups"][0]["files"][0]["role"] == "Advertiser, as printed"
+    assert result["groups"][1]["files"][0]["role"] == "Named on page 2"
+    assert result["total"] == 1
+    # Without a confirmed committee, only the named group is drawn.
+    monkeypatch.setattr(
+        candidate_legislators, "confirmed_legislator", lambda *a, **k: None
+    )
+    assert [
+        g["label"] for g in reader.connected(db, "candidate", candidate.id)["groups"]
+    ] == ["Station files that name this candidate"]
+
+
+def test_committee_card_names_its_seat_and_each_row_its_checked_election(db, source):
+    publication = approved(db, source)
+    _register(db, "19002", "Example Lakes Committee", "House", "99A")
+    _connection(db, publication, "committee", "19002", {"role": "Advertiser"})
+    _connection(db, publication, "election", "race-1", ELECTION)
+    result = reader.connected(db, "committee", "19002")
+    assert result["committee"] == {
+        "name": "Example Lakes Committee",
+        "office": "House",
+        "district": "99A",
+    }
+    (group,) = result["groups"]
+    assert group["label"] == ""
+    assert group["files"][0]["role"] == "Advertiser, as printed"
+    assert group["files"][0]["election"] == "2026 general election"
+    assert router.response.Connected.model_validate(result).committee.office == "House"
+
+
+def test_file_page_prints_plain_roles_election_stage_and_race_link(db, source):
+    publication = approved(db, source)
+    for role in ("named", "advertiser"):
+        _connection(
+            db,
+            publication,
+            "candidate",
+            f"candidate-{role}",
+            {"label": "Example Candidate", "role": role},
+        )
+    _connection(db, publication, "election", "race-1", ELECTION)
+    _connection(
+        db, publication, "election", "race-2", {**ELECTION, "money_context": None}
+    )
+    review.add_fact(db, publication.id, ACTOR, fact())
+    detail = reader.file_detail(
+        db,
+        reader.file_key(publication.facility_id, publication.file_id),
+        include_archive=True,
+    )
+    roles = [c["role"] for c in detail["connections"] if c["kind"] == "candidate"]
+    # The file page adds " on page {n}" after the role, with the page as a link.
+    assert roles == ["Named", "Advertiser, as printed"]
+    elections = [c for c in detail["connections"] if c["kind"] == "election"]
+    assert elections[0]["label"] == "2026 general election · House District 99A"
+    assert elections[0]["href"] == "/money/races/house-99a?year=2026"
+    # No checked campaign-money contest: the election prints, but links nowhere.
+    assert elections[1]["href"] == ""
+    assert elections[1]["label"].endswith("State Representative District 99A")
+    assert detail["agencies"] == [
+        {
+            "key": reader.agency_key("Example Media"),
+            "name": "Example Media",
+            "unchecked": False,
+        }
+    ]
+
+
+def test_agency_groups_identical_addresses_and_links_both_paid_to_roles(db, source):
+    _, store = source
+    safe = (
+        "Agency: Example Media. Agency address: Example Media, 456 Example Avenue. "
+        "Remit to: Example Media, 456 Example Avenue."
+    )
+    publication = review.prepare_copy(
+        db,
+        ACTOR,
+        preparation(
+            source, safe_pages=[{"page": 1, "text": safe, "text_status": "readable"}]
+        ),
+        store=store,
+    )
+    review.approve_copy(
+        db,
+        publication.id,
+        ACTOR,
+        {
+            "expected_fingerprint": publication.fingerprint,
+            "privacy_reviewed": True,
+            "metadata_reviewed": True,
+            "text_reviewed": True,
+            "evidence": "Synthetic safe text review",
+        },
+        store=store,
+    )
+    review.add_fact(db, publication.id, ACTOR, fact())
+    for role, quote in (
+        ("Agency address", "Agency address: Example Media, 456 Example Avenue."),
+        ("Remit to", "Remit to: Example Media, 456 Example Avenue."),
+    ):
+        review.add_fact(
+            db,
+            publication.id,
+            ACTOR,
+            fact(
+                field="organization_address",
+                value="456 Example Avenue",
+                organization_name="Example Media",
+                role=role,
+                quote=quote,
+                agency_address_reviewed=True,
+            ),
+        )
+    projected = reader.agency_detail(db, reader.agency_key("Example Media"))
+    assert projected["payments_href"].endswith("&role=vendor")
+    assert projected["independent_payments_href"].endswith("&role=independent_vendor")
+    (address,) = projected["addresses"]
+    assert address["address"] == "456 Example Avenue"
+    # The 2 printings differ in role, so each role stays beside its file.
+    assert address["role"] is None
+    assert [e["role"] for e in address["evidence"]] == ["Agency address", "Remit to"]
+    assert router.response.Agency.model_validate(projected).addresses[0].evidence
+
+
+def test_search_names_what_matched_in_the_drawn_words(db, source):
+    publication = approved(db, source)
+    review.add_fact(db, publication.id, ACTOR, fact())
+    by_text = reader.browse(db, q="schools", include_archive=True)["rows"]
+    assert by_text and by_text[0]["match_label"] == "Matched the file text, page 1"
+    by_fact = reader.browse(db, q="example media", include_archive=True)["rows"]
+    assert by_fact[0]["match_label"] == "Matched a checked fact"
+    assert by_fact[0]["excerpt"] == "Agency name: Example Media"
+    by_folder = reader.browse(db, q="reviewed folder", include_archive=True)["rows"]
+    assert by_folder[0]["match_label"] == "Matched the folder label"
+    assert by_folder[0]["excerpt"] == "Folder “Reviewed folder”"
