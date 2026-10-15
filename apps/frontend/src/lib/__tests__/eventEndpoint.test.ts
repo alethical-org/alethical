@@ -48,7 +48,7 @@ describe('public event pages before JavaScript', () => {
     const { body, status } = await serve(eventPath(PUBLISHED_EVENTS[0]));
     expect(status).toBe(200);
     expect(body).toContain(renderEventArticle(PUBLISHED_EVENTS[0], now));
-    expect(body).toContain('Republican primary candidate');
+    expect(body).toContain('Republican-endorsed write-in candidate');
     expect(body).toContain('href="https://luma.com/3w69g6dw"');
     expect(body).toContain('href="https://forwardcoalition.com/candidates"');
     expect(body).toContain('aria-label="Site"');

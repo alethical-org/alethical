@@ -59,4 +59,33 @@ is a partner link, not the source for candidate office/status.
 - [Google image guidance](https://developers.google.com/search/docs/appearance/google-images): ordinary image elements, meaningful filenames/alternative text and nearby text.
 - [Google recrawl guidance](https://developers.google.com/search/docs/crawling-indexing/ask-google-to-recrawl): requests and sitemaps aid discovery; crawling and indexing timing is Google’s decision.
 
+## Revised announcement preparation, 15 October 2026
+
+- Publication is requested for the first-debate announcement using the supplied
+  `Phone promo v2.png`. The earlier candidate-approval condition remains unresolved;
+  publication stays disabled until its status is supplied. Preparing this revision
+  does not establish candidate approval.
+- The revised flyer identifies Trent Dilks as DFL-endorsed and Aaron Brutger as a
+  Republican-endorsed write-in candidate. Jared Gapinski is separately named as
+  "Also invited", Senate Republican primary winner. Angel Zierden is the moderator,
+  CEO and Founder of Alethical. These supersede the older wording in the draft,
+  subject to the remaining publication condition.
+- Retain `/blog/events/forward-debate-2026`, the original 7 October publication date
+  and the approved event layout. Show the 15 October update separately. The new
+  lossless flyer copy is retained outside public assets with a dated filename;
+  the original flyer remains available for recovery.
+- Impact and prevention: the shared event source supplies article, collection and
+  search details. Focused checks cover revised labels, the invited distinction,
+  dates, first-response text and the end-of-event boundary. Neutral article wording
+  remains readable after the event; the existing renderer removes the RSVP invitation.
+- Classification recommendation, not a new approved category: retain Events under
+  Blog. Future company news can use Announcements as a sibling when actual content
+  warrants it. PR adds an unclear umbrella; event production describes the service
+  on `/services`, not the kind of article a reader wants. No empty category is added.
+- Remaining release steps: resolve candidate approval; enable the event and publish
+  the dated flyer; regenerate comment eligibility; align the publication records;
+  run release checks, independent review and browser acceptance; merge, inspect the
+  live article and sitemap, and use existing search-discovery machinery. Search
+  requests do not guarantee immediate indexing.
+
 - Hosted-build finding during the hold: the preview first download exceeded its fixed size limit by 2 bytes. Event-specific title resolution now runs in the on-demand event screen, using the existing resolved-title hook, instead of adding that work to every first page. The size limit stays unchanged.

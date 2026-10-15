@@ -14,11 +14,16 @@ describe('accessible event announcement', () => {
     for (const text of [
       'Trent Dilks',
       'Aaron Brutger',
-      'Republican primary candidate',
+      'Republican-endorsed write-in candidate',
+      'DFL-endorsed candidate',
+      'Also invited: Jared Gapinski, Senate Republican primary winner.',
+      'CEO and Founder of Alethical',
+      'Alethical hosts its first debate',
+      'Updated October 15, 2026',
       '195 River Ave S',
       '6–8 PM Central',
       'Free admission',
-      'no pre-approved questions',
+      'No pre-approved questions',
     ]) {
       expect(document.body.textContent).toContain(text);
     }
@@ -30,6 +35,8 @@ describe('accessible event announcement', () => {
       .document;
     expect(document.body.textContent).toContain('This event has ended');
     expect(document.body.textContent).not.toContain('RSVP for free');
+    expect(document.body.textContent).not.toContain('you’re welcome to attend');
+    expect(document.body.textContent).not.toContain('Join Alethical');
     expect(document.querySelector('.event-flyer')).not.toBeNull();
   });
 });

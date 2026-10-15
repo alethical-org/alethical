@@ -59,18 +59,20 @@ export function renderEventsCollection(now = Date.now()): string {
 
 export function renderEventArticle(event: PublishedEvent, now = Date.now()): string {
   const ended = eventHasEnded(event, now);
-  const publishedLabel = new Intl.DateTimeFormat('en-US', {
+  const dateFormatter = new Intl.DateTimeFormat('en-US', {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
     timeZone: 'UTC',
-  }).format(new Date(`${event.publishedOn}T12:00:00Z`));
+  });
+  const publishedLabel = dateFormatter.format(new Date(`${event.publishedOn}T12:00:00Z`));
+  const updatedLabel = dateFormatter.format(new Date(`${event.updatedOn}T12:00:00Z`));
   return `<article class="event-content event-article"><style>${eventCss}</style>
 <a class="event-back" href="${EVENTS_PATH}">‹ Back to Events</a>
 <a href="${e(event.image)}" aria-label="Open the full-size ${e(event.name)} flyer"><img class="event-flyer" src="${e(event.image)}" width="${event.imageWidth}" height="${event.imageHeight}" alt="${e(event.imageAlt)}" fetchpriority="high" decoding="async"></a>
 <p class="event-image-link"><a href="${e(event.image)}">Open full-size flyer to zoom in</a></p>
 <h1>${e(event.title)}</h1>
-<p class="event-published">Published <time datetime="${event.publishedOn}">${e(publishedLabel)}</time></p>
+<p class="event-published">Published <time datetime="${event.publishedOn}">${e(publishedLabel)}</time> · Updated <time datetime="${event.updatedOn}">${e(updatedLabel)}</time></p>
 <p class="event-tagline">${e(event.tagline)}</p>
 ${ended ? '<p><strong>This event has ended</strong></p>' : ''}
 <p>${e(event.introduction)}</p>
