@@ -477,7 +477,7 @@ publication dates, accuracy-review dates, claims, evidence or article publicatio
 ### 2.16 Events reuse the Blog design and retain a permanent address
 
 **Republication approved, 15 October 2026:** Candidate approval is confirmed for
-`Phone promo v2.png` and authorized publication of the revised first-debate article.
+`Phone promo v2.png`; publication of the revised first-debate article is authorized.
 This clears the 7 October hold. Keep the original publication date and show the
 15 October update separately. The article, collection, current flyer, Blog links,
 sitemap entries and comment eligibility are public again.
