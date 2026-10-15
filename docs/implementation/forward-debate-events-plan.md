@@ -82,15 +82,17 @@ is a partner link, not the source for candidate office/status.
   warrants it. PR adds an unclear umbrella; event production describes the service
   on `/services`, not the kind of article a reader wants. No empty category is added.
 - Publication flag enabled; dated flyer public; comment eligibility regenerated.
-  Supplied 3-page Candidate Guide (66,490 bytes) and Money Report (81,928 bytes)
+  Supplied 3-page Candidate Guide (66,490 bytes) and Money Report (106,335 bytes)
   appear as download links near the article opening, with their original filenames
-  and bytes preserved. Both remain available after the event ends.
+  preserved. The Candidate Guide remains byte-identical; the Money Report carries
+  the single author-approved ratio correction. Both remain available after the event ends.
 - Report review raised the 5.3-times statement ($72,840 / $14,936 = 4.88) and the
   sentence claiming 12 gifts of exactly $1,000 total $12,400. The latter cannot be
-  corrected from the supplied PDF alone. A ratio correction was proposed to Eugene;
-  no correction has been authorized. Under the supplied-research publication policy
-  in grounded-answers.md rule 13, preserve the original while the corrections are
-  discussed. Do not claim that attachment publication verifies the report's figures.
+  corrected from the supplied PDF alone. Eugene approved changing “5.3 times” to “4.9 times” in the downloadable
+  copy, preserving the original. The corrected PDF changes only that text; rendered
+  differences are confined to the phrase on page 1, with pages 2 and 3 pixel-identical.
+  Under the supplied-research publication policy in grounded-answers.md rule 13,
+  other proposed corrections remain separate from publication. Do not claim that attachment publication verifies the report's figures.
   Apparent source labels are not clickable, and $200 threshold wording is inconsistent;
   further source-backed review is separate from this attachment request.
 - Remaining release steps: release checks, independent review and browser acceptance;
@@ -103,5 +105,5 @@ is a partner link, not the source for candidate office/status.
   event/download/publication checks. Type checking, document checks and production
   export pass. Independent code review found no material defects. The full app
   runs at the retained local review address; clicking both download links saves
-  the original PDFs. At 390 pixels, both links wrap without horizontal overflow
+  the expected PDFs. At 390 pixels, both links wrap without horizontal overflow
   and retain at least 44 pixels of clickable height. Live acceptance is pending.

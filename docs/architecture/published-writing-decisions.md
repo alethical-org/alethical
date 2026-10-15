@@ -503,8 +503,10 @@ Host announcements do not acquire Research or Guide traits, findings, research
 authorship claims or a research source-verification badge. Default reader comments apply to individual event articles too. All event promotions omit the standard AI notice, under the 7 October 2026 decision. Factual event details still require checking.
 On 15 October, Eugene supplied `SD13_Candidate_Guide.pdf` and
 `Alethical_SD13_Money_Report_2026-10-15.pdf` and requested easy downloads near the
-article introduction. Publish the supplied files unchanged, with distinct descriptive
-links, PDF format and file size. Downloads remain available after the event ends.
+article introduction. Publish with distinct descriptive links, PDF format and file size.
+Eugene subsequently approved correcting only “5.3 times” to “4.9 times” in the
+downloadable Money Report ($72,840 / $14,936 = 4.88). Preserve the source original
+and all other report content; the Candidate Guide stays unchanged. Downloads remain available after the event ends.
 A supplied report is not a newly checked research claim; corrections follow the
 existing author-directed research correction process.
 

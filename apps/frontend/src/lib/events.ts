@@ -34,7 +34,7 @@ export const EVENTS = [
         title: 'Forward Debate Money Report',
         filename: 'Alethical_SD13_Money_Report_2026-10-15.pdf',
         href: '/events/forward-debate-2026/Alethical_SD13_Money_Report_2026-10-15.pdf',
-        sizeLabel: '80 KB',
+        sizeLabel: '104 KB',
       },
     ],
     imageWidth: 1080,
