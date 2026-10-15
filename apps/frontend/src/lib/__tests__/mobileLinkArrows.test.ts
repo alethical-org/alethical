@@ -72,6 +72,12 @@ describe('mobile link arrows', () => {
     }
   });
 
+  it('keeps first-response event links free of typed arrow characters', () => {
+    const source = readFileSync(join(SRC, 'lib/eventMarkup.ts'), 'utf8');
+    expect(visibleTextArrowCount(source)).toBe(0);
+    expect(source).not.toContain('‹');
+  });
+
   it('blocks local copies of the old green link drawing', () => {
     const oldGreenArrow =
       /d="M5 12 H19 M1[34] [67] L19 12 L1[34] 1[78]"[\s\S]{0,180}stroke="#0f7a45"/;

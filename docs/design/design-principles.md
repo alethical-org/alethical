@@ -609,6 +609,21 @@ new pages, edits to existing pages, loading/error states and the first HTML resp
   When destination information becomes available, update the
   words, accessible name, address and activation together. Do not expose private candidate
   addresses, unsent answers, account data or authentication details in return state.
+- **Plain return-link visual pattern.** Use a neutral text link, Libre Franklin 600,
+  16px on computer/tablet and 15px below 768px, with 22px line height and no resting
+  underline. Color is `#4b524b`. The separate 18px SVG chevron has viewBox
+  `0 0 24 24`, path `M15 5 L8 12 L15 19`, current-color 2.2px stroke and rounded
+  ends/joins. Keep it hidden from screen readers, non-shrinking, 9px from the label
+  and 2px below the row's top. Hold the whole label in 1 wrapping span.
+  The link is inline-flex, aligned at the top, with 11px vertical padding, a 44px
+  minimum total height and 4px corners. Pointer hover on hover-capable devices at
+  widths of at least 768px and press use `#11150f` with a 1px underline 3px below
+  the label only. Keyboard focus uses a 2px `#7c5cff` ring offset 2px; clicks and
+  taps do not add that ring. Keep the chevron and gap undecorated.
+  Collection pages leave 14px before their H1, or 10px below 768px. The flyer-first
+  event article leaves 20px before its flyer. This visual pattern does not change
+  the contextual destination rules above or replace approved outlined variants
+  elsewhere. Apply it to new plain return links and scoped corrections.
 - Preserve approved chevrons, spacing, hover, pressed and keyboard-focus treatments.
   Long names wrap without clipping or covering controls. Naming corrections do not add
   breadcrumbs or authorize a visual redesign. **Previous**, **Close**, **Cancel**, recovery

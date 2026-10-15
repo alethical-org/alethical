@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { EVENTS } from '../events';
-import { renderEventArticle } from '../eventMarkup';
+import { renderEventArticle, renderEventList, renderEventsCollection } from '../eventMarkup';
+import { LINK_ARROW_PATH, LINK_ARROW_SIZE } from '../linkArrowGeometry';
 
 describe('accessible event announcement', () => {
   const event = EVENTS[0];
@@ -47,6 +48,47 @@ describe('accessible event announcement', () => {
       const html = document.body.innerHTML;
       expect(html.indexOf('event-downloads')).toBeLessThan(html.indexOf(event.introduction));
     }
+  });
+  it('keeps named return destinations separate from decorative chevrons', () => {
+    for (const [markup, href, label] of [
+      [renderEventArticle(event), '/blog/events', 'Back to Events'],
+      [renderEventsCollection(), '/blog', 'Back to Blog'],
+    ]) {
+      const document = new JSDOM(markup).window.document;
+      const link = document.querySelector('.event-back')!;
+      expect(link.getAttribute('href')).toBe(href);
+      expect(link.textContent).toBe(label);
+      expect(link.querySelector('span')?.textContent).toBe(label);
+      expect(link.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+      expect(link.querySelector('svg')?.getAttribute('focusable')).toBe('false');
+    }
+  });
+  it('uses the shared destination arrow without adding it to the RSVP link name', () => {
+    const document = new JSDOM(renderEventArticle(event, Date.parse('2026-10-15'))).window.document;
+    const link = document.querySelector('.event-action')!;
+    expect(link.getAttribute('href')).toBe(event.signupUrl);
+    expect(link.textContent).toBe('RSVP for free on Luma');
+    expect(link.querySelector('span')?.textContent).toBe('RSVP for free on Luma');
+    expect(link.querySelector('svg')?.getAttribute('width')).toBe(String(LINK_ARROW_SIZE));
+    expect(link.querySelector('path')?.getAttribute('d')).toBe(LINK_ARROW_PATH);
+    expect(link.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+  });
+  it('groups meaningful facts in both event list sizes and the article', () => {
+    for (const markup of [
+      renderEventList(),
+      renderEventList(Date.now(), true),
+      renderEventArticle(event),
+    ]) {
+      const document = new JSDOM(markup).window.document;
+      const groups = [...document.querySelectorAll('.event-keep')].map((node) => node.textContent);
+      expect(groups).toContain('October 15, 2026');
+      expect(groups).toContain('6–8 PM CDT');
+      expect(groups).toContain('Free admission');
+    }
+    const document = new JSDOM(renderEventArticle(event)).window.document;
+    expect([...document.querySelectorAll('.event-keep')].map((node) => node.textContent)).toContain(
+      'MN 56379',
+    );
   });
   it('keeps an expired announcement readable without inviting a late RSVP', () => {
     const document = new JSDOM(renderEventArticle(event, Date.parse(event.endDate))).window
