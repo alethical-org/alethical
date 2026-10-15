@@ -132,3 +132,39 @@ time label and download names, while the metadata test preserves exact offsets.
 Return-link styling awaits the separate Design review; this copy change does not
 choose a visual treatment. Parent acceptance covers phone and desktop wrapping,
 working downloads, the original preview and the public result after release.
+
+## Event return links and fact grouping
+
+The scoped Design review covers the event article and `/blog/events`, retaining
+flyer-first order, introductory downloads, approved copy and current links.
+The plain return controls use the accepted
+[contextual page-return visual pattern](../design/design-principles.md#contextual-page-return-links),
+with “Back to Events” at `/blog/events` and “Back to Blog” at `/blog` respectively.
+The article leaves 20px before the flyer; the collection leaves 14px before its H1,
+or 10px below 768px. These changes do not replace approved outlined returns on
+other surfaces or discard safe contextual destinations.
+
+The RSVP link uses the same 19px arrow geometry as the shared destination-link
+component, with a 6px gap and an undecorated arrow. Its full label stays underlined.
+Published/updated labels stay with their dates; the separator stays at the end
+of the preceding date group. Event time, city plus state and ZIP, and free
+admission use bounded inline groups. A group moves together when it fits, but
+can wrap internally under enlarged text instead of overflowing the available width.
+Both the `/blog/events` list and `/blog` preview receive the same fact grouping.
+
+Design discussion and saved-rule audit took place directly in the Alethical UX
+project. Its saved entries eug-81, eug-126 and eug-127 agree with contextual return
+names, existing outlined variants, the flyer-first spacing exception and scoped
+event-copy rules. The returned full saved-rule audit is retained privately with
+the task's review evidence. Optional reordering, title changes and button changes
+are outside this correction.
+
+Prevention: event rendering shares HTML and browser markup; destination arrows
+share geometry with the React component. Focused checks cover truthful return
+names/addresses, hidden decorative icons, stable download links, RSVP labels and
+fact grouping. Browser acceptance must cover 320px, phone/tablet/computer widths,
+hover/press, keyboard focus, enlarged text and current/ended event actions.
+
+The focused browser regression in `event-return-links.spec.ts` exercises both
+return paths at 320px, 390px and 1280px, including neutral narrow hover, label-only
+underline, keyboard focus, overflow and real navigation.

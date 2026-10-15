@@ -1,6 +1,12 @@
 import { Platform, StyleProp, StyleSheet, Text, TextStyle, ViewStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { theme } from '../theme/tokens';
+import {
+  LINK_ARROW_SIZE,
+  LINK_ARROW_VIEW_BOX,
+  LINK_ARROW_PATH,
+  LINK_ARROW_STROKE_WIDTH,
+} from '../lib/linkArrowGeometry';
 
 /**
  * Destination-page links only. On-screen actions (reveal, retry, filters, and
@@ -84,9 +90,9 @@ export function LinkArrow({
 }) {
   return (
     <Svg
-      width={19}
-      height={19}
-      viewBox="0 0 24 24"
+      width={LINK_ARROW_SIZE}
+      height={LINK_ARROW_SIZE}
+      viewBox={LINK_ARROW_VIEW_BOX}
       fill="none"
       style={StyleSheet.flatten([
         styles.arrow,
@@ -97,9 +103,9 @@ export function LinkArrow({
       testID="link-arrow"
     >
       <Path
-        d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18"
+        d={LINK_ARROW_PATH}
         stroke={color}
-        strokeWidth={1.8}
+        strokeWidth={LINK_ARROW_STROKE_WIDTH}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
