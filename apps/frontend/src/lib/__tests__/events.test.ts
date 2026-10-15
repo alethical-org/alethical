@@ -81,14 +81,22 @@ describe('accessible event announcement', () => {
     ]) {
       const document = new JSDOM(markup).window.document;
       const groups = [...document.querySelectorAll('.event-keep')].map((node) => node.textContent);
-      expect(groups).toContain('October 15, 2026');
+      expect(groups).toContain('October 15, 2026 ·');
       expect(groups).toContain('6–8 PM CDT');
       expect(groups).toContain('Free admission');
     }
     const document = new JSDOM(renderEventArticle(event)).window.document;
     expect([...document.querySelectorAll('.event-keep')].map((node) => node.textContent)).toContain(
-      'MN 56379',
+      'Sauk Rapids, MN 56379',
     );
+  });
+  it('keeps publication labels with their dates', () => {
+    const document = new JSDOM(renderEventArticle(event)).window.document;
+    expect(
+      [...document.querySelectorAll('.event-published > .event-keep')].map(
+        (node) => node.textContent,
+      ),
+    ).toEqual(['Published October 7, 2026 ·', 'Updated October 15, 2026']);
   });
   it('keeps an expired announcement readable without inviting a late RSVP', () => {
     const document = new JSDOM(renderEventArticle(event, Date.parse(event.endDate))).window

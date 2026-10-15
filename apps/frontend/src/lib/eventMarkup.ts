@@ -69,8 +69,8 @@ function keepTogether(text: string): string {
 function eventDate(label: string): string {
   const comma = label.indexOf(',');
   return comma < 0
-    ? keepTogether(label)
-    : `${e(label.slice(0, comma + 1))} ${keepTogether(label.slice(comma + 2))}`;
+    ? keepTogether(`${label} ·`)
+    : `${e(label.slice(0, comma + 1))} ${keepTogether(`${label.slice(comma + 2)} ·`)}`;
 }
 
 function renderSignupAction(href: string): string {
@@ -85,7 +85,7 @@ export function renderEventList(now = Date.now(), preview = false): string {
     .slice(0, preview ? 3 : undefined)
     .map(
       (event) =>
-        `<li><p class="event-list-meta">${eventHasEnded(event, now) ? 'Past event · ' : ''}${eventDate(event.dateLabel)} · ${keepTogether(event.timeLabel)}</p><${heading}><a href="${e(eventPath(event))}">${e(event.name)}</a></${heading}><p>${e(event.tagline)}</p><p>${keepTogether(event.locationName)} · ${keepTogether(event.city)} · ${keepTogether('Free admission')}</p></li>`,
+        `<li><p class="event-list-meta">${eventHasEnded(event, now) ? 'Past event · ' : ''}${eventDate(event.dateLabel)} ${keepTogether(event.timeLabel)}</p><${heading}><a href="${e(eventPath(event))}">${e(event.name)}</a></${heading}><p>${e(event.tagline)}</p><p>${keepTogether(event.locationName)} · ${keepTogether(event.city)} · ${keepTogether('Free admission')}</p></li>`,
     )
     .join('')}</ul></div>`;
 }
@@ -109,7 +109,7 @@ ${renderEventReturn(EVENTS_PATH, 'Back to Events')}
 <a href="${e(event.image)}" aria-label="Open the full-size ${e(event.name)} flyer"><img class="event-flyer" src="${e(event.image)}" width="${event.imageWidth}" height="${event.imageHeight}" alt="${e(event.imageAlt)}" fetchpriority="high" decoding="async"></a>
 <p class="event-image-link"><a href="${e(event.image)}">Open full-size flyer to zoom in</a></p>
 <h1>${e(event.title)}</h1>
-<p class="event-published">Published <time class="event-keep" datetime="${event.publishedOn}">${e(publishedLabel)}</time> · Updated <time class="event-keep" datetime="${event.updatedOn}">${e(updatedLabel)}</time></p>
+<p class="event-published"><span class="event-keep">Published <time datetime="${event.publishedOn}">${e(publishedLabel)}</time> ·</span> <span class="event-keep">Updated <time datetime="${event.updatedOn}">${e(updatedLabel)}</time></span></p>
 <section aria-label="Debate downloads"><h2>Download the debate materials</h2>
 <ul class="event-downloads">${event.downloads.map((file) => `<li><a href="${e(file.href)}" download="${e(file.filename)}">Download ${e(file.title)} (PDF)</a></li>`).join('')}</ul></section>
 <p class="event-tagline">${e(event.tagline)}</p>
@@ -118,8 +118,8 @@ ${ended ? '<p><strong>This event has ended</strong></p>' : ''}
 <ul>${event.candidates.map((candidate) => `<li><strong>${e(candidate.name)}</strong>, ${e(candidate.status)}</li>`).join('')}</ul>
 ${event.paragraphs.map((paragraph) => `<p>${e(paragraph)}</p>`).join('')}
 <section class="event-facts" aria-label="Event details">
-<p><strong><time datetime="${e(event.startDate)}">${eventDate(event.dateLabel)}</time> · ${keepTogether(event.timeLabel)}</strong></p>
-<p>${e(event.locationName)}<br>${e(event.streetAddress)}, ${e(event.city)}, ${keepTogether(`${event.region} ${event.postalCode}`)}</p>
+<p><strong><time datetime="${e(event.startDate)}">${eventDate(event.dateLabel)}</time> ${keepTogether(event.timeLabel)}</strong></p>
+<p>${e(event.locationName)}<br>${e(event.streetAddress)}, ${keepTogether(`${event.city}, ${event.region} ${event.postalCode}`)}</p>
 <p>${keepTogether('Free admission')}</p>
 <p>Hosted by Alethical · Moderated by Angel Zierden, <a href="https://www.alethical.com">Alethical.com</a></p>
 </section>

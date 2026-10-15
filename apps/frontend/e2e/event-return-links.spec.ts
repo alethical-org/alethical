@@ -28,6 +28,22 @@ for (const width of [320, 390, 1280]) {
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
       ).toBe(true);
+      if (path.includes('forward-debate')) {
+        const groups = page.locator('.event-published > .event-keep, .event-facts .event-keep');
+        for (const group of await groups.all()) {
+          expect(
+            await group.evaluate((element) => {
+              const range = document.createRange();
+              range.selectNodeContents(element);
+              return new Set(
+                [...range.getClientRects()]
+                  .filter((rect) => rect.width > 0)
+                  .map((rect) => Math.round(rect.top)),
+              ).size;
+            }),
+          ).toBe(1);
+        }
+      }
       await link.click();
       await expect(page).toHaveURL(new RegExp(`${destination}$`));
     });

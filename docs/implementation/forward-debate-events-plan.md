@@ -146,7 +146,8 @@ other surfaces or discard safe contextual destinations.
 
 The RSVP link uses the same 19px arrow geometry as the shared destination-link
 component, with a 6px gap and an undecorated arrow. Its full label stays underlined.
-Published/updated dates, month/day/year, event time, state plus ZIP, and free
+Published/updated labels stay with their dates; the separator stays at the end
+of the preceding date group. Event time, city plus state and ZIP, and free
 admission use bounded inline groups. A group moves together when it fits, but
 can wrap internally under enlarged text instead of overflowing the available width.
 Both the `/blog/events` list and `/blog` preview receive the same fact grouping.
