@@ -30,7 +30,7 @@ export const eventCss = `
 .event-facts p{margin:0 0 8px}.event-facts p:last-child{margin:0}
 .event-brands{display:flex;align-items:center;gap:32px;flex-wrap:wrap;margin-top:40px;padding-top:24px;border-top:1px solid rgba(17,21,15,.1)}
 .event-brands a{display:inline-flex;align-items:center;min-height:44px;gap:12px;font-weight:700}
-.event-brand-icon{width:40px;height:auto}.event-coalition-logo{width:190px;height:auto}
+.event-coalition-logo{width:190px;height:auto}
 .event-list{list-style:none;margin:18px 0 0;padding:12px 36px 28px;background:#fff;border:1px solid rgba(17,21,15,.08);border-radius:16px}
 .event-list li{padding:22px 0 8px}.event-list li+li{border-top:1px solid rgba(17,21,15,.07)}
 .event-list h3,.event-list h2{font-size:20px;line-height:1.3;margin:6px 0 8px}
@@ -88,6 +88,6 @@ ${event.paragraphs.map((paragraph) => `<p>${e(paragraph)}</p>`).join('')}
 <p>Hosted by Alethical · Moderated by Angel Zierden, <a href="https://www.alethical.com">alethical.com</a></p>
 </section>
 ${ended ? `<p><a href="${e(event.signupUrl)}">View the event on Luma</a></p>` : `<h2>Join us in Sauk Rapids</h2><p>${e(event.invitation)}</p><p><a href="${e(event.signupUrl)}"><strong>RSVP for free on Luma →</strong></a></p>`}
-<div class="event-brands"><a href="/" aria-label="Alethical home"><img class="event-brand-icon" src="/services-print-mark.png" width="40" height="40" alt="">Alethical</a><a href="${COALITION_CANDIDATES_URL}" aria-label="Meet the Forward Coalition candidates"><img class="event-coalition-logo" src="/services-coalition.webp" alt="Minnesota Forward Together" width="600" height="205" loading="lazy"></a></div>
+<div class="event-brands"><a href="${COALITION_CANDIDATES_URL}" aria-label="Meet the Forward Coalition candidates"><img class="event-coalition-logo" src="/services-coalition.webp" alt="Minnesota Forward Together" width="600" height="205" loading="lazy"></a></div>
 </article>`;
 }

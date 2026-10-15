@@ -2,7 +2,8 @@
 
 Original publication scope approved on 7 October 2026: reuse the existing
 blog elements, publish the event announcement with the supplied image first, add
-Alethical and Forward Coalition logos, and link the coalition logo to its candidates.
+the Forward Coalition logo linked to its candidates. The closing row omits the
+redundant Alethical home link under the 15 October revision.
 Signup uses https://luma.com/3w69g6dw. This is website publication, not email sending.
 
 ## Original approved content and scope, 7 October 2026
@@ -107,3 +108,6 @@ is a partner link, not the source for candidate office/status.
   runs at the retained local review address; clicking both download links saves
   the expected PDFs. At 390 pixels, both links wrap without horizontal overflow
   and retain at least 44 pixels of clickable height. Live acceptance is pending.
+
+- Closing logo row: the requested removal leaves only the Forward Coalition link.
+  The shared website header and the supplied flyer remain unchanged.

@@ -491,8 +491,9 @@ The first announcement is The Forward Debate at `/blog/events/forward-debate-202
 The supplied flyer appears before the article text, with its content unchanged.
 The revised flyer and article identify Trent Dilks as “DFL-endorsed candidate” and Aaron Brutger as “Republican-endorsed write-in candidate”. Jared Gapinski is separately “Also invited”, Senate Republican primary winner. These revised labels supersede the 7 October wording. The article includes the confirmed event time,
 venue, free admission and the registration link `https://luma.com/3w69g6dw`.
-The Alethical icon links home and the Forward Coalition logo links to
-`https://forwardcoalition.com/candidates`; their presence does not
+The closing logo row contains only the Forward Coalition logo, linked to
+`https://forwardcoalition.com/candidates`. Do not repeat an Alethical home link
+beside it: the announcement is already on Alethical. The coalition link does not
 assert an additional endorsement or co-host relationship.
 
 The event registry supplies the collection, article, initial HTML, metadata and
