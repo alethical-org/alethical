@@ -68,8 +68,10 @@ describe('Contact us form rules', () => {
 });
 
 describe('article correction links', () => {
-  it('does not expose held events through correction links', () => {
-    expect(correctionContactValues(EVENT_INDEX[0].articleId)).toEqual(correctionContactValues());
+  it('opens a correction message for the published event', () => {
+    const values = correctionContactValues(EVENT_INDEX[0].articleId);
+    expect(values.subject).toBe(`Possible correction: ${EVENT_INDEX[0].title}`);
+    expect(values.message).toContain('https://alethical.com/blog/events/forward-debate-2026');
   });
   it('resolves the approved title and canonical address from a published legacy slug', () => {
     const piece = { ...PUBLISHED_PIECE_INDEX[0], articleId: undefined, slug: 'legacy-slug' };

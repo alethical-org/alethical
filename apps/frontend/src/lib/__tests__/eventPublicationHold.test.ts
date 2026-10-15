@@ -1,4 +1,3 @@
-import { existsSync, readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EVENTS, PUBLISHED_EVENTS, eventBySlug, orderedEvents } from '../events';
 import { PUBLISHED_EVENT_INDEX, eventIndexBySlug } from '../eventsIndex';
@@ -35,7 +34,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-describe('candidate approval publication hold', () => {
+describe('unpublished event access protection', () => {
   it('retains the complete event but excludes it from public selections', () => {
     expect(EVENTS[0].name).toBe('The Forward Debate');
     expect(EVENTS[0].candidates).toHaveLength(2);
@@ -72,21 +71,18 @@ describe('candidate approval publication hold', () => {
     expect(map.read().body).not.toContain('/blog/events');
   });
 
-  it('keeps the flyer outside public assets and excludes held comments', () => {
-    expect(
-      existsSync(new URL('../../../assets/event-drafts/forward-debate-2026.webp', import.meta.url)),
-    ).toBe(true);
-    expect(
-      existsSync(new URL('../../../public/events/forward-debate-2026.webp', import.meta.url)),
-    ).toBe(false);
-    const identities = JSON.parse(
-      readFileSync(
-        new URL('../../../../../alethical/data/editorial_articles.json', import.meta.url),
-        'utf8',
-      ),
-    );
-    expect(
-      identities.some((item: { article_id: string }) => item.article_id === EVENTS[0].articleId),
-    ).toBe(false);
+  it('excludes held events from correction links', async () => {
+    const { correctionContactValues } = await import('../contactUs');
+    expect(correctionContactValues(EVENTS[0].articleId)).toEqual(correctionContactValues());
   });
+});
+
+// Keep withdrawal protection testable without holding the approved live announcement.
+vi.mock('../eventsIndex', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../eventsIndex')>();
+  return {
+    EVENT_INDEX: original.EVENT_INDEX.map((event) => ({ ...event, published: false })),
+    PUBLISHED_EVENT_INDEX: [],
+    eventIndexBySlug: () => undefined,
+  };
 });

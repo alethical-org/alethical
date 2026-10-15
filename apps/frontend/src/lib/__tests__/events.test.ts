@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { EVENTS } from '../events';
@@ -29,6 +30,23 @@ describe('accessible event announcement', () => {
     }
     expect(document.querySelector(`a[href="${event.signupUrl}"]`)?.textContent).toContain('RSVP');
     expect(document.body.textContent).not.toContain('AI helped prepare this article');
+  });
+  it('offers both supplied PDFs near the introduction, including after the event', () => {
+    for (const now of [Date.parse('2026-10-15'), Date.parse(event.endDate)]) {
+      const document = new JSDOM(renderEventArticle(event, now)).window.document;
+      const links = document.querySelectorAll('.event-downloads a');
+      expect(links).toHaveLength(2);
+      event.downloads.forEach((file, index) => {
+        expect(links[index].getAttribute('href')).toBe(file.href);
+        expect(links[index].getAttribute('download')).toBe(file.filename);
+        expect(links[index].textContent).toBe(`Download ${file.title} (PDF, ${file.sizeLabel})`);
+        const bytes = readFileSync(new URL(`../../../public${file.href}`, import.meta.url));
+        expect(bytes.subarray(0, 5).toString()).toBe('%PDF-');
+        expect(file.sizeLabel).toBe(`${Math.round(bytes.length / 1024)} KB`);
+      });
+      const html = document.body.innerHTML;
+      expect(html.indexOf('event-downloads')).toBeLessThan(html.indexOf(event.introduction));
+    }
   });
   it('keeps an expired announcement readable without inviting a late RSVP', () => {
     const document = new JSDOM(renderEventArticle(event, Date.parse(event.endDate))).window

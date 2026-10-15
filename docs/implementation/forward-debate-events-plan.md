@@ -5,7 +5,7 @@ blog elements, publish the event announcement with the supplied image first, add
 Alethical and Forward Coalition logos, and link the coalition logo to its candidates.
 Signup uses https://luma.com/3w69g6dw. This is website publication, not email sending.
 
-## Approved content and scope
+## Original approved content and scope, 7 October 2026
 
 - Add Events on `/blog`, a collection at `/blog/events`, and the event at
   `/blog/events/forward-debate-2026`. Keep research and guide traits unchanged.
@@ -48,7 +48,7 @@ is a partner link, not the source for candidate office/status.
 - Google discovery uses the existing sitemap and ordinary links. Existing main-release search health and changed-page notice workflows cover the new URLs. Receipt is not proof of indexing.
 - Added Reader comments and event correction-link support. The standard AI notice is omitted for all event promotions under a recorded standing exception. Event identities join the existing server registry so comment requests follow the same permissions and moderation rules.
 - Original release complete in [pull request 2523](https://github.com/alethical-org/alethical/pull/2523): live frontend/backend, phone review, sitemap, Google priority-crawl request and 2 received IndexNow notices. Local suites passed 4,159 frontend and 4,478 backend tests.
-- Current publication hold, 7 October 2026: the announcement is withdrawn for refinements and candidate approval. Preserve all copy, assets and layout. Republication requires both candidate approval of the revised version and separate publication authorization.
+- Historical publication hold, 7 October 2026 (cleared on 15 October): the announcement is withdrawn for refinements and candidate approval. Preserve all copy, assets and layout. Republication requires both candidate approval of the revised version and separate publication authorization.
 - A saved publication flag excludes the held event from direct routes, Blog listings, sitemaps, metadata, correction links and public comment eligibility. The flyer is retained outside the public asset directory. Empty Events navigation stays hidden.
 - Restore the retained flyer to its original public path and enable publication only after that approval. The permanent article address and complete implementation remain reusable.
 - This hold covers Alethical’s website, not the separately hosted Luma event.
@@ -59,21 +59,20 @@ is a partner link, not the source for candidate office/status.
 - [Google image guidance](https://developers.google.com/search/docs/appearance/google-images): ordinary image elements, meaningful filenames/alternative text and nearby text.
 - [Google recrawl guidance](https://developers.google.com/search/docs/crawling-indexing/ask-google-to-recrawl): requests and sitemaps aid discovery; crawling and indexing timing is Google’s decision.
 
-## Revised announcement preparation, 15 October 2026
+## Revised announcement release, 15 October 2026
 
 - Publication is requested for the first-debate announcement using the supplied
-  `Phone promo v2.png`. The earlier candidate-approval condition remains unresolved;
-  publication stays disabled until its status is supplied. Preparing this revision
-  does not establish candidate approval.
+  `Phone promo v2.png`. Eugene subsequently confirmed “Yes, the revised flyer is
+  approved”, clearing the candidate-approval condition. The original request already
+  authorizes public release.
 - The revised flyer identifies Trent Dilks as DFL-endorsed and Aaron Brutger as a
   Republican-endorsed write-in candidate. Jared Gapinski is separately named as
   "Also invited", Senate Republican primary winner. Angel Zierden is the moderator,
-  CEO and Founder of Alethical. These supersede the older wording in the draft,
-  subject to the remaining publication condition.
+  CEO and Founder of Alethical. These supersede the older publication wording.
 - Retain `/blog/events/forward-debate-2026`, the original 7 October publication date
   and the approved event layout. Show the 15 October update separately. The new
-  lossless flyer copy is retained outside public assets with a dated filename;
-  the original flyer remains available for recovery.
+  lossless flyer copy is published with a dated filename; the original flyer remains
+  outside public assets for recovery.
 - Impact and prevention: the shared event source supplies article, collection and
   search details. Focused checks cover revised labels, the invited distinction,
   dates, first-response text and the end-of-event boundary. Neutral article wording
@@ -82,10 +81,27 @@ is a partner link, not the source for candidate office/status.
   Blog. Future company news can use Announcements as a sibling when actual content
   warrants it. PR adds an unclear umbrella; event production describes the service
   on `/services`, not the kind of article a reader wants. No empty category is added.
-- Remaining release steps: resolve candidate approval; enable the event and publish
-  the dated flyer; regenerate comment eligibility; align the publication records;
-  run release checks, independent review and browser acceptance; merge, inspect the
-  live article and sitemap, and use existing search-discovery machinery. Search
-  requests do not guarantee immediate indexing.
+- Publication flag enabled; dated flyer public; comment eligibility regenerated.
+  Supplied 3-page Candidate Guide (66,490 bytes) and Money Report (81,928 bytes)
+  appear as download links near the article opening, with their original filenames
+  and bytes preserved. Both remain available after the event ends.
+- Report review raised the 5.3-times statement ($72,840 / $14,936 = 4.88) and the
+  sentence claiming 12 gifts of exactly $1,000 total $12,400. The latter cannot be
+  corrected from the supplied PDF alone. A ratio correction was proposed to Eugene;
+  no correction has been authorized. Under the supplied-research publication policy
+  in grounded-answers.md rule 13, preserve the original while the corrections are
+  discussed. Do not claim that attachment publication verifies the report's figures.
+  Apparent source labels are not clickable, and $200 threshold wording is inconsistent;
+  further source-backed review is separate from this attachment request.
+- Remaining release steps: release checks, independent review and browser acceptance;
+  merge, inspect live article, downloads and sitemap, and use existing search-discovery
+  machinery. Search requests do not guarantee immediate indexing.
 
 - Hosted-build finding during the hold: the preview first download exceeded its fixed size limit by 2 bytes. Event-specific title resolution now runs in the on-demand event screen, using the existing resolved-title hook, instead of adding that work to every first page. The size limit stays unchanged.
+
+- Revised release validation: all 4,694 frontend tests pass, including 43 focused
+  event/download/publication checks. Type checking, document checks and production
+  export pass. Independent code review found no material defects. The full app
+  runs at the retained local review address; clicking both download links saves
+  the original PDFs. At 390 pixels, both links wrap without horizontal overflow
+  and retain at least 44 pixels of clickable height. Live acceptance is pending.

@@ -23,6 +23,20 @@ export const EVENTS = [
     postalCode: '56379',
     signupUrl: 'https://luma.com/3w69g6dw',
     image: '/events/forward-debate-2026-oct15.webp',
+    downloads: [
+      {
+        title: 'Forward Debate Candidate Guide',
+        filename: 'SD13_Candidate_Guide.pdf',
+        href: '/events/forward-debate-2026/SD13_Candidate_Guide.pdf',
+        sizeLabel: '65 KB',
+      },
+      {
+        title: 'Forward Debate Money Report',
+        filename: 'Alethical_SD13_Money_Report_2026-10-15.pdf',
+        href: '/events/forward-debate-2026/Alethical_SD13_Money_Report_2026-10-15.pdf',
+        sizeLabel: '80 KB',
+      },
+    ],
     imageWidth: 1080,
     imageHeight: 1920,
     imageAlt:

@@ -2252,7 +2252,12 @@ Focused endpoint checks cover initial content, canonical address, image dimensio
 Central Time offsets, free registration, the ended state, missing pages and sitemap links.
 
 
-The Forward Debate announcement is held from publication for refinements and candidate approval as of 7 October 2026. Its article and flyer return not found, and its URLs are omitted from public listings and sitemaps. Preserved event metadata is used again only after publication is approved.
+The 7 October hold was cleared on 15 October 2026 when Eugene confirmed candidate
+approval of the revised flyer and authorized republication. The article and collection
+return public content, and their URLs appear in Blog links and the sitemap. The revised
+flyer is the article's preview image. The supplied Candidate Guide and Money Report
+PDFs are ordinary same-origin download links in the shared initial/browser article;
+their financial claims do not enter the announcement's search or share metadata.
 
 
 ## 31. Retained candidate records and verified person overviews

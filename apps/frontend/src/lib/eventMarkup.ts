@@ -23,6 +23,7 @@ export const eventCss = `
 .event-back{display:inline-flex;align-items:center;min-height:44px;margin-bottom:24px;font-size:16px;font-weight:600}
 .event-flyer{display:block;width:100%;max-width:540px;height:auto;margin:0 auto;border-radius:16px}
 .event-image-link{text-align:center;margin:16px 0!important}.event-image-link a{display:inline-flex;min-height:44px;align-items:center}
+.event-downloads a{display:inline-flex;align-items:center;min-height:44px}
 .event-published{color:#5f655b;font-size:14px!important}
 .event-tagline{font-size:21px!important;color:#5f655b}
 .event-facts{background:#fff;border:1px solid rgba(17,21,15,.08);border-radius:16px;padding:24px;margin:28px 0}
@@ -73,6 +74,8 @@ export function renderEventArticle(event: PublishedEvent, now = Date.now()): str
 <p class="event-image-link"><a href="${e(event.image)}">Open full-size flyer to zoom in</a></p>
 <h1>${e(event.title)}</h1>
 <p class="event-published">Published <time datetime="${event.publishedOn}">${e(publishedLabel)}</time> · Updated <time datetime="${event.updatedOn}">${e(updatedLabel)}</time></p>
+<section aria-label="Debate downloads"><h2>Download the debate materials</h2>
+<ul class="event-downloads">${event.downloads.map((file) => `<li><a href="${e(file.href)}" download="${e(file.filename)}">Download ${e(file.title)} (PDF, ${e(file.sizeLabel)})</a></li>`).join('')}</ul></section>
 <p class="event-tagline">${e(event.tagline)}</p>
 ${ended ? '<p><strong>This event has ended</strong></p>' : ''}
 <p>${e(event.introduction)}</p>
