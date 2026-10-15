@@ -163,3 +163,7 @@ share geometry with the React component. Focused checks cover truthful return
 names/addresses, hidden decorative icons, stable download links, RSVP labels and
 fact grouping. Browser acceptance must cover 320px, phone/tablet/computer widths,
 hover/press, keyboard focus, enlarged text and current/ended event actions.
+
+The focused browser regression in `event-return-links.spec.ts` exercises both
+return paths at 320px, 390px and 1280px, including neutral narrow hover, label-only
+underline, keyboard focus, overflow and real navigation.
