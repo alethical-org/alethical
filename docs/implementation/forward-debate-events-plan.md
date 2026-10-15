@@ -11,7 +11,7 @@ Signup uses https://luma.com/3w69g6dw. This is website publication, not email se
 - Add Events on `/blog`, a collection at `/blog/events`, and the event at
   `/blog/events/forward-debate-2026`. Keep research and guide traits unchanged.
 - Trent Dilks: DFL candidate. Aaron Brutger: Republican primary candidate. These are the approved publication labels.
-- Minnesota Senate District 13, Thursday 15 October 2026, 6–8 PM Central.
+- Minnesota Senate District 13, Thursday 15 October 2026, 6–8 PM CDT.
 - Riverside Terrace, 195 River Ave S, Sauk Rapids, MN 56379. Free admission.
 - Alethical hosts; Angel Zierden moderates; no pre-approved questions.
 - Preserve the original supplied flyer unchanged, including primary-candidate wording in both flyer and article.
