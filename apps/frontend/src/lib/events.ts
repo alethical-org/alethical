@@ -9,13 +9,14 @@ export const EVENTS = [
   {
     ...EVENT_INDEX[0],
     name: 'The Forward Debate',
-    tagline: 'No pre-approved questions',
+    tagline:
+      'Hear Minnesota Senate District 13 candidates discuss their views and priorities at Alethical’s first public debate.',
     publishedOn: '2026-10-07',
     updatedOn: '2026-10-15',
     startDate: '2026-10-15T18:00:00-05:00',
     endDate: '2026-10-15T20:00:00-05:00',
     dateLabel: 'Thursday, October 15, 2026',
-    timeLabel: '6–8 PM Central',
+    timeLabel: '6–8 PM CDT',
     locationName: 'Riverside Terrace',
     streetAddress: '195 River Ave S',
     city: 'Sauk Rapids',
@@ -28,13 +29,11 @@ export const EVENTS = [
         title: 'Forward Debate Candidate Guide',
         filename: 'SD13_Candidate_Guide.pdf',
         href: '/events/forward-debate-2026/SD13_Candidate_Guide.pdf',
-        sizeLabel: '65 KB',
       },
       {
         title: 'Forward Debate Money Report',
         filename: 'Alethical_SD13_Money_Report_2026-10-15.pdf',
         href: '/events/forward-debate-2026/Alethical_SD13_Money_Report_2026-10-15.pdf',
-        sizeLabel: '104 KB',
       },
     ],
     imageWidth: 1080,
@@ -42,7 +41,7 @@ export const EVENTS = [
     imageAlt:
       'The Forward Debate flyer featuring Trent Dilks, Aaron Brutger and moderator Angel Zierden, with Jared Gapinski also invited. Event details follow.',
     description:
-      'Alethical hosts its first debate on October 15, 2026: Minnesota Senate District 13 candidates at Riverside Terrace in Sauk Rapids, 6–8 PM Central. Free admission.',
+      'Alethical hosts its first debate on October 15, 2026: Minnesota Senate District 13 candidates at Riverside Terrace in Sauk Rapids, 6–8 PM CDT. Free admission.',
     introduction:
       'The Forward Debate brings Minnesota Senate District 13 candidates to Riverside Terrace in Sauk Rapids:',
     candidates: [
@@ -53,8 +52,7 @@ export const EVENTS = [
       'Also invited: Jared Gapinski, Senate Republican primary winner.',
       'Angel Zierden, CEO and Founder of Alethical, moderates the debate. Alethical is hosting the event to give voters a chance to hear directly from the candidates and compare their views.',
     ],
-    invitation:
-      'Bring your curiosity and a willingness to hear different views. RSVP so we can plan for the number of people attending, and share the invitation with someone who would like to join you.',
+    invitation: 'Join the conversation and invite someone along.',
   },
 ] as const;
 

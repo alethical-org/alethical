@@ -75,7 +75,7 @@ export function renderEventArticle(event: PublishedEvent, now = Date.now()): str
 <h1>${e(event.title)}</h1>
 <p class="event-published">Published <time datetime="${event.publishedOn}">${e(publishedLabel)}</time> · Updated <time datetime="${event.updatedOn}">${e(updatedLabel)}</time></p>
 <section aria-label="Debate downloads"><h2>Download the debate materials</h2>
-<ul class="event-downloads">${event.downloads.map((file) => `<li><a href="${e(file.href)}" download="${e(file.filename)}">Download ${e(file.title)} (PDF, ${e(file.sizeLabel)})</a></li>`).join('')}</ul></section>
+<ul class="event-downloads">${event.downloads.map((file) => `<li><a href="${e(file.href)}" download="${e(file.filename)}">Download ${e(file.title)} (PDF)</a></li>`).join('')}</ul></section>
 <p class="event-tagline">${e(event.tagline)}</p>
 ${ended ? '<p><strong>This event has ended</strong></p>' : ''}
 <p>${e(event.introduction)}</p>
@@ -85,7 +85,7 @@ ${event.paragraphs.map((paragraph) => `<p>${e(paragraph)}</p>`).join('')}
 <p><strong><time datetime="${e(event.startDate)}">${e(event.dateLabel)}</time> · ${e(event.timeLabel)}</strong></p>
 <p>${e(event.locationName)}<br>${e(event.streetAddress)}, ${e(event.city)}, ${e(event.region)} ${e(event.postalCode)}</p>
 <p>Free admission</p>
-<p>Hosted by Alethical · Moderated by Angel Zierden, <a href="https://www.alethical.com">alethical.com</a></p>
+<p>Hosted by Alethical · Moderated by Angel Zierden, <a href="https://www.alethical.com">Alethical.com</a></p>
 </section>
 ${ended ? `<p><a href="${e(event.signupUrl)}">View the event on Luma</a></p>` : `<h2>Join us in Sauk Rapids</h2><p>${e(event.invitation)}</p><p><a href="${e(event.signupUrl)}"><strong>RSVP for free on Luma →</strong></a></p>`}
 <div class="event-brands"><a href="${COALITION_CANDIDATES_URL}" aria-label="Meet the Forward Coalition candidates"><img class="event-coalition-logo" src="/services-coalition.webp" alt="Minnesota Forward Together" width="600" height="205" loading="lazy"></a></div>
