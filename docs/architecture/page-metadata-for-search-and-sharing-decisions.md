@@ -2252,8 +2252,8 @@ Focused endpoint checks cover initial content, canonical address, image dimensio
 Central Time offsets, free registration, the ended state, missing pages and sitemap links.
 
 
-The 7 October hold was cleared on 15 October 2026 when Eugene confirmed candidate
-approval of the revised flyer and authorized republication. The article and collection
+Candidate approval of the revised flyer and republication authorization are confirmed
+as of 15 October 2026; the earlier publication hold no longer applies. The article and collection
 return public content, and their URLs appear in Blog links and the sitemap. The revised
 flyer is the article's preview image. The supplied Candidate Guide and Money Report
 PDFs are ordinary same-origin download links in the shared initial/browser article;

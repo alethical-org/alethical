@@ -476,7 +476,7 @@ publication dates, accuracy-review dates, claims, evidence or article publicatio
 
 ### 2.16 Events reuse the Blog design and retain a permanent address
 
-**Republication approved, 15 October 2026:** Eugene confirmed candidate approval of
+**Republication approved, 15 October 2026:** Candidate approval is confirmed for
 `Phone promo v2.png` and authorized publication of the revised first-debate article.
 This clears the 7 October hold. Keep the original publication date and show the
 15 October update separately. The article, collection, current flyer, Blog links,
@@ -504,7 +504,7 @@ authorship claims or a research source-verification badge. Default reader commen
 On 15 October, Eugene supplied `SD13_Candidate_Guide.pdf` and
 `Alethical_SD13_Money_Report_2026-10-15.pdf` and requested easy downloads near the
 article introduction. Publish with distinct descriptive links, PDF format and file size.
-Eugene subsequently approved correcting only “5.3 times” to “4.9 times” in the
+The author-approved correction is limited to changing “5.3 times” to “4.9 times” in the
 downloadable Money Report ($72,840 / $14,936 = 4.88). Preserve the source original
 and all other report content; the Candidate Guide stays unchanged. Downloads remain available after the event ends.
 A supplied report is not a newly checked research claim; corrections follow the

@@ -88,7 +88,7 @@ is a partner link, not the source for candidate office/status.
   the single author-approved ratio correction. Both remain available after the event ends.
 - Report review raised the 5.3-times statement ($72,840 / $14,936 = 4.88) and the
   sentence claiming 12 gifts of exactly $1,000 total $12,400. The latter cannot be
-  corrected from the supplied PDF alone. Eugene approved changing “5.3 times” to “4.9 times” in the downloadable
+  corrected from the supplied PDF alone. The approved correction is “5.3 times” to “4.9 times” in the downloadable
   copy, preserving the original. The corrected PDF changes only that text; rendered
   differences are confined to the phrase on page 1, with pages 2 and 3 pixel-identical.
   Under the supplied-research publication policy in grounded-answers.md rule 13,
