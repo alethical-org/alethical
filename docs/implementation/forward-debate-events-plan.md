@@ -111,3 +111,24 @@ is a partner link, not the source for candidate office/status.
 
 - Closing logo row: the requested removal leaves only the Forward Coalition link.
   The shared website header and the supplied flyer remain unchanged.
+
+## Event summary and download-label follow-up
+
+The event's shared summary explains the public debate's purpose: “Hear Minnesota
+Senate District 13 candidates discuss their views and priorities at Alethical’s
+first public debate.” The article, `/blog/events` collection and `/blog` preview
+all read this summary from the same event record. The time label and search
+summary use CDT for the October 15 event, preserving the UTC−05:00 timestamps.
+Download link labels retain PDF and omit sizes; the flyer and PDF bytes stay unchanged.
+The moderator line displays “Alethical.com” while retaining its home address.
+The invitation reads “Join the conversation and invite someone along.” The existing
+RSVP action remains, without a separate explanation of attendance planning.
+
+The reusable requirements are owned by
+[design-principles.md: event announcement summaries and supporting links](../design/design-principles.md#event-announcement-summaries-and-supporting-links).
+Impact and prevention: shared event inputs and rendering keep list, article,
+initial HTML and search details aligned. Focused event tests cover visible purpose,
+time label and download names, while the metadata test preserves exact offsets.
+Return-link styling awaits the separate Design review; this copy change does not
+choose a visual treatment. Parent acceptance covers phone and desktop wrapping,
+working downloads, the original preview and the public result after release.

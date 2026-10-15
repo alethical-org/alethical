@@ -502,9 +502,14 @@ an active registration invitation or registration offer in structured data.
 A recap, recording or photos require actual supplied material; none is implied.
 Host announcements do not acquire Research or Guide traits, findings, research
 authorship claims or a research source-verification badge. Default reader comments apply to individual event articles too. All event promotions omit the standard AI notice, under the 7 October 2026 decision. Factual event details still require checking.
-On 15 October, Eugene supplied `SD13_Candidate_Guide.pdf` and
-`Alethical_SD13_Money_Report_2026-10-15.pdf` and requested easy downloads near the
-article introduction. Publish with distinct descriptive links, PDF format and file size.
+The supplied `SD13_Candidate_Guide.pdf` and
+`Alethical_SD13_Money_Report_2026-10-15.pdf` are easy downloads near the
+article introduction. Their distinct descriptive links retain “(PDF)” without file sizes.
+Event summaries, time labels and supporting links follow
+[design-principles.md: event announcement summaries and supporting links](../design/design-principles.md#event-announcement-summaries-and-supporting-links).
+The Forward Debate summary is “Hear Minnesota Senate District 13 candidates discuss
+their views and priorities at Alethical’s first public debate.” Its October 15 time
+is displayed as “6–8 PM CDT”, matching the saved UTC−05:00 start and end times.
 The author-approved correction is limited to changing “5.3 times” to “4.9 times” in the
 downloadable Money Report ($72,840 / $14,936 = 4.88). Preserve the source original
 and all other report content; the Candidate Guide stays unchanged. Downloads remain available after the event ends.

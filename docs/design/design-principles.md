@@ -706,6 +706,31 @@ under reduced motion. Keyboard focus draws 1 purple 2px ring, offset 2px, around
 the whole Short post row or card from its title link; pointer clicks draw no ring.
 The Guide fold button and topic links keep their separate focus and hover states.
 
+### Event announcement summaries and supporting links
+
+Event cards and announcement introductions lead with a concise summary of what
+an event is about and why someone would attend. Format details such as question
+rules do not replace that purpose. Preserve approved source flyers unchanged.
+Keep invitations concise: omit explanations already implied by the action, such
+as why the host needs an RSVP, and do not repeat the RSVP button in nearby prose.
+
+Use timezone abbreviations in event times, matched to the event's date and place.
+For Minnesota, use CDT during daylight saving time and CST during standard time.
+The displayed abbreviation must agree with the saved start/end UTC offsets; do
+not relabel an October daylight-saving event as CST.
+
+Download links name the material and retain the format in parentheses, such as
+“Download Forward Debate Candidate Guide (PDF)”. Omit file sizes from event
+announcement link labels. Keep the actual downloadable file unchanged unless a
+separate correction is approved.
+
+In Alethical event copy, display the branded website name as “Alethical.com”,
+with an uppercase A; preserve the actual link address.
+
+A closing partner-logo row on an Alethical event announcement does not repeat an
+Alethical home link. Keep the real partner link and the normal site header.
+These rules govern similar event announcements, not unrelated research layouts.
+
 ### Implied information in post graphics
 
 Remove text and visual marks that add no needed meaning beyond nearby labels,

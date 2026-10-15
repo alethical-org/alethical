@@ -19,12 +19,13 @@ describe('accessible event announcement', () => {
       'DFL-endorsed candidate',
       'Also invited: Jared Gapinski, Senate Republican primary winner.',
       'CEO and Founder of Alethical',
+      'Alethical.com',
       'Alethical hosts its first debate',
       'Updated October 15, 2026',
       '195 River Ave S',
-      '6–8 PM Central',
+      '6–8 PM CDT',
       'Free admission',
-      'No pre-approved questions',
+      'Hear Minnesota Senate District 13 candidates discuss their views and priorities at Alethical’s first public debate.',
     ]) {
       expect(document.body.textContent).toContain(text);
     }
@@ -39,10 +40,9 @@ describe('accessible event announcement', () => {
       event.downloads.forEach((file, index) => {
         expect(links[index].getAttribute('href')).toBe(file.href);
         expect(links[index].getAttribute('download')).toBe(file.filename);
-        expect(links[index].textContent).toBe(`Download ${file.title} (PDF, ${file.sizeLabel})`);
+        expect(links[index].textContent).toBe(`Download ${file.title} (PDF)`);
         const bytes = readFileSync(new URL(`../../../public${file.href}`, import.meta.url));
         expect(bytes.subarray(0, 5).toString()).toBe('%PDF-');
-        expect(file.sizeLabel).toBe(`${Math.round(bytes.length / 1024)} KB`);
       });
       const html = document.body.innerHTML;
       expect(html.indexOf('event-downloads')).toBeLessThan(html.indexOf(event.introduction));
