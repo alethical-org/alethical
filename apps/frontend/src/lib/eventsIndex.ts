@@ -2,10 +2,10 @@
 export const EVENT_INDEX = [
   {
     slug: 'forward-debate-2026',
-    // Held for refinements and candidate approval. Republishing requires explicit editorial approval.
-    published: false,
+    // Revised flyer approved by the candidates; publication authorized on 15 October 2026.
+    published: true,
     articleId: 'forward-debate-2026',
-    title: 'The Forward Debate: Minnesota Senate District 13 in Sauk Rapids',
+    title: 'Alethical hosts its first debate: Minnesota Senate District 13',
   },
 ] as const;
 

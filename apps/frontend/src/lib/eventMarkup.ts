@@ -23,13 +23,14 @@ export const eventCss = `
 .event-back{display:inline-flex;align-items:center;min-height:44px;margin-bottom:24px;font-size:16px;font-weight:600}
 .event-flyer{display:block;width:100%;max-width:540px;height:auto;margin:0 auto;border-radius:16px}
 .event-image-link{text-align:center;margin:16px 0!important}.event-image-link a{display:inline-flex;min-height:44px;align-items:center}
+.event-downloads a{display:inline-flex;align-items:center;min-height:44px}
 .event-published{color:#5f655b;font-size:14px!important}
 .event-tagline{font-size:21px!important;color:#5f655b}
 .event-facts{background:#fff;border:1px solid rgba(17,21,15,.08);border-radius:16px;padding:24px;margin:28px 0}
 .event-facts p{margin:0 0 8px}.event-facts p:last-child{margin:0}
 .event-brands{display:flex;align-items:center;gap:32px;flex-wrap:wrap;margin-top:40px;padding-top:24px;border-top:1px solid rgba(17,21,15,.1)}
 .event-brands a{display:inline-flex;align-items:center;min-height:44px;gap:12px;font-weight:700}
-.event-brand-icon{width:40px;height:auto}.event-coalition-logo{width:190px;height:auto}
+.event-coalition-logo{width:190px;height:auto}
 .event-list{list-style:none;margin:18px 0 0;padding:12px 36px 28px;background:#fff;border:1px solid rgba(17,21,15,.08);border-radius:16px}
 .event-list li{padding:22px 0 8px}.event-list li+li{border-top:1px solid rgba(17,21,15,.07)}
 .event-list h3,.event-list h2{font-size:20px;line-height:1.3;margin:6px 0 8px}
@@ -59,18 +60,22 @@ export function renderEventsCollection(now = Date.now()): string {
 
 export function renderEventArticle(event: PublishedEvent, now = Date.now()): string {
   const ended = eventHasEnded(event, now);
-  const publishedLabel = new Intl.DateTimeFormat('en-US', {
+  const dateFormatter = new Intl.DateTimeFormat('en-US', {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
     timeZone: 'UTC',
-  }).format(new Date(`${event.publishedOn}T12:00:00Z`));
+  });
+  const publishedLabel = dateFormatter.format(new Date(`${event.publishedOn}T12:00:00Z`));
+  const updatedLabel = dateFormatter.format(new Date(`${event.updatedOn}T12:00:00Z`));
   return `<article class="event-content event-article"><style>${eventCss}</style>
 <a class="event-back" href="${EVENTS_PATH}">‹ Back to Events</a>
 <a href="${e(event.image)}" aria-label="Open the full-size ${e(event.name)} flyer"><img class="event-flyer" src="${e(event.image)}" width="${event.imageWidth}" height="${event.imageHeight}" alt="${e(event.imageAlt)}" fetchpriority="high" decoding="async"></a>
 <p class="event-image-link"><a href="${e(event.image)}">Open full-size flyer to zoom in</a></p>
 <h1>${e(event.title)}</h1>
-<p class="event-published">Published <time datetime="${event.publishedOn}">${e(publishedLabel)}</time></p>
+<p class="event-published">Published <time datetime="${event.publishedOn}">${e(publishedLabel)}</time> · Updated <time datetime="${event.updatedOn}">${e(updatedLabel)}</time></p>
+<section aria-label="Debate downloads"><h2>Download the debate materials</h2>
+<ul class="event-downloads">${event.downloads.map((file) => `<li><a href="${e(file.href)}" download="${e(file.filename)}">Download ${e(file.title)} (PDF, ${e(file.sizeLabel)})</a></li>`).join('')}</ul></section>
 <p class="event-tagline">${e(event.tagline)}</p>
 ${ended ? '<p><strong>This event has ended</strong></p>' : ''}
 <p>${e(event.introduction)}</p>
@@ -83,6 +88,6 @@ ${event.paragraphs.map((paragraph) => `<p>${e(paragraph)}</p>`).join('')}
 <p>Hosted by Alethical · Moderated by Angel Zierden, <a href="https://www.alethical.com">alethical.com</a></p>
 </section>
 ${ended ? `<p><a href="${e(event.signupUrl)}">View the event on Luma</a></p>` : `<h2>Join us in Sauk Rapids</h2><p>${e(event.invitation)}</p><p><a href="${e(event.signupUrl)}"><strong>RSVP for free on Luma →</strong></a></p>`}
-<div class="event-brands"><a href="/" aria-label="Alethical home"><img class="event-brand-icon" src="/services-print-mark.png" width="40" height="40" alt="">Alethical</a><a href="${COALITION_CANDIDATES_URL}" aria-label="Meet the Forward Coalition candidates"><img class="event-coalition-logo" src="/services-coalition.webp" alt="Minnesota Forward Together" width="600" height="205" loading="lazy"></a></div>
+<div class="event-brands"><a href="${COALITION_CANDIDATES_URL}" aria-label="Meet the Forward Coalition candidates"><img class="event-coalition-logo" src="/services-coalition.webp" alt="Minnesota Forward Together" width="600" height="205" loading="lazy"></a></div>
 </article>`;
 }

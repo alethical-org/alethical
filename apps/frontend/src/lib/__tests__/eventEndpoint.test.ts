@@ -48,7 +48,7 @@ describe('public event pages before JavaScript', () => {
     const { body, status } = await serve(eventPath(PUBLISHED_EVENTS[0]));
     expect(status).toBe(200);
     expect(body).toContain(renderEventArticle(PUBLISHED_EVENTS[0], now));
-    expect(body).toContain('Republican primary candidate');
+    expect(body).toContain('Republican-endorsed write-in candidate');
     expect(body).toContain('href="https://luma.com/3w69g6dw"');
     expect(body).toContain('href="https://forwardcoalition.com/candidates"');
     expect(body).toContain('aria-label="Site"');
@@ -86,15 +86,4 @@ describe('public event pages before JavaScript', () => {
       );
     }
   });
-});
-
-// Exercise the reusable published route without lifting the real candidate-review hold.
-vi.mock('../eventsIndex', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../eventsIndex')>();
-  const index = original.EVENT_INDEX.map((event) => ({ ...event, published: true }));
-  return {
-    EVENT_INDEX: index,
-    PUBLISHED_EVENT_INDEX: index,
-    eventIndexBySlug: (slug: string) => index.find((event) => event.slug === slug),
-  };
 });

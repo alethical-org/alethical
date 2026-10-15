@@ -476,13 +476,11 @@ publication dates, accuracy-review dates, claims, evidence or article publicatio
 
 ### 2.16 Events reuse the Blog design and retain a permanent address
 
-**Current hold, 7 October 2026:** The Forward Debate announcement is unpublished
-for refinements and candidate approval. Its saved copy,
-image, layout and address are retained. A held announcement is absent from
-public routes, Blog listings, sitemaps and comment eligibility; its flyer is
-kept outside the public asset directory. An empty Events group is hidden.
-Republication requires explicit publication approval after candidate approval.
-
+**Republication approved, 15 October 2026:** Candidate approval is confirmed for
+`Phone promo v2.png`; publication of the revised first-debate article is authorized.
+This clears the 7 October hold. Keep the original publication date and show the
+15 October update separately. The article, collection, current flyer, Blog links,
+sitemap entries and comment eligibility are public again.
 
 Approved on 7 October 2026. The `/blog` page includes an `EVENTS` group
 using the existing section heading, box, row, type and responsive spacing patterns.
@@ -491,10 +489,11 @@ Existing Research reports, Short posts and Guides keep their relative order.
 
 The first announcement is The Forward Debate at `/blog/events/forward-debate-2026`.
 The supplied flyer appears before the article text, with its content unchanged.
-Aaron Brutger's flyer and article label remains “Republican primary candidate” under the approved event wording. The article includes the confirmed event time,
+The revised flyer and article identify Trent Dilks as “DFL-endorsed candidate” and Aaron Brutger as “Republican-endorsed write-in candidate”. Jared Gapinski is separately “Also invited”, Senate Republican primary winner. These revised labels supersede the 7 October wording. The article includes the confirmed event time,
 venue, free admission and the registration link `https://luma.com/3w69g6dw`.
-The Alethical icon links home and the Forward Coalition logo links to
-`https://forwardcoalition.com/candidates`; their presence does not
+The closing logo row contains only the Forward Coalition logo, linked to
+`https://forwardcoalition.com/candidates`. Do not repeat an Alethical home link
+beside it: the announcement is already on Alethical. The coalition link does not
 assert an additional endorsement or co-host relationship.
 
 The event registry supplies the collection, article, initial HTML, metadata and
@@ -503,6 +502,15 @@ an active registration invitation or registration offer in structured data.
 A recap, recording or photos require actual supplied material; none is implied.
 Host announcements do not acquire Research or Guide traits, findings, research
 authorship claims or a research source-verification badge. Default reader comments apply to individual event articles too. All event promotions omit the standard AI notice, under the 7 October 2026 decision. Factual event details still require checking.
+On 15 October, Eugene supplied `SD13_Candidate_Guide.pdf` and
+`Alethical_SD13_Money_Report_2026-10-15.pdf` and requested easy downloads near the
+article introduction. Publish with distinct descriptive links, PDF format and file size.
+The author-approved correction is limited to changing “5.3 times” to “4.9 times” in the
+downloadable Money Report ($72,840 / $14,936 = 4.88). Preserve the source original
+and all other report content; the Candidate Guide stays unchanged. Downloads remain available after the event ends.
+A supplied report is not a newly checked research claim; corrections follow the
+existing author-directed research correction process.
+
 Event article identities join the generated server eligibility registry; collection
 pages remain comment-free.
 
