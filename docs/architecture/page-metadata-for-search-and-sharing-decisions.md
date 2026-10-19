@@ -2223,6 +2223,35 @@ the running website. The words and existing link styling remain unchanged.
 
 ## 30. Event announcements are discoverable from their first response
 
+The Forward Debate's post-event article uses the 19 October 2026 extension in
+[published-writing-decisions.md §2.16](published-writing-decisions.md#216-events-reuse-the-blog-design-and-retain-a-permanent-address).
+Its visible date line names when the debate was held and when the article was updated,
+not an inferred video publication date. Original article publication metadata stays
+separate from the actual YouTube upload date. Its heading is “The Forward Debate”,
+while the browser/search title is
+“Trent Dilks & Aaron Brutger: The Forward Debate | Alethical”. The introduction
+names the actual district, venue, city and event date. Historical announcement
+content and flyer appear in an expandable section; that flyer is not preloaded.
+It remains the social image until an accepted final thumbnail is supplied.
+
+Actual recording, topic and transcript sections appear independently as available.
+The full supplied transcript is in initial HTML with the approved machine-text
+notice and uncertainty markers. A real video embed is present without a click to
+create it. Both entry paths read bounded timestamp links; canonical metadata keeps
+the base event address. Existing Event data stays, without an active offer. Add
+VideoObject only with actual publication time, thumbnail and duration; add Clip
+entries only from the same chapter source used by visible links. A conditional
+video sitemap appears only when such real video metadata exists. Never invent a
+content URL, upload date, transcript, attendance or ranking promise.
+
+The first-load and client-navigation paths share rendering and metadata. The global
+browser security policy admits the privacy-enhanced YouTube frame host and the
+specific official player API/script paths; other directives remain restricted.
+The current no-media article makes no playback claim. Before real video publication,
+resolve and test uninterrupted early playback across the app's initial-HTML
+replacement, plus actual captions and timestamp controls on phone and desktop.
+
+
 The approved event publishing scope lives in
 [published-writing-decisions.md §2.16](published-writing-decisions.md#216-events-reuse-the-blog-design-and-retain-a-permanent-address).
 The `/blog/events` collection and every published `/blog/events/<name>` announcement

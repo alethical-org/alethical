@@ -57,7 +57,7 @@ describe('web security response headers', () => {
     ]);
     // Fonts are served from this address (public/fonts), so no outside font host is allowed.
     expect(directives.get('font-src')).toEqual(["'self'", 'data:']);
-    expect(directives.get('frame-src')).toEqual(["'none'"]);
+    expect(directives.get('frame-src')).toEqual(['https://www.youtube-nocookie.com']);
     expect(directives.get('img-src')).toEqual(["'self'", 'data:', 'blob:', 'https:']);
     expect(directives.get('object-src')).toEqual(["'none'"]);
     expect(directives.get('style-src')).toEqual(["'self'", "'unsafe-inline'"]);
@@ -77,6 +77,8 @@ describe('web security response headers', () => {
 
     expect(directives.get('script-src')).toEqual([
       "'self'",
+      'https://www.youtube.com/iframe_api',
+      'https://www.youtube.com/s/player/',
       'https://static.cloudflareinsights.com',
       ...programs.map(policyHash),
     ]);

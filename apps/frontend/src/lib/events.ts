@@ -12,7 +12,7 @@ export const EVENTS = [
     tagline:
       'Hear Minnesota Senate District 13 candidates discuss their views and priorities at Alethical’s first public debate.',
     publishedOn: '2026-10-07',
-    updatedOn: '2026-10-15',
+    updatedOn: '2026-10-19',
     startDate: '2026-10-15T18:00:00-05:00',
     endDate: '2026-10-15T20:00:00-05:00',
     dateLabel: 'Thursday, October 15, 2026',

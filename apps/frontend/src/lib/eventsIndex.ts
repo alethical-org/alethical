@@ -5,7 +5,7 @@ export const EVENT_INDEX = [
     // Revised flyer approved by the candidates; publication authorized on 15 October 2026.
     published: true,
     articleId: 'forward-debate-2026',
-    title: 'Alethical hosts its first debate: Minnesota Senate District 13',
+    title: 'The Forward Debate',
   },
 ] as const;
 

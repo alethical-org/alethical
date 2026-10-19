@@ -1,3 +1,5 @@
+import { eventReplayBySlug } from "../apps/frontend/src/lib/eventReplayContent";
+import { hasVideoMetadata, replayVideoSitemapEntry } from "../apps/frontend/src/lib/eventReplay";
 import {
   EVENTS_PATH,
   PUBLISHED_EVENTS,
@@ -103,9 +105,16 @@ function urlset(entries: string[]): string {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries.join("\n")}\n</urlset>`;
 }
 
+function videoEntries(): string[] {
+  return PUBLISHED_EVENTS.flatMap(event => {
+    const replay = eventReplayBySlug(event.slug);
+    return replay && hasVideoMetadata(replay) ? [replayVideoSitemapEntry(event, replay)] : [];
+  });
+}
 function sitemapIndex(): string {
   const children = [
     "pages",
+    ...(videoEntries().length ? ["videos"] : []),
     "bills",
     "legislators",
     "committees",
@@ -380,6 +389,12 @@ export default async function handler(
     return;
   }
 
+  if (section === "videos") {
+    const entries = videoEntries();
+    if (!entries.length) { sendNotFound(response); return; }
+    sendXml(response, `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">${entries.join("")}</urlset>`);
+    return;
+  }
   if (section === "pages") {
     let data: SitemapPayload | undefined;
     try {

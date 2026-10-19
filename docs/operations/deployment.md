@@ -390,6 +390,10 @@ opens only the connections the shipped website uses:
   receiver at `cloudflareinsights.com`
 - HTTPS images, which covers official legislator photos and OpenStreetMap tiles
 - inline styles, because React Native Web creates them while rendering
+- privacy-enhanced YouTube frames at `www.youtube-nocookie.com`, plus the official
+  `www.youtube.com/iframe_api` and `www.youtube.com/s/player/` program paths for
+  optional debate timestamp controls. These permissions apply across navigation;
+  a video loads only when the article supplies an accepted recording.
 
 Inline programs are not broadly allowed. The release-recovery program and the 2
 email-link safety programs are allowed only by a fingerprint of their exact text.
