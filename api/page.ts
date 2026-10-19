@@ -1,5 +1,6 @@
 import { renderEventArticle, publishedEventMetadata } from "../apps/frontend/src/lib/eventArticle";
-import { eventBySlug } from "../apps/frontend/src/lib/events";
+import { eventBySlug, eventPath } from "../apps/frontend/src/lib/events";
+import { eventReplayBySlug } from "../apps/frontend/src/lib/eventReplayContent";
 import {
   eventsPageMetadata,
 } from "../apps/frontend/src/lib/eventMetadata";
@@ -2004,7 +2005,7 @@ async function contentFor(
       const now = Date.now();
       return {
         metadata: publishedEventMetadata(event, now),
-        snapshot: renderEventPageSnapshot(renderEventArticle(event, now, { origin: "https://www.alethical.com", search: pathWithQuery(query).split("?")[1] ?? "" })),
+        snapshot: renderEventPageSnapshot(renderEventArticle(event, now, { origin: "https://www.alethical.com", search: pathWithQuery(query).split("?")[1] ?? "" }), eventReplayBySlug(event.slug)?.video ? eventPath(event) : undefined),
       };
     }
     case "readResearch":

@@ -26,8 +26,12 @@ export function createWebNavigationHistory(options: Options) {
         guard.onPopState();
         return;
       }
-      path = `${window.location.pathname}${window.location.search}` || '/';
-      options.resetNavigationToPath(path);
+      const arrived = `${window.location.pathname}${window.location.search}` || '/';
+      const sameScreen = sameNavigationPath(arrived, path);
+      path = arrived;
+      // Timestamp and fragment history belongs to the existing screen. Resetting
+      // keyed routes here would remove its already-playing video.
+      if (!sameScreen) options.resetNavigationToPath(path);
     },
     onStateChange(nextPath: string) {
       if (guard) {

@@ -1,4 +1,5 @@
 import { replayStart, replayTimestamp } from './eventReplay';
+import { pushWebHistory, saveCurrentScrollPosition } from '../navigation/webHistory';
 
 interface Player {
   seekTo(seconds: number, allowSeekAhead: boolean): void;
@@ -12,6 +13,15 @@ interface YoutubeApi {
 }
 type YoutubeWindow = Window & { YT?: YoutubeApi; onYouTubeIframeAPIReady?: () => void };
 let apiPromise: Promise<YoutubeApi> | undefined;
+interface Controller {
+  player?: Player;
+  ready: boolean;
+  failed: boolean;
+  disposed: boolean;
+  notify: Set<() => void>;
+  timer: number;
+}
+const controllers = new WeakMap<HTMLIFrameElement, Controller>();
 
 function loadYoutube(win: YoutubeWindow): Promise<YoutubeApi> {
   if (win.YT?.Player) return Promise.resolve(win.YT);
@@ -43,48 +53,100 @@ function loadYoutube(win: YoutubeWindow): Promise<YoutubeApi> {
   return apiPromise;
 }
 
+function controllerFor(frame: HTMLIFrameElement, win: YoutubeWindow): Controller {
+  const existing = controllers.get(frame);
+  if (existing) return existing;
+  const state: Controller = {
+    ready: false,
+    failed: false,
+    disposed: false,
+    notify: new Set(),
+    timer: 0,
+  };
+  controllers.set(frame, state);
+  const changed = () => state.notify.forEach((notify) => notify());
+  const fail = () => {
+    if (state.disposed) return;
+    state.ready = false;
+    state.failed = true;
+    win.clearTimeout(state.timer);
+    changed();
+  };
+  state.timer = win.setTimeout(fail, 20000);
+  void loadYoutube(win)
+    .then((api) => {
+      if (state.disposed) return;
+      state.player = new api.Player(frame, {
+        events: {
+          onReady: () => {
+            if (state.disposed) return;
+            state.ready = true;
+            state.failed = false;
+            win.clearTimeout(state.timer);
+            changed();
+          },
+          onError: fail,
+        },
+      });
+    })
+    .catch(fail);
+  return state;
+}
+
+function disposeFrame(frame: HTMLIFrameElement) {
+  const state = controllers.get(frame);
+  if (!state) return;
+  state.disposed = true;
+  frame.ownerDocument.defaultView?.clearTimeout(state.timer);
+  state.notify.clear();
+  state.player?.destroy();
+  controllers.delete(frame);
+}
+
+/** Retiring an article, unlike replaying an effect, may remove its player. */
+export function disposeEventReplay(root: HTMLElement) {
+  const frame = root.querySelector<HTMLIFrameElement>('#replay-player');
+  if (frame) disposeFrame(frame);
+}
+
+export function replayScroller(root: HTMLElement): HTMLElement | null {
+  for (let node = root.parentElement; node; node = node.parentElement) {
+    if (root.ownerDocument.defaultView?.getComputedStyle(node).overflowY === 'auto') return node;
+  }
+  return null;
+}
+
 /** Initial iframe and timestamp links work without this enhancement. */
 export function mountEventReplay(root: HTMLElement): () => void {
   const win = root.ownerDocument.defaultView as YoutubeWindow | null;
   const frame = root.querySelector<HTMLIFrameElement>('#replay-player');
   if (!win || !frame) return () => {};
+  const state = controllerFor(frame, win);
+  const path = win.location.pathname;
   const duration = Number(root.dataset.replayDuration);
   const status = root.querySelector<HTMLElement>('[data-replay-status]');
   const copyStatus = root.querySelector<HTMLElement>('[data-replay-copy-status]');
   const fallback = root.querySelector<HTMLAnchorElement>('[data-replay-youtube]');
-  let player: Player | undefined;
-  let ready = false;
   let disposed = false;
   const report = (text: string) => {
     if (status) status.textContent = text;
   };
   const failed = () => {
-    ready = false;
+    state.ready = false;
+    state.failed = true;
     if (!disposed)
       report(
         'If the video does not play here, watch it on YouTube. Topic links still open the selected time.',
       );
   };
-  const timer = win.setTimeout(failed, 20000);
-  void loadYoutube(win)
-    .then((api) => {
-      if (disposed) return;
-      player = new api.Player(frame, {
-        events: {
-          onReady: () => {
-            if (!disposed) {
-              ready = true;
-              win.clearTimeout(timer);
-              report('');
-            }
-          },
-          onError: failed,
-        },
-      });
-    })
-    .catch(failed);
+  const changed = () => {
+    if (state.ready) report('');
+    else if (state.failed) failed();
+  };
+  state.notify.add(changed);
+  changed();
   const seek = (seconds: number) => {
-    player!.seekTo(seconds, true);
+    state.player!.seekTo(seconds, true);
     if (fallback) {
       const url = new URL(fallback.href);
       url.searchParams.set('t', `${seconds}s`);
@@ -123,7 +185,7 @@ export function mountEventReplay(root: HTMLElement): () => void {
           copyStatus.textContent =
             'Could not copy the link. Use the timestamp link’s copy-link menu.';
       }
-    } else if (ready) {
+    } else if (state.ready) {
       // Let normal links handle startup, blocked scripts, modified clicks and failures.
       try {
         seek(seconds);
@@ -132,14 +194,27 @@ export function mountEventReplay(root: HTMLElement): () => void {
         return;
       }
       event.preventDefault();
-      win.history.pushState(null, '', url);
+      const scroller = replayScroller(root);
+      if (scroller) saveCurrentScrollPosition(scroller.scrollTop);
+      // This article is public and has no unsaved editor state. Guarded editor
+      // screens must keep their own removal-aware history writer.
+      pushWebHistory(`${url.pathname}${url.search}${url.hash}`);
       const heading = root.querySelector<HTMLElement>('#watch');
       heading?.focus();
       heading?.scrollIntoView({ block: 'start' });
+      if (scroller) saveCurrentScrollPosition(scroller.scrollTop);
     }
   };
   const pop = () => {
-    if (ready) {
+    const raw = new URLSearchParams(win.location.search).get('t');
+    if (
+      win.location.pathname !== path ||
+      raw === null ||
+      !/^\d+(?:\.\d+)?$/.test(raw) ||
+      Number(raw) >= duration
+    )
+      return;
+    if (state.ready) {
       try {
         seek(replayStart(win.location.search, duration));
       } catch {
@@ -154,9 +229,11 @@ export function mountEventReplay(root: HTMLElement): () => void {
   win.addEventListener('popstate', pop);
   return () => {
     disposed = true;
-    win.clearTimeout(timer);
+    state.notify.delete(changed);
     root.removeEventListener('click', click);
     win.removeEventListener('popstate', pop);
-    player?.destroy();
+    // React effect replays leave the iframe connected. Actual ordinary-screen
+    // removal or explicit stable-host retirement owns destruction instead.
+    if (!frame.isConnected) disposeFrame(frame);
   };
 }
