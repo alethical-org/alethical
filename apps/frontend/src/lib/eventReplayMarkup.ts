@@ -70,6 +70,8 @@ export function renderEventReplay(
       year: 'numeric',
       timeZone: 'UTC',
     });
+  // The invitation uses Design's unchanged flat mark-green-transparent.png,
+  // saved as alethical-mark-green.png; the gradient print mark has separate uses.
   const invitation = r.communityDebateInvitation && !options.example;
   const dateLine = r.publishedOn
     ? `<span class="event-keep">Published <time datetime="${e(r.publishedOn)}">${date(r.publishedOn)}</time></span>${event.updatedOn > r.publishedOn ? ` · <span class="event-keep">Updated <time datetime="${e(event.updatedOn)}">${date(event.updatedOn)}</time></span>` : ''}`
@@ -82,7 +84,7 @@ ${renderForwardCoalitionBrand()}
 <p class="event-published">${dateLine}</p>
 <p>${e(r.introduction)}</p>
 ${r.video ? `<section aria-labelledby="watch"><h2 id="watch" tabindex="-1">Watch the full ${options.example ? 'example' : 'debate'}</h2><iframe id="replay-player" title="${e(r.title)}" src="${e(replayEmbedUrl(r.video.id, start, options.origin))}" referrerpolicy="strict-origin-when-cross-origin" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe><p><a data-replay-youtube href="https://www.youtube.com/watch?v=${r.video.id}&amp;t=${Math.floor(start)}s">Watch on YouTube</a> · ${replayTimestamp(r.duration!)}</p><p class="replay-status" data-replay-status role="status" aria-live="polite"></p></section>` : ''}
-${invitation ? `<aside class="replay-invitation" aria-labelledby="community-debate"><h2 id="community-debate"><img src="${e(publicPageUrl('/services-print-mark.png'))}" alt="" width="30"><span>Want a debate in your community?</span></h2><a class="replay-contact" href="${e(publicPageUrl('/about/contact'))}">Contact Alethical</a></aside>` : ''}
+${invitation ? `<aside class="replay-invitation" aria-labelledby="community-debate"><h2 id="community-debate"><img src="/alethical-mark-green.png" alt="" width="30"><span>Want a debate in your community?</span></h2><a class="replay-contact" href="${e(publicPageUrl('/about/contact'))}">Contact Alethical</a></aside>` : ''}
 ${r.chapters ? `<nav aria-labelledby="topics"><h2 id="topics">Topics</h2><ol class="replay-topics">${r.chapters.items.map((c) => `<li>${r.video ? jump(c.start, `${replayTimestamp(c.start)} ${c.title}`) : r.transcript ? `<a href="#topic-${c.start}">${e(c.title)}</a>` : `${e(replayTimestamp(c.start))} ${e(c.title)}`}</li>`).join('')}</ol></nav>` : ''}
 ${r.transcript ? `<section aria-labelledby="transcript"><h2 id="transcript">Full transcript</h2><p>${e(TRANSCRIPT_DISCLOSURE)}</p>${r.video ? '<p class="replay-status" data-replay-copy-status role="status" aria-live="polite"></p>' : ''}${transcript}</section>` : ''}
 <section aria-labelledby="materials"><h2 id="materials">Debate materials</h2><ul class="event-downloads">${event.downloads.map((f) => `<li><a href="${e(publicPageUrl(f.href))}">${e(f.title)} (PDF)</a></li>`).join('')}</ul></section>

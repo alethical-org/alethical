@@ -106,6 +106,7 @@ describe('replay content and publication boundaries', () => {
     expect(link.href).toBe('https://www.alethical.com/about/contact');
     expect(link.hasAttribute('target')).toBe(false);
     expect(invitation.querySelector('img')?.alt).toBe('');
+    expect(invitation.querySelector('img')?.getAttribute('src')).toBe('/alethical-mark-green.png');
     for (const html of [
       renderEventReplay(EVENTS[0], ready()),
       renderEventReplay(EVENTS[0], replay, { example: true }),
