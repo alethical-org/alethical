@@ -34,7 +34,9 @@ own first-response content, canonical addresses, descriptions and exclusions.
 
 The **Public search health** workflow runs at 17:17 UTC and after successful
 trusted-main **Reader completion checks**. It reads robots instructions, the
-7 sitemap children, important public destinations and a bounded record sample.
+7 required sitemap children and the optional video child when published, important
+public destinations and a bounded record sample. Video URLs may also appear in a
+primary sitemap; duplicate addresses across primary children remain invalid.
 It requires meaningful initial text, correct preferred addresses and indexing
 instructions; missing records and private views keep their deliberate treatment.
 Failures retain a JSON artifact for 35 days. Public response reads make no AI
@@ -49,6 +51,10 @@ require useful initial content, an indexable 200 response and exactly 1 preferre
 address pointing to the base record. Known saved-data keys and payload years must
 match the requested record and year. Optional legislator/payment data that the page
 server omitted is recorded as `not-served`, not proof of correct year or direction.
+
+The initial-page sample keeps fixed destinations and fills at most 60 slots across
+page families in rotating order. Additional families reduce the sample per family
+rather than exceeding the limit or aborting the remaining checks.
 
 At most 9 daily or 14 Monday variant reads share the existing 160-request,
 300-second and 4 MiB-per-response limits. Committee, payment, legislator, race and
