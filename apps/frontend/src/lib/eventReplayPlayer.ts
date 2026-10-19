@@ -117,12 +117,36 @@ export function replayScroller(root: HTMLElement): HTMLElement | null {
 }
 
 /** Initial iframe and timestamp links work without this enhancement. */
-export function mountEventReplay(root: HTMLElement): () => void {
+export function mountEventReplay(root: HTMLElement, expectedPath?: string): () => void {
   const win = root.ownerDocument.defaultView as YoutubeWindow | null;
   const frame = root.querySelector<HTMLIFrameElement>('#replay-player');
-  if (!win || !frame) return () => {};
+  if (!win) return () => {};
+  if (!frame) {
+    const click = (event: MouseEvent) => {
+      if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)
+        return;
+      const link =
+        event.target instanceof Element
+          ? event.target.closest<HTMLAnchorElement>('a[href^="#topic-"]')
+          : null;
+      if (!link || !root.contains(link)) return;
+      const heading = root.querySelector<HTMLElement>(link.getAttribute('href')!);
+      const scroller = replayScroller(root);
+      if (!heading || !scroller) return;
+      event.preventDefault();
+      saveCurrentScrollPosition(scroller.scrollTop);
+      const url = new URL(win.location.href);
+      url.hash = link.hash;
+      pushWebHistory(`${url.pathname}${url.search}${url.hash}`);
+      heading.focus({ preventScroll: true });
+      heading.scrollIntoView({ block: 'start' });
+      saveCurrentScrollPosition(scroller.scrollTop);
+    };
+    root.addEventListener('click', click);
+    return () => root.removeEventListener('click', click);
+  }
   const state = controllerFor(frame, win);
-  const path = win.location.pathname;
+  const path = expectedPath ?? win.location.pathname;
   const duration = Number(root.dataset.replayDuration);
   const status = root.querySelector<HTMLElement>('[data-replay-status]');
   const copyStatus = root.querySelector<HTMLElement>('[data-replay-copy-status]');

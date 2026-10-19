@@ -50,6 +50,41 @@ afterEach(() => {
 });
 
 describe('stable direct-entry event document', () => {
+  it('keeps text-only topic visits in separate history entries with focused destinations', () => {
+    const host = install();
+    host.querySelector('iframe')!.remove();
+    host.style.overflowY = 'auto';
+    const root = host.querySelector<HTMLElement>('article')!;
+    root.insertAdjacentHTML(
+      'beforeend',
+      '<a href="#topic-100">Candidate introductions</a><h3 id="topic-100" tabindex="-1">Candidate introductions</h3>',
+    );
+    const link = root.querySelector<HTMLAnchorElement>('a[href="#topic-100"]')!;
+    const heading = root.querySelector<HTMLElement>('#topic-100')!;
+    const scroll = vi.fn(() => {
+      host.scrollTop = 1200;
+    });
+    heading.scrollIntoView = scroll;
+    host.scrollTop = 400;
+    const first = currentWebHistoryEntry()!;
+    const detach = mountEventReplay(root);
+    // Suppress jsdom's asynchronous default navigation for this modified click.
+    link.addEventListener('click', (event) => event.preventDefault(), { once: true });
+    link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: true }));
+    expect(currentWebHistoryEntry()!.entryId).toBe(first.entryId);
+    expect(scroll).not.toHaveBeenCalled();
+    link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    expect(window.location.hash).toBe('#topic-100');
+    expect(document.activeElement).toBe(heading);
+    expect(scroll).toHaveBeenCalledOnce();
+    expect(currentWebHistoryEntry()!.entryId).not.toBe(first.entryId);
+    expect(
+      window.sessionStorage.getItem(scrollPositionStorageKey(first.sessionId, first.entryId)),
+    ).toBe('400');
+    expect(readCurrentScrollPosition()).toBe(1200);
+    expect(document.querySelector('script[src*="youtube"]')).toBeNull();
+    detach();
+  });
   it('keeps early header focus on its matching real control without stealing later focus', () => {
     const host = install();
     const header = host.querySelector<HTMLElement>('[data-event-nav]')!;
@@ -223,6 +258,24 @@ describe('stable direct-entry event document', () => {
       window.sessionStorage.getItem(scrollPositionStorageKey(first.sessionId, first.entryId)),
     ).toBe('970');
     expect(readCurrentScrollPosition()).toBe(0);
+  });
+  it('uses the known video path when navigation writes the new address after mounting', async () => {
+    const host = install();
+    const root = host.querySelector<HTMLElement>('.replay-content')!;
+    const seekTo = vi.fn();
+    const Player = vi.fn(function (_frame: HTMLIFrameElement, options: any) {
+      options.events.onReady();
+      return { seekTo, destroy: vi.fn() };
+    });
+    Object.assign(window, { YT: { Player } });
+    window.history.replaceState(window.history.state, '', '/blog/events');
+    const detach = mountEventReplay(root, path);
+    await Promise.resolve();
+    pushWebHistory(`${path}?t=10`);
+    window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }));
+    expect(seekTo).toHaveBeenLastCalledWith(10, true);
+    detach();
+    disposeEventReplay(root);
   });
   it('reuses the player across effect cleanup and Back, and retires it only when the document leaves', async () => {
     const host = install();

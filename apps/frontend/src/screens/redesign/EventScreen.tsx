@@ -27,7 +27,12 @@ export function EventScreen({ navigation, route }: Props) {
   const path = event ? eventPath(event) : '/blog/events';
   const [stable, setStable] = useState(() => stableEventDocument(path));
   const [claimed, setClaimed] = useState(false);
-  const restoration = useHistoryScrollRestoration(!stable, event?.slug ?? 'events', true);
+  const restoration = useHistoryScrollRestoration(
+    !stable && focused,
+    event?.slug ?? 'events',
+    true,
+    path,
+  );
   useDocumentTitle(event && eventPath(event), event && publishedEventMetadata(event).title);
   const main = useRef<HTMLElement>(null);
   const restoreHeaderFocus = useRef<(() => void) | null>(null);
@@ -74,8 +79,8 @@ export function EventScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (!focused) return;
     const root = (stable ?? main.current)?.querySelector<HTMLElement>('.replay-content');
-    if (root) return mountEventReplay(root);
-  }, [markup, stable, focused]);
+    if (root) return mountEventReplay(root, path);
+  }, [markup, stable, focused, path]);
   if (!focused) return null;
   if (stable) {
     if (!claimed) return null;

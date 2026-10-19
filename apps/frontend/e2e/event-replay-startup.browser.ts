@@ -60,6 +60,10 @@ test.beforeEach(async ({ context, baseURL }) => {
   await context.routeWebSocket('**/*', (socket) => socket.close());
 });
 
+test.afterEach(async ({ context }) => {
+  await context.unrouteAll({ behavior: 'wait' });
+});
+
 async function gateAppEntry(page: Page) {
   let release!: () => void;
   let requested!: () => void;
@@ -365,5 +369,93 @@ test('server article uses the same computed text treatment as the shared article
       expect(stable, selector).toEqual(ordinary);
   } finally {
     gate.release();
+  }
+});
+
+test('ordinary built-app topic fragments return to their own contained headings with Back and Forward', async ({
+  page,
+}) => {
+  await page.goto(`${articlePath}?client-only=1`);
+  await expect(page.getByRole('heading', { name: 'Reader comments', exact: true })).toBeVisible();
+  await expect(page.locator(hostSelector)).toHaveCount(0);
+  await expect(page.getByText('Example content for testing', { exact: true })).toHaveCount(0);
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+  });
+  const headings = page.locator('.replay-content h3[id^="topic-"]');
+  await expect(headings.first()).toBeVisible();
+  const ids = await headings.evaluateAll((nodes) => nodes.map((node) => node.id));
+  expect(ids.length).toBeGreaterThanOrEqual(2);
+  const firstId = ids[Math.floor(ids.length / 4)];
+  const secondId = ids[Math.floor((ids.length * 3) / 4)];
+  const first = page.locator(`[id="${firstId}"]`);
+  const second = page.locator(`[id="${secondId}"]`);
+  const distance = await second.evaluate(
+    (node, id) =>
+      node.getBoundingClientRect().top - document.getElementById(id)!.getBoundingClientRect().top,
+    firstId,
+  );
+  expect(distance).toBeGreaterThan((await page.viewportSize())!.height);
+  const originalDocument = await page.evaluateHandle(() => document);
+  const url = new URL(page.url());
+  const firstUrl = new URL(url);
+  firstUrl.hash = firstId;
+  const secondUrl = new URL(url);
+  secondUrl.hash = secondId;
+  const expectLanding = async (heading: typeof first, destination: URL) => {
+    await expect(page).toHaveURL(destination.href);
+    await expect(heading).toBeFocused();
+    await expect
+      .poll(() =>
+        heading.evaluate((node) => {
+          let scroller = node.parentElement;
+          while (scroller && !/^(auto|scroll)$/.test(getComputedStyle(scroller).overflowY))
+            scroller = scroller.parentElement;
+          if (!scroller) throw new Error('The real article scroll container is missing');
+          const gap = node.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+          return Math.abs(gap - 12);
+        }),
+      )
+      .toBeLessThanOrEqual(1);
+    expect(await originalDocument.evaluate((original) => original === document)).toBe(true);
+  };
+  try {
+    // Full URLs differing only in their fragment use the browser's native
+    // same-document navigation and history. No scroll or history event is mocked.
+    await page.goto(firstUrl.href);
+    await expectLanding(first, firstUrl);
+    await page.goto(secondUrl.href);
+    await expectLanding(second, secondUrl);
+    await page.goBack();
+    await expectLanding(first, firstUrl);
+    await page.goForward();
+    await expectLanding(second, secondUrl);
+    const privacy = page.getByRole('link', { name: 'Privacy Policy', exact: true });
+    await privacy.focus();
+    const saved = await privacy.evaluate((node) => {
+      let scroller = node.parentElement;
+      while (scroller && !/^(auto|scroll)$/.test(getComputedStyle(scroller).overflowY))
+        scroller = scroller.parentElement;
+      if (!scroller) throw new Error('The returning article scroll container is missing');
+      return Math.round(scroller.scrollTop);
+    });
+    await expect.poll(() => savedPosition(page)).toBe(String(saved));
+    await privacy.click();
+    await expect(page).toHaveURL(/\/privacy$/);
+    await page.goBack();
+    await expect(page).toHaveURL(secondUrl.href);
+    await expect(privacy).toBeVisible();
+    await expect
+      .poll(() =>
+        privacy.evaluate((node) => {
+          let scroller = node.parentElement;
+          while (scroller && !/^(auto|scroll)$/.test(getComputedStyle(scroller).overflowY))
+            scroller = scroller.parentElement;
+          return Math.round(scroller?.scrollTop ?? -1);
+        }),
+      )
+      .toBe(saved);
+  } finally {
+    await originalDocument.dispose();
   }
 });

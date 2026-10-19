@@ -156,7 +156,7 @@ own scroller. Malformed, missing and unrelated fragments retain the default beha
 The event slug resets restoration when navigation reuses the screen for another event.
 Other screens keep their existing behavior. Focused regression tests preserve these
 differences, and acceptance includes the actual mounted application rather than only
-the static preview. The separate stable-player startup work remains unfinished.
+the static preview. The separate stable-player implementation is described below; final-media acceptance remains unfinished.
 
 ### Stable-player implementation, acceptance pending
 
@@ -200,10 +200,27 @@ startup, timestamp Back/Forward, sign-in and route departure. Those checks do no
 establish final-recording playback or captions; both remain required before the
 final video becomes part of the public article.
 
+Plain transcript topic links also use separate application history entries after
+startup. Back/Forward adopts the destination entry in the same visible article;
+legacy native fragment entries without application state gain an owner before
+restoring their contained heading. Saved exact positions take precedence for
+separate entries. A legacy cloned entry can only recover its shared saved position
+when it has no fragment. Headings receive keyboard focus and 12px clearance.
+EventScreen supplies its known address to the hook and player, so a client visit
+does not capture the previous route before navigation writes the new address.
+A replacement scroll box restores its entry even when the screen hook survived blur.
+Other hook consumers do not enable event-fragment history behavior.
+A repaired stateless native entry starts a new local depth count at 0; event controls
+do not use depth-based return jumps. Its one `replaceState` may also be recorded as
+an in-site navigation by the existing speed beacon. Neither behavior is proof that
+an additional reader navigation occurred. Enhanced topic clicks use distinct normal
+entries and avoid that legacy repair.
+
 The built-app startup regression runs in required frontend CI with locally supplied
-sample player/API responses. Its 5 cases passed on October 19: iframe/context and
+sample player/API responses. Its 6 cases passed on October 19 and cover: iframe/context and
 sample child state, keyboard focus and timestamp history; real deep scroll restoration;
-Tab and wheel cancellation of pending restoration; and computed article-style parity.
+Tab and wheel cancellation of pending restoration; computed article-style parity;
+and ordinary native fragment Back/Forward, including return after another route.
 The tests use actual browser layout and anchoring, not modeled scroll coordinates.
 Parent browser acceptance also exercised blocked sign-in download, visible recovery
 and Close, and matching heading/link/summary styles in stable and ordinary app entry.

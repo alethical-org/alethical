@@ -85,6 +85,13 @@ const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url, origin);
     if (url.pathname === articlePath) {
+      if (url.searchParams.get('client-only') === '1') {
+        // Explicit private mode exercises ordinary client entry and its accepted
+        // article content, without the illustrative SSR fixture or stable host.
+        response.writeHead(200, { 'Content-Type': types['.html'] });
+        response.end(request.method === 'HEAD' ? undefined : shell);
+        return;
+      }
       const markup = renderEventReplay(EVENTS[0], fixture, {
         origin,
         search: url.search,
