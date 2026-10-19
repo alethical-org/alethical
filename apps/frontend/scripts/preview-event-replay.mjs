@@ -1,4 +1,4 @@
-// Private development entry point. Never imported by the app or deployment build.
+// Local development entry point. Never imported by the app or deployment build.
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -24,6 +24,7 @@ const vite = await createServer({
 });
 const { EVENTS, eventPath } = await vite.ssrLoadModule('/src/lib/events.ts');
 const { renderEventReplay } = await vite.ssrLoadModule('/src/lib/eventReplayMarkup.ts');
+const { eventReplayBySlug } = await vite.ssrLoadModule('/src/lib/eventReplayContent.ts');
 const { parseEventReplay } = await vite.ssrLoadModule('/src/lib/eventReplay.ts');
 const { renderEventPageSnapshot } = await vite.ssrLoadModule('/src/lib/pageSnapshot.ts');
 const shell = await readFile(resolve(root, 'public/index.html'), 'utf8');
@@ -73,18 +74,21 @@ const server = http.createServer((req, res) => {
     url.pathname === '/__replay-example'
   ) {
     const example = url.pathname === '/__replay-example';
-    const markup = renderEventReplay(event, example ? fixture : content, {
-      privatePreview: true,
-      origin,
-      search: url.search,
-      example,
-    });
+    const markup = renderEventReplay(
+      event,
+      example ? fixture : (content ?? eventReplayBySlug(event.slug)),
+      {
+        origin,
+        search: url.search,
+        example,
+      },
+    );
     const body = renderEventPageSnapshot(markup)
       .replace('<span class="ps-signin">Sign in</span>', '')
       .replaceAll('href="/', 'href="https://www.alethical.com/');
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(
-      `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><title>Private Forward Debate replay preview</title><link rel="stylesheet" href="/fonts/fonts.css">${snapshotStyle}<style>body{margin:0;background:#f7f8f5}.replay-draft{padding:12px 20px;background:#fff2ad;color:#11150f;font:700 14px 'Libre Franklin',sans-serif;text-align:center}button[hidden]{display:none!important}</style></head><body><div class="replay-draft">PRIVATE DRAFT</div>${body}<script type="module" src="/replay-preview-client.js"></script></body></html>`,
+      `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><title>The Forward Debate | Alethical</title><link rel="stylesheet" href="/fonts/fonts.css">${snapshotStyle}<style>body{margin:0;background:#f7f8f5}.replay-draft{padding:12px 20px;background:#fff2ad;color:#11150f;font:700 14px 'Libre Franklin',sans-serif;text-align:center}button[hidden]{display:none!important}</style></head><body>${body}<script type="module" src="/replay-preview-client.js"></script></body></html>`,
     );
     return;
   }

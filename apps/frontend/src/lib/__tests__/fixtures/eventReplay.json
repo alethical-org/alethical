@@ -1,11 +1,16 @@
 {
   "title": "Video and transcript example",
   "introduction": "Sample content for testing topic links, transcript layout and keyboard use. The timestamps and text here are illustrative, not a transcript of the demonstration video.",
-  "video": { "id": "M7lc1UVf-VE", "exportId": "EXAMPLE-NOT-DEBATE", "duration": 60 },
-  "captions": { "exportId": "EXAMPLE-NOT-DEBATE", "checked": false, "uploaded": false },
+  "video": {
+    "id": "M7lc1UVf-VE",
+    "exportId": "EXAMPLE-NOT-DEBATE"
+  },
+  "captions": {
+    "exportId": "EXAMPLE-NOT-DEBATE",
+    "uploaded": false
+  },
   "transcript": {
     "exportId": "EXAMPLE-NOT-DEBATE",
-    "checked": false,
     "turns": [
       {
         "speaker": "Example speaker",
@@ -34,9 +39,18 @@
   "chapters": {
     "exportId": "EXAMPLE-NOT-DEBATE",
     "items": [
-      { "title": "Opening example", "start": 0 },
-      { "title": "Longer answer example", "start": 20 },
-      { "title": "Closing example", "start": 40 }
+      {
+        "title": "Opening example",
+        "start": 0
+      },
+      {
+        "title": "Longer answer example",
+        "start": 20
+      },
+      {
+        "title": "Closing example",
+        "start": 40
+      }
     ]
   },
   "thumbnail": {
@@ -44,5 +58,7 @@
     "alt": "Example image, not a final video thumbnail",
     "width": 1200,
     "height": 630
-  }
+  },
+  "exportId": "EXAMPLE-NOT-DEBATE",
+  "duration": 60
 }

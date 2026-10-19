@@ -1,10 +1,9 @@
+import { renderEventArticle, publishedEventMetadata } from "../apps/frontend/src/lib/eventArticle";
 import { eventBySlug } from "../apps/frontend/src/lib/events";
 import {
   eventsPageMetadata,
-  eventPageMetadata,
 } from "../apps/frontend/src/lib/eventMetadata";
 import {
-  renderEventArticle,
   renderEventsCollection,
 } from "../apps/frontend/src/lib/eventMarkup";
 import { legalPageSnapshot } from "../apps/frontend/src/lib/legalPageSnapshot";
@@ -2004,8 +2003,8 @@ async function contentFor(
       if (!event) throw new UnknownAddress(`no event ${target.slug}`);
       const now = Date.now();
       return {
-        metadata: eventPageMetadata(event, now),
-        snapshot: renderEventPageSnapshot(renderEventArticle(event, now)),
+        metadata: publishedEventMetadata(event, now),
+        snapshot: renderEventPageSnapshot(renderEventArticle(event, now, { origin: "https://www.alethical.com", search: pathWithQuery(query).split("?")[1] ?? "" })),
       };
     }
     case "readResearch":

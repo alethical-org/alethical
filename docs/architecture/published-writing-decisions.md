@@ -476,6 +476,32 @@ publication dates, accuracy-review dates, claims, evidence or article publicatio
 
 ### 2.16 Events reuse the Blog design and retain a permanent address
 
+**Post-event article, 19 October 2026:** The Forward Debate uses the same permanent
+address with the heading “The Forward Debate”. The browser/search title is
+“Trent Dilks & Aaron Brutger: The Forward Debate | Alethical”. A factual introduction
+names the district, venue, city and event date. Keep the original publication date
+and show the actual article update date separately. Existing PDF materials and
+comments remain. Preserve the original announcement and flyer inside an expandable
+section; this supersedes the flyer-first presentation for this event.
+
+Show only available content. Add the recording, topics and transcript independently
+from accepted final assets, without empty sections, preparation notices, a private
+banner or video/transcript download offers. The standard YouTube player appears
+prominently in initial HTML when supplied, without requiring a click to create it
+or starting playback automatically. Topic links and copyable transcript times use
+one chapter source and a bare canonical article address. The full supplied transcript
+is readable in initial HTML; missing video must not create broken timestamp links.
+
+Machine text preserves uncertain words as “[unclear]” and uncertain speakers as
+“[speaker uncertain]”, with timestamps. The transcript notice is:
+“Machine-generated transcript; uncertain words and speakers are marked. Not checked
+against the audio.” No required listening task or listening publication gate applies.
+Uncertain passages must not become factual summaries, chapter premises or quotations.
+Video search details and the video sitemap require actual publication time, thumbnail
+and duration. Search appearance is not guaranteed. Real media playback, caption,
+seeking and responsive checks remain necessary when assets arrive.
+
+
 **Republication approved, 15 October 2026:** Candidate approval is confirmed for
 `Phone promo v2.png`; publication of the revised first-debate article is authorized.
 This clears the 7 October hold. Keep the original publication date and show the
