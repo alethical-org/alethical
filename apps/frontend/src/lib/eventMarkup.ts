@@ -1,4 +1,4 @@
-import { escapeHtml as e } from './share';
+import { escapeHtml as e, publicPageUrl } from './share';
 import {
   LINK_ARROW_SIZE,
   LINK_ARROW_VIEW_BOX,
@@ -43,9 +43,9 @@ export const eventCss = `
 .event-tagline{font-size:21px!important;color:#5f655b}
 .event-facts{background:#fff;border:1px solid rgba(17,21,15,.08);border-radius:16px;padding:24px;margin:28px 0}
 .event-facts p{margin:0 0 8px}.event-facts p:last-child{margin:0}
-.event-brands{display:flex;align-items:center;gap:32px;flex-wrap:wrap;margin-top:40px;padding-top:24px;border-top:1px solid rgba(17,21,15,.1)}
-.event-brands a{display:inline-flex;align-items:center;min-height:44px;gap:12px;font-weight:700}
-.event-coalition-logo{width:190px;height:auto}
+.event-coalition-logo{display:block;width:190px;max-width:100%;height:auto}
+.event-heading-brand{display:inline-flex;max-width:100%;min-height:44px;margin-bottom:20px}
+.event-content .event-heading-brand+h1{margin-top:0}
 .event-list{list-style:none;margin:18px 0 0;padding:12px 36px 28px;background:#fff;border:1px solid rgba(17,21,15,.08);border-radius:16px}
 .event-list li{padding:22px 0 8px}.event-list li+li{border-top:1px solid rgba(17,21,15,.07)}
 .event-list h3,.event-list h2{font-size:20px;line-height:1.3;margin:6px 0 8px}
@@ -55,6 +55,11 @@ export const eventCss = `
 .event-collection{max-width:1000px;margin:auto;padding:40px 24px 80px}
 @media(max-width:767px){.event-content .event-back{font-size:15px}.event-collection .event-return{margin-bottom:10px}.event-article,.event-collection{padding:24px 20px 56px}.event-content h1{font-size:28px}.event-content p,.event-content li{font-size:17px}.event-list{padding:8px 20px 20px;margin-top:14px}.event-list h3,.event-list h2{font-size:18px}}
 `;
+
+/** Shared near-title branding for Forward Coalition event posts. */
+export function renderForwardCoalitionBrand(): string {
+  return `<a class="event-heading-brand" href="${COALITION_CANDIDATES_URL}" aria-label="Meet the Forward Coalition candidates"><img class="event-coalition-logo" src="${publicPageUrl('/services-coalition.webp')}" alt="Minnesota Forward Together" width="600" height="205" decoding="async"></a>`;
+}
 
 function renderEventReturn(href: string, label: string): string {
   return `<div class="event-return"><a class="event-back" href="${e(href)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M15 5 L8 12 L15 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>${e(label)}</span></a></div>`;
@@ -108,6 +113,7 @@ export function renderEventArticle(event: PublishedEvent, now = Date.now()): str
 ${renderEventReturn(EVENTS_PATH, 'Back to Events')}
 <a href="${e(event.image)}" aria-label="Open the full-size ${e(event.name)} flyer"><img class="event-flyer" src="${e(event.image)}" width="${event.imageWidth}" height="${event.imageHeight}" alt="${e(event.imageAlt)}" fetchpriority="high" decoding="async"></a>
 <p class="event-image-link"><a href="${e(event.image)}">Open full-size flyer to zoom in</a></p>
+${renderForwardCoalitionBrand()}
 <h1>${e(event.title)}</h1>
 <p class="event-published"><span class="event-keep">Published <time datetime="${event.publishedOn}">${e(publishedLabel)}</time> ·</span> <span class="event-keep">Updated <time datetime="${event.updatedOn}">${e(updatedLabel)}</time></span></p>
 <section aria-label="Debate downloads"><h2>Download the debate materials</h2>
@@ -124,6 +130,5 @@ ${event.paragraphs.map((paragraph) => `<p>${e(paragraph)}</p>`).join('')}
 <p>Hosted by Alethical · Moderated by Angel Zierden, <a href="https://www.alethical.com">Alethical.com</a></p>
 </section>
 ${ended ? `<p><a href="${e(event.signupUrl)}">View the event on Luma</a></p>` : `<h2>Join us in Sauk Rapids</h2><p>${e(event.invitation)}</p><p>${renderSignupAction(event.signupUrl)}</p>`}
-<div class="event-brands"><a href="${COALITION_CANDIDATES_URL}" aria-label="Meet the Forward Coalition candidates"><img class="event-coalition-logo" src="/services-coalition.webp" alt="Minnesota Forward Together" width="600" height="205" loading="lazy"></a></div>
 </article>`;
 }

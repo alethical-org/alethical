@@ -14,7 +14,10 @@ preview address remains `http://127.0.0.1:4186/blog/events/forward-debate-2026`.
 [published-writing-decisions.md §2.16 (permanent event articles)](../architecture/published-writing-decisions.md#216-events-reuse-the-blog-design-and-retain-a-permanent-address)
 owns the public behavior. Website release is authorized. The current release
 contains the factual article, PDF materials, historical announcement/flyer and
-existing comments. No final recording, captions, transcript, chapters or video
+existing comments. The Minnesota Forward Together logo appears once above the title,
+linked to Forward Coalition's candidates and visible while the original announcement
+is closed. The shared event renderer uses the same branding in announcement and
+post-event output. No final recording, captions, transcript, chapters or video
 thumbnail have been received. Their absence creates no reader-facing section.
 Claude conversation **Forward Debate video enhancement**
 (`local_6648d2c8-2631-495e-94bc-3b1876c2b9b0`) owns media preparation.
