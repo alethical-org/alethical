@@ -3009,7 +3009,7 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
 /** Event renderers escape their content and are shared with the mounted UI. */
 export function renderEventPageSnapshot(markup: string, stablePath?: string): string {
   if (stablePath) {
-    return `<div id="stable-event-document" class="page-snapshot" data-event-path="${escapeHtml(stablePath)}"><div data-event-nav>${renderSnapshotNav()}</div><main>${markup}</main><div data-event-discussion></div></div><script id="stable-event-scroll-boot">${STABLE_EVENT_SCROLL_BOOT}</script>`;
+    return `<div id="stable-event-document" data-event-path="${escapeHtml(stablePath)}"><div data-event-nav><div class="page-snapshot">${renderSnapshotNav()}</div></div><main>${markup}</main><div data-event-discussion></div></div><script id="stable-event-scroll-boot">${STABLE_EVENT_SCROLL_BOOT}</script>`;
   }
   return `<div class="page-snapshot">${renderSnapshotNav()}<main class="ps-inner">${markup}</main></div>`;
 }

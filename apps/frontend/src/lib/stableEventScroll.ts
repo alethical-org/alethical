@@ -65,7 +65,7 @@ export function mountStableEventScroll(host: HTMLElement, path: string): () => v
     clearPending();
     save();
   };
-  const inputEvents = ['wheel', 'touchstart', 'pointerdown', 'click', 'focusin'];
+  const inputEvents = ['wheel', 'touchstart', 'pointerdown', 'mousedown', 'click', 'focusin'];
   // The server's tiny boot program restores before first paint. At application
   // startup the visible position already belongs to the reader, even if it is 0.
   save();

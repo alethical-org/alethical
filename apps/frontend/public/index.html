@@ -314,6 +314,10 @@
       html:not([data-comment-return]) body[data-stable-event-document] [data-event-global-feedback="true"] {
         visibility: visible;
       }
+      html:not([data-comment-return]) body[data-stable-event-document] [data-event-global-feedback="dialog"] {
+        visibility: visible;
+        pointer-events: auto;
+      }
       .page-snapshot {
         flex: 1;
         overflow-y: auto;

@@ -43,6 +43,7 @@ function install() {
 afterEach(() => {
   retireStableEventDocument();
   document.body.replaceChildren();
+  document.documentElement.removeAttribute('data-comment-return');
   window.sessionStorage.clear();
   window.history.replaceState({}, '', '/');
   vi.restoreAllMocks();
@@ -82,6 +83,15 @@ describe('stable direct-entry event document', () => {
       expect(scripts.split(/\s+/)).toContain(`'${hash}'`);
     }
   });
+  it('lets an active comment return choose its destination instead of an older saved position', () => {
+    const host = install();
+    const entry = currentWebHistoryEntry()!;
+    window.sessionStorage.setItem(scrollPositionStorageKey(entry.sessionId, entry.entryId), '1600');
+    document.documentElement.setAttribute('data-comment-return', '');
+    window.eval(bootScript);
+    expect(host.scrollTop).toBe(0);
+    expect(host.dataset.eventPendingScroll).toBeUndefined();
+  });
   it.each([
     ['none', 1600, 'wheel'],
     ['before', 800, 'wheel'],
@@ -91,6 +101,8 @@ describe('stable direct-entry event document', () => {
     ['after', 0, 'focusin'],
     ['before', 0, 'keydown'],
     ['after', 0, 'keydown'],
+    ['before', 0, 'mousedown'],
+    ['after', 0, 'mousedown'],
   ] as const)(
     'retains a deep saved comment position until content arrives, movement=%s target=%s',
     async (stage, expected, input) => {
@@ -175,6 +187,8 @@ describe('stable direct-entry event document', () => {
     const context = frame.contentWindow;
     expect(document.querySelector('#root iframe')).toBeNull();
     expect(host.querySelector('main')?.className).toBe('');
+    expect(host.querySelector('main')?.closest('.page-snapshot')).toBeNull();
+    expect(host.querySelector('[data-event-nav] > .page-snapshot')).not.toBeNull();
     expect(stableEventDocument('/blog/events/another')).toBeNull();
     const root = createRoot(document.getElementById('root')!);
     act(() => root.render(<p>Application mounted</p>));

@@ -167,7 +167,10 @@ Keyboard focus on the static header moves to its matching real control at startu
 unless the reader has already moved focus elsewhere.
 The direct-entry container keeps its own scroll area. The application's hidden
 layout still measures normally; the existing password notice remains visible and
-non-interactive. Sign-in dialogs retain their normal document-level placement.
+non-interactive. The native sign-in failure dialog has a separate visible,
+interactive exception; ordinary sign-in dialogs retain their document-level placement.
+Snapshot styling surrounds only the temporary header, so article styles match
+ordinary client entry without higher-specificity snapshot overrides.
 Route blur retires the container, and a fatal app error uses the same idempotent
 retirement before showing the existing recovery screen. React effect replays reuse
 the same per-iframe controller; only actual retirement or removal destroys it.
@@ -186,6 +189,8 @@ beyond the initial article's extent remains pending while comments/footer load;
 it never overwrites the saved target with a clamped position. Intervening reader
 input, including focus, keyboard, touch, wheel and pointer use, cancels that pending restoration. Browser scroll anchoring as the real header appears does not cancel it.
 Native content-size and DOM changes retry only that unresolved position.
+An active comment return keeps its explicit discussion destination instead of
+restoring an older saved reading position.
 
 Focused tests cover same-frame effect reuse, real retirement, error cleanup,
 history variants, exact script permission, early reading, deep comment positions
