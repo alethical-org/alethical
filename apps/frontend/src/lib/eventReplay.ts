@@ -15,6 +15,9 @@ export interface EventReplay {
   title: string;
   searchTitle?: string;
   introduction: string;
+  /** Publication of this replay edition, separate from its original announcement. */
+  publishedOn?: string;
+  communityDebateInvitation?: boolean;
   /** Identity and timing of the final edit; required whenever timed assets exist. */
   exportId?: string;
   duration?: number;
@@ -47,6 +50,15 @@ export function parseEventReplay(value: unknown): EventReplay {
     (r.searchTitle !== undefined && !nonempty(r.searchTitle))
   )
     throw new Error('Replay needs a title and introduction');
+  if (
+    r.publishedOn !== undefined &&
+    (!/^\d{4}-\d{2}-\d{2}$/.test(r.publishedOn) ||
+      !Number.isFinite(Date.parse(r.publishedOn)) ||
+      new Date(r.publishedOn).toISOString().slice(0, 10) !== r.publishedOn)
+  )
+    throw new Error('Replay publication needs a valid date');
+  if (r.communityDebateInvitation !== undefined && typeof r.communityDebateInvitation !== 'boolean')
+    throw new Error('Replay invitation must be a boolean');
   const assets = [r.video, r.captions, r.transcript, r.chapters];
   if (
     assets.some((a) => a !== undefined) &&
@@ -163,7 +175,7 @@ export function replayPageMetadata(event: PublishedEvent, replay: EventReplay, n
     socialTitle: replay.title,
     description: replay.introduction,
     canonicalPath: eventPath(event),
-    article: { publishedOn: event.publishedOn },
+    article: { publishedOn: replay.publishedOn ?? event.publishedOn },
     socialImage: replay.thumbnail ?? base.socialImage,
     preloadImages: [],
     structuredData: [

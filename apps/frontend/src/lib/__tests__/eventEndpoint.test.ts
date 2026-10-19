@@ -66,6 +66,13 @@ describe('public event pages before JavaScript', () => {
     expect(body).toContain('Trent Dilks &amp; Aaron Brutger: The Forward Debate | Alethical');
     expect(body).toContain('"@type":"VideoObject"');
     expect(body).toContain('"uploadDate":"2026-10-19T11:13:45-07:00"');
+    expect(
+      doc.querySelector('meta[property="article:published_time"]')?.getAttribute('content'),
+    ).toBe('2026-10-19');
+    expect(doc.querySelector('.event-published')?.textContent).toBe('Published October 19, 2026');
+    expect(doc.querySelector('.replay-contact')?.getAttribute('href')).toBe(
+      'https://www.alethical.com/about/contact',
+    );
     const stable = doc.getElementById('stable-event-document');
     expect(stable?.querySelector('iframe')?.src).toContain('/embed/y66-Wf9bNio?');
     expect(doc.getElementById('root')?.contains(stable)).toBe(false);

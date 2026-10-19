@@ -71,6 +71,47 @@ describe('replay content and publication boundaries', () => {
     r.video!.publishedAt = '2099-01-01T00:00:00Z';
     expect(JSON.stringify(replayPageMetadata(EVENTS[0], r))).not.toContain('VideoObject');
   });
+  it('uses the replay publication date without changing historical event dates', () => {
+    const event = EVENTS[0];
+    const replay = eventReplayBySlug(event.slug)!;
+    expect(replay.publishedOn).toBe('2026-10-19');
+    expect(replayPageMetadata(event, replay).article?.publishedOn).toBe('2026-10-19');
+    expect(eventPageMetadata(event).article?.publishedOn).toBe('2026-10-07');
+    expect(replayPageMetadata(event, replay).structuredData?.[0]).toHaveProperty(
+      'startDate',
+      event.startDate,
+    );
+    const document = new JSDOM(renderEventReplay(event, replay)).window.document;
+    expect(document.querySelector('.event-published')?.textContent).toBe(
+      'Published October 19, 2026',
+    );
+    expect(document.body.textContent).toContain('on October 15, 2026');
+    expect(
+      new JSDOM(
+        renderEventReplay({ ...event, updatedOn: '2026-10-20' as typeof event.updatedOn }, replay),
+      ).window.document.querySelector('.event-published')?.textContent,
+    ).toBe('Published October 19, 2026 · Updated October 20, 2026');
+    for (const publishedOn of ['2026-02-30', 'bad', '2026-10-19T12:00:00Z'])
+      expect(() => parseEventReplay({ ...replay, publishedOn })).toThrow('valid date');
+  });
+  it('shows the approved invitation only for the enabled replay, between recording and topics', () => {
+    const replay = eventReplayBySlug(EVENTS[0].slug)!;
+    const document = new JSDOM(renderEventReplay(EVENTS[0], replay)).window.document;
+    const invitation = document.querySelector('aside[aria-labelledby="community-debate"]')!;
+    expect(invitation.querySelector('h2')?.textContent).toBe('Want a debate in your community?');
+    expect(invitation.previousElementSibling?.querySelector('#watch')).not.toBeNull();
+    expect(invitation.nextElementSibling?.querySelector('#topics')).not.toBeNull();
+    const link = invitation.querySelector('a')!;
+    expect(link.textContent).toBe('Contact Alethical');
+    expect(link.href).toBe('https://www.alethical.com/about/contact');
+    expect(link.hasAttribute('target')).toBe(false);
+    expect(invitation.querySelector('img')?.alt).toBe('');
+    for (const html of [
+      renderEventReplay(EVENTS[0], ready()),
+      renderEventReplay(EVENTS[0], replay, { example: true }),
+    ])
+      expect(new JSDOM(html).window.document.querySelector('.replay-invitation')).toBeNull();
+  });
   it('escapes sitemap text and uses the same working topic times', () => {
     const r = ready();
     r.title = 'A & B <debate>';

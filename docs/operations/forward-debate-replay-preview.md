@@ -84,7 +84,7 @@ speaker and transcript text. Source copies remain untouched. Historical invitati
 status is preserved, with no invented attendance or candidate positions.
 
 Acceptance covers public output without assets, video-only, transcript-only,
-chapters-only and combined inputs; one H1; event-held and updated dates; original publication metadata; comments;
+chapters-only and combined inputs; one H1; replay publication date and matching metadata; historical event dates; comments;
 PDFs and historical content; bounded deep links; no autoplay; disclosure and preserved
 uncertainty; metadata/sitemap omission until supported. Browser checks cover 320,
 390 and 1280px, keyboard focus, copy, Back, blocked-player fallback and overflow.
@@ -105,9 +105,22 @@ change passed live acceptance. The transcript release passed live acceptance at
 [commit 978ac04e](https://github.com/alethical-org/alethical/commit/978ac04e).
 Final embedded playback and captions are the current acceptance step. The final video cannot be accepted from this local renderer alone.
 
-The visible date line uses “Debate held October 15, 2026 · Updated October 19, 2026”.
-This distinguishes the event from the article revision without presenting the old
-announcement date as a new video publication. Original article metadata stays intact.
+Eugene's later 19 October approval replaces the replay date line with “Published
+October 19, 2026”, matching article publication metadata. October 15 stays in the
+introduction, Event data and historical announcement; October 7 remains the original
+announcement publication record. This explicitly supersedes the prior held/updated
+line for this replay only. Same-day update labels are omitted.
+
+Eugene approved the latest Claude Design invitation after the recording and before
+Topics: “Want a debate in your community?” and 1 “Contact Alethical” link to
+`https://www.alethical.com/about/contact`, same tab. The black background, white
+heading, green approved Alethical symbol and green link supersede the earlier white
+card. No supporting sentence or download is added. The invitation is enabled only
+for this replay, never the announcement or illustrative fixture. Acceptance covers
+320, 390, 768, 1100 and 1280 pixels, doubled text, keyboard focus, hover/pressed
+feedback, real contact navigation and Back, plus continued recording controls.
+Parent task (Plan debate video blog SEO) owns Claude Design visual review and final
+live acceptance before completion.
 
 ### Accepted text edition, 19 October 2026
 

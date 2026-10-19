@@ -5,6 +5,8 @@ import forwardDebate from './eventReplayData/forwardDebate2026.json';
 const replays: Record<string, EventReplay> = {
   'forward-debate-2026': {
     title: 'The Forward Debate',
+    publishedOn: '2026-10-19',
+    communityDebateInvitation: true,
     searchTitle: 'Trent Dilks & Aaron Brutger: The Forward Debate',
     introduction:
       'Alethical hosted The Forward Debate for Minnesota Senate District 13 at Riverside Terrace in Sauk Rapids on October 15, 2026.',
