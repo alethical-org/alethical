@@ -1,5 +1,5 @@
-import { eventCss } from './eventMarkup';
-import { COALITION_CANDIDATES_URL, type PublishedEvent } from './events';
+import { eventCss, renderForwardCoalitionBrand } from './eventMarkup';
+import type { PublishedEvent } from './events';
 import { escapeHtml as e, publicPageUrl } from './share';
 import {
   TRANSCRIPT_DISCLOSURE,
@@ -63,6 +63,7 @@ export function renderEventReplay(
   return `<article class="event-content event-article replay-content" ${r.video ? `data-replay-duration="${r.duration}"` : ''}><style>${eventCss}${replayCss}</style>
 <div class="event-return"><a class="event-back" href="${publicPageUrl('/blog/events')}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 5 L8 12 L15 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>Back to Events</span></a></div>
 ${options.example ? '<p><strong>Example content for testing</strong></p><p>This uses YouTube’s player demonstration and sample text. It is not the debate recording or transcript.</p>' : ''}
+${renderForwardCoalitionBrand()}
 <h1>${e(r.title)}</h1>
 <p class="event-published"><span class="event-keep">Debate held <time datetime="${e(event.startDate)}">${e(date(event.startDate.slice(0, 10)))}</time> ·</span> <span class="event-keep">Updated <time datetime="${event.updatedOn}">${date(event.updatedOn)}</time></span></p>
 <p>${e(r.introduction)}</p>
@@ -70,6 +71,6 @@ ${r.video ? `<section aria-labelledby="watch"><h2 id="watch" tabindex="-1">Watch
 ${r.chapters ? `<nav aria-labelledby="topics"><h2 id="topics">Topics</h2><ol class="replay-topics">${r.chapters.items.map((c) => `<li>${r.video ? jump(c.start, `${replayTimestamp(c.start)} ${c.title}`) : r.transcript ? `<a href="#topic-${c.start}">${e(c.title)}</a>` : `${e(replayTimestamp(c.start))} ${e(c.title)}`}</li>`).join('')}</ol></nav>` : ''}
 ${r.transcript ? `<section aria-labelledby="transcript"><h2 id="transcript">Full transcript</h2><p>${e(TRANSCRIPT_DISCLOSURE)}</p>${r.video ? '<p class="replay-status" data-replay-copy-status role="status" aria-live="polite"></p>' : ''}${transcript}</section>` : ''}
 <section aria-labelledby="materials"><h2 id="materials">Debate materials</h2><ul class="event-downloads">${event.downloads.map((f) => `<li><a href="${e(publicPageUrl(f.href))}">${e(f.title)} (PDF)</a></li>`).join('')}</ul></section>
-<details><summary>Original announcement and flyer</summary><h2>Alethical hosts its first debate: Minnesota Senate District 13</h2><p>${e(event.tagline)}</p><p>${e(event.introduction)}</p><ul>${event.candidates.map((c) => `<li>${e(c.name)}, ${e(c.status)}</li>`).join('')}</ul>${event.paragraphs.map((p) => `<p>${e(p)}</p>`).join('')}<p>${e(event.dateLabel)} · ${e(event.timeLabel)}<br>${e(event.locationName)}, ${e(event.streetAddress)}, ${e(event.city)}, ${e(event.region)} ${e(event.postalCode)}<br>Free admission</p><p><a href="${e(event.signupUrl)}">View the event on Luma</a></p><a href="${e(publicPageUrl(event.image))}"><img class="event-flyer" src="${e(publicPageUrl(event.image))}" width="${event.imageWidth}" height="${event.imageHeight}" alt="${e(event.imageAlt)}" loading="lazy"></a><p class="event-image-link"><a href="${e(publicPageUrl(event.image))}">Open full-size flyer to zoom in</a></p><div class="event-brands"><a href="${COALITION_CANDIDATES_URL}" aria-label="Meet the Forward Coalition candidates"><img class="event-coalition-logo" src="${publicPageUrl('/services-coalition.webp')}" alt="Minnesota Forward Together" width="600" height="205" loading="lazy"></a></div></details>
+<details><summary>Original announcement and flyer</summary><h2>Alethical hosts its first debate: Minnesota Senate District 13</h2><p>${e(event.tagline)}</p><p>${e(event.introduction)}</p><ul>${event.candidates.map((c) => `<li>${e(c.name)}, ${e(c.status)}</li>`).join('')}</ul>${event.paragraphs.map((p) => `<p>${e(p)}</p>`).join('')}<p>${e(event.dateLabel)} · ${e(event.timeLabel)}<br>${e(event.locationName)}, ${e(event.streetAddress)}, ${e(event.city)}, ${e(event.region)} ${e(event.postalCode)}<br>Free admission</p><p><a href="${e(event.signupUrl)}">View the event on Luma</a></p><a href="${e(publicPageUrl(event.image))}"><img class="event-flyer" src="${e(publicPageUrl(event.image))}" width="${event.imageWidth}" height="${event.imageHeight}" alt="${e(event.imageAlt)}" loading="lazy"></a><p class="event-image-link"><a href="${e(publicPageUrl(event.image))}">Open full-size flyer to zoom in</a></p></details>
 </article>`;
 }

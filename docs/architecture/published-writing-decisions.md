@@ -518,10 +518,16 @@ The first announcement is The Forward Debate at `/blog/events/forward-debate-202
 The supplied flyer appears before the article text, with its content unchanged.
 The revised flyer and article identify Trent Dilks as “DFL-endorsed candidate” and Aaron Brutger as “Republican-endorsed write-in candidate”. Jared Gapinski is separately “Also invited”, Senate Republican primary winner. These revised labels supersede the 7 October wording. The article includes the confirmed event time,
 venue, free admission and the registration link `https://luma.com/3w69g6dw`.
-The closing logo row contains only the Forward Coalition logo, linked to
-`https://forwardcoalition.com/candidates`. Do not repeat an Alethical home link
-beside it: the announcement is already on Alethical. The coalition link does not
-assert an additional endorsement or co-host relationship.
+**Forward Coalition branding approved, 19 October 2026:** Every Alethical blog
+post related to Minnesota Forward Together / Forward Coalition, including its
+candidates and events, displays the supplied Minnesota Forward Together logo near
+the article title. The Forward Debate places it directly above the title, outside
+the expandable announcement, so it stays visible. Link the logo to
+`https://forwardcoalition.com/candidates`. Reuse `/services-coalition.webp`, preserve
+its proportions and wording, and show it once rather than repeating it inside the
+announcement. This supersedes the closing-logo placement. Keep the normal Alethical
+site header; do not add a duplicate Alethical home link beside the coalition logo.
+The coalition link does not assert an additional endorsement or co-host relationship.
 
 The event registry supplies the collection, article, initial HTML, metadata and
 sitemap. The page remains available after the end time, labelled as ended, without

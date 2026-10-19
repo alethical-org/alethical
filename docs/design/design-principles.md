@@ -746,6 +746,18 @@ A closing partner-logo row on an Alethical event announcement does not repeat an
 Alethical home link. Keep the real partner link and the normal site header.
 These rules govern similar event announcements, not unrelated research layouts.
 
+### Forward Coalition branding in related posts
+
+Every Alethical blog post related to Minnesota Forward Together / Forward Coalition,
+including its candidates and events, displays the existing Minnesota Forward
+Together logo near the article title. Keep it visible without opening an expandable
+section. The Forward Debate places it directly above the title, aligned with the
+article text. Reuse `/services-coalition.webp`, preserve its proportions and wording,
+and link it to `https://forwardcoalition.com/candidates`. Show the logo once rather
+than repeating it inside the original announcement. Keep the normal Alethical site
+header. The logo does not add an endorsement or co-host claim. This 19 October 2026
+decision supersedes the former closing-logo placement for related posts.
+
 ### Implied information in post graphics
 
 Remove text and visual marks that add no needed meaning beyond nearby labels,
