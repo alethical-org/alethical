@@ -9,6 +9,7 @@ import {
 import {
   currentWebHistoryEntry,
   readCurrentScrollPosition,
+  readSavedCurrentScrollPosition,
   saveCurrentScrollPosition,
   type AppHistoryEntry,
 } from '../navigation/webHistory';
@@ -23,7 +24,11 @@ function visibleScroller(node: HTMLElement | null): node is HTMLElement {
  * numbers already live in the URL; this supplies the remaining "same place"
  * part of browser Back for React Native Web's nested scroller.
  */
-export function useHistoryScrollRestoration(ready = true, contentKey?: string) {
+export function useHistoryScrollRestoration(
+  ready = true,
+  contentKey?: string,
+  initialFragment = false,
+) {
   const scrollRef = useRef<ScrollView | null>(null);
   const previousContentKey = useRef(contentKey);
   // React Navigation draws the destination screen before RootNavigator adds its
@@ -60,11 +65,26 @@ export function useHistoryScrollRestoration(ready = true, contentKey?: string) {
     if (!visibleScroller(node) || !ownsCurrentEntry()) {
       return;
     }
-    const target = targetRef.current ?? readCurrentScrollPosition();
+    let target = targetRef.current ?? readSavedCurrentScrollPosition();
+    if (target === null && initialFragment && window.location.hash) {
+      let heading: HTMLElement | null = null;
+      try {
+        heading = document.getElementById(decodeURIComponent(window.location.hash.slice(1)));
+      } catch {
+        /* A malformed fragment has no matching passage. */
+      }
+      if (heading && node.contains(heading)) {
+        target = Math.max(
+          0,
+          node.scrollTop + heading.getBoundingClientRect().top - node.getBoundingClientRect().top,
+        );
+      }
+    }
+    target ??= readCurrentScrollPosition();
     targetRef.current = target;
     node.scrollTop = target;
     restoredRef.current = Math.abs(node.scrollTop - target) < 2;
-  }, [ready, ownsCurrentEntry]);
+  }, [ready, ownsCurrentEntry, initialFragment]);
 
   const scheduleRestore = useCallback(() => {
     if (

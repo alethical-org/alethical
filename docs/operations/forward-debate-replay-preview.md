@@ -17,10 +17,10 @@ contains the factual article, PDF materials, historical announcement/flyer and
 existing comments. The Minnesota Forward Together logo appears once above the title,
 linked to Forward Coalition's candidates and visible while the original announcement
 is closed. The shared event renderer uses the same branding in announcement and
-post-event output. No final recording, captions, transcript, chapters or video
-thumbnail have been received. Their absence creates no reader-facing section.
-Claude conversation **Forward Debate video enhancement**
-(`local_6648d2c8-2631-495e-94bc-3b1876c2b9b0`) owns media preparation.
+post-event output. The final media edition was supplied on 19 October. The article
+now includes its 100 transcript turns, all 126 supplied paragraphs and 28 topic
+headings. The accepted thumbnail supplies the social preview image. No recording
+player or video search details appear until an actual YouTube upload is available.
 
 The website build uses `gpt-6-astra` at `high`; the scope includes interdependent
 server/browser output, search metadata, player permissions and independent acceptance.
@@ -97,13 +97,60 @@ Primary references: [Google video guidance](https://developers.google.com/search
 
 ## Current acceptance checkpoint
 
-Public layout passed independent Chromium inspection at 320, 390 and 1280px:
+The article without media passed independent Chromium inspection at 320, 390 and 1280px:
 heading, omission of unavailable content, history keyboard opening, loaded flyer,
-PDF links, no overflow or page errors. The historical Luma source link was restored
-from review. Focused section, metadata, endpoint and player tests pass. Release
-checks, full-app comments and live acceptance remain in progress. The final video
-cannot be accepted from this local renderer alone.
+PDF links, no overflow or page errors. The original article and subsequent title-logo
+change passed live acceptance. Transcript release checks and live acceptance are
+the current step. The final video cannot be accepted from this local renderer alone.
 
 The visible date line uses “Debate held October 15, 2026 · Updated October 19, 2026”.
 This distinguishes the event from the article revision without presenting the old
 announcement date as a new video publication. Original article metadata stays intact.
+
+### Accepted text edition, 19 October 2026
+
+The source package is `ForwardDebate-handoff.md` and the 7 matching final media files
+in the operator's Downloads folder. Source copies remain unchanged. The website
+edition is `forward-debate-2026-final-2026-10-19`, with actual MP4 duration 7401.85s.
+The MP4 is not included in the repository or served as a download.
+
+The 100 Markdown turn blocks match the 100 JSON turns after whitespace normalization;
+speaker labels and display times also match. Import preserves the Markdown paragraph
+breaks. All 28 headings match the chapter CSV and YouTube description. Chapter start
+seconds are floored to the supplied whole-second display values; all turn-to-heading
+assignments remain identical. Original fractional source times remain in the source CSV.
+The committed JSON is the accepted public text input, not a separate transcription.
+
+The 8 `[speaker uncertain]` labels and all `[unclear]` words remain. Aaron Brutger's
+disputed closing line around 1:55:11 remains `[unclear]` and is never used as a quotation
+or summary. The exact machine-text disclosure appears above the transcript. No claim
+of audience anonymity is added. File-to-file agreement does not establish spoken-word
+accuracy, and no listening task is assigned to Eugene.
+
+Actual SRT inspection found 1659 nonoverlapping cues inside the final video, with at
+most 2 lines of 42 characters. Contrary to the handoff's count of 5, the actual file has
+2 cues shorter than 1 second. 20 cues exceed 30 displayed characters per second, with
+the fastest at 52. This is a readability finding, not an external compliance threshold.
+Caption readability corrections and real YouTube playback remain open; the MP4 needs
+no new format or encoding from these findings. The 3-window alignment and full-file
+decode reported by the media producer are producer evidence, not new listening checks.
+
+The managing account is available in Chrome's Dev Team (Alethical) profile. The final
+MP4 upload has started on `@Alethical`, channel `UC6Gof3CAuynOHxpH_Bl6fQQ`, video
+`y66-Wf9bNio`. Public visibility is saved; the video remains pending while the upload
+and processing run. Allow embedding and English are selected. Caption editing remains
+unavailable until processing permits it. Actual publication facts, uploaded-caption
+behavior and early-playback continuity are required before adding video to the article.
+
+### Direct topic links after application startup
+
+The full mounted application reproduced a direct `#topic-2983` visit at scroll position
+0 instead of the named passage. The static article renderer alone did not expose this:
+the scroll-restoration hook replaced the browser's fragment position with its default 0.
+EventScreen now opts into initial-fragment restoration. A saved history position,
+including an explicit 0, takes priority; a new visit finds the named heading inside its
+own scroller. Malformed, missing and unrelated fragments retain the default behavior.
+The event slug resets restoration when navigation reuses the screen for another event.
+Other screens keep their existing behavior. Focused regression tests preserve these
+differences, and acceptance includes the actual mounted application rather than only
+the static preview. The separate stable-player startup work remains unfinished.
