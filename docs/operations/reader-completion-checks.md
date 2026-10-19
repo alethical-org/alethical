@@ -1,6 +1,6 @@
 # Reader completion checks
 
-<!-- describes: apps/frontend/scripts/reader-completion-*.mjs, apps/frontend/scripts/reader-official-bill.mjs, apps/frontend/scripts/reader-release-relation.mjs, apps/frontend/scripts/serve-reader-check-build.mjs, apps/frontend/scripts/check-candidate-return.mjs, apps/frontend/scripts/check-candidate-location.mjs, .github/workflows/reader-completion-checks.yml, .github/workflows/ci.yml, .github/actions/prepare-browser-install/action.yml -->
+<!-- describes: apps/frontend/scripts/reader-completion-*.mjs, apps/frontend/scripts/reader-official-bill.mjs, apps/frontend/scripts/reader-release-relation.mjs, apps/frontend/scripts/serve-reader-check-build.mjs, apps/frontend/scripts/serve-replay-check-build.mjs, apps/frontend/scripts/check-candidate-return.mjs, apps/frontend/scripts/check-candidate-location.mjs, .github/workflows/reader-completion-checks.yml, .github/workflows/ci.yml, .github/actions/prepare-browser-install/action.yml -->
 
 Alethical's completion evidence includes what a reader can do on the deployed
 website. A successful build or merge alone does not establish that result.
@@ -58,6 +58,23 @@ address**. It measures the **Find** buttons on `/candidates`, **Change address**
 boxes. It also requires every row of an open suggestion list, including the last, to
 take a click above the help lines and outline. Unrelated outside requests receive
 HTTP 503; nothing reaches a location or address service.
+
+### Replay startup fixture evidence
+
+The required frontend job runs
+[`event-replay-startup.browser.ts`](../../apps/frontend/e2e/event-replay-startup.browser.ts)
+against the real production build, served by the loopback-only
+[`serve-replay-check-build.mjs`](../../apps/frontend/scripts/serve-replay-check-build.mjs).
+Shared rendering supplies a clearly labelled sample article before application startup.
+The test holds the actual application program while a reader begins using that article.
+It then requires the same iframe, child browsing context and sample playing state,
+keyboard focus, timestamp Back/Forward, deep reading restoration, reader-input priority,
+usable sign-in failure recovery and matching article styles.
+
+YouTube, comments and decorative image reads are supplied locally; writes, authentication,
+metrics and unrelated outside requests are blocked. These deterministic checks prevent
+startup regressions but do not establish real YouTube sound, picture, captions or availability.
+Final recording and live browser acceptance remain separate.
 
 ### Campaign-money fixture evidence
 

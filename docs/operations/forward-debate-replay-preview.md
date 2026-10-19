@@ -199,3 +199,12 @@ YouTube demonstration preserved the same iframe and browsing context through del
 startup, timestamp Back/Forward, sign-in and route departure. Those checks do not
 establish final-recording playback or captions; both remain required before the
 final video becomes part of the public article.
+
+The built-app startup regression runs in required frontend CI with locally supplied
+sample player/API responses. Its 5 cases passed on October 19: iframe/context and
+sample child state, keyboard focus and timestamp history; real deep scroll restoration;
+Tab and wheel cancellation of pending restoration; and computed article-style parity.
+The tests use actual browser layout and anchoring, not modeled scroll coordinates.
+Parent browser acceptance also exercised blocked sign-in download, visible recovery
+and Close, and matching heading/link/summary styles in stable and ordinary app entry.
+Real final-recording playback, uploaded captions and public video metadata remain open.
