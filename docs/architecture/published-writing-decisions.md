@@ -527,6 +527,18 @@ using the existing section heading, box, row, type and responsive spacing patter
 The group links to `/blog/events`; each announcement has its own address below it.
 Existing Research reports, Short posts and Guides keep their relative order.
 
+**Event introductions, 19 October 2026:** `/blog` now places Events first, above
+Research reports, Short posts and Guides, including its initial HTML. Both
+`/blog` and `/blog/events` use separate clickable event cards with the existing
+white-card hover and whole-card keyboard focus treatment. Each card has 1 title
+link covering its full area, without another keyboard stop. Introductory cards
+show only the calendar date, such as “October 15, 2026”, without “Past event”, a
+weekday or a time. The original announcement retains its full date/time and
+ended-event RSVP behavior.
+The completed Forward Debate replay's introductory cards also omit the venue, city
+and free-admission line; attendance logistics remain on upcoming-event cards and
+in detailed announcements. The replay's publication date is unchanged.
+
 The first announcement is The Forward Debate at `/blog/events/forward-debate-2026`.
 The supplied flyer appears before the article text, with its content unchanged.
 The revised flyer and article identify Trent Dilks as “DFL-endorsed candidate” and Aaron Brutger as “Republican-endorsed write-in candidate”. Jared Gapinski is separately “Also invited”, Senate Republican primary winner. These revised labels supersede the 7 October wording. The article includes the confirmed event time,

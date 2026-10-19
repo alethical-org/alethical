@@ -75,20 +75,35 @@ describe('accessible event announcement', () => {
   });
   it('groups meaningful facts in both event list sizes and the article', () => {
     for (const markup of [
-      renderEventList(),
-      renderEventList(Date.now(), true),
+      renderEventList(Date.parse('2026-10-07')),
+      renderEventList(Date.parse('2026-10-07'), true),
       renderEventArticle(event),
     ]) {
       const document = new JSDOM(markup).window.document;
       const groups = [...document.querySelectorAll('.event-keep')].map((node) => node.textContent);
-      expect(groups).toContain('October 15, 2026 ·');
-      expect(groups).toContain('6–8 PM CDT');
       expect(groups).toContain('Free admission');
     }
     const document = new JSDOM(renderEventArticle(event)).window.document;
     expect([...document.querySelectorAll('.event-keep')].map((node) => node.textContent)).toContain(
       'Sauk Rapids, MN 56379',
     );
+    expect(document.body.textContent).toContain('6–8 PM CDT');
+  });
+  it('shows only the date on introductory cards before and after the event', () => {
+    for (const now of [Date.parse('2026-10-07'), Date.parse('2026-10-20')]) {
+      for (const preview of [true, false]) {
+        const document = new JSDOM(renderEventList(now, preview)).window.document;
+        expect(document.querySelector('.event-list-meta')?.textContent).toBe('October 15, 2026');
+        expect(document.querySelectorAll('.event-list li a')).toHaveLength(1);
+        expect(document.body.textContent).not.toMatch(/Past event|Thursday|6–8 PM CDT/);
+        expect(document.body.textContent?.includes('Riverside Terrace')).toBe(
+          now < Date.parse(event.endDate),
+        );
+        expect(document.body.textContent?.includes('Free admission')).toBe(
+          now < Date.parse(event.endDate),
+        );
+      }
+    }
   });
   it('keeps publication labels with their dates', () => {
     const document = new JSDOM(renderEventArticle(event)).window.document;

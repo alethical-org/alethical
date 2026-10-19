@@ -124,7 +124,7 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
         : { kind: 'piece' as const, piece: bySlug.get(item.piece.slug) },
     )
     .filter((item) => item.kind === 'group' || Boolean(item.piece));
-  // Source order: Research reports, Short posts, Guides. An empty group is dropped here rather than
+  // Events render first, followed by Research reports, Short posts, Guides. An empty group is dropped here rather than
   // hidden in the markup, so the group that renders first is genuinely first for
   // a screen reader and for the keyboard as well as in ink.
   const groups: PieceGroup[] = [
@@ -168,6 +168,26 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
 
             <View style={[styles.rule, isMobile && styles.ruleMobile]} />
 
+            {PUBLISHED_EVENT_INDEX.length > 0 && (
+              <>
+                <Text
+                  accessibilityRole="header"
+                  aria-level={2}
+                  style={[
+                    styles.groupHeading,
+                    isMobile && styles.groupHeadingMobile,
+                    isMobile ? styles.groupHeadingFirstMobile : styles.groupHeadingFirst,
+                  ]}
+                >
+                  EVENTS
+                </Text>
+                <div dangerouslySetInnerHTML={{ __html: renderEventList(Date.now(), true) }} />
+                <a className="read-collection-link" href="/blog/events">
+                  <span className="read-collection-link-label">All events</span>
+                  <GreenLinkArrow />
+                </a>
+              </>
+            )}
             {groups.length === 0 ? (
               <View style={styles.emptyCard}>
                 <Text style={styles.emptyTitle}>{READ_PAGE_EMPTY_TITLE}</Text>
@@ -186,7 +206,7 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
                       styles.groupHeading,
                       isMobile && styles.groupHeadingMobile,
                       // The spacing is the slot's, not the group's.
-                      index === 0
+                      index === 0 && PUBLISHED_EVENT_INDEX.length === 0
                         ? isMobile
                           ? styles.groupHeadingFirstMobile
                           : styles.groupHeadingFirst
@@ -275,26 +295,6 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
                   </a>
                 </View>
               ))
-            )}
-            {PUBLISHED_EVENT_INDEX.length > 0 && (
-              <>
-                <Text
-                  accessibilityRole="header"
-                  aria-level={2}
-                  style={[
-                    styles.groupHeading,
-                    isMobile && styles.groupHeadingMobile,
-                    isMobile ? styles.groupHeadingLaterMobile : styles.groupHeadingLater,
-                  ]}
-                >
-                  EVENTS
-                </Text>
-                <div dangerouslySetInnerHTML={{ __html: renderEventList(Date.now(), true) }} />
-                <a className="read-collection-link" href="/blog/events">
-                  <span className="read-collection-link-label">All events</span>
-                  <GreenLinkArrow />
-                </a>
-              </>
             )}
           </View>
         </Container>

@@ -257,3 +257,25 @@ The tests use actual browser layout and anchoring, not modeled scroll coordinate
 Parent browser acceptance also exercised blocked sign-in download, visible recovery
 and Close, and matching heading/link/summary styles in stable and ordinary app entry.
 Real final-recording playback, uploaded captions and public video metadata remain open.
+
+## Event introduction cards
+
+The `/blog` and `/blog/events` introductions share `renderEventList`. Each list item
+owns its white card boundary and its single stretched title link. Hover and keyboard
+focus cover that item, so additional events retain separate destinations. Fine-pointer
+hover at widths of at least 768px uses the approved white-card border, shadow and lift;
+reduced motion removes the lift. Touch does not activate that treatment.
+
+The `/blog` source order is Events, Research reports, Short posts, Guides. Initial
+HTML puts event records and the Events collection link first. Intro cards show only
+the event date. The completed Forward Debate summary omits attendance logistics;
+upcoming cards retain them. Detailed announcement facts and registration availability
+remain governed by the saved event data and end date.
+
+`e2e/event-cards.spec.ts` runs in required frontend CI against the built app. It covers
+blank-area linking, 1 keyboard stop per card, separate event destinations, full-card
+focus, reduced motion, touch, narrow/enlarged text, section order and article navigation.
+It blocks external requests and writes and supplies synthetic empty comments. The
+replay return uses an absolute public URL, so premerge tests assert that destination
+and exercise the local Events collection separately; live acceptance covers the public
+return. Source tests cover date-only summaries before/after the event and initial HTML.
