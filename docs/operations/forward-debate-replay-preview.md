@@ -91,3 +91,12 @@ Primary references: [Google video guidance](https://developers.google.com/search
 [VideoObject guidance](https://developers.google.com/search/docs/appearance/structured-data/video),
 [YouTube iframe API](https://developers.google.com/youtube/iframe_api_reference),
 [YouTube chapter rules](https://support.google.com/youtube/answer/9884579).
+
+## Current acceptance checkpoint
+
+Public layout passed independent Chromium inspection at 320, 390 and 1280px:
+heading, omission of unavailable content, history keyboard opening, loaded flyer,
+PDF links, no overflow or page errors. The historical Luma source link was restored
+from review. Focused section, metadata, endpoint and player tests pass. Release
+checks, full-app comments and live acceptance remain in progress. The final video
+cannot be accepted from this local renderer alone.
