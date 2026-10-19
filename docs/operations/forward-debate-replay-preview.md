@@ -135,7 +135,22 @@ Caption readability corrections and real YouTube playback remain open; the MP4 n
 no new format or encoding from these findings. The 3-window alignment and full-file
 decode reported by the media producer are producer evidence, not new listening checks.
 
-YouTube Studio currently exposes a personal channel and a shared Google account with
-no channel, while the public `@Alethical` channel exists. Nothing has been uploaded to
-either account. Correct channel access, actual publication time, embedding permissions,
-uploaded-caption behavior and early-playback continuity are required before adding video.
+The managing account is available in Chrome's Dev Team (Alethical) profile. The final
+MP4 upload has started on `@Alethical`, channel `UC6Gof3CAuynOHxpH_Bl6fQQ`, video
+`y66-Wf9bNio`. Public visibility is saved; the video remains pending while the upload
+and processing run. Allow embedding and English are selected. Caption editing remains
+unavailable until processing permits it. Actual publication facts, uploaded-caption
+behavior and early-playback continuity are required before adding video to the article.
+
+### Direct topic links after application startup
+
+The full mounted application reproduced a direct `#topic-2983` visit at scroll position
+0 instead of the named passage. The static article renderer alone did not expose this:
+the scroll-restoration hook replaced the browser's fragment position with its default 0.
+EventScreen now opts into initial-fragment restoration. A saved history position,
+including an explicit 0, takes priority; a new visit finds the named heading inside its
+own scroller. Malformed, missing and unrelated fragments retain the default behavior.
+The event slug resets restoration when navigation reuses the screen for another event.
+Other screens keep their existing behavior. Focused regression tests preserve these
+differences, and acceptance includes the actual mounted application rather than only
+the static preview. The separate stable-player startup work remains unfinished.

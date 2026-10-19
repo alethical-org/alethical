@@ -13,8 +13,8 @@ import { Footer, PageBackground, TopNav } from '../../theme/primitives';
 type Props = RootScreenProps<'Event'> | RootScreenProps<'Events'>;
 
 export function EventScreen({ navigation, route }: Props) {
-  const restoration = useHistoryScrollRestoration();
   const event = route.name === 'Event' ? eventBySlug(route.params.slug) : undefined;
+  const restoration = useHistoryScrollRestoration(true, event?.slug ?? 'events', true);
   useDocumentTitle(event && eventPath(event), event && publishedEventMetadata(event).title);
   const main = useRef<HTMLElement>(null);
   const markup = useMemo(

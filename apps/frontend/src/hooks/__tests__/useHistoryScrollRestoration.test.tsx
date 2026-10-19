@@ -16,8 +16,16 @@ import {
   true;
 
 let currentScroll: ReturnType<typeof useHistoryScrollRestoration>;
-function ScrollHarness({ ready = true, article }: { ready?: boolean; article?: string }) {
-  const scroll = useHistoryScrollRestoration(ready, article);
+function ScrollHarness({
+  ready = true,
+  article,
+  fragment = false,
+}: {
+  ready?: boolean;
+  article?: string;
+  fragment?: boolean;
+}) {
+  const scroll = useHistoryScrollRestoration(ready, article, fragment);
   currentScroll = scroll;
   return <div data-testid="page-scroller" ref={scroll.ref as unknown as Ref<HTMLDivElement>} />;
 }
@@ -39,7 +47,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function mountScroll(ready = true, article?: string) {
+function mountScroll(ready = true, article?: string, fragment = false) {
   const frames = new Map<number, FrameRequestCallback>();
   let nextFrame = 0;
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
@@ -57,7 +65,7 @@ function mountScroll(ready = true, article?: string) {
   document.body.append(mount);
   const root = createRoot(mount);
   const render = (ready: boolean, article?: string) =>
-    act(() => root.render(<ScrollHarness ready={ready} article={article} />));
+    act(() => root.render(<ScrollHarness ready={ready} article={article} fragment={fragment} />));
   render(ready, article);
   const node = mount.querySelector<HTMLDivElement>('[data-testid="page-scroller"]')!;
   return { root, node, flush, render };
@@ -68,6 +76,36 @@ function scrollEvent(y: number): Parameters<typeof currentScroll.onScroll>[0] {
 }
 
 describe('browser-history scroll restoration', () => {
+  it.each(['#%E0%A4%A', '#missing', '#outside'])('ignores unusable fragment %s', (hash) => {
+    window.history.replaceState({}, '', `/blog/events/forward-debate-2026${hash}`);
+    initializeWebHistory();
+    const outside = document.createElement('h3');
+    outside.id = 'outside';
+    document.body.append(outside);
+    const screen = mountScroll(true, 'forward-debate-2026', true);
+    screen.flush();
+    expect(screen.node.scrollTop).toBe(0);
+    act(() => screen.root.unmount());
+  });
+
+  it.each([null, 0, 640])(
+    'opens a shared event topic without overriding saved position %s',
+    (saved) => {
+      window.history.replaceState({}, '', '/blog/events/forward-debate-2026#topic-2983');
+      initializeWebHistory();
+      if (saved !== null) saveCurrentScrollPosition(saved);
+      const screen = mountScroll(true, 'forward-debate-2026', true);
+      const topic = document.createElement('h3');
+      topic.id = 'topic-2983';
+      screen.node.append(topic);
+      vi.spyOn(topic, 'getBoundingClientRect').mockReturnValue({ top: 1200 } as DOMRect);
+      vi.spyOn(screen.node, 'getBoundingClientRect').mockReturnValue({ top: 40 } as DOMRect);
+      screen.flush();
+      expect(screen.node.scrollTop).toBe(saved ?? 1160);
+      act(() => screen.root.unmount());
+    },
+  );
+
   it('opens another article at the top when the reading screen is reused', () => {
     window.history.replaceState({}, '', '/blog/guides/first');
     initializeWebHistory();

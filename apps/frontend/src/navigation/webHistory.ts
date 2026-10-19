@@ -172,18 +172,24 @@ export function saveCurrentScrollPosition(y: number) {
   }
 }
 
-export function readCurrentScrollPosition() {
+export function readSavedCurrentScrollPosition(): number | null {
   const key = currentScrollStorageKey();
   if (!key) {
-    return 0;
+    return null;
   }
-  let saved = 0;
   try {
-    saved = Number(window.sessionStorage.getItem(key));
+    const raw = window.sessionStorage.getItem(key);
+    if (raw === null) return null;
+    const saved = Number(raw);
+    return Number.isFinite(saved) && saved >= 0 ? saved : null;
   } catch {
     /* No saved position. */
   }
-  return Number.isFinite(saved) && saved > 0 ? saved : 0;
+  return null;
+}
+
+export function readCurrentScrollPosition() {
+  return readSavedCurrentScrollPosition() ?? 0;
 }
 
 // --- Canonicalization support -------------------------------------------------
