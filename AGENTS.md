@@ -37,6 +37,9 @@ working toward*, and it is the tie-breaker when a tactic and an intent disagree.
 - [`docs/README.md`](docs/README.md) — index of every spec. Specs describe intent;
   **GitHub issues and the Roadmap board carry sequencing**, so never read a milestone
   in prose as a reason work is off-limits.
+- For article, event, recording or transcript work, use
+  [`docs/operations/blog-publishing.md`](docs/operations/blog-publishing.md) for the
+  upfront brief, media handoff and acceptance matrix; its links lead to owning product decisions.
 
 Tool note: Claude Code loads this file and everything in `.claude/rules/` into every
 session automatically; every other agent must open them itself.
