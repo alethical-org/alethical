@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { JSDOM } from 'jsdom';
 import fixture from './fixtures/eventReplay.json';
+import suppliedTranscript from '../eventReplayData/forwardDebate2026.json';
+import { forwardDebateReadingOmissions } from '../eventReplayData/forwardDebate2026ReadingEdition';
 import { EVENTS } from '../events';
 import { eventPageMetadata } from '../eventMetadata';
 import { renderEventArticle, publishedEventMetadata } from '../eventArticle';
@@ -103,7 +105,7 @@ describe('replay content and publication boundaries', () => {
     expect(invitation.nextElementSibling?.querySelector('#topics')).not.toBeNull();
     const link = invitation.querySelector('a')!;
     expect(link.textContent).toBe('Contact Alethical');
-    expect(link.href).toBe('https://www.alethical.com/about/contact');
+    expect(link.href).toBe('https://www.alethical.com/about/contact?purpose=host-debate');
     expect(link.hasAttribute('target')).toBe(false);
     expect(invitation.querySelector('img')?.alt).toBe('');
     expect(invitation.querySelector('img')?.getAttribute('src')).toBe('/alethical-mark-green.png');
@@ -267,13 +269,36 @@ describe('independent media availability', () => {
 });
 
 describe('accepted Forward Debate media edition', () => {
-  it('preserves every supplied turn and paragraph while connecting matching video timestamps', () => {
+  it('preserves the accepted reading edition verbatim with matching video timestamps', () => {
     const replay = eventReplayBySlug(EVENTS[0].slug)!;
     const doc = new JSDOM(renderEventArticle(EVENTS[0])).window.document;
     expect(replay.duration).toBe(7401.85);
-    expect(doc.querySelectorAll('.replay-turn')).toHaveLength(100);
-    expect(doc.querySelectorAll('.replay-turn p')).toHaveLength(126);
+    const omitted = [
+      269.96, 1370.7, 1943.24, 2048.76, 3989.62, 4941.38, 4943.26, 4954.62, 5749.32, 6252.32,
+      6512.66, 6892.56,
+    ];
+    expect(forwardDebateReadingOmissions.map(({ start }) => start)).toEqual(omitted);
+    expect(suppliedTranscript.turns).toHaveLength(100);
+    expect(replay.transcript!.turns).toEqual(
+      suppliedTranscript.turns.filter((turn) => !omitted.includes(turn.start)),
+    );
+    expect(doc.querySelector('#transcript')?.textContent).toBe('Edited transcript');
+    expect(
+      new JSDOM(renderEventReplay(EVENTS[0], ready())).window.document.querySelector('#transcript')
+        ?.textContent,
+    ).toBe('Full transcript');
+    for (const start of omitted)
+      expect(doc.querySelector(`[data-replay-seek="${start}"]`)).toBeNull();
+    for (const start of [3954.78, 6769.98]) {
+      const turn = suppliedTranscript.turns.find((turn) => turn.start === start)!;
+      expect(replay.transcript!.turns.find((turn) => turn.start === start)).toEqual(turn);
+      expect(doc.body.textContent).toContain(turn.paragraphs[0]);
+    }
+    expect(doc.querySelectorAll('.replay-turn')).toHaveLength(88);
+    expect(doc.querySelectorAll('.replay-turn p')).toHaveLength(114);
     expect(doc.querySelectorAll('[aria-labelledby="transcript"] h3')).toHaveLength(28);
+    expect(doc.querySelector('.replay-topics')?.tagName).toBe('OL');
+    expect(doc.querySelector('.replay-topics')?.getAttribute('role')).toBe('list');
     expect(doc.querySelectorAll('.replay-topics a')).toHaveLength(28);
     for (const [index, a] of [...doc.querySelectorAll('.replay-topics a')].entries()) {
       const start = replay.chapters!.items[index].start;
@@ -285,14 +310,14 @@ describe('accepted Forward Debate media edition', () => {
       [...doc.querySelectorAll('.replay-speaker')].filter(
         (s) => s.textContent === '[speaker uncertain]',
       ),
-    ).toHaveLength(8);
+    ).toHaveLength(2);
     const closing = replay.transcript!.turns.find(
       (t) => t.speaker === 'Aaron Brutger' && t.start >= 6891,
     )!;
     expect(closing.paragraphs.join(' ')).toContain('for hosting, [unclear]');
     expect(doc.querySelectorAll('iframe')).toHaveLength(1);
     expect(doc.querySelector('iframe')?.src).not.toContain('autoplay=1');
-    expect(doc.querySelectorAll('[data-replay-copy]')).toHaveLength(100);
+    expect(doc.querySelectorAll('[data-replay-copy]')).toHaveLength(88);
     expect(doc.querySelector('[download]')).toBeNull();
     expect(JSON.stringify(publishedEventMetadata(EVENTS[0]))).toContain('VideoObject');
     expect(publishedEventMetadata(EVENTS[0]).socialImage?.url).toBe(

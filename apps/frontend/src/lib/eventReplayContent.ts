@@ -1,5 +1,8 @@
 import type { EventReplay } from './eventReplay';
 import forwardDebate from './eventReplayData/forwardDebate2026.json';
+import { forwardDebateReadingOmissions } from './eventReplayData/forwardDebate2026ReadingEdition';
+
+const omittedStarts = new Set<number>(forwardDebateReadingOmissions.map(({ start }) => start));
 
 /** Publish real assets here independently after accepting Claude's matching final export. */
 const replays: Record<string, EventReplay> = {
@@ -19,7 +22,11 @@ const replays: Record<string, EventReplay> = {
     },
     captions: { exportId: forwardDebate.exportId, uploaded: true },
     chapters: { exportId: forwardDebate.exportId, items: forwardDebate.chapters },
-    transcript: { exportId: forwardDebate.exportId, turns: forwardDebate.turns },
+    transcript: {
+      exportId: forwardDebate.exportId,
+      edition: 'edited',
+      turns: forwardDebate.turns.filter((turn) => !omittedStarts.has(turn.start)),
+    },
     thumbnail: {
       url: 'https://www.alethical.com/forward-debate-2026-thumbnail.jpg',
       alt: 'The Forward Debate, Minnesota Senate District 13, October 15, 2026: moderator Angel Zierden with Trent Dilks and Aaron Brutger',

@@ -3,11 +3,41 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   CONTACT_FIELD_ORDER,
   contactFormReducer,
+  contactPrefillValues,
   correctionContactValues,
   createContactDraft,
   initialContactFormState,
   validateContactForm,
 } from '../contactUs';
+
+it('uses trusted hosting copy without filling personal information or accepting query text', () => {
+  expect(contactPrefillValues(undefined, 'host-debate')).toEqual({
+    name: '',
+    email: '',
+    phone: '',
+    subject: 'Host a debate',
+    message: 'I’d like Alethical to host a debate in my community.\n\nCommunity:\n',
+  });
+  expect(contactPrefillValues(undefined, 'arbitrary message')).toEqual(
+    initialContactFormState.values,
+  );
+});
+
+it('keeps existing and deliberately cleared draft fields across contact purposes', () => {
+  const draft = createContactDraft(undefined, 'host-debate');
+  draft.dispatch({ type: 'change', field: 'subject', value: '' });
+  draft.dispatch({ type: 'change', field: 'message', value: 'My community request' });
+  draft.prefill(PUBLISHED_PIECE_INDEX[0].slug);
+  draft.prefill(undefined, 'host-debate');
+  expect(draft.getSnapshot().values.subject).toBe('');
+  expect(draft.getSnapshot().values.message).toBe('My community request');
+  const correction = createContactDraft(
+    PUBLISHED_PIECE_INDEX[0].articleId ?? PUBLISHED_PIECE_INDEX[0].slug,
+  );
+  const original = correction.getSnapshot().values;
+  correction.prefill(undefined, 'host-debate');
+  expect(correction.getSnapshot().values).toEqual(original);
+});
 
 import { PUBLISHED_PIECE_INDEX, piecePath, type PieceIndexEntry } from '../researchIndex';
 import { ARTICLE_AI_NOTE, ARTICLE_SOURCE_NOTE, articleDisclosureRuns } from '../articleDisclosure';

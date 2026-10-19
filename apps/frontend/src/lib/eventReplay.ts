@@ -23,7 +23,7 @@ export interface EventReplay {
   duration?: number;
   video?: { id: string; exportId: string; publishedAt?: string };
   captions?: { exportId: string; uploaded: boolean };
-  transcript?: { exportId: string; turns: ReplayTurn[] };
+  transcript?: { exportId: string; edition?: 'edited'; turns: ReplayTurn[] };
   chapters?: { exportId: string; items: ReplayChapter[] };
   thumbnail?: { url: string; alt: string; width: number; height: number };
 }
@@ -84,7 +84,8 @@ export function parseEventReplay(value: unknown): EventReplay {
     typeof n === 'number' && Number.isFinite(n) && n >= 0 && n < r.duration!;
   if (
     r.transcript &&
-    (!Array.isArray(r.transcript.turns) ||
+    ((r.transcript.edition !== undefined && r.transcript.edition !== 'edited') ||
+      !Array.isArray(r.transcript.turns) ||
       !r.transcript.turns.length ||
       !r.transcript.turns.every(
         (t, i, all) =>

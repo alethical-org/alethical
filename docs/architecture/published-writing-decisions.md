@@ -491,18 +491,44 @@ section; this supersedes the flyer-first presentation for this event.
 
 The approved replay invitation sits after the recording and before Topics. It reads
 “Want a debate in your community?” with 1 “Contact Alethical” link to
-`https://www.alethical.com/about/contact` in the same tab, with no supporting sentence.
+`https://www.alethical.com/about/contact?purpose=host-debate` in the same tab, with no supporting sentence.
 The approved Claude Design treatment is black `#11150f`, with a white heading,
 green Alethical symbol and green contact link. Do not use a white card. Keep the
-invitation out of the historical announcement and illustrative sample.
+invitation out of the historical announcement and illustrative sample. The known
+hosting purpose fills an editable “Host a debate” subject and a community request,
+using trusted local copy. Account email fills separately for signed-in readers;
+existing drafts and deliberately cleared fields remain intact. Only Send message
+submits the form. Generic contact links and article-correction links retain their
+own behavior.
+
+Replay Topics retain chronological timestamp/title links and ordered-list semantics,
+without visible ordinal numbers. Keep the existing link targets and keyboard behavior;
+this treatment does not apply to other ordered article lists.
 
 Show only available content. Add the recording, topics and transcript independently
 from accepted final assets, without empty sections, preparation notices, a private
 banner or video/transcript download offers. The standard YouTube player appears
 prominently in initial HTML when supplied, without requiring a click to create it
 or starting playback automatically. Topic links and copyable transcript times use
-one chapter source and a bare canonical article address. The full supplied transcript
+one chapter source and a bare canonical article address. The complete accepted reading edition
 is readable in initial HTML; missing video must not create broken timestamp links.
+
+Reading transcripts for event and ordinary posts omit standalone thanks, routine
+turn-taking and schedule prompts, and isolated fragments with no recoverable statement
+in the supplied text. Exclusions are explicit whole-turn decisions recorded by original
+source timestamp and reason, not filters based on length or speaker certainty. Retain
+substantive claims, questions, answers, qualifications, disagreement, meaningful assent
+and clarification regardless of length. Unknown content is not declared meaningless.
+Do not delete words inside a substantive turn. Keep retained text, paragraphs, speaker
+labels, uncertainty marks and timestamps verbatim. Preserve original source transcripts,
+recordings and captions internally. Label an edited reading edition “Edited transcript”;
+an unabridged edition remains “Full transcript”.
+
+The Forward Debate reading edition retains 88 of 100 supplied turns. Its 12 omissions
+and reasons are recorded in
+`apps/frontend/src/lib/eventReplayData/forwardDebate2026ReadingEdition.ts`.
+The question at 3954.78 seconds that elicits clarification and the substantive soil
+remark at 6769.98 seconds remain, including their uncertain speaker labels.
 
 Machine text preserves uncertain words as “[unclear]” and uncertain speakers as
 “[speaker uncertain]”, with timestamps. The transcript notice is:

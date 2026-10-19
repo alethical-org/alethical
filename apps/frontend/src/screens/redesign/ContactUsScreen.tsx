@@ -271,7 +271,10 @@ export function ContactUsScreen({ navigation, route }: RootScreenProps<'ContactU
   const { isLoading: isAuthLoading, isSignedIn, user } = useAuth();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [draft] = useState(() => {
-    const retainedDraft = (currentDraft ??= createContactDraft(route.params?.article));
+    const retainedDraft = (currentDraft ??= createContactDraft(
+      route.params?.article,
+      route.params?.purpose,
+    ));
     retainedDraft.setAccount(
       isAuthLoading ? undefined : isSignedIn && user ? { id: user.id, email: user.email } : null,
     );
@@ -283,8 +286,8 @@ export function ContactUsScreen({ navigation, route }: RootScreenProps<'ContactU
   const hasDraft = draft.hasDraft();
 
   useEffect(() => {
-    draft.prefill(route.params?.article);
-  }, [draft, route.params?.article]);
+    draft.prefill(route.params?.article, route.params?.purpose);
+  }, [draft, route.params?.article, route.params?.purpose]);
 
   useLayoutEffect(() => {
     draft.setAccount(

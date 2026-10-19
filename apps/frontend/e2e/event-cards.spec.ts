@@ -143,3 +143,51 @@ test('touch does not leave the desktop card lift active', async ({ browser }) =>
   await expect(card).toHaveCSS('box-shadow', 'none');
   await context.close();
 });
+
+for (const width of [320, 1280]) {
+  test(`replay topics and hosting contact preserve context at ${width}px`, async ({
+    page,
+    baseURL,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    // The CTA keeps its real public destination. Redirect that one request back
+    // to this built app so the premerge form never contacts the live website.
+    await page.route('https://www.alethical.com/about/contact?purpose=host-debate', (route) =>
+      route.fulfill({
+        status: 302,
+        headers: { location: `${baseURL}/about/contact?purpose=host-debate` },
+      }),
+    );
+    await page.goto('/blog/events/forward-debate-2026');
+    await expect(page.locator('#transcript')).toHaveText('Edited transcript');
+    await expect(page.locator('.replay-turn')).toHaveCount(88);
+    const topics = page.locator('.replay-topics');
+    await expect(topics).toHaveAttribute('role', 'list');
+    await expect(topics).toHaveCSS('list-style-type', 'none');
+    await expect(topics.getByRole('link')).toHaveCount(28);
+    const firstTopic = topics.getByRole('link').first();
+    await expect(firstTopic).toHaveCSS('min-height', '44px');
+    await firstTopic.focus();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\?t=0#watch$/);
+    const contact = page.getByRole('link', { name: 'Contact Alethical', exact: true });
+    await expect(contact).toHaveAttribute(
+      'href',
+      'https://www.alethical.com/about/contact?purpose=host-debate',
+    );
+    await contact.click();
+    await expect(page.locator('[name="subject"]')).toHaveValue('Host a debate');
+    await expect(page.locator('[name="message"]')).toHaveValue(
+      'I’d like Alethical to host a debate in my community.\n\nCommunity:\n',
+    );
+    await expect(page.locator('[name="email"]')).toHaveValue('');
+    await page.locator('[name="subject"]').fill('My debate request');
+    await page.locator('[name="message"]').fill('My community request');
+    if (width < 768) await page.getByRole('button', { name: 'Open menu' }).click();
+    await page.getByRole('link', { name: 'Blog', exact: true }).first().click();
+    await expect(page).toHaveURL(/\/blog$/);
+    await page.goBack();
+    await expect(page.locator('[name="subject"]')).toHaveValue('My debate request');
+    await expect(page.locator('[name="message"]')).toHaveValue('My community request');
+  });
+}

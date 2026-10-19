@@ -72,13 +72,67 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-async function render(article?: string) {
-  const path = article ? `/about/contact?article=${encodeURIComponent(article)}` : '/about/contact';
+async function render(article?: string, purpose?: string) {
+  const path = purpose
+    ? `/about/contact?purpose=${encodeURIComponent(purpose)}`
+    : article
+      ? `/about/contact?article=${encodeURIComponent(article)}`
+      : '/about/contact';
   const route = stateFromPathname(path)!.routes[1];
   await act(async () => {
     root.render(<ContactUsScreen navigation={{ navigate: vi.fn() } as any} route={route as any} />);
   });
 }
+
+it('opens the replay hosting destination with signed-in email and editable local copy', async () => {
+  const { EVENTS } = await import('../../../lib/events');
+  const { renderEventArticle } = await import('../../../lib/eventArticle');
+  const article = document.createElement('div');
+  article.innerHTML = renderEventArticle(EVENTS[0]);
+  const href = article.querySelector<HTMLAnchorElement>('.replay-contact')!.href;
+  const destination = new URL(href);
+  expect(destination.pathname + destination.search).toBe('/about/contact?purpose=host-debate');
+  mocks.auth.isSignedIn = true;
+  mocks.auth.user = { id: 'host-a', email: 'host-a@example.test' };
+  await render(undefined, destination.searchParams.get('purpose')!);
+  expect(field('email').value).toBe('host-a@example.test');
+  expect(field('name').value).toBe('');
+  expect(field('phone').value).toBe('');
+  expect(field('subject').value).toBe('Host a debate');
+  expect(field('message').value).toBe(
+    'I’d like Alethical to host a debate in my community.\n\nCommunity:\n',
+  );
+  await type('email', '');
+  await type('subject', '');
+  await type('message', 'My retained community request');
+  await act(async () => root.render(<div>Another screen</div>));
+  mocks.auth.user = { id: 'host-b', email: 'host-b@example.test' };
+  await render(undefined, 'host-debate');
+  expect(field('email').value).toBe('');
+  expect(field('subject').value).toBe('');
+  expect(field('message').value).toBe('My retained community request');
+  expect(mocks.send).not.toHaveBeenCalled();
+});
+
+it('updates only automatic account email during a hosting request', async () => {
+  mocks.auth.isLoading = true;
+  await render(undefined, 'host-debate');
+  expect(field('email').value).toBe('');
+  mocks.auth.isLoading = false;
+  mocks.auth.isSignedIn = true;
+  mocks.auth.user = { id: 'host-a', email: 'host-a@example.test' };
+  await render(undefined, 'host-debate');
+  expect(field('email').value).toBe('host-a@example.test');
+  mocks.auth.user = { id: 'host-b', email: 'host-b@example.test' };
+  await render(undefined, 'host-debate');
+  expect(field('email').value).toBe('host-b@example.test');
+  mocks.auth.isSignedIn = false;
+  mocks.auth.user = null;
+  await render(undefined, 'host-debate');
+  expect(field('email').value).toBe('');
+  expect(field('subject').value).toBe('Host a debate');
+  expect(mocks.send).not.toHaveBeenCalled();
+});
 function field(name: string) {
   return host.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[name="${name}"]`)!;
 }

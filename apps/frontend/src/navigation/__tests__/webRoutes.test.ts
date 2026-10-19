@@ -1049,6 +1049,22 @@ describe('lobbying search address', () => {
 });
 
 describe('article correction contact navigation', () => {
+  it('round-trips the known hosting purpose and discards arbitrary content', () => {
+    const path = pathForRoute({ name: 'ContactUs', params: { purpose: 'host-debate' } });
+    expect(path).toBe('/about/contact?purpose=host-debate');
+    expect(
+      stateFromPathname(`${path}&email=private@example.test&message=Injected&send=true`)?.routes[1],
+    ).toEqual({ name: 'ContactUs', params: { purpose: 'host-debate' } });
+    expect(targetFromPathname('/about/contact?purpose=unknown&subject=Injected')).toEqual({
+      kind: 'contactUs',
+    });
+    expect(
+      pathForRoute({
+        name: 'ContactUs',
+        params: { purpose: 'unknown', email: 'private@example.test' },
+      }),
+    ).toBe('/about/contact');
+  });
   it('round-trips an encoded identity and ignores arbitrary content and submission parameters', () => {
     const article = 'known-article & identity';
     const path = pathForRoute({ name: 'ContactUs', params: { article } });

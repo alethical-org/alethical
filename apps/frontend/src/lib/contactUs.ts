@@ -66,14 +66,26 @@ export function correctionContactValues(article?: string): ContactValues {
   return { ...blank, subject: longTitle ? 'Possible correction' : subject, message };
 }
 
+/** Only known purposes choose trusted local copy; query text never becomes form content. */
+export function contactPrefillValues(article?: string, purpose?: string): ContactValues {
+  if (purpose === 'host-debate') {
+    return {
+      ...initialContactFormState.values,
+      subject: 'Host a debate',
+      message: 'I’d like Alethical to host a debate in my community.\n\nCommunity:\n',
+    };
+  }
+  return purpose ? { ...initialContactFormState.values } : correctionContactValues(article);
+}
+
 /**
  * One in-memory draft survives screen unmounts and pending sends. Nothing is
  * written to browser storage; closing/reloading the app discards the draft.
  */
-export function createContactDraft(article?: string) {
+export function createContactDraft(article?: string, purpose?: string) {
   let state: ContactFormState = {
     ...initialContactFormState,
-    values: correctionContactValues(article),
+    values: contactPrefillValues(article, purpose),
   };
   let currentAccount: ContactAccountEmail | null = null;
   let automaticEmailAccountId: string | null = null;
@@ -94,8 +106,8 @@ export function createContactDraft(article?: string) {
         listeners.delete(listener);
       };
     },
-    prefill(article?: string) {
-      const values = correctionContactValues(article);
+    prefill(article?: string, purpose?: string) {
+      const values = contactPrefillValues(article, purpose);
       if (state.status !== 'editing' || editedFields.has('subject') || editedFields.has('message'))
         return;
       const additions = (['subject', 'message'] as const).filter(

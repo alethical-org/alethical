@@ -189,7 +189,7 @@ export type RootStackParamList = {
   Terms: undefined;
   AboutUs: undefined;
   Services: undefined;
-  ContactUs: { article?: string } | undefined;
+  ContactUs: { article?: string; purpose?: 'host-debate' } | undefined;
   ConfirmEmail: undefined;
   ResetPassword: undefined;
   NotFound: { path: string };

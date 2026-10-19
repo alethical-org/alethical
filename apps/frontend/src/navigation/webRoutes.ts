@@ -94,7 +94,7 @@ type WebRouteTarget =
   | { kind: 'terms' }
   | { kind: 'aboutUs' }
   | { kind: 'services' }
-  | { kind: 'contactUs'; article?: string }
+  | { kind: 'contactUs'; article?: string; purpose?: 'host-debate' }
   | { kind: 'confirmEmail' }
   | { kind: 'resetPassword' }
   | { kind: 'chatSession'; params: RootStackParamList['ChatSession'] }
@@ -466,7 +466,8 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
 
   if (segments.length === 2 && segments[0] === 'about' && segments[1] === 'contact') {
     const article = searchParams.get('article') || undefined;
-    return article ? { kind: 'contactUs', article } : { kind: 'contactUs' };
+    const purpose = searchParams.get('purpose') === 'host-debate' ? 'host-debate' : undefined;
+    return { kind: 'contactUs', ...(article ? { article } : {}), ...(purpose ? { purpose } : {}) };
   }
 
   if (segments[0] === 'blog' && segments[1] === 'events') {
@@ -1169,9 +1170,11 @@ export function pathForRoute(activeRoute: {
       return '/services';
     case 'ContactUs': {
       const article = activeRoute.params?.article;
-      return typeof article === 'string' && article
-        ? `/about/contact?article=${encodeURIComponent(article)}`
-        : '/about/contact';
+      const query: string[] = [];
+      if (typeof article === 'string' && article)
+        query.push(`article=${encodeURIComponent(article)}`);
+      if (activeRoute.params?.purpose === 'host-debate') query.push('purpose=host-debate');
+      return `/about/contact${query.length ? `?${query.join('&')}` : ''}`;
     }
     case 'ConfirmEmail':
       return '/confirm';
@@ -1410,8 +1413,14 @@ export function stateFromPathname(pathname: string): WebNavigationState {
       return pageState({ name: 'Services' });
     case 'contactUs':
       return pageState(
-        target.article
-          ? { name: 'ContactUs', params: { article: target.article } }
+        target.article || target.purpose
+          ? {
+              name: 'ContactUs',
+              params: {
+                ...(target.article ? { article: target.article } : {}),
+                ...(target.purpose ? { purpose: target.purpose } : {}),
+              },
+            }
           : { name: 'ContactUs' },
       );
     case 'confirmEmail':

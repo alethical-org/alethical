@@ -51,6 +51,21 @@ What may be wrong:
 
 ```
 
+The debate-hosting invitation opens `/about/contact?purpose=host-debate`. The known
+purpose selects trusted local copy, with subject **Host a debate** and message:
+
+```text
+I’d like Alethical to host a debate in my community.
+
+Community:
+
+```
+
+The link carries no personal details or arbitrary form text. Unknown purposes do
+not choose a template. Generic navigation stays blank apart from account email,
+and article-correction links retain their own template. Both templates share the
+same editable fields, account-email behavior and retained-draft protection.
+
 The reader can edit every field. The article link never fills name, email, or phone; the
 signed-in account supplies email separately. Unknown identities, private drafts and
 arbitrary title or URL parameters do not fill the form. Only **Send message** submits it.

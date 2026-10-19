@@ -21,7 +21,7 @@ test('local final-video layout preserves the transcript and stays excluded from 
   ).toBeVisible();
   await expect(page.locator('#watch')).toHaveCount(1);
   await expect(page.locator('#topics,#transcript')).toHaveCount(2);
-  await expect(page.locator('.replay-turn')).toHaveCount(100);
+  await expect(page.locator('.replay-turn')).toHaveCount(88);
   await expect(page.locator('iframe')).toHaveCount(1);
   await expect(page.locator('iframe')).toHaveAttribute('src', /\/embed\/y66-Wf9bNio\?/);
   await expect(

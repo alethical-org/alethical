@@ -1075,3 +1075,15 @@ Lobbying labels retain their exact source identifier, use equal-width digits and
 line height 1.5, and wrap between words. Keep the middle dot with the preceding
 text and keep Registration {number} or Entity ID {id} together. Test the real font
 at 320px and each layout band; do not shrink, clip or truncate the label.
+
+### Debate replay topic links and contact context
+
+Replay Topics show chronological timestamps and titles without visible ordinal
+numbers, retaining semantic list structure, keyboard links and the existing touch
+targets. Other ordered article lists keep their own meaning and markers. The
+debate-hosting invitation opens the Contact us form with a known hosting purpose:
+subject “Host a debate” and message “I’d like Alethical to host a debate in my
+community.” followed by a blank Community field in the editable message. The
+signed-in account supplies an editable email address separately. Never replace
+an unfinished draft or a field the reader deliberately cleared; only Send message
+submits. Generic contact navigation and correction links retain their own context.

@@ -71,12 +71,14 @@ describe('public event pages before JavaScript', () => {
     ).toBe('2026-10-19');
     expect(doc.querySelector('.event-published')?.textContent).toBe('Published October 19, 2026');
     expect(doc.querySelector('.replay-contact')?.getAttribute('href')).toBe(
-      'https://www.alethical.com/about/contact',
+      'https://www.alethical.com/about/contact?purpose=host-debate',
     );
     const stable = doc.getElementById('stable-event-document');
     expect(stable?.querySelector('iframe')?.src).toContain('/embed/y66-Wf9bNio?');
     expect(doc.getElementById('root')?.contains(stable)).toBe(false);
     expect(doc.querySelectorAll('iframe')).toHaveLength(1);
+    expect(doc.querySelector('#transcript')?.textContent).toBe('Edited transcript');
+    expect(doc.querySelectorAll('.replay-turn')).toHaveLength(88);
     expect(fetch).not.toHaveBeenCalled();
   });
 
