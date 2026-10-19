@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: 'event-replay-preview.spec.ts',
+  testMatch: 'event-replay-preview.browser.ts',
   workers: 1,
   use: { baseURL: 'http://127.0.0.1:4187', browserName: 'chromium' },
   webServer: {
