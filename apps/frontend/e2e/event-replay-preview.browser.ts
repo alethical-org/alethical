@@ -121,6 +121,8 @@ for (const width of [320, 390, 768, 1100, 1280]) {
     await invitation.scrollIntoViewIfNeeded();
     await expect(invitation).toHaveCSS('background-color', 'rgb(17, 21, 15)');
     await expect(invitation.locator('h2')).toHaveCSS('color', 'rgb(255, 255, 255)');
+    await expect(invitation.locator('h2')).toHaveCSS('hyphens', 'auto');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     await expect(invitation.locator('img')).toHaveJSProperty('complete', true);
     expect(
       await invitation.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth),

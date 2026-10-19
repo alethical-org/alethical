@@ -15,7 +15,7 @@ const replayCss = `
 .replay-content iframe{display:block;border:0;width:100%;aspect-ratio:16/9;min-height:200px;background:#11150f;border-radius:16px}
 .replay-with-invitation [data-replay-status]:empty{display:none}
 .replay-invitation{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:24px;background:#11150f;border-radius:16px;padding:20px 24px;margin:32px 0 40px}
-.event-content .replay-invitation h2{display:flex;align-items:center;gap:14px;color:#fff;font-size:20px;font-weight:700;line-height:1.3;margin:0;flex:1 1 auto;width:max-content;max-width:100%;min-width:0}
+.event-content .replay-invitation h2{display:flex;align-items:center;gap:14px;color:#fff;font-size:20px;font-weight:700;line-height:1.3;hyphens:auto;hyphenate-limit-chars:7 4 3;-webkit-hyphenate-limit-before:4;-webkit-hyphenate-limit-after:3;margin:0;flex:1 1 auto;width:max-content;max-width:100%;min-width:0}
 .replay-invitation img{display:block;width:30px;height:auto;flex:none}
 .event-content .replay-invitation a.replay-contact{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;max-width:100%;min-height:48px;padding:10px 22px;border:1px solid #2ed47e;border-radius:12px;background:#2ed47e;color:#06231a;font-size:16px;font-weight:700;line-height:1.5;text-align:center;text-decoration:none}
 .event-content .replay-invitation a.replay-contact:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}
