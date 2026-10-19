@@ -479,9 +479,8 @@ publication dates, accuracy-review dates, claims, evidence or article publicatio
 **Post-event article, 19 October 2026:** The Forward Debate uses the same permanent
 address with the heading “The Forward Debate”. The browser/search title is
 “Trent Dilks & Aaron Brutger: The Forward Debate | Alethical”. A factual introduction
-names the district, venue, city and event date. Eugene's later approval on 19 October
-replaces this replay edition's date line with “Published October 19, 2026” and uses
-that same date in article publication metadata. The introduction already supplies
+names the district, venue, city and event date. This replay edition's date line is
+“Published October 19, 2026”; article publication metadata uses the same date. The introduction already supplies
 October 15, so the date line does not repeat it. Preserve October 7 as the original
 announcement's publication date and October 15 in Event structured data and historical
 content. A later distinct update date may appear when useful; omit a same-day update.
@@ -493,9 +492,9 @@ section; this supersedes the flyer-first presentation for this event.
 The approved replay invitation sits after the recording and before Topics. It reads
 “Want a debate in your community?” with 1 “Contact Alethical” link to
 `https://www.alethical.com/about/contact` in the same tab, with no supporting sentence.
-Eugene approved the latest Claude Design revision: black `#11150f`, white heading,
-green Alethical symbol and green contact link. This supersedes the earlier white-card
-proposal. Keep it out of the historical announcement and illustrative sample.
+The approved Claude Design treatment is black `#11150f`, with a white heading,
+green Alethical symbol and green contact link. Do not use a white card. Keep the
+invitation out of the historical announcement and illustrative sample.
 
 Show only available content. Add the recording, topics and transcript independently
 from accepted final assets, without empty sections, preparation notices, a private

@@ -105,17 +105,21 @@ change passed live acceptance. The transcript release passed live acceptance at
 [commit 978ac04e](https://github.com/alethical-org/alethical/commit/978ac04e).
 Final embedded playback and captions are the current acceptance step. The final video cannot be accepted from this local renderer alone.
 
-Eugene's later 19 October approval replaces the replay date line with “Published
+The approved replay date line is “Published
 October 19, 2026”, matching article publication metadata. October 15 stays in the
 introduction, Event data and historical announcement; October 7 remains the original
-announcement publication record. This explicitly supersedes the prior held/updated
-line for this replay only. Same-day update labels are omitted.
+announcement publication record. Do not use the held/updated
+line for this replay; generic announcements retain their own dates. Same-day update labels are omitted.
 
-Eugene approved the latest Claude Design invitation after the recording and before
+The approved Claude Design invitation sits after the recording and before
 Topics: “Want a debate in your community?” and 1 “Contact Alethical” link to
 `https://www.alethical.com/about/contact`, same tab. The black background, white
-heading, green approved Alethical symbol and green link supersede the earlier white
-card. No supporting sentence or download is added. The invitation is enabled only
+heading, green approved Alethical symbol and green link are required; do not use a white
+card. The exact flat green `mark-green-transparent.png` source is copied unchanged
+to `/alethical-mark-green.png` (504 × 492). Its SHA-256 is
+`96952d9f423ef2aa3647e61dc1eb045cee82ec410f7356fb5b309de8f9420fe4`.
+The separate gradient print symbol retains its existing uses.
+No supporting sentence or download is added. The invitation is enabled only
 for this replay, never the announcement or illustrative fixture. Acceptance covers
 320, 390, 768, 1100 and 1280 pixels, doubled text, keyboard focus, hover/pressed
 feedback, real contact navigation and Back, plus continued recording controls.

@@ -2225,9 +2225,9 @@ the running website. The words and existing link styling remain unchanged.
 
 The Forward Debate's post-event article uses the 19 October 2026 extension in
 [published-writing-decisions.md §2.16](published-writing-decisions.md#216-events-reuse-the-blog-design-and-retain-a-permanent-address).
-Eugene's 19 October approval gives The Forward Debate replay edition the visible line
-“Published October 19, 2026” and matching article publication metadata. This supersedes
-the earlier held/updated line for this replay. Its introduction and Event data retain
+The Forward Debate replay edition uses the visible line
+“Published October 19, 2026” and matching article publication metadata. Do not use
+a held/updated line for this replay. Its introduction and Event data retain
 October 15; the original announcement retains its October 7 publication record.
 The actual YouTube upload timestamp remains a separate video fact. Same-day update
 labels are omitted; a useful later distinct update date may appear. Its heading is “The Forward Debate”,
