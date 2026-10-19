@@ -235,6 +235,23 @@ second summary to make readers notice it. Keep its evidence and limits reachable
 
 ### Keep meaningful uncertainty, remove obvious caveats
 
+Public text must add useful meaning. Review connected text and visuals together,
+including titles, labels, descriptions, notices and captions. Remove internal work
+commentary and meaning already stated or reasonably implied by what readers can
+see, even when the words differ. When a sentence partly repeats nearby content,
+keep only its useful new information. Ask what readers would lose if the wording
+were removed; retain it when removal would change their understanding or ability
+to act. Preserve necessary evidence, uncertainty, instructions, required disclosures
+and context for accessible or standalone versions.
+
+Keep production and checking history internally unless a specific detail changes
+what readers need to understand or do. The Forward Debate transcript and caption
+notice is “Uncertain words and speakers are marked.” Omit “Not checked against the
+audio.” This does not certify a check or remove the uncertain words and speaker
+marks. It does not remove substantive checking statuses on other surfaces or the
+approved closing notes. Apply during creation and revision, without an unrelated
+bulk rewrite.
+
 Explain a limitation when omitting it could change the reader's understanding of
 the finding: incomplete coverage, unresolved duplicates, uncertain identity,
 different reporting periods or an unsupported total. Put it beside the affected

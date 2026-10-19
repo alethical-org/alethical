@@ -88,7 +88,8 @@ chapters-only and combined inputs; one H1; event-held and updated dates; origina
 PDFs and historical content; bounded deep links; no autoplay; disclosure and preserved
 uncertainty; metadata/sitemap omission until supported. Browser checks cover 320,
 390 and 1280px, keyboard focus, copy, Back, blocked-player fallback and overflow.
-Final recording playback and captions remain open until real assets arrive.
+The final media files have arrived. Recording playback and caption acceptance
+remain open while YouTube uploads and processes the final MP4.
 
 Primary references: [Google video guidance](https://developers.google.com/search/docs/appearance/video),
 [VideoObject guidance](https://developers.google.com/search/docs/appearance/structured-data/video),
@@ -100,8 +101,9 @@ Primary references: [Google video guidance](https://developers.google.com/search
 The article without media passed independent Chromium inspection at 320, 390 and 1280px:
 heading, omission of unavailable content, history keyboard opening, loaded flyer,
 PDF links, no overflow or page errors. The original article and subsequent title-logo
-change passed live acceptance. Transcript release checks and live acceptance are
-the current step. The final video cannot be accepted from this local renderer alone.
+change passed live acceptance. The transcript release passed live acceptance at
+[commit 978ac04e](https://github.com/alethical-org/alethical/commit/978ac04e).
+Final YouTube playback and captions are the current acceptance step. The final video cannot be accepted from this local renderer alone.
 
 The visible date line uses “Debate held October 15, 2026 · Updated October 19, 2026”.
 This distinguishes the event from the article revision without presenting the old
@@ -123,7 +125,9 @@ The committed JSON is the accepted public text input, not a separate transcripti
 
 The 8 `[speaker uncertain]` labels and all `[unclear]` words remain. Aaron Brutger's
 disputed closing line around 1:55:11 remains `[unclear]` and is never used as a quotation
-or summary. The exact machine-text disclosure appears above the transcript. No claim
+or summary. The public notice is “Uncertain words and speakers are marked.”
+Internal checking commentary stays in these implementation records.
+No listening check is recorded for this edition. No claim
 of audience anonymity is added. File-to-file agreement does not establish spoken-word
 accuracy, and no listening task is assigned to Eugene.
 
