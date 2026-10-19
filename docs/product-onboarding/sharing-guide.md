@@ -116,6 +116,14 @@ money pages never enter those pages’ shared content or first-response records.
 
 ## Link preview cards
 
+The Forward Debate keeps `/blog/events/forward-debate-2026` for its announcement,
+event materials and accepted recording/transcript sections. Its first response and
+loaded article use the same supplied content. Missing media produces no empty
+section or preparation notice. Timestamp links retain the base article as the
+canonical address. Video search data and `/sitemaps/videos.xml` appear only when
+the actual recording publication date and thumbnail are supplied. The visible
+event-held date is separate from the original article publication metadata.
+
 Reader comments load separately beneath individual editorial pieces. Their text
 does not enter an article's first response, search description, shared preview,
 structured article data, or export. A comment email links to the article with a
