@@ -124,6 +124,7 @@ for (const width of [320, 768, 1280]) {
     await page.keyboard.press('Tab');
     await card.getByRole('link').focus();
     await expect(card).toHaveCSS('outline', 'rgb(124, 92, 255) solid 2px');
+    await expect(card.getByRole('link')).toHaveCSS('outline-width', '0px');
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/blog\/events\/forward-debate-2026$/);
   });

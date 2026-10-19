@@ -51,7 +51,7 @@ export const eventCss = `
 .event-content .event-list{list-style:none;margin:18px 0 0;padding:0;display:grid;gap:20px}
 .event-list>li{position:relative;padding:34px 36px 36px;background:#fff;border:1px solid rgba(17,21,15,.08);border-radius:16px;transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}
 .event-list h3 a::after,.event-list h2 a::after{content:'';position:absolute;inset:0;border-radius:16px}
-.event-list h3 a:focus-visible,.event-list h2 a:focus-visible{outline:none}
+.event-list h3 a:focus-visible,.event-list h2 a:focus-visible{outline:none!important}
 .event-list>li:has(a:focus-visible){outline:2px solid #7c5cff;outline-offset:2px}
 @media(min-width:768px) and (hover:hover) and (pointer:fine){.event-list>li:hover{border-color:rgba(45,212,126,.85);box-shadow:0 22px 46px rgba(17,21,15,.14);transform:translateY(-3px)}}
 @media(prefers-reduced-motion:reduce){.event-list>li{transition:none}.event-list>li:hover{transform:none}}
