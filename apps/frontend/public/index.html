@@ -260,10 +260,12 @@
     </style>
     <style id="alethical-comment-return">
       .comment-return-loading { display: none; }
-      html[data-comment-return] #root { visibility: hidden; }
+      html[data-comment-return] #root,
+      html[data-comment-return] #stable-event-document { visibility: hidden; }
       html[data-comment-return] .comment-return-loading {
         display: block;
         position: fixed;
+        z-index: 3;
         inset: 0;
         padding: 32px;
         background: #fff;
@@ -290,6 +292,32 @@
       only while the font came late from Google (issue 1997).
     -->
     <style id="alethical-page-snapshot">
+      #stable-event-document {
+        position: fixed;
+        inset: 0;
+        z-index: 1;
+        height: 100%;
+        overflow-y: auto;
+        background: #f7f8fa;
+        background-image: linear-gradient(180deg,#f4f5f7 0%,#f7f8fa 60%,#fdfdfe 92%,#ffffff 100%);
+      }
+      @media(max-width:767px) {
+        #stable-event-document { background-image: none; }
+      }
+      body[data-stable-event-document] #root {
+        position: fixed;
+        inset: 0;
+        z-index: 2;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      html:not([data-comment-return]) body[data-stable-event-document] [data-event-global-feedback="true"] {
+        visibility: visible;
+      }
+      html:not([data-comment-return]) body[data-stable-event-document] [data-event-global-feedback="dialog"] {
+        visibility: visible;
+        pointer-events: auto;
+      }
       .page-snapshot {
         flex: 1;
         overflow-y: auto;

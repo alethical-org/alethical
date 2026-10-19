@@ -6,6 +6,7 @@ import {
   currentWebHistoryEntry,
   initializeWebHistory,
   markNextWebHistoryChangeAsReplace,
+  pushWebHistory,
   readCurrentScrollPosition,
   saveCurrentScrollPosition,
 } from '../webHistory';
@@ -81,6 +82,28 @@ it('keeps ordinary navigation, canonical replacements, and Back working before a
   window.history.forward();
   await vi.waitFor(() => expect(state.path).toBe('/money/committees/current-name'));
 });
+
+it.each([false, true])(
+  'keeps the debate screen mounted between timestamp entries, installed guard=%s',
+  async (installed) => {
+    const event = '/blog/events/forward-debate-2026';
+    const state = mountHistory();
+    state.navigate(event);
+    if (installed) state.history.installHistoryGuard(createGuardedWebHistory);
+    const initial = currentWebHistoryEntry();
+    pushWebHistory(`${event}?t=20#watch`);
+    const selected = currentWebHistoryEntry();
+    window.history.back();
+    await vi.waitFor(() => expect(currentWebHistoryEntry()).toEqual(initial));
+    expect(state.reset).not.toHaveBeenCalled();
+    window.history.forward();
+    await vi.waitFor(() => expect(currentWebHistoryEntry()).toEqual(selected));
+    expect(state.reset).not.toHaveBeenCalled();
+    state.navigate('/money');
+    window.history.back();
+    await vi.waitFor(() => expect(state.reset).toHaveBeenCalledWith(`${event}?t=20`));
+  },
+);
 
 it('installs one guard synchronously and delegates cancellation and navigation to it', () => {
   const state = mountHistory();

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+import { STABLE_EVENT_SCROLL_BOOT } from '../stableEventScrollBoot';
 
 type Header = { key: string; value: string };
 type HeaderRule = { source: string; headers: Header[] };
@@ -73,6 +74,7 @@ describe('web security response headers', () => {
       inlineProgram('apps/frontend/public/index.html', 'alethical-release-recovery'),
       inlineProgram('api/page.ts', 'alethical-email-link-bootstrap'),
       inlineProgram('api/page.ts', 'alethical-forgot-password-bootstrap'),
+      STABLE_EVENT_SCROLL_BOOT,
     ];
 
     expect(directives.get('script-src')).toEqual([

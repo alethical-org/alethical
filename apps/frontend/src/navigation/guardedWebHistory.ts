@@ -118,9 +118,15 @@ export function createGuardedWebHistory(options: Options) {
         };
         window.history.go(current.entry.depth - arrived.entry.depth);
       } else {
+        const sameScreen =
+          !pending &&
+          !options.shouldGuardCurrentRoute() &&
+          sameNavigationPath(arrived.path, current.path);
         pending = undefined;
         current = arrived;
-        options.resetNavigationToPath(arrived.path);
+        // Preserve an ordinary screen's timestamp history. Editor traversals
+        // above still run their removal guard and complete their exact entries.
+        if (!sameScreen) options.resetNavigationToPath(arrived.path);
       }
     },
     onStateChange(nextPath: string) {

@@ -23,6 +23,7 @@ const replayCss = `
 .replay-content summary{cursor:pointer;min-height:44px;display:list-item;padding:12px 0;font-weight:700}
 .replay-content summary:focus-visible{outline:2px solid #7c5cff;outline-offset:4px}
 .replay-content [tabindex="-1"]:focus-visible{outline:2px solid #7c5cff;outline-offset:4px}
+.replay-content [tabindex="-1"]{scroll-margin-top:12px}
 .replay-content nav a{font-size:17px}.replay-content .event-published{margin-bottom:16px}
 `;
 
@@ -49,7 +50,7 @@ export function renderEventReplay(
     ? r.chapters.items
         .map(
           (c, i, all) =>
-            `<section aria-labelledby="topic-${c.start}"><h3 id="topic-${c.start}">${e(c.title)}</h3>${turns(c.start, all[i + 1]?.start ?? r.duration!)}</section>`,
+            `<section aria-labelledby="topic-${c.start}"><h3 id="topic-${c.start}" tabindex="-1">${e(c.title)}</h3>${turns(c.start, all[i + 1]?.start ?? r.duration!)}</section>`,
         )
         .join('')
     : turns(0, r.duration ?? 0);

@@ -2,6 +2,7 @@ import { Component, ErrorInfo, PropsWithChildren, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { theme } from '../theme/tokens';
+import { retireStableEventDocument } from '../lib/stableEventDocument';
 
 interface AppErrorBoundaryState {
   hasError: boolean;
@@ -77,6 +78,7 @@ export class AppErrorBoundary extends Component<PropsWithChildren, AppErrorBound
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
+    retireStableEventDocument();
     console.error('Unhandled app render error', error, info);
   }
 

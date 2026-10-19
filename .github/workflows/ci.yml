@@ -443,6 +443,8 @@ jobs:
           PY_MONEY
           done
 
+          pnpm exec playwright test --config playwright.replay-startup.config.ts
+
       - name: Retain reader-check evidence even on failure
         if: always()
         uses: actions/upload-artifact@v7

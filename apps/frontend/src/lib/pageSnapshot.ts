@@ -113,6 +113,7 @@ import {
 } from './legislatorProfile';
 import type { Citation } from '../data/types';
 import { billNumberFromId, escapeHtml } from './share';
+import { STABLE_EVENT_SCROLL_BOOT } from './stableEventScrollBoot';
 import {
   BILL_DIRECTORY_HEADING,
   directoryPagePath,
@@ -3006,19 +3007,23 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
 }
 
 /** Event renderers escape their content and are shared with the mounted UI. */
-export function renderEventPageSnapshot(markup: string): string {
+export function renderEventPageSnapshot(markup: string, stablePath?: string): string {
+  if (stablePath) {
+    return `<div id="stable-event-document" data-event-path="${escapeHtml(stablePath)}"><div data-event-nav><div class="page-snapshot">${renderSnapshotNav()}</div></div><main>${markup}</main><div data-event-discussion></div></div><script id="stable-event-scroll-boot">${STABLE_EVENT_SCROLL_BOOT}</script>`;
+  }
   return `<div class="page-snapshot">${renderSnapshotNav()}<main class="ps-inner">${markup}</main></div>`;
 }
 
 /**
  * The markers inside `<div id="root">` in `apps/frontend/public/index.html`.
  *
- * The snapshot goes INSIDE the app's own mount point on purpose. React clears
+ * Ordinary snapshots go INSIDE the app's own mount point on purpose. React clears
  * that element's existing children on its first render, so the app replacing the
  * snapshot is the same single browser paint as the app appearing — there is no
  * moment where both are on screen, and no extra script to run. It also means a
  * failed or blocked program leaves the snapshot standing, which is the whole
- * point of putting real text there.
+ * point of putting real text there. A video event instead keeps its article
+ * outside that replaced area, so startup cannot destroy a playing iframe.
  */
 export const SNAPSHOT_MARKER_START = '<!--alethical:page-snapshot-->';
 export const SNAPSHOT_MARKER_END = '<!--/alethical:page-snapshot-->';
@@ -3028,6 +3033,14 @@ export function injectPageSnapshot(shellHtml: string, snapshotHtml: string): str
   const end = shellHtml.indexOf(SNAPSHOT_MARKER_END);
   if (start < 0 || end < 0 || end < start) {
     throw new Error('page shell is missing its snapshot markers');
+  }
+  if (snapshotHtml.startsWith('<div id="stable-event-document"')) {
+    if (!shellHtml.includes('<body>') || !shellHtml.includes('<div id="root">')) {
+      throw new Error('page shell is missing the stable event document slot');
+    }
+    return (shellHtml.slice(0, start + SNAPSHOT_MARKER_START.length) + shellHtml.slice(end))
+      .replace('<body>', '<body data-stable-event-document>')
+      .replace('<div id="root">', `${snapshotHtml}<div id="root">`);
   }
   return (
     shellHtml.slice(0, start + SNAPSHOT_MARKER_START.length) + snapshotHtml + shellHtml.slice(end)

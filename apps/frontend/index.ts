@@ -13,6 +13,8 @@ import { preloadScreenForPath } from './src/navigation/screenPreload';
 // screen is ready would swap real words for an empty box. Waiting keeps the text
 // up until the screen itself can replace it. Nothing waits on a native build,
 // where there is no server-written text and no separate download.
+// Direct-entry video events retain their article outside that mount point;
+// EventScreen adds navigation and comments without replacing the playing frame.
 if (typeof document === 'undefined') {
   registerRootComponent(App);
 } else {

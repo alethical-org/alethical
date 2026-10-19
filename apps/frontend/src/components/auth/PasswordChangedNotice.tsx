@@ -40,7 +40,9 @@ export function PasswordChangedNotice() {
 
   return (
     <View
-      {...(Platform.OS === 'web' ? ({ role: 'status' } as object) : null)}
+      {...(Platform.OS === 'web'
+        ? ({ role: 'status', dataSet: { eventGlobalFeedback: 'true' } } as object)
+        : null)}
       accessibilityLiveRegion="polite"
       pointerEvents="none"
       style={[styles.notice, Platform.OS === 'web' ? (t.shadows.lg as object) : null]}

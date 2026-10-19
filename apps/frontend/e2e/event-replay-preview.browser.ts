@@ -18,7 +18,9 @@ test('local public layout omits unfinished sections and stays excluded from sear
   await expect(
     page.getByRole('heading', { name: 'The Forward Debate', exact: true }),
   ).toBeVisible();
-  await expect(page.locator('#watch,#topics,#transcript')).toHaveCount(0);
+  await expect(page.locator('#watch')).toHaveCount(0);
+  await expect(page.locator('#topics,#transcript')).toHaveCount(2);
+  await expect(page.locator('.replay-turn')).toHaveCount(100);
   await expect(page.locator('iframe')).toHaveCount(0);
   await expect(page.locator('script[type="application/ld+json"]')).toHaveCount(0);
   expect(
@@ -59,7 +61,8 @@ test('topic links seek, preserve the frame, copy their timestamp and support Bac
     'http://127.0.0.1:4187/__replay-example?t=20#watch',
   );
   await page.goBack();
-  await expect(frame).toHaveAttribute('data-last-seek', '0');
+  // Returning to the article without a timestamp does not rewind playback.
+  await expect(frame).toHaveAttribute('data-last-seek', '20');
   const timeLink = page.getByRole('link', { name: '0:40 Closing example', exact: true });
   await timeLink.focus();
   await page.keyboard.press('Enter');

@@ -131,8 +131,11 @@ Actual SRT inspection found 1659 nonoverlapping cues inside the final video, wit
 most 2 lines of 42 characters. Contrary to the handoff's count of 5, the actual file has
 2 cues shorter than 1 second. 20 cues exceed 30 displayed characters per second, with
 the fastest at 52. This is a readability finding, not an external compliance threshold.
-Caption readability corrections and real YouTube playback remain open; the MP4 needs
-no new format or encoding from these findings. The 3-window alignment and full-file
+The supplied captions remain unchanged. A gap between caption cues does not establish
+silence or word timing, so stretching captions into those gaps would not establish
+better synchronization. The 20 fast cues remain a documented readability limit.
+Real YouTube playback remains open; the MP4 needs no new format or encoding from
+these findings. The 3-window alignment and full-file
 decode reported by the media producer are producer evidence, not new listening checks.
 
 The managing account is available in Chrome's Dev Team (Alethical) profile. The final
@@ -153,4 +156,72 @@ own scroller. Malformed, missing and unrelated fragments retain the default beha
 The event slug resets restoration when navigation reuses the screen for another event.
 Other screens keep their existing behavior. Focused regression tests preserve these
 differences, and acceptance includes the actual mounted application rather than only
-the static preview. The separate stable-player startup work remains unfinished.
+the static preview. The separate stable-player implementation is described below; final-media acceptance remains unfinished.
+
+### Stable-player implementation, acceptance pending
+
+Video events retain the same server article and iframe outside the application's
+replaced root. The real application still supplies its navigation, comments, sign-in
+and footer through portals. Other entry paths render the ordinary EventScreen.
+Keyboard focus on the static header moves to its matching real control at startup,
+unless the reader has already moved focus elsewhere.
+The direct-entry container keeps its own scroll area. The application's hidden
+layout still measures normally; the existing password notice remains visible and
+non-interactive. The native sign-in failure dialog has a separate visible,
+interactive exception; ordinary sign-in dialogs retain their document-level placement.
+Snapshot styling surrounds only the temporary header, so article styles match
+ordinary client entry without higher-specificity snapshot overrides.
+Route blur retires the container, and a fatal app error uses the same idempotent
+retirement before showing the existing recovery screen. React effect replays reuse
+the same per-iframe controller; only actual retirement or removal destroys it.
+
+Same-screen timestamp Back/Forward preserves the route and iframe in both ordinary
+and installed guarded history. In-flight editor traversals retain their existing
+protection. The player uses the shared history writer, saves the outgoing position
+before pushing, and only seeks on Back when a valid timestamp still names this event.
+An entry without a timestamp does not rewind playback to 0.
+
+Saved direct-entry positions restore through a small program after the completed
+server article, before application startup. Its exact content hash is allowed by
+the production security header and tested against the actual API-emitted program.
+The application preserves any movement made before it starts. A saved position
+beyond the initial article's extent remains pending while comments/footer load;
+it never overwrites the saved target with a clamped position. Intervening reader
+input, including focus, keyboard, touch, wheel and pointer use, cancels that pending restoration. Browser scroll anchoring as the real header appears does not cancel it.
+Native content-size and DOM changes retry only that unresolved position.
+An active comment return keeps its explicit discussion destination instead of
+restoring an older saved reading position.
+
+Focused tests cover same-frame effect reuse, real retirement, error cleanup,
+history variants, exact script permission, early reading, deep comment positions
+and intervening input. A private full-application check with the clearly labelled
+YouTube demonstration preserved the same iframe and browsing context through delayed
+startup, timestamp Back/Forward, sign-in and route departure. Those checks do not
+establish final-recording playback or captions; both remain required before the
+final video becomes part of the public article.
+
+Plain transcript topic links also use separate application history entries after
+startup. Back/Forward adopts the destination entry in the same visible article;
+legacy native fragment entries without application state gain an owner before
+restoring their contained heading. Saved exact positions take precedence for
+separate entries. A legacy cloned entry can only recover its shared saved position
+when it has no fragment. Headings receive keyboard focus and 12px clearance.
+EventScreen supplies its known address to the hook and player, so a client visit
+does not capture the previous route before navigation writes the new address.
+A replacement scroll box restores its entry even when the screen hook survived blur.
+Other hook consumers do not enable event-fragment history behavior.
+A repaired stateless native entry starts a new local depth count at 0; event controls
+do not use depth-based return jumps. Its one `replaceState` may also be recorded as
+an in-site navigation by the existing speed beacon. Neither behavior is proof that
+an additional reader navigation occurred. Enhanced topic clicks use distinct normal
+entries and avoid that legacy repair.
+
+The built-app startup regression runs in required frontend CI with locally supplied
+sample player/API responses. Its 6 cases passed on October 19 and cover: iframe/context and
+sample child state, keyboard focus and timestamp history; real deep scroll restoration;
+Tab and wheel cancellation of pending restoration; computed article-style parity;
+and ordinary native fragment Back/Forward, including return after another route.
+The tests use actual browser layout and anchoring, not modeled scroll coordinates.
+Parent browser acceptance also exercised blocked sign-in download, visible recovery
+and Close, and matching heading/link/summary styles in stable and ordinary app entry.
+Real final-recording playback, uploaded captions and public video metadata remain open.
