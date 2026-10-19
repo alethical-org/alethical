@@ -185,7 +185,7 @@ describe('independent media availability', () => {
         expect(doc.querySelector('[href*="#watch"]')).toBeNull();
       if ((parts as readonly string[]).includes('transcript')) {
         expect(doc.querySelectorAll('.replay-turn')).toHaveLength(3);
-        expect(doc.body.textContent).toContain('Not checked against the audio.');
+        expect(doc.body.textContent).toContain('Uncertain words and speakers are marked.');
       }
     });
   }
@@ -214,9 +214,7 @@ describe('accepted Forward Debate media edition', () => {
     expect(doc.querySelectorAll('.replay-topics a')).toHaveLength(28);
     for (const a of doc.querySelectorAll('.replay-topics a'))
       expect(doc.querySelector(a.getAttribute('href')!)).not.toBeNull();
-    expect(doc.body.textContent).toContain(
-      'Machine-generated transcript; uncertain words and speakers are marked. Not checked against the audio.',
-    );
+    expect(doc.body.textContent).toContain('Uncertain words and speakers are marked.');
     expect(
       [...doc.querySelectorAll('.replay-speaker')].filter(
         (s) => s.textContent === '[speaker uncertain]',

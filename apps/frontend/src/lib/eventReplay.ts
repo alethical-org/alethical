@@ -25,8 +25,7 @@ export interface EventReplay {
   thumbnail?: { url: string; alt: string; width: number; height: number };
 }
 
-export const TRANSCRIPT_DISCLOSURE =
-  'Machine-generated transcript; uncertain words and speakers are marked. Not checked against the audio.';
+export const TRANSCRIPT_DISCLOSURE = 'Uncertain words and speakers are marked.';
 const nonempty = (s: unknown): s is string => typeof s === 'string' && s.trim().length > 0;
 const positive = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n > 0;
 const httpsUrl = (s: unknown): boolean => {

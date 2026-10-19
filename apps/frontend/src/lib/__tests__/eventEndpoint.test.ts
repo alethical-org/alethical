@@ -106,7 +106,7 @@ it('keeps actual video timestamps in initial HTML, with a bare canonical and sha
   );
   expect(body).toContain('"@type":"VideoObject"');
   expect(body).toContain('"startOffset":20');
-  expect(body).toContain('Not checked against the audio.');
+  expect(body).toContain('Uncertain words and speakers are marked.');
   expect(body).toContain(fixture.transcript.turns[0].paragraphs[0]);
 });
 

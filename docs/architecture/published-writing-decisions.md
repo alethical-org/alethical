@@ -495,8 +495,10 @@ is readable in initial HTML; missing video must not create broken timestamp link
 
 Machine text preserves uncertain words as “[unclear]” and uncertain speakers as
 “[speaker uncertain]”, with timestamps. The transcript notice is:
-“Machine-generated transcript; uncertain words and speakers are marked. Not checked
-against the audio.” No required listening task or listening publication gate applies.
+“Uncertain words and speakers are marked.” Public copy preserves meaningful
+uncertainty and omits internal checking commentary. The actual checking history
+remains in internal records. No required listening task or listening publication
+gate applies.
 Uncertain passages must not become factual summaries, chapter premises or quotations.
 Video search details and the video sitemap require actual publication time, thumbnail
 and duration. Search appearance is not guaranteed. Real media playback, caption,
