@@ -7,10 +7,11 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-test('local public layout omits unfinished sections and stays excluded from search', async ({
+test('local final-video layout preserves the transcript and stays excluded from search', async ({
   page,
   request,
 }) => {
+  await page.route('https://www.youtube.com/iframe_api', (route) => route.abort());
   const response = await page.goto('/blog/events/forward-debate-2026');
   expect(response?.headers()['x-robots-tag']).toContain('noindex');
   expect(response?.headers()['cache-control']).toBe('no-store');
@@ -18,10 +19,14 @@ test('local public layout omits unfinished sections and stays excluded from sear
   await expect(
     page.getByRole('heading', { name: 'The Forward Debate', exact: true }),
   ).toBeVisible();
-  await expect(page.locator('#watch')).toHaveCount(0);
+  await expect(page.locator('#watch')).toHaveCount(1);
   await expect(page.locator('#topics,#transcript')).toHaveCount(2);
   await expect(page.locator('.replay-turn')).toHaveCount(100);
-  await expect(page.locator('iframe')).toHaveCount(0);
+  await expect(page.locator('iframe')).toHaveCount(1);
+  await expect(page.locator('iframe')).toHaveAttribute('src', /\/embed\/y66-Wf9bNio\?/);
+  await expect(
+    page.getByText('Uncertain words and speakers are marked.', { exact: true }),
+  ).toBeVisible();
   await expect(page.locator('script[type="application/ld+json"]')).toHaveCount(0);
   expect(
     (

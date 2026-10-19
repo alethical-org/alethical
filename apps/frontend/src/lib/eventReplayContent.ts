@@ -10,6 +10,8 @@ const replays: Record<string, EventReplay> = {
       'Alethical hosted The Forward Debate for Minnesota Senate District 13 at Riverside Terrace in Sauk Rapids on October 15, 2026.',
     exportId: forwardDebate.exportId,
     duration: forwardDebate.duration,
+    video: { id: 'y66-Wf9bNio', exportId: forwardDebate.exportId },
+    captions: { exportId: forwardDebate.exportId, uploaded: true },
     chapters: { exportId: forwardDebate.exportId, items: forwardDebate.chapters },
     transcript: { exportId: forwardDebate.exportId, turns: forwardDebate.turns },
     thumbnail: {

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { JSDOM } from 'jsdom';
 import { PUBLISHED_EVENTS, eventPath } from '../events';
 import { renderEventsCollection } from '../eventMarkup';
 import { renderEventArticle } from '../eventArticle';
@@ -47,20 +48,27 @@ async function serve(path: string, t?: string) {
 }
 
 describe('public event pages before JavaScript', () => {
-  it('serves the public article without unavailable media or private notices', async () => {
+  it('serves the final recording outside the replaced application root without unconfirmed search facts', async () => {
     const { body, status } = await serve(eventPath(PUBLISHED_EVENTS[0]));
     expect(status).toBe(200);
-    expect(body).toContain(renderEventArticle(PUBLISHED_EVENTS[0], now));
+    expect(body).toContain(
+      renderEventArticle(PUBLISHED_EVENTS[0], now, { origin: 'https://www.alethical.com' }),
+    );
     expect(body).toContain('Republican-endorsed write-in candidate');
     expect(body).toContain('href="https://luma.com/3w69g6dw"');
     expect(body).toContain('href="https://forwardcoalition.com/candidates"');
     expect(body).toContain('aria-label="Site"');
-    const content = body.slice(body.indexOf('<body>'));
+    const doc = new JSDOM(body).window.document;
+    const content = doc.body.innerHTML;
     expect(content.indexOf(PUBLISHED_EVENTS[0].image)).toBeGreaterThan(content.indexOf('<h1'));
     expect(content).not.toMatch(/PRIVATE DRAFT|being prepared|not ready|will appear/i);
     expect(body).not.toContain('name="robots" content="noindex"');
     expect(body).toContain('Trent Dilks &amp; Aaron Brutger: The Forward Debate | Alethical');
     expect(body).not.toContain('"@type":"VideoObject"');
+    const stable = doc.getElementById('stable-event-document');
+    expect(stable?.querySelector('iframe')?.src).toContain('/embed/y66-Wf9bNio?');
+    expect(doc.getElementById('root')?.contains(stable)).toBe(false);
+    expect(doc.querySelectorAll('iframe')).toHaveLength(1);
     expect(fetch).not.toHaveBeenCalled();
   });
 

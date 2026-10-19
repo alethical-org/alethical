@@ -83,10 +83,20 @@ describe('replay content and publication boundaries', () => {
     );
     expect(xml).not.toContain('content_loc');
   });
-  it('publishes the article without implying that video exists', () => {
+  it('connects the final recording and uploaded captions without inventing publication facts', () => {
+    const replay = eventReplayBySlug(EVENTS[0].slug)!;
+    expect(replay.video).toEqual({
+      id: 'y66-Wf9bNio',
+      exportId: 'forward-debate-2026-final-2026-10-19',
+    });
+    expect(replay.captions).toEqual({
+      exportId: 'forward-debate-2026-final-2026-10-19',
+      uploaded: true,
+    });
     expect(
-      new JSDOM(renderEventArticle(EVENTS[0])).window.document.querySelector('iframe'),
-    ).toBeNull();
+      new JSDOM(renderEventArticle(EVENTS[0])).window.document.querySelector('iframe')?.src,
+    ).toContain('https://www.youtube-nocookie.com/embed/y66-Wf9bNio?');
+    expect(JSON.stringify(publishedEventMetadata(EVENTS[0]))).not.toContain('VideoObject');
     expect(publishedEventMetadata(EVENTS[0]).title).toBe(
       'Trent Dilks & Aaron Brutger: The Forward Debate | Alethical',
     );
@@ -204,7 +214,7 @@ describe('independent media availability', () => {
 });
 
 describe('accepted Forward Debate media edition', () => {
-  it('publishes every supplied turn and paragraph under the matching topics without inventing video', () => {
+  it('preserves every supplied turn and paragraph while connecting matching video timestamps', () => {
     const replay = eventReplayBySlug(EVENTS[0].slug)!;
     const doc = new JSDOM(renderEventArticle(EVENTS[0])).window.document;
     expect(replay.duration).toBe(7401.85);
@@ -212,8 +222,11 @@ describe('accepted Forward Debate media edition', () => {
     expect(doc.querySelectorAll('.replay-turn p')).toHaveLength(126);
     expect(doc.querySelectorAll('[aria-labelledby="transcript"] h3')).toHaveLength(28);
     expect(doc.querySelectorAll('.replay-topics a')).toHaveLength(28);
-    for (const a of doc.querySelectorAll('.replay-topics a'))
-      expect(doc.querySelector(a.getAttribute('href')!)).not.toBeNull();
+    for (const [index, a] of [...doc.querySelectorAll('.replay-topics a')].entries()) {
+      const start = replay.chapters!.items[index].start;
+      expect(a.getAttribute('data-replay-seek')).toBe(String(start));
+      expect(a.getAttribute('href')).toBe(`?t=${start}#watch`);
+    }
     expect(doc.body.textContent).toContain('Uncertain words and speakers are marked.');
     expect(
       [...doc.querySelectorAll('.replay-speaker')].filter(
@@ -224,7 +237,10 @@ describe('accepted Forward Debate media edition', () => {
       (t) => t.speaker === 'Aaron Brutger' && t.start >= 6891,
     )!;
     expect(closing.paragraphs.join(' ')).toContain('for hosting, [unclear]');
-    expect(doc.querySelector('iframe,[data-replay-seek],[data-replay-copy]')).toBeNull();
+    expect(doc.querySelectorAll('iframe')).toHaveLength(1);
+    expect(doc.querySelector('iframe')?.src).not.toContain('autoplay=1');
+    expect(doc.querySelectorAll('[data-replay-copy]')).toHaveLength(100);
+    expect(doc.querySelector('[download]')).toBeNull();
     expect(JSON.stringify(publishedEventMetadata(EVENTS[0]))).not.toContain('VideoObject');
     expect(publishedEventMetadata(EVENTS[0]).socialImage?.url).toBe(
       'https://www.alethical.com/forward-debate-2026-thumbnail.jpg',

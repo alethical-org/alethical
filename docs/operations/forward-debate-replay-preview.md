@@ -89,7 +89,7 @@ PDFs and historical content; bounded deep links; no autoplay; disclosure and pre
 uncertainty; metadata/sitemap omission until supported. Browser checks cover 320,
 390 and 1280px, keyboard focus, copy, Back, blocked-player fallback and overflow.
 The final media files have arrived. Recording playback and caption acceptance
-remain open while YouTube uploads and processes the final MP4.
+remain open while YouTube processes the final MP4.
 
 Primary references: [Google video guidance](https://developers.google.com/search/docs/appearance/video),
 [VideoObject guidance](https://developers.google.com/search/docs/appearance/structured-data/video),
@@ -143,11 +143,20 @@ these findings. The 3-window alignment and full-file
 decode reported by the media producer are producer evidence, not new listening checks.
 
 The managing account is available in Chrome's Dev Team (Alethical) profile. The final
-MP4 upload has started on `@Alethical`, channel `UC6Gof3CAuynOHxpH_Bl6fQQ`, video
-`y66-Wf9bNio`. Public visibility is saved; the video remains pending while the upload
-and processing run. Allow embedding and English are selected. Caption editing remains
-unavailable until processing permits it. Actual publication facts, uploaded-caption
-behavior and early-playback continuity are required before adding video to the article.
+MP4 is uploaded on `@Alethical`, channel `UC6Gof3CAuynOHxpH_Bl6fQQ`, video
+`y66-Wf9bNio`. Public visibility, embedding and English are selected. The supplied
+`ForwardDebate-YouTube-final.srt` is uploaded with timing. YouTube Studio reports
+“English subtitles published” and “All changes saved”; its first imported cue starts
+at 5.8s, matching the supplied final edition. This confirms saved caption publication,
+not playback or synchronization throughout the recording.
+
+The local video integration uses the matching export ID and existing thumbnail.
+The candidate publication time `2026-10-19T11:13:45-07:00` remains outside the public
+configuration until confirmed. Video search metadata and the video sitemap remain
+omitted without that fact. The code stays local until actual public playback,
+caption behavior and early-playback continuity are accepted. HD processing need
+not finish if the available public rendition passes those checks. No local video
+copy, download control or public preparation notice is added.
 
 ### Direct topic links after application startup
 
