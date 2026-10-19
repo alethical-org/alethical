@@ -197,6 +197,10 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 | `SUPABASE_PUBLISHABLE_KEY` | Present | Lets the API make public Supabase requests. | Live |
 | `SUPABASE_PROJECT_REF` | Present | Names the Supabase database user for production maintenance commands. | Live |
 | `SUPABASE_PROJECT_URL` | Present | Targets the production Supabase project for maintenance commands. | Live |
+| `SUPABASE_STORAGE_S3_ACCESS_KEY_ID` | Present | Identifies production source-file storage requests. | Live: presence only |
+| `SUPABASE_STORAGE_S3_ENDPOINT` | Present | Reaches the primary source-file store used by production collection commands. | Live: presence only |
+| `SUPABASE_STORAGE_S3_REGION` | Present | Names the primary source-file store region for production collection commands. | Live: presence only |
+| `SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY` | Present | Authenticates production source-file storage requests. | Live: presence only |
 | `SUPABASE_URL` | Present | Points the API at the production Supabase project. | Live |
 | `TRAFFIC_EXCLUDED_ACCOUNT_IDS` | Present | Discards confirmed team actions and removes confirmed team readers and watches from public totals. | Live |
 | `UV_VERSION` | Present | Pins the package installer Railway uses to build the API. | Live |
