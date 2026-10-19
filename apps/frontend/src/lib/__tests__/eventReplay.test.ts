@@ -112,8 +112,11 @@ describe('replay HTML and shareable timestamps', () => {
     expect(doc.querySelector('[data-replay-seek="20"]')?.getAttribute('href')).toBe('?t=20#watch');
     expect(doc.querySelector('[download]')).toBeNull();
   });
-  it('does not fabricate video, attendance, transcript or timing when media is pending', () => {
-    const doc = new JSDOM(renderEventArticle(EVENTS[0])).window.document;
+  it('omits unavailable media and unfinished notices', () => {
+    const content = eventReplayBySlug(EVENTS[0].slug)!;
+    const doc = new JSDOM(
+      renderEventReplay(EVENTS[0], { title: content.title, introduction: content.introduction }),
+    ).window.document;
     expect(doc.querySelector('iframe')).toBeNull();
     expect(doc.querySelectorAll('.replay-turn')).toHaveLength(0);
     expect(doc.body.textContent).not.toMatch(/being prepared|not ready|will appear|PRIVATE DRAFT/i);
@@ -151,7 +154,8 @@ describe('replay HTML and shareable timestamps', () => {
 });
 
 describe('independent media availability', () => {
-  const base = eventReplayBySlug(EVENTS[0].slug)!;
+  const published = eventReplayBySlug(EVENTS[0].slug)!;
+  const base = { title: published.title, introduction: published.introduction };
   for (const parts of [
     [],
     ['video'],
@@ -195,6 +199,37 @@ describe('independent media availability', () => {
     expect(replayPageMetadata(EVENTS[0], content).structuredData?.[1]).toHaveProperty(
       'duration',
       'PT60.25S',
+    );
+  });
+});
+
+describe('accepted Forward Debate media edition', () => {
+  it('publishes every supplied turn and paragraph under the matching topics without inventing video', () => {
+    const replay = eventReplayBySlug(EVENTS[0].slug)!;
+    const doc = new JSDOM(renderEventArticle(EVENTS[0])).window.document;
+    expect(replay.duration).toBe(7401.85);
+    expect(doc.querySelectorAll('.replay-turn')).toHaveLength(100);
+    expect(doc.querySelectorAll('.replay-turn p')).toHaveLength(126);
+    expect(doc.querySelectorAll('[aria-labelledby="transcript"] h3')).toHaveLength(28);
+    expect(doc.querySelectorAll('.replay-topics a')).toHaveLength(28);
+    for (const a of doc.querySelectorAll('.replay-topics a'))
+      expect(doc.querySelector(a.getAttribute('href')!)).not.toBeNull();
+    expect(doc.body.textContent).toContain(
+      'Machine-generated transcript; uncertain words and speakers are marked. Not checked against the audio.',
+    );
+    expect(
+      [...doc.querySelectorAll('.replay-speaker')].filter(
+        (s) => s.textContent === '[speaker uncertain]',
+      ),
+    ).toHaveLength(8);
+    const closing = replay.transcript!.turns.find(
+      (t) => t.speaker === 'Aaron Brutger' && t.start >= 6891,
+    )!;
+    expect(closing.paragraphs.join(' ')).toContain('for hosting, [unclear]');
+    expect(doc.querySelector('iframe,[data-replay-seek],[data-replay-copy]')).toBeNull();
+    expect(JSON.stringify(publishedEventMetadata(EVENTS[0]))).not.toContain('VideoObject');
+    expect(publishedEventMetadata(EVENTS[0]).socialImage?.url).toBe(
+      'https://www.alethical.com/forward-debate-2026-thumbnail.jpg',
     );
   });
 });
