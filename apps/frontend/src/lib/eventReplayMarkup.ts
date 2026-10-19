@@ -23,6 +23,7 @@ const replayCss = `
 .replay-content summary{cursor:pointer;min-height:44px;display:list-item;padding:12px 0;font-weight:700}
 .replay-content summary:focus-visible{outline:2px solid #7c5cff;outline-offset:4px}
 .replay-content [tabindex="-1"]:focus-visible{outline:2px solid #7c5cff;outline-offset:4px}
+.replay-content #watch{scroll-margin-top:12px}
 .replay-content nav a{font-size:17px}.replay-content .event-published{margin-bottom:16px}
 `;
 
