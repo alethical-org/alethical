@@ -119,6 +119,10 @@ describe('replay HTML and shareable timestamps', () => {
     expect(doc.body.textContent).not.toMatch(/being prepared|not ready|will appear|PRIVATE DRAFT/i);
     expect(doc.querySelector('#watch,#topics,#transcript')).toBeNull();
     expect(doc.querySelector('h1')?.textContent).toBe('The Forward Debate');
+    expect(doc.querySelector('.event-published')?.textContent).toBe(
+      'Debate held October 15, 2026 · Updated October 19, 2026',
+    );
+    expect(doc.body.textContent).not.toContain('October 7, 2026');
     expect(doc.body.textContent).toContain('Also invited: Jared Gapinski');
   });
   it('accepts bounded numeric timestamps and carries origin to the privacy-enhanced embed', () => {

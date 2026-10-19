@@ -2225,7 +2225,10 @@ the running website. The words and existing link styling remain unchanged.
 
 The Forward Debate's post-event article uses the 19 October 2026 extension in
 [published-writing-decisions.md §2.16](published-writing-decisions.md#216-events-reuse-the-blog-design-and-retain-a-permanent-address).
-Its visible heading is “The Forward Debate”, while the browser/search title is
+Its visible date line names when the debate was held and when the article was updated,
+not an inferred video publication date. Original article publication metadata stays
+separate from the actual YouTube upload date. Its heading is “The Forward Debate”,
+while the browser/search title is
 “Trent Dilks & Aaron Brutger: The Forward Debate | Alethical”. The introduction
 names the actual district, venue, city and event date. Historical announcement
 content and flyer appear in an expandable section; that flyer is not preloaded.

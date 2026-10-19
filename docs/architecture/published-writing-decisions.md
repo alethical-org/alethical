@@ -479,8 +479,9 @@ publication dates, accuracy-review dates, claims, evidence or article publicatio
 **Post-event article, 19 October 2026:** The Forward Debate uses the same permanent
 address with the heading “The Forward Debate”. The browser/search title is
 “Trent Dilks & Aaron Brutger: The Forward Debate | Alethical”. A factual introduction
-names the district, venue, city and event date. Keep the original publication date
-and show the actual article update date separately. Existing PDF materials and
+names the district, venue, city and event date. Retain the original article publication date in metadata. The visible date line
+says “Debate held October 15, 2026 · Updated October 19, 2026”, with the actual
+update date maintained on later revisions. The event date does not claim video publication. Existing PDF materials and
 comments remain. Preserve the original announcement and flyer inside an expandable
 section; this supersedes the flyer-first presentation for this event.
 

@@ -81,7 +81,7 @@ speaker and transcript text. Source copies remain untouched. Historical invitati
 status is preserved, with no invented attendance or candidate positions.
 
 Acceptance covers public output without assets, video-only, transcript-only,
-chapters-only and combined inputs; one H1; original publication date; comments;
+chapters-only and combined inputs; one H1; event-held and updated dates; original publication metadata; comments;
 PDFs and historical content; bounded deep links; no autoplay; disclosure and preserved
 uncertainty; metadata/sitemap omission until supported. Browser checks cover 320,
 390 and 1280px, keyboard focus, copy, Back, blocked-player fallback and overflow.
@@ -100,3 +100,7 @@ PDF links, no overflow or page errors. The historical Luma source link was resto
 from review. Focused section, metadata, endpoint and player tests pass. Release
 checks, full-app comments and live acceptance remain in progress. The final video
 cannot be accepted from this local renderer alone.
+
+The visible date line uses “Debate held October 15, 2026 · Updated October 19, 2026”.
+This distinguishes the event from the article revision without presenting the old
+announcement date as a new video publication. Original article metadata stays intact.
