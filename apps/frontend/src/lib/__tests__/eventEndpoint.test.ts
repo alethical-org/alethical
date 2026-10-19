@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { JSDOM } from 'jsdom';
 import { PUBLISHED_EVENTS, eventPath } from '../events';
 import { renderEventsCollection } from '../eventMarkup';
 import { renderEventArticle } from '../eventArticle';
@@ -47,20 +48,35 @@ async function serve(path: string, t?: string) {
 }
 
 describe('public event pages before JavaScript', () => {
-  it('serves the public article without unavailable media or private notices', async () => {
+  it('serves the final recording outside the replaced application root with actual search facts', async () => {
     const { body, status } = await serve(eventPath(PUBLISHED_EVENTS[0]));
     expect(status).toBe(200);
-    expect(body).toContain(renderEventArticle(PUBLISHED_EVENTS[0], now));
+    expect(body).toContain(
+      renderEventArticle(PUBLISHED_EVENTS[0], now, { origin: 'https://www.alethical.com' }),
+    );
     expect(body).toContain('Republican-endorsed write-in candidate');
     expect(body).toContain('href="https://luma.com/3w69g6dw"');
     expect(body).toContain('href="https://forwardcoalition.com/candidates"');
     expect(body).toContain('aria-label="Site"');
-    const content = body.slice(body.indexOf('<body>'));
+    const doc = new JSDOM(body).window.document;
+    const content = doc.body.innerHTML;
     expect(content.indexOf(PUBLISHED_EVENTS[0].image)).toBeGreaterThan(content.indexOf('<h1'));
     expect(content).not.toMatch(/PRIVATE DRAFT|being prepared|not ready|will appear/i);
     expect(body).not.toContain('name="robots" content="noindex"');
     expect(body).toContain('Trent Dilks &amp; Aaron Brutger: The Forward Debate | Alethical');
-    expect(body).not.toContain('"@type":"VideoObject"');
+    expect(body).toContain('"@type":"VideoObject"');
+    expect(body).toContain('"uploadDate":"2026-10-19T11:13:45-07:00"');
+    expect(
+      doc.querySelector('meta[property="article:published_time"]')?.getAttribute('content'),
+    ).toBe('2026-10-19');
+    expect(doc.querySelector('.event-published')?.textContent).toBe('Published October 19, 2026');
+    expect(doc.querySelector('.replay-contact')?.getAttribute('href')).toBe(
+      'https://www.alethical.com/about/contact',
+    );
+    const stable = doc.getElementById('stable-event-document');
+    expect(stable?.querySelector('iframe')?.src).toContain('/embed/y66-Wf9bNio?');
+    expect(doc.getElementById('root')?.contains(stable)).toBe(false);
+    expect(doc.querySelectorAll('iframe')).toHaveLength(1);
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -110,11 +126,20 @@ it('keeps actual video timestamps in initial HTML, with a bare canonical and sha
   expect(body).toContain(fixture.transcript.turns[0].paragraphs[0]);
 });
 
-it('does not advertise a video sitemap before real video publication facts exist', async () => {
+it('publishes the video sitemap with the final recording and actual publication time', async () => {
   const index = recorder();
   await sitemap({ query: {} }, index.response);
-  expect(index.read().body).not.toContain('/sitemaps/videos.xml');
+  expect(index.read().body).toContain('/sitemaps/videos.xml');
   const videos = recorder();
   await sitemap({ query: { section: 'videos' } }, videos.response);
-  expect(videos.read().status).toBe(404);
+  expect(videos.read().status).toBe(200);
+  const doc = new JSDOM(videos.read().body, { contentType: 'text/xml' }).window.document;
+  expect(doc.getElementsByTagName('video:player_loc')[0].textContent).toContain(
+    '/embed/y66-Wf9bNio?',
+  );
+  expect(doc.getElementsByTagName('video:publication_date')[0].textContent).toBe(
+    '2026-10-19T11:13:45-07:00',
+  );
+  expect(doc.getElementsByTagName('video:duration')[0].textContent).toBe('7401');
+  expect(videos.read().body).not.toContain('content_loc');
 });

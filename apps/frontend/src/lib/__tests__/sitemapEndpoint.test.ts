@@ -54,7 +54,7 @@ afterEach(() => {
 });
 
 describe('sitemap endpoint', () => {
-  it('lists exactly the seven child sitemaps and makes no network call', async () => {
+  it('lists the eight published child sitemaps and makes no network call', async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
     const recorder = responseRecorder();
@@ -71,7 +71,8 @@ describe('sitemap endpoint', () => {
     expect(body).toContain('<loc>https://www.alethical.com/sitemaps/races.xml</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/sitemaps/lobbying-principals.xml</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/sitemaps/lobbying-lobbyists.xml</loc>');
-    expect(body.match(/<sitemap>/g)).toHaveLength(7);
+    expect(body).toContain('<loc>https://www.alethical.com/sitemaps/videos.xml</loc>');
+    expect(body.match(/<sitemap>/g)).toHaveLength(8);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 

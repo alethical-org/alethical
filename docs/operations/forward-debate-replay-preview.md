@@ -84,12 +84,12 @@ speaker and transcript text. Source copies remain untouched. Historical invitati
 status is preserved, with no invented attendance or candidate positions.
 
 Acceptance covers public output without assets, video-only, transcript-only,
-chapters-only and combined inputs; one H1; event-held and updated dates; original publication metadata; comments;
+chapters-only and combined inputs; one H1; replay publication date and matching metadata; historical event dates; comments;
 PDFs and historical content; bounded deep links; no autoplay; disclosure and preserved
 uncertainty; metadata/sitemap omission until supported. Browser checks cover 320,
 390 and 1280px, keyboard focus, copy, Back, blocked-player fallback and overflow.
-The final media files have arrived. Recording playback and caption acceptance
-remain open while YouTube uploads and processes the final MP4.
+The final media files have arrived. Public YouTube playback and the supplied captions
+work; final embedded playback and caption acceptance remain open.
 
 Primary references: [Google video guidance](https://developers.google.com/search/docs/appearance/video),
 [VideoObject guidance](https://developers.google.com/search/docs/appearance/structured-data/video),
@@ -103,11 +103,28 @@ heading, omission of unavailable content, history keyboard opening, loaded flyer
 PDF links, no overflow or page errors. The original article and subsequent title-logo
 change passed live acceptance. The transcript release passed live acceptance at
 [commit 978ac04e](https://github.com/alethical-org/alethical/commit/978ac04e).
-Final YouTube playback and captions are the current acceptance step. The final video cannot be accepted from this local renderer alone.
+Final embedded playback and captions are the current acceptance step. The final video cannot be accepted from this local renderer alone.
 
-The visible date line uses “Debate held October 15, 2026 · Updated October 19, 2026”.
-This distinguishes the event from the article revision without presenting the old
-announcement date as a new video publication. Original article metadata stays intact.
+The approved replay date line is “Published
+October 19, 2026”, matching article publication metadata. October 15 stays in the
+introduction, Event data and historical announcement; October 7 remains the original
+announcement publication record. Do not use the held/updated
+line for this replay; generic announcements retain their own dates. Same-day update labels are omitted.
+
+The approved Claude Design invitation sits after the recording and before
+Topics: “Want a debate in your community?” and 1 “Contact Alethical” link to
+`https://www.alethical.com/about/contact`, same tab. The black background, white
+heading, green approved Alethical symbol and green link are required; do not use a white
+card. The exact flat green `mark-green-transparent.png` source is copied unchanged
+to `/alethical-mark-green.png` (504 × 492). Its SHA-256 is
+`96952d9f423ef2aa3647e61dc1eb045cee82ec410f7356fb5b309de8f9420fe4`.
+The separate gradient print symbol retains its existing uses.
+No supporting sentence or download is added. The invitation is enabled only
+for this replay, never the announcement or illustrative fixture. Acceptance covers
+320, 390, 768, 1100 and 1280 pixels, doubled text, keyboard focus, hover/pressed
+feedback, real contact navigation and Back, plus continued recording controls.
+Parent task (Plan debate video blog SEO) owns Claude Design visual review and final
+live acceptance before completion.
 
 ### Accepted text edition, 19 October 2026
 
@@ -138,16 +155,27 @@ the fastest at 52. This is a readability finding, not an external compliance thr
 The supplied captions remain unchanged. A gap between caption cues does not establish
 silence or word timing, so stretching captions into those gaps would not establish
 better synchronization. The 20 fast cues remain a documented readability limit.
-Real YouTube playback remains open; the MP4 needs no new format or encoding from
+The MP4 needs no new format or encoding from
 these findings. The 3-window alignment and full-file
 decode reported by the media producer are producer evidence, not new listening checks.
 
 The managing account is available in Chrome's Dev Team (Alethical) profile. The final
-MP4 upload has started on `@Alethical`, channel `UC6Gof3CAuynOHxpH_Bl6fQQ`, video
-`y66-Wf9bNio`. Public visibility is saved; the video remains pending while the upload
-and processing run. Allow embedding and English are selected. Caption editing remains
-unavailable until processing permits it. Actual publication facts, uploaded-caption
-behavior and early-playback continuity are required before adding video to the article.
+MP4 is uploaded on `@Alethical`, channel `UC6Gof3CAuynOHxpH_Bl6fQQ`, video
+`y66-Wf9bNio`. Public visibility, embedding and English are selected. The supplied
+`ForwardDebate-YouTube-final.srt` is uploaded with timing. YouTube Studio reports
+“English subtitles published” and “All changes saved”; its first imported cue starts
+at 5.8s, matching the supplied final edition. This confirms saved caption publication,
+not playback or synchronization throughout the recording.
+
+The video integration uses the matching export ID and existing thumbnail.
+YouTube's public response confirms publication at `2026-10-19T11:13:45-07:00`.
+Public playback advances at 720p, a keyboard seek moves playback, and the supplied
+opening captions appear. YouTube reports 7401.881s; the shared source timing remains
+the final MP4's 7401.85s. Video search metadata and the video sitemap use the confirmed
+publication time, thumbnail and source duration. HD processing need not finish if
+the available public rendition passes playback checks. Embedded playback, chapter
+seeking, captions, phone layout and early-playback continuity remain final acceptance
+checks. No local video copy, download control or public preparation notice is added.
 
 ### Direct topic links after application startup
 
