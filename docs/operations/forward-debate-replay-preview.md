@@ -88,8 +88,8 @@ chapters-only and combined inputs; one H1; event-held and updated dates; origina
 PDFs and historical content; bounded deep links; no autoplay; disclosure and preserved
 uncertainty; metadata/sitemap omission until supported. Browser checks cover 320,
 390 and 1280px, keyboard focus, copy, Back, blocked-player fallback and overflow.
-The final media files have arrived. Recording playback and caption acceptance
-remain open while YouTube processes the final MP4.
+The final media files have arrived. Public YouTube playback and the supplied captions
+work; final embedded playback and caption acceptance remain open.
 
 Primary references: [Google video guidance](https://developers.google.com/search/docs/appearance/video),
 [VideoObject guidance](https://developers.google.com/search/docs/appearance/structured-data/video),
@@ -103,7 +103,7 @@ heading, omission of unavailable content, history keyboard opening, loaded flyer
 PDF links, no overflow or page errors. The original article and subsequent title-logo
 change passed live acceptance. The transcript release passed live acceptance at
 [commit 978ac04e](https://github.com/alethical-org/alethical/commit/978ac04e).
-Final YouTube playback and captions are the current acceptance step. The final video cannot be accepted from this local renderer alone.
+Final embedded playback and captions are the current acceptance step. The final video cannot be accepted from this local renderer alone.
 
 The visible date line uses “Debate held October 15, 2026 · Updated October 19, 2026”.
 This distinguishes the event from the article revision without presenting the old
@@ -138,7 +138,7 @@ the fastest at 52. This is a readability finding, not an external compliance thr
 The supplied captions remain unchanged. A gap between caption cues does not establish
 silence or word timing, so stretching captions into those gaps would not establish
 better synchronization. The 20 fast cues remain a documented readability limit.
-Real YouTube playback remains open; the MP4 needs no new format or encoding from
+The MP4 needs no new format or encoding from
 these findings. The 3-window alignment and full-file
 decode reported by the media producer are producer evidence, not new listening checks.
 
@@ -150,13 +150,15 @@ MP4 is uploaded on `@Alethical`, channel `UC6Gof3CAuynOHxpH_Bl6fQQ`, video
 at 5.8s, matching the supplied final edition. This confirms saved caption publication,
 not playback or synchronization throughout the recording.
 
-The local video integration uses the matching export ID and existing thumbnail.
-The candidate publication time `2026-10-19T11:13:45-07:00` remains outside the public
-configuration until confirmed. Video search metadata and the video sitemap remain
-omitted without that fact. The code stays local until actual public playback,
-caption behavior and early-playback continuity are accepted. HD processing need
-not finish if the available public rendition passes those checks. No local video
-copy, download control or public preparation notice is added.
+The video integration uses the matching export ID and existing thumbnail.
+YouTube's public response confirms publication at `2026-10-19T11:13:45-07:00`.
+Public playback advances at 720p, a keyboard seek moves playback, and the supplied
+opening captions appear. YouTube reports 7401.881s; the shared source timing remains
+the final MP4's 7401.85s. Video search metadata and the video sitemap use the confirmed
+publication time, thumbnail and source duration. HD processing need not finish if
+the available public rendition passes playback checks. Embedded playback, chapter
+seeking, captions, phone layout and early-playback continuity remain final acceptance
+checks. No local video copy, download control or public preparation notice is added.
 
 ### Direct topic links after application startup
 

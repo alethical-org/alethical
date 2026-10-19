@@ -83,11 +83,12 @@ describe('replay content and publication boundaries', () => {
     );
     expect(xml).not.toContain('content_loc');
   });
-  it('connects the final recording and uploaded captions without inventing publication facts', () => {
+  it('connects the final recording and uploaded captions with actual publication facts', () => {
     const replay = eventReplayBySlug(EVENTS[0].slug)!;
     expect(replay.video).toEqual({
       id: 'y66-Wf9bNio',
       exportId: 'forward-debate-2026-final-2026-10-19',
+      publishedAt: '2026-10-19T11:13:45-07:00',
     });
     expect(replay.captions).toEqual({
       exportId: 'forward-debate-2026-final-2026-10-19',
@@ -96,7 +97,17 @@ describe('replay content and publication boundaries', () => {
     expect(
       new JSDOM(renderEventArticle(EVENTS[0])).window.document.querySelector('iframe')?.src,
     ).toContain('https://www.youtube-nocookie.com/embed/y66-Wf9bNio?');
-    expect(JSON.stringify(publishedEventMetadata(EVENTS[0]))).not.toContain('VideoObject');
+    expect(publishedEventMetadata(EVENTS[0]).structuredData?.[1]).toMatchObject({
+      '@type': 'VideoObject',
+      uploadDate: '2026-10-19T11:13:45-07:00',
+      duration: 'PT7401.85S',
+      thumbnailUrl: ['https://www.alethical.com/forward-debate-2026-thumbnail.jpg'],
+      hasPart: replay.chapters!.items.map((chapter, index, all) => ({
+        startOffset: chapter.start,
+        endOffset: all[index + 1]?.start ?? replay.duration,
+        url: `https://www.alethical.com/blog/events/forward-debate-2026?t=${chapter.start}`,
+      })),
+    });
     expect(publishedEventMetadata(EVENTS[0]).title).toBe(
       'Trent Dilks & Aaron Brutger: The Forward Debate | Alethical',
     );
@@ -241,7 +252,7 @@ describe('accepted Forward Debate media edition', () => {
     expect(doc.querySelector('iframe')?.src).not.toContain('autoplay=1');
     expect(doc.querySelectorAll('[data-replay-copy]')).toHaveLength(100);
     expect(doc.querySelector('[download]')).toBeNull();
-    expect(JSON.stringify(publishedEventMetadata(EVENTS[0]))).not.toContain('VideoObject');
+    expect(JSON.stringify(publishedEventMetadata(EVENTS[0]))).toContain('VideoObject');
     expect(publishedEventMetadata(EVENTS[0]).socialImage?.url).toBe(
       'https://www.alethical.com/forward-debate-2026-thumbnail.jpg',
     );
