@@ -36,6 +36,7 @@ SECTIONS = (
     "lobbying-lobbyists",
 )
 SITEMAPS = tuple(f"{ORIGIN}/sitemaps/{name}.xml" for name in SECTIONS)
+OPTIONAL_SITEMAPS = {"videos": f"{ORIGIN}/sitemaps/videos.xml"}
 FIXED_PATHS = (
     "/",
     "/bills",
@@ -344,7 +345,9 @@ def xml_urls(response: Response, *, index: bool) -> list[str]:
         all(child.tag == entry_tag for child in root), "sitemap entry shape is wrong"
     )
     require(
-        0 < len(root) <= (7 if index else MAX_URLS),
+        0
+        < len(root)
+        <= (len(SITEMAPS) + len(OPTIONAL_SITEMAPS) if index else MAX_URLS),
         "sitemap entry count is outside bounds",
     )
     urls = []
@@ -361,8 +364,9 @@ def xml_urls(response: Response, *, index: bool) -> list[str]:
     )
     if index:
         require(
-            set(urls) == set(SITEMAPS),
-            "sitemap index does not contain exactly the 7 expected children",
+            set(SITEMAPS).issubset(urls)
+            and set(urls).issubset({*SITEMAPS, *OPTIONAL_SITEMAPS.values()}),
+            "sitemap index has missing required or unknown children",
         )
     return urls
 
@@ -686,14 +690,28 @@ def select_samples(
         groups.setdefault(f"pages:{page_family(url)}", []).append(url)
     selected = {ORIGIN + path for path in FIXED_PATHS + CANDIDATES}
     week = (today - date(2026, 1, 5)).days // 7
-    for values in groups.values():
-        ordered = sorted(values)
+    # Keep fixed destinations and share the remaining budget across families.
+    # Rotate the family order too, so a growing inventory does not always exclude
+    # the same final families when the bounded sample fills.
+    candidates = []
+    for name in sorted(groups):
+        ordered = sorted(set(groups[name]))
+        if not ordered:
+            continue
         count = min(4 if broader else 2, len(ordered))
         start = (week * count) % len(ordered)
-        selected.update(
-            ordered[(start + offset) % len(ordered)] for offset in range(count)
+        candidates.append(
+            [ordered[(start + offset) % len(ordered)] for offset in range(count)]
         )
-    require(len(selected) <= 60, "page sample exceeds bounded limit")
+    if candidates:
+        start = week % len(candidates)
+        candidates = candidates[start:] + candidates[:start]
+    for offset in range(4 if broader else 2):
+        for values in candidates:
+            if len(selected) >= 60:
+                return sorted(selected)
+            if offset < len(values):
+                selected.add(values[offset])
     return sorted(selected)
 
 
@@ -762,7 +780,7 @@ def run_checks(
             "served_commit": None,
             "release_match": "not-compared",
             "sample": "weekly-broader" if broader else "daily",
-            "scope": "All 7 sitemap files, bounded initial-HTML samples and public record query variants; not proof of indexing, browser rendering, or numeric accuracy",
+            "scope": "Required and published optional sitemap files, bounded initial-HTML samples and public record query variants; not proof of indexing, browser rendering, or numeric accuracy",
             "checks": [],
             "request_count": 0,
         }
@@ -794,13 +812,18 @@ def run_checks(
         )
 
     check("robots.txt", read_robots)
-    check(
-        "sitemap-index",
-        lambda row: xml_urls(fetcher.fetch(ORIGIN + "/sitemap.xml"), index=True),
-    )
+    sitemap_sources = list(zip(SECTIONS, SITEMAPS, strict=True))
+
+    def read_index(row):
+        urls = xml_urls(fetcher.fetch(ORIGIN + "/sitemap.xml"), index=True)
+        sitemap_sources.extend(
+            (name, url) for name, url in OPTIONAL_SITEMAPS.items() if url in urls
+        )
+
+    check("sitemap-index", read_index)
     sections: dict[str, list[str]] = {}
     seen = set()
-    for section, url in zip(SECTIONS, SITEMAPS, strict=True):
+    for section, url in sitemap_sources:
 
         def read_section(row, section=section, url=url):
             urls = xml_urls(fetcher.fetch(url), index=False)
@@ -823,7 +846,7 @@ def run_checks(
                 )
             keys = {discovery_key(url) for url in urls}
             require(
-                not seen.intersection(keys),
+                section == "videos" or not seen.intersection(keys),
                 "address appears in more than 1 sitemap child",
             )
             seen.update(keys)

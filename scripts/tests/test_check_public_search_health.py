@@ -112,6 +112,18 @@ class SitemapTest(TestCase):
         urls = [health.ORIGIN + "/bills?page=2", health.ORIGIN + "/privacy"]
         self.assertEqual(health.xml_urls(xml(urls), index=False), urls)
 
+    def test_optional_video_child_is_allowed_but_unknown_children_are_rejected(self):
+        video = health.ORIGIN + "/sitemaps/videos.xml"
+        urls = [*health.SITEMAPS, video]
+        self.assertEqual(health.xml_urls(xml(urls, index=True), index=True), urls)
+        for invalid in (
+            [*health.SITEMAPS, health.ORIGIN + "/sitemaps/unknown.xml"],
+            [*health.SITEMAPS[:-1], video],
+            [*urls, video],
+        ):
+            with self.subTest(invalid=invalid), self.assertRaises(health.HealthFailure):
+                health.xml_urls(xml(invalid, index=True), index=True)
+
     def test_rejects_duplicates_missing_children_and_wrong_host(self):
         for payload, index in (
             (xml([health.SITEMAPS[0]] * 7, index=True), True),
@@ -620,6 +632,28 @@ class SamplingAndEvidenceTest(TestCase):
         for path in health.FIXED_PATHS + health.CANDIDATES:
             self.assertIn(health.ORIGIN + path, first)
 
+    def test_broader_sampling_preserves_fixed_pages_and_families_within_cap(self):
+        sections = {
+            f"family-{family}": [
+                f"{health.ORIGIN}/records/family-{family}/record-{item}"
+                for item in range(20)
+            ]
+            for family in range(16)
+        }
+        sections["empty"] = []
+        first = health.select_samples(sections, date(2026, 10, 19), broader=True)
+        self.assertEqual(len(first), 60)
+        for path in health.FIXED_PATHS + health.CANDIDATES:
+            self.assertIn(health.ORIGIN + path, first)
+        for family in range(16):
+            self.assertTrue(any(f"/family-{family}/" in url for url in first))
+        self.assertEqual(
+            first, health.select_samples(sections, date(2026, 10, 20), broader=True)
+        )
+        self.assertNotEqual(
+            first, health.select_samples(sections, date(2026, 10, 26), broader=True)
+        )
+
     def test_always_writes_compact_failure_json_without_exception_text(self):
         with TemporaryDirectory() as directory:
             output = Path(directory) / "result.json"
@@ -713,7 +747,19 @@ class WholeRunTest(TestCase):
                 "text/plain",
             )
         if url == health.ORIGIN + "/sitemap.xml":
-            return xml(health.SITEMAPS, index=True)
+            return xml(
+                [
+                    *health.SITEMAPS,
+                    *(
+                        [health.ORIGIN + "/sitemaps/videos.xml"]
+                        if "videos" in self.sections
+                        else []
+                    ),
+                ],
+                index=True,
+            )
+        if url == health.ORIGIN + "/sitemaps/videos.xml":
+            return xml(self.sections["videos"])
         for name, sitemap in zip(health.SECTIONS, health.SITEMAPS, strict=True):
             if url == sitemap:
                 return xml(self.sections[name])
@@ -756,6 +802,27 @@ class WholeRunTest(TestCase):
         ]
         self.assertTrue(variant_checks)
         self.assertTrue(all("year_check" in row for row in variant_checks))
+
+    def test_video_child_is_read_and_its_page_overlap_is_intentional(self):
+        event = health.ORIGIN + "/blog/events/forward-debate-2026"
+        self.sections["pages"].append(event)
+        self.sections["videos"] = [event]
+        report = self.run_fixture()
+        self.assertTrue(report["passed"], report["checks"])
+        checks = [row["name"] for row in report["checks"]]
+        self.assertIn("sitemap:videos", checks)
+        self.assertEqual(checks.count("page:/blog/events/forward-debate-2026"), 1)
+
+    def test_duplicate_across_primary_children_is_still_rejected(self):
+        self.sections["pages"].extend(self.sections["bills"])
+        report = self.run_fixture()
+        self.assertFalse(report["passed"])
+        self.assertTrue(
+            any(
+                row.get("failure") == "address appears in more than 1 sitemap child"
+                for row in report["checks"]
+            )
+        )
 
     def test_variant_outage_is_recorded_without_loosening_discovery(self):
         original_fetch = self.fetch

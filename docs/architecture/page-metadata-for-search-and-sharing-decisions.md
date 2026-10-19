@@ -2163,12 +2163,15 @@ create a statewide candidate catalogue or add arbitrary saved candidate profiles
 from visitor lookups to a sitemap. The sitemap test covers actual public navigation
 destinations and explicitly excludes private, answer, tracked and unshipped routes.
 
-`check_public_search_health.py` reads the fixed HTTPS origin and all 7 sitemap
-children, checks safe canonical addresses, duplicate/private exclusions and key
+`check_public_search_health.py` reads the fixed HTTPS origin and the 7 required
+sitemap children, plus the video child when the index includes it. Video entries
+may repeat addresses from primary children; duplicates across primary children
+remain invalid. The check covers safe canonical addresses, private exclusions and key
 public destinations, then samples meaningful initial content, source/discovery
 links, search-bot access, missing-page responses and private-view exclusions.
-The daily sample rotates weekly; Monday samples more records. Bounds are 160
-requests including retries, 300 seconds, 4 MiB per response and 2 attempts per read.
+The daily sample rotates weekly; Monday samples more records. Fixed destinations
+remain included while rotating families share at most 60 initial-page reads. Bounds
+are 160 requests including retries, 300 seconds, 4 MiB per response and 2 attempts per read.
 Redirects are refused before following them. Failure evidence uses fixed reasons,
 never remote response bodies, exception messages, credentials or private queries.
 The trusted-main workflow runs daily and after successful live reader checks,
