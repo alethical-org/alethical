@@ -409,7 +409,7 @@ unrequested outreach are part of this workflow.
 
 A short is an upright clip cut from a finished event recording for YouTube Shorts,
 Instagram, TikTok, Facebook, LinkedIn, X and Bluesky. The full guide, the saved
-editing recipe, the worked example and the shorts selection record are private:
+editing recipe and the worked example are private:
 [alethical-video/shorts-guide.md in tool-settings](https://github.com/euglopi/tool-settings/blob/main/shared/alethical-video/shorts-guide.md).
 Rules that hold everywhere:
 
@@ -423,7 +423,7 @@ Rules that hold everywhere:
   each have their own; the published edition's offset from the source applies only inside
   kept footage, never to inserted cards.
 - Name the file by the clip's 2-digit ID in the selection record, then its title, hyphenated:
-  `01-We-Disagree-We-Can-Still-Grab-a-Beer.mp4`.
+  `NN-Short-Title.mp4`.
 - Record each clip's bounds on all 3 clocks, its shots and its decisions in the event's
   production record before it is posted, and check platform limits at posting time against
   [social-video-upload-limits.md in tool-settings](https://github.com/euglopi/tool-settings/blob/main/shared/guides/social-video-upload-limits.md).
