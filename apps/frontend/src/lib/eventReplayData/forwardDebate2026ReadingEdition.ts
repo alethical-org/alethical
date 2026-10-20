@@ -1,4 +1,5 @@
-/** Accepted whole-turn omissions from the website reading edition.
+/** Accepted whole-turn omissions keyed by supplied final-edition timestamp
+ * (the time in the public video), not raw-recording time.
  * The supplied transcript JSON, recording and captions remain unchanged.
  * Unrecoverable text is not a claim that the corresponding audio lacks meaning.
  */
@@ -22,3 +23,11 @@ export const forwardDebateReadingOmissions = [
   { start: 6512.66, reason: 'Procedural audience turn selection' },
   { start: 6892.56, reason: 'Schedule and transition to retained closing statements' },
 ] as const;
+
+/** Specific user-directed editorial exception, not a general substantive-text filter. */
+export const forwardDebateOpeningSentenceOmission = {
+  start: 5.8,
+  sentence:
+    "We run an intelligence inside our political data, campaign, finance, and legislation to be able to give all of you guys information that you wouldn't normally have had.",
+  reason: 'Explicit removal of this sentence from the website opening; retain the rest of the turn',
+} as const;

@@ -161,6 +161,20 @@ for (const width of [320, 1280]) {
     await page.goto('/blog/events/forward-debate-2026');
     await expect(page.locator('#transcript')).toHaveText('Edited transcript');
     await expect(page.locator('.replay-turn')).toHaveCount(88);
+    await expect(page.locator('.replay-turn').first()).not.toContainText(
+      'We run an intelligence inside our political data',
+    );
+    const player = await page.locator('#replay-player').boundingBox();
+    const youtubeRow = await page.locator('.replay-youtube-row').boundingBox();
+    expect(youtubeRow!.y - (player!.y + player!.height)).toBeCloseTo(16, 1);
+    await expect(page.locator('.replay-invitation + section #materials')).toHaveText(
+      'Debate materials',
+    );
+    await expect(page.locator('section[aria-labelledby="materials"] + nav #topics')).toHaveText(
+      'Topics',
+    );
+    await expect(page.locator('#materials')).toHaveCount(1);
+    await expect(page.locator('[data-replay-youtube]')).toBeVisible();
     const topics = page.locator('.replay-topics');
     await expect(topics).toHaveAttribute('role', 'list');
     await expect(topics).toHaveCSS('list-style-type', 'none');

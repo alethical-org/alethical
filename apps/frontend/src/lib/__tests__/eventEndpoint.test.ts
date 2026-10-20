@@ -79,6 +79,13 @@ describe('public event pages before JavaScript', () => {
     expect(doc.querySelectorAll('iframe')).toHaveLength(1);
     expect(doc.querySelector('#transcript')?.textContent).toBe('Edited transcript');
     expect(doc.querySelectorAll('.replay-turn')).toHaveLength(88);
+    expect(
+      doc.querySelector('.replay-invitation')?.nextElementSibling?.querySelector('#materials'),
+    ).not.toBeNull();
+    expect(
+      doc.querySelector('#materials')?.parentElement?.nextElementSibling?.querySelector('#topics'),
+    ).not.toBeNull();
+    expect(doc.querySelectorAll('#materials')).toHaveLength(1);
     expect(fetch).not.toHaveBeenCalled();
   });
 

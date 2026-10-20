@@ -501,6 +501,9 @@ existing drafts and deliberately cleared fields remain intact. Only Send message
 submits the form. Generic contact links and article-correction links retain their
 own behavior.
 
+The replay order is recording, hosting invitation, Debate materials, then Topics.
+The PDF materials appear once with their existing link wording and destinations.
+
 Replay Topics retain chronological timestamp/title links and ordered-list semantics,
 without visible ordinal numbers. Keep the existing link targets and keyboard behavior;
 this treatment does not apply to other ordered article lists.
@@ -509,14 +512,17 @@ Show only available content. Add the recording, topics and transcript independen
 from accepted final assets, without empty sections, preparation notices, a private
 banner or video/transcript download offers. The standard YouTube player appears
 prominently in initial HTML when supplied, without requiring a click to create it
-or starting playback automatically. Topic links and copyable transcript times use
-one chapter source and a bare canonical article address. The complete accepted reading edition
+or starting playback automatically. The YouTube fallback link and duration row
+has 16px above it, matching the event flyer-link spacing. Topic links and copyable
+transcript times use one chapter source and a bare canonical article address.
+The complete accepted reading edition
 is readable in initial HTML; missing video must not create broken timestamp links.
 
 Reading transcripts for event and ordinary posts omit standalone thanks, routine
 turn-taking and schedule prompts, and isolated fragments with no recoverable statement
-in the supplied text. Exclusions are explicit whole-turn decisions recorded by original
-source timestamp and reason, not filters based on length or speaker certainty. Retain
+in the supplied text. Exclusions are explicit whole-turn decisions recorded by supplied
+final-edition timestamp (the time in the public video) and reason, not filters based on
+length or speaker certainty. Retain
 substantive claims, questions, answers, qualifications, disagreement, meaningful assent
 and clarification regardless of length. Unknown content is not declared meaningless.
 Do not delete words inside a substantive turn. Keep retained text, paragraphs, speaker
@@ -529,6 +535,10 @@ and reasons are recorded in
 `apps/frontend/src/lib/eventReplayData/forwardDebate2026ReadingEdition.ts`.
 The question at 3954.78 seconds that elicits clarification and the substantive soil
 remark at 6769.98 seconds remain, including their uncertain speaker labels.
+A specific editorial exception removes the exact opening sentence recorded in
+`forwardDebateOpeningSentenceOmission` at public-video time 5.8 seconds; the rest of
+that turn remains verbatim. This exception does not authorize general deletion
+inside substantive turns.
 
 Machine text preserves uncertain words as “[unclear]” and uncertain speakers as
 “[speaker uncertain]”, with timestamps. The transcript notice is:

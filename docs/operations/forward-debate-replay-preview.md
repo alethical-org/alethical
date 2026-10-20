@@ -18,7 +18,7 @@ existing comments. The Minnesota Forward Together logo appears once above the ti
 linked to Forward Coalition's candidates and visible while the original announcement
 is closed. The shared event renderer uses the same branding in announcement and
 post-event output. The final media edition was supplied on 19 October. The article
-includes an edited reading transcript with 88 unchanged turns, 114 paragraphs and
+includes an edited reading transcript with 88 retained turns, 114 paragraphs and
 28 topic headings, derived from the retained 100-turn source. The accepted thumbnail
 supplies the social preview image. The actual YouTube recording and uploaded captions
 are connected, with video search details using their publication facts.
@@ -169,6 +169,9 @@ MP4 is uploaded on `@Alethical`, channel `UC6Gof3CAuynOHxpH_Bl6fQQ`, video
 at 5.8s, matching the supplied final edition. This confirms saved caption publication,
 not playback or synchronization throughout the recording.
 
+The parent browser evidence records the saved description and recording membership for the public [Candidate Debates playlist](https://www.youtube.com/playlist?list=PLCDDyJl-kiUQ).
+Reopening the playlist in in-app browser tab 29 showed 1 recording, `y66-Wf9bNio`; this establishes playlist membership, not playback or speech accuracy.
+
 The video integration uses the matching export ID and existing thumbnail.
 YouTube's public response confirms publication at `2026-10-19T11:13:45-07:00`.
 Public playback advances at 720p, a keyboard seek moves playback, and the supplied
@@ -300,6 +303,17 @@ public acceptance exercises the real same-tab destination.
 
 The reading-edition exclusions are the 12 explicit source starts in
 `forwardDebate2026ReadingEdition.ts`, with a reason for each. Tests require the exact
-88 retained source turns and paragraphs, original times, the clarification at 3954.78
+88 retained turns and paragraphs, allowing only the recorded opening-sentence exception, with original times, the clarification at 3954.78
 and uncertain-speaker soil remark at 6769.98, and the “Edited transcript” heading in
 initial HTML. No source JSON, caption or recording changes accompany these omissions.
+
+The exact sentence exception at public-video time 5.8 is recorded separately from
+whole-turn omissions. It leaves the source and remaining opening text untouched.
+The YouTube fallback row has a 16px top gap, using the existing event flyer-link
+spacing; its bottom margin and invitation margins remain unchanged. Rendered checks
+measure the gap at 320px and 1280px and require the opening sentence to be absent.
+
+The existing Debate materials section follows the hosting invitation and precedes
+Topics in both initial HTML and the loaded article. Its candidate guide and money
+report links keep their wording, destinations and treatment, with no duplicate section.
+The YouTube fallback link and duration remain visible whether or not playback works.

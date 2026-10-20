@@ -1,6 +1,9 @@
 import type { EventReplay } from './eventReplay';
 import forwardDebate from './eventReplayData/forwardDebate2026.json';
-import { forwardDebateReadingOmissions } from './eventReplayData/forwardDebate2026ReadingEdition';
+import {
+  forwardDebateReadingOmissions,
+  forwardDebateOpeningSentenceOmission,
+} from './eventReplayData/forwardDebate2026ReadingEdition';
 
 const omittedStarts = new Set<number>(forwardDebateReadingOmissions.map(({ start }) => start));
 
@@ -25,7 +28,18 @@ const replays: Record<string, EventReplay> = {
     transcript: {
       exportId: forwardDebate.exportId,
       edition: 'edited',
-      turns: forwardDebate.turns.filter((turn) => !omittedStarts.has(turn.start)),
+      turns: forwardDebate.turns
+        .filter((turn) => !omittedStarts.has(turn.start))
+        .map((turn) =>
+          turn.start === forwardDebateOpeningSentenceOmission.start
+            ? {
+                ...turn,
+                paragraphs: turn.paragraphs.map((paragraph) =>
+                  paragraph.replace(`${forwardDebateOpeningSentenceOmission.sentence} `, ''),
+                ),
+              }
+            : turn,
+        ),
     },
     thumbnail: {
       url: 'https://www.alethical.com/forward-debate-2026-thumbnail.jpg',

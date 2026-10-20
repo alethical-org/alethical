@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { JSDOM } from 'jsdom';
 import fixture from './fixtures/eventReplay.json';
 import suppliedTranscript from '../eventReplayData/forwardDebate2026.json';
-import { forwardDebateReadingOmissions } from '../eventReplayData/forwardDebate2026ReadingEdition';
+import {
+  forwardDebateReadingOmissions,
+  forwardDebateOpeningSentenceOmission,
+} from '../eventReplayData/forwardDebate2026ReadingEdition';
 import { EVENTS } from '../events';
 import { eventPageMetadata } from '../eventMetadata';
 import { renderEventArticle, publishedEventMetadata } from '../eventArticle';
@@ -102,7 +105,11 @@ describe('replay content and publication boundaries', () => {
     const invitation = document.querySelector('aside[aria-labelledby="community-debate"]')!;
     expect(invitation.querySelector('h2')?.textContent).toBe('Want a debate in your community?');
     expect(invitation.previousElementSibling?.querySelector('#watch')).not.toBeNull();
-    expect(invitation.nextElementSibling?.querySelector('#topics')).not.toBeNull();
+    expect(invitation.nextElementSibling?.querySelector('#materials')).not.toBeNull();
+    expect(
+      invitation.nextElementSibling?.nextElementSibling?.querySelector('#topics'),
+    ).not.toBeNull();
+    expect(document.querySelectorAll('#materials')).toHaveLength(1);
     const link = invitation.querySelector('a')!;
     expect(link.textContent).toBe('Contact Alethical');
     expect(link.href).toBe('https://www.alethical.com/about/contact?purpose=host-debate');
@@ -279,9 +286,28 @@ describe('accepted Forward Debate media edition', () => {
     ];
     expect(forwardDebateReadingOmissions.map(({ start }) => start)).toEqual(omitted);
     expect(suppliedTranscript.turns).toHaveLength(100);
+    const removedSentence =
+      "We run an intelligence inside our political data, campaign, finance, and legislation to be able to give all of you guys information that you wouldn't normally have had.";
+    expect(forwardDebateOpeningSentenceOmission).toMatchObject({
+      start: 5.8,
+      sentence: removedSentence,
+    });
+    expect(suppliedTranscript.turns[0].paragraphs[0]).toContain(removedSentence);
     expect(replay.transcript!.turns).toEqual(
-      suppliedTranscript.turns.filter((turn) => !omitted.includes(turn.start)),
+      suppliedTranscript.turns
+        .filter((turn) => !omitted.includes(turn.start))
+        .map((turn) =>
+          turn.start === 5.8
+            ? {
+                ...turn,
+                paragraphs: turn.paragraphs.map((paragraph) =>
+                  paragraph.replace(`${removedSentence} `, ''),
+                ),
+              }
+            : turn,
+        ),
     );
+    expect(doc.body.textContent).not.toContain(removedSentence);
     expect(doc.querySelector('#transcript')?.textContent).toBe('Edited transcript');
     expect(
       new JSDOM(renderEventReplay(EVENTS[0], ready())).window.document.querySelector('#transcript')
