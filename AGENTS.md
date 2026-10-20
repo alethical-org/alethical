@@ -39,6 +39,9 @@ the tie-breaker when a tactic and an intent disagree.
 - [`docs/README.md`](docs/README.md) — index of every spec. Specs describe intent;
   **GitHub issues and the Roadmap board carry sequencing**, so never read a milestone
   in prose as a reason work is off-limits.
+- For article, event, recording, caption, transcript or YouTube work, including media production, use
+  [`docs/operations/blog-publishing.md`](docs/operations/blog-publishing.md) for the
+  upfront brief, media handoff and acceptance matrix; its links lead to owning product decisions.
 
 Tool note: Claude Code loads this file and everything in `.claude/rules/` into every
 session automatically; every other agent must open them itself.
@@ -82,23 +85,24 @@ see [manual server tests](CONTRIBUTING.md#manual-server-tests-use-a-temporary-po
   sign-in. No task output, tool output, log, file, issue, or pull request may contain a
   real authentication callback query or fragment; clearly fake callback values may exist
   only inside the focused tests that prove this protection. Code-driven browser checks
-  inspect the address in memory with
+  must inspect the address in memory with
   [`safe-auth-callback-report.mjs`](apps/frontend/scripts/safe-auth-callback-report.mjs)
   and report only the origin, path, and the 2 booleans saying whether private fields were
-  present. Interactive browser checks compute that same report inside the page; if a
+  present. Interactive browser checks must compute that same report inside the page; if a
   tool can only return the full address, stop before the callback. Never retrieve the full
   address first and clean it afterward.
   [Issue 1600](https://github.com/alethical-org/alethical/issues/1600) holds the record
   behind this rule without storing a credential.
 - **Any write into the shared checkout is the danger, not only a git command.** Several
   agents work in this repository at once, in separate worktrees under `.claude/worktrees/`
-  and elsewhere. `cd` into the shared checkout followed by `cat >> file`, `> file`,
+  and elsewhere. `cd` into the shared checkout (`/Users/eug/Code/Alethical`, the main
+  worktree that `git worktree list` prints first) followed by `cat >> file`, `> file`,
   `sed -i`, `rm` or a formatter writes into everyone's tree, and nothing guards it. Check
   where you are before any write, prefer absolute paths into your own worktree, and never
   run destructive or branch-switching git on a shared checkout. The full list of git
-  commands that silently destroy other agents' work (`git stash`, `git update-ref`,
-  `git checkout --ignore-other-worktrees -B`, `git worktree remove --force`, creating a
-  branch in the shared checkout), the hook that locks worktrees, and the recovery steps
+  commands that silently destroy other agents' work (`git stash`, `git update-ref` on a
+  branch you do not own, `git checkout --ignore-other-worktrees -B <branch>`,
+  `git worktree remove --force <path>`, creating a branch in the shared checkout), the hook that locks worktrees, and the recovery steps
   live in [`.claude/rules/workflow.md`](.claude/rules/workflow.md) rule 10. To compare
   against another revision, read it from git's object store (`git show origin/main:<path>`);
   to write, make your own worktree (`just worktree <branch>`). Scan open PRs and issues
@@ -108,7 +112,8 @@ see [manual server tests](CONTRIBUTING.md#manual-server-tests-use-a-temporary-po
   is inside this folder, but it is not scratch space and it is not yours: treat every
   path under it as another agent's working tree. Do not edit, delete, reformat, or run a
   project-wide replace across it, and exclude it from any sweep of ignored or
-  "temporary" files.
+  "temporary" files. A prose rule is not a mechanism: if your tool can exclude a path from
+  its file access, exclude this one.
 
 ## Keep working folders available for follow-up
 
@@ -118,9 +123,10 @@ acceptance, with no automatic expiry; the full policy, holds and cleanup route a
 [working-folder cleanup and recovery](docs/operations/worktree-lifecycle.md). At work
 start, inspect the current folder report (`just maintenance-status`) and register the
 task through the installed lifecycle hook or the explicit owner command; recorded owners
-do not establish live chat activity, so use the host's live task list for that. Native
-Codex hooks require the user's supported trust review before they run; a prepared hook
-is not an active hook.
+do not establish live chat activity, so use the host's live task list for that. Record
+a hold when its reason changes, not after every reply. Never infer completion from age,
+silence, clean files or a merged change. Native Codex hooks require the user's supported
+trust review before they run; a prepared hook is not an active hook.
 
 - External terminal and Claude folders: when cleanup is requested, use the owner
   release command in the lifecycle doc above. The free Mac helper preserves recovery,
@@ -151,19 +157,27 @@ VM also needs to know:
   then `sudo chmod 666 /var/run/docker.sock` if the socket is not group-accessible. The
   first `just up` builds the image and installs dependencies inside the containers; watch
   `docker compose ps` for `healthy`. Health check:
-  `curl http://localhost:8000/healthz` → `{"status":"ok"}`.
-- **Host `uv run pytest` needs its own log dir.** The Dockerized backend runs as root and
+  `curl http://localhost:8000/healthz` → `{"status":"ok"}`. `just up` applies pending
+  Alembic migrations to the dev database (port 54329) as the backend starts, unless
+  `ALETHICAL_SKIP_MIGRATIONS=1`.
+- **On Linux, `uv sync` compiles `erlpack` from source.** It has no wheel (it comes in
+  through `oban`). If its C++ build fails because the uv-managed Python's compiler cannot
+  find `libstdc++`, make GCC the default `c++` and `cc` and leave it that way.
+- **On a VM with rootful Docker, host `uv run pytest` needs its own log dir.** The
+  Dockerized backend runs as root and
   writes the bind-mounted `logs/alethical-backend.log` as root, so host pytest cannot
   open it: run `ALETHICAL_LOG_DIR=/tmp/alethical-logs uv run pytest`. Pytest seeds
   `scripts/load_sample_data.py` into its own temporary Postgres, not the running app's
   database.
 - **Keep `OPENAI_API_KEY` unset in `.env` for keyless local dev.** The `.env.example`
-  placeholder `sk-xxx` makes the code hit the real OpenAI API; unset, it falls back to
-  hash embeddings (matches CI). The AI summaries and Ask surface need a real key;
+  placeholder `sk-xxx` makes the code hit the real OpenAI API, so a RAG test fails with
+  401 and AI features fail at run time; unset, it falls back to hash embeddings (matches
+  CI). The AI summaries and Ask surface need a real key;
   browsing and search do not.
-- **The DB starts empty; full ingestion is not required to see content.** The sample
-  data seeded above (e.g. bill `SF 1832`) is what the web app renders for a quick
-  end-to-end check.
+- **The app database starts empty; full ingestion is not required to see content.** With
+  `DATABASE_URL` unset, `uv run python scripts/load_sample_data.py` loads the sample
+  records (e.g. bill `SF 1832`) into the dev database on port 54329, which is what the
+  web app renders for a quick end-to-end check.
 
 ## Workflow exclusions
 
