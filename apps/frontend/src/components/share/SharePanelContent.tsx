@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import { shareDialogLabel, type ShareContent } from '../../lib/share';
 import {
@@ -21,7 +21,7 @@ import {
   type ShareIntents,
 } from '../../lib/shareIntents';
 import { theme as t } from '../../theme/tokens';
-import { useHover } from '../billDetail/interactions';
+import { useFineHover } from '../billDetail/interactions';
 import { ShareDestinationIcon } from './ShareDestinationIcon';
 
 export type SharePanelVariant = 'desktop' | 'tablet' | 'phone';
@@ -89,17 +89,23 @@ export function SharePanelContent({
   variant,
   onClose,
   closeButtonRef,
+  headingRef,
 }: {
   content: ShareContent;
   variant: SharePanelVariant;
   onClose: () => void;
   closeButtonRef?: Ref<View>;
+  headingRef?: Ref<View>;
 }) {
   const band = BANDS[variant];
   const phone = variant === 'phone';
   const desktop = variant === 'desktop';
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
+  const [linkFocused, setLinkFocused] = useState(false);
+  const [phoneColumns, setPhoneColumns] = useState(3);
+  const destinationGrid = useRef<View>(null);
+  const linkField = useRef<TextInput>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const generation = useRef(0);
   const copying = useRef(false);
@@ -131,6 +137,46 @@ export function SharePanelContent({
     };
   }, [content.url]);
 
+  useEffect(() => {
+    if (!isWeb || !phone) return;
+    const grid = destinationGrid.current as unknown as HTMLElement | null;
+    if (!grid) return;
+    const context = document.createElement('canvas').getContext('2d');
+    if (!context) return;
+    // Measure the actual font, including reader enlargement, against three cells.
+    // Keep the nodes mounted when columns change so enlarged text stays enlarged.
+    let disposed = false;
+    const labels = Array.from(
+      grid.querySelectorAll<HTMLElement>('[data-testid="share-destination-label"]'),
+    );
+    const measure = () => {
+      if (disposed) return;
+      const longestName = Math.max(
+        ...labels.map((label) => {
+          const style = getComputedStyle(label);
+          context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+          const text = label.textContent ?? '';
+          const spacing = parseFloat(style.letterSpacing) || 0;
+          return context.measureText(text).width + spacing * Math.max(0, text.length - 1);
+        }),
+      );
+      const columns =
+        [3, 2, 1].find(
+          (count) => longestName <= (grid.clientWidth - (count - 1) * 8) / count - 4,
+        ) ?? 1;
+      setPhoneColumns(columns);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(grid);
+    labels.forEach((label) => observer.observe(label));
+    measure();
+    void document.fonts?.ready.then(measure);
+    return () => {
+      disposed = true;
+      observer.disconnect();
+    };
+  }, [phone]);
+
   const copyLink = async () => {
     if (copying.current) return;
     copying.current = true;
@@ -139,47 +185,71 @@ export function SharePanelContent({
     setError('');
     if (timer.current) clearTimeout(timer.current);
     try {
-      const success = await Clipboard.setStringAsync(content.url);
-      if (!success) throw new Error('Clipboard unavailable');
+      if (isWeb) {
+        // Expo's legacy browser fallback reports success even when execCommand
+        // returns false. Use the browser result; the visible field is recovery.
+        if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+        await navigator.clipboard.writeText(content.url);
+      } else if (!(await Clipboard.setStringAsync(content.url))) {
+        throw new Error('Clipboard unavailable');
+      }
       if (attempt !== generation.current) return;
       setCopied(true);
       timer.current = setTimeout(() => setCopied(false), 1900);
     } catch {
-      if (attempt === generation.current)
+      if (attempt === generation.current) {
         setError('Couldn’t copy the link. Select and copy it from the link field.');
+        linkField.current?.focus();
+        if (isWeb) (linkField.current as unknown as HTMLInputElement | null)?.select();
+      }
     } finally {
       if (attempt === generation.current) copying.current = false;
     }
   };
 
-  const openIntent = (destination: keyof ShareIntents) => {
+  const openIntent = async (destination: keyof ShareIntents) => {
     setError('');
-    if (isWeb && typeof window !== 'undefined' && destination !== 'email') {
-      window.open(intents[destination], '_blank', 'noopener,noreferrer');
-    } else {
-      void Linking.openURL(intents[destination]).catch(() =>
-        setError('Couldn’t open the sharing app. Copy the link instead.'),
-      );
+    const attempt = generation.current;
+    let opened: Window | null = null;
+    try {
+      if (isWeb && typeof window !== 'undefined' && destination !== 'email') {
+        // Open first so a blocked popup is observable. Remove its opener before
+        // navigating to another site; noopener in window.open returns null even
+        // for successful opens, which cannot distinguish success from blocking.
+        opened = window.open('', '_blank');
+        if (!opened) throw new Error('Sharing window blocked');
+        opened.opener = null;
+        opened.location.replace(intents[destination]);
+      } else {
+        await Linking.openURL(intents[destination]);
+      }
+      if (attempt === generation.current) onClose();
+    } catch {
+      opened?.close();
+      if (attempt === generation.current)
+        setError('Couldn’t open the sharing app. Copy the link instead.');
     }
   };
 
   const openDeviceShare = async () => {
     setError('');
+    const attempt = generation.current;
     try {
       if (isWeb) await navigator.share(payload);
-      else
-        await Share.share(
+      else {
+        const result = await Share.share(
           Platform.OS === 'ios'
             ? { message: nativeShareText(content, false), url: content.url }
             : { message: nativeShareText(content, true) },
         );
+        if (result.action === Share.dismissedAction) return;
+      }
+      if (attempt === generation.current) onClose();
     } catch (reason) {
-      if (!(
-        reason &&
-        typeof reason === 'object' &&
-        'name' in reason &&
-        reason.name === 'AbortError'
-      )) {
+      if (
+        attempt === generation.current &&
+        !(reason && typeof reason === 'object' && 'name' in reason && reason.name === 'AbortError')
+      ) {
         setError('Couldn’t open the sharing menu. Copy the link instead.');
       }
     }
@@ -191,7 +261,7 @@ export function SharePanelContent({
       onPress={() => void copyLink()}
       style={(state) => [
         styles.copyButton,
-        { minHeight: band.buttonHeight },
+        { minHeight: band.buttonHeight, ...(!phone ? { minWidth: desktop ? 112 : 156 } : {}) },
         phone && styles.stackedCopy,
         copied && styles.copiedButton,
         !copied &&
@@ -231,13 +301,17 @@ export function SharePanelContent({
       ]}
     >
       <View style={styles.header}>
-        <Text
+        <View
+          ref={headingRef}
+          tabIndex={-1}
           accessibilityRole="header"
           aria-level={2}
-          style={[styles.heading, { fontSize: band.heading }]}
+          style={[{ flex: 1 }, isWeb && ({ outlineStyle: 'none' } as object)]}
         >
-          {shareDialogLabel(content.subject, content.resultsKind)}
-        </Text>
+          <Text style={[styles.heading, { fontSize: band.heading }]}>
+            {shareDialogLabel(content.subject, content.resultsKind)}
+          </Text>
+        </View>
         <Pressable
           ref={closeButtonRef}
           accessibilityRole="button"
@@ -282,7 +356,12 @@ export function SharePanelContent({
             </Text>
           ) : null}
           <View
-            style={[styles.urlRow, !desktop && styles.sheetUrlRow, phone && styles.phoneUrlRow]}
+            style={[
+              styles.urlRow,
+              !desktop && styles.sheetUrlRow,
+              phone && styles.phoneUrlRow,
+              linkFocused && styles.urlRowFocused,
+            ]}
           >
             {!desktop ? (
               <Svg width={17} height={17} viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -295,8 +374,11 @@ export function SharePanelContent({
               </Svg>
             ) : null}
             <TextInput
+              ref={linkField}
               value={content.url}
               editable={false}
+              onFocus={() => setLinkFocused(true)}
+              onBlur={() => setLinkFocused(false)}
               selectTextOnFocus
               accessibilityLabel={`${content.subject.charAt(0).toUpperCase()}${content.subject.slice(1)} link`}
               style={[styles.urlInput, { fontSize: band.input }]}
@@ -305,29 +387,69 @@ export function SharePanelContent({
           </View>
           {phone ? copyButton : null}
           {error ? (
-            <Text accessibilityRole="alert" style={styles.error}>
-              {error}
-            </Text>
+            <View accessibilityRole="alert" style={styles.error}>
+              <Svg
+                width={18}
+                height={18}
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden
+                style={{ flexShrink: 0, marginTop: 1 }}
+              >
+                <Circle cx={12} cy={12} r={9} stroke="#8f5a12" strokeWidth={2} />
+                <Path d="M12 7.5 V13" stroke="#8f5a12" strokeWidth={2.2} strokeLinecap="round" />
+                <Circle cx={12} cy={16.5} r={1.3} fill="#8f5a12" />
+              </Svg>
+              <Text
+                style={[
+                  styles.errorText,
+                  { fontSize: desktop ? 14 : 15, lineHeight: (desktop ? 14 : 15) * 1.45 },
+                ]}
+              >
+                {error}
+              </Text>
+            </View>
           ) : null}
           <View style={[styles.socialSection, !desktop && styles.sheetSocialSection]}>
             <Text style={[styles.socialLabel, { fontSize: desktop ? 11 : phone ? 12 : 11.5 }]}>
               SHARE TO
             </Text>
-            <View style={styles.grid}>
-              {rows.map((row, index) => (
-                <View key={index} style={styles.destinationRow}>
-                  {row.map(([key, label, accessibleLabel]) => (
+            <View
+              ref={destinationGrid}
+              style={[
+                styles.grid,
+                isWeb &&
+                  ({
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${phone ? phoneColumns : variant === 'tablet' ? 6 : 3}, minmax(0, 1fr))`,
+                  } as object),
+              ]}
+            >
+              {isWeb
+                ? DESTINATIONS.map(([key, label, accessibleLabel]) => (
                     <DestinationButton
                       key={key}
                       label={label}
                       accessibleLabel={accessibleLabel}
                       destination={key}
                       band={band}
-                      onPress={() => openIntent(key)}
+                      onPress={() => void openIntent(key)}
                     />
+                  ))
+                : rows.map((row, index) => (
+                    <View key={index} style={styles.destinationRow}>
+                      {row.map(([key, label, accessibleLabel]) => (
+                        <DestinationButton
+                          key={key}
+                          label={label}
+                          accessibleLabel={accessibleLabel}
+                          destination={key}
+                          band={band}
+                          onPress={() => void openIntent(key)}
+                        />
+                      ))}
+                    </View>
                   ))}
-                </View>
-              ))}
             </View>
           </View>
           {canUseDeviceShare ? (
@@ -379,7 +501,7 @@ function DestinationButton({
   band: (typeof BANDS)[SharePanelVariant];
   onPress: () => void;
 }) {
-  const [hovered, hover] = useHover();
+  const [hovered, hover] = useFineHover();
   return (
     <Pressable
       accessibilityRole="button"
@@ -396,7 +518,12 @@ function DestinationButton({
       >
         <ShareDestinationIcon destination={destination} size={band.icon} />
       </View>
-      <Text style={[styles.destinationName, { fontSize: band.name }]}>{label}</Text>
+      <Text
+        testID="share-destination-label"
+        style={[styles.destinationName, { fontSize: band.name }]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -461,7 +588,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f4f5f7',
     borderColor: t.colors.alpha.ink12,
   },
+  urlRowFocused: {
+    borderColor: '#5b30d6',
+    ...(isWeb ? ({ boxShadow: '0 0 0 3px rgba(91,48,214,.22)' } as object) : {}),
+  },
   urlInput: {
+    ...(isWeb ? ({ outlineStyle: 'none' } as object) : {}),
     flex: 1,
     minWidth: 0,
     minHeight: 28,
@@ -514,6 +646,7 @@ const styles = StyleSheet.create({
   destinationHover: { backgroundColor: 'rgba(17,21,15,0.05)' },
   circle: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f1f4' },
   destinationName: {
+    maxWidth: '100%',
     fontFamily: t.typography.ui,
     fontWeight: '700',
     color: '#2c322c',
@@ -543,9 +676,15 @@ const styles = StyleSheet.create({
   },
   error: {
     marginTop: 10,
-    fontFamily: t.typography.body,
-    fontSize: 14,
-    lineHeight: 20,
-    color: t.colors.text.primary,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  errorText: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: t.typography.ui,
+    fontWeight: '600',
+    color: '#2c322c',
   },
 });

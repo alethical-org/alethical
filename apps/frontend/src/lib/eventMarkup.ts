@@ -41,6 +41,12 @@ export const eventCss = `
 .event-flyer{display:block;width:100%;max-width:540px;height:auto;margin:0 auto;border-radius:16px}
 .event-image-link{text-align:center;margin:16px 0!important}.event-image-link a{display:inline-flex;min-height:44px;align-items:center}
 .event-downloads a{display:inline-flex;align-items:center;min-height:44px}
+.event-meta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 16px;margin:8px 0 20px}
+.event-content h1:has(+.event-meta){margin-bottom:0}
+.event-content .event-meta .event-published{margin:0;font-size:15px!important;line-height:1.5}
+.event-share-slot{flex:none;display:flex}
+.event-share-fallback{display:inline-flex;align-items:center;gap:9px;min-height:44px;box-sizing:border-box;background:#fff;border:1px solid rgba(17,21,15,.16);border-radius:11px;padding:10px 18px 10px 15px;font:700 15px/1.3 'Libre Franklin',sans-serif;color:#2c322c;cursor:pointer}
+.event-share-fallback svg{flex:none}
 .event-published{color:#5f655b;font-size:14px!important}
 .event-tagline{font-size:21px!important;color:#5f655b}
 .event-facts{background:#fff;border:1px solid rgba(17,21,15,.08);border-radius:16px;padding:24px;margin:28px 0}
@@ -62,6 +68,11 @@ export const eventCss = `
 .event-collection{max-width:1000px;margin:auto;padding:40px 24px 80px}
 @media(max-width:767px){.event-content .event-back{font-size:15px}.event-collection .event-return{margin-bottom:10px}.event-article,.event-collection{padding:24px 20px 56px}.event-content h1{font-size:28px}.event-content p,.event-content li{font-size:17px}.event-content .event-list{margin-top:14px;gap:16px}.event-list>li{padding:30px 20px 28px}.event-list h3,.event-list h2{font-size:18px}}
 `;
+
+/** Initial HTML for the shared control mounted without replacing the article. */
+export function renderEventShareSlot(): string {
+  return `<span class="event-share-slot" data-event-share><button class="event-share-fallback" type="button" aria-label="Share this post" aria-haspopup="dialog" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="18" cy="5" r="2.8" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="12" r="2.8" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="19" r="2.8" stroke="currentColor" stroke-width="2"/><path d="M8.5 10.8 L15.5 6.4 M8.5 13.2 L15.5 17.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Share</span></button></span>`;
+}
 
 /** Shared near-title branding for Forward Coalition event posts. */
 export function renderForwardCoalitionBrand(): string {
@@ -122,7 +133,7 @@ ${renderEventReturn(EVENTS_PATH, 'Back to Events')}
 <p class="event-image-link"><a href="${e(event.image)}">Open full-size flyer to zoom in</a></p>
 ${renderForwardCoalitionBrand()}
 <h1>${e(event.title)}</h1>
-<p class="event-published"><span class="event-keep">Published <time datetime="${event.publishedOn}">${e(publishedLabel)}</time> ·</span> <span class="event-keep">Updated <time datetime="${event.updatedOn}">${e(updatedLabel)}</time></span></p>
+<div class="event-meta"><p class="event-published"><span class="event-keep">Published <time datetime="${event.publishedOn}">${e(publishedLabel)}</time> ·</span> <span class="event-keep">Updated <time datetime="${event.updatedOn}">${e(updatedLabel)}</time></span></p>${renderEventShareSlot()}</div>
 <section aria-label="Debate downloads"><h2>Download the debate materials</h2>
 <ul class="event-downloads">${event.downloads.map((file) => `<li><a href="${e(file.href)}" download="${e(file.filename)}">Download ${e(file.title)} (PDF)</a></li>`).join('')}</ul></section>
 <p class="event-tagline">${e(event.tagline)}</p>

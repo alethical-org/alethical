@@ -26,7 +26,11 @@ const { EVENTS, eventPath } = await vite.ssrLoadModule('/src/lib/events.ts');
 const { renderEventReplay } = await vite.ssrLoadModule('/src/lib/eventReplayMarkup.ts');
 const { eventReplayBySlug } = await vite.ssrLoadModule('/src/lib/eventReplayContent.ts');
 const { parseEventReplay } = await vite.ssrLoadModule('/src/lib/eventReplay.ts');
-const { renderEventPageSnapshot } = await vite.ssrLoadModule('/src/lib/pageSnapshot.ts');
+const { renderEventPageSnapshot, injectPageSnapshot } = await vite.ssrLoadModule(
+  '/src/lib/pageSnapshot.ts',
+);
+const appDist = process.env.REPLAY_APP_DIST ? resolve(process.env.REPLAY_APP_DIST) : null;
+const appShell = appDist ? await readFile(resolve(appDist, 'index.html'), 'utf8') : null;
 const shell = await readFile(resolve(root, 'public/index.html'), 'utf8');
 const snapshotStyle =
   shell.match(/<style id="alethical-page-snapshot">[\s\S]*?<\/style>/)?.[0] ?? '';
@@ -37,7 +41,7 @@ const content = process.env.REPLAY_CONTENT_JSON
   ? parseEventReplay(JSON.parse(await readFile(resolve(process.env.REPLAY_CONTENT_JSON), 'utf8')))
   : undefined;
 const event = EVENTS[0];
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   // Loopback binding plus Host/Origin checks prevent accidental LAN exposure and rebinding.
   if (
     req.headers.host !== `127.0.0.1:${port}` ||
@@ -83,6 +87,13 @@ const server = http.createServer((req, res) => {
         example,
       },
     );
+    if (appShell && !example) {
+      // Exercise the actual application bundle at the existing preview address.
+      res.removeHeader('Content-Security-Policy');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(injectPageSnapshot(appShell, renderEventPageSnapshot(markup, eventPath(event))));
+      return;
+    }
     const body = renderEventPageSnapshot(markup)
       .replace('<span class="ps-signin">Sign in</span>', '')
       .replaceAll('href="/', 'href="https://www.alethical.com/');
@@ -90,6 +101,36 @@ const server = http.createServer((req, res) => {
     res.end(
       `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><title>The Forward Debate | Alethical</title><link rel="stylesheet" href="/fonts/fonts.css">${snapshotStyle}<style>body{margin:0;background:#f7f8f5}.replay-draft{padding:12px 20px;background:#fff2ad;color:#11150f;font:700 14px 'Libre Franklin',sans-serif;text-align:center}button[hidden]{display:none!important}</style></head><body>${body}<script type="module" src="/replay-preview-client.js"></script></body></html>`,
     );
+    return;
+  }
+  if (appDist) {
+    const path = resolve(appDist, `.${url.pathname}`);
+    if (path.startsWith(`${appDist}/`)) {
+      try {
+        const asset = await readFile(path);
+        const types = {
+          '.js': 'text/javascript',
+          '.css': 'text/css',
+          '.woff2': 'font/woff2',
+          '.png': 'image/png',
+          '.webp': 'image/webp',
+          '.jpg': 'image/jpeg',
+          '.svg': 'image/svg+xml',
+          '.json': 'application/json',
+        };
+        const ext = path.slice(path.lastIndexOf('.'));
+        res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream' });
+        res.end(asset);
+        return;
+      } catch {
+        /* Fall through to local public assets and the normal 404. */
+      }
+    }
+  }
+  if (appShell && !url.pathname.includes('.') && !url.pathname.startsWith('/api/')) {
+    res.removeHeader('Content-Security-Policy');
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(appShell);
     return;
   }
   // Vite serves only local code/assets for this development preview; no application API.

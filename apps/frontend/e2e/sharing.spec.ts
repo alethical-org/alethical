@@ -6,10 +6,13 @@ const publicUrl = `https://www.alethical.com${path}`;
 test.beforeEach(async ({ page, baseURL }) => {
   // Production's public API does not allow arbitrary local preview ports.
   // Read the same GET responses through Playwright for local browser checks.
-  if (baseURL && new URL(baseURL).hostname === 'localhost') {
-    await page.route('https://api.alethical.com/**', async (route) => {
+  if (baseURL && ['localhost', '127.0.0.1'].includes(new URL(baseURL).hostname)) {
+    await page.route(/\/api\/v1\//, async (route) => {
       if (route.request().method() !== 'GET') return route.abort();
-      const response = await route.fetch();
+      const requested = new URL(route.request().url());
+      const response = await route.fetch({
+        url: `https://api.alethical.com${requested.pathname}${requested.search}`,
+      });
       await route.fulfill({
         response,
         headers: { ...response.headers(), 'access-control-allow-origin': '*' },
@@ -37,7 +40,9 @@ for (const [band, width, height] of [
     await trigger.click();
     const dialog = page.getByRole('dialog', { name: 'Share this research' });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole('button', { name: 'Close', exact: true })).toBeFocused();
+    await expect(
+      dialog.getByRole('heading', { name: 'Share this research', exact: true }),
+    ).toBeFocused();
     await expect(dialog.getByRole('textbox', { name: 'Research link' })).toHaveValue(publicUrl);
     await expect(dialog.getByRole('textbox')).toHaveAttribute('readonly', '');
     const labels = await dialog.getByRole('button').allTextContents();
@@ -69,14 +74,19 @@ for (const [band, width, height] of [
 
 test('new destinations retain the exact link without publishing anything', async ({ page }) => {
   await page.addInitScript(() => {
-    window.open = ((url: string | URL | undefined) => {
-      (window as unknown as { lastShareUrl: string }).lastShareUrl = String(url);
-      return null;
-    }) as typeof window.open;
+    window.open = (() => ({
+      opener: window,
+      location: {
+        replace: (url: string) => {
+          (window as unknown as { lastShareUrl: string }).lastShareUrl = url;
+        },
+      },
+      close: () => {},
+    })) as unknown as typeof window.open;
   });
   await page.goto(path);
-  await page.getByRole('button', { name: 'Share this research', exact: true }).click();
   for (const destination of ['WhatsApp', 'Bluesky']) {
+    await page.getByRole('button', { name: 'Share this research', exact: true }).click();
     await page.getByRole('button', { name: `Share on ${destination}` }).click();
     const outgoing = await page.evaluate(
       () => (window as unknown as { lastShareUrl: string }).lastShareUrl,
@@ -144,10 +154,15 @@ for (const width of [1400, 900, 390]) {
   }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.addInitScript(() => {
-      window.open = ((url: string | URL | undefined) => {
-        (window as unknown as { lastShareUrl: string }).lastShareUrl = String(url);
-        return null;
-      }) as typeof window.open;
+      window.open = (() => ({
+        opener: window,
+        location: {
+          replace: (url: string) => {
+            (window as unknown as { lastShareUrl: string }).lastShareUrl = url;
+          },
+        },
+        close: () => {},
+      })) as unknown as typeof window.open;
     });
     await page.goto(`${committeePath}?tab=filings&year=2026`);
     await page.getByRole('button', { name: 'Share this committee', exact: true }).click();
@@ -173,6 +188,8 @@ for (const width of [1400, 900, 390]) {
       expect(message).not.toContain('Share this committee');
       expect(message).not.toContain('Alethical');
       expect(destination === 'X' ? url.searchParams.get('url') : message).toContain(sharedUrl);
+      await expect(dialog).toHaveCount(0);
+      await page.getByRole('button', { name: 'Share this committee', exact: true }).click();
     }
   });
 }

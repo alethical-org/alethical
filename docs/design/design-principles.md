@@ -887,14 +887,44 @@ keyboard/touch use, panel placement, copy success/failure, available destination
 and the actual shared address. Design and coding carry the same requirement.
 [published-writing-decisions.md §2.18](../architecture/published-writing-decisions.md#218-public-blog-posts-include-sharing-assess-other-surfaces-proactively)
 owns the scope. Unrelated sitewide changes and requested design approvals remain
-separate; the current Forward Debate sharing treatment requires Eugene's approval
-of the design before implementation.
+separate. The approved event treatment below applies to the Forward Debate.
 
 Publication dates and reporting periods remain near the title. Source-copy dates
 follow [ui-copy-guide.md §Dates on a page](ui-copy-guide.md#dates-on-a-page).
 When redundant metadata is removed, Share remains right-aligned on the same row
 as the remaining metadata wherever both fit. Keep the approved narrow-screen
 wrapping and spacing; do not leave an empty row for the removed wording.
+
+Event article metadata uses a wrapping row with the date left and Share right,
+16px horizontal and 4px row gaps, 8px below the title and 20px before the introduction.
+The approved Share control is white with a 1px ink-16 border, 11px radius, 44px
+minimum height, 16px icon and 15px bold label. Hover on fine pointers at 768px and
+wider uses #f7f8fa with an ink-30 border; pressed uses #f1f1f4 with that border.
+Open keeps the hover treatment; keyboard focus uses the shared purple outline.
+
+The shared desktop panel is 366px wide, with a 10px trigger gap and at least 16px
+inside the window. Try below, above, then beside the trigger; constrain and scroll
+the body in a short window without covering the trigger. Below 1100px, use the
+bottom sheet over the approved half-opacity dark scrim. Tablet Copy stays inline
+with 6 destinations in 1 row; below 768px Copy fills its row and destinations use
+2 rows of 3 at ordinary text sizes. When the actual destination names cannot fit
+3 columns, use 2 columns, then 1 if needed, in the same order without splitting names midword. Base
+this on content fit, including enlarged text, rather than a single phone width.
+Focus the noninteractive heading on open without drawing an outline around it.
+Trap keyboard focus, close with Escape,
+Close, outside activation or successful destination opening, then return focus to
+the trigger. Scrims and panels prevent click-through. Native chooser cancellation
+is silent; unavailable native sharing is omitted.
+
+Copy keeps its width through confirmation: 112px desktop, 156px tablet and full
+width phone. Omit an empty description. Announce copying or opening failures with
+the approved recovery text; a failed copy focuses and selects the address field.
+The focused address field uses a 1px #5b30d6 border and a 3px
+rgba(91,48,214,.22) ring. Suppress its browser outline, preserve selected-text
+highlighting, and retain the existing keyboard-focus treatment on controls.
+Only a successful clipboard write may show Copied. Preserve existing trigger
+styling and identifying content on other shared-panel uses.
+
 
 ### Build acceptance for controls
 

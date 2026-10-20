@@ -168,6 +168,23 @@ describe('replay content and publication boundaries', () => {
 });
 
 describe('replay HTML and shareable timestamps', () => {
+  it('serves the Share date row and direct video link without exposing sharing on a private example', () => {
+    const replay = eventReplayBySlug(EVENTS[0].slug)!;
+    const doc = new JSDOM(renderEventReplay(EVENTS[0], replay, { search: '?t=1260.54' })).window
+      .document;
+    expect(
+      doc.querySelectorAll('.event-meta [data-event-share] button[aria-label="Share this post"]'),
+    ).toHaveLength(1);
+    expect(doc.querySelector('[data-replay-youtube]')?.textContent).toBe('On YouTube');
+    expect(doc.querySelector('[data-replay-youtube]')?.getAttribute('href')).toBe(
+      'https://www.youtube.com/watch?v=y66-Wf9bNio&t=1260s',
+    );
+    expect(doc.querySelector('.replay-youtube-row')?.textContent).toBe('On YouTube · 2:03:21');
+    const example = new JSDOM(renderEventReplay(EVENTS[0], replay, { example: true })).window
+      .document;
+    expect(example.querySelector('[data-event-share]')).toBeNull();
+  });
+
   it('renders real text in the initial HTML and escapes speaker/title/body content', () => {
     const r = parseEventReplay(draft());
     r.transcript!.turns[0].speaker = '<img onerror=bad>';

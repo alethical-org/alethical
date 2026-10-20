@@ -1,4 +1,4 @@
-import { eventCss, renderForwardCoalitionBrand } from './eventMarkup';
+import { eventCss, renderEventShareSlot, renderForwardCoalitionBrand } from './eventMarkup';
 import type { PublishedEvent } from './events';
 import { escapeHtml as e, publicPageUrl } from './share';
 import {
@@ -82,9 +82,9 @@ export function renderEventReplay(
 ${options.example ? '<p><strong>Example content for testing</strong></p><p>This uses YouTube’s player demonstration and sample text. It is not the debate recording or transcript.</p>' : ''}
 ${renderForwardCoalitionBrand()}
 <h1>${e(r.title)}</h1>
-<p class="event-published">${dateLine}</p>
+<div class="event-meta"><p class="event-published">${dateLine}</p>${options.example ? '' : renderEventShareSlot()}</div>
 <p>${e(r.introduction)}</p>
-${r.video ? `<section aria-labelledby="watch"><h2 id="watch" tabindex="-1">Watch the full ${options.example ? 'example' : 'debate'}</h2><iframe id="replay-player" title="${e(r.title)}" src="${e(replayEmbedUrl(r.video.id, start, options.origin))}" referrerpolicy="strict-origin-when-cross-origin" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe><p class="replay-youtube-row"><a data-replay-youtube href="https://www.youtube.com/watch?v=${r.video.id}&amp;t=${Math.floor(start)}s">Watch on YouTube</a> · ${replayTimestamp(r.duration!)}</p><p class="replay-status" data-replay-status role="status" aria-live="polite"></p></section>` : ''}
+${r.video ? `<section aria-labelledby="watch"><h2 id="watch" tabindex="-1">Watch the full ${options.example ? 'example' : 'debate'}</h2><iframe id="replay-player" title="${e(r.title)}" src="${e(replayEmbedUrl(r.video.id, start, options.origin))}" referrerpolicy="strict-origin-when-cross-origin" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe><p class="replay-youtube-row"><a data-replay-youtube href="https://www.youtube.com/watch?v=${r.video.id}&amp;t=${Math.floor(start)}s">On YouTube</a> · ${replayTimestamp(r.duration!)}</p><p class="replay-status" data-replay-status role="status" aria-live="polite"></p></section>` : ''}
 ${invitation ? `<aside class="replay-invitation" aria-labelledby="community-debate"><h2 id="community-debate"><img src="/alethical-mark-green.png" alt="" width="30"><span>Want a debate in your community?</span></h2><a class="replay-contact" href="${e(publicPageUrl('/about/contact?purpose=host-debate'))}">Contact Alethical</a></aside>` : ''}
 <section aria-labelledby="materials"><h2 id="materials">Debate materials</h2><ul class="event-downloads">${event.downloads.map((f) => `<li><a href="${e(publicPageUrl(f.href))}">${e(f.title)} (PDF)</a></li>`).join('')}</ul></section>
 ${r.chapters ? `<nav aria-labelledby="topics"><h2 id="topics">Topics</h2><ol class="replay-topics" role="list">${r.chapters.items.map((c) => `<li>${r.video ? jump(c.start, `${replayTimestamp(c.start)} ${c.title}`) : r.transcript ? `<a href="#topic-${c.start}">${e(c.title)}</a>` : `${e(replayTimestamp(c.start))} ${e(c.title)}`}</li>`).join('')}</ol></nav>` : ''}

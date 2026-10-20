@@ -370,7 +370,7 @@ export function ShortPostArticle({
               </>
             )}
           </p>
-          <SharePopover content={shareContent} disabled={privatePreview} />
+          {!privatePreview && <SharePopover content={shareContent} />}
         </div>
         <nav className="sp-topics" aria-labelledby={topicLabelId}>
           <span id={topicLabelId}>{piece.topics?.length === 1 ? 'Topic' : 'Topics'}</span>

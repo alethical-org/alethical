@@ -325,3 +325,68 @@ same-account navigation keep the draft; an anonymous draft may survive its first
 sign-in. Old request results cannot change or clear the new account's draft. Focused
 React DOM tests use synthetic accounts and a mocked sender for mounted and unmounted
 transitions, A-to-signed-out-to-A, and late success/failure after B starts a new request.
+
+
+## Approved event Share build, 20 October 2026
+
+The approved design is the consolidated `Blog event hosting invitation.dc.html`
+from the 20 October 10:13 Design download. Scope: public event Share, the confirmed shared-panel behavior, private-draft
+Share exclusion, and the visible “On YouTube” label. Event-card title styling is
+excluded. The parent owns Design coordination and visual acceptance; this retained
+folder is the sole code writer. Release requires the parent and Design acceptance
+record on the owning pull request.
+
+The date row mounts the existing React Share control into a dedicated slot in the
+initial event HTML. The article and YouTube iframe stay in place. Client navigation
+uses the same slot and shared control. Canonical event addresses come from the
+public event registry, never the current query or fragment. The illustrative
+private replay has no Share slot. Research and Guide sharing already use the shared
+panel; Short post private previews omit Share.
+
+The shared panel owns fixed Copy widths, heading focus, destination dismissal,
+selected-address copy recovery and the 3 approved failure messages. Desktop
+placement uses below, above and beside positions; the body scrolls when needed.
+Phone and tablet retain their approved bottom-sheet layouts. The browser clipboard
+path awaits the browser's real write result: the installed Expo fallback returns
+success even when its legacy copy command returns false. Native copying retains
+Expo. The rendered failure test reproduces browser rejection and protects against
+false Copied feedback across every shared use.
+
+Acceptance sequence: focused source tests and initial HTML; actual app browser
+checks at 320, 390, 834, 1100, 1280×800 and 1440; parent and independent review;
+Claude Design comparison; required checks and reviewed release; live canonical
+copy, keyboard/touch open/close, unchanged iframe and direct-video link. Cover
+all destination rows, empty descriptions, short windows, enlarged text, reduced
+motion, copy failure, native cancellation/failure and private drafts. Destination
+checks capture prepared addresses without publishing or sending anything.
+
+To serve the actual application at the retained preview, export the web app, then
+run `REPLAY_APP_DIST=dist node scripts/preview-event-replay.mjs` from
+`apps/frontend`. Loopback binding, noindex and no-store remain. Without that option,
+the renderer-only preview remains available. The illustrative fixture is separate.
+The full-app preview serves local assets and client routes; it does not expose a
+production write proxy. Browser regression checks use scoped read-only API routing
+where a data-backed sibling surface needs public records.
+
+Build validation: the full frontend suite passes 4,778 tests across 361 files;
+TypeScript passes. The event browser suite passes 11 cases, and the shared suite
+passes 18 cases. Independent browser review covers copy recovery, all prepared
+destinations, native cancellation/success, public Research and Short posts, and
+leaving the event with Share open. The actual app remains at the existing 4186
+address. Actual playback continues through opening and closing Share without
+replacing the iframe. Final visual acceptance and live evidence belong in the
+owning release record.
+
+The 320px doubled-text review found destination labels extending beyond their
+buttons. Final Design review requires 2 columns when the actual label fonts cannot
+fit 3, then 1 when even 2 cannot hold the longest whole name. Preserve order,
+text size, sheet padding, tap areas and icons above their labels. The shared grid measures content fit and
+keeps its nodes mounted when columns change, so reader enlargement is preserved.
+The rendered regression checks ordinary 3 columns, enlarged 2-column and 1-column cases, every
+whole name within its button and all destinations remaining reachable.
+
+Final Design review also keeps programmatic heading focus without an outline on
+that noninteractive heading. The address field receives the approved 1px #5b30d6
+border and 3px rgba(91,48,214,.22) ring on focus, preserving selected text and
+suppressing the browser outline. Browser checks exercise heading focus, keyboard
+containment, the exact field treatment and recovery after failed copying.

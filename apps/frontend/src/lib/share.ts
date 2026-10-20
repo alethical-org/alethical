@@ -25,6 +25,7 @@ const BILL_LIST_SUBJECT = 'Search Minnesota bills';
 const LEGISLATOR_LIST_SUBJECT = 'Minnesota House and Senate members';
 
 export type ShareSubject =
+  | 'post'
   | 'bill'
   | 'legislator'
   | 'answer'
