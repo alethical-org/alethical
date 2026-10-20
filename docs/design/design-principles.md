@@ -877,6 +877,22 @@ wrapping and spacing; do not leave an empty row for the removed wording.
 
 ### Build acceptance for controls
 
+**Compare changed elements with the rest of the screen before handoff.** Design
+and the coding agent proactively compare every new or changed element with
+actual same-purpose elements on the surrounding screen and the nearest approved
+matching component, even when no mismatch was reported. Compare layout, spacing,
+type, colours, borders, motion and applicable resting, hover, pressed, keyboard
+focus, touch, disabled and loading states. Account for differences using approved
+intent or a distinct reader need; preserve content, action, accessibility and
+privacy differences. A live screenshot can expose a mismatch but cannot approve
+one. Resolve conflicts between drawings, saved rules and the working screen
+before calling the affected work ready; Design owns genuinely open visual choices
+under the existing send permissions. The coding agent repeats the comparison in
+the working build across supported layout bands, wrapped text and applicable
+states and transitions. A resting screenshot does not establish interaction
+behavior. This covers changed elements and confirmed shared causes within the
+authorized scope, not an unrelated sitewide retrofit.
+
 **Open menus and floating controls stay visible and receive input.** This covers
 address suggestions, dropdowns, date pickers and popovers as well as navigation
 menus. Design must show changed controls open beside realistic surrounding
