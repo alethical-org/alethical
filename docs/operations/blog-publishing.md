@@ -60,7 +60,7 @@ data or temporary state; preserve private-draft and restricted-content access.
 [published-writing-decisions.md §2.18](../architecture/published-writing-decisions.md#218-public-blog-posts-include-sharing-assess-other-surfaces-proactively)
 owns this requirement. Preserve explicit design-approval holds; this rule is not
 a sitewide implementation grant. The Forward Debate treatment is approved under
-[published-writing-decisions.md §2.16](../architecture/published-writing-decisions.md#216-event-announcements-and-recordings-share-one-article-address).
+[published-writing-decisions.md §2.16](../architecture/published-writing-decisions.md#216-events-reuse-the-blog-design-and-retain-a-permanent-address).
 
 Complete the brief at the end of this playbook. Establish:
 
