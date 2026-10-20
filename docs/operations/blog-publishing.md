@@ -43,6 +43,13 @@ decision source and link them here instead of making a competing policy.
 original announcement. A different subject or reader need may warrant a different
 article; do not create another address merely to label the same event “recording”.
 
+For event summaries, match the action available now: upcoming events help readers
+attend, while available replays help them watch or read. Omit spent attendance
+logistics from replay cards, retaining useful history in the full article and
+meaningful cancellation, postponement and availability information. A past event
+date alone is not evidence that a replay is available. See
+[published-writing-decisions.md §2.17](../architecture/published-writing-decisions.md#217-recording-links-chapters-and-event-summaries-follow-the-readers-task).
+
 ## 2. Settle the brief before editing or uploading
 
 Complete the brief at the end of this playbook. Establish:
@@ -259,12 +266,20 @@ unsafe-inline or extra tracking. YouTube documents a minimum 200 × 200 player
 viewport and enough room for controls; check the actual narrow layout.
 [YouTube player parameters](https://developers.google.com/youtube/player_parameters).
 
+When a recording has supporting guides, reports or slides, place their links once
+near the video and before long topic or transcript sections. Keep a visible link
+to watch on the original video site below the embedded player, with clear space
+using the approved spacing treatment. The Forward Debate's below-invitation
+materials and 16px player-link gap are case-specific choices, not universal values.
+
 Progressive enhancement must preserve a usable link path before or without the API.
 Use real bounded timestamp links, then enhance same-article seeking. Copy a clean
 canonical article link plus the intended time, report copy success/failure, and
 exercise the copied destination. Without video, link Topics to contained transcript
 headings rather than pretending to seek. Preserve list semantics while removing
-redundant ordinal markers: timestamp plus title already identifies a topic.
+redundant ordinal markers from timestamp-and-title video chapter lists. Keep
+chronological order, keyboard navigation and working time links. Numbered
+instructions and other ordered article content retain meaningful numbering.
 
 Test the full built application, including its initial-HTML-to-app transition:
 starting playback before app startup must not replace the iframe or lose child
@@ -302,8 +317,8 @@ Apply these corrections by purpose, not by blind text replacement:
 | Title repeats “recording/transcript” already obvious in sections | Keep the subject in the title; retain format wording only when needed to understand a link out of context |
 | Intro card repeats event status, weekday and time | Alethical event introductions show calendar date only, such as **October 15, 2026**. Details, invitations and schedules retain useful time; cancellation, postponement and availability facts remain |
 | Event date and article date presented as interchangeable | Name each date's real meaning; never apply the Forward Debate replay-date decision to other articles automatically |
-| Completed replay card repeats attendance logistics | Omit the Forward Debate venue/city/free-admission line from its introductory cards. Upcoming attendance and detailed historical information remain useful |
-| Topic ordinal sits beside a timestamp and title | Remove the redundant ordinal, keeping timestamp, title, navigation and accessible list semantics. This correction was approved on October 19; release proof belongs to its owning implementation record |
+| Completed replay card repeats attendance logistics | For an available replay, omit spent attendance logistics, such as free admission, from its introductory cards. Keep upcoming attendance details, useful history in the full article and meaningful status. A past date alone does not prove replay availability |
+| Topic ordinal sits beside a timestamp and title | Remove the redundant ordinal, keeping timestamp, title, navigation and accessible list semantics. This rule applies to timestamp-and-title video chapter lists, not numbered instructions or other ordered content; reuse approved on October 20 |
 | Empty media sections, preparation notices or private banners leak publicly | Show available useful public content. Private review tooling stays private; actual uncertainty and required disclosures remain |
 | Public transcript explains internal checking steps | Keep useful uncertainty beside the relevant text and preserve the real check history internally; do not claim a manual accuracy review |
 | Reading transcript repeats standalone courtesies, turn scheduling or empty fragments | Omit only content with no substantive readable meaning; label intentional omissions **Edited transcript**, retain full source and final-video times, and preserve meaningful brief or uncertain turns |
@@ -342,6 +357,7 @@ limits. “Not applicable” names why; it does not silently waive a promised fe
 | Initial HTML/search | Useful article and complete accepted reading edition, truthful **Edited transcript** heading when applicable, 1 H1, accurate metadata, bare canonical, correct image and breadcrumb/return; unsupported video data absent | Raw public response and mounted app agree; page/image/player URLs work; sitemap index and video child are healthy |
 | Startup continuity | Gated real built-app startup retains iframe/context/state, header focus and real deep scroll; reader input cancels pending restoration | Early play survives app startup without restart; comments/footer loading does not steal reading position |
 | Timed/topic navigation | Boundary/malformed times, clean copied links, same-frame seek, no-time history, direct fragments and ordinary client entry | Keyboard/mouse/touch topic and copied links, reload, Back/Forward, departure/return land correctly without reset or clipped focus |
+| Recording links and summary purpose | Supporting-file links appear once near the video before long topics/transcript; original-site link remains visible below the player with approved spacing; timestamp/title chapters omit ordinal markers | Public HTML and loaded page agree; links work; chronological and accessible list navigation remains; summaries describe available attendance or replay actions without dropping useful status |
 | Design and collections | Shared approved states, actual siblings, all layout bands, 320px, wrapped/enlarged text, reduced motion, safe separate card actions | Full-card pointer/Enter paths, 1 visible keyboard outline, no overflow, correct order/date and contextual return |
 | Contextual contact | Known purpose/source resolves locally; editable subject/message/account email; no personal URL fields; unknown/generic/cleared/draft/account boundaries | Open approved CTA, edit safely, navigate Back and return; no real send for acceptance |
 | Recovery and comments | API/player block, copy failure, sign-in failure/dismissal, normal root after departure; loopback test guards block real writes/auth/metrics | Existing safe comments and recovery paths remain usable; distinguish untested signed-in submission |
@@ -394,6 +410,8 @@ Available assets: [final edition ID, manifest, originals, obsolete files, missin
 Timing: [source-to-final map, measured duration, display rounding, chapter source]
 Reading edition: [complete source retained; exact omissions/reasons if edited; final-video times]
 Presentation: [H1/search title/intro/image/brand, approved component and all states]
+Recording links: [supporting files once near video before long sections; original-site link/gap]
+Topics and summaries: [timestamp/title list without ordinals; current available reader action]
 Discovery: [canonical, initial HTML, internal links, real schema/sitemaps if eligible]
 YouTube: [channel, visibility, title/description/chapters, captions, thumbnail, playlist]
 Actions: [supporting downloads allowed; no video/transcript downloads; scoped fallback]

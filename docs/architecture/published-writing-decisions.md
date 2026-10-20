@@ -618,6 +618,31 @@ pages remain comment-free.
 Search and sharing behavior is owned by
 [page-metadata-for-search-and-sharing-decisions.md §30](page-metadata-for-search-and-sharing-decisions.md#30-event-announcements-are-discoverable-from-their-first-response).
 
+### 2.17 Recording links, chapters and event summaries follow the reader's task
+
+Approved on 20 October 2026 for future recording posts and event summaries:
+
+- When a recording has supporting guides, reports or slides, show their links once
+  near the video and before long topic or transcript sections. Readers can reach
+  the useful supporting material before starting a long read. The Forward Debate's
+  exact position below its hosting invitation remains specific to §2.16.
+- Keep a visible link to watch on the original video site below the embedded player,
+  with clear space using the approved spacing treatment. The Forward Debate's
+  16px gap is its approved treatment, not a universal measurement.
+- Timestamp-and-title video chapter lists omit extra visible ordinal numbers.
+  Preserve chronological order, accessible list structure, keyboard navigation
+  and working time links. Numbered instructions and other ordered article content
+  retain meaningful numbering.
+- Upcoming-event summaries help readers attend. Summaries for an available replay
+  help readers watch or read and omit spent attendance logistics, such as free
+  admission. Keep useful event history in the full article and retain meaningful
+  cancellation, postponement and availability information. A past event date alone
+  does not establish that a replay is available.
+
+These rules extend the reusable parts of the Forward Debate decisions. They do
+not prescribe its invitation, wording, exact section order or spacing for other
+posts, and do not authorize an unrelated sitewide redesign.
+
 ## 3. Open decisions
 
 **What a reader sees when our copy and Minnesota's disagree.** Today the disagreement is reported to
