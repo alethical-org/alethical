@@ -405,6 +405,32 @@ or attribute a change to 1 edit without evidence. Use existing bounded free sear
 health machinery; no new paid recurring AI schedules, per-person watch tracking or
 unrequested outreach are part of this workflow.
 
+## Short videos from a full recording
+
+A short is an upright clip cut from a finished event recording for YouTube Shorts,
+Instagram, TikTok, Facebook, LinkedIn, X and Bluesky. The full guide, the saved
+editing recipe, the worked example and the shorts selection record are private:
+[alethical-video/shorts-guide.md in tool-settings](https://github.com/euglopi/tool-settings/blob/main/shared/alethical-video/shorts-guide.md).
+Rules that hold everywhere:
+
+- Cut from the retained source edition, never from the public upload; the public upload
+  has already been compressed and a cropped, enlarged slice of it goes soft.
+- Keep every word inside the chosen passage; choosing where a passage starts and ends is
+  editorial, changing what it says is not. Start and end at sentence boundaries. A caption
+  may be omitted for a lead-in only as a recorded, clip-specific decision, with the audio kept.
+- Carry the captions' words and their uncertainty marks from the full edition unchanged.
+- Name every time stamp's clock. The source recording, the published edition and the short
+  each have their own; the published edition's offset from the source applies only inside
+  kept footage, never to inserted cards.
+- Name the file by the clip's 2-digit ID in the selection record, then its title, hyphenated:
+  `01-We-Disagree-We-Can-Still-Grab-a-Beer.mp4`.
+- Record each clip's bounds on all 3 clocks, its shots and its decisions in the event's
+  production record before it is posted, and check platform limits at posting time against
+  [social-video-upload-limits.md in tool-settings](https://github.com/euglopi/tool-settings/blob/main/shared/guides/social-video-upload-limits.md).
+
+Posting a short is a release under this guide's normal approval; a finished file is the
+current treatment, not approval.
+
 ## Reusable brief
 
 Copy this into the existing task plan and complete it before briefing a builder:
