@@ -99,11 +99,14 @@ see [manual server tests](CONTRIBUTING.md#manual-server-tests-use-a-temporary-po
   worktree that `git worktree list` prints first) followed by `cat >> file`, `> file`,
   `sed -i`, `rm` or a formatter writes into everyone's tree, and nothing guards it. Check
   where you are before any write, prefer absolute paths into your own worktree, and never
-  run destructive or branch-switching git on a shared checkout. The full list of git
-  commands that silently destroy other agents' work (`git stash`, `git update-ref` on a
-  branch you do not own, `git checkout --ignore-other-worktrees -B <branch>`,
-  `git worktree remove --force <path>`, creating a branch in the shared checkout), the hook that locks worktrees, and the recovery steps
-  live in [`.claude/rules/workflow.md`](.claude/rules/workflow.md) rule 10. To compare
+  run destructive or branch-switching git on a shared checkout (`git reset --hard`,
+  `git clean -fd`, `git checkout .`, switching branches). Five more commands silently
+  destroy other agents' work without looking destructive: `git stash`, `git update-ref` on
+  a branch you do not own, `git checkout --ignore-other-worktrees -B <branch>`,
+  `git worktree remove --force <path>`, and creating a branch in the shared checkout;
+  `/usr/bin/git` is Apple's older git without the guard the newer one has. The mechanics,
+  the hook that locks worktrees, and the recovery steps live in
+  [`.claude/rules/workflow.md`](.claude/rules/workflow.md) rule 10. To compare
   against another revision, read it from git's object store (`git show origin/main:<path>`);
   to write, make your own worktree (`just worktree <branch>`). Scan open PRs and issues
   before starting so you do not duplicate work already in flight.
