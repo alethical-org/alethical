@@ -674,8 +674,7 @@ Include sharing in the upfront brief and acceptance checks: discoverability,
 keyboard and touch use, panel placement, copy success and failure, available
 destinations and the actual shared address. Keep Design and coding rules aligned.
 This rule does not authorize unrelated sitewide changes or bypass a requested
-design approval. The current Forward Debate sharing treatment must be drawn for
-Eugene's approval before implementation.
+design approval. The Forward Debate treatment is approved as recorded in §2.16.
 
 ## 3. Open decisions
 

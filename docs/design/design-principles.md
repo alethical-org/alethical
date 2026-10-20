@@ -887,8 +887,7 @@ keyboard/touch use, panel placement, copy success/failure, available destination
 and the actual shared address. Design and coding carry the same requirement.
 [published-writing-decisions.md §2.18](../architecture/published-writing-decisions.md#218-public-blog-posts-include-sharing-assess-other-surfaces-proactively)
 owns the scope. Unrelated sitewide changes and requested design approvals remain
-separate; the current Forward Debate sharing treatment requires Eugene's approval
-of the design before implementation.
+separate. The approved event treatment below applies to the Forward Debate.
 
 Publication dates and reporting periods remain near the title. Source-copy dates
 follow [ui-copy-guide.md §Dates on a page](ui-copy-guide.md#dates-on-a-page).
