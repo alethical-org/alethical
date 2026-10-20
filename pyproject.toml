@@ -76,12 +76,14 @@ dependencies = [
   "pypdf>=6.19.0",
   # Manual HUD ZIP-reference workbook import; API requests read packaged JSON.
   "openpyxl==3.1.5",
-  "pillow>=12.3.0",
+  "pillow>=13.0.0",
 ]
 
 [tool.uv]
 package = false
 constraint-dependencies = [
+  # Remove compromised emSign roots from every HTTP client trust store.
+  "certifi>=2026.10.19",
   # Alembic and Uvicorn use Click. Keep its editor helper off the shell so a
   # crafted editor value cannot become a command.
   "click>=8.3.3",

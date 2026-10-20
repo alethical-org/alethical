@@ -3,7 +3,7 @@ anthropic==1.11.0
 anyio==4.15.1
 ast-grep-py==0.45.3
 blast-radius @ git+https://github.com/useparadigm/blast-radius-cr.git@30beabe3397151546c4482912b76934d594b1f83
-certifi==2026.7.22
+certifi==2026.10.19
 click==8.5.0
 code-governance @ git+https://github.com/useparadigm/code-governance.git@6e80099938d69815a10ce8deb11eb8cbfbd97094
 docstring-parser==0.18.0
