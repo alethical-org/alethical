@@ -333,7 +333,8 @@ The approved design is the consolidated `Blog event hosting invitation.dc.html`
 from the 20 October 10:13 Design download. Scope: public event Share, the confirmed shared-panel behavior, private-draft
 Share exclusion, and the visible “On YouTube” label. Event-card title styling is
 excluded. The parent owns Design coordination and visual acceptance; this retained
-folder is the sole code writer. Merge waits for that acceptance.
+folder is the sole code writer. Release requires the parent and Design acceptance
+record on the owning pull request.
 
 The date row mounts the existing React Share control into a dedicated slot in the
 initial event HTML. The article and YouTube iframe stay in place. Client navigation
@@ -367,12 +368,14 @@ The full-app preview serves local assets and client routes; it does not expose a
 production write proxy. Browser regression checks use scoped read-only API routing
 where a data-backed sibling surface needs public records.
 
-Current checkpoint: the full frontend suite passes 4,778 tests across 361 files;
-TypeScript passes. The event browser suite covers 10 cases, and the shared suite
+Build validation: the full frontend suite passes 4,778 tests across 361 files;
+TypeScript passes. The event browser suite passes 10 cases, and the shared suite
 passes 18 cases. Independent browser review covers copy recovery, all prepared
 destinations, native cancellation/success, public Research and Short posts, and
 leaving the event with Share open. The actual app remains at the existing 4186
-address. Parent/Design visual acceptance and live delivery remain pending.
+address. Actual playback continues through opening and closing Share without
+replacing the iframe. Final visual acceptance and live evidence belong in the
+owning release record.
 
 The 320px doubled-text review found destination labels extending beyond their
 buttons. The shared label is constrained to its cell and can wrap without changing
