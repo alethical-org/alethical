@@ -146,7 +146,9 @@ export function SharePanelContent({
     // Measure the actual font, including reader enlargement, against three cells.
     // Keep the nodes mounted when columns change so enlarged text stays enlarged.
     let disposed = false;
-    const labels = Array.from(grid.querySelectorAll<HTMLElement>('[data-share-destination-label]'));
+    const labels = Array.from(
+      grid.querySelectorAll<HTMLElement>('[data-testid="share-destination-label"]'),
+    );
     const measure = () => {
       if (disposed) return;
       const longestName = Math.max(
@@ -517,7 +519,7 @@ function DestinationButton({
         <ShareDestinationIcon destination={destination} size={band.icon} />
       </View>
       <Text
-        dataSet={{ shareDestinationLabel: 'true' }}
+        testID="share-destination-label"
         style={[styles.destinationName, { fontSize: band.name }]}
       >
         {label}

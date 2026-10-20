@@ -172,7 +172,7 @@ for (const [width, columns] of [
     await page.goto(path);
     await page.getByRole('button', { name: 'Share this post', exact: true }).click();
     const dialog = page.getByRole('dialog');
-    const grid = dialog.locator('[data-share-destination-label]').first().locator('../..');
+    const grid = dialog.locator('[data-testid="share-destination-label"]').first().locator('../..');
     await expect
       .poll(() =>
         grid.evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(' ').length),
@@ -204,7 +204,10 @@ for (const [width, columns] of [
     ]) {
       const button = dialog.getByRole('button', { name, exact: true });
       await button.scrollIntoViewIfNeeded();
-      await expect(button.locator('[data-share-destination-label]')).toHaveCSS('font-size', '26px');
+      await expect(button.locator('[data-testid="share-destination-label"]')).toHaveCSS(
+        'font-size',
+        '26px',
+      );
       const fits = await button.evaluate((node) => {
         const box = node.getBoundingClientRect();
         const label = node.lastElementChild!;
