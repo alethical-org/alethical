@@ -10,13 +10,15 @@ export function MobileShareSheet({
   visible,
   onClose,
   content,
+  onDismiss,
 }: {
   visible: boolean;
   onClose: () => void;
   content: ShareContent;
+  onDismiss?: () => void;
 }) {
   const { isTablet } = useResponsive();
-  const closeButtonRef = useRef<View>(null);
+  const headingRef = useRef<View>(null);
   return (
     <Modal
       aria-label={shareDialogLabel(content.subject, content.resultsKind)}
@@ -24,9 +26,9 @@ export function MobileShareSheet({
       transparent
       animationType="none"
       onRequestClose={onClose}
+      onDismiss={onDismiss}
       onShow={() => {
-        if (Platform.OS === 'web')
-          (closeButtonRef.current as unknown as HTMLElement | null)?.focus?.();
+        if (Platform.OS === 'web') (headingRef.current as unknown as HTMLElement | null)?.focus?.();
       }}
     >
       <View style={styles.backdrop}>
@@ -46,7 +48,7 @@ export function MobileShareSheet({
               content={content}
               variant={isTablet ? 'tablet' : 'phone'}
               onClose={onClose}
-              closeButtonRef={closeButtonRef}
+              headingRef={headingRef}
             />
           ) : null}
         </View>
@@ -56,7 +58,7 @@ export function MobileShareSheet({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(10,14,12,0.55)' },
+  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(10,14,12,0.5)' },
   sheet: {
     width: '100%',
     maxHeight: '92%',

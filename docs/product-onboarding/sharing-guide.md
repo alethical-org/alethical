@@ -4,6 +4,8 @@
 
 <!-- describes: apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/lib/committeeMoneyPreferences.ts, apps/frontend/src/lib/share.ts, apps/frontend/src/lib/screenPageMetadata.ts, apps/frontend/src/lib/pageSnapshot.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/lib/legislatorProfile.ts, apps/frontend/src/components/billDetail/SharePopover.tsx, apps/frontend/src/components/share/MobileShareSheet.tsx, apps/frontend/src/screens/redesign/BillDetailScreen.tsx, apps/frontend/src/screens/redesign/BillDetailWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/navigation/documentTitle.ts, apps/frontend/public/index.html, apps/frontend/public/robots.txt, apps/frontend/scripts/generate-brand-assets.mjs, api/page.ts, api/sitemap.ts, vercel.json -->
 
+<!-- describes: apps/frontend/src/lib/eventMarkup.ts, apps/frontend/src/lib/eventReplayMarkup.ts, apps/frontend/src/components/share/mountEventShare.tsx, apps/frontend/src/screens/redesign/EventScreen.tsx, apps/frontend/src/components/shortPosts/ShortPostArticle.tsx -->
+
 Share sends the page a reader chose, with enough plain-language context for another person to know why the link matters. Copy link remains the dependable choice when another app cannot accept prepared text.
 
 ## What each page shares
@@ -15,6 +17,8 @@ Share sends the page a reader chose, with enough plain-language context for anot
 | Ask answer      | The reader's question                                       | A fixed sentence saying the answer is cited and links to the official record      | The public Ask address, keeping only the question, bill, legislator, and saved-suggestion fields needed to rebuild it                                                       |
 | Committee money | The committee's filed name | Campaign money from Minnesota’s official filings | The committee address, retaining the year, section, donor category and sort, independent-spending sort, open contribution rows, ownership evidence and earlier-year choices |
 | Research and guide | The published title | The existing publication and records-through dates, without figures or article text (a search result instead shows a guide's own sentence about what it covers) | The published article address |
+| Event or recording | The published event title | Omitted when it adds no useful context | The stable public article address, without a video timestamp, query or fragment |
+| Short post | The published title | The post’s existing publication date | The public article address; private previews omit Share |
 | Lobbyist | The record's existing title | The existing description for its registration state | The lobbyist's public record address, retaining the selected donation year |
 | Lobbying principal | The organisation's existing title | Its reported spending and registered lobbyists | The organisation's public record address |
 | Name-search results | The searched name | The kinds of records searched | The public name-search address and query |
@@ -54,7 +58,7 @@ choices. Independent spending keeps its own Newest first or Largest first order 
 `spendingSort`; this does not overwrite the donor browser's separate saved sort.
 
 The visible panel heading names what is shared: **Share this committee**,
-**Share this bill**, **Share these search results**, **Share these payment records**,
+**Share this bill**, **Share this post**, **Share these search results**, **Share these payment records**,
 **Share this race comparison**, or **Share these outside-spending results**. The
 accessible name uses the same words. This is a window label, never part of the
 outgoing message. The title identifies the record
@@ -98,13 +102,16 @@ Instagram has no direct button. It cannot open a prepared visitor post containin
 ## What readers see
 
 - Share opens one panel showing the title, description, and selectable link. Copy appears first, followed by Email, WhatsApp, Facebook, LinkedIn, X, and Bluesky.
-- At 1,100 pixels and wider, the 366-pixel panel hangs from the existing Share button. It opens above the button when needed and stays inside the window. Long content scrolls inside the panel while Close stays reachable.
-- Three ways to close it, all of which work: click or tap anywhere outside it, press Esc, or use the X in its corner. The keyboard goes into the panel when it opens, stays inside it while it is open, and comes back to the Share button when it closes.
+- At 1,100 pixels and wider, the 366-pixel panel opens below the Share button, above it when needed, or beside it on a short screen. It keeps 16 pixels from the window edges and 10 pixels from the button without covering it. Long content scrolls inside the panel while Close stays reachable.
+- Three ways to close it, all of which work: click or tap anywhere outside it, press Esc, or use the X in its corner. Keyboard focus starts on the panel heading, stays inside while it is open, and returns to the Share button when it closes. Opening a destination closes the panel too. A blocked destination leaves a message and Copy available.
 - Below 1,100 pixels, the existing Share buttons open the same bottom sheet over a dimmed page. Phone screens below 768 pixels use 2 rows of 3 destinations and a full-width copy button. Tablet screens use 1 row of 6 and an inline copy button.
 - **Share using another app** appears only when the browser or device can share the supplied content, including on supported desktop browsers. Cancelling that menu is not an error.
-- A successful copy shows **Copied** on desktop or **Link copied** on a sheet for about 2 seconds. A failed copy gives a visible explanation and leaves the full link available to select and copy manually.
-- All 9 content types, including results, use `SharePanelContent.tsx`; `SharePopover.tsx` and `MobileShareSheet.tsx` own its placement. Shared platform artwork lives in `ShareDestinationIcon.tsx`.
+- A successful copy shows **Copied** on desktop or **Link copied** on a sheet for about 2 seconds. The button keeps its width: 112 pixels on desktop, 156 on tablet, and full width on phones. A failed copy shows “Couldn’t copy the link. Select and copy it from the link field.” and selects the full link for manual copying.
+- A blocked destination shows “Couldn’t open the sharing app. Copy the link instead.” A failed device menu shows “Couldn’t open the sharing menu. Copy the link instead.” Cancelling the device menu stays silent.
+- All supported public content types, including results and blog posts, use `SharePanelContent.tsx`; `SharePopover.tsx` and `MobileShareSheet.tsx` own its placement. Shared platform artwork lives in `ShareDestinationIcon.tsx`.
 - No share includes a reader's account details, saved bills, address, or sign-in information.
+
+Public blog posts include Research, Guides, Short posts, events and recordings. Event Share sits beside the publication date and wraps beneath it on narrow screens. The Forward Debate shares its article address even when opened at a video timestamp. Opening or closing Share leaves the playing video in place; transcript Copy link still shares its specific timestamp. Private article drafts and restricted records do not offer public sharing.
 
 ## Private TV ad records
 

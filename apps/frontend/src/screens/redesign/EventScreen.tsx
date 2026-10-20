@@ -11,6 +11,7 @@ import {
 import { mountStableEventScroll } from '../../lib/stableEventScroll';
 import { publishedEventMetadata, renderEventArticle } from '../../lib/eventArticle';
 import { ReaderComments } from '../../components/comments/ReaderComments';
+import { mountEventShare } from '../../components/share/mountEventShare';
 import { ScrollView } from 'react-native';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { eventBySlug, eventPath } from '../../lib/events';
@@ -81,6 +82,11 @@ export function EventScreen({ navigation, route }: Props) {
     const root = (stable ?? main.current)?.querySelector<HTMLElement>('.replay-content');
     if (root) return mountEventReplay(root, path);
   }, [markup, stable, focused, path]);
+  useEffect(() => {
+    if (!focused || !event) return;
+    const root = stable ?? main.current;
+    if (root) return mountEventShare(root, event);
+  }, [event, stable, focused]);
   if (!focused) return null;
   if (stable) {
     if (!claimed) return null;

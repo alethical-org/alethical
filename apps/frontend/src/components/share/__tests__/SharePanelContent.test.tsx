@@ -14,7 +14,7 @@ vi.mock('react-native-svg', () => ({
   Line: () => <line />,
 }));
 
-import * as Clipboard from 'expo-clipboard';
+const writeText = vi.fn<Navigator['clipboard']['writeText']>();
 import { SharePanelContent } from '../SharePanelContent';
 import type { ShareContent } from '../../../lib/share';
 import { buildShareIntents, nativeShareText } from '../../../lib/shareIntents';
@@ -70,7 +70,8 @@ async function click(element: HTMLElement) {
 }
 
 beforeEach(() => {
-  vi.mocked(Clipboard.setStringAsync).mockReset().mockResolvedValue(true);
+  writeText.mockReset().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
   setDeviceShare();
   mount = document.createElement('div');
   document.body.append(mount);
@@ -250,35 +251,40 @@ describe('shared panel content', () => {
   it.each(['desktop', 'tablet', 'phone'] as const)(
     'shows successful copy wording only after copying succeeds on %s',
     async (variant) => {
-      let finishCopy!: (value: boolean) => void;
-      vi.mocked(Clipboard.setStringAsync).mockImplementation(
+      let finishCopy!: () => void;
+      writeText.mockImplementation(
         () =>
-          new Promise<boolean>((resolve) => {
+          new Promise<void>((resolve) => {
             finishCopy = resolve;
           }),
       );
       render(variant);
       expect(copyButton().textContent).toBe(variant === 'desktop' ? 'Copy' : 'Copy link');
       await click(copyButton());
-      expect(Clipboard.setStringAsync).toHaveBeenCalledWith(content.url);
+      expect(writeText).toHaveBeenCalledWith(content.url);
       expect(mount.textContent).not.toContain(variant === 'desktop' ? 'Copied' : 'Link copied');
-      await act(async () => finishCopy(true));
+      await act(async () => finishCopy());
       expect(copyButton().textContent).toBe(variant === 'desktop' ? 'Copied' : 'Link copied');
     },
   );
 
-  it.each(['false', 'reject'] as const)(
+  it.each(['unavailable', 'reject'] as const)(
     'offers manual copying when clipboard returns %s',
     async (failure) => {
-      if (failure === 'false') vi.mocked(Clipboard.setStringAsync).mockResolvedValue(false);
-      else
-        vi.mocked(Clipboard.setStringAsync).mockRejectedValue(new Error('Clipboard unavailable'));
+      if (failure === 'unavailable')
+        Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+      else writeText.mockRejectedValue(new Error('Clipboard unavailable'));
       render();
       await click(copyButton());
       expect(mount.textContent).toContain(copyError);
       expect(mount.textContent).not.toContain('Copied');
-      expect(mount.querySelector<HTMLInputElement>('input')!.value).toBe(content.url);
-      vi.mocked(Clipboard.setStringAsync).mockResolvedValue(true);
+      const field = mount.querySelector<HTMLInputElement>('input')!;
+      expect(field.value).toBe(content.url);
+      expect(document.activeElement).toBe(field);
+      expect(field.selectionStart).toBe(0);
+      expect(field.selectionEnd).toBe(content.url.length);
+      writeText.mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
       await click(copyButton());
       expect(mount.textContent).not.toContain(copyError);
       expect(mount.textContent).toContain('Copied');
@@ -301,8 +307,10 @@ describe('device sharing', () => {
       const share = vi.fn().mockResolvedValue(undefined);
       const canShare = vi.fn().mockReturnValue(true);
       setDeviceShare(share, canShare);
-      render(variant);
+      const onClose = vi.fn();
+      render(variant, content, onClose);
       await click(control('Share using another app'));
+      expect(onClose).toHaveBeenCalledOnce();
       const payload = {
         text: nativeShareText(content, false),
         url: content.url,
@@ -329,10 +337,12 @@ describe('device sharing', () => {
 
   it('treats closing the device chooser as cancellation, not failure or success', async () => {
     setDeviceShare(vi.fn().mockRejectedValue(new DOMException('Cancelled', 'AbortError')));
-    render();
+    const onClose = vi.fn();
+    render('desktop', content, onClose);
     const before = mount.textContent;
     await click(control('Share using another app'));
     expect(mount.textContent).toBe(before);
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('offers another way to share when the device chooser fails', async () => {
@@ -346,6 +356,39 @@ describe('device sharing', () => {
 });
 
 describe('prepared destination links', () => {
+  it('keeps the panel open with a recovery message when the popup is blocked', async () => {
+    vi.spyOn(window, 'open').mockReturnValue(null);
+    const onClose = vi.fn();
+    render('desktop', content, onClose);
+    await click(control('Share on WhatsApp'));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(mount.querySelector('[role="alert"]')?.textContent).toBe(
+      'Couldn’t open the sharing app. Copy the link instead.',
+    );
+  });
+
+  it('closes after opening a destination and cuts its access to the opening window', async () => {
+    const popup = { opener: window, location: { replace: vi.fn() }, close: vi.fn() };
+    vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
+    const onClose = vi.fn();
+    render('desktop', content, onClose);
+    await click(control('Share on Bluesky'));
+    expect(popup.opener).toBeNull();
+    expect(popup.location.replace).toHaveBeenCalledWith(buildShareIntents(content).bluesky);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['desktop', '112px'],
+    ['tablet', '156px'],
+  ] as const)('keeps the %s copy control width through success', async (variant, width) => {
+    render(variant, { ...content, description: '', previewDescription: '' });
+    expect(getComputedStyle(copyButton()).minWidth).toBe(width);
+    await click(copyButton());
+    expect(getComputedStyle(copyButton()).minWidth).toBe(width);
+    expect(mount.textContent).not.toContain(content.description);
+  });
+
   it('keeps research preview text separate from the text sent to another app', async () => {
     const research: ShareContent = {
       subject: 'research',
@@ -363,7 +406,9 @@ describe('prepared destination links', () => {
     expect(share.mock.calls[0][0].text).toContain(research.description);
 
     const intents = buildShareIntents(research);
-    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const navigate = vi.fn();
+    const popup = { opener: window, location: { replace: navigate }, close: vi.fn() };
+    const open = vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
     const openEmail = vi.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
     for (const [label, url] of [
       ['Share by email', intents.email],
@@ -378,7 +423,11 @@ describe('prepared destination links', () => {
       else {
         await click(destination);
         if (label === 'Share by email') expect(openEmail.mock.calls.at(-1)?.[0]).toBe(url);
-        else expect(open.mock.calls.at(-1)?.[0]).toBe(url);
+        else {
+          expect(open).toHaveBeenCalledWith('', '_blank');
+          expect(popup.opener).toBeNull();
+          expect(navigate.mock.calls.at(-1)?.[0]).toBe(url);
+        }
       }
     }
   });

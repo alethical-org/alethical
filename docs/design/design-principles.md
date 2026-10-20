@@ -880,6 +880,30 @@ When redundant metadata is removed, Share remains right-aligned on the same row
 as the remaining metadata wherever both fit. Keep the approved narrow-screen
 wrapping and spacing; do not leave an empty row for the removed wording.
 
+Event article metadata uses a wrapping row with the date left and Share right,
+16px horizontal and 4px row gaps, 8px below the title and 20px before the introduction.
+The approved Share control is white with a 1px ink-16 border, 11px radius, 44px
+minimum height, 16px icon and 15px bold label. Hover on fine pointers at 768px and
+wider uses #f7f8fa with an ink-30 border; pressed uses #f1f1f4 with that border.
+Open keeps the hover treatment; keyboard focus uses the shared purple outline.
+
+The shared desktop panel is 366px wide, with a 10px trigger gap and at least 16px
+inside the window. Try below, above, then beside the trigger; constrain and scroll
+the body in a short window without covering the trigger. Below 1100px, use the
+bottom sheet over the approved half-opacity dark scrim. Tablet Copy stays inline
+with 6 destinations in 1 row; below 768px Copy fills its row and destinations use
+2 rows of 3. Focus the heading on open, trap keyboard focus, close with Escape,
+Close, outside activation or successful destination opening, then return focus to
+the trigger. Scrims and panels prevent click-through. Native chooser cancellation
+is silent; unavailable native sharing is omitted.
+
+Copy keeps its width through confirmation: 112px desktop, 156px tablet and full
+width phone. Omit an empty description. Announce copying or opening failures with
+the approved recovery text; a failed copy focuses and selects the address field.
+Only a successful clipboard write may show Copied. Preserve existing trigger
+styling and identifying content on other shared-panel uses.
+
+
 ### Build acceptance for controls
 
 **Compare changed elements with the rest of the screen before handoff.** Design

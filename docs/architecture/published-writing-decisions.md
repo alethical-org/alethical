@@ -615,6 +615,19 @@ existing author-directed research correction process.
 Event article identities join the generated server eligibility registry; collection
 pages remain comment-free.
 
+**Event sharing and replay link, 20 October 2026:** The consolidated
+`Blog event hosting invitation.dc.html` is approved for implementation. Public
+event articles use the shared Share control beside their publication date,
+wrapping below it at narrow widths or with enlarged text. The Forward Debate
+panel says “Share this post”, identifies “The Forward Debate”, omits an empty
+description and shares `https://www.alethical.com/blog/events/forward-debate-2026`
+without a query, fragment or playback time. Transcript Copy link actions retain
+their own timestamps. Opening and closing Share must preserve the existing player.
+Its always-visible original-video link says “On YouTube”, followed by the duration,
+with the existing 16px gap below the player. This wording is case-specific.
+The event-card title consultation is separate and does not change its treatment.
+
+
 Search and sharing behavior is owned by
 [page-metadata-for-search-and-sharing-decisions.md §30](page-metadata-for-search-and-sharing-decisions.md#30-event-announcements-are-discoverable-from-their-first-response).
 

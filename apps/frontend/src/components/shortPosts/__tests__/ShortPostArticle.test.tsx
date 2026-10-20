@@ -2,7 +2,13 @@ import { JSDOM } from 'jsdom';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../billDetail/SharePopover', () => ({ SharePopover: () => null }));
+vi.mock('../../billDetail/SharePopover', () => ({
+  SharePopover: ({ disabled }: { disabled?: boolean }) => (
+    <button disabled={disabled} data-test-share>
+      Share
+    </button>
+  ),
+}));
 vi.mock('react-native-svg', () => ({
   default: () => null,
   Path: () => null,
@@ -51,6 +57,16 @@ const graphic: ShortPostGraphic = {
 graphic.altDescription = chartDescription(graphic.input);
 
 describe('Short post article and charts', () => {
+  it('shows sharing on a public article and omits it from private previews', () => {
+    const publicDoc = new JSDOM(renderToStaticMarkup(<ShortPostArticle piece={LOBBYIST_GIVING} />))
+      .window.document;
+    const privateDoc = new JSDOM(
+      renderToStaticMarkup(<ShortPostArticle piece={LOBBYIST_GIVING} privatePreview />),
+    ).window.document;
+    expect(publicDoc.querySelector('[data-test-share]')).not.toBeNull();
+    expect(privateDoc.querySelector('[data-test-share]')).toBeNull();
+  });
+
   it('keeps each published table’s exact figures and accessible headers with 1 hidden spacer per row', () => {
     for (const piece of [
       LOBBYIST_GIVING,
