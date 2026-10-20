@@ -1,9 +1,8 @@
 # Session workflow rules
 
-**Working-process rules** — how work moves in this repository, for every coding agent
-and every person. This file is the single home of the working conventions.
-`CONTRIBUTING.md` covers setup, commands, and the CI reference, and points here for the
-rest; `.claude/rules/grounded-answers.md` carries the product-behavior rules.
+How work moves in this repository, for every coding agent and every person. This file is
+the single home of the working conventions. `CONTRIBUTING.md` covers setup, commands and the
+CI reference; `.claude/rules/grounded-answers.md` carries the product-behavior rules.
 
 ## How we work — the shape
 
@@ -11,28 +10,28 @@ rest; `.claude/rules/grounded-answers.md` carries the product-behavior rules.
    `origin/main`, branch in your own worktree, build, verify, open the PR, merge it
    yourself once the named checks pass on the current head, let the merge deploy, then
    check the live result. (Rules 1, 10.)
-2. **One worktree per simultaneously active piece of work** — create it the moment the
+2. **One worktree per simultaneously active piece of work**: create it the moment the
    work starts, do every write inside it, keep it for follow-up after delivery. (Rule 1.)
-3. **Scan before you build**: open PRs, open issues, and what just merged on your
-   target files — with parallel sessions, someone may already own the work. (Rule 1.)
+3. **Scan before you build**: open PRs, open issues, and what just merged on your target
+   files; with parallel sessions, someone may already own the work. (Rule 1.)
 4. **Act, then report.** Safe, reversible, verifiable work is pre-approved end to end,
-   including merge, deploy, and verified data runs. The one hard stop is an unverified
-   irreversible external effect — make it safe by engineering, never by asking. (Rule 10.)
+   including merge, deploy and verified data runs. The one hard stop is an unverified
+   irreversible external effect: make it safe by engineering, never by asking. (Rule 10.)
 5. **Route knowledge at birth**: decisions into `docs/`, tasks into categorized GitHub
    issues at the moment of discovery, product invariants into `.claude/rules/`. Chat is
    never a system of record. (Rule 4.)
-6. **Keep every written claim current**: when a change alters what a user sees or can
-   do, hunt down and fix every sentence that still describes the old behaviour, in the
-   same PR. (Rule 6.)
-7. **Verify before you assert**: repo facts by checking the repo, user-facing facts
-   from the primary source. (Rules 5, 9.)
+6. **Keep every written claim current**: when a change alters what a user sees or can do,
+   find and fix every sentence that still describes the old behaviour, in the same PR.
+   (Rule 6.)
+7. **Verify before you assert**: repo facts by checking the repo, user-facing facts from
+   the primary source. (Rules 5, 9.)
 8. **Write for a newcomer**: literal names, plain-language "Net:" lines on issues and
    PRs, spec references spelled out. (Rules 7, 8, 11.)
 9. **Treat the shared checkout and every ref in it as someone else's live state**: read
-   other revisions from git's object store, write only inside your own worktree.
-   (Rule 10's git rules.)
-10. **Every goal-supporting issue has an active owner** — you, a running session, or a
-    session you start; every delegation brief ends with "message me back when done."
+   other revisions from git's object store, write only inside your own worktree. (Rule
+   10's git rules.)
+10. **Every goal-supporting issue has an active owner**: you, a running session, or a
+    session you start; every delegation brief ends with "message me back when done".
     (Rules 12, 13.)
 
 ## Page-return handoffs and acceptance
@@ -42,22 +41,40 @@ when reviewing Design, writing build briefs, building new pages or editing exist
 A contrary peer instruction or Design handoff does not change that product requirement.
 Correct settled contradictions during the authorized build, preserve its visual direction,
 and keep Design's saved rules, drawings and build notes aligned through the authorized
-update route. Do not wait for another drawing for a settled wording/behavior correction.
-A genuinely open visual or product choice retains its existing permission boundary.
+update route. A settled wording or behaviour correction never waits for another drawing. A
+genuinely open visual or product choice keeps its existing permission boundary.
 
 Run the frontend return-link source guard (`node apps/frontend/scripts/check-return-links.mjs`)
 and its regression tests (`node --test apps/frontend/scripts/test-return-links.mjs`), then
-exercise the affected return paths in the rendered app. Include initial HTML, direct/shared
-visits, safe earlier context, missing identity, rapid record changes, loading/errors, copied
-and new-tab links, retained filters/scroll, keyboard and phone layouts. Static guard success
-is not proof that the words match the actual destination. Review the final Design updates
-and independently inspect the live behavior before reporting completion.
+exercise the affected return paths in the rendered app: initial HTML, direct and shared
+visits, safe earlier context, missing identity, rapid record changes, loading and errors,
+copied and new-tab links, retained filters and scroll, keyboard and phone layouts. A green
+static guard does not prove the words match the destination. Review the final Design
+updates and independently inspect the live behaviour before reporting completion.
 
 ## The rules
 
-1. **Target branch first.** Establish at the start which branch or PR the work belongs to; work in your own worktree off `origin/main` for it rather than building in the shared checkout (concurrent-session mechanics: skill `when-to-act-without-approval`; rule 10 carries the git prohibitions). The whole worktree policy in one sentence: **one worktree per simultaneously active piece of work — create it the moment that work starts (`just worktree <branch>`, or your tool's own worktree mechanism), do every write inside it, and keep it for follow-up after delivery, live checks and acceptance are complete. Release it only when Eugene explicitly requests cleanup (`just worktree-rm <branch> <owner-id> '<delivery and cleanup authorization evidence>'`).** Completion, merging and age do not authorize cleanup. Completed work gets a retention hold with no automatic expiry; related follow-up stays in the same chat and folder, with a fresh branch from current main when needed. Every owner must finish or record a hold for remaining review or previews. New work quietly revokes prior releases. Existing holds survive ordinary questions; a missing finish decision quietly keeps the folder, including unfinished, unsaved or unpublished work. Routine lifecycle hooks must not interrupt replies or add chat messages. User-requested cleanup and an explicit owner release after delivery and acceptance remain required for removal. Cleanup saves recovery copies, retains branches and refuses unsafe removal. Codex-managed folders use the app's own archive control. See [working-folder cleanup and recovery](../../docs/operations/worktree-lifecycle.md). **Never release another task's folder on the basis of age or a merged change alone.**
+1. **Target branch first.** Establish at the start which branch or PR the work belongs
+   to; work in your own worktree off `origin/main` for it, never in the shared checkout
+   (rule 10 carries the git prohibitions). The whole worktree policy: **one worktree per
+   simultaneously active piece of work, created the moment that work starts
+   (`just worktree <branch>`, or your tool's own worktree mechanism), every write inside
+   it, kept for follow-up after delivery, live checks and acceptance.** Release it only
+   when the maintainer explicitly requests cleanup
+   (`just worktree-rm <branch> <owner-id> '<delivery and cleanup authorization evidence>'`);
+   removal requires both that request and an explicit owner release after delivery and
+   acceptance. Completion, merging and age never authorize cleanup; completed work carries a
+   retention hold with no expiry; related follow-up stays in the same chat and folder,
+   with a fresh branch from current main when needed. Every owner finishes or records a
+   hold for remaining review or previews. New work revokes prior releases; holds survive
+   ordinary questions; a missing finish decision keeps the folder, including unfinished,
+   unsaved or unpublished work. Routine lifecycle hooks never interrupt replies or add
+   chat messages (concurrent-session mechanics: skill `when-to-act-without-approval`). Cleanup saves recovery copies, retains branches
+   and refuses unsafe removal; Codex-managed folders use the app's own archive control.
+   See [working-folder cleanup and recovery](../../docs/operations/worktree-lifecycle.md).
+   **Never release another task's folder on the basis of age or a merged change alone.**
 
-   Before writing code, check that the work isn't already owned or landed:
+   Before writing code, check that the work is not already owned or landed:
 
    ```bash
    git fetch origin main
@@ -67,106 +84,283 @@ and independently inspect the live behavior before reporting completion.
    gh pr list --state merged --search "<file/topic>"
    ```
 
-   If origin moved or a merged PR already touched the file, rebase and re-scope as an extension before you build. Why each check earns its place: duplicated in-flight work merges twice and conflicts once (#121/#122); an open issue can carry a decision no PR scan sees — one session bulk-merged nine bot PRs that [#691](https://github.com/alethical-org/alethical/issues/691) said not to; and the session-start "N commits behind" snapshot goes stale the moment another session merges — two mid-session merges each forced a rebuild (#180/#186).
+   If origin moved or a merged PR already touched the file, rebase and re-scope as an
+   extension before you build. Duplicated in-flight work merges twice and conflicts once;
+   an open issue can carry a decision no PR scan sees; a session-start "N commits behind"
+   snapshot goes stale the moment another session merges.
 
-2. **Commit and push at milestones, not at session end.** Uncommitted work is invisible — not in the PR, not reviewable, not recoverable by anyone outside the conversation. When a coherent chunk lands, commit it. Register each authorized job before substantive work and bind resumed conversations and helpers to that same job using [agent-job-outcomes.md](../../docs/operations/agent-job-outcomes.md). Local Claude Code and Codex hooks record activity after installation and host review; a stopped reply never completes a job. Use the shared source-reading completion checker for the finish. Keep unfinished jobs, independent acceptance evidence and unknown measurements honest; never claim success from an invented record. During the prospective trial, mark only newly starting, ordinary approved low-risk jobs eligible; do not invent work to fill it. Keep private help and retry notes during work, including helper coverage and gaps, using [agent-job-outcomes.md, Record help and retries while working](../../docs/operations/agent-job-outcomes.md#record-help-and-retries-while-working); do not reconstruct whole-job counts from host event totals.
+2. **Commit and push at milestones, not at session end.** Uncommitted work is invisible:
+   not in the PR, not reviewable, not recoverable by anyone outside the conversation. When
+   a coherent chunk lands, commit it. Register each authorized job before substantive
+   work and bind resumed conversations and helpers to that same job using
+   [agent-job-outcomes.md](../../docs/operations/agent-job-outcomes.md). Local Claude Code
+   and Codex hooks record activity after installation and host review; a stopped reply
+   never completes a job. Use the shared source-reading completion checker for the finish.
+   Keep unfinished jobs, independent acceptance evidence and unknown measurements honest;
+   never claim success from an invented record. During the prospective trial, mark only
+   newly starting, ordinary approved low-risk jobs eligible; do not invent work to fill it.
+   Keep private help and retry notes during work, including helper coverage and gaps,
+   using [agent-job-outcomes.md, Record help and retries while working](../../docs/operations/agent-job-outcomes.md#record-help-and-retries-while-working);
+   do not reconstruct whole-job counts from host event totals.
 
-3. **Share branches, not file copies.** If the user hands you a loose copy of a repo file (Downloads, attachment), diff it against the branches before building on it — it may duplicate or trail a branch. Land durable content on a branch promptly, point people at branches/PRs rather than exporting files, and delete the loose copy in the same session it lands — a kept copy immediately starts trailing the branch and resurfaces later as a stale shadow of main.
+3. **Share branches, not file copies.** A loose copy of a repo file (Downloads, an
+   attachment) is diffed against the branches before anything is built on it. Land
+   durable content on a branch promptly, point people at branches and PRs rather than
+   exporting files, and delete the
+   loose copy in the same session it lands: a kept copy trails the branch and resurfaces
+   as a stale shadow of main.
 
-4. **Route knowledge at birth.** Decisions → the relevant spec in `docs/`. Tasks and deferred work → GitHub issues, filed at the moment of discovery with: what it is · what exists today · why deferred · what unblocks it · **a milestone, an issue type, a topic label, and its board fields (Epic, Priority, LOE, Status)** assigned at filing, then the issue number cross-linked back into the doc that spawned it. Product invariants → `.claude/rules/`. Working-process norms → this file. Chat is a scratchpad, never a system of record.
+4. **Route knowledge at birth.** Decisions go to the relevant spec in `docs/`. Tasks and
+   deferred work go to GitHub issues, filed at the moment of discovery with what it is,
+   what exists today, why deferred, what unblocks it, **a milestone, an issue type, a topic
+   label, and its board fields (Epic, Priority, LOE, Status)**, then cross-linked back into
+   the doc that spawned it. Product invariants go to `.claude/rules/`; working-process
+   norms to this file. Chat is a scratchpad, never a system of record.
 
-   **A decision reached in conversation, with no file changed, still ships a doc edit in the same session.** Nothing automated fires on it — the doc-sync check only runs on PRs that touch declared code — so the routing has to be deliberate. The trigger: **if a chat reply just taught the maintainer something durable, that content goes into `docs/` before the turn ends** — the fact, the decision, and the reason, written for the next builder rather than as chat prose. Two categories slip past every code-shaped check and neither reads like "a decision" while you write it:
+   **A decision reached in conversation, with no file changed, still ships a doc edit in
+   the same session.** Nothing automated fires on it. If a chat reply just taught the
+   maintainer something durable, that content (the fact, the decision and the reason)
+   goes into `docs/` before the turn ends, written for the next builder. Two categories slip past every code-shaped check:
 
-   - **How an external source actually behaves** — not its data but its mechanics: archive vs overwrite-in-place, link stability, format violations, what its error page looks like. These decide the shape of every importer and are only learnable by measurement.
-   - **How we handle its data** — where a file lives, what is kept, pruned, backed up, which credential reaches it and why, what is lost if the store is lost. Future sessions inherit these as constraints and cannot infer them from code.
+   - **How an external source behaves**: archive vs overwrite-in-place, link stability,
+     format violations, what its error page looks like. These shape every importer and
+     are learnable only by measurement.
+   - **How we handle its data**: where a file lives, what is kept, pruned, backed up,
+     which credential reaches it and why, what is lost if the store is lost.
 
-   **But only what is settled, and "settled" is three different things:**
+   **Only what is settled goes in, and settled is 3 different things:** a measured fact
+   about the world goes in at once, agreement or not; a settled decision goes in the
+   moment it settles
+   (yours under rule 10 and made, or agreed by the maintainer, whose silence on something
+   you flagged as his call is not agreement); an option still on the table does not go in
+   at all, and once one wins the doc records why the winner won. The test: **could you write the sentence as a flat assertion with no hedge?**
+   "Bodies live in a private Supabase bucket" is a doc sentence; "we are weighing a bucket
+   against the database" is not; "bodies will *likely* live in a bucket" is the failure,
+   because a future reader drops the hedge.
 
-   - **A measured fact about the world goes in immediately**, agreement or not — it is true whichever approach wins.
-   - **A settled decision goes in the moment it settles** — yours to make under rule 10 and made, or agreed by the maintainer. **Silence on something you flagged as his call is not agreement.**
-   - **An option still on the table does not go in at all.** Chat and the issue body hold it until one option wins; then the doc records why the winner won.
+   **The tell: reasoning that ends up inside a GitHub issue body.** An issue holds the
+   task; a doc holds why the alternative lost. A rejection rationale, a ranked-tradeoff
+   list or a "reconsider only if X" condition in an issue is a decision wearing a task's
+   clothing: put it in the doc and have the issue link to it.
 
-   The test when they blur: **could you write the sentence as a flat assertion with no hedge?** "Bodies live in a private Supabase bucket" is a doc sentence; "we are weighing a bucket against the database" is not — and "bodies will *likely* live in a bucket" is the failure mode, because a future reader drops the hedge. (Origin: [#1328](https://github.com/alethical-org/alethical/issues/1328) wrote the measurements into the design doc and left every handling decision in chat; grepping the doc for `Cloudflare`, `backup`, `gzip`, `bucket` returned zero hits each.)
+   Existing issues get the same care: when shipped work or a recorded decision changes
+   one (done, half-done, re-scoped, obsolete), update or close it in the same session. A
+   periodic triage pass is the backstop, not the mechanism.
 
-   **The specific tell: reasoning that ends up inside a GitHub issue body.** An issue is the right home for *the task*; a doc is the right home for *why the alternative lost*. A rejection rationale, a ranked-tradeoff list, or a "reconsider only if X" condition written into an issue is a decision wearing a task's clothing — put it in the doc and have the issue link to it. (Two of four such conclusions had to be retrofitted after the maintainer asked, [#787](https://github.com/alethical-org/alethical/issues/787)/[#792](https://github.com/alethical-org/alethical/pull/792).)
+   **Categorize every issue at creation; the Roadmap board (org `alethical-org` Project #1
+   "Alethical Roadmap") is the source of truth.** The 8-axis scheme, the
+   create-then-set-board-fields sequence, the uncategorized-item sweep and the board
+   lifecycle live in skill **`file-github-issue`**: invoke it before `gh issue create` and
+   when moving an item's Status.
 
-   The same applies to *existing* issues: when work you ship or a decision you record changes one — done, half-done, re-scoped, obsolete — update or close it in the same session. A periodic manual triage pass is the backstop, not the mechanism.
+   **Only ever set item field *values* and board membership; never restructure the
+   project's fields, options or views.** The maintainer's saved Epic, Milestone and Board
+   views group and sort by each option's identity and order. The 4 authorized mutations,
+   plus the `gh` label and milestone flags: `updateProjectV2ItemFieldValue`,
+   `addProjectV2ItemById`, `addSubIssue`, `unarchiveProjectV2Item`. Off-limits without an
+   explicit in-session go-ahead: `createProjectV2Field`, `deleteProjectV2Field`,
+   `updateProjectV2Field` (which renames a field or adds, renames, reorders or deletes a
+   single-select option). When work seems to need a new Epic, option or renamed field,
+   propose it and let the maintainer make the structural edit, then fill in item values.
+   To defer or recategorize, change the item's field value or move it to a
+   higher-numbered milestone, never the option itself.
 
-   **Categorize every issue at creation — the Roadmap board (org `alethical-org` Project #1 "Alethical Roadmap") is the source of truth.** The full 8-axis scheme, the two-step create-then-set-board-fields gotcha, the uncategorized-item sweep, and the board lifecycle rules live in skill **`file-github-issue`** — invoke it before `gh issue create` and when moving an item's Status.
+5. **Verify cheap repo facts before deciding on them.** A claim one `diff`, `git log` or
+   `grep` away from certain (which version is newer, does the model have that field, is
+   the file gitignored) is checked before building work or advice on it. Scope and timing
+   claims are the flagship case: never assign MVP, post-MVP or milestone timing from
+   memory; check `gh issue list`, the milestones and
+   `docs/product-onboarding/product-scope.md`, and cite the issue, milestone or spec
+   section that grounds the claim.
 
-   **Only ever set item field *values* and board membership — never restructure the project's fields, options, or views.** The maintainer's saved Epic/Milestone/Board views group and sort by each option's identity and order, so renaming, reordering, or deleting an option silently rearranges his groups. The four authorized mutations, plus the `gh` label/milestone flags: `updateProjectV2ItemFieldValue`, `addProjectV2ItemById`, `addSubIssue`, and `unarchiveProjectV2Item`. Off-limits without an explicit in-session go-ahead: `createProjectV2Field`, `deleteProjectV2Field`, and `updateProjectV2Field` (the mutation that renames a field or adds/renames/reorders/deletes a single-select option). When work seems to need a new Epic, option, or renamed field, **propose it and let the maintainer make the structural edit**, then fill in item values. To defer or recategorize, change the item's field *value* or move it to a higher-numbered milestone — never touch the option itself.
+   **One verified instance is not a count.** Confirming a case and then writing a sentence
+   about the population verifies the case, not the sentence, and it passes every review
+   because the checkable part is true. **The tell is a plural or general subject on
+   singular evidence**: "the numbers are accurate", "the download lags amendments", "the
+   sessions collided", "gifts of $200 or less are never named". Before writing one, ask
+   how many you looked at and how many there are, then count them or narrow the sentence
+   to what you counted; "on the committee I checked" is 5 words and true. A money page
+   sentence once named a direction false on 33 of 76 disagreeing committee-years after 1
+   committee was read; a download was found to both lag amendments and double-count a
+   filing; a "3 sessions collided" claim was 5 pull requests in an hour, countable in 1
+   command. The product-facing form is `.claude/rules/grounded-answers.md` rule 11; this
+   rule applies it to our own writing: issues, PR bodies, docs and messages to each other.
 
-5. **Verify cheap repo facts before deciding on them.** If a claim is one `diff`, `git log`, or `grep` away from certain (which version is newer, does the model have that field, is the file gitignored), check it before building work or advice on top of it. Scope and timing claims are the flagship case: never assign MVP/post-MVP or milestone timing from memory — check `gh issue list`, the milestones, and `docs/product-onboarding/product-scope.md` first, and cite the issue, milestone, or spec section that grounds the claim.
+   **The mirror, which feels like rigour and is not: a flawed route to a claim does not
+   make the claim false.** When your evidence for something turns out unsound, re-test the
+   claim before withdrawing it; retracting a correct finding reads as honesty while it
+   happens. A flagged rule-number collision was retracted when its diff-hunk evidence went
+   stale, while the collision itself was true and another session was acting on it.
 
-    **One verified instance is not a count, and this is the failure mode that survives a careful check.** Confirming a case and then writing a sentence about the population is not verification of that sentence — it is verification of the case, wearing the sentence's clothes. It passes every review, including your own, because the part anyone can check is true. **The tell is a claim whose subject is plural or general when the evidence is singular:** "the numbers are accurate", "the download lags amendments", "the sessions collided", "gifts of $200 or less are never named". Before writing one, ask *how many did I actually look at, and how many are there* — then either count them or narrow the sentence to what you counted. Narrowing is free and always available: "on the committee I checked" costs 5 words and is true.
+   **A carefully verified cause does not verify its consequences.** Measuring a defect to
+   the cent says nothing about who saw it. **Reach is its own question, usually a 1-line
+   query**: did this render, to whom, how many times? A wrong-direction money defect was
+   written up in a PR body, 2 code comments, a guide and 4 issue comments as having
+   printed on 33 real pages under named people; nobody saw any of them, because the
+   section only draws once a person confirms a committee and the confirmation table held
+   0 rows. The second session to repeat it had measured that disproof hours earlier, so
+   check your own earlier measurements too: a consequence feels like part of the finding
+   rather than a separate claim. "My
+   reason was wrong" and "the thing is wrong" are different sentences, and only the second
+   retracts; "the code was wrong" and "a reader was misled" are different sentences, and
+   only the second is a harm.
 
-    Measured on 18 Aug 2026, when this happened **3 times in one afternoon across 2 sessions**, each time from a correctly-verified single case:
+6. **After changing what a user sees or can do, search for everything that still
+   describes the old behaviour.** Rule 4 covers artifacts you already know are affected;
+   this covers the ones you do not.
 
-    - A session read one committee where our figure was the larger one and wrote that the money page's disagreement sentence had accurate numbers and only bad framing. Across the full range the sentence named a direction that was **false on 33 of the 76** disagreeing committee-years ([PR #1646](https://github.com/alethical-org/alethical/pull/1646) found it; the check behind it uses `abs(difference)` and so fires in either direction). **No reader ever saw it** — see the third clause below, which is about how 2 sessions came to say otherwise.
-    - A session diagnosed one committee and wrote that the download lags amendments, then found the same snapshot **also** carries both versions of a filing added together — the opposite direction ([#1496](https://github.com/alethical-org/alethical/issues/1496)).
-    - A session recorded that 3 sessions had collided over one document's editorship, then that it was 5, then corrected itself again on who owned one of them. The count it could have run in one command was **5 pull requests in an hour**; the session-level claims around it were impressions ([#1651](https://github.com/alethical-org/alethical/issues/1651)). It asserted a count from a feeling while surrounded by figures it had measured to the cent — which is the shape of it: the discipline does not transfer from the numbers you measured to the sentence you write about them.
+   **The trigger is any change to observable behaviour, not only a scope change.** Ask
+   "could a sentence someone wrote about this screen now be wrong?" It fires on ordinary
+   implementation work: a removed label, a removed description, a shipped serialisation,
+   1 added dropdown option have each produced a false guide sentence.
 
-    All 3 were written by sessions that had verified something real, which is why "check before you assert" did not catch them and this paragraph exists. The product-facing form of the same rule is `.claude/rules/grounded-answers.md` rule 11 (an answer may only speak for as much of a bill as it read); this is that rule turned on our own writing — issues, PR bodies, docs, and messages to each other.
+   **Plain-English guides drift worse than specs; check them first.** "Docs" includes the
+   user-facing guide. Every notable
+   feature with its own page or named navigation position (a destination where a reader
+   completes a product task; legal and passive status pages do not count) has its own
+   plain-English guide in `docs/product-onboarding/`, listed in `docs/README.md`, carrying
+   a `<!-- describes: -->` declaration, explaining at minimum the feature's purpose, every
+   way in, its
+   controls and results, all visible empty, loading and error states, important limits,
+   data sources and what happens to reader data. A system design, build spec, mockup or
+   code comment is not the guide. The guide exists before the feature counts as shipped,
+   and a later behaviour change updates it in the same PR.
 
-    **And the mirror of it, which feels like rigour and is not: a flawed route to a claim does not make the claim false.** When you find that your evidence for something was unsound, **re-test the claim before withdrawing it.** Withdrawing a correct finding has a real cost, and it is the harder error to catch, because retracting reads as honesty while it is happening.
+   **Enforcement:** behaviour-describing docs declare the code they describe
+   (`<!-- describes: <globs> -->`), and `scripts/check_doc_sync.py` fails any PR that
+   changes declared code without 1 `Docs check:` line in the body. "None needed" is a valid
+   answer; the check forces the look, not an edit. Frozen records (dated audits and
+   research) declare nothing.
 
-    Same afternoon, 18 Aug 2026: a session flagged that [PR #1532](https://github.com/alethical-org/alethical/pull/1532) would give this file 2 rules numbered 14, having reached that from a diff hunk header whose context no longer existed. On finding the route unsound it **retracted the flag** — while the collision was independently true and another session was already acting on it. `main` ends at rule 14 and the pull request adds a rule numbered 14; that is a fact about 2 numbers, and the staleness only changed *when* it would surface. Three references to rule 14 (`AGENTS.md`, and the `design-build` and `design-intake` skills) would have gone ambiguous, and `AGENTS.md` loads into every session.
+   **Editing the doc does not satisfy the `Docs check:` line.** An edit is not a read: 2
+   PRs an hour apart each updated 1 subsection of the same guide and it shipped
+   contradicting itself twice. Read the whole doc and say what you concluded: "Docs
+   check: reread ai-models-and-billing.md §4 and §4.1; fixed §4".
 
-    **And the third one, which is the worst of the three and produced the only published falsehood of the day: a carefully verified cause does not verify its consequences.** Measuring a defect to the cent tells you nothing about who saw it. **Reach is its own question and usually a one-line query**, so ask it separately: *did this actually render, to whom, and how many times?* The authority earned by the hard measurement transfers to the easy claim without anyone noticing, least of all the author.
+   **Grep for the claim your change falsified, not for the name of the thing you
+   changed.** False sentences assert a status ("pays full list price") that no
+   feature-name search finds; only reading the section does.
 
-    Same afternoon: the wrong-direction defect above was written up in a pull request body, 2 code comments, a plain-English guide and 4 issue comments as having "printed the opposite of the truth on 33 real pages, under a named person's photograph." **Nobody saw any of them.** The money section only draws a committee card once a person has confirmed which committee belongs to a member, `legislator_campaign_committee` held **0 rows** in production, and no committee page existed to render it either. A real defect in shipped code, fixed before the first confirmation could publish it — a near miss, reported as a harm.
+   Whenever a decision re-scopes, re-phases, renames or draws a boundary, search for
+   artifacts that still describe the old state (`gh issue list --search "<feature
+   keywords>"`, `grep` across `docs/` and `.claude/rules/`), update what the search finds
+   in the same session, unprompted, and record the result in the PR body ("Stale-reference check:
+   #79 rescoped" or "Stale-reference check: nothing affected").
 
-    **The second session to repeat it had personally measured the disproof hours earlier** — all 200 sitting members returning `unconfirmed` with 0 committees — and still wrote "reached the live site." So this is not only inference from a gap in knowledge; the contradicting fact can be **in your own transcript** and go unapplied, because a consequence feels like part of the finding rather than a separate claim. Corrected in [PR #1655](https://github.com/alethical-org/alethical/pull/1655) and publicly on #1496, #1386, #1646 and #1647 rather than edited away.
+   `grep` cannot see inside binary assets: when a change alters what a doc's image
+   depicts, refresh the image in the same change. A chat-attached image is not a file on
+   disk; locate the source (screenshots land in `~/Desktop/Screenshot/` as `.jpg`),
+   verify the frame, convert to the tracked format (`sips -s format png`). The usual
+   converters are not installed; a diagram shipped as both `.svg` and `.png` renders
+   faithfully with `qlmanage -t -s <px> -o <outdir> file.svg`, so never defer the refresh
+   to a follow-up.
 
-    So the 3 clauses are one habit, and each is cheap: **check the scope of your sentence against your evidence, re-test the claim rather than the route when your evidence collapses, and ask who actually saw it as a separate question with its own query.** "My reason was wrong" and "the thing is wrong" are different sentences, and only the second one retracts. "The code was wrong" and "a reader was misled" are different sentences too, and only the second one is a harm.
+7. **Name things so a newcomer can guess what they are.** Branch names, PR titles,
+   filenames, headings and rule names describe the thing literally, in plain words:
+   `docs/update-issues-on-scope-change`, not `docs/ripple-sweep-habit`. No metaphors,
+   coined terms or conversation-only shorthand. Name for what the change does or decides,
+   not where it lands. A coined term that earns its keep is defined in plain words at
+   first use in the doc that owns it.
 
-6. **After changing what a user sees or can do, search for everything that still describes the old behaviour.** Rule 4 covers artifacts you already know are affected; this rule covers the ones you don't.
+8. **Spell out spec references: file name plus section topic.** In any artifact (docs,
+   issues, PR bodies and comments, chat), write the full spec file name and what the
+   section is about: "`docs/product-onboarding/grounded-ask-spec.md` §9 (Answer page UI —
+   v1 states)", never "the spec §9". A reader of the sentence in isolation knows what is
+   referred to without opening anything. Once the full form has appeared in an artifact,
+   later mentions there may shorten. The same principle applies to every pointer: issues
+   and PRs get markdown links with their titles or a gloss, never a bare number.
 
-   **The trigger is any change to observable behaviour, not only a "scope change."** The question to ask is **"could a sentence someone wrote about this screen now be wrong?"** — it fires on ordinary implementation work, where drift actually comes from. Four real drifts arrived as a removed label, a removed description, a shipped serialisation, and one added dropdown option ([#345](https://github.com/alethical-org/alethical/pull/345), [#709](https://github.com/alethical-org/alethical/pull/709), [#135](https://github.com/alethical-org/alethical/issues/135), [#607](https://github.com/alethical-org/alethical/issues/607)); none of their authors would have called them scope changes.
+9. **Resolve factual claims from the primary source, yourself.** When a fact shown to
+   users or baked into product content can be confirmed from a primary source (a bill's
+   enacted text, a statute section, an official roll-call record), fetch and read it and
+   confirm the exact value (effective dates, verbatim quotes, section numbers, vote
+   tallies) before asserting it. Never relay a secondary summary or hand over an
+   unverified value with "please confirm". When sources conflict, the authoritative
+   primary text wins; state the discrepancy and which source you trusted. A
+   confident-but-wrong cited fact is the worst failure
+   (`.claude/rules/grounded-answers.md`).
 
-   **Plain-English guides drift worse than specs, and are the ones to check first.** In every case above the spec was updated and the user guide was not; `docs/product-onboarding/search-bills-guide.md` accumulated three false claims that way. "Docs" means the user-facing guide too.
+10. **Just do safe, reversible work: act, then report; never propose-and-offer.** The test
+    is **blast radius, reversibility and verifiability**, never who thought of it, how big
+    it is, which lane it sits in or how late in the session it is. If a change is safe,
+    reversible and verifiable: build it, verify it, ship the whole loop (branch, commit,
+    PR, squash-merge, deployment, acceptance, worktree and branch retained for follow-up;
+    guarded cleanup only when the maintainer requests it) and report. This covers docs, specs, `.claude/`
+    rules and config, issues, **and app, front-end, backend and production code**. Rules
+    1 and 2 still apply. Zero-behaviour cleanup (a stale comment, a typo, a broken
+    cross-link, a reference your own change orphaned) is always in-lane, in any file,
+    including code another session just shipped. Rule 14's "surface real ambiguity"
+    sharpens this; it never reverses it.
 
-   **Every notable feature with its own page or named navigation position has its own plain-English guide** — a destination where a reader completes a product task; legal and passive status pages don't count. The guide lives in `docs/product-onboarding/`, is listed in `docs/README.md`, carries a `<!-- describes: -->` declaration, and at minimum explains the feature's purpose, every way in, its controls and results, all visible empty/loading/error states, important limits, data sources, and what happens to reader data. A system design, build spec, mockup, or code comment does not count as the guide. The guide exists before the feature counts as shipped, and any later behaviour change updates it in the same PR.
+    **Standing autonomy grant.** Schema and data migrations, auth and security, outbound
+    communications, production-data runs, outward-facing content and capability copy are
+    all act-then-report; "it is propose-first" is never a reason to pause, and where any
+    other clause seems to say otherwise, this grant governs. Four grants, each standing on
+    its own:
 
-   **Enforcement:** behaviour-describing docs declare the code they describe (`<!-- describes: <globs> -->`), and `scripts/check_doc_sync.py` fails any PR that changes declared code without one `Docs check:` line in the body. "None needed" is a valid answer — the check forces the *look*, not an edit. Frozen records (dated audits and research) deliberately declare nothing.
+    - **Merge your own low-risk PRs yourself, then summarize**: CI-green, cleanly
+      `git revert`-able, behaviour verified (tests plus dev-server QA as applicable),
+      degrading safely.
 
-   **Editing the doc does not exempt you from the `Docs check:` line.** An edit does not imply a read: two PRs an hour apart each updated one subsection of the same guide, each passed on the strength of that edit, and the guide shipped contradicting itself twice ([#784](https://github.com/alethical-org/alethical/pull/784)–[#786](https://github.com/alethical-org/alethical/pull/786)). **Read the whole doc, not the part you are editing, and say in the line what you concluded** — "Docs check: reread ai-models-and-billing.md §4 and §4.1; fixed §4" is the shape that catches it.
+      **Standing explicit authorization to merge and deploy your own PRs.** Every coding
+      agent owns the full release loop for every PR it authors: run the relevant local
+      tests, open the PR, wait for the current head commit's required checks, mark a
+      draft ready, merge it, let the merge trigger the normal production deployment,
+      verify production, repair or revert a bad release. This is advance approval for
+      `gh pr merge`, enabling auto-merge while checks are pending, deleting the merged
+      remote branch, and the deployment triggered by merging to `main`. Never ask for a
+      fresh "ready/approve/publish/merge/deploy" confirmation and never stop at an
+      approval prompt: request the needed tool permission yourself and continue. GitHub
+      does not let an author approve their own PR, so a missing self-approval is not a
+      blocker when the required checks are green. This covers the release workflow, not
+      wider product scope or an unverified irreversible side effect.
 
-   **Grep for the claim your change falsified, not for the name of the thing you changed.** The false sentences rarely name the feature — they assert a *status* ("pays full list price"), which no feature-name search finds. Only reading the section does, which is why the line asks for a conclusion about the whole doc.
+    - **A GitHub outage, cancelled check, stuck queue, failed deployment hand-off or
+      unavailable auto-merge is a retry condition, never a stopping point.** Keep the
+      owning session alive and drive the same change through: rerun what the service
+      cancelled, merge once the current head is green, follow the deployment, spot-check
+      live. The task is done only when the merge and the live verification are done,
+      never at "PR open", "checks queued" or "GitHub is down".
 
-   Whenever a decision re-scopes, re-phases, renames, or draws a boundary, actively *search* for artifacts that still describe the old state — `gh issue list --search "<feature keywords>"` for the tracker, `grep` across `docs/` and `.claude/rules/` — and update what the search finds in the same session, unprompted. Record the result in the PR body ("Stale-reference check: #79 rescoped" / "Stale-reference check: nothing affected").
+    - **An additive, reversible, verified migration is auto-merge** (`CREATE TABLE`, a
+      nullable column, an index, a new enum value), proven by an
+      upgrade→downgrade→upgrade round-trip against real Postgres plus CI green. Railway
+      applying it before the new API starts (`railway.json` `preDeployCommand`) **is** the
+      deploy path, not a gate. A dry-run-proven, idempotent backfill is likewise
+      auto-merge.
 
-   `grep` can't see inside binary assets, so screenshots and diagrams embedded in any doc are the stale reference easiest to miss: when a change alters what a doc's image depicts, refresh the image in the same change. A chat-attached image isn't a file on disk — locate the source (screenshots land in `~/Desktop/Screenshot/` as `.jpg`), verify the frame, and convert to the tracked format (`sips -s format png`). For a diagram shipped as both `.svg` and rendered `.png`, the usual converters are not installed here; macOS always has Quick Look: `qlmanage -t -s <px> -o <outdir> file.svg` renders faithfully — use it rather than downgrading the refresh to a follow-up.
-
-7. **Name things so a newcomer can guess what they are.** Branch names, PR titles, filenames, headings, and rule names describe the thing literally, in plain words: `docs/update-issues-on-scope-change`, not `docs/ripple-sweep-habit`. No metaphors, coined terms, or shorthand that only makes sense to whoever was in the conversation that produced it. Name for what the change *does or decides*, not for where it lands. If a coined term genuinely earns its keep, define it in plain words at first use in the doc that owns it.
-
-8. **Spell out spec references — file name plus section topic.** When citing a spec section in any artifact (docs, issues, PR bodies and comments, chat), write the full spec file name and what the referenced section is about: "`docs/product-onboarding/grounded-ask-spec.md` §9 (Answer page UI — v1 states)", never "the spec §9". Someone reading the sentence in isolation should know exactly what's being referred to without opening anything. Once the full form has appeared in an artifact, later mentions there may shorten. The same principle applies to every pointer: issues and PRs get markdown links with their titles or a gloss, never a bare number.
-
-9. **Resolve factual claims from the primary source, yourself.** When a fact that will be shown to users or baked into product content can be confirmed from a primary source — a bill's enacted text, a statute section, an official roll-call record — fetch and read that source and confirm the exact value (effective dates, verbatim quotes, section numbers, vote tallies) before asserting it. Don't relay a secondary summary or hand over an unverified value with "please confirm." When sources conflict, the authoritative primary text wins; state the discrepancy and which source you trusted. This extends rule 5 from repo facts to external primary sources, and it matters most for anything user-facing, where a confident-but-wrong cited fact is the worst failure (`.claude/rules/grounded-answers.md`).
-
-10. **Just do safe, reversible work — act, then report; don't propose-and-offer.** The test is **blast radius + reversibility + verifiability** — never who thought of it, how big it is, which lane it sits in, or how late in the session it is. If a change is safe, reversible, and you can verify it: build it, verify it, ship the whole loop (branch, commit, open the PR, squash-merge, then complete deployment and acceptance and retain the worktree and local branch for follow-up; use guarded cleanup only when Eugene requests it), and report the result. This covers docs, specs, `.claude/` rules and config, issues, **and app / front-end / backend / production code**. Rules 1–2 still apply — right target branch, scan open and just-merged PRs first. Zero-behavior cleanup (a stale comment, a typo, a broken cross-link, a reference your own change orphaned) is always in-lane, in any file, including code another session just shipped — correct it, don't offer to. Rule 14's "surface real ambiguity" sharpens this; it never reverses it.
-
-    **Standing autonomy grant (Jul 14 2026).** Every category these rules once marked propose-first — schema/data migrations, auth/security, outbound communications, production-data runs, outward-facing content, capability copy — is act-then-report. "It's propose-first" is **no longer** a reason to pause; where any other clause seems to say otherwise, this supersedes it. Four grants follow, each standing on its own:
-
-    - **Merge your own low-risk PRs yourself, then summarize** — CI-green, cleanly `git revert`-able, behavior verified (tests + dev-server QA as applicable), degrading safely.
-
-      **Standing explicit authorization to merge and deploy your own PRs (Aug 6 2026).** Every coding agent owns the full release loop for every PR it authors: run the relevant local tests, open the PR, wait for the current head commit's required checks, mark a draft ready, merge it, let the merge trigger the normal production deployment, verify production, and repair or revert a bad release. This is advance approval for the exact external actions involved — `gh pr merge`, enabling auto-merge while checks are pending, deleting the merged remote branch, and the deployment triggered by merging to `main`. Do not ask for a fresh "ready/approve/publish/merge/deploy" confirmation, and do not stop at an approval prompt: request the needed tool permission yourself and continue. GitHub does not let an author formally approve their own PR, so a missing self-approval is not a blocker when the required checks are green. This approval covers the release workflow itself; it does not widen the change's product scope or permit an unverified irreversible side effect.
-
-    - **A GitHub outage, cancelled check, stuck queue, failed deployment hand-off, or unavailable auto-merge is a retry condition, not a stopping point.** Keep the owning session alive and drive the same change through: rerun what the service cancelled, merge once the current head is green, follow the deployment, spot-check live. The task is done only when the merge and the live verification are done — never end it at "PR open", "checks queued", or "GitHub is down".
-
-    - **An additive, reversible, verified migration is auto-merge** — `CREATE TABLE`, a nullable column, an index, a new enum value — proven by an upgrade→downgrade→upgrade round-trip against real Postgres plus CI green. Railway applying it before the new API starts (`railway.json` `preDeployCommand`) **is** the deploy path, not a gate. A dry-run-proven, idempotent backfill is likewise auto-merge.
-
-    - **Paid production runs are authorized** once you have established that no zero-cost path suffices. **Cost alone never gates** — wherever any clause lists money as a reason to pause, this supersedes it. **Applying `workflow-overhead-audit` verdicts is also in this lane**, including meaning-preserving rewrites of a rule or skill file.
+    - **Paid production runs are authorized** once you have established that no
+      zero-cost path suffices. **Cost alone never gates**: wherever any clause lists money
+      as a reason to pause, this grant governs. Applying `workflow-overhead-audit`
+      verdicts is in this lane,
+      including meaning-preserving rewrites of a rule or skill file.
 
     **How to verify a merge, in order:**
 
-    - **The merge queue catches the stale-green hazard automatically: every PR merges through it.** GitHub's merge queue tests each PR against the queue's projected result, rather than against a `main` that may have moved. Add a PR with "Merge when ready" or `gh pr merge --auto`. The queue requires `changes`, `backend`, `frontend`, and `description-checks` against its up-to-date combined commit before merging. A green PR view alone is not enough.
+    - **Every PR merges through the merge queue**, which tests each PR against the
+      queue's projected result rather than a `main` that may have moved. Add a PR with
+      "Merge when ready" or `gh pr merge --auto`. The queue requires `changes`, `backend`,
+      `frontend` and `description-checks` against its up-to-date combined commit.
+      Dependabot PRs and auto-merge go through the same queue. A green PR view alone is
+      not enough.
 
-    - **"CI-green" means green against the *current* `main` — this is the queue's job, not yours, but re-run the checks by hand if you ever merge outside the queue or the queue itself is unavailable.** A stale green describes a base that no longer exists: two PRs green alone were red together, and `main` was broken for ~30 minutes ([#990](https://github.com/alethical-org/alethical/pull/990)/[#1020](https://github.com/alethical-org/alethical/pull/1020) — one removed the exact write the other's new test asserted; no text conflict, so GitHub called it mergeable). That incident, and the manual guard below, predate the queue and are why it was added. As a fallback, compare the check run's timestamp to `git log -1 --format=%cI origin/main`; if `main` moved, re-run after a rebase.
+    - **"CI-green" means green against the *current* `main`.** That is the queue's job;
+      re-run the checks by hand if you ever merge outside the queue or the queue is
+      unavailable. A stale green describes a base that no longer exists: 2 PRs green alone
+      have been red together with no text conflict, and `main` broke for 30 minutes. As a
+      fallback, compare the check run's timestamp to `git log -1 --format=%cI origin/main`;
+      if `main` moved, re-run after a rebase. The queue protects against `main` moving
+      between a PR's last green run and its merge; it does not replace human review, and a
+      PR still needs its required checks to pass on the queue's speculative commit.
 
-      **Honest limits of the queue:** it protects against `main` moving between a PR's last green run and its merge — it does not replace human review, and a PR still needs its required checks to pass on the merge-queue's speculative commit before it lands. Dependabot's PRs and any existing auto-merge usage go through the same queue as everything else; nothing observed so far conflicts with it (verified when the queue was enabled — no PR was mid-auto-merge at the time).
-
-    - **Verify against the head SHA, not the PR view, and wait on the required checks by name.** `gh pr checks` can lag a force-push and report the previous commit's green ([#1097](https://github.com/alethical-org/alethical/pull/1097)). Missing checks are not passing checks. The required names are `changes`, `backend`, `frontend`, and `description-checks`, all from GitHub Actions. The `changes` job checks document references, quoted claims, secrets, and invalid bytes. The separate `description-checks` job reads the latest explanation, including after a description edit. Choose the newest run for each required name so an older success cannot hide a newer failure or make duplicate runs look unfinished forever:
+    - **Verify against the head SHA, not the PR view, and wait on the required checks by
+      name.** `gh pr checks` can lag a force-push and report the previous commit's green.
+      Missing checks are not passing checks. The required names are `changes`, `backend`,
+      `frontend` and `description-checks`, all from GitHub Actions. The `changes` job
+      checks document references, quoted claims, secrets and invalid bytes; the separate
+      `description-checks` job reads the latest explanation, including after a
+      description edit. Choose the newest run for each required name so an older success
+      cannot hide a newer failure or make duplicate runs look unfinished forever:
 
       ```bash
       set -o pipefail
@@ -196,99 +390,337 @@ and independently inspect the live behavior before reporting completion.
       '
       ```
 
-      Then read each `conclusion` — a path-filtered `skipped` is normal (backend-only PRs merge with `frontend` skipped routinely), but `skipped` is never *evidence of passing*, and neither is a missing check. The general rule: **the convenient view is the stale one.** `gh pr view`'s mergeable flag, `gh pr checks`' summary, and a session-start "N commits behind" snapshot are all caches; git refs and the commit's own check-runs are the facts.
+      Then read each `conclusion`: a path-filtered `skipped` is normal (backend-only PRs
+      merge with `frontend` skipped routinely), but `skipped` is never evidence of passing,
+      and neither is a missing check. **The convenient view is the stale one.** `gh pr
+      view`'s mergeable flag, `gh pr checks`' summary and a session-start "N commits
+      behind" snapshot are caches; git refs and the commit's own check-runs are the facts.
 
-    - **Green checks are not the only merge gate: one unresolved review thread blocks the merge** (`required_conversation_resolution` is on), with `mergeStateStatus: BLOCKED` while every check is green, zero approvals required, and the branch up to date. Nothing in the check output explains it. Confirm the real reason rather than guessing:
+    - **Green checks are not the only merge gate: 1 unresolved review thread blocks the
+      merge** (`required_conversation_resolution` is on), with `mergeStateStatus: BLOCKED`
+      while every check is green, 0 approvals required and the branch up to date. Confirm
+      the real reason:
 
       ```bash
       gh api graphql -f query='{repository(owner:"alethical-org",name:"alethical"){pullRequest(number:NNN){reviewThreads(first:20){nodes{isResolved path line comments(first:1){nodes{author{login} body}}}}}}}' --jq '.data.repository.pullRequest.reviewThreads.nodes[]|select(.isResolved==false)|"UNRESOLVED \(.path):\(.line)"'
       ```
 
-      **If a PR review finds an issue that unambiguously needs addressing, just address it** — fix it and push, rather than resolving the thread to unblock the merge or debating it in comments. The reviewer can also be wrong — check the claim against the code and measure whether it is reachable — but treat "the PR is blocked" as a reason to read the finding, never as a reason to clear it. A resolve-and-merge once nearly shipped a reviewer-caught violation of the missing-versus-zero rule ([#1455](https://github.com/alethical-org/alethical/pull/1455)).
+      **If a PR review finds an issue that unambiguously needs addressing, address it**:
+      fix and push, never resolve the thread to unblock the merge or debate it in
+      comments. The reviewer can be wrong (check the claim against the code and measure
+      whether it is reachable), but "the PR is blocked" is a reason to read the finding,
+      never to clear it; a resolve-and-merge once nearly shipped a reviewer-caught
+      violation of the missing-versus-zero rule.
 
-    **You are in the lead on this platform's product management and engineering (Jul 16 2026).** Identify, prioritize, and sequence the work yourself and carry it to done; don't wait to be pointed at each piece. When a task names a goal or an area but not a step list, enumerate the items, order them unblocked-and-highest-value first, and work through all of them.
+    **You are in the lead on this platform's product management and engineering.**
+    Identify, prioritize and sequence the work yourself and carry it to done. When a task
+    names a goal or an area but not a step list, enumerate the items, order them
+    unblocked-and-highest-value first, and work through all of them.
 
-    **THE HARD LINE — the one thing that actually stops a build.** Never let a build *fire* an irreversible external side effect unverified: a real send to real users, spending real money on an unverified run, or a destructive/irreversible production data / schema / access change. This is honored by **engineering, not by asking**: build the capability fully, keep the live/irreversible trigger behind config (env/flag, dry-run default off), and verify with tests plus a dry run and a scoped single-record live check read back — so the work ships autonomously without an unverified live blast. An *additive, reversible, verified* migration or backfill is **not** this.
+    **THE HARD LINE, the one thing that stops a build.** Never let a build fire an
+    irreversible external side effect unverified: a real send to real users, real money
+    on an unverified run, a destructive or irreversible production data, schema or access
+    change. Honor it by **engineering, not by asking**: build the capability fully, keep
+    the live trigger behind config (env or flag, dry-run default off), verify with tests
+    plus a dry run and a scoped single-record live check read back. An additive,
+    reversible, verified migration or backfill is not this.
 
-    **Reserved stops — exactly two, alongside the hard line above.** (1) A genuine **toss-up**: no basis to prefer an option, so surface it briefly and lead with a recommendation, never a bare menu. (2) A genuine **correctness / verification gate you cannot establish** — which means *investigate* the gate (measure it, read the source, sample the data) and act on what you find; never "stop because a gate might exist."
+    **Reserved stops, exactly 2, alongside the hard line.** (1) A genuine **toss-up**: no
+    basis to prefer an option, so surface it briefly and lead with a recommendation, never
+    a bare menu. (2) A genuine **correctness or verification gate you cannot establish**,
+    which means *investigate* the gate (measure it, read the source, sample the data) and
+    act on what you find; never "stop because a gate might exist".
 
-    **Not valid reasons to stop — every one of these has cost a needless handback.** It wasn't explicitly requested · *you* recommended it rather than the user · it's a big build · it's polish rather than critical path · it's backend / app / production code · it's late in the session, or your context is filling · "this is better as a fresh session" · it's another session's code · it sits in a later milestone · a task prompt said "propose-first" (read that as *verify especially carefully*, not *stop*) · a fancier gated option exists beside your safe one (ship the safe one now, flag the gated one separately). Ending a turn with "want me to…?" for something safe and reversible **is** the handback this forbids — your recommendation *is* the go. On a real blocker, say so in one line and immediately switch to the next-best unblocked work.
+    **Not valid reasons to stop**: it was not explicitly requested; you recommended it
+    rather than the user; it is a big build; it is polish rather than critical path; it is
+    backend, app or production code; it is late in the session or your context is
+    filling; "this is better as a fresh session"; it is another session's code; it sits in
+    a later milestone; a task prompt said "propose-first" (read that as *verify especially
+    carefully*); a fancier gated option exists beside your safe one (ship the safe one,
+    flag the gated one separately). Ending a turn with "want me to…?" for something safe
+    and reversible **is** the handback this forbids; your recommendation is the go. On a
+    real blocker, say so in 1 line and switch to the next-best unblocked work.
 
-    **External account identity and routine setup choices are implementation details, not maintainer decisions (Aug 15 2026).** Create and use Alethical developer and vendor accounts through Google sign-in with `alethicaldev@gmail.com`; never use a maintainer's personal Google or GitHub account. Use `Alethical` as the organization name, decline optional marketing and data sharing, choose the lowest-cost plan that meets the established need, and choose the data region that matches Alethical's known operating location (United States for its Minnesota service). A setting being permanent does not make an obvious fact-based choice a toss-up. Stop only when established facts point to competing legal or operating needs, or when rule 10's hard line applies.
+    **External account identity and routine setup choices are implementation details.**
+    Create and use Alethical developer and vendor accounts through Google sign-in with
+    `alethicaldev@gmail.com`; never a maintainer's personal Google or GitHub account. Use
+    `Alethical` as the organization name, decline optional marketing and data sharing,
+    choose the lowest-cost plan that meets the established need, and the data region that
+    matches Alethical's operating location (United States). A setting being permanent does
+    not make an obvious fact-based choice a toss-up. Stop only when established facts
+    point to competing legal or operating needs, or when the hard line applies.
 
-    **The danger category is writes into a shared checkout, not git commands.** `cd` into the shared checkout followed by `cat >> file`, `> file`, `sed -i`, `rm`, or a formatter writes into everyone's shared tree, and **no hook, lock, sandbox or rule guards any of them** (a session did exactly this on Aug 3 2026 and was saved only by the write being provably append-only). **Check your working directory before any write, not only before a git command**, and prefer absolute paths into your own worktree over a `cd`. Recovery, if you write there: prove the diff is purely additive and entirely yours *before* touching anything, move the content into your worktree, then `git checkout HEAD -- <path>` scoped to that path — never a blanket reset.
+    **The danger category is writes into a shared checkout, not git commands.** `cd` into
+    the shared checkout followed by `cat >> file`, `> file`, `sed -i`, `rm` or a formatter
+    writes into everyone's shared tree, and no hook, lock, sandbox or rule guards any of
+    them. **Check your working directory before any write, not only before a git
+    command**, and prefer absolute paths into your own worktree over a `cd`. Recovery, if
+    you write there: prove the diff is purely additive and entirely yours before touching
+    anything, move the content into your worktree, then `git checkout HEAD -- <path>`
+    scoped to that path, never a blanket reset.
 
-    **Never run destructive or branch-switching git on a shared checkout.** `git reset --hard`, `git checkout .`, `git clean -fd`, discarding a stash, and `git checkout <other-branch>` on a checkout other sessions may be using silently wipe their uncommitted work (this has happened: one session's cleanup wiped two other sessions' in-progress edits, Jul 2026). Inside your own worktree these are safe. If you must touch a shared checkout, only ever *add*, never discard. **Five more operations read as harmless and are not:**
+    **Never run destructive or branch-switching git on a shared checkout.** `git reset
+    --hard`, `git checkout .`, `git clean -fd`, discarding a stash and `git checkout
+    <other-branch>` on a checkout other sessions may be using silently wipe their
+    uncommitted work. Inside your own worktree these are safe. If you must touch a shared
+    checkout, only ever add, never discard. Five more operations read as harmless and are
+    not:
 
-    - **`git stash` — creating one, not just dropping one** — scoops up every other session's in-flight edits, and popping re-applies an older snapshot on top, silently moving merged code backwards (it once un-merged a just-shipped production fix, [#756](https://github.com/alethical-org/alethical/pull/756)). To compare against another revision, never touch the working tree: **`git show origin/main:<path>`** reads it straight from the object store.
-    - **`git update-ref` pointed at a branch you don't own.** `git update-ref refs/heads/<b> <commit>` moves a branch another worktree holds, silently, with no output; `-d` deletes one where `git branch -D` refuses. No git version guards plumbing — this one is a rule, not a mechanism.
-    - **`git checkout --ignore-other-worktrees -B <branch>`** defeats the guard git 2.44+ added (plain `checkout`/`switch`/`rebase`/`branch -f`/`branch -D` all refuse a branch another worktree holds; the `git` on `PATH` is Homebrew's 2.55.0). Treat a refusal as git telling you the branch is someone else's, never as an obstacle to route around. And say *which git, invoked how*: `/usr/bin/git` is still Apple's unguarded 2.39.5, so anything calling that absolute path gets the old, silent behaviour — permanent, since Apple's copy can't be removed.
-    - **`git worktree remove --force <path>`** deletes a worktree *and* its uncommitted work in one command, in every git version. The tracked hook `.githooks/post-checkout` locks every new worktree at creation, whichever tool ran `git worktree add`, so the command refuses and prints the lock reason; `just worktree-rm <branch> <owner-id> '<delivery evidence>'` queues guarded cleanup, which preserves recovery and rechecks ownership before unlocking. The hook's honest limits: it only covers worktrees created after `just install-hooks` registers it in that clone (git cannot ship `core.hooksPath`; **a fresh clone is unprotected**), `--force --force` still overrides, `git worktree unlock` clears it, and the hook file must stay executable (mode `100755`) — git ignores a non-executable hook with only a warning.
-    - **Creating a branch in the shared checkout at all** — it yanks that checkout off `main` while another session is using it. Branch in your own worktree (`just worktree <branch>`).
+    - **`git stash`, creating one, not just dropping one**, scoops up every other
+      session's in-flight edits, and popping re-applies an older snapshot on top, silently
+      moving merged code backwards (it has un-merged a just-shipped production fix). To
+      compare against another revision, never touch the working tree:
+      **`git show origin/main:<path>`** reads it from the object store.
+    - **`git update-ref` pointed at a branch you do not own.** `git update-ref
+      refs/heads/<b> <commit>` moves a branch another worktree holds, silently, with no
+      output; `-d` deletes one where `git branch -D` refuses. No git version guards
+      plumbing; this is a rule, not a mechanism.
+    - **`git checkout --ignore-other-worktrees -B <branch>`** defeats the guard git 2.44+
+      added (plain `checkout`, `switch`, `rebase`, `branch -f` and `branch -D` all refuse a
+      branch another worktree holds; the `git` on `PATH` is Homebrew's 2.55.0). Treat a
+      refusal as git telling you the branch is someone else's, never as an obstacle to
+      route around. When reporting git behaviour, say which git, invoked how:
+      `/usr/bin/git` is Apple's unguarded 2.39.5, which cannot be removed, so anything
+      calling that absolute path gets the old silent behaviour.
+    - **`git worktree remove --force <path>`** deletes a worktree and its uncommitted work
+      in 1 command, in every git version. The tracked hook `.githooks/post-checkout` locks
+      every new worktree at creation, whichever tool ran `git worktree add`, so the command
+      refuses and prints the lock reason; `just worktree-rm <branch> <owner-id>
+      '<delivery evidence>'` queues guarded cleanup, which preserves recovery and rechecks
+      ownership before unlocking. The hook's limits: it covers only worktrees created
+      after `just install-hooks` registers it in that clone (a fresh clone is
+      unprotected), `--force --force` overrides it, `git worktree unlock` clears it, and
+      the hook file must stay executable (mode `100755`).
+    - **Creating a branch in the shared checkout at all** yanks that checkout off `main`
+      while another session is using it. Branch in your own worktree (`just worktree
+      <branch>`).
 
-    **A blank-message jump in `main`'s reflog is our own desktop tooling, not a rogue `update-ref`.** Claude Code's desktop app fast-forwards local `main` every time it creates a worktree: `git merge --ff-only` when the base checkout holds `main` and its HEAD is where the app expects, otherwise `git update-ref refs/heads/main <origin/main> <old-sha>`, logging and continuing when either is refused. `update-ref` without `-m` writes an **empty** reflog message, so `git reflog show main` carries entries with no text at all — verified Aug 17 2026, when local `main` jumped 335 commits at the same second a Claude Code worktree's admin directory was created. Read one of those as routine before suspecting the `update-ref` bullet above.
+    **A blank-message jump in `main`'s reflog is our own desktop tooling, not a rogue
+    `update-ref`.** Claude Code's desktop app fast-forwards local `main` every time it
+    creates a worktree: `git merge --ff-only` when the base checkout holds `main` and its
+    HEAD is where the app expects, otherwise `git update-ref refs/heads/main <origin/main>
+    <old-sha>`, logging and continuing when either is refused. `update-ref` without `-m`
+    writes an empty reflog message, so `git reflog show main` carries entries with no text
+    at all. Read one of those as routine before suspecting the `update-ref` bullet above.
 
-    **Orca's "Keep Local Main Up to Date" is deliberately left off** (`refreshLocalBaseRefOnWorktreeCreate`, in `~/Library/Application Support/orca/profiles/local-default/orca-data.json`; Orca's workspaces are worktrees of this same clone). Its refresh is fast-forward-only, and when `main` is checked out nowhere it uses a compare-and-swap `update-ref` — safe. But when `main` *is* checked out it runs **`git reset --hard origin/main`** in that worktree, gated only by a separate earlier `git status --porcelain --untracked-files=no`, with nothing re-checked between the two. Claude Code already keeps local `main` current the safer way, so enabling it adds that path for no gain. Two measured properties of `reset --hard`, both Aug 17 2026: a tracked edit saved in the window between the clean check and the reset is gone, and it **silently overwrites an untracked file whose path the incoming commit tracks**, while leaving non-colliding untracked and ignored files alone. To refresh local `main` by hand instead, `git fetch origin main:main` is fast-forward-only and touches no working tree.
+    **Orca's "Keep Local Main Up to Date" stays off** (`refreshLocalBaseRefOnWorktreeCreate`
+    in `~/Library/Application Support/orca/profiles/local-default/orca-data.json`; Orca's
+    workspaces are worktrees of this same clone). When `main` is checked out nowhere its
+    refresh is a safe compare-and-swap `update-ref`; when `main` *is* checked out it runs
+    **`git reset --hard origin/main`** in that worktree, gated only by an earlier `git
+    status --porcelain --untracked-files=no` with nothing re-checked between the two. That
+    reset loses a tracked edit saved in the window and silently overwrites an untracked
+    file whose path the incoming commit tracks. Claude Code already keeps local `main`
+    current the safer way. To refresh local `main` by hand, `git fetch origin main:main`
+    is fast-forward-only and touches no working tree.
 
-    **Treat all of that as bounded loss, not prevention.** Tested against a live agent (Aug 3 2026), every lock and deny rule surfaced as an *approval prompt*, not a wall — each destructive command succeeded after approval. What actually bounds the loss is **`just install-wip-backup`**: every 5 minutes, each worktree's uncommitted work is captured into a `refs/wip-backup/<unique-id>` ref plus a verified bundle outside the repo ([working-folder cleanup and recovery](../../docs/operations/worktree-lifecycle.md)). It stages into a temporary index so no worktree's own state is touched, pushes nothing (the repo is public; uncommitted work is unreviewed), survives worktree deletion and `git gc`, and costs nothing per run.
+    **Treat all of that as bounded loss, not prevention.** When tested against a live
+    agent, every lock and deny rule surfaced as an approval prompt, not a wall, and each
+    destructive command succeeded after approval. What bounds the loss is **`just install-wip-backup`**:
+    every 5 minutes, each worktree's uncommitted work is captured into a
+    `refs/wip-backup/<unique-id>` ref plus a verified bundle outside the repo
+    ([working-folder cleanup and recovery](../../docs/operations/worktree-lifecycle.md)).
+    It stages into a temporary index so no worktree's own state is touched, pushes nothing
+    (the repo is public; uncommitted work is unreviewed), survives worktree deletion and
+    `git gc`, and costs nothing per run.
 
-    The generalisable rule: **in a shared checkout, treat the working tree and every ref as someone else's live state.** Read from git's object store, write only in your own worktree. When you do disturb one, verify before repairing — prove the tree matches a known commit *before* restoring anything, then use `git restore <path>` / `git checkout <commit> -- <path>`, never a blanket reset.
+    **In a shared checkout, treat the working tree and every ref as someone else's live
+    state.** Read from git's object store, write only in your own worktree. When you do
+    disturb one, verify before repairing: prove the tree matches a known commit before
+    restoring anything, then use `git restore <path>` or `git checkout <commit> -- <path>`,
+    never a blanket reset.
 
-    **Per-domain verification checklists** — front-end, backend, migrations, paid runs, unreachable-code removal, sweep-the-pattern scope, and the concurrent-session commit/merge mechanics — plus the incident history behind each grant above: skill **`when-to-act-without-approval`**. The skill carries what to *verify*; the authority is resident here, so a change is never held for approval merely because the skill wasn't loaded.
+    **Per-domain verification checklists** (front-end, backend, migrations, paid runs,
+    unreachable-code removal, sweep-the-pattern scope, concurrent-session commit and merge
+    mechanics) and the incident history behind each grant: skill
+    **`when-to-act-without-approval`**. The skill carries what to verify; the authority is
+    resident here, so a change is never held for approval merely because the skill was
+    not loaded.
 
-11. **Lead issues, PRs, and substantive comments with a plain-language "Net:" line.** Every GitHub issue, PR body, and substantive comment opens with a one–two-sentence **Net:** — the bottom line in plain words a non-specialist maintainer can act on: *what it means / what to do / why it matters*, not the mechanism. The full technical detail still follows in the body. A reader who only reads the Net line should still come away knowing the point and the ask.
+11. **Lead issues, PRs and substantive comments with a plain-language "Net:" line.**
+    Every GitHub issue, PR body and substantive comment opens with a 1 to 2 sentence
+    **Net:**: the bottom line in plain words a non-specialist maintainer can act on (what
+    it means, what to do, why it matters), not the mechanism. The technical detail follows
+    in the body. A reader who reads only the Net line still comes away knowing the point
+    and the ask.
 
-    **Two levels, not one.** Beyond the overview Net at the top, **every acceptance-criteria or checklist item carries its own inline `— Net:` gloss** — the plain-language *what this means / why it's checked* for that item, in a short clause; the technical criterion stays. When editing an existing issue/PR that predates this, retrofit both levels. This applies to the issues and PRs *you* author or own; don't rewrite another session's merged artifact — add a Net comment there instead.
+    **Two levels, not one.** Beyond the overview Net at the top, **every
+    acceptance-criteria or checklist item carries its own inline `— Net:` gloss**: the
+    plain-language what-this-means and why-it-is-checked for that item, in a short clause,
+    with the technical criterion kept. When editing an existing issue or PR that lacks
+    this, retrofit both levels. This applies to the issues and PRs you author or own; do
+    not rewrite another session's merged artifact; add a Net comment there instead.
 
-    **A clear instruction to proceed is approval for every routine review checkpoint in that task.** When the maintainer says to start, continue, finish, or do a task, do not pause at design, specification, test, or similar review gates. Record the decisions, run the checks, and report the completed result. Pause only for a hard safety gate (rule 10's hard line), a genuine ambiguity about intent, or an explicit request to review a checkpoint.
+    **A clear instruction to proceed is approval for every routine review checkpoint in
+    that task.** When the maintainer says to start, continue, finish or do a task, do not
+    pause at design, specification, test or similar review gates. Record the decisions,
+    run the checks, report the completed result. Pause only for a hard safety gate (rule
+    10's hard line), a genuine ambiguity about intent, or an explicit request to review a
+    checkpoint.
 
-12. **Expensive background research is checkpoint-and-resume — never let it run into paid overage (Jul 18 2026).** Multi-agent research runs are the costliest thing a session does, and any usage meter can run out mid-run. Checkpoint at launch, stop the run before a meter hits its limit rather than burning into overage, and resume from the journal cache. **Never promise a threshold stop without arming a mechanism** — the agent cannot see the meters and does not run between turns. Full mechanics: skill **`resume-research-workflow`**.
+12. **Expensive background research is checkpoint-and-resume; never let it run into paid
+    overage.** Multi-agent research runs are the costliest thing a session does, and any
+    usage meter can run out mid-run. Checkpoint at launch, stop the run before a meter hits
+    its limit rather than burning into overage, and resume from the journal cache. **Never
+    promise a threshold stop without arming a mechanism**: the agent cannot see the meters
+    and does not run between turns. Full mechanics: skill **`resume-research-workflow`**.
 
-13. **Staff every goal-supporting issue — delegate the ones you're not doing yourself; milestone never gates this (Jul 22 2026).** When a goal touches more than one outstanding issue, *every* issue that supports reaching that goal has an **active owner** — this session, a running session you've confirmed, or a fresh session you prompt with a self-contained, direct-address brief — never sitting unstaffed in the backlog. As you work a goal, enumerate the issues it depends on or spins off (including the durable fixes behind any interim patch you shipped, and the honest fix behind any design item you declined), and give each one an owner, telling delegated sessions to coordinate through the issue's comments. After delegating, **monitor** the sessions and **finish any dependent integration** yourself.
+13. **Staff every goal-supporting issue; delegate the ones you are not doing yourself;
+    milestone never gates this.** When a goal touches more than 1 outstanding issue,
+    *every* issue that supports reaching that goal has an **active owner**: this session,
+    a running session you have confirmed, or a fresh session you prompt with a
+    self-contained, direct-address brief; never unstaffed in the backlog. As you work a
+    goal, enumerate the issues it depends on or spins off (including the durable fixes
+    behind any interim patch you shipped and the honest fix behind any design item you
+    declined), give each an owner, and tell delegated sessions to coordinate through the
+    issue's comments. After delegating, **monitor** the sessions and **finish any dependent
+    integration** yourself.
 
-    **Every delegation brief ends with an explicit report-back instruction:** *"when you're done — PR merged or work blocked — `send_message` this session (name + id) with the outcome (PR #, merged/blocked, anything I need to integrate)."* Do NOT rely on the background task-completion notification: it fires only when the session's *process* ends, which can lag a merged PR by hours or never arrive within your turn (#520 merged and sat unnoticed until a manual sweep). Include your own session identity in the brief.
+    **Every delegation brief ends with an explicit report-back instruction:** *"when you're
+    done — PR merged or work blocked — `send_message` this session (name + id) with the
+    outcome (PR #, merged/blocked, anything I need to integrate)."* Never rely on the
+    background task-completion notification: it fires only when the session's process
+    ends, which can lag a merged PR by hours or never arrive within your turn. Include your
+    own session identity in the brief.
 
-    **A blocker only a fresh session can clear is a staffing job, not a status report.** When the way past a blocker is "a new session has to do this" — a setting that only takes effect on restart, a permission gate this process can't clear, auth or a tool this session lacks, a context window too full to finish — **starting that session is the work**: file the self-contained brief immediately, unprompted, then carry on with everything the blocker doesn't touch. Ending a turn with "start a fresh session and run this" is the handback this forbids ([#723](https://github.com/alethical-org/alethical/issues/723): a session correctly diagnosed that only a restart would clear a permission gate, then told the maintainer to do it himself).
+    **A blocker only a fresh session can clear is a staffing job, not a status report.**
+    When the way past a blocker is "a new session has to do this" (a setting that only
+    takes effect on restart, a permission gate this process cannot clear, auth or a tool
+    this session lacks, a context window too full to finish), **starting that session is
+    the work**: file the self-contained brief at once, unprompted, then carry on with
+    everything the blocker does not touch. Ending a turn with "start a fresh session and
+    run this" is the handback this forbids.
 
-    **Milestone is irrelevant to staffing.** Milestones only *group and report* work; they are **not** a defer signal. If an issue supports the goal at hand, staff it now regardless of its bucket, and re-milestone it if the bucket no longer reflects reality. When you catch yourself parking a supporting issue as "it's v2," that thought is the trigger to give it an owner.
+    **Milestone is irrelevant to staffing.** Milestones group and report work; they are not
+    a defer signal. If an issue supports the goal at hand, staff it now regardless of its
+    bucket, and re-milestone it if the bucket no longer reflects reality. Catching
+    yourself parking a supporting issue as "it's v2" is the trigger to give it an owner.
 
-14. **Write the change with discipline: think, minimum, surgical, goal-driven.** (Bias toward caution over raw speed; for trivial changes, use judgment.)
+14. **Write the change with discipline: think, minimum, surgical, goal-driven.** (Bias
+    toward caution over raw speed; for trivial changes, use judgment.)
 
-    Every authorized menu build also follows [design-principles.md, Build acceptance
-    for controls](../../docs/design/design-principles.md#build-acceptance-for-controls),
-    including open-menu display order and pointer movement checks even when the
-    drawings omit them. Apply settled functional corrections during the build.
+    Every authorized menu build also follows [design-principles.md, Build acceptance for
+    controls](../../docs/design/design-principles.md#build-acceptance-for-controls),
+    including open-menu display order and pointer movement checks even when the drawings
+    omit them. Apply settled functional corrections during the build.
 
-    - **Think before coding.** Don't assume silently: state assumptions, surface real ambiguity and tradeoffs rather than picking quietly, push back when a simpler approach exists. When a request spans independent subsystems, say so up front, name the pieces and the order, then take them one at a time — a scoping statement, not an approval gate. Surfacing ambiguity never gates routine, reversible work — rule 10's autonomy norms stand.
-    - **Simplicity first.** Ship the minimum code that solves the problem: no features beyond what was asked, no abstractions for single-use code, no speculative flexibility, no error handling for impossible cases. If 200 lines could be 50, rewrite it. The test: would a senior engineer call this overcomplicated?
-    - **Surgical changes.** Touch only what the task requires. Don't improve adjacent code, refactor what isn't broken, or restyle to taste — match the surrounding code even where you'd do it differently. Remove only what your own change orphaned; flag pre-existing dead code rather than deleting it unasked. Every changed line should trace to the request.
-    - **Goal-driven execution.** Turn the task into a verifiable goal before starting: "fix the bug" → "write a failing test that reproduces it, then make it pass"; "refactor X" → "tests pass before and after." For multi-step work, state a brief plan with a verification check per step.
-    - **Record shared impact and prevention.** Apply the shared [PERSONAL_RULES.md guidance on considering the whole system while keeping execution scoped](https://github.com/euglopi/tool-settings/blob/main/shared/PERSONAL_RULES.md#decisions-act-on-your-recommendation-report-after) to all substantive work. Keep its concise impact-and-prevention record in the existing issue, task plan or review, not a new chat template. Revisit it when material findings change the scope and before completion; reconcile it with the delivered result. Give independent reviewers the affected uses and approved differences, and ask what the change or prevention checks missed. Preserve explicit holds and obtain approval for new product scope; a shared cause is not permission to change every exposed surface.
-    - **Accept the complete rendered design, including reused sections.** UI releases must complete the design comparison record and independent review in [design-principles.md §Build acceptance for controls](../../docs/design/design-principles.md#build-acceptance-for-controls). The approved design defines what to check; the code changes do not limit it. Preserve a focused browser regression check for a shared visual failure, and run it before release.
+    - **Think before coding.** State assumptions; surface real ambiguity and tradeoffs
+      rather than picking quietly; push back when a simpler approach exists. When a
+      request spans independent subsystems, say so up front, name the pieces and the
+      order, then take them one at a time: a scoping statement, not an approval gate.
+      Surfacing ambiguity never gates routine, reversible work; rule 10's autonomy norms
+      stand.
+    - **Simplicity first.** Ship the minimum code that solves the problem: no features
+      beyond what was asked, no abstractions for single-use code, no speculative
+      flexibility, no error handling for impossible cases. If 200 lines could be 50,
+      rewrite it. The test: would a senior engineer call this overcomplicated?
+    - **Surgical changes.** Touch only what the task requires. Do not improve adjacent
+      code, refactor what is not broken or restyle to taste; match the surrounding code
+      even where you would do it differently. Remove only what your own change orphaned;
+      flag pre-existing dead code rather than deleting it unasked. Every changed line
+      traces to the request.
+    - **Goal-driven execution.** Turn the task into a verifiable goal before starting:
+      "fix the bug" becomes "write a failing test that reproduces it, then make it pass";
+      "refactor X" becomes "tests pass before and after". For multi-step work, state a
+      brief plan with a verification check per step.
+    - **Record shared impact and prevention.** Apply the shared
+      [PERSONAL_RULES.md guidance on considering the whole system while keeping execution scoped](https://github.com/euglopi/tool-settings/blob/main/shared/PERSONAL_RULES.md#decisions-act-on-my-recommendation-report-after)
+      to all substantive work. Keep its concise impact-and-prevention record in the
+      existing issue, task plan or review, not a new chat template. Revisit it when
+      material findings change the scope and before completion; reconcile it with the
+      delivered result. Give independent reviewers the affected uses and approved
+      differences, and ask what the change or prevention checks missed. Preserve explicit
+      holds and obtain approval for new product scope; a shared cause is not permission to
+      change every exposed surface.
+    - **Accept the complete rendered design, including reused sections.** UI releases
+      complete the design comparison record and independent review in
+      [design-principles.md §Build acceptance for controls](../../docs/design/design-principles.md#build-acceptance-for-controls).
+      The approved design defines what to check; the code changes do not limit it.
+      Preserve a focused browser regression check for a shared visual failure, and run it
+      before release.
 
-15. **Two independent reviews of the same artifact end with a side-by-side merge, not a verdict pick (Aug 14 2026).** When two reviewers — human, Claude, Codex, Design, any mix — produce overlapping lists (blocking criteria, findings, checklists, harm categories), lay the lists side by side and take the **union** before arbitrating any conflict. A disagreement between two plausible versions usually means **both are incomplete**, not that one is wrong: each author defends their own additions and silently drops the other's, and neither can see that from inside their own list. — Net: when 2 reviews disagree, combine them first; picking a winner throws away the loser's catch.
+15. **Two independent reviews of the same artifact end with a side-by-side merge, not a
+    verdict pick.** When 2 reviewers (human, Claude, Codex, Design, any mix) produce
+    overlapping lists (blocking criteria, findings, checklists, harm categories), lay the
+    lists side by side and take the **union** before arbitrating any conflict. A
+    disagreement between 2 plausible versions usually means **both are incomplete**: each
+    author defends their own additions and silently drops the other's, and neither can see
+    that from inside their own list. In 1 design review, 2 independently written blocking
+    bars each carried a harm category the other missed, and the union surfaced only when a
+    third reading put them side by side. — Net: when 2 reviews disagree, combine them
+    first; picking a winner throws away the loser's catch.
 
-    Evidence (sign-in rev 12–15 design review): two independently written review-blocking bars — one carried "contradiction between product parts" and missed "claims a screen cannot verify"; the other the reverse. The union (5 harms) surfaced only when a third reading put them side by side, and the category each list dropped was the one that review's own concrete findings were largely made of. Practice knew what each abstraction forgot.
+    - **A claim about what code contains names the commit it was checked at.** Reviewers
+      at different commits may be describing different behaviour.
+    - **A citation must contain its claim.** Cite file, function and pinned commit, never
+      a bare commit hash: the pin makes it durable, the file and function make it
+      checkable. A right conclusion under a wrong citation is record drift waiting to be
+      believed.
 
-    Two tie-breaks settled in the same exchange generalize with it:
+16. **State each rule once, in the present tense, in one place.** A doc says what is true
+    now. It does not narrate how we changed our minds, and it does not restate a rule
+    another file owns. Git holds the history, and a GitHub issue holds the long version
+    of any incident. This extends the delete-a-stale-doc rule in `docs/folder-structure.md`
+    (retired docs are deleted, not kept) from whole files down to sentences. — Net: an
+    agent loading these files must receive 1 unambiguous instruction per subject, never an
+    average of past and present guidance.
 
-    - **A claim about what code contains names the commit it was checked at.** Reviewers at different commits may be describing different behavior. In [pull request 1505](https://github.com/alethical-org/alethical/pull/1505), reviews 1 day apart described different account-screen availability because the implementation changed between them.
-    - **A citation must contain its claim.** Cite file + function + pinned commit, never a bare commit hash: the pin makes it durable, the file and function make it checkable. A right conclusion under a wrong citation is record-drift waiting to be believed.
+    **The test on any sentence about the past: is this an instruction, or evidence for
+    one?** Two instructions is the bug. One instruction and its evidence is the design.
 
-16. **State each rule once, in the present tense, in one place.** A doc says what is true now. It does not narrate how we changed our minds, and it does not restate a rule another file owns. Git holds the history, and a GitHub issue holds the long version of any incident. This extends the delete-a-stale-doc rule in `docs/folder-structure.md` (retired docs are deleted, not kept) from whole files down to sentences. — Net: an agent loading these files must receive one unambiguous instruction per subject, never an average of past and present guidance.
+    **Cut:** a superseded design still described in a spec; the same rule written out in
+    its own words in more than 1 file; a rule stated twice in 1 file, once live and once
+    dead; dated decision narration, such as a sentence saying a step replaces an earlier
+    one or that a rule once worked the other way, or a fact pinned to "as of" a month.
+    Where old behaviour must stay gone, ban it in the present: "never write X", not the
+    story of X. Added doc lines carrying such narration
+    fail CI (`scripts/check_timeless_docs.py`, added lines only; a genuine evidence line
+    escapes with `<!-- timeless-check-ignore: <why> -->`).
 
-    **The test on any sentence about the past: is this an instruction, or evidence for one?** Two instructions is the bug. One instruction and its evidence is the design.
+    **Keep:** the dated measurement or incident sitting under a rule, compressed, because
+    a rule whose cost is invisible gets reasoned around; the approval status and any
+    decision date needed to distinguish approved scope from a proposal; dates a published
+    page is required to print. Evidence follows its rule, never leads it, and never reads
+    as a second instruction.
 
-    **Cut:** a superseded design still described in a spec; the same rule written out in its own words in more than 1 file; a rule stated twice in 1 file, once live and once dead; dated decision narration ("this replaces an earlier step", "used to work the other way", "as of February 2"). Where old behaviour must stay gone, ban it in the present rather than telling its story: "never write X", not "we used to write X and then changed our minds". Added doc lines carrying such narration fail CI (`scripts/check_timeless_docs.py`, added lines only; a genuine evidence line escapes with `<!-- timeless-check-ignore: <why> -->`).
+    **Write decisions in Alethical's voice, without internal personal attribution.** In
+    repository documentation, rules, comments and GitHub descriptions, state the goal,
+    requirement or approved decision directly. Name Alethical when the organization
+    matters; otherwise omit the actor. Do not name internal individuals as the person who
+    requested, decided, approved or wanted something. Use the responsible role only when
+    an outstanding approval or action needs an owner. Preserve the exact approval status,
+    scope, date when material, evidence, uncertainty and holds. This does not remove
+    factual team biographies, event roles, source attribution, required credits,
+    public-record identities or functional account identifiers.
 
-    **Keep:** the dated measurement or incident sitting under a rule, compressed, because a rule whose cost is invisible gets reasoned around; the approval status and any decision date needed to distinguish approved scope from a proposal; and dates a published page is required to print. Evidence follows its rule, never leads it, and never reads as a second instruction.
+    **Summarize instructions; never reproduce the conversation.** Replace verbatim
+    internal requests, chat shorthand and instruction quotations with clear,
+    self-contained explanations of the intended outcome, relevant context and limits.
+    Improve clarity without inventing requirements, turning a proposal into approval or
+    broadening a scoped exception. Do not replace a person's name with Alethical while
+    leaving a transcript-shaped sentence. Exact source quotations, fixed interface
+    wording, commands and test inputs remain exact when their bytes or attribution
+    matter. Apply both requirements to existing writing when updating it, including dated
+    records; their exemption from the history-narration check is not an exemption from
+    these writing requirements. The added-line checks in `scripts/check_timeless_docs.py`
+    catch common attribution and quoted-direction patterns; review must also catch
+    meaning that pattern matching cannot establish. A genuine attributed public-source
+    quotation that triggers the check may carry
+    `<!-- doc-voice-source: https://source.example/record -->` on that line, with its
+    actual source address; this is not an escape for internal conversation or approval
+    records.
 
-    **Write decisions in Alethical's voice, without internal personal attribution.** In repository documentation, rules, comments and GitHub descriptions, state the goal, requirement or approved decision directly. Name Alethical when the organization matters; otherwise omit the actor. Do not name internal individuals as the person who requested, decided, approved or wanted something. Use the responsible role only when an outstanding approval or action needs an owner. Preserve the exact approval status, scope, date when material, evidence, uncertainty and holds. This does not remove factual team biographies, event roles, source attribution, required credits, public-record identities or functional account identifiers.
+    **One owner per subject.** A doc either owns a subject or links to the owner. Where
+    reader-facing prose must state a rule in reader words, every copy carries the owner's
+    sentence word for word; nothing enforces that automatically, so a change to the
+    owner's sentence greps for its copies in the same PR.
 
-    **Summarize instructions; never reproduce the conversation.** Replace verbatim internal requests, chat shorthand and instruction quotations with clear, self-contained explanations of the intended outcome, relevant context and limits. Improve clarity without inventing requirements, turning a proposal into approval, or broadening a scoped exception. Do not replace a person's name with Alethical while leaving a transcript-shaped sentence. Exact source quotations, fixed interface wording, commands and test inputs remain exact when their bytes or attribution matter. Apply both requirements to existing writing when updating it, including dated records; their exemption from the history-narration check is not an exemption from these writing requirements. The added-line checks in `scripts/check_timeless_docs.py` catch common attribution and quoted-direction patterns; review must also catch meaning that pattern matching cannot establish. A genuine attributed public-source quotation that triggers the check may carry `<!-- doc-voice-source: https://source.example/record -->` on that line, with its actual source address; this is not an escape for internal conversation or approval records.
+    **A rule and the check that enforces it ship as 1 change.** When 2 copies of a rule
+    disagree, the enforcing copy wins in practice, because an agent obeys the specific
+    message it is handed over a general rule sitting in a file.
 
-    **One owner per subject.** A doc either owns a subject or links to the owner. Where reader-facing prose must state a rule in reader words, every copy carries the owner's sentence word for word — nothing enforces that automatically, so a change to the owner's sentence greps for its copies in the same PR.
-
-    **A rule and the check that enforces it ship as 1 change.** When 2 copies of a rule disagree, the enforcing copy wins in practice, because an agent obeys the specific message it is handed over a general rule sitting in a file.
-
-    **Strictest in the files loaded into every session** (`.claude/rules/`, `AGENTS.md`); normal in specs and guides; not applied to dated snapshots — measurement logs, dated research findings, and the source files of posted pieces (`docs/published-writing/`), which `.claude/rules/grounded-answers.md` rule 13 (signed research publishing order) already governs.
+    **Strictest in the files loaded into every session** (`.claude/rules/`, `AGENTS.md`);
+    normal in specs and guides; not applied to dated snapshots: measurement logs, dated
+    research findings, and the source files of posted pieces (`docs/published-writing/`),
+    which `.claude/rules/grounded-answers.md` rule 13 (signed research publishing order)
+    already governs.
