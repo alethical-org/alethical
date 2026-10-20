@@ -111,6 +111,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 
 
 - [Public search upkeep](operations/public-search-upkeep.md) — bounded free checks, search-provider evidence, truthful change notices and weekly/monthly review
+- [Article, event, recording and transcript publishing](operations/blog-publishing.md) — reusable upfront brief, final-edition media checks, correction patterns and acceptance matrix
 
 - [Preventing repeated failures](operations/repeat-failure-review.md): history collection, examined causes, retained checks and the manual isolated browser command
 - [Repeat-failure review and Paradigm comparison, 6 October 2026](research/repeat-failure-review-2026-10-06.md): the limited history sample, demonstrated prevention gaps and public-tool comparison
