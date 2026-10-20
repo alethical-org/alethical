@@ -34,6 +34,10 @@ working toward*, and it is the tie-breaker when a tactic and an intent disagree.
   Its [contextual page-return links](docs/design/design-principles.md#contextual-page-return-links)
   requirement also takes precedence over conflicting Design or peer handoffs; apply settled
   corrections during authorized builds and keep Design's record aligned.
+- [Eugene's shared working rules](https://github.com/euglopi/tool-settings/blob/main/shared/PERSONAL_RULES.md)
+  — how to write replies to the maintainer and how work is delegated and approved. Read
+  it first. The file lives in the private `tool-settings` repository; an agent that cannot
+  open it says so in its first reply, and a cloud brief pastes the rules it needs.
 - [`docs/README.md`](docs/README.md) — index of every spec. Specs describe intent;
   **GitHub issues and the Roadmap board carry sequencing**, so never read a milestone
   in prose as a reason work is off-limits.
