@@ -643,6 +643,27 @@ These rules extend the reusable parts of the Forward Debate decisions. They do
 not prescribe its invitation, wording, exact section order or spacing for other
 posts, and do not authorize an unrelated sitewide redesign.
 
+### 2.18 Public blog posts include sharing; assess other surfaces proactively
+
+Every public blog post includes a visible
+Share button, including Research reports, Guides, Short posts, events and recordings.
+Before designing, reviewing or building another public surface, assess whether
+sharing its content helps readers and propose a Share action where useful.
+
+Reuse the approved shared Share control, placement and interaction treatment.
+The article control stays right-aligned with metadata where both fit, with the
+approved narrow-screen wrapping, a bottom sheet below 1100px and a window-bounded
+desktop popover. Share a stable public address and accurate identifying text;
+exclude private account data and temporary state. Preserve the existing access
+boundaries for private drafts and restricted content.
+
+Include sharing in the upfront brief and acceptance checks: discoverability,
+keyboard and touch use, panel placement, copy success and failure, available
+destinations and the actual shared address. Keep Design and coding rules aligned.
+This rule does not authorize unrelated sitewide changes or bypass a requested
+design approval. The current Forward Debate sharing treatment must be drawn for
+Eugene's approval before implementation.
+
 ## 3. Open decisions
 
 **What a reader sees when our copy and Minnesota's disagree.** Today the disagreement is reported to

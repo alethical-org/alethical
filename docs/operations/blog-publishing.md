@@ -52,6 +52,15 @@ date alone is not evidence that a replay is available. See
 
 ## 2. Settle the brief before editing or uploading
 
+Every public blog post includes a visible Share button, including events and
+recordings. Use the approved shared control and treatment. Before work on another
+public surface, assess whether sharing helps readers and propose it where useful.
+Share a stable public address and accurate identifying text without private account
+data or temporary state; preserve private-draft and restricted-content access.
+[published-writing-decisions.md §2.18](../architecture/published-writing-decisions.md#218-public-blog-posts-include-sharing-assess-other-surfaces-proactively)
+owns this requirement. Preserve design-approval holds, including the current
+Forward Debate sharing round; this rule is not a sitewide implementation grant.
+
 Complete the brief at the end of this playbook. Establish:
 
 1. The exact public address, existing preview address, article kind and intended
@@ -359,6 +368,7 @@ limits. “Not applicable” names why; it does not silently waive a promised fe
 | Timed/topic navigation | Boundary/malformed times, clean copied links, same-frame seek, no-time history, direct fragments and ordinary client entry | Keyboard/mouse/touch topic and copied links, reload, Back/Forward, departure/return land correctly without reset or clipped focus |
 | Recording links and summary purpose | Supporting-file links appear once near the video before long topics/transcript; original-site link remains visible below the player with approved spacing; timestamp/title chapters omit ordinal markers | Public HTML and loaded page agree; links work; chronological and accessible list navigation remains; summaries describe available attendance or replay actions without dropping useful status |
 | Design and collections | Shared approved states, actual siblings, all layout bands, 320px, wrapped/enlarged text, reduced motion, safe separate card actions | Full-card pointer/Enter paths, 1 visible keyboard outline, no overflow, correct order/date and contextual return |
+| Sharing | Visible approved Share control; stable public address and accurate identifying text; no private account data or temporary state; preserved access boundaries | Button discoverability, keyboard/touch use, panel placement, copy success/failure, available destinations and actual shared address |
 | Contextual contact | Known purpose/source resolves locally; editable subject/message/account email; no personal URL fields; unknown/generic/cleared/draft/account boundaries | Open approved CTA, edit safely, navigate Back and return; no real send for acceptance |
 | Recovery and comments | API/player block, copy failure, sign-in failure/dismissal, normal root after departure; loopback test guards block real writes/auth/metrics | Existing safe comments and recovery paths remain usable; distinguish untested signed-in submission |
 | Release | Focused tests plus required current-head checks and independent source/browser review; normal protected merge and exact deployment identity | Parent and fresh reader review changed flows at the deployed address, resolve findings and record limits |
@@ -416,6 +426,7 @@ Discovery: [canonical, initial HTML, internal links, real schema/sitemaps if eli
 YouTube: [channel, visibility, title/description/chapters, captions, thumbnail, playlist]
 Actions: [supporting downloads allowed; no video/transcript downloads; scoped fallback]
 Contact if appropriate: [trusted purpose/source key, editable defaults, generic fallback]
+Sharing: [visible approved Share control, exact public address/text, access boundaries, states and design-approval holds]
 Ownership: [separate writers, media/upload/release owners, independent reviewer]
 Checks: [applicable matrix rows, actual playback/phone/history, safe test boundaries]
 Release: [required current-head checks, normal merge, exact live proof, record closure]
