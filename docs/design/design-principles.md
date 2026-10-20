@@ -724,8 +724,10 @@ The Guide fold button and topic links keep their separate focus and hover states
 ### Event announcement summaries and supporting links
 
 Event cards and announcement introductions lead with a concise summary of what
-an event is about and why someone would attend. Format details such as question
-rules do not replace that purpose. Preserve approved source flyers unchanged.
+an event is about and what readers can do now. Upcoming-event summaries help
+readers attend; summaries for an available replay help them watch or read. A past
+event date alone does not establish that a replay is available. Format details
+such as question rules do not replace that purpose. Preserve approved source flyers unchanged.
 The `/blog` Events group comes before Research reports, Short posts and Guides.
 Each introductory event card on `/blog` and `/blog/events` has its own white
 boundary and full-card title link. Reuse the white clickable-card hover above
@@ -734,9 +736,12 @@ reduced motion removes the lift. Keyboard focus outlines the entire card with
 the existing purple 2px ring and 2px offset, with only 1 keyboard stop per card.
 Introductory cards show the date alone, such as “October 15, 2026”, without a
 weekday, time or “Past event”. Detailed announcements retain their date/time
-and meaningful registration status. The completed Forward Debate replay summary
-omits the venue/city/free-admission line; upcoming-event cards keep useful attendance
-logistics. Approved on 19 October 2026.
+and meaningful registration status. Available-replay summaries omit spent attendance
+logistics, such as free admission; upcoming-event cards keep useful attendance
+information. Keep useful event history in the full article, plus meaningful
+cancellation, postponement and availability information. The completed Forward
+Debate replay omits the venue/city/free-admission line. Approved on 19 October
+2026; the reusable replay-summary rule was approved on 20 October 2026.
 Keep invitations concise: omit explanations already implied by the action, such
 as why the host needs an RSVP, and do not repeat the RSVP button in nearby prose.
 
@@ -1075,6 +1080,20 @@ Lobbying labels retain their exact source identifier, use equal-width digits and
 line height 1.5, and wrap between words. Keep the middle dot with the preceding
 text and keep Registration {number} or Entity ID {id} together. Test the real font
 at 320px and each layout band; do not shrink, clip or truncate the label.
+
+### Recording links and video topics
+
+Approved on 20 October 2026. When a recording has supporting guides, reports or
+slides, show their links once near the video, before long topic or transcript
+sections. Keep a visible link to watch on the original video site below the
+embedded player, with clear space using the approved spacing treatment. The
+Forward Debate's placement below its contact invitation and its 16px player-link
+gap remain specific to that design.
+
+Timestamp-and-title video chapter lists omit extra visible ordinal numbers. Keep
+chronological order, accessible list structure, keyboard navigation and working
+time links. Numbered instructions and other ordered content retain meaningful
+numbering. Apply the accepted treatment in initial HTML and the loaded page.
 
 ### Debate replay topic links and contact context
 
