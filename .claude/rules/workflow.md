@@ -50,7 +50,7 @@ exercise the affected return paths in the rendered app: initial HTML, direct and
 visits, safe earlier context, missing identity, rapid record changes, loading and errors,
 copied and new-tab links, retained filters and scroll, keyboard and phone layouts. A green
 static guard does not prove the words match the destination. Review the final Design
-updates and inspect the live behaviour yourself before reporting completion.
+updates and independently inspect the live behaviour before reporting completion.
 
 ## The rules
 
@@ -61,13 +61,15 @@ updates and inspect the live behaviour yourself before reporting completion.
    (`just worktree <branch>`, or your tool's own worktree mechanism), every write inside
    it, kept for follow-up after delivery, live checks and acceptance.** Release it only
    when the maintainer explicitly requests cleanup
-   (`just worktree-rm <branch> <owner-id> '<delivery and cleanup authorization evidence>'`).
-   Completion, merging and age never authorize cleanup; completed work carries a
+   (`just worktree-rm <branch> <owner-id> '<delivery and cleanup authorization evidence>'`);
+   removal requires both that request and an explicit owner release after delivery and
+   acceptance. Completion, merging and age never authorize cleanup; completed work carries a
    retention hold with no expiry; related follow-up stays in the same chat and folder,
    with a fresh branch from current main when needed. Every owner finishes or records a
    hold for remaining review or previews. New work revokes prior releases; holds survive
-   ordinary questions; a missing finish decision keeps the folder. Lifecycle hooks never
-   interrupt replies or add chat messages. Cleanup saves recovery copies, retains branches
+   ordinary questions; a missing finish decision keeps the folder, including unfinished,
+   unsaved or unpublished work. Routine lifecycle hooks never interrupt replies or add
+   chat messages (concurrent-session mechanics: skill `when-to-act-without-approval`). Cleanup saves recovery copies, retains branches
    and refuses unsafe removal; Codex-managed folders use the app's own archive control.
    See [working-folder cleanup and recovery](../../docs/operations/worktree-lifecycle.md).
    **Never release another task's folder on the basis of age or a merged change alone.**
@@ -103,7 +105,8 @@ updates and inspect the live behaviour yourself before reporting completion.
 
 3. **Share branches, not file copies.** A loose copy of a repo file (Downloads, an
    attachment) is diffed against the branches before anything is built on it. Land
-   durable content on a branch promptly, point people at branches and PRs, and delete the
+   durable content on a branch promptly, point people at branches and PRs rather than
+   exporting files, and delete the
    loose copy in the same session it lands: a kept copy trails the branch and resurfaces
    as a stale shadow of main.
 
@@ -116,8 +119,8 @@ updates and inspect the live behaviour yourself before reporting completion.
 
    **A decision reached in conversation, with no file changed, still ships a doc edit in
    the same session.** Nothing automated fires on it. If a chat reply just taught the
-   maintainer something durable, that content goes into `docs/` before the turn ends,
-   written for the next builder. Two categories slip past every code-shaped check:
+   maintainer something durable, that content (the fact, the decision and the reason)
+   goes into `docs/` before the turn ends, written for the next builder. Two categories slip past every code-shaped check:
 
    - **How an external source behaves**: archive vs overwrite-in-place, link stability,
      format violations, what its error page looks like. These shape every importer and
@@ -126,10 +129,11 @@ updates and inspect the live behaviour yourself before reporting completion.
      which credential reaches it and why, what is lost if the store is lost.
 
    **Only what is settled goes in, and settled is 3 different things:** a measured fact
-   about the world goes in at once; a settled decision goes in the moment it settles
+   about the world goes in at once, agreement or not; a settled decision goes in the
+   moment it settles
    (yours under rule 10 and made, or agreed by the maintainer, whose silence on something
    you flagged as his call is not agreement); an option still on the table does not go in
-   at all. The test: **could you write the sentence as a flat assertion with no hedge?**
+   at all, and once one wins the doc records why the winner won. The test: **could you write the sentence as a flat assertion with no hedge?**
    "Bodies live in a private Supabase bucket" is a doc sentence; "we are weighing a bucket
    against the database" is not; "bodies will *likely* live in a bucket" is the failure,
    because a future reader drops the hedge.
@@ -140,7 +144,8 @@ updates and inspect the live behaviour yourself before reporting completion.
    clothing: put it in the doc and have the issue link to it.
 
    Existing issues get the same care: when shipped work or a recorded decision changes
-   one (done, half-done, re-scoped, obsolete), update or close it in the same session.
+   one (done, half-done, re-scoped, obsolete), update or close it in the same session. A
+   periodic triage pass is the backstop, not the mechanism.
 
    **Categorize every issue at creation; the Roadmap board (org `alethical-org` Project #1
    "Alethical Roadmap") is the source of truth.** The 8-axis scheme, the
@@ -154,9 +159,11 @@ updates and inspect the live behaviour yourself before reporting completion.
    plus the `gh` label and milestone flags: `updateProjectV2ItemFieldValue`,
    `addProjectV2ItemById`, `addSubIssue`, `unarchiveProjectV2Item`. Off-limits without an
    explicit in-session go-ahead: `createProjectV2Field`, `deleteProjectV2Field`,
-   `updateProjectV2Field`. When work seems to need a new Epic, option or renamed field,
-   propose it and let the maintainer make the structural edit. To defer or recategorize,
-   change the item's field value or move it to a higher-numbered milestone.
+   `updateProjectV2Field` (which renames a field or adds, renames, reorders or deletes a
+   single-select option). When work seems to need a new Epic, option or renamed field,
+   propose it and let the maintainer make the structural edit, then fill in item values.
+   To defer or recategorize, change the item's field value or move it to a
+   higher-numbered milestone, never the option itself.
 
 5. **Verify cheap repo facts before deciding on them.** A claim one `diff`, `git log` or
    `grep` away from certain (which version is newer, does the model have that field, is
@@ -176,7 +183,8 @@ updates and inspect the live behaviour yourself before reporting completion.
    sentence once named a direction false on 33 of 76 disagreeing committee-years after 1
    committee was read; a download was found to both lag amendments and double-count a
    filing; a "3 sessions collided" claim was 5 pull requests in an hour, countable in 1
-   command. The product-facing form is `.claude/rules/grounded-answers.md` rule 11.
+   command. The product-facing form is `.claude/rules/grounded-answers.md` rule 11; this
+   rule applies it to our own writing: issues, PR bodies, docs and messages to each other.
 
    **The mirror, which feels like rigour and is not: a flawed route to a claim does not
    make the claim false.** When your evidence for something turns out unsound, re-test the
@@ -190,7 +198,9 @@ updates and inspect the live behaviour yourself before reporting completion.
    written up in a PR body, 2 code comments, a guide and 4 issue comments as having
    printed on 33 real pages under named people; nobody saw any of them, because the
    section only draws once a person confirms a committee and the confirmation table held
-   0 rows. The second session to repeat it had measured that disproof hours earlier. "My
+   0 rows. The second session to repeat it had measured that disproof hours earlier, so
+   check your own earlier measurements too: a consequence feels like part of the finding
+   rather than a separate claim. "My
    reason was wrong" and "the thing is wrong" are different sentences, and only the second
    retracts; "the code was wrong" and "a reader was misled" are different sentences, and
    only the second is a harm.
@@ -204,10 +214,13 @@ updates and inspect the live behaviour yourself before reporting completion.
    implementation work: a removed label, a removed description, a shipped serialisation,
    1 added dropdown option have each produced a false guide sentence.
 
-   **Plain-English guides drift worse than specs; check them first.** Every notable
-   feature with its own page or named navigation position has its own plain-English guide
-   in `docs/product-onboarding/`, listed in `docs/README.md`, carrying a
-   `<!-- describes: -->` declaration, explaining the feature's purpose, every way in, its
+   **Plain-English guides drift worse than specs; check them first.** "Docs" includes the
+   user-facing guide. Every notable
+   feature with its own page or named navigation position (a destination where a reader
+   completes a product task; legal and passive status pages do not count) has its own
+   plain-English guide in `docs/product-onboarding/`, listed in `docs/README.md`, carrying
+   a `<!-- describes: -->` declaration, explaining at minimum the feature's purpose, every
+   way in, its
    controls and results, all visible empty, loading and error states, important limits,
    data sources and what happens to reader data. A system design, build spec, mockup or
    code comment is not the guide. The guide exists before the feature counts as shipped,
@@ -231,15 +244,16 @@ updates and inspect the live behaviour yourself before reporting completion.
    Whenever a decision re-scopes, re-phases, renames or draws a boundary, search for
    artifacts that still describe the old state (`gh issue list --search "<feature
    keywords>"`, `grep` across `docs/` and `.claude/rules/`), update what the search finds
-   in the same session, and record the result in the PR body ("Stale-reference check:
+   in the same session, unprompted, and record the result in the PR body ("Stale-reference check:
    #79 rescoped" or "Stale-reference check: nothing affected").
 
    `grep` cannot see inside binary assets: when a change alters what a doc's image
    depicts, refresh the image in the same change. A chat-attached image is not a file on
    disk; locate the source (screenshots land in `~/Desktop/Screenshot/` as `.jpg`),
-   verify the frame, convert to the tracked format (`sips -s format png`). A diagram
-   shipped as both `.svg` and `.png` renders with
-   `qlmanage -t -s <px> -o <outdir> file.svg`.
+   verify the frame, convert to the tracked format (`sips -s format png`). The usual
+   converters are not installed; a diagram shipped as both `.svg` and `.png` renders
+   faithfully with `qlmanage -t -s <px> -o <outdir> file.svg`, so never defer the refresh
+   to a follow-up.
 
 7. **Name things so a newcomer can guess what they are.** Branch names, PR titles,
    filenames, headings and rule names describe the thing literally, in plain words:
@@ -248,12 +262,13 @@ updates and inspect the live behaviour yourself before reporting completion.
    not where it lands. A coined term that earns its keep is defined in plain words at
    first use in the doc that owns it.
 
-8. **Spell out spec references: file name plus section topic.** In any artifact, write
-   the full spec file name and what the section is about:
-   "`docs/product-onboarding/grounded-ask-spec.md` §9 (Answer page UI — v1 states)", never
-   "the spec §9". Once the full form has appeared in an artifact, later mentions there may
-   shorten. Issues and PRs get markdown links with their titles or a gloss, never a bare
-   number.
+8. **Spell out spec references: file name plus section topic.** In any artifact (docs,
+   issues, PR bodies and comments, chat), write the full spec file name and what the
+   section is about: "`docs/product-onboarding/grounded-ask-spec.md` §9 (Answer page UI —
+   v1 states)", never "the spec §9". A reader of the sentence in isolation knows what is
+   referred to without opening anything. Once the full form has appeared in an artifact,
+   later mentions there may shorten. The same principle applies to every pointer: issues
+   and PRs get markdown links with their titles or a gloss, never a bare number.
 
 9. **Resolve factual claims from the primary source, yourself.** When a fact shown to
    users or baked into product content can be confirmed from a primary source (a bill's
@@ -270,7 +285,7 @@ updates and inspect the live behaviour yourself before reporting completion.
     it is, which lane it sits in or how late in the session it is. If a change is safe,
     reversible and verifiable: build it, verify it, ship the whole loop (branch, commit,
     PR, squash-merge, deployment, acceptance, worktree and branch retained for follow-up;
-    guarded cleanup only on request) and report. This covers docs, specs, `.claude/`
+    guarded cleanup only when the maintainer requests it) and report. This covers docs, specs, `.claude/`
     rules and config, issues, **and app, front-end, backend and production code**. Rules
     1 and 2 still apply. Zero-behaviour cleanup (a stale comment, a typo, a broken
     cross-link, a reference your own change orphaned) is always in-lane, in any file,
@@ -279,7 +294,9 @@ updates and inspect the live behaviour yourself before reporting completion.
 
     **Standing autonomy grant.** Schema and data migrations, auth and security, outbound
     communications, production-data runs, outward-facing content and capability copy are
-    all act-then-report; "it is propose-first" is never a reason to pause. Four grants:
+    all act-then-report; "it is propose-first" is never a reason to pause, and where any
+    other clause seems to say otherwise, this grant governs. Four grants, each standing on
+    its own:
 
     - **Merge your own low-risk PRs yourself, then summarize**: CI-green, cleanly
       `git revert`-able, behaviour verified (tests plus dev-server QA as applicable),
@@ -292,7 +309,7 @@ updates and inspect the live behaviour yourself before reporting completion.
       verify production, repair or revert a bad release. This is advance approval for
       `gh pr merge`, enabling auto-merge while checks are pending, deleting the merged
       remote branch, and the deployment triggered by merging to `main`. Never ask for a
-      fresh "ready, approve, publish, merge, deploy" confirmation and never stop at an
+      fresh "ready/approve/publish/merge/deploy" confirmation and never stop at an
       approval prompt: request the needed tool permission yourself and continue. GitHub
       does not let an author approve their own PR, so a missing self-approval is not a
       blocker when the required checks are green. This covers the release workflow, not
@@ -312,8 +329,10 @@ updates and inspect the live behaviour yourself before reporting completion.
       deploy path, not a gate. A dry-run-proven, idempotent backfill is likewise
       auto-merge.
 
-    - **Paid production runs are authorized** once no zero-cost path suffices. **Cost
-      alone never gates.** Applying `workflow-overhead-audit` verdicts is in this lane,
+    - **Paid production runs are authorized** once you have established that no
+      zero-cost path suffices. **Cost alone never gates**: wherever any clause lists money
+      as a reason to pause, this grant governs. Applying `workflow-overhead-audit`
+      verdicts is in this lane,
       including meaning-preserving rewrites of a rule or skill file.
 
     **How to verify a merge, in order:**
@@ -321,8 +340,9 @@ updates and inspect the live behaviour yourself before reporting completion.
     - **Every PR merges through the merge queue**, which tests each PR against the
       queue's projected result rather than a `main` that may have moved. Add a PR with
       "Merge when ready" or `gh pr merge --auto`. The queue requires `changes`, `backend`,
-      `frontend` and `description-checks` against its up-to-date combined commit. A green
-      PR view alone is not enough.
+      `frontend` and `description-checks` against its up-to-date combined commit.
+      Dependabot PRs and auto-merge go through the same queue. A green PR view alone is
+      not enough.
 
     - **"CI-green" means green against the *current* `main`.** That is the queue's job;
       re-run the checks by hand if you ever merge outside the queue or the queue is
@@ -459,8 +479,9 @@ updates and inspect the live behaviour yourself before reporting completion.
       added (plain `checkout`, `switch`, `rebase`, `branch -f` and `branch -D` all refuse a
       branch another worktree holds; the `git` on `PATH` is Homebrew's 2.55.0). Treat a
       refusal as git telling you the branch is someone else's, never as an obstacle to
-      route around. `/usr/bin/git` is Apple's unguarded 2.39.5, so anything calling that
-      absolute path gets the old silent behaviour.
+      route around. When reporting git behaviour, say which git, invoked how:
+      `/usr/bin/git` is Apple's unguarded 2.39.5, which cannot be removed, so anything
+      calling that absolute path gets the old silent behaviour.
     - **`git worktree remove --force <path>`** deletes a worktree and its uncommitted work
       in 1 command, in every git version. The tracked hook `.githooks/post-checkout` locks
       every new worktree at creation, whichever tool ran `git worktree add`, so the command
@@ -493,9 +514,9 @@ updates and inspect the live behaviour yourself before reporting completion.
     current the safer way. To refresh local `main` by hand, `git fetch origin main:main`
     is fast-forward-only and touches no working tree.
 
-    **Treat all of that as bounded loss, not prevention.** Against a live agent, every
-    lock and deny rule surfaces as an approval prompt, not a wall; each destructive
-    command succeeds after approval. What bounds the loss is **`just install-wip-backup`**:
+    **Treat all of that as bounded loss, not prevention.** When tested against a live
+    agent, every lock and deny rule surfaced as an approval prompt, not a wall, and each
+    destructive command succeeded after approval. What bounds the loss is **`just install-wip-backup`**:
     every 5 minutes, each worktree's uncommitted work is captured into a
     `refs/wip-backup/<unique-id>` ref plus a verified bundle outside the repo
     ([working-folder cleanup and recovery](../../docs/operations/worktree-lifecycle.md)).
@@ -555,9 +576,9 @@ updates and inspect the live behaviour yourself before reporting completion.
     issue's comments. After delegating, **monitor** the sessions and **finish any dependent
     integration** yourself.
 
-    **Every delegation brief ends with an explicit report-back instruction:** "when you are
-    done, PR merged or work blocked, `send_message` this session (name + id) with the
-    outcome (PR #, merged or blocked, anything I need to integrate)." Never rely on the
+    **Every delegation brief ends with an explicit report-back instruction:** *"when you're
+    done — PR merged or work blocked — `send_message` this session (name + id) with the
+    outcome (PR #, merged/blocked, anything I need to integrate)."* Never rely on the
     background task-completion notification: it fires only when the session's process
     ends, which can lag a merged PR by hours or never arrive within your turn. Include your
     own session identity in the brief.
@@ -603,7 +624,7 @@ updates and inspect the live behaviour yourself before reporting completion.
       "refactor X" becomes "tests pass before and after". For multi-step work, state a
       brief plan with a verification check per step.
     - **Record shared impact and prevention.** Apply the shared
-      [PERSONAL_RULES.md guidance on considering the whole system while keeping execution scoped](https://github.com/euglopi/tool-settings/blob/main/shared/PERSONAL_RULES.md)
+      [PERSONAL_RULES.md guidance on considering the whole system while keeping execution scoped](https://github.com/euglopi/tool-settings/blob/main/shared/PERSONAL_RULES.md#decisions-act-on-my-recommendation-report-after)
       to all substantive work. Keep its concise impact-and-prevention record in the
       existing issue, task plan or review, not a new chat template. Revisit it when
       material findings change the scope and before completion; reconcile it with the
@@ -649,8 +670,10 @@ updates and inspect the live behaviour yourself before reporting completion.
 
     **Cut:** a superseded design still described in a spec; the same rule written out in
     its own words in more than 1 file; a rule stated twice in 1 file, once live and once
-    dead; dated decision narration. Where old behaviour must stay gone, ban it in the
-    present: "never write X", not the story of X. Added doc lines carrying such narration
+    dead; dated decision narration ("this replaces an earlier step", "used to work the
+    other way", "as of February 2"). <!-- timeless-check-ignore: examples of the banned phrasing -->
+    Where old behaviour must stay gone, ban it in the present: "never write X", not the
+    story of X. Added doc lines carrying such narration
     fail CI (`scripts/check_timeless_docs.py`, added lines only; a genuine evidence line
     escapes with `<!-- timeless-check-ignore: <why> -->`).
 
