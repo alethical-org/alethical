@@ -670,8 +670,8 @@ updates and independently inspect the live behaviour before reporting completion
 
     **Cut:** a superseded design still described in a spec; the same rule written out in
     its own words in more than 1 file; a rule stated twice in 1 file, once live and once
-    dead; dated decision narration ("this replaces an earlier step", "used to work the
-    other way", "as of February 2"). <!-- timeless-check-ignore: examples of the banned phrasing -->
+    dead; dated decision narration, such as a sentence saying a step replaces an earlier
+    one or that a rule once worked the other way, or a fact pinned to "as of" a month.
     Where old behaviour must stay gone, ban it in the present: "never write X", not the
     story of X. Added doc lines carrying such narration
     fail CI (`scripts/check_timeless_docs.py`, added lines only; a genuine evidence line

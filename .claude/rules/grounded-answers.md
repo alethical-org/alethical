@@ -27,14 +27,14 @@ decides.
    honest "no matches" or "out of scope" is a first-class response, not an error state. For
    the generated answer paths, the standing enforcement is the acceptance suite
    `alethical/tests/test_ask_scenarios.py` (cite-or-refuse across `/ask` answer bodies, the
-   grounded-neutrality authorship citations of rule 3, and the no-ungrounded-leak contract
-   of rule 4), alongside the classification and `topic_bills` coverage in
+   grounded-neutrality authorship citations of rule 3, and the no-ungrounded-leak interim
+   contract of rule 4), alongside the classification and `topic_bills` coverage in
    `alethical/tests/test_api_contract.py`.
 
 2. **Never advertise what you can't answer.** Placeholders, sample question chips, suggested
    follow-ups, empty states and marketing copy may only name intents the router can
-   currently answer. System-suggested questions (chips) are constructed so they cannot lead
-   to a refusal.
+   currently answer. System-suggested questions (chips) must be constructed so they cannot
+   lead to a refusal.
 
 3. **Grounded neutrality.** Describe records and source-backed relationships, never inferred
    positions or causes: "authored / co-authored N bills", "voted yes on HF xxxx", never
@@ -60,7 +60,7 @@ decides.
 
 5. **Anything linked to must be URL-addressable.** If a citation, CTA or cross-page
    navigation targets a location (a tab, a highlighted passage, a roll-call row), that
-   location is reachable via URL (`?tab=votes`, `#anchor`); component state cannot be
+   location must be reachable via URL (`?tab=votes`, `#anchor`); component state cannot be
    linked from another page. Shareable URLs are a feature of every such surface.
 
 6. **Copy claims match shipped capability.** Product copy (hero subhead, deflection text,
@@ -68,12 +68,13 @@ decides.
    visible tallies plus official-record links somewhere in the product. If a capability
    slips, trim the claim in the same release; never mock or ship copy around a gap.
 
-7. **Answerable means ingested and fresh: keep the corpus current.** Grounded Ask answers
-   solely from what ingestion has pulled in, at the state it was pulled in. Any surface
+7. **Answerable means ingested and fresh: keep the corpus current.** Every answer path is
+   only as current as the ingested corpus: Grounded Ask answers solely from what ingestion
+   has pulled in, at the state it was pulled in. Any surface
    implying currency (the hero's "Minnesota law … where it stands", a "new law" framing,
    current-session chips) presumes the relevant session is in the corpus and its records
-   reflect reality, so the active or most recent legislative session is ingested and
-   refreshed before that copy ships. Staleness is the sneakier failure: ingestion is
+   reflect reality, so the active or most recent legislative session must be ingested and
+   refreshed before that copy ships (the currency face of rules 2 and 6). Staleness is the sneakier failure: ingestion is
    human-triggered and skips already-ingested bills by default (`only_missing`), so a bill
    can sit in the corpus at a months-old status, and a status-stale answer misframes
    enacted law as a pending proposal. Canonical current-law questions are standing
@@ -83,11 +84,13 @@ decides.
    [#79](https://github.com/alethical-org/alethical/issues/79). The test is re-run, never
    retired. A persistent refusal on genuinely enacted current law, or a confidently stale
    answer about it, is a gap to close: the refusal is still correct while a coverage gap
-   exists (rule 1), but the gap is a bug against this rule, and the maintainer notices and
-   fixes the corpus unprompted.
+   exists (rule 1), but the gap is a bug against this rule, and it is the maintainer's job
+   to notice a canonical use case has gone unanswerable or stale and fix the corpus,
+   unprompted.
 
-8. **Follow-up chat is a standing capability: answer-first, never router-opened.** Signed-in
-   users can continue a single-bill answer conversationally, and the answer page's
+8. **Follow-up chat is a standing capability: answer-first, never router-opened.** The
+   intent: signed-in users can continue a single-bill answer conversationally, and the
+   answer page's
    follow-up composer hands off into the existing bill-scoped chat seeded with the Ask
    question plus generated answer (`docs/product-onboarding/grounded-ask-spec.md` §9.2,
    Answer page shared elements). The hero and router never open a chat session directly:
@@ -99,17 +102,21 @@ decides.
    (`alethical/tests/test_api_contract.py`).
 
    **No reader can reach it today** ([#1032](https://github.com/alethical-org/alethical/issues/1032)):
-   the server (`POST /me/chat-sessions`, `GET /me/chat-sessions`, `GET
-   /me/chat-sessions/{id}` in `alethical/api/routers/me.py`) and the client screen
-   (`ChatSessionScreen.tsx`, which creates a bill-scoped session from route params or its
+   the server (`POST /me/chat-sessions`, `GET /me/chat-sessions` and
+   `GET /me/chat-sessions/{id}` in `alethical/api/routers/me.py`) and the client screen
+   (`ChatSessionScreen.tsx`, which calls `useCreateChatSession` when it receives
+   `subjectType: 'bill'` + `subjectId` + `title` from route params or its
    `sessionStorage` hand-off, still registered in `RootNavigator.tsx`) both work. What is
    missing is any way in: `apps/frontend/src/navigation/webRoutes.ts` redirects `/chat`,
-   `/chat/new` and `/chat/sessions/{id}` to Home, the Chat tab is excluded from
-   `VISIBLE_TABS`, and the in-app entry point left with the deleted `BillDetailScreen.tsx`.
-   This is a missing door on a working room: do not rebuild chat.
+   `/chat/new` and `/chat/sessions/{id}` to Home (each returns
+   `{ kind: 'tab', screen: 'Home' }`), the Chat tab is excluded from `VISIBLE_TABS`, and
+   the in-app entry point left with `BillDetailScreen.tsx`, deleted by
+   [#1071](https://github.com/alethical-org/alethical/pull/1071). This is a missing door
+   on a working room: do not rebuild chat.
 
    **Before building the composer, read `docs/product-onboarding/grounded-ask-spec.md` §9.5
-   (chip-reached answer page).** Its Scope paragraph specifies "no question field, no Ask
+   (chip-reached answer page). It constrains where a composer may go, and it wins for the
+   `bill_text` state by its own opening sentence.** Its Scope paragraph specifies "no question field, no Ask
    button, no composer" on that page and makes it signed-out only, with a Bill Detail chip
    as the only way in. Its deferred-items table (`Upgrade | Issue | Today | Why deferred`)
    says what ships now: for [#137](https://github.com/alethical-org/alethical/issues/137)
@@ -117,7 +124,9 @@ decides.
    (§9.2)", and for [#84](https://github.com/alethical-org/alethical/issues/84) "only
    `bill_text` answers thread (into existing bill-scoped chat, §9.2)". Deferred are
    rendering the thread in place (#137) and topic threading (#84); the hand-off into
-   bill-scoped chat is current design.
+   bill-scoped chat is current design. Do not read Scope's "auth-gated follow-up model
+   stays deferred" sentence as parking the whole capability; the table contradicts that
+   reading.
 
    **The real gap: no section says where a *signed-in* reader continues a bill
    conversation.** §9.5 governs a signed-out page. Treat the signed-in equivalent as
@@ -128,10 +137,10 @@ decides.
 
 9. **Bill summaries read as plain language: no bill-number prefix, no statute citations.**
    Wherever a bill's AI summary is displayed (cards, teasers, profile bill lists, search
-   results), it reads as a plain-language sentence about what the bill does: never leading
-   with the bill number (the identifier already shows in the amber code badge), never
-   carrying raw statute citations ("Minnesota Statutes chapter 626", "section 297A.67,
-   subdivision 40"). Preferred: "Appropriates $6,000,000 from the bond proceeds fund to
+   results), it must read as a plain-language sentence about what the bill does: never
+   lead with the bill number ("The bill HF 577 …" / "HF 1116 …"; the identifier already
+   shows in the amber code badge), never carry raw statute citations ("Minnesota Statutes
+   chapter 626", "section 297A.67, subdivision 40"). Preferred: "Appropriates $6,000,000 from the bond proceeds fund to
    develop new facilities." The durable fix is at ingestion: the enrichment prompt generates
    summaries this way, and a populated `plain_language_summary` wins over the formal
    `summary`.
@@ -146,9 +155,10 @@ decides.
    specifics separate near-duplicate bills, and changing what it reasons over moves an
    eval-gated path (rule 1's acceptance suite; retrieval quality on
    [#400](https://github.com/alethical-org/alethical/issues/400)). Both halves are pinned by
-   `test_display_summary_prefers_plain_language_and_ask_keeps_the_formal_one`. The full
-   corpus (10,471 bills) is enriched on `claude:claude-sonnet-5`, so stored summaries read
-   as plain language at source: 0% carry a bill-code prefix, and only about 0.08% of
+   `test_display_summary_prefers_plain_language_and_ask_keeps_the_formal_one`. A
+   reproducible 20-bill read scored the plain-language field plainer on 13, worse on 5,
+   level on 2. Stored summaries for the full corpus (10,471 bills) come from an
+   enrichment run on `claude:claude-sonnet-5`, so they read as plain language at source: 0% carry a bill-code prefix, and only about 0.08% of
    summaries (about 0.9% of key points) retain an unavoidable statutory cross-reference,
    almost all recodification or repeal bills whose substance *is* that reference. The
    shared display cleaners (`plainBillSummary` / `plainKeyPoints` in
@@ -157,13 +167,14 @@ decides.
    the others strip.
 
    **A display cleaner may only remove a citation where removing it cannot break the
-   sentence: a leading amendatory clause, or a parenthetical aside.** Breaking a sentence's
-   grammar is re-authoring, which this rule forbids. Stripping citations anywhere in the
-   sentence damages plain-language text where a citation is load-bearing: "formed under
-   chapter 116A to the definition" becomes "formed under to the definition"; "like Section
-   8 vouchers" becomes "like vouchers"; "a federal change to section 179 business
-   expensing" loses its subject; "Renames … throughout Minnesota Statutes." loses its
-   object. **"Section 8" and "section 179" are the names of a housing program and a
+   sentence: a leading amendatory clause ("Amends Minnesota Statutes 2024, section
+   120B.123, to require …"), or a parenthetical aside.** Breaking a sentence's grammar is
+   re-authoring, which this rule forbids. Stripping citations anywhere in the sentence
+   damages plain-language text where a citation is load-bearing (9 of the 10 summaries it
+   touches): "formed under chapter 116A to the definition" becomes "formed under to the
+   definition"; "like Section 8 vouchers" becomes "like vouchers"; "a federal change to
+   section 179 business expensing" becomes "…to business expensing"; "Renames … throughout
+   Minnesota Statutes." becomes "Renames … throughout." **"Section 8" and "section 179" are the names of a housing program and a
    federal tax provision, not Minnesota Statutes citations.** The residual about 0.08% is
    left as written. Position-limited stripping changes 1 summary and 36 key-point lists
    corpus-wide, breaking none.
@@ -291,26 +302,29 @@ decides.
       figures to what the money is **for** (a candidate, or a ballot question), not to who
       files, and sets $500 for a ballot question. The Board's
       [*Independent Expenditure and Ballot Question Political Committee and Fund Handbook*](https://cfb.mn.gov/pdf/publications/handbooks/IE_BQ_handbook.pdf)
-      says $500 for these filers too ("over $200 to an independent expenditure committee or
-      fund and over $500 to a ballot question committee or fund") and works an example on
-      that difference. Everything the $200 paragraph says binds this figure unchanged.
+      (Last Revised 08/27/2026, the newest of the Board's 7) says $500 for these filers too
+      ("over $200 to an independent expenditure committee or fund and over $500 to a ballot
+      question committee or fund") and works an example on that difference. Everything the
+      $200 paragraph says binds this figure unchanged.
 
         **Never write that our 2 sources disagree about the ballot-question threshold.**
         The apparent disagreement rests on the
         [*Political Committee and Political Fund Handbook*](https://cfb.mn.gov/pdf/publications/handbooks/PCF_handbook.pdf),
-        which states $200 with no ballot-question carve-out, but it is not the handbook
+        (Last Revised 06/15/2026), which states $200 with no ballot-question carve-out (its
+        only `$500` is a fundraiser guest-speaker example), but it is not the handbook
         those filers are given: its reporting instructions are for the general-purpose
         kind, and its ballot-question content concerns *local* ballot-question expenditures
         and a $5,000 **registration** threshold, a different rule from itemization that
         must never be read as a third figure. The 2 sources never disagreed; 1 answered a
-        different question. A page once told readers "official sources disagree about that
-        threshold for ballot-question committees, so we do not state it", a claim about
-        Minnesota's records contradicting each other that the records do not support
-        ([#1661](https://github.com/alethical-org/alethical/issues/1661)).
+        different question. `unnamedMoneyExplanation` must never say "official sources
+        disagree about that threshold for ballot-question committees, so we do not state
+        it", a claim about Minnesota's records contradicting each other that the records do
+        not support ([#1661](https://github.com/alethical-org/alethical/issues/1661)).
 
         **The one thing still unread is the Board's ballot-question forms**, to see whether
         their non-itemized line carries $200 or $500. Until someone does that form read,
-        $500 stands on the statute and the handbook written for these filers.
+        $500 is the approved treatment, standing on the statute and the handbook written
+        for these filers.
     - **A verified zero reads "0"; a missing value never becomes zero.** Missing itemized
       contribution figures read "Not reported". **Scoped exception for `/money/races`:**
       the compact directory reads "No itemized contributions in our records for {year}",
@@ -322,7 +336,7 @@ decides.
     - **Scoped lobbyist-directory order.** `/money/lobbying/lobbyists` may sum unchanged
       held Contribution rows for a completed source year, supported by the receiving
       committee's full-year comparison or complete donor-specific official-report
-      evidence. An explicit report registration, exact name, date and amount and an
+      evidence. An explicit report registration plus an exact name/date/amount and
       unambiguous transaction match may establish a held row's missing registration; name
       alone never does. A known unresolved donor record withholds the entire annual
       amount. Keep previously established donor and recipient relationships unresolved
@@ -350,7 +364,9 @@ decides.
     ([#861](https://github.com/alethical-org/alethical/issues/861)).
 
     **A claim about who currently holds office, or whose committee this currently is,
-    expires; a dated figure does not.** A figure carries the period it covers and the day
+    expires; a dated figure does not.** Those 2 take opposite treatment on the same page,
+    and collapsing them either empties a page of correct figures or keeps naming a person
+    nobody stands behind. A figure carries the period it covers and the day
     we copied it, so an old one is labelled rather than wrong. A current claim carries no
     such date and goes silently false the moment somebody withdraws a confirmation, so it
     is withheld once it passes its deadline, in its own words rather than the "nobody has
@@ -369,11 +385,11 @@ decides.
     still read live from the register and never pasted.
 
     **A label never encodes the naming rule; a sentence does.** "Individual donors over
-    $200" names only people when named donors include lobbyists, other campaigns,
-    committees, funds and party units; it reads as a gift size when the test is a donor's
-    yearly total; and it reads as a bar when the rule is a floor. The label is the Board's
-    own term, **Itemized contributions**, and the rule is 1 sentence under it, printed once
-    per card.
+    $200" is refused as the itemized figure's label: it names only people when named
+    donors include lobbyists, other campaigns, committees, funds and party units; it reads
+    as a gift size when the test is a donor's yearly total; and it reads as a bar when the
+    rule is a floor. The itemized figure's label is the Board's own term, **Itemized
+    contributions**, and the rule is 1 sentence under it, printed once per card.
 
     **A summary card prints the figures the filing states; a figure we add up ourselves
     lives where its rows are.** When an official spending total is held, show
@@ -397,14 +413,16 @@ decides.
     explanatory article uses **Guide**. Minnesota's Campaign Finance Board also calls a
     campaign's filed disclosure document a report, and the reader-facing strings in
     `apps/frontend/src/lib/committeeMoney.ts` retain that distinct meaning
-    (`docs/architecture/published-writing-decisions.md` §2.6). A signed research piece is a
+    (`docs/architecture/published-writing-decisions.md` §2.6, which holds the ratified
+    count and the reasoning). A signed research piece is a
     distinct surface class, the only one that may do 3 things every other surface is
     banned from, each with its own condition:
 
     - **Add figures up across members.** Every cross-member figure recomputes from 1 pinned
       release of our loaded data, and coverage, amendments and filer identities reconcile
       against the official filings, not just the totals. The recompute runs on the live
-      piece and gates only whether search engines are opened to it, never whether it posts.
+      piece and never gates whether it posts; search-engine visibility follows point 4 of
+      the publishing order (rule 9 of that order is the date it carries).
 
         **Where the records are ones we do not hold, that recompute is impossible, and a
         method inset takes its place.** A cross-member figure computed from records outside
@@ -419,10 +437,12 @@ decides.
         check we perform and report; a reproducible method is a check the reader performs
         on us. The source can move or vanish underneath the figure, which is why
         [issue 1798](https://github.com/alethical-org/alethical/issues/1798) keeps our own
-        copy of every source a published page cites. The inset is required by this
-        condition, so adding one to a posted piece is compliance, not an edit on our own
-        initiative; its words are ours, as the layout's framing always is (rule 3), and
-        the author's text does not change.
+        copy of every source a published page cites. *The Money Only Goes One Way* carries
+        such a figure ($886 million of lobbying spending across 3,056 organisations, from
+        the Board's own rows). The inset is required by this condition, so adding one to a
+        posted piece is compliance, not an edit on our own initiative, and point 2's bar on
+        editing a posted piece is not engaged by it; its words are ours, as the layout's
+        framing always is (rule 3), and the author's text does not change.
     - **Cite records filed with bodies other than Minnesota's Campaign Finance Board**,
       named and linked at their source. The Minnesota-only promise in
       `docs/product-onboarding/campaign-finance-roadmap.md` is a record-page promise; a
@@ -490,8 +510,9 @@ decides.
         the piece was computed from.
     11. A figure drawn from records we do not hold is never given another figure's date.
         The masthead's records-through date speaks only for our loaded data; the sources
-        block names the outside records and the years they cover. The cost is real: a
-        reader may read the records-through date as covering every figure on the page.
+        block names the outside records and the years they cover. Such a figure is not
+        marked as undated in the masthead (point 8), and the cost is real: a reader may
+        read the records-through date as covering every figure on the page.
 
     Containment keeps this exception from leaking into the record surfaces. Links run 1
     way: a piece links to record pages, a record page never links back. A piece's claims
