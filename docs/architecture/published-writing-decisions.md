@@ -497,7 +497,9 @@ green Alethical symbol and green contact link. Do not use a white card. Keep the
 invitation out of the historical announcement and illustrative sample. The known
 hosting purpose fills an editable “Host a debate” subject and a community request,
 using trusted local copy. Account email fills separately for signed-in readers;
-existing drafts and deliberately cleared fields remain intact. Only Send message
+existing drafts and deliberately cleared fields remain intact within the same account.
+Confirmed sign-out or account changes discard the prior account’s full contact draft,
+including while the form is closed. Only Send message
 submits the form. Generic contact links and article-correction links retain their
 own behavior.
 

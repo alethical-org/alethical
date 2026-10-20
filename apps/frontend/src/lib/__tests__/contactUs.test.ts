@@ -211,7 +211,7 @@ describe('article correction links', () => {
     expect(draft.getSnapshot().values.subject).toContain('Possible correction:');
 
     draft.dispatch({ type: 'change', field: 'email', value: '' });
-    draft.setAccount({ id: 'account-b', email: 'account-b@example.test' });
+    draft.setAccount({ id: 'account-a', email: 'account-a@example.test' });
     expect(draft.getSnapshot().values.email).toBe('');
   });
 
@@ -248,3 +248,27 @@ describe('article correction links', () => {
     expect(draft.hasDraft()).toBe(false);
   });
 });
+
+// A confirmed identity change is a privacy boundary for every field, not only auto email.
+it.each([null, { id: 'account-b', email: 'b@example.test' }])(
+  'clears all private draft state on account boundary %j',
+  (next) => {
+    const draft = createContactDraft();
+    draft.setAccount({ id: 'account-a', email: 'a@example.test' });
+    for (const field of ['name', 'email', 'phone', 'subject', 'message'] as const)
+      draft.dispatch({ type: 'change', field, value: 'private-a' });
+    draft.dispatch({ type: 'validate', errors: { email: 'private error' } });
+    draft.requestId = 'a-request';
+    draft.dispatch({ type: 'submit' });
+    draft.setAccount(undefined);
+    expect(draft.requestId).toBe('a-request');
+    draft.setAccount(next);
+    expect(draft.getSnapshot()).toEqual({
+      ...initialContactFormState,
+      values: { ...initialContactFormState.values, email: next?.email ?? '' },
+    });
+    expect(draft.requestId).toBeNull();
+    draft.setAccount({ id: 'account-a', email: 'a@example.test' });
+    expect(draft.getSnapshot().values.message).toBe('');
+  },
+);

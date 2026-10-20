@@ -317,3 +317,11 @@ The existing Debate materials section follows the hosting invitation and precede
 Topics in both initial HTML and the loaded article. Its candidate guide and money
 report links keep their wording, destinations and treatment, with no duplicate section.
 The YouTube fallback link and duration remain visible whether or not playback works.
+
+Contact draft privacy applies across generic, article-correction and hosting entries.
+A confirmed account change discards every prior-account field, error and send state;
+the app shell observes this boundary even when Contact us is closed. Loading and
+same-account navigation keep the draft; an anonymous draft may survive its first
+sign-in. Old request results cannot change or clear the new account's draft. Focused
+React DOM tests use synthetic accounts and a mocked sender for mounted and unmounted
+transitions, A-to-signed-out-to-A, and late success/failure after B starts a new request.

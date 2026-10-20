@@ -1085,5 +1085,7 @@ debate-hosting invitation opens the Contact us form with a known hosting purpose
 subject “Host a debate” and message “I’d like Alethical to host a debate in my
 community.” followed by a blank Community field in the editable message. The
 signed-in account supplies an editable email address separately. Never replace
-an unfinished draft or a field the reader deliberately cleared; only Send message
+an unfinished draft or a field the reader deliberately cleared within the same account.
+Discard the full prior-account draft on confirmed sign-out or account changes, even
+while the form is closed; only Send message
 submits. Generic contact navigation and correction links retain their own context.
