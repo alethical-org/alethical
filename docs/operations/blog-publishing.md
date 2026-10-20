@@ -57,6 +57,9 @@ Complete the brief at the end of this playbook. Establish:
    disclaimer to event marketing unless requested.
 4. The files that exist, which edition is final, what each check establishes, what
    remains uncertain, and who owns each unfinished step. Keep source originals intact.
+   Inventory existing public versions, including livestreams, before a duplicate
+   upload; decide whether to link an existing version or publish the accepted edit.
+   Finding another version does not authorise deleting or changing it.
 5. The article title, search title, introduction, dates, thumbnail, supporting links,
    playlist and optional contact purpose together. These are 1 content plan, not
    separate late additions.
@@ -110,7 +113,7 @@ Keep a manifest like this with the media handoff:
 | --- | --- | --- |
 | Final upload | Host-supported video, commonly H.264/AAC MP4 | Edition ID, filename, hash, bytes, measured duration, dimensions, frame rate, audio format, full decode result and edit notes |
 | Captions | UTF-8 SRT with timings for YouTube | Same edition, cue bounds/order/overlap, speaker changes, readable line lengths/speeds, marked uncertainty and upload status |
-| Readable transcript | Markdown plus structured JSON where the renderer needs it | Same retained words, speaker labels, paragraphs, original turn times and uncertainty; identify any edited reading edition and retain the full source internally |
+| Readable transcript | Markdown plus structured JSON where the renderer needs it | Same retained words, speaker labels, paragraphs, final-edition turn times and uncertainty; identify any edited reading edition and retain the full source internally |
 | Chapters | CSV/JSON source, generated description text | Sorted bounded starts, literal useful headings, consistent titles and timestamp rounding |
 | Thumbnail | Accepted JPG/PNG or other supported image | Source frame, rights, crop, dimensions, alt text, neutral portrayal and stable public URL |
 | Description | Plain text | Accurate introduction, useful article/source links, disclosure where required, and chapter lines from the same input |
@@ -141,10 +144,13 @@ or speaker uncertainty. Never filter all `[unclear]` or `[speaker uncertain]`
 turns; retain those markers within substantive text.
 
 When content is intentionally omitted, use **Edited transcript**, retain the full
-source internally, and record the exact exclusions and reasons. Keep original
-timestamps so retained text still points into the complete video. Captions and
+source internally, and record the exact exclusions and reasons. Keep the supplied
+final-edition timestamps, the times in the public video, rather than the raw
+recording's clock. Retained text still points into the complete video. Captions and
 video remain complete and unchanged. Compare source and reading edition, including
 the passages around each omission; do not call the reading edition full or verbatim.
+After omitting an unrecoverable question or handoff, confirm the retained answer
+still makes sense under its heading; retain necessary context when it does not.
 Its purpose is easier reading, not a promised search-ranking gain.
 
 Use 1 chapter source for website Topics, transcript headings, YouTube description
@@ -300,7 +306,7 @@ Apply these corrections by purpose, not by blind text replacement:
 | Topic ordinal sits beside a timestamp and title | Remove the redundant ordinal, keeping timestamp, title, navigation and accessible list semantics. This correction was approved on October 19; release proof belongs to its owning implementation record |
 | Empty media sections, preparation notices or private banners leak publicly | Show available useful public content. Private review tooling stays private; actual uncertainty and required disclosures remain |
 | Public transcript explains internal checking steps | Keep useful uncertainty beside the relevant text and preserve the real check history internally; do not claim a manual accuracy review |
-| Reading transcript repeats standalone courtesies, turn scheduling or empty fragments | Omit only content with no substantive readable meaning; label intentional omissions **Edited transcript**, retain full source and original times, and preserve meaningful brief or uncertain turns |
+| Reading transcript repeats standalone courtesies, turn scheduling or empty fragments | Omit only content with no substantive readable meaning; label intentional omissions **Edited transcript**, retain full source and final-video times, and preserve meaningful brief or uncertain turns |
 | New event cards miss adjacent cards' interaction treatment | Reuse the nearest approved matching full treatment across rest, hover, press, focus and touch; show 1 usable focus indicator rather than duplicate title/card outlines |
 | Playlist title/description/membership treated as an afterthought | Choose an understandable shared collection and reopen its actual saved membership |
 | Contact invitation adds needless support text | Use the approved short heading and 1 action; add explanation only when it adds necessary meaning |
@@ -386,7 +392,7 @@ Facts and uncertainty: [primary sources, names/status, disputed passages, disclo
 Dates: [event with timezone; first article; meaningful update; video first publication]
 Available assets: [final edition ID, manifest, originals, obsolete files, missing inputs]
 Timing: [source-to-final map, measured duration, display rounding, chapter source]
-Reading edition: [complete source retained; exact omissions/reasons if edited; original times]
+Reading edition: [complete source retained; exact omissions/reasons if edited; final-video times]
 Presentation: [H1/search title/intro/image/brand, approved component and all states]
 Discovery: [canonical, initial HTML, internal links, real schema/sitemaps if eligible]
 YouTube: [channel, visibility, title/description/chapters, captions, thumbnail, playlist]
@@ -410,8 +416,13 @@ supersede the handoff's earlier “not uploaded” status.
 
 The full source edition has 100 turns; the accepted edited website reading edition
 retains 88. The clarification at 3954.78 seconds and meaningful unknown-speaker turn
-at 6769.98 seconds remain. The source video, captions and original timestamps stay
+at 6769.98 seconds remain. The source video, captions and final-edition timestamps stay
 unchanged. These counts describe this case, not a target omission rate.
+The reading edition also omits 1 specifically directed introductory sentence from
+the first turn. That explicit case-specific sentence edit is separate from the
+general rule permitting only nonsubstantive omissions; it does not authorise
+removing substantive statements from future transcripts. Retain its exact source
+and edit record with this case's reading-edition inputs.
 
 The final edition's 7401.85-second measured duration, 28 chapters,
 1.15× crop, 60fps export, roughly 29GB upload, 5-second title and 20-second end card
