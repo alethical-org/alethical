@@ -874,6 +874,22 @@ records the 30 September release.
 
 ### Article metadata and Share
 
+Every public blog post has a visible Share button, including research reports,
+guides, short posts, events and recordings. Before designing or reviewing another
+public surface, assess whether sharing helps readers and propose it where useful.
+Reuse the approved shared control and interaction treatment: a bottom sheet below
+1100px and a window-bounded desktop popover. Share a stable public address and
+accurate identifying text without private account data or temporary state; preserve
+private-draft and restricted-content access boundaries.
+
+Include sharing in the upfront brief and acceptance checks: discoverability,
+keyboard/touch use, panel placement, copy success/failure, available destinations
+and the actual shared address. Design and coding carry the same requirement.
+[published-writing-decisions.md §2.18](../architecture/published-writing-decisions.md#218-public-blog-posts-include-sharing-assess-other-surfaces-proactively)
+owns the scope. Unrelated sitewide changes and requested design approvals remain
+separate; the current Forward Debate sharing treatment requires Eugene's approval
+of the design before implementation.
+
 Publication dates and reporting periods remain near the title. Source-copy dates
 follow [ui-copy-guide.md §Dates on a page](ui-copy-guide.md#dates-on-a-page).
 When redundant metadata is removed, Share remains right-aligned on the same row
