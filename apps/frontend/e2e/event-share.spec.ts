@@ -152,3 +152,42 @@ test('320px enlarged date and Share wrap without overflow', async ({ page }) => 
   );
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+test('320px doubled text keeps every destination label inside its button', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto(path);
+  await page.getByRole('button', { name: 'Share this post', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.evaluate((panel) => {
+    const textElements = Array.from(panel.querySelectorAll<HTMLElement>('*')).filter((node) =>
+      Array.from(node.childNodes).some(
+        (child) => child.nodeType === Node.TEXT_NODE && child.textContent?.trim(),
+      ),
+    );
+    const sizes = textElements.map((node) => parseFloat(getComputedStyle(node).fontSize));
+    textElements.forEach((node, index) => {
+      node.style.fontSize = `${sizes[index] * 2}px`;
+    });
+  });
+  for (const name of [
+    'Share by email',
+    'Share on WhatsApp',
+    'Share on Facebook',
+    'Share on LinkedIn',
+    'Share on X',
+    'Share on Bluesky',
+  ]) {
+    const button = dialog.getByRole('button', { name, exact: true });
+    await button.scrollIntoViewIfNeeded();
+    const fits = await button.evaluate((node) => {
+      const box = node.getBoundingClientRect();
+      const label = node.lastElementChild!;
+      const text = label.getBoundingClientRect();
+      return (
+        text.left >= box.left && text.right <= box.right && label.scrollWidth <= label.clientWidth
+      );
+    });
+    expect(fits, name).toBe(true);
+  }
+  await expect(dialog).toBeVisible();
+});

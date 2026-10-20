@@ -565,6 +565,7 @@ const styles = StyleSheet.create({
   destinationHover: { backgroundColor: 'rgba(17,21,15,0.05)' },
   circle: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f1f4' },
   destinationName: {
+    maxWidth: '100%',
     fontFamily: t.typography.ui,
     fontWeight: '700',
     color: '#2c322c',

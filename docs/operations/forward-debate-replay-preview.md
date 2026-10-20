@@ -368,8 +368,13 @@ production write proxy. Browser regression checks use scoped read-only API routi
 where a data-backed sibling surface needs public records.
 
 Current checkpoint: the full frontend suite passes 4,778 tests across 361 files;
-TypeScript passes. The event browser suite passes 9 cases, and the shared suite
+TypeScript passes. The event browser suite covers 10 cases, and the shared suite
 passes 18 cases. Independent browser review covers copy recovery, all prepared
 destinations, native cancellation/success, public Research and Short posts, and
 leaving the event with Share open. The actual app remains at the existing 4186
 address. Parent/Design visual acceptance and live delivery remain pending.
+
+The 320px doubled-text review found destination labels extending beyond their
+buttons. The shared label is constrained to its cell and can wrap without changing
+the approved 3-column grid. A rendered regression fails on the earlier bundle and
+checks every label against its button after enlargement.
