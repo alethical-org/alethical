@@ -10,6 +10,8 @@ import {
   EVENTS_PATH,
   eventHasEnded,
   eventPath,
+  eventSummaryDate,
+  eventSummaryShowsLogistics,
   orderedEvents,
   type PublishedEvent,
 } from './events';
@@ -46,14 +48,19 @@ export const eventCss = `
 .event-coalition-logo{display:block;width:190px;max-width:100%;height:auto}
 .event-heading-brand{display:inline-flex;max-width:100%;min-height:44px;margin-bottom:20px}
 .event-content .event-heading-brand+h1{margin-top:0}
-.event-list{list-style:none;margin:18px 0 0;padding:12px 36px 28px;background:#fff;border:1px solid rgba(17,21,15,.08);border-radius:16px}
-.event-list li{padding:22px 0 8px}.event-list li+li{border-top:1px solid rgba(17,21,15,.07)}
+.event-content .event-list{list-style:none;margin:18px 0 0;padding:0;display:grid;gap:20px}
+.event-list>li{position:relative;padding:34px 36px 36px;background:#fff;border:1px solid rgba(17,21,15,.08);border-radius:16px;transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}
+.event-list h3 a::after,.event-list h2 a::after{content:'';position:absolute;inset:0;border-radius:16px}
+.event-list h3 a:focus-visible,.event-list h2 a:focus-visible{outline:none!important}
+.event-list>li:has(a:focus-visible){outline:2px solid #7c5cff;outline-offset:2px}
+@media(min-width:768px) and (hover:hover) and (pointer:fine){.event-list>li:hover{border-color:rgba(45,212,126,.85);box-shadow:0 22px 46px rgba(17,21,15,.14);transform:translateY(-3px)}}
+@media(prefers-reduced-motion:reduce){.event-list>li{transition:none}.event-list>li:hover{transform:none}}
 .event-list h3,.event-list h2{font-size:20px;line-height:1.3;margin:6px 0 8px}
 .event-list h3 a,.event-list h2 a{font-weight:700;text-decoration:none}
 @media(hover:hover){.event-list h3 a:hover,.event-list h2 a:hover{text-decoration:underline}}
 .event-list p{font-size:16px;margin:0 0 8px}.event-list .event-list-meta{font-size:13px;font-weight:600;color:#5f655b}
 .event-collection{max-width:1000px;margin:auto;padding:40px 24px 80px}
-@media(max-width:767px){.event-content .event-back{font-size:15px}.event-collection .event-return{margin-bottom:10px}.event-article,.event-collection{padding:24px 20px 56px}.event-content h1{font-size:28px}.event-content p,.event-content li{font-size:17px}.event-list{padding:8px 20px 20px;margin-top:14px}.event-list h3,.event-list h2{font-size:18px}}
+@media(max-width:767px){.event-content .event-back{font-size:15px}.event-collection .event-return{margin-bottom:10px}.event-article,.event-collection{padding:24px 20px 56px}.event-content h1{font-size:28px}.event-content p,.event-content li{font-size:17px}.event-content .event-list{margin-top:14px;gap:16px}.event-list>li{padding:30px 20px 28px}.event-list h3,.event-list h2{font-size:18px}}
 `;
 
 /** Shared near-title branding for Forward Coalition event posts. */
@@ -90,7 +97,7 @@ export function renderEventList(now = Date.now(), preview = false): string {
     .slice(0, preview ? 3 : undefined)
     .map(
       (event) =>
-        `<li><p class="event-list-meta">${eventHasEnded(event, now) ? 'Past event · ' : ''}${eventDate(event.dateLabel)} ${keepTogether(event.timeLabel)}</p><${heading}><a href="${e(eventPath(event))}">${e(event.name)}</a></${heading}><p>${e(event.tagline)}</p><p>${keepTogether(event.locationName)} · ${keepTogether(event.city)} · ${keepTogether('Free admission')}</p></li>`,
+        `<li><p class="event-list-meta">${e(eventSummaryDate(event))}</p><${heading}><a href="${e(eventPath(event))}">${e(event.name)}</a></${heading}><p>${e(event.tagline)}</p>${eventSummaryShowsLogistics(event, now) ? `<p>${keepTogether(event.locationName)} · ${keepTogether(event.city)} · ${keepTogether('Free admission')}</p>` : ''}</li>`,
     )
     .join('')}</ul></div>`;
 }

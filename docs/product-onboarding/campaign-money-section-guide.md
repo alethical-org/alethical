@@ -1616,7 +1616,14 @@ guides to how state government works". The page's name still exists for a screen
 in the browser tab, on a heading that is there but not drawn; it is taken from the top bar's
 own label, so the 2 cannot end up saying different words.
 
-**Two kinds of writing, in 3 groups: RESEARCH REPORTS, SHORT POSTS, then GUIDES.** Research is
+**Events come first, followed by RESEARCH REPORTS, SHORT POSTS, then GUIDES.**
+The EVENTS group appears when a published event is available. Its shared introduction
+card on `/blog` and `/blog/events` shows the event date without weekday, time or
+“Past event”. The completed Forward Debate card shows “October 15, 2026” and omits
+venue and admission logistics; its article and original announcement retain those
+details. Upcoming-event cards retain useful logistics.
+
+The writing groups hold 2 kinds of writing. Research is
 Alethical's own digging through these records, signed and dated. A guide explains 1 term
 in plain language, concludes nothing, and adds nothing up across members, so it needs no
 part of rule 13's exception. Short post names a focused format, not a third kind or a word
@@ -1631,7 +1638,8 @@ or reading set in this first release
 The order is the order the page is written in, not a styling trick, so what a person sees,
 what a screen reader reads out and what the keyboard reaches are the same order. All visible
 group headings are ordinary level-2 headings, so someone skipping through the page by heading
-meets RESEARCH REPORTS first, then SHORT POSTS when it has a published piece, then GUIDES.
+meets EVENTS first when present, then RESEARCH REPORTS, SHORT POSTS when it has a
+published piece, and GUIDES.
 
 **A group with nothing in it shows no heading and no list.** A heading over nothing reads as
 broken. The spacing belongs to the position rather than to the group, so whichever group comes

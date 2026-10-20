@@ -13,6 +13,7 @@ import {
 const replayCss = `
 .replay-content{overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
 .replay-content iframe{display:block;border:0;width:100%;aspect-ratio:16/9;min-height:200px;background:#11150f;border-radius:16px}
+.event-content .replay-youtube-row{margin-top:16px}
 .replay-with-invitation [data-replay-status]:empty{display:none}
 .replay-invitation{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:24px;background:#11150f;border-radius:16px;padding:20px 24px;margin:32px 0 40px}
 .event-content .replay-invitation h2{display:flex;align-items:center;gap:14px;color:#fff;font-size:20px;font-weight:700;line-height:1.3;hyphens:auto;hyphenate-limit-chars:7 4 3;-webkit-hyphenate-limit-before:4;-webkit-hyphenate-limit-after:3;margin:0;flex:1 1 auto;width:max-content;max-width:100%;min-width:0}
@@ -22,7 +23,7 @@ const replayCss = `
 @media(min-width:768px) and (hover:hover) and (pointer:fine){.event-content .replay-invitation a.replay-contact:hover{background:#28bf71;border-color:#28bf71;color:#06231a}}
 .event-content .replay-invitation a.replay-contact:active{background:#23ad66;border-color:#23ad66;color:#06231a}
 @media(max-width:767px){.replay-invitation{flex-direction:column;align-items:stretch;padding:20px}.event-content .replay-invitation h2{font-size:19px;flex:auto;width:auto}.replay-invitation img{width:26px}.event-content .replay-invitation a.replay-contact{width:100%}}
-.replay-topics{padding-left:24px}.replay-topics a,.replay-time{display:inline-flex;align-items:center;min-height:44px;gap:12px}
+.replay-topics{list-style:none;padding-left:24px}.replay-topics a,.replay-time{display:inline-flex;align-items:center;min-height:44px;gap:12px}
 .replay-time{font-size:16px}.replay-turn{margin:24px 0}.replay-turn p{margin:8px 0 16px;white-space:pre-line}
 .replay-speaker{font-weight:700;margin-right:12px}.replay-controls{display:flex;align-items:center;flex-wrap:wrap;gap:8px 20px}
 .replay-copy{font:inherit;color:#0f7a45;text-decoration:underline;text-underline-offset:4px;background:transparent;border:0;border-radius:4px;min-height:44px;padding:8px 4px;cursor:pointer}
@@ -36,7 +37,7 @@ const replayCss = `
 .replay-content nav a{font-size:17px}.replay-content .event-published{margin-bottom:16px}
 `;
 
-/** Complete supplied transcript is present in HTML, without an expand/load-more gate. */
+/** Complete accepted reading edition is present in HTML, without an expand/load-more gate. */
 export function renderEventReplay(
   event: PublishedEvent,
   input: EventReplay,
@@ -83,11 +84,12 @@ ${renderForwardCoalitionBrand()}
 <h1>${e(r.title)}</h1>
 <p class="event-published">${dateLine}</p>
 <p>${e(r.introduction)}</p>
-${r.video ? `<section aria-labelledby="watch"><h2 id="watch" tabindex="-1">Watch the full ${options.example ? 'example' : 'debate'}</h2><iframe id="replay-player" title="${e(r.title)}" src="${e(replayEmbedUrl(r.video.id, start, options.origin))}" referrerpolicy="strict-origin-when-cross-origin" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe><p><a data-replay-youtube href="https://www.youtube.com/watch?v=${r.video.id}&amp;t=${Math.floor(start)}s">Watch on YouTube</a> · ${replayTimestamp(r.duration!)}</p><p class="replay-status" data-replay-status role="status" aria-live="polite"></p></section>` : ''}
-${invitation ? `<aside class="replay-invitation" aria-labelledby="community-debate"><h2 id="community-debate"><img src="/alethical-mark-green.png" alt="" width="30"><span>Want a debate in your community?</span></h2><a class="replay-contact" href="${e(publicPageUrl('/about/contact'))}">Contact Alethical</a></aside>` : ''}
-${r.chapters ? `<nav aria-labelledby="topics"><h2 id="topics">Topics</h2><ol class="replay-topics">${r.chapters.items.map((c) => `<li>${r.video ? jump(c.start, `${replayTimestamp(c.start)} ${c.title}`) : r.transcript ? `<a href="#topic-${c.start}">${e(c.title)}</a>` : `${e(replayTimestamp(c.start))} ${e(c.title)}`}</li>`).join('')}</ol></nav>` : ''}
-${r.transcript ? `<section aria-labelledby="transcript"><h2 id="transcript">Full transcript</h2><p>${e(TRANSCRIPT_DISCLOSURE)}</p>${r.video ? '<p class="replay-status" data-replay-copy-status role="status" aria-live="polite"></p>' : ''}${transcript}</section>` : ''}
+${r.video ? `<section aria-labelledby="watch"><h2 id="watch" tabindex="-1">Watch the full ${options.example ? 'example' : 'debate'}</h2><iframe id="replay-player" title="${e(r.title)}" src="${e(replayEmbedUrl(r.video.id, start, options.origin))}" referrerpolicy="strict-origin-when-cross-origin" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe><p class="replay-youtube-row"><a data-replay-youtube href="https://www.youtube.com/watch?v=${r.video.id}&amp;t=${Math.floor(start)}s">Watch on YouTube</a> · ${replayTimestamp(r.duration!)}</p><p class="replay-status" data-replay-status role="status" aria-live="polite"></p></section>` : ''}
+${invitation ? `<aside class="replay-invitation" aria-labelledby="community-debate"><h2 id="community-debate"><img src="/alethical-mark-green.png" alt="" width="30"><span>Want a debate in your community?</span></h2><a class="replay-contact" href="${e(publicPageUrl('/about/contact?purpose=host-debate'))}">Contact Alethical</a></aside>` : ''}
 <section aria-labelledby="materials"><h2 id="materials">Debate materials</h2><ul class="event-downloads">${event.downloads.map((f) => `<li><a href="${e(publicPageUrl(f.href))}">${e(f.title)} (PDF)</a></li>`).join('')}</ul></section>
+${r.chapters ? `<nav aria-labelledby="topics"><h2 id="topics">Topics</h2><ol class="replay-topics" role="list">${r.chapters.items.map((c) => `<li>${r.video ? jump(c.start, `${replayTimestamp(c.start)} ${c.title}`) : r.transcript ? `<a href="#topic-${c.start}">${e(c.title)}</a>` : `${e(replayTimestamp(c.start))} ${e(c.title)}`}</li>`).join('')}</ol></nav>` : ''}
+${r.transcript ? `<section aria-labelledby="transcript"><h2 id="transcript">${r.transcript.edition === 'edited' ? 'Edited transcript' : 'Full transcript'}</h2><p>${e(TRANSCRIPT_DISCLOSURE)}</p>${r.video ? '<p class="replay-status" data-replay-copy-status role="status" aria-live="polite"></p>' : ''}${transcript}</section>` : ''}
+
 <details><summary>Original announcement and flyer</summary><h2>Alethical hosts its first debate: Minnesota Senate District 13</h2><p>${e(event.tagline)}</p><p>${e(event.introduction)}</p><ul>${event.candidates.map((c) => `<li>${e(c.name)}, ${e(c.status)}</li>`).join('')}</ul>${event.paragraphs.map((p) => `<p>${e(p)}</p>`).join('')}<p>${e(event.dateLabel)} · ${e(event.timeLabel)}<br>${e(event.locationName)}, ${e(event.streetAddress)}, ${e(event.city)}, ${e(event.region)} ${e(event.postalCode)}<br>Free admission</p><p><a href="${e(event.signupUrl)}">View the event on Luma</a></p><a href="${e(publicPageUrl(event.image))}"><img class="event-flyer" src="${e(publicPageUrl(event.image))}" width="${event.imageWidth}" height="${event.imageHeight}" alt="${e(event.imageAlt)}" loading="lazy"></a><p class="event-image-link"><a href="${e(publicPageUrl(event.image))}">Open full-size flyer to zoom in</a></p></details>
 </article>`;
 }

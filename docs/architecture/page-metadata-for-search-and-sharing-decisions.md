@@ -2238,11 +2238,14 @@ while the browser/search title is
 “Trent Dilks & Aaron Brutger: The Forward Debate | Alethical”. The introduction
 names the actual district, venue, city and event date. Historical announcement
 content and flyer appear in an expandable section; that flyer is not preloaded.
-It remains the social image until an accepted final thumbnail is supplied.
+The replay uses the accepted final video thumbnail as its social image.
 
 Actual recording, topic and transcript sections appear independently as available.
-The full supplied transcript is in initial HTML with the approved machine-text
-notice and uncertainty markers. A real video embed is present without a click to
+The accepted reading edition appears under “Edited transcript” in initial HTML
+and the loaded article, with “Uncertain words and speakers are marked.” and its
+retained uncertainty markers. The source transcript remains unchanged; the explicit
+reading-edition omissions and directed sentence exception are recorded in
+[published-writing-decisions.md §2.16](published-writing-decisions.md#216-events-reuse-the-blog-design-and-retain-a-permanent-address). A real video embed is present without a click to
 create it. Both entry paths read bounded timestamp links; canonical metadata keeps
 the base event address. Existing Event data stays, without an active offer. Add
 VideoObject only with actual publication time, thumbnail and duration; add Clip
@@ -2253,9 +2256,12 @@ content URL, upload date, transcript, attendance or ranking promise.
 The first-load and client-navigation paths share rendering and metadata. The global
 browser security policy admits the privacy-enhanced YouTube frame host and the
 specific official player API/script paths; other directives remain restricted.
-The current no-media article makes no playback claim. Before real video publication,
-resolve and test uninterrupted early playback across the app's initial-HTML
-replacement, plus actual captions and timestamp controls on phone and desktop.
+The published replay contains the actual recording and final thumbnail. Early
+playback continuity across application startup, actual captions and timestamp
+controls on phone and desktop have separate browser acceptance recorded in
+[forward-debate-replay-preview.md](../operations/forward-debate-replay-preview.md).
+Deterministic player fixtures do not establish real audiovisual playback or speech
+accuracy.
 
 
 The approved event publishing scope lives in
@@ -2265,12 +2271,14 @@ are public, have their own canonical address, enter the pages sitemap immediatel
 and are linked from `/blog` using ordinary crawlable links. Unknown event addresses
 return HTTP 404 and are not canonicalized to a real event.
 
-The event registry supplies titles, descriptions, the original-content optimized
-flyer, its dimensions and alternative text, and all visible event details. The first
-HTML response and mounted page use the same escaped event renderer. The flyer comes
-before the article text in both; the header supplies normal site navigation.
-The announcement's own flyer is its social image, with its actual dimensions, and
-is preloaded for the first visible page. Other pages retain their approved preview.
+For the announcement presentation, the event registry supplies titles, descriptions,
+the original-content optimized flyer, its dimensions and alternative text, and all
+visible event details. The first HTML response and mounted announcement use the
+same escaped event renderer. Its flyer comes before the article text; the header
+supplies normal site navigation. The announcement presentation uses its own flyer
+as its social image, with its actual dimensions, and preloads it for the first
+visible page. The post-event replay presentation follows the separate treatment
+above. Other pages retain their approved preview.
 
 Each event detail carries `Event` structured data matching visible facts: event name,
 local start/end times with explicit UTC offsets, venue and full address, organizer,
@@ -2290,7 +2298,8 @@ Central Time offsets, free registration, the ended state, missing pages and site
 Candidate approval of the revised flyer and republication authorization are confirmed
 as of 15 October 2026; the earlier publication hold no longer applies. The article and collection
 return public content, and their URLs appear in Blog links and the sitemap. The revised
-flyer is the article's preview image. The supplied Candidate Guide and Money Report
+flyer is the original announcement presentation's preview image; the replay uses
+the final video thumbnail. The supplied Candidate Guide and Money Report
 PDFs are ordinary same-origin download links in the shared initial/browser article;
 their financial claims do not enter the announcement's search or share metadata.
 

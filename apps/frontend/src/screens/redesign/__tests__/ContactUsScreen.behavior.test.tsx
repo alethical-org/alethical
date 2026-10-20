@@ -72,13 +72,67 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-async function render(article?: string) {
-  const path = article ? `/about/contact?article=${encodeURIComponent(article)}` : '/about/contact';
+async function render(article?: string, purpose?: string) {
+  const path = purpose
+    ? `/about/contact?purpose=${encodeURIComponent(purpose)}`
+    : article
+      ? `/about/contact?article=${encodeURIComponent(article)}`
+      : '/about/contact';
   const route = stateFromPathname(path)!.routes[1];
   await act(async () => {
     root.render(<ContactUsScreen navigation={{ navigate: vi.fn() } as any} route={route as any} />);
   });
 }
+
+it('opens the replay hosting destination with signed-in email and editable local copy', async () => {
+  const { EVENTS } = await import('../../../lib/events');
+  const { renderEventArticle } = await import('../../../lib/eventArticle');
+  const article = document.createElement('div');
+  article.innerHTML = renderEventArticle(EVENTS[0]);
+  const href = article.querySelector<HTMLAnchorElement>('.replay-contact')!.href;
+  const destination = new URL(href);
+  expect(destination.pathname + destination.search).toBe('/about/contact?purpose=host-debate');
+  mocks.auth.isSignedIn = true;
+  mocks.auth.user = { id: 'host-a', email: 'host-a@example.test' };
+  await render(undefined, destination.searchParams.get('purpose')!);
+  expect(field('email').value).toBe('host-a@example.test');
+  expect(field('name').value).toBe('');
+  expect(field('phone').value).toBe('');
+  expect(field('subject').value).toBe('Host a debate');
+  expect(field('message').value).toBe(
+    'I’d like Alethical to host a debate in my community.\n\nCommunity:\n',
+  );
+  await type('email', '');
+  await type('subject', '');
+  await type('message', 'My retained community request');
+  await act(async () => root.render(<div>Another screen</div>));
+  mocks.auth.user = { id: 'host-a', email: 'host-a@example.test' };
+  await render(undefined, 'host-debate');
+  expect(field('email').value).toBe('');
+  expect(field('subject').value).toBe('');
+  expect(field('message').value).toBe('My retained community request');
+  expect(mocks.send).not.toHaveBeenCalled();
+});
+
+it('clears the prior account hosting draft on confirmed account changes', async () => {
+  mocks.auth.isLoading = true;
+  await render(undefined, 'host-debate');
+  expect(field('email').value).toBe('');
+  mocks.auth.isLoading = false;
+  mocks.auth.isSignedIn = true;
+  mocks.auth.user = { id: 'host-a', email: 'host-a@example.test' };
+  await render(undefined, 'host-debate');
+  expect(field('email').value).toBe('host-a@example.test');
+  mocks.auth.user = { id: 'host-b', email: 'host-b@example.test' };
+  await render(undefined, 'host-debate');
+  expect(field('email').value).toBe('host-b@example.test');
+  mocks.auth.isSignedIn = false;
+  mocks.auth.user = null;
+  await render(undefined, 'host-debate');
+  expect(field('email').value).toBe('');
+  expect(field('subject').value).toBe('');
+  expect(mocks.send).not.toHaveBeenCalled();
+});
 function field(name: string) {
   return host.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[name="${name}"]`)!;
 }
@@ -189,7 +243,7 @@ it('keeps an email typed or cleared before delayed account loading', async () =>
   expect(field('email').value).toBe('');
 });
 
-it('replaces or clears only an automatically filled email when the account changes', async () => {
+it('replaces account defaults and clears a typed email on confirmed sign-out', async () => {
   mocks.auth.isSignedIn = true;
   mocks.auth.user = { id: 'account-a', email: 'account-a@example.test' };
   await render();
@@ -211,7 +265,7 @@ it('replaces or clears only an automatically filled email when the account chang
   mocks.auth.isSignedIn = false;
   mocks.auth.user = null;
   await render();
-  expect(field('email').value).toBe('reader-chose@example.test');
+  expect(field('email').value).toBe('');
 });
 
 it('reconciles a retained automatic email before a reopened form is shown', async () => {
@@ -327,10 +381,10 @@ it('starts another message with the current account email after a successful sen
   await click('Send message');
   expect(host.textContent).toContain('Message sent');
 
-  mocks.auth.user = { id: 'account-b', email: 'account-b@example.test' };
+  mocks.auth.user = { id: 'account-a', email: 'account-a@example.test' };
   await render(articleIdentity);
   await click('Send another message');
-  expect(field('email').value).toBe('account-b@example.test');
+  expect(field('email').value).toBe('account-a@example.test');
   expect(field('subject').value).toBe('');
   expect(field('message').value).toBe('');
 });
@@ -406,3 +460,127 @@ it('navigates from the actual correction anchor without reload and preserves edi
   expect(field('message').value).toBe('My retained explanation');
   expect(mocks.send).not.toHaveBeenCalled();
 });
+
+async function boundaryRenderer() {
+  const { useContactDraftAccountBoundary } =
+    await import('../../../hooks/useContactDraftAccountBoundary');
+  function AppBoundary({ show }: { show: boolean }) {
+    useContactDraftAccountBoundary();
+    return show ? (
+      <ContactUsScreen
+        navigation={{ navigate: vi.fn() } as any}
+        route={{ key: 'contact', name: 'ContactUs' } as any}
+      />
+    ) : (
+      <div>Another screen</div>
+    );
+  }
+  return async (show = true) => act(async () => root.render(<AppBoundary show={show} />));
+}
+
+it('clears all edited fields across sign-out and back to the same account while the form is closed', async () => {
+  const show = await boundaryRenderer();
+  mocks.auth.isSignedIn = true;
+  mocks.auth.user = { id: 'account-a', email: 'a@example.test' };
+  await show();
+  for (const name of ['name', 'email', 'phone', 'subject', 'message'])
+    await type(name, `private-${name}`);
+  await show(false);
+  // Loading and a failed sign-out with the same confirmed identity preserve the draft.
+  mocks.auth.isLoading = true;
+  await show(false);
+  mocks.auth.isLoading = false;
+  await show();
+  expect(field('message').value).toBe('private-message');
+  await show(false);
+  mocks.auth.isSignedIn = false;
+  mocks.auth.user = null;
+  await show(false);
+  mocks.auth.isSignedIn = true;
+  mocks.auth.user = { id: 'account-a', email: 'a@example.test' };
+  await show(false);
+  await show();
+  for (const name of ['name', 'phone', 'subject', 'message']) expect(field(name).value).toBe('');
+  expect(field('email').value).toBe('a@example.test');
+  expect(mocks.send).not.toHaveBeenCalled();
+});
+
+it.each(['success', 'failure'])(
+  'ignores an old account send %s after the new account starts its own request',
+  async (outcome) => {
+    const show = await boundaryRenderer();
+    let finishOld!: () => void;
+    let finishNew!: () => void;
+    mocks.send.mockImplementationOnce(
+      () =>
+        new Promise((resolve, reject) => {
+          finishOld = () =>
+            outcome === 'success' ? resolve({}) : reject(new Error('old account failure'));
+        }),
+    );
+    mocks.send.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishNew = () => resolve({});
+        }),
+    );
+    mocks.auth.isSignedIn = true;
+    mocks.auth.user = { id: 'account-a', email: 'a@example.test' };
+    await show();
+    await type('subject', 'A private subject');
+    await type('message', 'A private message');
+    await click('Send message');
+    await show(false);
+    mocks.auth.user = { id: 'account-b', email: 'b@example.test' };
+    await show(false);
+    await show();
+    expect(field('email').value).toBe('b@example.test');
+    expect(field('message').value).toBe('');
+    await type('subject', 'B subject');
+    await type('message', 'B message');
+    await click('Send message');
+    expect(mocks.send).toHaveBeenCalledTimes(2);
+    expect(mocks.send.mock.calls[0][0].requestId).not.toBe(mocks.send.mock.calls[1][0].requestId);
+    await act(async () => finishOld());
+    expect(host.textContent).not.toContain('Message sent');
+    expect(field('message').value).toBe('B message');
+    expect(button('Sending…').getAttribute('disabled')).not.toBeNull();
+    await act(async () => finishNew());
+    expect(host.textContent).toContain('Message sent');
+  },
+);
+
+it.each(['success', 'failure'])(
+  'finishes a send after same-account email refresh: %s',
+  async (outcome) => {
+    let finish!: () => void;
+    mocks.send.mockImplementationOnce(
+      () =>
+        new Promise((resolve, reject) => {
+          finish = () =>
+            outcome === 'success' ? resolve({}) : reject(new Error('delivery failed'));
+        }),
+    );
+    mocks.auth.isSignedIn = true;
+    mocks.auth.user = { id: 'account-a', email: 'old@example.test' };
+    await render();
+    await type('subject', 'My subject');
+    await type('message', 'My message');
+    await click('Send message');
+    const firstRequest = mocks.send.mock.calls[0][0];
+    mocks.auth.user = { id: 'account-a', email: 'new@example.test' };
+    await render();
+    await act(async () => finish());
+    if (outcome === 'success') {
+      expect(host.textContent).toContain('Message sent');
+    } else {
+      expect(field('email').value).toBe('new@example.test');
+      expect(button('Send message').getAttribute('disabled')).toBeNull();
+      mocks.send.mockResolvedValueOnce({});
+      await click('Send message');
+      expect(mocks.send.mock.calls[1][0].email).toBe('new@example.test');
+      expect(mocks.send.mock.calls[1][0].requestId).not.toBe(firstRequest.requestId);
+      expect(host.textContent).toContain('Message sent');
+    }
+  },
+);

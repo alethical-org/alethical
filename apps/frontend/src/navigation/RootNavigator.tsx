@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../providers/AuthProvider';
 import { useResponsive } from '../hooks/useResponsive';
 import { useCandidatePrivacyBoundary } from '../hooks/useCandidatePrivacyBoundary';
+import { useContactDraftAccountBoundary } from '../hooks/useContactDraftAccountBoundary';
 import { documentTitleForRoute } from './documentTitle';
 import { candidateEditorId, candidateEditorRouter } from './candidateEditorRouter';
 import { defaultGuardedNavigation, GuardedNavigationContext } from './GuardedNavigationContext';
@@ -273,6 +274,7 @@ const styles = StyleSheet.create({
 
 export function RootNavigator() {
   useCandidatePrivacyBoundary();
+  useContactDraftAccountBoundary();
   const isWeb = Platform.OS === 'web';
   const { isDesktop } = useResponsive();
   const { isSignedIn, user, isLoading: accountLoading } = useAuth();

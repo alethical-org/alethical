@@ -726,6 +726,17 @@ The Guide fold button and topic links keep their separate focus and hover states
 Event cards and announcement introductions lead with a concise summary of what
 an event is about and why someone would attend. Format details such as question
 rules do not replace that purpose. Preserve approved source flyers unchanged.
+The `/blog` Events group comes before Research reports, Short posts and Guides.
+Each introductory event card on `/blog` and `/blog/events` has its own white
+boundary and full-card title link. Reuse the white clickable-card hover above
+at widths of at least 768px with a fine pointer; touch remains unchanged and
+reduced motion removes the lift. Keyboard focus outlines the entire card with
+the existing purple 2px ring and 2px offset, with only 1 keyboard stop per card.
+Introductory cards show the date alone, such as “October 15, 2026”, without a
+weekday, time or “Past event”. Detailed announcements retain their date/time
+and meaningful registration status. The completed Forward Debate replay summary
+omits the venue/city/free-admission line; upcoming-event cards keep useful attendance
+logistics. Approved on 19 October 2026.
 Keep invitations concise: omit explanations already implied by the action, such
 as why the host needs an RSVP, and do not repeat the RSVP button in nearby prose.
 
@@ -1064,3 +1075,17 @@ Lobbying labels retain their exact source identifier, use equal-width digits and
 line height 1.5, and wrap between words. Keep the middle dot with the preceding
 text and keep Registration {number} or Entity ID {id} together. Test the real font
 at 320px and each layout band; do not shrink, clip or truncate the label.
+
+### Debate replay topic links and contact context
+
+Replay Topics show chronological timestamps and titles without visible ordinal
+numbers, retaining semantic list structure, keyboard links and the existing touch
+targets. Other ordered article lists keep their own meaning and markers. The
+debate-hosting invitation opens the Contact us form with a known hosting purpose:
+subject “Host a debate” and message “I’d like Alethical to host a debate in my
+community.” followed by a blank Community field in the editable message. The
+signed-in account supplies an editable email address separately. Never replace
+an unfinished draft or a field the reader deliberately cleared within the same account.
+Discard the full prior-account draft on confirmed sign-out or account changes, even
+while the form is closed; only Send message
+submits. Generic contact navigation and correction links retain their own context.

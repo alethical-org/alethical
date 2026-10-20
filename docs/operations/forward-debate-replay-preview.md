@@ -18,9 +18,10 @@ existing comments. The Minnesota Forward Together logo appears once above the ti
 linked to Forward Coalition's candidates and visible while the original announcement
 is closed. The shared event renderer uses the same branding in announcement and
 post-event output. The final media edition was supplied on 19 October. The article
-now includes its 100 transcript turns, all 126 supplied paragraphs and 28 topic
-headings. The accepted thumbnail supplies the social preview image. No recording
-player or video search details appear until an actual YouTube upload is available.
+includes an edited reading transcript with 88 retained turns, 114 paragraphs and
+28 topic headings, derived from the retained 100-turn source. The accepted thumbnail
+supplies the social preview image. The actual YouTube recording and uploaded captions
+are connected, with video search details using their publication facts.
 
 The website build uses `gpt-6-astra` at `high`; the scope includes interdependent
 server/browser output, search metadata, player permissions and independent acceptance.
@@ -140,7 +141,8 @@ seconds are floored to the supplied whole-second display values; all turn-to-hea
 assignments remain identical. Original fractional source times remain in the source CSV.
 The committed JSON is the accepted public text input, not a separate transcription.
 
-The 8 `[speaker uncertain]` labels and all `[unclear]` words remain. Aaron Brutger's
+The source retains all 8 `[speaker uncertain]` labels and all `[unclear]` words.
+The edited reading edition preserves those marks in every retained turn. Aaron Brutger's
 disputed closing line around 1:55:11 remains `[unclear]` and is never used as a quotation
 or summary. The public notice is “Uncertain words and speakers are marked.”
 Internal checking commentary stays in these implementation records.
@@ -166,6 +168,9 @@ MP4 is uploaded on `@Alethical`, channel `UC6Gof3CAuynOHxpH_Bl6fQQ`, video
 “English subtitles published” and “All changes saved”; its first imported cue starts
 at 5.8s, matching the supplied final edition. This confirms saved caption publication,
 not playback or synchronization throughout the recording.
+
+The parent browser evidence records the saved description and recording membership for the public [Candidate Debates playlist](https://www.youtube.com/playlist?list=PLCDDyJl-kiUQ).
+Reopening the playlist in in-app browser tab 29 showed 1 recording, `y66-Wf9bNio`; this establishes playlist membership, not playback or speech accuracy.
 
 The video integration uses the matching export ID and existing thumbnail.
 YouTube's public response confirms publication at `2026-10-19T11:13:45-07:00`.
@@ -257,3 +262,66 @@ The tests use actual browser layout and anchoring, not modeled scroll coordinate
 Parent browser acceptance also exercised blocked sign-in download, visible recovery
 and Close, and matching heading/link/summary styles in stable and ordinary app entry.
 Real final-recording playback, uploaded captions and public video metadata remain open.
+
+## Event introduction cards
+
+The `/blog` and `/blog/events` introductions share `renderEventList`. Each list item
+owns its white card boundary and its single stretched title link. Hover and keyboard
+focus cover that item, so additional events retain separate destinations. Fine-pointer
+hover at widths of at least 768px uses the approved white-card border, shadow and lift;
+reduced motion removes the lift. Touch does not activate that treatment.
+
+The `/blog` source order is Events, Research reports, Short posts, Guides. Initial
+HTML puts event records and the Events collection link first. Intro cards show only
+the event date. The completed Forward Debate summary omits attendance logistics;
+upcoming cards retain them. Detailed announcement facts and registration availability
+remain governed by the saved event data and end date.
+
+`e2e/event-cards.spec.ts` runs in required frontend CI against the built app. It covers
+blank-area linking, 1 keyboard stop per card, separate event destinations, full-card
+focus, reduced motion, touch, narrow/enlarged text, section order and article navigation.
+It blocks external requests and writes and supplies synthetic empty comments. The
+replay return uses an absolute public URL, so premerge tests assert that destination
+and exercise the local Events collection separately; live acceptance covers the public
+return. Source tests cover date-only summaries before/after the event and initial HTML.
+
+The replay Topics list keeps its chronological semantic list, timestamps and links
+without visible ordinal markers. The hosting invitation uses the known
+`purpose=host-debate` contact intent. The form resolves its editable subject and
+message locally; no personal information or arbitrary message text travels in the
+link. Existing correction links and generic contact navigation retain their own
+behavior. Retained or cleared draft fields take precedence over new context.
+Signed-in account email uses the shared editable account-prefill behavior, including
+delayed account loading, account changes and sign-out. Nothing submits automatically.
+
+Focused form and routing tests cover trusted intent parsing, ignored arbitrary query
+values, the actual rendered CTA destination, retained and cleared fields, and synthetic
+signed-in account transitions. The built-app replay checks cover markerless topic
+links and keyboard activation, then the hosting form at 320px and 1280px. The exact
+public contact request is redirected to the local build during those tests; final
+public acceptance exercises the real same-tab destination.
+
+The reading-edition exclusions are the 12 explicit source starts in
+`forwardDebate2026ReadingEdition.ts`, with a reason for each. Tests require the exact
+88 retained turns and paragraphs, allowing only the recorded opening-sentence exception, with original times, the clarification at 3954.78
+and uncertain-speaker soil remark at 6769.98, and the “Edited transcript” heading in
+initial HTML. No source JSON, caption or recording changes accompany these omissions.
+
+The exact sentence exception at public-video time 5.8 is recorded separately from
+whole-turn omissions. It leaves the source and remaining opening text untouched.
+The YouTube fallback row has a 16px top gap, using the existing event flyer-link
+spacing; its bottom margin and invitation margins remain unchanged. Rendered checks
+measure the gap at 320px and 1280px and require the opening sentence to be absent.
+
+The existing Debate materials section follows the hosting invitation and precedes
+Topics in both initial HTML and the loaded article. Its candidate guide and money
+report links keep their wording, destinations and treatment, with no duplicate section.
+The YouTube fallback link and duration remain visible whether or not playback works.
+
+Contact draft privacy applies across generic, article-correction and hosting entries.
+A confirmed account change discards every prior-account field, error and send state;
+the app shell observes this boundary even when Contact us is closed. Loading and
+same-account navigation keep the draft; an anonymous draft may survive its first
+sign-in. Old request results cannot change or clear the new account's draft. Focused
+React DOM tests use synthetic accounts and a mocked sender for mounted and unmounted
+transitions, A-to-signed-out-to-A, and late success/failure after B starts a new request.

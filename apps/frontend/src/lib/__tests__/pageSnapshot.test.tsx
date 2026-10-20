@@ -1178,6 +1178,15 @@ describe('the /blog page snapshot links to its visible groups and Short posts ar
   const snapshot = readPageSnapshot(pieces);
   const html = renderPageSnapshot(snapshot);
 
+  it('puts event introductions first with date-only summary text', () => {
+    expect(snapshot.records?.[0].href).toBe('/blog/events/forward-debate-2026');
+    expect(snapshot.records?.[0].detail).toMatch(/^October 15, 2026 · /);
+    expect(snapshot.records?.[0].detail).not.toMatch(
+      /Past event|Thursday|6–8 PM CDT|Riverside Terrace|Free admission/,
+    );
+    expect(snapshot.links?.[0]).toEqual({ label: 'All events', href: '/blog/events' });
+  });
+
   it('names the page the way the loaded page names it, then its note', () => {
     // The loaded page shows no title and carries its name on a visually hidden
     // `h1`; the served document has to say the same thing, or a crawler reads a

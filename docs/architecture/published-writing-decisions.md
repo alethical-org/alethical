@@ -491,18 +491,56 @@ section; this supersedes the flyer-first presentation for this event.
 
 The approved replay invitation sits after the recording and before Topics. It reads
 “Want a debate in your community?” with 1 “Contact Alethical” link to
-`https://www.alethical.com/about/contact` in the same tab, with no supporting sentence.
+`https://www.alethical.com/about/contact?purpose=host-debate` in the same tab, with no supporting sentence.
 The approved Claude Design treatment is black `#11150f`, with a white heading,
 green Alethical symbol and green contact link. Do not use a white card. Keep the
-invitation out of the historical announcement and illustrative sample.
+invitation out of the historical announcement and illustrative sample. The known
+hosting purpose fills an editable “Host a debate” subject and a community request,
+using trusted local copy. Account email fills separately for signed-in readers;
+existing drafts and deliberately cleared fields remain intact within the same account.
+Confirmed sign-out or account changes discard the prior account’s full contact draft,
+including while the form is closed. Only Send message
+submits the form. Generic contact links and article-correction links retain their
+own behavior.
+
+The replay order is recording, hosting invitation, Debate materials, then Topics.
+The PDF materials appear once with their existing link wording and destinations.
+
+Replay Topics retain chronological timestamp/title links and ordered-list semantics,
+without visible ordinal numbers. Keep the existing link targets and keyboard behavior;
+this treatment does not apply to other ordered article lists.
 
 Show only available content. Add the recording, topics and transcript independently
 from accepted final assets, without empty sections, preparation notices, a private
 banner or video/transcript download offers. The standard YouTube player appears
 prominently in initial HTML when supplied, without requiring a click to create it
-or starting playback automatically. Topic links and copyable transcript times use
-one chapter source and a bare canonical article address. The full supplied transcript
+or starting playback automatically. The YouTube fallback link and duration row
+has 16px above it, matching the event flyer-link spacing. Topic links and copyable
+transcript times use one chapter source and a bare canonical article address.
+The complete accepted reading edition
 is readable in initial HTML; missing video must not create broken timestamp links.
+
+Reading transcripts for event and ordinary posts omit standalone thanks, routine
+turn-taking and schedule prompts, and isolated fragments with no recoverable statement
+in the supplied text. Exclusions are explicit whole-turn decisions recorded by supplied
+final-edition timestamp (the time in the public video) and reason, not filters based on
+length or speaker certainty. Retain
+substantive claims, questions, answers, qualifications, disagreement, meaningful assent
+and clarification regardless of length. Unknown content is not declared meaningless.
+Do not delete words inside a substantive turn. Keep retained text, paragraphs, speaker
+labels, uncertainty marks and timestamps verbatim. Preserve original source transcripts,
+recordings and captions internally. Label an edited reading edition “Edited transcript”;
+an unabridged edition remains “Full transcript”.
+
+The Forward Debate reading edition retains 88 of 100 supplied turns. Its 12 omissions
+and reasons are recorded in
+`apps/frontend/src/lib/eventReplayData/forwardDebate2026ReadingEdition.ts`.
+The question at 3954.78 seconds that elicits clarification and the substantive soil
+remark at 6769.98 seconds remain, including their uncertain speaker labels.
+A specific editorial exception removes the exact opening sentence recorded in
+`forwardDebateOpeningSentenceOmission` at public-video time 5.8 seconds; the rest of
+that turn remains verbatim. This exception does not authorize general deletion
+inside substantive turns.
 
 Machine text preserves uncertain words as “[unclear]” and uncertain speakers as
 “[speaker uncertain]”, with timestamps. The transcript notice is:
@@ -526,6 +564,18 @@ Approved on 7 October 2026. The `/blog` page includes an `EVENTS` group
 using the existing section heading, box, row, type and responsive spacing patterns.
 The group links to `/blog/events`; each announcement has its own address below it.
 Existing Research reports, Short posts and Guides keep their relative order.
+
+**Event introductions, 19 October 2026:** `/blog` now places Events first, above
+Research reports, Short posts and Guides, including its initial HTML. Both
+`/blog` and `/blog/events` use separate clickable event cards with the existing
+white-card hover and whole-card keyboard focus treatment. Each card has 1 title
+link covering its full area, without another keyboard stop. Introductory cards
+show only the calendar date, such as “October 15, 2026”, without “Past event”, a
+weekday or a time. The original announcement retains its full date/time and
+ended-event RSVP behavior.
+The completed Forward Debate replay's introductory cards also omit the venue, city
+and free-admission line; attendance logistics remain on upcoming-event cards and
+in detailed announcements. The replay's publication date is unchanged.
 
 The first announcement is The Forward Debate at `/blog/events/forward-debate-2026`.
 The supplied flyer appears before the article text, with its content unchanged.
@@ -687,7 +737,7 @@ social copy unchanged before these checks is withdrawn for these adaptations.
 
 The new prepublication checks apply to social-derived Short posts, not retroactively to signed Research and Guides already live. Arithmetic only checks arithmetic. A factual claim needs a recorded source, period, method, coverage, checked scope, and human review. A missing Alethical record is a coverage gap, not proof a source claim is false. Official sources may fill a genuine gap when their own period and method are stated. Known errors block publication; generic disclaimers cannot excuse them.
 
-One controlled topic vocabulary describes subject independently of format and traits. It begins with Campaign finance, Lobbying, and Elections. The `/blog` page groups Research reports, then Short posts, then Guides; shows the newest 3 Short posts with an All short posts link; hides that group until a Short post is published; and keeps each Short post out of the long-form groups and reading sets. `/blog/short-posts` uses newest-first publication timestamps, 6 pieces per numbered page, and a stable tie-breaker. Checks and corrections never reset publication time or ordering. `/blog/topics/<topic>` gathers published pieces across traits and format. The kind-label rule for each listing is in §2.10. No topic directory, new search box, or combined filters are part of this decision. These screens were approved on 26 Sep 2026; [issue 2396](https://github.com/alethical-org/alethical/issues/2396) owns implementation and release. Individual articles retain their separate publication gate.
+One controlled topic vocabulary describes subject independently of format and traits. It begins with Campaign finance, Lobbying, and Elections. The `/blog` page groups Events, Research reports, Short posts, then Guides; shows the newest 3 Short posts with an All short posts link; hides that group until a Short post is published; and keeps each Short post out of the long-form groups and reading sets. `/blog/short-posts` uses newest-first publication timestamps, 6 pieces per numbered page, and a stable tie-breaker. Checks and corrections never reset publication time or ordering. `/blog/topics/<topic>` gathers published pieces across traits and format. The kind-label rule for each listing is in §2.10. No topic directory, new search box, or combined filters are part of this decision. These screens were approved on 26 Sep 2026; [issue 2396](https://github.com/alethical-org/alethical/issues/2396) owns implementation and release. Individual articles retain their separate publication gate.
 
 Official context without a quantitative reporting period, such as a statute,
 organization notice or brokerage policy, retains its copy date and exact scope

@@ -3,11 +3,41 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   CONTACT_FIELD_ORDER,
   contactFormReducer,
+  contactPrefillValues,
   correctionContactValues,
   createContactDraft,
   initialContactFormState,
   validateContactForm,
 } from '../contactUs';
+
+it('uses trusted hosting copy without filling personal information or accepting query text', () => {
+  expect(contactPrefillValues(undefined, 'host-debate')).toEqual({
+    name: '',
+    email: '',
+    phone: '',
+    subject: 'Host a debate',
+    message: 'I’d like Alethical to host a debate in my community.\n\nCommunity:\n',
+  });
+  expect(contactPrefillValues(undefined, 'arbitrary message')).toEqual(
+    initialContactFormState.values,
+  );
+});
+
+it('keeps existing and deliberately cleared draft fields across contact purposes', () => {
+  const draft = createContactDraft(undefined, 'host-debate');
+  draft.dispatch({ type: 'change', field: 'subject', value: '' });
+  draft.dispatch({ type: 'change', field: 'message', value: 'My community request' });
+  draft.prefill(PUBLISHED_PIECE_INDEX[0].slug);
+  draft.prefill(undefined, 'host-debate');
+  expect(draft.getSnapshot().values.subject).toBe('');
+  expect(draft.getSnapshot().values.message).toBe('My community request');
+  const correction = createContactDraft(
+    PUBLISHED_PIECE_INDEX[0].articleId ?? PUBLISHED_PIECE_INDEX[0].slug,
+  );
+  const original = correction.getSnapshot().values;
+  correction.prefill(undefined, 'host-debate');
+  expect(correction.getSnapshot().values).toEqual(original);
+});
 
 import { PUBLISHED_PIECE_INDEX, piecePath, type PieceIndexEntry } from '../researchIndex';
 import { ARTICLE_AI_NOTE, ARTICLE_SOURCE_NOTE, articleDisclosureRuns } from '../articleDisclosure';
@@ -181,7 +211,7 @@ describe('article correction links', () => {
     expect(draft.getSnapshot().values.subject).toContain('Possible correction:');
 
     draft.dispatch({ type: 'change', field: 'email', value: '' });
-    draft.setAccount({ id: 'account-b', email: 'account-b@example.test' });
+    draft.setAccount({ id: 'account-a', email: 'account-a@example.test' });
     expect(draft.getSnapshot().values.email).toBe('');
   });
 
@@ -218,3 +248,27 @@ describe('article correction links', () => {
     expect(draft.hasDraft()).toBe(false);
   });
 });
+
+// A confirmed identity change is a privacy boundary for every field, not only auto email.
+it.each([null, { id: 'account-b', email: 'b@example.test' }])(
+  'clears all private draft state on account boundary %j',
+  (next) => {
+    const draft = createContactDraft();
+    draft.setAccount({ id: 'account-a', email: 'a@example.test' });
+    for (const field of ['name', 'email', 'phone', 'subject', 'message'] as const)
+      draft.dispatch({ type: 'change', field, value: 'private-a' });
+    draft.dispatch({ type: 'validate', errors: { email: 'private error' } });
+    draft.requestId = 'a-request';
+    draft.dispatch({ type: 'submit' });
+    draft.setAccount(undefined);
+    expect(draft.requestId).toBe('a-request');
+    draft.setAccount(next);
+    expect(draft.getSnapshot()).toEqual({
+      ...initialContactFormState,
+      values: { ...initialContactFormState.values, email: next?.email ?? '' },
+    });
+    expect(draft.requestId).toBeNull();
+    draft.setAccount({ id: 'account-a', email: 'a@example.test' });
+    expect(draft.getSnapshot().values.message).toBe('');
+  },
+);

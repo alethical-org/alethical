@@ -1,7 +1,8 @@
 import {
   EVENTS_PATH,
   eventPath,
-  eventHasEnded,
+  eventSummaryDate,
+  eventSummaryShowsLogistics,
   orderedEvents,
   type PublishedEvent,
 } from './events';
@@ -1373,6 +1374,11 @@ export function readPageSnapshot(
     bodyIsList: false,
     facts: [],
     records: [
+      ...events.slice(0, 3).map((event) => ({
+        label: event.name,
+        detail: `${eventSummaryDate(event)} · ${event.tagline}${eventSummaryShowsLogistics(event, now) ? ` · ${event.locationName} · ${event.city} · Free admission` : ''}`,
+        href: eventPath(event),
+      })),
       ...visible.map((piece) => ({
         label: piece.title,
         // The same lines the card draws: its minutes and date, then its standfirst
@@ -1383,20 +1389,15 @@ export function readPageSnapshot(
         // Each piece's own address, from the one function that decides the folder.
         href: piecePath(piece),
       })),
-      ...events.slice(0, 3).map((event) => ({
-        label: event.name,
-        detail: `${eventHasEnded(event, now) ? 'Past event · ' : ''}${event.dateLabel} · ${event.timeLabel} · ${event.tagline} · ${event.locationName} · ${event.city} · Free admission`,
-        href: eventPath(event),
-      })),
     ],
     // The page's own back link, to the section the nav calls "Money in politics".
     links: [
+      ...(events.length ? [{ label: 'All events', href: EVENTS_PATH }] : []),
       ...(reports.length ? [{ label: 'All research reports', href: '/blog/research' }] : []),
       ...(groups.shortPosts.length
         ? [{ label: 'All short posts', href: '/blog/short-posts' }]
         : []),
       ...(guides.length ? [{ label: 'All guides', href: '/blog/guides' }] : []),
-      ...(events.length ? [{ label: 'All events', href: EVENTS_PATH }] : []),
       { label: MONEY_SECTION_NAME, href: '/money' },
     ],
   };

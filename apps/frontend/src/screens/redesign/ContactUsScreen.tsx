@@ -1,3 +1,4 @@
+import { onContactDraftAccountChange } from '../../lib/contactDraftAccount';
 import {
   createElement,
   useEffect,
@@ -265,13 +266,18 @@ function ContactFieldInput({
 
 // Kept only while this app instance is open. A successful send releases the draft.
 let currentDraft: ReturnType<typeof createContactDraft> | undefined;
+// Registration lives with this lazy module; the app shell observes accounts while it is closed.
+onContactDraftAccountChange((account) => currentDraft?.setAccount(account));
 
 export function ContactUsScreen({ navigation, route }: RootScreenProps<'ContactUs'>) {
   const { isMobile } = useResponsive();
   const { isLoading: isAuthLoading, isSignedIn, user } = useAuth();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [draft] = useState(() => {
-    const retainedDraft = (currentDraft ??= createContactDraft(route.params?.article));
+    const retainedDraft = (currentDraft ??= createContactDraft(
+      route.params?.article,
+      route.params?.purpose,
+    ));
     retainedDraft.setAccount(
       isAuthLoading ? undefined : isSignedIn && user ? { id: user.id, email: user.email } : null,
     );
@@ -283,8 +289,8 @@ export function ContactUsScreen({ navigation, route }: RootScreenProps<'ContactU
   const hasDraft = draft.hasDraft();
 
   useEffect(() => {
-    draft.prefill(route.params?.article);
-  }, [draft, route.params?.article]);
+    draft.prefill(route.params?.article, route.params?.purpose);
+  }, [draft, route.params?.article, route.params?.purpose]);
 
   useLayoutEffect(() => {
     draft.setAccount(
@@ -325,11 +331,15 @@ export function ContactUsScreen({ navigation, route }: RootScreenProps<'ContactU
     }
     dispatch({ type: 'submit' });
     draft.requestId ??= requestId();
+    const sendingId = draft.requestId;
+    const sendingAccountGeneration = draft.getAccountGeneration();
     try {
-      await sendContactMessageFromApi({ requestId: draft.requestId, ...state.values });
+      await sendContactMessageFromApi({ requestId: sendingId, ...state.values });
+      if (draft.getAccountGeneration() !== sendingAccountGeneration) return;
       dispatch({ type: 'sent' });
       if (currentDraft === draft) currentDraft = undefined;
     } catch {
+      if (draft.getAccountGeneration() !== sendingAccountGeneration) return;
       dispatch({ type: 'failed' });
     }
   };

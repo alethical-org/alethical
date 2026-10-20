@@ -64,6 +64,16 @@ export const eventBySlug = (slug: string) => PUBLISHED_EVENTS.find((event) => ev
 export const eventHasEnded = (event: Pick<PublishedEvent, 'endDate'>, now = Date.now()) =>
   new Date(event.endDate).getTime() <= now;
 
+/** Intro cards show the event date; the announcement retains its weekday and time. */
+export const eventSummaryDate = (event: Pick<PublishedEvent, 'dateLabel'>) =>
+  event.dateLabel.replace(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), /, '');
+
+/** The published Forward Debate replay needs no attendance logistics in its intro. */
+export const eventSummaryShowsLogistics = (
+  event: Pick<PublishedEvent, 'slug' | 'endDate'>,
+  now = Date.now(),
+) => event.slug !== 'forward-debate-2026' || !eventHasEnded(event, now);
+
 /** Upcoming first; keep completed events reachable at their original address. */
 export function orderedEvents(now = Date.now()) {
   return [...PUBLISHED_EVENTS].sort((a, b) => {

@@ -66,23 +66,37 @@ export function correctionContactValues(article?: string): ContactValues {
   return { ...blank, subject: longTitle ? 'Possible correction' : subject, message };
 }
 
+/** Only known purposes choose trusted local copy; query text never becomes form content. */
+export function contactPrefillValues(article?: string, purpose?: string): ContactValues {
+  if (purpose === 'host-debate') {
+    return {
+      ...initialContactFormState.values,
+      subject: 'Host a debate',
+      message: 'I’d like Alethical to host a debate in my community.\n\nCommunity:\n',
+    };
+  }
+  return purpose ? { ...initialContactFormState.values } : correctionContactValues(article);
+}
+
 /**
  * One in-memory draft survives screen unmounts and pending sends. Nothing is
  * written to browser storage; closing/reloading the app discards the draft.
  */
-export function createContactDraft(article?: string) {
+export function createContactDraft(article?: string, purpose?: string) {
   let state: ContactFormState = {
     ...initialContactFormState,
-    values: correctionContactValues(article),
+    values: contactPrefillValues(article, purpose),
   };
   let currentAccount: ContactAccountEmail | null = null;
   let automaticEmailAccountId: string | null = null;
+  let accountGeneration = 0;
   const editedFields = new Set<ContactField>();
   const listeners = new Set<() => void>();
   const notify = () => listeners.forEach((listener) => listener());
   const draft = {
     requestId: null as string | null,
     getSnapshot: () => state,
+    getAccountGeneration: () => accountGeneration,
     hasDraft() {
       return CONTACT_FIELD_ORDER.some(
         (field) => state.values[field].length > 0 && (field !== 'email' || editedFields.has(field)),
@@ -94,8 +108,8 @@ export function createContactDraft(article?: string) {
         listeners.delete(listener);
       };
     },
-    prefill(article?: string) {
-      const values = correctionContactValues(article);
+    prefill(article?: string, purpose?: string) {
+      const values = contactPrefillValues(article, purpose);
       if (state.status !== 'editing' || editedFields.has('subject') || editedFields.has('message'))
         return;
       const additions = (['subject', 'message'] as const).filter(
@@ -114,11 +128,23 @@ export function createContactDraft(article?: string) {
     setAccount(account: ContactAccountEmail | null | undefined) {
       // Undefined means account loading is unfinished, so it must not change the form.
       if (account === undefined) return;
-      currentAccount = account?.email ? account : null;
+      const nextAccount = account?.email ? account : null;
+      const boundary = currentAccount !== null && currentAccount.id !== nextAccount?.id;
+      currentAccount = nextAccount;
+      if (boundary) {
+        accountGeneration += 1;
+        state = { ...initialContactFormState, values: { ...initialContactFormState.values } };
+        editedFields.clear();
+        automaticEmailAccountId = null;
+        draft.requestId = null;
+      }
       if (editedFields.has('email')) return;
       const email = currentAccount?.email ?? '';
       const accountId = currentAccount?.id ?? null;
-      if (state.values.email === email && automaticEmailAccountId === accountId) return;
+      if (state.values.email === email && automaticEmailAccountId === accountId) {
+        if (boundary) notify();
+        return;
+      }
       const errors = { ...state.errors };
       delete errors.email;
       state = { ...state, values: { ...state.values, email }, errors };
