@@ -369,7 +369,7 @@ production write proxy. Browser regression checks use scoped read-only API routi
 where a data-backed sibling surface needs public records.
 
 Build validation: the full frontend suite passes 4,778 tests across 361 files;
-TypeScript passes. The event browser suite passes 10 cases, and the shared suite
+TypeScript passes. The event browser suite passes 11 cases, and the shared suite
 passes 18 cases. Independent browser review covers copy recovery, all prepared
 destinations, native cancellation/success, public Research and Short posts, and
 leaving the event with Share open. The actual app remains at the existing 4186
@@ -378,6 +378,15 @@ replacing the iframe. Final visual acceptance and live evidence belong in the
 owning release record.
 
 The 320px doubled-text review found destination labels extending beyond their
-buttons. The shared label is constrained to its cell and can wrap without changing
-the approved 3-column grid. A rendered regression fails on the earlier bundle and
-checks every label against its button after enlargement.
+buttons. Final Design review requires 2 columns when the actual label fonts cannot
+fit 3, then 1 when even 2 cannot hold the longest whole name. Preserve order,
+text size, sheet padding, tap areas and icons above their labels. The shared grid measures content fit and
+keeps its nodes mounted when columns change, so reader enlargement is preserved.
+The rendered regression checks ordinary 3 columns, enlarged 2-column and 1-column cases, every
+whole name within its button and all destinations remaining reachable.
+
+Final Design review also keeps programmatic heading focus without an outline on
+that noninteractive heading. The address field receives the approved 1px #5b30d6
+border and 3px rgba(91,48,214,.22) ring on focus, preserving selected text and
+suppressing the browser outline. Browser checks exercise heading focus, keyboard
+containment, the exact field treatment and recovery after failed copying.

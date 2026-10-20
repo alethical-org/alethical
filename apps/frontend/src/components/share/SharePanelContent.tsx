@@ -102,6 +102,9 @@ export function SharePanelContent({
   const desktop = variant === 'desktop';
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
+  const [linkFocused, setLinkFocused] = useState(false);
+  const [phoneColumns, setPhoneColumns] = useState(3);
+  const destinationGrid = useRef<View>(null);
   const linkField = useRef<TextInput>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const generation = useRef(0);
@@ -133,6 +136,44 @@ export function SharePanelContent({
       if (timer.current) clearTimeout(timer.current);
     };
   }, [content.url]);
+
+  useEffect(() => {
+    if (!isWeb || !phone) return;
+    const grid = destinationGrid.current as unknown as HTMLElement | null;
+    if (!grid) return;
+    const context = document.createElement('canvas').getContext('2d');
+    if (!context) return;
+    // Measure the actual font, including reader enlargement, against three cells.
+    // Keep the nodes mounted when columns change so enlarged text stays enlarged.
+    let disposed = false;
+    const labels = Array.from(grid.querySelectorAll<HTMLElement>('[data-share-destination-label]'));
+    const measure = () => {
+      if (disposed) return;
+      const longestName = Math.max(
+        ...labels.map((label) => {
+          const style = getComputedStyle(label);
+          context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+          const text = label.textContent ?? '';
+          const spacing = parseFloat(style.letterSpacing) || 0;
+          return context.measureText(text).width + spacing * Math.max(0, text.length - 1);
+        }),
+      );
+      const columns =
+        [3, 2, 1].find(
+          (count) => longestName <= (grid.clientWidth - (count - 1) * 8) / count - 4,
+        ) ?? 1;
+      setPhoneColumns(columns);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(grid);
+    labels.forEach((label) => observer.observe(label));
+    measure();
+    void document.fonts?.ready.then(measure);
+    return () => {
+      disposed = true;
+      observer.disconnect();
+    };
+  }, [phone]);
 
   const copyLink = async () => {
     if (copying.current) return;
@@ -263,7 +304,7 @@ export function SharePanelContent({
           tabIndex={-1}
           accessibilityRole="header"
           aria-level={2}
-          style={{ flex: 1 }}
+          style={[{ flex: 1 }, isWeb && ({ outlineStyle: 'none' } as object)]}
         >
           <Text style={[styles.heading, { fontSize: band.heading }]}>
             {shareDialogLabel(content.subject, content.resultsKind)}
@@ -313,7 +354,12 @@ export function SharePanelContent({
             </Text>
           ) : null}
           <View
-            style={[styles.urlRow, !desktop && styles.sheetUrlRow, phone && styles.phoneUrlRow]}
+            style={[
+              styles.urlRow,
+              !desktop && styles.sheetUrlRow,
+              phone && styles.phoneUrlRow,
+              linkFocused && styles.urlRowFocused,
+            ]}
           >
             {!desktop ? (
               <Svg width={17} height={17} viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -329,6 +375,8 @@ export function SharePanelContent({
               ref={linkField}
               value={content.url}
               editable={false}
+              onFocus={() => setLinkFocused(true)}
+              onBlur={() => setLinkFocused(false)}
               selectTextOnFocus
               accessibilityLabel={`${content.subject.charAt(0).toUpperCase()}${content.subject.slice(1)} link`}
               style={[styles.urlInput, { fontSize: band.input }]}
@@ -364,10 +412,19 @@ export function SharePanelContent({
             <Text style={[styles.socialLabel, { fontSize: desktop ? 11 : phone ? 12 : 11.5 }]}>
               SHARE TO
             </Text>
-            <View style={styles.grid}>
-              {rows.map((row, index) => (
-                <View key={index} style={styles.destinationRow}>
-                  {row.map(([key, label, accessibleLabel]) => (
+            <View
+              ref={destinationGrid}
+              style={[
+                styles.grid,
+                isWeb &&
+                  ({
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${phone ? phoneColumns : variant === 'tablet' ? 6 : 3}, minmax(0, 1fr))`,
+                  } as object),
+              ]}
+            >
+              {isWeb
+                ? DESTINATIONS.map(([key, label, accessibleLabel]) => (
                     <DestinationButton
                       key={key}
                       label={label}
@@ -376,9 +433,21 @@ export function SharePanelContent({
                       band={band}
                       onPress={() => void openIntent(key)}
                     />
+                  ))
+                : rows.map((row, index) => (
+                    <View key={index} style={styles.destinationRow}>
+                      {row.map(([key, label, accessibleLabel]) => (
+                        <DestinationButton
+                          key={key}
+                          label={label}
+                          accessibleLabel={accessibleLabel}
+                          destination={key}
+                          band={band}
+                          onPress={() => void openIntent(key)}
+                        />
+                      ))}
+                    </View>
                   ))}
-                </View>
-              ))}
             </View>
           </View>
           {canUseDeviceShare ? (
@@ -447,7 +516,12 @@ function DestinationButton({
       >
         <ShareDestinationIcon destination={destination} size={band.icon} />
       </View>
-      <Text style={[styles.destinationName, { fontSize: band.name }]}>{label}</Text>
+      <Text
+        dataSet={{ shareDestinationLabel: 'true' }}
+        style={[styles.destinationName, { fontSize: band.name }]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -512,7 +586,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f4f5f7',
     borderColor: t.colors.alpha.ink12,
   },
+  urlRowFocused: {
+    borderColor: '#5b30d6',
+    ...(isWeb ? ({ boxShadow: '0 0 0 3px rgba(91,48,214,.22)' } as object) : {}),
+  },
   urlInput: {
+    ...(isWeb ? ({ outlineStyle: 'none' } as object) : {}),
     flex: 1,
     minWidth: 0,
     minHeight: 28,

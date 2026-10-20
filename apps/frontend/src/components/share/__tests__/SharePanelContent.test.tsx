@@ -70,6 +70,8 @@ async function click(element: HTMLElement) {
 }
 
 beforeEach(() => {
+  // Text-fit layout is exercised in the rendered browser suite; jsdom has no canvas.
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
   writeText.mockReset().mockResolvedValue(undefined);
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
   setDeviceShare();

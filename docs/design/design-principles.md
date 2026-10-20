@@ -907,7 +907,11 @@ inside the window. Try below, above, then beside the trigger; constrain and scro
 the body in a short window without covering the trigger. Below 1100px, use the
 bottom sheet over the approved half-opacity dark scrim. Tablet Copy stays inline
 with 6 destinations in 1 row; below 768px Copy fills its row and destinations use
-2 rows of 3. Focus the heading on open, trap keyboard focus, close with Escape,
+2 rows of 3 at ordinary text sizes. When the actual destination names cannot fit
+3 columns, use 2 columns, then 1 if needed, in the same order without splitting names midword. Base
+this on content fit, including enlarged text, rather than a single phone width.
+Focus the noninteractive heading on open without drawing an outline around it.
+Trap keyboard focus, close with Escape,
 Close, outside activation or successful destination opening, then return focus to
 the trigger. Scrims and panels prevent click-through. Native chooser cancellation
 is silent; unavailable native sharing is omitted.
@@ -915,6 +919,9 @@ is silent; unavailable native sharing is omitted.
 Copy keeps its width through confirmation: 112px desktop, 156px tablet and full
 width phone. Omit an empty description. Announce copying or opening failures with
 the approved recovery text; a failed copy focuses and selects the address field.
+The focused address field uses a 1px #5b30d6 border and a 3px
+rgba(91,48,214,.22) ring. Suppress its browser outline, preserve selected-text
+highlighting, and retain the existing keyboard-focus treatment on controls.
 Only a successful clipboard write may show Copied. Preserve existing trigger
 styling and identifying content on other shared-panel uses.
 

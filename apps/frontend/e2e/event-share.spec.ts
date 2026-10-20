@@ -35,7 +35,9 @@ for (const [width, height] of [
     const src = await iframe!.getAttribute('src');
     await trigger.click();
     const dialog = page.getByRole('dialog', { name: 'Share this post', exact: true });
-    await expect(dialog.getByRole('heading', { name: 'Share this post' })).toBeFocused();
+    const heading = dialog.getByRole('heading', { name: 'Share this post' });
+    await expect(heading).toBeFocused();
+    await expect(heading).toHaveCSS('outline-style', 'none');
     await expect(dialog.getByRole('textbox', { name: 'Post link' })).toHaveValue(canonical);
     for (let i = 0; i < 12; i++) {
       await page.keyboard.press('Tab');
@@ -99,6 +101,12 @@ test('copy failure selects the full address and popup failure remains recoverabl
   );
   const field = page.getByRole('textbox', { name: 'Post link' });
   await expect(field).toBeFocused();
+  await expect(field).toHaveCSS('outline-style', 'none');
+  await expect(field.locator('..')).toHaveCSS('border-color', 'rgb(91, 48, 214)');
+  await expect(field.locator('..')).toHaveCSS(
+    'box-shadow',
+    'rgba(91, 48, 214, 0.22) 0px 0px 0px 3px',
+  );
   expect(
     await field.evaluate((node: HTMLInputElement) =>
       node.value.slice(node.selectionStart!, node.selectionEnd!),
@@ -153,41 +161,65 @@ test('320px enlarged date and Share wrap without overflow', async ({ page }) => 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test('320px doubled text keeps every destination label inside its button', async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 640 });
-  await page.goto(path);
-  await page.getByRole('button', { name: 'Share this post', exact: true }).click();
-  const dialog = page.getByRole('dialog');
-  await dialog.evaluate((panel) => {
-    const textElements = Array.from(panel.querySelectorAll<HTMLElement>('*')).filter((node) =>
-      Array.from(node.childNodes).some(
-        (child) => child.nodeType === Node.TEXT_NODE && child.textContent?.trim(),
-      ),
-    );
-    const sizes = textElements.map((node) => parseFloat(getComputedStyle(node).fontSize));
-    textElements.forEach((node, index) => {
-      node.style.fontSize = `${sizes[index] * 2}px`;
-    });
-  });
-  for (const name of [
-    'Share by email',
-    'Share on WhatsApp',
-    'Share on Facebook',
-    'Share on LinkedIn',
-    'Share on X',
-    'Share on Bluesky',
-  ]) {
-    const button = dialog.getByRole('button', { name, exact: true });
-    await button.scrollIntoViewIfNeeded();
-    const fits = await button.evaluate((node) => {
-      const box = node.getBoundingClientRect();
-      const label = node.lastElementChild!;
-      const text = label.getBoundingClientRect();
-      return (
-        text.left >= box.left && text.right <= box.right && label.scrollWidth <= label.clientWidth
+for (const [width, columns] of [
+  [320, 1],
+  [390, 2],
+]) {
+  test(`${width}px doubled text adapts to ${columns} columns without splitting names`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 640 });
+    await page.goto(path);
+    await page.getByRole('button', { name: 'Share this post', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    const grid = dialog.locator('[data-share-destination-label]').first().locator('../..');
+    await expect
+      .poll(() =>
+        grid.evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(' ').length),
+      )
+      .toBe(3);
+    await dialog.evaluate((panel) => {
+      const textElements = Array.from(panel.querySelectorAll<HTMLElement>('*')).filter((node) =>
+        Array.from(node.childNodes).some(
+          (child) => child.nodeType === Node.TEXT_NODE && child.textContent?.trim(),
+        ),
       );
+      const sizes = textElements.map((node) => parseFloat(getComputedStyle(node).fontSize));
+      textElements.forEach((node, index) => {
+        node.style.fontSize = `${sizes[index] * 2}px`;
+      });
     });
-    expect(fits, name).toBe(true);
-  }
-  await expect(dialog).toBeVisible();
-});
+    await expect
+      .poll(() =>
+        grid.evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(' ').length),
+      )
+      .toBe(columns);
+    for (const name of [
+      'Share by email',
+      'Share on WhatsApp',
+      'Share on Facebook',
+      'Share on LinkedIn',
+      'Share on X',
+      'Share on Bluesky',
+    ]) {
+      const button = dialog.getByRole('button', { name, exact: true });
+      await button.scrollIntoViewIfNeeded();
+      await expect(button.locator('[data-share-destination-label]')).toHaveCSS('font-size', '26px');
+      const fits = await button.evaluate((node) => {
+        const box = node.getBoundingClientRect();
+        const label = node.lastElementChild!;
+        const text = label.getBoundingClientRect();
+        const range = document.createRange();
+        range.selectNodeContents(label);
+        return (
+          range.getClientRects().length === 1 &&
+          text.left >= box.left &&
+          text.right <= box.right &&
+          label.scrollWidth <= label.clientWidth
+        );
+      });
+      expect(fits, name).toBe(true);
+    }
+    await expect(dialog).toBeVisible();
+  });
+}
