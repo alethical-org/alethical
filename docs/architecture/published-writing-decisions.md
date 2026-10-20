@@ -645,7 +645,7 @@ posts, and do not authorize an unrelated sitewide redesign.
 
 ### 2.18 Public blog posts include sharing; assess other surfaces proactively
 
-Approved by Eugene on October 20, 2026. Every public blog post includes a visible
+Every public blog post includes a visible
 Share button, including Research reports, Guides, Short posts, events and recordings.
 Before designing, reviewing or building another public surface, assess whether
 sharing its content helps readers and propose a Share action where useful.
