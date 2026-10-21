@@ -178,9 +178,10 @@ Short 01 remains unapproved for posting. This direction does not resolve its 2 k
 complete its remaining checks or grant permission to publish it. Follow the video guide's acceptance
 requirements before treating any short as ready.
 
-## Forward Debate X preparation
+## Forward Debate X publication
 
-The [X preparation record](forward-debate-x-preparation.md) retains the native browser draft,
-verified Aaron campaign tag, Trent campaign-website fallback and saved/reopened checks. The draft
-is not published. User review is required before publication; a saved composer or working preview
-does not lift that hold.
+The [X publication record](forward-debate-x-preparation.md) retains the approved text, Aaron campaign
+tag, Trent campaign-website fallback and latest saved revision. Publication followed user review.
+The replay paragraph was moved before the candidate paragraph through the same post's edit action
+to repair the published preview; all words and links remain. The current revision shows the replay
+card and verified destinations. No duplicate post or pin was created.

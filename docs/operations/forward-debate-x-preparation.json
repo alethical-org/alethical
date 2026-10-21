@@ -1,10 +1,10 @@
 {
-  "status": "saved_draft_review_required",
+  "status": "published_edited_verified",
   "preparedDate": "2026-10-21",
   "platform": "X",
   "route": "native Chrome composer",
   "accountHandle": "alethical",
-  "content": "We can disagree and work together.\n\nTrent Dilks https://trentformn13.com and Aaron Brutger @BrutgerforSD13 showed how. Some attendees called it the best debate they'd seen.\n\nWatch: https://www.alethical.com/blog/events/forward-debate-2026\n\nNext: plans for Minnesota debates and tools for candidates of any party.",
+  "content": "We can disagree and work together.\n\nWatch: https://www.alethical.com/blog/events/forward-debate-2026\n\nTrent Dilks https://trentformn13.com and Aaron Brutger @BrutgerforSD13 showed how. Some attendees called it the best debate they'd seen.\n\nNext: plans for Minnesota debates and tools for candidates of any party.",
   "sourceCharacters": 312,
   "nativeCharactersUsed": 277,
   "nativeCharactersRemaining": 3,
@@ -14,11 +14,28 @@
   "previewDestination": "https://www.alethical.com/blog/events/forward-debate-2026",
   "uploadedMedia": false,
   "savedAndReopened": true,
-  "published": false,
-  "publicationAuthorized": false,
-  "reviewGate": "User review before publication",
+  "published": true,
+  "publicationAuthorized": true,
+  "reviewGate": "User approved publication after review",
   "peopleDestinations": {
     "Trent Dilks": "https://trentformn13.com",
     "Aaron Brutger": "https://x.com/BrutgerforSD13"
+  },
+  "publishedDate": "2026-10-21",
+  "originalPublicationTimeEastern": "11:54",
+  "originalPostId": "2112935526370279631",
+  "currentPostId": "2112935739264786462",
+  "url": "https://x.com/alethical/status/2112935739264786462",
+  "originalUrl": "https://x.com/alethical/status/2112935526370279631",
+  "originalContent": "We can disagree and work together.\n\nTrent Dilks https://trentformn13.com and Aaron Brutger @BrutgerforSD13 showed how. Some attendees called it the best debate they'd seen.\n\nWatch: https://www.alethical.com/blog/events/forward-debate-2026\n\nNext: plans for Minnesota debates and tools for candidates of any party.",
+  "edit": "Moved existing Watch paragraph before candidate paragraph without changing words or links.",
+  "nativePreviewVerified": true,
+  "nativeTextAndMentionVerified": true,
+  "desktopVisualReviewed": true,
+  "mobileVisualReviewed": false,
+  "pinned": false,
+  "shortenedDestinations": {
+    "https://t.co/3JA8MniRT2": "https://www.alethical.com/blog/events/forward-debate-2026",
+    "https://t.co/95Dg9ELyp1": "https://trentformn13.com/"
   }
 }
