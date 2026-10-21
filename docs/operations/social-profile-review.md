@@ -12,18 +12,20 @@ YouTube channel destination.
 The current caption directions remain correct. Publish an Instagram Story for the full-debate
 post with 1 tappable [website replay](https://www.alethical.com/blog/events/forward-debate-2026)
 link sticker labelled **Watch the full debate**, then use the same destination and label in the
-next short’s Story. No extra YouTube Story link or printed website URL is needed. A Debates Highlight is approved within this
-promotion scope; verify its saved link. The full-debate Story is published with its website
-sticker verified in the [Instagram record](forward-debate-instagram-record.md#full-debate-story);
-the Highlight is blocked by an empty native Stories picker with disabled Next, and the next-short
-Story remains unpublished. The Highlight draft is closed; the published Story is intact. The
-[attempt record](forward-debate-instagram-record.md#full-debate-story) does not establish a universal
-web limitation or an archive prerequisite.
+next short’s Story. No extra YouTube Story link or printed website URL is needed. The full-debate
+Story and user-created [**Debate** Highlight](https://www.instagram.com/stories/highlights/18144858376576808/)
+are live, with the website sticker verified in the
+[Instagram record](forward-debate-instagram-record.md#full-debate-story). Preserve the singular
+Highlight title. The empty-picker attempt remains recorded as history; placement is no longer
+blocked. The next-short Story remains unpublished.
 
 Recommended profile and promotion work is approved for application, including verified company
 follows where supported. Begin the first short for each platform, then evaluate cross-platform
-results after that round. This approval does not establish that any account change or Story is
-complete, or that short 01’s quality defects are resolved. Record execution and saved-result evidence
+results after that round. Retain useful Story and milestone content in supported persistent
+Highlights, collections, featured or pin placements on every applicable platform, under the
+[standing promotion rule](social-publishing.md#keep-significant-milestones-visible). Assess both
+the existing full post and next short within the current scope. Approval alone does not establish
+completion of an account change or Story, or resolution of short 01’s quality defects. Record execution and saved-result evidence
 as each item finishes. Spending and independent private messages remain outside this scope.
 
 ## Account evidence
@@ -57,7 +59,7 @@ supports promotion for discovery and links for crawling, without promising ranki
 
 | Platform | Profile work | Promote this milestone | Engagement and company identity |
 | --- | --- | --- | --- |
-| Instagram | Keep the existing **YouTube** label and https://www.youtube.com/@Alethical destination so visitors can browse all videos. Preserve Website and other links during the current work. The later cross-link audit may reorder website-first while retaining the YouTube channel. The existing caption correctly describes the selector, channel and video choice; no edit is needed now. | Publish the full-debate Story with 1 website replay link sticker labelled **Watch the full debate**, then save it to Debates. Use the same sticker in the next short’s Story; omit extra YouTube links and printed URLs. Confirm the link works in the saved Highlight. Keep the grid pin. | Review requests from non-followers, Story sharing, mentions and tag review. Keep spam controls. Follow both verified Trent accounts as Alethical; Aaron has the approved website fallback until a verified account is found. |
+| Instagram | Keep the existing **YouTube** label and https://www.youtube.com/@Alethical destination so visitors can browse all videos. Preserve Website and other links during the current work. The later cross-link audit may reorder website-first while retaining the YouTube channel. The existing caption correctly describes the selector, channel and video choice; no edit is needed now. | Publish the full-debate Story with 1 website replay link sticker labelled **Watch the full debate**, retain it in the existing **Debate** Highlight. Use the same sticker in the next short’s Story; omit extra YouTube links and printed URLs. The full-debate Highlight and link are verified; verify each later addition too. Keep the grid pin. | Review requests from non-followers, Story sharing, mentions and tag review. Keep spam controls. Follow both verified Trent accounts as Alethical; Aaron has the approved website fallback until a verified account is found. |
 | Facebook | Complete About/intro, accurate category, website and public business contact. Inspect the actual Page action-button choices and pick the clearest website or message action. Do not invent a physical office or hours. | Keep pinned/featured post. Prepare a Page Story; only promise a direct Story link if that Page's composer supports it. Inspect cross-posted output separately. | Act as Alethical Page for follows, comments and messages. Check personal-profile following separately from Page following; never substitute a personal friend request. Review public comments and Messenger requests. |
 | LinkedIn | Use a plain description, accurate industry/category, website, specialties and real location. Configure the free website/contact action if useful. | Keep the debate Featured and add useful milestones within capacity. Page Stories are not the route. | Page messaging offers a business contact route. Follow organization/campaign Pages as Alethical. Personal-profile Follow/Connect uses the member identity, so skip that exception rather than act as a member. |
 | X | Fix the typo; lead the bio with what readers gain. Keep Minnesota and the website field. | Keep debate pin and Highlights. Its post already has a clickable replay link. Use actual approved Shorts later where suitable. | Inspect open replies and a reviewable message-request inbox; preserve spam protections. Follow verified tagged accounts as @alethical. Paid Subscribe is not Follow. |

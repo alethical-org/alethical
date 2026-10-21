@@ -110,12 +110,14 @@ saved post shows the intended text and links on the correct account.
 
 ## Keep significant milestones visible
 
-Significant milestones should help new visitors understand Alethical's work. When preparing a post,
-select and apply an appropriate pin, featured placement or equivalent within the future authorized
-post's standing scope, using the
+Significant milestones should help new visitors understand Alethical's work. For future authorized
+posts and Stories, retain useful content in supported persistent Highlights, collections, featured
+or pin placements on every applicable platform within that post's standing scope, using the
 [shared placement guidance](https://github.com/euglopi/tool-settings/blob/main/shared/guides/social-publishing.md#keep-significant-posts-easy-to-find).
 Assess the actual account, format, current placements and limits before choosing an addition,
-reorder or replacement. A useful existing milestone remains when the platform supports adding more.
+reorder or replacement. Preserve working website links and the approved reader goal; verify the
+saved content and link behavior instead of assuming persistence or expiry across platforms.
+A useful existing milestone remains when the platform supports adding more.
 
 When a slot is scarce or the collection is full, compare what visitors would gain from the new
 milestone and replace the placement within approved scope only when it serves them better. Do not
@@ -245,12 +247,13 @@ links during the current work. The later cross-link audit may reorder website-fi
 the named YouTube channel destination. The current caption directions remain correct.
 Publish a Story for this full-debate post with 1 tappable sticker labelled **Watch the full debate**
 pointing to the [website replay](https://www.alethical.com/blog/events/forward-debate-2026), and retain
-it in a Debates Highlight where supported. The next short’s Story uses the same website sticker.
+it in the existing **Debate** Highlight. The next short’s Story uses the same website sticker.
 Stories need no extra YouTube link or printed website URL; this exception leaves the existing feed
 caption and channel bio unchanged. The full-debate Story is published and its live sticker opens
 the website replay; the [Instagram record](forward-debate-instagram-record.md#full-debate-story)
-retains the canvas and link check. Highlight placement and the next-short Story remain unfinished. Begin the first short on each
-platform and compare results after that round; short 01’s unresolved quality defects remain holds.
+retains the canvas and link check. The user-created [**Debate** Highlight](https://www.instagram.com/stories/highlights/18144858376576808/)
+and its saved website sticker are verified. The next-short Story remains unpublished. Begin the
+first short on each platform and compare results after that round; short 01’s unresolved quality defects remain holds.
 Keep public contact email reachable through an available contact field or suitable bio/display-name
 placement, preserving the Bluesky domain handle. The profile review owns the full rollout.
 A Pinned post icon is verified on this post;

@@ -43,11 +43,13 @@ verified route is approved so visitors can browse the full collection as well as
 The profile has 5 links: Website, general YouTube channel, LinkedIn, X and TikTok. Preserve the
 existing **YouTube** label and [channel destination](https://www.youtube.com/@Alethical), Website
 and the other links. No replacement or reordering is requested. The current caption directions
-remain correct; no live bio or caption change is needed. The full-debate Story and Debates Highlight are approved in the
+remain correct; no live bio or caption change is needed. The full-debate Story and **Debate**
+Highlight are covered in the
 [profile review](social-profile-review.md), with 1 website replay sticker labelled **Watch the full
 debate**. The next short’s Story uses the same destination. No extra YouTube link or printed URL
 is included in Stories; the feed caption and channel bio remain unchanged. The full-debate Story
-is published and verified below; the Highlight and next-short Story remain unfinished.
+and its **Debate** Highlight are published and verified below; the next-short Story remains
+unpublished.
 
 The saved post's desktop options contain no pin action. The
 [Instagram pin help](https://help.instagram.com/318456537074409) reports that the feature is unavailable
@@ -78,15 +80,21 @@ recovery inventory.
 In this composer, the outer **Add link** button was disabled; **Edit > More stickers > Create link
 sticker** accepted the exact website URL and the custom label. The live click verifies that this
 route worked for this Story. The [shared profile guide](https://github.com/euglopi/tool-settings/blob/main/shared/guides/social-profile-promotion.md#instagram)
-owns the reusable route check. The Debates Highlight is authorized but not completed; the next
-short’s Story is authorized but not published.
+owns the reusable route check. The next short’s Story is authorized but not published.
+
+The user-created [**Debate** Highlight](https://www.instagram.com/stories/highlights/18144858376576808/)
+appears on the refreshed profile. Its saved Story was opened and its sticker clicked, followed by
+**Visit link**. The actual website replay opened with its title, Share this post and video play
+control. Preserve the singular title **Debate**. The Highlight and retained website link are
+verified on October 21, 2026; this closes the placement blocker.
 
 On October 21, the native profile route **New > Highlight Name: Debates > Next** opened an empty
 Stories picker. Its **Next** button stayed disabled for more than 30 seconds, with no selectable
 Story. The draft was closed without creating a Highlight. The live Story menu offered Delete,
-About this account, View insights, Boost story and Cancel, with no Highlight action. This is the
-observed account/route blocker, not proof that web Highlights are universally unavailable or that
-archiving is required. The published Story remains intact; no deletion or other Story change occurred.
+About this account, View insights, Boost story and Cancel, with no Highlight action. This
+unsuccessful attempt is retained as account/route evidence, not proof that web Highlights are
+universally unavailable or that archiving is required. The published Story remains intact; no
+deletion or other Story change occurred.
 
 ## Publication settings
 

@@ -140,11 +140,10 @@
   "allThreeHashtagLinksVerified": true,
   "updatedCaptionDesktopVisualReviewed": true,
   "storyPromotion": {
-    "status": "published_verified_highlight_pending",
+    "status": "published_verified_highlight_verified",
     "fullDebatePostStory": true,
     "nextShortStory": true,
     "linkStickerDestination": "https://www.alethical.com/blog/events/forward-debate-2026",
-    "debatesHighlightAuthorized": true,
     "bioChannelRetained": true,
     "shortQualityHoldsPreserved": true,
     "linkStickerLabel": "Watch the full debate",
@@ -179,7 +178,7 @@
     "fullImageAndStickerVisuallyVerified": true,
     "linkVerification": "Clicked live sticker, then Visit link; website replay opened with title, video control, supporting materials and Share",
     "verifiedDestination": "https://www.alethical.com/blog/events/forward-debate-2026",
-    "highlightStatus": "blocked_empty_native_stories_picker",
+    "highlightStatus": "user_created_verified",
     "nextShortStoryStatus": "authorized_not_published",
     "nativeStickerRoute": "Edit > More stickers > Create link sticker",
     "outerAddLinkDisabled": true,
@@ -200,7 +199,26 @@
       ],
       "highlightMenuActionPresent": false,
       "publishedStoryIntact": true,
-      "inferenceLimit": "Observed account/route blocker; no universal web limitation or archive prerequisite established"
+      "inferenceLimit": "Observed account/route blocker; no universal web limitation or archive prerequisite established",
+      "currentBlocker": false,
+      "resolution": "User-created Debate Highlight and its saved website sticker are verified"
+    },
+    "highlightAuthorized": true,
+    "highlight": {
+      "title": "Debate",
+      "url": "https://www.instagram.com/stories/highlights/18144858376576808/",
+      "createdBy": "user",
+      "verifiedDate": "2026-10-21",
+      "profilePlacementVerified": true,
+      "savedStoryOpened": true,
+      "stickerAndVisitLinkOpenedReplay": true,
+      "verifiedDestination": "https://www.alethical.com/blog/events/forward-debate-2026",
+      "replayVisibleElements": [
+        "title",
+        "Share this post",
+        "video play control"
+      ],
+      "previousPickerBlockerResolved": true
     }
   }
 }
