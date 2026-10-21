@@ -32,11 +32,11 @@ evidence. Record each remaining item’s execution and saved result as it finish
 
 The account work is resumed. Keep bios balanced across the platform’s current public-record,
 bill, vote and campaign-money work while adding truthful high-impact offerings such as debate
-hosting. Include **campaign analytics coming soon** when space permits, preserving current core
-offerings and making its planned status explicit. Do not replace the company’s broader purpose
-with a debate-only description. The separate gate on a debate-hosting inquiry invitation outside
-a post remains: propose exact wording, platform
-and location for approval first. No such outside-post invitation has been added.
+hosting. Include **campaign analytics** as an offered service when space permits, preserving
+current core offerings; do not infer a launched self-service analytics product. Do not replace the
+company’s broader purpose with a debate-only description. The separate gate on a debate-hosting
+inquiry invitation outside a post remains: propose exact wording, platform and location for approval
+first. No such outside-post invitation has been added.
 
 Prepare short 2 after the account work, with no publication before October 22, 2026. No schedule
 has been created. The Instagram short Story, website sticker and **Debate** Highlight addition are
@@ -81,12 +81,19 @@ supports promotion for discovery and links for crawling, without promising ranki
 | TikTok | Verify whether the account has a website field or YouTube profile link before promising a route. A Business Account alone is not proof of Registered Business status or link eligibility. | The accepted v3 short is published with playback verified. Use a verified clickable profile route and spoken/on-screen directions; no still-photo replacement. | Review comments, held-comment review, mentions, reuse and message settings within account eligibility. Follow verified tagged accounts only. No bulk candidate search or outreach. |
 | YouTube | Keep a clear channel description, public contact and useful named links. Put Candidate Debates in a visible Home section. | Each approved Short should use Related video to the existing full debate after confirming advanced-feature access. Spotlight can serve returning viewers; a short introduction would serve new viewers better than making the 2-hour debate the permanent channel trailer. Trailer and Spotlight each stop appearing to a viewer after being watched, so keep the lasting playlist section too. | Subscribe to verified tagged channels from Alethical where supported. Review held comments and reuse settings. A free subscription is distinct from paid membership. Do not assume every account has the same messaging rollout. |
 
+## Saved profile work
+
+Instagram’s native editor saved a 127/150-character bio with a success toast. That edition included
+“Coming soon: campaign analytics” and is superseded by the approved offered-service wording; its
+correction and public visitor readback are pending. The editor’s profile-link controls are disabled
+with a mobile-only notice. Account suggestions are on. No profile-link change is claimed.
+
 ## Writing for the approved rollout
 
 Shared opening: “Minnesota politics in plain language.” Keep the rest specific to what people can
-use now; candidate services that are still plans remain plans. Add “Campaign analytics coming soon”
-where the actual field has room without losing current core offerings; it is not an available-service
-claim. Count the complete wording before saving.
+use now; features that are still plans remain plans. Add “Campaign analytics” as an offered service
+where the actual field has room without losing current core offerings. This is service positioning,
+not a claim of a launched self-service analytics product. Count the complete wording before saving.
 
 Instagram draft:
 

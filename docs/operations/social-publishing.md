@@ -45,8 +45,9 @@ and failures after execution; documentation must not interrupt feasible authoriz
 - Keep bios balanced across Alethical’s current work: public records, bills, votes, campaign
   money and useful new offerings such as hosting political debates. Add high-impact capabilities
   missing from the existing wording without recasting the whole company as debate-only. Verify
-  present capabilities; proposed services remain plans. Include **campaign analytics coming soon**
-  when space permits without displacing current core offerings; do not describe it as available.
+  present capabilities; proposed features remain plans. Include **campaign analytics** as an offered
+  service when space permits without displacing current core offerings. This service wording does
+  not establish that a self-service analytics product has launched.
   A debate-hosting inquiry invitation outside a post still needs the exact wording, platform and
   location approved before changing it.
 - Describe planned services as plans. Use the [campaign services guide](../product-onboarding/services-guide.md)
