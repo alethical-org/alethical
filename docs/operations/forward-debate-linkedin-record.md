@@ -15,6 +15,17 @@ This is the full-replay announcement, not publication of short 01. The short's p
 - Zernio validation passed before initial publication; the text edit succeeded on the same post ID. Current source text has 1,441 characters including mention markup; replacing markup with displayed names gives 1,383 characters. These counts do not establish the platform's counting method.
 - Native saved-post inspection confirms the Edited state, text, 2 correct profile links, unchanged shortened destinations and replay preview. Desktop visual review confirms linked introduction names, plain closing names and paragraph spacing; the preview begins below the thank-you. Mobile layout is not reviewed.
 
+## Featured placement
+
+On October 21, 2026, the announcement was added to Alethical's organization Page Featured collection.
+The collection contained 0 posts before and 1 afterward. The saved manager lists the Forward Debate
+post, and the [member-facing company Home tab](https://www.linkedin.com/company/alethical/?viewAsMember=true)
+shows the Featured heading with the replay preview, title and introduction.
+
+The action used the company admin's **Edit page > Featured > Feature a post > Select** route.
+It did not feature the post on a member profile, remove another feature or edit the announcement.
+Future additions retain useful milestones within the current limit under the shared placement guide.
+
 ## Revision record
 
 The current edit removes only the 2 closing mention wrappers from the original publication. The

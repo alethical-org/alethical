@@ -110,6 +110,14 @@ The coalition link sits beside the joining-coalition paragraph. The closing acti
 Facebook publication is confirmed for this announcement; drafts for other platforms do not prove
 publication. Zernio post ID: `6ad8ca7d4ccbaf62fbbed168`.
 
+On October 21, 2026, this replay announcement was pinned through Alethical's Page **Featured >
+Manage** controls. The manager contained 0 pinned items before and 1 afterward; it displayed a
+limit of 3 for this account. The saved item offered **Unpin**, and the matching replay post remained
+in [Alethical's Featured section](https://www.facebook.com/Alethical) after the Page was refreshed.
+The saved post reference is `pfbid0hQxfKvJsSX2fxEYz6T1dBhZCbZK32uyJEaLanmmTCnv1iA4wbLR3hYPBTxGHgoTpl`.
+No existing pin was removed and no post text changed. This observed count is account-specific,
+not a permanent limit for every Facebook Page.
+
 Trent's campaign mention resolved by typing `@Trent for MN 13`, allowing the matching Page result to
 appear and selecting it. The saved post displayed the linked name, matching Aaron's treatment.
 An earlier empty suggestion list did not establish that mentions were disabled. Pasting an ordinary
