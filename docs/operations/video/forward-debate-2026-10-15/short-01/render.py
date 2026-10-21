@@ -30,19 +30,23 @@ inputs += ["-loop", "1", "-framerate", "30", "-t", "4.0", "-i", f"{OV}/end_text.
            "-loop", "1", "-framerate", "30", "-t", "4.0", "-i", f"{OV}/end_logo.png", "-framerate", "30", "-i", f"{W}/intro-frames/f%03d.png"]
 idx = {p: i + 1 for i, p in enumerate(pngs)}; endi = len(pngs) + 1; symi = endi + 3
 fc = [f"[0:v]split={len(segs)}" + "".join(f"[s{i}]" for i in range(len(segs)))]
+seen = set()
 for i, (a, b, k, x) in enumerate(segs):
-    fc.append(f"[s{i}]trim={a-S0:.3f}:{b-S0:.3f},setpts=PTS-STARTPTS,crop=506:900:{x}:430,scale=1080:1920:flags=lanczos:in_range=pc:out_range=tv,fps=30,setsar=1[c{i}]")
+    fc.append(f"[s{i}]trim={a-S0:.3f}:{b-S0:.3f},setpts=PTS-STARTPTS,crop=506:900:{x}:430,scale=1080:1920:flags=lanczos:in_range=pc:out_range=tv,fps=30,setsar=1[shot{i}]")
+    # Attach names to their own shot before concatenation. The fps filter rounds
+    # each shot to whole frames; planned global decimal bounds can cross a cut.
+    if k not in seen:
+        seen.add(k)
+        enable = "1" if b - a <= 3.6 else f"lt(t,{6.0 if k == 'aaron' else 3.0:.3f})"
+        fc.append(f"[shot{i}][{idx[f'name_{k}']}:v]overlay=0:0:enable='{enable}'[c{i}]")
+    else:
+        fc.append(f"[shot{i}]null[c{i}]")
 fc.append("".join(f"[c{i}]" for i in range(len(segs))) + f"concat=n={len(segs)}:v=1:a=0[v0]")
 cur = "v0"; n = 0
 def ov(src, en):
     global cur, n
     n += 1; fc.append(f"[{cur}][{src}:v]overlay=0:0:enable='{en}'[o{n}]"); cur = f"o{n}"
 ov(idx["header"], "gte(t,0)")
-seen = set()
-for a, b, k, x in segs:                      # a name tag shows once per person, 3 s (Aaron's 6 s), or to the cut when the shot is short
-    if k in seen: continue
-    seen.add(k); end = b if b - a <= 3.6 else a + (6.0 if k == "aaron" else 3.0)
-    ov(idx[f"name_{k}"], f"gte(t,{a-S0:.3f})*lt(t,{end-S0:.3f})")
 for i, (a, b, t) in enumerate(caps): ov(idx[f"cap{i}"], f"between(t,{a-S0:.3f},{b-S0:.3f})")
 fc.append(f"[{cur}]format=yuv420p,fade=in:st=0:d=0.2,fade=out:st={6984.15-S0:.3f}:d=0.5[vm]")
 fc.append(f"[{endi+2}:v]fps=30,format=rgba,fade=in:st=0.73:d=0.12:alpha=1[lg];[{endi}:v]fps=30,format=rgba[et];[et][lg]overlay=0:0,format=yuv420p,setsar=1,fade=in:st=0:d=0.3[ve]")

@@ -9,9 +9,10 @@ Nothing here approves posting.
 
 The first-version MP4 is frozen with SHA-256
 `0c6df832e41ae610cfcf46dde703344f8d4cd3f1f1bb54a05297f95f254f2698`.
-The current version doubles Aaron's first name-tag appearance from 3 s to 6 s in clip 01 only.
+The frozen v2 version doubles Aaron's first name-tag appearance from 3 s to 6 s in clip 01 only.
 It has SHA-256 `33cae6382600d17ab05b9d62108cfed5e7936134315f1d1ee6d2ea7e2f7f2581` and is
-the recovery-test reference. Both versions are preserved; other tags keep their first-template timing. The request does not make 6 s a rule for other people or clips.
+the recovery-test reference. The [prepared v3 repair](forward-debate-2026-10-15/verification/short01-v3-repair.md)
+keeps tags inside their own shots and changes only 3 raw frames. All references are preserved; other tags keep their first-template timing. The request does not make 6 s a rule for other people or clips.
 
 ## 3 clocks
 
@@ -63,7 +64,8 @@ Readable text and sound
   picture. Avoid small or repeated lines that add no useful meaning.
 - Introduce each person once in a short exchange, with a readable name and role. Give the actual role
   enough reading time. The quick Trent-to-Angel cut in clip 01 needs no empty gap between tags; that
-  correction does not prescribe tag timing at every cut in every clip.
+  correction does not prescribe tag timing at every cut in every clip. Attach the tag to its shot
+  before joining shots, so frame-rate rounding cannot put a name on the next person.
 - Keep captions apart from name tags and from the destination app's controls. Phone size and real
   controls decide whether placement works. The redundant green speaker label was removed from
   clip 01's cutaways; another exchange still needs unambiguous speaker identity.
@@ -161,7 +163,9 @@ forward as a new decision. Fill in:
 
 ## Unresolved (not defaults)
 
-- Posting approval of clip 01. Neither the frozen reference nor a requested revision is approved for posting.
+- Clip 01 rollout has been requested. Its repaired candidate still needs destination checks and a
+  verified backup; the posting task records exact approval and live state per account. Frozen
+  references are evidence, not the file to post.
 - Intro sound. The frozen reference is silent; keeping it silent was suggested but not decided.
 - Aaron Brutger's role wording. The frozen reference says "Republican-endorsed write-in candidate";
   shortening it to "Republican-endorsed write-in" was suggested but not answered. The new tag-duration

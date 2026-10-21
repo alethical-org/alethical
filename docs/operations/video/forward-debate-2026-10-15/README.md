@@ -78,16 +78,23 @@ Settled on the full edition, in short:
 
 ## Short 01: "We disagree. We can still grab a beer."
 
-Recipe in [short-01/](short-01/). Current file: `01-We-Disagree-We-Can-Still-Grab-a-Beer.mp4`,
-29.800 s, 894 frames, 1080x1920 30 fps, AAC 48 kHz, 27,017,223 bytes, SHA-256
-`33cae6382600d17ab05b9d62108cfed5e7936134315f1d1ee6d2ea7e2f7f2581`.
-The current recipe is `short-01/render.py`. Aaron’s first name tag stays for 6 seconds, extended from 3 seconds; that is the only edit-value change. The prior 27,018,433-byte version
-(SHA-256 `0c6df832e41ae610cfcf46dde703344f8d4cd3f1f1bb54a05297f95f254f2698`) is preserved on Drive only as
-`01-We-Disagree-We-Can-Still-Grab-a-Beer.mp4` in the team Drive folder, with its recipe `short-01/render-initial.py`.
-The local current reference is `references/short-01-33cae638.mp4`; restoration downloads it from the team-facing v2 file. The team-facing Drive copies are
-`01-We-Disagree-We-Can-Still-Grab-a-Beer-v2.mp4` (current) and
-`01-We-Disagree-We-Can-Still-Grab-a-Beer.mp4` (prior); both are retained. It is the **current treatment**;
-Posting approval remains pending.
+Recipe in [short-01/](short-01/). Prepared candidate: `shorts/01-We-Disagree-We-Can-Still-Grab-a-Beer-v3.mp4`,
+29.800 s, 894 frames, 1080x1920 30 fps, stereo AAC 48 kHz, 27,017,469 bytes, SHA-256
+`9dba7706b97af5812be57f83d20205d2845d0c193ec67236a83ffada902fd14d`.
+The current recipe is `short-01/render.py`. Its name tags stay inside their own shots, repairing
+3 cut-boundary frames. Speech, source bounds, crops, captions, design and timing are unchanged.
+[Repair evidence and remaining checks](verification/short01-v3-repair.md) govern this candidate.
+It is local only; no Drive upload or publication occurred in the repair task.
+
+The frozen v2 reference is `references/short-01-33cae638.mp4`, SHA-256
+`33cae6382600d17ab05b9d62108cfed5e7936134315f1d1ee6d2ea7e2f7f2581`, 27,017,223 bytes.
+Its recipe is now `short-01/render-v2.py`; it preserves the original boundary defects and Aaron's
+6-second first tag. Drive retains it as `01-We-Disagree-We-Can-Still-Grab-a-Beer-v2.mp4`.
+The prior 27,018,433-byte version, SHA-256
+`0c6df832e41ae610cfcf46dde703344f8d4cd3f1f1bb54a05297f95f254f2698`, remains on Drive as
+`01-We-Disagree-We-Can-Still-Grab-a-Beer.mp4`, with recipe `short-01/render-initial.py`.
+Both references stay preserved. The requested short rollout permits preparation; destination
+readiness, backup and publication state are recorded separately by the posting task.
 
 Selection: ID 1 in [selection/forward-debate-shorts-selects.md](selection/forward-debate-shorts-selects.md),
 whose proposed window was published 1:55:59.000 to 1:56:24.020 (a caption-window proposal). The edit
@@ -124,12 +131,13 @@ Every correction, version and rejected approach: [decision-inventory.md](decisio
 All 15 short overlay images, 54 intro frames and 3 full-edition card images were compared with
 the original inputs by SHA-256. A stale removed-logo template initially regenerated a broken-image
 mark during the port; the original blank overlay was restored and the template made explicitly
-empty. The current short recipe differs from the original in Aaron’s first tag duration only;
+empty. The frozen v2 recipe differs from the initial version in Aaron’s first tag duration only;
+the current recipe additionally keeps tags inside their own shots;
 output paths are explicit and existing outputs are refused. The saved text builder reproduces
 the delivered SRT, transcript and turn list from saved transcripts; checks are retained in
 [rebuild.md](rebuild.md).
 
-Recovery test of the current short: **tested-and-matched** from a fresh GitHub clone and Drive restore. All 894 decoded frames, decoded stereo audio and timing match exactly. See [the measured test record](verification/recovery-test.md) for evidence and the 2 existing single-frame wrong-person tags found at cuts. Those defects are preserved in the reference, not repaired or approved for posting.
+Recovery test of the frozen v2 short: **tested-and-matched** from a fresh GitHub clone and Drive restore. All 894 decoded frames, decoded stereo audio and timing match exactly. See [the measured test record](verification/recovery-test.md) for evidence and the 2 existing single-frame wrong-person tags found at cuts. Those defects stay preserved in the reference; the separate [v3 repair](verification/short01-v3-repair.md) resolves them in the prepared candidate.
 
 ## Package records
 

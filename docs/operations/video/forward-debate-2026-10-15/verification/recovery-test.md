@@ -1,6 +1,6 @@
 # Short 01 recovery test, October 20, 2026
 
-Outcome: **tested-and-matched for recovery of the current short**. This is not publication approval or a claim that every editorial detail is correct.
+Outcome: **tested-and-matched for recovery of the frozen v2 short**. This is not publication approval or a claim that every editorial detail is correct.
 
 ## What ran
 
@@ -32,12 +32,12 @@ Whole-file hashes differ; the MP4 files are not claimed byte-identical. Decoded 
 
 All 80 frame views in [recovery-visual-plan.json](recovery-visual-plan.json) were inspected on the 9 saved [review sheets](visual-review/). They cover the intro, all shot/name/caption transitions, picture fade, closing card and interior samples. Aaron’s tag remains visible through frame 233 (7.767 s), disappearing at frame 234 (7.800 s). Captions remain separate from tags and the closing card carries the saved wording and icon.
 
-The current reference contains 2 single-frame name-tag errors, faithfully reproduced by recovery:
+The frozen v2 reference contains 2 single-frame name-tag errors, faithfully reproduced by recovery:
 
 - Frame 373 (12.433 s, zero-based): Angel is on screen while Trent’s tag remains. Frame 374 has Angel’s tag. See [sheet 05](visual-review/sheet-05.jpg).
 - Frame 424 (14.133 s): Aaron is on screen while Angel’s tag remains. Frame 425 has no tag, as intended for Aaron’s return. See [sheet 06](visual-review/sheet-06.jpg).
 
-The cuts reach their new pictures before the name overlays switch. A future authorized revision should align name overlays with actual output-frame cuts, then inspect the frame before, at and after each cut. No renderer or current video was changed during this recovery test. The first frame of Trent’s shot also precedes his tag by 1 frame; the 2 wrong-person tags are the substantive identity problem.
+The cuts reach their new pictures before the name overlays switch. The separate [v3 repair](short01-v3-repair.md) now aligns name overlays with their shots and inspects the frame before, at and after each cut. No renderer or current video was changed during this recovery test. The first frame of Trent’s shot also precedes his tag by 1 frame; the 2 wrong-person tags are the substantive identity problem.
 
 ## Limits and owner
 

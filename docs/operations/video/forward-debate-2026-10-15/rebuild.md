@@ -22,10 +22,15 @@ only when regenerating intro frames. A newer OS, encoder or tool version require
 
 ## Short 01
 
+The command below reproduces the frozen v2 recovery reference. The current `render.py` produces
+the separate repaired v3 candidate; its expected 3 raw-frame changes, unchanged audio and checks
+are in [the v3 repair record](verification/short01-v3-repair.md). Never compare v3 to v2 expecting
+all picture frames to match. Preserve both outputs and use a new output path.
+
 ```
 cd docs/operations/video/forward-debate-2026-10-15/short-01
 export ALETHICAL_MEDIA=~/Movies/Alethical/forward-debate-2026
-python3 -I render.py --source "$ALETHICAL_MEDIA/ForwardDebate-sound-fixed.mov" --out /tmp/01-rebuild.mp4
+python3 -I render-v2.py --source "$ALETHICAL_MEDIA/ForwardDebate-sound-fixed.mov" --out /tmp/01-rebuild.mp4
 ```
 
 Takes about 20 seconds. Compare with the saved reference (`$ALETHICAL_MEDIA/references/short-01-33cae638.mp4`,

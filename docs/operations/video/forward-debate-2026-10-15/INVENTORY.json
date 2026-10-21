@@ -4,7 +4,7 @@
   "media_env": "ALETHICAL_MEDIA",
   "drive_folder": "Alethical Team/Media/Forward Debate 2026-10-15",
   "drive_account": "authorized team Drive account",
-  "inventory_note": "Repository input hashes updated for the documentation move; media backup evidence and historical recovery results are preserved. Inventory excludes its own hash; Git commit covers it. Local-only generated test outputs are not recovery inputs.",
+  "inventory_note": "Inventory excludes its own hash; Git commit covers it. Local-only generated test outputs are not recovery inputs. Prepared v3 candidate hash and unbacked status are in verification/short01-v3-inputs.json; frozen v2 remains the restore target.",
   "files": [
     {
       "path": "../.gitignore",
@@ -26,8 +26,8 @@
       "path": "README.md",
       "store": "repo",
       "purpose": "Saved package input or record",
-      "bytes": 9987,
-      "sha256": "d94e0faaa64bdd2b3127e635965bea6c298ae7d9a6e15dc7cc1f6424696602ee",
+      "bytes": 10489,
+      "sha256": "843a5d29421ea30dc203a838cb6b07d2c701963748f9a96ce0546c40aaa917ce",
       "restore": "git clone"
     },
     {
@@ -250,8 +250,8 @@
       "path": "rebuild.md",
       "store": "repo",
       "purpose": "Saved package input or record",
-      "bytes": 4950,
-      "sha256": "51be735103864bec781fc24815cafaf492ada18e3c38e78223ff5ce14b03c26c",
+      "bytes": 5324,
+      "sha256": "d26f823a9b642681b3dcc213240a92a39f7ea625c0564ad0962d99a60cff175a",
       "restore": "git clone"
     },
     {
@@ -1029,8 +1029,8 @@
       "path": "short-01/render.py",
       "store": "repo",
       "purpose": "Saved package input or record",
-      "bytes": 4351,
-      "sha256": "97d4a4a966ba94d7c45e4c0abf0d8876460221b7c5dac8b5d6999ace421e582b",
+      "bytes": 4473,
+      "sha256": "d229cea92392d959a72cc7640c145234c451e6d18ca10155e917ca4da2df5c37",
       "restore": "git clone"
     },
     {
@@ -1207,8 +1207,8 @@
       "path": "verification/recovery-test.md",
       "store": "repo",
       "purpose": "Saved package input or record",
-      "bytes": 6159,
-      "sha256": "5e5ea9d6deea670d659e45873df53fc00e8251cf4a377f2007767b6f77b1b8b3",
+      "bytes": 6165,
+      "sha256": "b247868982c8e6948b0e8a6b57d1178dd994c03f113ce586ce5a54e2c35cb87d",
       "restore": "git clone"
     },
     {
@@ -1322,8 +1322,8 @@
       "path": "../shorts-guide.md",
       "store": "repo",
       "purpose": "Saved package input or record",
-      "bytes": 12265,
-      "sha256": "77badb4f3916e7793a52fc4c289efcd52d0be1ae4e502bf1611f77dd8807baa8",
+      "bytes": 12662,
+      "sha256": "11345e0e484143ca3da342c62077eb59a9f22d32bca2500bf56fc2439b468d59",
       "restore": "git clone"
     },
     {
@@ -1383,6 +1383,166 @@
       "drive_id": "1Z-Y5Jk0GCfrqo9kVVJj-OWzqdVECPElN",
       "backup_status": "hash-matched",
       "restore": "Historical archive only; default restore does not download it"
+    },
+    {
+      "path": "short-01/render-v2.py",
+      "store": "repo",
+      "purpose": "Short 01 v3 repair input or verification record",
+      "restore": "git clone",
+      "bytes": 4351,
+      "sha256": "97d4a4a966ba94d7c45e4c0abf0d8876460221b7c5dac8b5d6999ace421e582b"
+    },
+    {
+      "path": "short-01/check_name_tags.py",
+      "store": "repo",
+      "purpose": "Short 01 v3 repair input or verification record",
+      "restore": "git clone",
+      "bytes": 2739,
+      "sha256": "b38dcae1173127c4d77e63aa9a9669abf951d98bfcee00b539eb70b52b2737e6"
+    },
+    {
+      "path": "short-01/check_raw_revision.py",
+      "store": "repo",
+      "purpose": "Short 01 v3 repair input or verification record",
+      "restore": "git clone",
+      "bytes": 1605,
+      "sha256": "e905f1d701a7be16a5fcde2719552510735c405796165019a1fe1a16a825cc0c"
+    },
+    {
+      "path": "verification/short01-v3-comparison.json",
+      "store": "repo",
+      "purpose": "Short 01 v3 repair input or verification record",
+      "restore": "git clone",
+      "bytes": 204112,
+      "sha256": "6c1aa8b59fd9ff35978965fcd501b4f7f9f93831d41ea7ce3e7b3124ee15ebf4"
+    },
+    {
+      "path": "verification/short01-v3-inputs.json",
+      "store": "repo",
+      "purpose": "Short 01 v3 repair input or verification record",
+      "restore": "git clone",
+      "bytes": 13083,
+      "sha256": "f8c75aa7b45f9a312f13f858f4a4a4035ad57e7fac9aca368cf4e2b475d4d95c"
+    },
+    {
+      "path": "verification/short01-v3-tag-regression.json",
+      "store": "repo",
+      "purpose": "Short 01 v3 repair input or verification record",
+      "restore": "git clone",
+      "bytes": 89620,
+      "sha256": "897900c36c62fefb72787a1c0f248accaa9d52bd38afbcfcfdbe6c302285f7c9"
+    },
+    {
+      "path": "verification/short01-v3-lossless-comparison.json",
+      "store": "repo",
+      "purpose": "Short 01 v3 repair input or verification record",
+      "restore": "git clone",
+      "bytes": 879,
+      "sha256": "8a15dc3dce53aadbd8224a8ee645efc5c4a1bf0ba23c257f10538930cec75de3"
+    },
+    {
+      "path": "verification/short01-v3-repair.md",
+      "store": "repo",
+      "purpose": "Short 01 v3 repair input or verification record",
+      "restore": "git clone",
+      "bytes": 7186,
+      "sha256": "ff0bfa4ad391e266632fdf06d1dd36f9cacafc12aa4534442182ebf559ba2a09"
+    },
+    {
+      "path": "verification/short01-v2-tag-regression.json",
+      "store": "repo",
+      "purpose": "Short 01 v3 repair input or verification record",
+      "restore": "git clone",
+      "bytes": 90349,
+      "sha256": "a744034f264dc2ee91b7bf15fc3bbc1d78523a21aa84a32415e7657b6dfb6114"
+    },
+    {
+      "path": "verification/short01-v3-visual/sheet-08.jpg",
+      "store": "repo",
+      "purpose": "Short 01 v3 repair input or verification record",
+      "restore": "git clone",
+      "bytes": 505995,
+      "sha256": "672cf84724a67c5b9e70f4de1ad639ce74dea928a2de18788da35653fbbbc25b"
+    },
+    {
+      "path": "verification/short01-v3-visual/sheet-09.jpg",
+      "store": "repo",
+      "purpose": "Short 01 v3 repair input or verification record",
+      "restore": "git clone",
+      "bytes": 138916,
+      "sha256": "def04b5c9889a07cd99febde298d451d446b6ca0a46f1f5cbbe38211d40e767a"
+    },
+    {
+      "path": "verification/short01-v3-visual/sheet-01.jpg",
+      "store": "repo",
+      "purpose": "Short 01 v3 repair input or verification record",
+      "restore": "git clone",
+      "bytes": 79929,
+      "sha256": "78460c17901edec402fb7a99b67b2b4d7056f0f0a0696320a252adf5f214bb36"
+    },
+    {
+      "path": "verification/short01-v3-visual/sheet-02.jpg",
+      "store": "repo",
+      "purpose": "Short 01 v3 repair input or verification record",
+      "restore": "git clone",
+      "bytes": 449291,
+      "sha256": "8348d9b674d4be277821507d3a95496739670eb94bf38979f7574f2e8f2ecdab"
+    },
+    {
+      "path": "verification/short01-v3-visual/frames.json",
+      "store": "repo",
+      "purpose": "Short 01 v3 repair input or verification record",
+      "restore": "git clone",
+      "bytes": 845,
+      "sha256": "06bf8a594071926bb0885bd1358e425044d434c79b875ff5682cfe138c597b8f"
+    },
+    {
+      "path": "verification/short01-v3-visual/sheet-03.jpg",
+      "store": "repo",
+      "purpose": "Short 01 v3 repair input or verification record",
+      "restore": "git clone",
+      "bytes": 650643,
+      "sha256": "e6e714b66be56ff31de3cc12b9e1aa7e0779b4caeb0ab5bebfeb811eb24b40ca"
+    },
+    {
+      "path": "verification/short01-v3-visual/sheet-07.jpg",
+      "store": "repo",
+      "purpose": "Short 01 v3 repair input or verification record",
+      "restore": "git clone",
+      "bytes": 609058,
+      "sha256": "78b24b9091e39a8126cf2d1a00a172c4929533d4872bf39b2392df7d05ac85ce"
+    },
+    {
+      "path": "verification/short01-v3-visual/sheet-06.jpg",
+      "store": "repo",
+      "purpose": "Short 01 v3 repair input or verification record",
+      "restore": "git clone",
+      "bytes": 596027,
+      "sha256": "71a9c7391c2b833342d1c49c1c94ab8b96925f85eb9ad12198061c8f269407b3"
+    },
+    {
+      "path": "verification/short01-v3-visual/sheet-04.jpg",
+      "store": "repo",
+      "purpose": "Short 01 v3 repair input or verification record",
+      "restore": "git clone",
+      "bytes": 633041,
+      "sha256": "ea343fabac10d372e4c20c7a3236f5cac1634d482a74ba24d7f392ec790f2a7a"
+    },
+    {
+      "path": "verification/short01-v3-visual/sheet-10.jpg",
+      "store": "repo",
+      "purpose": "Short 01 v3 repair input or verification record",
+      "restore": "git clone",
+      "bytes": 62778,
+      "sha256": "02620c53a40a6964328b6c80b4a706df83057f50836ed13d2a1362ab153fb58b"
+    },
+    {
+      "path": "verification/short01-v3-visual/sheet-05.jpg",
+      "store": "repo",
+      "purpose": "Short 01 v3 repair input or verification record",
+      "restore": "git clone",
+      "bytes": 628242,
+      "sha256": "0672e12ea47c8038a7d1db40e0ae1b46fdc5a60653d3ab533c4818570350ec10"
     }
   ]
 }
