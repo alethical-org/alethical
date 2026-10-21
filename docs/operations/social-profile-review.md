@@ -30,10 +30,13 @@ the existing full post and next short within the current scope. Approval alone d
 completion of an account change or Story. Short 01 v3 has separate acceptance and publication
 evidence. Record each remaining item’s execution and saved result as it finishes. Spending and independent private messages remain outside this scope.
 
-The account work is resumed. Lead public bios with campaigns, elections and debate hosting,
+The account work is resumed. Position Alethical as a broad platform for understanding government
+and supporting campaigns. Lead public bios with campaigns, elections and debate hosting,
 including intelligence and research, offered campaign analytics, and candidate tools/resources.
 Retain the public-record work on bills, votes, campaign money and lobbying. This is a leading
-campaign focus, not a debate-only identity. Do not invent self-service product features or
+campaign focus, not a debate-only identity. Include verified broader public records, tools,
+technology and services at a high level where space permits, without a complete feature catalog or
+a literal supports-everything promise. Do not invent self-service product features or
 campaign-performance claims. The separate gate on a debate-hosting inquiry invitation outside a
 post remains: propose exact wording, platform and location for approval first. No such outside-post
 invitation has been added.
@@ -141,10 +144,20 @@ Block. The comment actor remained Alethical. Following that profile is unavailab
 Page view; this does not establish a general Facebook prohibition, since Trent’s personal profile
 is followed. No personal-account friend request was substituted.
 
+The free **Send message** action button was already selected and retained; website-first Links
+provides the website route. Search engines, similar-Page suggestions and messaging are on.
+Messages from non-connected people go to Chats, and Page messages go to requests. Followers,
+public comments and public-profile information are Public; existing moderation is unchanged.
+
+Stories are Public, with sharing, mentioned reshares and follower replies on. Story archive was
+changed from off to on and confirmed with **Changes Saved**. Future Reels are Public. The default
+reuse setting remains original audio only; this is separate from the first short’s verified
+post-specific remix-on setting. No broader reuse-setting change is claimed.
+
 ## Writing for the approved rollout
 
-Lead with campaigns/elections/debate and intelligence/research, followed by campaign analytics and
-candidate tools/resources. Keep the public-record purpose visible through bills, votes, campaign
+Describe the broad government/campaign platform while leading with campaigns/elections/debate
+and intelligence/research, followed by campaign analytics and candidate tools/resources. Keep the public-record purpose visible through bills, votes, campaign
 money and lobbying. Prioritize within each actual field’s space; the prior public-record-first draft
 order is superseded. Offered services do not establish new self-service product features or promised
 campaign results. Count and verify the complete wording before saving.

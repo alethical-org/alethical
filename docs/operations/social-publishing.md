@@ -42,10 +42,13 @@ and failures after execution; documentation must not interrupt feasible authoriz
   other surface. No outside-post placement is approved by this rule. This does not add promotion
   retroactively to short 1 or create a publication schedule. Prepare short 2 after the current
   account work; do not publish it before October 22, 2026, and retain its readiness checks.
-- Lead bios with campaigns, elections and debate hosting, including intelligence and research,
+- Present Alethical as a broad platform for understanding government and supporting campaigns.
+  Lead bios with campaigns, elections and debate hosting, including intelligence and research,
   campaign analytics, and tools/resources to help candidates run effectively. Retain Alethical’s
-  public-record work on bills, votes, campaign money and lobbying; the leading campaign focus does
-  not make the company debate-only. Adapt to field limits without inventing self-service features
+  public-record work on bills, votes, campaign money and lobbying. Include verified broader tools,
+  technology and services at a high level as space permits; a short bio is not a full feature list.
+  Do not promise the platform supports everything or make it debate-only. Adapt to field limits
+  without inventing self-service features
   or promising campaign performance. Describe offered services as current and other proposed
   features as plans. A debate-hosting inquiry invitation outside a post still needs the exact
   wording, platform and location approved before changing it.
