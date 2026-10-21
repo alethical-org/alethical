@@ -12,6 +12,16 @@ This folder preserves the recipes and inputs for the full edition and short 01. 
 rebuild remains untested; short recovery evidence is recorded separately. What lives where: [INVENTORY.json](INVENTORY.json). How to get the media back:
 [restore.md](restore.md). How to rebuild: [rebuild.md](rebuild.md).
 
+## Media backup destinations
+
+- Drive: [Forward Debate 2026-10-15](https://drive.google.com/drive/u/1/folders/1tiaFKy0AEa_BtVeN57hzxvk2MemY-l3G).
+- Local media root: `/Users/eug/Movies/Alethical/forward-debate-2026`, with suitable media subfolders.
+
+Apply the [media storage rule](../shorts-guide.md#media-storage) to useful source, final and reusable
+images/videos. Backup completion requires verified receipts for both locations; this destination
+record alone is not proof that any new asset is copied. Existing removed/archive states remain
+unchanged. [INVENTORY.json](INVENTORY.json) retains file locations and recovery evidence.
+
 ## Source files and what happened to the original
 
 | File | Size | Status |

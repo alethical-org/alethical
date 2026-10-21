@@ -105,6 +105,9 @@ replay link and media preview unless the requested change affects them.
 
 Keep a post record with the approved text, intended accounts, media edition, profile destinations,
 connector post ID when available, live address, schedule/status, changes and completed checks.
+Preserve every useful source, final and reusable image/video under the
+[media storage rule](video/shorts-guide.md#media-storage), using the production record’s approved
+Drive and local destinations; repository or scratch copies alone do not complete backup.
 Credentials and authentication data stay out of the record. Publishing is complete only when the
 saved post shows the intended text and links on the correct account.
 

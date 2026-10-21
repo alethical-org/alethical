@@ -100,6 +100,19 @@ File names use a 2-digit selection ID and hyphenated title:
 `01-We-Disagree-We-Can-Still-Grab-a-Beer.mp4`. No event prefix, "short" or "sample". Keep each delivered
 version and its hash; render revisions separately before assigning a new version as current.
 
+## Media storage
+
+Retain every useful source, final and reusable image/video in the approved Drive folder and the
+corresponding local media folder. The [production record](forward-debate-2026-10-15/README.md#media-backup-destinations)
+owns the Forward Debate destinations. Use non-destructive versioned names and preserve source and
+prior editions. Verify both copies' location, byte count and matching file hash; record the exact
+Drive item and local path only after those checks. Scratch files or repository-only copies do not
+complete backup.
+
+Keep rejected generated trials, unrelated screenshots and private data outside the publishable
+media collection. Preserve explicitly removed/archive states unless restoration is requested; do
+not sweep them back into active media. A backup neither publishes the file nor approves its use.
+
 ## Platforms
 
 For accompanying copy, name links and publication, use the separate
@@ -144,7 +157,8 @@ forward as a new decision. Fill in:
    when available. Record listening not performed when unavailable; never report unheard speech as
    verified or make the publisher's listening a new delivery requirement.
 8. Record checks, uncertainties, approval status, exact inputs and settings, and all clock mappings in
-   the clip's production record. Record its hash in the inventory and verify its Drive backup.
+   the clip's production record. Record its hash in the inventory and verify both backup destinations
+   under [Media storage](#media-storage).
 9. Before posting, verify destination requirements and separate publication approval. Creating or
    restoring a short never grants permission to post it.
 
