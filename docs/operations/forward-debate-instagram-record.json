@@ -236,7 +236,7 @@
       ],
       "previousPickerBlockerResolved": true,
       "coverPreparation": {
-        "status": "user_reported_applied_saved_visual_verification_pending",
+        "status": "applied_by_user_visually_verified",
         "preparedDate": "2026-10-21",
         "path": "social-media/debate-highlight-cover-photo.png",
         "sha256": "78b3b16757d7034c552edaebdf15fa57f22cc222dab8ad91e2a20d5b0d492908",
@@ -271,7 +271,7 @@
           "phoneMirroringAvailable": false,
           "setupCompleted": false
         },
-        "remainingAction": "Verify saved cover against prepared image; user reported photo updated",
+        "remainingAction": null,
         "backup": {
           "status": "drive_and_local_verified",
           "verifiedDate": "2026-10-21",
@@ -282,7 +282,11 @@
           "bytes": 603045,
           "sha256": "78b3b16757d7034c552edaebdf15fa57f22cc222dab8ad91e2a20d5b0d492908",
           "verification": "Drive metadata name/size and exact-folder listing matched; Drive SHA-256 and byte count matched local file; local file matched repository bytes"
-        }
+        },
+        "appliedBy": "user",
+        "savedCoverVisualVerified": true,
+        "verifiedDate": "2026-10-21",
+        "verification": "Public Highlight shows prepared photo-only Angel/Aaron cover and title Debate"
       }
     },
     "shortPublicationRecord": "forward-debate-short01-record.md"

@@ -105,7 +105,8 @@ deletion or other Story change occurred.
 ## Highlight cover
 
 The [photo-only cover](social-media/debate-highlight-cover-photo.png) is prepared and backed up.
-The user reported applying the photo; saved-cover visual verification remains pending.
+The user applied the photo. Public visual review confirms the prepared photo-only Angel/Aaron
+cover and the unchanged **Debate** title.
 It preserves Angel and Aaron from the original photo while cropping out the title, logo and Trent.
 The 1080 × 1080 canvas uses this FFmpeg filter on the approved thumbnail:
 
@@ -126,7 +127,7 @@ was unavailable and no setup was completed.
 
 The available phone route is **Edit Highlight > Edit Cover > photo chooser**, select the prepared
 image, then **Done**; no new Story is needed. The user reported the photo updated after this route
-was supplied. Saved-cover verification remains pending; the existing Highlight and replay-link
+was supplied. The saved cover is now visually verified; the existing Highlight and replay-link
 verification above still stand.
 
 ## Verified media backups

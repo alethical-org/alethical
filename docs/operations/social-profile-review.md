@@ -85,8 +85,8 @@ supports promotion for discovery and links for crawling, without promising ranki
 
 ### Instagram
 
-The native editor saved the current bio with a success toast and 145/150 characters. Public visitor
-readback is pending:
+The native editor saved the current bio with a success toast and 145/150 characters. Expanded
+public visitor readback and a screenshot confirm the complete text:
 
 ```text
 Campaign intelligence, research & analytics.
@@ -95,8 +95,11 @@ Minnesota bills, votes, money & lobbying, made clear.
 ```
 
 This replaces the public-readback-verified 136-character edition that led with Minnesota politics
-and public records. The earlier “Coming soon” qualification is removed. The 5 existing bio links
-remain; native editing is mobile-only, with no link change claimed.
+and public records. The earlier “Coming soon” qualification is removed. The 5 existing bio links remain in this verified order: [Website](https://www.alethical.com),
+[YouTube](https://www.youtube.com/@Alethical), [LinkedIn](https://www.linkedin.com/company/alethical),
+[X](https://x.com/alethical), [TikTok](https://www.tiktok.com/@alethicaltruth). Facebook and Bluesky
+are absent. Native editing is explicitly mobile-only; no link was changed. Preserve YouTube and
+the current useful links unless actual mobile capacity supports additional destinations.
 
 The following settings were inspected on this account; no setting change was needed:
 
@@ -105,12 +108,29 @@ The following settings were inspected on this account; no setting change was nee
 | Public business identity | Product/service category; **ask@alethical.com** business email; **Display contact info** on. Contact buttons are mobile-only. No phone or address invented. |
 | Discovery | Account suggestions on; private account off; public search-engine photos/videos on. |
 | Account Status | All checkmarks. **Limits to reach** reports no limits and eligibility for Explore, Reels and feed. This is eligibility, not a promised distribution result. |
-| Audience interaction | Message requests, tags, mentions and comments set to **Everyone**. |
+| Audience interaction | Message requests, Story replies, tags, mentions and comments set to **Everyone**. |
 | Sharing | Story sharing, post/Reel-to-Story sharing, Reposts and embeds on. |
 | Product features | Product featuring on; automatic approval off and retained. |
 
+The **Debate** Highlight cover is visually verified as the prepared photo-only Angel/Aaron image.
+The singular title remains **Debate**.
+
 These are native account observations, not universal defaults or proof of reach gains. The short
 Story with its website sticker and addition to **Debate** remain deferred phone actions.
+
+### Facebook
+
+The saved public bio uses 222/255 characters:
+
+```text
+Campaign intelligence, research & analytics. Tools & resources to help candidates run effectively. We host political debates and make Minnesota bills, votes, campaign money & lobbying clear, with links to official records.
+```
+
+The unbounded claim to read every bill is removed. The current native baseline is 282 followers
+and 8 following; these figures are a snapshot, not a measured effect of the bio change.
+
+Native Links supports up to 10 and already contained the website plus all 6 other official
+accounts. Website-first reordering is in progress; the saved order is not yet verified.
 
 ## Writing for the approved rollout
 
