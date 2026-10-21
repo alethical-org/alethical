@@ -40,12 +40,13 @@ remain incomplete; provider completion does not establish a usable viewing exper
 
 The direct photo address automatically navigates to an unrelated next video within seconds without
 a click. This reproduces the reported viewing problem; its cause is not established. Playback is
-not accepted. The photo remains public; no hide, delete or replacement action has been applied.
+not accepted. The photo’s last verified state is public; removal is authorized and its native result is pending.
 
-For this Forward Debate promotion, the approved choice is to wait for a meaningful, approved debate
-short and not replace the thumbnail with a timed still merely for playback. This does not prohibit
-photo posts on TikTok; substantive photo content can be assessed separately. The existing photo
-remains public until a native privacy or removal action is separately verified.
+Alethical's approved TikTok rule is actual videos only: no photo posts and no timed-still MP4
+workaround. This supersedes the case-only allowance for other substantive photo posts; it is an
+editorial choice, not a claim that TikTok cannot support photos. This promotion waits for a
+meaningful approved debate short. Removal of the current photo is authorized, but native removal
+confirmation is pending; its last verified state is public.
 
 A 12-second silent still-video experiment exists only in scratch; it is not published, adopted as
 current media or copied into this record’s media collection. Short 01’s separate posting hold remains.

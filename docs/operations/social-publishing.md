@@ -155,17 +155,19 @@ fallback and saved links. Neither social account type was verified for either ca
 links the full replay and has no media or preview-card embed. Pinning is not recorded as approved
 or completed; short 01 remains unapproved for posting.
 
-## Forward Debate TikTok preparation
+## TikTok format and Forward Debate record
 
-The [TikTok preparation record](forward-debate-tiktok-preparation.md) retains the staged Adeli photo
+Publish actual videos only on Alethical's TikTok account. Do not publish photo posts or convert a
+still image into a timed MP4 to satisfy this rule. This is Alethical's editorial choice, not a claim
+that TikTok lacks photo support. Each video still needs its own approval and completed checks.
+
+The [TikTok preparation record](forward-debate-tiktok-preparation.md) retains the Adeli photo
 post and exact title/description. The public photo was submitted after explicit Music Usage
 Confirmation acceptance. Native checks confirm the public photo, but its direct address automatically
 advances to an unrelated video without a click. Playback is not accepted; full native caption,
-visual and link review remain incomplete. The existing photo remains public until a native privacy
-or removal action is verified. For this Forward Debate promotion, wait for a meaningful approved
-debate short; do not replace the thumbnail with a timed still merely for playback. This is a current
-TikTok content choice, not a ban on photo posts: substantive photo content may be assessed separately.
-Short 01's posting hold remains.
+visual and link review remain incomplete. Removal of the photo is authorized and awaiting native
+confirmation; do not claim it removed before that result. Wait for a meaningful approved debate
+short for this promotion. Short 01's posting hold remains.
 
 ## Forward Debate YouTube direction
 

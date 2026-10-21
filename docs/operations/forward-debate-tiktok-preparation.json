@@ -1,5 +1,5 @@
 {
-  "status": "public_photo_viewing_issue_short_promotion_deferred",
+  "status": "photo_removal_authorized_confirmation_pending",
   "preparedDate": "2026-10-21",
   "service": "Adeli",
   "accountDisplayName": "Alethical.com",
@@ -49,7 +49,9 @@
   "fullNativeCaptionReviewed": false,
   "fullNativeVisualReviewed": false,
   "observedIssue": "Direct photo URL automatically navigated to an unrelated next video within seconds without a click.",
-  "currentAction": "Existing photo remains public; no hide, delete or replacement action is verified.",
-  "proposedNextStep": "For this Forward Debate promotion, wait for a meaningful approved debate short; do not replace the thumbnail with a timed still merely for playback.",
-  "proposalApproved": true
+  "currentAction": "Removal authorized; native removal result pending. Last verified state public.",
+  "proposedNextStep": "Actual videos only on Alethical TikTok; no photo posts or timed-still MP4 workaround. Wait for a meaningful approved debate short.",
+  "proposalApproved": true,
+  "removalAuthorized": true,
+  "removalVerified": false
 }
