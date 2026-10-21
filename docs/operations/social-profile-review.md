@@ -6,7 +6,9 @@ October 21, 2026. Covers Facebook, Instagram, LinkedIn, X, Bluesky, TikTok and Y
 
 Instagram's approved bio choice is to keep the existing **YouTube** link to
 [the Alethical channel](https://www.youtube.com/@Alethical), where visitors can find the debate and
-browse the full collection. Preserve Website and the other links, with no replacement or reorder.
+browse the full collection. Preserve Website and the other links during the current work. The
+later cross-link audit below may reorder links with the website first, while retaining the named
+YouTube channel destination.
 The current caption directions remain correct. Publish an Instagram Story for the full-debate
 post with 1 tappable [website replay](https://www.alethical.com/blog/events/forward-debate-2026)
 link sticker labelled **Watch the full debate**, then use the same destination and label in the
@@ -55,7 +57,7 @@ supports promotion for discovery and links for crawling, without promising ranki
 
 | Platform | Profile work | Promote this milestone | Engagement and company identity |
 | --- | --- | --- | --- |
-| Instagram | Keep the existing **YouTube** label and https://www.youtube.com/@Alethical destination so visitors can browse all videos. Preserve Website and other links without reordering. The existing caption correctly describes the selector, channel and video choice; no bio or caption edit is needed. | Publish the full-debate Story with 1 website replay link sticker labelled **Watch the full debate**, then save it to Debates. Use the same sticker in the next short’s Story; omit extra YouTube links and printed URLs. Confirm the link works in the saved Highlight. Keep the grid pin. | Review requests from non-followers, Story sharing, mentions and tag review. Keep spam controls. Follow both verified Trent accounts as Alethical; Aaron has the approved website fallback until a verified account is found. |
+| Instagram | Keep the existing **YouTube** label and https://www.youtube.com/@Alethical destination so visitors can browse all videos. Preserve Website and other links during the current work. The later cross-link audit may reorder website-first while retaining the YouTube channel. The existing caption correctly describes the selector, channel and video choice; no edit is needed now. | Publish the full-debate Story with 1 website replay link sticker labelled **Watch the full debate**, then save it to Debates. Use the same sticker in the next short’s Story; omit extra YouTube links and printed URLs. Confirm the link works in the saved Highlight. Keep the grid pin. | Review requests from non-followers, Story sharing, mentions and tag review. Keep spam controls. Follow both verified Trent accounts as Alethical; Aaron has the approved website fallback until a verified account is found. |
 | Facebook | Complete About/intro, accurate category, website and public business contact. Inspect the actual Page action-button choices and pick the clearest website or message action. Do not invent a physical office or hours. | Keep pinned/featured post. Prepare a Page Story; only promise a direct Story link if that Page's composer supports it. Inspect cross-posted output separately. | Act as Alethical Page for follows, comments and messages. Check personal-profile following separately from Page following; never substitute a personal friend request. Review public comments and Messenger requests. |
 | LinkedIn | Use a plain description, accurate industry/category, website, specialties and real location. Configure the free website/contact action if useful. | Keep the debate Featured and add useful milestones within capacity. Page Stories are not the route. | Page messaging offers a business contact route. Follow organization/campaign Pages as Alethical. Personal-profile Follow/Connect uses the member identity, so skip that exception rather than act as a member. |
 | X | Fix the typo; lead the bio with what readers gain. Keep Minnesota and the website field. | Keep debate pin and Highlights. Its post already has a clickable replay link. Use actual approved Shorts later where suitable. | Inspect open replies and a reviewable message-request inbox; preserve spam protections. Follow verified tagged accounts as @alethical. Paid Subscribe is not Follow. |
@@ -138,7 +140,18 @@ readable captions, subtitles and meaningful alt text. Use the shared guide's app
 research method and metric distinctions.
 
 The existing Instagram channel route works and serves the approved collection-browsing goal.
-A later website-link review may assess correct destinations and share-ready links within its scope.
+After the current work, including the first-short round, audit every verified Alethical account on
+Facebook, Instagram, LinkedIn, X, Bluesky, TikTok and YouTube against every other official account.
+Use all suitable native link, social and About fields within actual capacity, with the website first.
+Preserve public contact, core bio meaning and Instagram’s named YouTube channel destination. That
+later audit may choose ordering without replacing the approved channel with a single video.
+
+Maximize useful cross-platform routes without duplicates or misleading labels. Where the fields
+cannot fit every account, prioritize useful clickable routes and record omitted destinations and
+actual platform limits. Inspect each account’s controls and verify every saved destination. A
+possible missing Bluesky link on YouTube is an example to check, not a confirmed defect. This audit
+is queued after the current work; no audit or live profile edit is started by this record update.
+Use the [shared profile method](https://github.com/euglopi/tool-settings/blob/main/shared/guides/social-profile-promotion.md#inspect-before-changing).
 Do not create a new link hub unless it serves a real reader task; no unrelated website change is
 included here.
 
@@ -155,6 +168,8 @@ example. No new paid analytics or recurring monitor is needed for this review.
 3. X and Bluesky wording, contact routes and verified tagged-account follows.
 4. TikTok and YouTube profile routes, then the first short on each platform with verified replay links.
 5. Compare results after the first-short round, preserving actual metric definitions and limits.
+6. Once the current work and first-short round are complete, audit and fill suitable profile links
+  to the other verified official accounts, website first, recording capacity limits and omissions.
 
 Keep the current caption’s verified YouTube selector/channel/video directions, followed by the
 website URL. A separate Story can carry its own direct replay link without changing the bio route.

@@ -125,6 +125,10 @@ features accumulate within its documented limit; the shared guide owns the curre
 Future authorized posting includes these placement choices under the standing approval above;
 keep them within the intended post and account, with saved-result checks and any explicit review hold.
 
+After the current work and first-short round, complete the deferred reciprocal profile-link audit.
+The [profile rollout](social-profile-review.md#settings-and-useful-follow-up-work) owns account
+coverage, website-first ordering, retained destinations, capacity limits and saved-link checks.
+
 The Forward Debate replay announcement is a significant milestone. Pinning its Facebook post and
 featuring its LinkedIn post are authorized for this announcement. Pinning its X post and adding it
 to Highlights are also authorized if neither incurs extra cost. Saved results belong with the post
@@ -237,7 +241,8 @@ hashtags. Caption web addresses are plain text. The saved watch action leads thr
 bio selector's YouTube channel link to the full debate, followed by the visible website replay URL.
 Keep the existing **YouTube** bio link to [Alethical’s channel](https://www.youtube.com/@Alethical)
 so visitors can browse the full collection as well as the debate. Preserve Website and the other
-links; no bio replacement or reordering is requested. The current caption directions remain correct.
+links during the current work. The later cross-link audit may reorder website-first while retaining
+the named YouTube channel destination. The current caption directions remain correct.
 Publish a Story for this full-debate post with 1 tappable sticker labelled **Watch the full debate**
 pointing to the [website replay](https://www.alethical.com/blog/events/forward-debate-2026), and retain
 it in a Debates Highlight where supported. The next short’s Story uses the same website sticker.
