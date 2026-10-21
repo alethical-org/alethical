@@ -218,7 +218,45 @@
         "Share this post",
         "video play control"
       ],
-      "previousPickerBlockerResolved": true
+      "previousPickerBlockerResolved": true,
+      "coverPreparation": {
+        "status": "prepared_not_applied",
+        "preparedDate": "2026-10-21",
+        "path": "social-media/debate-highlight-cover-photo.png",
+        "sha256": "78b3b16757d7034c552edaebdf15fa57f22cc222dab8ad91e2a20d5b0d492908",
+        "sourcePath": "video/forward-debate-2026-10-15/text/ForwardDebate-thumbnail.jpg",
+        "sourceSha256": "8205384203f0ab08f3e673d044e68e85dda7abec0eefdb03c1ddac5176463016",
+        "width": 1080,
+        "height": 1080,
+        "recipe": {
+          "tool": "ffmpeg",
+          "videoFilter": "crop=800:450:0:270,scale=1080:608,pad=1080:1080:0:236:color=black",
+          "generativeEdit": false,
+          "sourcePreserved": true,
+          "content": "Photo-only crop of Angel talking to Aaron; title, logo and Trent excluded"
+        },
+        "generatedTrialUsed": false,
+        "generatedTrialUploaded": false,
+        "browserAttempt": {
+          "route": "Edit Highlight > Next > Next > Select Cover",
+          "visibleControls": [
+            "existing Cover image",
+            "Back",
+            "Close",
+            "Done"
+          ],
+          "uploadControlPresent": false,
+          "imageClickOpenedPicker": false,
+          "closedWithoutDone": true,
+          "existingCoverTitleAndStoryLinkUnchanged": true,
+          "inferenceLimit": "Observed browser route only; not a universal platform limitation"
+        },
+        "mobileAccess": {
+          "phoneMirroringAvailable": false,
+          "setupCompleted": false
+        },
+        "remainingAction": "In Instagram mobile app: Edit Highlight > Edit Cover > photo chooser > select prepared file > Done; no new Story required"
+      }
     }
   }
 }

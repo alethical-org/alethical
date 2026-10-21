@@ -96,6 +96,31 @@ unsuccessful attempt is retained as account/route evidence, not proof that web H
 universally unavailable or that archiving is required. The published Story remains intact; no
 deletion or other Story change occurred.
 
+## Prepared Highlight cover
+
+The [photo-only cover](social-media/debate-highlight-cover-photo.png) is prepared, not applied.
+It preserves Angel and Aaron from the original photo while cropping out the title, logo and Trent.
+The 1080 × 1080 canvas uses this FFmpeg filter on the approved thumbnail:
+
+```text
+crop=800:450:0:270,scale=1080:608,pad=1080:1080:0:236:color=black
+```
+
+The source is preserved. Image and source hashes are in the
+[source record](forward-debate-instagram-record.json). A generated trial changed real scene details
+and was rejected; it was neither used nor uploaded. The saved cover uses only the mechanical crop,
+resize and black padding.
+
+On October 21, **Edit Highlight > Next > Next > Select Cover** showed the existing cover and
+Back, Close and Done, without an upload control. Clicking the cover did not open a picker. The
+edit was closed without Done; the existing cover, **Debate** title and Story link remain unchanged.
+This is an observed browser-route limit, not a universal claim about Instagram. Phone Mirroring
+was unavailable and no setup was completed.
+
+The remaining route is the Instagram phone app: **Edit Highlight > Edit Cover > photo chooser**,
+select the prepared image, then **Done**. No new Story is needed. Saved-cover verification remains
+pending; the existing Highlight and replay-link verification above still stand.
+
 ## Publication settings
 
 The authentic photo has its AI label off, scheduling off and commenting on. Both Facebook-sharing
