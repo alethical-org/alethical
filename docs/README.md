@@ -116,6 +116,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [Forward Debate LinkedIn publication record](operations/forward-debate-linkedin-record.md) — approved text, profile links and saved-post checks
 - [Forward Debate Bluesky publication record](operations/forward-debate-bluesky-record.md) — approved campaign-website fallback, exact text and saved links
 - [Forward Debate X publication](operations/forward-debate-x-preparation.md) — approved text, campaign destinations, edited revision and replay-preview verification
+- [Forward Debate Instagram publication record](operations/forward-debate-instagram-record.md) — exact caption, profile mentions, saved photo and pending bio/pin routes
 - [Forward Debate TikTok publication and removal](operations/forward-debate-tiktok-preparation.md) — exact photo-post source, viewing issue and confirmed public removal
 - [Video editing and recovery](operations/video/README.md) — recording recipes, shorts, production records and recovery evidence
 

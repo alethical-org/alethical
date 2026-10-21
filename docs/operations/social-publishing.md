@@ -217,4 +217,13 @@ The [X publication record](forward-debate-x-preparation.md) retains the approved
 tag, Trent campaign-website fallback and latest saved revision. Publication followed user review.
 The replay paragraph was moved before the candidate paragraph through the same post's edit action
 to repair the published preview; all words and links remain. The current revision shows the replay
-card and verified destinations. No duplicate post or pin was created.
+card and verified destinations. No duplicate post was created. The post is pinned and appears in
+Highlights; both saved placements are verified.
+
+
+## Forward Debate Instagram publication
+
+The [Instagram publication record](forward-debate-instagram-record.md) retains the original photo,
+exact caption, verified Trent campaign/personal mentions, Aaron campaign-website fallback and saved
+hashtag. Caption web addresses are plain text. The direct replay bio link was deferred during
+publication, and a mobile pin action remains pending; no saved “link in bio” route is claimed.
