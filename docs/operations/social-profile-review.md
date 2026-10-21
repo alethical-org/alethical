@@ -219,7 +219,32 @@ not effects attributed to the bio change.
 
 Professional editing exposed only Location and Communities spotlights. Location requires a street
 address, which was not added. Additional social-link fields have not been established; no claim
-is made that the 6 other accounts have clickable cross-links here. Remaining settings review is pending.
+is made that the 6 other accounts have clickable cross-links here. **Privacy and safety > Chat >
+Message requests** changed from **No one** to **Everyone**, with saved native readback. No outbound
+message was sent.
+
+### Bluesky
+
+The saved bio is verified in the public profile at 255/256 characters. The editor rejected a
+272-character draft and explicitly showed a 256-character maximum:
+
+```text
+Campaign intelligence, research & analytics. Candidate tools & resources. Political debates. Minnesota bills, votes, money & lobbying, made clear with official sources.
+Platform & services: https://www.alethical.com
+YouTube: https://youtube.com/@Alethical
+```
+
+The website and YouTube are clickable in that order. The display name **Alethical | ask@alethical.com**
+and domain handle **alethical.com** are preserved. The editor exposed no other link fields; all 6
+other profiles could not fit alongside the core bio. Facebook, Instagram, LinkedIn, X and TikTok
+are omitted. These are this editor’s observed fields and limits, not a universal platform guarantee.
+
+The baseline is 4 followers, 1 following and 2 posts. The full-replay pin is retained.
+
+Direct messages changed from **People I follow** to **Everyone**. That action also changed group
+invitations; group invitations were restored to **People I follow**. Refreshed settings confirm
+**DMs: Everyone** and **group invitations: People I follow**. The broader group setting was not
+retained by implication, and no outbound message was sent.
 
 ## Writing for the approved rollout
 
