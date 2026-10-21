@@ -234,8 +234,8 @@
       "path": "make_inventory.py",
       "store": "repo",
       "purpose": "Saved package input or record",
-      "bytes": 7414,
-      "sha256": "bf9387f1430bac2ec35626417daf2778c9a508c1a2eadf374b2a6cc9e026f1a8",
+      "bytes": 7417,
+      "sha256": "cc63136382cca2aaf3cd260f7eb70376aedb15f8e0b4518bc58ffd20ae7b3cf4",
       "restore": "git clone"
     },
     {
@@ -2321,7 +2321,7 @@
     {
       "path": "social-media/forward-debate-story-website.png",
       "store": "media",
-      "purpose": "Published first-short Story image with website replay link",
+      "purpose": "Full-debate announcement Story image with website replay link",
       "bytes": 549151,
       "sha256": "46e0adc9bb2dbd6ff5419bdad476b3039ddebd62454c91efd360cac60682b611",
       "drive_path": "forward-debate-story-website.png",
