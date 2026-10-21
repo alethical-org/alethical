@@ -40,13 +40,16 @@ Link named participants to their verified profiles or pages. Use the platform's 
 mention where supported. A typed name, an unselected `@name` or a Markdown label is not proof of a
 working mention. Follow the shared guide's identity and saved-post checks.
 
-When the requested treatment includes campaign/company pages and personal profiles, preserve both
-account types across platform adaptations. With 2 name mentions, use campaign pages when introducing
-candidates and personal profiles in the closing thank-you. If a required destination cannot be
-verified or supported, flag that gap before publication. Do not silently repeat a personal tag or
-substitute an unrelated employer; an alternative that changes the required treatment needs a decision.
-Do not add repetitive name mentions merely to fit both links. A campaign page is distinct from a
-personal profile or unrelated business page; verify which role each destination represents.
+Check for each candidate's campaign account separately on every platform. Use verified campaign
+pages in the introduction and verified personal profiles in the closing thank-you when both types
+are available. A campaign page is distinct from a personal profile or unrelated employer; verify
+the role of each destination and never substitute an employer for a campaign.
+
+If no matching campaign account is verified after a reasonable search on that platform, omit that
+type under the approved fallback without asking again. Record that it was not found, not that it
+does not exist; results on 1 platform do not settle another. When only a personal profile is linked,
+link it once at the first mention and leave repeated names, including the closing thank-you, plain.
+Do not add repetitive name mentions merely to fit both account types.
 
 When discussing joining the Forward Independence Coalition, place the
 [coalition candidates link](https://forwardcoalition.com/candidates) beside that discussion. Do not
