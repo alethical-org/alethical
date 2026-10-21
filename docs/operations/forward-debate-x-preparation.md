@@ -45,7 +45,8 @@ the newer revision; a new revision address is not a duplicate post.
 The latest saved revision shows the complete text, correct Aaron campaign destination and
 **The Forward Debate** card with its thumbnail. The card's `https://t.co/3JA8MniRT2` destination
 resolves with HTTP 200 to the full replay. Trent's `https://t.co/95Dg9ELyp1` resolves with HTTP 200
-to his official campaign website. Desktop screenshot review is complete; mobile review is not
+to his official campaign website. Desktop screenshot review confirms the replay thumbnail’s faces
+and text are visible; mobile review is not
 recorded. No pin was applied.
 
 The [shared X-preview workflow](https://github.com/euglopi/tool-settings/blob/main/shared/guides/social-publishing.md#x-multiple-links-and-edited-revisions)
