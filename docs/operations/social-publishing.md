@@ -136,7 +136,7 @@ under the standing approval above. No measured reach gain is claimed.
 | --- | --- |
 | X | The existing-post proposal is to change Minnesota to `#Minnesota` after a native topic check: 1 added character, 278 total, with no words or links cut. For future authorized posts, apply the shared discovery assessment within X’s actual space and guidance. |
 | Facebook and LinkedIn | Consider 2 relevant topical tags in the body after native topic checks; do not add a hashtag-only comment as assumed reach improvement. |
-| Instagram | Use clear caption keywords and the shared discovery assessment for relevant broad and narrower tags. The saved post has `#MinnesotaPolitics`; its observed 1,000+ count describes posts, not searches or people. Further tags are not yet researched or applied. |
+| Instagram | Use clear caption keywords and the shared discovery assessment for relevant broad and narrower tags. The saved edit has `#MinnesotaPolitics`, `#CivilDiscourse` and `#LocalPolitics`; native counts were 1,000+, 18.9K and 77.3K posts. The narrower topics showed recent relevant activity; these counts are not search volume or reach. |
 | Bluesky | Keep the current 300-character post intact. Consider tags in a future original post or meaningful follow-up; do not delete and repost merely to add hashtags. Check any intended custom feed's rules. |
 | TikTok | Apply the shared discovery assessment to caption wording and tags for a future approved actual video. The removed photo and held short 01 do not become eligible through tags. |
 | YouTube | Assess description hashtags for future approved Shorts pointing to the existing replay; no duplicate replay or Community Post for this promotion. |
@@ -226,5 +226,8 @@ Highlights; both saved placements are verified.
 
 The [Instagram publication record](forward-debate-instagram-record.md) retains the original photo,
 exact caption, verified Trent campaign/personal mentions, Aaron campaign-website fallback and saved
-hashtag. Caption web addresses are plain text. The direct replay bio link was deferred during
-publication, and a mobile pin action remains pending; no saved “link in bio” route is claimed.
+hashtags. Caption web addresses are plain text. The saved watch action leads through the verified
+bio selector's YouTube channel link to the full debate, followed by the visible website replay URL.
+The direct replay bio replacement remains deferred. A Pinned post icon is verified on this post;
+the pin was not applied by the agent. The record separates the working channel route from a direct
+video link and retains the original caption.

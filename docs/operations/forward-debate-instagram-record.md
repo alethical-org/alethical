@@ -6,10 +6,11 @@ This photo promotes the existing full replay; it does not approve short 01.
 
 ## Saved post and reader route
 
-The saved post contains the exact 1,390-character caption below, within the displayed 2,200-character
-limit. The original 1,280 × 720 image uses Original crop with no filters. Its full title, names and
-faces remain visible in the published 16:9 photo. Saved caption, mentions, hashtag and alt text are
-verified. Desktop visual review is complete; mobile layout review is not recorded.
+The saved post contains the exact 1,537-character edited caption below, within the displayed
+2,200-character limit. The original 1,280 × 720 image uses Original crop with no filters. Its full title, names and
+faces remain visible in the published 16:9 photo. Saved caption, mentions, hashtags and alt text are
+verified. The same post shows Edited and all 3 hashtag links. Desktop visual review of the saved
+directions, website address and tags is complete; mobile layout review is not recorded.
 
 Trent's campaign account, [@trentformn13](https://www.instagram.com/trentformn13/), is linked in the
 introduction; his personal account, [@t.christian101](https://www.instagram.com/t.christian101/), is
@@ -23,13 +24,21 @@ native and web searches and official-site review did not verify an Instagram acc
 campaign website is the approved fallback. Neither campaign site supplies an Instagram cross-link.
 This is not evidence that Aaron has no account.
 
-Both selected mentions are clickable in the saved post. `#MinnesotaPolitics` links to the matching
-native topic; preparation showed more than 1,000 posts and no restriction. This does not establish
-reach gains. The campaign, coalition and replay addresses render as plain text, not clickable links.
-The caption makes no “link in bio” claim. Publication was explicitly approved while the direct
-milestone bio link was deferred.
+Both selected mentions resolve after the saved edit. The caption keeps `#MinnesotaPolitics` and adds
+`#CivilDiscourse` and `#LocalPolitics`. Native topic results showed 1,000+ posts, 18.9K posts and 77.3K
+posts respectively; the 1,000+ value is a lower bound. The narrower topics showed recent relevant
+civic and candidate activity. These are post counts, not search volume or numbers of people, and do
+not establish reach gains. The campaign, coalition and replay addresses remain plain text.
 
-## Profile link and pin pending
+The edited watch action leads with the verified YouTube route: open the bio link selector, choose
+**YouTube**, then select **The Forward Debate**. The visible website replay URL follows under
+“Also available on our website:”. Selecting the existing YouTube link leads to **@Alethical**; the
+channel's Videos view shows the full **The Forward Debate: Trent Dilks & Aaron Brutger | Minnesota
+Senate District 13** recording first, with a displayed duration of 2 hours 3 minutes and video ID
+`y66-Wf9bNio`. This is a channel route with another selection, not 1-click playback. The direct
+milestone bio change remains deferred; the existing route is verified.
+
+## Profile link and saved pin
 
 The profile has 5 links: Website, general YouTube channel, LinkedIn, X and TikTok. The existing YouTube
 channel is clickable; a direct replay link is not saved. The recommended change is to replace the
@@ -41,9 +50,11 @@ the mobile app; no link was changed during publication.
 The saved post's desktop options contain no pin action. The
 [Instagram pin help](https://help.instagram.com/318456537074409) reports that the feature is unavailable
 on computers and offers mobile-app instructions. A later retrieval returned a rate limit; the earlier
-source reading and native options are the evidence retained here. Pinning remains pending through the
-mobile route; no existing pin was changed. These are observed route limits, not a permanent claim
-about every account or interface.
+source reading and native options are the evidence retained here. The profile subsequently shows a
+Pinned post icon on this exact announcement. This is a verified
+user-side change, not an agent-applied pin; the identity of the person who applied it and any prior
+pin replacement are not established. The desktop limitation remains an observed route limit, not a
+permanent claim about every account or interface.
 
 ## Publication settings
 
@@ -58,7 +69,7 @@ Saved alt text:
 ## Approved caption
 
 The [source record](forward-debate-instagram-record.json) retains exact text, settings, source-image
-hash, destinations and pending placements.
+hash, destinations, original caption and deferred direct bio link.
 
 ```text
 Respectful debate can bring people together without asking them to agree on everything.
@@ -76,11 +87,25 @@ Candidates should be able to stand by their principles and compete. Voters shoul
 
 Thank you to Trent Dilks @t.christian101 and Aaron Brutger, and to everyone who attended, asked questions and kept the conversation going.
 
-Watch the full debate:
+Watch the full debate on YouTube: tap the link in our bio, choose YouTube, then open “The Forward Debate.”
+
+Also available on our website:
 https://www.alethical.com/blog/events/forward-debate-2026
 
-#MinnesotaPolitics
+#MinnesotaPolitics #CivilDiscourse #LocalPolitics
 ```
+
+## Edit verification and platform scope
+
+The saved edit changes only the watch action and hashtag ending. Targeted selection inside the
+existing caption selected the wrong offsets and corrupted an unsaved draft. Recovery replaced the
+whole caption with the verified text, resolved both mentions through their matching picker results,
+and verified the complete caption before saving. The corrupted draft was never saved.
+
+Existing verified records for Facebook, LinkedIn, X and Bluesky contain clickable direct replay
+routes, so no corresponding change was needed. YouTube already hosts the full replay; the TikTok
+photo was removed, leaving no current affected post. This assessment uses those records and is not
+a new broad live audit. Broader profile, follow and Stories work remains held.
 
 ## Reusable guidance
 
