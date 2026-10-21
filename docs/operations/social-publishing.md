@@ -4,8 +4,8 @@ This guide owns Alethical-specific social writing and publication practice. Vide
 in the [separate video guide](video/shorts-guide.md); website and YouTube publication belongs in
 [blog-publishing.md](blog-publishing.md).
 
-The [profile and engagement review](social-profile-review.md) records account evidence and proposed
-profile, Story and follow work; its research status does not authorize live changes.
+The [profile and engagement review](social-profile-review.md) records account evidence, approved
+profile, Story and follow work, and execution still awaiting saved-result checks.
 
 ## Read both sources and keep learning
 
@@ -234,7 +234,13 @@ bio selector's YouTube channel link to the full debate, followed by the visible 
 Keep the existing **YouTube** bio link to [Alethical’s channel](https://www.youtube.com/@Alethical)
 so visitors can browse the full collection as well as the debate. Preserve Website and the other
 links; no bio replacement or reordering is requested. The current caption directions remain correct.
-A direct Story link and Debates Highlight remain separate proposals in the profile review.
+Publish a Story for this full-debate post with a direct
+[YouTube replay link](https://www.youtube.com/watch?v=y66-Wf9bNio) sticker and retain it in a Debates
+Highlight where supported. The next short’s Story uses the same replay link. These actions are
+approved, with completion recorded only after saved-result checks. Begin the first short on each
+platform and compare results after that round; short 01’s unresolved quality defects remain holds.
+Keep public contact email reachable through an available contact field or suitable bio/display-name
+placement, preserving the Bluesky domain handle. The profile review owns the full rollout.
 A Pinned post icon is verified on this post;
 the pin was not applied by the agent. The record separates the working channel route from a direct
 video link and retains the original caption.

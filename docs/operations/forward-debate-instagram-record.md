@@ -43,8 +43,9 @@ verified route is approved so visitors can browse the full collection as well as
 The profile has 5 links: Website, general YouTube channel, LinkedIn, X and TikTok. Preserve the
 existing **YouTube** label and [channel destination](https://www.youtube.com/@Alethical), Website
 and the other links. No replacement or reordering is requested. The current caption directions
-remain correct; no live bio or caption change is needed. The separate Story direct-link and Debates
-Highlight options remain proposals in the [profile review](social-profile-review.md).
+remain correct; no live bio or caption change is needed. The full-debate Story, direct YouTube replay sticker and Debates Highlight are approved in the
+[profile review](social-profile-review.md); the next short’s Story uses the same replay link. Their
+publication is not established by this record.
 
 The saved post's desktop options contain no pin action. The
 [Instagram pin help](https://help.instagram.com/318456537074409) reports that the feature is unavailable
@@ -104,8 +105,8 @@ and verified the complete caption before saving. The corrupted draft was never s
 Existing verified records for Facebook, LinkedIn, X and Bluesky contain clickable direct replay
 routes, so no corresponding change was needed. YouTube already hosts the full replay; the TikTok
 photo was removed, leaving no current affected post. This assessment uses those records and is not
-a new broad live audit. Profile, follow and Stories research is complete; execution remains proposed in the
-[profile review](social-profile-review.md).
+a new broad live audit. Profile, follow and Stories research is complete; execution is approved
+within the [profile review](social-profile-review.md), with saved-result evidence still required.
 
 ## Reusable guidance
 

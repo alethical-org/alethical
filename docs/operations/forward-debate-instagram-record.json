@@ -129,7 +129,7 @@
     ],
     "YouTube": "Full replay already published",
     "TikTok": "Photo removed; no current affected post",
-    "broaderProfileFollowsStoriesWork": "research_completed_execution_not_authorized"
+    "broaderProfileFollowsStoriesWork": "execution_authorized_saved_results_pending"
   },
   "editorRecovery": {
     "targetedSelectionDraftCorrupted": true,
@@ -138,5 +138,14 @@
   },
   "editedMarkerVerified": true,
   "allThreeHashtagLinksVerified": true,
-  "updatedCaptionDesktopVisualReviewed": true
+  "updatedCaptionDesktopVisualReviewed": true,
+  "storyPromotion": {
+    "status": "authorized_not_verified_published",
+    "fullDebatePostStory": true,
+    "nextShortStory": true,
+    "linkStickerDestination": "https://www.youtube.com/watch?v=y66-Wf9bNio",
+    "debatesHighlightAuthorized": true,
+    "bioChannelRetained": true,
+    "shortQualityHoldsPreserved": true
+  }
 }

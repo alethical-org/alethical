@@ -2,18 +2,21 @@
 
 October 21, 2026. Covers Facebook, Instagram, LinkedIn, X, Bluesky, TikTok and YouTube.
 
-## Proposed rollout
+## Approved rollout
 
 Instagram's approved bio choice is to keep the existing **YouTube** link to
 [the Alethical channel](https://www.youtube.com/@Alethical), where visitors can find the debate and
 browse the full collection. Preserve Website and the other links, with no replacement or reorder.
-The current caption directions remain correct. A Story with a direct replay link and a Debates
-Highlight remain separate proposed work, neither approved nor canceled by this bio decision.
+The current caption directions remain correct. Publish an Instagram Story for the full-debate
+post with a direct [YouTube replay](https://www.youtube.com/watch?v=y66-Wf9bNio) link sticker, then
+use that same replay link in the next short’s Story. A Debates Highlight is approved within this
+promotion scope; verify its saved link.
 
-This is a research result and proposed rollout. No account settings, follows, Stories, profile text
-or links were changed in this review. The saved Instagram caption gives the verified channel route
-and visible website address. Posting Shorts, short 01 approval, spending and any independent
-messages remain separate.
+Recommended profile and promotion work is approved for application, including verified company
+follows where supported. Begin the first short for each platform, then evaluate cross-platform
+results after that round. This approval does not establish that any account change or Story is
+complete, or that short 01’s quality defects are resolved. Record execution and saved-result evidence
+as each item finishes. Spending and independent private messages remain outside this scope.
 
 ## Account evidence
 
@@ -26,27 +29,28 @@ messages remain separate.
 - X's current bio has “campain money”. The website field is already alethical.com and the location
   is Minnesota.
 - Bluesky already uses @alethical.com, a useful authenticity signal. Its display name includes the
-  email address and its bio says “We read every bill”. Simplify the name and verify that absolute
-  coverage promise before retaining it.
+  email address and its bio says “We read every bill”. Keep a reachable public contact email; it
+  may stay in the display name when bio space is needed. Verify the absolute coverage promise
+  before retaining it, and preserve the domain handle.
 - TikTok's photo announcement was removed. The full debate already exists on YouTube. Future TikTok
   posts must be actual videos; future YouTube promotion uses approved Shorts, without another full
   replay upload.
 - Inbox, privacy and recommendation settings were not audited across every logged-in account.
   Platform documentation establishes options, not whether each option is enabled for Alethical.
 
-## Proposed profile and promotion plan
+## Profile and promotion plan
 
 | Platform | Profile work | Promote this milestone | Engagement and company identity |
 | --- | --- | --- | --- |
-| Instagram | Keep the existing **YouTube** label and https://www.youtube.com/@Alethical destination so visitors can browse all videos. Preserve Website and other links without reordering. The existing caption correctly describes the selector, channel and video choice; no bio or caption edit is needed. | Share the debate photo or feed post to a Story with a real link sticker, then save it to Debates. Confirm the link works in the saved Highlight. Keep the grid pin. | Review requests from non-followers, Story sharing, mentions and tag review. Keep spam controls. Follow both verified Trent accounts as Alethical; Aaron has the approved website fallback until a verified account is found. |
+| Instagram | Keep the existing **YouTube** label and https://www.youtube.com/@Alethical destination so visitors can browse all videos. Preserve Website and other links without reordering. The existing caption correctly describes the selector, channel and video choice; no bio or caption edit is needed. | Publish the full-debate Story with a direct YouTube replay link sticker, then save it to Debates. Use the same replay link in the next short’s Story. Confirm the link works in the saved Highlight. Keep the grid pin. | Review requests from non-followers, Story sharing, mentions and tag review. Keep spam controls. Follow both verified Trent accounts as Alethical; Aaron has the approved website fallback until a verified account is found. |
 | Facebook | Complete About/intro, accurate category, website and public business contact. Inspect the actual Page action-button choices and pick the clearest website or message action. Do not invent a physical office or hours. | Keep pinned/featured post. Prepare a Page Story; only promise a direct Story link if that Page's composer supports it. Inspect cross-posted output separately. | Act as Alethical Page for follows, comments and messages. Check personal-profile following separately from Page following; never substitute a personal friend request. Review public comments and Messenger requests. |
 | LinkedIn | Use a plain description, accurate industry/category, website, specialties and real location. Configure the free website/contact action if useful. | Keep the debate Featured and add useful milestones within capacity. Page Stories are not the route. | Page messaging offers a business contact route. Follow organization/campaign Pages as Alethical. Personal-profile Follow/Connect uses the member identity, so skip that exception rather than act as a member. |
-| X | Fix the typo; lead the bio with what readers gain. Keep Minnesota and the website field. | Keep debate pin and Highlights. Its post already has a clickable replay link. Use actual approved Shorts later where suitable. | Propose open replies and a reviewable message-request inbox. Follow verified tagged accounts as @alethical. Paid Subscribe is not Follow. |
-| Bluesky | Keep the domain handle. Simplify display name; put a clear website link and accurate, bounded description in the bio. | Keep the debate pin. Find a relevant active Minnesota feed and inspect its inclusion rules. A curated starter pack is a later editorial project, not a shortcut to mass following. | Review DM access and reply/quote controls. Follow verified identities as @alethical.com. Bounded candidate searches found no verified match, so do not follow look-alikes. |
-| TikTok | Verify whether the account has a website field or YouTube profile link before promising a route. A Business Account alone is not proof of Registered Business status or link eligibility. | Wait for an approved real short. Use a verified clickable profile route and spoken/on-screen directions; no still-photo replacement. | Review comments, held-comment review, mentions, reuse and message settings within account eligibility. Follow verified tagged accounts only. No bulk candidate search or outreach. |
+| X | Fix the typo; lead the bio with what readers gain. Keep Minnesota and the website field. | Keep debate pin and Highlights. Its post already has a clickable replay link. Use actual approved Shorts later where suitable. | Inspect open replies and a reviewable message-request inbox; preserve spam protections. Follow verified tagged accounts as @alethical. Paid Subscribe is not Follow. |
+| Bluesky | Keep the domain handle and reachable public email. Prefer a dedicated contact field where available; the email may remain in the display name when bio space is needed. Keep a clear website link and accurate, bounded bio. | Keep the debate pin. Find a relevant active Minnesota feed and inspect its inclusion rules. A curated starter pack is a later editorial project, not a shortcut to mass following. | Review DM access and reply/quote controls. Follow verified identities as @alethical.com. Bounded candidate searches found no verified match, so do not follow look-alikes. |
+| TikTok | Verify whether the account has a website field or YouTube profile link before promising a route. A Business Account alone is not proof of Registered Business status or link eligibility. | Begin the first real short; verify its quality and resolve publication holds before posting. Use a verified clickable profile route and spoken/on-screen directions; no still-photo replacement. | Review comments, held-comment review, mentions, reuse and message settings within account eligibility. Follow verified tagged accounts only. No bulk candidate search or outreach. |
 | YouTube | Keep a clear channel description, public contact and useful named links. Put Candidate Debates in a visible Home section. | Each approved Short should use Related video to the existing full debate after confirming advanced-feature access. Spotlight can serve returning viewers; a short introduction would serve new viewers better than making the 2-hour debate the permanent channel trailer. Trailer and Spotlight each stop appearing to a viewer after being watched, so keep the lasting playlist section too. | Subscribe to verified tagged channels from Alethical where supported. Review held comments and reuse settings. A free subscription is distinct from paid membership. Do not assume every account has the same messaging rollout. |
 
-## Proposed writing
+## Writing for the approved rollout
 
 Shared opening: “Minnesota politics in plain language.” Keep the rest specific to what people can
 use now; candidate services that are still plans remain plans.
@@ -73,14 +77,16 @@ Minnesota politics, made clear. Public records & respectful debate.
 
 The bio is not the place for every platform's handle or a pile of hashtags. Use links/contact fields
 for navigation and contact where supported. Count the final wording in each native editor, including
-line breaks. These drafts are proposals, not saved profiles.
+line breaks. Adapt these drafts to verified field limits and public contact needs; they are not
+saved profiles.
 
-Instagram Story proposal: use the approved debate photo without cutting faces or names. Put “Watch
+Approved Instagram Story: use the approved debate photo without cutting faces or names. Put “Watch
 the full Forward Debate” beside a link sticker pointing to
 https://www.youtube.com/watch?v=y66-Wf9bNio. Below it, show “Also available on our website:” and
 https://www.alethical.com/blog/events/forward-debate-2026. If using a feed-post reshare, tapping the
 post opens the post; the separate link sticker must carry the watch action. Do not call this 1-click
-playback until the actual app path has been exercised.
+playback until the actual app path has been exercised. The next short’s Story uses the same full
+replay destination; starting that short does not release its quality hold.
 
 ## Following people we tag
 
@@ -108,7 +114,8 @@ and spam by conduct rather than political position.
 
 Use 1 useful invitation per post. A future debate-planning post could ask, “Which Minnesota issue
 should candidates discuss next?” Do not append engagement bait to every post or create unsolicited
-messages. Public replies and new Stories require their own content and publication scope.
+messages. Keep replies and Stories within the approved content and publication scope; the full
+debate and next-short Instagram Stories are included above.
 
 On Instagram, review Account Status, recommendation eligibility, account suggestions and
 public-profile search visibility before diagnosing poor discovery as a hashtag problem. Availability
@@ -121,18 +128,19 @@ A later website-link review may assess correct destinations and share-ready link
 Do not create a new link hub unless it serves a real reader task; no unrelated website change is
 included here.
 
-For later comparable posts, record the available profile visits, follows, link taps, replay visits,
-meaningful replies and video viewing separately. Capture a baseline before changes and inspect
+After the first-short round across platforms, evaluate available profile visits, follows, link taps,
+replay visits, meaningful replies and video viewing separately. Capture a baseline before changes and inspect
 native results after a normal reporting period; do not claim a hashtag or bio caused a rise from 1
 example. No new paid analytics or recurring monitor is needed for this review.
 
-## Order after approval
+## Execution order
 
-1. Instagram's proposed Story/Highlight and current-account settings, preserving the approved
+1. Instagram's approved Story/Highlight and current-account settings, preserving the approved
   channel bio link.
 2. Facebook and LinkedIn profile/contact fields and company-follow exceptions.
 3. X and Bluesky wording, contact routes and verified tagged-account follows.
-4. TikTok and YouTube profile routes, then approved video Shorts and their replay links.
+4. TikTok and YouTube profile routes, then the first short on each platform with verified replay links.
+5. Compare results after the first-short round, preserving actual metric definitions and limits.
 
 Keep the current caption’s verified YouTube selector/channel/video directions, followed by the
 website URL. A separate Story can carry its own direct replay link without changing the bio route.
@@ -151,7 +159,10 @@ approval boundaries. Platform documentation does not prove an Alethical setting 
 Some current help pages were unavailable; Account Status, search visibility and account-suggestion
 controls remain native-inspection items, not established defaults or reach guarantees.
 
-The approved Instagram bio decision preserves the channel link and requires no live change.
-New Stories, follows and settings remain proposed and require execution scope. Short 01 remains held for its recorded
-defects. The public documentation upload remains held by
+The Instagram channel bio link is retained. The profile/promotion rollout and the 2 Instagram
+Stories are authorized; completion requires actual saved-result evidence. Inspect each setting’s
+audience and effects before applying it, preserving spam protections, contact privacy and unrelated
+settings. Broader privacy changes outside the recommended plan need their own scope. Short 01
+remains held until its recorded defects are resolved and the media passes acceptance. The public
+documentation upload remains held by
 [issue 2643](https://github.com/alethical-org/alethical/issues/2643); no security check is bypassed.
