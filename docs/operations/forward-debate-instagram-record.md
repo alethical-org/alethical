@@ -81,6 +81,13 @@ route worked for this Story. The [shared profile guide](https://github.com/euglo
 owns the reusable route check. The Debates Highlight is authorized but not completed; the next
 short’s Story is authorized but not published.
 
+On October 21, the native profile route **New > Highlight Name: Debates > Next** opened an empty
+Stories picker. Its **Next** button stayed disabled for more than 30 seconds, with no selectable
+Story. The draft was closed without creating a Highlight. The live Story menu offered Delete,
+About this account, View insights, Boost story and Cancel, with no Highlight action. This is the
+observed account/route blocker, not proof that web Highlights are universally unavailable or that
+archiving is required. The published Story remains intact; no deletion or other Story change occurred.
+
 ## Publication settings
 
 The authentic photo has its AI label off, scheduling off and commenting on. Both Facebook-sharing

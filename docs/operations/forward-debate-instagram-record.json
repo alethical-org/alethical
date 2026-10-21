@@ -179,9 +179,28 @@
     "fullImageAndStickerVisuallyVerified": true,
     "linkVerification": "Clicked live sticker, then Visit link; website replay opened with title, video control, supporting materials and Share",
     "verifiedDestination": "https://www.alethical.com/blog/events/forward-debate-2026",
-    "highlightStatus": "authorized_not_completed",
+    "highlightStatus": "blocked_empty_native_stories_picker",
     "nextShortStoryStatus": "authorized_not_published",
     "nativeStickerRoute": "Edit > More stickers > Create link sticker",
-    "outerAddLinkDisabled": true
+    "outerAddLinkDisabled": true,
+    "highlightAttempt": {
+      "date": "2026-10-21",
+      "route": "Profile > New > Highlight Name: Debates > Next",
+      "storiesPickerEmpty": true,
+      "nextDisabled": true,
+      "observedDuration": "more than 30 seconds",
+      "draftClosed": true,
+      "highlightCreated": false,
+      "liveStoryMenu": [
+        "Delete",
+        "About this account",
+        "View insights",
+        "Boost story",
+        "Cancel"
+      ],
+      "highlightMenuActionPresent": false,
+      "publishedStoryIntact": true,
+      "inferenceLimit": "Observed account/route blocker; no universal web limitation or archive prerequisite established"
+    }
   }
 }

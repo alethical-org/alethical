@@ -13,7 +13,10 @@ link sticker labelled **Watch the full debate**, then use the same destination a
 next short’s Story. No extra YouTube Story link or printed website URL is needed. A Debates Highlight is approved within this
 promotion scope; verify its saved link. The full-debate Story is published with its website
 sticker verified in the [Instagram record](forward-debate-instagram-record.md#full-debate-story);
-the Highlight and next-short Story remain unfinished.
+the Highlight is blocked by an empty native Stories picker with disabled Next, and the next-short
+Story remains unpublished. The Highlight draft is closed; the published Story is intact. The
+[attempt record](forward-debate-instagram-record.md#full-debate-story) does not establish a universal
+web limitation or an archive prerequisite.
 
 Recommended profile and promotion work is approved for application, including verified company
 follows where supported. Begin the first short for each platform, then evaluate cross-platform
@@ -47,6 +50,8 @@ Prefer relevant Alethical website destinations where working links are supported
 watch, explore, share and link to the material. Search ranking gains are not established, and clicks
 alone do not prove an SEO benefit. The explicit Instagram channel-bio choice remains in force; this
 priority does not authorize unrelated retroactive post edits.
+[Google’s SEO Starter Guide](https://developers.google.com/search/docs/fundamentals/seo-starter-guide)
+supports promotion for discovery and links for crawling, without promising ranking gains.
 
 | Platform | Profile work | Promote this milestone | Engagement and company identity |
 | --- | --- | --- | --- |
