@@ -121,6 +121,22 @@ The remaining route is the Instagram phone app: **Edit Highlight > Edit Cover > 
 select the prepared image, then **Done**. No new Story is needed. Saved-cover verification remains
 pending; the existing Highlight and replay-link verification above still stand.
 
+## Verified media backups
+
+Both reusable images have matching Drive and local copies on October 21, 2026, in the approved
+[Forward Debate folder](https://drive.google.com/drive/u/1/folders/1tiaFKy0AEa_BtVeN57hzxvk2MemY-l3G)
+and `/Users/eug/Movies/Alethical/forward-debate-2026/social-media/`:
+
+| Image | Drive copy | Bytes | Verification |
+| --- | --- | ---: | --- |
+| Photo-only Highlight cover | [Drive file](https://drive.google.com/file/d/12roAfopr7wFCpN_T_58W_r9zHFeWrB3Y/view?usp=drivesdk) | 603,045 | Name, folder, byte count and SHA-256 match; local copy matches repository bytes |
+| Website Story canvas | [Drive file](https://drive.google.com/file/d/1I4GMFVv27RKXMhpI8imzpkc1Z9FJ1b-p/view?usp=drivesdk) | 549,151 | Name, folder, byte count and SHA-256 match; local copy matches repository bytes |
+
+The [source record](forward-debate-instagram-record.json) retains exact hashes and local paths.
+These backups do not apply the prepared cover, publish a new Story or establish video backup status.
+Rejected generated trials stay outside this canonical media collection; any retained private history
+is not publishable source media.
+
 ## Publication settings
 
 The authentic photo has its AI label off, scheduling off and commenting on. Both Facebook-sharing
