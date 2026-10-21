@@ -113,6 +113,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [Public search upkeep](operations/public-search-upkeep.md) — bounded free checks, search-provider evidence, truthful change notices and weekly/monthly review
 - [Article, event, recording and transcript publishing](operations/blog-publishing.md) — reusable upfront brief, final-edition media checks, correction patterns and acceptance matrix
 - [Social writing and posting](operations/social-publishing.md) — Alethical copy, people links, account checks and saved-post review
+- [Forward Debate LinkedIn publication record](operations/forward-debate-linkedin-record.md) — approved text, profile links and saved-post checks
 - [Video editing and recovery](operations/video/README.md) — recording recipes, shorts, production records and recovery evidence
 
 - [Preventing repeated failures](operations/repeat-failure-review.md): history collection, examined causes, retained checks and the manual isolated browser command

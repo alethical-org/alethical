@@ -87,3 +87,11 @@ appear and selecting it. The saved post displayed the linked name, matching Aaro
 An earlier empty suggestion list did not establish that mentions were disabled. Pasting an ordinary
 HTML link into this Facebook editor produced plain text, so it did not meet the name-link requirement.
 These are observed results for this task, not permanent claims about every Facebook editor or API.
+
+## Forward Debate LinkedIn publication
+
+The [LinkedIn publication record](forward-debate-linkedin-record.md) retains the approved source text,
+verified profiles, account and post identifiers, replay preview, shortened-link destinations and
+review limits for the October 21, 2026 announcement. Both name mentions use verified personal
+profiles because matching campaign pages were not verified on LinkedIn. Do not substitute employers
+or infer that campaign pages do not exist. The full-replay announcement does not approve short 01.
