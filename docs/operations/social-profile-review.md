@@ -11,7 +11,9 @@ The current caption directions remain correct. Publish an Instagram Story for th
 post with 1 tappable [website replay](https://www.alethical.com/blog/events/forward-debate-2026)
 link sticker labelled **Watch the full debate**, then use the same destination and label in the
 next short’s Story. No extra YouTube Story link or printed website URL is needed. A Debates Highlight is approved within this
-promotion scope; verify its saved link.
+promotion scope; verify its saved link. The full-debate Story is published with its website
+sticker verified in the [Instagram record](forward-debate-instagram-record.md#full-debate-story);
+the Highlight and next-short Story remain unfinished.
 
 Recommended profile and promotion work is approved for application, including verified company
 follows where supported. Begin the first short for each platform, then evaluate cross-platform

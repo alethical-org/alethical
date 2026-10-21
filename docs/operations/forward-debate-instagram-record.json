@@ -140,7 +140,7 @@
   "allThreeHashtagLinksVerified": true,
   "updatedCaptionDesktopVisualReviewed": true,
   "storyPromotion": {
-    "status": "authorized_not_verified_published",
+    "status": "published_verified_highlight_pending",
     "fullDebatePostStory": true,
     "nextShortStory": true,
     "linkStickerDestination": "https://www.alethical.com/blog/events/forward-debate-2026",
@@ -150,6 +150,38 @@
     "linkStickerLabel": "Watch the full debate",
     "additionalYouTubeLink": false,
     "printedWebsiteUrl": false,
-    "scope": "Stories only; existing feed caption and channel bio unchanged"
+    "scope": "Stories only; existing feed caption and channel bio unchanged",
+    "publishedDate": "2026-10-21",
+    "route": "Meta Business Suite; Instagram only; Share now",
+    "storyUrl": "https://www.instagram.com/stories/alethicaltruth/",
+    "storyUrlScope": "Account Stories route; exact Story ID not captured; ephemeral destination",
+    "exactStoryId": null,
+    "media": {
+      "path": "social-media/forward-debate-story-website.png",
+      "sha256": "46e0adc9bb2dbd6ff5419bdad476b3039ddebd62454c91efd360cac60682b611",
+      "sourcePath": "video/forward-debate-2026-10-15/text/ForwardDebate-thumbnail.jpg",
+      "sourceSha256": "8205384203f0ab08f3e673d044e68e85dda7abec0eefdb03c1ddac5176463016",
+      "width": 1080,
+      "height": 1920,
+      "recipe": {
+        "scaledSourceWidth": 1080,
+        "scaledSourceHeight": 608,
+        "sourceX": 0,
+        "sourceY": 240,
+        "paddingColor": "#0A0A0A",
+        "crop": false,
+        "generativeEdit": false,
+        "addedTextInImage": false,
+        "linkStickerAddedNatively": true
+      }
+    },
+    "musicAdded": false,
+    "fullImageAndStickerVisuallyVerified": true,
+    "linkVerification": "Clicked live sticker, then Visit link; website replay opened with title, video control, supporting materials and Share",
+    "verifiedDestination": "https://www.alethical.com/blog/events/forward-debate-2026",
+    "highlightStatus": "authorized_not_completed",
+    "nextShortStoryStatus": "authorized_not_published",
+    "nativeStickerRoute": "Edit > More stickers > Create link sticker",
+    "outerAddLinkDisabled": true
   }
 }

@@ -46,8 +46,8 @@ and the other links. No replacement or reordering is requested. The current capt
 remain correct; no live bio or caption change is needed. The full-debate Story and Debates Highlight are approved in the
 [profile review](social-profile-review.md), with 1 website replay sticker labelled **Watch the full
 debate**. The next short’s Story uses the same destination. No extra YouTube link or printed URL
-is included in Stories; the feed caption and channel bio remain unchanged. Their
-publication is not established by this record.
+is included in Stories; the feed caption and channel bio remain unchanged. The full-debate Story
+is published and verified below; the Highlight and next-short Story remain unfinished.
 
 The saved post's desktop options contain no pin action. The
 [Instagram pin help](https://help.instagram.com/318456537074409) reports that the feature is unavailable
@@ -57,6 +57,29 @@ Pinned post icon on this exact announcement. This is a verified
 user-side change, not an agent-applied pin; the identity of the person who applied it and any prior
 pin replacement are not established. The desktop limitation remains an observed route limit, not a
 permanent claim about every account or interface.
+
+## Full-debate Story
+
+Published October 21, 2026 through Meta Business Suite with Instagram alone selected and **Share
+now**. The [account Story route](https://www.instagram.com/stories/alethicaltruth/) showed the
+complete debate photo, faces and names with a large **Watch the full debate** sticker below it.
+The exact Story ID is not captured; the account route is temporary, not a permanent item link.
+Clicking the live sticker and then **Visit link** opened the
+[website replay](https://www.alethical.com/blog/events/forward-debate-2026), with the title, video
+control, supporting materials and Share. No other URL, extra text or music was added.
+
+The [saved Story canvas](social-media/forward-debate-story-website.png) is 1080 × 1920. Its approved
+1280 × 720 thumbnail is scaled to 1080 × 608 at x=0, y=240 on #0A0A0A padding, preserving the
+complete original without cropping or generated imagery. The tappable sticker is a native layer,
+not baked into this canvas. Source and canvas hashes and the recipe are in the
+[source record](forward-debate-instagram-record.json). This derivative is separate from the video
+recovery inventory.
+
+In this composer, the outer **Add link** button was disabled; **Edit > More stickers > Create link
+sticker** accepted the exact website URL and the custom label. The live click verifies that this
+route worked for this Story. The [shared profile guide](https://github.com/euglopi/tool-settings/blob/main/shared/guides/social-profile-promotion.md#instagram)
+owns the reusable route check. The Debates Highlight is authorized but not completed; the next
+short’s Story is authorized but not published.
 
 ## Publication settings
 

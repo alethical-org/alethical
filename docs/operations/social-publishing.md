@@ -242,8 +242,9 @@ Publish a Story for this full-debate post with 1 tappable sticker labelled **Wat
 pointing to the [website replay](https://www.alethical.com/blog/events/forward-debate-2026), and retain
 it in a Debates Highlight where supported. The next short’s Story uses the same website sticker.
 Stories need no extra YouTube link or printed website URL; this exception leaves the existing feed
-caption and channel bio unchanged. These actions are
-approved, with completion recorded only after saved-result checks. Begin the first short on each
+caption and channel bio unchanged. The full-debate Story is published and its live sticker opens
+the website replay; the [Instagram record](forward-debate-instagram-record.md#full-debate-story)
+retains the canvas and link check. Highlight placement and the next-short Story remain unfinished. Begin the first short on each
 platform and compare results after that round; short 01’s unresolved quality defects remain holds.
 Keep public contact email reachable through an available contact field or suitable bio/display-name
 placement, preserving the Bluesky domain handle. The profile review owns the full rollout.
