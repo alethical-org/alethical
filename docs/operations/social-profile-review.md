@@ -21,8 +21,9 @@ blocked. The next-short Story remains unpublished.
 
 Recommended profile and promotion work is approved for application, including verified company
 follows where supported. The [accepted first short](forward-debate-short01-record.md) is public on
-all 7 platforms. Evaluate cross-platform results after the round using available metrics; remaining
-Instagram caption corrections are saved; its short Story and profile/promotion work still need checks. Retain useful
+all 7 platforms. All 7 launch bios have saved public readback. Instagram caption corrections are
+saved; its short Story and mobile-only account controls remain open below. Evaluate cross-platform
+results using available metrics. Retain useful
 Story and milestone content in supported persistent
 Highlights, collections, featured or pin placements on every applicable platform, under the
 [standing promotion rule](social-publishing.md#keep-significant-milestones-visible). Assess both
@@ -42,9 +43,8 @@ post remains: propose exact wording, platform and location for approval first. N
 invitation has been added.
 
 Include **Launched in Minnesota** in each bio/profile intro, using **MN** only when field space
-requires it. Do not infer nationwide availability. Instagram, Facebook, X and LinkedIn have public-readback-verified launch wording. YouTube has
-native save confirmation; its new-wording public readback is pending. Bluesky and TikTok launch
-revisions remain pending; only the saved results below establish completion.
+requires it. Do not infer nationwide availability. All 7 profiles have saved, public-readback-verified
+launch wording; the exact current copy and account-specific limits are recorded below.
 
 Prepare short 2 after the account work, with no publication before October 22, 2026. No schedule
 has been created. The Instagram short Story, website sticker and **Debate** Highlight addition are
@@ -58,17 +58,14 @@ deferred to the final phone-action list; this does not hold independent account 
 - Facebook's debate is pinned and featured; LinkedIn's debate is featured; X's debate is pinned and
   in Highlights; Bluesky's debate is pinned. These are verified publication records, including
   current X pin and Bluesky pinned-reference observations.
-- X's current bio has “campain money”. The website field is already alethical.com and the location
-  is Minnesota.
-- Bluesky already uses @alethical.com, a useful authenticity signal. Its display name includes the
-  email address and its bio says “We read every bill”. Keep a reachable public contact email; it
-  may stay in the display name when bio space is needed. Verify the absolute coverage promise
-  before retaining it, and preserve the domain handle.
+- X's revised bio is verified below. The website field and Minnesota location are retained.
+- Bluesky retains @alethical.com and its public email in the display name. The revised bio below
+  replaces the unbounded “We read every bill” claim and keeps website and YouTube links.
 - TikTok's photo announcement was removed. The full debate already exists on YouTube. Future TikTok
   posts must be actual videos; future YouTube promotion uses approved Shorts, without another full
   replay upload.
-- Inbox, privacy and recommendation settings were not audited across every logged-in account.
-  Platform documentation establishes options, not whether each option is enabled for Alethical.
+- The saved account sections distinguish inspected settings, applied changes and remaining gaps.
+  Platform documentation alone does not establish an Alethical setting.
 
 ## Profile and promotion plan
 
@@ -231,11 +228,11 @@ message was sent.
 
 ### Bluesky
 
-The saved bio is verified in the public profile at 255/256 characters. The editor rejected a
-272-character draft and explicitly showed a 256-character maximum:
+The saved bio is verified in the public profile at 256/256 characters. The editor explicitly
+showed a 256-character maximum:
 
 ```text
-Campaign intelligence, research & analytics. Candidate tools & resources. Political debates. Minnesota bills, votes, money & lobbying, made clear with official sources.
+Campaign intelligence, research & analytics. Candidate tools, resources & political debates. Bills, votes, money & lobbying with official sources. Launched in Minnesota.
 Platform & services: https://www.alethical.com
 YouTube: https://youtube.com/@Alethical
 ```
@@ -244,14 +241,6 @@ The website and YouTube are clickable in that order. The display name **Alethica
 and domain handle **alethical.com** are preserved. The editor exposed no other link fields; all 6
 other profiles could not fit alongside the core bio. Facebook, Instagram, LinkedIn, X and TikTok
 are omitted. These are this editor’s observed fields and limits, not a universal platform guarantee.
-
-The launch-wording revision is prepared at 256 source characters but is not yet saved:
-
-```text
-Campaign intelligence, research & analytics. Candidate tools, resources & political debates. Bills, votes, money & lobbying with official sources. Launched in Minnesota.
-Platform & services: https://www.alethical.com
-YouTube: https://youtube.com/@Alethical
-```
 
 The baseline is 4 followers, 1 following and 2 posts. The full-replay pin is retained.
 
@@ -262,27 +251,17 @@ retained by implication, and no outbound message was sent.
 
 ### TikTok
 
-The native profile editor exposes photo, username, name and an 80-character bio, with no link
-fields. The prepared 79-character replacement is **not saved**:
-
-```text
-Campaign research, analytics, tools & debates. MN government. ask@alethical.com
-```
-
-Both paste and typeText save attempts failed to persist after refresh. The live bio remains:
-
-```text
-Ask@alethical.com | Minnesota politics. Bills, votes, legislators, money.
-```
-
-The latest launch-wording replacement is prepared at 80 source characters and remains pending:
+The native editor saved the 80/80-character bio with **Profile has been updated** confirmation;
+refreshed public readback matches:
 
 ```text
 Campaign tools, research & analytics. Debates. Launched in MN. ask@alethical.com
 ```
 
-No working website or YouTube profile-link field is established. The failed 79-character attempt
-above is history, not the latest proposed copy.
+The earlier 79-character edit appeared on a later visit. Its initial stale readback was a delayed
+save, not evidence of persistent failure. The current launch wording supersedes that edition.
+No bio update remains as a phone action. The inspected editor exposes photo, username, name and
+bio, with no link fields; a working website or YouTube profile-link field is not established.
 The observed baseline is 1 follower, 1 following, 1 like and 63 views on the first short. These
 figures do not establish the effect of profile work.
 
@@ -297,10 +276,9 @@ the relevant mobile controls still require inspection.
 
 ### YouTube
 
-The earlier 713-character overview was saved and verified publicly. The current 736-character
-edition adds **Launched in Minnesota.** and received native **Changes published** confirmation.
-Public readback of the added launch wording is not yet recorded. **ask@alethical.com** remains
-the public contact. Exact saved overview source:
+The current 736-character overview received native **Changes published** confirmation and public
+readback verifies **Launched in Minnesota.** **ask@alethical.com** remains the public contact.
+Exact saved overview source:
 
 ```text
 Alethical is a platform for understanding government and supporting campaigns. Launched in Minnesota.
@@ -327,8 +305,10 @@ All 7 public link redirect destinations were read and verified, in this order:
 7. [Bluesky](https://bsky.app/profile/alethical.com)
 
 Home was off and is now on. A **Single playlist** section for **Candidate Debates**, containing
-2 videos, was saved and remained after refreshing settings. The visitor Home view is still empty;
-the playlist is not claimed visible there until visitor verification succeeds.
+2 videos, was saved and remained after refreshing settings. The
+[public Home view](https://www.youtube.com/@Alethical/featured) now shows Videos, Shorts, Playlists
+and **Candidate Debates**, with the first Short (`gsBVcU14WF4`) and full replay (`y66-Wf9bNio`).
+The observed playlist identifier is `PLCDDyJl-kiUQ`.
 
 The public baseline is 2 subscribers, 3 videos and 9 views. These figures are observations,
 not measured effects of the profile changes.
@@ -343,8 +323,8 @@ campaign results. Count and verify the complete wording before saving.
 
 The bio is not the place for every platform's handle or a pile of hashtags. Use links/contact fields
 for navigation and contact where supported. Count the final wording in each native editor, including
-line breaks. Adapt these drafts to verified field limits and public contact needs; they are not
-saved profiles.
+line breaks. The saved profile sections above retain the exact applied copy; future revisions
+need their own field-limit and public-contact checks.
 
 Approved Instagram Story: use the approved debate photo without cutting faces or names. Add 1
 tappable sticker labelled **Watch the full debate** pointing to
@@ -368,8 +348,10 @@ The saved debate records provide the candidate destinations: Facebook has 2 veri
 for each candidate; Instagram has Trent's verified campaign and personal accounts; X has Aaron's
 verified campaign account. LinkedIn has verified personal profiles but the organization cannot
 follow those as a Page. Bluesky and TikTok had no verified candidate accounts from the earlier
-bounded searches. YouTube needs channel identity checks before any subscriptions. This is an
-execution checklist, not a claim these follows have been performed.
+bounded searches. Two exact-name YouTube searches and both official campaign sites yielded no
+verified candidate channels; Aaron's site exposed only a Facebook campaign link. Skip subscriptions
+without a verified identity. No verified match is not proof that an account does not exist.
+The saved account sections distinguish actual follows from unavailable actions.
 
 ## Settings and useful follow-up work
 
@@ -412,23 +394,24 @@ replay visits, meaningful replies and video viewing separately. Capture a baseli
 native results after a normal reporting period; do not claim a hashtag or bio caused a rise from 1
 example. No new paid analytics or recurring monitor is needed for this review.
 
-## Execution order
+## Remaining work
 
-1. Instagram's approved Story/Highlight and current-account settings, preserving the approved
-  channel bio link.
-2. Facebook and LinkedIn profile/contact fields and company-follow exceptions.
-3. X and Bluesky wording, contact routes and verified tagged-account follows.
-4. Finish remaining TikTok and YouTube profile routes; all 7 first-short posts are published.
-5. Compare results after the first-short round, preserving actual metric definitions and limits.
-6. Once the current work and first-short round are complete, audit and fill suitable profile links
-  to the other verified official accounts, website first, recording capacity limits and omissions.
+1. Complete the Instagram short Story with the website sticker and retain it in **Debate** through
+   the phone route, then verify the saved Story, link and Highlight. The desktop draft is unpublished.
+2. Inspect remaining mobile link/promotion controls where supported. Instagram currently omits
+   Facebook and Bluesky; preserve its approved YouTube channel link. TikTok's inspected editor has
+   no link field and its playback menu does not establish pin, Story or playlist availability.
+   Keep documented field limits and company-follow exceptions rather than forcing substitutes.
+3. Review first-short results after a normal reporting period, using native metric definitions and
+   the saved baselines. No attribution of gains or paid recurring monitor is established.
+4. Prepare short 2 with its own acceptance and platform copy. Do not publish before October 22,
+   2026; no schedule is created. Any debate-hosting inquiry invitation outside its post still needs
+   approval of the exact wording, platform and location.
 
-Keep the current caption’s verified YouTube selector/channel/video directions, followed by the
-website URL. A separate Story can carry its own direct replay link without changing the bio route.
-
-Handle 1 platform at a time and verify the visitor's result before moving on. Existing useful
-pins/features remain unless a better milestone needs a scarce slot. New paid features, broad privacy
-changes, private messages and held video publication do not become authorized by this report.
+The 7 bios, inspected settings and cross-link destinations are recorded above. Facebook and YouTube
+have the website plus all 6 other accounts. Remaining omissions reflect inspected limits or controls
+still needing mobile inspection. Useful pins and collections remain; no paid feature, independent
+private message or held video publication is authorized by this record.
 
 ## Sources and delivery boundary
 

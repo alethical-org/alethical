@@ -15,7 +15,7 @@ profile or promotion change.
 | X | [Published post](https://x.com/alethical/status/2112963796075508179) | Playback verified; added to Highlights. Full replay retains the profile pin. Aaron’s campaign followed as Alethical. |
 | Bluesky | [Published post](https://bsky.app/profile/alethical.com/post/3myfpjartls2s) | Playback and video alt text verified. Full-replay pin retained. |
 | Tiktok | [Published post](https://www.tiktok.com/@alethicaltruth/video/7699181336652713229) | Native playback verified; own-brand promotional label applied. |
-| Youtube | [Published post](https://www.youtube.com/shorts/gsBVcU14WF4) | Public playback and Related video to the existing full replay verified; Candidate Debates playlist. |
+| Youtube | [Published post](https://www.youtube.com/shorts/gsBVcU14WF4) | Public playback and Related video verified; public Home shows Candidate Debates with this Short and the full replay. |
 
 The media is `01-We-Disagree-We-Can-Still-Grab-a-Beer-v3.mp4`, 27,017,469 bytes,
 SHA-256 `9dba7706b97af5812be57f83d20205d2845d0c193ec67236a83ffada902fd14d`.
@@ -46,7 +46,12 @@ TikTok uses the own-brand promotional-content label. TikTok and YouTube each rec
 required action-time human confirmation before publication. A general preference to avoid repeated
 approval does not waive legally binding browser confirmations required by the tool.
 
+X’s Short has 2 shortened links verified in the native browser: the full-debate link opens the
+Alethical replay and Trent’s campaign link opens his official campaign site.
+
 YouTube’s Short links the existing full replay through Related video; that full upload remains.
+The public channel Home now shows Videos, Shorts, Playlists and Candidate Debates, including both
+the Short and full replay.
 Publication settings were Candidate Debates playlist, comments on for everyone with Basic
 moderation, embedding on, and **Allow video and audio remixing**. These are publication observations,
 not a later settings retrieval.
@@ -65,20 +70,20 @@ no existing tagged people. Both captions were refreshed and verified. Other plat
   the verified photo-sticker route.
 - Assess useful equivalent promotion surfaces on every platform to help visitors discover and
   explore the posts. Preserve useful additive collections and compare scarce slots before replacement.
-- Finish the remaining profile/promotion rollout, then review cross-platform results and complete
-  the deferred reciprocal profile-link audit under the [owning plan](social-profile-review.md).
+- All 7 launch bios are publicly verified. Complete remaining mobile-only link/promotion checks
+  and review cross-platform results under the [owning plan](social-profile-review.md).
 
 The public documentation upload remains held by
 [issue 2643](https://github.com/alethical-org/alethical/issues/2643). On October 21 it remained open,
 and [dependency PR 2644](https://github.com/alethical-org/alethical/pull/2644) remained open and draft.
 No upload check is bypassed.
 
-## Resumed account-work checkpoint
+## Current account-work checkpoint
 
-The account work resumed after a saved pause. All 7 shorts remain published. Both Instagram
-captions are corrected; LinkedIn’s short is now Featured alongside the full announcement.
-Instagram’s short Story remains unpublished: the available video editor exposes Crop/Trim,
-its Add link control is disabled, native web sharing has no Story action, and iPhone Mirroring
-cannot connect. The user deferred the phone Story, website sticker and Debate Highlight steps
-to the final personal-action list. Remaining profile work continues separately. Short 2 preparation
-follows the account work; publication is held until at least October 22, 2026, with no schedule created.
+All 7 shorts and launch bios have public verification. Both Instagram captions are corrected;
+LinkedIn’s short is Featured alongside the full announcement, and YouTube’s public Home shows the
+Candidate Debates section. The [profile record](social-profile-review.md) owns exact bios, saved
+settings, contact routes, cross-link limits, follow exceptions and baseline figures.
+
+Instagram’s short Story remains a deferred phone action as recorded above. Short 2 preparation has
+started separately; publication is held until at least October 22, 2026, with no schedule created.

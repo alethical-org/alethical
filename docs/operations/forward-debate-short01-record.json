@@ -40,7 +40,7 @@
         "intendedSticker": "Watch the full debate",
         "intendedDestination": "https://www.alethical.com/blog/events/forward-debate-2026",
         "intendedHighlight": "Debate",
-        "observedRouteLimit": "Meta Business Suite video editor exposes Crop and Trim only; outer Add link disabled. Native alternative under investigation.",
+        "observedRouteLimit": "Meta Business Suite video editor exposes Crop and Trim only; outer Add link disabled. Phone action deferred after native web route inspection.",
         "scopeOfLimit": "Observed account, route and video format; photo editor previously supported a link sticker.",
         "additionalRouteEvidence": "Native web sharing has no Story action; iPhone Mirroring could not connect"
       }
@@ -80,7 +80,19 @@
       "highlight": true,
       "followed": "@BrutgerforSD13",
       "playbackVerified": true,
-      "location": "Sauk Rapids, MN in text; native tagging disabled"
+      "location": "Sauk Rapids, MN in text; native tagging disabled",
+      "verifiedLinks": [
+        {
+          "shortUrl": "https://t.co/3JA8Mnik3u",
+          "destination": "https://www.alethical.com/blog/events/forward-debate-2026",
+          "evidence": "Native browser resolves to replay page"
+        },
+        {
+          "shortUrl": "https://t.co/95Dg9EL0zt",
+          "destination": "https://trentformn13.com/",
+          "evidence": "Native browser resolves to Trent campaign content"
+        }
+      ]
     },
     "bluesky": {
       "status": "published",
@@ -124,14 +136,30 @@
         "whoCanComment": "Everyone",
         "evidence": "Observed at publication; not a later settings retrieval"
       },
-      "termsConfirmation": "Specific action-time human confirmation granted before publication"
+      "termsConfirmation": "Specific action-time human confirmation granted before publication",
+      "homeShowcase": {
+        "status": "public_verified",
+        "url": "https://www.youtube.com/@Alethical/featured",
+        "sections": [
+          "Videos",
+          "Shorts",
+          "Playlists",
+          "Candidate Debates"
+        ],
+        "playlistId": "PLCDDyJl-kiUQ",
+        "contains": [
+          "gsBVcU14WF4",
+          "y66-Wf9bNio"
+        ]
+      }
     }
   },
   "remaining": [
     "Instagram short Story with website replay sticker, then add to Debate Highlight",
-    "Remaining authorized profile and promotion work",
+    "Mobile-only link and promotion controls recorded in social-profile-review.md",
     "Cross-platform results review using available native metrics",
-    "Deferred reciprocal profile-link audit after current work"
+    "Short 2 preparation and acceptance; no publication before 2026-10-22",
+    "Public documentation delivery held by required security checks"
   ],
   "authorizationLimits": [
     "No paid upgrade or advertising spend",
@@ -146,8 +174,8 @@
     "observed": "Issue open; dependency PR open and draft"
   },
   "checkpoint": {
-    "state": "account_work_resumed",
-    "reason": "Account work resumed; short 2 preparation follows it, without publication before October 22, 2026",
+    "state": "all_seven_profiles_public_verified_mobile_followups_remaining",
+    "reason": "All 7 launch bios and YouTube Home showcase verified; remaining mobile actions and later results review are recorded in social-profile-review.md",
     "instagramStory": "Prepared Meta Business Suite video draft remains unpublished. Video editor exposes Crop and Trim only; Add link disabled. Native Instagram web share dialog has no Add to Story. iPhone Mirroring cannot connect. User deferred phone Story/link/Highlight actions to the final personal-action checklist.",
     "browserOwnership": "Reconfirm exclusive native-browser input ownership before every resumed edit; private session coordination is retained outside the public record."
   },
