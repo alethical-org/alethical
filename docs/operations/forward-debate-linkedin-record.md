@@ -7,13 +7,19 @@ This is the full-replay announcement, not publication of short 01. The short's p
 ## Destination and saved result
 
 - Zernio account ID: `6ad7b906922b737712f68245`; post ID: `6ad8d2dfe7c03ebaa2349fcc`.
-- The saved post's content and link tree show Alethical as author, the complete text and 4 person-name links, 2 in the introduction and 2 in the thank-you.
-- Both mentions of [Trent C Dilks](https://www.linkedin.com/in/trent-c-dilks-7921b5113/) resolve to his personal profile. Both mentions of [Aaron Brutger](https://www.linkedin.com/in/aaron-brutger-82967251/) resolve to his personal profile.
-- The requested link treatment is incomplete: personal profiles are linked twice, while campaign-page destinations remain unverified. The missing account type was disclosed after publication. No live correction is made pending verified destinations; this does not establish that campaign pages do not exist, and employer pages are not substitutes.
+- The edited post shows Alethical as author, the complete text and 2 person-name links in the introduction. Closing names are plain text.
+- The introduction links [Trent C Dilks](https://www.linkedin.com/in/trent-c-dilks-7921b5113/) and [Aaron Brutger](https://www.linkedin.com/in/aaron-brutger-82967251/) to their verified personal profiles once each.
+- Campaign-page destinations were not verified on LinkedIn. The approved personal-only fallback applies: each profile is linked at first mention and the closing names stay plain. A search without a verified campaign match does not prove absence; employer pages are not substitutes.
 - The replay is the first URL, immediately after the opening hook. The saved preview is titled “The Forward Debate” and targets the replay. The coalition URL stays beside the joining-coalition paragraph.
 - LinkedIn shortened the replay body link to `https://lnkd.in/gS3keBbP`, whose landing destination is `https://www.alethical.com/blog/events/forward-debate-2026`. It shortened the coalition link to `https://lnkd.in/gEV-HADi`, whose landing destination is `https://forwardcoalition.com/candidates`.
-- Zernio validation passed before publication. Source text has 1,499 characters including mention markup; replacing markup with displayed names gives 1,383 characters. These counts do not establish the platform's counting method.
-- Native content and link inspection confirms the saved text and destinations. A complete screenshot/layout review was not performed.
+- Zernio validation passed before initial publication; the text edit succeeded on the same post ID. Current source text has 1,441 characters including mention markup; replacing markup with displayed names gives 1,383 characters. These counts do not establish the platform's counting method.
+- Native saved-post inspection confirms the Edited state, text, 2 correct profile links, unchanged shortened destinations and replay preview. Desktop visual review confirms linked introduction names, plain closing names and paragraph spacing; the preview begins below the thank-you. Mobile layout is not reviewed.
+
+## Revision record
+
+The current edit removes only the 2 closing mention wrappers from the original publication. The
+closing wording, other links and replay preview remain unchanged. The original submitted payload is
+retained in Git history; the current payload records the approved personal-only fallback.
 
 ## Approved text
 

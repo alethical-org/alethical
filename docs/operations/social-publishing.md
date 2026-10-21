@@ -101,7 +101,7 @@ These are observed results for this task, not permanent claims about every Faceb
 
 The [LinkedIn publication record](forward-debate-linkedin-record.md) retains the approved source text,
 verified profiles, account and post identifiers, replay preview, shortened-link destinations and
-review limits for the October 21, 2026 announcement. Both name mentions use verified personal
-profiles; the requested campaign destinations remain unverified and the requested 2-type treatment
-is incomplete. Do not substitute employers or infer that campaign pages do not exist. The full-replay
-announcement does not approve short 01.
+review limits for the October 21, 2026 announcement. The approved personal-only fallback applies:
+verified profiles are linked once in the introduction; closing names are plain. Campaign destinations
+were not verified on LinkedIn. Do not substitute employers or infer that campaign pages do not exist.
+The full-replay announcement does not approve short 01.
