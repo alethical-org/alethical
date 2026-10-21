@@ -33,7 +33,7 @@
   "nativeTextAndMentionVerified": true,
   "desktopVisualReviewed": true,
   "mobileVisualReviewed": false,
-  "pinned": false,
+  "pinned": true,
   "shortenedDestinations": {
     "https://t.co/3JA8MniRT2": "https://www.alethical.com/blog/events/forward-debate-2026",
     "https://t.co/95Dg9ELyp1": "https://trentformn13.com/"
@@ -53,11 +53,26 @@
       "Media"
     ],
     "highlightsTabVisible": false,
-    "highlightsEligibilityVerified": false,
-    "paidGateVerified": false,
-    "highlightsBehaviorVerified": false,
-    "actionsClicked": false,
+    "highlightsEligibilityVerified": true,
+    "paidGateVerified": true,
+    "highlightsBehaviorVerified": true,
+    "actionsClicked": true,
     "recommendation": "Pin this milestone and use Highlights if available with existing access, preserving useful prior selections.",
-    "authorized": false
-  }
+    "authorized": true,
+    "authorizationCondition": "Pin and Highlights permitted only if no extra cost",
+    "pinVerified": true,
+    "highlightsAddedConfirmed": true,
+    "confirmation": "Your post has been pinned and added to highlights.",
+    "noPaidGateEncountered": true,
+    "separateHighlightsToggleClicked": false,
+    "behaviorScope": "This account pin action also added to Highlights; pin and Highlights collection visually verified.",
+    "highlightsCollectionViewVerified": true,
+    "highlightsViewUrl": "https://x.com/alethical/highlights",
+    "highlightsAccessRoute": "Posts dropdown > Highlights",
+    "highlightsViewHeading": "Alethical’s Highlights",
+    "highlightsVisiblePostIds": [
+      "2112935739264786462"
+    ]
+  },
+  "highlighted": true
 }

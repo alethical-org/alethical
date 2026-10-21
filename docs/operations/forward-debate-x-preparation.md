@@ -4,7 +4,7 @@
 The [latest saved revision](https://x.com/alethical/status/2112935739264786462) is published by
 **Alethical @alethical** through native Chrome. The original publication at 11:54 a.m. Eastern has
 ID `2112935526370279631`; the current edited revision has ID `2112935739264786462`.
-No duplicate post or pin was created.
+No duplicate post was created. Placement results are recorded below.
 
 ## Saved result and account choices
 
@@ -46,18 +46,24 @@ The latest saved revision shows the complete text, correct Aaron campaign destin
 **The Forward Debate** card with its thumbnail. The card's `https://t.co/3JA8MniRT2` destination
 resolves with HTTP 200 to the full replay. Trent's `https://t.co/95Dg9ELyp1` resolves with HTTP 200
 to his official campaign website. Desktop screenshot review confirms the replay thumbnail’s faces
-and text are visible; mobile review is not recorded. No pin was applied.
+and text are visible; mobile review is not recorded.
 
 ## Placement assessment
 
 On October 21, 2026, Alethical's native X profile showed no Pinned marker or existing top pin;
 the latest replay revision was first. Its More menu offered **Pin to your profile** and
 **Add/remove from Highlights**. Visible profile tabs were Posts, Replies, Reposts and Media;
-no Highlights tab was visible. Neither placement action was clicked. Highlights eligibility,
-paid-access requirements and actual behavior remain unverified; menu presence is not proof of access.
+no Highlights tab was visible. These initial menu observations alone did not prove usable access; the completed action below
+establishes the saved result.
 
-The recommendation is to pin this milestone and use Highlights if available with existing access,
-preserving useful prior selections. Neither action is authorized or completed in this record.
+Under explicit no-extra-cost authorization, **Pin to your profile > Pin** saved the latest replay
+revision. X confirmed: “Your post has been pinned and added to highlights.” The refreshed profile
+shows the Pinned marker on `2112935739264786462`; no paid gate appeared. No separate Highlights
+toggle was clicked, avoiding an accidental removal after the automatic addition. On this layout,
+**Posts > Highlights** opens a read-only view filter even though there is no standalone tab.
+[Alethical's Highlights](https://x.com/alethical/highlights) shows the heading “Alethical’s Highlights”
+and the exact replay revision as its only result. Both the pin and Highlights placement are visually
+verified. The dropdown layout and automatic linkage are account observations, not universal guarantees.
 The [shared placement guidance](https://github.com/euglopi/tool-settings/blob/main/shared/guides/social-publishing.md#platform-placement-evidence)
 owns the separate pin/Highlights assessment. [X's profile guide](https://help.x.com/en/managing-your-account/how-to-customize-your-profile)
 documents pinning; the current Premium guide does not establish Highlights eligibility.

@@ -16,8 +16,9 @@ new lessons in the owning document and updates affected links before completion.
 in the rule it changes; a case-specific choice stays in the post's record. Do not copy the same rule
 into both repos or turn an untested guess into a standing requirement. Apply each evolved rule to
 all relevant platforms under the shared guide. Assess each destination's actual capabilities and
-record evidence for Alethical-specific exceptions here; scope does not authorize extra posting or
-other account actions.
+record evidence for Alethical-specific exceptions here. Before preparing each destination, use the
+shared guide's feature assessment to recommend useful promotion choices for that account, including
+discovery options beyond prominent placement. Scope does not authorize extra posting or account actions.
 
 ## Write the result, its meaning and what comes next
 
@@ -105,8 +106,24 @@ Future posting work includes this placement recommendation, not automatic permis
 pin, feature, reorder or remove material on another account.
 
 The Forward Debate replay announcement is a significant milestone. Pinning its Facebook post and
-featuring its LinkedIn post are authorized for this announcement; saved placement results belong
-with the post records. This approval does not extend to other platforms or future announcements.
+featuring its LinkedIn post are authorized for this announcement. Pinning its X post and adding it
+to Highlights are also authorized if neither incurs extra cost. Saved results belong with the post
+records. These approvals do not extend to other platforms or future announcements.
+
+## Forward Debate discovery recommendations
+
+The [shared discovery assessment](https://github.com/euglopi/tool-settings/blob/main/shared/guides/social-publishing.md#search-wording-and-hashtag-placement)
+owns platform evidence and its limits. These recommendations are not authorization for hashtag edits
+or new comments; no measured reach gain is claimed.
+
+| Destination | Proposed treatment |
+| --- | --- |
+| X | Change the existing word Minnesota to `#Minnesota` after a native topic check: 1 added character, 278 total, with no words or links cut. |
+| Facebook and LinkedIn | Consider 2 relevant topical tags in the body after native topic checks; do not add a hashtag-only comment as assumed reach improvement. |
+| Instagram | Use clear caption keywords and a few relevant tags, with current limits checked before preparation. |
+| Bluesky | Keep the current 300-character post intact. Consider tags in a future original post or meaningful follow-up; do not delete and repost merely to add hashtags. Check any intended custom feed's rules. |
+| TikTok | Assess relevant caption wording and tags for a future approved actual video. The removed photo and held short 01 do not become eligible through tags. |
+| YouTube | Assess description hashtags for future approved Shorts pointing to the existing replay; no duplicate replay or Community Post for this promotion. |
 
 ## Forward Debate worked example
 
