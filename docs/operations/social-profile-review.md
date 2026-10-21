@@ -30,14 +30,13 @@ the existing full post and next short within the current scope. Approval alone d
 completion of an account change or Story. Short 01 v3 has separate acceptance and publication
 evidence. Record each remaining item’s execution and saved result as it finishes. Spending and independent private messages remain outside this scope.
 
-The account work is resumed. Keep bios balanced across the platform’s current public-record,
-bill, vote and campaign-money work while adding truthful high-impact offerings such as debate
-hosting. Include offered **campaign analytics, tools and resources to help candidates run
-effectively** when space permits, preserving current core offerings. Do not invent self-service
-product features or campaign-performance claims. Do not replace the
-company’s broader purpose with a debate-only description. The separate gate on a debate-hosting
-inquiry invitation outside a post remains: propose exact wording, platform and location for approval
-first. No such outside-post invitation has been added.
+The account work is resumed. Lead public bios with campaigns, elections and debate hosting,
+including intelligence and research, offered campaign analytics, and candidate tools/resources.
+Retain the public-record work on bills, votes, campaign money and lobbying. This is a leading
+campaign focus, not a debate-only identity. Do not invent self-service product features or
+campaign-performance claims. The separate gate on a debate-hosting inquiry invitation outside a
+post remains: propose exact wording, platform and location for approval first. No such outside-post
+invitation has been added.
 
 Prepare short 2 after the account work, with no publication before October 22, 2026. No schedule
 has been created. The Instagram short Story, website sticker and **Debate** Highlight addition are
@@ -84,39 +83,26 @@ supports promotion for discovery and links for crawling, without promising ranki
 
 ## Saved profile work
 
-Instagram’s native editor saved a 127/150-character bio with a success toast. That edition included
-“Coming soon: campaign analytics” and is superseded by the approved offered-service wording; its
-correction and public visitor readback are pending. The editor’s profile-link controls are disabled
-with a mobile-only notice. Account suggestions are on. No profile-link change is claimed.
+Instagram’s current 136-character bio is saved and verified in the public visitor view:
+
+```text
+Minnesota politics in plain words.
+Bills, votes, money & lobbying.
+Debate hosting. Campaign analytics. Tools & resources for candidates.
+```
+
+This replaces the prior 127-character “Coming soon” edition. The latest approved leading campaign,
+election, debate, intelligence and research focus still needs another wording/order revision;
+that revision is not yet recorded as saved. The editor’s profile-link controls are disabled with a
+mobile-only notice. Account suggestions are on. No profile-link change is claimed.
 
 ## Writing for the approved rollout
 
-Shared opening: “Minnesota politics in plain language.” Keep the rest specific to what people can
-use now; features that are still plans remain plans. Where the actual field has room, add:
-“We also host political debates and offer campaign analytics, tools and resources to help candidates
-run effectively.” Keep the core public-record offering visible; shorter fields may condense this
-service wording without inventing product features or performance claims. Count the complete wording
-before saving.
-
-Instagram draft:
-
-```text
-Minnesota politics in plain language.
-Public records. Campaign money. Respectful debate.
-Watch the Forward Debate ↓
-```
-
-X / LinkedIn short-description draft:
-
-```text
-Minnesota politics in plain language. Public records, campaign money and respectful debate. Explore the sources.
-```
-
-TikTok draft:
-
-```text
-Minnesota politics, made clear. Public records & respectful debate.
-```
+Lead with campaigns/elections/debate and intelligence/research, followed by campaign analytics and
+candidate tools/resources. Keep the public-record purpose visible through bills, votes, campaign
+money and lobbying. Prioritize within each actual field’s space; the prior public-record-first draft
+order is superseded. Offered services do not establish new self-service product features or promised
+campaign results. Count and verify the complete wording before saving.
 
 The bio is not the place for every platform's handle or a pile of hashtags. Use links/contact fields
 for navigation and contact where supported. Count the final wording in each native editor, including

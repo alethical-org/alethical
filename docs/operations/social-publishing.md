@@ -42,15 +42,13 @@ and failures after execution; documentation must not interrupt feasible authoriz
   other surface. No outside-post placement is approved by this rule. This does not add promotion
   retroactively to short 1 or create a publication schedule. Prepare short 2 after the current
   account work; do not publish it before October 22, 2026, and retain its readiness checks.
-- Keep bios balanced across Alethical’s current work: public records, bills, votes, campaign
-  money and useful new offerings such as hosting political debates. Add high-impact capabilities
-  missing from the existing wording without recasting the whole company as debate-only. Verify
-  present capabilities; proposed features remain plans. Include offered **campaign analytics, tools
-  and resources to help candidates run effectively** alongside debate hosting when space permits,
-  without displacing current core offerings. Do not invent self-service product features or promise
-  campaign performance.
-  A debate-hosting inquiry invitation outside a post still needs the exact wording, platform and
-  location approved before changing it.
+- Lead bios with campaigns, elections and debate hosting, including intelligence and research,
+  campaign analytics, and tools/resources to help candidates run effectively. Retain Alethical’s
+  public-record work on bills, votes, campaign money and lobbying; the leading campaign focus does
+  not make the company debate-only. Adapt to field limits without inventing self-service features
+  or promising campaign performance. Describe offered services as current and other proposed
+  features as plans. A debate-hosting inquiry invitation outside a post still needs the exact
+  wording, platform and location approved before changing it.
 - Describe planned services as plans. Use the [campaign services guide](../product-onboarding/services-guide.md)
   and the current approved announcement to distinguish available help from future offerings.
 - Give each platform a complete version suited to its current limits. Preserve facts, qualifications,
