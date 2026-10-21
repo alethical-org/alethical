@@ -127,17 +127,18 @@ standing approval above, without retroactively changing other existing posts.
 ## Forward Debate discovery recommendations
 
 The [shared discovery assessment](https://github.com/euglopi/tool-settings/blob/main/shared/guides/social-publishing.md#search-wording-and-hashtag-placement)
-owns platform evidence and its limits. Suggestions for already-published posts remain unapplied and
+owns platform evidence and its limits, including broad and narrower tag selection and exact metric
+units. Proposed further hashtag edits to already-published posts remain unapplied and
 are not authorized retroactively. For future authorized posts, select and apply the suitable treatment
 under the standing approval above. No measured reach gain is claimed.
 
 | Destination | Proposed treatment |
 | --- | --- |
-| X | Change the existing word Minnesota to `#Minnesota` after a native topic check: 1 added character, 278 total, with no words or links cut. |
+| X | The existing-post proposal is to change Minnesota to `#Minnesota` after a native topic check: 1 added character, 278 total, with no words or links cut. For future authorized posts, apply the shared discovery assessment within X’s actual space and guidance. |
 | Facebook and LinkedIn | Consider 2 relevant topical tags in the body after native topic checks; do not add a hashtag-only comment as assumed reach improvement. |
-| Instagram | Use clear caption keywords and a few relevant tags, with current limits checked before preparation. |
+| Instagram | Use clear caption keywords and the shared discovery assessment for relevant broad and narrower tags. The saved post has `#MinnesotaPolitics`; its observed 1,000+ count describes posts, not searches or people. Further tags are not yet researched or applied. |
 | Bluesky | Keep the current 300-character post intact. Consider tags in a future original post or meaningful follow-up; do not delete and repost merely to add hashtags. Check any intended custom feed's rules. |
-| TikTok | Assess relevant caption wording and tags for a future approved actual video. The removed photo and held short 01 do not become eligible through tags. |
+| TikTok | Apply the shared discovery assessment to caption wording and tags for a future approved actual video. The removed photo and held short 01 do not become eligible through tags. |
 | YouTube | Assess description hashtags for future approved Shorts pointing to the existing replay; no duplicate replay or Community Post for this promotion. |
 
 ## Forward Debate worked example
