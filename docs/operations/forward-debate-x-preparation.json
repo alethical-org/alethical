@@ -1,0 +1,24 @@
+{
+  "status": "saved_draft_review_required",
+  "preparedDate": "2026-10-21",
+  "platform": "X",
+  "route": "native Chrome composer",
+  "accountHandle": "alethical",
+  "content": "We can disagree and work together.\n\nTrent Dilks https://trentformn13.com and Aaron Brutger @BrutgerforSD13 showed how. Some attendees called it the best debate they'd seen.\n\nWatch: https://www.alethical.com/blog/events/forward-debate-2026\n\nNext: plans for Minnesota debates and tools for candidates of any party.",
+  "sourceCharacters": 312,
+  "nativeCharactersUsed": 277,
+  "nativeCharactersRemaining": 3,
+  "nativeCharacterLimit": 280,
+  "previewTitle": "The Forward Debate",
+  "previewDomain": "alethical.com",
+  "previewDestination": "https://www.alethical.com/blog/events/forward-debate-2026",
+  "uploadedMedia": false,
+  "savedAndReopened": true,
+  "published": false,
+  "publicationAuthorized": false,
+  "reviewGate": "User review before publication",
+  "peopleDestinations": {
+    "Trent Dilks": "https://trentformn13.com",
+    "Aaron Brutger": "https://x.com/BrutgerforSD13"
+  }
+}

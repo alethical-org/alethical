@@ -177,3 +177,10 @@ does not restrict Community Posts for unrelated work.
 Short 01 remains unapproved for posting. This direction does not resolve its 2 known defects,
 complete its remaining checks or grant permission to publish it. Follow the video guide's acceptance
 requirements before treating any short as ready.
+
+## Forward Debate X preparation
+
+The [X preparation record](forward-debate-x-preparation.md) retains the native browser draft,
+verified Aaron campaign tag, Trent campaign-website fallback and saved/reopened checks. The draft
+is not published. User review is required before publication; a saved composer or working preview
+does not lift that hold.
