@@ -14,7 +14,10 @@ Alethical's voice, services, people, accounts, event records and approved choice
 repository. General platform behavior and reusable methods belong in tool settings. Each task saves
 new lessons in the owning document and updates affected links before completion. A correction belongs
 in the rule it changes; a case-specific choice stays in the post's record. Do not copy the same rule
-into both repos or turn an untested guess into a standing requirement.
+into both repos or turn an untested guess into a standing requirement. Apply each evolved rule to
+all relevant platforms under the shared guide. Assess each destination's actual capabilities and
+record evidence for Alethical-specific exceptions here; scope does not authorize extra posting or
+other account actions.
 
 ## Write the result, its meaning and what comes next
 
