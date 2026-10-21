@@ -1,5 +1,5 @@
 {
-  "status": "provider_complete_native_verification_pending",
+  "status": "public_native_post_confirmed_viewing_issue_unresolved",
   "preparedDate": "2026-10-21",
   "service": "Adeli",
   "accountDisplayName": "Alethical.com",
@@ -43,5 +43,13 @@
   "publishSubmitted": true,
   "providerStatus": "PUBLISH_COMPLETE",
   "providerPublishId": "p_pub_url~v2.7699145908722223118",
-  "nativePublicationVerified": false
+  "nativePublicationVerified": true,
+  "url": "https://www.tiktok.com/@alethicaltruth/photo/7699145941923810573",
+  "playbackAccepted": false,
+  "fullNativeCaptionReviewed": false,
+  "fullNativeVisualReviewed": false,
+  "observedIssue": "Direct photo URL automatically navigated to an unrelated next video within seconds without a click.",
+  "currentAction": "Existing photo remains public; no hide, delete or replacement applied.",
+  "proposedNextStep": "Wait for a meaningful debate short on TikTok rather than publish a timed still solely to fill the channel.",
+  "proposalApproved": false
 }

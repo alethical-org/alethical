@@ -1,8 +1,11 @@
 # Forward Debate TikTok preparation
 
-**Provider reports publication complete, October 21, 2026; native verification is pending. No inbox draft was sent.**
+**Published October 21, 2026; a native viewing problem remains unresolved. No inbox draft was sent.**
 Adeli's **Alethical.com** TikTok account is at the **Step 4 review**, with 1 image.
-Adeli publish ID: `p_pub_url~v2.7699145908722223118`. A live post address is not yet available.
+Adeli publish ID: `p_pub_url~v2.7699145908722223118`.
+[The public TikTok photo](https://www.tiktok.com/@alethicaltruth/photo/7699145941923810573) is visible on
+Alethical’s native profile. The post shows the current title in image alt text, part of the caption
+and the Promotional content disclosure.
 
 ## Media and readiness
 
@@ -10,8 +13,7 @@ The original [Forward Debate thumbnail](video/forward-debate-2026-10-15/text/For
 produced a square Adeli preview that clipped the left title/name and people at the sides. That preview
 is not proof of TikTok's output crop. The [1080 × 1920 padded derivative](social-media/forward-debate-tiktok-original-padded.png)
 keeps the original image's full composition without cropping or regenerating its photo, text or faces.
-The final Adeli preview shows the full title, names and faces without cropping. Actual published
-TikTok output is not yet available. Short 01 remains held.
+The final Adeli preview shows the full title, names and faces without cropping. Full native visual and caption review is not complete. Short 01 remains held.
 
 The derivative is outside the frozen video recovery package. Its SHA-256 is
 `00d306af6e6847a6c126d3932ec09da31321ba51ca84ba4b23e5ce578a71590a`.
@@ -30,10 +32,21 @@ and pad of the original artwork. The title has 64 characters and the description
 
 The user accepted the action-time confirmation:
 “I confirm this publishes a real TikTok post visible to everyone and I agree to TikTok’s Music Usage
-Confirmation.” The public photo was then submitted. Adeli reports `PUBLISH_COMPLETE`, but the
-refreshed native profile and Adeli feed still show only the older video. Publication is complete
-according to the provider; the public address, native output and link behavior remain unverified.
-Do not resubmit while awaiting propagation and the saved result.
+Confirmation.” The public photo was then submitted. Adeli reports `PUBLISH_COMPLETE`, and native
+profile and direct-address checks confirm the public photo. Full caption, visual and link review
+remain incomplete; provider completion does not establish a usable viewing experience.
+
+## Viewing issue and unresolved format choice
+
+The direct photo address automatically navigates to an unrelated next video within seconds without
+a click. This reproduces the reported viewing problem; its cause is not established. Playback is
+not accepted. The photo remains public; no hide, delete or replacement action has been applied.
+
+The proposed next step is to wait for a meaningful debate short on TikTok rather than publish a
+timed still solely to fill the channel. This is an unresolved recommendation, not an approved
+platform-wide policy or authorization to remove the photo. A 12-second silent still-video experiment
+exists only in scratch; it is not published, adopted as current media or copied into this record’s
+media collection. Short 01’s separate posting hold remains.
 
 ## Text and destination checks
 
@@ -50,8 +63,7 @@ cross-links. The verified campaign-website fallback applies after this reasonabl
 Alethical's native handle is `@alethicaltruth`, with 1 existing money-report video and no visible
 website link. The draft adds a YouTube search instruction for readers who cannot open caption URLs.
 Official campaign websites are verified. The draft shows those addresses as text, not verified live
-clickable links. The YouTube search instruction provides an alternative route. Native published
-link behavior and output require saved-post verification after publication; they are not claimed
+clickable links. The YouTube search instruction provides an alternative route. Native link behavior and the full saved output remain unverified; they are not claimed
 from the draft. Image, identity-search and final-setting preparation checks are complete.
 
 ## Draft title
