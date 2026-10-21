@@ -1,5 +1,5 @@
 {
-  "status": "preparation_only",
+  "status": "completion_in_progress",
   "preparedDate": "2026-10-21",
   "service": "Adeli",
   "accountDisplayName": "Alethical.com",
@@ -18,5 +18,20 @@
   "ownBusinessDisclosureSelected": false,
   "continueEnabled": false,
   "published": false,
-  "inboxDraftSent": false
+  "inboxDraftSent": false,
+  "preparedMediaPath": "social-media/forward-debate-tiktok-original-padded.png",
+  "preparedMediaSha256": "00d306af6e6847a6c126d3932ec09da31321ba51ca84ba4b23e5ce578a71590a",
+  "preparedMediaWidth": 1080,
+  "preparedMediaHeight": 1920,
+  "preparedMediaLoadedVerification": "pending",
+  "mediaRecipe": {
+    "tool": "sips",
+    "steps": [
+      "convert approved JPEG to PNG",
+      "pad to height 2276 and width 1280 with color 0A0A0A",
+      "resample to height 1920 and width 1080"
+    ],
+    "crop": false,
+    "generativeEdit": false
+  }
 }

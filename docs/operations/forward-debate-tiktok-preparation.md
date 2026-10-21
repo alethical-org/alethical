@@ -6,11 +6,22 @@ No live post address or publish identifier exists for this preparation.
 
 ## Media and readiness
 
-The unchanged [Forward Debate thumbnail](video/forward-debate-2026-10-15/text/ForwardDebate-thumbnail.jpg)
-is loaded. The square Adeli preview clips the left title/name and people at the sides. Actual TikTok
-output is unknown, so the image is not ready for publication. The recommended next treatment is a
-portrait-safe version of the approved artwork that keeps names and faces visible; that treatment
-remains a choice, not a completed image edit. Short 01 remains held and is not a substitute.
+The original [Forward Debate thumbnail](video/forward-debate-2026-10-15/text/ForwardDebate-thumbnail.jpg)
+produced a square Adeli preview that clipped the left title/name and people at the sides. That preview
+is not proof of TikTok's output crop. The [1080 × 1920 padded derivative](social-media/forward-debate-tiktok-original-padded.png)
+keeps the original image's full composition without cropping or regenerating its photo, text or faces.
+Its loaded Adeli preview and final output remain pending verification. Short 01 remains held.
+
+The derivative is outside the frozen video recovery package. Its SHA-256 is
+`00d306af6e6847a6c126d3932ec09da31321ba51ca84ba4b23e5ce578a71590a`.
+The original remains unchanged. Padding uses near-black `0A0A0A`; resampling changes pixel resolution,
+so this is a non-generative adaptation, not a pixel-lossless copy. From this directory, the recipe is:
+
+```sh
+sips -s format png video/forward-debate-2026-10-15/text/ForwardDebate-thumbnail.jpg --out social-media/forward-debate-tiktok-original-padded.png
+sips --padToHeightWidth 2276 1280 --padColor 0A0A0A social-media/forward-debate-tiktok-original-padded.png
+sips --resampleHeightWidth 1920 1080 social-media/forward-debate-tiktok-original-padded.png
+```
 
 Visibility is unselected, comments are on by default, automatic music is off, and the own-business
 disclosure is not selected. Continue is disabled. These are staged settings, not final choices.
@@ -23,7 +34,10 @@ documents photo-title and description limits of 90 and 4,000 characters and requ
 type, photo or video. The source below fits those limits; fitting text does not establish media readiness.
 
 Web searches using exact candidate names with TikTok and campaign handles found no verified social
-accounts. TikTok-domain search access was blocked; native TikTok identity search remains unfinished.
+accounts. TikTok-domain web access was blocked. Native Trent Dilks results did not establish a
+matching identity; the Aaron-name profiles `@aaronbrutger` and `@aaronbrutger1` had no bio or content
+and did not establish identity. Native campaign-handle searches remain in progress. A name match
+alone is insufficient.
 Official campaign websites are verified. The draft shows those addresses as text, not verified live
 clickable links. Confirm final native search, link treatment, media, visibility and disclosure before
 any publication decision.

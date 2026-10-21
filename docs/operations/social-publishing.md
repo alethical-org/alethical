@@ -35,7 +35,8 @@ other account actions.
   permanent platform list; identify the intended accounts for the actual request.
 - Link the full replay or article where readers can watch or read it. Keep post text, video,
   thumbnail and link preview consistent. Retain useful context without repeating what the media
-  already makes clear.
+  already makes clear. Resolve routine size and format constraints using the shared guide's
+  source-preserving adaptation method; keep candidate names, faces and approved artwork intact.
 
 ## Link people and organizations deliberately
 
@@ -156,6 +157,6 @@ or completed; short 01 remains unapproved for posting.
 ## Forward Debate TikTok preparation
 
 The [TikTok preparation record](forward-debate-tiktok-preparation.md) retains the staged Adeli photo
-post and exact title/description. It is not published or sent to TikTok's inbox. The preview crops
-important artwork; media treatment, native identity search, settings and live link behavior remain
-unfinished. Preparation does not release short 01's posting hold.
+post and exact title/description. It is not published or sent to TikTok's inbox. A padded derivative
+preserves the original artwork; its loaded preview, identity search, settings and live link behavior
+remain under review. Preparation does not release short 01's posting hold.
