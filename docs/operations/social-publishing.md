@@ -60,10 +60,16 @@ leave the coalition unnamed or rely on a separate replay link to explain the aff
 
 ## Publish and maintain the existing post
 
-Use the connected Zernio account for supported posting operations. Confirm the platform, Alethical
-account, approved text, media edition, links, visibility and requested timing. Approval to post on
-Facebook does not approve posting on every connected account. A revision to a live post updates that
-post; it does not create another copy.
+Use the chosen connected publishing service within its approved free-account scope. Facebook and
+LinkedIn announcements remain with Zernio. Adeli is the selected route for the 3 connected Alethical
+accounts: TikTok **Alethical.com**, YouTube **@alethical** and Bluesky **@alethical.com**. Recheck
+connections before use; this is not authorization for a paid upgrade or additional accounts.
+
+Handle 1 platform at a time and verify its saved result before moving to the next. Confirm the
+platform, Alethical account, approved text, media edition, links, visibility and requested timing.
+Approval for 1 destination does not approve every connected account. A revision updates the existing
+post; it does not create another copy. On YouTube, use the existing full replay rather than upload a
+duplicate, and confirm the requested format and existing channel content before publishing.
 
 Use the platform's own editor for a needed feature that the connector cannot complete, such as
 resolving a particular name mention. Read the live post before editing so that later platform edits
