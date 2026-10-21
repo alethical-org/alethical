@@ -32,8 +32,9 @@ evidence. Record each remaining item’s execution and saved result as it finish
 
 The account work is resumed. Keep bios balanced across the platform’s current public-record,
 bill, vote and campaign-money work while adding truthful high-impact offerings such as debate
-hosting. Include **campaign analytics** as an offered service when space permits, preserving
-current core offerings; do not infer a launched self-service analytics product. Do not replace the
+hosting. Include offered **campaign analytics, tools and resources to help candidates run
+effectively** when space permits, preserving current core offerings. Do not invent self-service
+product features or campaign-performance claims. Do not replace the
 company’s broader purpose with a debate-only description. The separate gate on a debate-hosting
 inquiry invitation outside a post remains: propose exact wording, platform and location for approval
 first. No such outside-post invitation has been added.
@@ -91,9 +92,11 @@ with a mobile-only notice. Account suggestions are on. No profile-link change is
 ## Writing for the approved rollout
 
 Shared opening: “Minnesota politics in plain language.” Keep the rest specific to what people can
-use now; features that are still plans remain plans. Add “Campaign analytics” as an offered service
-where the actual field has room without losing current core offerings. This is service positioning,
-not a claim of a launched self-service analytics product. Count the complete wording before saving.
+use now; features that are still plans remain plans. Where the actual field has room, add:
+“We also host political debates and offer campaign analytics, tools and resources to help candidates
+run effectively.” Keep the core public-record offering visible; shorter fields may condense this
+service wording without inventing product features or performance claims. Count the complete wording
+before saving.
 
 Instagram draft:
 
