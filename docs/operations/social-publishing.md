@@ -54,6 +54,12 @@ does not exist; results on 1 platform do not settle another. When only a persona
 link it once at the first mention and leave repeated names, including the closing thank-you, plain.
 Do not add repetitive name mentions merely to fit both account types.
 
+If neither a personal nor campaign social account is verified after a reasonable search, use the
+candidate's name followed by the verified official campaign website once. Apply this fallback on
+every platform that supports it; do not invent a handle or substitute an employer. Adapt the format
+to the actual limits while preserving required facts and links. If those requirements cannot fit
+in a supported format, make the specific conflict explicit before publication.
+
 When discussing joining the Forward Independence Coalition, place the
 [coalition candidates link](https://forwardcoalition.com/candidates) beside that discussion. Do not
 leave the coalition unnamed or rely on a separate replay link to explain the affiliation.
