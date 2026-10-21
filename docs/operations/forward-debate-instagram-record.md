@@ -18,8 +18,8 @@ linked in the thanks. The campaign bio identifies the Minnesota Senate District 
 account's Minnesota DAV award/advocacy post matches the text of the
 [verified LinkedIn post](https://www.linkedin.com/posts/trent-c-dilks-7921b5113_honored-to-have-been-the-recipient-of-davs-activity-7299504880828702720-htBr).
 
-Aaron's matching campaign-name result has no posts or bio and does not establish identity. Native
-name/campaign searches and official-site review did not verify an Instagram account; his official
+Aaron's matching campaign-name result has no posts or bio and does not establish identity. Bounded
+native and web searches and official-site review did not verify an Instagram account; his official
 campaign website is the approved fallback. Neither campaign site supplies an Instagram cross-link.
 This is not evidence that Aaron has no account.
 
