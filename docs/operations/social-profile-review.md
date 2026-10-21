@@ -8,8 +8,9 @@ Instagram's approved bio choice is to keep the existing **YouTube** link to
 [the Alethical channel](https://www.youtube.com/@Alethical), where visitors can find the debate and
 browse the full collection. Preserve Website and the other links, with no replacement or reorder.
 The current caption directions remain correct. Publish an Instagram Story for the full-debate
-post with a direct [YouTube replay](https://www.youtube.com/watch?v=y66-Wf9bNio) link sticker, then
-use that same replay link in the next short’s Story. A Debates Highlight is approved within this
+post with 1 tappable [website replay](https://www.alethical.com/blog/events/forward-debate-2026)
+link sticker labelled **Watch the full debate**, then use the same destination and label in the
+next short’s Story. No extra YouTube Story link or printed website URL is needed. A Debates Highlight is approved within this
 promotion scope; verify its saved link.
 
 Recommended profile and promotion work is approved for application, including verified company
@@ -40,9 +41,14 @@ as each item finishes. Spending and independent private messages remain outside 
 
 ## Profile and promotion plan
 
+Prefer relevant Alethical website destinations where working links are supported, to help people
+watch, explore, share and link to the material. Search ranking gains are not established, and clicks
+alone do not prove an SEO benefit. The explicit Instagram channel-bio choice remains in force; this
+priority does not authorize unrelated retroactive post edits.
+
 | Platform | Profile work | Promote this milestone | Engagement and company identity |
 | --- | --- | --- | --- |
-| Instagram | Keep the existing **YouTube** label and https://www.youtube.com/@Alethical destination so visitors can browse all videos. Preserve Website and other links without reordering. The existing caption correctly describes the selector, channel and video choice; no bio or caption edit is needed. | Publish the full-debate Story with a direct YouTube replay link sticker, then save it to Debates. Use the same replay link in the next short’s Story. Confirm the link works in the saved Highlight. Keep the grid pin. | Review requests from non-followers, Story sharing, mentions and tag review. Keep spam controls. Follow both verified Trent accounts as Alethical; Aaron has the approved website fallback until a verified account is found. |
+| Instagram | Keep the existing **YouTube** label and https://www.youtube.com/@Alethical destination so visitors can browse all videos. Preserve Website and other links without reordering. The existing caption correctly describes the selector, channel and video choice; no bio or caption edit is needed. | Publish the full-debate Story with 1 website replay link sticker labelled **Watch the full debate**, then save it to Debates. Use the same sticker in the next short’s Story; omit extra YouTube links and printed URLs. Confirm the link works in the saved Highlight. Keep the grid pin. | Review requests from non-followers, Story sharing, mentions and tag review. Keep spam controls. Follow both verified Trent accounts as Alethical; Aaron has the approved website fallback until a verified account is found. |
 | Facebook | Complete About/intro, accurate category, website and public business contact. Inspect the actual Page action-button choices and pick the clearest website or message action. Do not invent a physical office or hours. | Keep pinned/featured post. Prepare a Page Story; only promise a direct Story link if that Page's composer supports it. Inspect cross-posted output separately. | Act as Alethical Page for follows, comments and messages. Check personal-profile following separately from Page following; never substitute a personal friend request. Review public comments and Messenger requests. |
 | LinkedIn | Use a plain description, accurate industry/category, website, specialties and real location. Configure the free website/contact action if useful. | Keep the debate Featured and add useful milestones within capacity. Page Stories are not the route. | Page messaging offers a business contact route. Follow organization/campaign Pages as Alethical. Personal-profile Follow/Connect uses the member identity, so skip that exception rather than act as a member. |
 | X | Fix the typo; lead the bio with what readers gain. Keep Minnesota and the website field. | Keep debate pin and Highlights. Its post already has a clickable replay link. Use actual approved Shorts later where suitable. | Inspect open replies and a reviewable message-request inbox; preserve spam protections. Follow verified tagged accounts as @alethical. Paid Subscribe is not Follow. |
@@ -80,13 +86,14 @@ for navigation and contact where supported. Count the final wording in each nati
 line breaks. Adapt these drafts to verified field limits and public contact needs; they are not
 saved profiles.
 
-Approved Instagram Story: use the approved debate photo without cutting faces or names. Put “Watch
-the full Forward Debate” beside a link sticker pointing to
-https://www.youtube.com/watch?v=y66-Wf9bNio. Below it, show “Also available on our website:” and
-https://www.alethical.com/blog/events/forward-debate-2026. If using a feed-post reshare, tapping the
-post opens the post; the separate link sticker must carry the watch action. Do not call this 1-click
-playback until the actual app path has been exercised. The next short’s Story uses the same full
-replay destination; starting that short does not release its quality hold.
+Approved Instagram Story: use the approved debate photo without cutting faces or names. Add 1
+tappable sticker labelled **Watch the full debate** pointing to
+https://www.alethical.com/blog/events/forward-debate-2026. Do not add a YouTube Story link or a
+printed website URL. If using a feed-post reshare, tapping the post opens the post; the sticker
+carries the watch action. Verify the saved destination without promising 1-click playback. The next
+short’s Story uses the same website sticker; starting that short does not release its quality hold.
+This single-destination treatment applies to Stories; the feed caption’s YouTube directions and
+visible website URL remain unchanged.
 
 ## Following people we tag
 

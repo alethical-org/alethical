@@ -43,8 +43,10 @@ verified route is approved so visitors can browse the full collection as well as
 The profile has 5 links: Website, general YouTube channel, LinkedIn, X and TikTok. Preserve the
 existing **YouTube** label and [channel destination](https://www.youtube.com/@Alethical), Website
 and the other links. No replacement or reordering is requested. The current caption directions
-remain correct; no live bio or caption change is needed. The full-debate Story, direct YouTube replay sticker and Debates Highlight are approved in the
-[profile review](social-profile-review.md); the next short’s Story uses the same replay link. Their
+remain correct; no live bio or caption change is needed. The full-debate Story and Debates Highlight are approved in the
+[profile review](social-profile-review.md), with 1 website replay sticker labelled **Watch the full
+debate**. The next short’s Story uses the same destination. No extra YouTube link or printed URL
+is included in Stories; the feed caption and channel bio remain unchanged. Their
 publication is not established by this record.
 
 The saved post's desktop options contain no pin action. The

@@ -143,9 +143,13 @@
     "status": "authorized_not_verified_published",
     "fullDebatePostStory": true,
     "nextShortStory": true,
-    "linkStickerDestination": "https://www.youtube.com/watch?v=y66-Wf9bNio",
+    "linkStickerDestination": "https://www.alethical.com/blog/events/forward-debate-2026",
     "debatesHighlightAuthorized": true,
     "bioChannelRetained": true,
-    "shortQualityHoldsPreserved": true
+    "shortQualityHoldsPreserved": true,
+    "linkStickerLabel": "Watch the full debate",
+    "additionalYouTubeLink": false,
+    "printedWebsiteUrl": false,
+    "scope": "Stories only; existing feed caption and channel bio unchanged"
   }
 }

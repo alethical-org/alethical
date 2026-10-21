@@ -37,8 +37,12 @@ account under the standing future-post approval below, including discovery beyon
 - Give each platform a complete version suited to its current limits. Preserve facts, qualifications,
   required links and the reader's next action while shortening. A reference to 6 platforms is not a
   permanent platform list; identify the intended accounts for the actual request.
-- Link the full replay or article where readers can watch or read it. Keep post text, video,
-  thumbnail and link preview consistent. Retain useful context without repeating what the media
+- Prefer the relevant Alethical website replay or article when the platform supports a working
+  link. Bring readers to the website to watch, explore, share its pages and potentially link to them;
+  these goals do not establish ranking gains or mean clicks directly improve search ranking.
+  Preserve explicit destination choices, including the retained Instagram YouTube channel bio link.
+  This priority does not authorize unrelated retroactive edits. Keep post text, video, thumbnail
+  and link preview consistent. Retain useful context without repeating what the media
   already makes clear. Resolve routine size and format constraints using the shared guide's
   source-preserving adaptation method; keep candidate names, faces and approved artwork intact.
 
@@ -234,9 +238,11 @@ bio selector's YouTube channel link to the full debate, followed by the visible 
 Keep the existing **YouTube** bio link to [Alethical’s channel](https://www.youtube.com/@Alethical)
 so visitors can browse the full collection as well as the debate. Preserve Website and the other
 links; no bio replacement or reordering is requested. The current caption directions remain correct.
-Publish a Story for this full-debate post with a direct
-[YouTube replay link](https://www.youtube.com/watch?v=y66-Wf9bNio) sticker and retain it in a Debates
-Highlight where supported. The next short’s Story uses the same replay link. These actions are
+Publish a Story for this full-debate post with 1 tappable sticker labelled **Watch the full debate**
+pointing to the [website replay](https://www.alethical.com/blog/events/forward-debate-2026), and retain
+it in a Debates Highlight where supported. The next short’s Story uses the same website sticker.
+Stories need no extra YouTube link or printed website URL; this exception leaves the existing feed
+caption and channel bio unchanged. These actions are
 approved, with completion recorded only after saved-result checks. Begin the first short on each
 platform and compare results after that round; short 01’s unresolved quality defects remain holds.
 Keep public contact email reachable through an available contact field or suitable bio/display-name
