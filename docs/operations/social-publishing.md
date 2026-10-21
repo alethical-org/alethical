@@ -17,8 +17,8 @@ in the rule it changes; a case-specific choice stays in the post's record. Do no
 into both repos or turn an untested guess into a standing requirement. Apply each evolved rule to
 all relevant platforms under the shared guide. Assess each destination's actual capabilities and
 record evidence for Alethical-specific exceptions here. Before preparing each destination, use the
-shared guide's feature assessment to recommend useful promotion choices for that account, including
-discovery options beyond prominent placement. Scope does not authorize extra posting or account actions.
+shared guide's feature assessment to research, select and apply useful promotion choices for that
+account under the standing future-post approval below, including discovery beyond prominent placement.
 
 ## Write the result, its meaning and what comes next
 
@@ -69,6 +69,17 @@ leave the coalition unnamed or rely on a separate replay link to explain the aff
 
 ## Publish and maintain the existing post
 
+For every future authorized Alethical social post, standing approval covers proactive research,
+selection and application of evidence-supported relevant hashtags and useful platform promotion
+features without separate approval for each tactic. Use the actual account and format, weigh space,
+content and cost tradeoffs, verify the native result and preserve useful existing placements. This
+includes appropriate pins, Highlights and other supported promotion features within that post's scope.
+
+This approval applies going forward. It does not authorize retroactive edits to existing posts,
+independent new posts or recipients, paid upgrades, advertising spend or recurring paid work.
+Explicit review-before-publication holds still control publication; prepare the tactics for that
+review. Content-specific holds, including short 01, remain unchanged.
+
 Use the chosen connected publishing service within its approved free-account scope. Facebook and
 LinkedIn announcements remain with Zernio. Adeli is the selected route for the 3 connected Alethical
 accounts: TikTok **Alethical.com**, YouTube **@alethical** and Bluesky **@alethical.com**. Recheck
@@ -93,28 +104,32 @@ saved post shows the intended text and links on the correct account.
 ## Keep significant milestones visible
 
 Significant milestones should help new visitors understand Alethical's work. When preparing a post,
-suggest an appropriate pin, featured placement or equivalent on each relevant platform using the
+select and apply an appropriate pin, featured placement or equivalent within the future authorized
+post's standing scope, using the
 [shared placement guidance](https://github.com/euglopi/tool-settings/blob/main/shared/guides/social-publishing.md#keep-significant-posts-easy-to-find).
-Assess the actual account, format, current placements and limits before suggesting an addition,
+Assess the actual account, format, current placements and limits before choosing an addition,
 reorder or replacement. A useful existing milestone remains when the platform supports adding more.
 
 When a slot is scarce or the collection is full, compare what visitors would gain from the new
-milestone and suggest a replacement only when it serves them better. Do not remove a featured post
-merely because a new one is added, set an automatic expiry, or delete the underlying post. LinkedIn
+milestone and replace the placement within approved scope only when it serves them better. Do not
+remove a featured post merely because a new one is added, set an automatic expiry, or delete the
+underlying post. LinkedIn
 features accumulate within its documented limit; the shared guide owns the current platform details.
-Future posting work includes this placement recommendation, not automatic permission to publish,
-pin, feature, reorder or remove material on another account.
+Future authorized posting includes these placement choices under the standing approval above;
+keep them within the intended post and account, with saved-result checks and any explicit review hold.
 
 The Forward Debate replay announcement is a significant milestone. Pinning its Facebook post and
 featuring its LinkedIn post are authorized for this announcement. Pinning its X post and adding it
 to Highlights are also authorized if neither incurs extra cost. Saved results belong with the post
-records. These approvals do not extend to other platforms or future announcements.
+records. These per-post actions remain historical facts; future authorized announcements follow the
+standing approval above, without retroactively changing other existing posts.
 
 ## Forward Debate discovery recommendations
 
 The [shared discovery assessment](https://github.com/euglopi/tool-settings/blob/main/shared/guides/social-publishing.md#search-wording-and-hashtag-placement)
-owns platform evidence and its limits. These recommendations are not authorization for hashtag edits
-or new comments; no measured reach gain is claimed.
+owns platform evidence and its limits. Suggestions for already-published posts remain unapplied and
+are not authorized retroactively. For future authorized posts, select and apply the suitable treatment
+under the standing approval above. No measured reach gain is claimed.
 
 | Destination | Proposed treatment |
 | --- | --- |
