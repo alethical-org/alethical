@@ -4,6 +4,9 @@ This guide owns Alethical-specific social writing and publication practice. Vide
 in the [separate video guide](video/shorts-guide.md); website and YouTube publication belongs in
 [blog-publishing.md](blog-publishing.md).
 
+The [profile and engagement review](social-profile-review.md) records account evidence and proposed
+profile, Story and follow work; its research status does not authorize live changes.
+
 ## Read both sources and keep learning
 
 Before drafting, posting or editing, read this guide and the
