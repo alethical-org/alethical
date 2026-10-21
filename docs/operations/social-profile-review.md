@@ -167,8 +167,29 @@ Campaign intelligence, research & analytics. Candidate tools, debates & Minnesot
 
 **Share your edits** was dismissed with **No Thanks**; no social announcement was generated for
 the profile change. The 878-character overview and 8 specialties are saved and verified in the
-public member About view. The exact overview text and specialty labels await the separate source
-receipt; their saved presence is confirmed.
+public member About view. Exact saved overview source:
+
+```text
+Alethical is a platform for understanding government and supporting campaigns.
+
+We offer political intelligence, research and campaign analytics, plus tools and resources to help candidates of any party, including independents, run effectively. We host political debates that give voters a chance to hear candidates answer hard questions.
+
+Explore Minnesota bills, votes, legislators, campaign money and lobbying in plain language, with links to official records. Our services also include campaign-finance research, websites, marketing, content and custom software.
+
+Contact: ask@alethical.com
+
+Find us elsewhere:
+Facebook: https://www.facebook.com/Alethical
+Instagram: https://www.instagram.com/alethicaltruth/
+YouTube: https://www.youtube.com/@Alethical
+X: https://x.com/alethical
+Bluesky: https://bsky.app/profile/alethical.com
+TikTok: https://www.tiktok.com/@alethicaltruth
+```
+
+The 8 public specialties are **Campaign analytics; Political intelligence; Research; Candidate
+tools and resources; Political debates; Campaign finance; Legislative tracking; Websites and
+custom software**.
 
 The overview includes **ask@alethical.com** and addresses for the 6 other platforms. Those addresses
 render as plain text, not native clickable anchors. The dedicated website field is clickable.
@@ -183,6 +204,22 @@ The public member view shows 33 followers. Admin’s displayed last-7-days figur
 impressions, 16 Page visitors and 0 new followers; the linked UI window is October 12–18, 2026.
 These are a historical baseline, not results attributable to the profile changes.
 
+
+### X
+
+The saved bio is verified in the public profile at 142/160 characters:
+
+```text
+Campaign intelligence, research & analytics. Candidate tools, resources & debates. Minnesota government & money, made clear. ask@alethical.com
+```
+
+Minnesota location and the website were retained. The observed baseline is 4 followers and 18
+following, with 10 views on the full announcement and 8 on the first short. These are observations,
+not effects attributed to the bio change.
+
+Professional editing exposed only Location and Communities spotlights. Location requires a street
+address, which was not added. Additional social-link fields have not been established; no claim
+is made that the 6 other accounts have clickable cross-links here. Remaining settings review is pending.
 
 ## Writing for the approved rollout
 
