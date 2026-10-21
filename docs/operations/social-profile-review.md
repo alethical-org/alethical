@@ -246,6 +246,34 @@ invitations; group invitations were restored to **People I follow**. Refreshed s
 **DMs: Everyone** and **group invitations: People I follow**. The broader group setting was not
 retained by implication, and no outbound message was sent.
 
+### TikTok
+
+The native profile editor exposes photo, username, name and an 80-character bio, with no link
+fields. The prepared 79-character replacement is **not saved**:
+
+```text
+Campaign research, analytics, tools & debates. MN government. ask@alethical.com
+```
+
+Both paste and typeText save attempts failed to persist after refresh. The live bio remains:
+
+```text
+Ask@alethical.com | Minnesota politics. Bills, votes, legislators, money.
+```
+
+The bio update remains pending; no working website or YouTube profile-link field is established.
+The observed baseline is 1 follower, 1 following, 1 like and 63 views on the first short. These
+figures do not establish the effect of profile work.
+
+Private account is off and comments are **Everyone**. DMs from potential connections and **Others
+on TikTok** go to **Requests**. Business verification is off. No security or advertising settings
+were changed.
+
+The expanded short caption shows 3 hashtags as plain text; native hashtag links are not established.
+The video player menu exposed speed, quality, autoscroll and similar playback controls, with no
+Pin, Story or playlist action there. This does not establish that the account lacks those features;
+the relevant mobile controls still require inspection.
+
 ## Writing for the approved rollout
 
 Describe the broad government/campaign platform while leading with campaigns/elections/debate
