@@ -166,8 +166,22 @@ Campaign intelligence, research & analytics. Candidate tools, debates & Minnesot
 ```
 
 **Share your edits** was dismissed with **No Thanks**; no social announcement was generated for
-the profile change. The 878-character overview and 8 specialties are still being saved; their
-completion is not yet established.
+the profile change. The 878-character overview and 8 specialties are saved and verified in the
+public member About view. The exact overview text and specialty labels await the separate source
+receipt; their saved presence is confirmed.
+
+The overview includes **ask@alethical.com** and addresses for the 6 other platforms. Those addresses
+render as plain text, not native clickable anchors. The dedicated website field is clickable.
+Industry **Technology, Information and Internet**, size **2–10**, location **Breezy Point** and
+founded **2026** were retained.
+
+Messaging and **Visit website** are on. The website button’s HTTP address was normalized to
+**https://www.alethical.com/** and saved; the member More action now exposes the website. No
+profile-change announcement was generated.
+
+The public member view shows 33 followers. Admin’s displayed last-7-days figures are 27 post
+impressions, 16 Page visitors and 0 new followers; the linked UI window is October 12–18, 2026.
+These are a historical baseline, not results attributable to the profile changes.
 
 
 ## Writing for the approved rollout
