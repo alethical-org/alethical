@@ -57,7 +57,8 @@ advanced away before stable removal was possible. No desktop deletion was clicke
 [Adeli’s posts API](https://www.tryadeli.com/docs/api/posts) documents deletion for X and Bluesky,
 not TikTok. The user completed deletion in the TikTok app; the refreshed native public profile and
 Studio rows confirmed removal on October 21, 2026. The prior app-only blocker is resolved for this
-photo. No replacement was published.
+photo. No replacement was published. The [shared removal workflow](https://github.com/euglopi/tool-settings/blob/main/shared/guides/social-publishing.md#remove-the-exact-post-through-a-supported-route)
+owns the reusable mobile-app route, exact-post guard and saved-removal checks.
 
 A 12-second silent still-video experiment exists only in scratch; it is not published, adopted as
 current media or copied into this record’s media collection. Short 01’s separate posting hold remains.
