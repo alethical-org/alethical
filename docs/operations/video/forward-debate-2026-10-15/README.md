@@ -8,7 +8,7 @@ Angel Zierden left, Aaron Brutger middle, Trent Dilks right. The camera never mo
 Public edition: https://www.youtube.com/watch?v=y66-Wf9bNio (full video, 2:03:21.85). Page:
 https://www.alethical.com/blog/events/forward-debate-2026.
 
-This folder preserves the recipes and inputs for the full edition and short 01. The full-edition
+This folder preserves the recipes and inputs for the full edition and shorts 01–02. The full-edition
 rebuild remains untested; short recovery evidence is recorded separately. What lives where: [INVENTORY.json](INVENTORY.json). How to get the media back:
 [restore.md](restore.md). How to rebuild: [rebuild.md](rebuild.md).
 
@@ -140,6 +140,15 @@ Effects, prompt recorded as history in [decision-inventory.md](decision-inventor
 influence 60%. The file is the sound.
 
 Every correction, version and rejected approach: [decision-inventory.md](decision-inventory.md).
+
+## Short 02: Flock cameras
+
+[The private short 02 package](short-02/README.md) preserves the complete question and both answers,
+including Aaron’s concession, with unresolved words marked. Its current draft v2 is 90.400 seconds,
+with a website-first closing, a cover and 7 platform-copy drafts. Preparation does not approve
+publication: no social upload or schedule, no publication before October 22, 2026.
+[Exact backup receipts](short-02/backup-receipt.json) own local/Drive verification; native previews
+and any further resolution of uncertain words remain separate.
 
 ## Verification record
 

@@ -1,0 +1,60 @@
+{
+  "source_frames_stereo": 4060800,
+  "output_body_frames_stereo": 4060800,
+  "same_length": true,
+  "zero_offset_correlation_excluding_fades": 0.9997187162800689,
+  "rms_ratio_excluding_fades": 0.9968210808227818,
+  "sections": [
+    {
+      "section": "question",
+      "body_seconds": [
+        0.5,
+        3.0
+      ],
+      "correlation": 0.9999026469145273,
+      "rms_ratio": 0.9980263367411067
+    },
+    {
+      "section": "Trent",
+      "body_seconds": [
+        10,
+        40
+      ],
+      "correlation": 0.9996366436184596,
+      "rms_ratio": 0.9966956653957652
+    },
+    {
+      "section": "Aaron",
+      "body_seconds": [
+        50,
+        75
+      ],
+      "correlation": 0.9998827068273222,
+      "rms_ratio": 0.99759460160182
+    },
+    {
+      "section": "concession",
+      "body_seconds": [
+        74.94,
+        76.78
+      ],
+      "correlation": 0.9998882114230541,
+      "rms_ratio": 0.9980451590770169
+    },
+    {
+      "section": "last_words",
+      "body_seconds": [
+        82.44,
+        83.88
+      ],
+      "correlation": 0.9999166399547114,
+      "rms_ratio": 0.9974644467818007
+    }
+  ],
+  "speech_peak_dbfs": -1.3523532152175903,
+  "closing_peak_dbfs": -6.109798431396484,
+  "closing_rms_dbfs": -20.529830932617188,
+  "speech_rms_dbfs": -16.981216430664062,
+  "listening": "Not performed; no supported listening tool in preparing helper. Measurements do not settle disputed words.",
+  "timing": "Final retained word anchor source3184.52; audio fade begins3185.19, 0.67seconds later. Next question source3185.82 is outside clip."
+}

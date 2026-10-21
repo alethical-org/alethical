@@ -72,7 +72,9 @@ Readable text and sound
   before joining shots, so frame-rate rounding cannot put a name on the next person.
 - Keep captions apart from name tags and from the destination app's controls. Phone size and real
   controls decide whether placement works. The redundant green speaker label was removed from
-  clip 01's cutaways; another exchange still needs unambiguous speaker identity.
+  clip 01's cutaways; another exchange still needs unambiguous speaker identity. Regroup long
+  captions at actual phrase/word boundaries before shrinking text. A line limit must not create an
+  isolated word or fragment too brief to read; inspect cue duration and the rendered transition.
 - Keep the logo's growth smooth. Whole-pixel steps and shrinking artifacts caused visible shaking;
   drawing the intro frames at 8x size and shrinking them solved this example.
 - Reuse the exact saved closing sound. Its generation prompt is history, not a recipe for the same

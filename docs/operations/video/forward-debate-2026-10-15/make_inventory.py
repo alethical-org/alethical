@@ -21,6 +21,15 @@ MEDIA = [
     ('references/short-01-33cae638.mp4', '01-We-Disagree-We-Can-Still-Grab-a-Beer-v2.mp4', 'Frozen v2 short 01 recovery reference; Aaron first tag 6 seconds'),
     ('shorts/01-We-Disagree-We-Can-Still-Grab-a-Beer-v3.mp4', '01-We-Disagree-We-Can-Still-Grab-a-Beer-v3.mp4', 'Published short 01 v3; corrected cut-boundary name tags'),
     ('shorts/01-cover-v3.jpg', '01-cover-v3.jpg', 'Short 01 v3 cover; frame extracted at 3.5 seconds'),
+    ('social-media/debate-highlight-cover-photo.png', 'debate-highlight-cover-photo.png', 'Instagram Debate Highlight cover image'),
+    ('social-media/forward-debate-story-website.png', 'forward-debate-story-website.png', 'Published first-short Story image with website replay link'),
+    ('shorts/02-Both-Candidates-Oppose-Flock-Cameras-draft-v2.mp4', 'short-02-draft-v2/02-Both-Candidates-Oppose-Flock-Cameras-draft-v2.mp4', 'Unpublished short 02 draft v2 for review'),
+    ('shorts/02-cover-draft-v2.jpg', 'short-02-draft-v2/02-cover-draft-v2.jpg', 'Short 02 draft v2 cover; frame extracted at 3.0 seconds'),
+    ('shorts/02-draft-v2-recipe.zip', 'short-02-draft-v2/02-draft-v2-recipe.zip', 'Short 02 draft v2 render recipe with frozen short 01 intro, audio and fonts'),
+    ('shorts/02-review-audio/Trent-opening.wav', 'short-02-draft-v2/review-audio/Trent-opening.wav', 'Short 02 source audio excerpt for human review of unclear words'),
+    ('shorts/02-review-audio/Trent-rules.wav', 'short-02-draft-v2/review-audio/Trent-rules.wav', 'Short 02 source audio excerpt for human review of unclear words'),
+    ('shorts/02-review-audio/Trent-ending.wav', 'short-02-draft-v2/review-audio/Trent-ending.wav', 'Short 02 source audio excerpt for human review of unclear words'),
+    ('shorts/02-review-audio/Aaron-ending-with-concession.wav', 'short-02-draft-v2/review-audio/Aaron-ending-with-concession.wav', 'Short 02 source audio excerpt for human review of unclear words'),
 ]
 
 
