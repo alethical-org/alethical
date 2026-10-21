@@ -75,6 +75,25 @@ connector post ID when available, live address, schedule/status, changes and com
 Credentials and authentication data stay out of the record. Publishing is complete only when the
 saved post shows the intended text and links on the correct account.
 
+## Keep significant milestones visible
+
+Significant milestones should help new visitors understand Alethical's work. When preparing a post,
+suggest an appropriate pin, featured placement or equivalent on each relevant platform using the
+[shared placement guidance](https://github.com/euglopi/tool-settings/blob/main/shared/guides/social-publishing.md#keep-significant-posts-easy-to-find).
+Assess the actual account, format, current placements and limits before suggesting an addition,
+reorder or replacement. A useful existing milestone remains when the platform supports adding more.
+
+When a slot is scarce or the collection is full, compare what visitors would gain from the new
+milestone and suggest a replacement only when it serves them better. Do not remove a featured post
+merely because a new one is added, set an automatic expiry, or delete the underlying post. LinkedIn
+features accumulate within its documented limit; the shared guide owns the current platform details.
+Future posting work includes this placement recommendation, not automatic permission to publish,
+pin, feature, reorder or remove material on another account.
+
+The Forward Debate replay announcement is a significant milestone. Pinning its Facebook post and
+featuring its LinkedIn post are authorized for this announcement; saved placement results belong
+with the post records. This approval does not extend to other platforms or future announcements.
+
 ## Forward Debate worked example
 
 The [full replay announcement on Facebook](https://www.facebook.com/122132302695275386/posts/122132302659275386)
