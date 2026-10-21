@@ -1,0 +1,581 @@
+{
+  "purpose": "Inspect rebuilt current short at intro, every shot/tag/caption boundary and closing; reproduction only, not posting or listening approval.",
+  "frame_numbering": "0-based, 30 fps",
+  "frames": [
+    {
+      "frame": 0,
+      "seconds": 0.0,
+      "covers": [
+        "0.000s intro start"
+      ]
+    },
+    {
+      "frame": 1,
+      "seconds": 0.03333333333333333,
+      "covers": [
+        "0.000s intro start"
+      ]
+    },
+    {
+      "frame": 10,
+      "seconds": 0.3333333333333333,
+      "covers": [
+        "0.350s intro fade in complete"
+      ]
+    },
+    {
+      "frame": 11,
+      "seconds": 0.36666666666666664,
+      "covers": [
+        "0.350s intro fade in complete"
+      ]
+    },
+    {
+      "frame": 12,
+      "seconds": 0.4,
+      "covers": [
+        "0.350s intro fade in complete"
+      ]
+    },
+    {
+      "frame": 27,
+      "seconds": 0.9,
+      "covers": [
+        "interior sample"
+      ]
+    },
+    {
+      "frame": 47,
+      "seconds": 1.5666666666666667,
+      "covers": [
+        "1.600s intro fade out begins"
+      ]
+    },
+    {
+      "frame": 48,
+      "seconds": 1.6,
+      "covers": [
+        "1.600s intro fade out begins"
+      ]
+    },
+    {
+      "frame": 49,
+      "seconds": 1.6333333333333333,
+      "covers": [
+        "1.600s intro fade out begins"
+      ]
+    },
+    {
+      "frame": 53,
+      "seconds": 1.7666666666666666,
+      "covers": [
+        "1.800s debate begins"
+      ]
+    },
+    {
+      "frame": 54,
+      "seconds": 1.8,
+      "covers": [
+        "1.800s debate begins"
+      ]
+    },
+    {
+      "frame": 55,
+      "seconds": 1.8333333333333333,
+      "covers": [
+        "1.800s debate begins"
+      ]
+    },
+    {
+      "frame": 59,
+      "seconds": 1.9666666666666666,
+      "covers": [
+        "2.000s debate fade in complete"
+      ]
+    },
+    {
+      "frame": 60,
+      "seconds": 2.0,
+      "covers": [
+        "2.000s debate fade in complete",
+        "interior sample"
+      ]
+    },
+    {
+      "frame": 61,
+      "seconds": 2.033333333333333,
+      "covers": [
+        "2.000s debate fade in complete"
+      ]
+    },
+    {
+      "frame": 86,
+      "seconds": 2.8666666666666667,
+      "covers": [
+        "2.900s caption 1 begins: Trent and I do not agree on everything."
+      ]
+    },
+    {
+      "frame": 87,
+      "seconds": 2.9,
+      "covers": [
+        "2.900s caption 1 begins: Trent and I do not agree on everything."
+      ]
+    },
+    {
+      "frame": 88,
+      "seconds": 2.933333333333333,
+      "covers": [
+        "2.900s caption 1 begins: Trent and I do not agree on everything."
+      ]
+    },
+    {
+      "frame": 148,
+      "seconds": 4.933333333333334,
+      "covers": [
+        "4.950s caption 1 ends",
+        "4.950s caption 2 begins: There are some things we strongly disagree on."
+      ]
+    },
+    {
+      "frame": 149,
+      "seconds": 4.966666666666667,
+      "covers": [
+        "4.950s caption 1 ends",
+        "4.950s caption 2 begins: There are some things we strongly disagree on."
+      ]
+    },
+    {
+      "frame": 150,
+      "seconds": 5.0,
+      "covers": [
+        "4.950s caption 1 ends",
+        "4.950s caption 2 begins: There are some things we strongly disagree on."
+      ]
+    },
+    {
+      "frame": 165,
+      "seconds": 5.5,
+      "covers": [
+        "interior sample"
+      ]
+    },
+    {
+      "frame": 211,
+      "seconds": 7.033333333333333,
+      "covers": [
+        "7.050s caption 2 ends"
+      ]
+    },
+    {
+      "frame": 212,
+      "seconds": 7.066666666666666,
+      "covers": [
+        "7.050s caption 2 ends"
+      ]
+    },
+    {
+      "frame": 213,
+      "seconds": 7.1,
+      "covers": [
+        "7.050s caption 2 ends"
+      ]
+    },
+    {
+      "frame": 214,
+      "seconds": 7.133333333333334,
+      "covers": [
+        "7.150s caption 3 begins: However, if he wants,"
+      ]
+    },
+    {
+      "frame": 215,
+      "seconds": 7.166666666666667,
+      "covers": [
+        "7.150s caption 3 begins: However, if he wants,"
+      ]
+    },
+    {
+      "frame": 216,
+      "seconds": 7.2,
+      "covers": [
+        "7.150s caption 3 begins: However, if he wants,"
+      ]
+    },
+    {
+      "frame": 233,
+      "seconds": 7.766666666666667,
+      "covers": [
+        "7.800s Aaron tag ends"
+      ]
+    },
+    {
+      "frame": 234,
+      "seconds": 7.8,
+      "covers": [
+        "7.800s Aaron tag ends"
+      ]
+    },
+    {
+      "frame": 235,
+      "seconds": 7.833333333333333,
+      "covers": [
+        "7.800s Aaron tag ends"
+      ]
+    },
+    {
+      "frame": 280,
+      "seconds": 9.333333333333334,
+      "covers": [
+        "9.350s caption 3 ends",
+        "9.350s caption 4 begins: I'll go grab a beer with him,",
+        "9.350s cut to Trent and tag begins"
+      ]
+    },
+    {
+      "frame": 281,
+      "seconds": 9.366666666666667,
+      "covers": [
+        "9.350s caption 3 ends",
+        "9.350s caption 4 begins: I'll go grab a beer with him,",
+        "9.350s cut to Trent and tag begins"
+      ]
+    },
+    {
+      "frame": 282,
+      "seconds": 9.4,
+      "covers": [
+        "9.350s caption 3 ends",
+        "9.350s caption 4 begins: I'll go grab a beer with him,",
+        "9.350s cut to Trent and tag begins"
+      ]
+    },
+    {
+      "frame": 331,
+      "seconds": 11.033333333333333,
+      "covers": [
+        "11.050s caption 4 ends",
+        "11.050s caption 5 begins: and I would assume he would do the same."
+      ]
+    },
+    {
+      "frame": 332,
+      "seconds": 11.066666666666666,
+      "covers": [
+        "11.050s caption 4 ends",
+        "11.050s caption 5 begins: and I would assume he would do the same."
+      ]
+    },
+    {
+      "frame": 333,
+      "seconds": 11.1,
+      "covers": [
+        "11.050s caption 4 ends",
+        "11.050s caption 5 begins: and I would assume he would do the same."
+      ]
+    },
+    {
+      "frame": 373,
+      "seconds": 12.433333333333334,
+      "covers": [
+        "12.450s cut to Angel and tag begins"
+      ]
+    },
+    {
+      "frame": 374,
+      "seconds": 12.466666666666667,
+      "covers": [
+        "12.450s cut to Angel and tag begins"
+      ]
+    },
+    {
+      "frame": 375,
+      "seconds": 12.5,
+      "covers": [
+        "12.450s cut to Angel and tag begins"
+      ]
+    },
+    {
+      "frame": 394,
+      "seconds": 13.133333333333333,
+      "covers": [
+        "13.150s caption 5 ends"
+      ]
+    },
+    {
+      "frame": 395,
+      "seconds": 13.166666666666666,
+      "covers": [
+        "13.150s caption 5 ends"
+      ]
+    },
+    {
+      "frame": 396,
+      "seconds": 13.2,
+      "covers": [
+        "13.150s caption 5 ends"
+      ]
+    },
+    {
+      "frame": 397,
+      "seconds": 13.233333333333333,
+      "covers": [
+        "13.250s caption 6 begins: We have before, yes."
+      ]
+    },
+    {
+      "frame": 398,
+      "seconds": 13.266666666666667,
+      "covers": [
+        "13.250s caption 6 begins: We have before, yes."
+      ]
+    },
+    {
+      "frame": 399,
+      "seconds": 13.3,
+      "covers": [
+        "13.250s caption 6 begins: We have before, yes."
+      ]
+    },
+    {
+      "frame": 424,
+      "seconds": 14.133333333333333,
+      "covers": [
+        "14.150s cut to Aaron, no repeat tag"
+      ]
+    },
+    {
+      "frame": 425,
+      "seconds": 14.166666666666666,
+      "covers": [
+        "14.150s cut to Aaron, no repeat tag"
+      ]
+    },
+    {
+      "frame": 426,
+      "seconds": 14.2,
+      "covers": [
+        "14.150s cut to Aaron, no repeat tag"
+      ]
+    },
+    {
+      "frame": 460,
+      "seconds": 15.333333333333334,
+      "covers": [
+        "15.350s caption 6 ends"
+      ]
+    },
+    {
+      "frame": 461,
+      "seconds": 15.366666666666667,
+      "covers": [
+        "15.350s caption 6 ends"
+      ]
+    },
+    {
+      "frame": 462,
+      "seconds": 15.4,
+      "covers": [
+        "15.350s caption 6 ends"
+      ]
+    },
+    {
+      "frame": 502,
+      "seconds": 16.733333333333334,
+      "covers": [
+        "16.750s caption 7 begins: We can disagree without being hostile."
+      ]
+    },
+    {
+      "frame": 503,
+      "seconds": 16.766666666666666,
+      "covers": [
+        "16.750s caption 7 begins: We can disagree without being hostile."
+      ]
+    },
+    {
+      "frame": 504,
+      "seconds": 16.8,
+      "covers": [
+        "16.750s caption 7 begins: We can disagree without being hostile."
+      ]
+    },
+    {
+      "frame": 631,
+      "seconds": 21.033333333333335,
+      "covers": [
+        "21.050s caption 7 ends"
+      ]
+    },
+    {
+      "frame": 632,
+      "seconds": 21.066666666666666,
+      "covers": [
+        "21.050s caption 7 ends"
+      ]
+    },
+    {
+      "frame": 633,
+      "seconds": 21.1,
+      "covers": [
+        "21.050s caption 7 ends"
+      ]
+    },
+    {
+      "frame": 655,
+      "seconds": 21.833333333333332,
+      "covers": [
+        "21.850s caption 8 begins: We need to make sure Minnesota comes first."
+      ]
+    },
+    {
+      "frame": 656,
+      "seconds": 21.866666666666667,
+      "covers": [
+        "21.850s caption 8 begins: We need to make sure Minnesota comes first."
+      ]
+    },
+    {
+      "frame": 657,
+      "seconds": 21.9,
+      "covers": [
+        "21.850s caption 8 begins: We need to make sure Minnesota comes first."
+      ]
+    },
+    {
+      "frame": 757,
+      "seconds": 25.233333333333334,
+      "covers": [
+        "25.250s caption 8 ends"
+      ]
+    },
+    {
+      "frame": 758,
+      "seconds": 25.266666666666666,
+      "covers": [
+        "25.250s caption 8 ends",
+        "25.300s picture fade begins"
+      ]
+    },
+    {
+      "frame": 759,
+      "seconds": 25.3,
+      "covers": [
+        "25.250s caption 8 ends",
+        "25.300s picture fade begins"
+      ]
+    },
+    {
+      "frame": 760,
+      "seconds": 25.333333333333332,
+      "covers": [
+        "25.300s picture fade begins"
+      ]
+    },
+    {
+      "frame": 764,
+      "seconds": 25.466666666666665,
+      "covers": [
+        "25.500s audio fade begins"
+      ]
+    },
+    {
+      "frame": 765,
+      "seconds": 25.5,
+      "covers": [
+        "25.500s audio fade begins"
+      ]
+    },
+    {
+      "frame": 766,
+      "seconds": 25.533333333333335,
+      "covers": [
+        "25.500s audio fade begins"
+      ]
+    },
+    {
+      "frame": 773,
+      "seconds": 25.766666666666666,
+      "covers": [
+        "25.800s closing begins"
+      ]
+    },
+    {
+      "frame": 774,
+      "seconds": 25.8,
+      "covers": [
+        "25.800s closing begins"
+      ]
+    },
+    {
+      "frame": 775,
+      "seconds": 25.833333333333332,
+      "covers": [
+        "25.800s closing begins"
+      ]
+    },
+    {
+      "frame": 782,
+      "seconds": 26.066666666666666,
+      "covers": [
+        "26.100s closing fade in complete"
+      ]
+    },
+    {
+      "frame": 783,
+      "seconds": 26.1,
+      "covers": [
+        "26.100s closing fade in complete"
+      ]
+    },
+    {
+      "frame": 784,
+      "seconds": 26.133333333333333,
+      "covers": [
+        "26.100s closing fade in complete"
+      ]
+    },
+    {
+      "frame": 810,
+      "seconds": 27.0,
+      "covers": [
+        "interior sample"
+      ]
+    },
+    {
+      "frame": 850,
+      "seconds": 28.333333333333332,
+      "covers": [
+        "interior sample"
+      ]
+    },
+    {
+      "frame": 875,
+      "seconds": 29.166666666666668,
+      "covers": [
+        "29.200s closing sound fade begins"
+      ]
+    },
+    {
+      "frame": 876,
+      "seconds": 29.2,
+      "covers": [
+        "29.200s closing sound fade begins"
+      ]
+    },
+    {
+      "frame": 877,
+      "seconds": 29.233333333333334,
+      "covers": [
+        "29.200s closing sound fade begins"
+      ]
+    },
+    {
+      "frame": 893,
+      "seconds": 29.766666666666666,
+      "covers": [
+        "29.800s end"
+      ]
+    }
+  ]
+}

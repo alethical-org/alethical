@@ -1,0 +1,19 @@
+{
+  "started_utc": "2026-10-21T00:46:29.396803+00:00",
+  "tested_commit": "b6f5521f65cb8e69165f19827f0bc025d90aa7b8",
+  "command": [
+    "python3",
+    "-I",
+    "<recovery-workspace>/recovery-fresh-clone/shared/alethical-video/forward-debate-2026-10-15/short-01/render.py",
+    "--source",
+    "<recovery-workspace>/restored-media/ForwardDebate-sound-fixed.mov",
+    "--out",
+    "<recovery-workspace>/recovery-test-current.mp4"
+  ],
+  "permitted_attempt": 1,
+  "status": "completed",
+  "finished_utc": "2026-10-21T00:46:33.668598+00:00",
+  "elapsed_seconds": 4.271482167008799,
+  "returncode": 0,
+  "path_note": "Absolute local paths are normalized to <recovery-workspace>; the historical command arguments and measured results are otherwise preserved."
+}

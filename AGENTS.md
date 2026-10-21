@@ -42,6 +42,14 @@ the tie-breaker when a tactic and an intent disagree.
 - For article, event, recording, caption, transcript or YouTube work, including media production, use
   [`docs/operations/blog-publishing.md`](docs/operations/blog-publishing.md) for the
   upfront brief, media handoff and acceptance matrix; its links lead to owning product decisions.
+  Social writing and account work also starts with
+  [`docs/operations/social-publishing.md`](docs/operations/social-publishing.md); video editing
+  starts with [`docs/operations/video/README.md`](docs/operations/video/README.md). Read the
+  linked universal guides in tool settings too. Alethical-specific guides, rules and production
+  records live in this repo and may be public; universal platform guidance stays in tool settings.
+  Save new reusable lessons in their owning document during the task, update both repos when
+  both scopes change, and link rather than duplicate rules. Credentials and private access data
+  never belong in public records; documentation does not approve posting unfinished media.
 
 Tool note: Claude Code loads this file and everything in `.claude/rules/` into every
 session automatically; every other agent must open them itself.

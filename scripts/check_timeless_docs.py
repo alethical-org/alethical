@@ -37,6 +37,12 @@ EXEMPT = (
     "docs/operations/android-prototype-handoff.md",  # dated handoff
 )
 
+# Exact retained source transcript: quoted speech can describe history. This exemption
+# preserves source bytes and never disables internal-attribution checks.
+SOURCE_TRANSCRIPTS = {
+    "docs/operations/video/forward-debate-2026-10-15/text/ForwardDebate-transcript.md",
+}
+
 IGNORE = "timeless-check-ignore:"
 SOURCE_QUOTE = re.compile(r"<!-- doc-voice-source: https://[^\s<>]+ -->")
 
@@ -98,6 +104,7 @@ def line_findings(path: str, text: str) -> list[str]:
     if (
         path.startswith(HISTORY_PREFIXES)
         and not path.startswith(EXEMPT)
+        and path not in SOURCE_TRANSCRIPTS
         and IGNORE not in text
     ):
         findings.extend(label for pattern, label in PATTERNS if pattern.search(text))

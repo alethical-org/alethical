@@ -1,0 +1,28 @@
+{
+  "file_sizes_equal": true,
+  "differing_bytes": 1,
+  "offsets": [
+    27485
+  ],
+  "first_video_packet": {
+    "pts": 0,
+    "dts": 0,
+    "pos": "27435",
+    "size": "482"
+  },
+  "nal_units": [
+    {
+      "start": 27439,
+      "end": 27492,
+      "nal_type": 6,
+      "contains_difference": true
+    },
+    {
+      "start": 27496,
+      "end": 27917,
+      "nal_type": 5,
+      "contains_difference": false
+    }
+  ],
+  "interpretation": "The only byte difference is in an H.264 supplemental-information NAL (type6), not a picture NAL. The files are not byte-identical; decoded contents and timing match."
+}

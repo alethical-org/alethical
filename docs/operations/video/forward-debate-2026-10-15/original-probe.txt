@@ -1,0 +1,6 @@
+ffprobe of ForwardDebate.MOV (the original phone recording), run October 19, 2026, before any edit. Size 16,417,139,808 bytes.
+stream 0: hevc (hvc1), profile Main, 2652x1492 (coded 2656x1504), yuvj420p, color_range pc, bt709, 60/1 r_frame_rate, avg 89058400/1485241, duration 7426.205 s, 445292 frames, bit_rate 16894762, encoder HEVC, creation_time 2026-10-16T18:14:49.000000Z, handler Core Media Video
+stream 1: aac (mp4a) LC, 48000 Hz, stereo, duration 7426.203 s, bit_rate 194639, creation_time 2026-10-16T18:14:49.000000Z, handler Core Media Audio
+stream 2: apac (codec_tag 0x63617061), 48000 Hz, 4 channels, duration 7426.203 s, bit_rate 383308, disposition default 0
+Picture-stream digest (ffmpeg -map 0:0 -c copy -f md5): e4ce17a48e2edf3bc036df0d0122af69, equal to ForwardDebate-sound-fixed.mov stream 0.
+Audio extracted October 20, 2026: stream 1 -> ForwardDebate-original-audio-stereo.m4a (-c copy); stream 2 -> ForwardDebate-original-audio-spatial-4ch.mov (-c copy).

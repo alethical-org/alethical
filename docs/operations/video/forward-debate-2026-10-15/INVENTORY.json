@@ -1,0 +1,1388 @@
+{
+  "event": "The Forward Debate, October 15, 2026",
+  "generated": "2026-10-21T00:53:52+00:00",
+  "media_env": "ALETHICAL_MEDIA",
+  "drive_folder": "Alethical Team/Media/Forward Debate 2026-10-15",
+  "drive_account": "authorized team Drive account",
+  "inventory_note": "Repository input hashes updated for the documentation move; media backup evidence and historical recovery results are preserved. Inventory excludes its own hash; Git commit covers it. Local-only generated test outputs are not recovery inputs.",
+  "files": [
+    {
+      "path": "../.gitignore",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 23,
+      "sha256": "6feaded4e28ea86e001a6751b4e3d960e8b7c31b9616ff9936b79297086e809b",
+      "restore": "git clone"
+    },
+    {
+      "path": "../README.md",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 2144,
+      "sha256": "b06cbfa9f365638db1899acf4aaef1abaa0ffe18600d3d0ea60346d8f84b3760",
+      "restore": "git clone"
+    },
+    {
+      "path": "README.md",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 9987,
+      "sha256": "d94e0faaa64bdd2b3127e635965bea6c298ae7d9a6e15dc7cc1f6424696602ee",
+      "restore": "git clone"
+    },
+    {
+      "path": "compare_rebuild.py",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 6336,
+      "sha256": "dcf15a110179450ab6f81feca0da7056a7133ad4b80a6f210c19d47c4ca2debe",
+      "restore": "git clone"
+    },
+    {
+      "path": "decision-inventory.md",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 11280,
+      "sha256": "6ab6de1a72bdad53c62e56baf90a7375347ccf87d86f5ef38e95dfa60ec0292f",
+      "restore": "git clone"
+    },
+    {
+      "path": "fonts/LibreFranklin-Bold.ttf",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 142736,
+      "sha256": "3134a143a2a801a0e80198ea03cd7cc99066bcaeeaaecda758e852725c225303",
+      "restore": "git clone"
+    },
+    {
+      "path": "fonts/LibreFranklin-Regular.ttf",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 141724,
+      "sha256": "01e26222a56e141e3abae670ab22be77f063999fc4ef64c4a9651de19b7728a8",
+      "restore": "git clone"
+    },
+    {
+      "path": "fonts/OFL.txt",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 4495,
+      "sha256": "2710268527181a27b8e938617551bae29e714e6525247be6679bf897a9942a60",
+      "restore": "git clone"
+    },
+    {
+      "path": "full-video/build_section.py",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 11980,
+      "sha256": "a513ff9796c7e313a984046a9f1a7ac43a7e3167e519e05583f850e788c138cb",
+      "restore": "git clone"
+    },
+    {
+      "path": "full-video/cards/alethical-wordmark-black-bg.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 39593,
+      "sha256": "58bf51bb9aecb4f399f2719dc652411543d74cb92a67c7c7cdabf4e528316a45",
+      "restore": "git clone"
+    },
+    {
+      "path": "full-video/cards/base.css",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 306,
+      "sha256": "ebdd6441ea10ff3209295d51186f8d0c7a04b6f22119aaa0b0de5129386b96a7",
+      "restore": "git clone"
+    },
+    {
+      "path": "full-video/cards/end.html",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 778,
+      "sha256": "0d1d907179ec4a8f96fde227cd5f3d193d15703020552447aba20bc29214153e",
+      "restore": "git clone"
+    },
+    {
+      "path": "full-video/cards/end.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 95526,
+      "sha256": "ef639deabc1522a8a6194ef85335fed19181842ede997b3ff78225a624bd656b",
+      "restore": "git clone"
+    },
+    {
+      "path": "full-video/cards/labels-z115.html",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 878,
+      "sha256": "08ee300eb07e3fd851ed7b1c48dc6ef83e4378ed6101754220ae641713954216",
+      "restore": "git clone"
+    },
+    {
+      "path": "full-video/cards/labels-z115.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 76563,
+      "sha256": "f855f8de0c031c3a5c64df4489ed12bb1d472de93013d15712a036b4568ec63e",
+      "restore": "git clone"
+    },
+    {
+      "path": "full-video/cards/title.html",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 955,
+      "sha256": "5df4d2959cf04058636ebd0a83b368ed017cc037d21b23bd6fee590bc6d94d33",
+      "restore": "git clone"
+    },
+    {
+      "path": "full-video/cards/title.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 118066,
+      "sha256": "b2c35b8137a594230fad1154eec2e89124f07e9d7081ff9df47a9acb7eac01c7",
+      "restore": "git clone"
+    },
+    {
+      "path": "full-video/chapters.txt",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 1032,
+      "sha256": "2ca5a3049e98f554ceba1d49a08293bd63ec4eb6c5580f75bc0c2ca8639a2afd",
+      "restore": "git clone"
+    },
+    {
+      "path": "full-video/edit.json",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 301,
+      "sha256": "4845c6fbf0be9f087728101676b29ad8396ffc441373f838968d3973a940fdf5",
+      "restore": "git clone"
+    },
+    {
+      "path": "full-video/full_cfg.json",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 7474,
+      "sha256": "7f7da318f87de919ac8b933761435949a63755c6d21f858ae7023fcebcc07cdd",
+      "restore": "git clone"
+    },
+    {
+      "path": "full-video/label-check-report.json",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 3569,
+      "sha256": "0607d39749c1a23b7f81ce99fe4ad6c9eb64ea0745b2ffd0e7d7b010769a9242",
+      "restore": "git clone"
+    },
+    {
+      "path": "full-video/labelcheck.py",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 1653,
+      "sha256": "67cf1564dc76e69b8b6f15a911cdde850ef5829299a54e31b754175ef62eec15",
+      "restore": "git clone"
+    },
+    {
+      "path": "full-video/make_cards.sh",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 813,
+      "sha256": "951710064471da460f77c526ac9a867c426893bf26dd46315747c75db0bd4aaa",
+      "restore": "git clone"
+    },
+    {
+      "path": "full-video/render.py",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 3022,
+      "sha256": "60141651817e11d9dd61338dd29b58696f85f4216d9b1eba7afd13c4c8caf531",
+      "restore": "git clone"
+    },
+    {
+      "path": "full-video/transcripts/whisper-large-v3-turbo-words.json",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 2167076,
+      "sha256": "70a96d824c71a3adf8200d05c9815c229445f1335a1f1e2e04971e8f562842bb",
+      "restore": "git clone"
+    },
+    {
+      "path": "full-video/transcripts/whisper-large-v3-words.json",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 2184692,
+      "sha256": "8425709b3eb703ba80f89ec8fd465f611b567272c149191d61ef522e5d00544f",
+      "restore": "git clone"
+    },
+    {
+      "path": "full-video/turns/speaker-turns-draft.txt",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 3269,
+      "sha256": "4073b6837a1e5601bf13a933abe091ed11b5c8ea18ef0905db9026b44741baaa",
+      "restore": "git clone"
+    },
+    {
+      "path": "full-video/turns/speaker-turns-final.json",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 13540,
+      "sha256": "2770eaaabc56a4ee171177b89b4fd9ec72566b76ab613954724d9819d098f710",
+      "restore": "git clone"
+    },
+    {
+      "path": "make_inventory.py",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 5652,
+      "sha256": "1bac79a974f87d10cbc7673a12e88596e9c5e13b2d9463e15a88381e7e1a490a",
+      "restore": "git clone"
+    },
+    {
+      "path": "original-probe.txt",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 978,
+      "sha256": "8cfd16b9366553dec4fac3acc94963c7016ba9ec00b3349645e0ee97f95eefef",
+      "restore": "git clone"
+    },
+    {
+      "path": "rebuild.md",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 4950,
+      "sha256": "51be735103864bec781fc24815cafaf492ada18e3c38e78223ff5ce14b03c26c",
+      "restore": "git clone"
+    },
+    {
+      "path": "restore.md",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 2972,
+      "sha256": "972b05d041ffb2e4b6d086adf4740cd3e6510ad2ae1cf2463b4f9a2bd0a622cf",
+      "restore": "git clone"
+    },
+    {
+      "path": "restore_media.py",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 1560,
+      "sha256": "8862b9a1d5a316d629f470e30978870503e0af78ed830035a90b13b75b7f2ad2",
+      "restore": "git clone"
+    },
+    {
+      "path": "selection/README.md",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 1210,
+      "sha256": "b44388ceb8f409622328409464929f3abd3d4c7a249a171c5e440253a31f9b98",
+      "restore": "git clone"
+    },
+    {
+      "path": "selection/forward-debate-shorts-selects.md",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 51697,
+      "sha256": "375954070e50cf6276e42b71cd98c6cf2d58555f043e6adcbf5d5132f4b8927a",
+      "restore": "git clone"
+    },
+    {
+      "path": "selection/selects-data.json",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 36938,
+      "sha256": "6a2bfbc024ee7aac125a48fe3249b821114cb60a444239ab77268ce6e61fd730",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/assets/alethical-symbol-transparent.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 69924,
+      "sha256": "a12ad5748b71adb3459d386eddc44390ac5aee5941e74a22c6e25983a195968e",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/assets/closing-sound-elevenlabs-upbeat-celebratory-1.wav",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 768078,
+      "sha256": "ee6ed29aa9ea1529add35fac64ac14dfa5f335ef8a71fcaa7c7eccc4738b2ce1",
+      "restore": "git clone",
+      "local_copies": [
+        "brand-assets/closing-sound-elevenlabs-upbeat-celebratory-1.wav"
+      ]
+    },
+    {
+      "path": "short-01/caps.json",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 493,
+      "sha256": "d396137ce1627c8a42856f9631570d10c64a244ecc0bd4f5e241c43e2226d77d",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f000.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 10407,
+      "sha256": "dc7f0c2bbd4da113f6ac8767de9a2696971c5cc206d59c5b965424580dea90af",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f001.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 20947,
+      "sha256": "7e0727a67cc7b0fd3b07f23df4964f9a2bc6e953f0abc7a324620c97bfa6be0a",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f002.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 25729,
+      "sha256": "44160119a1ad0e4cb7aa6317573ee2ff525b2a4ba417475adef98f0cab74d91d",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f003.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 28956,
+      "sha256": "7f8e02338069b5a4bbe10956f67d2fb091021716ba4464b63a2a41056a93e596",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f004.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 33071,
+      "sha256": "1b5e100d9401d50900313f2bb31a8963cf3875f90ddd6349c80923bbf0128b52",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f005.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 33802,
+      "sha256": "8039160d6251cd5714fedd86eb8cac68859cb5dd34eac17ec978a4aa9726a672",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f006.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 35102,
+      "sha256": "a86ab2e02fdcc5d34d56b730f19d9990a787c3b857c7a13233a33043280c5d5f",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f007.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 38417,
+      "sha256": "fe6892052e5f4ea47872955befd306cc67147617e4079490e0d955e346b38ac6",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f008.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 43134,
+      "sha256": "7687d1c6c5a7802d670d5a95304a16ff7e2775269cd378fc490f81674c6fe028",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f009.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 45879,
+      "sha256": "905436aab75a7bf407e54be33a88abe739ee03914933f6cbb4aba9bfb4503643",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f010.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 47466,
+      "sha256": "b9db4c3c80d5f26cc48ed8efb69a646cde70953236678f5c58c4652d6b5331b2",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f011.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 51271,
+      "sha256": "471d31eb0a4f5156b233ea25a39f27277b061f38540d559b6b569c5d42a5ee8b",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f012.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 54476,
+      "sha256": "6b429849adf8b2620d8ad131a8f4c78d13dd27dbe13926ad6c64fbd30e61852e",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f013.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 56425,
+      "sha256": "590946f63cab8256cb5e6863ee71c6fa9c8edeb6966ef53d1ae79b731e949faa",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f014.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 57145,
+      "sha256": "00a7c7e1699c32f96cc151639dc777ed5204a4ef6a89fdd7c0c98169c91a8443",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f015.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 57285,
+      "sha256": "bd5b0311d0629c35447a3b5c62c41391967faa24aecdd2992847ae25a365d062",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f016.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 59334,
+      "sha256": "1874d7762c96354f328d26780b18050c34fd881d01575a1deb14e6b87a9df804",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f017.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 58963,
+      "sha256": "e915c6e7979fefdc6bc2857023ae6535d244d9f1b773a5dae02cd03ef57f799d",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f018.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 61235,
+      "sha256": "445ede6d3543f98f5f63a01a6a85f87203201568bfdb9bffe888f661abecd7d5",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f019.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 62548,
+      "sha256": "c1dfa21898154ca4816ca82b615e3a4ced69bfa23c0fd0215b0b3d6461688839",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f020.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 62361,
+      "sha256": "66ba8d2d0d568d26e1fe2f20a9bc47c54af11a796f08821b25ba6a2d4c8d3e9a",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f021.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 62388,
+      "sha256": "f8880b4f070811d17be44876a92547cb3315aaf767819f51dda03b8037109f3d",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f022.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 63521,
+      "sha256": "706f9deb94e1463a98280bc4d74995b00108b3a81835bff0cba68f4f40a33edd",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f023.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 64538,
+      "sha256": "77f46b8565ed85c1c513aa42c72df145bd7c13749d99a1bec514075c7d533ff5",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f024.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 65287,
+      "sha256": "fd59d6822f3c682985aef54d055ec9776417d8bb7ec56f5cecbe5a56bf5c5f46",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f025.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 65278,
+      "sha256": "a8077904b4319f1aeb1fe7e62b8539a308883520ea4867816c2aef5f6c9347b5",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f026.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 65796,
+      "sha256": "faf4c112dfd67ba42f625a6beacf0695c308ffbdd718ae973fe491ba25060700",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f027.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 66393,
+      "sha256": "edf36ffe30d3902694c38c2167ad248db2b8c17e5c6ada043f97c4f3820916b9",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f028.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 66038,
+      "sha256": "d86b8f99f755a333044ce99bd437806c0444ad566d6fa35f3178d0e4e93bf57c",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f029.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 67032,
+      "sha256": "e96bd1c4ae1b882001a8c55b51d3f915f6b630d9388e79cb1c24e6a4b84e7b80",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f030.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 67885,
+      "sha256": "5a78adce76ea3d07a597ea620d2c23333d3ec6c9cd22dc8bc07663578d548d2c",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f031.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 68921,
+      "sha256": "876f819de46ab6368926acc126576453fc91e3113b8f67c07ecdddf48ae4c5f9",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f032.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 69520,
+      "sha256": "142dff2b967c39c5727d00a80822682907e58bd5bddac17431c7d37bf0bff658",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f033.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 70007,
+      "sha256": "d7d8a0fd0675e3e9e6c62b29ad423fed168147ae70fd2d4ebd4135e685a55bf0",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f034.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 70953,
+      "sha256": "82250970ee441d9a56b3becf0b31907910267d2c0d99548c0eee83bc1f567d21",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f035.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 71928,
+      "sha256": "df7e39d6a540edb702245e9f072770980c52de1a026e50e0f68aa0bedce4cadd",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f036.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 72238,
+      "sha256": "055e2318748ba87aa7c612992ca0b12b994f2cc60d8ab41c9c7c634e372b76d5",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f037.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 72396,
+      "sha256": "bfcbb514b9d81a69b8d3c1e4d307058372d08169e8dc41b83aed156e14bbc317",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f038.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 72323,
+      "sha256": "df113310540fd293fbf3ad46552a869388f56f52bd6988d2ed3605cf49e0e02c",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f039.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 73112,
+      "sha256": "2f5969318cf6cacc10ec62b2ad65b2fa7edbd4ebe5f92ab2016863721ba7465d",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f040.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 73913,
+      "sha256": "92c9f006880d66358c7330c5d2d1772c2990e6763366291410027deda5a9e13f",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f041.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 73951,
+      "sha256": "a3c4f341796c52c214c2c10b587e1f6c93e8efad8948c02ea391e3e9b7ce1500",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f042.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 73105,
+      "sha256": "f69af9fd1e6d1df3c1e25a42481651da9fa082c55aea3bf4f0061628e3a47f68",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f043.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 73937,
+      "sha256": "5a52628b964785d6942bc2c295ac922285591c8e22f257c88dd5010bc5390359",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f044.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 74466,
+      "sha256": "13f6dcf5ee7de997a74ea24a18c43073c67100027485f3820a6f57230f4ba799",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f045.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 74166,
+      "sha256": "9e15d5e9eec89fcbef8248f3e639365401d538c91a76897b8f89e6c68e299042",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f046.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 73572,
+      "sha256": "7469f4a6122fc746047489bfd287ad3ca319886a63daf133556be1a8d1377c8e",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f047.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 72486,
+      "sha256": "15861229020f2db3aa76fef64fd5363cafbc50b7fefa09aff5132dadc99dc17c",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f048.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 74387,
+      "sha256": "a836ac23650f0bda6a78d93217724b44493744c0fb94f6048f52aba5f55850c5",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f049.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 69685,
+      "sha256": "a86046b497f10fa52e488a9d99ae4927956f7cfa871a583a3092e2ca493acf72",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f050.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 62998,
+      "sha256": "8a763e65d0a1f9b6c13f5d16fd044035655f050eebe7d97cc28a26d0b3674522",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f051.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 54287,
+      "sha256": "306a6251c909c7ca0c8487db215399b941790d61cbd47bdba37ffcb2aed4d101",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f052.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 43047,
+      "sha256": "63ea3cc7fec04ceef359cc3c5c69b1832025db09b1d5cc8b5fa304bbd8257265",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro-frames/f053.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 31913,
+      "sha256": "473294a144579e2ceac8f7ca9358a2264bcce04448bd9fafa8bfdf795f4ffe5b",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/intro_frames.py",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 1428,
+      "sha256": "b266136fdc8e40c9019c7c64cf736d05b5bde998b0906d6cd0fc4f9a520fedc8",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/make_overlays.sh",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 643,
+      "sha256": "03bd7ef56907bab02935da3dadddb0bd08d619f736343ce3191a64e098d02331",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/cap0.html",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 688,
+      "sha256": "29381083ed9225e922bbfbcb446739aabe41e4bee883364bdc2d8a1f978576ca",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/cap0.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 28047,
+      "sha256": "66822deb7d8ae206d76516c04e3a496f37cac9669ba429d3efcc1e5d33c95174",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/cap1.html",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 709,
+      "sha256": "603ea7a3cf866c0f0c8068020e64bbf206aacc03340892f974720d677dc9ba69",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/cap1.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 37875,
+      "sha256": "8e328f181c5a853d291c4be4cd7d89c9076152f0947fc4536cb7eaf950a4326e",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/cap2.html",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 716,
+      "sha256": "c6dd9ea50341cf6c1b97800098ae5551f6a3f0bb109a1e24bfa33551b2fa4703",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/cap2.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 44250,
+      "sha256": "7b09239c96b6cd6a255a8be54b155818ef6b5cc07e6239fab8fab6b77e75f921",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/cap3.html",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 691,
+      "sha256": "7a22255d5caeaed052ade7ceab525cc5af6d4c82d6e314abf59647f0bd606d01",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/cap3.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 26660,
+      "sha256": "44d956f485752abc8cf61de89a3ad7f106ea3a5e8aacb376a637f22dae0fc34f",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/cap4.html",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 699,
+      "sha256": "18a0d1eaf4c7c2ffa6a4f1a190d689e73d3efaca258def1eec4e2ba422fe8e08",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/cap4.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 29232,
+      "sha256": "8073255dd08b4d36f9023eb4f186d2f9413835547a6a703264278561d34c56f7",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/cap5.html",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 710,
+      "sha256": "790f00fa1241d37c0dbec33072c0260e060a1aa114e3fc399a49ff23c42df4cb",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/cap5.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 37881,
+      "sha256": "441aa40e735a875ac9efd88a6007faecd389cfd29de33ac444001390c8897832",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/cap6.html",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 690,
+      "sha256": "3d47077694556b0e6e38a7d8aa10578e33d354deb6207442077cf82c80dd1592",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/cap6.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 28386,
+      "sha256": "e06404b9155ab36d2ce89931c22751af19012740ed210ab2fc3b615eb0b1ffb3",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/cap7.html",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 708,
+      "sha256": "e699e2b7b543afb4d9a596cd1447f13f55ea781d4259c3c54f0dfb0d26a16975",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/cap7.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 41558,
+      "sha256": "e2284e04dcc7a3ce87ea6d90ed0a23b0faa40ddf79be17570977529617b620e8",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/cap8.html",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 713,
+      "sha256": "a989d4daa4cde85eb805edb753d43bfaca8e906a9852e79b6ad1d6076f362a3d",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/cap8.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 42009,
+      "sha256": "e93604edd3cfc7abc83aa36a66fe38d3e28f61772291a352b8ce3493db61fd19",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/end_logo.html",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 155,
+      "sha256": "96edb932dff4d104143b43966d2cf93e694c3509c109d7f06184b421716c314a",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/end_logo.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 12519,
+      "sha256": "f698caa0927d72d43805a5d90c3b24a2987f03a63245c301a8be44c32d46bc1e",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/end_text.html",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 1108,
+      "sha256": "720d7507b751b027e17bda79b60a1498981d9c718196d61b645149f160764718",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/end_text.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 40440,
+      "sha256": "bce1c81f87878d661d8af51d7eb367fdf6fd28dfbb355b93d77755efd9c7e48b",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/header.html",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 699,
+      "sha256": "35962a6b4636fbd1a39dfcb9c6e80f003c3194c97a2b0883a8d597553b9a2047",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/header.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 29237,
+      "sha256": "a70a0383cf47d719176075222a5f01fe324d6bb7f414e98369212bbbaacccf40",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/name_aaron.html",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 764,
+      "sha256": "628172c4b11381d0de48c72aba69019816840f19f5b4382c74c2ce4638e22fb4",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/name_aaron.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 36434,
+      "sha256": "6e70354d4a432b97d9950de4c2deff4a76366e364f83477efe7c89f03e4eda81",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/name_angel.html",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 746,
+      "sha256": "3c080a82f30765c8e75bf28ec59ac497d852cd1785aad03fd5014ea768628f88",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/name_angel.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 31181,
+      "sha256": "53cf4374d2bb694b702a1ad6ace62c4aba9fbd9f0a99c48c711dd0ef1f1c0587",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/name_trent.html",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 746,
+      "sha256": "6089bf9b71d869dca922a2b7b8f9cb5eb04c627d32c1e8ce37d9a0a1b7a791a4",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/overlays/name_trent.png",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 29961,
+      "sha256": "3e964aa63166d9655e7b731c23cb972bb7bf4e169f60eda8461d93534defc6af",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/reference-sha256.txt",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 198,
+      "sha256": "b71e2bc3d5b4d32fec83b21b114e2410c13e755a5468cbf5d380d4ddbabc9265",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/render-initial.py",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 4310,
+      "sha256": "6759b3fff53477f1109c7a59e95b3b79170d39235df7ca308fc82fcfc2630a96",
+      "restore": "git clone"
+    },
+    {
+      "path": "short-01/render.py",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 4351,
+      "sha256": "97d4a4a966ba94d7c45e4c0abf0d8876460221b7c5dac8b5d6999ace421e582b",
+      "restore": "git clone"
+    },
+    {
+      "path": "text/ForwardDebate-YouTube-description.txt",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 1609,
+      "sha256": "1e9a499709d7c6c4bb5d5266f0c804a006b03f6ea92c071e9e18f4681f931a40",
+      "restore": "git clone",
+      "local_copies": [
+        "text/ForwardDebate-YouTube-description.txt"
+      ]
+    },
+    {
+      "path": "text/ForwardDebate-YouTube-final.srt",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 160010,
+      "sha256": "d6e2e5b7f0e2072b6c92e24d6058fa114c13beda783bc6d3a8b95d9b628d65ce",
+      "restore": "git clone",
+      "local_copies": [
+        "text/ForwardDebate-YouTube-final.srt"
+      ]
+    },
+    {
+      "path": "text/ForwardDebate-chapters.csv",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 1283,
+      "sha256": "d0c4445b8e1ee5838a93bc83eabb33e043684cb5282b4c2a0d96c1f42de1f1fd",
+      "restore": "git clone",
+      "local_copies": [
+        "text/ForwardDebate-chapters.csv"
+      ]
+    },
+    {
+      "path": "text/ForwardDebate-handoff.md",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 18289,
+      "sha256": "7155c777b161e01e838c47f43ad538b036fbb3e4406271f769ef568545f7933f",
+      "restore": "git clone",
+      "local_copies": [
+        "text/ForwardDebate-handoff.md"
+      ]
+    },
+    {
+      "path": "text/ForwardDebate-thumbnail.jpg",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 167986,
+      "sha256": "8205384203f0ab08f3e673d044e68e85dda7abec0eefdb03c1ddac5176463016",
+      "restore": "git clone",
+      "local_copies": [
+        "text/ForwardDebate-thumbnail.jpg"
+      ],
+      "drive_copies": [
+        {
+          "path": "ForwardDebate-thumbnail.jpg",
+          "id": "1EBc3wS4fQgfdNUL8gnIMpslIr_9aoHJc",
+          "backup_status": "hash-matched"
+        }
+      ]
+    },
+    {
+      "path": "text/ForwardDebate-transcript.md",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 103836,
+      "sha256": "0d9c63fb4c8755d8a43a573786704e41ee1f1e39ba3f122dcd1fc24a74a73d16",
+      "restore": "git clone",
+      "local_copies": [
+        "text/ForwardDebate-transcript.md"
+      ]
+    },
+    {
+      "path": "text/ForwardDebate-turns.json",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 109922,
+      "sha256": "c51f75de2d7cd76300131b9843504d25947ffd7708cfba77e7f3664408fe553e",
+      "restore": "git clone",
+      "local_copies": [
+        "text/ForwardDebate-turns.json"
+      ]
+    },
+    {
+      "path": "text/ForwardDebate.srt",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 146939,
+      "sha256": "4c7fdf2b9cbbd8b00c084110fe8c52561349d32fe31b26048da164c08f6a9c0c",
+      "restore": "git clone",
+      "local_copies": [
+        "text/ForwardDebate.srt"
+      ]
+    },
+    {
+      "path": "text/ForwardDebate.txt",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 99194,
+      "sha256": "303a94285735ce8a9a4829210b7ab33993d0138ceabac65e8d30d6f010b677b2",
+      "restore": "git clone",
+      "local_copies": [
+        "text/ForwardDebate.txt"
+      ]
+    },
+    {
+      "path": "verification/final-drive-list.json",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 2473,
+      "sha256": "deedb47f88f08616e85296787a0fa25ee6ef1d75a484ebd53e5ee1c35b801db2",
+      "restore": "git clone"
+    },
+    {
+      "path": "verification/final-location-restore.txt",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 476,
+      "sha256": "3681352680f8fbc84ba1b7afd14ee68bd474141ee11bd5e6489e375f0a848e42",
+      "restore": "git clone"
+    },
+    {
+      "path": "verification/fresh-restore-verification.txt",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 5764,
+      "sha256": "1d44daf9eea78e5680068c24592f5c578f3512d08b76dd4ed3223021717bf5d0",
+      "restore": "git clone"
+    },
+    {
+      "path": "verification/pre-render-checks.md",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 2610,
+      "sha256": "f16abed6f14923e27d79227204c0818104cf4e8fb9ab5b9c6d3f02d1a70d155a",
+      "restore": "git clone"
+    },
+    {
+      "path": "verification/recovery-byte-difference.json",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 613,
+      "sha256": "bb5796c34d00e1c8cb314ff80d90bec1424eef89c5b1769be57cd656d80cf6ec",
+      "restore": "git clone"
+    },
+    {
+      "path": "verification/recovery-comparison.json",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 203518,
+      "sha256": "f65134fcd1ffc96d593c72b39b0feec5ec6a05619307a96b8714f4a04191ce31",
+      "restore": "git clone"
+    },
+    {
+      "path": "verification/recovery-render-run.json",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 758,
+      "sha256": "a136f33115a3e8c6a19a9c2d5117e4e10a971d75ed1afeb4962f659198c7dce7",
+      "restore": "git clone"
+    },
+    {
+      "path": "verification/recovery-status.md",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 2074,
+      "sha256": "435486769d533194d7361b3d19c6c66bc3d364e1beb5f9f21b7e9ac2784a3eb2",
+      "restore": "git clone"
+    },
+    {
+      "path": "verification/recovery-test.md",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 6159,
+      "sha256": "5e5ea9d6deea670d659e45873df53fc00e8251cf4a377f2007767b6f77b1b8b3",
+      "restore": "git clone"
+    },
+    {
+      "path": "verification/recovery-visual-plan.json",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 11715,
+      "sha256": "8c862b52c67d6a48a62da4baf32764b1692da6f7d5ce56f6ce9dae3821be1340",
+      "restore": "git clone"
+    },
+    {
+      "path": "verification/source-sha256.txt",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 313,
+      "sha256": "b9c4d6b3b5341522dfe29b40363f10c2b019b406b3c301cd0385ceb968711108",
+      "restore": "git clone",
+      "local_copies": [
+        "SHA256SUMS.txt"
+      ]
+    },
+    {
+      "path": "verification/tool-versions.txt",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 2068,
+      "sha256": "8394d3a40f321bf905323781522a02b8f70dbd64681ba0d902348d10a2bc788e",
+      "restore": "git clone"
+    },
+    {
+      "path": "verification/visual-review/sheet-01.jpg",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 96135,
+      "sha256": "1e80e8faba00dcaa191d7487d570358558b058e09332d03831da583b70909614",
+      "restore": "git clone"
+    },
+    {
+      "path": "verification/visual-review/sheet-02.jpg",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 468060,
+      "sha256": "5daa288b5bed8ad7b9767a135016e7de763793f74f2be6810d42ac05134bec2b",
+      "restore": "git clone"
+    },
+    {
+      "path": "verification/visual-review/sheet-03.jpg",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 665970,
+      "sha256": "b28ecd1b838aaf0f0afb3c1b2e479722c85781ceae829228a8a377ff2879b9f1",
+      "restore": "git clone"
+    },
+    {
+      "path": "verification/visual-review/sheet-04.jpg",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 652497,
+      "sha256": "93ae7d8fd80674f2890adfdb5e787139de3ae2b5383ebfb8b0849fabc13ec97a",
+      "restore": "git clone"
+    },
+    {
+      "path": "verification/visual-review/sheet-05.jpg",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 623902,
+      "sha256": "41a8f683e3abdeee424419ffa9401e0fdf53ff2345257d4cb470d8d7e997235f",
+      "restore": "git clone"
+    },
+    {
+      "path": "verification/visual-review/sheet-06.jpg",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 619576,
+      "sha256": "597ea7ee81a8ba27a1393449ffea8a2dcf9804bbf680afb45727b5ef09903d6a",
+      "restore": "git clone"
+    },
+    {
+      "path": "verification/visual-review/sheet-07.jpg",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 633429,
+      "sha256": "2b0a113bb0c29bbcf2090b943d08e96b604f3fa9a300bc1c29a5f19c59a732fd",
+      "restore": "git clone"
+    },
+    {
+      "path": "verification/visual-review/sheet-08.jpg",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 344636,
+      "sha256": "8132a22d85084845871217203946cd1b50203cb80ec0cfaf3baaacb303b32770",
+      "restore": "git clone"
+    },
+    {
+      "path": "verification/visual-review/sheet-09.jpg",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 157708,
+      "sha256": "c7b413f9cac4d4e27bdf43bb4e95a61478ed7a0cb0abdbf9ee16c28c1705caae",
+      "restore": "git clone"
+    },
+    {
+      "path": "verify_inventory.py",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 1260,
+      "sha256": "c86a36190105c0c17631302a1bc55e148989d1fa34e8463baa3ec4f0073898dc",
+      "restore": "git clone"
+    },
+    {
+      "path": "../shorts-guide.md",
+      "store": "repo",
+      "purpose": "Saved package input or record",
+      "bytes": 12265,
+      "sha256": "77badb4f3916e7793a52fc4c289efcd52d0be1ae4e502bf1611f77dd8807baa8",
+      "restore": "git clone"
+    },
+    {
+      "path": "ForwardDebate-sound-fixed.mov",
+      "store": "media",
+      "purpose": "Sound-fixed editing source; copied original picture stream",
+      "bytes": 15878803096,
+      "sha256": "81589c34d8ae50c704f1622bfe030e9930c51f691b9a1534cd56af6708d4f680",
+      "drive_path": "ForwardDebate-sound-fixed.mov",
+      "drive_id": "1oyqaIUW3kOebVoxLv7j8fCzsSvEwtvM-",
+      "backup_status": "hash-matched",
+      "restore": "restore_media.py downloads the explicit Drive path and verifies SHA-256"
+    },
+    {
+      "path": "ForwardDebate-original-audio-stereo.m4a",
+      "store": "media",
+      "purpose": "Original stereo audio, copied without re-encoding",
+      "bytes": 182076600,
+      "sha256": "da108c265fb8726c9908ad1c9bb2bd1f68666c7bd6bb997154b55e3d753c0706",
+      "drive_path": "ForwardDebate-original-audio-stereo.m4a",
+      "drive_id": "1juVchzR8-OsDyrhGsshd7qsBgxxWeXEB",
+      "backup_status": "hash-matched",
+      "restore": "restore_media.py downloads the explicit Drive path and verifies SHA-256"
+    },
+    {
+      "path": "ForwardDebate-original-audio-spatial-4ch.mov",
+      "store": "media",
+      "purpose": "Original 4-channel APAC audio, copied without re-encoding",
+      "bytes": 357214967,
+      "sha256": "324efdde9a5bacf226b099a3ad8c7937b9b398134df35ab445d6650dbdc4c9c9",
+      "drive_path": "ForwardDebate-original-audio-spatial-4ch.mov",
+      "drive_id": "1AUR-ZDFweHcIYqhP8qEUWdrfSQeHrv6h",
+      "backup_status": "hash-matched",
+      "restore": "restore_media.py downloads the explicit Drive path and verifies SHA-256"
+    },
+    {
+      "path": "references/short-01-33cae638.mp4",
+      "store": "media",
+      "purpose": "Current short 01 reference; Aaron first tag 6 seconds",
+      "bytes": 27017223,
+      "sha256": "33cae6382600d17ab05b9d62108cfed5e7936134315f1d1ee6d2ea7e2f7f2581",
+      "drive_path": "01-We-Disagree-We-Can-Still-Grab-a-Beer-v2.mp4",
+      "drive_id": "1wJexk5SKadCucWT3G4G87RBMmCEeam2r",
+      "backup_status": "hash-matched",
+      "restore": "restore_media.py downloads the explicit Drive path and verifies SHA-256",
+      "local_copies": [
+        "shorts/01-We-Disagree-We-Can-Still-Grab-a-Beer.mp4"
+      ]
+    },
+    {
+      "path": "references/short-01-0c6df832.mp4",
+      "store": "archive",
+      "purpose": "Prior 3-second-tag version; user removed old Mac copies, retained on Drive only",
+      "bytes": 27018433,
+      "sha256": "0c6df832e41ae610cfcf46dde703344f8d4cd3f1f1bb54a05297f95f254f2698",
+      "drive_path": "01-We-Disagree-We-Can-Still-Grab-a-Beer.mp4",
+      "drive_id": "1Z-Y5Jk0GCfrqo9kVVJj-OWzqdVECPElN",
+      "backup_status": "hash-matched",
+      "restore": "Historical archive only; default restore does not download it"
+    }
+  ]
+}

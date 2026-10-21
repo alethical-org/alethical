@@ -1,0 +1,631 @@
+{
+ "start": 40,
+ "end": 7420.88,
+ "emit_from": 44.06,
+ "offset": 39.06,
+ "heading": "",
+ "preamble": "# The Forward Debate: full transcript\n\nMinnesota Senate District 13 debate, October 15, 2026, Riverside Terrace, Sauk Rapids. Candidates Trent Dilks (DFL-endorsed candidate) and Aaron Brutger (Republican-endorsed write-in candidate). Moderated by Angel Zierden, CEO and Founder of Alethical.\n\nUncertain words and speakers are marked.",
+ "large": "transcripts/whisper-large-v3-words.json",
+ "large_offset": 0,
+ "turns": [
+  [
+   44.86,
+   "Angel Zierden"
+  ],
+  [
+   149.68,
+   "Aaron Brutger"
+  ],
+  [
+   308.9,
+   "[speaker uncertain]"
+  ],
+  [
+   313.72,
+   "Trent Dilks"
+  ],
+  [
+   609.08,
+   "Angel Zierden"
+  ],
+  [
+   624.86,
+   "Trent Dilks"
+  ],
+  [
+   713.54,
+   "Aaron Brutger"
+  ],
+  [
+   764.5,
+   "Angel Zierden"
+  ],
+  [
+   781.44,
+   "Aaron Brutger"
+  ],
+  [
+   886.98,
+   "Trent Dilks"
+  ],
+  [
+   1119.14,
+   "Angel Zierden"
+  ],
+  [
+   1142.2,
+   "Trent Dilks"
+  ],
+  [
+   1299.48,
+   "Aaron Brutger"
+  ],
+  [
+   1409.64,
+   "Angel Zierden"
+  ],
+  [
+   1432.3,
+   "Aaron Brutger"
+  ],
+  [
+   1604.3,
+   "Trent Dilks"
+  ],
+  [
+   1630.82,
+   "Angel Zierden"
+  ],
+  [
+   1651.96,
+   "Trent Dilks"
+  ],
+  [
+   1828.9,
+   "Angel Zierden"
+  ],
+  [
+   1863.3,
+   "Aaron Brutger"
+  ],
+  [
+   1981.44,
+   "Angel Zierden"
+  ],
+  [
+   1984.66,
+   "Trent Dilks"
+  ],
+  [
+   2070.22,
+   "Angel Zierden"
+  ],
+  [
+   2087.7,
+   "[speaker uncertain]"
+  ],
+  [
+   2091.44,
+   "Trent Dilks"
+  ],
+  [
+   2282.16,
+   "Aaron Brutger"
+  ],
+  [
+   2411.48,
+   "Angel Zierden"
+  ],
+  [
+   2434.9,
+   "Aaron Brutger"
+  ],
+  [
+   2533.14,
+   "Trent Dilks"
+  ],
+  [
+   2804.72,
+   "Angel Zierden"
+  ],
+  [
+   2817.2,
+   "Trent Dilks"
+  ],
+  [
+   2925.9,
+   "Aaron Brutger"
+  ],
+  [
+   3023.6,
+   "Angel Zierden"
+  ],
+  [
+   3036.64,
+   "Aaron Brutger"
+  ],
+  [
+   3065.28,
+   "Trent Dilks"
+  ],
+  [
+   3100.52,
+   "Angel Zierden"
+  ],
+  [
+   3106.5,
+   "Trent Dilks"
+  ],
+  [
+   3148.5,
+   "Aaron Brutger"
+  ],
+  [
+   3185.74,
+   "Angel Zierden"
+  ],
+  [
+   3217.3,
+   "Aaron Brutger"
+  ],
+  [
+   3316.08,
+   "Trent Dilks"
+  ],
+  [
+   3491.16,
+   "Angel Zierden"
+  ],
+  [
+   3505.0,
+   "Trent Dilks"
+  ],
+  [
+   3644.74,
+   "Aaron Brutger"
+  ],
+  [
+   3668.36,
+   "Angel Zierden"
+  ],
+  [
+   3678.16,
+   "Aaron Brutger"
+  ],
+  [
+   3792.38,
+   "Trent Dilks"
+  ],
+  [
+   3969.58,
+   "Angel Zierden"
+  ],
+  [
+   3993.72,
+   "[speaker uncertain]"
+  ],
+  [
+   4003.06,
+   "Angel Zierden"
+  ],
+  [
+   4028.56,
+   "[speaker uncertain]"
+  ],
+  [
+   4033.14,
+   "Trent Dilks"
+  ],
+  [
+   4129.98,
+   "Aaron Brutger"
+  ],
+  [
+   4257.7,
+   "Angel Zierden"
+  ],
+  [
+   4280.6,
+   "Aaron Brutger"
+  ],
+  [
+   4385.66,
+   "Trent Dilks"
+  ],
+  [
+   4635.96,
+   "Angel Zierden"
+  ],
+  [
+   4649.26,
+   "Trent Dilks"
+  ],
+  [
+   4788.96,
+   "Aaron Brutger"
+  ],
+  [
+   4950.88,
+   "Angel Zierden"
+  ],
+  [
+   4958.04,
+   "Trent Dilks"
+  ],
+  [
+   4980.32,
+   "Angel Zierden"
+  ],
+  [
+   4982.2,
+   "[speaker uncertain]"
+  ],
+  [
+   4986.2,
+   "Angel Zierden"
+  ],
+  [
+   4993.56,
+   "[speaker uncertain]"
+  ],
+  [
+   5001.54,
+   "Aaron Brutger"
+  ],
+  [
+   5052.78,
+   "Trent Dilks"
+  ],
+  [
+   5207.96,
+   "Angel Zierden"
+  ],
+  [
+   5224.68,
+   "Trent Dilks"
+  ],
+  [
+   5272.38,
+   "Aaron Brutger"
+  ],
+  [
+   5343.66,
+   "Angel Zierden"
+  ],
+  [
+   5365.02,
+   "Aaron Brutger"
+  ],
+  [
+   5570.86,
+   "Trent Dilks"
+  ],
+  [
+   5788.26,
+   "Angel Zierden"
+  ],
+  [
+   5825.34,
+   "Trent Dilks"
+  ],
+  [
+   5956.92,
+   "Aaron Brutger"
+  ],
+  [
+   6061.1,
+   "Angel Zierden"
+  ],
+  [
+   6077.68,
+   "Aaron Brutger"
+  ],
+  [
+   6125.26,
+   "Trent Dilks"
+  ],
+  [
+   6291.26,
+   "Angel Zierden"
+  ],
+  [
+   6295.02,
+   "Audience member 1"
+  ],
+  [
+   6351.26,
+   "Trent Dilks"
+  ],
+  [
+   6480.88,
+   "Aaron Brutger"
+  ],
+  [
+   6534.1,
+   "Audience member 1"
+  ],
+  [
+   6547.54,
+   "Aaron Brutger"
+  ],
+  [
+   6551.6,
+   "[speaker uncertain]"
+  ],
+  [
+   6554.32,
+   "Audience member 2"
+  ],
+  [
+   6582.44,
+   "Trent Dilks"
+  ],
+  [
+   6752.06,
+   "Aaron Brutger"
+  ],
+  [
+   6773.9,
+   "Audience member 2"
+  ],
+  [
+   6808.92,
+   "[speaker uncertain]"
+  ],
+  [
+   6817.08,
+   "Audience member 2"
+  ],
+  [
+   6823.3,
+   "Aaron Brutger"
+  ],
+  [
+   6931.5,
+   "Angel Zierden"
+  ],
+  [
+   6943.02,
+   "Aaron Brutger"
+  ],
+  [
+   7202.46,
+   "Trent Dilks"
+  ],
+  [
+   7366.4,
+   "Angel Zierden"
+  ]
+ ],
+ "chapters": [
+  [
+   44.06,
+   "Welcome and how the debate works"
+  ],
+  [
+   140,
+   "Candidate introductions"
+  ],
+  [
+   607,
+   "What each would do differently as a senator"
+  ],
+  [
+   764,
+   "Joining the Forward Independence Coalition"
+  ],
+  [
+   1119,
+   "Who is responsible for the divide between parties"
+  ],
+  [
+   1411,
+   "Anything in your personal past to address"
+  ],
+  [
+   1630,
+   "Military service and politics"
+  ],
+  [
+   1829,
+   "Party endorsements and primaries"
+  ],
+  [
+   2070,
+   "Paid family leave"
+  ],
+  [
+   2411,
+   "Fraud in state programs"
+  ],
+  [
+   2804,
+   "Public education"
+  ],
+  [
+   3023,
+   "Education Minnesota's political giving"
+  ],
+  [
+   3100,
+   "Flock cameras"
+  ],
+  [
+   3185,
+   "Data centers"
+  ],
+  [
+   3491,
+   "Tax incentives for businesses"
+  ],
+  [
+   3668,
+   "Mining and permitting reform"
+  ],
+  [
+   3969,
+   "Youth, gangs and restorative justice"
+  ],
+  [
+   4257,
+   "Second Amendment and gun policy"
+  ],
+  [
+   4636,
+   "Farming and agriculture"
+  ],
+  [
+   4986,
+   "Mental health"
+  ],
+  [
+   5208,
+   "Reopening state hospitals"
+  ],
+  [
+   5343,
+   "Health care costs"
+  ],
+  [
+   5803,
+   "Housing"
+  ],
+  [
+   6061,
+   "Voting against your own party"
+  ],
+  [
+   6291,
+   "Audience question: medication costs and mental health"
+  ],
+  [
+   6551,
+   "Audience question: regenerative farming"
+  ],
+  [
+   6931,
+   "Closing statements"
+  ],
+  [
+   7366,
+   "Moderator's closing remarks"
+  ]
+ ],
+ "force_unclear": [
+  [
+   6950.6,
+   6954.3
+  ]
+ ],
+ "phrase_fixes": [
+  [
+   "Trent Brooks",
+   "Trent Dilks"
+  ],
+  [
+   "Trent Dokes",
+   "Trent Dilks"
+  ],
+  [
+   "Aaron Brecker",
+   "Aaron Brutger"
+  ],
+  [
+   "Aaron Broker",
+   "Aaron Brutger"
+  ],
+  [
+   "Trink",
+   "Trent"
+  ],
+  [
+   "Lethko",
+   "Alethical"
+  ],
+  [
+   "SB13",
+   "SD13"
+  ],
+  [
+   "Aggie Freedom",
+   "Iraqi Freedom"
+  ],
+  [
+   "flop cameras",
+   "Flock cameras"
+  ],
+  [
+   "block cameras",
+   "Flock cameras"
+  ],
+  [
+   "flock cameras",
+   "Flock cameras"
+  ],
+  [
+   "South Rapids",
+   "Sauk Rapids"
+  ],
+  [
+   "FNLA",
+   "FMLA"
+  ],
+  [
+   "BPM",
+   "PBM"
+  ],
+  [
+   "BPMs",
+   "PBMs"
+  ],
+  [
+   "trendformm13.com",
+   "trentformn13.com"
+  ],
+  [
+   "trimformn13.com",
+   "trentformn13.com"
+  ],
+  [
+   "www.trimformn13.com",
+   "trentformn13.com"
+  ],
+  [
+   "Rudger for MN Senate.com",
+   "brutgerformnsenate.com"
+  ],
+  [
+   "veterans on the Muskela",
+   "veterans omnibus bill"
+  ],
+  [
+   "Veterans on the bus fill",
+   "veterans omnibus bill"
+  ],
+  [
+   "Rudger for MN Senate .com",
+   "brutgerformnsenate.com"
+  ],
+  [
+   "a writing candidate",
+   "a write-in candidate"
+  ]
+ ],
+ "srt_out": "out/ForwardDebate-YouTube-final.srt",
+ "md_out": "out/ForwardDebate-transcript.md",
+ "unclear_out": "out/unclear.json",
+ "turns_out": "out/ForwardDebate-turns.json",
+ "known_names": [
+  "dilks",
+  "brutger",
+  "zierden",
+  "alethical",
+  "iraqi",
+  "trentformn13com",
+  "brutgerformnsenatecom",
+  "flock",
+  "gapinski"
+ ],
+ "turbo": "transcripts/whisper-large-v3-turbo-words.json",
+ "other_srt": "../text/ForwardDebate.srt"
+}
