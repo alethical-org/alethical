@@ -2,19 +2,25 @@
 
 Published October 21, 2026 through Instagram's browser editor on **@alethicaltruth**:
 [the saved Instagram announcement](https://www.instagram.com/p/Dew2ALHlsZK/).
-This photo promotes the existing full replay; it does not approve short 01.
+This record covers the full replay. The accepted v3 first short has a separate
+[publication record](forward-debate-short01-record.md).
+
+The Instagram-only correction is saved and verified after refresh: **Trent Dilks @trentformn13**
+appears at the first full-name mention; the personal handle is absent. The photo’s tag editor
+showed no existing tagged people. The first-short caption and campaign-only media tag are also verified.
 
 ## Saved post and reader route
 
-The saved post contains the exact 1,537-character edited caption below, within the displayed
-2,200-character limit. The original 1,280 × 720 image uses Original crop with no filters. Its full title, names and
+The saved post contains the edited caption below, within the displayed 2,200-character limit.
+The prior edition used 1,537 native-counted characters; its exact text is retained in the JSON
+revision history. The latest source count is local, not a fresh native-counter observation. The original 1,280 × 720 image uses Original crop with no filters. Its full title, names and
 faces remain visible in the published 16:9 photo. Saved caption, mentions, hashtags and alt text are
 verified. The same post shows Edited and all 3 hashtag links. Desktop visual review of the saved
 directions, website address and tags is complete; mobile layout review is not recorded.
 
 Trent's campaign account, [@trentformn13](https://www.instagram.com/trentformn13/), is linked in the
-introduction; his personal account, [@t.christian101](https://www.instagram.com/t.christian101/), is
-linked in the thanks. The campaign bio identifies the Minnesota Senate District 13 campaign, and
+introduction. His verified personal account, [@t.christian101](https://www.instagram.com/t.christian101/),
+is omitted under the Instagram-only account-type rule. The campaign bio identifies the Minnesota Senate District 13 campaign, and
 2 first-person campaign reels and Gray Duck context match the official campaign site. The personal
 account's Minnesota DAV award/advocacy post matches the text of the
 [verified LinkedIn post](https://www.linkedin.com/posts/trent-c-dilks-7921b5113_honored-to-have-been-the-recipient-of-davs-activity-7299504880828702720-htBr).
@@ -24,7 +30,7 @@ native and web searches and official-site review did not verify an Instagram acc
 campaign website is the approved fallback. Neither campaign site supplies an Instagram cross-link.
 This is not evidence that Aaron has no account.
 
-Both selected mentions resolve after the saved edit. The caption keeps `#MinnesotaPolitics` and adds
+The campaign mention resolves after the saved edit; the personal handle is absent. The caption keeps `#MinnesotaPolitics` and adds
 `#CivilDiscourse` and `#LocalPolitics`. Native topic results showed 1,000+ posts, 18.9K posts and 77.3K
 posts respectively; the 1,000+ value is a lower bound. The narrower topics showed recent relevant
 civic and candidate activity. These are post counts, not search volume or numbers of people, and do
@@ -96,9 +102,10 @@ unsuccessful attempt is retained as account/route evidence, not proof that web H
 universally unavailable or that archiving is required. The published Story remains intact; no
 deletion or other Story change occurred.
 
-## Prepared Highlight cover
+## Highlight cover
 
-The [photo-only cover](social-media/debate-highlight-cover-photo.png) is prepared, not applied.
+The [photo-only cover](social-media/debate-highlight-cover-photo.png) is prepared and backed up.
+The user reported applying the photo; saved-cover visual verification remains pending.
 It preserves Angel and Aaron from the original photo while cropping out the title, logo and Trent.
 The 1080 × 1080 canvas uses this FFmpeg filter on the approved thumbnail:
 
@@ -113,13 +120,14 @@ resize and black padding.
 
 On October 21, **Edit Highlight > Next > Next > Select Cover** showed the existing cover and
 Back, Close and Done, without an upload control. Clicking the cover did not open a picker. The
-edit was closed without Done; the existing cover, **Debate** title and Story link remain unchanged.
+edit was closed without Done; that attempt left the existing cover, **Debate** title and Story link unchanged.
 This is an observed browser-route limit, not a universal claim about Instagram. Phone Mirroring
 was unavailable and no setup was completed.
 
-The remaining route is the Instagram phone app: **Edit Highlight > Edit Cover > photo chooser**,
-select the prepared image, then **Done**. No new Story is needed. Saved-cover verification remains
-pending; the existing Highlight and replay-link verification above still stand.
+The available phone route is **Edit Highlight > Edit Cover > photo chooser**, select the prepared
+image, then **Done**; no new Story is needed. The user reported the photo updated after this route
+was supplied. Saved-cover verification remains pending; the existing Highlight and replay-link
+verification above still stand.
 
 ## Verified media backups
 
@@ -166,7 +174,7 @@ That’s the spirit we want to build on. Alethical will soon share more about ou
 
 Candidates should be able to stand by their principles and compete. Voters should decide who earns their support.
 
-Thank you to Trent Dilks @t.christian101 and Aaron Brutger, and to everyone who attended, asked questions and kept the conversation going.
+Thank you to Trent Dilks and Aaron Brutger, and to everyone who attended, asked questions and kept the conversation going.
 
 Watch the full debate on YouTube: tap the link in our bio, choose YouTube, then open “The Forward Debate.”
 
@@ -178,7 +186,7 @@ https://www.alethical.com/blog/events/forward-debate-2026
 
 ## Edit verification and platform scope
 
-The saved edit changes only the watch action and hashtag ending. Targeted selection inside the
+The watch-action and hashtag edit preceded the campaign-only mention correction. Targeted selection inside the
 existing caption selected the wrong offsets and corrupted an unsaved draft. Recovery replaced the
 whole caption with the verified text, resolved both mentions through their matching picker results,
 and verified the complete caption before saving. The corrupted draft was never saved.

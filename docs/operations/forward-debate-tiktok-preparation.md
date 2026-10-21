@@ -61,7 +61,8 @@ photo. No replacement was published. The [shared removal workflow](https://githu
 owns the reusable mobile-app route, exact-post guard and saved-removal checks.
 
 A 12-second silent still-video experiment exists only in scratch; it is not published, adopted as
-current media or copied into this record’s media collection. Short 01’s separate posting hold remains.
+current media or copied into this record’s media collection. The separately accepted v3
+[first short](forward-debate-short01-record.md) is now published as an actual video.
 
 ## Text and destination checks
 

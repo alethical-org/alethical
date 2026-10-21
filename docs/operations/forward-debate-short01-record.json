@@ -1,0 +1,161 @@
+{
+  "status": "published_all_7_remaining_optimizations_pending",
+  "publishedDate": "2026-10-21",
+  "title": "We Disagree. We Can Still Grab a Beer.",
+  "media": {
+    "edition": "v3",
+    "file": "01-We-Disagree-We-Can-Still-Grab-a-Beer-v3.mp4",
+    "bytes": 27017469,
+    "sha256": "9dba7706b97af5812be57f83d20205d2845d0c193ec67236a83ffada902fd14d",
+    "acceptance": "Accepted for the 7 authorized publications; previous edition defects do not remain a v3 posting hold",
+    "productionRecord": "video/forward-debate-2026-10-15/verification/short01-v3-repair.md",
+    "backupRecord": "video/forward-debate-2026-10-15/verification/short01-v3-backup-receipt.json"
+  },
+  "platforms": {
+    "instagram": {
+      "status": "published",
+      "url": "https://www.instagram.com/p/Dew8kOeiyG-/",
+      "caption": "Strong disagreement can still leave room for a conversation.\n\nAt Alethical’s Forward Debate, Aaron Brutger says he and Trent Dilks @trentformn13 can disagree on important issues and still grab a beer together.\n\nWhat helps you keep a difficult conversation respectful?\n\nWatch the full debate: tap the link in our bio, choose YouTube, then open “The Forward Debate.”\n\nAlso available on our website:\nhttps://www.alethical.com/blog/events/forward-debate-2026\n\nFor a direct link, open our “Debate” Highlight and tap “Watch the full debate.”\n\nAaron Brutger’s campaign: https://brutgerformnsenate.com\n\n#MinnesotaPolitics #CivilDiscourse #LocalPolitics",
+      "location": "Sauk Rapids, Minnesota",
+      "followed": [
+        "trentformn13",
+        "t.christian101"
+      ],
+      "revisions": [
+        {
+          "caption": "Strong disagreement can still leave room for a conversation.\n\nAt Alethical’s Forward Debate, Aaron Brutger says he and Trent Dilks can disagree on important issues and still grab a beer together.\n\nWhat helps you keep a difficult conversation respectful?\n\nWatch the full debate: tap the link in our bio, choose YouTube, then open “The Forward Debate.”\n\nAlso available on our website:\nhttps://www.alethical.com/blog/events/forward-debate-2026\n\nFor a direct link, open our “Debate” Highlight and tap “Watch the full debate.”\n\nAaron Brutger’s campaign: https://brutgerformnsenate.com\n\n#MinnesotaPolitics #CivilDiscourse #LocalPolitics\n\nTrent Dilks: @trentformn13 · @t.christian101",
+          "reasonForChange": "Instagram-only campaign preference: handle after first full name; remove personal handle and repeated closing handles."
+        }
+      ],
+      "mentionRevision": {
+        "status": "saved_refreshed_verified",
+        "campaignAfterFirstFullName": true,
+        "personalHandleAbsent": true,
+        "mediaTags": [
+          "trentformn13"
+        ]
+      },
+      "story": {
+        "status": "approved_phone_action_deferred_to_final_list",
+        "intendedSticker": "Watch the full debate",
+        "intendedDestination": "https://www.alethical.com/blog/events/forward-debate-2026",
+        "intendedHighlight": "Debate",
+        "observedRouteLimit": "Meta Business Suite video editor exposes Crop and Trim only; outer Add link disabled. Native alternative under investigation.",
+        "scopeOfLimit": "Observed account, route and video format; photo editor previously supported a link sticker.",
+        "additionalRouteEvidence": "Native web sharing has no Story action; iPhone Mirroring could not connect"
+      }
+    },
+    "facebook": {
+      "status": "published",
+      "url": "https://www.facebook.com/reel/1783981826162940",
+      "location": "Sauk Rapids, Minnesota",
+      "personalMentionsVerified": true,
+      "campaignMentionsVerified": true,
+      "playlist": "Candidate Debates",
+      "storyShared": true,
+      "playbackVerified": true,
+      "caption": "Strong disagreement can still leave room for a conversation.\n\nAt Alethical’s Forward Debate in Sauk Rapids, Minnesota, Aaron Brutger says he and Trent Dilks can disagree on important issues and still grab a beer together.\n\nWatch the full debate:\nhttps://www.alethical.com/blog/events/forward-debate-2026\n\nWhat helps you keep a difficult conversation respectful?\n\n#MinnesotaPolitics #CivilDiscourse #LocalPolitics\n\nCampaigns: Trent for MN 13 · Aaron Brutger for MN Senate",
+      "captionSerializationNote": "Plain-text reading copy; native mention nodes can add spaces. Personal names in introduction and closing campaign labels are linked.",
+      "route": "native Meta Business Suite; Zernio video upload unsuccessful"
+    },
+    "linkedin": {
+      "status": "published",
+      "url": "https://www.linkedin.com/feed/update/urn:li:ugcPost:7518729001457147904",
+      "caption": "Strong disagreement can still leave room for a conversation.\n\nAt Alethical’s Forward Debate in Sauk Rapids, Minnesota, Aaron Brutger says he and Trent C Dilks can disagree on important issues and still grab a beer together.\n\nWatch the full debate, with the transcript and supporting materials:\nhttps://www.alethical.com/blog/events/forward-debate-2026\n\nWhat helps you keep a difficult conversation respectful?\n\n#MinnesotaPolitics #CivilDiscourse #LocalPolitics",
+      "personalMentionsVerified": true,
+      "playbackVerified": true,
+      "route": "native LinkedIn; Zernio video upload unsuccessful",
+      "captionSettings": {
+        "originalAudio": true,
+        "burnedCaptions": true,
+        "automaticCaptions": false
+      },
+      "featured": true,
+      "featuredEvidence": "Native company Edit page > Featured > Select confirmed Post successfully featured; list retained both short and full-debate announcement."
+    },
+    "x": {
+      "status": "published",
+      "url": "https://x.com/alethical/status/2112963796075508179",
+      "caption": "Disagree. Still grab a beer.\n\nIn Sauk Rapids, MN, Aaron Brutger (@BrutgerforSD13) on disagreeing with Trent Dilks.\n\nFull debate: https://www.alethical.com/blog/events/forward-debate-2026\nTrent’s campaign: https://trentformn13.com\n\nWhat keeps disagreement respectful?\n\n#CivilDiscourse #MinnesotaPolitics",
+      "highlight": true,
+      "followed": "@BrutgerforSD13",
+      "playbackVerified": true,
+      "location": "Sauk Rapids, MN in text; native tagging disabled"
+    },
+    "bluesky": {
+      "status": "published",
+      "url": "https://bsky.app/profile/alethical.com/post/3myfpjartls2s",
+      "caption": "Disagree. Still grab a beer.\n\nSauk Rapids, MN: Aaron Brutger https://brutgerformnsenate.com and Trent Dilks https://trentformn13.com\n\nFull debate: https://www.alethical.com/blog/events/forward-debate-2026\n\nWhat keeps disagreement respectful?\n\n#CivilDiscourse #MinnesotaPolitics",
+      "altText": true,
+      "playbackVerified": true,
+      "location": "Sauk Rapids, MN in text",
+      "pin": "Full replay retained",
+      "route": "native video composer; Adeli available composer exposed images only",
+      "emailVerification": "Completed; no code retained"
+    },
+    "tiktok": {
+      "status": "published",
+      "caption": "We disagree. We can still grab a beer.\n\nAt Alethical’s Forward Debate in Sauk Rapids, Minnesota, Aaron Brutger says he and Trent Dilks can strongly disagree and still have a conversation.\n\nWhat helps you keep a difficult conversation respectful?\n\nWatch the full debate: search YouTube for “Alethical Forward Debate”.\n\nAlso available on our website:\nhttps://www.alethical.com/blog/events/forward-debate-2026\n\nTrent Dilks: https://trentformn13.com\nAaron Brutger: https://brutgerformnsenate.com\n\n#MinnesotaPolitics #CivilDiscourse #LocalPolitics",
+      "url": "https://www.tiktok.com/@alethicaltruth/video/7699181336652713229",
+      "location": "Sauk Rapids, Minnesota",
+      "adeliFailure": "HTTP 413; native upload succeeded",
+      "playbackVerified": true,
+      "route": "native upload after Adeli HTTP 413",
+      "ownBrandPromotionalContent": true,
+      "termsConfirmation": "Specific action-time human confirmation granted before publication"
+    },
+    "youtube": {
+      "status": "published",
+      "title": "We Disagree. We Can Still Grab a Beer. | The Forward Debate",
+      "description": "Strong disagreement can still leave room for a conversation.\n\nAt Alethical’s Forward Debate in Sauk Rapids, Minnesota, Aaron Brutger says he and Trent Dilks can strongly disagree and still grab a beer together. Recorded October 15, 2026.\n\nWatch the full debate: tap the related video, “The Forward Debate,” below our channel name.\n\nAlso available with the transcript and supporting materials on our website:\nhttps://www.alethical.com/blog/events/forward-debate-2026\n\nTrent Dilks: https://trentformn13.com\nAaron Brutger: https://brutgerformnsenate.com\n\nWhat helps you keep a difficult conversation respectful?\n\nContact: ask@alethical.com\n\n#MinnesotaPolitics #CivilDiscourse #LocalPolitics",
+      "adeliFailure": "HTTP 413",
+      "url": "https://www.youtube.com/shorts/gsBVcU14WF4",
+      "relatedVideo": "https://www.youtube.com/watch?v=y66-Wf9bNio",
+      "playbackVerified": true,
+      "route": "native upload after Adeli HTTP 413",
+      "settings": {
+        "playlist": "Candidate Debates",
+        "commentModeration": "Basic",
+        "reuse": "Allow video and audio remixing",
+        "embedding": true,
+        "location": "Sauk Rapids, Minnesota",
+        "existingFullReplayRetained": true,
+        "commentsEnabled": true,
+        "whoCanComment": "Everyone",
+        "evidence": "Observed at publication; not a later settings retrieval"
+      },
+      "termsConfirmation": "Specific action-time human confirmation granted before publication"
+    }
+  },
+  "remaining": [
+    "Instagram short Story with website replay sticker, then add to Debate Highlight",
+    "Remaining authorized profile and promotion work",
+    "Cross-platform results review using available native metrics",
+    "Deferred reciprocal profile-link audit after current work"
+  ],
+  "authorizationLimits": [
+    "No paid upgrade or advertising spend",
+    "No override of required action-time legal confirmation",
+    "No automatic approval of later media editions or shorts"
+  ],
+  "publicDocumentationDelivery": {
+    "status": "held",
+    "issue": "https://github.com/alethical-org/alethical/issues/2643",
+    "dependencyPr": "https://github.com/alethical-org/alethical/pull/2644",
+    "checkedDate": "2026-10-21",
+    "observed": "Issue open; dependency PR open and draft"
+  },
+  "checkpoint": {
+    "state": "account_work_resumed",
+    "reason": "Account work resumed; short 2 preparation follows it, without publication before October 22, 2026",
+    "instagramStory": "Prepared Meta Business Suite video draft remains unpublished. Video editor exposes Crop and Trim only; Add link disabled. Native Instagram web share dialog has no Add to Story. iPhone Mirroring cannot connect. User deferred phone Story/link/Highlight actions to the final personal-action checklist.",
+    "browserOwnership": "Reconfirm exclusive native-browser input ownership before every resumed edit; private session coordination is retained outside the public record."
+  },
+  "nextShort": {
+    "edition": "short 2",
+    "preparation": "after current account work",
+    "publicationNotBefore": "2026-10-22",
+    "scheduleCreated": false,
+    "outsidePostDebateInquiryInvitation": "Requires exact wording, platform and location approval"
+  }
+}

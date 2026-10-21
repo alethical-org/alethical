@@ -2,7 +2,8 @@
 
 Published October 21, 2026 on Alethical's company account through Zernio:
 [the saved LinkedIn announcement](https://www.linkedin.com/feed/update/urn:li:share:7518686957565173760/).
-This is the full-replay announcement, not publication of short 01. The short's posting hold remains.
+This record covers the full replay. The accepted v3 first short has a separate
+[publication record](forward-debate-short01-record.md).
 
 ## Destination and saved result
 

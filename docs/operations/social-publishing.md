@@ -22,6 +22,9 @@ all relevant platforms under the shared guide. Assess each destination's actual 
 record evidence for Alethical-specific exceptions here. Before preparing each destination, use the
 shared guide's feature assessment to research, select and apply useful promotion choices for that
 account under the standing future-post approval below, including discovery beyond prominent placement.
+Keep improving useful features and visual presentation within each authorized posting task, using
+the shared guide’s research, phone-size review and measured-feedback checks. Save useful solutions
+and failures after execution; documentation must not interrupt feasible authorized posting work.
 
 ## Write the result, its meaning and what comes next
 
@@ -32,6 +35,18 @@ account under the standing future-post approval below, including discovery beyon
   with every candidate position or support from the whole audience.
 - Keep direct quotes exact and sourced. Report supplied audience feedback as feedback, not a poll.
   Do not turn “some attendees” into “everyone” or infer party membership from an audience reaction.
+- Starting with short 2, promote Alethical as a company that hosts political debates and invite
+  interested people to **ask@alethical.com** when caption space allows. Preserve the core content
+  and working viewer route. If it cannot fit in the post, propose the exact wording, platform and
+  outside-post location, then obtain approval before adding it to a bio, profile, contact field or
+  other surface. No outside-post placement is approved by this rule. This does not add promotion
+  retroactively to short 1 or create a publication schedule. Prepare short 2 after the current
+  account work; do not publish it before October 22, 2026, and retain its readiness checks.
+- Keep bios balanced across Alethical’s current work: public records, bills, votes, campaign
+  money and useful new offerings such as hosting political debates. Add high-impact capabilities
+  missing from the existing wording without recasting the whole company as debate-only. Verify
+  present capabilities; proposed services remain plans. A debate-hosting inquiry invitation outside
+  a post still needs the exact wording, platform and location approved before changing it.
 - Describe planned services as plans. Use the [campaign services guide](../product-onboarding/services-guide.md)
   and the current approved announcement to distinguish available help from future offerings.
 - Give each platform a complete version suited to its current limits. Preserve facts, qualifications,
@@ -56,6 +71,11 @@ Check for each candidate's campaign account separately on every platform. Use ve
 pages in the introduction and verified personal profiles in the closing thank-you when both types
 are available. A campaign page is distinct from a personal profile or unrelated employer; verify
 the role of each destination and never substitute an employer for a campaign.
+
+On Instagram, use only the verified professional or campaign account when both that type and a
+personal account exist. Use a personal account when it is the only verified type. Write the full
+name followed by the selected handle, and apply this choice to caption mentions and media tags.
+This Instagram exception does not change the 2-type treatment on other platforms.
 
 If no matching campaign account is verified after a reasonable search on that platform, omit that
 type under the approved fallback without asking again. Follow the shared guide's bounded search,
@@ -85,11 +105,14 @@ includes appropriate pins, Highlights and other supported promotion features wit
 This approval applies going forward. It does not authorize retroactive edits to existing posts,
 independent new posts or recipients, paid upgrades, advertising spend or recurring paid work.
 Explicit review-before-publication holds still control publication; prepare the tactics for that
-review. Content-specific holds, including short 01, remain unchanged.
+review. Content-specific holds require their own acceptance and publication decision. Short 01 v3
+was accepted and published across the 7 intended platforms; its social record below owns the result.
 
 Use the chosen connected publishing service within its approved free-account scope. Facebook and
 LinkedIn announcements remain with Zernio. Adeli is the selected route for the 3 connected Alethical
-accounts: TikTok **Alethical.com**, YouTube **@alethical** and Bluesky **@alethical.com**. Recheck
+accounts: TikTok **Alethical.com**, YouTube **@alethical** and Bluesky **@alethical.com**. Native
+video publication is the verified fallback when these services fail or lack the required format;
+the [first-short record](forward-debate-short01-record.md) records the actual routes. Recheck
 connections before use; this is not authorization for a paid upgrade or additional accounts.
 
 Handle 1 platform at a time and verify its saved result before moving to the next. Confirm the
@@ -113,9 +136,10 @@ saved post shows the intended text and links on the correct account.
 
 ## Keep significant milestones visible
 
-Significant milestones should help new visitors understand Alethical's work. For future authorized
-posts and Stories, retain useful content in supported persistent Highlights, collections, featured
-or pin placements on every applicable platform within that post's standing scope, using the
+Every authorized post should be assessed for useful native secondary placements that help visitors
+discover and enjoy Alethical’s work: Stories, persistent Highlights, playlists, collections,
+featured or pin placements. Use the relevant options on each platform within that post’s scope,
+retaining useful Stories in persistent collections where supported, using the
 [shared placement guidance](https://github.com/euglopi/tool-settings/blob/main/shared/guides/social-publishing.md#keep-significant-posts-easy-to-find).
 Assess the actual account, format, current placements and limits before choosing an addition,
 reorder or replacement. Preserve working website links and the approved reader goal; verify the
@@ -154,7 +178,7 @@ under the standing approval above. No measured reach gain is claimed.
 | Facebook and LinkedIn | Consider 2 relevant topical tags in the body after native topic checks; do not add a hashtag-only comment as assumed reach improvement. |
 | Instagram | Use clear caption keywords and the shared discovery assessment for relevant broad and narrower tags. The saved edit has `#MinnesotaPolitics`, `#CivilDiscourse` and `#LocalPolitics`; native counts were 1,000+, 18.9K and 77.3K posts. The narrower topics showed recent relevant activity; these counts are not search volume or reach. |
 | Bluesky | Keep the current 300-character post intact. Consider tags in a future original post or meaningful follow-up; do not delete and repost merely to add hashtags. Check any intended custom feed's rules. |
-| TikTok | Apply the shared discovery assessment to caption wording and tags for a future approved actual video. The removed photo and held short 01 do not become eligible through tags. |
+| TikTok | Apply the shared discovery assessment to caption wording and tags for a future approved actual video. The first actual video is published; the removed photo stays removed. Tags do not establish media approval. |
 | YouTube | Assess description hashtags for future approved Shorts pointing to the existing replay; no duplicate replay or Community Post for this promotion. |
 
 ## Forward Debate worked example
@@ -194,7 +218,7 @@ verified profiles, account and post identifiers, replay preview, shortened-link 
 review limits for the October 21, 2026 announcement. The approved personal-only fallback applies:
 verified profiles are linked once in the introduction; closing names are plain. Campaign destinations
 were not verified on LinkedIn. Do not substitute employers or infer that campaign pages do not exist.
-The full-replay announcement does not approve short 01.
+Short 01 has a separate [accepted publication record](forward-debate-short01-record.md).
 
 ## Forward Debate Bluesky publication
 
@@ -203,7 +227,7 @@ announcement published through Adeli, its exact 300-character text, verified cam
 fallback and saved links. Neither social account type was verified for either candidate. The post
 links the full replay and has no media or preview-card embed. The user pinned this announcement;
 the public profile API confirmed the exact post as the current pin on October 21, 2026. Whether a
-prior pin was replaced is unknown. Short 01 remains unapproved for posting.
+prior pin was replaced is unknown. The first short is published separately, with this full-replay pin retained.
 
 ## TikTok format and Forward Debate record
 
@@ -214,8 +238,8 @@ that TikTok lacks photo support. Each video still needs its own approval and com
 The [TikTok publication and removal record](forward-debate-tiktok-preparation.md) retains the photo
 post and exact title/description. Its direct address advanced to an unrelated video without a click;
 playback was not accepted. The user removed the photo in the TikTok app on October 21, 2026, and
-the refreshed public profile confirmed its absence. No replacement was published. Wait for a
-meaningful approved debate short for this promotion. Short 01's posting hold remains.
+the refreshed public profile confirmed its absence. The [approved first short](forward-debate-short01-record.md)
+is now published as an actual video; the photo remains removed.
 
 ## Forward Debate YouTube direction
 
@@ -224,9 +248,9 @@ For this promotion, keep that replay and publish only approved, ready Shorts tha
 it. Do not upload another full replay or prepare a Community Post for this promotion. This choice
 does not restrict Community Posts for unrelated work.
 
-Short 01 remains unapproved for posting. This direction does not resolve its 2 known defects,
-complete its remaining checks or grant permission to publish it. Follow the video guide's acceptance
-requirements before treating any short as ready.
+Short 01 v3 passed its separate acceptance and publication decision. Its
+[publication record](forward-debate-short01-record.md) links the saved Short and related full replay.
+Follow the video guide’s acceptance requirements for each later short.
 
 ## Forward Debate X publication
 
@@ -241,7 +265,7 @@ Highlights; both saved placements are verified.
 ## Forward Debate Instagram publication
 
 The [Instagram publication record](forward-debate-instagram-record.md) retains the original photo,
-exact caption, verified Trent campaign/personal mentions, Aaron campaign-website fallback and saved
+exact caption, verified Trent campaign mention, Aaron campaign-website fallback and saved
 hashtags. Caption web addresses are plain text. The saved watch action leads through the verified
 bio selector's YouTube channel link to the full debate, followed by the visible website replay URL.
 Keep the existing **YouTube** bio link to [Alethical’s channel](https://www.youtube.com/@Alethical)
@@ -256,9 +280,18 @@ caption and channel bio unchanged. The full-debate Story is published and its li
 the website replay; the [Instagram record](forward-debate-instagram-record.md#full-debate-story)
 retains the canvas and link check. The user-created [**Debate** Highlight](https://www.instagram.com/stories/highlights/18144858376576808/)
 and its saved website sticker are verified. The next-short Story remains unpublished. Begin the
-first short on each platform and compare results after that round; short 01’s unresolved quality defects remain holds.
+cross-platform results review after the published first-short round. The
+[first-short record](forward-debate-short01-record.md) separates publication from pending optimizations.
 Keep public contact email reachable through an available contact field or suitable bio/display-name
 placement, preserving the Bluesky domain handle. The profile review owns the full rollout.
 A Pinned post icon is verified on this post;
 the pin was not applied by the agent. The record separates the working channel route from a direct
 video link and retains the original caption.
+
+## Forward Debate first-short publication
+
+The [first-short publication record](forward-debate-short01-record.md) owns all 7 live addresses,
+saved source text, platform settings, native upload fallbacks and completed playback checks for
+the accepted v3 media. Instagram’s campaign-only caption correction is saved on both posts; the
+short’s media tag is campaign-only, and the photo has no visible media tags. The short Story and
+remaining profile/promotion work await saved-result evidence; publication alone does not complete them.

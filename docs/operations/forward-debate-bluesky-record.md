@@ -2,7 +2,8 @@
 
 Published October 21, 2026 at 11:26 a.m. Eastern through Adeli on **@alethical.com**:
 [the saved Bluesky announcement](https://bsky.app/profile/alethical.com/post/3myfhkaueoh2t).
-This promotes the existing full replay; it does not publish or approve short 01.
+This record covers the full replay. The accepted v3 first short has a separate
+[publication record](forward-debate-short01-record.md).
 
 ## Destination and saved result
 
