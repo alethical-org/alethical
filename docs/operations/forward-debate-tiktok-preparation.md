@@ -1,11 +1,15 @@
-# Forward Debate TikTok preparation
+# Forward Debate TikTok publication and removal record
 
-**Published October 21, 2026; a native viewing problem remains unresolved. No inbox draft was sent.**
-Adeli's **Alethical.com** TikTok account is at the **Step 4 review**, with 1 image.
-Adeli publish ID: `p_pub_url~v2.7699145908722223118`.
-[The public TikTok photo](https://www.tiktok.com/@alethicaltruth/photo/7699145941923810573) is visible on
-Alethical’s native profile. The post shows the current title in image alt text, part of the caption
-and the Promotional content disclosure.
+**Removed October 21, 2026 through the TikTok app; public-profile removal confirmed.**
+The user reported completing deletion. A refreshed [Alethical public profile](https://www.tiktok.com/@alethicaltruth)
+shows only the older money-report video `7676584304536718606`; the Forward Debate photo
+`7699145941923810573` is absent. TikTok Studio also shows only the older row, despite a stale
+Posts 2 header. This confirms public removal, not permanent purge or recovery behavior.
+
+The photo was published through Adeli after its Step 4 review with 1 image, under publish ID
+`p_pub_url~v2.7699145908722223118`. Its [former post address](https://www.tiktok.com/@alethicaltruth/photo/7699145941923810573)
+is retained for identification. Before removal, native checks showed the title in image alt text,
+a partial caption and the Promotional content disclosure. No inbox draft was sent.
 
 ## Media and readiness
 
@@ -26,8 +30,8 @@ sips --padToHeightWidth 2276 1280 --padColor 0A0A0A social-media/forward-debate-
 sips --resampleHeightWidth 1920 1080 social-media/forward-debate-tiktok-original-padded.png
 ```
 
-The final review shows **Everyone**, comments on, automatic music off and own-business
-**Promotional content** on. Paid partnership and AI-media are off; the image is an ordinary resize
+The final review showed **Everyone**, comments on, automatic music off and own-business
+**Promotional content** on. Paid partnership and AI-media were off; the image is an ordinary resize
 and pad of the original artwork. The title has 64 characters and the description has 889.
 
 The user accepted the action-time confirmation:
@@ -38,22 +42,22 @@ remain incomplete; provider completion does not establish a usable viewing exper
 
 ## Viewing issue and approved format choice
 
-The direct photo address automatically navigates to an unrelated next video within seconds without
-a click. This reproduces the reported viewing problem; its cause is not established. Playback is
-not accepted. The photo remains public. Removal is authorized but blocked by the native mobile-app requirement.
+Before removal, the direct photo address automatically navigated to an unrelated next video within
+seconds without a click. This reproduced the reported viewing problem; its cause is not established.
+Playback was not accepted.
 
 Alethical's approved TikTok rule is actual videos only: no photo posts and no timed-still MP4
 workaround. This supersedes the case-only allowance for other substantive photo posts; it is an
 editorial choice, not a claim that TikTok cannot support photos. This promotion waits for a
-meaningful approved debate short. Removal is authorized but not completed. In TikTok Studio’s
-Content view, the exact photo ID `7699145941923810573` is the first row; the Everyone control and
-**Actions > Delete** are disabled. The notice says: “Videos with commercial content can only be
-edited on the TikTok app.” The ordinary post view advances to another post before stable removal
-is possible. No deletion was clicked.
+meaningful approved debate short. The desktop removal route was blocked: TikTok Studio’s Content
+view showed the exact photo with disabled Everyone and **Actions > Delete** controls and the notice,
+“Videos with commercial content can only be edited on the TikTok app.” The ordinary post view
+advanced away before stable removal was possible. No desktop deletion was clicked.
 
 [Adeli’s posts API](https://www.tryadeli.com/docs/api/posts) documents deletion for X and Bluesky,
-not TikTok. The remaining supported removal route requires the TikTok mobile app. Keep this photo
-marked public until removal is verified; do not delete a different post or resubmit a replacement.
+not TikTok. The user completed deletion in the TikTok app; the refreshed native public profile and
+Studio rows confirmed removal on October 21, 2026. The prior app-only blocker is resolved for this
+photo. No replacement was published.
 
 A 12-second silent still-video experiment exists only in scratch; it is not published, adopted as
 current media or copied into this record’s media collection. Short 01’s separate posting hold remains.

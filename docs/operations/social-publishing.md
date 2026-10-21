@@ -161,14 +161,11 @@ Publish actual videos only on Alethical's TikTok account. Do not publish photo p
 still image into a timed MP4 to satisfy this rule. This is Alethical's editorial choice, not a claim
 that TikTok lacks photo support. Each video still needs its own approval and completed checks.
 
-The [TikTok preparation record](forward-debate-tiktok-preparation.md) retains the Adeli photo
-post and exact title/description. The public photo was submitted after explicit Music Usage
-Confirmation acceptance. Native checks confirm the public photo, but its direct address automatically
-advances to an unrelated video without a click. Playback is not accepted; full native caption,
-visual and link review remain incomplete. Removal is authorized, but the exact photo's native
-privacy and Delete controls are disabled with a TikTok-app requirement for commercial content.
-The photo remains public pending verified mobile-app removal. Wait for a meaningful approved debate
-short for this promotion. Short 01's posting hold remains.
+The [TikTok publication and removal record](forward-debate-tiktok-preparation.md) retains the photo
+post and exact title/description. Its direct address advanced to an unrelated video without a click;
+playback was not accepted. The user removed the photo in the TikTok app on October 21, 2026, and
+the refreshed public profile confirmed its absence. No replacement was published. Wait for a
+meaningful approved debate short for this promotion. Short 01's posting hold remains.
 
 ## Forward Debate YouTube direction
 
