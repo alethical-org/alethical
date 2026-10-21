@@ -42,8 +42,9 @@ post remains: propose exact wording, platform and location for approval first. N
 invitation has been added.
 
 Include **Launched in Minnesota** in each bio/profile intro, using **MN** only when field space
-requires it. Do not infer nationwide availability. Application across all 7 accounts is in progress;
-only the saved results below establish completion.
+requires it. Do not infer nationwide availability. Instagram, Facebook, X and LinkedIn have public-readback-verified launch wording. YouTube has
+native save confirmation; its new-wording public readback is pending. Bluesky and TikTok launch
+revisions remain pending; only the saved results below establish completion.
 
 Prepare short 2 after the account work, with no publication before October 22, 2026. No schedule
 has been created. The Instagram short Story, website sticker and **Debate** Highlight addition are
@@ -92,17 +93,18 @@ supports promotion for discovery and links for crawling, without promising ranki
 
 ### Instagram
 
-The native editor saved the current bio with a success toast and 145/150 characters. Expanded
+The native editor saved the current bio with a success toast and 147/150 characters. Expanded
 public visitor readback and a screenshot confirm the complete text:
 
 ```text
 Campaign intelligence, research & analytics.
-Candidate tools & resources. Election debates.
-Minnesota bills, votes, money & lobbying, made clear.
+Candidate tools & resources. Political debates.
+Bills, votes, money & lobbying.
+Launched in Minnesota.
 ```
 
-This replaces the public-readback-verified 136-character edition that led with Minnesota politics
-and public records. The earlier “Coming soon” qualification is removed. The 5 existing bio links remain in this verified order: [Website](https://www.alethical.com),
+The launch wording is saved and verified publicly. Earlier source editions remain in Git history;
+“Coming soon” is not part of the current bio. The 5 existing bio links remain in this verified order: [Website](https://www.alethical.com),
 [YouTube](https://www.youtube.com/@Alethical), [LinkedIn](https://www.linkedin.com/company/alethical),
 [X](https://x.com/alethical), [TikTok](https://www.tiktok.com/@alethicaltruth). Facebook and Bluesky
 are absent. Native editing is explicitly mobile-only; no link was changed. Preserve YouTube and
@@ -127,10 +129,10 @@ Story with its website sticker and addition to **Debate** remain deferred phone 
 
 ### Facebook
 
-The saved public bio uses 222/255 characters:
+The saved public bio uses 226/255 characters:
 
 ```text
-Campaign intelligence, research & analytics. Tools & resources to help candidates run effectively. We host political debates and make Minnesota bills, votes, campaign money & lobbying clear, with links to official records.
+Campaign intelligence, research & analytics. Tools & resources to help candidates run effectively. We host political debates and make bills, votes, campaign money & lobbying clear, with official sources. Launched in Minnesota.
 ```
 
 The unbounded claim to read every bill is removed. The current native baseline is 282 followers
@@ -163,18 +165,18 @@ and reviews are on. Tag review and tagged-post review are on and retained.
 
 ### LinkedIn
 
-The saved tagline is verified by readback at 97/120 characters:
+The saved tagline is verified by readback at 110/120 characters:
 
 ```text
-Campaign intelligence, research & analytics. Candidate tools, debates & Minnesota public records.
+Campaign intelligence, research & analytics. Candidate tools, debates & public records. Launched in Minnesota.
 ```
 
 **Share your edits** was dismissed with **No Thanks**; no social announcement was generated for
-the profile change. The 878-character overview and 8 specialties are saved and verified in the
+the profile change. The 901-character overview and 8 specialties are saved and verified in the
 public member About view. Exact saved overview source:
 
 ```text
-Alethical is a platform for understanding government and supporting campaigns.
+Alethical is a platform for understanding government and supporting campaigns. Launched in Minnesota.
 
 We offer political intelligence, research and campaign analytics, plus tools and resources to help candidates of any party, including independents, run effectively. We host political debates that give voters a chance to hear candidates answer hard questions.
 
@@ -211,10 +213,10 @@ These are a historical baseline, not results attributable to the profile changes
 
 ### X
 
-The saved bio is verified in the public profile at 142/160 characters:
+The saved bio is verified in the public profile at 155/160 characters:
 
 ```text
-Campaign intelligence, research & analytics. Candidate tools, resources & debates. Minnesota government & money, made clear. ask@alethical.com
+Campaign intelligence, research & analytics. Candidate tools, resources & debates. Government & money, made clear. Launched in Minnesota. ask@alethical.com
 ```
 
 Minnesota location and the website were retained. The observed baseline is 4 followers and 18
@@ -243,6 +245,14 @@ and domain handle **alethical.com** are preserved. The editor exposed no other l
 other profiles could not fit alongside the core bio. Facebook, Instagram, LinkedIn, X and TikTok
 are omitted. These are this editor’s observed fields and limits, not a universal platform guarantee.
 
+The launch-wording revision is prepared at 256 source characters but is not yet saved:
+
+```text
+Campaign intelligence, research & analytics. Candidate tools, resources & political debates. Bills, votes, money & lobbying with official sources. Launched in Minnesota.
+Platform & services: https://www.alethical.com
+YouTube: https://youtube.com/@Alethical
+```
+
 The baseline is 4 followers, 1 following and 2 posts. The full-replay pin is retained.
 
 Direct messages changed from **People I follow** to **Everyone**. That action also changed group
@@ -265,7 +275,14 @@ Both paste and typeText save attempts failed to persist after refresh. The live 
 Ask@alethical.com | Minnesota politics. Bills, votes, legislators, money.
 ```
 
-The bio update remains pending; no working website or YouTube profile-link field is established.
+The latest launch-wording replacement is prepared at 80 source characters and remains pending:
+
+```text
+Campaign tools, research & analytics. Debates. Launched in MN. ask@alethical.com
+```
+
+No working website or YouTube profile-link field is established. The failed 79-character attempt
+above is history, not the latest proposed copy.
 The observed baseline is 1 follower, 1 following, 1 like and 63 views on the first short. These
 figures do not establish the effect of profile work.
 
@@ -282,8 +299,22 @@ the relevant mobile controls still require inspection.
 
 The earlier 713-character overview was saved and verified publicly. The current 736-character
 edition adds **Launched in Minnesota.** and received native **Changes published** confirmation.
-Exact source text is awaiting its saved receipt; public readback of the added launch wording is
-not yet recorded. **ask@alethical.com** remains the public contact.
+Public readback of the added launch wording is not yet recorded. **ask@alethical.com** remains
+the public contact. Exact saved overview source:
+
+```text
+Alethical is a platform for understanding government and supporting campaigns. Launched in Minnesota.
+
+We offer political intelligence, research and campaign analytics, plus tools and resources to help candidates of any party, including independents, run effectively. We host political debates that give voters a chance to hear candidates answer hard questions.
+
+Explore Minnesota bills, votes, legislators, campaign money and lobbying in plain language, with links to official records. Our services also include campaign-finance research, websites, marketing, content and custom software.
+
+Watch debates, research and explanations here. Explore the platform at https://www.alethical.com.
+
+Contact: ask@alethical.com
+
+TRUTH, UNCONCEALED
+```
 
 All 7 public link redirect destinations were read and verified, in this order:
 
