@@ -154,6 +154,22 @@ changed from off to on and confirmed with **Changes Saved**. Future Reels are Pu
 reuse setting remains original audio only; this is separate from the first short’s verified
 post-specific remix-on setting. No broader reuse-setting change is claimed.
 
+Page posting and viewing, tagged-post visibility, and tagging are set to Everyone. Posts-to-Stories
+and reviews are on. Tag review and tagged-post review are on and retained.
+
+### LinkedIn
+
+The saved tagline is verified by readback at 97/120 characters:
+
+```text
+Campaign intelligence, research & analytics. Candidate tools, debates & Minnesota public records.
+```
+
+**Share your edits** was dismissed with **No Thanks**; no social announcement was generated for
+the profile change. The 878-character overview and 8 specialties are still being saved; their
+completion is not yet established.
+
+
 ## Writing for the approved rollout
 
 Describe the broad government/campaign platform while leading with campaigns/elections/debate
