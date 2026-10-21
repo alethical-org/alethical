@@ -83,18 +83,34 @@ supports promotion for discovery and links for crawling, without promising ranki
 
 ## Saved profile work
 
-Instagram’s current 136-character bio is saved and verified in the public visitor view:
+### Instagram
+
+The native editor saved the current bio with a success toast and 145/150 characters. Public visitor
+readback is pending:
 
 ```text
-Minnesota politics in plain words.
-Bills, votes, money & lobbying.
-Debate hosting. Campaign analytics. Tools & resources for candidates.
+Campaign intelligence, research & analytics.
+Candidate tools & resources. Election debates.
+Minnesota bills, votes, money & lobbying, made clear.
 ```
 
-This replaces the prior 127-character “Coming soon” edition. The latest approved leading campaign,
-election, debate, intelligence and research focus still needs another wording/order revision;
-that revision is not yet recorded as saved. The editor’s profile-link controls are disabled with a
-mobile-only notice. Account suggestions are on. No profile-link change is claimed.
+This replaces the public-readback-verified 136-character edition that led with Minnesota politics
+and public records. The earlier “Coming soon” qualification is removed. The 5 existing bio links
+remain; native editing is mobile-only, with no link change claimed.
+
+The following settings were inspected on this account; no setting change was needed:
+
+| Area | Observed state |
+| --- | --- |
+| Public business identity | Product/service category; **ask@alethical.com** business email; **Display contact info** on. Contact buttons are mobile-only. No phone or address invented. |
+| Discovery | Account suggestions on; private account off; public search-engine photos/videos on. |
+| Account Status | All checkmarks. **Limits to reach** reports no limits and eligibility for Explore, Reels and feed. This is eligibility, not a promised distribution result. |
+| Audience interaction | Message requests, tags, mentions and comments set to **Everyone**. |
+| Sharing | Story sharing, post/Reel-to-Story sharing, Reposts and embeds on. |
+| Product features | Product featuring on; automatic approval off and retained. |
+
+These are native account observations, not universal defaults or proof of reach gains. The short
+Story with its website sticker and addition to **Debate** remain deferred phone actions.
 
 ## Writing for the approved rollout
 
@@ -199,8 +215,9 @@ General methods, primary sources and dated capability limits are maintained in t
 guide](https://github.com/euglopi/tool-settings/blob/main/shared/guides/social-profile-promotion.md).
 [Social publishing](social-publishing.md) owns Alethical writing, account records and existing
 approval boundaries. Platform documentation does not prove an Alethical setting is enabled.
-Some current help pages were unavailable; Account Status, search visibility and account-suggestion
-controls remain native-inspection items, not established defaults or reach guarantees.
+Some current help pages were unavailable. Instagram’s Account Status, search visibility and
+account-suggestion controls now have native account evidence above; this does not establish
+defaults for other accounts or guarantee reach.
 
 The Instagram channel bio link is retained. The profile/promotion rollout and the 2 Instagram
 Stories are authorized; completion requires actual saved-result evidence. Inspect each setting’s
