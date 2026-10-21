@@ -37,5 +37,27 @@
   "shortenedDestinations": {
     "https://t.co/3JA8MniRT2": "https://www.alethical.com/blog/events/forward-debate-2026",
     "https://t.co/95Dg9ELyp1": "https://trentformn13.com/"
+  },
+  "placementAssessment": {
+    "date": "2026-10-21",
+    "existingPinnedMarkerObserved": false,
+    "currentTopPostId": "2112935739264786462",
+    "menuOptions": [
+      "Pin to your profile",
+      "Add/remove from Highlights"
+    ],
+    "visibleProfileTabs": [
+      "Posts",
+      "Replies",
+      "Reposts",
+      "Media"
+    ],
+    "highlightsTabVisible": false,
+    "highlightsEligibilityVerified": false,
+    "paidGateVerified": false,
+    "highlightsBehaviorVerified": false,
+    "actionsClicked": false,
+    "recommendation": "Pin this milestone and use Highlights if available with existing access, preserving useful prior selections.",
+    "authorized": false
   }
 }

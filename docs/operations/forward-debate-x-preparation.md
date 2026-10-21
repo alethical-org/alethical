@@ -46,8 +46,21 @@ The latest saved revision shows the complete text, correct Aaron campaign destin
 **The Forward Debate** card with its thumbnail. The card's `https://t.co/3JA8MniRT2` destination
 resolves with HTTP 200 to the full replay. Trent's `https://t.co/95Dg9ELyp1` resolves with HTTP 200
 to his official campaign website. Desktop screenshot review confirms the replay thumbnail’s faces
-and text are visible; mobile review is not
-recorded. No pin was applied.
+and text are visible; mobile review is not recorded. No pin was applied.
+
+## Placement assessment
+
+On October 21, 2026, Alethical's native X profile showed no Pinned marker or existing top pin;
+the latest replay revision was first. Its More menu offered **Pin to your profile** and
+**Add/remove from Highlights**. Visible profile tabs were Posts, Replies, Reposts and Media;
+no Highlights tab was visible. Neither placement action was clicked. Highlights eligibility,
+paid-access requirements and actual behavior remain unverified; menu presence is not proof of access.
+
+The recommendation is to pin this milestone and use Highlights if available with existing access,
+preserving useful prior selections. Neither action is authorized or completed in this record.
+The [shared placement guidance](https://github.com/euglopi/tool-settings/blob/main/shared/guides/social-publishing.md#platform-placement-evidence)
+owns the separate pin/Highlights assessment. [X's profile guide](https://help.x.com/en/managing-your-account/how-to-customize-your-profile)
+documents pinning; the current Premium guide does not establish Highlights eligibility.
 
 The [shared X-preview workflow](https://github.com/euglopi/tool-settings/blob/main/shared/guides/social-publishing.md#x-multiple-links-and-edited-revisions)
 owns the reusable method and its limits. The [social publishing guide](social-publishing.md) owns
