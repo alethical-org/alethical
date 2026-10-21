@@ -1,6 +1,6 @@
 # Forward Debate TikTok preparation
 
-**Preparation only, October 21, 2026. Not published or sent to TikTok's inbox.**
+**Submitted October 21, 2026; publication is not yet verified. No inbox draft was sent.**
 Adeli's **Alethical.com** TikTok account is at the **Step 4 review**, with 1 image.
 No live post address or publish identifier exists for this preparation.
 
@@ -28,9 +28,10 @@ The final review shows **Everyone**, comments on, automatic music off and own-bu
 **Promotional content** on. Paid partnership and AI-media are off; the image is an ordinary resize
 and pad of the original artwork. The title has 64 characters and the description has 889.
 
-The sole remaining pre-publication boundary is the unchecked confirmation:
+The user accepted the action-time confirmation:
 “I confirm this publishes a real TikTok post visible to everyone and I agree to TikTok’s Music Usage
-Confirmation.” Action-time user acceptance is pending. No publish or inbox-draft request has been sent.
+Confirmation.” The public photo was then submitted. Adeli is processing the request; a submitted
+request is not proof of publication. Saved provider/native verification remains pending.
 
 ## Text and destination checks
 

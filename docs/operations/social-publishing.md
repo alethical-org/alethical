@@ -158,7 +158,7 @@ or completed; short 01 remains unapproved for posting.
 ## Forward Debate TikTok preparation
 
 The [TikTok preparation record](forward-debate-tiktok-preparation.md) retains the staged Adeli photo
-post and exact title/description. It is not published or sent to TikTok's inbox. The padded original's
-final Adeli preview preserves the title, names and faces; identity search and settings are complete.
-The required Music Usage Confirmation awaits action-time user acceptance. Live output and link
-behavior require saved-post verification after publication. Short 01's posting hold remains.
+post and exact title/description. The public photo was submitted after explicit Music Usage
+Confirmation acceptance; publication is not yet verified. The padded original's final Adeli preview
+preserves the title, names and faces; identity search and settings are complete. Live output and
+link behavior require saved-post verification. Short 01's posting hold remains.

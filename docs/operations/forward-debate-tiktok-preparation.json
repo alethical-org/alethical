@@ -1,5 +1,5 @@
 {
-  "status": "awaiting_user_legal_confirmation",
+  "status": "publication_submitted_awaiting_result",
   "preparedDate": "2026-10-21",
   "service": "Adeli",
   "accountDisplayName": "Alethical.com",
@@ -38,6 +38,7 @@
   "descriptionReadback": "exact 889 characters confirmed",
   "paidPartnershipSelected": false,
   "aiMediaSelected": false,
-  "requiredLegalCheckboxAccepted": false,
-  "requiredLegalCheckboxText": "I confirm this publishes a real TikTok post visible to everyone and I agree to TikTok’s Music Usage Confirmation."
+  "requiredLegalCheckboxAccepted": true,
+  "requiredLegalCheckboxText": "I confirm this publishes a real TikTok post visible to everyone and I agree to TikTok’s Music Usage Confirmation.",
+  "publishSubmitted": true
 }
