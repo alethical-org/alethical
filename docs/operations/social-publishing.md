@@ -40,8 +40,11 @@ Link named participants to their verified profiles or pages. Use the platform's 
 mention where supported. A typed name, an unselected `@name` or a Markdown label is not proof of a
 working mention. Follow the shared guide's identity and saved-post checks.
 
-When both campaign and personal pages are intentionally included in a post with 2 name mentions,
-use campaign pages when introducing the candidates and personal profiles in the closing thank-you.
+When the requested treatment includes campaign/company pages and personal profiles, preserve both
+account types across platform adaptations. With 2 name mentions, use campaign pages when introducing
+candidates and personal profiles in the closing thank-you. If a required destination cannot be
+verified or supported, flag that gap before publication. Do not silently repeat a personal tag or
+substitute an unrelated employer; an alternative that changes the required treatment needs a decision.
 Do not add repetitive name mentions merely to fit both links. A campaign page is distinct from a
 personal profile or unrelated business page; verify which role each destination represents.
 
@@ -93,5 +96,6 @@ These are observed results for this task, not permanent claims about every Faceb
 The [LinkedIn publication record](forward-debate-linkedin-record.md) retains the approved source text,
 verified profiles, account and post identifiers, replay preview, shortened-link destinations and
 review limits for the October 21, 2026 announcement. Both name mentions use verified personal
-profiles because matching campaign pages were not verified on LinkedIn. Do not substitute employers
-or infer that campaign pages do not exist. The full-replay announcement does not approve short 01.
+profiles; the requested campaign destinations remain unverified and the requested 2-type treatment
+is incomplete. Do not substitute employers or infer that campaign pages do not exist. The full-replay
+announcement does not approve short 01.
