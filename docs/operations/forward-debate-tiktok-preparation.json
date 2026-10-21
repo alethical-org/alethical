@@ -1,5 +1,5 @@
 {
-  "status": "publication_submitted_awaiting_result",
+  "status": "provider_complete_native_verification_pending",
   "preparedDate": "2026-10-21",
   "service": "Adeli",
   "accountDisplayName": "Alethical.com",
@@ -17,7 +17,7 @@
   "autoMusicEnabled": false,
   "ownBusinessDisclosureSelected": true,
   "continueEnabled": null,
-  "published": false,
+  "published": true,
   "inboxDraftSent": false,
   "preparedMediaPath": "social-media/forward-debate-tiktok-original-padded.png",
   "preparedMediaSha256": "00d306af6e6847a6c126d3932ec09da31321ba51ca84ba4b23e5ce578a71590a",
@@ -40,5 +40,8 @@
   "aiMediaSelected": false,
   "requiredLegalCheckboxAccepted": true,
   "requiredLegalCheckboxText": "I confirm this publishes a real TikTok post visible to everyone and I agree to TikTok’s Music Usage Confirmation.",
-  "publishSubmitted": true
+  "publishSubmitted": true,
+  "providerStatus": "PUBLISH_COMPLETE",
+  "providerPublishId": "p_pub_url~v2.7699145908722223118",
+  "nativePublicationVerified": false
 }

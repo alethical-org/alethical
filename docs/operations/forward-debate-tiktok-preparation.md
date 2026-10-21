@@ -1,8 +1,8 @@
 # Forward Debate TikTok preparation
 
-**Submitted October 21, 2026; publication is not yet verified. No inbox draft was sent.**
+**Provider reports publication complete, October 21, 2026; native verification is pending. No inbox draft was sent.**
 Adeli's **Alethical.com** TikTok account is at the **Step 4 review**, with 1 image.
-No live post address or publish identifier exists for this preparation.
+Adeli publish ID: `p_pub_url~v2.7699145908722223118`. A live post address is not yet available.
 
 ## Media and readiness
 
@@ -30,8 +30,10 @@ and pad of the original artwork. The title has 64 characters and the description
 
 The user accepted the action-time confirmation:
 “I confirm this publishes a real TikTok post visible to everyone and I agree to TikTok’s Music Usage
-Confirmation.” The public photo was then submitted. Adeli is processing the request; a submitted
-request is not proof of publication. Saved provider/native verification remains pending.
+Confirmation.” The public photo was then submitted. Adeli reports `PUBLISH_COMPLETE`, but the
+refreshed native profile and Adeli feed still show only the older video. Publication is complete
+according to the provider; the public address, native output and link behavior remain unverified.
+Do not resubmit while awaiting propagation and the saved result.
 
 ## Text and destination checks
 
