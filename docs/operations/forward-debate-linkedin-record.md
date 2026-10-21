@@ -15,17 +15,18 @@ This is the full-replay announcement, not publication of short 01. The short's p
 - Zernio validation passed before publication. Source text has 1,499 characters including mention markup; replacing markup with displayed names gives 1,383 characters. These counts do not establish the platform's counting method.
 - Native content and link inspection confirms the saved text and destinations. A complete screenshot/layout review was not performed.
 
-## Approved source text
+## Approved text
 
-The exact submitted text below uses Zernio's returned mention syntax. Its person identifiers are
-public-post references, not authentication data. Resolve profiles again before creating a new post.
+The [exact submitted text and mention identifiers](forward-debate-linkedin-record.json) preserve the
+connector source. The reading copy below replaces mention markup with displayed names. Person
+identifiers are public-post references, not authentication data. Resolve profiles again before a new post.
 
 ```text
 Respectful debate can bring people together without asking them to agree on everything.
 
 Watch the full debate: https://www.alethical.com/blog/events/forward-debate-2026
 
-At Alethical’s Forward Debate, @[Trent C Dilks](urn:li:person:YyUZ7US0Yo) and @[Aaron Brutger](urn:li:person:KX31kOCAUM) discussed the issues facing Minnesota and showed what that can look like. Afterward, attendees praised both candidates, with some calling it the best debate they had seen.
+At Alethical’s Forward Debate, Trent C Dilks and Aaron Brutger discussed the issues facing Minnesota and showed what that can look like. Afterward, attendees praised both candidates, with some calling it the best debate they had seen.
 
 The conversations continued after the debate ended. People spoke positively about the candidates joining the Forward Independence Coalition and their willingness to work across party lines.
 https://forwardcoalition.com/candidates
@@ -38,7 +39,7 @@ Alethical will soon share more about our plans for the next election cycle, incl
 
 Candidates should be able to stand by their principles and compete. Voters should decide who earns their support.
 
-Thank you to @[Trent C Dilks](urn:li:person:YyUZ7US0Yo) and @[Aaron Brutger](urn:li:person:KX31kOCAUM), and to everyone who attended, asked questions and kept the conversation going.
+Thank you to Trent C Dilks and Aaron Brutger, and to everyone who attended, asked questions and kept the conversation going.
 ```
 
 ## Reusable guidance
