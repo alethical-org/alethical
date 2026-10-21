@@ -165,8 +165,9 @@ The [TikTok preparation record](forward-debate-tiktok-preparation.md) retains th
 post and exact title/description. The public photo was submitted after explicit Music Usage
 Confirmation acceptance. Native checks confirm the public photo, but its direct address automatically
 advances to an unrelated video without a click. Playback is not accepted; full native caption,
-visual and link review remain incomplete. Removal of the photo is authorized and awaiting native
-confirmation; do not claim it removed before that result. Wait for a meaningful approved debate
+visual and link review remain incomplete. Removal is authorized, but the exact photo's native
+privacy and Delete controls are disabled with a TikTok-app requirement for commercial content.
+The photo remains public pending verified mobile-app removal. Wait for a meaningful approved debate
 short for this promotion. Short 01's posting hold remains.
 
 ## Forward Debate YouTube direction

@@ -40,13 +40,20 @@ remain incomplete; provider completion does not establish a usable viewing exper
 
 The direct photo address automatically navigates to an unrelated next video within seconds without
 a click. This reproduces the reported viewing problem; its cause is not established. Playback is
-not accepted. The photo’s last verified state is public; removal is authorized and its native result is pending.
+not accepted. The photo remains public. Removal is authorized but blocked by the native mobile-app requirement.
 
 Alethical's approved TikTok rule is actual videos only: no photo posts and no timed-still MP4
 workaround. This supersedes the case-only allowance for other substantive photo posts; it is an
 editorial choice, not a claim that TikTok cannot support photos. This promotion waits for a
-meaningful approved debate short. Removal of the current photo is authorized, but native removal
-confirmation is pending; its last verified state is public.
+meaningful approved debate short. Removal is authorized but not completed. In TikTok Studio’s
+Content view, the exact photo ID `7699145941923810573` is the first row; the Everyone control and
+**Actions > Delete** are disabled. The notice says: “Videos with commercial content can only be
+edited on the TikTok app.” The ordinary post view advances to another post before stable removal
+is possible. No deletion was clicked.
+
+[Adeli’s posts API](https://www.tryadeli.com/docs/api/posts) documents deletion for X and Bluesky,
+not TikTok. The remaining supported removal route requires the TikTok mobile app. Keep this photo
+marked public until removal is verified; do not delete a different post or resubmit a replacement.
 
 A 12-second silent still-video experiment exists only in scratch; it is not published, adopted as
 current media or copied into this record’s media collection. Short 01’s separate posting hold remains.

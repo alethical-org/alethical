@@ -1,5 +1,5 @@
 {
-  "status": "photo_removal_authorized_confirmation_pending",
+  "status": "public_photo_removal_blocked_mobile_app_required",
   "preparedDate": "2026-10-21",
   "service": "Adeli",
   "accountDisplayName": "Alethical.com",
@@ -49,9 +49,20 @@
   "fullNativeCaptionReviewed": false,
   "fullNativeVisualReviewed": false,
   "observedIssue": "Direct photo URL automatically navigated to an unrelated next video within seconds without a click.",
-  "currentAction": "Removal authorized; native removal result pending. Last verified state public.",
+  "currentAction": "Removal authorized but blocked: exact TikTok Studio photo row has disabled privacy and Delete actions requiring TikTok app. Photo remains public.",
   "proposedNextStep": "Actual videos only on Alethical TikTok; no photo posts or timed-still MP4 workaround. Wait for a meaningful approved debate short.",
   "proposalApproved": true,
   "removalAuthorized": true,
-  "removalVerified": false
+  "removalVerified": false,
+  "deletionClicked": false,
+  "removalBlocker": {
+    "surface": "TikTok Studio Content",
+    "photoId": "7699145941923810573",
+    "disabledControls": [
+      "Everyone",
+      "Actions > Delete"
+    ],
+    "notice": "Videos with commercial content can only be edited on the TikTok app.",
+    "remainingRoute": "TikTok mobile app"
+  }
 }
