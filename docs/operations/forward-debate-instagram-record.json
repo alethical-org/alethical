@@ -1,5 +1,5 @@
 {
-  "status": "published_edited_verified_direct_bio_link_deferred",
+  "status": "published_edited_verified_channel_bio_retained",
   "publishedDate": "2026-10-21",
   "platform": "Instagram",
   "route": "native Chrome composer",
@@ -47,7 +47,7 @@
     "collaborationInvitesSent": false
   },
   "bio": {
-    "status": "user_deferred",
+    "status": "approved_channel_retained",
     "currentLinks": [
       "https://www.alethical.com",
       "https://www.youtube.com/@Alethical",
@@ -56,9 +56,6 @@
       "TikTok"
     ],
     "replayLinkPresent": false,
-    "recommendedTitle": "Watch the Forward Debate",
-    "recommendedDestination": "https://www.alethical.com/blog/events/forward-debate-2026",
-    "recommendedChange": "Replace general YouTube channel link and move replay first; retain Website and other useful links.",
     "editingRoute": "Native browser reports link edits available only in mobile app.",
     "linkInBioClaimInCaption": true,
     "verifiedExistingRoute": {
@@ -70,7 +67,17 @@
       "directVideoLink": false,
       "durationDisplayed": "2h3m"
     },
-    "claimScope": "Existing YouTube channel route with selector and video selection; not a direct replay profile link"
+    "claimScope": "Existing YouTube channel route with selector and video selection; not a direct replay profile link",
+    "approvedChoice": {
+      "date": "2026-10-21",
+      "linkLabel": "YouTube",
+      "destination": "https://www.youtube.com/@Alethical",
+      "purpose": "Find the debate and browse the full video collection",
+      "preserveOtherLinks": true,
+      "replaceOrReorderRequested": false,
+      "captionChangeNeeded": false,
+      "liveChangeMade": false
+    }
   },
   "pin": {
     "status": "verified_native_profile",
@@ -122,7 +129,7 @@
     ],
     "YouTube": "Full replay already published",
     "TikTok": "Photo removed; no current affected post",
-    "broaderProfileFollowsStoriesWork": "held"
+    "broaderProfileFollowsStoriesWork": "research_completed_execution_not_authorized"
   },
   "editorRecovery": {
     "targetedSelectionDraftCorrupted": true,

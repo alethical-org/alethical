@@ -35,17 +35,16 @@ The edited watch action leads with the verified YouTube route: open the bio link
 “Also available on our website:”. Selecting the existing YouTube link leads to **@Alethical**; the
 channel's Videos view shows the full **The Forward Debate: Trent Dilks & Aaron Brutger | Minnesota
 Senate District 13** recording first, with a displayed duration of 2 hours 3 minutes and video ID
-`y66-Wf9bNio`. This is a channel route with another selection, not 1-click playback. The direct
-milestone bio change remains deferred; the existing route is verified.
+`y66-Wf9bNio`. This is a channel route with another selection, not 1-click playback. Keeping this
+verified route is approved so visitors can browse the full collection as well as the debate.
 
 ## Profile link and saved pin
 
-The profile has 5 links: Website, general YouTube channel, LinkedIn, X and TikTok. The existing YouTube
-channel is clickable; a direct replay link is not saved. The recommended change is to replace the
-general YouTube channel link with [the full replay article](https://www.alethical.com/blog/events/forward-debate-2026),
-title it **Watch the Forward Debate**, and move it first while retaining Website and other useful links.
-This remains pending. Browser Edit profile reports that website-link changes are available only in
-the mobile app; no link was changed during publication.
+The profile has 5 links: Website, general YouTube channel, LinkedIn, X and TikTok. Preserve the
+existing **YouTube** label and [channel destination](https://www.youtube.com/@Alethical), Website
+and the other links. No replacement or reordering is requested. The current caption directions
+remain correct; no live bio or caption change is needed. The separate Story direct-link and Debates
+Highlight options remain proposals in the [profile review](social-profile-review.md).
 
 The saved post's desktop options contain no pin action. The
 [Instagram pin help](https://help.instagram.com/318456537074409) reports that the feature is unavailable
@@ -69,7 +68,7 @@ Saved alt text:
 ## Approved caption
 
 The [source record](forward-debate-instagram-record.json) retains exact text, settings, source-image
-hash, destinations, original caption and deferred direct bio link.
+hash, destinations, original caption and approved channel-link choice.
 
 ```text
 Respectful debate can bring people together without asking them to agree on everything.
@@ -105,7 +104,8 @@ and verified the complete caption before saving. The corrupted draft was never s
 Existing verified records for Facebook, LinkedIn, X and Bluesky contain clickable direct replay
 routes, so no corresponding change was needed. YouTube already hosts the full replay; the TikTok
 photo was removed, leaving no current affected post. This assessment uses those records and is not
-a new broad live audit. Broader profile, follow and Stories work remains held.
+a new broad live audit. Profile, follow and Stories research is complete; execution remains proposed in the
+[profile review](social-profile-review.md).
 
 ## Reusable guidance
 

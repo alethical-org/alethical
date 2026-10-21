@@ -231,6 +231,10 @@ The [Instagram publication record](forward-debate-instagram-record.md) retains t
 exact caption, verified Trent campaign/personal mentions, Aaron campaign-website fallback and saved
 hashtags. Caption web addresses are plain text. The saved watch action leads through the verified
 bio selector's YouTube channel link to the full debate, followed by the visible website replay URL.
-The direct replay bio replacement remains deferred. A Pinned post icon is verified on this post;
+Keep the existing **YouTube** bio link to [Alethical’s channel](https://www.youtube.com/@Alethical)
+so visitors can browse the full collection as well as the debate. Preserve Website and the other
+links; no bio replacement or reordering is requested. The current caption directions remain correct.
+A direct Story link and Debates Highlight remain separate proposals in the profile review.
+A Pinned post icon is verified on this post;
 the pin was not applied by the agent. The record separates the working channel route from a direct
 video link and retains the original caption.

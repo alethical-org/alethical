@@ -4,10 +4,11 @@ October 21, 2026. Covers Facebook, Instagram, LinkedIn, X, Bluesky, TikTok and Y
 
 ## Proposed rollout
 
-Recommended first step: Instagram: give the full debate a direct, clearly named bio link and a Story
-with a link sticker, then keep that Story in a Debates Highlight. This closes the largest observed
-gap between seeing our announcement and reaching the replay. Use the free supported route before
-considering paid link features.
+Instagram's approved bio choice is to keep the existing **YouTube** link to
+[the Alethical channel](https://www.youtube.com/@Alethical), where visitors can find the debate and
+browse the full collection. Preserve Website and the other links, with no replacement or reorder.
+The current caption directions remain correct. A Story with a direct replay link and a Debates
+Highlight remain separate proposed work, neither approved nor canceled by this bio decision.
 
 This is a research result and proposed rollout. No account settings, follows, Stories, profile text
 or links were changed in this review. The saved Instagram caption gives the verified channel route
@@ -37,7 +38,7 @@ messages remain separate.
 
 | Platform | Profile work | Promote this milestone | Engagement and company identity |
 | --- | --- | --- | --- |
-| Instagram | Put a direct YouTube replay link first, named “Watch the Forward Debate”. Keep the website link. Since all 5 slots are used, propose replacing the general YouTube-channel slot with the video, not deleting unrelated useful links. The current phone-only link-edit limitation remains. After the new link is saved and tested, update the existing caption to its exact label, keeping YouTube directions first and the website address after. | Share the debate photo or feed post to a Story with a real link sticker, then save it to Debates. Confirm the link works in the saved Highlight. Keep the grid pin. | Review requests from non-followers, Story sharing, mentions and tag review. Keep spam controls. Follow both verified Trent accounts as Alethical; Aaron has the approved website fallback until a verified account is found. |
+| Instagram | Keep the existing **YouTube** label and https://www.youtube.com/@Alethical destination so visitors can browse all videos. Preserve Website and other links without reordering. The existing caption correctly describes the selector, channel and video choice; no bio or caption edit is needed. | Share the debate photo or feed post to a Story with a real link sticker, then save it to Debates. Confirm the link works in the saved Highlight. Keep the grid pin. | Review requests from non-followers, Story sharing, mentions and tag review. Keep spam controls. Follow both verified Trent accounts as Alethical; Aaron has the approved website fallback until a verified account is found. |
 | Facebook | Complete About/intro, accurate category, website and public business contact. Inspect the actual Page action-button choices and pick the clearest website or message action. Do not invent a physical office or hours. | Keep pinned/featured post. Prepare a Page Story; only promise a direct Story link if that Page's composer supports it. Inspect cross-posted output separately. | Act as Alethical Page for follows, comments and messages. Check personal-profile following separately from Page following; never substitute a personal friend request. Review public comments and Messenger requests. |
 | LinkedIn | Use a plain description, accurate industry/category, website, specialties and real location. Configure the free website/contact action if useful. | Keep the debate Featured and add useful milestones within capacity. Page Stories are not the route. | Page messaging offers a business contact route. Follow organization/campaign Pages as Alethical. Personal-profile Follow/Connect uses the member identity, so skip that exception rather than act as a member. |
 | X | Fix the typo; lead the bio with what readers gain. Keep Minnesota and the website field. | Keep debate pin and Highlights. Its post already has a clickable replay link. Use actual approved Shorts later where suitable. | Propose open replies and a reviewable message-request inbox. Follow verified tagged accounts as @alethical. Paid Subscribe is not Follow. |
@@ -115,10 +116,10 @@ and defaults need an account check. On all platforms, use accurate name/descript
 readable captions, subtitles and meaningful alt text. Use the shared guide's approved hashtag
 research method and metric distinctions.
 
-After the profile route works, review the website's existing social links for correct destinations
-and prepare consistent share-ready links for future posts. Do not create a new link hub unless it
-shortens a real reader task; a direct replay link is simpler for this milestone. No unrelated
-website change is included here.
+The existing Instagram channel route works and serves the approved collection-browsing goal.
+A later website-link review may assess correct destinations and share-ready links within its scope.
+Do not create a new link hub unless it serves a real reader task; no unrelated website change is
+included here.
 
 For later comparable posts, record the available profile visits, follows, link taps, replay visits,
 meaningful replies and video viewing separately. Capture a baseline before changes and inspect
@@ -127,15 +128,14 @@ example. No new paid analytics or recurring monitor is needed for this review.
 
 ## Order after approval
 
-1. Instagram's direct replay bio link and Story/Highlight, with current-account settings checked at
-  the same time.
+1. Instagram's proposed Story/Highlight and current-account settings, preserving the approved
+  channel bio link.
 2. Facebook and LinkedIn profile/contact fields and company-follow exceptions.
 3. X and Bluesky wording, contact routes and verified tagged-account follows.
 4. TikTok and YouTube profile routes, then approved video Shorts and their replay links.
 
-When the Instagram bio link changes, update the existing caption to the saved direct-link label,
-removing the now-unneeded channel/video selection steps. Keep YouTube directions first, then the
-website URL.
+Keep the current caption’s verified YouTube selector/channel/video directions, followed by the
+website URL. A separate Story can carry its own direct replay link without changing the bio route.
 
 Handle 1 platform at a time and verify the visitor's result before moving on. Existing useful
 pins/features remain unless a better milestone needs a scarce slot. New paid features, broad privacy
@@ -151,7 +151,7 @@ approval boundaries. Platform documentation does not prove an Alethical setting 
 Some current help pages were unavailable; Account Status, search visibility and account-suggestion
 controls remain native-inspection items, not established defaults or reach guarantees.
 
-This review authorizes no account changes. The direct Instagram replay bio link remains a proposal;
-new Stories, follows and settings require execution scope. Short 01 remains held for its recorded
+The approved Instagram bio decision preserves the channel link and requires no live change.
+New Stories, follows and settings remain proposed and require execution scope. Short 01 remains held for its recorded
 defects. The public documentation upload remains held by
 [issue 2643](https://github.com/alethical-org/alethical/issues/2643); no security check is bypassed.
