@@ -152,3 +152,10 @@ announcement published through Adeli, its exact 300-character text, verified cam
 fallback and saved links. Neither social account type was verified for either candidate. The post
 links the full replay and has no media or preview-card embed. Pinning is not recorded as approved
 or completed; short 01 remains unapproved for posting.
+
+## Forward Debate TikTok preparation
+
+The [TikTok preparation record](forward-debate-tiktok-preparation.md) retains the staged Adeli photo
+post and exact title/description. It is not published or sent to TikTok's inbox. The preview crops
+important artwork; media treatment, native identity search, settings and live link behavior remain
+unfinished. Preparation does not release short 01's posting hold.

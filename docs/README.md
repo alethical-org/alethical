@@ -115,6 +115,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [Social writing and posting](operations/social-publishing.md) — Alethical copy, people links, account checks and saved-post review
 - [Forward Debate LinkedIn publication record](operations/forward-debate-linkedin-record.md) — approved text, profile links and saved-post checks
 - [Forward Debate Bluesky publication record](operations/forward-debate-bluesky-record.md) — approved campaign-website fallback, exact text and saved links
+- [Forward Debate TikTok preparation](operations/forward-debate-tiktok-preparation.md) — staged photo draft, source text and unfinished checks; not published
 - [Video editing and recovery](operations/video/README.md) — recording recipes, shorts, production records and recovery evidence
 
 - [Preventing repeated failures](operations/repeat-failure-review.md): history collection, examined causes, retained checks and the manual isolated browser command
