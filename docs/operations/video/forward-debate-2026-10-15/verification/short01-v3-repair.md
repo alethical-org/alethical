@@ -1,12 +1,13 @@
-# Short 01: name-tag repair and prepared v3
+# Short 01: name-tag repair and published v3
 
-Prepared October 21, 2026. This repair fixes the known cut-boundary defects without changing
-speech, source timing, crops, caption wording, design or sound. No upload, Drive mutation or
-publication occurred. The posting task owns destination preview checks, verified backup and
-live-state records. The user has requested starting the short rollout; old preparation holds
-are not a new prohibition, and unresolved checks are not silently passed.
+Published October 21, 2026. This repair fixed the known cut-boundary defects without changing
+speech, source timing, crops, caption wording, design or sound. The user approved the retained
+YouTube closing and all 7 publications. Native previews and playback were completed in the
+posting task; [Short 01 publication record](../../../forward-debate-short01-record.md) owns the
+live URLs, captions and remaining promotion work. The local video and cover match their Drive
+backups by size and SHA-256; [backup receipt](short01-v3-backup-receipt.json).
 
-## Exact candidate and preserved inputs
+## Published file and preserved inputs
 
 Local file: `$ALETHICAL_MEDIA/shorts/01-We-Disagree-We-Can-Still-Grab-a-Beer-v3.mp4`, where
 `ALETHICAL_MEDIA=~/Movies/Alethical/forward-debate-2026`.
@@ -33,7 +34,7 @@ Name overlays now belong to each first-appearance shot before those shots are jo
 Aaron's first tag remains 6 seconds; Trent and Angel retain their full short-shot tags;
 Aaron's returning shot has no repeated tag.
 
-| Output frame, 0-based | Frozen v2 | Prepared v3 |
+| Output frame, 0-based | Frozen v2 | Published v3 |
 | --- | --- | --- |
 | 280, 9.333 s | Trent, no tag | Trent with Trent tag |
 | 373, 12.433 s | Angel with Trent tag | Angel with Angel tag |
@@ -70,30 +71,29 @@ python3 short-01/check_name_tags.py "$ALETHICAL_MEDIA/shorts/01-We-Disagree-We-C
 Reproduce the raw filter comparison with `short-01/check_raw_revision.py --source <sound-fixed.mov>
 --out <new-report.json>`. It creates frame hashes without writing another video.
 
-The tag check is not a check of speech accuracy. Real app controls, expanded descriptions and
-phone playback were not inspected here. Listening was not performed; exact audio identity
+The tag check is not a check of speech accuracy. The repair review used frame sheets; subsequent
+native preview and playback checks are recorded by the posting task. Listening was not performed
+as part of the repair comparison; exact audio identity
 shows this repair did not alter the retained sound, not that every spoken word is independently
 verified. The existing uncertain speaker of “We have before, yes” remains unresolved; name
 badges identify the person pictured, and do not settle that speaker attribution. The approved
 caption-only omission of “As evidence today” remains; its audio stays. Silent intro, role
-wording and the existing closing sound remain unchanged. No new thumbnail was made.
+wording and the existing closing sound remain unchanged. The posting task later extracted the
+cover at 3.5 seconds; its exact file and backup are in the receipt.
 
-The candidate has no verified Drive backup yet. Its hash is retained here and in the input
-record; it is not added as a recoverable media entry until backup and restore details are known.
-The frozen v2 Drive reference remains the recovery target. Do not run `make_inventory.py` over
-new local candidate media expecting it to silently treat an unbacked file as recoverable.
+V3 and its cover now have hash-matched local and Drive copies and explicit restore-inventory
+entries. The frozen v2 Drive reference stays preserved, and its earlier recovery test remains
+valid for that version. No fresh v3 download-and-render recovery test has been performed.
 
 ## Acceptance checkpoint
 
 The primary agent sampled sheets 04, 05, 06 and 10, reviewed the renderer logic and repair
-record, and accepted all 3 cut-tag corrections. The closing still points to YouTube.
-Native preview, backup and publication remain unfinished. This is a local repair checkpoint;
-no push past the existing security gate and no cloud mutation are included.
-
-The latest direction prioritizes the Alethical website on every suitable surface. Review the
-existing YouTube-first closing destination during the upcoming short preparation review against
-that direction and each destination's working clickable route. Do not silently publish this
-checkpoint as a YouTube-first final. No closing redesign or new render is part of this repair.
+record, and accepted all 3 cut-tag corrections. The closing still points to YouTube. The later
+user approval retained that closing for this publication; it is not a website-first redesign.
+Native previews, playback, backup verification and all 7 publications were completed in the
+posting task. The [publication record](../../../forward-debate-short01-record.md) carries the
+current platform state. Future destination choices follow the current social guide and working
+clickable route. No additional render was made to reconcile these records.
 
 ## Copy and identity handoff
 

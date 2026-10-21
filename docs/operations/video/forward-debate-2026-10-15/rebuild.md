@@ -23,7 +23,7 @@ only when regenerating intro frames. A newer OS, encoder or tool version require
 ## Short 01
 
 The command below reproduces the frozen v2 recovery reference. The current `render.py` produces
-the separate repaired v3 candidate; its expected 3 raw-frame changes, unchanged audio and checks
+the separate repaired v3 publication; its expected 3 raw-frame changes, unchanged audio and checks
 are in [the v3 repair record](verification/short01-v3-repair.md). Never compare v3 to v2 expecting
 all picture frames to match. Preserve both outputs and use a new output path.
 

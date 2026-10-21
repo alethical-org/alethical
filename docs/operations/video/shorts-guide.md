@@ -11,8 +11,12 @@ The first-version MP4 is frozen with SHA-256
 `0c6df832e41ae610cfcf46dde703344f8d4cd3f1f1bb54a05297f95f254f2698`.
 The frozen v2 version doubles Aaron's first name-tag appearance from 3 s to 6 s in clip 01 only.
 It has SHA-256 `33cae6382600d17ab05b9d62108cfed5e7936134315f1d1ee6d2ea7e2f7f2581` and is
-the recovery-test reference. The [prepared v3 repair](forward-debate-2026-10-15/verification/short01-v3-repair.md)
+the recovery-test reference. The [published v3 repair](forward-debate-2026-10-15/verification/short01-v3-repair.md)
 keeps tags inside their own shots and changes only 3 raw frames. All references are preserved; other tags keep their first-template timing. The request does not make 6 s a rule for other people or clips.
+Short 01 v3 is published on all 7 platforms with the user-approved retained YouTube closing;
+[publication record](../forward-debate-short01-record.md). This approval does not select closing
+destinations or intro treatment for future shorts. V3 and its cover have verified local and Drive
+copies in the [backup receipt](forward-debate-2026-10-15/verification/short01-v3-backup-receipt.json).
 
 ## 3 clocks
 
@@ -177,14 +181,12 @@ forward as a new decision. Fill in:
 
 ## Unresolved (not defaults)
 
-- Clip 01 rollout has been requested. Its repaired candidate still needs destination checks and a
-  verified backup; the posting task records exact approval and live state per account. Frozen
-  references are evidence, not the file to post.
-- Intro sound. The frozen reference is silent; keeping it silent was suggested but not decided.
-- Aaron Brutger's role wording. The frozen reference says "Republican-endorsed write-in candidate";
-  shortening it to "Republican-endorsed write-in" was suggested but not answered. The new tag-duration
-  instruction changes reading time, not this wording.
-- Thumbnails per short.
+- Intro sound for future shorts. Published clip 01 keeps its silent intro; that does not establish
+  a universal intro-audio choice.
+- Role wording for future clips. Published clip 01 retains "Republican-endorsed write-in candidate";
+  the earlier suggested shortening was not adopted. Verify roles and reading time for each clip.
+- Thumbnails for future shorts. Clip 01 uses its saved 3.5-second frame; this does not choose
+  another clip's cover.
 
 Full-export storage is settled separately in the [production record](forward-debate-2026-10-15/README.md):
 no backup of the 29 GB export; rebuilding that full edition remains untested.

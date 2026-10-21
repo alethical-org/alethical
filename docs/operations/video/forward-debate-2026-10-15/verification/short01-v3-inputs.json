@@ -2,7 +2,7 @@
   "candidate": "/Users/eug/Movies/Alethical/forward-debate-2026/shorts/01-We-Disagree-We-Can-Still-Grab-a-Beer-v3.mp4",
   "bytes": 27017469,
   "sha256": "9dba7706b97af5812be57f83d20205d2845d0c193ec67236a83ffada902fd14d",
-  "status": "Prepared candidate; no upload or Drive backup in this repair task",
+  "status": "Published on all 7 platforms; video and cover local-and-Drive hash-matched; see short01-v3-backup-receipt.json and social publication record",
   "unchanged_saved_inputs": [
     {
       "path": "short-01/assets/alethical-symbol-transparent.png",
@@ -355,5 +355,7 @@
   ],
   "source_sha256": "81589c34d8ae50c704f1622bfe030e9930c51f691b9a1534cd56af6708d4f680",
   "reference_sha256": "33cae6382600d17ab05b9d62108cfed5e7936134315f1d1ee6d2ea7e2f7f2581",
-  "checked_source_and_reference_hashes": true
+  "checked_source_and_reference_hashes": true,
+  "publication_record": "../../../forward-debate-short01-record.md",
+  "backup_receipt": "short01-v3-backup-receipt.json"
 }

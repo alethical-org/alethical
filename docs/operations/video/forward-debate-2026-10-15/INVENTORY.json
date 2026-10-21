@@ -4,7 +4,7 @@
   "media_env": "ALETHICAL_MEDIA",
   "drive_folder": "Alethical Team/Media/Forward Debate 2026-10-15",
   "drive_account": "authorized team Drive account",
-  "inventory_note": "Inventory excludes its own hash; Git commit covers it. Local-only generated test outputs are not recovery inputs. Prepared v3 candidate hash and unbacked status are in verification/short01-v3-inputs.json; frozen v2 remains the restore target.",
+  "inventory_note": "Inventory excludes its own hash; Git commit covers it. Local-only generated test outputs are not recovery inputs. Published v3 video and cover have explicit hash-matched Drive entries; frozen v2 stays the historical recovery-test reference. Backup verification is not a fresh v3 download-and-render recovery test.",
   "files": [
     {
       "path": "../.gitignore",
@@ -26,8 +26,8 @@
       "path": "README.md",
       "store": "repo",
       "purpose": "Saved package input or record",
-      "bytes": 10489,
-      "sha256": "843a5d29421ea30dc203a838cb6b07d2c701963748f9a96ce0546c40aaa917ce",
+      "bytes": 11519,
+      "sha256": "c655b6d4e818ac7c9529860755f0d3673339b8f8a9855c44e3a148a8c7225b63",
       "restore": "git clone"
     },
     {
@@ -234,8 +234,8 @@
       "path": "make_inventory.py",
       "store": "repo",
       "purpose": "Saved package input or record",
-      "bytes": 5652,
-      "sha256": "1bac79a974f87d10cbc7673a12e88596e9c5e13b2d9463e15a88381e7e1a490a",
+      "bytes": 5939,
+      "sha256": "2e7eb4b9c1339b972372d19395747c0806cf3d4ccad275cf78dd526f06a8e629",
       "restore": "git clone"
     },
     {
@@ -250,8 +250,8 @@
       "path": "rebuild.md",
       "store": "repo",
       "purpose": "Saved package input or record",
-      "bytes": 5324,
-      "sha256": "d26f823a9b642681b3dcc213240a92a39f7ea625c0564ad0962d99a60cff175a",
+      "bytes": 5326,
+      "sha256": "9b8165acf8d51e0c38ee5474d0a65a86575703ad78598efbbe59f3fc874f6548",
       "restore": "git clone"
     },
     {
@@ -1322,8 +1322,8 @@
       "path": "../shorts-guide.md",
       "store": "repo",
       "purpose": "Saved package input or record",
-      "bytes": 12662,
-      "sha256": "11345e0e484143ca3da342c62077eb59a9f22d32bca2500bf56fc2439b468d59",
+      "bytes": 13771,
+      "sha256": "5cada3c69c315182b2def53803e87215573373a3fce7a438ab57c8141cf36ade",
       "restore": "git clone"
     },
     {
@@ -1362,7 +1362,7 @@
     {
       "path": "references/short-01-33cae638.mp4",
       "store": "media",
-      "purpose": "Current short 01 reference; Aaron first tag 6 seconds",
+      "purpose": "Frozen v2 short 01 recovery reference; Aaron first tag 6 seconds",
       "bytes": 27017223,
       "sha256": "33cae6382600d17ab05b9d62108cfed5e7936134315f1d1ee6d2ea7e2f7f2581",
       "drive_path": "01-We-Disagree-We-Can-Still-Grab-a-Beer-v2.mp4",
@@ -1421,8 +1421,8 @@
       "store": "repo",
       "purpose": "Short 01 v3 repair input or verification record",
       "restore": "git clone",
-      "bytes": 13083,
-      "sha256": "f8c75aa7b45f9a312f13f858f4a4a4035ad57e7fac9aca368cf4e2b475d4d95c"
+      "bytes": 13281,
+      "sha256": "1c50d688026123d2b82a92e0816e354ebea970072a3f3483f7fdcb9da7bdf53b"
     },
     {
       "path": "verification/short01-v3-tag-regression.json",
@@ -1445,8 +1445,8 @@
       "store": "repo",
       "purpose": "Short 01 v3 repair input or verification record",
       "restore": "git clone",
-      "bytes": 7186,
-      "sha256": "ff0bfa4ad391e266632fdf06d1dd36f9cacafc12aa4534442182ebf559ba2a09"
+      "bytes": 7252,
+      "sha256": "d429364645d2c2d15b67243344e58b97f70947c4b27ef7b468727ba19622413f"
     },
     {
       "path": "verification/short01-v2-tag-regression.json",
@@ -1543,6 +1543,38 @@
       "restore": "git clone",
       "bytes": 628242,
       "sha256": "0672e12ea47c8038a7d1db40e0ae1b46fdc5a60653d3ab533c4818570350ec10"
+    },
+    {
+      "path": "verification/short01-v3-backup-receipt.json",
+      "store": "repo",
+      "purpose": "Short 01 published media backup receipt",
+      "restore": "git clone",
+      "bytes": 1357,
+      "sha256": "a4e1e3863787ba6824a6119451b7f52a34e0069ce7888e3f272a2ee2a9db6d91"
+    },
+    {
+      "path": "shorts/01-We-Disagree-We-Can-Still-Grab-a-Beer-v3.mp4",
+      "store": "media",
+      "purpose": "Published short 01 v3; corrected cut-boundary name tags",
+      "bytes": 27017469,
+      "sha256": "9dba7706b97af5812be57f83d20205d2845d0c193ec67236a83ffada902fd14d",
+      "drive_path": "01-We-Disagree-We-Can-Still-Grab-a-Beer-v3.mp4",
+      "drive_id": "1KOXQuoDE-73sCzWPPvSxoHgJXjuNIaE8",
+      "backup_status": "hash-matched",
+      "backup_receipt": "verification/short01-v3-backup-receipt.json",
+      "restore": "restore_media.py downloads the explicit Drive path and verifies SHA-256"
+    },
+    {
+      "path": "shorts/01-cover-v3.jpg",
+      "store": "media",
+      "purpose": "Short 01 v3 cover; frame extracted at 3.5 seconds",
+      "bytes": 90231,
+      "sha256": "c85ea98d7f81ee6cc4ba3143db4e215774bf043d20f00ccdb9eb3654bbb66313",
+      "drive_path": "01-cover-v3.jpg",
+      "drive_id": "1blzeMQ39ssb_LkIka88l5xmlxxH0b05l",
+      "backup_status": "hash-matched",
+      "backup_receipt": "verification/short01-v3-backup-receipt.json",
+      "restore": "restore_media.py downloads the explicit Drive path and verifies SHA-256"
     }
   ]
 }

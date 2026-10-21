@@ -88,13 +88,17 @@ Settled on the full edition, in short:
 
 ## Short 01: "We disagree. We can still grab a beer."
 
-Recipe in [short-01/](short-01/). Prepared candidate: `shorts/01-We-Disagree-We-Can-Still-Grab-a-Beer-v3.mp4`,
+Recipe in [short-01/](short-01/). Published v3: `shorts/01-We-Disagree-We-Can-Still-Grab-a-Beer-v3.mp4`,
 29.800 s, 894 frames, 1080x1920 30 fps, stereo AAC 48 kHz, 27,017,469 bytes, SHA-256
 `9dba7706b97af5812be57f83d20205d2845d0c193ec67236a83ffada902fd14d`.
 The current recipe is `short-01/render.py`. Its name tags stay inside their own shots, repairing
 3 cut-boundary frames. Speech, source bounds, crops, captions, design and timing are unchanged.
-[Repair evidence and remaining checks](verification/short01-v3-repair.md) govern this candidate.
-It is local only; no Drive upload or publication occurred in the repair task.
+[Repair evidence and acceptance](verification/short01-v3-repair.md) cover this version.
+The video and cover extracted at 3.5 seconds are retained locally and on Drive with matching hashes;
+[backup receipt](verification/short01-v3-backup-receipt.json). The user approved the retained
+YouTube closing and publication on all 7 platforms. Native previews and playback were completed
+in the posting task. [Short 01 publication record](../../forward-debate-short01-record.md) owns
+the live links, captions and remaining promotion work.
 
 The frozen v2 reference is `references/short-01-33cae638.mp4`, SHA-256
 `33cae6382600d17ab05b9d62108cfed5e7936134315f1d1ee6d2ea7e2f7f2581`, 27,017,223 bytes.
@@ -103,8 +107,9 @@ Its recipe is now `short-01/render-v2.py`; it preserves the original boundary de
 The prior 27,018,433-byte version, SHA-256
 `0c6df832e41ae610cfcf46dde703344f8d4cd3f1f1bb54a05297f95f254f2698`, remains on Drive as
 `01-We-Disagree-We-Can-Still-Grab-a-Beer.mp4`, with recipe `short-01/render-initial.py`.
-Both references stay preserved. The requested short rollout permits preparation; destination
-readiness, backup and publication state are recorded separately by the posting task.
+Both references stay preserved. The frozen v2 recovery test is historical evidence; v3 and its
+cover are also included in the restore inventory. No fresh v3 download-and-render recovery test
+is implied by the hash-matched backup.
 
 Selection: ID 1 in [selection/forward-debate-shorts-selects.md](selection/forward-debate-shorts-selects.md),
 whose proposed window was published 1:55:59.000 to 1:56:24.020 (a caption-window proposal). The edit
@@ -147,7 +152,7 @@ output paths are explicit and existing outputs are refused. The saved text build
 the delivered SRT, transcript and turn list from saved transcripts; checks are retained in
 [rebuild.md](rebuild.md).
 
-Recovery test of the frozen v2 short: **tested-and-matched** from a fresh GitHub clone and Drive restore. All 894 decoded frames, decoded stereo audio and timing match exactly. See [the measured test record](verification/recovery-test.md) for evidence and the 2 existing single-frame wrong-person tags found at cuts. Those defects stay preserved in the reference; the separate [v3 repair](verification/short01-v3-repair.md) resolves them in the prepared candidate.
+Recovery test of the frozen v2 short: **tested-and-matched** from a fresh GitHub clone and Drive restore. All 894 decoded frames, decoded stereo audio and timing match exactly. See [the measured test record](verification/recovery-test.md) for evidence and the 2 existing single-frame wrong-person tags found at cuts. Those defects stay preserved in the reference; the separate [v3 repair](verification/short01-v3-repair.md) resolves them in the published v3.
 
 ## Package records
 

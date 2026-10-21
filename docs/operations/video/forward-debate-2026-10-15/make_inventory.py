@@ -18,7 +18,9 @@ MEDIA = [
     ('ForwardDebate-sound-fixed.mov', 'ForwardDebate-sound-fixed.mov', 'Sound-fixed editing source; copied original picture stream'),
     ('ForwardDebate-original-audio-stereo.m4a', 'ForwardDebate-original-audio-stereo.m4a', 'Original stereo audio, copied without re-encoding'),
     ('ForwardDebate-original-audio-spatial-4ch.mov', 'ForwardDebate-original-audio-spatial-4ch.mov', 'Original 4-channel APAC audio, copied without re-encoding'),
-    ('references/short-01-33cae638.mp4', '01-We-Disagree-We-Can-Still-Grab-a-Beer-v2.mp4', 'Current short 01 reference; Aaron first tag 6 seconds'),
+    ('references/short-01-33cae638.mp4', '01-We-Disagree-We-Can-Still-Grab-a-Beer-v2.mp4', 'Frozen v2 short 01 recovery reference; Aaron first tag 6 seconds'),
+    ('shorts/01-We-Disagree-We-Can-Still-Grab-a-Beer-v3.mp4', '01-We-Disagree-We-Can-Still-Grab-a-Beer-v3.mp4', 'Published short 01 v3; corrected cut-boundary name tags'),
+    ('shorts/01-cover-v3.jpg', '01-cover-v3.jpg', 'Short 01 v3 cover; frame extracted at 3.5 seconds'),
 ]
 
 
