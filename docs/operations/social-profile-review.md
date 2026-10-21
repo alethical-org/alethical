@@ -129,8 +129,17 @@ Campaign intelligence, research & analytics. Tools & resources to help candidate
 The unbounded claim to read every bill is removed. The current native baseline is 282 followers
 and 8 following; these figures are a snapshot, not a measured effect of the bio change.
 
-Native Links supports up to 10 and already contained the website plus all 6 other official
-accounts. Website-first reordering is in progress; the saved order is not yet verified.
+Native Links supports up to 10 and contains the website plus all 6 other official accounts.
+The saved order is verified: **Website, X, TikTok, LinkedIn, Instagram, YouTube, Bluesky**.
+Native edit values use HTTPS; the old HTTP website and TikTok entries were corrected. Existing
+contact routes are **ask@alethical.com** and **Messenger/Alethical**.
+
+The Following list under the Alethical Page identity confirms Trent’s personal profile, Trent’s
+campaign Page and Aaron’s campaign Page are already followed. Aaron’s exact verified personal
+profile exposed no Follow action in its header or More menu; that menu contained Report, Help and
+Block. The comment actor remained Alethical. Following that profile is unavailable in the inspected
+Page view; this does not establish a general Facebook prohibition, since Trent’s personal profile
+is followed. No personal-account friend request was substituted.
 
 ## Writing for the approved rollout
 
