@@ -50,8 +50,9 @@ are available. A campaign page is distinct from a personal profile or unrelated 
 the role of each destination and never substitute an employer for a campaign.
 
 If no matching campaign account is verified after a reasonable search on that platform, omit that
-type under the approved fallback without asking again. Record that it was not found, not that it
-does not exist; results on 1 platform do not settle another. When only a personal profile is linked,
+type under the approved fallback without asking again. Follow the shared guide's bounded search,
+then stop retrying without new evidence. Record that it was not found, not that it does not exist;
+results on 1 platform do not settle another. When only a personal profile is linked,
 link it once at the first mention and leave repeated names, including the closing thank-you, plain.
 Do not add repetitive name mentions merely to fit both account types.
 
