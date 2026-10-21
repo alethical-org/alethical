@@ -76,8 +76,8 @@ connections before use; this is not authorization for a paid upgrade or addition
 Handle 1 platform at a time and verify its saved result before moving to the next. Confirm the
 platform, Alethical account, approved text, media edition, links, visibility and requested timing.
 Approval for 1 destination does not approve every connected account. A revision updates the existing
-post; it does not create another copy. On YouTube, use the existing full replay rather than upload a
-duplicate, and confirm the requested format and existing channel content before publishing.
+post; it does not create another copy. On YouTube, confirm the requested format and existing channel
+content before publishing; the Forward Debate direction below owns this promotion's scope.
 
 Use the platform's own editor for a needed feature that the connector cannot complete, such as
 resolving a particular name mention. Read the live post before editing so that later platform edits
@@ -166,3 +166,14 @@ or removal action is verified. For this Forward Debate promotion, wait for a mea
 debate short; do not replace the thumbnail with a timed still merely for playback. This is a current
 TikTok content choice, not a ban on photo posts: substantive photo content may be assessed separately.
 Short 01's posting hold remains.
+
+## Forward Debate YouTube direction
+
+The [full Forward Debate replay](https://www.youtube.com/watch?v=y66-Wf9bNio) is already published.
+For this promotion, keep that replay and publish only approved, ready Shorts that point viewers to
+it. Do not upload another full replay or prepare a Community Post for this promotion. This choice
+does not restrict Community Posts for unrelated work.
+
+Short 01 remains unapproved for posting. This direction does not resolve its 2 known defects,
+complete its remaining checks or grant permission to publish it. Follow the video guide's acceptance
+requirements before treating any short as ready.
