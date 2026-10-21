@@ -1,7 +1,7 @@
 # Forward Debate TikTok preparation
 
 **Preparation only, October 21, 2026. Not published or sent to TikTok's inbox.**
-Adeli's **Alethical.com** TikTok account is staged at **Image > Step 3**.
+Adeli's **Alethical.com** TikTok account is at the **Step 4 review**, with 1 image.
 No live post address or publish identifier exists for this preparation.
 
 ## Media and readiness
@@ -10,7 +10,8 @@ The original [Forward Debate thumbnail](video/forward-debate-2026-10-15/text/For
 produced a square Adeli preview that clipped the left title/name and people at the sides. That preview
 is not proof of TikTok's output crop. The [1080 × 1920 padded derivative](social-media/forward-debate-tiktok-original-padded.png)
 keeps the original image's full composition without cropping or regenerating its photo, text or faces.
-Its loaded Adeli preview and final output remain pending verification. Short 01 remains held.
+The final Adeli preview shows the full title, names and faces without cropping. Actual published
+TikTok output is not yet available. Short 01 remains held.
 
 The derivative is outside the frozen video recovery package. Its SHA-256 is
 `00d306af6e6847a6c126d3932ec09da31321ba51ca84ba4b23e5ce578a71590a`.
@@ -23,12 +24,17 @@ sips --padToHeightWidth 2276 1280 --padColor 0A0A0A social-media/forward-debate-
 sips --resampleHeightWidth 1920 1080 social-media/forward-debate-tiktok-original-padded.png
 ```
 
-Visibility is unselected, comments are on by default, automatic music is off, and the own-business
-disclosure is not selected. Continue is disabled. These are staged settings, not final choices.
+The final review shows **Everyone**, comments on, automatic music off and own-business
+**Promotional content** on. Paid partnership and AI-media are off; the image is an ordinary resize
+and pad of the original artwork. The title has 64 characters and the description has 889.
+
+The sole remaining pre-publication boundary is the unchecked confirmation:
+“I confirm this publishes a real TikTok post visible to everyone and I agree to TikTok’s Music Usage
+Confirmation.” Action-time user acceptance is pending. No publish or inbox-draft request has been sent.
 
 ## Text and destination checks
 
-The editor's initial title and description matched the source. The [current preparation source](forward-debate-tiktok-preparation.json) adds the YouTube search instruction; updated readback remains pending.
+The final title and 889-character description match the [exact preparation source](forward-debate-tiktok-preparation.json), including the YouTube search instruction.
 [Adeli's TikTok guide](https://www.tryadeli.com/docs/api/posts/publish-tiktok), read October 21, 2026,
 documents photo-title and description limits of 90 and 4,000 characters and requires exactly 1 media
 type, photo or video. The source below fits those limits; fitting text does not establish media readiness.
@@ -41,8 +47,9 @@ cross-links. The verified campaign-website fallback applies after this reasonabl
 Alethical's native handle is `@alethicaltruth`, with 1 existing money-report video and no visible
 website link. The draft adds a YouTube search instruction for readers who cannot open caption URLs.
 Official campaign websites are verified. The draft shows those addresses as text, not verified live
-clickable links. Confirm final link treatment, media, visibility and disclosure before
-any publication decision.
+clickable links. The YouTube search instruction provides an alternative route. Native published
+link behavior and output require saved-post verification after publication; they are not claimed
+from the draft. Image, identity-search and final-setting preparation checks are complete.
 
 ## Draft title
 
