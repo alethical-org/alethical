@@ -36,17 +36,19 @@ Confirmation.” The public photo was then submitted. Adeli reports `PUBLISH_COM
 profile and direct-address checks confirm the public photo. Full caption, visual and link review
 remain incomplete; provider completion does not establish a usable viewing experience.
 
-## Viewing issue and unresolved format choice
+## Viewing issue and approved format choice
 
 The direct photo address automatically navigates to an unrelated next video within seconds without
 a click. This reproduces the reported viewing problem; its cause is not established. Playback is
 not accepted. The photo remains public; no hide, delete or replacement action has been applied.
 
-The proposed next step is to wait for a meaningful debate short on TikTok rather than publish a
-timed still solely to fill the channel. This is an unresolved recommendation, not an approved
-platform-wide policy or authorization to remove the photo. A 12-second silent still-video experiment
-exists only in scratch; it is not published, adopted as current media or copied into this record’s
-media collection. Short 01’s separate posting hold remains.
+For this Forward Debate promotion, the approved choice is to wait for a meaningful, approved debate
+short and not replace the thumbnail with a timed still merely for playback. This does not prohibit
+photo posts on TikTok; substantive photo content can be assessed separately. The existing photo
+remains public until a native privacy or removal action is separately verified.
+
+A 12-second silent still-video experiment exists only in scratch; it is not published, adopted as
+current media or copied into this record’s media collection. Short 01’s separate posting hold remains.
 
 ## Text and destination checks
 
