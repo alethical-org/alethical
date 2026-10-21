@@ -144,3 +144,11 @@ review limits for the October 21, 2026 announcement. The approved personal-only 
 verified profiles are linked once in the introduction; closing names are plain. Campaign destinations
 were not verified on LinkedIn. Do not substitute employers or infer that campaign pages do not exist.
 The full-replay announcement does not approve short 01.
+
+## Forward Debate Bluesky publication
+
+The [Bluesky publication record](forward-debate-bluesky-record.md) retains the October 21, 2026
+announcement published through Adeli, its exact 300-character text, verified campaign-website
+fallback and saved links. Neither social account type was verified for either candidate. The post
+links the full replay and has no media or preview-card embed. Pinning is not recorded as approved
+or completed; short 01 remains unapproved for posting.
