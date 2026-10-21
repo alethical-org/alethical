@@ -41,6 +41,10 @@ campaign-performance claims. The separate gate on a debate-hosting inquiry invit
 post remains: propose exact wording, platform and location for approval first. No such outside-post
 invitation has been added.
 
+Include **Launched in Minnesota** in each bio/profile intro, using **MN** only when field space
+requires it. Do not infer nationwide availability. Application across all 7 accounts is in progress;
+only the saved results below establish completion.
+
 Prepare short 2 after the account work, with no publication before October 22, 2026. No schedule
 has been created. The Instagram short Story, website sticker and **Debate** Highlight addition are
 deferred to the final phone-action list; this does not hold independent account work.
@@ -274,6 +278,30 @@ The video player menu exposed speed, quality, autoscroll and similar playback co
 Pin, Story or playlist action there. This does not establish that the account lacks those features;
 the relevant mobile controls still require inspection.
 
+### YouTube
+
+The earlier 713-character overview was saved and verified publicly. The current 736-character
+edition adds **Launched in Minnesota.** and received native **Changes published** confirmation.
+Exact source text is awaiting its saved receipt; public readback of the added launch wording is
+not yet recorded. **ask@alethical.com** remains the public contact.
+
+All 7 public link redirect destinations were read and verified, in this order:
+
+1. [Website](https://www.alethical.com/)
+2. [Facebook](https://www.facebook.com/people/Alethical/61588261592240/)
+3. [Instagram](https://www.instagram.com/alethicaltruth/)
+4. [TikTok](https://www.tiktok.com/@alethicaltruth)
+5. [X](https://x.com/alethical)
+6. [LinkedIn](https://www.linkedin.com/company/alethical)
+7. [Bluesky](https://bsky.app/profile/alethical.com)
+
+Home was off and is now on. A **Single playlist** section for **Candidate Debates**, containing
+2 videos, was saved and remained after refreshing settings. The visitor Home view is still empty;
+the playlist is not claimed visible there until visitor verification succeeds.
+
+The public baseline is 2 subscribers, 3 videos and 9 views. These figures are observations,
+not measured effects of the profile changes.
+
 ## Writing for the approved rollout
 
 Describe the broad government/campaign platform while leading with campaigns/elections/debate
@@ -341,8 +369,9 @@ later audit may choose ordering without replacing the approved channel with a si
 Maximize useful cross-platform routes without duplicates or misleading labels. Where the fields
 cannot fit every account, prioritize useful clickable routes and record omitted destinations and
 actual platform limits. Inspect each account’s controls and verify every saved destination. A
-possible missing Bluesky link on YouTube is an example to check, not a confirmed defect. This audit
-is queued after the current work; no audit or live profile edit is started by this record update.
+possible missing Bluesky link on YouTube was an inspection prompt; its saved destination is now
+verified above. The account records distinguish completed link checks from remaining omissions
+and unsupported or uninspected controls; the cross-platform audit is not yet complete.
 Use the [shared profile method](https://github.com/euglopi/tool-settings/blob/main/shared/guides/social-profile-promotion.md#inspect-before-changing).
 Do not create a new link hub unless it serves a real reader task; no unrelated website change is
 included here.

@@ -47,9 +47,10 @@ and failures after execution; documentation must not interrupt feasible authoriz
   campaign analytics, and tools/resources to help candidates run effectively. Retain Alethical’s
   public-record work on bills, votes, campaign money and lobbying. Include verified broader tools,
   technology and services at a high level as space permits; a short bio is not a full feature list.
+  State **Launched in Minnesota** in bios/profile intros, abbreviating Minnesota to **MN** when
+  the field limit requires it. This launch statement does not claim nationwide availability.
   Do not promise the platform supports everything or make it debate-only. Adapt to field limits
-  without inventing self-service features
-  or promising campaign performance. Describe offered services as current and other proposed
+  without inventing self-service features or promising campaign performance. Describe offered services as current and other proposed
   features as plans. A debate-hosting inquiry invitation outside a post still needs the exact
   wording, platform and location approved before changing it.
 - Describe planned services as plans. Use the [campaign services guide](../product-onboarding/services-guide.md)
