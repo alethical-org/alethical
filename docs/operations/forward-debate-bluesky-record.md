@@ -10,7 +10,8 @@ This promotes the existing full replay; it does not publish or approve short 01.
 - The 300-character text uses each candidate's name followed once by the verified official campaign website. Neither personal nor campaign Bluesky accounts were verified after surname and exact-campaign-handle searches and campaign-site link review. This applies the approved website fallback, not a finding that social accounts do not exist.
 - The native saved post shows the correct author and links to [Trent's campaign](https://trentformn13.com), [Aaron's campaign](https://brutgerformnsenate.com) and [the full replay](https://www.alethical.com/blog/events/forward-debate-2026).
 - Adeli reported successful publication. The public author-feed record confirms the exact text and 3 link facets. No media or preview-card embed is attached.
-- Content and destination checks are complete. A full desktop or mobile layout review is not recorded here. No pin was applied; a placement recommendation does not authorize a placement action.
+- Content and destination checks are complete. A full desktop or mobile layout review is not recorded here.
+- The user pinned the announcement. On October 21, 2026, the public profile API's `pinnedPost.uri` matched this exact replay post; the source record retains its URI and CID. The pin is verified read-only, not an agent-applied action. Whether a prior pin was replaced is not established.
 
 ## Approved text
 

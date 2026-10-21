@@ -184,8 +184,9 @@ The full-replay announcement does not approve short 01.
 The [Bluesky publication record](forward-debate-bluesky-record.md) retains the October 21, 2026
 announcement published through Adeli, its exact 300-character text, verified campaign-website
 fallback and saved links. Neither social account type was verified for either candidate. The post
-links the full replay and has no media or preview-card embed. Pinning is not recorded as approved
-or completed; short 01 remains unapproved for posting.
+links the full replay and has no media or preview-card embed. The user pinned this announcement;
+the public profile API confirmed the exact post as the current pin on October 21, 2026. Whether a
+prior pin was replaced is unknown. Short 01 remains unapproved for posting.
 
 ## TikTok format and Forward Debate record
 

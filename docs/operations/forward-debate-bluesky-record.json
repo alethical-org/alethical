@@ -11,5 +11,14 @@
     "https://brutgerformnsenate.com",
     "https://www.alethical.com/blog/events/forward-debate-2026"
   ],
-  "embed": null
+  "embed": null,
+  "placement": {
+    "pinned": true,
+    "appliedBy": "user",
+    "verifiedDate": "2026-10-21",
+    "verification": "Official public API getProfile actor=alethical.com pinnedPost",
+    "uri": "at://did:plc:u6uypy7kvwfyaqs3akh5kg7b/app.bsky.feed.post/3myfhkaueoh2t",
+    "cid": "bafyreiamvdl7xjrnvnkdfasf3lz75fboox6efsz3c2stf53kvpmzmvcgme",
+    "priorPinReplacementKnown": false
+  }
 }
