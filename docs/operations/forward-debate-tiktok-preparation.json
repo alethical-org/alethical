@@ -7,9 +7,9 @@
   "format": "photo",
   "editorStep": 3,
   "title": "Respectful debate. Shared ground. Watch the full Forward Debate.",
-  "description": "We can disagree and still work together.\n\nAt Alethical’s Forward Debate, Trent Dilks (https://trentformn13.com) and Aaron Brutger (https://brutgerformnsenate.com) answered hard questions about Minnesota’s future. Afterward, attendees praised both candidates, with some calling it the best debate they had seen.\n\nPeople also spoke positively about the candidates joining the Forward Independence Coalition and their willingness to work across party lines: https://forwardcoalition.com/candidates\n\nThat’s the spirit we want to build on. Alethical will soon share plans for more debates across Minnesota and tools, data and support for candidates of any party, including independents.\n\nThank you to both candidates and everyone who kept the conversation going.\n\nWatch the full debate: https://www.alethical.com/blog/events/forward-debate-2026",
+  "description": "We can disagree and still work together.\n\nAt Alethical’s Forward Debate, Trent Dilks (https://trentformn13.com) and Aaron Brutger (https://brutgerformnsenate.com) answered hard questions about Minnesota’s future. Afterward, attendees praised both candidates, with some calling it the best debate they had seen.\n\nPeople also spoke positively about the candidates joining the Forward Independence Coalition and their willingness to work across party lines: https://forwardcoalition.com/candidates\n\nThat’s the spirit we want to build on. Alethical will soon share plans for more debates across Minnesota and tools, data and support for candidates of any party, including independents.\n\nThank you to both candidates and everyone who kept the conversation going.\n\nWatch the full debate: https://www.alethical.com/blog/events/forward-debate-2026\nOr search YouTube for “Alethical Forward Debate”.",
   "titleCharacters": 64,
-  "descriptionCharacters": 839,
+  "descriptionCharacters": 889,
   "mediaPath": "video/forward-debate-2026-10-15/text/ForwardDebate-thumbnail.jpg",
   "mediaSha256": "8205384203f0ab08f3e673d044e68e85dda7abec0eefdb03c1ddac5176463016",
   "visibility": null,
@@ -33,5 +33,7 @@
     ],
     "crop": false,
     "generativeEdit": false
-  }
+  },
+  "accountHandle": "alethicaltruth",
+  "descriptionReadback": "pending after YouTube search instruction"
 }

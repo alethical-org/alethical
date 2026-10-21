@@ -28,18 +28,20 @@ disclosure is not selected. Continue is disabled. These are staged settings, not
 
 ## Text and destination checks
 
-The editor's title and description match the [exact preparation source](forward-debate-tiktok-preparation.json).
+The editor's initial title and description matched the source. The [current preparation source](forward-debate-tiktok-preparation.json) adds the YouTube search instruction; updated readback remains pending.
 [Adeli's TikTok guide](https://www.tryadeli.com/docs/api/posts/publish-tiktok), read October 21, 2026,
 documents photo-title and description limits of 90 and 4,000 characters and requires exactly 1 media
 type, photo or video. The source below fits those limits; fitting text does not establish media readiness.
 
 Web searches using exact candidate names with TikTok and campaign handles found no verified social
-accounts. TikTok-domain web access was blocked. Native Trent Dilks results did not establish a
-matching identity; the Aaron-name profiles `@aaronbrutger` and `@aaronbrutger1` had no bio or content
-and did not establish identity. Native campaign-handle searches remain in progress. A name match
-alone is insufficient.
+accounts. TikTok-domain web access was blocked. Native Trent Dilks and exact campaign-handle
+queries returned unrelated matches. The Aaron-name profiles `@aaronbrutger` and `@aaronbrutger1`
+had no bio or content and did not establish identity; official campaign sites supplied no TikTok
+cross-links. The verified campaign-website fallback applies after this reasonable search.
+Alethical's native handle is `@alethicaltruth`, with 1 existing money-report video and no visible
+website link. The draft adds a YouTube search instruction for readers who cannot open caption URLs.
 Official campaign websites are verified. The draft shows those addresses as text, not verified live
-clickable links. Confirm final native search, link treatment, media, visibility and disclosure before
+clickable links. Confirm final link treatment, media, visibility and disclosure before
 any publication decision.
 
 ## Draft title
@@ -60,6 +62,7 @@ That’s the spirit we want to build on. Alethical will soon share plans for mor
 Thank you to both candidates and everyone who kept the conversation going.
 
 Watch the full debate: https://www.alethical.com/blog/events/forward-debate-2026
+Or search YouTube for “Alethical Forward Debate”.
 ```
 
 [Social publishing](social-publishing.md) owns Alethical's rules and approved account fallbacks.
