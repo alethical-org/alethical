@@ -32,8 +32,10 @@ evidence. Record each remaining item’s execution and saved result as it finish
 
 The account work is resumed. Keep bios balanced across the platform’s current public-record,
 bill, vote and campaign-money work while adding truthful high-impact offerings such as debate
-hosting. Do not replace the company’s broader purpose with a debate-only description. The separate
-gate on a debate-hosting inquiry invitation outside a post remains: propose exact wording, platform
+hosting. Include **campaign analytics coming soon** when space permits, preserving current core
+offerings and making its planned status explicit. Do not replace the company’s broader purpose
+with a debate-only description. The separate gate on a debate-hosting inquiry invitation outside
+a post remains: propose exact wording, platform
 and location for approval first. No such outside-post invitation has been added.
 
 Prepare short 2 after the account work, with no publication before October 22, 2026. No schedule
@@ -82,7 +84,9 @@ supports promotion for discovery and links for crawling, without promising ranki
 ## Writing for the approved rollout
 
 Shared opening: “Minnesota politics in plain language.” Keep the rest specific to what people can
-use now; candidate services that are still plans remain plans.
+use now; candidate services that are still plans remain plans. Add “Campaign analytics coming soon”
+where the actual field has room without losing current core offerings; it is not an available-service
+claim. Count the complete wording before saving.
 
 Instagram draft:
 
