@@ -155,6 +155,15 @@ const SIZES: Record<
   },
 };
 
+/**
+ * The line height JetBrains Mono draws at its normal spacing (ascent 1.02 and
+ * descent 0.3 of the size, each rounded), stated so the stand-in font shown
+ * before JetBrains Mono arrives takes the same height. Courier New's normal
+ * line is 1.13 of the size, so the eyebrow grew 2 to 3px when the font swapped
+ * in and moved the hero text centred beside the card.
+ */
+const monoLineHeight = (size: number): number => Math.round(size * 1.02) + Math.round(size * 0.3);
+
 function CtaArrow({ size }: { size: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -249,7 +258,11 @@ export function MoneyPromoCard({
     >
       {dimmed ? <View pointerEvents="none" style={[styles.overlay, blurOverlay]} /> : null}
 
-      <Text style={[styles.eyebrow, { fontSize: s.eyebrow }]}>{MONEY_PROMO_EYEBROW}</Text>
+      <Text
+        style={[styles.eyebrow, { fontSize: s.eyebrow, lineHeight: monoLineHeight(s.eyebrow) }]}
+      >
+        {MONEY_PROMO_EYEBROW}
+      </Text>
 
       <Text
         accessibilityRole="header"
@@ -291,14 +304,29 @@ export function MoneyPromoCard({
           <Text style={styles.countNumber}>{countLine}</Text> {MONEY_PROMO_COUNT_UNIT}
         </Text>
       ) : countLoading ? (
-        <View
-          aria-busy
-          accessibilityLabel="Loading how many filers the register holds"
-          style={[
-            styles.countSkeleton,
-            { height: s.count, marginTop: s.countTop + 2, borderRadius: 6 },
-          ]}
-        />
+        // The bar sits over an invisible copy of the line, so the card already
+        // has the height the count will take: the line wraps to 2 lines at some
+        // widths, and a 1-line bar grew the card by 33px when the count arrived,
+        // which moved the hero text centred beside it. 12 no-break spaces hold
+        // a 4-digit count's width (42.6px against 43.5px for "1,613" at 17px)
+        // without putting any number on the page.
+        <View style={{ marginTop: s.countTop }}>
+          <Text
+            aria-hidden
+            style={[
+              styles.count,
+              styles.countReserve,
+              { fontSize: s.count, lineHeight: Math.round(s.count * 1.5) },
+            ]}
+          >
+            <Text style={styles.countNumber}>{'\u00a0'.repeat(12)}</Text> {MONEY_PROMO_COUNT_UNIT}
+          </Text>
+          <View
+            aria-busy
+            accessibilityLabel="Loading how many filers the register holds"
+            style={[styles.countSkeleton, { height: s.count, top: 2, borderRadius: 6 }]}
+          />
+        </View>
       ) : null}
 
       <Action
@@ -362,7 +390,14 @@ const styles = StyleSheet.create({
   // Between the body's ink450 and the heading's ink800: the number is the
   // emphasis inside its own line, not a second heading. No token sits here.
   countNumber: { fontWeight: t.fontWeights.semibold, color: '#2c322c' },
-  countSkeleton: { width: 328, maxWidth: '100%', backgroundColor: 'rgba(17,21,15,0.08)' },
+  countReserve: { opacity: 0 },
+  countSkeleton: {
+    position: 'absolute',
+    left: 0,
+    width: 328,
+    maxWidth: '100%',
+    backgroundColor: 'rgba(17,21,15,0.08)',
+  },
   cta: {
     flexDirection: 'row',
     alignItems: 'center',
