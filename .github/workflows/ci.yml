@@ -4,10 +4,17 @@ name: CI
 # and `frontend` jobs are required status checks on `main`. Filtering at the
 # workflow level would stop this workflow from running at all on unrelated PRs,
 # so those checks would never report and every such PR would block forever. Filter
-# per job instead — as `backend` and `frontend` already do via
-# `dorny/paths-filter` — because a job skipped by `if:` reports `skipped`, which
-# GitHub counts as a passing required check. `changes` also runs the always-needed
-# documentation checks, so they share its one rounded runner minute.
+# per job instead — the `select` job runs `dorny/paths-filter` and `backend` and
+# `frontend` read its answer — because a job skipped by `if:` reports `skipped`,
+# which GitHub counts as a passing required check.
+#
+# `select` is its own small first job so the test jobs start as soon as the answer
+# exists, not after `changes` finishes its document and security checks. A job
+# skipped because a job it needs failed "may not block merging" (GitHub, "Handling
+# skipped but required checks"), so a failed `select` would otherwise leave
+# `backend` and `frontend` skipped and the pull request mergeable with no tests
+# run. The required `changes` job therefore fails whenever `select` did not
+# succeed or gave no answer.
 #
 # `merge_group:` is required for the merge queue (enabled Aug 17 2026): without it,
 # these required checks never run on the queue's speculative commits, and every PR
@@ -32,12 +39,48 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  changes:
+  select:
     runs-on: ubuntu-latest
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          # Pushes and merge groups compare against their base commit with git
+          # commands, so the base must be present in the clone.
+          fetch-depth: 0
+
+      - name: Filter changed paths
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          # Shared with local upload checks; JSON is also valid YAML.
+          filters: .github/check-paths.json
+
+  changes:
+    needs: select
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require a completed path selection
+        env:
+          SELECT_RESULT: ${{ needs.select.result }}
+          SELECTED_BACKEND: ${{ needs.select.outputs.backend }}
+          SELECTED_FRONTEND: ${{ needs.select.outputs.frontend }}
+        run: |
+          if [ "$SELECT_RESULT" != success ]; then
+            echo "::error::Path selection ended as '$SELECT_RESULT', so the backend and frontend checks may have been skipped without running."
+            exit 1
+          fi
+          for answer in "$SELECTED_BACKEND" "$SELECTED_FRONTEND"; do
+            case "$answer" in
+              true|false) ;;
+              *) echo "::error::Path selection gave no answer for a test suite."; exit 1 ;;
+            esac
+          done
+
       - name: Check out repository
         uses: actions/checkout@v7
         with:
@@ -49,13 +92,6 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-
-      - name: Filter changed paths
-        id: filter
-        uses: dorny/paths-filter@v4
-        with:
-          # Shared with local upload checks; JSON is also valid YAML.
-          filters: .github/check-paths.json
 
       # Security findings must block every release, including dependency changes
       # that do not select an app test suite. Keep this in the required changes
@@ -170,8 +206,8 @@ jobs:
         run: python scripts/check_no_cross_committee_total.py
 
   backend:
-    needs: changes
-    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true') }}
+    needs: select
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.select.outputs.backend == 'true') }}
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: postgresql+psycopg://alethical:alethical@localhost:5432/alethical
@@ -300,8 +336,8 @@ jobs:
         run: docker stop alethical-ci-postgres || true
 
   frontend:
-    needs: changes
-    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.frontend == 'true') }}
+    needs: select
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.select.outputs.frontend == 'true') }}
     runs-on: ubuntu-latest
     defaults:
       run:
