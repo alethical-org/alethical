@@ -1437,6 +1437,40 @@ def test_minnesota_fallback_still_needs_state_or_zip():
     assert _minnesota_address_candidates("10 Main St, Fargo 58103") == ()
 
 
+@pytest.mark.parametrize(
+    "address", ["10 Main St, Fargo, ND 55415", "10 Main St, Hudson WI 55016"]
+)
+def test_minnesota_fallback_rejects_another_state_code_before_a_minnesota_zip(
+    address,
+):
+    from alethical.api.services.representative_lookup import (
+        _minnesota_address_candidates,
+    )
+
+    assert _minnesota_address_candidates(address) == ()
+
+
+@pytest.mark.parametrize(
+    ("without_state", "with_state"),
+    [
+        ("25 Minnesota St, St Paul 55101", "25 Minnesota St, St Paul, MN 55101"),
+        ("100 Main St NE, Minneapolis 55413", "100 Main St NE, Minneapolis, MN 55413"),
+        ("100 Oak Ct 55123", "100 Oak Ct, MN 55123"),
+    ],
+)
+def test_minnesota_fallback_reads_street_words_that_look_like_states(
+    without_state, with_state
+):
+    from alethical.api.services.representative_lookup import (
+        _minnesota_address_candidates,
+    )
+
+    assert _minnesota_address_candidates(without_state)
+    assert _minnesota_address_candidates(
+        without_state
+    ) == _minnesota_address_candidates(with_state)
+
+
 def test_census_country_input_stays_first_before_relaxed_retry(monkeypatch):
     requested = "350 S 5th St, Minneapolis, MN 55415, United States"
     sent = []
