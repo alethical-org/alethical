@@ -493,6 +493,29 @@ def run_quick_docs(snapshot: Path) -> None:
         run(["python3", f"scripts/{script}"], snapshot, env=env)
 
 
+def run_docs_tree(snapshot: Path) -> None:
+    """Tests that read the whole docs tree run for every upload, as they do in CI.
+
+    They need no database, so a docs-only change does not start the backend suite.
+    """
+    run(
+        [
+            "uv",
+            "run",
+            "--frozen",
+            "python",
+            "-m",
+            "pytest",
+            "scripts/tests/docs_tree",
+            "-p",
+            "no:cacheprovider",
+            "-q",
+        ],
+        snapshot,
+        env=test_environment(snapshot),
+    )
+
+
 def run_security(snapshot: Path) -> None:
     # Always use CI's current-feed audit, including uploads with no dependency
     # edits. Its frozen installation also supplies the frontend suite below.
@@ -523,6 +546,7 @@ def pre_push(root: Path, source: TextIO) -> None:
         with commit_snapshot(root, sha) as snapshot:
             run_security(snapshot)
             run_quick_docs(snapshot)
+            run_docs_tree(snapshot)
             if suites:
                 run_suites(snapshot, suites)
     print("Local checks passed for the commits being pushed.")

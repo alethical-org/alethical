@@ -105,7 +105,10 @@ check machinery selects both areas. Files outside both groups select neither.
 
 Every code upload also runs the same quick document checks as GitHub: broken
 links to documents, missing entries in document indexes, and outdated quoted
-claims. These checks run even when neither app suite is selected.
+claims. These checks run even when neither app suite is selected. So do the tests
+that read the whole docs tree (`scripts/tests/docs_tree`); they need no database,
+and GitHub runs them in its `changes` job on every change, so a docs-only change
+does not start the backend suite.
 
 Before document checks or app suites, every upload runs GitHub's current security
 scan ([`scripts/check_technology_health.py --security-only`](../../scripts/check_technology_health.py))

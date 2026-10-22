@@ -71,7 +71,7 @@ on:
   # starts. What it does check is that the checkout is deep enough, that a GitHub
   # runner can reach the live API at all, and that the loop reads the check's
   # answer correctly. The verdict itself is covered by
-  # `alethical/tests/test_check_production_release_reached_readers.py`, which
+  # `scripts/tests/docs_tree/test_check_production_release_reached_readers.py`, which
   # replays the 8 Sep push against a real git history.
   pull_request:
     paths:

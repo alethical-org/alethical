@@ -174,6 +174,7 @@ class LocalChecksTest(unittest.TestCase):
             patch.object(self.checks, "affected_suites", return_value={"frontend"}),
             patch.object(self.checks, "run_security"),
             patch.object(self.checks, "run_quick_docs"),
+            patch.object(self.checks, "run_docs_tree"),
             patch.object(
                 self.checks,
                 "run_suites",
@@ -201,6 +202,7 @@ class LocalChecksTest(unittest.TestCase):
             patch.object(self.checks, "affected_suites", return_value=set()),
             patch.object(self.checks, "run_security"),
             patch.object(self.checks, "run_quick_docs", side_effect=check_docs),
+            patch.object(self.checks, "run_docs_tree"),
             patch.object(self.checks, "run_suites") as suites,
         ):
             self.checks.pre_push(
@@ -220,6 +222,7 @@ class LocalChecksTest(unittest.TestCase):
                 "run_quick_docs",
                 side_effect=self.checks.CheckError("document check failed"),
             ),
+            patch.object(self.checks, "run_docs_tree"),
         ):
             with self.assertRaisesRegex(
                 self.checks.CheckError, "document check failed"
@@ -254,6 +257,7 @@ class LocalChecksTest(unittest.TestCase):
                         "run_quick_docs",
                         side_effect=lambda snapshot: order.append("documents"),
                     ),
+                    patch.object(self.checks, "run_docs_tree"),
                     patch.object(
                         self.checks,
                         "run_suites",
@@ -290,6 +294,7 @@ class LocalChecksTest(unittest.TestCase):
                     side_effect=self.checks.CheckError("security scan failed"),
                 ),
                 patch.object(self.checks, "run_quick_docs") as docs,
+                patch.object(self.checks, "run_docs_tree"),
                 patch.object(self.checks, "run_suites") as suites,
             ):
                 with self.assertRaisesRegex(
@@ -362,6 +367,15 @@ class LocalChecksTest(unittest.TestCase):
         )
         self.assertIn(["just", "test-frontend"], commands)
         self.assertIn(["uv", "run", "--frozen", "pytest"], commands)
+
+    def test_docs_tree_tests_run_without_a_database(self):
+        with patch.object(self.checks, "run") as run:
+            self.checks.run_docs_tree(self.root)
+        self.assertEqual(
+            run.call_args.args[0][:6],
+            ["uv", "run", "--frozen", "python", "-m", "pytest"],
+        )
+        self.assertIn("scripts/tests/docs_tree", run.call_args.args[0])
 
     def test_quick_document_commands_are_shared(self):
         with patch.object(self.checks, "run") as run:

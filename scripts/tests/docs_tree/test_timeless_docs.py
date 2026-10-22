@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 SPEC = importlib.util.spec_from_file_location(
-    "check_timeless_docs", Path(__file__).parents[2] / "scripts/check_timeless_docs.py"
+    "check_timeless_docs", Path(__file__).parents[3] / "scripts/check_timeless_docs.py"
 )
 assert SPEC and SPEC.loader
 checker = importlib.util.module_from_spec(SPEC)

@@ -22,7 +22,7 @@ import fnmatch
 import importlib.util
 from pathlib import Path
 
-SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "check_doc_sync.py"
+SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "check_doc_sync.py"
 _spec = importlib.util.spec_from_file_location("check_doc_sync", SCRIPT)
 check_doc_sync = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(check_doc_sync)

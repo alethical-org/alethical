@@ -41,7 +41,7 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 # Loaded by path rather than by a `sys.path` insert, matching
 # `test_check_published_piece_links.py`. An ordinary import of a `scripts/`
 # module reads to `scripts/check_declared_dependencies.py` as an undeclared
