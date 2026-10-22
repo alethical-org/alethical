@@ -40,7 +40,7 @@ const HeroSocialIconLink = loadOnDemand(
 
 // The 7 accounts as quiet grey marks under the hero text. The row's size is fixed
 // so the marks can arrive after the page without moving anything. Each link is
-// pulled left so the first mark's left edge sits on the text's left edge.
+// pulled left so the first mark's ink starts 2px inside the text's left edge.
 function HeroSocialRow({ phone, narrow }: { phone: boolean; narrow: boolean }) {
   const link = phone ? 44 : 40;
   const gap = phone ? 0 : 2;
@@ -56,7 +56,9 @@ function HeroSocialRow({ phone, narrow }: { phone: boolean; narrow: boolean }) {
           width: perLine * link + (perLine - 1) * gap,
           height: lines * link,
           columnGap: gap,
-          marginLeft: phone ? -11 : -10,
+          // Optical correction, not a misalignment: a rounded mark flush with straight
+          // letter edges reads as sticking out, so it sits 2px inside. Keep it.
+          marginLeft: phone ? -9 : -8,
         },
       ]}
     >

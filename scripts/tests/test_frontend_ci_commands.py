@@ -55,6 +55,7 @@ REQUIRED = {
     "e2e/footer.spec.ts": 1,
     "e2e/contact-side-alignment.spec.ts": 1,
     "e2e/home-hero-social.spec.ts": 1,
+    "e2e/home-hero-still.spec.ts": 1,
     "pnpm exec playwright test --config playwright.replay-startup.config.ts": 1,
     "apps/frontend/reader-completion-results.json": 1,
     "apps/frontend/reader-money-negative-*.json": 1,

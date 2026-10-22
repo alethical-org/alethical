@@ -17,7 +17,8 @@ has no free-form question box because reader-written questions are not a live fe
   label, in the order YouTube, LinkedIn, Facebook, X, Bluesky, Instagram, TikTok, the
   same list as the footer. Each opens in a new tab and is announced as "Alethical on
   [platform] (opens in a new tab)"; screen readers hear the row as a group named
-  "Social media". The first mark lines up with the text's left edge. Phones below
+  "Social media". The first mark starts 2px inside the text's left edge, so its
+  rounded shape does not read as sticking out past the letters. Phones below
   336px wide show 4 marks, then 3. Hover shows a light circle on computer and tablet
   only. The signed-in homepage does not show this row.
 - **Follow the money** remains beside the introduction on desktop, stacks below
@@ -93,7 +94,9 @@ for 416px bounded by its container.
 
 - The money count is read live from the register on every load. If the register
   does not answer, the whole line disappears: never a zero, never a dash, never a
-  remembered number. While it loads, a grey bar stands in its place.
+  remembered number. While it loads, a grey bar stands in its place, in a space
+  already the height of the finished line, so the introduction centred beside the
+  card and everything below it stay still when the number arrives.
 - The count says **registered campaigns, parties, and funds** and counts campaign
   filers only. Lobbying records are separate and are not included in that number.
 - The card never says each entry is tied to the filing it came from. Published
