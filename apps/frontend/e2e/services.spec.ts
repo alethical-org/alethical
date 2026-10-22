@@ -245,7 +245,8 @@ for (const width of [320, 768, 1100]) {
       footer.locator('a[href="https://www.instagram.com/alethicaltruth"]'),
     ).toBeVisible();
     await expect(footer.locator('a[href="https://www.tiktok.com/@alethicaltruth"]')).toBeVisible();
-    await expect(footer.locator('a[target="_blank"]')).toHaveCount(6);
+    await expect(footer.locator('a[href="https://bsky.app/profile/alethical.com"]')).toBeVisible();
+    await expect(footer.locator('a[target="_blank"]')).toHaveCount(7);
     const privacy = footer.getByRole('link', { name: 'Privacy Policy', exact: true });
     await privacy.hover();
     await expect(privacy).toHaveCSS('text-decoration-line', 'underline');
