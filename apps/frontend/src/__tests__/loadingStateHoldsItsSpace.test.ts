@@ -76,7 +76,7 @@ describe('a loading page holds its space', () => {
     const block = shell.match(/<style id="alethical-page-snapshot">[\s\S]*?<\/style>/)?.[0];
     expect(block).toBeTruthy();
     expect(block).toMatch(
-      /\.page-snapshot \{[^}]*font-family: 'Libre Franklin', Helvetica, Arial, sans-serif;/,
+      /\.page-snapshot \{[^}]*font-family: 'Libre Franklin', 'Libre Franklin Fallback', Helvetica, Arial, sans-serif;/,
     );
     expect(shell).toMatch(
       /<link\s+rel="preload"\s+as="font"\s+type="font\/woff2"\s+crossorigin\s+href="\/fonts\/libre-franklin-latin\.woff2"/,

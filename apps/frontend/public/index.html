@@ -197,6 +197,68 @@
         src: url(/fonts/libre-franklin-latin.woff2) format('woff2');
         unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
       }
+      /*
+        Libre Franklin's stand-in while its file loads: Arial (or Helvetica, or
+        Liberation Sans) scaled per weight to Libre Franklin's text width, with its
+        height. Lines break in nearly the same places, so text drawn before the font
+        arrives does not reflow when it does. Measured over the homepage's hero and
+        card copy; the same characters as the 2 faces above.
+      */
+      @font-face {
+        font-family: 'Libre Franklin Fallback';
+        font-style: normal;
+        font-weight: 300 450;
+        src: local('Arial'), local('ArialMT'), local('Helvetica'), local('Liberation Sans'), local('LiberationSans'), local('Arimo');
+        size-adjust: 103.8%;
+        ascent-override: 93.06%;
+        descent-override: 23.70%;
+        line-gap-override: 0%;
+        unicode-range: U+0000-00FF, U+0100-02BA, U+02BB-02BC, U+02BD-02C5, U+02C6, U+02C7-02CC, U+02CE-02D7, U+02DA, U+02DC, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2000-206F, U+20A0-20C0, U+2113, U+2122, U+2191, U+2193, U+2212, U+2215, U+2C60-2C7F, U+A720-A7FF, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: 'Libre Franklin Fallback';
+        font-style: normal;
+        font-weight: 451 550;
+        src: local('Arial'), local('ArialMT'), local('Helvetica'), local('Liberation Sans'), local('LiberationSans'), local('Arimo');
+        size-adjust: 104.66%;
+        ascent-override: 92.30%;
+        descent-override: 23.50%;
+        line-gap-override: 0%;
+        unicode-range: U+0000-00FF, U+0100-02BA, U+02BB-02BC, U+02BD-02C5, U+02C6, U+02C7-02CC, U+02CE-02D7, U+02DA, U+02DC, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2000-206F, U+20A0-20C0, U+2113, U+2122, U+2191, U+2193, U+2212, U+2215, U+2C60-2C7F, U+A720-A7FF, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: 'Libre Franklin Fallback';
+        font-style: normal;
+        font-weight: 551 650;
+        src: local('Arial Bold'), local('Arial-BoldMT'), local('Helvetica Bold'), local('Helvetica-Bold'), local('Liberation Sans Bold'), local('LiberationSans-Bold'), local('Arimo Bold');
+        size-adjust: 98.16%;
+        ascent-override: 98.41%;
+        descent-override: 25.06%;
+        line-gap-override: 0%;
+        unicode-range: U+0000-00FF, U+0100-02BA, U+02BB-02BC, U+02BD-02C5, U+02C6, U+02C7-02CC, U+02CE-02D7, U+02DA, U+02DC, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2000-206F, U+20A0-20C0, U+2113, U+2122, U+2191, U+2193, U+2212, U+2215, U+2C60-2C7F, U+A720-A7FF, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: 'Libre Franklin Fallback';
+        font-style: normal;
+        font-weight: 651 750;
+        src: local('Arial Bold'), local('Arial-BoldMT'), local('Helvetica Bold'), local('Helvetica-Bold'), local('Liberation Sans Bold'), local('LiberationSans-Bold'), local('Arimo Bold');
+        size-adjust: 99.21%;
+        ascent-override: 97.37%;
+        descent-override: 24.80%;
+        line-gap-override: 0%;
+        unicode-range: U+0000-00FF, U+0100-02BA, U+02BB-02BC, U+02BD-02C5, U+02C6, U+02C7-02CC, U+02CE-02D7, U+02DA, U+02DC, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2000-206F, U+20A0-20C0, U+2113, U+2122, U+2191, U+2193, U+2212, U+2215, U+2C60-2C7F, U+A720-A7FF, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: 'Libre Franklin Fallback';
+        font-style: normal;
+        font-weight: 751 900;
+        src: local('Arial Bold'), local('Arial-BoldMT'), local('Helvetica Bold'), local('Helvetica-Bold'), local('Liberation Sans Bold'), local('LiberationSans-Bold'), local('Arimo Bold');
+        size-adjust: 99.5%;
+        ascent-override: 97.09%;
+        descent-override: 24.72%;
+        line-gap-override: 0%;
+        unicode-range: U+0000-00FF, U+0100-02BA, U+02BB-02BC, U+02BD-02C5, U+02C6, U+02C7-02CC, U+02CE-02D7, U+02DA, U+02DC, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2000-206F, U+20A0-20C0, U+2113, U+2122, U+2191, U+2193, U+2212, U+2215, U+2C60-2C7F, U+A720-A7FF, U+FEFF, U+FFFD;
+      }
       @font-face {
         font-family: 'JetBrains Mono';
         font-style: normal;
@@ -271,7 +333,7 @@
         padding: 32px;
         background: #fff;
         color: #11150f;
-        font: 16px 'Libre Franklin', Helvetica, Arial, sans-serif;
+        font: 16px 'Libre Franklin', 'Libre Franklin Fallback', Helvetica, Arial, sans-serif;
       }
     </style>
     <!--
@@ -324,7 +386,7 @@
         overflow-y: auto;
         background: #ffffff;
         color: #11150f;
-        font-family: 'Libre Franklin', Helvetica, Arial, sans-serif;
+        font-family: 'Libre Franklin', 'Libre Franklin Fallback', Helvetica, Arial, sans-serif;
         line-height: 1.55;
       }
       .page-snapshot .ps-inner {
@@ -909,8 +971,11 @@
         font-size: 17px;
         line-height: 26px;
       }
+      /* The width of the app's 12 no-break spaces in Libre Franklin, held without a
+         font so the line breaks in the same place before the font arrives. */
       .page-snapshot-home .ph-count-reserve > span {
-        font-weight: 600;
+        display: inline-block;
+        width: 42.6px;
       }
       .page-snapshot-home .ph-count-bar {
         position: absolute;
@@ -1455,7 +1520,7 @@
     -->
     <div class="comment-return-loading" role="status">Loading comments…</div>
     <div id="root"><!--alethical:page-snapshot--><div class="page-snapshot page-snapshot-home"><header class="ps-nav"><div class="ps-inner ps-nav-row"><a class="ps-logo" href="/" aria-label="Alethical home"><svg class="ps-mark" viewBox="0 0 84 82" fill="none" aria-hidden="true"><path d="M0 82 L38 0 L38 82 Z M84 82 L46 0 L46 82 Z" fill="currentColor"></path></svg><span class="ps-wordmark">ALETHICAL</span></a><div class="ps-nav-right"><nav class="ps-nav-links" aria-label="Site"><a href="/money">Money</a><a href="/bills">Search<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></a><a href="/blog">Blog</a><a href="/about">About<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></a></nav><span class="ps-signin">Sign in</span><span class="ps-menu" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#11150f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg></span></div></div></header><main><div class="ph-hero"><div class="ph-dots"></div><div class="ph-inner ph-hero-inner"><div class="ph-hero-row"><div class="ph-copy"><p class="ph-eyebrow">TRUTH, UNCONCEALED</p><h1 class="ph-heading">Grounded answers
-<span class="ph-green">on Minnesota politics</span></h1><p class="ph-intro">We turn scattered public records into clear information you can use. Understand what’s happening, check the evidence, and get practical support to act on what you learn.</p><div class="ph-social"></div></div><div class="ph-money-column"><a class="ph-money ph-money-hero" href="/money"><span class="ph-money-eyebrow">MONEY IN POLITICS</span><h2 class="ph-money-heading">Follow the money</h2><span class="ph-money-body">Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.</span><span class="ph-count" aria-hidden="true"><span class="ph-count-reserve"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> registered campaigns, parties, and funds</span><span class="ph-count-bar"></span></span><span class="ph-money-cta"><span>Search the money records</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12 H19 M14 7 L19 12 L14 17" stroke="#06231a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></a></div></div></div></div><div class="ph-band"><a class="ph-money ph-money-phone" href="/money"><span class="ph-money-eyebrow">MONEY IN POLITICS</span><h2 class="ph-money-heading">Follow the money</h2><span class="ph-money-body">Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.</span><span class="ph-count" aria-hidden="true"><span class="ph-count-reserve"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> registered campaigns, parties, and funds</span><span class="ph-count-bar"></span></span><span class="ph-money-cta"><span>Search the money records</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12 H19 M14 7 L19 12 L14 17" stroke="#06231a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></a><div class="ph-inner"><div class="ph-invites"><a class="ph-invite" href="/bills"><h2>Bills and votes</h2><span class="ph-invite-body">Read plain-language bill summaries, see where they stand, and find out how legislators voted</span><span class="ph-invite-action"><span class="ph-button"><span>Search bills</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#0f7a45" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></span></a><a class="ph-invite" href="/services"><h2>Campaign services</h2><span class="ph-invite-body">Get political intelligence through campaign-finance research, plus websites, marketing, and custom software for your campaign or organization</span><span class="ph-invite-action"><span class="ph-button ph-button-paid"><span>Explore our services</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></span></a></div></div></div><section class="ph-inner ph-candidates"><h2>Who’s running where you live?</h2><p>Explore the candidates in your Minnesota races, with links to official records</p><a href="/candidates">Find my candidates</a></section></main></div><!--/alethical:page-snapshot--></div>
+<span class="ph-green">on Minnesota politics</span></h1><p class="ph-intro">We turn scattered public records into clear information you can use. Understand what’s happening, check the evidence, and get practical support to act on what you learn.</p><div class="ph-social"></div></div><div class="ph-money-column"><a class="ph-money ph-money-hero" href="/money"><span class="ph-money-eyebrow">MONEY IN POLITICS</span><h2 class="ph-money-heading">Follow the money</h2><span class="ph-money-body">Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.</span><span class="ph-count" aria-hidden="true"><span class="ph-count-reserve"><span></span> registered campaigns, parties, and funds</span><span class="ph-count-bar"></span></span><span class="ph-money-cta"><span>Search the money records</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12 H19 M14 7 L19 12 L14 17" stroke="#06231a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></a></div></div></div></div><div class="ph-band"><a class="ph-money ph-money-phone" href="/money"><span class="ph-money-eyebrow">MONEY IN POLITICS</span><h2 class="ph-money-heading">Follow the money</h2><span class="ph-money-body">Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.</span><span class="ph-count" aria-hidden="true"><span class="ph-count-reserve"><span></span> registered campaigns, parties, and funds</span><span class="ph-count-bar"></span></span><span class="ph-money-cta"><span>Search the money records</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12 H19 M14 7 L19 12 L14 17" stroke="#06231a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></a><div class="ph-inner"><div class="ph-invites"><a class="ph-invite" href="/bills"><h2>Bills and votes</h2><span class="ph-invite-body">Read plain-language bill summaries, see where they stand, and find out how legislators voted</span><span class="ph-invite-action"><span class="ph-button"><span>Search bills</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#0f7a45" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></span></a><a class="ph-invite" href="/services"><h2>Campaign services</h2><span class="ph-invite-body">Get political intelligence through campaign-finance research, plus websites, marketing, and custom software for your campaign or organization</span><span class="ph-invite-action"><span class="ph-button ph-button-paid"><span>Explore our services</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></span></a></div></div></div><section class="ph-inner ph-candidates"><h2>Who’s running where you live?</h2><p>Explore the candidates in your Minnesota races, with links to official records</p><a href="/candidates">Find my candidates</a></section></main></div><!--/alethical:page-snapshot--></div>
     <!--
       The records api/page.ts already read for this address, handed to the app in
       the same response so it draws them without asking the data service for the

@@ -966,6 +966,7 @@ server sends first was not drawn in the homepage's layout at all. Measured on th
 | Served text replaced by the app: top bar links (every page) | 30 to 48px across | menu button added | menu button added |
 | Filer count arriving 2 lines tall under a 1-line loading bar: card height | 33px | 7px | 33px |
 | Card eyebrow swapping from Courier New to JetBrains Mono: card height | 2px | 2px | 3px |
+| Libre Franklin arriving after the first paint (2 of 6 cold loads): hero eyebrow | 17.8px | 0 | 0 (introduction 31.5px taller) |
 
 The browser's layout-shift score saw only the last 2 (0.0116 at 1280px): **it scores an element
 that is replaced, rather than moved, as 0**, so the largest jump never counted. A frame-by-frame
@@ -990,12 +991,21 @@ The rules that follow:
   goes, so no number is printed before it is read.
 - **Text in a font that is not preloaded states its line height.** JetBrains Mono is not
   preloaded; with a stated line height its stand-in takes the same height.
+- **Libre Franklin has a width-matched stand-in for the visits where it still arrives late**
+  (`'Libre Franklin Fallback'` in `apps/frontend/public/index.html` and the type stacks in
+  `apps/frontend/src/theme/tokens.ts`; the reasons and limits are in
+  `docs/architecture/page-metadata-for-search-and-sharing-decisions.md` §24 (the served text's
+  own typeface)). Measured on the homepage with the font held back, at every 4px from 320 to
+  1920px: something moved at 37 widths against 120 with Helvetica, and the hero itself at 6 of
+  206 computer widths (1104, 1184, 1296, 1300, 1532 and 1536px) against 32. The served count
+  line holds its number's width with a fixed space, so it breaks where the app's does in either
+  font.
 - **On an event page the saved reading position waits for the app's header**
   (`apps/frontend/src/screens/redesign/EventScreen.tsx`). The app empties the served header
   before drawing its own, and a position saved in between is short by the header's height.
 
 The browser check `apps/frontend/e2e/home-hero-still.spec.ts` runs in the static-build list on
-every pull request. It holds back the app's code, the count and JetBrains Mono so each arrives
+every pull request. It holds back the app's code, the count, Libre Franklin and JetBrains Mono so each arrives
 after the first paint, and fails if the top bar, the hero or the money card moves more than 1px.
 Before release, every text above the candidate section sat within 1px of where the app draws it
 at 13 widths from 320 to 1920px.

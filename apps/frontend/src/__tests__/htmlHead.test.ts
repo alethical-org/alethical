@@ -34,7 +34,16 @@ describe('exported HTML connection hints', () => {
   it('serves every typeface from this address, none from Google', () => {
     expect(htmlTemplate).not.toContain('fonts.googleapis.com');
     expect(htmlTemplate).not.toContain('fonts.gstatic.com');
-    const faces = htmlTemplate.match(/@font-face \{[^}]*\}/g) ?? [];
+    const allFaces = htmlTemplate.match(/@font-face \{[^}]*\}/g) ?? [];
+    // Libre Franklin's stand-in is drawn from fonts already on the reader's device
+    // (local() only), so it downloads nothing.
+    const standIns = allFaces.filter((face) => face.includes("'Libre Franklin Fallback'"));
+    expect(standIns).toHaveLength(5);
+    for (const face of standIns) {
+      expect(face).not.toContain('url(');
+      expect(face).toContain("local('Arial");
+    }
+    const faces = allFaces.filter((face) => !standIns.includes(face));
     // 3 families, each in 2 character sets, each 1 variable file for every weight the app uses.
     expect(faces).toHaveLength(6);
     for (const face of faces) {

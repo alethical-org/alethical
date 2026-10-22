@@ -2890,7 +2890,7 @@ function renderHomeMoneyCard(band: 'hero' | 'phone'): string {
     `<h2 class="ph-money-heading">${escapeHtml(MONEY_PROMO_HEADING)}</h2>` +
     `<span class="ph-money-body">${escapeHtml(HOME_PUBLIC_MONEY_BODY)}</span>` +
     '<span class="ph-count" aria-hidden="true">' +
-    `<span class="ph-count-reserve"><span>${'&nbsp;'.repeat(12)}</span> ${escapeHtml(MONEY_PROMO_COUNT_UNIT)}</span>` +
+    `<span class="ph-count-reserve"><span></span> ${escapeHtml(MONEY_PROMO_COUNT_UNIT)}</span>` +
     '<span class="ph-count-bar"></span></span>' +
     `<span class="ph-money-cta"><span>${escapeHtml(HOME_PUBLIC_MONEY_CTA)}</span>` +
     '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12 H19 M14 7 L19 12 L14 17" stroke="#06231a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>' +
