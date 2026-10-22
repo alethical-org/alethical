@@ -126,17 +126,32 @@ describe('Contact us screen contract', () => {
     expect(SCREEN).not.toContain('linkedin-round.png');
     expect(SCREEN).toContain('CONTACT_SOCIALS.map');
     expect(CONTACT_SOCIALS.map((social) => social.url)).toEqual([
+      'https://www.youtube.com/@Alethical',
       'https://www.linkedin.com/company/alethical',
       'https://www.facebook.com/people/Alethical/61588261592240/',
-      'https://www.instagram.com/alethicaltruth',
       'https://x.com/alethical',
+      'https://bsky.app/profile/alethical.com',
+      'https://www.instagram.com/alethicaltruth',
       'https://www.tiktok.com/@alethicaltruth',
-      'https://www.youtube.com/@Alethical',
     ]);
     expect(SCREEN).toContain('<ContactSocialIconLink');
     expect(SCREEN).toContain('surface="contact"');
     expect(SCREEN).toContain('{!isMobile ? (');
     expect(SCREEN).not.toContain('social.label ===');
+  });
+
+  it('lines the side cards up with the first field box and spaces the follow grid', () => {
+    const socialRowStyle = SCREEN.match(/socialRow: \{[\s\S]*?\n  \},/)?.[0] ?? '';
+
+    // The offset is an invisible copy of the first label, never a typed number.
+    expect(SCREEN).toContain('{!isMobile ? <FirstLabelSpacer /> : null}');
+    expect(SCREEN).toContain("visibility: 'hidden'");
+    expect(SCREEN).toContain("'aria-hidden': true");
+    expect(SCREEN).toMatch(/sideColumn: \{ width: SIDE_COLUMN_WIDTH, maxWidth: '100%' \}/);
+    expect(SCREEN).toContain('followCard: { marginTop: 24 }');
+    expect(socialRowStyle).toContain("flexWrap: 'wrap'");
+    expect(socialRowStyle).toContain('rowGap: 20');
+    expect(socialRowStyle).toContain('marginTop: 20');
   });
 
   it('keeps the accepted Contact us spacing, phone action, and link treatments', () => {
@@ -153,7 +168,9 @@ describe('Contact us screen contract', () => {
     expect(cardEyebrowStyle).toContain('letterSpacing: 1.26');
     expect(emailLinkTextStyle).not.toContain('textDecorationLine');
     expect(SCREEN).toContain("emailLinkTextActive: { textDecorationLine: 'underline' }");
-    expect(SCREEN).toContain("justifyContent: 'space-between'");
+    expect(SCREEN).toContain(
+      '(SIDE_COLUMN_WIDTH - 2 * CARD_PADDING - FOLLOW_COLUMNS * FOLLOW_CIRCLE)',
+    );
     expect(SCREEN).toContain('marginTop: 20');
   });
 });
