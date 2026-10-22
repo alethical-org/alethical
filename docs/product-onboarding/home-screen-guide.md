@@ -272,8 +272,11 @@ desktop and tablet, not phone or signed-in Home.
 ## The first response
 
 The text served before the app starts uses the same signed-out introduction,
-money card, bills card, campaign services card, and candidate introduction as the screen.
-The candidate introduction links to `/candidates` before the interactive form loads. Shared navigation still offers
+money card, bills card, campaign services card, and candidate introduction as the screen,
+drawn in the screen's own layout and sizes at each width, so the top bar, the introduction
+and the cards stay where they are when the app takes over. The money card shows its loading
+bar until the app reads the count. The candidate introduction links to `/candidates` before
+the interactive form loads. Shared navigation still offers
 Money, Search, Blog, and About, including legislator search and Find My Legislator.
 `homePageSnapshot()` and the generated initial `public/index.html` stay in sync.
 

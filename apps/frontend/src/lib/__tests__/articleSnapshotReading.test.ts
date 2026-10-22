@@ -51,7 +51,7 @@ describe('Approved article titles in the first HTML response', () => {
   });
 
   it('leaves every unmarked heading unchanged, even when it contains a year range', () => {
-    const snapshot = { ...homePageSnapshot(), heading: '2015–2026 <safe>' };
+    const snapshot = { ...homePageSnapshot(), layout: undefined, heading: '2015–2026 <safe>' };
     const document = documentFor(renderPageSnapshot(snapshot));
     expect(document.querySelector('h1')?.outerHTML).toBe('<h1>2015–2026 &lt;safe&gt;</h1>');
     expect(document.querySelector('.ps-title-year')).toBeNull();

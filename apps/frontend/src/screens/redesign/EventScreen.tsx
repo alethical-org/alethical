@@ -66,7 +66,9 @@ export function EventScreen({ navigation, route }: Props) {
     }
   }, [stable, focused, path, claimed]);
   useEffect(() => {
-    if (!stable || !focused) return;
+    // Wait for the real header: the claim empties the served one first, and a
+    // position saved in that moment is short by the header's height.
+    if (!stable || !focused || !claimed) return;
     const detach = mountStableEventScroll(stable, path);
     registerStableEventRetirement(stable, () => {
       detach();
@@ -76,7 +78,7 @@ export function EventScreen({ navigation, route }: Props) {
       detach();
       if (window.location.pathname !== path) retireStableEventDocument(stable);
     };
-  }, [stable, focused, path]);
+  }, [stable, focused, path, claimed]);
   useEffect(() => {
     if (!focused) return;
     const root = (stable ?? main.current)?.querySelector<HTMLElement>('.replay-content');
