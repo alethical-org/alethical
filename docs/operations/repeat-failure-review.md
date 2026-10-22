@@ -88,7 +88,8 @@ Use a fresh ignored output folder for each run:
 ```sh
 uv run --frozen python scripts/repeat_failure_runs.py run \
   --scope money --output .tmp/repeat-failure/money-1
-# In backend CI, replace the existing pytest invocation with this single run:
+# Backend CI runs this with --workers 4: the job database is migrated once and
+# copied for each pytest-xdist worker before pytest starts (GitHub only).
 uv run --frozen python scripts/repeat_failure_runs.py run \
   --scope backend --output .tmp/repeat-failure/backend-1
 # After a run from clean committed files, compare with the exact checkout:
