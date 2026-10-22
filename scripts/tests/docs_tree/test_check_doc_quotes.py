@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "check_doc_quotes.py"
+SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "check_doc_quotes.py"
 _spec = importlib.util.spec_from_file_location("check_doc_quotes", SCRIPT)
 check_doc_quotes = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(check_doc_quotes)

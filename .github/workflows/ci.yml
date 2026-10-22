@@ -139,6 +139,24 @@ jobs:
       # skip. Pure stdlib, so the Python setup above is the only dependency.
       - name: Check document links, indexes, and quoted claims
         run: python scripts/local_checks.py quick-docs
+      # These tests read the whole docs tree, so they run here on every change and
+      # a docs-only change does not need the backend job. They use no database. As
+      # in the backend job, the results must be exactly the collected tests, each
+      # passed (scripts/repeat_failure_runs.py): a count is not that proof.
+      - name: Test the checks that read the whole docs tree
+        run: |
+          mkdir -p .tmp
+          uv run --frozen python -m pytest scripts/tests/docs_tree -p no:cacheprovider \
+            --collect-only -q > .tmp/docs-tree-collected.txt
+          uv run --frozen python -m pytest scripts/tests/docs_tree -p no:cacheprovider \
+            --junitxml .tmp/docs-tree.xml -o junit_family=xunit2
+          uv run --frozen python - <<'PY_DOCS_TREE'
+          from pathlib import Path
+          from scripts.repeat_failure_runs import collected_tests, coverage, junit_outcomes
+          collected = collected_tests(Path(".tmp/docs-tree-collected.txt").read_text())
+          summary = coverage(collected, junit_outcomes(".tmp/docs-tree.xml"), set())
+          print(f"All {summary['collected']} docs-tree tests ran and passed.")
+          PY_DOCS_TREE
       - name: Test document structure checks without database or network
         run: python -m unittest discover -s scripts/tests -p 'test_doc_structure.py'
       - name: Test address-copy capacity and rollback without service credentials

@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 SCRIPT = ROOT / "scripts" / "check_technology_health.py"
 _spec = importlib.util.spec_from_file_location("check_technology_health", SCRIPT)
 check_technology_health = importlib.util.module_from_spec(_spec)
