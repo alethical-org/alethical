@@ -39,6 +39,12 @@ describe('shared footer social marks', () => {
     expect(LINK_SOURCE).toContain('bluesky: 20');
     expect(LINK_SOURCE).toContain('bluesky: 21');
     expect(LINK_SOURCE).toContain('M12 10.8c-1.087-2.114');
+    // Homepage hero: bare grey marks, 40px links (44px on phones, marks 2px larger).
+    expect(LINK_SOURCE).toContain('hero: { width: 40, height: 40, borderRadius: 20 }');
+    expect(LINK_SOURCE).toContain('heroMobile: { width: 44, height: 44, borderRadius: 22 }');
+    expect(LINK_SOURCE).toContain("'#6b716b'");
+    expect(LINK_SOURCE).toContain("heroHovered: { backgroundColor: 'rgba(17,21,15,0.06)' }");
+    expect(LINK_SOURCE).toContain("heroPressed: { backgroundColor: 'rgba(17,21,15,0.1)' }");
     expect(LINK_SOURCE).toContain('tiktok: 20');
     expect(LINK_SOURCE).toContain('youtube: 23');
     expect(LINK_SOURCE).toContain('tiktok: 21,\n    youtube: 24,');

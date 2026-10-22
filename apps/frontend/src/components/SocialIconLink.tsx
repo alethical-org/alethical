@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { Linking, Pressable, StyleSheet } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { useHover } from './billDetail/interactions';
+import { useFineHover, useHover } from './billDetail/interactions';
 import { SocialAccount, SocialPlatform } from '../lib/socialLinks';
 import { externalLinkProps } from '../navigation/links';
 import { theme as t } from '../theme/tokens';
 
-type SocialSurface = 'footer' | 'contact';
+type SocialSurface = 'footer' | 'contact' | 'hero';
 
 const GLYPH_SIZES: Record<SocialSurface, Record<SocialPlatform, number>> = {
   footer: {
@@ -28,19 +28,27 @@ const GLYPH_SIZES: Record<SocialSurface, Record<SocialPlatform, number>> = {
     tiktok: 21,
     youtube: 24,
   },
+  // Homepage hero, computer and tablet; phone draws each mark 2px larger.
+  hero: {
+    linkedin: 18,
+    facebook: 20,
+    instagram: 19,
+    x: 17,
+    bluesky: 17,
+    tiktok: 18,
+    youtube: 20,
+  },
 };
 
 function SocialGlyph({
   platform,
-  surface,
+  size,
   color,
 }: {
   platform: SocialPlatform;
-  surface: SocialSurface;
+  size: number;
   color: string;
 }) {
-  const size = GLYPH_SIZES[surface][platform];
-
   if (platform === 'linkedin') {
     return (
       <Svg width={size} height={size} viewBox="0.87 2.87 22 22" fill={color} aria-hidden>
@@ -100,14 +108,18 @@ export function SocialIconLink({
   mobile?: boolean;
 }) {
   const [hovered, hoverProps] = useHover();
+  const [fineHovered, fineHoverProps] = useFineHover();
   const [focused, setFocused] = useState(false);
   const active = hovered || focused;
   const isFooter = surface === 'footer';
+  const isHero = surface === 'hero';
   const baseStyles = [
     styles.link,
-    isFooter ? styles.footer : styles.contact,
+    isHero ? styles.hero : isFooter ? styles.footer : styles.contact,
     isFooter && mobile && styles.footerMobile,
+    isHero && mobile && styles.heroMobile,
   ];
+  const glyphSize = GLYPH_SIZES[surface][social.platform] + (isHero && mobile ? 2 : 0);
 
   const url = social.url;
 
@@ -115,19 +127,35 @@ export function SocialIconLink({
     <Pressable
       accessibilityLabel={`Alethical on ${social.label} (opens in a new tab)`}
       {...(url ? externalLinkProps(url, () => void Linking.openURL(url)) : {})}
-      {...hoverProps}
+      {...(isHero ? fineHoverProps : hoverProps)}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
-      style={({ pressed }) => [
-        ...baseStyles,
-        (active || pressed) && (isFooter ? styles.footerActive : styles.contactActive),
-      ]}
+      style={({ pressed }) =>
+        isHero
+          ? // The hero row is bare grey marks at rest; keyboard focus shows only the
+            // site ring, and hover appears only where a mouse can hover.
+            [...baseStyles, pressed ? styles.heroPressed : fineHovered && styles.heroHovered]
+          : [
+              ...baseStyles,
+              (active || pressed) && (isFooter ? styles.footerActive : styles.contactActive),
+            ]
+      }
     >
       {({ pressed }) => (
         <SocialGlyph
           platform={social.platform}
-          surface={surface}
-          color={isFooter && (active || pressed) ? '#ffffff' : isFooter ? '#eef1ef' : t.colors.ink}
+          size={glyphSize}
+          color={
+            isHero
+              ? pressed || fineHovered
+                ? t.colors.ink
+                : '#6b716b'
+              : isFooter && (active || pressed)
+                ? '#ffffff'
+                : isFooter
+                  ? '#eef1ef'
+                  : t.colors.ink
+          }
         />
       )}
     </Pressable>
@@ -151,4 +179,8 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.surfaces.s400,
   },
   contactActive: { backgroundColor: '#e7e8ec' },
+  hero: { width: 40, height: 40, borderRadius: 20 },
+  heroMobile: { width: 44, height: 44, borderRadius: 22 },
+  heroHovered: { backgroundColor: 'rgba(17,21,15,0.06)' },
+  heroPressed: { backgroundColor: 'rgba(17,21,15,0.1)' },
 });
