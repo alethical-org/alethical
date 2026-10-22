@@ -485,11 +485,12 @@ def _minnesota_address_candidates(
         # The field asks for "city, ZIP": the state is implied, so a trailing
         # Minnesota ZIP (55xxx or 56xxx) alone ends the address. Another
         # state's ZIP or name before it never reads as Minnesota.
-        zip_match = re.search(r"[\s,;]+(5[56]\d{3})(?:-\d{4})?[\s,;.]*$", compact)
+        trimmed = compact.rstrip(" \t\r\n,;.")
+        zip_match = re.search(r"[\s,;](5[56]\d{3})(?:-\d{4})?$", trimmed)
         if zip_match is None:
             return ()
         zip_code = zip_match.group(1)
-        before_state = compact[: zip_match.start()].strip(" ,;")
+        before_state = trimmed[: zip_match.start()].strip(" ,;")
 
     separated = [
         part.strip() for part in re.split(r"[,;]+", before_state) if part.strip()
