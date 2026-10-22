@@ -1,0 +1,7 @@
+[
+  {
+    "classname": "alethical.tests.test_fcc_document_text.PdfReadingTests",
+    "name": "test_real_local_ocr_of_image_only_pdf",
+    "reason": "Needs the tesseract OCR program, which the CI computer does not install; the test skips itself when pdftoppm or tesseract is missing."
+  }
+]
