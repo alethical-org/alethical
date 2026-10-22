@@ -15,7 +15,8 @@ for (const width of [320, 390, 900, 1600]) {
   }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');
-    const links = page.getByRole('link', { name: /^Alethical on / });
+    // The homepage hero holds the same 7 links in its own group; measure the footer's.
+    const links = page.locator('a[aria-label^="Alethical on "]:not([role="group"] a)');
     await expect(links).toHaveCount(7);
     const order = ['YouTube', 'LinkedIn', 'Facebook', 'X', 'Bluesky', 'Instagram', 'TikTok'];
     for (const [index, platform] of order.entries()) {

@@ -21,12 +21,51 @@ import {
   HOME_PUBLIC_SERVICES_CTA,
 } from '../../lib/homepage';
 import { LinkArrow, linkArrowRow } from '../LinkArrow';
+import { loadOnDemand } from '../../lib/loadOnDemand';
+import { SOCIAL_ACCOUNTS } from '../../lib/socialLinks';
 import { isWeb, useFineHover } from '../billDetail/interactions';
 import { MoneyPromoCard } from './MoneyPromoCard';
 import { HomeCandidateFinder } from './HomeCandidateFinder';
 
 // The public services destination ships with this card.
 export const HOME_SERVICES_READY = true;
+
+const HeroSocialIconLink = loadOnDemand(
+  () =>
+    import('../SocialIconLink').then(({ SocialIconLink }) => ({
+      default: SocialIconLink,
+    })),
+  { kind: 'optional' },
+);
+
+// The 7 accounts as quiet grey marks under the hero text. The row's size is fixed
+// so the marks can arrive after the page without moving anything. Each link is
+// pulled left so the first mark's left edge sits on the text's left edge.
+function HeroSocialRow({ phone, narrow }: { phone: boolean; narrow: boolean }) {
+  const link = phone ? 44 : 40;
+  const gap = phone ? 0 : 2;
+  const perLine = narrow ? 4 : SOCIAL_ACCOUNTS.length;
+  const lines = Math.ceil(SOCIAL_ACCOUNTS.length / perLine);
+  return (
+    <View
+      accessibilityLabel="Social media"
+      {...(isWeb ? ({ role: 'group' } as object) : {})}
+      style={[
+        s.heroSocial,
+        {
+          width: perLine * link + (perLine - 1) * gap,
+          height: lines * link,
+          columnGap: gap,
+          marginLeft: phone ? -11 : -10,
+        },
+      ]}
+    >
+      {SOCIAL_ACCOUNTS.map((social) => (
+        <HeroSocialIconLink key={social.platform} social={social} surface="hero" mobile={phone} />
+      ))}
+    </View>
+  );
+}
 const NEWS = ['94-2026-HF4138', '94-2025-SF856'];
 
 function Invitation({
@@ -245,6 +284,9 @@ export function SignedOutHomepage({
                 >
                   {HOME_PUBLIC_INTRO}
                 </Text>
+                <View style={{ marginTop: isMobile ? 18 : isTablet ? 24 : 28 }}>
+                  <HeroSocialRow phone={isMobile} narrow={width < 336} />
+                </View>
               </View>
               {!isMobile ? (
                 <View style={isDesktop ? s.moneyColumn : s.moneyTablet}>{money}</View>
@@ -334,6 +376,7 @@ const s = StyleSheet.create({
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: 96 },
   heroStack: { flexDirection: 'column', alignItems: 'stretch', gap: 0 },
   heroCopy: { minWidth: 0 },
+  heroSocial: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   moneyColumn: { flex: 0.72, minWidth: 0 },
   moneyTablet: { marginTop: 48 },
   eyebrow: { fontFamily: t.typography.ui, fontWeight: '500', color: '#0f7a45' },
