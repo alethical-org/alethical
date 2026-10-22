@@ -67,6 +67,12 @@ describe('public money card variants', () => {
     expect(page.querySelector('[aria-busy="true"]')?.getAttribute('aria-label')).toBe(
       'Loading how many filers the register holds',
     );
+    // The line's words are there only to hold its height: hidden from screen
+    // readers (and drawn transparent), and carrying no number.
+    const reserve = page.querySelector('[aria-hidden="true"]');
+    expect(reserve?.textContent).toContain(MONEY_PROMO_COUNT_UNIT);
+    expect(reserve?.textContent).not.toMatch(/\d/);
+    reserve?.remove();
     expect(page.textContent).not.toContain(MONEY_PROMO_COUNT_UNIT);
     expect(page.textContent).not.toContain('0 registered');
   });

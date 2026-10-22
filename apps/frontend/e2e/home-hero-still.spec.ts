@@ -87,9 +87,9 @@ for (const width of [1280, 900, 390]) {
     );
     const monoLoaded = await page.evaluate(
       () =>
-        performance
-          .getEntriesByType('resource')
-          .find((entry) => entry.name.includes('/fonts/jetbrains-mono-latin'))?.responseEnd ?? 0,
+        (performance.getEntriesByType('resource') as PerformanceResourceTiming[]).find((entry) =>
+          entry.name.includes('/fonts/jetbrains-mono-latin'),
+        )?.responseEnd ?? 0,
     );
 
     // The check only counts if both late arrivals happened after first paint.

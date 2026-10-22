@@ -93,7 +93,9 @@ for 416px bounded by its container.
 
 - The money count is read live from the register on every load. If the register
   does not answer, the whole line disappears: never a zero, never a dash, never a
-  remembered number. While it loads, a grey bar stands in its place.
+  remembered number. While it loads, a grey bar stands in its place, in a space
+  already the height of the finished line, so the introduction centred beside the
+  card and everything below it stay still when the number arrives.
 - The count says **registered campaigns, parties, and funds** and counts campaign
   filers only. Lobbying records are separate and are not included in that number.
 - The card never says each entry is tied to the filing it came from. Published
