@@ -536,6 +536,8 @@ names wrap inside their available width instead of creating a horizontal scrollb
   holding a fixed single-line height that crops line 2. The action button (Ask/Search/Find) stays
   vertically centered as the field grows, or sits full-width below on mobile per the stacked-field
   rule (learned on the home hero Ask field, [#468](https://github.com/alethical-org/alethical/pull/468)).
+- **A ZIP field's placeholder never names the state.** Follow
+  [ui-copy-guide.md, address fields leave the state implied](ui-copy-guide.md#address-fields-leave-the-state-implied).
 - **State lives in the URL.** Filters, tabs, pagination, and expanded panels are URL-addressable, not
   buried in component state — this is also `grounded-answers.md` rule 5 (anything linked-to must be
   URL-addressable). Same principle, restated for design.

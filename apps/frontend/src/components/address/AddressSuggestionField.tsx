@@ -382,7 +382,7 @@ export function AddressSuggestionField<T>({
         rows={1}
         {...browserFillInputProps}
         defaultValue={address}
-        placeholder="350 S 5th St, Minneapolis, MN 55415"
+        placeholder="350 S 5th St, Minneapolis 55415"
         autoComplete="street-address"
         name="street-address"
         enterKeyHint="search"

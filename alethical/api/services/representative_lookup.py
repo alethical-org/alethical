@@ -473,15 +473,23 @@ def _minnesota_address_candidates(
 ) -> tuple[_ParsedMinnesotaAddress, ...]:
     compact = normalize_address_format(address_text)
     state_matches = list(re.finditer(r"\b(?:MN|MINNESOTA)\b", compact, re.IGNORECASE))
-    if not state_matches:
-        return ()
-    state_match = state_matches[-1]
-    after_state = compact[state_match.end() :].strip(" ,;.")
-    if after_state and re.fullmatch(r"\d{5}(?:-\d{4})?", after_state) is None:
-        return ()
-    zip_match = re.search(r"\b(\d{5})(?:-\d{4})?\b", after_state)
-    zip_code = zip_match.group(1) if zip_match else None
-    before_state = compact[: state_match.start()].strip(" ,;")
+    if state_matches:
+        state_match = state_matches[-1]
+        after_state = compact[state_match.end() :].strip(" ,;.")
+        if after_state and re.fullmatch(r"\d{5}(?:-\d{4})?", after_state) is None:
+            return ()
+        zip_match = re.search(r"\b(\d{5})(?:-\d{4})?\b", after_state)
+        zip_code = zip_match.group(1) if zip_match else None
+        before_state = compact[: state_match.start()].strip(" ,;")
+    else:
+        # The field asks for "city, ZIP": the state is implied, so a trailing
+        # Minnesota ZIP (55xxx or 56xxx) alone ends the address. Another
+        # state's ZIP or name before it never reads as Minnesota.
+        zip_match = re.search(r"[\s,;]+(5[56]\d{3})(?:-\d{4})?[\s,;.]*$", compact)
+        if zip_match is None:
+            return ()
+        zip_code = zip_match.group(1)
+        before_state = compact[: zip_match.start()].strip(" ,;")
 
     separated = [
         part.strip() for part in re.split(r"[,;]+", before_state) if part.strip()

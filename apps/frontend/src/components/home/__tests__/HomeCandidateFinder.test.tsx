@@ -109,7 +109,7 @@ it('keeps startup free of search requests and rejects an incomplete address in p
   const { load, navigate } = setup();
   expect(load).not.toHaveBeenCalled();
   expect(host.querySelector('label')?.htmlFor).toBe(host.querySelector('textarea')?.id);
-  expect(host.querySelector('textarea')?.placeholder).toBe('Street address, city, MN ZIP');
+  expect(host.querySelector('textarea')?.placeholder).toBe('Street address, city, ZIP');
   type('Minneapolis 55414');
   submit();
   await flush();
