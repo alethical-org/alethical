@@ -1438,7 +1438,12 @@ def test_minnesota_fallback_still_needs_state_or_zip():
 
 
 @pytest.mark.parametrize(
-    "address", ["10 Main St, Fargo, ND 55415", "10 Main St, Hudson WI 55016"]
+    "address",
+    [
+        "10 Main St, Fargo, ND 55415",
+        "10 Main St, Hudson WI 55016",
+        "10 Main St, Fargo, N.D. 55415",
+    ],
 )
 def test_minnesota_fallback_rejects_another_state_code_before_a_minnesota_zip(
     address,

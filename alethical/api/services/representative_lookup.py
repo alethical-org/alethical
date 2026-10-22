@@ -305,7 +305,7 @@ _STREET_TYPE_ALIASES = {
     "WAY": "WAY",
 }
 # State codes that end an address as another state, leaving out codes that are
-# also Minnesota street endings or directions (CT court, MT mount, NE northeast).
+# also Minnesota street endings or directions (CT court, NE northeast).
 _OTHER_STATE_CODES = (
     SUPPORTED_STATES - {"MN"} - _STREET_TYPE_ALIASES.keys() - _DIRECTION_ALIASES.keys()
 )
@@ -499,7 +499,7 @@ def _minnesota_address_candidates(
         zip_code = zip_match.group(1)
         before_state = trimmed[: zip_match.start()].strip(" ,;")
         words = before_state.upper().replace(",", " ").split()
-        if words and words[-1].rstrip(".") in _OTHER_STATE_CODES:
+        if words and words[-1].replace(".", "") in _OTHER_STATE_CODES:
             return ()
 
     separated = [
