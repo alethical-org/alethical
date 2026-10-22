@@ -3,11 +3,12 @@ import { expect, test } from '@playwright/test';
 import { suppressSiteMetrics } from './suppress-site-metrics';
 
 // The signed-out hero text is centred beside the money card, so anything that
-// changes the card's height after first paint moves the whole hero. 3 things
+// changes the card's height after first paint moves the whole hero. 4 things
 // did: the text the server sends first was drawn in another layout until the
-// app replaced it, the filer count arrived taller than its loading bar, and the
-// card's JetBrains Mono eyebrow swapped in taller than its stand-in font. This
-// check makes all 3 arrive late, records the top bar, the hero and the card on
+// app replaced it, the filer count arrived taller than its loading bar, the
+// card's JetBrains Mono eyebrow swapped in taller than its stand-in font, and
+// text drawn before Libre Franklin arrived wrapped differently in Helvetica.
+// This check makes all 4 arrive late, records the top bar, the hero and the card on
 // every frame from the first paint of the served text, and fails on any
 // movement over 1px. Layout-shift scores cannot catch the first one: the browser
 // scores a replaced element as 0.
@@ -44,6 +45,11 @@ test.beforeEach(async ({ context }) => {
         headers: { 'access-control-allow-origin': '*' },
       })
       .catch(() => {});
+  });
+  // Libre Franklin lands after the served text has painted in its stand-in.
+  await context.route('**/fonts/libre-franklin-*.woff2', async (route) => {
+    await delay(700);
+    await route.continue().catch(() => {});
   });
   await context.route('**/fonts/jetbrains-mono-*.woff2', async (route) => {
     await delay(1000);
@@ -107,12 +113,16 @@ for (const width of [1280, 900, 390]) {
     const frames = await page.evaluate(
       () => (window as unknown as { __heroFrames: Frame[] }).__heroFrames,
     );
-    const monoLoaded = await page.evaluate(
-      () =>
-        (performance.getEntriesByType('resource') as PerformanceResourceTiming[]).find((entry) =>
-          entry.name.includes('/fonts/jetbrains-mono-latin'),
-        )?.responseEnd ?? 0,
-    );
+    const loaded = (file: string) =>
+      page.evaluate(
+        (name) =>
+          (performance.getEntriesByType('resource') as PerformanceResourceTiming[]).find((entry) =>
+            entry.name.includes(name),
+          )?.responseEnd ?? 0,
+        file,
+      );
+    const monoLoaded = await loaded('/fonts/jetbrains-mono-latin');
+    const libreLoaded = await loaded('/fonts/libre-franklin-latin');
 
     // The check only counts if every late arrival happened after first paint.
     expect(frames.length).toBeGreaterThan(10);
@@ -120,6 +130,7 @@ for (const width of [1280, 900, 390]) {
     expect(frames.some((frame) => !frame.served && frame.loading)).toBe(true);
     expect(frames.some((frame) => !frame.served && !frame.loading)).toBe(true);
     expect(monoLoaded).toBeGreaterThan(frames[0].t);
+    expect(libreLoaded).toBeGreaterThan(frames[0].t);
 
     const spread = (values: number[]) => Math.max(...values) - Math.min(...values);
     expect(spread(frames.map((frame) => frame.logo[0]))).toBeLessThanOrEqual(1);
