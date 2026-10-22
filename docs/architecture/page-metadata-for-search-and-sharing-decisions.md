@@ -1810,12 +1810,19 @@ description, canonical address and sitemap entry are unchanged. The font files a
 by the edge under their fixed names (`vercel.json`), and the outside-hosts policy no longer allows
 Google's font hosts because nothing asks them for anything.
 
-**Why a metric-matched fallback font is not used instead.** A fallback `@font-face` tuned with
-`size-adjust` to Libre Franklin's metrics keeps our typeface out of the first paint and still moves
-the page: one adjustment cannot serve 2 weights (111.7% at weight 700 against 115.2% at weight 400
-on the test machine), the right number depends on a system font we cannot know the reader has, and
-matching a string's width does not match where it breaks. Built and measured, it left 0.0322 on the
-bill page. Serving the real font early removes the swap rather than disguising it.
+**A width-matched stand-in backs up the real font; it never replaces it.** Serving Libre Franklin
+early removes the swap on most visits, so the stand-in is not a substitute: as the only font for the
+first paint it kept our typeface out of it and still left 0.0322 of movement on the bill page. On a
+cold visit the font can still lose the race with the HTML (2 of 6 cold loads of `/` at 1280px on
+22 Oct 2026). For those visits `'Libre Franklin Fallback'` sits second in every Libre Franklin
+stack: Arial, Helvetica or Liberation Sans, scaled per weight range (1 adjustment cannot serve every
+weight: 103.8% regular, 104.66% medium, 98.16% semibold, 99.21% bold, 99.5% heavy) with Libre
+Franklin's own height, limited to the characters Libre Franklin covers. Matching widths does not
+match every line break, and a reader without any of those 3 fonts gets the browser's default as
+before; measured on the homepage with the font held back, something moved at 37 of 401 widths from
+320 to 1920px against 120 with Helvetica, and the hero at 6 of 206 computer widths against 32.
+Details: `docs/operations/page-load-performance-decisions.md`, "The homepage hero holds still from
+its first paint".
 
 ## 25. Public sections and authored bills are linked in the first response
 
