@@ -50,6 +50,7 @@ overrides:
   "ws@8": 8.21.0 # @expo/cli and @supabase/realtime-js (which never imports it)
   undici: 8.10.2 # jsdom test HTTP client — patched request, cache and WebSocket handling
   uuid: 11.1.1 # Expo telemetry uses compatible v1/v4/validate APIs
+  vite: 8.1.6 # Vitest dev server — patched launch-editor command handling
 patchedDependencies:
   # Exact nested DigestAlgorithm validation from digitalbazaar/forge#1152.
   # check-node-forge-security.mjs proves installed content and behavior before
