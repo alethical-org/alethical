@@ -355,6 +355,36 @@ def collect(root, env, output):
     return collected_tests(listing)
 
 
+def prepare_worker_databases(root, env, workers):
+    """Migrate the job database once, then copy it once per pytest-xdist worker.
+
+    Copies come from PostgreSQL's template mechanism, so the migration runs once.
+    Every copy exists and is migrated before pytest starts: a worker whose first
+    test module replaces the seeding fixture still finds the schema.
+    """
+    require("GITHUB_ACTIONS" in env, "Parallel workers need the GitHub job database")
+    migrate = [sys.executable, "-m", "alembic", "-c", "alembic.ini", "upgrade", "head"]
+    require(run_command(migrate, root, env) == 0, "Migrating the test database failed")
+    from sqlalchemy import create_engine
+    from sqlalchemy.engine import make_url
+
+    base = make_url(env["DATABASE_URL"])
+    require(
+        base.database == "alethical", "Parallel workers copy the alethical database"
+    )
+    admin = create_engine(base.set(database="postgres"), isolation_level="AUTOCOMMIT")
+    try:
+        with admin.connect() as connection:
+            for index in range(workers):
+                name = f"alethical_gw{index}"
+                connection.exec_driver_sql(f'DROP DATABASE IF EXISTS "{name}"')
+                connection.exec_driver_sql(
+                    f'CREATE DATABASE "{name}" TEMPLATE "alethical"'
+                )
+    finally:
+        admin.dispose()
+
+
 def stop_descendants(group):
     """Reap only the process group this invocation created, even if its leader left."""
 
@@ -392,7 +422,7 @@ def run_command(command, root, env):
         stop_descendants(child.pid)
 
 
-def run(root, scope, output):
+def run(root, scope, output, workers=0):
     root, output = Path(root).resolve(), Path(output).resolve()
     require(
         output.is_relative_to(root / ".tmp"), "Run output must be inside ignored .tmp/"
@@ -418,12 +448,19 @@ def run(root, scope, output):
                 "id": os.environ["GITHUB_RUN_ID"],
                 "attempt": os.environ.get("GITHUB_RUN_ATTEMPT", ""),
             }
+        require(
+            not workers or scope == "backend", "Only backend runs use parallel workers"
+        )
+        receipt["workers"] = workers
         if scope == "backend":
             # Lists, as the receipt's JSON stores them.
             receipt["collected_tests"] = [
                 list(test) for test in collect(root, env, output)
             ]
         command = [sys.executable, "-m", "pytest"]
+        if workers:
+            prepare_worker_databases(root, env, workers)
+            command.extend(["-n", str(workers), "--max-worker-restart", "0"])
         if scope == "money":
             command.extend([f"{TEST_FILE}::{CHANGED}", f"{TEST_FILE}::{CARRIED}"])
         command.extend(
@@ -523,6 +560,12 @@ def main(argv=None):
             command.add_argument(
                 "--scope", choices=("money", "backend"), default="money"
             )
+            command.add_argument(
+                "--workers",
+                type=int,
+                default=0,
+                help="pytest-xdist workers, each with its own database (GitHub only)",
+            )
         else:
             command.add_argument("--commit", required=True)
     args = parser.parse_args(argv)
@@ -531,7 +574,7 @@ def main(argv=None):
     )
     try:
         receipt = (
-            run(args.root, args.scope, args.output)
+            run(args.root, args.scope, args.output, args.workers)
             if args.command == "run"
             else check(args.root, args.output, args.commit)
         )

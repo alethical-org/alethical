@@ -46,6 +46,8 @@ dependencies = [
   # the release that repairs the items-view reference leak (CVE-2026-104874).
   "multidict>=6.9.1",
   "pytest-asyncio>=1.4.0",
+  # Backend CI runs the suite on parallel workers, each with its own database.
+  "pytest-xdist>=3.8.0",
   "supabase>=2.31.0",
   # Imported directly by alethical/tests/test_auth_token_verification.py for
   # AuthInvalidJwtError, the error a rejected or expired sign-in token really

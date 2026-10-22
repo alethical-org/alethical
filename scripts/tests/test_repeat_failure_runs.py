@@ -271,6 +271,31 @@ class RunEvidenceTests(unittest.TestCase):
             receipt = json.loads((output / "receipt.json").read_text())
             self.assertEqual(receipt["status"], "incomplete")
 
+    def test_parallel_workers_get_prepared_databases_and_only_for_backend(self):
+        self.backend_tree()
+        commands = []
+
+        def runner(command, root, env):
+            commands.append(command)
+            return self.fake_runner(command, root, env)
+
+        with (
+            patch.object(runs, "expected_cases", return_value=[]),
+            patch.object(runs, "collect", return_value=sorted(runs.EXPECTED)),
+            patch.object(runs, "prepare_worker_databases") as prepare,
+            patch.object(runs, "run_command", side_effect=runner),
+        ):
+            receipt = runs.run(self.root, "backend", self.output, workers=4)
+            with self.assertRaisesRegex(runs.ReviewError, "Only backend"):
+                runs.run(self.root, "money", self.root / ".tmp" / "money", workers=4)
+        self.assertEqual(receipt["workers"], 4)
+        self.assertEqual(prepare.call_args.args[2], 4)
+        self.assertIn(
+            ["-n", "4"], [commands[0][i : i + 2] for i in range(len(commands[0]))]
+        )
+        with self.assertRaisesRegex(runs.ReviewError, "GitHub job database"):
+            runs.prepare_worker_databases(self.root, {"PATH": ""}, 4)
+
     def test_coverage_requires_the_exact_set_with_only_allowed_skips(self):
         collected = [["a", "test_1"], ["a", "test_2"], ["b", "test_ocr"]]
         allowed = {("b", "test_ocr")}

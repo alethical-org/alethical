@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import signal
 from contextlib import ExitStack
 from pathlib import Path
@@ -20,6 +21,11 @@ def configure_database(config: pytest.Config, root: Path) -> str:
 
     GitHub owns a fresh service per job. Everywhere else, including an upload
     snapshot setting CI=true, owns a new Docker server per pytest process.
+
+    Parallel workers (pytest-xdist) run only on GitHub. Each worker uses its own
+    copy of the job database, `alethical_<worker>`, which
+    scripts/repeat_failure_runs.py migrates and copies before pytest starts, so a
+    worker whose first test skips the seeding fixture still finds a migrated schema.
     Environment flags are a CI execution contract, not proof of server ownership
     on a developer machine; generic CI or GITHUB_ACTIONS alone cannot opt out.
     """
@@ -44,6 +50,7 @@ def configure_database(config: pytest.Config, root: Path) -> str:
         and Path(os.environ.get("GITHUB_WORKSPACE", "")).resolve() == root.resolve()
         and bool(os.environ.get("GITHUB_WORKSPACE"))
     )
+    worker = os.environ.get("PYTEST_XDIST_WORKER")
     if github_job:
         url = make_url(source)
         if (
@@ -57,7 +64,20 @@ def configure_database(config: pytest.Config, root: Path) -> str:
                 "GitHub tests require their job's fresh local PostgreSQL service "
                 "on port 5432, database alethical."
             )
-        return source
+        if worker is None:
+            return source
+        if not re.fullmatch(r"gw\d+", worker):
+            raise pytest.UsageError(f"Unrecognised parallel worker name {worker!r}.")
+        worker_url = url.set(database=f"alethical_{worker}").render_as_string(
+            hide_password=False
+        )
+        os.environ["DATABASE_URL"] = worker_url
+        return worker_url
+    if worker is not None:
+        raise pytest.UsageError(
+            "Parallel test workers run only in GitHub's backend job, where every "
+            "worker database is migrated before pytest starts. Run without -n."
+        )
 
     stack = ExitStack()
     config.add_cleanup(stack.close)

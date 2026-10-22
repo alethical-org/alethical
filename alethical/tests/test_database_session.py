@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 
@@ -16,10 +18,13 @@ def test_application_imports_and_fixtures_use_the_same_test_server():
     url = make_url(COLLECTION_DATABASE_URL)
     assert get_engine().url == url
     assert url.host in {"localhost", "127.0.0.1"}
-    assert url.database == "alethical"
+    # A parallel worker uses its own copy of the job database, so no worker can
+    # see another worker's rows.
+    worker = os.environ.get("PYTEST_XDIST_WORKER")
+    expected = f"alethical_{worker}" if worker else "alethical"
+    assert url.database == expected
     assert url.port != 54329
     with get_engine().connect() as connection:
         assert (
-            connection.execute(text("SELECT current_database()")).scalar()
-            == "alethical"
+            connection.execute(text("SELECT current_database()")).scalar() == expected
         )
