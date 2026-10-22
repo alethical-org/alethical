@@ -59,6 +59,9 @@ jobs:
           # Shared with local upload checks; JSON is also valid YAML.
           filters: .github/check-paths.json
 
+      - name: TRIAL ONLY - force the path selection to fail
+        run: exit 1
+
   changes:
     needs: select
     if: ${{ always() }}
