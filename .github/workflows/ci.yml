@@ -281,7 +281,7 @@ jobs:
         run: |
           uv run python -m unittest discover -s scripts/tests -p 'test_manual_test_database.py'
           uv run python -m unittest discover -s scripts/tests -p 'test_repeat_failure_runs_pytest.py'
-          uv run --frozen python scripts/repeat_failure_runs.py run --scope backend --output .tmp/prevention-backend
+          uv run --frozen python scripts/repeat_failure_runs.py run --scope backend --workers 4 --output .tmp/prevention-backend
           uv run --frozen python scripts/repeat_failure_runs.py check --output .tmp/prevention-backend --commit "$GITHUB_SHA"
 
       - name: Retain named prevention results even on failure
