@@ -446,7 +446,10 @@ try {
               address: `${350 + index} S 5th St, Minneapolis, MN 55415`,
             })),
           );
-          await field.fill('350 S 5th ');
+          // A different query, so the field sends a new request. Refilling the same
+          // trimmed text reuses a request still in flight, which settles with the
+          // first, empty answer on a busy runner.
+          await field.fill('350 S 5th St');
           const rows = page.locator('[data-address-option]');
           await expect(rows).toHaveCount(3);
           const panel = page.getByRole('listbox').locator('..');

@@ -93,13 +93,10 @@ async function fixture(page: Page, allowed = true) {
     },
     { key: process.env.E2E_AUTH_STORAGE_KEY ?? 'sb-localhost-auth-token', saved: session },
   );
-  const source = await page.context().newPage();
-  await source.setViewportSize({ width: 600, height: 800 });
-  await source.setContent(
-    '<main style="padding:40px;font:20px Georgia"><h1>SYNTHETIC TEST RECORD</h1><p>Station invoice</p><hr><p>Example campaign</p><p>Gross amount: $12,345.67</p><p>Order 1234</p><p>Scheduled: October 1 through October 8</p><div style="background:#eee;border:1px solid #ccc;height:50px;margin:50px 0"></div><p>Private details withheld</p><hr><p>This invented record is for browser checks</p></main>',
-  );
-  const png = await source.screenshot();
-  await source.close();
+  // A committed image, not a screenshot taken during the test: capturing a freshly
+  // resized second page sometimes fails in CI ("Unable to capture screenshot"),
+  // and no test reads the image's pixels.
+  const png = await readFile(resolve('e2e/fixtures/tv-synthetic-invoice.png'));
   const publication = () => ({
     id: copy,
     facility_id: '23079',
