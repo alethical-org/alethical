@@ -1817,7 +1817,9 @@ cold visit the font can still lose the race with the HTML (2 of 6 cold loads of 
 22 Oct 2026). For those visits `'Libre Franklin Fallback'` sits second in every Libre Franklin
 stack: Arial, Helvetica or Liberation Sans, scaled per weight range (1 adjustment cannot serve every
 weight: 103.8% regular, 104.66% medium, 98.16% semibold, 99.21% bold, 99.5% heavy) with Libre
-Franklin's own height, limited to the characters Libre Franklin covers. Matching widths does not
+Franklin's own height, limited to the characters Libre Franklin's files actually draw
+(`apps/frontend/e2e/font-stand-in.spec.ts` holds it there; the faces declare wider ranges than
+the files contain). Matching widths does not
 match every line break, and a reader without any of those 3 fonts gets the browser's default as
 before; measured on the homepage with the font held back, something moved at 37 of 401 widths from
 320 to 1920px against 120 with Helvetica, and the hero at 6 of 206 computer widths against 32.
