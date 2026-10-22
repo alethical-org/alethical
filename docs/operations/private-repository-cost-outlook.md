@@ -123,7 +123,9 @@ $83.17/month instead of $32.59/month.
 GitHub charges by the rounded minute for every job on a hosted Linux computer.
 There is no separate fee for the job name.
 
-- `changes`: decides which tests are needed, checks document links and changed
+- `select`: decides which tests are needed, so the test jobs start without waiting
+  for `changes`.
+- `changes`: fails when `select` gave no answer, checks document links and changed
   behavior notes, rejects hidden NUL bytes, and scans new commits for secrets.
 - `backend`: checks Python formatting, types, declared packages, database changes,
   and server behavior.
