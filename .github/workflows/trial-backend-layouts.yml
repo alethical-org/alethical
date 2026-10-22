@@ -1,0 +1,70 @@
+name: Trial backend layouts (never merge)
+
+# Throwaway measurement for issue 2654 step 3: wall time of the backend tests on
+# 1 machine with 6 or 8 workers, and on 4 machines split by measured file times.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  workers:
+    if: ${{ github.head_ref == 'ci/trial-backend-layouts' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        workers: [6, 8]
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql+psycopg://alethical:alethical@localhost:5432/alethical
+    steps:
+      - name: Start the temporary test database
+        run: |
+          docker run --detach --rm --name pg -e POSTGRES_DB=alethical -e POSTGRES_USER=alethical \
+            -e POSTGRES_PASSWORD=alethical -p 5432:5432 --health-cmd "pg_isready -U alethical -d alethical" \
+            --health-interval 2s mirror.gcr.io/pgvector/pgvector:pg17
+          for i in $(seq 1 60); do test "$(docker inspect --format '{{.State.Health.Status}}' pg)" = healthy && exit 0; sleep 1; done; exit 1
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v9.0.0
+        with: {version: 0.12.5, enable-cache: true, prune-cache: true}
+      - uses: actions/setup-python@v7
+        with: {python-version-file: ".python-version"}
+      - run: uv sync --frozen
+      - run: sudo apt-get update && sudo apt-get install --no-install-recommends -y poppler-utils
+      - name: Run the receipt tool with ${{ matrix.workers }} workers
+        run: |
+          start=$(date +%s)
+          uv run --frozen python scripts/repeat_failure_runs.py run --scope backend --workers ${{ matrix.workers }} --output .tmp/trial
+          echo "TEST STEP SECONDS: $(( $(date +%s) - start ))"
+
+  shards:
+    if: ${{ github.head_ref == 'ci/trial-backend-layouts' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        group: ["1", "2", "3", "4"]
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql+psycopg://alethical:alethical@localhost:5432/alethical
+      ALETHICAL_DATABASE_TARGET: local
+    steps:
+      - name: Start the temporary test database
+        run: |
+          docker run --detach --rm --name pg -e POSTGRES_DB=alethical -e POSTGRES_USER=alethical \
+            -e POSTGRES_PASSWORD=alethical -p 5432:5432 --health-cmd "pg_isready -U alethical -d alethical" \
+            --health-interval 2s mirror.gcr.io/pgvector/pgvector:pg17
+          for i in $(seq 1 60); do test "$(docker inspect --format '{{.State.Health.Status}}' pg)" = healthy && exit 0; sleep 1; done; exit 1
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v9.0.0
+        with: {version: 0.12.5, enable-cache: true, prune-cache: true}
+      - uses: actions/setup-python@v7
+        with: {python-version-file: ".python-version"}
+      - run: uv sync --frozen
+      - run: sudo apt-get update && sudo apt-get install --no-install-recommends -y poppler-utils
+      - name: Run group ${{ matrix.group }}
+        run: |
+          start=$(date +%s)
+          files=$(python3 -c "import json;print(' '.join(json.load(open('.github/trial-backend-groups.json'))['${{ matrix.group }}']))")
+          uv run --frozen python -m pytest $files -q -p no:cacheprovider
+          echo "TEST STEP SECONDS: $(( $(date +%s) - start ))"
