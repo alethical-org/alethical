@@ -149,6 +149,17 @@ Approved on 26 September 2026 and applied to the private first-post
 comparison chart. Review all post drafts for implied text and visual clutter;
 this rule does not authorize unrelated redesigns.
 
+### Address fields leave the state implied
+
+Alethical presents itself as a Minnesota site, so the state is implied. A field that
+asks for a ZIP code names the ZIP without a state in its placeholder, example and help
+text: “Street address, city, ZIP” and “350 S 5th St, Minneapolis 55415”, never
+“MN ZIP” or “Minneapolis, MN 55415”. The same applies to any state Alethical covers
+later. The address lookups accept an address with or without its state, so text a
+reader types or autofills with the state still works. A matched or official address
+shown back to the reader keeps its source wording, state included. Approved on
+22 October 2026.
+
 ### Display dollar amounts without cents
 
 In every post draft, display dollar amounts as whole dollars by dropping the

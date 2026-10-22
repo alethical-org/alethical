@@ -29,7 +29,7 @@ import { fieldFocusRing, fieldOutlineReset } from '../../theme/fieldFocus';
 import { prefersReducedMotion, theme as t } from '../../theme/tokens';
 
 export const HOME_FINDER_HELP_ID = 'home-finder-address-help';
-export const HOME_FINDER_EXAMPLE = '350 S 5th St, Minneapolis, MN 55415';
+export const HOME_FINDER_EXAMPLE = '350 S 5th St, Minneapolis 55415';
 export const HOME_FINDER_HELP =
   "Enter a full street address — a city or ZIP code alone can't identify your legislators";
 
