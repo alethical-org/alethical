@@ -371,7 +371,8 @@ export interface SnapshotRecordLink extends SnapshotLink {
 export interface PageSnapshot {
   /** The approved dark presentation keeps its background before the app starts. */
   appearance?: 'dark';
-  navigation?: 'services';
+  /** Services has its own header; candidate pages draw the shared one with their own spacing. */
+  navigation?: 'services' | 'candidate';
   /** Home draws its own hero and cards rather than the record-page header and cards. */
   layout?: 'home';
   /**
@@ -2812,7 +2813,7 @@ function renderSnapshotBlock(block: SnapshotBlock, article = false): string {
  * only the app can operate, so here it is a label in the button's place: it holds
  * the layout the app fills in, and never pretends to be a link.
  */
-function renderSnapshotNav(): string {
+function renderSnapshotNav(candidate = false): string {
   const links = NAV_BAR.map((entry) => {
     if (entry.kind === 'link') {
       return `<a href="${escapeHtml(entry.item.path)}">${escapeHtml(entry.item.label)}</a>`;
@@ -2823,7 +2824,7 @@ function renderSnapshotNav(): string {
       : `<span>${escapeHtml(entry.label)}${NAV_CHEVRON}</span>`;
   });
   return (
-    '<header class="ps-nav"><div class="ps-inner ps-nav-row">' +
+    `<header class="ps-nav${candidate ? ' ps-nav-candidate' : ''}"><div class="ps-inner ps-nav-row">` +
     '<a class="ps-logo" href="/" aria-label="Alethical home">' +
     `<svg class="ps-mark" viewBox="0 0 84 82" fill="none" aria-hidden="true"><path d="${LOGO_MARK_PATH}" fill="currentColor"></path></svg>` +
     '<span class="ps-wordmark">ALETHICAL</span></a>' +
@@ -2904,6 +2905,8 @@ function renderHomeMoneyCard(band: 'hero' | 'phone'): string {
  * is the app's, so nothing in the hero moves when the app replaces this
  * (styled in `public/index.html`, `.page-snapshot-home`). The money card is
  * written twice because it sits in a different place on phone; CSS shows 1.
+ * The top bar comes first so 1 `<main>` holds the rest; the hero slides up
+ * under it, so its background still starts at the top of the page.
  */
 function renderHomeSnapshot(snapshot: PageSnapshot): string {
   const [, bills, services, candidates] = snapshot.sections ?? [];
@@ -2922,21 +2925,21 @@ function renderHomeSnapshot(snapshot: PageSnapshot): string {
   const candidate = candidates?.items?.[0];
   return [
     '<div class="page-snapshot page-snapshot-home">',
-    '<div class="ph-hero"><div class="ph-dots"></div>',
     renderSnapshotNav(),
-    '<main class="ph-inner ph-hero-inner"><div class="ph-hero-row"><div class="ph-copy">',
+    '<main><div class="ph-hero"><div class="ph-dots"></div>',
+    '<div class="ph-inner ph-hero-inner"><div class="ph-hero-row"><div class="ph-copy">',
     `<p class="ph-eyebrow">${escapeHtml(snapshot.subheading)}</p>`,
     '<h1 class="ph-heading">Grounded answers\n<span class="ph-green">on Minnesota politics</span></h1>',
     `<p class="ph-intro">${escapeHtml(snapshot.body[0] ?? '')}</p>`,
     '<div class="ph-social"></div>',
     '</div>',
     `<div class="ph-money-column">${renderHomeMoneyCard('hero')}</div>`,
-    '</div></main></div>',
+    '</div></div></div>',
     `<div class="ph-band">${renderHomeMoneyCard('phone')}<div class="ph-inner">${invitations}</div></div>`,
     candidates && candidate?.href
       ? `<section class="ph-inner ph-candidates"><h2>${escapeHtml(candidates.heading ?? '')}</h2><p>${escapeHtml(candidates.body?.[0] ?? '')}</p><a href="${escapeHtml(candidate.href)}">${escapeHtml(candidate.label)}</a></section>`
       : '',
-    '</div>',
+    '</main></div>',
   ].join('');
 }
 
@@ -3063,7 +3066,9 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
 
   return [
     `<div class="page-snapshot${snapshot.appearance === 'dark' ? ' page-snapshot-dark' : ''}${snapshot.article ? ' page-snapshot-article' : ''}">`,
-    snapshot.navigation === 'services' ? renderServicesNav() : renderSnapshotNav(),
+    snapshot.navigation === 'services'
+      ? renderServicesNav()
+      : renderSnapshotNav(snapshot.navigation === 'candidate'),
     '<main class="ps-inner">',
     snapshot.backLink
       ? `<a class="ps-back" href="${escapeHtml(snapshot.backLink.href)}">${BACK_CHEVRON}${escapeHtml(snapshot.backLink.label)}</a>`

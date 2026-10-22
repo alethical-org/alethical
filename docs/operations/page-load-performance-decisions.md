@@ -981,7 +981,10 @@ The rules that follow:
   signed-out hero, money card or the 2 cards after it changes both.
 - **The shared served top bar is the app's `TopNav` at each band**: logo size, link colour and
   menu carets on computer, the outlined **Sign in**, and the menu button on tablet and phone. It
-  is 83px tall at every band, as the app's is.
+  is 83px tall on computer and tablet and 78px on phone, as the app's is. Candidate screens keep
+  their own spacing and the compact green **Sign in** below computer width
+  (`navigation: 'candidate'` on their snapshots). The bands switch at the app's own edges,
+  below 768px and below 1100px, fractional widths included.
 - **A loading placeholder takes the height of what replaces it.** The count's grey bar sits over
   an invisible, screen-reader-hidden copy of the line with 12 no-break spaces where the number
   goes, so no number is printed before it is read.

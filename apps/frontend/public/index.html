@@ -302,7 +302,7 @@
         background: #f7f8fa;
         background-image: linear-gradient(180deg,#f4f5f7 0%,#f7f8fa 60%,#fdfdfe 92%,#ffffff 100%);
       }
-      @media(max-width:767px) {
+      @media(max-width:767.98px) {
         #stable-event-document { background-image: none; }
       }
       body[data-stable-event-document] #root {
@@ -420,6 +420,14 @@
         width: 20px;
         height: 20px;
       }
+      /* Candidate screens draw the bar with their own spacing and, below
+         computer width, a compact green Sign in beside the menu button. */
+      .page-snapshot .ps-nav-candidate .ps-nav-row {
+        padding: 22px 40px 0;
+      }
+      .page-snapshot .ps-nav-candidate .ps-logo {
+        min-height: 44px;
+      }
       .page-snapshot .ps-back {
         display: inline-flex;
         align-items: center;
@@ -459,7 +467,7 @@
       .page-snapshot .ps-profile-identifier {
         white-space: nowrap;
       }
-      @media (max-width: 767px) {
+      @media (max-width: 767.98px) {
         .page-snapshot .ps-back:has(+ .ps-profile-label) {
           font-size: 15px;
         }
@@ -783,8 +791,16 @@
         -webkit-mask-image: linear-gradient(to bottom, transparent 110px, #000 230px, #000 calc(100% - 180px), transparent 100%);
         mask-image: linear-gradient(to bottom, transparent 110px, #000 230px, #000 calc(100% - 180px), transparent 100%);
       }
-      .page-snapshot-home .ph-hero > header,
-      .page-snapshot-home .ph-hero > main {
+      .page-snapshot-home > .ps-nav {
+        position: relative;
+        z-index: 1;
+      }
+      /* The app draws the top bar inside the hero, 83px tall (78px on phone). */
+      .page-snapshot-home .ph-hero {
+        margin-top: -83px;
+        padding-top: 83px;
+      }
+      .page-snapshot-home .ph-hero-inner {
         position: relative;
       }
       .page-snapshot-home .ph-inner {
@@ -1013,7 +1029,7 @@
         color: #0f7a45;
         font-weight: 700;
       }
-      @media (max-width: 1099px) {
+      @media (max-width: 1099.98px) {
         .page-snapshot-home .ph-inner {
           padding-left: 40px;
           padding-right: 40px;
@@ -1067,8 +1083,10 @@
           padding-bottom: 80px;
         }
       }
-      @media (max-width: 767px) {
+      @media (max-width: 767.98px) {
         .page-snapshot-home .ph-hero {
+          margin-top: -78px;
+          padding-top: 78px;
           background-image: none;
         }
         .page-snapshot-home .ph-dots,
@@ -1177,14 +1195,14 @@
           padding-bottom: 56px;
         }
       }
-      @media (max-width: 335px) {
+      @media (max-width: 335.98px) {
         .page-snapshot-home .ph-social {
           width: 176px;
           height: 88px;
         }
       }
       /* Tablet: the app folds the bar's links into a menu and grows the logo. */
-      @media (max-width: 1099px) {
+      @media (max-width: 1099.98px) {
         .page-snapshot .ps-nav-row {
           column-gap: 0;
         }
@@ -1197,6 +1215,22 @@
         }
         .page-snapshot .ps-menu {
           display: flex;
+        }
+        .page-snapshot .ps-nav-candidate .ps-nav-row {
+          padding: 14px 32px 0;
+        }
+        .page-snapshot .ps-nav-candidate .ps-signin {
+          display: flex;
+          align-items: center;
+          box-sizing: border-box;
+          min-height: 44px;
+          padding: 0 16px;
+          border-color: #2ed47e;
+          border-radius: 10px;
+          background: #2ed47e;
+          color: #06231a;
+          font-size: 15px;
+          font-weight: 700;
         }
         .page-snapshot .ps-logo {
           gap: 14px;
@@ -1212,7 +1246,7 @@
         }
       }
       /* Phone: narrower gutters, a smaller logo, a smaller heading. */
-      @media (max-width: 767px) {
+      @media (max-width: 767.98px) {
         .page-snapshot .ps-inner {
           padding-left: 24px;
           padding-right: 24px;
@@ -1235,6 +1269,12 @@
         .page-snapshot .ps-signin {
           display: none;
         }
+        .page-snapshot .ps-nav-candidate .ps-nav-row {
+          padding: 14px 20px 0;
+        }
+        .page-snapshot .ps-nav-candidate .ps-signin {
+          display: flex;
+        }
         .page-snapshot h1 {
           font-size: 30px;
           line-height: 36px;
@@ -1254,7 +1294,7 @@
       .ps-services-footer nav { display: flex; flex-wrap: wrap; gap: 24px; margin: 24px 0; }
       .ps-services-footer a { color: #cfd6d2; }
       .ps-services-footer span { color: #35c46b; }
-      @media (max-width: 767px) {
+      @media (max-width: 767.98px) {
         .ps-services-row { flex-wrap: wrap; gap: 0; justify-content: space-between; padding-top: 8px; }
         .ps-services-row img { width: 140px; }
         .ps-services-row nav { order: 3; flex-basis: 100%; justify-content: flex-start; gap: 24px; border-top: 1px solid #1c1c1c; margin: 0 calc(-1 * clamp(16px, 4vw, 48px)); padding: 0 16px; }
@@ -1414,8 +1454,8 @@
       page is served straight off the filesystem and never reaches api/page.ts.
     -->
     <div class="comment-return-loading" role="status">Loading comments…</div>
-    <div id="root"><!--alethical:page-snapshot--><div class="page-snapshot page-snapshot-home"><div class="ph-hero"><div class="ph-dots"></div><header class="ps-nav"><div class="ps-inner ps-nav-row"><a class="ps-logo" href="/" aria-label="Alethical home"><svg class="ps-mark" viewBox="0 0 84 82" fill="none" aria-hidden="true"><path d="M0 82 L38 0 L38 82 Z M84 82 L46 0 L46 82 Z" fill="currentColor"></path></svg><span class="ps-wordmark">ALETHICAL</span></a><div class="ps-nav-right"><nav class="ps-nav-links" aria-label="Site"><a href="/money">Money</a><a href="/bills">Search<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></a><a href="/blog">Blog</a><a href="/about">About<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></a></nav><span class="ps-signin">Sign in</span><span class="ps-menu" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#11150f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg></span></div></div></header><main class="ph-inner ph-hero-inner"><div class="ph-hero-row"><div class="ph-copy"><p class="ph-eyebrow">TRUTH, UNCONCEALED</p><h1 class="ph-heading">Grounded answers
-<span class="ph-green">on Minnesota politics</span></h1><p class="ph-intro">We turn scattered public records into clear information you can use. Understand what’s happening, check the evidence, and get practical support to act on what you learn.</p><div class="ph-social"></div></div><div class="ph-money-column"><a class="ph-money ph-money-hero" href="/money"><span class="ph-money-eyebrow">MONEY IN POLITICS</span><h2 class="ph-money-heading">Follow the money</h2><span class="ph-money-body">Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.</span><span class="ph-count" aria-hidden="true"><span class="ph-count-reserve"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> registered campaigns, parties, and funds</span><span class="ph-count-bar"></span></span><span class="ph-money-cta"><span>Search the money records</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12 H19 M14 7 L19 12 L14 17" stroke="#06231a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></a></div></div></main></div><div class="ph-band"><a class="ph-money ph-money-phone" href="/money"><span class="ph-money-eyebrow">MONEY IN POLITICS</span><h2 class="ph-money-heading">Follow the money</h2><span class="ph-money-body">Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.</span><span class="ph-count" aria-hidden="true"><span class="ph-count-reserve"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> registered campaigns, parties, and funds</span><span class="ph-count-bar"></span></span><span class="ph-money-cta"><span>Search the money records</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12 H19 M14 7 L19 12 L14 17" stroke="#06231a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></a><div class="ph-inner"><div class="ph-invites"><a class="ph-invite" href="/bills"><h2>Bills and votes</h2><span class="ph-invite-body">Read plain-language bill summaries, see where they stand, and find out how legislators voted</span><span class="ph-invite-action"><span class="ph-button"><span>Search bills</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#0f7a45" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></span></a><a class="ph-invite" href="/services"><h2>Campaign services</h2><span class="ph-invite-body">Get political intelligence through campaign-finance research, plus websites, marketing, and custom software for your campaign or organization</span><span class="ph-invite-action"><span class="ph-button ph-button-paid"><span>Explore our services</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></span></a></div></div></div><section class="ph-inner ph-candidates"><h2>Who’s running where you live?</h2><p>Explore the candidates in your Minnesota races, with links to official records</p><a href="/candidates">Find my candidates</a></section></div><!--/alethical:page-snapshot--></div>
+    <div id="root"><!--alethical:page-snapshot--><div class="page-snapshot page-snapshot-home"><header class="ps-nav"><div class="ps-inner ps-nav-row"><a class="ps-logo" href="/" aria-label="Alethical home"><svg class="ps-mark" viewBox="0 0 84 82" fill="none" aria-hidden="true"><path d="M0 82 L38 0 L38 82 Z M84 82 L46 0 L46 82 Z" fill="currentColor"></path></svg><span class="ps-wordmark">ALETHICAL</span></a><div class="ps-nav-right"><nav class="ps-nav-links" aria-label="Site"><a href="/money">Money</a><a href="/bills">Search<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></a><a href="/blog">Blog</a><a href="/about">About<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></a></nav><span class="ps-signin">Sign in</span><span class="ps-menu" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#11150f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg></span></div></div></header><main><div class="ph-hero"><div class="ph-dots"></div><div class="ph-inner ph-hero-inner"><div class="ph-hero-row"><div class="ph-copy"><p class="ph-eyebrow">TRUTH, UNCONCEALED</p><h1 class="ph-heading">Grounded answers
+<span class="ph-green">on Minnesota politics</span></h1><p class="ph-intro">We turn scattered public records into clear information you can use. Understand what’s happening, check the evidence, and get practical support to act on what you learn.</p><div class="ph-social"></div></div><div class="ph-money-column"><a class="ph-money ph-money-hero" href="/money"><span class="ph-money-eyebrow">MONEY IN POLITICS</span><h2 class="ph-money-heading">Follow the money</h2><span class="ph-money-body">Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.</span><span class="ph-count" aria-hidden="true"><span class="ph-count-reserve"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> registered campaigns, parties, and funds</span><span class="ph-count-bar"></span></span><span class="ph-money-cta"><span>Search the money records</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12 H19 M14 7 L19 12 L14 17" stroke="#06231a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></a></div></div></div></div><div class="ph-band"><a class="ph-money ph-money-phone" href="/money"><span class="ph-money-eyebrow">MONEY IN POLITICS</span><h2 class="ph-money-heading">Follow the money</h2><span class="ph-money-body">Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.</span><span class="ph-count" aria-hidden="true"><span class="ph-count-reserve"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> registered campaigns, parties, and funds</span><span class="ph-count-bar"></span></span><span class="ph-money-cta"><span>Search the money records</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12 H19 M14 7 L19 12 L14 17" stroke="#06231a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></a><div class="ph-inner"><div class="ph-invites"><a class="ph-invite" href="/bills"><h2>Bills and votes</h2><span class="ph-invite-body">Read plain-language bill summaries, see where they stand, and find out how legislators voted</span><span class="ph-invite-action"><span class="ph-button"><span>Search bills</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#0f7a45" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></span></a><a class="ph-invite" href="/services"><h2>Campaign services</h2><span class="ph-invite-body">Get political intelligence through campaign-finance research, plus websites, marketing, and custom software for your campaign or organization</span><span class="ph-invite-action"><span class="ph-button ph-button-paid"><span>Explore our services</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></span></a></div></div></div><section class="ph-inner ph-candidates"><h2>Who’s running where you live?</h2><p>Explore the candidates in your Minnesota races, with links to official records</p><a href="/candidates">Find my candidates</a></section></main></div><!--/alethical:page-snapshot--></div>
     <!--
       The records api/page.ts already read for this address, handed to the app in
       the same response so it draws them without asking the data service for the

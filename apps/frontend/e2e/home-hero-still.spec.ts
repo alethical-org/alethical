@@ -118,6 +118,7 @@ for (const width of [1280, 900, 390]) {
     expect(frames.length).toBeGreaterThan(10);
     expect(frames[0].served).toBe(true);
     expect(frames.some((frame) => !frame.served && frame.loading)).toBe(true);
+    expect(frames.some((frame) => !frame.served && !frame.loading)).toBe(true);
     expect(monoLoaded).toBeGreaterThan(frames[0].t);
 
     const spread = (values: number[]) => Math.max(...values) - Math.min(...values);
