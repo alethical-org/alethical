@@ -33,7 +33,9 @@ honest product state but does not prove this search-to-source action works.
 
 On pull requests and merge-queue commits, the `frontend-browser` CI job, part of the required
 `frontend` check, builds the tested website
-and serves it on loopback. Saved public API snapshots supply bill and legislator
+and serves it on loopback. Chromium and its system packages come from GitHub's
+cache when an earlier run on the same runner image and Playwright version saved
+them, so Ubuntu's package mirror is needed only after either changes. Saved public API snapshots supply bill and legislator
 reads, including Jim Abeler’s profile and his retained 2025 committee figures.
 The Revisor destination is a labelled fixture response. All outside
 requests are handled locally or blocked, so outside service outages cannot block

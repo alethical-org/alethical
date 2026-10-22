@@ -448,6 +448,26 @@ jobs:
       - name: Test reader-check privacy and target guards
         run: node --test scripts/test-reader-completion-policy.mjs scripts/test-reader-completion-money.mjs
 
+      - name: Name the browser cache for this runner image and Playwright version
+        id: browser-cache
+        run: |
+          echo "image=$ImageOS-$ImageVersion" >> "$GITHUB_OUTPUT"
+          echo "playwright=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # Chromium and its system packages (fonts, libnss3) are the same on every run
+      # until the runner image or Playwright changes. Ubuntu's package mirror has
+      # stalled the install past its 10-minute limit; a cached copy needs no mirror.
+      - name: Restore Chromium and its system packages from earlier runs
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/.cache/browser-apt-archives/*.deb
+          key: browser-${{ steps.browser-cache.outputs.image }}-playwright-${{ steps.browser-cache.outputs.playwright }}
+          restore-keys: |
+            browser-${{ steps.browser-cache.outputs.image }}-
+            browser-
+
       - name: Bound browser dependency downloads
         uses: ./.github/actions/prepare-browser-install
 
