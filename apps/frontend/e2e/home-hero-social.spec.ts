@@ -45,8 +45,9 @@ for (const [width, size, gap, space] of [
       };
     });
 
-    // The first mark's ink starts exactly on the text's left edge: no indent.
-    expect(Math.abs(layout.firstInkLeft - layout.introLeft)).toBeLessThan(0.5);
+    // The first mark's ink starts 2px inside the text's left edge, an optical
+    // correction so the rounded mark does not read as sticking out.
+    expect(Math.abs(layout.firstInkLeft - layout.introLeft - 2)).toBeLessThan(0.5);
     expect(layout.boxes[0].top - layout.introBottom).toBeCloseTo(space, 0);
     for (const box of layout.boxes) expect(box.width).toBe(size);
     if (width < 336) {
