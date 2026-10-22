@@ -208,7 +208,8 @@ remains separate: agent-driven user stories and Playwright checks in
 `apps/frontend/e2e/` (`just e2e`, Chrome, Firefox, and Safari), owned by the
 [`browser-user-test` skill](.claude/skills/browser-user-test/SKILL.md).
 Those broader browser stories run on demand. The focused public reader subset
-runs in the required frontend CI job against the built website with fixed public
+runs in the `frontend-browser` CI job (part of the required `frontend` check) against
+the built website with fixed public
 records, and against the live website after main releases.
 The same CI job exercises `/services` printing, including generated first-response
 HTML with JavaScript disabled, and retains the resulting Letter and A4 PDFs.

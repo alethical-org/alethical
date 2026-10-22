@@ -59,8 +59,10 @@ Enabled 2026-07-28.
 | Force pushes / branch deletion | **Blocked** | Prevents rewriting or deleting the protected branch. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Merge queue | **On** (added 2026-08-17) | Stops the "green alone, red together" failure: 2 pull requests that each pass CI on their own can still break `main` once both land, because neither was tested against the other ([#990](https://github.com/alethical-org/alethical/issues/990)/[#1020](https://github.com/alethical-org/alethical/issues/1020), [#662](https://github.com/alethical-org/alethical/issues/662)/[#663](https://github.com/alethical-org/alethical/issues/663)). Squash merge, 1-5 pull requests merged per group, no batching wait, 60-minute check timeout. See `.claude/rules/workflow.md` rule 10. | Unchecked: this setting lives on the repository's rule set, which `scripts/check_hosted_service_settings.py` does not read yet (it reads the older branch-protection API only). |
 
-The required `backend` and `frontend` jobs report `skipped` on unrelated changes, which
-GitHub accepts as satisfied. Keep path filters inside jobs, not on the workflow trigger,
+The required `backend` check reports `skipped` on unrelated changes, which GitHub
+accepts as satisfied; the required `frontend` check is a small job that passes once its
+2 jobs (`frontend-checks`, `frontend-browser`) both passed, or both were skipped
+because the path selection said the frontend was not needed. Keep path filters inside jobs, not on the workflow trigger,
 so all 4 required checks report for pull requests and merge groups. Editing a pull
 request description refreshes `description-checks`, not the saved code-test results.
 

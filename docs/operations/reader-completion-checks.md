@@ -31,7 +31,8 @@ Live counts, result order, a particular legislator, and a particular bill are no
 fixed expectations. The search needs at least 1 actual result; an empty result is an
 honest product state but does not prove this search-to-source action works.
 
-On pull requests and merge-queue commits, the required frontend CI job builds the tested website
+On pull requests and merge-queue commits, the `frontend-browser` CI job, part of the required
+`frontend` check, builds the tested website
 and serves it on loopback. Saved public API snapshots supply bill and legislator
 reads, including Jim Abeler’s profile and his retained 2025 committee figures.
 The Revisor destination is a labelled fixture response. All outside
@@ -40,7 +41,7 @@ premerge checks. Missing unrelated eager fixture reads receive HTTP 503; they
 are not invented records or evidence that campaign figures loaded. The 3 named
 money fixture checks now require the rendered figures themselves.
 
-The required frontend job also runs
+The same `frontend-browser` job also runs
 [`check-candidate-return.mjs`](../../apps/frontend/scripts/check-candidate-return.mjs)
 against the same production build. Its explicitly illustrative candidate records
 exercise search, a collapsed group, a profile visit and return at desktop, tablet
@@ -61,7 +62,7 @@ HTTP 503; nothing reaches a location or address service.
 
 ### Replay startup fixture evidence
 
-The required frontend job runs
+The `frontend-browser` job runs
 [`event-replay-startup.browser.ts`](../../apps/frontend/e2e/event-replay-startup.browser.ts)
 against the real production build, served by the loopback-only
 [`serve-replay-check-build.mjs`](../../apps/frontend/scripts/serve-replay-check-build.mjs).

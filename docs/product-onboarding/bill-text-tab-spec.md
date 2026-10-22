@@ -333,7 +333,7 @@ The five properties #740 established are now automated tests, so a change that b
 Each is a separately named test in `apps/frontend/src/lib/__tests__/billText.test.ts`, run against
 49 real sections from 7 real bills in `__tests__/fixtures/bill-text-sections.json` (what each
 fixture is there to catch, and how to add to it, is in that directory's `README.md`). The runner is
-Vitest; `just test-frontend` runs it, and CI's `frontend` job runs it on every PR that touches
+Vitest; `just test-frontend` runs it, and CI's `frontend-checks` job runs it on every PR that touches
 frontend paths ([#751](https://github.com/alethical-org/alethical/issues/751)). The same file also
 pins the bugs found since: the bare-decimal spacing regression (#756), the punctuation-after-a-
 bracket rule the stricter guard broke (#755), the two sections that differed only by subdivision,
