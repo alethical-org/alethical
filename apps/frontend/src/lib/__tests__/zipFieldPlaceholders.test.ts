@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 // docs/design/ui-copy-guide.md, "Address fields leave the state implied": a ZIP
 // field's placeholder, example and help text never name a state.
 const SRC = join(__dirname, '..', '..');
-const STATE_BEFORE_ZIP = /\b(?:[A-Z]{2}|Minnesota) (?:ZIP|\d{5})\b/;
+const STATE_BEFORE_ZIP = /\b(?:[A-Z]{2}|Minnesota),? (?:ZIP|\d{5})\b/;
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -25,7 +25,7 @@ describe('ZIP field hints', () => {
         .map((line, index) => ({ line, at: `${relative(SRC, path)}:${index + 1}` }))
         .filter(
           ({ line }) =>
-            /placeholder|EXAMPLE|answer: 'Enter a house number/.test(line) &&
+            /placeholder|EXAMPLE|_HELP|_PLACEHOLDER|answer: 'Enter a house number/.test(line) &&
             STATE_BEFORE_ZIP.test(line),
         )
         .map(({ at }) => at),

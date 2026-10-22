@@ -247,8 +247,8 @@ number, but it does not show a member of Congress.
 ## 5. What the messages mean
 
 - **No match for that address:** The public address sources could not find 1 safe
-  Minnesota match. Check the house number and street name, include `MN`, and try the
-  full city and ZIP.
+  Minnesota match. Check the house number and street name, and try the full city and
+  ZIP.
 - **We couldn’t safely identify your districts from this address:** Minnesota's
   current records give this address points in different districts, or a point on a
   district border, so Alethical will not guess. It says **Check your full street
