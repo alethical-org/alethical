@@ -175,6 +175,8 @@ jobs:
           node --test apps/frontend/scripts/test-address-recovery-local.mjs
       - name: Test local upload selection without database or network
         run: python -m unittest discover -s scripts/tests -p 'test_local_checks.py'
+      - name: Check every frontend command still runs after the job split
+        run: python -m unittest discover -s scripts/tests -p 'test_frontend_ci_commands.py'
       - name: Test working-folder backup and cleanup without production data
         run: python -m unittest discover -s scripts/tests -p 'test_worktree_*.py'
       # Rule 16 (.claude/rules/workflow.md): added doc lines state what is
@@ -353,7 +355,7 @@ jobs:
         if: always()
         run: docker stop alethical-ci-postgres || true
 
-  frontend:
+  frontend-checks:
     needs: select
     if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.select.outputs.frontend == 'true') }}
     runs-on: ubuntu-latest
@@ -363,20 +365,6 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
-
-      - name: Record pending built-reader evidence before setup
-        env:
-          CHECKED_COMMIT: ${{ github.sha }}
-        run: |
-          python3 - <<'PY_EVIDENCE'
-          import json, os
-          from pathlib import Path
-          Path("reader-completion-results.json").write_text(json.dumps({
-              "schema_version": 1, "phase": "premerge-setup-pending", "passed": False,
-              "checked_commit": os.environ["CHECKED_COMMIT"],
-              "checks": [], "failure": "browser-checks-not-started"
-          }) + "\n")
-          PY_EVIDENCE
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
@@ -428,6 +416,47 @@ jobs:
       - name: Test frontend
         run: pnpm run test
 
+  frontend-browser:
+    needs: select
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.select.outputs.frontend == 'true') }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Record pending built-reader evidence before setup
+        env:
+          CHECKED_COMMIT: ${{ github.sha }}
+        run: |
+          python3 - <<'PY_EVIDENCE'
+          import json, os
+          from pathlib import Path
+          Path("reader-completion-results.json").write_text(json.dumps({
+              "schema_version": 1, "phase": "premerge-setup-pending", "passed": False,
+              "checked_commit": os.environ["CHECKED_COMMIT"],
+              "checks": [], "failure": "browser-checks-not-started"
+          }) + "\n")
+          PY_EVIDENCE
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: ${{ github.workspace }}
+        run: pnpm install --frozen-lockfile
+
       - name: Build frontend
         env:
           EXPO_PUBLIC_API_URL: https://api.alethical.com
@@ -436,6 +465,26 @@ jobs:
 
       - name: Test reader-check privacy and target guards
         run: node --test scripts/test-reader-completion-policy.mjs scripts/test-reader-completion-money.mjs
+
+      - name: Name the browser cache for this runner image and Playwright version
+        id: browser-cache
+        run: |
+          echo "image=$ImageOS-$ImageVersion" >> "$GITHUB_OUTPUT"
+          echo "playwright=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # Chromium and its system packages (fonts, libnss3) are the same on every run
+      # until the runner image or Playwright changes. Ubuntu's package mirror has
+      # stalled the install past its 10-minute limit; a cached copy needs no mirror.
+      - name: Restore Chromium and its system packages from earlier runs
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/.cache/browser-apt-archives/*.deb
+          key: browser-${{ steps.browser-cache.outputs.image }}-playwright-${{ steps.browser-cache.outputs.playwright }}
+          restore-keys: |
+            browser-${{ steps.browser-cache.outputs.image }}-
+            browser-
 
       - name: Bound browser dependency downloads
         uses: ./.github/actions/prepare-browser-install
@@ -513,3 +562,35 @@ jobs:
             apps/frontend/reader-money-negative-*.json
           if-no-files-found: warn
           retention-days: 30
+
+  # The required `frontend` check. Type check, unit tests and the build-plus-browser
+  # walk run side by side in the 2 jobs above; this job turns their results into 1
+  # answer. A job skipped after a failed prerequisite "may not block merging", so
+  # this job runs always and passes only when both ran and passed, or when the path
+  # selection said the frontend was not needed and both were skipped.
+  frontend:
+    needs: [select, frontend-checks, frontend-browser]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every frontend job to pass when the frontend was selected
+        env:
+          SELECT_RESULT: ${{ needs.select.result }}
+          SELECTED: ${{ github.event_name == 'workflow_dispatch' || needs.select.outputs.frontend == 'true' }}
+          CHECKS_RESULT: ${{ needs.frontend-checks.result }}
+          BROWSER_RESULT: ${{ needs.frontend-browser.result }}
+        run: |
+          echo "select=$SELECT_RESULT selected=$SELECTED checks=$CHECKS_RESULT browser=$BROWSER_RESULT"
+          if [ "$SELECT_RESULT" != success ]; then
+            echo "::error::Path selection ended as '$SELECT_RESULT'."
+            exit 1
+          fi
+          if [ "$SELECTED" = true ]; then
+            expected=success
+          else
+            expected=skipped
+          fi
+          if [ "$CHECKS_RESULT" != "$expected" ] || [ "$BROWSER_RESULT" != "$expected" ]; then
+            echo "::error::Frontend jobs should both be '$expected'; got checks '$CHECKS_RESULT' and browser '$BROWSER_RESULT'."
+            exit 1
+          fi
