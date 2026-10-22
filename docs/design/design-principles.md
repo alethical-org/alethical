@@ -1,6 +1,6 @@
 # Alethical design principles — the green system
 
-<!-- describes: apps/frontend/src/components/ArticleTitleText.tsx, apps/frontend/src/components/ResearchBlockTable.tsx, apps/frontend/src/components/shortPosts/ShortPostArticle.tsx, apps/frontend/src/components/shortPosts/ShortPostChart.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/components/GoBackLink.tsx, apps/frontend/src/components/LinkArrow.tsx, apps/frontend/src/components/ChangeBlock.tsx, apps/frontend/src/components/auth/LoadingButton.tsx, apps/frontend/src/components/auth/SignInDialog.tsx, apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/components/billDetail/SourceLine.tsx, apps/frontend/src/components/billDetail/billTrackButtonAppearance.ts, apps/frontend/src/components/lobbying/LobbyingPageFrame.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/hooks/useHistoryScrollRestoration.ts, apps/frontend/src/hooks/useResponsive.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/navigation/webHistory.ts, apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx, apps/frontend/src/theme/browserFill.ts, apps/frontend/src/theme/tokens.ts, apps/frontend/src/theme/primitives.tsx, apps/frontend/src/theme/pageBackground.ts -->
+<!-- describes: apps/frontend/src/components/ArticleTitleText.tsx, apps/frontend/src/components/ResearchBlockTable.tsx, apps/frontend/src/components/shortPosts/ShortPostArticle.tsx, apps/frontend/src/components/shortPosts/ShortPostChart.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/components/GoBackLink.tsx, apps/frontend/src/components/LinkArrow.tsx, apps/frontend/src/components/ChangeBlock.tsx, apps/frontend/src/components/auth/LoadingButton.tsx, apps/frontend/src/components/auth/SignInDialog.tsx, apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/components/billDetail/SourceLine.tsx, apps/frontend/src/components/billDetail/billTrackButtonAppearance.ts, apps/frontend/src/components/lobbying/LobbyingPageFrame.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/hooks/useHistoryScrollRestoration.ts, apps/frontend/src/hooks/useResponsive.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/navigation/webHistory.ts, apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx, apps/frontend/src/theme/browserFill.ts, apps/frontend/src/theme/tokens.ts, apps/frontend/src/theme/primitives.tsx, apps/frontend/src/theme/pageBackground.ts, apps/frontend/src/lib/socialLinks.ts -->
 
 > **What this is.** The written design intent behind Alethical's green visual system: what
 > the product should feel like, and the visual/interaction rules that get it there. It is the
@@ -1170,3 +1170,25 @@ an unfinished draft or a field the reader deliberately cleared within the same a
 Discard the full prior-account draft on confirmed sign-out or account changes, even
 while the form is closed; only Send message
 submits. Generic contact navigation and correction links retain their own context.
+
+## Order of Alethical's accounts
+
+Wherever Alethical lists its own addresses, the order is: website, YouTube, LinkedIn,
+Facebook, X, Bluesky, Instagram, TikTok. The website comes first wherever a list can
+hold it (a social bio's link list, the Organization card's `sameAs` entries, a printed
+list); the site's own footer row and Contact us omit it and start at YouTube. One list,
+`apps/frontend/src/lib/socialLinks.ts`, carries the 7 accounts in this order and every
+surface reads it; an account missing from that list is missing everywhere.
+
+Why each sits where it does: the website holds the work, and a visit there is the only
+one that counts for search; YouTube holds the work in full, reaches the most people and
+is the social surface answer engines read, because its videos are transcribed and
+indexed; LinkedIn is where campaigns and organizations check a company before
+contacting it; Facebook is where Minnesota's local political audience and candidates'
+pages are; X carries the political and press conversation; Bluesky carries the same
+conversation on the open web, under Alethical's own domain as its handle; Instagram
+and TikTok reach younger audiences, are closed to search engines and AI crawlers, and
+offer the fewest link fields. LinkedIn precedes Facebook while campaign inquiries are
+the lead outcome; Facebook moves ahead if readership becomes the lead outcome.
+Rebuilding a surface to this order is design-led work and follows a Design handoff;
+social bios follow the same order under the socials publishing rules.
