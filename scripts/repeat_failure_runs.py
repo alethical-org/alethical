@@ -4,6 +4,12 @@
 Receipts detect drift and incomplete results, not forged output or a hostile host.
 Only the reviewed money invariant has executable result mapping here. Browser and
 frontend checks remain separate and are never inferred from retained source names.
+
+A backend run also proves it ran every test: before pytest runs, a separate
+collection lists every test in the suite, and afterwards the results must hold
+exactly those tests, each passed, with skips allowed only for the tests named in
+EXPECTED_SKIPS. A count is not that proof: a skipped test still has a result row,
+and equal counts can hide a swapped name.
 """
 
 from __future__ import annotations
@@ -12,6 +18,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -26,6 +33,7 @@ if __package__ in {None, ""}:  # Direct script invocation.
 from scripts.review_repeat_failures import ReviewError, atomic_write, load, require
 
 REGISTRY = "docs/operations/repeat-failure-cases.json"
+EXPECTED_SKIPS = "alethical/tests/expected_skips.json"
 TEST_FILE = "alethical/tests/test_campaign_finance_load.py"
 CASE = "reviewed-money-exception-identity"
 CHANGED = "test_changed_itemized_amount_cannot_reuse_a_previous_reconcile_waiver"
@@ -94,8 +102,8 @@ def expected_cases(root):
     return [case["id"] for case in review["cases"] if case["id"] != CASE]
 
 
-def junit_results(path):
-    """Read testcases, never a report's claimed pass total alone."""
+def junit_outcomes(path):
+    """Every testcase identity and its outcome, never a report's claimed total alone."""
     raw = Path(path).read_bytes()
     require(
         b"<!DOCTYPE" not in raw and b"<!ENTITY" not in raw,
@@ -147,6 +155,12 @@ def junit_results(path):
             )
             results[key] = outcome
     require(results, "JUnit contains no executed tests")
+    return results
+
+
+def junit_results(path):
+    """Read testcases, never a report's claimed pass total alone."""
+    results = junit_outcomes(path)
     require(EXPECTED <= results.keys(), "Required named prevention results missing")
     actual_prevention = {
         key
@@ -212,6 +226,135 @@ def test_environment(root, output):
     return env
 
 
+def junit_identity(nodeid):
+    """The (classname, name) pytest's JUnit report gives a collected node id."""
+    path, bracket, params = nodeid.partition("[")
+    names = path.split("::")
+    require(
+        len(names) >= 2 and names[0].endswith(".py"), "Unreadable collected test id"
+    )
+    names[0] = names[0][: -len(".py")].replace("/", ".")
+    names[-1] += bracket + params
+    return ".".join(names[:-1]), names[-1]
+
+
+def collected_tests(output_text):
+    """Test identities from `pytest --collect-only -q`, refusing duplicates.
+
+    The node ids come first, one per line, ending at the first blank line; later
+    sections (warnings, the summary) can repeat an id, so they are not read. The
+    summary's own count must match the ids read.
+    """
+    lines = output_text.splitlines()
+    start = next(
+        (index for index, line in enumerate(lines) if ".py::" in line.split(" ")[0]),
+        None,
+    )
+    require(start is not None, "Collection listed no tests")
+    end = next(
+        (index for index in range(start, len(lines)) if not lines[index].strip()), None
+    )
+    require(end is not None, "Collection output has no end of the test list")
+    identities = [junit_identity(line.strip()) for line in lines[start:end]]
+    require(identities, "Collection listed no tests")
+    require(len(set(identities)) == len(identities), "Collection listed a test twice")
+    counts = [
+        int(match.group(1))
+        for line in lines[end:]
+        if (match := re.match(r"^=*\s*(\d+) tests? collected", line))
+    ]
+    require(
+        counts == [len(identities)], "Collection count disagrees with its listed tests"
+    )
+    return sorted(identities)
+
+
+def expected_skips(root):
+    """Tests allowed to skip in CI, each with the reason it cannot run there."""
+    try:
+        entries = json.loads((Path(root) / EXPECTED_SKIPS).read_text())
+    except (OSError, ValueError) as exc:
+        raise ReviewError("Expected-skip list is missing or unreadable") from exc
+    require(
+        isinstance(entries, list)
+        and all(
+            isinstance(entry, dict)
+            and {"classname", "name", "reason"} <= entry.keys()
+            and all(isinstance(entry[key], str) and entry[key] for key in entry)
+            for entry in entries
+        ),
+        "Expected-skip list is malformed",
+    )
+    return {(entry["classname"], entry["name"]) for entry in entries}
+
+
+def coverage(collected, outcomes, allowed_skips):
+    """Require the results to be exactly the collected tests, each passed."""
+    expected = {tuple(identity) for identity in collected}
+    missing = sorted(expected - outcomes.keys())
+    extra = sorted(outcomes.keys() - expected)
+    require(
+        not missing,
+        f"{len(missing)} collected tests have no result, e.g. {'::'.join(missing[0])}"
+        if missing
+        else "",
+    )
+    require(
+        not extra,
+        f"{len(extra)} results were never collected, e.g. {'::'.join(extra[0])}"
+        if extra
+        else "",
+    )
+    skipped = sorted(key for key, outcome in outcomes.items() if outcome == "skipped")
+    unexpected = [key for key in skipped if key not in allowed_skips]
+    require(
+        not unexpected,
+        f"{len(unexpected)} tests skipped without being allowed, e.g. {'::'.join(unexpected[0])}"
+        if unexpected
+        else "",
+    )
+    require(
+        all(outcome in {"passed", "skipped"} for outcome in outcomes.values()),
+        "The pytest run contains failed tests",
+    )
+    return {
+        "collected": len(expected),
+        "passed": sum(outcome == "passed" for outcome in outcomes.values()),
+        "allowed_skips": [{"classname": c, "name": n} for c, n in skipped],
+    }
+
+
+def collect(root, env, output):
+    """List every test in a separate pytest process, independent of the run."""
+    with (output / "collect.log").open("w") as log:
+        child = subprocess.Popen(
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "--collect-only",
+                "-q",
+                "-p",
+                "no:cacheprovider",
+            ],
+            cwd=root,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=log,
+            text=True,
+            start_new_session=True,
+        )
+        try:
+            listing, _ = child.communicate()
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.wait()
+            stop_descendants(child.pid)
+    require(child.returncode == 0, "Test collection failed; see collect.log")
+    return collected_tests(listing)
+
+
 def stop_descendants(group):
     """Reap only the process group this invocation created, even if its leader left."""
 
@@ -270,6 +413,16 @@ def run(root, scope, output):
         receipt["not_run_cases"] = expected_cases(root)
         env = test_environment(root, output)
         receipt["source"] = snapshot(root)
+        if os.environ.get("GITHUB_RUN_ID", "").isdigit():
+            receipt["github_run"] = {
+                "id": os.environ["GITHUB_RUN_ID"],
+                "attempt": os.environ.get("GITHUB_RUN_ATTEMPT", ""),
+            }
+        if scope == "backend":
+            # Lists, as the receipt's JSON stores them.
+            receipt["collected_tests"] = [
+                list(test) for test in collect(root, env, output)
+            ]
         command = [sys.executable, "-m", "pytest"]
         if scope == "money":
             command.extend([f"{TEST_FILE}::{CHANGED}", f"{TEST_FILE}::{CARRIED}"])
@@ -285,6 +438,12 @@ def run(root, scope, output):
         )
         require(receipt["exit_code"] == 0, "Pytest did not complete successfully")
         receipt["passed_tests"] = junit_results(output / "pytest.xml")
+        if scope == "backend":
+            receipt["coverage"] = coverage(
+                receipt["collected_tests"],
+                junit_outcomes(output / "pytest.xml"),
+                expected_skips(root),
+            )
         receipt["junit_sha256"] = digest(output / "pytest.xml")
         receipt["passed_case"] = CASE
         receipt["status"] = "passed"
@@ -334,6 +493,22 @@ def check(root, output, commit):
         receipt.get("not_run_cases") == expected_cases(root),
         "Receipt case coverage differs from registry",
     )
+    if receipt.get("scope") == "backend":
+        require(
+            isinstance(receipt.get("collected_tests"), list)
+            and receipt.get("coverage")
+            == coverage(
+                receipt["collected_tests"],
+                junit_outcomes(Path(output) / "pytest.xml"),
+                expected_skips(root),
+            ),
+            "Receipt does not prove every collected test ran",
+        )
+    if os.environ.get("GITHUB_RUN_ID", "").isdigit():
+        require(
+            receipt.get("github_run", {}).get("id") == os.environ["GITHUB_RUN_ID"],
+            "Receipt comes from a different GitHub run",
+        )
     return receipt
 
 
@@ -363,6 +538,12 @@ def main(argv=None):
         print(
             f"{len(receipt['passed_tests'])} named money-prevention tests passed; {len(receipt['not_run_cases'])} other registered cases have no run proof here."
         )
+        if "coverage" in receipt:
+            summary = receipt["coverage"]
+            print(
+                f"All {summary['collected']} collected tests ran: {summary['passed']} passed, "
+                f"{len(summary['allowed_skips'])} allowed skips."
+            )
         if not receipt["source"]["clean"]:
             print("Working-tree result only: source differs from its saved commit.")
         return 0

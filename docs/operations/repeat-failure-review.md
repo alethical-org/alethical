@@ -1,6 +1,6 @@
 # Preventing repeated failures
 
-<!-- describes: scripts/review_repeat_failures.py, scripts/tests/test_review_repeat_failures.py, scripts/repeat_failure_runs.py, scripts/tests/test_repeat_failure_runs.py, scripts/tests/test_repeat_failure_runs_pytest.py, apps/frontend/scripts/check-address-recovery.mjs, apps/frontend/scripts/check-address-recovery-local.mjs, alethical/tests/test_campaign_finance_load.py -->
+<!-- describes: scripts/review_repeat_failures.py, scripts/tests/test_review_repeat_failures.py, scripts/repeat_failure_runs.py, alethical/tests/expected_skips.json, scripts/tests/test_repeat_failure_runs.py, scripts/tests/test_repeat_failure_runs_pytest.py, apps/frontend/scripts/check-address-recovery.mjs, apps/frontend/scripts/check-address-recovery-local.mjs, alethical/tests/test_campaign_finance_load.py -->
 
 Alethical reviews the cause of a failure, finds the other places that share that
 cause, and adds a check that fails when the broken behavior returns. A change
@@ -102,8 +102,20 @@ and after pytest. Ignored output and caches do not enter the source snapshot.
 Changed source, a failed process, missing results, skipped required tests, duplicate
 test identities, changed parameter coverage and inconsistent or truncated JUnit
 output prevent a successful receipt. A test name retained only in a comment cannot
-supply a collected, passing testcase. Other skipped backend tests remain outside
-this scoped prevention claim; failures anywhere in the backend run reject it.
+supply a collected, passing testcase. Failures anywhere in the backend run reject it.
+
+A `backend` run also proves it ran the whole suite. Before pytest runs, a separate
+`pytest --collect-only` process lists every test, and the results must hold exactly
+those test names, each passed. A test may skip only when
+[expected_skips.json](../../alethical/tests/expected_skips.json) names it with the
+reason it cannot run in CI. Any other skip, a collected test with no result, a result
+that was never collected, or a failed collection rejects the receipt. A count alone
+is not that proof: a skipped test still has a result row, and equal counts can hide
+a swapped name. The receipt keeps the collected list, a coverage summary and, on
+GitHub, the run id; `check` recomputes the coverage from the saved results and
+refuses a receipt from a different run. A test whose name holds a random value
+breaks this check and parallel test workers alike, so parametrized tests give
+fixed `ids`.
 
 Unfinished or interrupted runs leave an `incomplete` receipt, and a new run refuses
 to overwrite an existing output folder. Normal exits and interruptions clean only
