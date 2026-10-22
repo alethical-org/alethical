@@ -2038,8 +2038,9 @@ when a caller has none, which is what the browser's tab-title path passes.
 (`alethical/api/main.py`): Google's crawl statistics put JSON at 53% of its requests to us, and a
 JSON address in a result list hands a searcher a wall of braces; the header unlists the address
 without blocking the fetch a rendering crawler needs. The home page's `Organization` block names
-the site's social accounts (`sameAs`, from `apps/frontend/src/lib/socialLinks.ts`), which is what
-Google's Organization guidance reads to tie a site and its profiles together. A published piece's
+the site's social accounts (`sameAs`, from `apps/frontend/src/lib/socialLinks.ts`, in the order
+[design-principles.md, Order of Alethical's accounts](../design/design-principles.md#order-of-alethicals-accounts)
+sets), which is what Google's Organization guidance reads to tie a site and its profiles together. A published piece's
 preview type is `article` with `article:published_time`, a date being the one thing rule 13 lets a
 piece's metadata carry beside its title.
 
