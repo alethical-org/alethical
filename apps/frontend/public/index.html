@@ -302,7 +302,7 @@
         background: #f7f8fa;
         background-image: linear-gradient(180deg,#f4f5f7 0%,#f7f8fa 60%,#fdfdfe 92%,#ffffff 100%);
       }
-      @media(max-width:767px) {
+      @media(max-width:767.98px) {
         #stable-event-document { background-image: none; }
       }
       body[data-stable-event-document] #root {
@@ -336,10 +336,16 @@
         padding-top: 28px;
         padding-bottom: 64px;
       }
+      /* The top bar as the app's TopNav draws it at each band (theme/primitives.tsx),
+         so it holds still when the app replaces it. */
+      .page-snapshot .ps-nav {
+        line-height: normal;
+      }
       .page-snapshot .ps-nav-row {
         display: flex;
         flex-wrap: wrap;
         row-gap: 12px;
+        column-gap: 56px;
         align-items: center;
         justify-content: space-between;
         padding-top: 26px;
@@ -348,43 +354,79 @@
       .page-snapshot .ps-logo {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 16px;
         color: #11150f;
         text-decoration: none;
       }
       .page-snapshot .ps-mark {
-        width: 30.7px;
-        height: 30px;
+        display: block;
+        width: 40.98px;
+        height: 40px;
       }
       .page-snapshot .ps-wordmark {
         font-family: 'Space Grotesk', 'Libre Franklin', Helvetica, Arial, sans-serif;
-        font-weight: 500;
-        font-size: 26px;
-        line-height: 26px;
-        letter-spacing: 4.16px;
+        font-weight: 600;
+        font-size: 25px;
+        line-height: 25px;
+        letter-spacing: 4px;
+      }
+      .page-snapshot .ps-nav-right {
+        display: flex;
+        align-items: center;
+        gap: 30px;
       }
       .page-snapshot .ps-nav-links {
         display: flex;
         align-items: center;
-        gap: 34px;
+        gap: 32px;
       }
       .page-snapshot .ps-nav-links a,
-      .page-snapshot .ps-nav-links > span:not(.ps-signin) {
-        color: #11150f;
+      .page-snapshot .ps-nav-links > span {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 0;
+        color: #4b524b;
         text-decoration: none;
         font-size: 18px;
         font-weight: 500;
-        padding: 4px 0;
+      }
+      .page-snapshot .ps-nav-links svg {
+        flex: none;
+        width: 14px;
+        height: 14px;
       }
       .page-snapshot .ps-signin {
-        margin-left: -4px;
-        background: #2ed47e;
+        background: #ffffff;
         color: #11150f;
+        border: 1px solid rgba(17, 21, 15, 0.16);
         border-radius: 12px;
-        padding: 12px 22px;
+        padding: 13px 26px;
         font-size: 18px;
-        line-height: 1.2;
         font-weight: 600;
+      }
+      .page-snapshot .ps-menu {
+        display: none;
+        box-sizing: border-box;
+        width: 44px;
+        height: 44px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 11px;
+        background: #ffffff;
+        border: 1px solid #cfd6d2;
+      }
+      .page-snapshot .ps-menu svg {
+        width: 20px;
+        height: 20px;
+      }
+      /* Candidate screens draw the bar with their own spacing and, below
+         computer width, a compact green Sign in beside the menu button. */
+      .page-snapshot .ps-nav-candidate .ps-nav-row {
+        padding: 22px 40px 0;
+      }
+      .page-snapshot .ps-nav-candidate .ps-logo {
+        min-height: 44px;
       }
       .page-snapshot .ps-back {
         display: inline-flex;
@@ -425,7 +467,7 @@
       .page-snapshot .ps-profile-identifier {
         white-space: nowrap;
       }
-      @media (max-width: 767px) {
+      @media (max-width: 767.98px) {
         .page-snapshot .ps-back:has(+ .ps-profile-label) {
           font-size: 15px;
         }
@@ -713,14 +755,488 @@
       .page-snapshot-dark .ps-record-label {
         color: #35c46b;
       }
-      /* Tablet: the app folds the bar's links into a menu and grows the logo. */
-      @media (max-width: 1099px) {
-        .page-snapshot .ps-nav-links a,
-        .page-snapshot .ps-nav-links > span:not(.ps-signin) {
+      /*
+        Signed-out Home in the app's own layout and sizes
+        (components/home/SignedOutHomepage.tsx and MoneyPromoCard.tsx). The hero
+        text is centred beside the money card, so every size above and inside the
+        card is the app's: a different height here moved the whole hero when the
+        app took over. Computer first; tablet and phone follow.
+      */
+      .page-snapshot-home {
+        background: #fbfcfd;
+        line-height: normal;
+      }
+      .page-snapshot-home h1,
+      .page-snapshot-home h2,
+      .page-snapshot-home p {
+        margin: 0;
+      }
+      /* The app's text keeps the spaces where a line wraps, as here. */
+      .page-snapshot-home .ph-copy,
+      .page-snapshot-home .ph-money,
+      .page-snapshot-home .ph-invite {
+        white-space: pre-wrap;
+      }
+      .page-snapshot-home .ph-hero {
+        position: relative;
+        background: #ffffff;
+        background-image: linear-gradient(180deg, #f4f5f7 0%, #f7f8fa 55%, #fdfdfe 90%, #ffffff 100%);
+      }
+      .page-snapshot-home .ph-dots {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image: radial-gradient(rgba(17, 21, 15, 0.07) 1.4px, transparent 1.5px);
+        background-size: 30px 30px;
+        -webkit-mask-image: linear-gradient(to bottom, transparent 110px, #000 230px, #000 calc(100% - 180px), transparent 100%);
+        mask-image: linear-gradient(to bottom, transparent 110px, #000 230px, #000 calc(100% - 180px), transparent 100%);
+      }
+      .page-snapshot-home > .ps-nav {
+        position: relative;
+        z-index: 1;
+      }
+      /* The app draws the top bar inside the hero, 83px tall (78px on phone). */
+      .page-snapshot-home .ph-hero {
+        margin-top: -83px;
+        padding-top: 83px;
+      }
+      .page-snapshot-home .ph-hero-inner {
+        position: relative;
+      }
+      .page-snapshot-home .ph-inner {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0 56px;
+      }
+      .page-snapshot-home .ph-hero-inner {
+        padding-top: 64px;
+        padding-bottom: 96px;
+      }
+      .page-snapshot-home .ph-hero-row {
+        display: flex;
+        align-items: center;
+        gap: 96px;
+      }
+      .page-snapshot-home .ph-copy {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 0%;
+        min-width: 0;
+      }
+      .page-snapshot-home .ph-money-column {
+        display: flex;
+        flex-direction: column;
+        flex: 0.72 1 0%;
+        min-width: 0;
+      }
+      .page-snapshot-home .ph-eyebrow {
+        margin-bottom: 36px;
+        font-size: 15px;
+        font-weight: 500;
+        letter-spacing: 2.7px;
+        color: #0f7a45;
+      }
+      .page-snapshot-home .ph-heading {
+        --ph-heading: min(72px, calc((100vw - 208px) / 1.72 * 0.089));
+        font-size: var(--ph-heading);
+        line-height: var(--ph-heading);
+        letter-spacing: calc(var(--ph-heading) * -0.02);
+        font-weight: 800;
+        color: #11150f;
+        white-space: pre-wrap;
+      }
+      .page-snapshot-home .ph-green {
+        color: #149d5b;
+      }
+      .page-snapshot-home .ph-intro {
+        margin-top: 36px;
+        max-width: 640px;
+        font-size: 23px;
+        line-height: 34.5px;
+        color: #6b716b;
+      }
+      .page-snapshot-home .ph-social {
+        margin-top: 28px;
+        margin-left: -8px;
+        width: 292px;
+        height: 40px;
+      }
+      .page-snapshot-home .ph-money {
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+        width: 100%;
+        padding: 46px 44px;
+        background: #ffffff;
+        border: 1px solid rgba(17, 21, 15, 0.08);
+        border-radius: 20px;
+        box-shadow: 0 18px 44px rgba(17, 21, 15, 0.08);
+        color: #11150f;
+        text-decoration: none;
+      }
+      .page-snapshot-home .ph-money-phone {
+        display: none;
+      }
+      .page-snapshot-home .ph-money-eyebrow {
+        font-family: 'JetBrains Mono', 'Courier New', monospace;
+        font-size: 14px;
+        line-height: 18px;
+        font-weight: 700;
+        letter-spacing: 1.9px;
+        color: #0f7a45;
+      }
+      .page-snapshot-home .ph-money-heading {
+        margin-top: 30px;
+        font-size: 48px;
+        line-height: 50px;
+        font-weight: 800;
+        letter-spacing: -0.6px;
+        color: #11150f;
+      }
+      .page-snapshot-home .ph-money-body {
+        margin-top: 28px;
+        font-size: 21px;
+        line-height: 32px;
+        color: #4f5651;
+      }
+      .page-snapshot-home .ph-count {
+        position: relative;
+        margin-top: 20px;
+      }
+      .page-snapshot-home .ph-count-reserve {
+        display: block;
+        opacity: 0;
+        font-size: 17px;
+        line-height: 26px;
+      }
+      .page-snapshot-home .ph-count-reserve > span {
+        font-weight: 600;
+      }
+      .page-snapshot-home .ph-count-bar {
+        position: absolute;
+        top: 2px;
+        left: 0;
+        width: 328px;
+        max-width: 100%;
+        height: 17px;
+        border-radius: 6px;
+        background: rgba(17, 21, 15, 0.08);
+      }
+      .page-snapshot-home .ph-money-cta {
+        display: flex;
+        align-items: center;
+        align-self: flex-start;
+        gap: 11px;
+        box-sizing: border-box;
+        min-height: 44px;
+        margin-top: 32px;
+        padding: 18px 32px;
+        border: 1px solid #2ed47e;
+        border-radius: 12px;
+        background: #2ed47e;
+        color: #06231a;
+        font-size: 18px;
+        font-weight: 700;
+      }
+      .page-snapshot-home .ph-money-cta svg {
+        flex: none;
+        width: 17px;
+        height: 17px;
+      }
+      .page-snapshot-home .ph-invites {
+        display: flex;
+        align-items: stretch;
+        gap: 24px;
+      }
+      .page-snapshot-home .ph-invite {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 0%;
+        min-width: 0;
+        box-sizing: border-box;
+        padding: 34px 32px 32px;
+        background: #ffffff;
+        border: 1px solid rgba(17, 21, 15, 0.08);
+        border-radius: 20px;
+        box-shadow: 0 18px 44px rgba(17, 21, 15, 0.08);
+        color: #11150f;
+        text-decoration: none;
+      }
+      .page-snapshot-home .ph-invite h2 {
+        font-size: 30px;
+        line-height: 34px;
+        font-weight: 800;
+        letter-spacing: -0.6px;
+        color: #11150f;
+      }
+      .page-snapshot-home .ph-invite-body {
+        margin-top: 14px;
+        max-width: 680px;
+        font-size: 18px;
+        line-height: 28px;
+        color: #4f5651;
+      }
+      .page-snapshot-home .ph-invite-action {
+        display: flex;
+        flex-direction: column;
+        margin-top: auto;
+        padding-top: 28px;
+      }
+      .page-snapshot-home .ph-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        align-self: flex-start;
+        gap: 6px;
+        box-sizing: border-box;
+        min-height: 52px;
+        padding: 14px 24px;
+        border: 1px solid rgba(17, 21, 15, 0.16);
+        border-radius: 12px;
+        background: #ffffff;
+        color: #11150f;
+        font-size: 17px;
+        font-weight: 700;
+      }
+      .page-snapshot-home .ph-button-paid {
+        background: #11150f;
+        border-color: #11150f;
+        color: #ffffff;
+      }
+      .page-snapshot-home .ph-button svg {
+        flex: none;
+        width: 19px;
+        height: 19px;
+      }
+      .page-snapshot-home .ph-candidates {
+        padding-top: 96px;
+        padding-bottom: 96px;
+      }
+      .page-snapshot-home .ph-candidates h2 {
+        font-size: 34px;
+        line-height: 41px;
+        font-weight: 800;
+      }
+      .page-snapshot-home .ph-candidates p {
+        margin-top: 14px;
+        font-size: 18px;
+        line-height: 28px;
+        color: #4f5651;
+      }
+      .page-snapshot-home .ph-candidates a {
+        display: inline-block;
+        margin-top: 20px;
+        color: #0f7a45;
+        font-weight: 700;
+      }
+      @media (max-width: 1099.98px) {
+        .page-snapshot-home .ph-inner {
+          padding-left: 40px;
+          padding-right: 40px;
+        }
+        .page-snapshot-home .ph-hero-inner {
+          padding-bottom: 80px;
+        }
+        .page-snapshot-home .ph-hero-row {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 0;
+        }
+        .page-snapshot-home .ph-copy,
+        .page-snapshot-home .ph-money-column {
+          flex: none;
+        }
+        .page-snapshot-home .ph-money-column {
+          margin-top: 48px;
+        }
+        .page-snapshot-home .ph-eyebrow {
+          margin-bottom: 30px;
+        }
+        .page-snapshot-home .ph-heading {
+          --ph-heading: 58px;
+          line-height: 59.16px;
+        }
+        .page-snapshot-home .ph-intro {
+          margin-top: 28px;
+          font-size: 21px;
+          line-height: 31.5px;
+        }
+        .page-snapshot-home .ph-social {
+          margin-top: 24px;
+        }
+        .page-snapshot-home .ph-money {
+          padding: 38px 36px;
+        }
+        .page-snapshot-home .ph-money-heading {
+          font-size: 40px;
+          line-height: 42px;
+        }
+        .page-snapshot-home .ph-invite {
+          padding: 30px 28px 28px;
+        }
+        .page-snapshot-home .ph-invite h2 {
+          font-size: 26px;
+          line-height: 30px;
+        }
+        .page-snapshot-home .ph-candidates {
+          padding-top: 80px;
+          padding-bottom: 80px;
+        }
+      }
+      @media (max-width: 767.98px) {
+        .page-snapshot-home .ph-hero {
+          margin-top: -78px;
+          padding-top: 78px;
+          background-image: none;
+        }
+        .page-snapshot-home .ph-dots,
+        .page-snapshot-home .ph-money-column {
           display: none;
         }
+        .page-snapshot-home .ph-inner {
+          padding-left: 20px;
+          padding-right: 20px;
+        }
+        .page-snapshot-home .ph-hero-inner {
+          padding-top: 36px;
+          padding-bottom: 56px;
+        }
+        .page-snapshot-home .ph-eyebrow {
+          font-size: 21px;
+          letter-spacing: 3.78px;
+        }
+        .page-snapshot-home .ph-heading {
+          --ph-heading: min(36px, calc((100vw - 40px) * 0.1));
+          line-height: calc(var(--ph-heading) * 1.05);
+        }
+        .page-snapshot-home .ph-intro {
+          margin-top: 26px;
+        }
+        .page-snapshot-home .ph-social {
+          margin-top: 18px;
+          margin-left: -9px;
+          width: 308px;
+          height: 44px;
+        }
+        .page-snapshot-home .ph-band {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+          padding: 40px 20px 56px;
+          background-color: #eaf6ef;
+          background-image: linear-gradient(180deg, #eaf6ef 0%, #f1f9f4 18%, #f8fbf9 60%, #ffffff 100%);
+        }
+        .page-snapshot-home .ph-band > .ph-inner {
+          padding: 0;
+        }
+        .page-snapshot-home .ph-money-phone {
+          display: flex;
+          padding: 26px 24px 28px;
+          border-color: rgba(17, 21, 15, 0.1);
+          box-shadow: 0 10px 28px rgba(17, 21, 15, 0.07);
+        }
+        .page-snapshot-home .ph-money-eyebrow {
+          font-size: 15px;
+          line-height: 20px;
+        }
+        .page-snapshot-home .ph-money-heading {
+          margin-top: 14px;
+          font-size: 34px;
+          line-height: 35px;
+        }
+        .page-snapshot-home .ph-money-body {
+          margin-top: 14px;
+        }
+        .page-snapshot-home .ph-count {
+          margin-top: 16px;
+        }
+        .page-snapshot-home .ph-money-cta {
+          align-self: stretch;
+          justify-content: center;
+          min-height: 56px;
+          margin-top: 24px;
+          padding: 15px 20px;
+          border-radius: 14px;
+          font-size: 17px;
+        }
+        .page-snapshot-home .ph-money-cta svg {
+          width: 16px;
+          height: 16px;
+        }
+        .page-snapshot-home .ph-invites {
+          flex-direction: column;
+        }
+        .page-snapshot-home .ph-invite {
+          flex: none;
+          padding: 26px 24px 28px;
+          border-color: rgba(17, 21, 15, 0.1);
+          box-shadow: 0 10px 28px rgba(17, 21, 15, 0.07);
+        }
+        .page-snapshot-home .ph-invite h2 {
+          font-size: 28px;
+          line-height: 31px;
+        }
+        .page-snapshot-home .ph-invite-body {
+          font-size: 21px;
+          line-height: 31.5px;
+        }
+        .page-snapshot-home .ph-invite-action {
+          padding-top: 24px;
+        }
+        .page-snapshot-home .ph-button {
+          align-self: stretch;
+          min-height: 56px;
+          padding: 15px 20px;
+          border-radius: 14px;
+          font-size: 19px;
+        }
+        .page-snapshot-home .ph-candidates {
+          padding-top: 56px;
+          padding-bottom: 56px;
+        }
+      }
+      @media (max-width: 335.98px) {
+        .page-snapshot-home .ph-social {
+          width: 176px;
+          height: 88px;
+        }
+      }
+      /* Tablet: the app folds the bar's links into a menu and grows the logo. */
+      @media (max-width: 1099.98px) {
+        .page-snapshot .ps-nav-row {
+          column-gap: 0;
+        }
+        .page-snapshot .ps-nav-links {
+          display: none;
+        }
+        .page-snapshot .ps-nav-right {
+          gap: 12px;
+          margin-left: auto;
+        }
+        .page-snapshot .ps-menu {
+          display: flex;
+        }
+        .page-snapshot .ps-nav-candidate .ps-nav-row {
+          padding: 14px 32px 0;
+        }
+        .page-snapshot .ps-nav-candidate .ps-signin {
+          display: flex;
+          align-items: center;
+          box-sizing: border-box;
+          min-height: 44px;
+          padding: 0 16px;
+          border-color: #2ed47e;
+          border-radius: 10px;
+          background: #2ed47e;
+          color: #06231a;
+          font-size: 15px;
+          font-weight: 700;
+        }
+        .page-snapshot .ps-logo {
+          gap: 14px;
+        }
         .page-snapshot .ps-mark {
-          width: 34.8px;
+          width: 34.83px;
           height: 34px;
         }
         .page-snapshot .ps-wordmark {
@@ -730,7 +1246,7 @@
         }
       }
       /* Phone: narrower gutters, a smaller logo, a smaller heading. */
-      @media (max-width: 767px) {
+      @media (max-width: 767.98px) {
         .page-snapshot .ps-inner {
           padding-left: 24px;
           padding-right: 24px;
@@ -738,18 +1254,26 @@
         .page-snapshot main.ps-inner {
           padding-top: 18px;
         }
+        .page-snapshot .ps-logo {
+          gap: 10px;
+        }
         .page-snapshot .ps-mark {
-          width: 22.5px;
-          height: 22px;
+          width: 26.63px;
+          height: 26px;
         }
         .page-snapshot .ps-wordmark {
-          font-size: 20px;
-          line-height: 20px;
-          letter-spacing: 3.2px;
+          font-size: 19px;
+          line-height: 19px;
+          letter-spacing: 3.04px;
         }
         .page-snapshot .ps-signin {
-          padding: 10px 16px;
-          font-size: 16px;
+          display: none;
+        }
+        .page-snapshot .ps-nav-candidate .ps-nav-row {
+          padding: 14px 20px 0;
+        }
+        .page-snapshot .ps-nav-candidate .ps-signin {
+          display: flex;
         }
         .page-snapshot h1 {
           font-size: 30px;
@@ -770,7 +1294,7 @@
       .ps-services-footer nav { display: flex; flex-wrap: wrap; gap: 24px; margin: 24px 0; }
       .ps-services-footer a { color: #cfd6d2; }
       .ps-services-footer span { color: #35c46b; }
-      @media (max-width: 767px) {
+      @media (max-width: 767.98px) {
         .ps-services-row { flex-wrap: wrap; gap: 0; justify-content: space-between; padding-top: 8px; }
         .ps-services-row img { width: 140px; }
         .ps-services-row nav { order: 3; flex-basis: 100%; justify-content: flex-start; gap: 24px; border-top: 1px solid #1c1c1c; margin: 0 calc(-1 * clamp(16px, 4vw, 48px)); padding: 0 16px; }
@@ -930,7 +1454,8 @@
       page is served straight off the filesystem and never reaches api/page.ts.
     -->
     <div class="comment-return-loading" role="status">Loading comments…</div>
-    <div id="root"><!--alethical:page-snapshot--><div class="page-snapshot"><header class="ps-nav"><div class="ps-inner ps-nav-row"><a class="ps-logo" href="/" aria-label="Alethical home"><svg class="ps-mark" viewBox="0 0 84 82" fill="none" aria-hidden="true"><path d="M0 82 L38 0 L38 82 Z M84 82 L46 0 L46 82 Z" fill="currentColor"></path></svg><span class="ps-wordmark">ALETHICAL</span></a><nav class="ps-nav-links" aria-label="Site"><a href="/money">Money</a><a href="/bills">Search</a><a href="/blog">Blog</a><a href="/about">About</a><span class="ps-signin">Sign in</span></nav></div></header><main class="ps-inner"><h1>Grounded answers on Minnesota politics</h1><p class="ps-sub">TRUTH, UNCONCEALED</p><section class="ps-card"><p class="ps-prose">We turn scattered public records into clear information you can use. Understand what’s happening, check the evidence, and get practical support to act on what you learn.</p></section><section class="ps-card"><h2>Follow the money</h2><p class="ps-prose">Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.</p><ul class="ps-list"><li><a href="/money">Search the money records</a></li></ul></section><section class="ps-card"><h2>Bills and votes</h2><p class="ps-prose">Read plain-language bill summaries, see where they stand, and find out how legislators voted</p><ul class="ps-list"><li><a href="/bills">Search bills</a></li></ul></section><section class="ps-card"><h2>Campaign services</h2><p class="ps-prose">Get political intelligence through campaign-finance research, plus websites, marketing, and custom software for your campaign or organization</p><ul class="ps-list"><li><a href="/services">Explore our services</a></li></ul></section><section class="ps-card"><h2>Who’s running where you live?</h2><p class="ps-prose">Explore the candidates in your Minnesota races, with links to official records</p><ul class="ps-list"><li><a href="/candidates">Find my candidates</a></li></ul></section></main></div><!--/alethical:page-snapshot--></div>
+    <div id="root"><!--alethical:page-snapshot--><div class="page-snapshot page-snapshot-home"><header class="ps-nav"><div class="ps-inner ps-nav-row"><a class="ps-logo" href="/" aria-label="Alethical home"><svg class="ps-mark" viewBox="0 0 84 82" fill="none" aria-hidden="true"><path d="M0 82 L38 0 L38 82 Z M84 82 L46 0 L46 82 Z" fill="currentColor"></path></svg><span class="ps-wordmark">ALETHICAL</span></a><div class="ps-nav-right"><nav class="ps-nav-links" aria-label="Site"><a href="/money">Money</a><a href="/bills">Search<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></a><a href="/blog">Blog</a><a href="/about">About<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></a></nav><span class="ps-signin">Sign in</span><span class="ps-menu" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#11150f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg></span></div></div></header><main><div class="ph-hero"><div class="ph-dots"></div><div class="ph-inner ph-hero-inner"><div class="ph-hero-row"><div class="ph-copy"><p class="ph-eyebrow">TRUTH, UNCONCEALED</p><h1 class="ph-heading">Grounded answers
+<span class="ph-green">on Minnesota politics</span></h1><p class="ph-intro">We turn scattered public records into clear information you can use. Understand what’s happening, check the evidence, and get practical support to act on what you learn.</p><div class="ph-social"></div></div><div class="ph-money-column"><a class="ph-money ph-money-hero" href="/money"><span class="ph-money-eyebrow">MONEY IN POLITICS</span><h2 class="ph-money-heading">Follow the money</h2><span class="ph-money-body">Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.</span><span class="ph-count" aria-hidden="true"><span class="ph-count-reserve"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> registered campaigns, parties, and funds</span><span class="ph-count-bar"></span></span><span class="ph-money-cta"><span>Search the money records</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12 H19 M14 7 L19 12 L14 17" stroke="#06231a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></a></div></div></div></div><div class="ph-band"><a class="ph-money ph-money-phone" href="/money"><span class="ph-money-eyebrow">MONEY IN POLITICS</span><h2 class="ph-money-heading">Follow the money</h2><span class="ph-money-body">Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.</span><span class="ph-count" aria-hidden="true"><span class="ph-count-reserve"><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span> registered campaigns, parties, and funds</span><span class="ph-count-bar"></span></span><span class="ph-money-cta"><span>Search the money records</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12 H19 M14 7 L19 12 L14 17" stroke="#06231a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></a><div class="ph-inner"><div class="ph-invites"><a class="ph-invite" href="/bills"><h2>Bills and votes</h2><span class="ph-invite-body">Read plain-language bill summaries, see where they stand, and find out how legislators voted</span><span class="ph-invite-action"><span class="ph-button"><span>Search bills</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#0f7a45" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></span></a><a class="ph-invite" href="/services"><h2>Campaign services</h2><span class="ph-invite-body">Get political intelligence through campaign-finance research, plus websites, marketing, and custom software for your campaign or organization</span><span class="ph-invite-action"><span class="ph-button ph-button-paid"><span>Explore our services</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></span></a></div></div></div><section class="ph-inner ph-candidates"><h2>Who’s running where you live?</h2><p>Explore the candidates in your Minnesota races, with links to official records</p><a href="/candidates">Find my candidates</a></section></main></div><!--/alethical:page-snapshot--></div>
     <!--
       The records api/page.ts already read for this address, handed to the app in
       the same response so it draws them without asking the data service for the

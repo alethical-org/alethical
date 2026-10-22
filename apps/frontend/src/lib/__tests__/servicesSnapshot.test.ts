@@ -41,12 +41,12 @@ describe('services before the interactive app starts', () => {
     dom.window.close();
   });
 
-  it('leaves the ordinary homepage first response on its existing light background', () => {
+  it('leaves the ordinary homepage first response on the app’s light page background', () => {
     const dom = new JSDOM(`<style>${style}</style>${renderPageSnapshot(homePageSnapshot())}`);
     expect(
       dom.window.getComputedStyle(dom.window.document.querySelector('.page-snapshot')!)
         .backgroundColor,
-    ).toBe('rgb(255, 255, 255)');
+    ).toBe('rgb(251, 252, 253)');
     dom.window.close();
   });
 });

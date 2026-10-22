@@ -20,6 +20,7 @@ import { electionResultSnapshot, validElectionResult } from './personPageSnapsho
 /** Public instructions only. Address searches and their results stay in temporary memory. */
 export function candidateLookupPageSnapshot(): PageSnapshot {
   return {
+    navigation: 'candidate',
     heading: CANDIDATE_LOOKUP_COPY.heading,
     subheading: CANDIDATE_LOOKUP_COPY.intro,
     bodyHeading: CANDIDATE_LOOKUP_COPY.addressLabel,
@@ -173,6 +174,7 @@ export function candidateProfilePageSnapshot(
   });
   if (record.result) sections.push(electionResultSnapshot(record.result));
   return {
+    navigation: 'candidate',
     backLink: { label: 'Back to Find my candidates', href: '/candidates' },
     heading: record.candidate.name,
     eyebrow: 'Candidate profile',
