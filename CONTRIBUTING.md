@@ -177,9 +177,9 @@ owns the server-identity check, cleanup, and safety limits.
 The test runner selects its verified address before importing test modules, so
 application connections, migrations, and seeding use the same temporary server.
 
-GitHub's backend job runs the suite on 4 parallel workers (`pytest-xdist`), each with
-its own copy of the job database (`alethical_gw0` to `alethical_gw3`), made and
-migrated by `scripts/repeat_failure_runs.py run --workers 4` before pytest starts.
+GitHub's backend job runs the suite on 6 parallel workers (`pytest-xdist`), each with
+its own copy of the job database (`alethical_gw0` to `alethical_gw5`), made and
+migrated by `scripts/repeat_failure_runs.py run --workers 6` before pytest starts.
 Parallel workers are refused outside GitHub; run locally without `-n`. A test whose
 name holds a random value breaks parallel workers, which must all collect identical
 names, so parametrized tests give fixed `ids`.
