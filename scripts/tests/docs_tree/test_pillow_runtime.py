@@ -679,6 +679,7 @@ def test_remote_inventory_fails_closed(remote_helpers, kind):
         "probe-build",
         "first-provider-read",
         "first-state-validation",
+        "rollout-wait",
         "instance-probe",
         "second-provider-read",
         "second-state-validation",
@@ -718,3 +719,177 @@ def test_provider_failure_identifies_stage_without_private_response(
         "",
         "Pillow runtime stage failed: first-provider-read.\nPillow runtime verification failed.\n",
     )
+
+
+class Clock:
+    def __init__(self):
+        self.now = 0.0
+        self.sleeps = []
+
+    def __call__(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.sleeps.append(seconds)
+        self.now += seconds
+
+
+def rolling_out(provider, deployment_status=None, instance_status=None):
+    state = deepcopy(provider)
+    if deployment_status:
+        active(state)["status"] = deployment_status
+    if instance_status:
+        active(state)["instances"][0]["status"] = instance_status
+    return state
+
+
+def settle(monkeypatch, replies):
+    replies = iter(replies)
+    monkeypatch.setattr(runtime, "query", lambda _: next(replies))
+    clock = Clock()
+    result = runtime.settled_state(FAKE_TOKEN, sleep=clock.sleep, clock=clock)
+    return result, clock
+
+
+@pytest.mark.parametrize(
+    "rollout",
+    [
+        {"deployment_status": "DEPLOYING"},
+        {"deployment_status": "BUILDING"},
+        {"deployment_status": "REMOVING"},
+        {"instance_status": "INITIALIZING"},
+        {"instance_status": "REMOVING"},
+    ],
+)
+def test_rollout_is_waited_out_then_fully_proved(provider, monkeypatch, rollout):
+    during = rolling_out(provider, **rollout)
+    (state, deployments), clock = settle(monkeypatch, [during, during, provider])
+    assert state == provider
+    assert deployments == runtime.snapshot(provider)
+    assert clock.sleeps == [runtime.SETTLE_INTERVAL] * 2
+
+
+@pytest.mark.parametrize(
+    "broken",
+    [
+        {"deployment_status": "FAILED"},
+        {"deployment_status": "CRASHED"},
+        {"deployment_status": "SLEEPING"},
+        {"deployment_status": "UNKNOWN_NEW_STATE"},
+        {"instance_status": "CRASHED"},
+        {"instance_status": "EXITED"},
+    ],
+)
+def test_failed_or_unknown_state_fails_without_waiting(
+    provider, monkeypatch, broken, capsys
+):
+    with pytest.raises(runtime.CheckFailed):
+        settle(monkeypatch, [rolling_out(provider, **broken)])
+    assert capsys.readouterr().err == (
+        "Pillow runtime stage failed: first-state-validation.\n"
+    )
+
+
+def test_settled_but_wrong_state_fails_without_waiting(provider, monkeypatch):
+    active(provider)["instances"][0]["status"] = "REMOVED"
+    with pytest.raises(runtime.CheckFailed):
+        settle(monkeypatch, [provider])
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda p: service(p)["deploy"].update(startCommand="changed start"),
+        lambda p: p["projectToken"]["project"].update(id=INSTANCE),
+        lambda p: service(p)["variables"].update(
+            PILLOW_ALIGNMENT={"value": None, "generator": None}
+        ),
+    ],
+)
+def test_bad_settings_fail_even_during_rollout(provider, monkeypatch, mutation):
+    during = rolling_out(provider, deployment_status="DEPLOYING")
+    mutation(during)
+    with pytest.raises(runtime.CheckFailed):
+        settle(monkeypatch, [during])
+
+
+def test_rollout_that_never_settles_fails_at_the_bound(provider, monkeypatch, capsys):
+    during = rolling_out(provider, deployment_status="DEPLOYING")
+    replies = iter([during] * 1000)
+    monkeypatch.setattr(runtime, "query", lambda _: next(replies))
+    clock = Clock()
+    with pytest.raises(runtime.CheckFailed):
+        runtime.settled_state(FAKE_TOKEN, sleep=clock.sleep, clock=clock)
+    assert clock.now <= runtime.SETTLE_SECONDS
+    assert len(clock.sleeps) == runtime.SETTLE_SECONDS // runtime.SETTLE_INTERVAL
+    assert capsys.readouterr().err == "Pillow runtime stage failed: rollout-wait.\n"
+
+
+def test_whole_run_budget_leaves_the_proof_its_own_time():
+    assert runtime.SETTLE_SECONDS + runtime.PROOF_SECONDS <= 600
+    assert runtime.PROOF_SECONDS >= 2 * runtime.PROBE_SECONDS
+
+
+def test_state_change_after_settling_still_fails(provider, monkeypatch):
+    during = rolling_out(provider, deployment_status="DEPLOYING")
+    after = deepcopy(provider)
+    active(after)["instances"].append({"id": OTHER_INSTANCE, "status": "CREATED"})
+    replies = iter([during, provider, after])
+    monkeypatch.setattr(runtime, "query", lambda _: next(replies))
+    monkeypatch.setattr(runtime, "build_probe", lambda: "fixed code")
+    monkeypatch.setattr(runtime.time, "sleep", lambda _: None)
+
+    async def verify(*_):
+        pass
+
+    monkeypatch.setattr(runtime, "verify_instances", verify)
+    with pytest.raises(runtime.CheckFailed):
+        runtime.check(FAKE_TOKEN)
+
+
+@pytest.mark.parametrize(
+    "error,retried",
+    [
+        (ConnectionResetError(), True),
+        (ConnectionRefusedError(), True),
+        (runtime.CheckFailed(), False),
+        (TimeoutError(), False),
+        (__import__("ssl").SSLCertVerificationError(), False),
+        (ValueError("malformed"), False),
+    ],
+)
+def test_only_a_lost_connection_is_retried_once(provider, monkeypatch, error, retried):
+    calls = []
+
+    async def probe(token, text, deployment, instance):
+        calls.append(instance)
+        if len(calls) == 1:
+            raise error
+        return observation(instance_id=instance)
+
+    monkeypatch.setattr(runtime, "probe_instance", probe)
+    run = runtime.verify_instances(FAKE_TOKEN, "fixed code", runtime.snapshot(provider))
+    if retried:
+        asyncio.run(run)
+        assert calls == [INSTANCE, INSTANCE]
+    else:
+        with pytest.raises(type(error)):
+            asyncio.run(run)
+        assert calls == [INSTANCE]
+
+
+def test_a_second_lost_connection_fails(provider, monkeypatch):
+    calls = []
+
+    async def probe(token, text, deployment, instance):
+        calls.append(instance)
+        raise ConnectionResetError
+
+    monkeypatch.setattr(runtime, "probe_instance", probe)
+    with pytest.raises(ConnectionResetError):
+        asyncio.run(
+            runtime.verify_instances(
+                FAKE_TOKEN, "fixed code", runtime.snapshot(provider)
+            )
+        )
+    assert calls == [INSTANCE, INSTANCE]
