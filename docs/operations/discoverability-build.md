@@ -18,7 +18,7 @@ Tracking: [discoverability delivery issue](https://github.com/alethical-org/alet
 | B6 | Consistent crawler preferences | Local robots changes retain search/user-question access and Google-Extended. Requires release and live response verification. |
 | B7 | Evidence-based diagnosis of 11 articles | Reachability reviewed; missing demand/indexing metrics remain unknown. Accuracy corrections are private proposals, not silent article rewrites. |
 | B8 | Curated questions and private weekly search collection | Private collection/storage/access tests implemented. Production credentials, migration and verified included capacity precede activation. |
-| B9 | Evidence rules and publishing checks in their owning guides | Shared guide update remains to be completed without copying project facts into universal rules. |
+| B9 | Evidence rules and publishing checks in their owning guides | Shared evidence rules merged in [tool-settings PR 105](https://github.com/euglopi/tool-settings/pull/105). Project-specific guide coordination remains under B14. |
 | B10 | Private monthly report with honest coverage | Aggregate report and independent retention cleanup implemented. No crawler source is proven; missing coverage is not zero. Live activation and retained success receipt remain. |
 | B11 | Source-backed answer audit before/after | Private 12-question answer key prepared; engine runs not completed. Unavailable products stay unavailable. No paid API or recurring AI task. Repeat follows release and observed recrawl. |
 | B12 | AI referral counts by host | Existing Cloudflare browser analytics confirmed in code; exact field and live access still need proof. No inferred crawler counts or referrer paths. |
