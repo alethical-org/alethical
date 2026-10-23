@@ -203,10 +203,10 @@ retain their existing free weekly source checks.
 ## Private search measurement: implementation ready, live checks pending
 
 The private export, storage, report and independent deletion paths are implemented.
-Production access, included service capacity, successful collection and deletion,
-and denied unauthorized reads still need the rollout checks below. The weekly
-Vercel collection schedule is **not armed**. The daily deletion workflow has a
-schedule in source; that alone does not prove a successful live sweep.
+Database capacity is measured and both collection credentials are configured.
+The weekly Vercel collection runs Mondays at 09:23 UTC. A successful first
+collection and deletion sweep still need the rollout checks below; the daily
+deletion workflow's schedule alone does not prove a successful live sweep.
 
 ### Collection and access
 
@@ -342,9 +342,11 @@ no credentials, saves no response bodies and accepts only explicit access denial
 5. Run the independent deletion workflow and verify its committed success receipt
    in the private report. Confirm the daily schedule is active. A workflow file
    or access-expiry filter alone does not satisfy retention acceptance.
-6. Arm the weekly Vercel collection schedule only after these checks pass within
-   existing included capacity. Record its actual cadence and first successful
-   run. The report remains available on demand; no recurring AI summary or paid
+6. The collection credential is usable only by Vercel's scheduler, so the weekly
+   entry ships before the first run. Start that first run by hand from the
+   project's Cron Jobs settings and complete checks 4 and 5 before the first
+   scheduled run; a failed check removes the entry before then. Record the
+   cadence and first successful run. The report remains available on demand; no recurring AI summary or paid
    citation check is started. Monthly review follows the comparison rules above.
 
 Primary API contracts: [Google Search Analytics](https://developers.google.com/webmaster-tools/v1/searchanalytics/query),
