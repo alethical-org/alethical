@@ -307,7 +307,8 @@ def verify_app_environment(root):
     for process in processes:
         if not process.name.isdigit():
             continue
-        command = bounded_proc_read(process / 'cmdline', 32768)
+        # The probe itself carries up to 100 KB of reviewed source in one argument.
+        command = bounded_proc_read(process / 'cmdline', 131072)
         if not command:
             continue
         if not command.endswith(b'\0'):
@@ -331,7 +332,7 @@ def verify_app_environment(root):
             raise ValueError('application alignment present')
         if any(environment.get(key) != own_environment.get(key) for key in keys):
             raise ValueError('application interpreter environment differs')
-        if bounded_proc_read(process / 'cmdline', 32768) != command:
+        if bounded_proc_read(process / 'cmdline', 131072) != command:
             raise ValueError('application process changed during check')
         candidates.append(process.name)
     if not candidates:

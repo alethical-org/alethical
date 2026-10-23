@@ -530,6 +530,46 @@ def test_actual_app_and_probe_environment_match(remote_helpers):
     assert scope["verify_app_environment"](root) is True
 
 
+@pytest.mark.parametrize("extra_padding", [0, 50000])
+def test_actual_probe_command_does_not_block_app_verification(
+    remote_helpers, tmp_path, monkeypatch, extra_padding
+):
+    root, proc, scope, add_process = remote_helpers
+    add_process()
+    probe_process = proc / "102"
+    probe_process.mkdir()
+    if extra_padding:
+        guard = tmp_path / "padded-guard.py"
+        guard.write_text(runtime.GUARD_PATH.read_text() + "\n#" + "x" * extra_padding)
+        monkeypatch.setattr(runtime, "GUARD_PATH", guard)
+    command = (
+        b"\0".join(
+            [
+                os.fsencode(scope["sys"].executable),
+                b"-B",
+                b"-c",
+                runtime.build_probe().encode(),
+            ]
+        )
+        + b"\0"
+    )
+    assert len(command) < 131072
+    if extra_padding:
+        assert len(command) > 32768
+    (probe_process / "cmdline").write_bytes(command)
+    assert scope["verify_app_environment"](root) is True
+
+
+def test_oversized_process_command_still_fails(remote_helpers):
+    root, proc, scope, add_process = remote_helpers
+    add_process()
+    probe_process = proc / "102"
+    probe_process.mkdir()
+    (probe_process / "cmdline").write_bytes(b"x" * 131073)
+    with pytest.raises(ValueError, match="process field bound"):
+        scope["verify_app_environment"](root)
+
+
 @pytest.mark.parametrize(
     "kind",
     [

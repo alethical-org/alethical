@@ -161,7 +161,7 @@ renderer uses `Image.frombytes`, rectangle and text drawing, and `tobytes`, with
 no Arrow export. The source guard pins that renderer, its direct test imports,
 and the 2 service functions that call it.
 
-The [trusted production read](https://github.com/alethical-org/alethical/actions/runs/39888995284)
+The [trusted production read](https://github.com/alethical-org/alethical/actions/runs/39950484120)
 verified no `PILLOW_ALIGNMENT` in saved service or shared
 variables or the actual running app's environment, no installed or importable
 `pyarrow`, Pillow 13.0.0, and matching deployed source. It identified the running
