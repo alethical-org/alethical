@@ -23,7 +23,7 @@ Tracking: [discoverability delivery issue](https://github.com/alethical-org/alet
 | B11 | Source-backed answer audit before/after | Private 12-question answer key prepared; engine runs not completed. Unavailable products stay unavailable. No paid API or recurring AI task. Repeat follows release and observed recrawl. |
 | B12 | AI referral counts by host | Existing Cloudflare schema, account access and exact host-only query verified. Private administrator reader implemented with bounded responses and explicit sampling/missing coverage. Focused tests and independent review pass; deployed access checks precede completion. No crawler, unique-person or engagement claim. |
 | B13 | Consume separate security result | Security policy and runtime chain have a separate owner. This build does not duplicate the exception or bypass its guard. |
-| B14 | Project social guide and curated questions | The committed guide on `codex/social-video-guides` remains with its owner until security release. A separate patch is being prepared for owner review; no unrelated pull request is treated as its branch. |
+| B14 | Project social guide and curated questions | The committed guide on `codex/social-video-guides` remains with its owner until security release. The owner accepted the separate curated-question patch. After the base guide lands and security clearance is recorded, compare the latest guide and integrate only that addition. |
 | B15 | Drawn and built About facts block | Owner is authorized to work directly with Design, review until agreed and build. Browser access is currently blocked; no drawing was sent or approved. |
 | B16 | Neutral directory-entry drafts | Private candidates prepared; eligibility and duplicate checks remain explicit. Nothing submitted. |
 
