@@ -6,13 +6,12 @@ export const HOME_PUBLIC_INTRO =
 export const HOME_PUBLIC_MONEY_BODY =
   'Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.';
 export const HOME_PUBLIC_MONEY_CTA = 'Search the money records';
-export const HOME_PUBLIC_BILLS_HEADING = 'Bills and votes';
-export const HOME_PUBLIC_BILLS_BODY =
-  'Read plain-language bill summaries, see where they stand, and find out how legislators voted';
+export const HOME_PUBLIC_BILLS_HEADING = 'Legislature';
+export const HOME_PUBLIC_BILLS_BODY = 'Bill summaries and progress, legislator profiles and votes';
 export const HOME_PUBLIC_BILLS_CTA = 'Search bills';
 export const HOME_PUBLIC_SERVICES_HEADING = 'Campaign services';
 export const HOME_PUBLIC_SERVICES_BODY =
-  'Get political intelligence through campaign-finance research, plus websites, marketing, and custom software for your campaign or organization';
+  'Political intelligence and practical support for candidates and organizations, including campaign-finance research, websites, content, tools and hosted debates';
 export const HOME_PUBLIC_SERVICES_CTA = 'Explore our services';
 
 /** The 2 bill-group exits and the exact Bill Search state they promise. */

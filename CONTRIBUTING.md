@@ -345,6 +345,10 @@ and ignore that schedule entirely.
   Scanner failures and incomplete reports fail the check. The narrow, time-limited
   exceptions are recorded in
   [`docs/operations/technology-health.md`](docs/operations/technology-health.md#recorded-security-exceptions).
+- The recorded Pillow exception requires fresh production evidence. Local checks need
+  `gh` signed in to `github.com`, with permission to start this repository's workflows
+  and read their results. Production access remains in the trusted main-only workflow;
+  no Railway credential is needed locally. Missing access or evidence blocks release.
 - Run `python scripts/check_technology_health.py --security-only` for the same check
   locally, with the project's saved uv and pnpm versions available.
 

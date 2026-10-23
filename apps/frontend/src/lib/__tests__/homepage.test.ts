@@ -21,8 +21,10 @@ describe('signed-out copy is separate from signed-in Home', () => {
       'We turn scattered public records into clear information you can use. Understand what’s happening, check the evidence, and get practical support to act on what you learn.',
     );
     expect(HOME_PUBLIC_INTRO).not.toContain('plain-language');
-    expect(HOME_PUBLIC_BILLS_BODY).toContain('plain-language bill summaries');
-    expect(HOME_PUBLIC_SERVICES_BODY).toContain('political intelligence');
+    expect(HOME_PUBLIC_BILLS_BODY).toBe(
+      'Bill summaries and progress, legislator profiles and votes',
+    );
+    expect(HOME_PUBLIC_SERVICES_BODY).toContain('Political intelligence');
   });
 
   it('keeps the approved public wording shared across home layouts', () => {

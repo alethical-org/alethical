@@ -135,6 +135,60 @@ workflow supplies evidence; it does not itself grant an exception.
 
 ## Recorded security exceptions
 
+### Pillow: reviewed production path outside the Arrow flaw
+
+[GHSA-654x-cwwv-5j9c](https://github.com/python-pillow/Pillow/security/advisories/GHSA-654x-cwwv-5j9c)
+(CVE-2026-114501) covers Pillow 11.2.1 through 13.0.0. Upstream reports no
+fixed release. [Issue 2643](https://github.com/alethical-org/alethical/issues/2643)
+holds the review, owned by Eugene. The exception covers only Pillow **13.0.0** on
+the direct `alethical -> pillow` path in `uv.lock`, with the existing
+`pillow>=13.0.0` requirement. It changes no Pillow code or package metadata.
+
+The flaw exposes stale memory when an image is exported through Arrow under a
+non-default alignment setting. The upstream reproduction does not require
+`pyarrow`, so its absence alone does not establish safety. Alethical's production
+renderer uses `Image.frombytes`, rectangle and text drawing, and `tobytes`, with
+no Arrow export. The source guard pins that renderer, its direct test imports,
+and the 2 service functions that call it.
+
+The [trusted production read](https://github.com/alethical-org/alethical/actions/runs/39888995284)
+verified no `PILLOW_ALIGNMENT` in saved service or shared
+variables or the actual running app's environment, no installed or importable
+`pyarrow`, Pillow 13.0.0, and matching deployed source. It identified the running
+app's interpreter, working directory and relevant Python environment, covered
+every active instance, and required stable deployment identities throughout the
+read. Each release obtains fresh evidence from the trusted main-only workflow;
+a saved successful check cannot clear a later request.
+
+The checked fingerprints are:
+
+| Boundary | SHA-256 |
+| --- | --- |
+| Canonical complete Pillow lock entry, including distribution hashes | `2694a2f9055a37e8285bf6e1af4ff7fb575e01a541ca13be29d2b1a7bac45f59` |
+| `alethical/pipeline/tv_ad_redaction.py` | `33a2f50db0ddd2bda981a131a8e6d4d2c27e9b0ebfcd04f03d10201b32533e92` |
+| `alethical/tests/test_tv_ad_review.py` | `ef3c6e5e90db7e86289d32ddb82551fe097b681a51d5f315aa643d55e2734f44` |
+| Canonical syntax of `prepare_copy` in `alethical/api/services/tv_ad_review.py` | `f8c331b1f9f341588fe4425f70e2ef8cbaed1a741931476fb45f1ae0248fc991` |
+| Canonical syntax of `render_original_page` in that service | `5d96d518905a7c362c369b58086ded8afcee8f3b0ca8e271c4c049c3b89a7790` |
+
+All tracked Python files, including root-level and documentation tools, remain
+subject to the source scan. This finite source guard detects ordinary imports,
+reflection, Arrow access and alignment changes; it is not a proof against
+arbitrary generated, obfuscated, native or dependency code.
+
+`scripts/check_technology_health.py --security-only`, used by the local push hook
+and required `changes` job, calls `scripts/check_pillow_exception.py`. It verifies
+candidate source, the direct upstream advisory and production proof bound to the
+current GitHub run and attempt or unique local request. Missing or stale evidence,
+provider failures, changed variables, packages, callers, deployment commands or
+advisory identity fail the check. A fixed release ends this exception and requires
+the upgrade. The separate free weekly upstream job continues after the review issue
+closes.
+
+If the registry feed adds this finding, only the exact advisory or its known CVE
+alias for Pillow 13.0.0 with an explicitly empty fixed-version list can meet the
+exception, and only after all checks pass. The raw audit report remains visible.
+Other findings, new aliases and missing or changed fix data still block release.
+
 The website build tools use node-forge 1.4.0 with the exact nested signature
 validation repair from [upstream pull request 1152](https://github.com/digitalbazaar/forge/pull/1152)
 at `ceba34402e329f0365134f23fe19898756527d65`. The
