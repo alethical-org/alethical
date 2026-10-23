@@ -6,6 +6,11 @@ describe('shared social links', () => {
   it('uses one ordered list for every confirmed account', () => {
     expect(SOCIAL_ACCOUNTS).toEqual([
       {
+        label: 'YouTube',
+        platform: 'youtube',
+        url: 'https://www.youtube.com/@Alethical',
+      },
+      {
         label: 'LinkedIn',
         platform: 'linkedin',
         url: 'https://www.linkedin.com/company/alethical',
@@ -15,21 +20,21 @@ describe('shared social links', () => {
         platform: 'facebook',
         url: 'https://www.facebook.com/people/Alethical/61588261592240/',
       },
+      { label: 'X', platform: 'x', url: 'https://x.com/alethical' },
+      {
+        label: 'Bluesky',
+        platform: 'bluesky',
+        url: 'https://bsky.app/profile/alethical.com',
+      },
       {
         label: 'Instagram',
         platform: 'instagram',
         url: 'https://www.instagram.com/alethicaltruth',
       },
-      { label: 'X', platform: 'x', url: 'https://x.com/alethical' },
       {
         label: 'TikTok',
         platform: 'tiktok',
         url: 'https://www.tiktok.com/@alethicaltruth',
-      },
-      {
-        label: 'YouTube',
-        platform: 'youtube',
-        url: 'https://www.youtube.com/@Alethical',
       },
     ]);
   });

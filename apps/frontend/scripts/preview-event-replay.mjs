@@ -96,6 +96,7 @@ const server = http.createServer(async (req, res) => {
     }
     const body = renderEventPageSnapshot(markup)
       .replace('<span class="ps-signin">Sign in</span>', '')
+      .replace(/<span class="ps-menu"[^>]*>.*?<\/span>/, '')
       .replaceAll('href="/', 'href="https://www.alethical.com/');
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(

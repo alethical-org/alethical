@@ -6,6 +6,8 @@ import ts from 'typescript';
 const SRC = join(__dirname, '..', '..');
 
 const legacyTextArrowLimits: Record<string, number> = {
+  // October22 homepage handoff explicitly preserves the Services CTA's typed arrow.
+  'components/home/HomeFeatureCards.tsx': 1,
   'components/read/SetBox.tsx': 1, // Approved Open group page action.
   'screens/redesign/ReadScreen.tsx': 1, // Approved collection link arrow.
   'components/billDetail/CitationCard.tsx': 1,

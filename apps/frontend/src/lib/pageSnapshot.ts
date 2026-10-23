@@ -1,3 +1,4 @@
+import { eventIndexBySlug } from './eventsIndex';
 import {
   EVENTS_PATH,
   eventPath,
@@ -321,8 +322,10 @@ import {
   HOME_PUBLIC_SERVICES_HEADING,
   HOME_PUBLIC_SERVICES_BODY,
   HOME_PUBLIC_SERVICES_CTA,
+  MONEY_PROMO_COUNT_UNIT,
   MONEY_PROMO_HEADING,
 } from './homepage';
+import { LINK_ARROW_PATH, LINK_ARROW_STROKE_WIDTH, LINK_ARROW_VIEW_BOX } from './linkArrowGeometry';
 
 /**
  * The short factual snapshot that ships INSIDE the first server response. Bill
@@ -368,7 +371,10 @@ export interface SnapshotRecordLink extends SnapshotLink {
 export interface PageSnapshot {
   /** The approved dark presentation keeps its background before the app starts. */
   appearance?: 'dark';
-  navigation?: 'services';
+  /** Services has its own header; candidate pages draw the shared one with their own spacing. */
+  navigation?: 'services' | 'candidate';
+  /** Home draws its own hero and cards rather than the record-page header and cards. */
+  layout?: 'home';
   /**
    * The small link above the heading that returns to the section this page sits
    * in, drawn exactly where the app draws its own (`/money` for a committee).
@@ -486,6 +492,7 @@ function directoryNavigation(
 
 export function homePageSnapshot(): PageSnapshot {
   return {
+    layout: 'home',
     heading: 'Grounded answers on Minnesota politics',
     subheading: 'TRUTH, UNCONCEALED',
     bodyHeading: '',
@@ -501,7 +508,10 @@ export function homePageSnapshot(): PageSnapshot {
       {
         heading: HOME_PUBLIC_BILLS_HEADING,
         body: [HOME_PUBLIC_BILLS_BODY],
-        items: [{ label: HOME_PUBLIC_BILLS_CTA, href: '/bills' }],
+        items: [
+          { label: HOME_PUBLIC_BILLS_CTA, href: '/bills' },
+          { label: 'Search legislators', href: '/legislators' },
+        ],
       },
       {
         heading: HOME_PUBLIC_SERVICES_HEADING,
@@ -2806,25 +2816,32 @@ function renderSnapshotBlock(block: SnapshotBlock, article = false): string {
  * only the app can operate, so here it is a label in the button's place: it holds
  * the layout the app fills in, and never pretends to be a link.
  */
-function renderSnapshotNav(): string {
+function renderSnapshotNav(candidate = false): string {
   const links = NAV_BAR.map((entry) => {
     if (entry.kind === 'link') {
       return `<a href="${escapeHtml(entry.item.path)}">${escapeHtml(entry.item.label)}</a>`;
     }
     const first = itemsByMenu(entry.key).find((item) => item.availability === 'mvp');
     return first
-      ? `<a href="${escapeHtml(first.path)}">${escapeHtml(entry.label)}</a>`
-      : `<span>${escapeHtml(entry.label)}</span>`;
+      ? `<a href="${escapeHtml(first.path)}">${escapeHtml(entry.label)}${NAV_CHEVRON}</a>`
+      : `<span>${escapeHtml(entry.label)}${NAV_CHEVRON}</span>`;
   });
   return (
-    '<header class="ps-nav"><div class="ps-inner ps-nav-row">' +
+    `<header class="ps-nav${candidate ? ' ps-nav-candidate' : ''}"><div class="ps-inner ps-nav-row">` +
     '<a class="ps-logo" href="/" aria-label="Alethical home">' +
     `<svg class="ps-mark" viewBox="0 0 84 82" fill="none" aria-hidden="true"><path d="${LOGO_MARK_PATH}" fill="currentColor"></path></svg>` +
     '<span class="ps-wordmark">ALETHICAL</span></a>' +
-    `<nav class="ps-nav-links" aria-label="Site">${links.join('')}<span class="ps-signin">Sign in</span></nav>` +
+    `<div class="ps-nav-right"><nav class="ps-nav-links" aria-label="Site">${links.join('')}</nav><span class="ps-signin">Sign in</span>` +
+    `<span class="ps-menu" aria-hidden="true">${NAV_MENU_ICON}</span></div>` +
     '</div></header>'
   );
 }
+
+/** The bar's dropdown caret and the tablet and phone menu button, drawn as the app's icons. */
+const NAV_CHEVRON =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>';
+const NAV_MENU_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="#11150f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg>';
 
 /** Services has its own public presentation header, including before hydration. */
 function renderServicesNav(): string {
@@ -2858,6 +2875,88 @@ export const LOGO_MARK_PATH = 'M0 82 L38 0 L38 82 Z M84 82 L46 0 L46 82 Z';
 const BACK_CHEVRON =
   '<svg class="ps-back-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 5 L8 12 L15 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
 
+/** A drawn arrow, the same path the app's `LinkArrow` draws. */
+function linkArrowSvg(color: string): string {
+  return `<svg viewBox="${LINK_ARROW_VIEW_BOX}" fill="none" aria-hidden="true"><path d="${LINK_ARROW_PATH}" stroke="${color}" stroke-width="${LINK_ARROW_STROKE_WIDTH}" stroke-linecap="round" stroke-linejoin="round"></path></svg>`;
+}
+
+/**
+ * The money card as `MoneyPromoCard` draws it while the filer count loads: the
+ * grey bar over an invisible copy of the count line, so the card already has the
+ * height it keeps when the app takes over. `band` is where it sits: beside or
+ * under the introduction on computer and tablet, in the green band on phone.
+ */
+function renderHomeMoneyCard(band: 'hero' | 'phone'): string {
+  return (
+    `<a class="ph-money ph-money-${band}" href="/money">` +
+    `<h2 class="ph-money-heading">${escapeHtml(MONEY_PROMO_HEADING)}</h2>` +
+    `<span class="ph-money-body">${escapeHtml(HOME_PUBLIC_MONEY_BODY)}</span>` +
+    '<span class="ph-count" aria-hidden="true">' +
+    `<span class="ph-count-reserve"><span></span> ${escapeHtml(MONEY_PROMO_COUNT_UNIT)}</span>` +
+    '<span class="ph-count-bar"></span></span>' +
+    `<span class="ph-money-cta"><span>${escapeHtml(HOME_PUBLIC_MONEY_CTA)}</span>` +
+    '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12 H19 M14 7 L19 12 L14 17" stroke="#06231a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>' +
+    '</a>'
+  );
+}
+
+/**
+ * Signed-out Home in the app's own layout (`components/home/SignedOutHomepage.tsx`):
+ * the hero text centred beside the money card on computer, the card under it on
+ * tablet, the card and the 2 cards after it in a green band on phone. Every size
+ * is the app's, so nothing in the hero moves when the app replaces this
+ * (styled in `public/index.html`, `.page-snapshot-home`). The money card is
+ * written twice because it sits in a different place on phone; CSS shows 1.
+ * The top bar comes first so 1 `<main>` holds the rest; the hero slides up
+ * under it, so its background still starts at the top of the page.
+ */
+function renderHomeSnapshot(snapshot: PageSnapshot): string {
+  const [, bills, services, candidates] = snapshot.sections ?? [];
+  const invitation = (section: SnapshotSection | undefined, paid: boolean) => {
+    const action = section?.items?.[0];
+    if (!section || !action?.href) return '';
+    return (
+      `<a class="ph-invite" href="${escapeHtml(action.href)}">` +
+      `<h2>${escapeHtml(section.heading ?? '')}</h2>` +
+      `<span class="ph-invite-body">${escapeHtml(section.body?.[0] ?? '')}</span>` +
+      `<span class="ph-invite-action"><span class="ph-button${paid ? ' ph-button-paid' : ''}"><span>${escapeHtml(action.label)}</span>${paid ? '<span aria-hidden="true">→</span>' : linkArrowSvg('#0f7a45')}</span></span>` +
+      '</a>'
+    );
+  };
+  const event = eventIndexBySlug('forward-debate-2026');
+  const legislature = `<div class="ph-invite ph-legislature"><h2>${escapeHtml(bills?.heading ?? '')}</h2><span class="ph-invite-body">${escapeHtml(bills?.body?.[0] ?? '')}</span><div class="ph-bill-actions">${bills?.items?.map((action) => `<a class="ph-button" href="${escapeHtml(action.href ?? '')}">${escapeHtml(action.label)}${linkArrowSvg('#0f7a45')}</a>`).join('') ?? ''}</div></div>`;
+  const play =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" fill="#0f7a45"></path></svg>';
+  const debate = (desktop: boolean) =>
+    !event
+      ? ''
+      : `<a class="ph-invite ph-debate" href="/blog/events/${event.slug}"><div class="ph-debate-words"><div class="ph-debate-title"><h2>${escapeHtml(event.title)}</h2>${desktop ? '<span class="ph-host">Hosted by Alethical</span>' : ''}</div>${!desktop ? `<span class="ph-debate-details">${event.district}<br/><span class="ph-date">Hosted by Alethical ·</span> <span class="ph-date">${event.dateLabel.replace(/^\w+, /, '')}</span></span>` : ''}<span class="ph-invite-action"><span class="ph-button">${play}Watch the debate</span></span></div><span class="ph-photo"><span class="ph-crop"><img src="${desktop ? event.homePhotos.desktop : event.homePhotos.narrow}" alt="" /></span></span>${desktop ? `<span class="ph-debate-details"><span class="ph-date">${event.district} ·</span> <span class="ph-date">${event.dateLabel.replace(/^\w+, /, '')}</span></span><span class="ph-invite-action"><span class="ph-button">${play}Watch the debate</span></span>` : ''}</a>`;
+  const service = invitation(services, true).replace(
+    'class="ph-invite"',
+    'class="ph-invite ph-services"',
+  );
+  const invitations = `<div class="ph-invites ph-features-desktop">${legislature}${debate(true)}${service}</div><div class="ph-invites ph-features-tablet">${debate(false)}${legislature}${service}</div><div class="ph-invites ph-features-phone">${debate(false)}${service}${legislature}</div>`;
+  const candidate = candidates?.items?.[0];
+  return [
+    '<div class="page-snapshot page-snapshot-home">',
+    renderSnapshotNav(),
+    '<main><div class="ph-hero"><div class="ph-dots"></div>',
+    '<div class="ph-inner ph-hero-inner"><div class="ph-hero-row"><div class="ph-copy">',
+    `<p class="ph-eyebrow">${escapeHtml(snapshot.subheading)}</p>`,
+    '<h1 class="ph-heading">Grounded answers\n<span class="ph-green">on Minnesota politics</span></h1>',
+    `<p class="ph-intro">${escapeHtml(snapshot.body[0] ?? '')}</p>`,
+    '<div class="ph-social"></div>',
+    '</div>',
+    `<div class="ph-money-column">${renderHomeMoneyCard('hero')}</div>`,
+    '</div></div></div>',
+    `<div class="ph-band">${renderHomeMoneyCard('phone')}<div class="ph-inner">${invitations}</div></div>`,
+    candidates && candidate?.href
+      ? `<section class="ph-inner ph-candidates"><h2>${escapeHtml(candidates.heading ?? '')}</h2><p>${escapeHtml(candidates.body?.[0] ?? '')}</p><a href="${escapeHtml(candidate.href)}">${escapeHtml(candidate.label)}</a></section>`
+      : '',
+    '</main></div>',
+  ].join('');
+}
+
 /**
  * The snapshot as HTML. Every value is escaped: 10,471 AI-written summaries are
  * 10,471 chances for one stray character to break the markup.
@@ -2870,6 +2969,7 @@ const BACK_CHEVRON =
  * read as one page rather than an old design and a new one.
  */
 export function renderPageSnapshot(snapshot: PageSnapshot): string {
+  if (snapshot.layout === 'home') return renderHomeSnapshot(snapshot);
   const titleParts = snapshot.article
     ? snapshot.heading.split(/(\b\d{4}–\d{4}\b)/u)
     : [snapshot.heading];
@@ -2980,7 +3080,9 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
 
   return [
     `<div class="page-snapshot${snapshot.appearance === 'dark' ? ' page-snapshot-dark' : ''}${snapshot.article ? ' page-snapshot-article' : ''}">`,
-    snapshot.navigation === 'services' ? renderServicesNav() : renderSnapshotNav(),
+    snapshot.navigation === 'services'
+      ? renderServicesNav()
+      : renderSnapshotNav(snapshot.navigation === 'candidate'),
     '<main class="ps-inner">',
     snapshot.backLink
       ? `<a class="ps-back" href="${escapeHtml(snapshot.backLink.href)}">${BACK_CHEVRON}${escapeHtml(snapshot.backLink.label)}</a>`

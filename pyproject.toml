@@ -46,6 +46,8 @@ dependencies = [
   # the release that repairs the items-view reference leak (CVE-2026-104874).
   "multidict>=6.9.1",
   "pytest-asyncio>=1.4.0",
+  # Backend CI runs the suite on parallel workers, each with its own database.
+  "pytest-xdist>=3.8.0",
   "supabase>=2.31.0",
   # Imported directly by alethical/tests/test_auth_token_verification.py for
   # AuthInvalidJwtError, the error a rejected or expired sign-in token really
@@ -73,15 +75,19 @@ dependencies = [
   # the deployed image beyond itself. Nothing is rebuilt from those documents -- one
   # stated subtotal is read per schedule and the payment rows keep coming from the
   # bulk download (§2.3).
-  "pypdf>=6.19.0",
+  "pypdf>=6.21.1",
   # Manual HUD ZIP-reference workbook import; API requests read packaged JSON.
   "openpyxl==3.1.5",
-  "pillow>=12.3.0",
+  "pillow>=13.0.0",
+  # Fixed client for the trusted, read-only production security probe.
+  "websockets==15.0.1",
 ]
 
 [tool.uv]
 package = false
 constraint-dependencies = [
+  # Remove compromised emSign roots from every HTTP client trust store.
+  "certifi>=2026.10.19",
   # Alembic and Uvicorn use Click. Keep its editor helper off the shell so a
   # crafted editor value cannot become a command.
   "click>=8.3.3",

@@ -28,6 +28,7 @@ from alethical.api.services.legislative_districts import (
     one_shape_for_all,
     points_share_legislative_districts,
 )
+from alethical.api.services.zip_state_reference import SUPPORTED_STATES
 from alethical.logging import configure_logging
 
 logger = logging.getLogger(__name__)
@@ -303,6 +304,11 @@ _STREET_TYPE_ALIASES = {
     "WALK": "WALK",
     "WAY": "WAY",
 }
+# State codes that end an address as another state, leaving out codes that are
+# also Minnesota street endings or directions (CT court, NE northeast).
+_OTHER_STATE_CODES = (
+    SUPPORTED_STATES - {"MN"} - _STREET_TYPE_ALIASES.keys() - _DIRECTION_ALIASES.keys()
+)
 # Full street endings currently present in Minnesota's official address-point
 # service. Common typed abbreviations are normalized above.
 _MINNESOTA_STREET_TYPES = frozenset(
@@ -473,15 +479,28 @@ def _minnesota_address_candidates(
 ) -> tuple[_ParsedMinnesotaAddress, ...]:
     compact = normalize_address_format(address_text)
     state_matches = list(re.finditer(r"\b(?:MN|MINNESOTA)\b", compact, re.IGNORECASE))
-    if not state_matches:
-        return ()
-    state_match = state_matches[-1]
-    after_state = compact[state_match.end() :].strip(" ,;.")
-    if after_state and re.fullmatch(r"\d{5}(?:-\d{4})?", after_state) is None:
-        return ()
-    zip_match = re.search(r"\b(\d{5})(?:-\d{4})?\b", after_state)
-    zip_code = zip_match.group(1) if zip_match else None
-    before_state = compact[: state_match.start()].strip(" ,;")
+    state_match = state_matches[-1] if state_matches else None
+    after_state = compact[state_match.end() :].strip(" ,;.") if state_match else ""
+    if state_match and (
+        not after_state or re.fullmatch(r"\d{5}(?:-\d{4})?", after_state)
+    ):
+        zip_match = re.search(r"\b(\d{5})(?:-\d{4})?\b", after_state)
+        zip_code = zip_match.group(1) if zip_match else None
+        before_state = compact[: state_match.start()].strip(" ,;")
+    else:
+        # The field asks for "city, ZIP": the state is implied, so a trailing
+        # Minnesota ZIP (55xxx or 56xxx) alone ends the address, even when a
+        # street is named Minnesota. Another state's ZIP, or its 2-letter code
+        # before the ZIP, never reads as Minnesota.
+        trimmed = compact.rstrip(" \t\r\n,;.")
+        zip_match = re.search(r"[\s,;](5[56]\d{3})(?:-\d{4})?$", trimmed)
+        if zip_match is None:
+            return ()
+        zip_code = zip_match.group(1)
+        before_state = trimmed[: zip_match.start()].strip(" ,;")
+        words = before_state.upper().replace(",", " ").split()
+        if words and words[-1].replace(".", "") in _OTHER_STATE_CODES:
+            return ()
 
     separated = [
         part.strip() for part in re.split(r"[,;]+", before_state) if part.strip()

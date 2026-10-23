@@ -15,10 +15,12 @@ copy.
 ## The form
 
 Before the app starts, the first response carries the same heading, explanation,
-email address and 6 working social links as the loaded screen. The loaded computer
-screen also shows Instagram at full strength and links it to the Alethical Instagram account.
-The phone screen omits the Follow Alethical block because the shared footer repeats
-the same accounts nearby. The form and its delivery states appear only in the loaded
+email address and 7 working social links as the loaded screen, in the order YouTube,
+LinkedIn, Facebook, X, Bluesky, Instagram, TikTok. On computer and tablet the side column
+holds an **Email us** card and, 24px below it, a **Follow Alethical** card with the 7
+accounts as 4 circles then 3. The top of the Email us card lines up with the top of the
+Your name field box, not its label. The phone screen omits the Follow Alethical block
+because the shared footer repeats the same accounts nearby, as 4 circles then 3. The form and its delivery states appear only in the loaded
 app. Both presentations read their shared words from `contactUs.ts`, and every loaded
 social row reads its order and destinations from `socialLinks.ts`; serving the initial
 text sends nothing.

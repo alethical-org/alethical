@@ -8,7 +8,7 @@
     ".python-version",
     "alembic.ini",
     "alethical/**",
-    "docs/**",
+    "docs/operations/repeat-failure-cases.json",
     "justfile",
     "lint-staged.config.mjs",
     "package.json",

@@ -952,6 +952,68 @@ rarely-visited page; their statement counts and plans are the subject of "What a
 answer spends its time on" below, and a committee's payment pages now carry the day-long money
 window ("How long a nearby cache holds a public read" above).
 
+## The homepage hero holds still from its first paint, 22 October 2026
+
+**On the signed-out homepage nothing above the cards moves between the first paint and the
+finished page, at any width.** The hero text is centred beside the **Follow the money** card on
+a computer, so anything that changes that card's height moves the whole hero, and the text the
+server sends first was not drawn in the homepage's layout at all. Measured on the live site
+(release e14f1fc4), Chromium, 900px tall, by reading the hero eyebrow's position on every frame:
+
+| What moved it | 1280px | 900px | 390px |
+|---|---:|---:|---:|
+| Served text replaced by the app: hero eyebrow | 33px down | 27px up | 69px up, 4px across |
+| Served text replaced by the app: top bar links (every page) | 30 to 48px across | menu button added | menu button added |
+| Filer count arriving 2 lines tall under a 1-line loading bar: card height | 33px | 7px | 33px |
+| Card eyebrow swapping from Courier New to JetBrains Mono: card height | 2px | 2px | 3px |
+| Libre Franklin arriving after the first paint (2 of 6 cold loads): hero eyebrow | 17.8px | 0 | 0 (introduction 31.5px taller) |
+
+The browser's layout-shift score saw only the last 2 (0.0116 at 1280px): **it scores an element
+that is replaced, rather than moved, as 0**, so the largest jump never counted. A frame-by-frame
+position trace is the measure for a served-text handover.
+
+The rules that follow:
+
+- **The served homepage is drawn in the app's layout and sizes at every band**
+  (`renderHomeSnapshot` in `apps/frontend/src/lib/pageSnapshot.ts`, styles under
+  `.page-snapshot-home` in `apps/frontend/public/index.html`): the hero heading's size follows the
+  same width formula, the money card shows the same loading state the app's first frame shows,
+  and the social row is the same empty box the app fills about 50 ms later. A change to the
+  signed-out hero, money card or the 2 cards after it changes both.
+- **The shared served top bar is the app's `TopNav` at each band**: logo size, link colour and
+  menu carets on computer, the outlined **Sign in**, and the menu button on tablet and phone. It
+  is 83px tall on computer and tablet and 78px on phone, as the app's is. Candidate screens keep
+  their own spacing and the compact green **Sign in** below computer width
+  (`navigation: 'candidate'` on their snapshots). The bands switch at the app's own edges,
+  below 768px and below 1100px, fractional widths included.
+- **A loading placeholder takes the height of what replaces it.** The count's grey bar sits over
+  an invisible, screen-reader-hidden copy of the line with 12 no-break spaces where the number
+  goes, so no number is printed before it is read.
+- **Text in a font that is not preloaded states its line height.** JetBrains Mono is not
+  preloaded; with a stated line height its stand-in takes the same height.
+- **Libre Franklin has a width-matched stand-in for the visits where it still arrives late**
+  (`'Libre Franklin Fallback'` in `apps/frontend/public/index.html` and the type stacks in
+  `apps/frontend/src/theme/tokens.ts`; the reasons and limits are in
+  `docs/architecture/page-metadata-for-search-and-sharing-decisions.md` §24 (the served text's
+  own typeface)). Measured on the homepage with the font held back, at every 4px from 320 to
+  1920px: something moved at 37 widths against 120 with Helvetica, and the hero itself at 6 of
+  206 computer widths (1104, 1184, 1296, 1300, 1532 and 1536px) against 32. The served count
+  line holds its number's width with a fixed space, so it breaks where the app's does in either
+  font.
+- **On an event page the saved reading position waits for the app's header**
+  (`apps/frontend/src/screens/redesign/EventScreen.tsx`). The app empties the served header
+  before drawing its own, and a position saved in between is short by the header's height.
+
+The browser check `apps/frontend/e2e/home-hero-still.spec.ts` runs in the static-build list on
+every pull request. It holds back the app's code, the count, Libre Franklin and JetBrains Mono so each arrives
+after the first paint, and fails if the top bar, the hero or the money card moves more than 1px.
+Before release, every text above the candidate section sat within 1px of where the app draws it
+at 13 widths from 320 to 1920px.
+
+**One limit:** the candidate section below the 2 cards keeps a plain link to `/candidates`,
+because its address form only works once the app runs. On a computer window taller than about
+1,180px its heading still moves when the app draws the form.
+
 ## Every page's first download loses the code only a few screens use, 18 September 2026
 
 **A module a startup file imports 1 name from travels whole in every reader's first

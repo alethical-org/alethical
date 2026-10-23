@@ -111,8 +111,10 @@ newly visible address instead of selecting an unrelated location.
 
 - Include a house number and street name. A city or ZIP code alone is not enough
   because a city or ZIP can cross district lines.
-- Suggestions are Minnesota-only, so they do not need `MN`. Include `MN` for a full
-  manual search, especially when the city name also exists in another state.
+- Suggestions are Minnesota-only, so they do not need `MN`. A full manual search
+  needs a street, city and ZIP; `MN` before the ZIP is optional. Without `MN`, the
+  backup Minnesota address list reads a 55xxx or 56xxx ZIP as Minnesota, and another
+  state's code before the ZIP is never read as Minnesota.
 - Commas, periods, repeated spaces, and common street abbreviations do not have to be
   perfect. `4255 215th St E Farmington MN 55024` and
   `4255 215th St E, Farmington, MN 55024` are treated as the same address.
@@ -245,8 +247,8 @@ number, but it does not show a member of Congress.
 ## 5. What the messages mean
 
 - **No match for that address:** The public address sources could not find 1 safe
-  Minnesota match. Check the house number and street name, include `MN`, and try the
-  full city and ZIP.
+  Minnesota match. Check the house number and street name, and try the full city and
+  ZIP.
 - **We couldn’t safely identify your districts from this address:** Minnesota's
   current records give this address points in different districts, or a point on a
   district border, so Alethical will not guess. It says **Check your full street

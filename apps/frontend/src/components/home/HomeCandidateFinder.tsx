@@ -174,7 +174,7 @@ export function HomeCandidateFinder({
             autoComplete="street-address"
             enterKeyHint="search"
             rows={1}
-            placeholder="Street address, city, MN ZIP"
+            placeholder="Street address, city, ZIP"
             // Browser autofill can arrive without an input event. Let the field
             // retain that text across unrelated parent renders until submission.
             defaultValue=""

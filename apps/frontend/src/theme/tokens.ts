@@ -245,9 +245,9 @@ export const theme = {
     circle: '50%',
   },
   typography: {
-    title: webFont("'Libre Franklin', Helvetica, Arial, sans-serif"),
-    body: webFont("'Libre Franklin', Helvetica, Arial, sans-serif"),
-    ui: webFont("'Libre Franklin', Helvetica, Arial, sans-serif"),
+    title: webFont("'Libre Franklin', 'Libre Franklin Fallback', Helvetica, Arial, sans-serif"),
+    body: webFont("'Libre Franklin', 'Libre Franklin Fallback', Helvetica, Arial, sans-serif"),
+    ui: webFont("'Libre Franklin', 'Libre Franklin Fallback', Helvetica, Arial, sans-serif"),
     mono: webFont("'JetBrains Mono', 'Courier New', monospace"),
     // Brand wordmark (logo lockup) only
     wordmark: webFont("'Space Grotesk', 'Libre Franklin', Helvetica, Arial, sans-serif"),

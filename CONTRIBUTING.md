@@ -176,6 +176,13 @@ owns the server-identity check, cleanup, and safety limits.
 
 The test runner selects its verified address before importing test modules, so
 application connections, migrations, and seeding use the same temporary server.
+
+GitHub's backend job runs the suite on 6 parallel workers (`pytest-xdist`), each with
+its own copy of the job database (`alethical_gw0` to `alethical_gw5`), made and
+migrated by `scripts/repeat_failure_runs.py run --workers 6` before pytest starts.
+Parallel workers are refused outside GitHub; run locally without `-n`. A test whose
+name holds a random value breaks parallel workers, which must all collect identical
+names, so parametrized tests give fixed `ids`.
 It does not delete databases based on another clone's working-copy list. Existing
 development and old test databases are left alone. Every run pays for fresh
 migrations and sample data instead of reusing an earlier test database.
@@ -208,7 +215,8 @@ remains separate: agent-driven user stories and Playwright checks in
 `apps/frontend/e2e/` (`just e2e`, Chrome, Firefox, and Safari), owned by the
 [`browser-user-test` skill](.claude/skills/browser-user-test/SKILL.md).
 Those broader browser stories run on demand. The focused public reader subset
-runs in the required frontend CI job against the built website with fixed public
+runs in the `frontend-browser-reader` CI job (part of the required `frontend` check) against
+the built website with fixed public
 records, and against the live website after main releases.
 The same CI job exercises `/services` printing, including generated first-response
 HTML with JavaScript disabled, and retains the resulting Letter and A4 PDFs.
@@ -276,6 +284,7 @@ On every PR (`.github/workflows/ci.yml`):
 
 - **Failure-prevention evidence** (always): history-tool tests, retained source/test references, named-result checker tests, and native process-cleanup tests run without browser or paid-service calls. When the backend suite runs, its captured test results must include every registered money-prevention case and match the exact tested code. Full address-recovery browser journeys remain on demand.
 - **Working-folder safety** (always): `python3 -m unittest discover -s scripts/tests -p 'test_worktree_*.py'` exercises backup, cleanup, recovery, and installation in disposable folders, without production data or network services.
+- **Docs-tree tests** (always): the tests that read the whole docs tree (`scripts/tests/docs_tree`, such as the describes-declaration and quoted-claim checks) run in the `changes` job without a database, so a docs-only change does not run the backend suite. Their results must be exactly the collected tests, each passed.
 - **Backend** (when backend paths change): `ruff check`, `ty check`, and `pytest` against a real Postgres
 - **Frontend** (when frontend paths change): `tsc --noEmit`, `prettier --check`, the Vitest suite, and a production build
 - **Doc references** (always, no path filter): `scripts/check_doc_references.py` confirms every `docs/...` path and every relative link inside `docs/` points at a real file. This one runs on every PR on purpose — a broken doc pointer is usually introduced by a docs-only or rules-only change, which the two jobs above skip. You can run it locally any time with `python scripts/check_doc_references.py`.
@@ -334,6 +343,10 @@ and ignore that schedule entirely.
   Scanner failures and incomplete reports fail the check. The narrow, time-limited
   exceptions are recorded in
   [`docs/operations/technology-health.md`](docs/operations/technology-health.md#recorded-security-exceptions).
+- The recorded Pillow exception requires fresh production evidence. Local checks need
+  `gh` signed in to `github.com`, with permission to start this repository's workflows
+  and read their results. Production access remains in the trusted main-only workflow;
+  no Railway credential is needed locally. Missing access or evidence blocks release.
 - Run `python scripts/check_technology_health.py --security-only` for the same check
   locally, with the project's saved uv and pnpm versions available.
 

@@ -130,6 +130,46 @@ function FailureEmailLink() {
   );
 }
 
+// An invisible copy of the first field's label and its gap. It sits above the
+// side column so the first card's top lines up with the first field box's top,
+// and follows the label if its size or wording changes.
+function FirstLabelSpacer() {
+  const field = CONTACT_FIELD_ORDER[0];
+  const { label, optional } = FIELD_LABELS[field];
+  if (Platform.OS === 'web') {
+    return createElement(
+      'div',
+      {
+        'aria-hidden': true,
+        'data-testid': 'contact-side-spacer',
+        style: {
+          ...StyleSheet.flatten(styles.fieldLabel),
+          ...StyleSheet.flatten(styles.webFieldLabel),
+          visibility: 'hidden',
+        } as any,
+      },
+      label,
+      optional
+        ? createElement(
+            'span',
+            { style: StyleSheet.flatten(styles.optional) as any },
+            ' (OPTIONAL)',
+          )
+        : null,
+    );
+  }
+  return (
+    <Text
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={[styles.fieldLabel, styles.hiddenSpacer]}
+    >
+      {label}
+      {optional ? <Text style={styles.optional}> (OPTIONAL)</Text> : null}
+    </Text>
+  );
+}
+
 function ContactFieldInput({
   field,
   value,
@@ -487,12 +527,13 @@ export function ContactUsScreen({ navigation, route }: RootScreenProps<'ContactU
             </View>
 
             <View style={styles.sideColumn}>
+              {!isMobile ? <FirstLabelSpacer /> : null}
               <View style={[styles.infoCard, isMobile && styles.infoCardMobile]}>
                 <Text style={styles.cardEyebrow}>EMAIL US</Text>
                 <ContactEmailLink />
               </View>
               {!isMobile ? (
-                <View style={styles.infoCard}>
+                <View style={[styles.infoCard, styles.followCard]}>
                   <Text style={styles.cardEyebrow}>FOLLOW ALETHICAL</Text>
                   <View style={styles.socialRow}>
                     {CONTACT_SOCIALS.map((social) => (
@@ -516,6 +557,11 @@ export function ContactUsScreen({ navigation, route }: RootScreenProps<'ContactU
     </PageBackground>
   );
 }
+
+const SIDE_COLUMN_WIDTH = 372;
+const CARD_PADDING = 24;
+const FOLLOW_COLUMNS = 4;
+const FOLLOW_CIRCLE = 46;
 
 const styles = StyleSheet.create({
   page: { flexGrow: 1 },
@@ -699,14 +745,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: t.fontWeights.bold,
   },
-  sideColumn: { width: 372, maxWidth: '100%', gap: 14 },
+  sideColumn: { width: SIDE_COLUMN_WIDTH, maxWidth: '100%' },
+  hiddenSpacer: { opacity: 0 },
+  followCard: { marginTop: 24 },
   infoCard: {
     width: '100%',
     backgroundColor: t.colors.surfaces.s100,
     borderWidth: 1,
     borderColor: t.colors.borders.base,
     borderRadius: 16,
-    padding: 24,
+    padding: CARD_PADDING,
   },
   infoCardMobile: {
     backgroundColor: 'transparent',
@@ -735,9 +783,16 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.semibold,
   },
   emailLinkTextActive: { textDecorationLine: 'underline' },
+  // 4 circles on the first line and 3 on the second, columns spread edge to edge.
   socialRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    // Rounded down so sub-pixel sums never push the 4th circle onto line 2.
+    columnGap: Math.floor(
+      (SIDE_COLUMN_WIDTH - 2 * CARD_PADDING - FOLLOW_COLUMNS * FOLLOW_CIRCLE) /
+        (FOLLOW_COLUMNS - 1),
+    ),
+    rowGap: 20,
     marginTop: 20,
   },
 });

@@ -166,9 +166,12 @@ def test_changed_identity_keeps_original_url_and_does_not_transfer_links(
 
 def test_ticket_only_connects_individually_reviewed_members(public_db):
     db = public_db
+    # A fresh id: other test files save their own candidate under cid and
+    # commit it, so a shared id makes this test depend on which ran first.
+    cid = uuid4().hex + uuid4().hex
     profile = {
         "candidate": {
-            "id": "a" * 64,
+            "id": cid,
             "name": "Alex Same and Pat Same",
             "party": "NONPARTISAN",
         },
@@ -194,13 +197,13 @@ def test_ticket_only_connects_individually_reviewed_members(public_db):
         db.add(
             PersonCandidacy(
                 person_id=pid,
-                candidate_id="a" * 64,
+                candidate_id=cid,
                 identity=records.candidate_identity(profile),
                 evidence={"review": "each member"},
             )
         )
     db.flush()
-    result = load_profile(db, "a" * 64, now=NOW)
+    result = load_profile(db, cid, now=NOW)
     assert result["isJointTicket"] is True
     assert result["candidate"]["name"] == "Alex Same and Pat Same"
     assert {x["id"] for x in result["people"]} == {str(x) for x in ids[:2]}
@@ -214,7 +217,7 @@ def test_ticket_only_connects_individually_reviewed_members(public_db):
                     "entries": [
                         {
                             "kind": "ticket",
-                            "id": "a" * 64,
+                            "id": cid,
                             "members": [profile["candidate"]],
                         }
                     ]
@@ -229,7 +232,7 @@ def test_ticket_only_connects_individually_reviewed_members(public_db):
     assert records.load_person(db, str(ids[2]), now=NOW)["elections"] == []
     assert (
         records.load_person(db, str(ids[0]), now=NOW)["elections"][0]["profileUrl"]
-        == "/candidates/" + "a" * 64
+        == "/candidates/" + cid
     )
 
 

@@ -1,4 +1,4 @@
-<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs apps/frontend/scripts/check-braces-security.mjs apps/frontend/scripts/check-source-map-security.mjs apps/frontend/scripts/test-source-map-security.mjs apps/frontend/scripts/test-compression-security.mjs patches/metro@0.84.4.patch patches/node-forge@1.4.0.patch patches/braces@3.0.3.patch pnpm-lock.yaml uv.lock alethical/tests/test_multidict_security.py -->
+<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py scripts/check_pillow_advisory.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs apps/frontend/scripts/check-braces-security.mjs apps/frontend/scripts/check-source-map-security.mjs apps/frontend/scripts/test-source-map-security.mjs apps/frontend/scripts/test-compression-security.mjs patches/metro@0.84.4.patch patches/node-forge@1.4.0.patch patches/braces@3.0.3.patch pnpm-lock.yaml uv.lock alethical/tests/test_multidict_security.py -->
 <!-- last-major-tool-review: 2026-08-15 -->
 
 # Keeping every tool supported and useful
@@ -98,7 +98,96 @@ The monthly job reports newer major versions as candidates. It fails only when t
 The monthly check starts failing 180 days before one of these dates. That leaves time
 to test and release a replacement before support ends.
 
+## Warnings outside the scanner feed and unfixed warnings
+
+A known advisory that the scanner's feed does not carry, or that has no fixed
+version, holds only changes that touch the affected package or its callers;
+documentation and unrelated code release normally. The advisory has its own issue
+with an owner and a free weekly GitHub Actions recheck for a fixed version.
+
+This scope rule does not waive a scanner finding. Every reported finding still
+blocks release unless its exact conditions meet a recorded exception or installed
+repair below. Missing evidence and failed checks never count as an exception.
+An explicitly scoped release hold remains until its stated conditions are met.
+
+The [Pillow Arrow advisory](https://github.com/python-pillow/Pillow/security/advisories/GHSA-654x-cwwv-5j9c)
+is tracked in [issue 2643](https://github.com/alethical-org/alethical/issues/2643).
+The existing Monday technology-health workflow runs a separate free job that reads
+the upstream repository's advisory API through `scripts/check_pillow_advisory.py`.
+It runs independently of registry scan failures and timeouts. A published fix, changed advisory identity or affected range, missing fix
+field, unreadable response or failed request fails the recheck. This upstream
+check grants no runtime exception and does not suppress any scanner finding.
+
+The separate `pillow-runtime.yml` workflow reads production through a dedicated
+`pillow-security-runtime` GitHub environment restricted to the `main` branch.
+It always runs trusted main code, never code, commands, dependencies or artifacts
+from a pull request. Its production-scoped Railway token is available only to the
+fixed read step. Railway does not offer a read-only project token; the job uses it
+only to read configuration and run a bounded package-and-source probe.
+
+The probe reads variable names with values hidden, checks every active production
+instance, and requires unchanged deployment identities before and after the check.
+The saved evidence contains only security booleans, reviewed fingerprints, package
+version, deployment identities and timestamps. A separate binding ties it to the
+requesting GitHub run and attempt, or to a unique local request. Missing evidence,
+changed commands, missing instances and provider failures fail the job. This
+workflow supplies evidence; it does not itself grant an exception.
+
 ## Recorded security exceptions
+
+### Pillow: reviewed production path outside the Arrow flaw
+
+[GHSA-654x-cwwv-5j9c](https://github.com/python-pillow/Pillow/security/advisories/GHSA-654x-cwwv-5j9c)
+(CVE-2026-114501) covers Pillow 11.2.1 through 13.0.0. Upstream reports no
+fixed release. [Issue 2643](https://github.com/alethical-org/alethical/issues/2643)
+holds the review, owned by Eugene. The exception covers only Pillow **13.0.0** on
+the direct `alethical -> pillow` path in `uv.lock`, with the existing
+`pillow>=13.0.0` requirement. It changes no Pillow code or package metadata.
+
+The flaw exposes stale memory when an image is exported through Arrow under a
+non-default alignment setting. The upstream reproduction does not require
+`pyarrow`, so its absence alone does not establish safety. Alethical's production
+renderer uses `Image.frombytes`, rectangle and text drawing, and `tobytes`, with
+no Arrow export. The source guard pins that renderer, its direct test imports,
+and the 2 service functions that call it.
+
+The [trusted production read](https://github.com/alethical-org/alethical/actions/runs/39888995284)
+verified no `PILLOW_ALIGNMENT` in saved service or shared
+variables or the actual running app's environment, no installed or importable
+`pyarrow`, Pillow 13.0.0, and matching deployed source. It identified the running
+app's interpreter, working directory and relevant Python environment, covered
+every active instance, and required stable deployment identities throughout the
+read. Each release obtains fresh evidence from the trusted main-only workflow;
+a saved successful check cannot clear a later request.
+
+The checked fingerprints are:
+
+| Boundary | SHA-256 |
+| --- | --- |
+| Canonical complete Pillow lock entry, including distribution hashes | `2694a2f9055a37e8285bf6e1af4ff7fb575e01a541ca13be29d2b1a7bac45f59` |
+| `alethical/pipeline/tv_ad_redaction.py` | `33a2f50db0ddd2bda981a131a8e6d4d2c27e9b0ebfcd04f03d10201b32533e92` |
+| `alethical/tests/test_tv_ad_review.py` | `ef3c6e5e90db7e86289d32ddb82551fe097b681a51d5f315aa643d55e2734f44` |
+| Canonical syntax of `prepare_copy` in `alethical/api/services/tv_ad_review.py` | `f8c331b1f9f341588fe4425f70e2ef8cbaed1a741931476fb45f1ae0248fc991` |
+| Canonical syntax of `render_original_page` in that service | `5d96d518905a7c362c369b58086ded8afcee8f3b0ca8e271c4c049c3b89a7790` |
+
+All tracked Python files, including root-level and documentation tools, remain
+subject to the source scan. This finite source guard detects ordinary imports,
+reflection, Arrow access and alignment changes; it is not a proof against
+arbitrary generated, obfuscated, native or dependency code.
+
+`scripts/check_technology_health.py --security-only`, used by the local push hook
+and required `changes` job, calls `scripts/check_pillow_exception.py`. It verifies
+candidate source, the direct upstream advisory and production proof bound to the
+current GitHub run and attempt or unique local request. Missing or stale evidence,
+provider failures, changed variables, packages, callers, deployment commands or
+advisory identity fail the check. A fixed release ends this exception and requires
+the upgrade. The separate free weekly upstream job continues after the review issue
+closes.
+
+If the registry feed adds this finding, only the exact advisory or its known CVE
+alias for Pillow 13.0.0 with an explicitly empty fixed-version list can meet the
+exception, and only after all checks pass. The raw audit report remains visible.
+Other findings, new aliases and missing or changed fix data still block release.
 
 The website build tools use node-forge 1.4.0 with the exact nested signature
 validation repair from [upstream pull request 1152](https://github.com/digitalbazaar/forge/pull/1152)

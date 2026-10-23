@@ -10,6 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
 
 env:
@@ -46,13 +47,29 @@ jobs:
           node-version: "22"
 
       - name: Review versions, support, and known security problems
+        env:
+          GH_TOKEN: ${{ github.token }}
         if: github.event.schedule != '41 13 * * 1'
         run: >
           python scripts/check_technology_health.py --online
           --report "$GITHUB_STEP_SUMMARY"
 
       - name: Review known security problems between releases
+        env:
+          GH_TOKEN: ${{ github.token }}
         if: github.event.schedule == '41 13 * * 1'
         run: >
           python scripts/check_technology_health.py --security-only
+          --report "$GITHUB_STEP_SUMMARY"
+
+  pillow-upstream:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Recheck the Pillow advisory directly for a fixed release
+        run: >
+          python scripts/check_pillow_advisory.py
           --report "$GITHUB_STEP_SUMMARY"

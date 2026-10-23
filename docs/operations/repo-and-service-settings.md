@@ -59,8 +59,10 @@ Enabled 2026-07-28.
 | Force pushes / branch deletion | **Blocked** | Prevents rewriting or deleting the protected branch. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Merge queue | **On** (added 2026-08-17) | Stops the "green alone, red together" failure: 2 pull requests that each pass CI on their own can still break `main` once both land, because neither was tested against the other ([#990](https://github.com/alethical-org/alethical/issues/990)/[#1020](https://github.com/alethical-org/alethical/issues/1020), [#662](https://github.com/alethical-org/alethical/issues/662)/[#663](https://github.com/alethical-org/alethical/issues/663)). Squash merge, 1-5 pull requests merged per group, no batching wait, 60-minute check timeout. See `.claude/rules/workflow.md` rule 10. | Unchecked: this setting lives on the repository's rule set, which `scripts/check_hosted_service_settings.py` does not read yet (it reads the older branch-protection API only). |
 
-The required `backend` and `frontend` jobs report `skipped` on unrelated changes, which
-GitHub accepts as satisfied. Keep path filters inside jobs, not on the workflow trigger,
+The required `backend` check reports `skipped` on unrelated changes, which GitHub
+accepts as satisfied; the required `frontend` check is a small job that passes once its
+3 jobs (`frontend-checks`, `frontend-browser-reader`, `frontend-browser-specs`) all passed, or all were skipped
+because the path selection said the frontend was not needed. Keep path filters inside jobs, not on the workflow trigger,
 so all 4 required checks report for pull requests and merge groups. Editing a pull
 request description refreshes `description-checks`, not the saved code-test results.
 
@@ -98,6 +100,7 @@ Set under **Settings** for the `alethical-web` project. Verified 2026-08-15.
 | Root Directory | `.` | The build, server functions, and `vercel.json` start at the repository root. | Live |
 | Git repository | `alethical-org/alethical`, production branch `main`, automatic releases **on** | Vercel's Git connection is the normal web release path. | Live |
 | Ignored Build Step | The `ignoreCommand` in `vercel.json` | Documentation-only and backend-only changes stop before a paid build. | Tracked file: `vercel.json` |
+| Branches that never deploy | `git.deploymentEnabled` in `vercel.json`: `gh-readonly-queue/**` off | The merge queue's temporary branches hold the same commit main receives seconds later, so their preview build is paid for and never used. | Tracked file: `vercel.json` |
 | Deployment Protection | `all_except_custom_domains` | Preview addresses require Vercel login while custom production domains stay public. | Live |
 | Protection Bypass for Automation | **On** | Signed-in checks can reach protected previews through `VERCEL_AUTOMATION_BYPASS_SECRET`. | Live |
 | Production domain | `www.alethical.com` | Names the public web address. | Live |

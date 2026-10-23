@@ -126,6 +126,7 @@ export function candidateFeaturesPath(candidateId?: string | null) {
 /** The public first response: the same words, with no candidate name or claim action. */
 export function candidateFeaturesPageSnapshot(): PageSnapshot {
   return {
+    navigation: 'candidate',
     eyebrow: CANDIDATE_FEATURES_COPY.label,
     heading: CANDIDATE_FEATURES_COPY.heading,
     subheading: CANDIDATE_FEATURES_COPY.subheading,

@@ -2443,13 +2443,13 @@ describe('rendering', () => {
     expect(snapshot.links).toEqual([]);
     expect(snapshot.sections?.map((section) => section.heading)).toEqual([
       'Follow the money',
-      'Bills and votes',
+      'Legislature',
       'Campaign services',
       'Who’s running where you live?',
     ]);
     const html = renderPageSnapshot(snapshot);
     expect(html).toContain('Search the money records');
-    expect(html).toContain('Read plain-language bill summaries, see where they stand');
+    expect(html).toContain('Bill summaries and progress, legislator profiles and votes');
     expect(html).toContain('href="/money"');
     expect(html).toContain('href="/bills"');
     expect(html).toContain('href="/services"');
@@ -2462,7 +2462,7 @@ describe('rendering', () => {
     expect(html).not.toContain('<form');
     // These remain available in shared navigation, but are not extra Home body links.
     const body = html.slice(html.indexOf('<main'));
-    expect(body).not.toContain('href="/legislators"');
+    expect(body).toContain('href="/legislators"');
     expect(body).not.toContain('href="/find-my-legislator"');
   });
 

@@ -1,5 +1,5 @@
 name: Bound browser dependency downloads
-description: Apply and check GitHub's x64 apt download limits before installing Chromium
+description: Apply and check GitHub's x64 apt download limits, and keep downloaded packages in a cacheable folder, before installing system packages
 runs:
   using: composite
   steps:
@@ -12,13 +12,21 @@ runs:
         fi
         # Match the x64 runner-image settings without changing mirrors or trust.
         # https://github.com/actions/runner-images/blob/c03600ca998467081ccec9bb9dbf5de6b68e862a/images/ubuntu/scripts/build/configure-apt.sh
-        sudo tee /etc/apt/apt.conf.d/zzzz-alethical-acquire > /dev/null <<'APT'
+        # Keep downloaded packages in a folder the job caches between runs (see
+        # "Restore Chromium and its system packages" in ci.yml): Ubuntu's package
+        # mirror has stalled at tens of kilobytes per second, and a cached package
+        # needs no download at all.
+        mkdir -p "$HOME/.cache/browser-apt-archives/partial"
+        sudo tee /etc/apt/apt.conf.d/zzzz-alethical-acquire > /dev/null <<APT
         Acquire::Retries "1";
         Acquire::http::Timeout "15";
         Acquire::https::Timeout "15";
+        Dir::Cache::Archives "$HOME/.cache/browser-apt-archives/";
+        APT::Keep-Downloaded-Packages "true";
         APT
         # Read merged settings: a later override must fail, not silently undo this.
-        apt-config dump Acquire::Retries Acquire::http::Timeout Acquire::https::Timeout
+        apt-config dump Acquire::Retries Acquire::http::Timeout Acquire::https::Timeout Dir::Cache::Archives
         test "$(apt-config shell value Acquire::Retries)" = "value='1'"
         test "$(apt-config shell value Acquire::http::Timeout)" = "value='15'"
         test "$(apt-config shell value Acquire::https::Timeout)" = "value='15'"
+        test "$(apt-config shell value Dir::Cache::Archives)" = "value='$HOME/.cache/browser-apt-archives/'"

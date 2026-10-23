@@ -105,7 +105,10 @@ check machinery selects both areas. Files outside both groups select neither.
 
 Every code upload also runs the same quick document checks as GitHub: broken
 links to documents, missing entries in document indexes, and outdated quoted
-claims. These checks run even when neither app suite is selected.
+claims. These checks run even when neither app suite is selected. So do the tests
+that read the whole docs tree (`scripts/tests/docs_tree`); they need no database,
+and GitHub runs them in its `changes` job on every change, so a docs-only change
+does not start the backend suite.
 
 Before document checks or app suites, every upload runs GitHub's current security
 scan ([`scripts/check_technology_health.py --security-only`](../../scripts/check_technology_health.py))
@@ -116,6 +119,15 @@ feed, failed scanner, incomplete inventory, or unreviewed finding stops the uplo
 before the long tests start. The same exact installed-repair checks and narrow
 exceptions as GitHub apply; [technology health](technology-health.md#recorded-security-exceptions)
 owns that policy.
+
+The Pillow exception also needs a fresh production result from the trusted
+main-only GitHub workflow. Local pushes require the GitHub CLI (`gh`) signed in
+to `github.com` with access to start repository workflows and read their results.
+The checker uses that saved sign-in, requests a unique check on `main`, and waits
+for its matching result. Missing access or failed production evidence stops the
+push. No Railway credential belongs in the local checkout or upload environment.
+GitHub checks receive only read access to the result; the production token stays
+in the separate trusted workflow's main-only environment.
 
 The scan installs the frozen JavaScript dependencies once, without package scripts.
 The frontend suite reuses that installation, while retaining its separate build-tool

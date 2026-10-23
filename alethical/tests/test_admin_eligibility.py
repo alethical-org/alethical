@@ -169,7 +169,12 @@ def test_missing_or_invalid_configuration_fails_closed_without_read(
     db.execute.assert_not_called()
 
 
-@pytest.mark.parametrize("subject", [None, "unknown", str(uuid4())])
+# Fixed ids: a random value in a test's name changes it on every collection, which
+# breaks parallel workers (each must collect identical names) and the CI check that
+# every collected test has a result.
+@pytest.mark.parametrize(
+    "subject", [None, "unknown", str(uuid4())], ids=["none", "unknown", "random-uuid"]
+)
 def test_unknown_identity_is_not_eligible(monkeypatch, subject):
     monkeypatch.setenv("ALETHICAL_ADMIN_ACCOUNT_IDS", SUBJECT)
     db = Mock(spec=Session)
