@@ -118,6 +118,21 @@ It runs independently of registry scan failures and timeouts. A published fix, c
 field, unreadable response or failed request fails the recheck. This upstream
 check grants no runtime exception and does not suppress any scanner finding.
 
+The separate `pillow-runtime.yml` workflow reads production through a dedicated
+`pillow-security-runtime` GitHub environment restricted to the `main` branch.
+It always runs trusted main code, never code, commands, dependencies or artifacts
+from a pull request. Its production-scoped Railway token is available only to the
+fixed read step. Railway does not offer a read-only project token; the job uses it
+only to read configuration and run a bounded package-and-source probe.
+
+The probe reads variable names with values hidden, checks every active production
+instance, and requires unchanged deployment identities before and after the check.
+The saved evidence contains only security booleans, reviewed fingerprints, package
+version, deployment identities and timestamps. A separate binding ties it to the
+requesting GitHub run and attempt, or to a unique local request. Missing evidence,
+changed commands, missing instances and provider failures fail the job. This
+workflow supplies evidence; it does not itself grant an exception.
+
 ## Recorded security exceptions
 
 The website build tools use node-forge 1.4.0 with the exact nested signature
