@@ -1,6 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
+  "git": {
+    "deploymentEnabled": {
+      "gh-readonly-queue/**": false
+    }
+  },
   "ignoreCommand": "bash scripts/vercel-ignore-build.sh -- api apps/frontend patches package.json pnpm-lock.yaml pnpm-workspace.yaml vercel.json",
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm --dir apps/frontend run build",
