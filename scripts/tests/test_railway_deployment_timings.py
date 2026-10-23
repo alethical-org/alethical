@@ -3,7 +3,7 @@ import json
 import re
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from scripts import railway_deployment_timings as timing
 
@@ -212,6 +212,20 @@ class RailwayTimingTests(unittest.TestCase):
         ):
             with self.assertRaisesRegex(timing.TimingError, "Railway request failed"):
                 timing.API("test-token")(timing.TOKEN_QUERY, {})
+
+    def test_request_identifies_the_reader_to_railway(self):
+        response = MagicMock()
+        response.__enter__.return_value = response
+        response.read.return_value = b'{"data": {"projectToken": {}}}'
+        with patch.object(
+            timing.urllib.request.OpenerDirector, "open", return_value=response
+        ) as opened:
+            timing.API("test-token")(timing.TOKEN_QUERY, {})
+        request = opened.call_args.args[0]
+        self.assertEqual(
+            request.get_header("User-agent"), "alethical-railway-timings/1"
+        )
+        self.assertEqual(request.get_header("Project-access-token"), "test-token")
 
 
 if __name__ == "__main__":

@@ -90,6 +90,7 @@ class API:
             headers={
                 "Content-Type": "application/json",
                 "Project-Access-Token": self.token,
+                "User-Agent": "alethical-railway-timings/1",
             },
             method="POST",
         )
@@ -101,6 +102,10 @@ class API:
             if len(raw) > 2_000_000:
                 raise TimingError("Railway response exceeded the read limit")
             return response_data(json.loads(raw))
+        except urllib.error.HTTPError as exc:
+            raise TimingError(
+                f"Railway request failed (HTTP {exc.code}); response text withheld; retry later"
+            ) from None
         except (urllib.error.URLError, TimeoutError, OSError, ValueError):
             raise TimingError(
                 "Railway request failed; response text withheld; retry later"
