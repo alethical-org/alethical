@@ -310,7 +310,17 @@ function AboutFactsSection({
               {...linkProps(ABOUT_FACTS_SERVICES_LINK.href, onServices)}
               style={styles.factLink}
             >
-              <LinkArrowLabel label={ABOUT_FACTS_SERVICES_LINK.label} style={styles.factLinkText} />
+              {(state) => (
+                <LinkArrowLabel
+                  label={ABOUT_FACTS_SERVICES_LINK.label}
+                  style={[
+                    styles.factLinkText,
+                    canHover &&
+                      Boolean('hovered' in state && state.hovered) &&
+                      styles.factLinkTextHovered,
+                  ]}
+                />
+              )}
             </Pressable>
           </View>
         </View>
@@ -335,7 +345,7 @@ function AboutFactsSection({
               {...linkProps(routePath.contactUs(), onContact)}
               style={(state) => [
                 styles.contactButton,
-                isMobile && styles.contactButtonMobile,
+                isMobile ? styles.contactButtonMobile : styles.factButton,
                 canHover &&
                   Boolean('hovered' in state && state.hovered) &&
                   styles.contactButtonHovered,
@@ -1046,7 +1056,14 @@ const styles = StyleSheet.create({
   factEmail: { marginBottom: 8 },
   factContactTablet: { flexDirection: 'row', alignItems: 'center', gap: 20 },
   factLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
-  factLinkText: { fontFamily: t.typography.ui, fontSize: 15, fontWeight: t.fontWeights.bold },
+  factLinkText: {
+    fontFamily: t.typography.ui,
+    fontSize: 15,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.brand.deep,
+  },
+  factLinkTextHovered: { color: t.colors.brand.forest, textDecorationLine: 'underline' },
+  factButton: { alignSelf: 'flex-start' },
   emailLink: { color: t.colors.text.greenOnLight, fontWeight: t.fontWeights.bold },
   emailLinkHovered: { color: '#11832b', textDecorationLine: 'underline' },
 });
