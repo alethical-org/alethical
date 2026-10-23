@@ -10,6 +10,9 @@
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm --dir apps/frontend run build",
   "outputDirectory": "apps/frontend/dist",
+  "crons": [
+    { "path": "/api/search-measurements", "schedule": "23 9 * * 1" }
+  ],
   "functions": {
     "api/search-measurements.ts": {
       "maxDuration": 180
