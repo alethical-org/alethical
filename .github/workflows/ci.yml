@@ -231,7 +231,7 @@ jobs:
       matrix:
         group: [1, 2]
     needs: select
-    if: ${{ false }} # Negative trial: required backend gate must fail
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.select.outputs.backend == 'true') }}
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: postgresql+psycopg://alethical:alethical@localhost:5432/alethical
