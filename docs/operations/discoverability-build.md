@@ -1,31 +1,32 @@
 # Discoverability build and remaining holds
 
-Owner: AEO workshop + socials. The agreed plan is being implemented; this record
-does not claim deployment or completed acceptance. The owner retains delivery and
-review. Routine choices and existing-account access are delegated; no repeated
-permission request is needed. Required host confirmations remain host boundaries.
+Owner: AEO workshop + socials. The build shipped in
+[PR 2693](https://github.com/alethical-org/alethical/pull/2693) and is live on
+www.alethical.com. Rows below state live results and the acceptance still open.
+Routine choices and existing-account access are delegated; required host
+confirmations remain host boundaries.
 Tracking: [discoverability delivery issue](https://github.com/alethical-org/alethical/issues/2686).
 
 ## Scope and current state
 
-| Item | Intended result | Current state and next acceptance |
+| Item | Intended result | Current state and remaining acceptance |
 | --- | --- | --- |
-| B1 | Private search baseline and discovery-gap diagnosis | Google export retained privately; incomplete period/row coverage preserved. Bing and dated indexing evidence still needed. All 26 bills absent from the summary-filtered directory lack returned summary data but have working public pages and official links. All 11 articles have internal links and sitemap entries. No count-equality or article-link repair is needed. |
-| B2 | Shared organization identity, article data and truthful dates | Implemented locally. Explicit Alethical authorship follows the approved no-byline rule; unknown attribution stays absent. Event description reuses approved replay wording. Focused checks and independent review pass; live release remains. |
-| B3 | Subject descriptions for research pieces | The long-form Money Only Goes One Way subject line is implemented with its original dates and unchanged share text. Exact proposals for the 5 Short posts remain private because their review fingerprints require genuine new review evidence; no guard or approval record changes. |
-| B4 | Provider receipts and authorized technical submissions | Receipts still needed. A receipt never proves indexing. No new account or outreach. |
-| B5 | Useful votes and actions in initial bill HTML | Implemented locally with shared data mapping and motion filter. Refresh failures retain last-loaded history with retry. Missing parties must not become Independent. Captured payload and local handler checks pass on varied bills. Rendered browser review and measured combined-cache propagation remain acceptance work. |
-| B6 | Consistent crawler preferences | Local robots changes retain search/user-question access and Google-Extended. Requires release and live response verification. |
-| B7 | Evidence-based diagnosis of 11 articles | Reachability reviewed; missing demand/indexing metrics remain unknown. Accuracy corrections are private proposals, not silent article rewrites. |
-| B8 | Curated questions and private weekly search collection | Private collection/storage/access tests implemented. Production credentials, migration and verified included capacity precede activation. |
-| B9 | Evidence rules and publishing checks in their owning guides | Shared evidence rules merged in [tool-settings PR 105](https://github.com/euglopi/tool-settings/pull/105). Project-specific guide coordination remains under B14. |
-| B10 | Private monthly report with honest coverage | Aggregate report and independent retention cleanup implemented. No crawler source is proven; missing coverage is not zero. Live activation and retained success receipt remain. |
-| B11 | Source-backed answer audit before/after | Private 12-question answer key prepared; engine runs not completed. Unavailable products stay unavailable. No paid API or recurring AI task. Repeat follows release and observed recrawl. |
-| B12 | AI referral counts by host | Existing Cloudflare schema, account access and exact host-only query verified. Private administrator reader implemented with bounded responses and explicit sampling/missing coverage. Focused tests and independent review pass; deployed access checks precede completion. No crawler, unique-person or engagement claim. |
+| B1 | Private search baseline and discovery-gap diagnosis | Google export, Bing export (keywords, page traffic, Copilot citation counts) and a dated Google indexing snapshot are retained privately; incomplete period and row coverage stays marked. All 26 bills absent from the summary-filtered directory lack returned summary data but have working public pages and official links. All 11 articles have internal links and sitemap entries. |
+| B2 | Shared organization identity, article data and truthful dates | Live. The About page serves Organization data; all 11 articles (6 research pieces, 5 guides) serve Article data with their publication date, naming Alethical as author where attribution is known and leaving it absent otherwise; the event page serves the approved replay description. |
+| B3 | Subject descriptions for research pieces | The Money Only Goes One Way subject line is live with its original dates and unchanged share text. The 5 Short posts stay on their current wording: their review fingerprints require genuine new review evidence, and no guard or approval record changes. |
+| B4 | Provider receipts and authorized technical submissions | Unfinished: Search Console and Bing Webmaster receipts for the changed pages. A receipt never proves indexing. No new account or outreach. |
+| B5 | Useful votes and actions in initial bill HTML | Live. The first response for HF 719 carries Senate 60–7 and House 122–11 final passage with procedural motions labelled separately; the loaded page refreshes from the data service with no failure notice. Refresh failures retain last-loaded history with retry. Unfinished: ingestion-to-visible propagation through both caches is not observed; a test stack has neither production cache, so it is measured at the next routine ingestion run. |
+| B6 | Consistent crawler preferences | Live robots rules allow search and user-question crawlers and Google-Extended, and disallow training-only crawlers. |
+| B7 | Evidence-based diagnosis of 11 articles | Reachability reviewed; missing demand and indexing metrics remain unknown. Accuracy corrections are private proposals, not silent article rewrites. |
+| B8 | Curated questions and private weekly search collection | Collection, storage and access are built and switched off. The live data service reports its database at migration 0071, which adds the collection table. Unfinished: activation needs the production writer credential and a measured database capacity figure, then 1 live collection and retention receipt before any schedule. |
+| B9 | Evidence rules and publishing checks in their owning guides | Shared evidence rules merged in [tool-settings PR 105](https://github.com/euglopi/tool-settings/pull/105). |
+| B10 | Private monthly report with honest coverage | Aggregate report and independent retention cleanup are built. No crawler source is proven; missing coverage is not zero. Unfinished: activation follows B8's first successful collection. |
+| B11 | Source-backed answer audit before and after | The pre-release audit is retained privately: 31 captured answers (ChatGPT 12, Perplexity 12, Gemini 7) with per-question accuracy and citation scores. 5 Gemini questions are unavailable behind an automated-traffic check that is not solved; Claude is unavailable because account-level preferences replace the answer. No paid API or recurring AI task. Accuracy is scored on required facts only, separately from whether Alethical appears. Unfinished: the repeat follows observed recrawl of the changed pages. |
+| B12 | AI referral counts by host | Live. Signed-out requests and invalid sessions are refused, responses are private and never cached. Unfinished: an authorized administrator read is not yet observed live. No crawler, unique-person or engagement claim. |
 | B13 | Consume separate security result | Security policy and runtime chain have a separate owner. This build does not duplicate the exception or bypass its guard. |
-| B14 | Project social guide and curated questions | The committed guide on `codex/social-video-guides` remains with its owner until security release. The owner accepted the separate curated-question patch. After the base guide lands and security clearance is recorded, compare the latest guide and integrate only that addition. |
-| B15 | Drawn and built About facts block | Owner is authorized to work directly with Design, review until agreed and build. Browser access is currently blocked; no drawing was sent or approved. |
-| B16 | Neutral directory-entry drafts | Private candidates prepared; eligibility and duplicate checks remain explicit. Nothing submitted. |
+| B14 | Project social guide and curated questions | Live in [social publishing](social-publishing.md) through [PR 2695](https://github.com/alethical-org/alethical/pull/2695). |
+| B15 | Drawn and built About facts block | Live. The section follows the approved Design drawing with its agreed copy changes, and the build is checked at the 3 layout bands with visible keyboard focus and 44-pixel targets. |
+| B16 | Neutral directory-entry drafts | Private candidates prepared. Named Wikidata searches find no matching item; independent coverage is unverified. Nothing submitted. |
 
 ## Existing holds
 
@@ -59,5 +60,5 @@ Owning requirements: [page metadata decisions](../architecture/page-metadata-for
 [bill detail](../product-onboarding/bill-detail-guide.md),
 [private search upkeep](public-search-upkeep.md), and
 [publishing workflow](blog-publishing.md). Independent reviews cover missing uses,
-privacy, failure recovery and prevention before release. Live checks and final
-review remain the owner's work after integration.
+privacy, failure recovery and prevention before release. The owner keeps final
+review of the live result.
