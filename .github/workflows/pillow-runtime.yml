@@ -1,0 +1,55 @@
+name: Verify Pillow production runtime
+run-name: Pillow runtime ${{ github.event.inputs.nonce || format('{0}-{1}', github.event.workflow_run.id, github.event.workflow_run.run_attempt) }}
+
+# Secrets belong only to this main-only environment. Never check out or execute
+# the triggering branch, its artifacts, dependencies, commands or cache.
+on:
+  workflow_run:
+    workflows: [CI, Review technology health]
+    types: [in_progress]
+  workflow_dispatch:
+    inputs:
+      nonce:
+        description: Unique request identifier for a local security check
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: github.repository == 'alethical-org/alethical' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: pillow-security-runtime
+    steps:
+      - name: Check out trusted main only
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install the fixed relay client
+        run: python -m pip install --disable-pip-version-check --no-deps websockets==15.0.1
+
+      - name: Read the fixed production security facts
+        env:
+          PILLOW_RAILWAY_TOKEN: ${{ secrets.PILLOW_RAILWAY_TOKEN }}
+        run: python scripts/check_pillow_runtime.py > runtime.json
+
+      - name: Bind evidence to this request
+        run: python scripts/pillow_runtime_evidence.py
+
+      - name: Save only the allowlisted security evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: pillow-runtime-proof-${{ github.run_attempt }}
+          path: runtime-proof.json
+          retention-days: 1
+          if-no-files-found: error

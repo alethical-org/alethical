@@ -79,6 +79,8 @@ dependencies = [
   # Manual HUD ZIP-reference workbook import; API requests read packaged JSON.
   "openpyxl==3.1.5",
   "pillow>=13.0.0",
+  # Fixed client for the trusted, read-only production security probe.
+  "websockets==15.0.1",
 ]
 
 [tool.uv]
