@@ -1,6 +1,6 @@
 # What runs, when, and what it costs
 
-<!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py, alethical/api/services/candidate_claim_email.py, alethical/api/main.py -->
+<!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py, alethical/api/services/candidate_claim_email.py, alethical/api/main.py, api/search-measurements.ts -->
 
 Net: The repository has 36 GitHub Actions workflows. 30 can start automatically
 and 6 run only when a person starts them. Scheduled checks, releases, and local
@@ -15,6 +15,7 @@ reviewer too, and its switch is off until its limits are approved.
 | Public reader checks (`.github/workflows/reader-completion-checks.yml`) | A commit reaches `main`, a trusted caller, or by hand | Exercises real public reader actions and proves the intended website changes reached the live address | No paid AI call; existing GitHub runner usage and public GET reads |
 | Public search response checks (`.github/workflows/public-search-health.yml`) | Daily at 17:17 UTC, after successful trusted-main reader checks, or by hand; Monday samples more records | Checks public sitemaps, indexing instructions, useful initial text and separately allowed year/tab record views with bounded reads, retaining failure evidence for 35 days | No paid AI call or new service fee; existing GitHub runner usage and public GET reads |
 | Temporary page-failure evidence (`.github/workflows/page-failure-health.yml`) | Hourly, or by hand on trusted `main` | Saves bounded public-safe failure and recovery counts and types for 35 days; the daily search check detects missed or incomplete hours | No paid AI call or new service fee; standard free GitHub runner and existing Vercel read access |
+| Expired private search data (`.github/workflows/private-search-retention.yml`) | Daily at 08:23 UTC, or by hand on trusted `main`; live sweep verification pending | Deletes expired raw search exports and safe summaries without depending on provider collection; commits a success receipt with deletion, verifies it separately and fails visibly on error | No paid AI call or new service; standard free GitHub runner and bounded use of the existing database |
 | Public changed-page notices (`.github/workflows/public-change-notices.yml`) | After a successful trusted-main public search check, or by hand on `main`; first initialization sends 0 old addresses | Saves a bounded public change queue on a deployment-disabled state branch; sends at most 100 validated notices and retains unaccepted changes and requested retry waits | No paid AI call, provider fee or new clock job; existing GitHub runner and public IndexNow endpoint |
 | Bounded website repair (`.github/workflows/website-release-recovery.yml`) | A trusted current-main missing-release alarm fails, or by hand with dry run on by default | Stages and promotes at most 1 proven missed website release per commit, preserving rollback holds and checking live reader actions | No paid AI call; existing GitHub and Vercel build/hosting usage |
 | Project checks (`.github/workflows/ci.yml`) | Pull request code events, merge-queue checks, and pushes to `main` | Runs the code, formatting, security and document checks, including built-app replay startup and recovery with local sample records | No paid AI call; [standard GitHub-hosted runners are free for public repositories](https://docs.github.com/en/actions/concepts/billing-and-usage) |
@@ -58,7 +59,7 @@ accepted-production flag is `true`, staged off until
 [deployment.md § Profile claim email activation](deployment.md#profile-claim-email-activation)
 passes. Its queue wakeup calls no paid API; only eligible queued messages reach Resend.
 
-The 19 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
+The 20 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
 Time and Central Daylight Time, so their local hour changes by 1 during the year.
 
 ## What GitHub runs only by hand
@@ -76,6 +77,18 @@ These 6 workflows complete the total of 36:
 
 [Deployment](deployment.md) owns the release setup and recovery steps. This page
 owns the workflow count, triggers, and costs.
+
+## Private search collection awaiting activation
+
+| Work | Intended trigger and current state | What it does | Usage-based cost |
+| --- | --- | --- | --- |
+| Private search exports (`api/search-measurements.ts`) | Weekly Vercel schedule not armed; implementation ready, live access and collection unverified | Uses Vercel's existing short-lived Google identity and runtime Bing key to collect 3 Google views and 2 Bing views; writes bounded exports through a separate write-only credential to private database storage | No paid AI or new paid service; verify existing Vercel and database allowance before activation |
+| Private monthly comparison (`alethical/api/services/search_measurements.py`) | Administrator request; monthly human or explicitly started task review, no recurring AI job | Selects the latest successful pull per month, retaining actual rolling 30-day Google windows and unknown Bing date coverage; never sums overlapping pulls or compares them as 28-day totals | Deterministic reads from the existing database; no paid AI call |
+
+These are not additional GitHub workflows. Their access, private output, retention,
+coverage limits and required live checks are owned by
+[Public search upkeep](public-search-upkeep.md#private-search-measurement-implementation-ready-live-checks-pending).
+The separate daily deletion job above does not need a working weekly collector.
 
 ## Command-line tools
 
@@ -112,6 +125,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Measure what real visitors waited for | `report_origin_share_by_address.py`, `report_page_speed_by_address.py` |
 | Refresh, archive and search FCC political advertising evidence, restore source copies and review expense links | `fcc_political_files.py` |
 | Maintain search and stored files | `archive_published_sources.py`, `collect_page_failure_health.py` (public-safe hourly failure counts), `build_rag_hnsw_index.py`, `mirror_raw_files.py`, `notify_changed_public_pages.py` (bounded real public changes with durable receipts) |
+| Delete expired private search exports and verify the saved cleanup receipt | `prune_search_measurements.py` |
 | Protect unfinished work and rotating read grants | `back-up-uncommitted-worktree-work.sh`, `worktree_backup.py`, `supabase_oauth_state.mjs` |
 | Install free Mac maintenance, report every folder and safely remove released working folders | `install_worktree_maintenance.py`, `worktree_cleanup.py`, `worktree_inventory.py` |
 | Decide whether our website host needs to rebuild | `vercel-ignore-build.sh` |

@@ -69,7 +69,9 @@ describe('public event pages before JavaScript', () => {
     expect(
       doc.querySelector('meta[property="article:published_time"]')?.getAttribute('content'),
     ).toBe('2026-10-19');
-    expect(doc.querySelector('.event-published')?.textContent).toBe('Published October 19, 2026');
+    expect(doc.querySelector('.event-published')?.textContent).toBe(
+      'Published October 19, 2026 · Updated October 22, 2026',
+    );
     expect(doc.querySelector('.replay-contact')?.getAttribute('href')).toBe(
       'https://www.alethical.com/about/contact?purpose=host-debate',
     );

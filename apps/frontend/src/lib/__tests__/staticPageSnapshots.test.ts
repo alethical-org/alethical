@@ -10,7 +10,13 @@ import {
   ABOUT_CONTACT_HEADING,
   ABOUT_CORRECTION_PROMISE,
   ABOUT_EMAIL,
-  ABOUT_FEEDBACK_LABEL,
+  ABOUT_FACTS_CONTACT_LABEL,
+  ABOUT_FACTS_FOUNDERS_LABEL,
+  ABOUT_FACTS_HEADING,
+  ABOUT_FACTS_LAUNCH,
+  ABOUT_FACTS_SERVICES,
+  ABOUT_FACTS_SERVICES_LABEL,
+  ABOUT_FACTS_SERVICES_LINK,
   ABOUT_PAGE_HEADING,
   ABOUT_PAGE_SUBTITLE,
   ABOUT_START_ITEMS,
@@ -76,7 +82,27 @@ describe('the static About and Contact snapshots', () => {
     ]);
     expect(
       snapshot.sections?.find((section) => section.heading === ABOUT_CONTACT_HEADING)?.body,
-    ).toEqual([`${ABOUT_FEEDBACK_LABEL} ${ABOUT_EMAIL}`, ABOUT_CORRECTION_PROMISE]);
+    ).toEqual([ABOUT_CORRECTION_PROMISE]);
+  });
+
+  it('serves the About facts once, before the page explains why it exists', () => {
+    const snapshot = aboutPageSnapshot();
+    const headings = snapshot.sections?.map((section) => section.heading) ?? [];
+    const facts = snapshot.sections?.find((section) => section.heading === ABOUT_FACTS_HEADING);
+
+    expect(headings.indexOf(ABOUT_FACTS_HEADING)).toBe(0);
+    expect(facts?.body).toEqual([ABOUT_FACTS_LAUNCH]);
+    expect(facts?.items).toEqual([
+      { label: ABOUT_FACTS_SERVICES_LABEL, detail: ABOUT_FACTS_SERVICES },
+      { label: ABOUT_FACTS_SERVICES_LINK.label, href: ABOUT_FACTS_SERVICES_LINK.href },
+      ...ABOUT_TEAM_MEMBERS.map((member) => ({
+        label: ABOUT_FACTS_FOUNDERS_LABEL,
+        detail: `${member.name} · ${member.title}`,
+      })),
+      { label: ABOUT_FACTS_CONTACT_LABEL, detail: ABOUT_EMAIL },
+    ]);
+    // The email appears in the facts and the mailto link, never as a second body line.
+    expect(JSON.stringify(snapshot.sections)).not.toContain('Feedback:');
   });
 
   it('serves Contact’s purpose and direct links without pretending the form works', () => {
@@ -112,7 +138,10 @@ describe('the static About and Contact snapshots', () => {
       'ABOUT_CONTACT_LINK',
       'ABOUT_CORRECTION_PROMISE',
       'ABOUT_EMAIL',
-      'ABOUT_FEEDBACK_LABEL',
+      'ABOUT_FACTS_HEADING',
+      'ABOUT_FACTS_LAUNCH',
+      'ABOUT_FACTS_SERVICES',
+      'ABOUT_FACTS_SERVICES_LINK',
     ]) {
       expect(ABOUT_SCREEN).toContain(name);
     }

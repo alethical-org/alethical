@@ -337,21 +337,23 @@ updates and independently inspect the live behaviour before reporting completion
 
     **How to verify a merge, in order:**
 
-    - **Every PR merges through the merge queue**, which tests each PR against the
-      queue's projected result rather than a `main` that may have moved. Add a PR with
-      "Merge when ready" or `gh pr merge --auto`. The queue requires `changes`, `backend`,
-      `frontend` and `description-checks` against its up-to-date combined commit.
-      Dependabot PRs and auto-merge go through the same queue. A green PR view alone is
-      not enough.
+    - **Every PR must include current `main` before merging.** The merge queue is
+      off. Keep strict up-to-date branch protection, admin enforcement and the 4
+      required GitHub Actions checks: `changes`, `backend`, `frontend` and
+      `description-checks`. Read the remote PR head immediately before arming squash
+      auto-merge, require it to match the reviewed local head, and bind the action to
+      it with `gh pr merge --auto --squash --match-head-commit "$pr_head"`. Never use
+      an admin bypass. Dependabot follows the same protections.
 
-    - **"CI-green" means green against the *current* `main`.** That is the queue's job;
-      re-run the checks by hand if you ever merge outside the queue or the queue is
-      unavailable. A stale green describes a base that no longer exists: 2 PRs green alone
-      have been red together with no text conflict, and `main` broke for 30 minutes. As a
-      fallback, compare the check run's timestamp to `git log -1 --format=%cI origin/main`;
-      if `main` moved, re-run after a rebase. The queue protects against `main` moving
-      between a PR's last green run and its merge; it does not replace human review, and a
-      PR still needs its required checks to pass on the queue's speculative commit.
+    - **"CI-green" means the tested code includes the current `main`.** Fetch main
+      and verify it is an ancestor of the PR head with `git merge-base --is-ancestor
+      origin/main HEAD`. If main moved, merge it into your own branch, resolve any
+      conflicts, push and wait for new checks on that head. Rerunning an old head
+      without updating its base is not enough. Check identities and ancestry, not
+      commit timestamps or a cached PR summary. GitHub's strict protection must stay
+      on: it blocks a stale merge even if main moves after your local check.
+      Two PRs that pass alone can fail together without a text conflict; the second
+      must include and test the first before it lands. Review still applies.
 
     - **Verify against the head SHA, not the PR view, and wait on the required checks by
       name.** `gh pr checks` can lag a force-push and report the previous commit's green.
@@ -360,12 +362,19 @@ updates and independently inspect the live behaviour before reporting completion
       checks document references, quoted claims, secrets and invalid bytes; the separate
       `description-checks` job reads the latest explanation, including after a
       description edit. Choose the newest run for each required name so an older success
-      cannot hide a newer failure or make duplicate runs look unfinished forever:
+      cannot hide a newer failure or make duplicate runs look unfinished forever.
+      Confirm each result belongs to an eligible PR or push workflow run; a manual
+      `workflow_dispatch` timing run cannot satisfy the PR gate. Read the current
+      test-merge commit from GitHub too: when it has statuses, GitHub requires those
+      to pass; otherwise the latest PR head governs. Check the applicable SHA below,
+      and re-read the PR head before merging if it changed during verification:
 
       ```bash
       set -o pipefail
-      check_sha=$(git rev-parse HEAD)
-      # For queue verification, use the actual merge-group SHA instead.
+      pr_head=$(gh pr view --json headRefOid --jq .headRefOid)
+      test "$pr_head" = "$(git rev-parse HEAD)" || exit 1
+      check_sha=$pr_head
+      # If the current test-merge commit has statuses, set check_sha to that SHA.
       while :; do
         check_state=$(gh api \
           "repos/alethical-org/alethical/commits/$check_sha/check-runs?per_page=100&filter=all" \

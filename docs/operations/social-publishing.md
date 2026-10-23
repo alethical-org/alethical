@@ -26,6 +26,28 @@ Keep improving useful features and visual presentation within each authorized po
 the shared guide’s research, phone-size review and measured-feedback checks. Save useful solutions
 and failures after execution; documentation must not interrupt feasible authorized posting work.
 
+## Questions tied to existing reader paths
+
+Use these editorial starting questions when preparing already-authorized work. They are based on
+what Alethical publishes or offers, not measured search demand. Choose the question that matches
+the approved piece and give the reader its working next step. Do not copy private search phrases,
+addresses or inquiry details into this list.
+
+| Reader question | Existing reader path and source | Limit to keep |
+| --- | --- | --- |
+| What does a Minnesota bill propose, and where is its official text? | [Search bills](https://www.alethical.com/bills), then the bill's Summary and Bill Text views; [bill guide](../product-onboarding/bill-detail-guide.md#summary). | Name the bill and session. Use its available summary or official description and source; do not invent an answer when a summary is missing. |
+| Where can I see campaign contributions and outside spending in a Minnesota race? | [Money by race](https://www.alethical.com/money/races); [money guide](../product-onboarding/campaign-money-section-guide.md#ways-in). | Preserve the selected year, source dates and record gaps. A filed payment does not prove motive or that it caused a vote. |
+| Who represents me in the Minnesota House and Senate? | [Find my legislators](https://www.alethical.com/find-my-legislator); [lookup guide](../product-onboarding/find-my-legislator-guide.md#1-search-with-a-street-address). | The reader enters an address in the lookup. Keep personal addresses out of captions, shared links and this question list. |
+| What campaign-finance research does Alethical offer? | [Campaign services](https://www.alethical.com/services), Political intelligence; [services guide](../product-onboarding/services-guide.md#the-presentation). | Describe reports and research grounded in records, not a claim that funding proves influence or wins an election. |
+| Can Alethical help with a campaign website or content? | [Campaign services](https://www.alethical.com/services), Websites and campaign tools and Content and marketing; [services guide](../product-onboarding/services-guide.md#the-presentation). | Offered help is distinct from self-service software marked in development. Promise no instant website builder, automated campaign or ready-to-buy marketplace. |
+| How do I ask Alethical about campaign support and pricing? | [Campaign services](https://www.alethical.com/services), Contact Us; [contact behavior](../product-onboarding/services-guide.md#contact-us). | Pricing is tailored. The panel prepares an email to angel@alethical.com with ask@alethical.com copied; the reader chooses whether to send. No fixed quote or automatic purchase. |
+| Where can I watch or read The Forward Debate? | [Replay and edited transcript](https://www.alethical.com/blog/events/forward-debate-2026); [event publishing decisions](../architecture/published-writing-decisions.md#216-events-reuse-the-blog-design-and-retain-a-permanent-address). | The event was October 15, 2026; the replay article was published October 19. Keep the edited-transcript label and uncertainty marks. |
+| What topics did Trent Dilks and Aaron Brutger discuss in The Forward Debate? | The replay's [Topics](https://www.alethical.com/blog/events/forward-debate-2026#topics) and [edited transcript](https://www.alethical.com/blog/events/forward-debate-2026#transcript); [recording-link rules](blog-publishing.md#8-catch-repeated-meaning-and-missing-context-before-review). | Use the actual chapter and transcript evidence, exact quotations and working source times. Do not turn a participant's statement into Alethical's position or imply an invited person attended. |
+| How can my community ask Alethical to host a debate? | The replay's “Want a debate in your community?” invitation opens [Contact Alethical](https://www.alethical.com/about/contact?purpose=host-debate); [approved invitation](../architecture/published-writing-decisions.md#216-events-reuse-the-blog-design-and-retain-a-permanent-address). | This is an inquiry, not confirmed booking, availability or price. Existing approval rules still govern any placement outside a post. |
+
+These questions do not approve a new article or post, an edit to an existing post, a publication
+schedule or outreach. Existing disclosures, AI-note policy and publication holds remain unchanged.
+
 ## Write the result, its meaning and what comes next
 
 - Lead with a concrete reason to read or watch. Combine the event's supported outcome with the

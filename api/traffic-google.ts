@@ -1,8 +1,16 @@
 import { getVercelOidcToken } from "@vercel/oidc";
 import { ExternalAccountClient } from "google-auth-library";
 import { requireSiteMetricsAdmin } from "./_lib/requireSiteMetricsAdmin";
+import {
+  googleSearchExport,
+  searchExportRequest,
+} from "./_lib/searchMeasurement";
 
-type RequestLike = { method?: string; url?: string; headers?: Record<string, string | string[] | undefined> };
+type RequestLike = {
+  method?: string;
+  url?: string;
+  headers?: Record<string, string | string[] | undefined>;
+};
 type ResponseLike = {
   status: (code: number) => ResponseLike;
   setHeader: (name: string, value: string) => void;
@@ -97,6 +105,52 @@ function requestedWindowDays(request: RequestLike): 28 | 30 {
   }
 }
 
+export async function googleSearchIdentity(
+  onStage: (stage: SearchFailureStage) => void = () => {},
+) {
+  const projectNumber =
+    process.env.GOOGLE_SEARCH_CONSOLE_GCP_PROJECT_NUMBER?.trim();
+  const serviceAccount =
+    process.env.GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_EMAIL?.trim();
+  const poolId =
+    process.env.GOOGLE_SEARCH_CONSOLE_WORKLOAD_IDENTITY_POOL_ID?.trim();
+  const providerId =
+    process.env.GOOGLE_SEARCH_CONSOLE_WORKLOAD_IDENTITY_PROVIDER_ID?.trim();
+  const siteUrl = process.env.GOOGLE_SEARCH_CONSOLE_SITE_URL?.trim();
+  if (!projectNumber || !serviceAccount || !poolId || !providerId || !siteUrl) {
+    throw new SearchUnavailable("Google identity settings unavailable");
+  }
+  const vercelOidcToken = await getVercelOidcToken();
+  if (!vercelOidcToken) {
+    throw new SearchUnavailable("Vercel identity was unavailable");
+  }
+  onStage("identity-client");
+  const client = ExternalAccountClient.fromJSON({
+    type: "external_account",
+    audience: `//iam.googleapis.com/projects/${projectNumber}/locations/global/workloadIdentityPools/${poolId}/providers/${providerId}`,
+    subject_token_type: "urn:ietf:params:oauth:token-type:jwt",
+    token_url: "https://sts.googleapis.com/v1/token",
+    service_account_impersonation_url: `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${serviceAccount}:generateAccessToken`,
+    subject_token_supplier: {
+      getSubjectToken: async () => vercelOidcToken,
+    },
+  });
+  if (!client) throw new SearchUnavailable("Google identity was unavailable");
+  onStage("access-token");
+  client.scopes = [READ_ONLY_SCOPE];
+  let access: { token?: string | null };
+  try {
+    access = await client.getAccessToken();
+  } catch (error) {
+    onStage(accessTokenFailureStage(error));
+    throw error;
+  }
+  if (!access.token)
+    throw new SearchUnavailable("Google token was unavailable");
+
+  return { siteUrl, accessToken: access.token };
+}
+
 export default async function handler(
   request: RequestLike,
   response: ResponseLike,
@@ -108,6 +162,19 @@ export default async function handler(
   }
 
   if (!(await requireSiteMetricsAdmin(request, response))) return;
+
+  let exportRequest;
+  try {
+    exportRequest = searchExportRequest(request.url);
+  } catch {
+    sendJson(
+      response,
+      400,
+      { error: "Invalid search export request." },
+      OK_CACHE,
+    );
+    return;
+  }
 
   const projectNumber =
     process.env.GOOGLE_SEARCH_CONSOLE_GCP_PROJECT_NUMBER?.trim();
@@ -131,33 +198,20 @@ export default async function handler(
 
   let failureStage: SearchFailureStage = "vercel-oidc-token";
   try {
-    const vercelOidcToken = await getVercelOidcToken();
-    if (!vercelOidcToken) {
-      throw new SearchUnavailable("Vercel identity was unavailable");
-    }
-    failureStage = "identity-client";
-    const client = ExternalAccountClient.fromJSON({
-      type: "external_account",
-      audience: `//iam.googleapis.com/projects/${projectNumber}/locations/global/workloadIdentityPools/${poolId}/providers/${providerId}`,
-      subject_token_type: "urn:ietf:params:oauth:token-type:jwt",
-      token_url: "https://sts.googleapis.com/v1/token",
-      service_account_impersonation_url: `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${serviceAccount}:generateAccessToken`,
-      subject_token_supplier: {
-        getSubjectToken: async () => vercelOidcToken,
-      },
+    const { accessToken } = await googleSearchIdentity((stage) => {
+      failureStage = stage;
     });
-    if (!client) throw new SearchUnavailable("Google identity was unavailable");
-    failureStage = "access-token";
-    client.scopes = [READ_ONLY_SCOPE];
-    let access: { token?: string | null };
-    try {
-      access = await client.getAccessToken();
-    } catch (error) {
-      failureStage = accessTokenFailureStage(error);
-      throw error;
+
+    if (exportRequest) {
+      failureStage = "search-console-request";
+      const exported = await googleSearchExport(
+        siteUrl,
+        accessToken,
+        exportRequest,
+      );
+      sendJson(response, 200, exported, OK_CACHE);
+      return;
     }
-    if (!access.token)
-      throw new SearchUnavailable("Google token was unavailable");
 
     const pacificToday = isoDateParts(new Date(), "America/Los_Angeles");
     const requestedEnd = moveDate(pacificToday, -1);
@@ -170,7 +224,7 @@ export default async function handler(
         method: "POST",
         headers: {
           Accept: "application/json",
-          Authorization: `Bearer ${access.token}`,
+          Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({

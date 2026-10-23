@@ -153,8 +153,10 @@ and why local checks do not replace GitHub's production build.
 
 Changes made directly through GitHub do not run local Git hooks. That is a supported
 editing route, not a local hook-skip setting. They still need the 4 required GitHub
-checks (`changes`, `backend`, `frontend`, `description-checks`) on current code and
-the merge queue's combined code before merging.
+checks (`changes`, `backend`, `frontend`, `description-checks`) on a branch that
+includes current `main` before merging. The merge queue is off; strict up-to-date
+protection stays on for everyone, including admins. If main moves, update your own
+branch and let its new checks finish before squash auto-merge.
 
 **`just lint` and `just format` pin the same tool versions CI runs** (`ruff@0.15.0`,
 `ty@0.0.72` — see the justfile and `.github/workflows/ci.yml`). If you ever call
@@ -363,7 +365,8 @@ and database migrations can run against production. Treat `main` as production
 and land everything through reviewed PRs.
 
 Since 2026-07-28 this is enforced, not just a convention: `main` requires a PR,
-the 3 `ci.yml` checks, and a branch tested with the current `main`; it also
+the 3 `ci.yml` checks plus `description-checks`, and a branch tested with the
+current `main`; it also
 rejects unresolved review comments, force pushes, deletion, and owner bypasses.
 Approvals are set to **zero**, so you can still merge your own work. Changes to
 sensitive files ask both owners for review through `.github/CODEOWNERS`, but that

@@ -671,3 +671,50 @@ def test_remote_inventory_fails_closed(remote_helpers, kind):
         scope["os"].walk = failed_walk
     with pytest.raises((ValueError, OSError)):
         scope["deployed_paths"](root)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "probe-build",
+        "first-provider-read",
+        "first-state-validation",
+        "instance-probe",
+        "second-provider-read",
+        "second-state-validation",
+        "state-stability",
+    ],
+)
+def test_failure_stage_logs_only_fixed_label(name, capsys):
+    with pytest.raises(runtime.CheckFailed):
+        with runtime.failure_stage(name):
+            raise RuntimeError("private provider text " + FAKE_TOKEN)
+    output = capsys.readouterr()
+    assert output.out == ""
+    assert output.err == f"Pillow runtime stage failed: {name}.\n"
+
+
+def test_unapproved_failure_label_never_reaches_logs(capsys):
+    with pytest.raises(runtime.CheckFailed):
+        with runtime.failure_stage("private provider text " + FAKE_TOKEN):
+            pytest.fail("unapproved stage must not run")
+    assert capsys.readouterr() == ("", "")
+
+
+def test_provider_failure_identifies_stage_without_private_response(
+    monkeypatch, capsys
+):
+    monkeypatch.setattr(runtime.sys, "argv", ["check_pillow_runtime.py"])
+    monkeypatch.setattr(runtime.os, "environ", {"PILLOW_RAILWAY_TOKEN": FAKE_TOKEN})
+    monkeypatch.setattr(runtime.signal, "signal", Mock())
+    monkeypatch.setattr(runtime.signal, "alarm", Mock())
+
+    def fails(_):
+        raise RuntimeError("private provider response " + FAKE_TOKEN)
+
+    monkeypatch.setattr(runtime, "query", fails)
+    assert runtime.main() == 1
+    assert capsys.readouterr() == (
+        "",
+        "Pillow runtime stage failed: first-provider-read.\nPillow runtime verification failed.\n",
+    )

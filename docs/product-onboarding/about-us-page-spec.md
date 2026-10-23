@@ -8,13 +8,22 @@ plain language.
 
 ## Page promise
 
+- An About Alethical section follows the name-origin card and states the company facts
+  once: Launched in Minnesota; Services, political intelligence and campaign strategy, with
+  an Explore our services link to `/services`; Founders, each name with their title; and
+  Contact, the ask@alethical.com email link and a Contact us button. It is plain text with
+  no card surface: 3 columns on computers, labelled rows on tablets, stacked on phones with
+  a full-width button. The same facts are in the first response and in the page's
+  Organization structured data, so answer engines read them as written.
 - The official public record is the source of every factual claim.
 - Alethical makes that record easier to read without telling people what to think.
 - The Our team section introduces Angel Zierden and Eugene Lopin after the 6 beliefs,
   with their titles, portraits, and complete biographies.
 - Readers can follow 4 real links to Bills, Legislators, Find My Legislator, and Track.
 - Planned work stays in one grey roadmap panel and is not shown as available now.
-- The Contact us button opens the public contact page at `/about/contact`.
+- Both Contact us buttons open the public contact page at `/about/contact` and carry no
+  arrow. The email appears once, in the About Alethical section; the bottom Contact section
+  keeps the corrections line and its button.
 
 ## Visual meaning
 

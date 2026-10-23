@@ -1,6 +1,7 @@
+import { BILL_VOTES_UNAVAILABLE } from '../../lib/billRecordReads';
 import { useEntityReturnPageNames } from '../../hooks/useEntityReturnPageNames';
 import { useEffect, useRef, useState } from 'react';
-import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { theme as t } from '../../theme/tokens';
@@ -20,6 +21,7 @@ import { ActionsTab } from '../../components/billDetail/ActionsTab';
 import { VotesTab } from '../../components/billDetail/VotesTab';
 import { VersionsTab } from '../../components/billDetail/VersionsTab';
 import { FullTextTab } from '../../components/billDetail/FullTextTab';
+import { useHover, useUnavailableControl } from '../../components/billDetail/interactions';
 import { BillNotFound } from '../../components/billDetail/BillNotFound';
 import { isNotFoundError } from '../../data/api';
 import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
@@ -191,7 +193,7 @@ export function BillDetailWebScreen() {
     </SearchPageShell>
   );
 
-  if (billQuery.isLoading) {
+  if (billQuery.isLoading && !bill) {
     return shell(<BillBodySkeleton isDesktop={isDesktop} />, <BillHeroSkeleton />);
   }
 
@@ -215,17 +217,27 @@ export function BillDetailWebScreen() {
     );
   }
 
-  if (billQuery.isError || !bill) {
+  if (!bill) {
     return shell(
-      <View style={styles.stateBox}>
+      <View
+        style={styles.stateBox}
+        accessibilityRole={billQuery.recordsRefreshing ? ('status' as 'none') : 'alert'}
+        accessibilityLiveRegion="polite"
+      >
         <GoBackLink
           destinationName="Search bills"
           href={routePath.bills()}
           onPress={goToBillList}
         />
         <Text style={styles.stateText}>
-          We couldn’t load this bill right now. Please try again in a moment.
+          {billQuery.recordsRefreshing
+            ? 'Updating this bill’s records'
+            : 'We couldn’t load this bill right now. Please try again in a moment.'}
         </Text>
+        <RetryRecords
+          busy={billQuery.recordsRefreshing}
+          onRetry={() => void billQuery.refetchRecords()}
+        />
       </View>,
       null,
     );
@@ -283,8 +295,11 @@ export function BillDetailWebScreen() {
       />
     );
   } else if (activeTab === 'actions') {
-    body = billQuery.voteError ? (
-      <VoteLoadError />
+    body = !billQuery.votesAvailable ? (
+      <VoteLoadError
+        loading={billQuery.voteIsLoading}
+        onRetry={() => void billQuery.refetchRecords()}
+      />
     ) : (
       <ActionsTab
         bill={bill}
@@ -295,8 +310,11 @@ export function BillDetailWebScreen() {
       />
     );
   } else if (activeTab === 'votes') {
-    body = billQuery.voteError ? (
-      <VoteLoadError />
+    body = !billQuery.votesAvailable ? (
+      <VoteLoadError
+        loading={billQuery.voteIsLoading}
+        onRetry={() => void billQuery.refetchRecords()}
+      />
     ) : (
       <VotesTab
         bill={bill}
@@ -320,15 +338,64 @@ export function BillDetailWebScreen() {
     );
   }
 
-  return shell(body, hero);
+  const visibleRecords =
+    (activeTab !== 'votes' && activeTab !== 'actions') || billQuery.votesAvailable;
+  return shell(
+    <View>
+      {visibleRecords && (billQuery.recordsRefreshing || billQuery.recordsRefreshError) && (
+        <View
+          style={styles.refreshNotice}
+          accessibilityRole={billQuery.recordsRefreshing ? ('status' as 'none') : 'alert'}
+          accessibilityLiveRegion="polite"
+        >
+          <Text style={styles.refreshText}>
+            {billQuery.recordsRefreshing
+              ? 'Updating this bill’s records'
+              : 'We couldn’t refresh this bill’s records. The last records loaded are still shown.'}
+          </Text>
+          {billQuery.recordsRefreshError && (
+            <RetryRecords
+              busy={billQuery.recordsRefreshing}
+              onRetry={() => void billQuery.refetchRecords()}
+            />
+          )}
+        </View>
+      )}
+      {body}
+    </View>,
+    hero,
+  );
 }
 
-function VoteLoadError() {
+function RetryRecords({ busy, onRetry }: { busy: boolean; onRetry: () => void }) {
+  const [hovered, hover] = useHover();
+  const ref = useUnavailableControl(busy, { busy: true, blockFocus: false });
   return (
-    <View style={styles.stateBox} accessibilityRole="alert">
+    <Pressable
+      ref={ref}
+      {...hover}
+      accessibilityRole="button"
+      onPress={() => {
+        if (!busy) onRetry();
+      }}
+      style={[styles.retry, hovered && !busy && styles.retryHover, busy && { opacity: 0.5 }]}
+    >
+      <Text style={styles.retryText}>{busy ? 'Trying again' : 'Try again'}</Text>
+    </Pressable>
+  );
+}
+
+function VoteLoadError({ loading, onRetry }: { loading: boolean; onRetry: () => void }) {
+  return (
+    <View
+      style={styles.stateBox}
+      accessibilityRole={loading ? ('status' as 'none') : 'alert'}
+      accessibilityLiveRegion="polite"
+    >
       <Text style={styles.stateText}>
-        We couldn’t load this bill’s votes right now. Please try again in a moment.
+        {loading ? 'Loading this bill’s votes' : BILL_VOTES_UNAVAILABLE}
       </Text>
+      <RetryRecords busy={loading} onRetry={onRetry} />
     </View>
   );
 }
@@ -374,6 +441,46 @@ function BillBodySkeleton({ isDesktop }: { isDesktop: boolean }) {
 }
 
 const styles = StyleSheet.create({
+  // Same notice and retry treatment as TrackedListUnavailableNotice.
+  refreshNotice: {
+    marginBottom: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 14,
+    backgroundColor: '#f7f8fa',
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    borderRadius: t.radii.md,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+  },
+  refreshText: {
+    flex: 1,
+    minWidth: 240,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 21,
+    color: t.colors.text.secondary,
+  },
+  retry: {
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.32)',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    minHeight: 44,
+    minWidth: 116,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  retryHover: { backgroundColor: '#eceef1', borderColor: '#11150f' },
+  retryText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.small,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.primary,
+  },
   // skeleton loading state
   skHeroCrumb: { marginTop: 8, marginBottom: 20 },
   skGap8: { marginTop: 8 },
