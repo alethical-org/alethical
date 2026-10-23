@@ -133,6 +133,16 @@ requesting GitHub run and attempt, or to a unique local request. Missing evidenc
 changed commands, missing instances and provider failures fail the job. This
 workflow supplies evidence; it does not itself grant an exception.
 
+The source guard distinguishes the single production renderer from 3 archived
+media tools awaiting release on `codex/social-video-guides`. Their exact paths,
+SHA-256 fingerprints and Pillow imports are recorded in
+`scripts/pillow_source_guard.py`. They may be absent or match the reviewed files;
+changed tools, new Pillow callers and production references to these offline tools
+require review. The source review found ordinary PNG/JPEG reading, drawing,
+resizing and saving, with no Arrow or alignment use. Their local execution
+environments are not verified, and releasing their source does not authorize
+running them. All other tracked Python files remain in the source scan.
+
 ## Recorded security exceptions
 
 ### Pillow: reviewed production path outside the Arrow flaw

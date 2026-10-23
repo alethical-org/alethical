@@ -27,6 +27,29 @@ PINNED_FILES = {
     RENDERER: "33a2f50db0ddd2bda981a131a8e6d4d2c27e9b0ebfcd04f03d10201b32533e92",
     PIL_TEST: "ef3c6e5e90db7e86289d32ddb82551fe097b681a51d5f315aa643d55e2734f44",
 }
+# Archived media tools are optional source artifacts, not production callers.
+# Their exact bytes and imports are reviewed separately; every other file keeps
+# the normal source checks, and loading these tools from code requires review.
+OFFLINE_TOOLS = {
+    "docs/operations/video/forward-debate-2026-10-15/short-01/check_name_tags.py": (
+        "b38dcae1173127c4d77e63aa9a9669abf951d98bfcee00b539eb70b52b2737e6",
+        [("Image", "PIL.Image")],
+    ),
+    "docs/operations/video/forward-debate-2026-10-15/short-01/intro_frames.py": (
+        "b266136fdc8e40c9019c7c64cf736d05b5bde998b0906d6cd0fc4f9a520fedc8",
+        [("Image", "PIL.Image")],
+    ),
+    "docs/operations/video/forward-debate-2026-10-15/short-02/check_frames.py": (
+        "c4967c234d71bbf8808b7276ee71ed6875b709dd2cf3d8750e51c96ca214ebaf",
+        [("Image", "PIL.Image"), ("ImageDraw", "PIL.ImageDraw")],
+    ),
+}
+OFFLINE_MODULES = {
+    name
+    for path in OFFLINE_TOOLS
+    for name in (path.removesuffix(".py").replace("/", "."), PurePosixPath(path).stem)
+}
+OFFLINE_FILENAMES = {PurePosixPath(path).name for path in OFFLINE_TOOLS}
 PINNED_FUNCTIONS = {
     "prepare_copy": "f8c331b1f9f341588fe4425f70e2ef8cbaed1a741931476fb45f1ae0248fc991",
     "render_original_page": "5d96d518905a7c362c369b58086ded8afcee8f3b0ca8e271c4c049c3b89a7790",
@@ -39,6 +62,7 @@ EXPECTED_IMPORTS = {
     ],
     PIL_TEST: [("Image", "PIL.Image"), ("tv_ad_redaction", RENDER_MODULE)],
     SERVICE: [("tv_ad_redaction", RENDER_MODULE)],
+    **{path: imports for path, (_, imports) in OFFLINE_TOOLS.items()},
 }
 ARROW_NAMES = {
     "fromarrow",
@@ -283,6 +307,10 @@ def source_errors(relative, tree):
             or name.startswith("pyarrow.")
             or name == RENDER_MODULE
             or name.startswith(RENDER_MODULE + ".")
+            or any(
+                name == module or name.startswith(module + ".")
+                for module in OFFLINE_MODULES
+            )
         )
 
     for node in nodes:
@@ -448,6 +476,11 @@ def source_errors(relative, tree):
         first = prefix.split(".", 1)[0]
         if first in {"PIL", "pyarrow"}:
             return True
+        if any(
+            module.startswith(prefix) or prefix.startswith(module + ".")
+            for module in OFFLINE_MODULES
+        ):
+            return True
         if first != "alethical":
             return False
         return any(
@@ -498,6 +531,58 @@ def source_errors(relative, tree):
                 node.right, seen
             )
         return False
+
+    def offline_path(node, seen=frozenset()):
+        """Recognize literal paths and ordinary aliases without running code."""
+        value = literal(node)
+        if (
+            value is not None
+            and PurePosixPath(value.replace("\\", "/")).name in OFFLINE_FILENAMES
+        ):
+            return True
+        if isinstance(node, ast.Name) and node.id not in seen:
+            return any(
+                offline_path(value, seen | {node.id})
+                for value in assigned_values.get(node.id, [])
+            )
+        if isinstance(node, (ast.BinOp, ast.JoinedStr, ast.List, ast.Tuple)):
+            return any(
+                offline_path(child, seen) for child in ast.iter_child_nodes(node)
+            )
+        if isinstance(node, ast.Call):
+            return any(offline_path(arg, seen) for arg in node.args) or offline_path(
+                node.func, seen
+            )
+        if isinstance(node, ast.Attribute):
+            return offline_path(node.value, seen)
+        return False
+
+    def launches_offline(node, seen=frozenset()):
+        if isinstance(node, ast.Name) and node.id not in seen:
+            return any(
+                launches_offline(value, seen | {node.id})
+                for value in assigned_values.get(node.id, [])
+            )
+        if isinstance(node, (ast.List, ast.Tuple)) and node.elts:
+            first = node.elts[0]
+            executable = literal(first)
+            launcher = PurePosixPath(executable).name if executable is not None else ""
+            if offline_path(first):
+                return True
+            if qualified(first) == "sys.executable" or re.fullmatch(
+                r"python(?:\d+(?:\.\d+)*)?|uvx?|(?:ba|z)?sh", launcher
+            ):
+                return any(launches_offline(arg) for arg in node.elts[1:])
+            return False
+        value = literal(node)
+        if value is not None:
+            return any(
+                re.search(
+                    r"(?:^|[\s/'\"])" + re.escape(name) + r"(?:$|[\s'\";])", value
+                )
+                for name in OFFLINE_FILENAMES
+            )
+        return offline_path(node)
 
     def owner(node):
         while node in parents:
@@ -605,6 +690,56 @@ def source_errors(relative, tree):
                 if dynamic_import_requires_review(node, function):
                     report(
                         node, "dynamic import can widen the reviewed Pillow boundary"
+                    )
+            path_arguments = []
+            if function in {
+                "runpy.run_path",
+                "builtins.exec",
+                "exec",
+                "builtins.compile",
+                "compile",
+            }:
+                path_arguments.extend(node.args[:1])
+                path_arguments.extend(
+                    keyword.value
+                    for keyword in node.keywords
+                    if keyword.arg in {"path_name", "source"}
+                )
+            elif function in {
+                "importlib.util.spec_from_file_location",
+                "importlib.machinery.SourceFileLoader",
+                "importlib.machinery.SourcelessFileLoader",
+            }:
+                path_arguments.extend(node.args[1:2])
+                path_arguments.extend(
+                    keyword.value
+                    for keyword in node.keywords
+                    if keyword.arg in {"location", "path"}
+                )
+            if any(offline_path(arg) for arg in path_arguments):
+                report(node, "archived offline Pillow tool execution requires review")
+            if function == "runpy.run_module" and dynamic_import_requires_review(
+                node, "importlib.import_module"
+            ):
+                report(node, "module execution can widen the reviewed Pillow boundary")
+            if function.startswith("subprocess.") or function in {
+                "os.system",
+                "os.execv",
+                "os.execve",
+                "os.execvp",
+                "os.execvpe",
+            }:
+                commands = (
+                    node.args[:2] if function.startswith("os.exec") else node.args[:1]
+                )
+                commands += [
+                    keyword.value
+                    for keyword in node.keywords
+                    if keyword.arg in {"args", "command", "path", "file"}
+                ]
+                if any(launches_offline(command) for command in commands):
+                    report(
+                        node, "archived offline Pillow tool execution requires review"
                     )
             if (
                 function
@@ -729,6 +864,13 @@ def validate(root) -> list[str]:
                 and hashlib.sha256(data).hexdigest() != PINNED_FILES[relative]
             ):
                 errors.append(f"{relative}: reviewed Pillow caller fingerprint changed")
+            if (
+                relative in OFFLINE_TOOLS
+                and hashlib.sha256(data).hexdigest() != OFFLINE_TOOLS[relative][0]
+            ):
+                errors.append(
+                    f"{relative}: reviewed offline Pillow tool fingerprint changed"
+                )
             if relative.endswith(".py"):
                 errors.extend(
                     source_errors(relative, ast.parse(data, filename=relative))
