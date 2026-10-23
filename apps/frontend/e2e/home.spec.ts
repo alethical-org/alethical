@@ -37,7 +37,7 @@ test('home introduces the public records and links to money and bills', async ({
       .filter({ visible: true })
       .first(),
   ).toBeVisible();
-  await expect(page.getByRole('link', { name: /Bills and votes/ })).toHaveAttribute(
+  await expect(page.getByRole('link', { name: 'Search bills', exact: true })).toHaveAttribute(
     'href',
     '/bills',
   );
@@ -51,7 +51,7 @@ for (const width of [320, 375, 400, 900, 1100, 1600]) {
   test(`homepage cards contain their text and actions at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
     await page.goto('/');
-    for (const name of [/Bills and votes/, /Follow the money/]) {
+    for (const name of [/^Search bills/, /Follow the money/]) {
       const card = page.getByRole('link', { name });
       await expect(card).toBeVisible();
       await expect(card.locator('a, button, [role="button"], [tabindex="0"]')).toHaveCount(0);

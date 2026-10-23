@@ -95,7 +95,7 @@ describe('signed-out homepage destinations', () => {
 
     for (const [href, heading, action] of [
       ['/money', 'Follow the money', 'Search the money records'],
-      ['/bills', 'Bills and votes', 'Search bills'],
+      ['/blog/events/forward-debate-2026', 'The Forward Debate', 'Watch the debate'],
       ['/services', 'Campaign services', 'Explore our services'],
     ]) {
       const matches = page.querySelectorAll(`a[href="${href}"]`);
@@ -108,6 +108,26 @@ describe('signed-out homepage destinations', () => {
     }
   });
 
+  it.each([1600, 1100, 900, 768, 406, 320])('keeps reading and link order at %ipx', (width) => {
+    state.width = width;
+    const { page } = render();
+    const cards = page.querySelector('[data-testid="home-feature-cards"]')!;
+    expect([...cards.children].map((node) => node.getAttribute('data-testid'))).toEqual(
+      width >= 1100
+        ? ['home-legislature', 'home-debate', 'home-services']
+        : width >= 768
+          ? ['home-debate', 'home-legislature', 'home-services']
+          : ['home-debate', 'home-services', 'home-legislature'],
+    );
+    const legislature = page.querySelector('[data-testid="home-legislature"]')!;
+    expect(legislature.tagName).not.toBe('A');
+    expect([...legislature.querySelectorAll('a')].map((node) => node.getAttribute('href'))).toEqual(
+      ['/bills', '/legislators'],
+    );
+    expect(page.textContent).not.toContain('MONEY IN POLITICS');
+    expect(cards.querySelector('[tabindex="1"]')).toBeNull();
+  });
+
   it('shows launched services and the working candidate address form', () => {
     const { page } = render();
     expect(page.querySelector('a[href="/services"]')).not.toBeNull();
@@ -118,7 +138,7 @@ describe('signed-out homepage destinations', () => {
     expect(page.textContent).toContain(
       'Explore the candidates in your Minnesota races, with links to official records',
     );
-    expect(page.querySelectorAll('a')).toHaveLength(3);
+    expect(page.querySelectorAll('a')).toHaveLength(5);
   });
 
   it('keeps the editorial answer on desktop and tablet only', () => {
@@ -152,7 +172,7 @@ describe('phone news placement and bill identity', () => {
       '94-2025-SF856',
     ]);
     const text = page.textContent ?? '';
-    expect(text.indexOf('In the news')).toBeGreaterThan(text.indexOf('Bills and votes'));
+    expect(text.indexOf('In the news')).toBeGreaterThan(text.indexOf('Legislature'));
     expect(text.indexOf('Footer')).toBeGreaterThan(text.indexOf('94-2025-SF856'));
     expect(text).not.toContain('SF3933');
     expect(text).not.toContain('Find My Legislator');

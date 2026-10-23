@@ -1,30 +1,21 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
-import { theme as t, prefersReducedMotion } from '../../theme/tokens';
+import { theme as t } from '../../theme/tokens';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { useCampaignFinanceSummary, useFeaturedBills } from '../../hooks/useAppQueries';
-import { linkProps, routePath } from '../../navigation/links';
 import type { MenuKey } from '../../navigation/ia';
 import type { Bill } from '../../data/types';
-import {
-  HOME_PUBLIC_INTRO,
-  HOME_PUBLIC_BILLS_HEADING,
-  HOME_PUBLIC_BILLS_BODY,
-  HOME_PUBLIC_BILLS_CTA,
-  HOME_PUBLIC_SERVICES_HEADING,
-  HOME_PUBLIC_SERVICES_BODY,
-  HOME_PUBLIC_SERVICES_CTA,
-} from '../../lib/homepage';
-import { LinkArrow, linkArrowRow } from '../LinkArrow';
+import { HOME_PUBLIC_INTRO } from '../../lib/homepage';
 import { loadOnDemand } from '../../lib/loadOnDemand';
 import { SOCIAL_ACCOUNTS } from '../../lib/socialLinks';
-import { isWeb, useFineHover } from '../billDetail/interactions';
+import { isWeb } from '../billDetail/interactions';
 import { MoneyPromoCard } from './MoneyPromoCard';
+import { HomeFeatureCards } from './HomeFeatureCards';
 import { HomeCandidateFinder } from './HomeCandidateFinder';
 
 // The public services destination ships with this card.
@@ -70,81 +61,6 @@ function HeroSocialRow({ phone, narrow }: { phone: boolean; narrow: boolean }) {
 }
 const NEWS = ['94-2026-HF4138', '94-2025-SF856'];
 
-function Invitation({
-  heading,
-  body,
-  label,
-  href,
-  onPress,
-  paid,
-  phone,
-}: {
-  heading: string;
-  body: string;
-  label: string;
-  href: string;
-  onPress?: () => void;
-  paid?: boolean;
-  phone: boolean;
-}) {
-  const [hovered, hover] = useFineHover();
-  const { isTablet } = useResponsive();
-  return (
-    <Pressable
-      {...linkProps(href, onPress)}
-      {...hover}
-      style={[
-        s.invitation,
-        phone ? s.invitationPhone : isTablet ? s.invitationTablet : undefined,
-        motion(),
-        hovered && s.cardHover,
-        hovered && !prefersReducedMotion() && { transform: [{ translateY: -3 }] },
-      ]}
-    >
-      <Text
-        accessibilityRole="header"
-        aria-level={2}
-        style={[
-          s.cardHeading,
-          {
-            fontSize: phone ? 28 : isTablet ? 26 : 30,
-            lineHeight: phone ? 31 : isTablet ? 30 : 34,
-          },
-        ]}
-      >
-        {heading}
-      </Text>
-      <Text style={[s.cardBody, phone && s.cardBodyPhone]}>{body}</Text>
-      <View style={[s.invitationAction, phone && { paddingTop: 24 }]}>
-        <View
-          style={[
-            s.button,
-            paid && s.buttonPaid,
-            phone && s.buttonPhone,
-            hovered && (paid ? s.buttonPaidHover : s.buttonHover),
-          ]}
-        >
-          <View style={linkArrowRow}>
-            <Text style={[s.buttonLabel, paid && s.buttonPaidLabel, phone && { fontSize: 19 }]}>
-              {label}
-            </Text>
-            <LinkArrow color={paid ? '#ffffff' : '#0f7a45'} />
-          </View>
-        </View>
-      </View>
-    </Pressable>
-  );
-}
-
-const motion = (): object =>
-  isWeb && !prefersReducedMotion()
-    ? {
-        transitionProperty: 'border-color, box-shadow, transform',
-        transitionDuration: '0.16s',
-        transitionTimingFunction: 'ease',
-      }
-    : {};
-
 /** September signed-out design, isolated from the pending signed-in redesign. */
 export function SignedOutHomepage({
   renderExample,
@@ -172,29 +88,7 @@ export function SignedOutHomepage({
     : isTablet
       ? 58
       : Math.min(36, (width - 40) * 0.1);
-  const invitationRow = (
-    <View style={[s.invitationRow, isMobile && s.invitationRowPhone]}>
-      <Invitation
-        heading={HOME_PUBLIC_BILLS_HEADING}
-        body={HOME_PUBLIC_BILLS_BODY}
-        label={HOME_PUBLIC_BILLS_CTA}
-        href={routePath.bills()}
-        onPress={() => navigation.navigate('Bills')}
-        phone={isMobile}
-      />
-      {servicesReady ? (
-        <Invitation
-          heading={HOME_PUBLIC_SERVICES_HEADING}
-          body={HOME_PUBLIC_SERVICES_BODY}
-          label={HOME_PUBLIC_SERVICES_CTA}
-          href={routePath.services()}
-          onPress={() => navigation.navigate('Services')}
-          paid
-          phone={isMobile}
-        />
-      ) : null}
-    </View>
-  );
+  const invitationRow = <HomeFeatureCards servicesReady={servicesReady} />;
   const money = (
     <MoneyPromoCard
       variant={isMobile ? 'phoneSignedOut' : isTablet ? 'tabletSignedOut' : 'desktopSignedOut'}
@@ -385,72 +279,6 @@ const s = StyleSheet.create({
   h1: { fontFamily: t.typography.title, fontWeight: '800', color: '#11150f' },
   green: { color: '#149d5b' },
   intro: { fontFamily: t.typography.body, color: '#6b716b', maxWidth: 640 },
-  invitationRow: { flexDirection: 'row', alignItems: 'stretch', gap: 24 },
-  invitationRowPhone: { flexDirection: 'column' },
-  invitation: {
-    flex: 1,
-    minWidth: 0,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: 'rgba(17,21,15,0.08)',
-    borderRadius: 20,
-    paddingTop: 34,
-    paddingHorizontal: 32,
-    paddingBottom: 32,
-    boxShadow: '0 18px 44px rgba(17,21,15,0.08)',
-  },
-  invitationTablet: { paddingTop: 30, paddingHorizontal: 28, paddingBottom: 28 },
-  invitationPhone: {
-    flexBasis: 'auto',
-    flexGrow: 0,
-    flexShrink: 0,
-    paddingTop: 26,
-    paddingHorizontal: 24,
-    paddingBottom: 28,
-    borderColor: 'rgba(17,21,15,0.10)',
-    boxShadow: '0 10px 28px rgba(17,21,15,0.07)',
-  },
-  cardHeading: {
-    fontFamily: t.typography.title,
-    fontWeight: '800',
-    letterSpacing: -0.6,
-    color: '#11150f',
-  },
-  cardBody: {
-    marginTop: 14,
-    fontFamily: t.typography.body,
-    fontSize: 18,
-    lineHeight: 28,
-    color: '#4f5651',
-    maxWidth: 680,
-  },
-  cardBodyPhone: { fontSize: 21, lineHeight: 31.5 },
-  invitationAction: { marginTop: 'auto', paddingTop: 28 },
-  cardHover: { borderColor: 'rgba(45,212,126,0.85)', boxShadow: '0 22px 46px rgba(17,21,15,0.14)' },
-  button: {
-    alignSelf: 'flex-start',
-    minHeight: 52,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(17,21,15,0.16)',
-    borderRadius: 12,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonPhone: {
-    alignSelf: 'stretch',
-    minHeight: 56,
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderRadius: 14,
-  },
-  buttonPaid: { backgroundColor: '#11150f', borderColor: '#11150f' },
-  buttonHover: { backgroundColor: '#f7f8fa', borderColor: 'rgba(17,21,15,0.3)' },
-  buttonPaidHover: { backgroundColor: '#3a423b', borderColor: '#3a423b' },
-  buttonLabel: { fontFamily: t.typography.ui, fontSize: 17, fontWeight: '700', color: '#11150f' },
-  buttonPaidLabel: { color: '#ffffff' },
   phoneBand: {
     paddingTop: 40,
     paddingHorizontal: 20,

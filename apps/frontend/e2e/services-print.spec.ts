@@ -149,9 +149,9 @@ test('print content belongs to the current services visit and disappears when le
   await page.getByRole('link', { name: 'Alethical home', exact: true }).click();
   await expect(page.locator('.services-print')).toHaveCount(0);
   await page.emulateMedia({ media: 'print' });
-  await expect(page.getByRole('link', { name: /^Campaign services Get political/ })).toBeVisible();
+  await expect(page.getByTestId('home-services')).toBeVisible();
   await page.emulateMedia({ media: 'screen' });
-  await page.getByRole('link', { name: /^Campaign services Get political/ }).click();
+  await page.getByTestId('home-services').click();
   await expect(page.locator('.services-print')).toHaveCount(1);
   await page.emulateMedia({ media: 'print' });
   await expectCompletePrint(page.locator('.services-print'));

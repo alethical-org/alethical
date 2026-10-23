@@ -15,7 +15,6 @@ export const EVENTS = [
     updatedOn: '2026-10-19',
     startDate: '2026-10-15T18:00:00-05:00',
     endDate: '2026-10-15T20:00:00-05:00',
-    dateLabel: 'Thursday, October 15, 2026',
     timeLabel: '6–8 PM CDT',
     locationName: 'Riverside Terrace',
     streetAddress: '195 River Ave S',
