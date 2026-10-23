@@ -17,8 +17,8 @@ from datetime import datetime
 REPO = "alethical-org/alethical"
 WORKFLOW = "pillow-runtime.yml"
 PATH = ".github/workflows/" + WORKFLOW
-# Covers an API deploy wait (6 min) plus the proof (4 min) and runner startup.
-MAX_WAIT = 900
+# Covers an API deploy wait (10 min) plus the proof (4 min) and runner startup.
+MAX_WAIT = 1000
 MAX_AGE = 1800
 ROOT = Path(__file__).resolve().parents[1]
 

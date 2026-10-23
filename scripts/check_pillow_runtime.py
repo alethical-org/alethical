@@ -44,7 +44,7 @@ MAX_INSTANCES = 8
 MAX_OUTPUT = 4096
 MAX_WIRE_BYTES = 32768
 MAX_MESSAGES = 64
-# A deploy replaces the running instance for up to about 4.5 minutes. Only these
+# Deploys took 2.7 to 6.8 minutes on 2026-10-23. Only these
 # provider states mean "still rolling out"; every other unsettled state fails.
 ROLLOUT_DEPLOYMENT_STATES = {
     "QUEUED",
@@ -55,7 +55,7 @@ ROLLOUT_DEPLOYMENT_STATES = {
     "REMOVING",
 }
 ROLLOUT_INSTANCE_STATES = {"CREATED", "INITIALIZING", "RESTARTING", "REMOVING"}
-SETTLE_SECONDS = 360
+SETTLE_SECONDS = 600
 SETTLE_INTERVAL = 15
 PROOF_SECONDS = 240
 PROBE_SECONDS = 90

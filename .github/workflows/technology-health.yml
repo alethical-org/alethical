@@ -20,7 +20,7 @@ jobs:
   review:
     runs-on: ubuntu-latest
     # The production proof may wait out an API deploy before it runs.
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Check out repository
         uses: actions/checkout@v7

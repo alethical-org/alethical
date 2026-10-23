@@ -47,8 +47,8 @@ jobs:
     needs: claim
     if: github.repository == 'alethical-org/alethical' && github.ref == 'refs/heads/main' && needs.claim.outputs.first == 'true'
     runs-on: ubuntu-latest
-    # Waits out an API deploy (up to 6 minutes) before the unchanged proof.
-    timeout-minutes: 12
+    # Waits out an API deploy (up to 10 minutes) before the unchanged proof.
+    timeout-minutes: 16
     environment: pillow-security-runtime
     steps:
       - name: Check out trusted main only

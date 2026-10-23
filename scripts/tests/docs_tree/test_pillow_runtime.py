@@ -826,7 +826,7 @@ def test_rollout_that_never_settles_fails_at_the_bound(provider, monkeypatch, ca
 
 
 def test_whole_run_budget_leaves_the_proof_its_own_time():
-    assert runtime.SETTLE_SECONDS + runtime.PROOF_SECONDS <= 600
+    assert runtime.SETTLE_SECONDS + runtime.PROOF_SECONDS <= 900
     assert runtime.PROOF_SECONDS >= 2 * runtime.PROBE_SECONDS
 
 

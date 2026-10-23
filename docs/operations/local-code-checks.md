@@ -130,7 +130,7 @@ The Pillow exception also needs a fresh production result from the trusted
 main-only GitHub workflow. Local pushes require the GitHub CLI (`gh`) signed in
 to `github.com` with access to start repository workflows and read their results.
 The checker uses that saved sign-in, requests a unique check on `main`, and waits
-for its matching result; during an API deploy that wait can reach about 10 minutes. Missing access or failed production evidence stops the
+for its matching result; during an API deploy that wait can reach about 15 minutes. Missing access or failed production evidence stops the
 push. No Railway credential belongs in the local checkout or upload environment.
 GitHub checks receive only read access to the result; the production token stays
 in the separate trusted workflow's main-only environment.
