@@ -1,3 +1,4 @@
+import { eventIndexBySlug } from './eventsIndex';
 import {
   EVENTS_PATH,
   eventPath,
@@ -322,7 +323,6 @@ import {
   HOME_PUBLIC_SERVICES_BODY,
   HOME_PUBLIC_SERVICES_CTA,
   MONEY_PROMO_COUNT_UNIT,
-  MONEY_PROMO_EYEBROW,
   MONEY_PROMO_HEADING,
 } from './homepage';
 import { LINK_ARROW_PATH, LINK_ARROW_STROKE_WIDTH, LINK_ARROW_VIEW_BOX } from './linkArrowGeometry';
@@ -508,7 +508,10 @@ export function homePageSnapshot(): PageSnapshot {
       {
         heading: HOME_PUBLIC_BILLS_HEADING,
         body: [HOME_PUBLIC_BILLS_BODY],
-        items: [{ label: HOME_PUBLIC_BILLS_CTA, href: '/bills' }],
+        items: [
+          { label: HOME_PUBLIC_BILLS_CTA, href: '/bills' },
+          { label: 'Search legislators', href: '/legislators' },
+        ],
       },
       {
         heading: HOME_PUBLIC_SERVICES_HEADING,
@@ -2886,7 +2889,6 @@ function linkArrowSvg(color: string): string {
 function renderHomeMoneyCard(band: 'hero' | 'phone'): string {
   return (
     `<a class="ph-money ph-money-${band}" href="/money">` +
-    `<span class="ph-money-eyebrow">${escapeHtml(MONEY_PROMO_EYEBROW)}</span>` +
     `<h2 class="ph-money-heading">${escapeHtml(MONEY_PROMO_HEADING)}</h2>` +
     `<span class="ph-money-body">${escapeHtml(HOME_PUBLIC_MONEY_BODY)}</span>` +
     '<span class="ph-count" aria-hidden="true">' +
@@ -2917,11 +2919,23 @@ function renderHomeSnapshot(snapshot: PageSnapshot): string {
       `<a class="ph-invite" href="${escapeHtml(action.href)}">` +
       `<h2>${escapeHtml(section.heading ?? '')}</h2>` +
       `<span class="ph-invite-body">${escapeHtml(section.body?.[0] ?? '')}</span>` +
-      `<span class="ph-invite-action"><span class="ph-button${paid ? ' ph-button-paid' : ''}"><span>${escapeHtml(action.label)}</span>${linkArrowSvg(paid ? '#ffffff' : '#0f7a45')}</span></span>` +
+      `<span class="ph-invite-action"><span class="ph-button${paid ? ' ph-button-paid' : ''}"><span>${escapeHtml(action.label)}</span>${paid ? '<span aria-hidden="true">→</span>' : linkArrowSvg('#0f7a45')}</span></span>` +
       '</a>'
     );
   };
-  const invitations = `<div class="ph-invites">${invitation(bills, false)}${invitation(services, true)}</div>`;
+  const event = eventIndexBySlug('forward-debate-2026');
+  const legislature = `<div class="ph-invite ph-legislature"><h2>${escapeHtml(bills?.heading ?? '')}</h2><span class="ph-invite-body">${escapeHtml(bills?.body?.[0] ?? '')}</span><div class="ph-bill-actions">${bills?.items?.map((action) => `<a class="ph-button" href="${escapeHtml(action.href ?? '')}">${escapeHtml(action.label)}${linkArrowSvg('#0f7a45')}</a>`).join('') ?? ''}</div></div>`;
+  const play =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" fill="#0f7a45"></path></svg>';
+  const debate = (desktop: boolean) =>
+    !event
+      ? ''
+      : `<a class="ph-invite ph-debate" href="/blog/events/${event.slug}"><div class="ph-debate-words"><div class="ph-debate-title"><h2>${escapeHtml(event.title)}</h2>${desktop ? '<span class="ph-host">Hosted by Alethical</span>' : ''}</div>${!desktop ? `<span class="ph-debate-details">${event.district}<br/><span class="ph-date">Hosted by Alethical ·</span> <span class="ph-date">${event.dateLabel.replace(/^\w+, /, '')}</span></span>` : ''}<span class="ph-invite-action"><span class="ph-button">${play}Watch the debate</span></span></div><span class="ph-photo"><span class="ph-crop"><img src="${desktop ? event.homePhotos.desktop : event.homePhotos.narrow}" alt="" /></span></span>${desktop ? `<span class="ph-debate-details"><span class="ph-date">${event.district} ·</span> <span class="ph-date">${event.dateLabel.replace(/^\w+, /, '')}</span></span><span class="ph-invite-action"><span class="ph-button">${play}Watch the debate</span></span>` : ''}</a>`;
+  const service = invitation(services, true).replace(
+    'class="ph-invite"',
+    'class="ph-invite ph-services"',
+  );
+  const invitations = `<div class="ph-invites ph-features-desktop">${legislature}${debate(true)}${service}</div><div class="ph-invites ph-features-tablet">${debate(false)}${legislature}${service}</div><div class="ph-invites ph-features-phone">${debate(false)}${service}${legislature}</div>`;
   const candidate = candidates?.items?.[0];
   return [
     '<div class="page-snapshot page-snapshot-home">',

@@ -258,11 +258,13 @@ export function MoneyPromoCard({
     >
       {dimmed ? <View pointerEvents="none" style={[styles.overlay, blurOverlay]} /> : null}
 
-      <Text
-        style={[styles.eyebrow, { fontSize: s.eyebrow, lineHeight: monoLineHeight(s.eyebrow) }]}
-      >
-        {MONEY_PROMO_EYEBROW}
-      </Text>
+      {!publicCard ? (
+        <Text
+          style={[styles.eyebrow, { fontSize: s.eyebrow, lineHeight: monoLineHeight(s.eyebrow) }]}
+        >
+          {MONEY_PROMO_EYEBROW}
+        </Text>
+      ) : null}
 
       <Text
         accessibilityRole="header"
@@ -272,7 +274,7 @@ export function MoneyPromoCard({
           {
             fontSize: s.heading,
             lineHeight: Math.round(s.heading * 1.04),
-            marginTop: s.headingTop,
+            marginTop: publicCard ? 0 : s.headingTop,
           },
         ]}
       >

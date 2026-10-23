@@ -31,10 +31,10 @@ machine-readable description of the subject. `robots.txt` and `sitemap.xml` both
 LinkedIn, Slack, Discord, WhatsApp, or Reddit fetches a page, the server hands them a different,
 correct file:
 
-| What was asked for | What the sharer gets back |
-| --- | --- |
+| What was asked for         | What the sharer gets back                                                    |
+| -------------------------- | ---------------------------------------------------------------------------- |
 | `/legislators/aisha-gomez` | `Rep. Aisha Gomez: Democratic-Farmer-Labor, House District 62A \| Alethical` |
-| `/bills/94-2025-HF719` | `HF 719: Statewide Capital Projects and Bonding Bill \| Alethical` |
+| `/bills/94-2025-HF719`     | `HF 719: Statewide Capital Projects and Bonding Bill \| Alethical`           |
 
 The bill description is the real plain-language summary of what the bill does. So the machinery to
 write a correct title for any page **already exists and already runs in production**: a small
@@ -52,8 +52,8 @@ Two things are easy to overstate here, and getting them right is load-bearing:
   restrictions, crawl everything." We need the file to point at the sitemap and to make a
   deliberate choice about AI crawlers, not to fix indexing.
 - **"Too late for a crawler" is only half true.** Google and Bing both run a page's programs and
-  can eventually see the title the browser sets. What the first response gets you is *reliable and
-  immediate*; what rendering gets you is *deferred and not guaranteed*. So the honest case for
+  can eventually see the title the browser sets. What the first response gets you is _reliable and
+  immediate_; what rendering gets you is _deferred and not guaranteed_. So the honest case for
   fixing the first response is dependability for every reader, not that Google is blind.
 
 The headline damage is the identical titles. Pages that look the same get folded together and only
@@ -98,18 +98,18 @@ Rules that generate every page, not examples. They carry over to campaign financ
    description varied into inaccuracy is worse than a repeated one.
 6. **The title ends with `| Alethical`. The description never mentions Alethical.**
 
-| Page | Title | Description |
-| --- | --- | --- |
-| Legislator | `{Name}, Minnesota {chamber} District {code} \| Alethical` | `See {Name}'s committee assignments, chief-authored bills, and contact information in the Minnesota Legislature.` |
-| Bill | `{HF\|SF} {number} ({year}): {plain-language short title} \| Alethical` | First sentence of the plain-language summary. |
-| Bill, no summary yet | `{HF\|SF} {number} ({year}) \| Alethical` | `See what {HF\|SF} {number} would do and where it stands in the Minnesota Legislature.` |
-| Bill list | `Search Minnesota bills \| Alethical` | `Search bills in the Minnesota Legislature by topic, chamber, and status.` |
-| Legislator list | `Minnesota House and Senate members \| Alethical` | `Find a Minnesota legislator by name, chamber, or party.` |
-| Home | `Alethical: Minnesota political intelligence & campaign strategy` | Direction approved on 24 Sep 2026. Keep political intelligence first, followed by campaign strategy. |
-| Campaign finance (Sept 2026) | `{Name}: campaign finance, Minnesota {chamber} District {code} \| Alethical` | `See who contributed to {Name}'s campaign, from official Minnesota filings.` |
-| Committee | `{Filed name} — Minnesota campaign money \| Alethical` | `Money in and money out for the {kind} registered for {seat}, from Minnesota’s own campaign-finance filings.` — the register's kind and seat; for a filer with no seat, `…for a Minnesota {kind}, from the state’s own campaign-finance filings.`; never the name (§26) and never a figure |
-| Money section pages | `{Page name} — Minnesota campaign money \| Alethical`, or the page's own subject with the state in it (`Money in politics in Minnesota`, `Outside spending in Minnesota campaigns`, `Money by race: Minnesota candidates by office and district`) | Each page's existing sentence |
-| Lobbying record | `{Name} — Minnesota lobbying principal \| Alethical` / `{Name} — Minnesota lobbyist \| Alethical` | What the page shows and where the records come from, per kind, without the name (`apps/frontend/src/lib/lobbyingMetadata.ts`) |
+| Page                         | Title                                                                                                                                                                                                                                             | Description                                                                                                                                                                                                                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Legislator                   | `{Name}, Minnesota {chamber} District {code} \| Alethical`                                                                                                                                                                                        | `See {Name}'s committee assignments, chief-authored bills, and contact information in the Minnesota Legislature.`                                                                                                                                                                          |
+| Bill                         | `{HF\|SF} {number} ({year}): {plain-language short title} \| Alethical`                                                                                                                                                                           | First sentence of the plain-language summary.                                                                                                                                                                                                                                              |
+| Bill, no summary yet         | `{HF\|SF} {number} ({year}) \| Alethical`                                                                                                                                                                                                         | `See what {HF\|SF} {number} would do and where it stands in the Minnesota Legislature.`                                                                                                                                                                                                    |
+| Bill list                    | `Search Minnesota bills \| Alethical`                                                                                                                                                                                                             | `Search bills in the Minnesota Legislature by topic, chamber, and status.`                                                                                                                                                                                                                 |
+| Legislator list              | `Minnesota House and Senate members \| Alethical`                                                                                                                                                                                                 | `Find a Minnesota legislator by name, chamber, or party.`                                                                                                                                                                                                                                  |
+| Home                         | `Alethical: Minnesota political intelligence & campaign strategy`                                                                                                                                                                                 | Direction approved on 24 Sep 2026. Keep political intelligence first, followed by campaign strategy.                                                                                                                                                                                       |
+| Campaign finance (Sept 2026) | `{Name}: campaign finance, Minnesota {chamber} District {code} \| Alethical`                                                                                                                                                                      | `See who contributed to {Name}'s campaign, from official Minnesota filings.`                                                                                                                                                                                                               |
+| Committee                    | `{Filed name} — Minnesota campaign money \| Alethical`                                                                                                                                                                                            | `Money in and money out for the {kind} registered for {seat}, from Minnesota’s own campaign-finance filings.` — the register's kind and seat; for a filer with no seat, `…for a Minnesota {kind}, from the state’s own campaign-finance filings.`; never the name (§26) and never a figure |
+| Money section pages          | `{Page name} — Minnesota campaign money \| Alethical`, or the page's own subject with the state in it (`Money in politics in Minnesota`, `Outside spending in Minnesota campaigns`, `Money by race: Minnesota candidates by office and district`) | Each page's existing sentence                                                                                                                                                                                                                                                              |
+| Lobbying record              | `{Name} — Minnesota lobbying principal \| Alethical` / `{Name} — Minnesota lobbyist \| Alethical`                                                                                                                                                 | What the page shows and where the records come from, per kind, without the name (`apps/frontend/src/lib/lobbyingMetadata.ts`)                                                                                                                                                              |
 
 Two changes from what ships today, both from the outside review:
 
@@ -118,7 +118,7 @@ Two changes from what ships today, both from the outside review:
 - **Party comes out of the legislator title, and does not go into the description either.**
   District and chamber identify a person just as well, never go stale mid-term, and keep the title
   free of a partisan label that a search result shows out of context. **Party never "moves into the description" either; the table directly above, where no
-  description carries a party, is the normative artifact.** A description says what a reader will *find on the page*, and party is an attribute of the person,
+  description carries a party, is the normative artifact.** A description says what a reader will _find on the page_, and party is an attribute of the person,
   not a section of the profile. Mixing the two makes the sentence longer and less true to its job.
   Party stays plainly visible on the page itself.
 
@@ -189,10 +189,10 @@ We do not display these portraits unaltered, and this was measured rather than a
 portraits are **160 × 206**. Our boxes are a different shape, and `cover` fills the box and clips
 the overflow:
 
-| Surface | Box | Cut off the bottom |
-| --- | --- | --- |
-| Search result card (`LegislatorResultCard.tsx`) | 64 × 74 | ~10% |
-| Legislator profile (`LegislatorProfileWebScreen.tsx`) | 128 × 146 | ~11% |
+| Surface                                               | Box       | Cut off the bottom |
+| ----------------------------------------------------- | --------- | ------------------ |
+| Search result card (`LegislatorResultCard.tsx`)       | 64 × 74   | ~10%               |
+| Legislator profile (`LegislatorProfileWebScreen.tsx`) | 128 × 146 | ~11%               |
 
 The same treatment is on `LegislatorProfileMobileScreen.tsx` and `RepresentativeCard.tsx`, so all
 four portrait surfaces clip. Rounded corners mask the corners on top of that.
@@ -203,7 +203,7 @@ perpetuity, a required credit line we do not show, and an image "may not be digi
 way, including cropping." The Senate omits the House's advance-permission sentence.
 
 **The limit on that, which matters.** The Library states its photos come from the Legislative
-Manuals *and* from legislative staff photographers, so a given file may not be one either chamber
+Manuals _and_ from legislative staff photographers, so a given file may not be one either chamber
 controls. Since both chambers say the same thing about cropping, the practical answer is unchanged;
 ownership still decides the credit wording and whether permission is needed.
 
@@ -247,15 +247,15 @@ crawlers.
 **These are two different kinds of robot, and only one of them affects whether we get found.**
 Confirmed from each vendor's own documentation:
 
-| Robot | What it does | Does allowing it help us appear in AI answers? |
-| --- | --- | --- |
-| `OAI-SearchBot` | Surfaces sites in ChatGPT's search | **Yes.** OpenAI states that blocking it stops the site appearing in ChatGPT search answers. |
-| `Claude-SearchBot` | Improves Claude's search results | **Yes.** |
-| `PerplexityBot` | Powers Perplexity's answers | **Yes.** |
-| `ChatGPT-User`, `Claude-User`, `Perplexity-User` | Fetches a page when a person asks a question about it | **Yes**, for that live lookup. |
-| `Google-Extended` | Two things at once: training future Gemini models **and** grounding live Gemini answers | **Yes, for the grounding half.** Google states it has no effect on ordinary Google Search either way. |
-| `GPTBot` | Collects text to train future OpenAI models | **No.** OpenAI states it has "no direct impact on search appearance." |
-| `ClaudeBot` | Collects text to train future Anthropic models | **No.** Anthropic describes it as the training crawler only. |
+| Robot                                            | What it does                                                                            | Does allowing it help us appear in AI answers?                                                        |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `OAI-SearchBot`                                  | Surfaces sites in ChatGPT's search                                                      | **Yes.** OpenAI states that blocking it stops the site appearing in ChatGPT search answers.           |
+| `Claude-SearchBot`                               | Improves Claude's search results                                                        | **Yes.**                                                                                              |
+| `PerplexityBot`                                  | Powers Perplexity's answers                                                             | **Yes.**                                                                                              |
+| `ChatGPT-User`, `Claude-User`, `Perplexity-User` | Fetches a page when a person asks a question about it                                   | **Yes**, for that live lookup.                                                                        |
+| `Google-Extended`                                | Two things at once: training future Gemini models **and** grounding live Gemini answers | **Yes, for the grounding half.** Google states it has no effect on ordinary Google Search either way. |
+| `GPTBot`                                         | Collects text to train future OpenAI models                                             | **No.** OpenAI states it has "no direct impact on search appearance."                                 |
+| `ClaudeBot`                                      | Collects text to train future Anthropic models                                          | **No.** Anthropic describes it as the training crawler only.                                          |
 
 **Allow the search and user-question robots, and allow `Google-Extended`.** The first group is the
 decision that affects being found. `Google-Extended` joins them because Google bundles training and
@@ -357,7 +357,7 @@ So release 2 puts a small, honest snapshot into the body of the same response: t
 plain-language summary, a few key facts, the official source link, and ordinary links onward. The
 app still takes over and becomes interactive exactly as now.
 
-This is deliberately *not* the full architectural fork in
+This is deliberately _not_ the full architectural fork in
 [#502](https://github.com/alethical-org/alethical/issues/502) (rebuilding navigation, or splitting
 the public site into its own codebase). It is a much smaller step that #502 does not block, and its
 side benefit is that a visitor sees real content before the app finishes loading.
@@ -386,36 +386,36 @@ which breaks the freshness requirement in `.claude/rules/grounded-answers.md` ru
 
 - [ ] Every public address returns its own title, description, canonical address, and preview tags
       in the **first** server response, verified with `curl` and no user-agent trickery —
-      *Net: the right words arrive before any of our code runs.*
-- [ ] Robots and people receive identical HTML for the same address — *Net: nothing different to
-      detect, so the equality question never arises.*
-- [ ] The browser tab title after the app loads matches the one the server sent — *Net: the correct
-      title is not overwritten a second later.*
-- [ ] A non-existent bill or legislator returns 404; a data outage returns 503 — *Net: we stop
-      producing unlimited blank pages that look fine.*
-- [ ] Every stored title and summary is escaped before being placed in a tag — *Net: one odd
-      character in an AI summary cannot break the page.*
-- [ ] The legislator description no longer claims "recent votes" — *Net: we stop promising a
-      section the page does not have.*
+      _Net: the right words arrive before any of our code runs._
+- [ ] Robots and people receive identical HTML for the same address — _Net: nothing different to
+      detect, so the equality question never arises._
+- [ ] The browser tab title after the app loads matches the one the server sent — _Net: the correct
+      title is not overwritten a second later._
+- [ ] A non-existent bill or legislator returns 404; a data outage returns 503 — _Net: we stop
+      producing unlimited blank pages that look fine._
+- [ ] Every stored title and summary is escaped before being placed in a tag — _Net: one odd
+      character in an AI summary cannot break the page._
+- [ ] The legislator description no longer claims "recent votes" — _Net: we stop promising a
+      section the page does not have._
 - [ ] `robots.txt` and `sitemap.xml` return real content; every bill and legislator is listed with
-      its real last-changed date; answer pages are left out but **not** blocked — *Net: a full map,
-      minus the pages we want unlisted, without breaking the instruction that unlists them.*
-- [ ] Filtered list addresses declare the unfiltered list as their real address — *Net: thousands
-      of near-identical addresses collapse into one.*
+      its real last-changed date; answer pages are left out but **not** blocked — _Net: a full map,
+      minus the pages we want unlisted, without breaking the instruction that unlists them._
+- [ ] Filtered list addresses declare the unfiltered list as their real address — _Net: thousands
+      of near-identical addresses collapse into one._
 - [ ] One shared set of wording rules feeds the tab title, the first-response tags, and the share
-      preview — *Net: one place to fix wording, so the three cannot drift apart.*
-- [ ] Confirmed with Google Search Console's URL inspection, not by reading config — *Net: checked
-      the way a search engine actually sees it.*
+      preview — _Net: one place to fix wording, so the three cannot drift apart._
+- [ ] Confirmed with Google Search Console's URL inspection, not by reading config — _Net: checked
+      the way a search engine actually sees it._
 
 **Release 2 — real text in the first response**
 
 - [ ] Bill and legislator pages carry a heading, the plain-language summary, key facts, and the
-      official source link in the first response — *Net: there is something to read before the app
-      loads, and something for a search result to quote.*
-- [ ] That text matches what the app then displays — *Net: no separate robot-only version to keep
-      honest.*
-- [ ] Navigation between public pages uses ordinary links — *Net: a search engine can walk the site
-      instead of relying on the sitemap alone.*
+      official source link in the first response — _Net: there is something to read before the app
+      loads, and something for a search result to quote._
+- [ ] That text matches what the app then displays — _Net: no separate robot-only version to keep
+      honest._
+- [ ] Navigation between public pages uses ordinary links — _Net: a search engine can walk the site
+      instead of relying on the sitemap alone._
 
 ---
 
@@ -454,7 +454,7 @@ first-response tags and the share sheet all read.
 ### Three things this proposal did not settle, and how the build settled them
 
 **1. `/` cannot be rewritten, so the home page's tags ship inside the template.** Vercel applies
-`rewrites` *after* the filesystem check, and `/` matches the built `index.html`, so a rewrite for it
+`rewrites` _after_ the filesystem check, and `/` matches the built `index.html`, so a rewrite for it
 would never fire. Nothing in §8 anticipated this. The fix turned out to be better than the plan:
 the home page's tags are entirely static, so they live in `apps/frontend/public/index.html` inside
 the same markers, and a frontend test asserts that block equals `renderPageHead(homePageMetadata())`.
@@ -469,7 +469,7 @@ the profile itself. So the shipped description is the table's sentence verbatim 
 If the bullet was meant literally, it is a one-line change to `buildLegislatorShareContent`.
 
 **Ruled: the build was right, no change.** The table is normative and the bullet was sloppy; §3's
-bullet is now corrected to match. A description says what a reader will find *on the page*, and
+bullet is now corrected to match. A description says what a reader will find _on the page_, and
 party is an attribute of the person rather than a section of it.
 
 **Current return-link requirement.** The historical review below describes the earlier
@@ -482,14 +482,14 @@ hierarchy or authorize adding breadcrumb markup.
 §6 says `BreadcrumbList` belongs on detail pages "only where the page really shows that path". What a
 detail page shows is a link back to its list, labelled "Go back" rather than "Bills". The shipped
 markup claims two levels — the list, then this page — which is the path the link really goes down,
-but a reader does not see the parent *named*. If that ever reads as a stretch, the honest fix is to
+but a reader does not see the parent _named_. If that ever reads as a stretch, the honest fix is to
 label the link with its destination, not to delete the markup.
 
 **Ruled: remove the markup, and do not relabel the link to justify keeping it.** The build was right
 to flag this, and a detail it surfaced settles it. `GoBackLink` is not a parent link at all: on the
 legislator profile it calls `navigation.goBack()` when there is history and only falls through to
 the list otherwise. So where it leads depends on how the reader arrived — often the search results
-they came from, not the list. A `BreadcrumbList` asserts a *fixed* place in a hierarchy, and this
+they came from, not the list. A `BreadcrumbList` asserts a _fixed_ place in a hierarchy, and this
 control does not have one.
 
 Relabelling it to "Bills" was the other option and it loses twice over: it would change shipped
@@ -503,7 +503,7 @@ read (`apps/frontend/src/lib/share.ts`). `WebSite` and `Organization` stay on th
 bill or legislator page now carries no machine-readable block at all.
 
 **The web behaviour makes the ruling stronger than the native one it was argued from.** The
-paragraph above cites `navigation.goBack()`, which is the *native* path. On the web — the only
+paragraph above cites `navigation.goBack()`, which is the _native_ path. On the web — the only
 target that ships, and the only one a search engine sees — the control is a real anchor whose
 address is the list, and it intercepts the click only when this tab already has an in-app history
 entry (`backLinkProps` and `hasInAppBackEntry`, `apps/frontend/src/navigation/links.ts`). So a
@@ -546,7 +546,7 @@ and district, party, committees, stored biography and legislative service when p
 office and phone, and links to their official chamber profile and to the member list). `api/page.ts`
 drops it between the markers inside `<div id="root">`.
 
-At release 2, lists, `/ask` and static pages got no snapshot. A list is a list of *other* records, so
+At release 2, lists, `/ask` and static pages got no snapshot. A list is a list of _other_ records, so
 that release did not invent a summary of a result set that changes per reader. §18 later replaces the
 list boundary for unfiltered public directory pages only: it serves the exact records and page links,
 not a generated summary. Find My Legislator also receives its fixed instructions. Filtered lists,
@@ -562,7 +562,7 @@ where a reader could see both. Measured in a real browser against the live progr
 `MutationObserver` on `#root`: **one** change, at 60 ms, from the snapshot to the app's single root
 view, and no recorded state holding both. The alternative considered was a sibling element hidden by a
 script once the app renders; it needs code to run at exactly the right moment, and it fails open — if
-that code does not run, the page shows the snapshot *and* the app.
+that code does not run, the page shows the snapshot _and_ the app.
 
 Putting it inside the mount point has a second consequence worth stating plainly: **if the program
 fails to load, the snapshot stays**. That is the §8C requirement that a JavaScript failure stop being
@@ -636,7 +636,7 @@ directly on Aug 11 2026 by comparing what a site serves against what Google stor
   transparent padding on every side; Google stored it at 48×48 with the mark filling the full height.
   `docker.com` confirms the rule rather than contradicting it: its source is a wide mark with zero
   horizontal padding and ~9%/11% top/bottom padding, and Google's copy reproduces that padding almost
-  exactly — because an aspect-preserving fit of a wide mark *recreates* vertical padding. `nodejs.org`
+  exactly — because an aspect-preserving fit of a wide mark _recreates_ vertical padding. `nodejs.org`
   looks untouched for the same reason: its artwork already fills the full height.
   **So padding inside a transparent favicon cannot be relied on. It is discarded.**
 - **An opaque favicon's framing is preserved exactly.** The trim operates on the transparent bounding
@@ -696,20 +696,20 @@ Measured in Search Console and against production on 11 Aug 2026, after release 
 
 ### The account setup
 
-| Question | Answer |
-| --- | --- |
-| Property type | **Domain** property (`sc-domain:alethical.com`), so it covers `www` and the bare domain together. A URL-prefix property would have missed one of them. |
-| Verification | Verified owner. Property added **1 Aug 2026**, so every number below covers at most 10 days. |
-| Sitemap | **Was never submitted.** Submitted 11 Aug 2026. |
-| Security issues | None detected. |
-| Manual actions | None detected. |
-| `robots.txt` status | "All files are valid". |
-| Search generative AI | Set to **Include**. |
-| Crawl volume | 6,420 crawl requests in 90 days. |
+| Question             | Answer                                                                                                                                                 |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Property type        | **Domain** property (`sc-domain:alethical.com`), so it covers `www` and the bare domain together. A URL-prefix property would have missed one of them. |
+| Verification         | Verified owner. Property added **1 Aug 2026**, so every number below covers at most 10 days.                                                           |
+| Sitemap              | **Was never submitted.** Submitted 11 Aug 2026.                                                                                                        |
+| Security issues      | None detected.                                                                                                                                         |
+| Manual actions       | None detected.                                                                                                                                         |
+| `robots.txt` status  | "All files are valid".                                                                                                                                 |
+| Search generative AI | Set to **Include**.                                                                                                                                    |
+| Crawl volume         | 6,420 crawl requests in 90 days.                                                                                                                       |
 
 ### What Google has indexed, and what it has not
 
-**557 pages indexed, 15 not.** All 557 were crawled between 1 and 7 Aug 2026 — *before* release 1 —
+**557 pages indexed, 15 not.** All 557 were crawled between 1 and 7 Aug 2026 — _before_ release 1 —
 so they are indexed against the old identical-metadata pages and will improve as Google re-crawls.
 `/bills/94-2025-HF719` itself is still **unknown to Google**: never crawled, no referring page. The
 live test on it returns "URL is available to Google", so the only thing missing was discovery, which
@@ -718,11 +718,11 @@ is what submitting the sitemap addresses.
 The 15 exclusions are all classes **release 1 already fixed**, which is why no further work follows
 from them:
 
-| Reason | Count | What they actually are | Status |
-| --- | --- | --- | --- |
-| Duplicate without user-selected canonical | 10 | 8 legislator profiles reached by database id (`/legislators/288c5211-…`), one `?tab=text` address, and `/Home` | The id address now declares the slug address as canonical, and `?tab=text` declares the plain bill. Verified live. |
-| Page with redirect | 4 | The bare domain redirecting to `www` | Intended. |
-| Not found (404) | 1 | — | Intended. |
+| Reason                                    | Count | What they actually are                                                                                         | Status                                                                                                             |
+| ----------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Duplicate without user-selected canonical | 10    | 8 legislator profiles reached by database id (`/legislators/288c5211-…`), one `?tab=text` address, and `/Home` | The id address now declares the slug address as canonical, and `?tab=text` declares the plain bill. Verified live. |
+| Page with redirect                        | 4     | The bare domain redirecting to `www`                                                                           | Intended.                                                                                                          |
+| Not found (404)                           | 1     | —                                                                                                              | Intended.                                                                                                          |
 
 **Answer pages were indexed before `noindex` shipped.** Two `/ask?q=…` addresses are in the index,
 crawled 5 Aug. They now serve `X-Robots-Tag: noindex`, so Google drops them on re-crawl. No removal
@@ -732,9 +732,9 @@ request is needed; the mechanism is already correct.
 
 Over 31 Jul – 9 Aug: **239 impressions, 2 clicks, average position 14.7.** Small, and expected for a
 10-day-old property. The queries are the informative part — they are legislator names and bill
-contents, not brand searches: *"lucille rehm recall minnesota house 2025"*, *"senator heather
-gustafson"*, *"leah hanson mankato"*, *"pete johnson mn"*, *"minimum wage senate bill 1052 newest
-text phased minimum wage dates"*. People are already asking Google the questions this product exists
+contents, not brand searches: _"lucille rehm recall minnesota house 2025"_, _"senator heather
+gustafson"_, _"leah hanson mankato"_, _"pete johnson mn"_, _"minimum wage senate bill 1052 newest
+text phased minimum wage dates"_. People are already asking Google the questions this product exists
 to answer, and landing on pages that until 11 Aug had no title of their own.
 
 ### Core Web Vitals cannot be judged yet
@@ -759,13 +759,13 @@ empty segment, so the address misses its rewrite, falls through to the catch-all
 `<link rel="canonical" href="https://www.alethical.com/">`. Measured byte-for-byte identical to the
 home page:
 
-| Address | Served before | Did a person reach the record? |
-| --- | --- | --- |
-| `/bills/94-2025-HF719/` | Home page | Yes — the app strips the slash after loading |
-| `/legislators/aisha-gomez/` | Home page | Yes — same |
-| `/bills/` and `/legislators/` | Home page | Yes — same |
-| `/BILLS/94-2025-HF719`, `/Bills`, `/Home` | Home page | **No** — stranded on the home page |
-| `/foo` | Home page, HTTP 200 | No such record |
+| Address                                   | Served before       | Did a person reach the record?               |
+| ----------------------------------------- | ------------------- | -------------------------------------------- |
+| `/bills/94-2025-HF719/`                   | Home page           | Yes — the app strips the slash after loading |
+| `/legislators/aisha-gomez/`               | Home page           | Yes — same                                   |
+| `/bills/` and `/legislators/`             | Home page           | Yes — same                                   |
+| `/BILLS/94-2025-HF719`, `/Bills`, `/Home` | Home page           | **No** — stranded on the home page           |
+| `/foo`                                    | Home page, HTTP 200 | No such record                               |
 
 **The fix is `"trailingSlash": false` in the root `vercel.json`.** Vercel then answers any
 slash-terminated address with a 308 redirect to the same address without the slash, which reaches the
@@ -795,14 +795,14 @@ loads** did not, and that is also what Google sees, because it runs our JavaScri
 Measured on `https://www.alethical.com/bills/94-2025-HF719`, before and after
 [#1363](https://github.com/alethical-org/alethical/pull/1363):
 
-| | Before | After |
-| --- | --- | --- |
-| `<h1>` count | **52** | **1** — the bill's own title |
+|                                | Before                                                                | After                         |
+| ------------------------------ | --------------------------------------------------------------------- | ----------------------------- |
+| `<h1>` count                   | **52**                                                                | **1** — the bill's own title  |
 | First `<h1>` in document order | `Grounded answers on Minnesota law`, **hidden**, the home page's hero | the bill's own title, visible |
-| `<h2>` / `<h3>` | 1 / 0 | 7 / 44 |
+| `<h2>` / `<h3>`                | 1 / 0                                                                 | 7 / 44                        |
 
 **Why it was a search risk and not only an accessibility one.** Google's title-link guidance treats
-a heading that is boilerplate and repeated across a site as a reason to *replace* what a page
+a heading that is boilerplate and repeated across a site as a reason to _replace_ what a page
 declares about itself. That heading was identical on every page and sat first. The practical risk
 was low — Google discounts hidden text, and since release 1 every page declares a strong unique
 `<title>` — but it pointed one way only.
@@ -840,7 +840,7 @@ section as the boilerplate-repeated-across-the-site case that Google's title-lin
 
 - The slogan sits in **2 to 4 places in every page's markup** (the footer, the home eyebrow) but is a
   **heading on exactly one page — `/about`.** Not a heading on Home, `/bills` or a legislator profile,
-  and never in any served HTML. Repeated *text* is not a repeated *heading*, and Google's fallback
+  and never in any served HTML. Repeated _text_ is not a repeated _heading_, and Google's fallback
   keys off the latter.
 - `/about` serves a specific, unique, accurate `<title>` plus a real description, so the fallback has
   no reason to fire at all.
@@ -870,7 +870,7 @@ immediately; a heading that invited a question here would not be.
 
 ### Reconsider only if
 
-Google reports trailing-slash addresses as duplicates *after* the redirect ships, which would mean
+Google reports trailing-slash addresses as duplicates _after_ the redirect ships, which would mean
 the redirect is not being followed. Observable in the Page indexing report under "Page with
 redirect".
 
@@ -1080,7 +1080,7 @@ Decided 11 Aug 2026 for [#1405](https://github.com/alethical-org/alethical/issue
 
 ## 20. Being found at all: crawling, indexing, and the decisions taken 25 Aug 2026
 
-**Net:** Everything above is about what a page *says* to a search engine. This section is about
+**Net:** Everything above is about what a page _says_ to a search engine. This section is about
 whether a search engine reads it, and whether it decides to list it. They are different problems
 with different levers, and the second one is where our real exposure is: a healthy fast server buys
 no crawling, and 2 of our own surfaces are working against us today.
@@ -1123,12 +1123,12 @@ not explore the rest of your site". We already keep filter combinations out of t
 
 ### 20.3 Our own size, measured
 
-| sitemap | addresses |
-| --- | ---: |
-| `/sitemaps/pages.xml` | 1,076 |
-| `/sitemaps/bills.xml` | 10,517 |
-| `/sitemaps/legislators.xml` | 200 |
-| total | **11,793** |
+| sitemap                     |  addresses |
+| --------------------------- | ---------: |
+| `/sitemaps/pages.xml`       |      1,076 |
+| `/sitemaps/bills.xml`       |     10,517 |
+| `/sitemaps/legislators.xml` |        200 |
+| total                       | **11,793** |
 
 Measured again on 28 Aug 2026, after §22 added the money section: `pages.xml` 1,115,
 `bills.xml` 10,517, `legislators.xml` 200, and a new `committees.xml` of 1,556, so
@@ -1209,12 +1209,12 @@ published at a per-kind address.
 
 Nested, with one combined listing:
 
-| address | what it is |
-| --- | --- |
-| `/blog` | everything, one combined listing |
-| `/blog/research/<name>` | one piece carrying the research trait |
-| `/blog/guides/<name>` | one piece carrying only the guide trait |
-| `/blog/sets/<name>` | one set |
+| address                 | what it is                              |
+| ----------------------- | --------------------------------------- |
+| `/blog`                 | everything, one combined listing        |
+| `/blog/research/<name>` | one piece carrying the research trait   |
+| `/blog/guides/<name>`   | one piece carrying only the guide trait |
+| `/blog/sets/<name>`     | one set                                 |
 
 The folder words were `reports` and `explainers` when this section was first written; §2.6 of
 [`published-writing-decisions.md`](published-writing-decisions.md) settled them as `research` and
@@ -1295,10 +1295,10 @@ what the last bullet under Decision predicted.
 
 `curl` against the built handler, 25 Aug 2026, beside §20.4's live before figures:
 
-| address, as it was on 25 Aug 2026 | before | after | prose present |
-|---|---:|---:|---|
+| address, as it was on 25 Aug 2026                                                        |      before |            after | prose present                                                                                        |
+| ---------------------------------------------------------------------------------------- | ----------: | ---------------: | ---------------------------------------------------------------------------------------------------- |
 | `/reports/the-money-only-goes-one-way`, now `/blog/research/the-money-only-goes-one-way` | 8,125 bytes | **17,223 bytes** | yes. "Six organizations", "one-way valve", "Optometry", "886 million", "Enbridge Energy" all present |
-| `/reports`, now `/blog` | 8,402 bytes | **9,391 bytes** | yes, with an ordinary link to every posted piece |
+| `/reports`, now `/blog`                                                                  | 8,402 bytes |  **9,391 bytes** | yes, with an ordinary link to every posted piece                                                     |
 
 ### Decision
 
@@ -1323,7 +1323,7 @@ what the last bullet under Decision predicted.
 ### Why this does not weaken rule 13
 
 [`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 13 holds a
-piece's claims out of its **share preview and metadata**, and keeps *listing* a piece on its own
+piece's claims out of its **share preview and metadata**, and keeps _listing_ a piece on its own
 `indexed` flag. Both are untouched:
 
 - The tags still carry title and dates only. `researchPageMetadata` (named
@@ -1385,22 +1385,22 @@ different section, and by some distance the largest set of records it has hit.
 `curl` against the live site, before any JavaScript. Both columns are live measurements: the
 **before** on 27 Aug 2026 and the **after** on 28 Aug 2026, once this had deployed.
 
-| address | before | after |
-|---|---|---|
-| `/money` | 9,005 bytes, **0 anchors** | 10,356 bytes, 3 anchors |
-| `/money/committees` | 9,117 bytes, **0 anchors** | 20,232 bytes, **54 anchors** |
-| `/money/committees?page=12` | did not exist as its own address | 22,008 bytes, 57 anchors |
-| `/money/committees/jane-fonda-climate-pac-41326` | title only, no body | 11,704 bytes, 3 anchors |
-| `/money/committees/jane-fonda-climate-pac-41326/payments` | title only, no body | 10,570 bytes, 2 anchors |
-| `/read` (then addressed `/reading`), for contrast | 9,816 bytes, 3 anchors | unchanged |
-| `/bills/94-2025-HF1`, for contrast | 11,799 bytes, 12 anchors | unchanged |
+| address                                                   | before                           | after                        |
+| --------------------------------------------------------- | -------------------------------- | ---------------------------- |
+| `/money`                                                  | 9,005 bytes, **0 anchors**       | 10,356 bytes, 3 anchors      |
+| `/money/committees`                                       | 9,117 bytes, **0 anchors**       | 20,232 bytes, **54 anchors** |
+| `/money/committees?page=12`                               | did not exist as its own address | 22,008 bytes, 57 anchors     |
+| `/money/committees/jane-fonda-climate-pac-41326`          | title only, no body              | 11,704 bytes, 3 anchors      |
+| `/money/committees/jane-fonda-climate-pac-41326/payments` | title only, no body              | 10,570 bytes, 2 anchors      |
+| `/read` (then addressed `/reading`), for contrast         | 9,816 bytes, 3 anchors           | unchanged                    |
+| `/bills/94-2025-HF1`, for contrast                        | 11,799 bytes, 12 anchors         | unchanged                    |
 
 The sitemaps, measured the same day:
 
-| sitemap | before | after |
-| --- | ---: | ---: |
-| `/sitemaps/pages.xml` | 1,079 | 1,115 — the 32 numbered register pages and 4 published pieces added since |
-| `/sitemaps/committees.xml` | did not exist | **1,556** |
+| sitemap                    |        before |                                                                     after |
+| -------------------------- | ------------: | ------------------------------------------------------------------------: |
+| `/sitemaps/pages.xml`      |         1,079 | 1,115 — the 32 numbered register pages and 4 published pieces added since |
+| `/sitemaps/committees.xml` | did not exist |                                                                 **1,556** |
 
 **1,556 of 1,603, so 47 registered filers are deliberately absent**: those are the ones whose
 page holds neither a filed report nor a year of reported figures, which is the thin-page test
@@ -1422,21 +1422,21 @@ sitemap. Whether it serves a body is a separate question with a separate answer:
 what a reader sees before the program arrives, and telling a search engine not to list an
 address is not a reason to show its reader nothing. Sorted for this section:
 
-| address | verdict | what it serves |
-|---|---|---|
-| `/money` | front door | a short body: heading, its one sentence, the live register count, the copy date, the gaps, and links into the 2 lanes that lead to an indexable page. The 3rd lane opens the name search, which is `noindex`, so it is left out of the served body and reaches a reader when the app renders |
-| `/money/committees` and `?page=N` | record list | the page's 50 filers as ordinary anchors, plus previous and next links |
-| `/money/committees?q=…` or `?kind=…` | filtered view | head only, `noindex`, no canonical — unchanged |
-| `/money/committees/{slug}` and `?year=N` | **record** | the committee's own register facts and its money for the year the address asks for, defaulting to the current filing year; canonical on the bare address either way |
-| `/money/committees/{slug}/payments`, `?year=N` and `?tab=gave\|spent` | **record** | the same identity and period for that same year, plus the first 50 named payments in the direction the address asks for; canonical on the bare address in every case |
-| `/money/races` | record list | a compact directory of office, district and court-seat groups, with committee counts and ordinary links to each complete seat |
-| `/money/races/{seat}` and `?year=N` | **record** | one seat's candidate committees and their own figures for the year the address asks for; canonical on the bare seat address either way (§28.6) |
-| `/money/races?office=…`, `?year=…` and `?q=…` | filtered view | the matching directory, plus the all-office data for the selected year used by search; `noindex`, no canonical |
-| `/money/races?group=…` | retired | **301** to `/money/races/{seat}`, keeping the year and leaving the office chip and name box behind (§28.6) |
-| `/money/search` and `?q=…` | filtered view | `noindex` with no canonical, and a body carrying the page's own explanation and what these records do not cover — never a result for anything typed ([#1966](https://github.com/alethical-org/alethical/issues/1966)) |
-| `/money/payments?name=…&role=…` | **filtered view** | head only, `noindex`, no canonical — added by [#1780](https://github.com/alethical-org/alethical/issues/1780) |
-| `/money/outside-spending` | **record** | indexable, canonical on the bare address, with the whole file's own figures and the words introducing its group-and-committee directory as a body — the whole independent-expenditure file as one subject ([#1945](https://github.com/alethical-org/alethical/issues/1945), body added by [#1966](https://github.com/alethical-org/alethical/issues/1966)) |
-| `/money/outside-spending?browse=…`, `?q=…`, `?spender=…`, `?about=…`, `?year=…`, `?sort=…`, `?page=…` | filtered view | head only, `noindex`, no canonical — a narrowed directory or one group's or one committee's view of the same rows; each usable subject name opens its filed identifier |
+| address                                                                                               | verdict           | what it serves                                                                                                                                                                                                                                                                                                                                             |
+| ----------------------------------------------------------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/money`                                                                                              | front door        | a short body: heading, its one sentence, the live register count, the copy date, the gaps, and links into the 2 lanes that lead to an indexable page. The 3rd lane opens the name search, which is `noindex`, so it is left out of the served body and reaches a reader when the app renders                                                               |
+| `/money/committees` and `?page=N`                                                                     | record list       | the page's 50 filers as ordinary anchors, plus previous and next links                                                                                                                                                                                                                                                                                     |
+| `/money/committees?q=…` or `?kind=…`                                                                  | filtered view     | head only, `noindex`, no canonical — unchanged                                                                                                                                                                                                                                                                                                             |
+| `/money/committees/{slug}` and `?year=N`                                                              | **record**        | the committee's own register facts and its money for the year the address asks for, defaulting to the current filing year; canonical on the bare address either way                                                                                                                                                                                        |
+| `/money/committees/{slug}/payments`, `?year=N` and `?tab=gave\|spent`                                 | **record**        | the same identity and period for that same year, plus the first 50 named payments in the direction the address asks for; canonical on the bare address in every case                                                                                                                                                                                       |
+| `/money/races`                                                                                        | record list       | a compact directory of office, district and court-seat groups, with committee counts and ordinary links to each complete seat                                                                                                                                                                                                                              |
+| `/money/races/{seat}` and `?year=N`                                                                   | **record**        | one seat's candidate committees and their own figures for the year the address asks for; canonical on the bare seat address either way (§28.6)                                                                                                                                                                                                             |
+| `/money/races?office=…`, `?year=…` and `?q=…`                                                         | filtered view     | the matching directory, plus the all-office data for the selected year used by search; `noindex`, no canonical                                                                                                                                                                                                                                             |
+| `/money/races?group=…`                                                                                | retired           | **301** to `/money/races/{seat}`, keeping the year and leaving the office chip and name box behind (§28.6)                                                                                                                                                                                                                                                 |
+| `/money/search` and `?q=…`                                                                            | filtered view     | `noindex` with no canonical, and a body carrying the page's own explanation and what these records do not cover — never a result for anything typed ([#1966](https://github.com/alethical-org/alethical/issues/1966))                                                                                                                                      |
+| `/money/payments?name=…&role=…`                                                                       | **filtered view** | head only, `noindex`, no canonical — added by [#1780](https://github.com/alethical-org/alethical/issues/1780)                                                                                                                                                                                                                                              |
+| `/money/outside-spending`                                                                             | **record**        | indexable, canonical on the bare address, with the whole file's own figures and the words introducing its group-and-committee directory as a body — the whole independent-expenditure file as one subject ([#1945](https://github.com/alethical-org/alethical/issues/1945), body added by [#1966](https://github.com/alethical-org/alethical/issues/1966)) |
+| `/money/outside-spending?browse=…`, `?q=…`, `?spender=…`, `?about=…`, `?year=…`, `?sort=…`, `?page=…` | filtered view     | head only, `noindex`, no canonical — a narrowed directory or one group's or one committee's view of the same rows; each usable subject name opens its filed identifier                                                                                                                                                                                     |
 
 ### Decisions
 
@@ -1573,11 +1573,11 @@ data service for the identical URL, because nothing passed the first read on. Me
 the live release on 4 Sep 2026, Chrome, every cache warm, empty browser cache
 ([#1966](https://github.com/alethical-org/alethical/issues/1966)):
 
-| when | what happens on `/money/committees` | cost |
-|---|---|---|
-| 0-128 ms | the HTML arrives and the served body is on screen | 128 ms |
-| 131-1163 ms | the one program bundle downloads | 1,031 ms |
-| 1219 ms | the app starts and replaces the body with its own loading state | 56 ms |
+| when         | what happens on `/money/committees`                                                                           | cost       |
+| ------------ | ------------------------------------------------------------------------------------------------------------- | ---------- |
+| 0-128 ms     | the HTML arrives and the served body is on screen                                                             | 128 ms     |
+| 131-1163 ms  | the one program bundle downloads                                                                              | 1,031 ms   |
+| 1219 ms      | the app starts and replaces the body with its own loading state                                               | 56 ms      |
 | 1253-1771 ms | the app fetches `/campaign-finance/committees?limit=50&offset=0`, the read this function made at about 100 ms | **518 ms** |
 
 On the same day that read cost 541 ms when Cloudflare missed, against 1,265 ms on
@@ -1697,8 +1697,8 @@ function, and past them an outage returns the handler's own 503 rather than a da
 page.
 
 **The rule, rather than the 2 numbers.** A response that can name a person gets a short
-window, always. A longer one is available only to a response that is *purely dated
-figures*, which §7 of `docs/architecture/campaign-finance-system-design.md` explicitly
+window, always. A longer one is available only to a response that is _purely dated
+figures_, which §7 of `docs/architecture/campaign-finance-system-design.md` explicitly
 permits: keep the last accepted figures and their existing date, because "older and
 labelled beats blank". The page function serves both kinds from one header and cannot
 tell them apart, so it takes the shorter rule for all of them. Sorting every route by
@@ -1728,7 +1728,7 @@ check found no confirmed member.
 
 **Read this before lengthening anything on the strength of automatic clearing.** Proving
 that held copies clear themselves lifts the cap on a pure-figures route. It does not lift
-it on a route that names a person: clearing is what stops a *stale* copy, and the reason
+it on a route that names a person: clearing is what stops a _stale_ copy, and the reason
 an identity-bearing route is short is what happens when a correction has not propagated
 yet. Nothing clears these copies today in any case — Vercel clears them on a deployment
 and a campaign-money import makes no deployment — so right now the window length is the
@@ -1833,7 +1833,7 @@ search-discovery and page-delivery repairs. The dated measurements are in
 [seo-indexing-audit-2026-09-07.md](../research/seo-indexing-audit-2026-09-07.md).
 
 The homepage's first response carries the signed-out introduction and the money,
-Bills and votes, and Campaign services invitations. Their links open `/money`, `/bills`, and `/services`; the
+Legislature, The Forward Debate, and Campaign services cards. Their links open `/money`, `/bills`, `/legislators`, `/blog/events/forward-debate-2026`, and `/services`; the
 shared static navigation also links to `/blog`. The signed-out redesign approved
 on 30 September 2026 removes the separate body links to legislator search and
 Find My Legislator. Those destinations remain in the loaded Search menu.
@@ -1972,7 +1972,7 @@ only when it is on the Board's current registration list, because an absent one 
 **2. A record reached under an old or mistyped name served a second copy.** A committee slug
 whose name part was stale, a lobbying slug with a typo, and a legislator's UUID address all
 answered 200 with a canonical link to the real address. Search Console reported 7 legislator
-UUID addresses as *duplicate without user-selected canonical* while every one carried the link
+UUID addresses as _duplicate without user-selected canonical_ while every one carried the link
 (§15's report, 7 Sep 2026). A canonical link is a hint; a redirect is an instruction. Those
 addresses now answer **301** to the record's own address, keeping every query parameter, so a
 `?year=2024` view of a committee or a `?tab=money` view of a member arrives where it was headed
@@ -1997,7 +1997,7 @@ recorded a different title from the one it was served.
 
 **4. A legislator's profile never linked the committee a person had confirmed as theirs.** The
 committee page linked the member; the member's page, which is where readers and search engines
-arrive, did not link back. The served profile now carries a *Campaign money* section linking
+arrive, did not link back. The served profile now carries a _Campaign money_ section linking
 each confirmed committee's own page. The link rides on the legislator record
 (`include=campaign_committees`, off the one table a person's confirmation is written to), not on
 the per-year money read: that read costs about 3 times the record's own on a cache miss
@@ -2150,7 +2150,6 @@ Comment text stays out of article metadata, structured data and initial snapshot
 [editorial-comments-guide.md](../product-onboarding/editorial-comments-guide.md)
 owns those choices and the exact messages.
 
-
 ## 29. Candidate and legal content, and ongoing public search checks
 
 The website's `/candidates`, `/candidates/<id>`, `/privacy` and `/terms` addresses
@@ -2273,7 +2272,6 @@ controls on phone and desktop have separate browser acceptance recorded in
 Deterministic player fixtures do not establish real audiovisual playback or speech
 accuracy.
 
-
 The approved event publishing scope lives in
 [published-writing-decisions.md §2.16](published-writing-decisions.md#216-events-reuse-the-blog-design-and-retain-a-permanent-address).
 The `/blog/events` collection and every published `/blog/events/<name>` announcement
@@ -2304,7 +2302,6 @@ requires an individual address for each event and visible facts matching the mar
 Focused endpoint checks cover initial content, canonical address, image dimensions,
 Central Time offsets, free registration, the ended state, missing pages and sitemap links.
 
-
 Candidate approval of the revised flyer and republication authorization are confirmed
 as of 15 October 2026; the earlier publication hold no longer applies. The article and collection
 return public content, and their URLs appear in Blog links and the sitemap. The revised
@@ -2312,7 +2309,6 @@ flyer is the original announcement presentation's preview image; the replay uses
 the final video thumbnail. The supplied Candidate Guide and Money Report
 PDFs are ordinary same-origin download links in the shared initial/browser article;
 their financial claims do not enter the announcement's search or share metadata.
-
 
 ## 31. Retained candidate records and verified person overviews
 
@@ -2358,7 +2354,6 @@ and account deletion without implying that official public records are deleted
 with a campaign account. Other legal terms and traffic/account policies remain
 unchanged. [How Find My Candidates works](../product-onboarding/find-my-candidates-guide.md)
 owns the detailed public record, review, source recheck and notification behavior.
-
 
 ## Private TV ad records
 
