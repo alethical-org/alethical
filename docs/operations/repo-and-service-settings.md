@@ -1,6 +1,6 @@
 # Repo and service settings
 
-<!-- describes: scripts/check_hosted_service_settings.py, scripts/supabase_oauth_state.mjs, .github/workflows/hosted-service-settings.yml -->
+<!-- describes: scripts/check_hosted_service_settings.py, scripts/supabase_oauth_state.mjs, scripts/lib/supabase_oauth_artifacts.mjs, .github/workflows/hosted-service-settings.yml -->
 
 This file is the source of truth for Alethical's GitHub, Vercel, Railway, and
 Supabase settings outside the repository. The free read-only check in
@@ -245,8 +245,23 @@ The monthly check uses a Supabase OAuth grant limited to `auth:read`. It cannot 
 Supabase setting. No Supabase personal access token is stored. Supabase replaces the
 refresh token after every use, so the workflow encrypts each replacement with the OAuth
 client secret and keeps 2 ciphertext-only GitHub Actions artifacts for 90 days. Runs wait
-for the prior run. Only artifacts made by this trusted workflow can be restored, and a
-missing, expired, corrupt, or unsaved replacement fails the check.
+for the prior run. Both restore jobs use the same metadata-only selector, which reads all
+pages for the 2 saved names and selects by artifact creation time, not run creation time:
+retrying an older run can save the newest replacement. Each candidate must belong to this
+repository and workflow, with a `push`, `schedule`, `workflow_dispatch`, or
+`pull_request_target` event. The run must be complete, except the current run's exact
+retry may restore the copy its prior attempt saved. A failed later settings check does
+not make a successfully saved replacement unusable.
+
+The selector makes at most 50 metadata requests. Missing pages, changed pagination,
+unreadable metadata, exhausted budget, or equal newest creation times across different
+trusted runs stop restoration. Equal times within 1 run use the larger artifact ID. An
+expired newest copy also stops restoration, even if an older copy remains: its grant
+may already be consumed. Only a complete search finding no trusted saved history permits
+the existing bootstrap secret. The listing API is not an atomic snapshot; serialization
+prevents this workflow from publishing a replacement during its own lookup. The selector
+reads no artifact contents. The workflow downloads only the selected encrypted copy;
+missing, corrupt, or unsaved replacements fail the check.
 
 Failures identify whether access renewal or the settings read failed, without printing
 response bodies or credentials. An HTTP error during renewal means the settings were

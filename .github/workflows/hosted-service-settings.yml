@@ -9,6 +9,7 @@ on:
       - supabase/templates/email-confirmation.html
       - scripts/check_hosted_service_settings.py
       - scripts/supabase_oauth_state.mjs
+      - scripts/lib/supabase_oauth_artifacts.mjs
       - scripts/tests/test_hosted_service_settings.py
       - scripts/tests/supabase_oauth_state.test.mjs
       - .github/workflows/hosted-service-settings.yml
@@ -30,6 +31,7 @@ on:
       - supabase/templates/email-confirmation.html
       - scripts/check_hosted_service_settings.py
       - scripts/supabase_oauth_state.mjs
+      - scripts/lib/supabase_oauth_artifacts.mjs
       - scripts/tests/test_hosted_service_settings.py
       - scripts/tests/supabase_oauth_state.test.mjs
       - .github/workflows/hosted-service-settings.yml
@@ -114,17 +116,7 @@ jobs:
           set -euo pipefail
           state_dir="$RUNNER_TEMP/supabase-oauth-state"
           mkdir -p "$state_dir"
-          artifact_id=""
-          while read -r trusted_run_id; do
-            artifact_id="$(
-              gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$trusted_run_id/artifacts?per_page=100" \
-                --jq '[.artifacts[] | select(.expired == false and (.name == "supabase-oauth-state-primary" or .name == "supabase-oauth-state-backup"))] | sort_by(.created_at) | last | .id // empty'
-            )"
-            [[ -n "$artifact_id" ]] && break
-          done < <(
-            gh api "/repos/$GITHUB_REPOSITORY/actions/workflows/hosted-service-settings.yml/runs?status=completed&per_page=50" \
-              --jq '.workflow_runs[] | select(.event == "push" or .event == "schedule" or .event == "workflow_dispatch" or .event == "pull_request_target") | .id'
-          )
+          artifact_id="$(node scripts/supabase_oauth_state.mjs select)"
           if [[ -n "$artifact_id" ]]; then
             gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$state_dir/state.zip"
             unzip -q "$state_dir/state.zip" -d "$state_dir"
@@ -239,17 +231,7 @@ jobs:
           set -euo pipefail
           state_dir="$RUNNER_TEMP/supabase-oauth-state"
           mkdir -p "$state_dir"
-          artifact_id=""
-          while read -r trusted_run_id; do
-            artifact_id="$(
-              gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$trusted_run_id/artifacts?per_page=100" \
-                --jq '[.artifacts[] | select(.expired == false and (.name == "supabase-oauth-state-primary" or .name == "supabase-oauth-state-backup"))] | sort_by(.created_at) | last | .id // empty'
-            )"
-            [[ -n "$artifact_id" ]] && break
-          done < <(
-            gh api "/repos/$GITHUB_REPOSITORY/actions/workflows/hosted-service-settings.yml/runs?status=completed&per_page=50" \
-              --jq '.workflow_runs[] | select(.event == "push" or .event == "schedule" or .event == "workflow_dispatch" or .event == "pull_request_target") | .id'
-          )
+          artifact_id="$(node scripts/supabase_oauth_state.mjs select)"
           if [[ -n "$artifact_id" ]]; then
             gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$state_dir/state.zip"
             unzip -q "$state_dir/state.zip" -d "$state_dir"
