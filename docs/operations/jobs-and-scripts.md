@@ -2,7 +2,7 @@
 
 <!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py, alethical/api/services/candidate_claim_email.py, alethical/api/main.py, api/search-measurements.ts -->
 
-Net: The repository has 36 GitHub Actions workflows. 30 can start automatically
+Net: The repository has 37 GitHub Actions workflows. 31 can start automatically
 and 6 run only when a person starts them. Scheduled checks, releases, and local
 backups do not call paid AI services. Reader questions and deliberately started
 AI work do. The review of a failed campaign-money collection has a paid AI
@@ -64,7 +64,7 @@ Time and Central Daylight Time, so their local hour changes by 1 during the year
 
 ## What GitHub runs only by hand
 
-These 6 workflows complete the total of 36:
+These 6 workflows complete the total of 37:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |
@@ -92,7 +92,7 @@ The separate daily deletion job above does not need a working weekly collector.
 
 ## Command-line tools
 
-The `scripts/` folder has 107 runnable files. GitHub jobs call 44 of them
+The `scripts/` folder has 108 runnable files. GitHub jobs call 45 of them
 directly and 3 document checks through `local_checks.py`. The 4 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`, which uses `worktree_inventory.py`
 for the complete folder report; the older shell command
