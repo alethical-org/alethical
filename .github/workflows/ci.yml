@@ -225,9 +225,13 @@ jobs:
       - name: Check no surface adds a person's campaign committees together
         run: python scripts/check_no_cross_committee_total.py
 
-  backend:
+  backend-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2]
     needs: select
-    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.select.outputs.backend == 'true') }}
+    if: ${{ false }} # Negative trial: required backend gate must fail
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: postgresql+psycopg://alethical:alethical@localhost:5432/alethical
@@ -357,14 +361,13 @@ jobs:
         run: |
           uv run python -m unittest discover -s scripts/tests -p 'test_manual_test_database.py'
           uv run python -m unittest discover -s scripts/tests -p 'test_repeat_failure_runs_pytest.py'
-          uv run --frozen python scripts/repeat_failure_runs.py run --scope backend --workers 6 --output .tmp/prevention-backend
-          uv run --frozen python scripts/repeat_failure_runs.py check --output .tmp/prevention-backend --commit "$GITHUB_SHA"
+          uv run --frozen python scripts/repeat_failure_runs.py run --scope backend --workers 6 --group "${{ matrix.group }}" --output .tmp/prevention-backend
 
       - name: Retain named prevention results even on failure
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: prevention-backend-${{ github.run_id }}-${{ github.run_attempt }}
+          name: prevention-backend-${{ github.run_id }}-${{ github.run_attempt }}-group-${{ matrix.group }}
           path: |
             .tmp/prevention-backend/receipt.json
             .tmp/prevention-backend/pytest.xml
@@ -374,6 +377,42 @@ jobs:
       - name: Stop this job's temporary test database
         if: always()
         run: docker stop alethical-ci-postgres || true
+
+  backend:
+    needs: [select, backend-tests]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Require both backend groups or an intentional path skip
+        id: selected
+        env:
+          SELECT_RESULT: ${{ needs.select.result }}
+          SELECTED_BACKEND: ${{ needs.select.outputs.backend }}
+          GROUP_RESULT: ${{ needs.backend-tests.result }}
+        run: |
+          python - <<'PY_BACKEND_GATE'
+          import os
+          from scripts.repeat_failure_runs import backend_selected
+          needed = backend_selected(os.environ["SELECT_RESULT"], os.environ["SELECTED_BACKEND"],
+                                    os.environ["GITHUB_EVENT_NAME"], os.environ["GROUP_RESULT"])
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              print(f"needed={str(needed).lower()}", file=output)
+          PY_BACKEND_GATE
+      - name: Download both backend result files
+        if: steps.selected.outputs.needed == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: prevention-backend-${{ github.run_id }}-${{ github.run_attempt }}-group-*
+          path: .tmp/backend-results
+      - name: Require the exact full collection across both groups
+        if: steps.selected.outputs.needed == 'true'
+        run: >-
+          python scripts/repeat_failure_runs.py combined-results
+          --commit "$GITHUB_SHA" --output
+          ".tmp/backend-results/prevention-backend-${{ github.run_id }}-${{ github.run_attempt }}-group-1"
+          ".tmp/backend-results/prevention-backend-${{ github.run_id }}-${{ github.run_attempt }}-group-2"
 
   frontend-checks:
     needs: select

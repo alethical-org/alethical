@@ -34,6 +34,7 @@ from scripts.review_repeat_failures import ReviewError, atomic_write, load, requ
 
 REGISTRY = "docs/operations/repeat-failure-cases.json"
 EXPECTED_SKIPS = "alethical/tests/expected_skips.json"
+FILE_DURATIONS = ".github/backend-test-durations.json"
 TEST_FILE = "alethical/tests/test_campaign_finance_load.py"
 CASE = "reviewed-money-exception-identity"
 CHANGED = "test_changed_itemized_amount_cannot_reuse_a_previous_reconcile_waiver"
@@ -160,7 +161,11 @@ def junit_outcomes(path):
 
 def junit_results(path):
     """Read testcases, never a report's claimed pass total alone."""
-    results = junit_outcomes(path)
+    return prevention_results(junit_outcomes(path))
+
+
+def prevention_results(results):
+    """The named money checks must pass in the full (possibly combined) result."""
     require(EXPECTED <= results.keys(), "Required named prevention results missing")
     actual_prevention = {
         key
@@ -291,6 +296,7 @@ def expected_skips(root):
 def coverage(collected, outcomes, allowed_skips):
     """Require the results to be exactly the collected tests, each passed."""
     expected = {tuple(identity) for identity in collected}
+    require(len(expected) == len(collected), "Collection listed a test twice")
     missing = sorted(expected - outcomes.keys())
     extra = sorted(outcomes.keys() - expected)
     require(
@@ -322,6 +328,54 @@ def coverage(collected, outcomes, allowed_skips):
         "passed": sum(outcome == "passed" for outcome in outcomes.values()),
         "allowed_skips": [{"classname": c, "name": n} for c, n in skipped],
     }
+
+
+def test_groups(root, collected):
+    """Balance whole files by measured time; newly collected files always join.
+
+    Collection, not the timing map, is the inventory. Resolve class members to
+    their containing file, then greedily place the longest file in the lighter
+    group. A new file uses the median measured file duration until remeasured.
+    """
+    root = Path(root)
+    timings = json.loads((root / FILE_DURATIONS).read_text())["seconds"]
+    require(
+        timings and all(type(v) in {int, float} and v >= 0 for v in timings.values()),
+        "Invalid file durations",
+    )
+    fallback = sorted(timings.values())[len(timings) // 2]
+    files = {}
+    for identity in collected:
+        parts = identity[0].split(".")
+        while parts and not (root / ("/".join(parts) + ".py")).is_file():
+            parts.pop()
+        require(parts, "Collected test has no source file")
+        path = "/".join(parts) + ".py"
+        files.setdefault(path, []).append(identity)
+    groups, totals = [[], []], [0.0, 0.0]
+    for path in sorted(files, key=lambda path: (-timings.get(path, fallback), path)):
+        index = min(range(2), key=lambda index: (totals[index], index))
+        groups[index].append(path)
+        totals[index] += timings.get(path, fallback)
+    require(all(groups), "Both backend groups must contain tests")
+    return [
+        (sorted(paths), sorted(identity for path in paths for identity in files[path]))
+        for paths in groups
+    ]
+
+
+def backend_selected(selection, selected, event, group_result):
+    """A filtered suite is valid only when selection worked and no group ran."""
+    require(
+        selection == "success" and selected in {"true", "false"},
+        "Backend path selection did not succeed",
+    )
+    needed = event == "workflow_dispatch" or selected == "true"
+    require(
+        group_result == ("success" if needed else "skipped"),
+        "Backend group failed, was cancelled, or was unexpectedly skipped",
+    )
+    return needed
 
 
 def collect(root, env, output):
@@ -422,7 +476,7 @@ def run_command(command, root, env):
         stop_descendants(child.pid)
 
 
-def run(root, scope, output, workers=0):
+def run(root, scope, output, workers=0, group=None):
     root, output = Path(root).resolve(), Path(output).resolve()
     require(
         output.is_relative_to(root / ".tmp"), "Run output must be inside ignored .tmp/"
@@ -451,6 +505,10 @@ def run(root, scope, output, workers=0):
         require(
             not workers or scope == "backend", "Only backend runs use parallel workers"
         )
+        require(
+            group is None or (scope == "backend" and group in {1, 2}),
+            "Only backend runs use groups 1 and 2",
+        )
         receipt["workers"] = workers
         if scope == "backend":
             # Lists, as the receipt's JSON stores them.
@@ -458,6 +516,11 @@ def run(root, scope, output, workers=0):
                 list(test) for test in collect(root, env, output)
             ]
         command = [sys.executable, "-m", "pytest"]
+        if group is not None:
+            files, identities = test_groups(root, receipt["collected_tests"])[group - 1]
+            receipt["group"] = group
+            receipt["group_tests"] = identities
+            command.extend(files)
         if workers:
             prepare_worker_databases(root, env, workers)
             command.extend(["-n", str(workers), "--max-worker-restart", "0"])
@@ -474,15 +537,17 @@ def run(root, scope, output, workers=0):
             "Source changed during pytest; rerun on stable files",
         )
         require(receipt["exit_code"] == 0, "Pytest did not complete successfully")
-        receipt["passed_tests"] = junit_results(output / "pytest.xml")
+        outcomes = junit_outcomes(output / "pytest.xml")
+        if group is None:
+            receipt["passed_tests"] = prevention_results(outcomes)
+            receipt["passed_case"] = CASE
         if scope == "backend":
             receipt["coverage"] = coverage(
-                receipt["collected_tests"],
-                junit_outcomes(output / "pytest.xml"),
+                receipt.get("group_tests", receipt["collected_tests"]),
+                outcomes,
                 expected_skips(root),
             )
         receipt["junit_sha256"] = digest(output / "pytest.xml")
-        receipt["passed_case"] = CASE
         receipt["status"] = "passed"
     finally:
         receipt["finished_at"] = datetime.now(timezone.utc).isoformat()
@@ -490,7 +555,7 @@ def run(root, scope, output, workers=0):
     return receipt
 
 
-def check(root, output, commit):
+def checked_receipt(root, output, commit):
     require(
         len(commit) in {40, 64} and all(char in "0123456789abcdef" for char in commit),
         "Supply the exact full release commit",
@@ -521,14 +586,29 @@ def check(root, output, commit):
         receipt.get("junit_sha256") == digest(Path(output) / "pytest.xml"),
         "JUnit output changed after capture",
     )
+    require(
+        receipt.get("not_run_cases") == expected_cases(root),
+        "Receipt case coverage differs from registry",
+    )
+    if os.environ.get("GITHUB_RUN_ID", "").isdigit():
+        require(
+            receipt.get("github_run")
+            == {
+                "id": os.environ["GITHUB_RUN_ID"],
+                "attempt": os.environ.get("GITHUB_RUN_ATTEMPT", ""),
+            },
+            "Receipt comes from a different GitHub run or attempt",
+        )
+    return receipt
+
+
+def check(root, output, commit):
+    receipt = checked_receipt(root, output, commit)
+    require("group" not in receipt, "A backend group needs the combined-results check")
     names = junit_results(Path(output) / "pytest.xml")
     require(
         receipt.get("passed_tests") == names and receipt.get("passed_case") == CASE,
         "Receipt does not match the named results",
-    )
-    require(
-        receipt.get("not_run_cases") == expected_cases(root),
-        "Receipt case coverage differs from registry",
     )
     if receipt.get("scope") == "backend":
         require(
@@ -541,21 +621,62 @@ def check(root, output, commit):
             ),
             "Receipt does not prove every collected test ran",
         )
-    if os.environ.get("GITHUB_RUN_ID", "").isdigit():
-        require(
-            receipt.get("github_run", {}).get("id") == os.environ["GITHUB_RUN_ID"],
-            "Receipt comes from a different GitHub run",
-        )
     return receipt
+
+
+def combined_results(root, outputs, commit):
+    """Prove both groups from this exact source/run cover one full collection."""
+    require(len(outputs) == 2, "Exactly two backend result files are required")
+    receipts = [checked_receipt(root, output, commit) for output in outputs]
+    require(
+        [receipt.get("group") for receipt in receipts] == [1, 2],
+        "Missing or duplicate backend group",
+    )
+    require(
+        all(receipt.get("scope") == "backend" for receipt in receipts),
+        "Combined results require backend scope",
+    )
+    collected = receipts[0].get("collected_tests")
+    require(
+        isinstance(collected, list)
+        and collected
+        and collected == receipts[1].get("collected_tests"),
+        "Backend groups disagree on the full collection",
+    )
+    groups = test_groups(root, collected)
+    outcomes = {}
+    for index, (receipt, output) in enumerate(zip(receipts, outputs, strict=True)):
+        actual = junit_outcomes(Path(output) / "pytest.xml")
+        require(
+            not outcomes.keys() & actual.keys(), "Duplicate test identity across groups"
+        )
+        require(
+            receipt.get("group_tests") == groups[index][1],
+            "Backend group differs from its assigned tests",
+        )
+        require(
+            receipt.get("coverage")
+            == coverage(groups[index][1], actual, expected_skips(root)),
+            "Backend group coverage differs from results",
+        )
+        outcomes.update(actual)
+    return {
+        "source": receipts[0]["source"],
+        "passed_tests": prevention_results(outcomes),
+        "not_run_cases": expected_cases(root),
+        "coverage": coverage(collected, outcomes, expected_skips(root)),
+    }
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("run", "check"):
+    for name in ("run", "check", "combined-results"):
         command = sub.add_parser(name)
         command.add_argument("--root", default=".")
-        command.add_argument("--output", required=True)
+        command.add_argument(
+            "--output", required=True, nargs=2 if name == "combined-results" else None
+        )
         if name == "run":
             command.add_argument(
                 "--scope", choices=("money", "backend"), default="money"
@@ -566,6 +687,7 @@ def main(argv=None):
                 default=0,
                 help="pytest-xdist workers, each with its own database (GitHub only)",
             )
+            command.add_argument("--group", type=int, choices=(1, 2))
         else:
             command.add_argument("--commit", required=True)
     args = parser.parse_args(argv)
@@ -573,14 +695,20 @@ def main(argv=None):
         signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt())
     )
     try:
-        receipt = (
-            run(args.root, args.scope, args.output, args.workers)
-            if args.command == "run"
-            else check(args.root, args.output, args.commit)
-        )
-        print(
-            f"{len(receipt['passed_tests'])} named money-prevention tests passed; {len(receipt['not_run_cases'])} other registered cases have no run proof here."
-        )
+        if args.command == "run":
+            receipt = run(args.root, args.scope, args.output, args.workers, args.group)
+        elif args.command == "combined-results":
+            receipt = combined_results(args.root, args.output, args.commit)
+        else:
+            receipt = check(args.root, args.output, args.commit)
+        if "group" in receipt:
+            print(
+                f"Backend group {receipt['group']} passed; full-suite proof requires both groups."
+            )
+        else:
+            print(
+                f"{len(receipt['passed_tests'])} named money-prevention tests passed; {len(receipt['not_run_cases'])} other registered cases have no run proof here."
+            )
         if "coverage" in receipt:
             summary = receipt["coverage"]
             print(

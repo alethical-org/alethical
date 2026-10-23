@@ -354,6 +354,134 @@ class RunEvidenceTests(unittest.TestCase):
             with self.assertRaisesRegex(runs.ReviewError, message):
                 runs.collected_tests(text)
 
+    def split_fixture(self):
+        self.backend_tree()
+        source = self.root / runs.TEST_FILE
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text("# Test identities supplied by the fixture\n")
+        other = self.root / "alethical/tests/test_other.py"
+        other.write_text("# A newly collected file without a saved duration\n")
+        timings = self.root / runs.FILE_DURATIONS
+        timings.parent.mkdir(parents=True)
+        timings.write_text(json.dumps({"seconds": {runs.TEST_FILE: 20}}))
+        runs.git(self.root, "add", ".")
+        runs.git(self.root, "commit", "-qm", "Group fixture")
+        collected = sorted(runs.EXPECTED | {("alethical.tests.test_other", "test_new")})
+        groups = runs.test_groups(self.root, collected)
+        outputs = [self.root / ".tmp" / f"group-{i}" for i in (1, 2)]
+        for index, output in enumerate(outputs):
+
+            def runner(command, root, env):
+                Path(command[command.index("--junitxml") + 1]).write_bytes(
+                    junit(groups[index][1])
+                )
+                return 0
+
+            with (
+                patch.object(runs, "expected_cases", return_value=[]),
+                patch.object(runs, "collect", return_value=collected),
+                patch.object(runs, "run_command", side_effect=runner),
+            ):
+                runs.run(self.root, "backend", output, group=index + 1)
+        return outputs, runs.snapshot(self.root)["commit"]
+
+    def combine(self, outputs, commit):
+        with patch.object(runs, "expected_cases", return_value=[]):
+            return runs.combined_results(self.root, outputs, commit)
+
+    def rewrite_results(self, output, names, outcome=None):
+        (output / "pytest.xml").write_bytes(junit(names, outcome))
+        receipt_path = output / "receipt.json"
+        receipt = json.loads(receipt_path.read_text())
+        receipt["junit_sha256"] = runs.digest(output / "pytest.xml")
+        receipt_path.write_text(json.dumps(receipt))
+
+    def test_combined_groups_cover_full_list_and_include_new_files(self):
+        outputs, commit = self.split_fixture()
+        result = self.combine(outputs, commit)
+        self.assertEqual(result["coverage"]["collected"], 4)
+        self.assertEqual(len(result["passed_tests"]), 3)
+        with patch.object(runs, "expected_cases", return_value=[]):
+            with self.assertRaisesRegex(runs.ReviewError, "combined-results"):
+                runs.check(self.root, outputs[0], commit)
+
+    def test_combined_results_reject_deleted_identity(self):
+        outputs, commit = self.split_fixture()
+        self.rewrite_results(outputs[0], sorted(runs.EXPECTED)[:2])
+        with self.assertRaisesRegex(runs.ReviewError, "no result"):
+            self.combine(outputs, commit)
+
+    def test_combined_results_reject_duplicate_identity_across_groups(self):
+        outputs, commit = self.split_fixture()
+        self.rewrite_results(
+            outputs[1],
+            [("alethical.tests.test_other", "test_new"), sorted(runs.EXPECTED)[0]],
+        )
+        with self.assertRaisesRegex(runs.ReviewError, "Duplicate test identity"):
+            self.combine(outputs, commit)
+
+    def test_combined_results_reject_missing_file(self):
+        outputs, commit = self.split_fixture()
+        (outputs[1] / "pytest.xml").unlink()
+        with self.assertRaises(OSError):
+            self.combine(outputs, commit)
+
+    def test_combined_results_reject_unexpected_skip(self):
+        outputs, commit = self.split_fixture()
+        self.rewrite_results(
+            outputs[1], [("alethical.tests.test_other", "test_new")], "skipped"
+        )
+        with self.assertRaisesRegex(runs.ReviewError, "skipped without being allowed"):
+            self.combine(outputs, commit)
+
+    def test_combined_results_reject_wrong_group_collection_and_run_attempt(self):
+        outputs, commit = self.split_fixture()
+        path = outputs[1] / "receipt.json"
+        original = json.loads(path.read_text())
+        for change, message in [
+            ({"group": 1}, "Missing or duplicate"),
+            ({"collected_tests": original["collected_tests"][:-1]}, "full collection"),
+            ({"status": "incomplete"}, "did not complete"),
+        ]:
+            path.write_text(json.dumps({**original, **change}))
+            with (
+                self.subTest(change=change),
+                self.assertRaisesRegex(runs.ReviewError, message),
+            ):
+                self.combine(outputs, commit)
+        path.write_text(json.dumps(original))
+        with patch.dict(
+            os.environ, {"GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "2"}
+        ):
+            with self.assertRaisesRegex(
+                runs.ReviewError, "different GitHub run or attempt"
+            ):
+                self.combine(outputs, commit)
+        with self.assertRaisesRegex(runs.ReviewError, "Exactly two"):
+            self.combine(outputs[:1], commit)
+
+    def test_gate_rejects_skipped_failed_cancelled_and_missing_groups(self):
+        self.assertTrue(
+            runs.backend_selected("success", "true", "pull_request", "success")
+        )
+        self.assertFalse(
+            runs.backend_selected("success", "false", "pull_request", "skipped")
+        )
+        self.assertTrue(
+            runs.backend_selected("success", "false", "workflow_dispatch", "success")
+        )
+        for result in ("skipped", "failure", "cancelled", ""):
+            with self.subTest(result=result), self.assertRaises(runs.ReviewError):
+                runs.backend_selected("success", "true", "pull_request", result)
+        for selection, answer, event, result in [
+            ("failure", "false", "pull_request", "skipped"),
+            ("success", "", "pull_request", "success"),
+            ("success", "false", "workflow_dispatch", "skipped"),
+            ("success", "false", "pull_request", "success"),
+        ]:
+            with self.assertRaises(runs.ReviewError):
+                runs.backend_selected(selection, answer, event, result)
+
     def test_child_environment_excludes_credentials_and_plugin_overrides(self):
         env = {
             "PATH": os.environ.get("PATH", ""),

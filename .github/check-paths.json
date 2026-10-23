@@ -4,6 +4,7 @@
     ".github/workflows/fcc-political-files.yml",
     ".github/workflows/ci.yml",
     ".github/check-paths.json",
+    ".github/backend-test-durations.json",
     ".githooks/**",
     ".python-version",
     "alembic.ini",

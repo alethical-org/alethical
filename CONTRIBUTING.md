@@ -177,9 +177,18 @@ owns the server-identity check, cleanup, and safety limits.
 The test runner selects its verified address before importing test modules, so
 application connections, migrations, and seeding use the same temporary server.
 
-GitHub's backend job runs the suite on 6 parallel workers (`pytest-xdist`), each with
-its own copy of the job database (`alethical_gw0` to `alethical_gw5`), made and
-migrated by `scripts/repeat_failure_runs.py run --workers 6` before pytest starts.
+GitHub runs the backend suite in 2 file groups, each on a separate runner with
+6 parallel workers (`pytest-xdist`). Each worker has its own copy of that runner's
+database (`alethical_gw0` to `alethical_gw5`), made and migrated by
+`scripts/repeat_failure_runs.py run --workers 6 --group 1` (or `--group 2`) before
+pytest starts. Measured file times in `.github/backend-test-durations.json` balance
+the groups; the full collection supplies the file inventory, including new files.
+The required `backend` gate rejects failed, cancelled or unexpectedly skipped
+groups. Both receipts must match the current commit, run and attempt. Their results
+must cover every collected test exactly once, with only the named allowed skips,
+and the 3 named money-prevention tests must pass in the combined result.
+Retry with **Re-run all jobs**: results from an earlier attempt cannot satisfy
+the combined gate.
 Parallel workers are refused outside GitHub; run locally without `-n`. A test whose
 name holds a random value breaks parallel workers, which must all collect identical
 names, so parametrized tests give fixed `ids`.
