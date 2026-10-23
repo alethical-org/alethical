@@ -27,6 +27,15 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      runner_provider:
+        description: Manual issue 2654 trial only; automatic checks stay on GitHub
+        type: choice
+        default: github
+        options:
+          - github
+          - blacksmith
+
 
 permissions:
   actions: read
@@ -231,7 +240,8 @@ jobs:
   backend:
     needs: select
     if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.select.outputs.backend == 'true') }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.runner_provider == 'blacksmith' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-latest' }}
+    timeout-minutes: 15
     env:
       DATABASE_URL: postgresql+psycopg://alethical:alethical@localhost:5432/alethical
     steps:
@@ -262,6 +272,38 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
+      - name: Record trial hardware and isolate trial caches
+        id: runner-trial
+        working-directory: ${{ github.workspace }}
+        env:
+          TRIAL_PROVIDER: ${{ inputs.runner_provider || 'github' }}
+          TRIAL_EVENT: ${{ github.event_name }}
+        run: |
+          python3 - <<'PY_TRIAL'
+          import hashlib, json, os, platform, subprocess
+          from pathlib import Path
+          if os.environ["TRIAL_EVENT"] != "workflow_dispatch":
+              raise SystemExit(0)
+          provider = os.environ["TRIAL_PROVIDER"]
+          assert provider in {"github", "blacksmith"}
+          image = {
+              "os_release": Path("/etc/os-release").read_text(),
+              "image_os": os.environ.get("ImageOS", "unknown"),
+              "image_version": os.environ.get("ImageVersion", "unknown"),
+              "architecture": platform.machine(),
+          }
+          namespace = "ci2654-v1-" + provider + "-" + os.environ["GITHUB_JOB"] + "-"
+          namespace += hashlib.sha256(json.dumps(image, sort_keys=True).encode()).hexdigest()[:16] + "-"
+          Path(".tmp").mkdir(exist_ok=True)
+          Path(".tmp/ci-trial-cache-namespace").write_text(namespace + "\n")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("cache_namespace=" + namespace + "\n")
+          print(json.dumps({"provider": provider, "job": os.environ["GITHUB_JOB"], "image": image,
+                            "cpus": os.cpu_count(), "memory": Path("/proc/meminfo").read_text().splitlines()[0],
+                            "cache_namespace": namespace}, sort_keys=True))
+          subprocess.run(["lscpu"], check=True)
+          PY_TRIAL
+
       # Pinned to an exact release: setup-uv stopped publishing floating major
       # tags after v7, so this one is bumped by hand. prune-cache keeps the
       # smaller dependency cache that was the default through v8.
@@ -271,6 +313,7 @@ jobs:
           version: 0.12.5
           enable-cache: true
           prune-cache: true
+          cache-suffix: ${{ steps.runner-trial.outputs.cache_namespace }}
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -291,7 +334,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/browser-apt-archives/*.deb
-          key: apt-poppler-${{ steps.apt-cache.outputs.image }}
+          key: ${{ steps.runner-trial.outputs.cache_namespace }}apt-poppler-${{ steps.apt-cache.outputs.image }}
       - name: Bound package downloads
         uses: ./.github/actions/prepare-browser-install
       - name: Install PDF renderer used by TV ad record tests
@@ -381,13 +424,46 @@ jobs:
   frontend-checks:
     needs: select
     if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.select.outputs.frontend == 'true') }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.runner_provider == 'blacksmith' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-latest' }}
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: apps/frontend
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+
+      - name: Record trial hardware and isolate trial caches
+        id: runner-trial
+        working-directory: ${{ github.workspace }}
+        env:
+          TRIAL_PROVIDER: ${{ inputs.runner_provider || 'github' }}
+          TRIAL_EVENT: ${{ github.event_name }}
+        run: |
+          python3 - <<'PY_TRIAL'
+          import hashlib, json, os, platform, subprocess
+          from pathlib import Path
+          if os.environ["TRIAL_EVENT"] != "workflow_dispatch":
+              raise SystemExit(0)
+          provider = os.environ["TRIAL_PROVIDER"]
+          assert provider in {"github", "blacksmith"}
+          image = {
+              "os_release": Path("/etc/os-release").read_text(),
+              "image_os": os.environ.get("ImageOS", "unknown"),
+              "image_version": os.environ.get("ImageVersion", "unknown"),
+              "architecture": platform.machine(),
+          }
+          namespace = "ci2654-v1-" + provider + "-" + os.environ["GITHUB_JOB"] + "-"
+          namespace += hashlib.sha256(json.dumps(image, sort_keys=True).encode()).hexdigest()[:16] + "-"
+          Path(".tmp").mkdir(exist_ok=True)
+          Path(".tmp/ci-trial-cache-namespace").write_text(namespace + "\n")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("cache_namespace=" + namespace + "\n")
+          print(json.dumps({"provider": provider, "job": os.environ["GITHUB_JOB"], "image": image,
+                            "cpus": os.cpu_count(), "memory": Path("/proc/meminfo").read_text().splitlines()[0],
+                            "cache_namespace": namespace}, sort_keys=True))
+          subprocess.run(["lscpu"], check=True)
+          PY_TRIAL
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
@@ -399,7 +475,9 @@ jobs:
         with:
           node-version: "22"
           cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            .tmp/ci-trial-cache-namespace
 
       - name: Install dependencies
         working-directory: ${{ github.workspace }}

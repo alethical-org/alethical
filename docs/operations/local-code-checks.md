@@ -7,6 +7,21 @@ Git runs the helpers when saving a commit or uploading commits, regardless of wh
 editor starts the command. Repository settings choose the formatting, not a person's
 Cursor defaults. GitHub still decides whether a change may merge.
 
+## Bounded runner comparison
+
+[Issue 2654](https://github.com/alethical-org/alethical/issues/2654) has a manual-only
+Blacksmith trial. The CI dispatch input `runner_provider` changes only `backend` and
+`frontend-checks`; automatic checks stay on GitHub. Both jobs retain every command,
+with a 15-minute job limit. Three matched pairs use one commit, with the first cold
+cache pair separate from the next two warm pairs. Each provider and job has its own
+cache namespace, including the runner image; actual cache hits and hardware are logged.
+Free upgrades are recorded as the offered service tier, not identical hardware.
+No payment card, paid add-on or permanent adoption is part of this trial. The maximum
+vendor allowance is 180 normalized 2-vCPU minutes at the requested 4-vCPU rate.
+Full required-gate completion time, failures and retries determine the result; a backend-only
+improvement does not establish a faster release. Test identities and allowed outcomes
+must still match the full baseline.
+
 ## Setup and activation
 
 Run `just setup` in each worktree from a branch that contains these helpers. It
