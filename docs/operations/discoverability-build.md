@@ -10,7 +10,7 @@ Tracking: [discoverability delivery issue](https://github.com/alethical-org/alet
 
 | Item | Intended result | Current state and next acceptance |
 | --- | --- | --- |
-| B1 | Private search baseline and discovery-gap diagnosis | Google export retained privately; incomplete period/row coverage preserved. Bing and dated indexing evidence still needed. The sitemap/directory predicates differ; exact missing bill identities remain unverified. |
+| B1 | Private search baseline and discovery-gap diagnosis | Google export retained privately; incomplete period/row coverage preserved. Bing and dated indexing evidence still needed. All 26 bills absent from the summary-filtered directory lack returned summary data but have working public pages and official links. All 11 articles have internal links and sitemap entries. No count-equality or article-link repair is needed. |
 | B2 | Shared organization identity, article data and truthful dates | Implemented locally. Explicit Alethical authorship follows the approved no-byline rule; unknown attribution stays absent. Event description reuses approved replay wording. Requires focused checks and live release. |
 | B3 | Subject descriptions for research pieces | Exact proposals retained privately. Article approval fingerprints remain unchanged; no new human review is invented. Not implemented. |
 | B4 | Provider receipts and authorized technical submissions | Receipts still needed. A receipt never proves indexing. No new account or outreach. |

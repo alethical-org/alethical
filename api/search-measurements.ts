@@ -18,7 +18,7 @@ type ResponseLike = {
 
 // The production weekly schedule is installed after included capacity is verified.
 // The route works immediately once its two narrow credentials are configured.
-export const maxDuration = 180;
+// vercel.json caps this Node function at 180 seconds.
 
 export default async function handler(
   request: RequestLike,
