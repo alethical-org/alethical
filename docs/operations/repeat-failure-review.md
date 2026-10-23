@@ -88,8 +88,7 @@ Use a fresh ignored output folder for each run:
 ```sh
 uv run --frozen python scripts/repeat_failure_runs.py run \
   --scope money --output .tmp/repeat-failure/money-1
-# Backend CI runs this with --workers 6: the job database is migrated once and
-# copied for each pytest-xdist worker before pytest starts (GitHub only).
+# Local full-suite run; GitHub uses the two-group mode described below.
 uv run --frozen python scripts/repeat_failure_runs.py run \
   --scope backend --output .tmp/repeat-failure/backend-1
 # After a run from clean committed files, compare with the exact checkout:
@@ -113,10 +112,27 @@ reason it cannot run in CI. Any other skip, a collected test with no result, a r
 that was never collected, or a failed collection rejects the receipt. A count alone
 is not that proof: a skipped test still has a result row, and equal counts can hide
 a swapped name. The receipt keeps the collected list, a coverage summary and, on
-GitHub, the run id; `check` recomputes the coverage from the saved results and
-refuses a receipt from a different run. A test whose name holds a random value
+GitHub, the run id and attempt; `check` recomputes coverage from the saved results
+and refuses a receipt from a different run or attempt. A test whose name holds a random value
 breaks this check and parallel test workers alike, so parametrized tests give
 fixed `ids`.
+
+GitHub splits the full collection into 2 file groups balanced by
+[measured file durations](../../.github/backend-test-durations.json). Each runner
+independently collects the whole suite, then runs its assigned files with
+`--scope backend --workers 6 --group 1` or `--group 2`. Each worker gets a migrated
+copy of its runner's temporary database. New test files join from collection even
+when the duration map has no entry for them.
+
+A group receipt proves only that group's coverage and cannot pass `check`. The
+required `backend` gate always runs, rejects failed, cancelled or unexpectedly
+skipped groups, and downloads both receipts and result files from the same run and
+attempt. `combined-results --output <group-1-folder> <group-2-folder> --commit <sha>`
+checks their source fingerprints against the clean checkout, requires both full
+collections to agree, and proves their result union covers every test exactly once.
+The 3 named money tests must pass in that union. Only a successful path selection
+that excludes backend work permits both groups to skip. Retry with **Re-run all
+jobs**; results from a previous attempt cannot satisfy the gate.
 
 Unfinished or interrupted runs leave an `incomplete` receipt, and a new run refuses
 to overwrite an existing output folder. Normal exits and interruptions clean only
@@ -144,8 +160,9 @@ files, installed dependencies, the Python executable and the host are not fully
 attested. A passing named test also does not prove that its assertions remain
 strong enough; review the assertions and retain the broken-behavior experiment.
 
-Each receipt lists `reviewed-money-exception-identity` as the passed scoped case
-and lists the 2 candidate cases as `not_run_cases`. This money result does not
+A complete money or backend receipt lists `reviewed-money-exception-identity` as
+the passed scoped case and lists the 2 candidate cases as `not_run_cases`. A group
+receipt lists only its own coverage; the combined check establishes the money case. This money result does not
 supply current browser or frontend-test proof. Full address browser journeys
 remain on demand under [CONTRIBUTING.md, Frontend tests](../../CONTRIBUTING.md#frontend-tests)
 and [issue 1635](https://github.com/alethical-org/alethical/issues/1635).
