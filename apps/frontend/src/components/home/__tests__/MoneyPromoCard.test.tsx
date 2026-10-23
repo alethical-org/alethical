@@ -43,6 +43,7 @@ describe('public money card variants', () => {
       expect(card.getAttribute('href')).toBe('/money');
       expect(card.getAttribute('tabindex')).toBe('0');
       expect(card.textContent).toContain('Follow the money');
+      expect(card.textContent).not.toContain('MONEY IN POLITICS');
       expect(card.textContent).toContain(HOME_PUBLIC_MONEY_BODY);
       expect(card.textContent).toContain(HOME_PUBLIC_MONEY_CTA);
       expect(card.textContent).toContain(`1,603 ${MONEY_PROMO_COUNT_UNIT}`);

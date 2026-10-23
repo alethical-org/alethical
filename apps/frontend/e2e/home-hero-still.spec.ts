@@ -3,12 +3,11 @@ import { expect, test } from '@playwright/test';
 import { suppressSiteMetrics } from './suppress-site-metrics';
 
 // The signed-out hero text is centred beside the money card, so anything that
-// changes the card's height after first paint moves the whole hero. 4 things
+// changes the card's height after first paint moves the whole hero. 3 things
 // did: the text the server sends first was drawn in another layout until the
 // app replaced it, the filer count arrived taller than its loading bar, the
-// card's JetBrains Mono eyebrow swapped in taller than its stand-in font, and
 // text drawn before Libre Franklin arrived wrapped differently in Helvetica.
-// This check makes all 4 arrive late, records the top bar, the hero and the card on
+// This check makes all 3 arrive late, records the top bar, the hero and the card on
 // every frame from the first paint of the served text, and fails on any
 // movement over 1px. Layout-shift scores cannot catch the first one: the browser
 // scores a replaced element as 0.
@@ -49,10 +48,6 @@ test.beforeEach(async ({ context }) => {
   // Libre Franklin lands after the served text has painted in its stand-in.
   await context.route('**/fonts/libre-franklin-*.woff2', async (route) => {
     await delay(700);
-    await route.continue().catch(() => {});
-  });
-  await context.route('**/fonts/jetbrains-mono-*.woff2', async (route) => {
-    await delay(1000);
     await route.continue().catch(() => {});
   });
   // Hold the app back so the served text stays on screen for several frames.
@@ -121,7 +116,6 @@ for (const width of [1280, 900, 390]) {
           )?.responseEnd ?? 0,
         file,
       );
-    const monoLoaded = await loaded('/fonts/jetbrains-mono-latin');
     const libreLoaded = await loaded('/fonts/libre-franklin-latin');
 
     // The check only counts if every late arrival happened after first paint.
@@ -129,7 +123,8 @@ for (const width of [1280, 900, 390]) {
     expect(frames[0].served).toBe(true);
     expect(frames.some((frame) => !frame.served && frame.loading)).toBe(true);
     expect(frames.some((frame) => !frame.served && !frame.loading)).toBe(true);
-    expect(monoLoaded).toBeGreaterThan(frames[0].t);
+    // Signed-out money has no mono eyebrow to load after the label removal.
+    await expect(page.getByText('MONEY IN POLITICS', { exact: true })).toHaveCount(0);
     expect(libreLoaded).toBeGreaterThan(frames[0].t);
 
     const spread = (values: number[]) => Math.max(...values) - Math.min(...values);
