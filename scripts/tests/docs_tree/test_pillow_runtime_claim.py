@@ -1,6 +1,8 @@
 """Only the first trusted run for a request may probe production."""
 
 import importlib.util
+import io
+import json
 from pathlib import Path
 
 import pytest
@@ -126,3 +128,24 @@ def test_every_deadline_nests_inside_the_one_that_waits_for_it():
     assert proof_seconds + 60 <= job_seconds
     assert job_seconds <= exception.MAX_WAIT
     assert exception.MAX_WAIT + 60 <= scanner_seconds
+
+
+def test_listing_stays_small_enough_to_read(monkeypatch):
+    seen = []
+
+    class Response(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    def urlopen(request, timeout):
+        seen.append(request.full_url)
+        # 30 records of about 14 KB each, as GitHub returns them.
+        rows = [{"id": i, "padding": "x" * 14_000} for i in range(30)]
+        return Response(json.dumps({"workflow_runs": rows}).encode())
+
+    monkeypatch.setattr(CLAIM.urllib.request, "urlopen", urlopen)
+    assert len(CLAIM.runs("fake-token", "workflow_run")) == 30
+    assert "per_page=30" in seen[0]

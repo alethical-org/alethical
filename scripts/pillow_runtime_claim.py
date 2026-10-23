@@ -41,9 +41,11 @@ def is_first(runs: list[dict], request: str, run_id: int) -> bool:
 
 
 def runs(token: str, event: str) -> list[dict]:
+    # 100 full run records exceed 1 MB; copies for 1 request start seconds apart,
+    # so the newest 30 always hold them, and a missing own run fails closed.
     request = urllib.request.Request(
         f"https://api.github.com/repos/{REPOSITORY}/actions/workflows/{WORKFLOW}"
-        f"/runs?event={event}&branch=main&per_page=100",
+        f"/runs?event={event}&branch=main&per_page=30",
         headers={
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {token}",
