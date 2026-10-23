@@ -20,6 +20,8 @@ RENDERER = "alethical/pipeline/tv_ad_redaction.py"
 PIL_TEST = "alethical/tests/test_tv_ad_review.py"
 SERVICE = "alethical/api/services/tv_ad_review.py"
 RENDER_MODULE = "alethical.pipeline.tv_ad_redaction"
+SERVICE_MODULE = "alethical.api.services.tv_ad_review"
+SERVICE_RENDERER = SERVICE_MODULE + ".tv_ad_redaction"
 PILLOW_ENTRY_SHA256 = "2694a2f9055a37e8285bf6e1af4ff7fb575e01a541ca13be29d2b1a7bac45f59"
 PINNED_FILES = {
     RENDERER: "33a2f50db0ddd2bda981a131a8e6d4d2c27e9b0ebfcd04f03d10201b32533e92",
@@ -202,6 +204,12 @@ def dependency_errors(lock, project):
 def source_errors(relative, tree):
     errors = []
     aliases = {}
+    if relative == SERVICE:
+        aliases.update(
+            (node.name, f"{SERVICE_MODULE}.{node.name}")
+            for node in tree.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        )
     strings = {}
     imports = []
     nodes = list(ast.walk(tree))
@@ -216,6 +224,8 @@ def source_errors(relative, tree):
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             return node.value
         if isinstance(node, ast.Name):
+            if relative == SERVICE and node.id == "__name__":
+                return SERVICE_MODULE
             return strings.get(node.id)
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
             left, right = literal(node.left), literal(node.right)
@@ -223,26 +233,49 @@ def source_errors(relative, tree):
                 return left + right
         return None
 
+    def canonical_name(name):
+        if name == SERVICE_RENDERER or name.startswith(SERVICE_RENDERER + "."):
+            return RENDER_MODULE + name[len(SERVICE_RENDERER) :]
+        return name
+
     def qualified(node):
+        return canonical_name(resolve_name(node))
+
+    def resolve_name(node):
         if isinstance(node, ast.Name):
             return aliases.get(node.id, node.id)
         if isinstance(node, ast.Attribute):
             return f"{qualified(node.value)}.{node.attr}"
-        if isinstance(node, ast.Subscript) and qualified(node.value) == "__builtins__":
+        if isinstance(node, ast.Subscript):
+            namespace = qualified(node.value)
             member = literal(node.slice)
-            if member is not None:
+            if namespace == "__builtins__" and member is not None:
                 return f"__builtins__.{member}"
-        if (
-            isinstance(node, ast.Call)
-            and qualified(node.func) in {"getattr", "builtins.getattr"}
-            and len(node.args) >= 2
-        ):
-            name = literal(node.args[1])
-            if name is not None:
-                return f"{qualified(node.args[0])}.{name}"
+            if namespace.endswith(".__dict__") and member is not None:
+                return f"{namespace.removesuffix('.__dict__')}.{member}"
+            if namespace == "sys.modules" and member is not None:
+                return member
+            if (
+                relative == SERVICE
+                and isinstance(node.value, ast.Call)
+                and qualified(node.value.func) in {"globals", "builtins.globals"}
+                and member is not None
+            ):
+                return f"{SERVICE_MODULE}.{member}"
+        if isinstance(node, ast.Call):
+            function = qualified(node.func)
+            if function in IMPORT_FUNCTIONS:
+                target = literal(node.args[0]) if node.args else None
+                if target is not None and not target.startswith("."):
+                    return target
+            if function in {"getattr", "builtins.getattr"} and len(node.args) >= 2:
+                name = literal(node.args[1])
+                if name is not None:
+                    return f"{qualified(node.args[0])}.{name}"
         return ""
 
     def sensitive_module(name):
+        name = canonical_name(name)
         return (
             name == "PIL"
             or name.startswith("PIL.")
@@ -279,7 +312,10 @@ def source_errors(relative, tree):
                 for item in node.names
             ]
             if any(item.name == "*" for item in node.names) and (
-                module.startswith("alethical.pipeline") or sensitive_module(module)
+                module.startswith("alethical.pipeline")
+                or module == SERVICE_MODULE
+                or SERVICE_MODULE.startswith(module + ".")
+                or sensitive_module(module)
             ):
                 report(node, "wildcard import can widen the reviewed Pillow boundary")
         for local, resolved, imported in bindings:
@@ -399,7 +435,12 @@ def source_errors(relative, tree):
             ):
                 return True
         if target is not None:
-            return sensitive_module(target) or "tv_ad_redaction" in target
+            return (
+                sensitive_module(target)
+                or "tv_ad_redaction" in target
+                or target == SERVICE_MODULE
+                or SERVICE_MODULE.startswith(target + ".")
+            )
         # A whole module component rules out PIL/pyarrow and the renderer path.
         # Wholly unknown names still require review; no general dataflow proof is claimed.
         if "." not in prefix:
@@ -409,7 +450,10 @@ def source_errors(relative, tree):
             return True
         if first != "alethical":
             return False
-        return prefix.startswith(RENDER_MODULE) or RENDER_MODULE.startswith(prefix)
+        return any(
+            prefix.startswith(module) or module.startswith(prefix)
+            for module in (RENDER_MODULE, SERVICE_MODULE)
+        )
 
     assigned_values = {}
     for assignment in nodes:
@@ -459,13 +503,69 @@ def source_errors(relative, tree):
         while node in parents:
             node = parents[node]
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                return node.name
+                return node.name if node in tree.body else None
         return None
+
+    def public_service_member(node):
+        """Ordinary public API use does not expose the service's renderer object."""
+        parent = parents.get(node)
+        if isinstance(parent, ast.Attribute) and parent.value is node:
+            return parent.attr != "tv_ad_redaction" and not parent.attr.startswith("__")
+        if (
+            isinstance(parent, ast.Call)
+            and qualified(parent.func)
+            in {
+                "getattr",
+                "setattr",
+                "delattr",
+                "builtins.getattr",
+                "builtins.setattr",
+                "builtins.delattr",
+                "monkeypatch.setattr",
+            }
+            and len(parent.args) >= 2
+            and parent.args[0] is node
+        ):
+            member = literal(parent.args[1])
+            return (
+                member is not None
+                and member != "tv_ad_redaction"
+                and not member.startswith("__")
+            )
+        return False
 
     for node in nodes:
         name = qualified(node)
         tail = name.rsplit(".", 1)[-1]
-        if isinstance(node, (ast.Attribute, ast.Name, ast.Call)):
+        if isinstance(node, (ast.Attribute, ast.Name, ast.Call, ast.Subscript)):
+            if relative not in {RENDERER, PIL_TEST}:
+                if name.startswith(SERVICE_MODULE + ".") and any(
+                    member in name.split(".")
+                    for member in {"__globals__", "__getattribute__"}
+                ):
+                    report(
+                        node,
+                        "service function globals can expose the reviewed Pillow renderer",
+                    )
+                if name == SERVICE_MODULE and not public_service_member(node):
+                    report(
+                        node,
+                        "service module escape can expose the reviewed Pillow renderer",
+                    )
+                if name == RENDER_MODULE:
+                    parent = parents.get(node)
+                    constant_access = (
+                        isinstance(parent, ast.Attribute)
+                        and parent.value is node
+                        and parent.attr in {"MAX_SOURCE_BYTES", "MAX_PAGES"}
+                    )
+                    if relative != SERVICE or not (
+                        owner(node) in PINNED_FUNCTIONS or constant_access
+                    ):
+                        report(
+                            node,
+                            "reviewed Pillow renderer module escape requires review",
+                        )
             if (tail in ARROW_NAMES or tail == "set_alignment") and (
                 relative in EXPECTED_IMPORTS or sensitive_reference(node)
             ):
@@ -495,6 +595,12 @@ def source_errors(relative, tree):
                     report(node, "new renderer caller requires review")
         if isinstance(node, ast.Call):
             function = qualified(node.func)
+            if (
+                relative == SERVICE
+                and function in {"globals", "builtins.globals"}
+                and owner(node) not in PINNED_FUNCTIONS
+            ):
+                report(node, "service globals can expose the reviewed Pillow renderer")
             if function in IMPORT_FUNCTIONS:
                 if dynamic_import_requires_review(node, function):
                     report(
