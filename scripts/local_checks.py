@@ -353,7 +353,12 @@ def disposable_postgres(snapshot: Path):
             )
 
 
-def run_suites(snapshot: Path, suites: set[str]) -> None:
+# GitHub's required `backend` and `frontend` checks run the full test suites on
+# every change before it can merge, so an upload runs them only on request.
+FULL_SUITES = "ALETHICAL_PUSH_FULL"
+
+
+def run_suites(snapshot: Path, suites: set[str], *, full: bool = False) -> None:
     # The security gate already installed the frozen JavaScript dependencies in
     # this exact snapshot and proved its local repairs. Reuse that installation.
     def check(suite: str) -> None:
@@ -394,7 +399,8 @@ def run_suites(snapshot: Path, suites: set[str]) -> None:
                 snapshot,
                 env=env,
             )
-            run(["just", "test-frontend"], snapshot, env=env)
+            if full:
+                run(["just", "test-frontend"], snapshot, env=env)
         elif suite == "backend":
             run(["uv", "sync", "--frozen"], snapshot, env=env)
             run(
@@ -447,6 +453,8 @@ def run_suites(snapshot: Path, suites: set[str]) -> None:
                 env=env,
             )
             run(["uvx", "ty@0.0.72", "check", "alethical/db"], snapshot, env=env)
+            if not full:
+                return
             # The suite owns the same disposable server for manual and hook runs.
             run(
                 [
@@ -536,9 +544,16 @@ def run_security(snapshot: Path) -> None:
 
 def pre_push(root: Path, source: TextIO) -> None:
     # Parse all refs first so malformed input cannot test a subset and pass.
+    full = os.environ.get(FULL_SUITES) == "1"
     for sha, files in push_targets(root, source.read()):
         suites = affected_suites(root, files, sha)
-        checks = ", ".join(["security", "documents", *sorted(suites)])
+        checks = ", ".join(
+            ["security", "documents"]
+            + [
+                suite + (" full suite" if full else " checks")
+                for suite in sorted(suites)
+            ]
+        )
         print(
             f"Local checks: testing {sha[:12]} ({checks}).",
             flush=True,
@@ -548,8 +563,13 @@ def pre_push(root: Path, source: TextIO) -> None:
             run_quick_docs(snapshot)
             run_docs_tree(snapshot)
             if suites:
-                run_suites(snapshot, suites)
+                run_suites(snapshot, suites, full=full)
     print("Local checks passed for the commits being pushed.")
+    if not full:
+        print(
+            "Full test suites run on GitHub before merge; "
+            "`just push-full` runs them here too."
+        )
 
 
 def staged(root: Path) -> None:

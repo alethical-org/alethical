@@ -105,6 +105,12 @@ lint:
 format-staged:
   python3 scripts/local_checks.py staged
 
+# Upload with the full backend and frontend test suites run locally first.
+# A plain `git push` leaves them to GitHub's required checks before merge.
+[positional-arguments]
+push-full *args:
+  ALETHICAL_PUSH_FULL=1 git push "$@"
+
 test-frontend:
   pnpm --dir apps/frontend run test
 
