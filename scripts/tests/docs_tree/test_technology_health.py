@@ -19,13 +19,6 @@ check_technology_health = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(check_technology_health)
 
 
-@pytest.fixture(autouse=True)
-def verified_runtime_for_scanner_unit_tests(monkeypatch):
-    monkeypatch.setattr(
-        check_technology_health, "verify_pillow_exception", lambda root: True
-    )
-
-
 def test_current_repository_has_consistent_versions_and_update_coverage() -> None:
     assert check_technology_health.find_local_problems(ROOT) == []
 
