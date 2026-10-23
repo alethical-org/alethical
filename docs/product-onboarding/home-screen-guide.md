@@ -3,7 +3,7 @@
 <!-- describes: apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx, apps/frontend/src/components/home/SignedOutHomepage.tsx, apps/frontend/src/components/home/*.tsx, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/hooks/useTrackedBillsLastVisit.ts, apps/frontend/src/lib/homepage.ts, apps/frontend/src/lib/sessionWatch.ts, apps/frontend/src/lib/trackedBillsLastVisit.ts, apps/frontend/src/theme/pageBackground.ts, scripts/check_home_hero_card_literals.py, .github/workflows/home-hero-card-facts.yml -->
 
 Signed-out Home introduces Alethical, then leads with money records, the Legislature, the Forward Debate and
-campaign services. Campaign services and opens the public `/services` presentation. Home
+campaign services. Campaign services opens the public `/services` presentation. Home
 has no free-form question box because reader-written questions are not a live feature.
 
 ## Signed-out opening and tool cards
