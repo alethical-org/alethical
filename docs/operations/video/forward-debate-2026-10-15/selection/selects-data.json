@@ -1,0 +1,1009 @@
+[
+  {
+    "id": 1,
+    "title": "We disagree. We can still grab a beer.",
+    "speaker": "Aaron",
+    "cuts": [
+      [
+        "1:55:59.000",
+        "1:56:24.020"
+      ]
+    ],
+    "why": "A whole human story in 25 seconds. The best opening invitation to watch the debate.",
+    "keep": "Keep the strong disagreement before the beer remark and the point about Minnesota afterward. Preserve the other person’s audible response.",
+    "check": "Confirm who says the brief interjection; the grouped transcript is not enough.",
+    "tier": "Select",
+    "family": "Civility",
+    "duration": 25.02,
+    "anchors": [
+      {
+        "first_cue": "truly, I mean, as evidence today, Trent and I do not agree on everything.",
+        "last_cue": "We need to make sure Minnesota comes first."
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "title": "Both candidates oppose Flock cameras",
+    "speaker": "Angel, Trent, Aaron",
+    "cuts": [
+      [
+        "51:01.580",
+        "52:25.460"
+      ]
+    ],
+    "why": "A direct question and 2 unmistakable positions on privacy. Best compact exchange.",
+    "keep": "Keep Aaron’s concession that some good has come from the cameras. Their agreement is on opposing their use, not a finding that cameras never work.",
+    "check": "Resolve Trent’s uncertain opening/ending and Aaron’s garbled final phrase.",
+    "tier": "Select",
+    "family": "Privacy",
+    "duration": 83.88,
+    "anchors": [
+      {
+        "first_cue": ">> Angel Zierden: do you support the use of Flock cameras",
+        "last_cue": "data could potentially be used for does not upset. That."
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "title": "When taking part in politics becomes a luxury",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "33:04.740",
+        "33:47.340"
+      ]
+    ],
+    "why": "Mortgage payments and health care make a familiar problem concrete. Strongest new lead choice for broad relevance.",
+    "keep": "Establish that “this process” means political participation. Keep his closing refusal to blame people who cannot attend.",
+    "check": "End at “Life is hard right now.” This is cleaner than the extra trailing sentence in the first pass.",
+    "tier": "Select",
+    "family": "Participation",
+    "duration": 42.6,
+    "anchors": [
+      {
+        "first_cue": "A lot of this becomes a luxury, right?",
+        "last_cue": "up because stuff is hard. Life is hard right now."
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "title": "School mandates need funding",
+    "speaker": "Aaron",
+    "cuts": [
+      [
+        "48:06.960",
+        "48:22.760"
+      ]
+    ],
+    "why": "16 seconds, 1 clear problem and 1 clear requirement. An efficient policy short.",
+    "keep": "Present this as his call to fund state requirements. The short does not establish the cost of a named mandate.",
+    "check": "End before the uncertain small-district fragment.",
+    "tier": "Select",
+    "family": "Schools",
+    "duration": 15.8,
+    "anchors": [
+      {
+        "first_cue": ">> Aaron Brutger: Unfunded mandates are absolutely crushing our schools.",
+        "last_cue": "it has to have some type of financial backing to actually cover it."
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "title": "Where did public money go, and what did it do?",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "44:19.840",
+        "45:13.040"
+      ]
+    ],
+    "why": "Specific questions about spending, results and overhead. Especially strong fit for Alethical’s work.",
+    "keep": "Keep the nonprofit comparison and the distinction that taxpayers cannot choose. It is a transparency proposal, not evidence of fraud.",
+    "check": "Start at “Everything you want to know…” inside the first cue. Avoid presenting the FOIA wording as legal guidance.",
+    "tier": "Select",
+    "family": "Public accountability",
+    "duration": 53.2,
+    "anchors": [
+      {
+        "first_cue": "It's not time to dig into it. Everything you want to know about your government and",
+        "last_cue": "then that program should be ripped wide open and examined very closely."
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "title": "Would party pressure change his vote?",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "1:42:16.920",
+        "1:42:51.900"
+      ]
+    ],
+    "why": "A familiar question, personal history and a memorable finish.",
+    "keep": "Keep the question within his answer. The military comparison concerns resisting pressure, not threatening anyone.",
+    "check": "Resolve the phrase around 1:42:28. Military and combat claims remain his account.",
+    "tier": "Select",
+    "family": "Party independence",
+    "duration": 34.98,
+    "anchors": [
+      {
+        "first_cue": "People ask me that, they say, well, you're endorsed by one of the big parties,",
+        "last_cue": "Long way of saying it, it doesn't scare me."
+      }
+    ]
+  },
+  {
+    "id": 7,
+    "title": "4 children, mostly tired",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "4:34.780",
+        "4:57.760"
+      ]
+    ],
+    "why": "A short personal introduction with a natural joke and no policy setup.",
+    "keep": "Keep the ages and early wake-up that explain the joke.",
+    "check": "Audio and picture must establish the delivery; the transcript does not prove laughter.",
+    "tier": "Select",
+    "family": "Personal introduction",
+    "duration": 22.98,
+    "anchors": [
+      {
+        "first_cue": ">> Trent Dilks: Hi, I'm Trent Dilks.",
+        "last_cue": "So exhaustion is just kind of a constant state right now."
+      }
+    ]
+  },
+  {
+    "id": 8,
+    "title": "Make the political process easier to join",
+    "speaker": "Aaron",
+    "cuts": [
+      [
+        "3:19.440",
+        "3:54.300"
+      ]
+    ],
+    "why": "The meeting-rules cheat sheet is a concrete action behind his invitation to take part.",
+    "keep": "Start after the carried-over “me,” and keep his invitation regardless of political leaning.",
+    "check": "Book length and copies handed out are his recollection; do not turn them into Alethical statistics.",
+    "tier": "Select",
+    "family": "Participation",
+    "duration": 34.86,
+    "anchors": [
+      {
+        "first_cue": "me, I will talk to absolutely anybody. I'm a process guy and when I chaired my first",
+        "last_cue": "Just get involved, stay involved."
+      }
+    ]
+  },
+  {
+    "id": 9,
+    "title": "Compromise without giving up your values",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "10:24.200",
+        "11:11.560"
+      ]
+    ],
+    "why": "Explains the boundary between principles and practical progress.",
+    "keep": "Keep both his non-negotiable values and his willingness to make progress. Do not frame it as compromise on everything.",
+    "check": "Locate the start of his values sentence in the opening cue.",
+    "tier": "Select",
+    "family": "Working across parties",
+    "duration": 47.36,
+    "anchors": [
+      {
+        "first_cue": "I have some absolute values that I won't compromise on,",
+        "last_cue": "cut the crap and get it done."
+      }
+    ]
+  },
+  {
+    "id": 10,
+    "title": "How 2 opponents agreed to debate respectfully",
+    "speaker": "Aaron",
+    "cuts": [
+      [
+        "12:34.840",
+        "13:42.800"
+      ]
+    ],
+    "why": "A story with an action: he reached out and attended Trent’s event.",
+    "keep": "Keep the different endorsements, the invitation, policy disagreement and the link to joining the coalition.",
+    "check": "Do not use this next to the beer short as if it were a different policy issue. It is a longer origin story.",
+    "tier": "Select",
+    "family": "Civility",
+    "duration": 67.96,
+    "anchors": [
+      {
+        "first_cue": "So right after I was endorsed by the Republicans,",
+        "last_cue": "I stuck to that so when the forward coalition approached it was a no brainer"
+      }
+    ]
+  },
+  {
+    "id": 11,
+    "title": "Why 1 party label cannot fit every community",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "15:49.240",
+        "16:58.140"
+      ]
+    ],
+    "why": "Local representation, red/blue boxes and feeling politically homeless form a clear thought.",
+    "keep": "Keep both the DFL and Republican examples. He argues for representing different communities, not that he has left his party.",
+    "check": "Begin after the carried-over “to be.” Verify the final sentence boundary.",
+    "tier": "Select",
+    "family": "Party independence",
+    "duration": 68.9,
+    "anchors": [
+      {
+        "first_cue": "to be. A DFL-er from the 13th District should not look like a DFL-er from",
+        "last_cue": "regional identity to those things. And so it was a no-brainer for me to join."
+      }
+    ]
+  },
+  {
+    "id": 12,
+    "title": "What he hears at the doorstep",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "18:53.480",
+        "19:26.620"
+      ]
+    ],
+    "why": "Affordability, child care and health care are concrete everyday concerns.",
+    "keep": "Keep “fraud comes up some.” His door-knocking experience is not a poll of all voters.",
+    "check": "Confirm the opening is a full sentence about knocking doors.",
+    "tier": "Select",
+    "family": "Everyday priorities",
+    "duration": 33.14,
+    "anchors": [
+      {
+        "first_cue": "When I'm out knocking doors, and I've knocked a lot of doors,",
+        "last_cue": "There's a lot of agreement on those things."
+      }
+    ]
+  },
+  {
+    "id": 13,
+    "title": "When division becomes a fundraising pitch",
+    "speaker": "Aaron",
+    "cuts": [
+      [
+        "21:00.540",
+        "21:44.600"
+      ]
+    ],
+    "why": "A candidate criticizing his own side’s recurring pitch has a clear point of view.",
+    "keep": "Keep his statement that the underlying issues do matter. Attribute the explanation of fundraising incentives to him.",
+    "check": "Resolve “fundraisers” in the opening. End before the separate independent-spending claims.",
+    "tier": "Select",
+    "family": "Political incentives",
+    "duration": 44.06,
+    "anchors": [
+      {
+        "first_cue": ">> Aaron Brutger: Yeah, as Trent touched on, the division is what fundraisers for",
+        "last_cue": "But again, it's not serving we the people."
+      }
+    ]
+  },
+  {
+    "id": 14,
+    "title": "Local endorsements, earlier statewide primaries",
+    "speaker": "Aaron",
+    "cuts": [
+      [
+        "31:15.860",
+        "32:23.200"
+      ]
+    ],
+    "why": "A specific reform with a meaningful distinction often lost in short clips.",
+    "keep": "Keep both halves: retain local endorsement conventions; prefer an earlier statewide primary.",
+    "check": "Resolve the final uncertain word; do not headline this as abolishing endorsements.",
+    "tier": "Select",
+    "family": "Participation",
+    "duration": 67.34,
+    "anchors": [
+      {
+        "first_cue": "I think at the local levels,",
+        "last_cue": "never have a shot. [unclear]"
+      }
+    ]
+  },
+  {
+    "id": 15,
+    "title": "Improve a bill even when you will vote no",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "36:23.800",
+        "36:52.440"
+      ]
+    ],
+    "why": "A concrete standard for working together instead of a vague appeal to civility.",
+    "keep": "Identify paid leave as the example. Keep his distinction between contributing to the process and supporting the final bill.",
+    "check": "Verify the pronoun in the opening and the end before his next policy point.",
+    "tier": "Select",
+    "family": "Working across parties",
+    "duration": 28.64,
+    "anchors": [
+      {
+        "first_cue": "Part of that is the other side, whether it's my side, their side, whatever,",
+        "last_cue": "but you might be able to help improve the process."
+      }
+    ]
+  },
+  {
+    "id": 16,
+    "title": "Tests should show progress",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "47:09.440",
+        "47:59.640"
+      ]
+    ],
+    "why": "Moves from teachers having a voice to a clear purpose for testing.",
+    "keep": "Keep his support for a role for standardized tests. This is not an argument to abolish testing.",
+    "check": "End before the garbled final sentence about experts.",
+    "tier": "Select",
+    "family": "Schools",
+    "duration": 50.2,
+    "anchors": [
+      {
+        "first_cue": "I think the people who pass these mandates are probably well-intentioned and doing a",
+        "last_cue": "but stop changing the way and trying to force a new model."
+      }
+    ]
+  },
+  {
+    "id": 17,
+    "title": "Who should decide where a data center goes?",
+    "speaker": "Aaron and Trent",
+    "cuts": [
+      [
+        "54:03.200",
+        "54:34.680"
+      ],
+      [
+        "55:46.400",
+        "56:11.560"
+      ]
+    ],
+    "why": "Shows overlap and a real difference in 57 seconds: local decisions and state limits.",
+    "keep": "Aaron wants the most local decision possible; Trent adds state limits, including utility costs. Keep those distinct.",
+    "check": "2 pieces with an obvious edit. “Data centers” must be clear at the opening. No claim that the candidates agree on every safeguard.",
+    "tier": "Select",
+    "family": "Data centers",
+    "duration": 56.64,
+    "anchors": [
+      {
+        "first_cue": "I think at the smallest local level possible,",
+        "last_cue": "level possible."
+      },
+      {
+        "first_cue": "It can't result in the drastic increase of utility prices for everybody",
+        "last_cue": "for the final decision."
+      }
+    ]
+  },
+  {
+    "id": 18,
+    "title": "Should businesses get tax incentives?",
+    "speaker": "Aaron",
+    "cuts": [
+      [
+        "1:00:05.800",
+        "1:00:28.380"
+      ]
+    ],
+    "why": "A complete direct answer with a reason in 23 seconds.",
+    "keep": "He opposes incentives broadly. Do not describe Trent’s answer as identical.",
+    "check": "Use the topic in the title because the moderator’s question is outside the cut.",
+    "tier": "Select",
+    "family": "Business incentives",
+    "duration": 22.58,
+    "anchors": [
+      {
+        "first_cue": ">> Aaron Brutger: No, there should not be tax credits or incentives.",
+        "last_cue": "incentive."
+      }
+    ]
+  },
+  {
+    "id": 19,
+    "title": "Support for mining comes with conditions",
+    "speaker": "Aaron",
+    "cuts": [
+      [
+        "1:00:39.220",
+        "1:01:36.940"
+      ]
+    ],
+    "why": "A usable policy stance with its limits kept intact.",
+    "keep": "Keep his lack of detailed permitting knowledge, environmental condition and accountability requirement.",
+    "check": "Confirm the closing sentence. Treat his description of protected land as a candidate statement, not a permit ruling.",
+    "tier": "Select",
+    "family": "Mining",
+    "duration": 57.72,
+    "anchors": [
+      {
+        "first_cue": ">> Aaron Brutger: I do support mining because, again, we need the materials.",
+        "last_cue": "whoever, accountable for their actions."
+      }
+    ]
+  },
+  {
+    "id": 20,
+    "title": "Count the future savings from helping young people",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "1:07:04.580",
+        "1:08:08.180"
+      ]
+    ],
+    "why": "A cost-and-benefit argument that gives the proposed spending a purpose.",
+    "keep": "Open with the youth-program context. Keep “if” programs work and his admission that he is not deeply familiar with them.",
+    "check": "Hold: the closing caption repeats “keep them out” where the argument appears to require a contrast. Resolve the actual words; do not silently repair them. Keep the admission of limited knowledge.",
+    "tier": "Hold",
+    "family": "Youth prevention",
+    "duration": 63.6,
+    "anchors": [
+      {
+        "first_cue": "If the program can lower recidivism and lower what we're going to eventually spend",
+        "last_cue": "pay much more money to keep them out."
+      }
+    ]
+  },
+  {
+    "id": 21,
+    "title": "Fund mental-health evidence, not guesses",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "1:24:16.660",
+        "1:25:16.820"
+      ]
+    ],
+    "why": "A clear proposal to support providers and research, with a useful ending about different needs.",
+    "keep": "Keep access, research and the warning that 1 approach will not fit everyone. This is policy, not treatment advice.",
+    "check": "Resolve the unclear phrase near 1:24:32. This window excludes the unidentified 5% study and later treatment claims.",
+    "tier": "Select",
+    "family": "Mental-health policy",
+    "duration": 60.16,
+    "anchors": [
+      {
+        "first_cue": "There has to be an investment not only in mental health providers and access to",
+        "last_cue": "One-size-fits-all is never going to work here."
+      }
+    ]
+  },
+  {
+    "id": 22,
+    "title": "24 employees or 20,000: bargaining for health insurance",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "1:34:21.980",
+        "1:35:10.800"
+      ]
+    ],
+    "why": "A vivid, concrete proposal for small employers to gain bargaining power.",
+    "keep": "Keep “in the short term” and “as long as” to preserve his broader position on insurers. 20,000 is his proposed example, not an achieved result.",
+    "check": "Confirm numbers in audio. No claim that savings are guaranteed. The later claim about what Minnesota law permits is outside this cut.",
+    "tier": "Select",
+    "family": "Health costs",
+    "duration": 48.82,
+    "anchors": [
+      {
+        "first_cue": "In the short term, though, as long as we can't banish insurance companies,",
+        "last_cue": "they pull out the chair and pour the water for you."
+      }
+    ]
+  },
+  {
+    "id": 23,
+    "title": "Affordable housing as an opening for small towns",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "1:37:49.880",
+        "1:38:20.420"
+      ]
+    ],
+    "why": "Connects housing, remote work and rural growth in a compact passage.",
+    "keep": "Title it as 1 idea from his answer. He remains undecided earlier about state zoning intervention; do not present this as his whole housing platform.",
+    "check": "Verify the sentence ending. Do not promise growth as an established result.",
+    "tier": "Select",
+    "family": "Housing",
+    "duration": 30.54,
+    "anchors": [
+      {
+        "first_cue": "If an area like St. Cloud can find ways to have affordable living and affordable",
+        "last_cue": "small towns. And that can be done partially through affordable housing."
+      }
+    ]
+  },
+  {
+    "id": 24,
+    "title": "Representing people starts with showing up",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "1:59:35.900",
+        "2:00:18.680"
+      ]
+    ],
+    "why": "Concrete examples, a standard for representation and a light closing remark.",
+    "keep": "Keep his willingness to change views after talking to people. Exclude the ambiguous reference to an absent candidate before this cut.",
+    "check": "Confirm the opening sentence and any response to his cussing remark.",
+    "tier": "Select",
+    "family": "Civility",
+    "duration": 42.78,
+    "anchors": [
+      {
+        "first_cue": "Because I believe in this. Because you should show up.",
+        "last_cue": "It's important that we show that that can also happen."
+      }
+    ]
+  },
+  {
+    "id": 25,
+    "title": "If I do not follow through, fire me",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "2:01:19.640",
+        "2:01:47.160"
+      ]
+    ],
+    "why": "A direct promise of electoral accountability with a strong ending.",
+    "keep": "Keep the promise conditional and make clear “fire me” refers to voters judging his record. This is a campaign pledge.",
+    "check": "End before the new coalition example. Avoid implying he is already an incumbent.",
+    "tier": "Select",
+    "family": "Electoral accountability",
+    "duration": 27.52,
+    "anchors": [
+      {
+        "first_cue": "But if we're going to do something different,",
+        "last_cue": "The way I will legislate, I will legislate."
+      }
+    ]
+  },
+  {
+    "id": 26,
+    "title": "An audience member raises the cost of medication",
+    "speaker": "Audience member 1",
+    "cuts": [
+      [
+        "1:44:16.080",
+        "1:45:12.100"
+      ]
+    ],
+    "why": "A different voice brings the discussion back to access, affordability and trained providers.",
+    "keep": "Keep the opening response to over-medication and the provider question. Present it as an audience question, not medical advice or a candidate answer.",
+    "check": "Resolve the passage about seniors and plans. Use “Audience member” unless identity is confirmed. If an essential sentence stays unintelligible, hold the clip.",
+    "tier": "Select",
+    "family": "Health costs",
+    "duration": 56.02,
+    "anchors": [
+      {
+        "first_cue": ">> Audience member 1: I have questions concerning mental health and medications.",
+        "last_cue": "I'd like to know what you think about that."
+      }
+    ]
+  },
+  {
+    "id": 27,
+    "title": "Paid leave: support, opposition and the hardship both recognize",
+    "speaker": "Trent and Aaron",
+    "cuts": [
+      [
+        "36:52.800",
+        "37:56.860"
+      ],
+      [
+        "38:47.680",
+        "39:08.440"
+      ]
+    ],
+    "why": "The clearest compact policy disagreement in the first pass; still worth pursuing.",
+    "keep": "Keep Trent’s support plus revisions, Aaron’s small-employer concern, and Aaron’s concession about illness. Show the break between the 2 pieces.",
+    "check": "Hold: listen to the federal-leave reference and establish what it covers before adding explanatory captions. Never imply it gives every worker an equivalent paid benefit. The first piece now includes the sentence about smaller firms; the earlier proposed end at 37:51.960 stranded its setup.",
+    "tier": "Hold",
+    "family": "Paid leave",
+    "duration": 84.82,
+    "anchors": [
+      {
+        "first_cue": "So that's it as well. I'm supportive of family leave.",
+        "last_cue": "There are [unclear] small businesses of two people, five people, ten people."
+      },
+      {
+        "first_cue": "I understand that, and I agree with Trent,",
+        "last_cue": "It just doesn't put the same level of burden on the small company."
+      }
+    ]
+  },
+  {
+    "id": 28,
+    "title": "Should elected officials sign secrecy agreements?",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "56:34.560",
+        "57:31.840"
+      ]
+    ],
+    "why": "A sharp public-accountability question with a concrete example.",
+    "keep": "Start at the NDA transition. Keep the reason: officials must be able to report public business to the people they represent.",
+    "check": "Hold: captions say both that a ban happened and that the practice remains legal. Resolve against audio; verify any retained legal and Hermantown claims.",
+    "tier": "Hold",
+    "family": "Public accountability",
+    "duration": 57.28,
+    "anchors": [
+      {
+        "first_cue": "then I think we can look at this. One thing that springs off of this, though,",
+        "last_cue": "going to be signed by the nature of them, we'll never know."
+      }
+    ]
+  },
+  {
+    "id": 29,
+    "title": "What service taught him about division",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "27:56.420",
+        "28:12.400"
+      ]
+    ],
+    "why": "A personal explanation of relying on people with different beliefs.",
+    "keep": "Keep political, religious and ethnic differences, and why those differences did not matter while serving together.",
+    "check": "Use the complete 16-second thought and identify military service in the title. The longer 28:13–28:30 continuation is an alternate held for garbled wording, not an extra clip.",
+    "tier": "Select",
+    "family": "Working across parties",
+    "duration": 15.98,
+    "anchors": [
+      {
+        "first_cue": "It was all about the person next to you.",
+        "last_cue": "None of that mattered because you were in it together."
+      }
+    ]
+  },
+  {
+    "id": 30,
+    "title": "The same veterans bill, different names at the top",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "7:27.280",
+        "8:33.100"
+      ]
+    ],
+    "why": "A concrete story of partisanship attached to an identifiable proposal.",
+    "keep": "Keep the disabled-veterans and surviving-spouse context. Attribute the story and reaction to Trent.",
+    "check": "Hold: resolve “got hurt” and the unclear ending against audio. Identify the bills, dates and hearing if presenting the sequence as established fact.",
+    "tier": "Hold",
+    "family": "Political incentives",
+    "duration": 65.82,
+    "anchors": [
+      {
+        "first_cue": "I had a bill to help our most severely disabled veterans get some property tax",
+        "last_cue": "vote. And that was the tipping point for me."
+      }
+    ]
+  },
+  {
+    "id": 31,
+    "title": "Family farms: agreement on the goal, dispute over the answer",
+    "speaker": "Aaron and Trent",
+    "cuts": [
+      [
+        "1:20:22.800",
+        "1:21:07.980"
+      ],
+      [
+        "1:21:59.100",
+        "1:22:24.360"
+      ]
+    ],
+    "why": "A memorable exchange because the apparent agreement is not quite what Aaron said.",
+    "keep": "Keep Aaron placing action with consumers, then Trent calling it government regulation, and the unresolved response after the rebuttal invitation. Frame it as differing views, not Aaron conceding.",
+    "check": "Hold: identify the final speaker and response. If audio does not resolve it, use Aaron’s complete consumer argument alone as the alternative, not a false agreement clip.",
+    "tier": "Hold",
+    "family": "Family farms",
+    "duration": 70.44,
+    "anchors": [
+      {
+        "first_cue": "it's tough because, you know, again, I argue for free market capitalism.",
+        "last_cue": "30 cents or 50 cents a gallon to some local operation."
+      },
+      {
+        "first_cue": ">> Trent Dilks: Yeah, well actually I smiled because",
+        "last_cue": ">> [speaker uncertain]: [unclear]"
+      }
+    ]
+  },
+  {
+    "id": 32,
+    "title": "Who pays for the move to regenerative farming?",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "1:49:59.820",
+        "1:50:56.780"
+      ],
+      [
+        "1:51:21.160",
+        "1:51:50.780"
+      ]
+    ],
+    "why": "A useful practical issue: farmers may need support through a costly transition.",
+    "keep": "Identify regenerative farming at the start. Keep the possibility of a return on public investment, not only the request for aid. Make the omitted FFA aside visible as an edit.",
+    "check": "Hold: resolve the garbled joke and last phrase. Treat profit and transition benefits as his expectation, not a universal guarantee or an equation of regenerative with organic.",
+    "tier": "Hold",
+    "family": "Family farms",
+    "duration": 86.58,
+    "anchors": [
+      {
+        "first_cue": "But I've got to tell you, to make that change has to come with an investment.",
+        "last_cue": "then we have to invest that allows this transition to a better way."
+      },
+      {
+        "first_cue": "But we have to facilitate that because we got family farms that are just trying to",
+        "last_cue": "but it's an investment worth week."
+      }
+    ]
+  },
+  {
+    "id": 33,
+    "title": "Civilian weapons: where the candidates draw the line",
+    "speaker": "Aaron and Trent",
+    "cuts": [
+      [
+        "1:11:06.100",
+        "1:12:08.640"
+      ],
+      [
+        "1:12:41.820",
+        "1:13:13.960"
+      ],
+      [
+        "1:14:01.800",
+        "1:14:31.840"
+      ],
+      [
+        "1:15:01.600",
+        "1:15:11.420"
+      ]
+    ],
+    "why": "The strongest substantive contrast, with a vivid example from each candidate.",
+    "keep": "Keep Aaron’s distinction between owning a weapon and threatening someone with it, his broad position, Trent’s experience and limit, his dislike of the particular ban bill, his reason that it is an outdated response, and his support for considering access and background checks. Preserve order and show all 3 jumps.",
+    "check": "Hold: captions and the specific bill need resolution. Start the third piece at its real sentence boundary. Do not isolate the tank line, imply Trent supports every restriction, or imply his objection to this bill means opposition to all restrictions. This version needs about 135 seconds; the reason and proposed measures earn the extra time.",
+    "tier": "Hold",
+    "family": "Gun policy",
+    "duration": 134.54,
+    "anchors": [
+      {
+        "first_cue": "I would go so far as to say that civilians, average people,",
+        "last_cue": "rights."
+      },
+      {
+        "first_cue": "At one point after Petraeus came in, I was a machine gunner, I taught machine guns.",
+        "last_cue": "And my neighbor doesn't need any of those things."
+      },
+      {
+        "first_cue": "so it obviously has adapted [unclear] I think at the core of that question was the",
+        "last_cue": "It's a 1990s solution to a 2026 problem."
+      },
+      {
+        "first_cue": "It is a people problem. We do have to look at that,",
+        "last_cue": "those types of things and making sure that they're clear."
+      }
+    ]
+  },
+  {
+    "id": 34,
+    "title": "Omnibus bills: a real disagreement about the rule",
+    "speaker": "Aaron and Trent",
+    "cuts": [
+      [
+        "1:40:38.740",
+        "1:42:01.120"
+      ]
+    ],
+    "why": "A direct claim and direct challenge make an informative exchange.",
+    "keep": "Keep Trent’s distinction between omnibus bills and multi-subject bills. Neither speaker’s legal account becomes Alethical’s conclusion.",
+    "check": "Hold: resolve garbled legal wording and verify the constitutional/court claims before publishing explanatory copy. Do not label this “the Constitution says” based on the debate alone.",
+    "tier": "Hold",
+    "family": "Legislative process",
+    "duration": 82.38,
+    "anchors": [
+      {
+        "first_cue": ">> Aaron Brutger: Yes, I would be comfortable voting against them.",
+        "last_cue": "step to enforce as they should. It goes outside of that."
+      }
+    ]
+  },
+  {
+    "id": 35,
+    "title": "Let people read the bill before the vote",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "1:43:03.020",
+        "1:44:12.280"
+      ]
+    ],
+    "why": "A specific story followed by a clear standard for public input.",
+    "keep": "Keep the distinction between his account of an earlier session and his proposal to allow time for scrutiny.",
+    "check": "Hold: the year, bill, publication sequence and garbled wording need resolution. Do not publish “lawmakers voted on a nonexistent bill” as an established fact from this source alone.",
+    "tier": "Hold",
+    "family": "Legislative process",
+    "duration": 69.26,
+    "anchors": [
+      {
+        "first_cue": "there's a lot of examples, but this one really disgusted me.",
+        "last_cue": "That was gross."
+      }
+    ]
+  },
+  {
+    "id": 36,
+    "title": "Who should provide the safety net?",
+    "speaker": "Aaron and Trent",
+    "cuts": [
+      [
+        "41:14.980",
+        "41:31.240"
+      ],
+      [
+        "41:34.200",
+        "42:55.100"
+      ]
+    ],
+    "why": "A fundamental disagreement with both sides explaining what they mean.",
+    "keep": "Keep Aaron saying people should not be left to starve, his objection to government provision, and Trent’s reason for a public safety net. Do not turn this into a claim that Aaron wants starvation.",
+    "check": "Hold: Aaron’s alternative-provider phrase and Trent’s tax and starvation wording are garbled. Resolve them before an edit. Keep the question as the role of government, not a verdict on fraud.",
+    "tier": "Hold",
+    "family": "Role of government",
+    "duration": 97.16,
+    "anchors": [
+      {
+        "first_cue": "My solution for that is these programs should not exist in the first place at the",
+        "last_cue": "out in the [unclear] However, it does not belong at the government level."
+      },
+      {
+        "first_cue": ">> Trent Dilks: Oh, good. We couldn't disagree more.",
+        "last_cue": "but that was freedom at its epitome. No, I can't."
+      }
+    ]
+  },
+  {
+    "id": 37,
+    "title": "Aaron’s case for a market approach to housing",
+    "speaker": "Aaron",
+    "cuts": [
+      [
+        "1:39:34.540",
+        "1:40:21.080"
+      ]
+    ],
+    "why": "A complete explanation of his housing position using a contractor’s costs and voluntary transactions.",
+    "keep": "Keep his view of government’s role and the reason about property and labor. This is his argument, not an established prediction that supply always meets need.",
+    "check": "The early Minneapolis/Sartell comparison is outside this cut. Do not reduce this to the isolated line about who deserves housing.",
+    "tier": "Select",
+    "family": "Housing",
+    "duration": 46.54,
+    "anchors": [
+      {
+        "first_cue": "You know, and if there is a need and there is a market for something,",
+        "last_cue": "No one has a right to someone else's land. It's just...yeah."
+      }
+    ]
+  },
+  {
+    "id": 38,
+    "title": "Aaron’s proposal for shared custody",
+    "speaker": "Aaron",
+    "cuts": [
+      [
+        "1:08:11.040",
+        "1:09:05.560"
+      ]
+    ],
+    "why": "A specific family-law proposal offered in response to a question about helping young people.",
+    "keep": "Keep the domestic-abuse and drug-abuse exceptions. Identify it as his proposed response, not evidence that shared custody prevents gangs or works in every family.",
+    "check": "Hold: review the causal framing and audio. The later Kentucky divorce-rate claim is excluded and must not appear in promotion. Do not frame parents or children as inherently deficient.",
+    "tier": "Hold",
+    "family": "Youth prevention",
+    "duration": 54.52,
+    "anchors": [
+      {
+        "first_cue": ">> Aaron Brutger: I think the best way that we could address this is to reform",
+        "last_cue": "It is not good. It is not setting kids up for success."
+      }
+    ]
+  },
+  {
+    "id": 39,
+    "title": "The farm conversations that changed his expectation",
+    "speaker": "Trent",
+    "cuts": [
+      [
+        "1:18:10.600",
+        "1:18:52.680"
+      ]
+    ],
+    "why": "He expected a call for deregulation and describes hearing a different request. A useful example of listening.",
+    "keep": "Identify these as farmers he met, not all farmers. Keep his changed expectation and the request for common-sense rules.",
+    "check": "Resolve the short unclear phrase near 1:18:16. The cash-pay anecdote is his recollection. Do not imply the conversations prove every current rule is needed.",
+    "tier": "Select",
+    "family": "Family farms",
+    "duration": 42.08,
+    "anchors": [
+      {
+        "first_cue": "I was expecting a strong deregulation message, right?",
+        "last_cue": "Paul. And so that is something that we need to do."
+      }
+    ]
+  },
+  {
+    "id": 40,
+    "title": "Aaron’s story of an unexpected medical bill",
+    "speaker": "Aaron",
+    "cuts": [
+      [
+        "1:29:20.720",
+        "1:30:24.060"
+      ]
+    ],
+    "why": "A concrete personal story explains why he wants more control for patients and doctors.",
+    "keep": "Keep his uncertainty about the initial $1,400–$1,500 quote and his account of the $4,000 bill. The transcript does not establish what was billed, paid or owed. Keep the story attributed to him.",
+    "check": "Hold: confirm the numbers and distinction between a provider charge, insurance statement and actual patient payment. Avoid an unverified “insurance tripled his bill” headline. The story contains his child’s health detail; retain only what the story needs, with no added identity or imagery.",
+    "tier": "Hold",
+    "family": "Health costs",
+    "duration": 63.34,
+    "anchors": [
+      {
+        "first_cue": "If we can get away from insurance companies and",
+        "last_cue": "the end result, the product, if you will."
+      }
+    ]
+  },
+  {
+    "id": 41,
+    "title": "Why he prefers the eggs from his own chickens",
+    "speaker": "Aaron",
+    "cuts": [
+      [
+        "1:53:28.020",
+        "1:53:43.720"
+      ]
+    ],
+    "why": "A compact, warm personal moment to vary a policy-heavy series.",
+    "keep": "Keep “Maybe it’s in my head” and “seem to taste.” This is a taste preference, not a health claim about eggs or a definition of regenerative farming.",
+    "check": "The actual egg passage is at 1:53:28, not 1:54:28. Do not attach the later claims about mental health or supermarket meat.",
+    "tier": "Select",
+    "family": "Personal introduction",
+    "duration": 15.7,
+    "anchors": [
+      {
+        "first_cue": "We have a pretty large garden. We raise chickens.",
+        "last_cue": "I'll tell you, those yolks are orange compared to yellow."
+      }
+    ]
+  }
+]

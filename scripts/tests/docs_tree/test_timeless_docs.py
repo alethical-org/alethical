@@ -131,3 +131,12 @@ def test_real_git_diff_checks_added_markdown_including_skill_files(
     assert len(lines) == 3
     monkeypatch.setenv("TIMELESS_BASE_REF", "base")
     assert checker.main() == 1
+
+
+def test_retained_transcript_preserves_historical_speech_without_hiding_attribution():
+    path = "docs/operations/video/forward-debate-2026-10-15/text/ForwardDebate-transcript.md"
+    speech = "We used to have a different rule."
+    assert not checker.line_findings(path, speech)
+    assert checker.line_findings(path + ".notes.md", speech)
+    assert checker.line_findings(path.replace("text/", "notes/"), speech)
+    assert checker.line_findings(path, "Eugene requested a change.")

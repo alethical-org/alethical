@@ -133,6 +133,16 @@ requesting GitHub run and attempt, or to a unique local request. Missing evidenc
 changed commands, missing instances and provider failures fail the job. This
 workflow supplies evidence; it does not itself grant an exception.
 
+The source guard distinguishes the single production renderer from 3 archived
+media tools awaiting release on `codex/social-video-guides`. Their exact paths,
+SHA-256 fingerprints and Pillow imports are recorded in
+`scripts/pillow_source_guard.py`. They may be absent or match the reviewed files;
+changed tools, new Pillow callers and production references to these offline tools
+require review. The source review found ordinary PNG/JPEG reading, drawing,
+resizing and saving, with no Arrow or alignment use. Their local execution
+environments are not verified, and releasing their source does not authorize
+running them. All other tracked Python files remain in the source scan.
+
 ## Recorded security exceptions
 
 ### Pillow: reviewed production path outside the Arrow flaw
@@ -151,7 +161,7 @@ renderer uses `Image.frombytes`, rectangle and text drawing, and `tobytes`, with
 no Arrow export. The source guard pins that renderer, its direct test imports,
 and the 2 service functions that call it.
 
-The [trusted production read](https://github.com/alethical-org/alethical/actions/runs/39950484120)
+The [trusted production read](https://github.com/alethical-org/alethical/actions/runs/39953428120)
 verified no `PILLOW_ALIGNMENT` in saved service or shared
 variables or the actual running app's environment, no installed or importable
 `pyarrow`, Pillow 13.0.0, and matching deployed source. It identified the running
