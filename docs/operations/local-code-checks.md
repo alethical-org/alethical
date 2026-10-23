@@ -206,6 +206,18 @@ same GitHub merge gate.
 GitHub also runs checks absent locally, such as the production web build. Local
 tests do not prove browser behavior or replace a real user-flow check.
 
+### Backend runner count
+
+Keep 6 backend workers on 1 runner. The [2-runner trial](https://github.com/alethical-org/alethical/pull/2678)
+preserved all 5,175 test identities and outcomes in 3 runs, and deliberately skipped
+groups made its required gate fail. Backend gate time improved from a median
+281 seconds to 228 seconds, but full CI improved only from 281 to 271 seconds;
+frontend checks finished last in every split run. This did not meet the agreed
+useful-gain threshold of more than 30 seconds, so the split was not merged.
+These are warm-cache workflow-creation-to-gate times, including queue, setup and
+final gate overhead, not summed test durations. Reconsider extra backend runners
+when a matched trial establishes the full-run gain without dropping checks.
+
 ## GitHub description-check activation
 
 The independent `description-checks` result runs through

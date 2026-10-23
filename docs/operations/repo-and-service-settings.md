@@ -1,6 +1,6 @@
 # Repo and service settings
 
-<!-- describes: scripts/check_hosted_service_settings.py, scripts/supabase_oauth_state.mjs, scripts/lib/supabase_oauth_artifacts.mjs, .github/workflows/hosted-service-settings.yml -->
+<!-- describes: .github/workflows/railway-timings.yml, scripts/railway_deployment_timings.py, scripts/check_hosted_service_settings.py, scripts/supabase_oauth_state.mjs, scripts/lib/supabase_oauth_artifacts.mjs, .github/workflows/hosted-service-settings.yml -->
 
 This file is the source of truth for Alethical's GitHub, Vercel, Railway, and
 Supabase settings outside the repository. The free read-only check in
@@ -76,7 +76,7 @@ Set under **Settings, Secrets and variables, Actions**. The live check reads nam
 | `CLOUDFLARE_R2_BUCKET` | Present | `mirror-raw-files.yml` | Names the backup bucket. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `CLOUDFLARE_R2_ENDPOINT` | Present | `mirror-raw-files.yml` | Reaches the backup bucket. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `CLOUDFLARE_R2_SECRET_ACCESS_KEY` | Present | `mirror-raw-files.yml` | Authenticates writes to the backup bucket. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
-| `RAILWAY_TOKEN` | Present | `railway-deploy.yml`, `hosted-service-settings.yml` | Targets the production Railway project for manual releases and read-only checks. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
+| `RAILWAY_TOKEN` | Present | `railway-deploy.yml`, `hosted-service-settings.yml`, `railway-timings.yml` | Targets the production Railway project for manual releases and read-only checks. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `SUPABASE_OAUTH_CLIENT_ID` | Present | `hosted-service-settings.yml` | Names the Supabase OAuth app that can read sign-in settings only. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `SUPABASE_OAUTH_CLIENT_SECRET` | Present | `hosted-service-settings.yml` | Authenticates the narrow Supabase OAuth app when it refreshes access. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `SUPABASE_OAUTH_REFRESH_TOKEN` | Present | `hosted-service-settings.yml` | Starts the first read-only Supabase check; each later rotating token comes from the encrypted workflow artifact. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
@@ -172,6 +172,33 @@ shows. Railway's public API and command-line tool return successful deployments 
 read of the final deployment settings would create a false alarm. The live check confirms
 only the supported `railwayConfigFile` value until Railway adds typed fields for the final
 deployment settings.
+
+### Read deployment stage times
+
+Run **Railway deployment timings** manually. Leave
+`deployment_id` blank for the latest production API deployment, or supply a Railway
+deployment ID. The job confirms project `alethical`, environment `production`, and
+service `alethical-api` before reading events. It uses only `RAILWAY_TOKEN`; the
+settings workflow, including its Supabase grant history and concurrency group,
+is separate and unchanged. Pull requests only run credential-free fixtures.
+
+[`railway_deployment_timings.py`](../../scripts/railway_deployment_timings.py) reads
+fixed queries from Railway's [typed API schema](https://github.com/railwayapp/cli/blob/master/src/gql/schema.json).
+It retains event IDs, phase names, start/end times, reported durations, attempt
+numbers and skipped markers in the `railway-timings-<run>-<attempt>` artifact.
+It never queries logs, variable values, configuration or untyped deployment metadata.
+The read has request, response-size and pagination limits; detected truncation or
+failed pagination stops the report. Events can change while pages are read, and a
+provider-omitted history cannot be detected; this is not an atomic snapshot.
+
+Each event stays separate, including retries and overlaps. Missing phases and
+unfinished, skipped or invalid event times stay unknown, never zero. Durations
+are not added into a deployment total. Dependency waiting excludes unreported queue
+waits; before-deploy time does not isolate database migrations; container creation
+does not measure the exact app start; healthcheck events do not establish the first
+successful public readiness response. Deployment dates do not prove a Git commit.
+These limits also appear inside the retained report. Measure before proposing a
+build or deployment change.
 
 ### Railway environment variables
 
