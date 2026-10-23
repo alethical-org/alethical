@@ -1,7 +1,8 @@
 """Every frontend CI command still runs, exactly once, after the job split.
 
-The frontend checks run in 2 side-by-side jobs (`frontend-checks` and
-`frontend-browser`) behind the required `frontend` gate. Splitting a job is where a
+The frontend checks run in 3 side-by-side jobs (`frontend-checks`,
+`frontend-browser-reader` and `frontend-browser-specs`) behind the required
+`frontend` gate. Splitting a job is where a
 command quietly goes missing, so this test lists every command, browser spec and
 money-failure assertion the frontend job ran before the split and requires each to
 appear the stated number of times across the `frontend-*` jobs. Adding a command
@@ -19,6 +20,9 @@ from pathlib import Path
 CI = Path(__file__).resolve().parents[2] / ".github" / "workflows" / "ci.yml"
 
 # Each entry: text that must appear in the frontend-* jobs, and how many times.
+# The 2 browser jobs each build the site and install Chromium (an artifact
+# upload and download would cost about as much as the 96 s build), so those
+# setup commands appear twice; every check appears once.
 REQUIRED = {
     "python3 -m unittest discover -s scripts/tests -p 'test_staged_checks.py'": 1,
     "pnpm run check:expo-packages": 1,
@@ -28,11 +32,11 @@ REQUIRED = {
     "node scripts/format_frontend.mjs --check": 1,
     "node --test scripts/test-return-links.mjs && node scripts/check-return-links.mjs": 1,
     "pnpm run test\n": 1,
-    "pnpm run build\n": 1,
+    "pnpm run build\n": 2,
     "node --test scripts/test-reader-completion-policy.mjs scripts/test-reader-completion-money.mjs": 1,
-    "uses: ./.github/actions/prepare-browser-install": 1,
-    "pnpm exec playwright install --with-deps chromium": 1,
-    "node scripts/serve-reader-check-build.mjs &": 1,
+    "uses: ./.github/actions/prepare-browser-install": 2,
+    "pnpm exec playwright install --with-deps chromium": 2,
+    "node scripts/serve-reader-check-build.mjs &": 2,
     "node scripts/reader-completion-checks.mjs": 2,
     '--fixture-money-failure "$money_failure"': 1,
     "for money_failure in unavailable wrong-amount missing-as-zero; do": 1,
@@ -56,6 +60,7 @@ REQUIRED = {
     "e2e/contact-side-alignment.spec.ts": 1,
     "e2e/home-hero-social.spec.ts": 1,
     "e2e/home-hero-still.spec.ts": 1,
+    "e2e/font-stand-in.spec.ts": 1,
     "pnpm exec playwright test --config playwright.replay-startup.config.ts": 1,
     "apps/frontend/reader-completion-results.json": 1,
     "apps/frontend/reader-money-negative-*.json": 1,
@@ -88,9 +93,14 @@ def problems(text: str) -> list[str]:
     ]
     for job, body in jobs.items():
         conditions = re.findall(r"(?m)^        if: (.*)$", body)
-        allowed = ["always()"] if job == "frontend-browser" else []
+        allowed = ["always()"] if job.startswith("frontend-browser") else []
         if conditions != allowed:
             found.append(f"{job} step conditions {conditions}, expected {allowed}")
+    # A spec the walk runs but this list does not name could be dropped unnoticed.
+    listed = {command for command in REQUIRED if command.startswith("e2e/")}
+    referenced = set(re.findall(r"e2e/[A-Za-z0-9-]+\.spec\.ts", combined))
+    for spec in sorted(referenced - listed):
+        found.append(f"{spec!r} runs in a frontend job but is not in the inventory")
     return found
 
 
@@ -98,7 +108,8 @@ class FrontendCommandTests(unittest.TestCase):
     def test_every_frontend_command_runs_exactly_as_often_as_before_the_split(self):
         text = CI.read_text(encoding="utf-8")
         self.assertEqual(
-            sorted(frontend_jobs(text)), ["frontend-browser", "frontend-checks"]
+            sorted(frontend_jobs(text)),
+            ["frontend-browser-reader", "frontend-browser-specs", "frontend-checks"],
         )
         self.assertEqual(problems(text), [])
 

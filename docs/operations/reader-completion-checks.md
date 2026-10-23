@@ -31,7 +31,7 @@ Live counts, result order, a particular legislator, and a particular bill are no
 fixed expectations. The search needs at least 1 actual result; an empty result is an
 honest product state but does not prove this search-to-source action works.
 
-On pull requests and merge-queue commits, the `frontend-browser` CI job, part of the required
+On pull requests and merge-queue commits, the `frontend-browser-reader` CI job, part of the required
 `frontend` check, builds the tested website
 and serves it on loopback. Chromium and its system packages come from GitHub's
 cache when an earlier run on the same runner image and Playwright version saved
@@ -43,7 +43,7 @@ premerge checks. Missing unrelated eager fixture reads receive HTTP 503; they
 are not invented records or evidence that campaign figures loaded. The 3 named
 money fixture checks now require the rendered figures themselves.
 
-The same `frontend-browser` job also runs
+The same `frontend-browser-reader` job also runs
 [`check-candidate-return.mjs`](../../apps/frontend/scripts/check-candidate-return.mjs)
 against the same production build. Its explicitly illustrative candidate records
 exercise search, a collapsed group, a profile visit and return at desktop, tablet
@@ -64,7 +64,7 @@ HTTP 503; nothing reaches a location or address service.
 
 ### Replay startup fixture evidence
 
-The `frontend-browser` job runs
+The `frontend-browser-specs` job runs
 [`event-replay-startup.browser.ts`](../../apps/frontend/e2e/event-replay-startup.browser.ts)
 against the real production build, served by the loopback-only
 [`serve-replay-check-build.mjs`](../../apps/frontend/scripts/serve-replay-check-build.mjs).

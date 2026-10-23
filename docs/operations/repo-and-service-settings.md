@@ -61,7 +61,7 @@ Enabled 2026-07-28.
 
 The required `backend` check reports `skipped` on unrelated changes, which GitHub
 accepts as satisfied; the required `frontend` check is a small job that passes once its
-2 jobs (`frontend-checks`, `frontend-browser`) both passed, or both were skipped
+3 jobs (`frontend-checks`, `frontend-browser-reader`, `frontend-browser-specs`) all passed, or all were skipped
 because the path selection said the frontend was not needed. Keep path filters inside jobs, not on the workflow trigger,
 so all 4 required checks report for pull requests and merge groups. Editing a pull
 request description refreshes `description-checks`, not the saved code-test results.
