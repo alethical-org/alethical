@@ -74,9 +74,8 @@ class SourceBoundaryTests(unittest.TestCase):
             "load=__builtins__['__import__']\nload('PIL.Image')\n",
             "import importlib\nimportlib.import_module(runtime_name)\n",
         ):
-            with self.subTest(source=source):
-                self.add_source(source)
-                self.assert_held("dynamic import")
+            self.add_source(source)
+            self.assert_held("dynamic import")
 
     def test_existing_benign_literal_dynamic_import(self):
         self.add_source("import importlib\nimportlib.import_module('pathlib')\n")
@@ -139,9 +138,8 @@ class SourceBoundaryTests(unittest.TestCase):
             "lookup=getattr\nlookup(image, 'fromarrow')(value)\n",
             "from builtins import getattr as lookup\nlookup(image, 'fromarrow')(value)\n",
         ):
-            with self.subTest(source=source):
-                self.add_source("from PIL import Image as image\n" + source)
-                self.assert_held("Arrow")
+            self.add_source("from PIL import Image as image\n" + source)
+            self.assert_held("Arrow")
 
     def test_alignment(self):
         for source in (
@@ -153,11 +151,8 @@ class SourceBoundaryTests(unittest.TestCase):
             "from PIL import Image as image\nimage.core.set_alignment(64)\n",
             "from PIL import Image as image\nsetter=getattr(image.core, 'set_'+'alignment')\nsetter(64)\n",
         ):
-            with self.subTest(source=source):
-                self.add_source(source)
-                self.assert_held(
-                    "alignment" if "set_" in source else "PILLOW_ALIGNMENT"
-                )
+            self.add_source(source)
+            self.assert_held("alignment" if "set_" in source else "PILLOW_ALIGNMENT")
 
     def test_alignment_read_by_checker(self):
         self.add_source(
