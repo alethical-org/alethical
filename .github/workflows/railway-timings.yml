@@ -1,0 +1,58 @@
+name: Railway deployment timings
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/railway-timings.yml
+      - scripts/railway_deployment_timings.py
+      - scripts/tests/test_railway_deployment_timings.py
+  workflow_dispatch:
+    inputs:
+      deployment_id:
+        description: Railway deployment ID (blank reads the latest production API deployment)
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: railway-timings-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test-reader:
+    name: Test Railway timing reader without credentials
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: python3 -m unittest discover -s scripts/tests -p 'test_railway_deployment_timings.py'
+
+  railway-timing:
+    if: github.event_name == 'workflow_dispatch'
+    needs: test-reader
+    name: Read Railway deployment stage timings
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Read selected deployment event times
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          DEPLOYMENT_ID: ${{ inputs.deployment_id }}
+        run: >-
+          python3 scripts/railway_deployment_timings.py
+          --deployment "$DEPLOYMENT_ID"
+          --output "$RUNNER_TEMP/railway-timings.json"
+      - name: Retain only the selected timing fields
+        uses: actions/upload-artifact@v7
+        with:
+          name: railway-timings-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/railway-timings.json
+          if-no-files-found: error
+          retention-days: 30

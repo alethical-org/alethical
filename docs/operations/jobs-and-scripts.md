@@ -2,7 +2,7 @@
 
 <!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py, alethical/api/services/candidate_claim_email.py, alethical/api/main.py -->
 
-Net: The repository has 34 GitHub Actions workflows. 28 can start automatically
+Net: The repository has 35 GitHub Actions workflows. 29 can start automatically
 and 6 run only when a person starts them. Scheduled checks, releases, and local
 backups do not call paid AI services. Reader questions and deliberately started
 AI work do. The review of a failed campaign-money collection has a paid AI
@@ -30,6 +30,7 @@ reviewer too, and its switch is off until its limits are approved.
 | Bills with summary gaps (`.github/workflows/bill-summary-coverage.yml`) | Daily at 14:00 UTC | Opens or updates 1 issue when a bill has complete current text but its full summary is missing or was made from older text or instructions | No paid AI call; reads the database and does not create or change a summary |
 | Homepage fact check (`.github/workflows/home-hero-card-facts.yml`) | Daily at 12:00 UTC, and on relevant pull requests | Checks the homepage's 5 bill claims against Minnesota's published record | No paid AI call; reads public government pages |
 | Technology health (`.github/workflows/technology-health.yml`) | Security every Monday at 13:41 UTC; full review monthly at 13:17 UTC on day 1, and by hand | Checks known package vulnerabilities and the unfixed Pillow advisory weekly; the monthly review also checks saved tool versions, support dates, and whether the 3-month major-release review is overdue | No paid AI call; reads public package lists on GitHub's standard computer |
+| Railway deployment timing (`.github/workflows/railway-timings.yml`) | Relevant pull requests run credential-free tests; deployment timing is read only by hand | Reads selected production deployment event times, retaining unknown phases and separate attempts; never deploys or reads service variables/logs | No paid AI call or new service fee; bounded reads on the existing Railway account and a standard free GitHub runner |
 | Hosted service settings (`.github/workflows/hosted-service-settings.yml`) | Monthly at 09:30 UTC on day 1, on relevant pull requests, and after relevant changes reach `main` | Compares the intended GitHub, Vercel, Railway, and Supabase settings with their live read routes; keeps Supabase's rotating read grant as 2 encrypted 90-day artifacts; lists every setting it cannot safely read | No paid AI call; reads existing service APIs on GitHub's standard free runner |
 | Large-contribution notices and disclosure statements (`.github/workflows/campaign-money-notices.yml`) | Daily at 17:15 UTC from 20 Oct to 6 Nov, weekly on Wednesdays otherwise, and by hand | Copies the Campaign Finance Board's list of large-contribution notices, keeps each new notice PDF once, records which notice windows apply to which candidates from the Secretary of State's ballot files, reads committees' catalogues for disclosure statements on Wednesdays, and stores the reviewed statement readings. Records what each stage did for the failed-collection review below, which owns its failure issue; opens 1 review-point issue on or after 2 Feb 2027 | No paid AI call; reads 2 free public websites on GitHub's standard free runner |
 | Failed-collection review (`.github/workflows/collection-failure-review.yml`) | When the daily campaign-money refresh or the notices collection finishes on `main` from its schedule or by hand, and by hand for a named run | Keeps 1 issue per distinct collection failure (label `collection-incident`), removes secrets and personal details from the evidence first, adds 1 comment only when the evidence changes, and closes the issue only when a later run's own summary says every stage finished. Never re-runs a collection. Turns the run red while an issue is open, and files a plain alert if the review itself breaks. [Decisions](../architecture/collection-failure-review-decisions.md) | No paid AI call while its switch is off, which it is; a few GitHub reads per completion on a standard free runner. The paid reviewer's costs are under "What spends money" |
@@ -61,7 +62,7 @@ Time and Central Daylight Time, so their local hour changes by 1 during the year
 
 ## What GitHub runs only by hand
 
-These 6 workflows complete the total of 34:
+These 6 workflows complete the total of 35:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |
@@ -77,7 +78,7 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 102 runnable files. GitHub jobs call 41 of them
+The `scripts/` folder has 103 runnable files. GitHub jobs call 42 of them
 directly and 3 document checks through `local_checks.py`. The 4 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`, which uses `worktree_inventory.py`
 for the complete folder report; the older shell command
@@ -100,6 +101,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Register approved jobs, record private activity and report outcomes | `agent_job_outcomes.py`, `agent_job_events.py` |
 | Read current completion sources and retain a private receipt | `check_agent_job_completion.py` |
 | Install pinned local coding hooks while preserving other settings | `install_agent_job_hooks.py` |
+| Read selected Railway deployment event times without configuration or logs | `railway_deployment_timings.py` |
 | Read the current address-copy host capacity or safely switch the copy on or off | `address_copy_capacity.py`, `address_copy_control.py` |
 | Recover 1 proven missed website release with saved evidence | `website_release_recovery.py` |
 | Measure AI answers and search | `answer_eval.py`, `graph_retrieval_eval.py`, `retrieval_eval.py`, `try_queries.py`, `validate_query_rubric.py` |
