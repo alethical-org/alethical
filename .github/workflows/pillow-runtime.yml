@@ -49,7 +49,7 @@ jobs:
       - name: Save only the allowlisted security evidence
         uses: actions/upload-artifact@v4
         with:
-          name: pillow-runtime-proof
+          name: pillow-runtime-proof-${{ github.run_attempt }}
           path: runtime-proof.json
           retention-days: 1
           if-no-files-found: error
