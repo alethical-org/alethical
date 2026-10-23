@@ -102,12 +102,12 @@ def test_real_verification_wrapper_failure_is_a_release_blocker(
     assert len(calls) == 1
     assert calls[0][0] == [sys.executable, "-m", "scripts.check_pillow_exception"]
     assert calls[0][1]["cwd"] == ROOT
-    assert calls[0][1]["timeout"] == 600
+    assert calls[0][1]["timeout"] == 1000
     assert "private provider details" not in capsys.readouterr().out
 
 
 @pytest.mark.parametrize(
-    "error", [FileNotFoundError(), subprocess.TimeoutExpired("proof", 600)]
+    "error", [FileNotFoundError(), subprocess.TimeoutExpired("proof", 1000)]
 )
 def test_missing_or_timed_out_verifier_blocks_clean_scan(
     monkeypatch, clean_scanners, error

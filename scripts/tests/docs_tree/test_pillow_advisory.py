@@ -75,23 +75,46 @@ def test_missing_fix_field_is_not_no_fix():
     assert CHECK.problems(payload)
 
 
+UNSIGNED = {}
+FAKE_TOKEN = "ghs_" + "a" * 36
+
+
+def serve(monkeypatch, fetch):
+    """Replace the redirect-refusing opener with a fake transport."""
+    handlers = []
+
+    class Opener:
+        def open(self, request, timeout):
+            return fetch(request, timeout)
+
+    def build(*args):
+        handlers.extend(args)
+        return Opener()
+
+    monkeypatch.setattr(CHECK.urllib.request, "build_opener", build)
+    monkeypatch.setattr(
+        CHECK.urllib.request,
+        "urlopen",
+        lambda *a, **k: pytest.fail("the redirect-following opener must not be used"),
+    )
+    return handlers
+
+
 @pytest.mark.parametrize(
     "raw", [b"", b"not json", b"null", b"[]", b"\xff", b"x" * 1_000_001]
 )
 def test_unreadable_upstream_fails(monkeypatch, raw):
-    monkeypatch.setattr(
-        CHECK.urllib.request, "urlopen", lambda *a, **k: io.BytesIO(raw)
-    )
-    assert CHECK.check()
+    serve(monkeypatch, lambda *a: io.BytesIO(raw))
+    assert CHECK.check(UNSIGNED)
 
 
 @pytest.mark.parametrize("error", [TimeoutError(), OSError("unavailable")])
 def test_network_failure_is_not_no_fix(monkeypatch, error):
-    def unavailable(*args, **kwargs):
+    def unavailable(*args):
         raise error
 
-    monkeypatch.setattr(CHECK.urllib.request, "urlopen", unavailable)
-    assert CHECK.check()
+    serve(monkeypatch, unavailable)
+    assert CHECK.check({"GH_TOKEN": FAKE_TOKEN})
 
 
 def test_direct_repository_feed_and_bounded_timeout(monkeypatch):
@@ -99,11 +122,67 @@ def test_direct_repository_feed_and_bounded_timeout(monkeypatch):
         assert request.full_url == CHECK.URL
         assert "/repos/python-pillow/Pillow/security-advisories/" in request.full_url
         assert timeout == 20
-        assert not request.has_header("Authorization")
         return io.BytesIO(json.dumps(advisory()).encode())
 
-    monkeypatch.setattr(CHECK.urllib.request, "urlopen", fetch)
-    assert CHECK.check() == []
+    monkeypatch.setattr(CHECK, "token", lambda env: None)
+    serve(monkeypatch, fetch)
+    assert CHECK.check(UNSIGNED) == []
+
+
+@pytest.mark.parametrize("name", ["GH_TOKEN", "GITHUB_TOKEN"])
+def test_job_token_signs_the_read_and_redirects_are_refused(monkeypatch, name):
+    seen = []
+
+    def fetch(request, timeout):
+        seen.append(request.get_header("Authorization"))
+        return io.BytesIO(json.dumps(advisory()).encode())
+
+    handlers = serve(monkeypatch, fetch)
+    assert CHECK.check({name: FAKE_TOKEN}) == []
+    assert seen == [f"Bearer {FAKE_TOKEN}"]
+    assert handlers == [CHECK.NoRedirect]
+    assert CHECK.NoRedirect().redirect_request(None, None, 302, "", {}, "x") is None
+
+
+def test_saved_local_sign_in_is_used_without_printing(monkeypatch, capsys):
+    calls = []
+
+    def run(command, **kwargs):
+        calls.append(command)
+        return CHECK.subprocess.CompletedProcess(command, 0, FAKE_TOKEN + "\n", "")
+
+    monkeypatch.setattr(CHECK.subprocess, "run", run)
+    assert CHECK.token({}) == FAKE_TOKEN
+    assert calls == [["gh", "auth", "token", "--hostname", "github.com"]]
+    assert FAKE_TOKEN not in "".join(capsys.readouterr())
+
+
+@pytest.mark.parametrize(
+    "outcome",
+    [
+        OSError("no gh"),
+        CHECK.subprocess.TimeoutExpired("gh", 10),
+        CHECK.subprocess.CompletedProcess("gh", 1, "", "not signed in"),
+        CHECK.subprocess.CompletedProcess("gh", 0, "has spaces and\nnewlines", ""),
+    ],
+)
+def test_missing_sign_in_falls_back_to_an_unsigned_read(monkeypatch, outcome):
+    def run(*args, **kwargs):
+        if isinstance(outcome, BaseException):
+            raise outcome
+        return outcome
+
+    monkeypatch.setattr(CHECK.subprocess, "run", run)
+    assert CHECK.token({}) is None
+    seen = []
+
+    def fetch(request, timeout):
+        seen.append(request.has_header("Authorization"))
+        return io.BytesIO(json.dumps(advisory()).encode())
+
+    serve(monkeypatch, fetch)
+    assert CHECK.check({}) == []
+    assert seen == [False]
 
 
 def test_weekly_check_is_independent_of_the_registry_scan():
@@ -113,4 +192,5 @@ def test_weekly_check_is_independent_of_the_registry_scan():
     assert "needs:" not in job
     assert "runs-on: ubuntu-latest" in job
     assert "timeout-minutes: 2" in job
+    assert "GH_TOKEN: ${{ github.token }}" in job
     assert "python scripts/check_pillow_advisory.py" in job

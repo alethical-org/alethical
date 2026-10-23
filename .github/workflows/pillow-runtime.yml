@@ -18,10 +18,37 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  # GitHub starts this workflow 2 to 4 times per request. Only the first copy
+  # probes production; this job holds no production secret.
+  claim:
     if: github.repository == 'alethical-org/alethical' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 2
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      first: ${{ steps.claim.outputs.first }}
+    steps:
+      - name: Check out trusted main only
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Decide whether this run owns the request
+        id: claim
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUEST: ${{ github.event.inputs.nonce || format('{0}-{1}', github.event.workflow_run.id, github.event.workflow_run.run_attempt) }}
+        run: python3 scripts/pillow_runtime_claim.py
+
+  verify:
+    needs: claim
+    if: github.repository == 'alethical-org/alethical' && github.ref == 'refs/heads/main' && needs.claim.outputs.first == 'true'
+    runs-on: ubuntu-latest
+    # Waits out an API deploy (up to 6 minutes) before the unchanged proof.
+    timeout-minutes: 12
     environment: pillow-security-runtime
     steps:
       - name: Check out trusted main only

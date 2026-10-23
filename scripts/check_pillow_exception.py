@@ -17,7 +17,8 @@ from datetime import datetime
 REPO = "alethical-org/alethical"
 WORKFLOW = "pillow-runtime.yml"
 PATH = ".github/workflows/" + WORKFLOW
-MAX_WAIT = 480
+# Covers an API deploy wait (6 min) plus the proof (4 min) and runner startup.
+MAX_WAIT = 900
 MAX_AGE = 1800
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -275,17 +276,19 @@ def runtime_check(env):
             if r.get("display_title") == "Pillow runtime " + label
             and r.get("head_branch") == "main"
         ]
-        if matches:
-            run = max(matches, key=lambda r: r["id"])
-            if run.get("status") == "completed":
-                if run.get("conclusion") != "success":
-                    raise Unavailable(
-                        "Trusted production security check failed; inspect its GitHub run."
-                    )
-                validate(
-                    artifact(run), run, expected, workflow["id"], earliest, time.time()
+        # GitHub can start 2 to 4 copies per request; only the first probes and
+        # the others finish without probing. Every copy must succeed: a failed
+        # copy is never outvoted by a passing one.
+        if matches and all(r.get("status") == "completed" for r in matches):
+            if any(r.get("conclusion") != "success" for r in matches):
+                raise Unavailable(
+                    "Trusted production security check failed; inspect its GitHub run."
                 )
-                return
+            run = min(matches, key=lambda r: r["id"])
+            validate(
+                artifact(run), run, expected, workflow["id"], earliest, time.time()
+            )
+            return
         time.sleep(10)
     raise Unavailable(
         "Timed out waiting for this request’s trusted production security check."

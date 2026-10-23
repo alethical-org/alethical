@@ -15,7 +15,9 @@ import os
 from pathlib import Path
 import re
 import signal
+import ssl
 import sys
+import time
 import urllib.request
 
 API = "https://backboard.railway.com/graphql/v2"
@@ -42,6 +44,21 @@ MAX_INSTANCES = 8
 MAX_OUTPUT = 4096
 MAX_WIRE_BYTES = 32768
 MAX_MESSAGES = 64
+# A deploy replaces the running instance for up to about 4.5 minutes. Only these
+# provider states mean "still rolling out"; every other unsettled state fails.
+ROLLOUT_DEPLOYMENT_STATES = {
+    "QUEUED",
+    "WAITING",
+    "BUILDING",
+    "DEPLOYING",
+    "INITIALIZING",
+    "REMOVING",
+}
+ROLLOUT_INSTANCE_STATES = {"CREATED", "INITIALIZING", "RESTARTING", "REMOVING"}
+SETTLE_SECONDS = 360
+SETTLE_INTERVAL = 15
+PROOF_SECONDS = 240
+PROBE_SECONDS = 90
 QUERY = """query PillowRuntimeState($environmentId: String!, $serviceId: String!) {
   projectToken { project { id } environment { id } }
   environment(id: $environmentId) { id config(decryptVariables: false) }
@@ -70,6 +87,7 @@ def failure_stage(name):
             "probe-build",
             "first-provider-read",
             "first-state-validation",
+            "rollout-wait",
             "instance-probe",
             "second-provider-read",
             "second-state-validation",
@@ -204,8 +222,8 @@ def command_settings(settings, *, deployed):
         require(deploy["preDeployCommand"] in (PREDEPLOY_COMMAND, [PREDEPLOY_COMMAND]))
 
 
-def snapshot(data):
-    """Validate configuration without returning private names, values or commands."""
+def settings(data):
+    """Validate identity and saved settings, which must hold even mid-rollout."""
     exact_dict(data, {"projectToken", "environment", "serviceInstance"})
     identity = exact_dict(data["projectToken"], {"project", "environment"})
     require(exact_dict(identity["project"], {"id"})["id"] == PROJECT)
@@ -221,6 +239,31 @@ def snapshot(data):
     variable_names(service.get("variables"))
     variable_names(config.get("sharedVariables"))
     command_settings(service, deployed=False)
+
+
+def rollout_in_progress(data):
+    """True only for the provider's named rollout states; anything else is judged
+    by the full snapshot, which fails on crashed, failed or unknown states."""
+    active = data["serviceInstance"]["activeDeployments"]
+    if not isinstance(active, list):
+        return False
+    for deployment in active:
+        if not isinstance(deployment, dict):
+            return False
+        if deployment.get("status") in ROLLOUT_DEPLOYMENT_STATES:
+            return True
+        instances = deployment.get("instances")
+        if isinstance(instances, list) and any(
+            isinstance(row, dict) and row.get("status") in ROLLOUT_INSTANCE_STATES
+            for row in instances
+        ):
+            return True
+    return False
+
+
+def snapshot(data):
+    """Validate configuration without returning private names, values or commands."""
+    settings(data)
     instance = exact_dict(data["serviceInstance"], {"activeDeployments"})
     active = instance["activeDeployments"]
     require(isinstance(active, list) and 1 <= len(active) <= MAX_DEPLOYMENTS)
@@ -523,14 +566,36 @@ async def probe_instance(token, probe, deployment, instance_id):
         return await exchange(socket, probe, deployment, instance_id)
 
 
+def connection_lost(error):
+    """Only a lost or refused connection is retried; a wrong answer, a bad exit,
+    a malformed message, a certificate failure or a timeout is never retried."""
+    if isinstance(error, (CheckFailed, ssl.SSLError, TimeoutError)):
+        return False
+    if isinstance(error, ConnectionError):
+        return True
+    try:
+        from websockets.exceptions import ConnectionClosed, InvalidStatus
+    except ImportError:
+        return False
+    if isinstance(error, InvalidStatus):
+        return 500 <= error.response.status_code < 600
+    return isinstance(error, ConnectionClosed)
+
+
 async def verify_instances(token, probe, deployments):
     semaphore = asyncio.Semaphore(4)
 
     async def verify(deployment, instance_id):
         async with semaphore:
-            return await asyncio.wait_for(
-                probe_instance(token, probe, deployment, instance_id), timeout=90
-            )
+            for attempt in (1, 2):
+                try:
+                    return await asyncio.wait_for(
+                        probe_instance(token, probe, deployment, instance_id),
+                        timeout=PROBE_SECONDS,
+                    )
+                except Exception as error:
+                    if attempt == 2 or not connection_lost(error):
+                        raise
 
     tasks = [
         verify(deployment, instance_id)
@@ -548,14 +613,27 @@ def utc_now():
     return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def settled_state(token, *, sleep=time.sleep, clock=time.monotonic):
+    """Read until no deployment is rolling out, then validate the full snapshot.
+    Bad settings fail at once; a rollout that never settles fails at the bound."""
+    deadline = clock() + SETTLE_SECONDS
+    while True:
+        with failure_stage("first-provider-read"):
+            state = query(token)
+        with failure_stage("first-state-validation"):
+            settings(state)
+            if not rollout_in_progress(state):
+                return state, snapshot(state)
+        with failure_stage("rollout-wait"):
+            require(clock() + SETTLE_INTERVAL <= deadline)
+            sleep(SETTLE_INTERVAL)
+
+
 def check(token):
     started_at = utc_now()
     with failure_stage("probe-build"):
         probe = build_probe()
-    with failure_stage("first-provider-read"):
-        before = query(token)
-    with failure_stage("first-state-validation"):
-        deployments = snapshot(before)
+    before, deployments = settled_state(token)
     with failure_stage("instance-probe"):
         asyncio.run(verify_instances(token, probe, deployments))
     with failure_stage("second-provider-read"):
@@ -590,7 +668,8 @@ def main():
             0 < len(token) <= 4096 and all(33 <= ord(char) <= 126 for char in token)
         )
         signal.signal(signal.SIGALRM, timed_out)
-        signal.alarm(240)
+        # Settling is bounded on its own, so the proof keeps its full budget.
+        signal.alarm(SETTLE_SECONDS + PROOF_SECONDS)
         result = check(token)
         signal.alarm(0)
     except (Exception, KeyboardInterrupt):

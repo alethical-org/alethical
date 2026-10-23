@@ -438,3 +438,67 @@ def test_large_run_history_is_read_in_bounded_pages(monkeypatch):
     monkeypatch.setattr(CHECK.time, "time", lambda: now)
     CHECK.runtime_check({})
     assert pages == [1, 2, 3, 4, 5]
+
+
+def duplicate_setup(monkeypatch, listings):
+    proof, run, expected, workflow_id, earliest, now = fixture()
+    label = "456-2"
+    run["display_title"] = "Pillow runtime " + label
+    monkeypatch.setattr(CHECK, "request", lambda env: (expected, label, earliest))
+    replies = iter(listings(run))
+
+    def api(endpoint):
+        if "/runs?" in endpoint:
+            return {"workflow_runs": next(replies)}
+        return {"path": CHECK.PATH, "id": workflow_id, "state": "active"}
+
+    monkeypatch.setattr(CHECK, "api", api)
+    monkeypatch.setattr(CHECK.time, "time", lambda: now)
+    monkeypatch.setattr(CHECK.time, "sleep", lambda _: None)
+    return proof, run
+
+
+def test_first_copy_supplies_proof_after_every_copy_finishes(monkeypatch):
+    def listings(run):
+        copy = {**run, "id": run["id"] + 5}
+        waiting = {**copy, "status": "in_progress", "conclusion": None}
+        return [[waiting, run], [copy, run]]
+
+    proof, run = duplicate_setup(monkeypatch, listings)
+    selected = []
+    monkeypatch.setattr(
+        CHECK, "artifact", lambda chosen: selected.append(chosen["id"]) or proof
+    )
+    CHECK.runtime_check({})
+    assert selected == [run["id"]]
+
+
+@pytest.mark.parametrize("failed", ["first", "copy"])
+@pytest.mark.parametrize("conclusion", ["failure", "cancelled", "timed_out", None])
+def test_any_failed_copy_fails_the_request(monkeypatch, failed, conclusion):
+    def listings(run):
+        copy = {**run, "id": run["id"] + 5}
+        target = run if failed == "first" else copy
+        target["conclusion"] = conclusion
+        return [[copy, run]]
+
+    duplicate_setup(monkeypatch, listings)
+    monkeypatch.setattr(
+        CHECK, "artifact", lambda _: pytest.fail("A failed request must not be read")
+    )
+    with pytest.raises(CHECK.Unavailable, match="failed"):
+        CHECK.runtime_check({})
+
+
+def test_a_copy_without_proof_cannot_stand_in_for_the_first(monkeypatch):
+    def listings(run):
+        return [[{**run, "id": run["id"] + 5}, run]]
+
+    duplicate_setup(monkeypatch, listings)
+
+    def artifact(chosen):
+        raise CHECK.Unavailable("Missing or ambiguous runtime evidence artifact.")
+
+    monkeypatch.setattr(CHECK, "artifact", artifact)
+    with pytest.raises(CHECK.Unavailable, match="Missing"):
+        CHECK.runtime_check({})
