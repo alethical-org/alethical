@@ -13,7 +13,7 @@ import {
   ViewStyle,
 } from 'react-native';
 
-import { LinkArrow } from '../../components/LinkArrow';
+import { LinkArrow, LinkArrowLabel } from '../../components/LinkArrow';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
   ABOUT_BELIEFS,
@@ -22,7 +22,13 @@ import {
   ABOUT_CONTACT_LINK,
   ABOUT_CORRECTION_PROMISE,
   ABOUT_EMAIL,
-  ABOUT_FEEDBACK_LABEL,
+  ABOUT_FACTS_CONTACT_LABEL,
+  ABOUT_FACTS_FOUNDERS_LABEL,
+  ABOUT_FACTS_HEADING,
+  ABOUT_FACTS_LAUNCH,
+  ABOUT_FACTS_SERVICES,
+  ABOUT_FACTS_SERVICES_LABEL,
+  ABOUT_FACTS_SERVICES_LINK,
   ABOUT_NAME_ORIGIN,
   ABOUT_PAGE_HEADING,
   ABOUT_PAGE_SOURCE_PROMISE,
@@ -243,6 +249,108 @@ function StartCard({
   );
 }
 
+function EmailLink({ canHover }: { canHover: boolean }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <Text
+      accessibilityRole="link"
+      {...(Platform.OS === 'web'
+        ? ({
+            href: `mailto:${ABOUT_EMAIL}`,
+            tabIndex: 0,
+            onMouseEnter: () => setHovered(true),
+            onMouseLeave: () => setHovered(false),
+          } as any)
+        : {})}
+      onPress={
+        Platform.OS === 'web' ? undefined : () => void Linking.openURL(`mailto:${ABOUT_EMAIL}`)
+      }
+      style={[styles.emailLink, canHover && hovered && styles.emailLinkHovered]}
+    >
+      {ABOUT_EMAIL}
+    </Text>
+  );
+}
+
+function FactLabel({ children }: { children: string }) {
+  return <Text style={styles.factLabel}>{children}</Text>;
+}
+
+function AboutFactsSection({
+  isMobile,
+  isTablet,
+  canHover,
+  onServices,
+  onContact,
+}: {
+  isMobile: boolean;
+  isTablet: boolean;
+  canHover: boolean;
+  onServices: () => void;
+  onContact: () => void;
+}) {
+  const stacked = isMobile || isTablet;
+  const columnStyle = [
+    styles.factColumn,
+    isTablet && styles.factRowTablet,
+    isMobile && styles.factColumnMobile,
+  ];
+  return (
+    <View style={[styles.firstSection, isMobile && styles.mobileSection]}>
+      <SectionTitle isMobile={isMobile} isTablet={isTablet} style={styles.factsTitle}>
+        {ABOUT_FACTS_HEADING}
+      </SectionTitle>
+      <Text style={styles.factsLaunch}>{ABOUT_FACTS_LAUNCH}</Text>
+      <View style={[styles.factsGrid, stacked && styles.factsGridStacked]}>
+        <View style={[columnStyle, !stacked && styles.factColumnServices]}>
+          <FactLabel>{ABOUT_FACTS_SERVICES_LABEL}</FactLabel>
+          <View style={styles.factValues}>
+            <Text style={styles.factValue}>{ABOUT_FACTS_SERVICES}</Text>
+            <Pressable
+              {...linkProps(ABOUT_FACTS_SERVICES_LINK.href, onServices)}
+              style={styles.factLink}
+            >
+              <LinkArrowLabel label={ABOUT_FACTS_SERVICES_LINK.label} style={styles.factLinkText} />
+            </Pressable>
+          </View>
+        </View>
+        <View style={[columnStyle, !stacked && styles.factColumnFounders]}>
+          <FactLabel>{ABOUT_FACTS_FOUNDERS_LABEL}</FactLabel>
+          <View style={styles.factValues}>
+            {ABOUT_TEAM_MEMBERS.map((member) => (
+              <Text key={member.name} style={styles.factValue}>
+                <Text style={styles.factName}>{member.name}</Text>
+                {` · ${member.title}`}
+              </Text>
+            ))}
+          </View>
+        </View>
+        <View style={columnStyle}>
+          <FactLabel>{ABOUT_FACTS_CONTACT_LABEL}</FactLabel>
+          <View style={[styles.factValues, isTablet && styles.factContactTablet]}>
+            <Text style={[styles.factValue, styles.factEmail]}>
+              <EmailLink canHover={canHover} />
+            </Text>
+            <Pressable
+              {...linkProps(routePath.contactUs(), onContact)}
+              style={(state) => [
+                styles.contactButton,
+                isMobile && styles.contactButtonMobile,
+                canHover &&
+                  Boolean('hovered' in state && state.hovered) &&
+                  styles.contactButtonHovered,
+                state.pressed && styles.contactButtonPressed,
+              ]}
+            >
+              <Text style={styles.contactButtonText}>{ABOUT_CONTACT_LINK.label}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 function SectionTitle({
   children,
   isMobile,
@@ -273,7 +381,6 @@ function SectionTitle({
 export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
   const { isMobile, isTablet } = useResponsive();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
-  const [emailHovered, setEmailHovered] = useState(false);
   const canHover =
     Platform.OS === 'web' &&
     !isMobile &&
@@ -359,9 +466,15 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
           </View>
           {isMobile ? null : <View style={styles.originDivider} />}
 
-          <View
-            style={[styles.proseSection, styles.firstSection, isMobile && styles.mobileSection]}
-          >
+          <AboutFactsSection
+            isMobile={isMobile}
+            isTablet={isTablet}
+            canHover={Boolean(canHover)}
+            onServices={() => navigation.navigate('Services')}
+            onContact={() => navigation.navigate('ContactUs')}
+          />
+
+          <View style={[styles.proseSection, isMobile && styles.mobileSection]}>
             <SectionTitle isMobile={isMobile} isTablet={isTablet}>
               {ABOUT_WHY_HEADING}
             </SectionTitle>
@@ -514,28 +627,6 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
               <SectionTitle isMobile={isMobile} isTablet={isTablet}>
                 {ABOUT_CONTACT_HEADING}
               </SectionTitle>
-              <Text style={styles.contactText}>
-                {ABOUT_FEEDBACK_LABEL}{' '}
-                <Text
-                  accessibilityRole="link"
-                  {...(Platform.OS === 'web'
-                    ? ({
-                        href: `mailto:${ABOUT_EMAIL}`,
-                        tabIndex: 0,
-                        onMouseEnter: () => setEmailHovered(true),
-                        onMouseLeave: () => setEmailHovered(false),
-                      } as any)
-                    : {})}
-                  onPress={
-                    Platform.OS === 'web'
-                      ? undefined
-                      : () => void Linking.openURL(`mailto:${ABOUT_EMAIL}`)
-                  }
-                  style={[styles.emailLink, canHover && emailHovered && styles.emailLinkHovered]}
-                >
-                  {ABOUT_EMAIL}
-                </Text>
-              </Text>
               <Text style={styles.contactText}>{ABOUT_CORRECTION_PROMISE}</Text>
             </View>
             <Pressable
@@ -550,7 +641,6 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
               ]}
             >
               <Text style={styles.contactButtonText}>{ABOUT_CONTACT_LINK.label}</Text>
-              <LinkArrow color={t.colors.brand.darkest} />
             </Pressable>
           </View>
         </Container>
@@ -619,7 +709,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: ABOUT_COLORS.sectionRule,
   },
-  firstSection: { marginTop: 44 },
   section: { marginTop: 56 },
   proseSection: { marginTop: 56 },
   mobileSection: {
@@ -903,6 +992,61 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: t.fontWeights.bold,
   },
+  firstSection: { marginTop: 44 },
+  factsTitle: { marginBottom: 8 },
+  factsLaunch: {
+    color: t.colors.text.secondary,
+    fontFamily: t.typography.body,
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  factsGrid: {
+    flexDirection: 'row',
+    gap: 32,
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: ABOUT_COLORS.sectionRule,
+  },
+  factsGridStacked: { flexDirection: 'column', gap: 0, paddingTop: 0 },
+  factColumn: { flex: 1, minWidth: 0 },
+  factColumnServices: { flex: 1 },
+  factColumnFounders: { flex: 1.3 },
+  factRowTablet: {
+    flexDirection: 'row',
+    gap: 24,
+    paddingVertical: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: ABOUT_COLORS.sectionRule,
+  },
+  factColumnMobile: {
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: ABOUT_COLORS.sectionRule,
+  },
+  factLabel: {
+    color: t.colors.text.secondary,
+    fontFamily: t.typography.mono,
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+    minWidth: 120,
+  },
+  factValues: { flex: 1, gap: 6 },
+  factValue: {
+    color: t.colors.text.primary,
+    fontFamily: t.typography.body,
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  factName: { fontWeight: t.fontWeights.bold },
+  factEmail: { marginBottom: 8 },
+  factContactTablet: { flexDirection: 'row', alignItems: 'center', gap: 20 },
+  factLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
+  factLinkText: { fontFamily: t.typography.ui, fontSize: 15, fontWeight: t.fontWeights.bold },
   emailLink: { color: t.colors.text.greenOnLight, fontWeight: t.fontWeights.bold },
   emailLinkHovered: { color: '#11832b', textDecorationLine: 'underline' },
 });
