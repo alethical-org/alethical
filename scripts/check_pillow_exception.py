@@ -258,12 +258,20 @@ def runtime_check(env):
         raise Unavailable("Trusted runtime workflow is unavailable.")
     deadline = time.monotonic() + MAX_WAIT
     while time.monotonic() < deadline:
-        listing = api(
-            f"repos/{REPO}/actions/workflows/{WORKFLOW}/runs?event={expected['event']}&per_page=100"
-        )
+        # Keep the same 100-run search window without letting routine history
+        # growth exceed the transport's per-response size limit.
+        runs = []
+        for page in range(1, 6):
+            listing = api(
+                f"repos/{REPO}/actions/workflows/{WORKFLOW}/runs?event={expected['event']}&per_page=20&page={page}"
+            )
+            batch = listing["workflow_runs"]
+            runs.extend(batch)
+            if len(batch) < 20:
+                break
         matches = [
             r
-            for r in listing["workflow_runs"]
+            for r in runs
             if r.get("display_title") == "Pillow runtime " + label
             and r.get("head_branch") == "main"
         ]

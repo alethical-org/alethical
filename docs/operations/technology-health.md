@@ -151,7 +151,7 @@ renderer uses `Image.frombytes`, rectangle and text drawing, and `tobytes`, with
 no Arrow export. The source guard pins that renderer, its direct test imports,
 and the 2 service functions that call it.
 
-The [trusted production read](https://github.com/alethical-org/alethical/actions/runs/39888995284)
+The [trusted production read](https://github.com/alethical-org/alethical/actions/runs/39950484120)
 verified no `PILLOW_ALIGNMENT` in saved service or shared
 variables or the actual running app's environment, no installed or importable
 `pyarrow`, Pillow 13.0.0, and matching deployed source. It identified the running
@@ -178,7 +178,9 @@ arbitrary generated, obfuscated, native or dependency code.
 `scripts/check_technology_health.py --security-only`, used by the local push hook
 and required `changes` job, calls `scripts/check_pillow_exception.py`. It verifies
 candidate source, the direct upstream advisory and production proof bound to the
-current GitHub run and attempt or unique local request. Missing or stale evidence,
+current GitHub run and attempt or unique local request. It reads up to 100 recent
+proof runs in pages of 20, keeping each response within the transport size limit.
+Missing or stale evidence,
 provider failures, changed variables, packages, callers, deployment commands or
 advisory identity fail the check. A fixed release ends this exception and requires
 the upgrade. The separate free weekly upstream job continues after the review issue
