@@ -262,7 +262,9 @@ class LocalChecksTest(unittest.TestCase):
                     patch.object(
                         self.checks,
                         "run_suites",
-                        side_effect=lambda snapshot, suites: order.append("suites"),
+                        side_effect=lambda snapshot, suites, full: order.append(
+                            "suites"
+                        ),
                     ) as suites,
                 ):
                     self.checks.pre_push(
@@ -276,7 +278,7 @@ class LocalChecksTest(unittest.TestCase):
                 )
                 self.assertFalse(snapshots[0].exists())
                 if affected:
-                    suites.assert_called_once_with(snapshots[0], affected)
+                    suites.assert_called_once_with(snapshots[0], affected, full=False)
                 else:
                     suites.assert_not_called()
         self.assertEqual((self.root / "first.txt").read_text(), "unfinished\n")
@@ -356,7 +358,7 @@ class LocalChecksTest(unittest.TestCase):
 
     def test_suite_reuses_security_install_and_preserves_compatibility_checks(self):
         with patch.object(self.checks, "run") as run:
-            self.checks.run_suites(self.root, {"frontend", "backend"})
+            self.checks.run_suites(self.root, {"frontend", "backend"}, full=True)
         commands = [call.args[0] for call in run.call_args_list]
         self.assertFalse(
             any(command[:2] == ["pnpm", "install"] for command in commands)
@@ -368,6 +370,59 @@ class LocalChecksTest(unittest.TestCase):
         )
         self.assertIn(["just", "test-frontend"], commands)
         self.assertIn(["uv", "run", "--frozen", "pytest"], commands)
+
+    def test_default_upload_keeps_every_check_but_the_full_suites(self):
+        with patch.object(self.checks, "run") as run:
+            self.checks.run_suites(self.root, {"frontend", "backend"})
+        commands = [call.args[0] for call in run.call_args_list]
+        self.assertNotIn(["just", "test-frontend"], commands)
+        self.assertNotIn(["uv", "run", "--frozen", "pytest"], commands)
+        self.assertFalse(
+            any("test_manual_test_database.py" in command for command in commands)
+        )
+        for kept in (
+            ["uv", "sync", "--frozen"],
+            ["uvx", "ruff@0.15.0", "check", "alethical", "scripts"],
+            ["uvx", "ruff@0.15.0", "format", "--check", "alethical", "scripts"],
+            ["uvx", "ty@0.0.72", "check", "alethical/db"],
+            ["pnpm", "--dir", "apps/frontend", "exec", "tsc", "--noEmit"],
+            ["node", "scripts/format_frontend.mjs", "--check"],
+            ["pnpm", "--dir", "apps/frontend", "run", "check:build-tool-security"],
+            ["pnpm", "--dir", "apps/frontend", "run", "check:expo-packages"],
+            ["pnpm", "--dir", "apps/frontend", "run", "brand:check"],
+        ):
+            self.assertIn(kept, commands)
+
+    def test_full_suites_run_only_when_requested(self):
+        sha = self.git("rev-parse", "HEAD")
+        line = f"refs/heads/x {sha} refs/heads/x {'0' * 40}\n"
+        for flag, full in ((None, False), ("0", False), ("1", True)):
+            env = {} if flag is None else {self.checks.FULL_SUITES: flag}
+            with (
+                patch.dict(self.checks.os.environ, env, clear=False),
+                patch.object(self.checks, "push_targets", return_value=[(sha, ["x"])]),
+                patch.object(self.checks, "affected_suites", return_value={"backend"}),
+                patch.object(self.checks, "commit_snapshot") as snapshot,
+                patch.object(self.checks, "run_security"),
+                patch.object(self.checks, "run_quick_docs"),
+                patch.object(self.checks, "run_docs_tree"),
+                patch.object(self.checks, "run_suites") as suites,
+                patch("sys.stdout", new_callable=io.StringIO),
+            ):
+                if flag is None:
+                    self.checks.os.environ.pop(self.checks.FULL_SUITES, None)
+                snapshot.return_value.__enter__.return_value = self.root
+                self.checks.pre_push(self.root, io.StringIO(line))
+            suites.assert_called_once_with(self.root, {"backend"}, full=full)
+
+    def test_github_still_requires_both_full_suites(self):
+        workflow = (SCRIPT.parents[1] / ".github/workflows/ci.yml").read_text()
+        self.assertIn(
+            "scripts/repeat_failure_runs.py run --scope backend --workers 6", workflow
+        )
+        self.assertIn(
+            "      - name: Test frontend\n        run: pnpm run test", workflow
+        )
 
     def test_docs_tree_tests_run_without_a_database(self):
         with patch.object(self.checks, "run") as run:
@@ -654,7 +709,7 @@ class DisposablePostgresTest(unittest.TestCase):
             patch.object(self.checks, "run") as run,
             patch.object(self.checks, "disposable_postgres") as database,
         ):
-            self.checks.run_suites(self.snapshot, {"backend", "frontend"})
+            self.checks.run_suites(self.snapshot, {"backend", "frontend"}, full=True)
         database.assert_not_called()
         pytest_calls = [
             call
