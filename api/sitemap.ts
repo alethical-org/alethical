@@ -1,5 +1,8 @@
 import { eventReplayBySlug } from "../apps/frontend/src/lib/eventReplayContent";
-import { hasVideoMetadata, replayVideoSitemapEntry } from "../apps/frontend/src/lib/eventReplay";
+import {
+  hasVideoMetadata,
+  replayVideoSitemapEntry,
+} from "../apps/frontend/src/lib/eventReplay";
 import {
   EVENTS_PATH,
   PUBLISHED_EVENTS,
@@ -106,9 +109,11 @@ function urlset(entries: string[]): string {
 }
 
 function videoEntries(): string[] {
-  return PUBLISHED_EVENTS.flatMap(event => {
+  return PUBLISHED_EVENTS.flatMap((event) => {
     const replay = eventReplayBySlug(event.slug);
-    return replay && hasVideoMetadata(replay) ? [replayVideoSitemapEntry(event, replay)] : [];
+    return replay && hasVideoMetadata(replay)
+      ? [replayVideoSitemapEntry(event, replay)]
+      : [];
   });
 }
 function sitemapIndex(): string {
@@ -208,7 +213,15 @@ function pagesUrlset(
       paths.push(directoryPagePath(`/money/lobbying/${kind}`, page));
     }
   }
-  return urlset(paths.map((path) => urlEntry(publicPageUrl(path))));
+  // Publication alone does not establish the latest significant change. Articles
+  // have later edits but no reliable modification field, so keep them dateless.
+  const changedOn = new Map<string, string>();
+  for (const event of PUBLISHED_EVENTS) {
+    changedOn.set(eventPath(event), event.updatedOn || event.publishedOn);
+  }
+  return urlset(
+    paths.map((path) => urlEntry(publicPageUrl(path), changedOn.get(path))),
+  );
 }
 
 /**
@@ -391,8 +404,14 @@ export default async function handler(
 
   if (section === "videos") {
     const entries = videoEntries();
-    if (!entries.length) { sendNotFound(response); return; }
-    sendXml(response, `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">${entries.join("")}</urlset>`);
+    if (!entries.length) {
+      sendNotFound(response);
+      return;
+    }
+    sendXml(
+      response,
+      `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">${entries.join("")}</urlset>`,
+    );
     return;
   }
   if (section === "pages") {

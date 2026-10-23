@@ -1,3 +1,10 @@
+import {
+  BILL_DETAIL_INCLUDE,
+  billReadWithinCacheWindow,
+  type ApiBillVotePayload,
+} from "../apps/frontend/src/lib/billRecordReads";
+import { billHistorySnapshot } from "../apps/frontend/src/lib/billHistorySnapshot";
+import type { ApiBillDetailPayload } from "../apps/frontend/src/data/api";
 import { renderEventArticle, publishedEventMetadata } from "../apps/frontend/src/lib/eventArticle";
 import { eventBySlug, eventPath } from "../apps/frontend/src/lib/events";
 import { eventReplayBySlug } from "../apps/frontend/src/lib/eventReplayContent";
@@ -83,7 +90,6 @@ import {
   renderPageSnapshot,
   renderEventPageSnapshot,
   type BillDirectorySnapshotSource,
-  type BillSnapshotSource,
   type CommitteeDirectorySnapshotSource,
   type CommitteeMoneySnapshotSource,
   type LegislatorDirectorySnapshotSource,
@@ -694,8 +700,6 @@ async function getDirectoryApiResponse<T>(path: string): Promise<T> {
   }
 }
 
-type BillPayload = BillSnapshotSource & { id?: string };
-
 type LegislatorPayload = LegislatorSnapshotSource & { slug?: string };
 
 /** What `/campaign-finance/payments-under-name` serves, as far as this file reads it. */
@@ -769,10 +773,32 @@ function headOnly(metadata: PageMetadata): PageContent {
 }
 
 async function billContent(id: string): Promise<PageContent> {
-  const bill = await getApiData<BillPayload>(
-    `/bills/${encodeURIComponent(id)}?include=ai_analysis`,
-  );
+  const encoded = encodeURIComponent(id);
+  const [detailRead, votesRead] = await Promise.all([
+    getApiRead<{ data: ApiBillDetailPayload }>(
+      `/bills/${encoded}?include=${BILL_DETAIL_INCLUDE}`,
+    ),
+    getApiRead<{ data: ApiBillVotePayload[]; page?: { has_more?: boolean } }>(
+      `/bills/${encoded}/votes`,
+    ).catch(() => null),
+  ]);
+  if (!billReadWithinCacheWindow(detailRead.ageSeconds)) {
+    throw new DataUnavailable("bill detail exceeds its cache window");
+  }
+  const bill = detailRead.body.data;
   const billId = bill.id || id;
+  const votes =
+    votesRead &&
+    billReadWithinCacheWindow(votesRead.ageSeconds) &&
+    Array.isArray(votesRead.body.data) &&
+    !votesRead.body.page?.has_more
+      ? votesRead.body.data
+      : null;
+  const snapshot = billPageSnapshot({ ...bill, id: billId });
+  snapshot.sections = [
+    ...(snapshot.sections ?? []),
+    ...billHistorySnapshot({ ...bill, id: billId }, votes),
+  ];
   return {
     metadata: billPageMetadata({
       billId,
@@ -787,7 +813,24 @@ async function billContent(id: string): Promise<PageContent> {
         bill.ai_analysis?.summary,
       ),
     }),
-    snapshot: renderPageSnapshot(billPageSnapshot({ ...bill, id: billId })),
+    snapshot: renderPageSnapshot(snapshot),
+    noStore: votes === null,
+    data: [
+      {
+        key: ["bill", id],
+        payload: bill,
+        validatedAgeMs: servedClaimAgeMs(detailRead.ageSeconds),
+      },
+      ...(votes === null
+        ? []
+        : [
+            {
+              key: ["bill-votes", id],
+              payload: votes,
+              validatedAgeMs: servedClaimAgeMs(votesRead?.ageSeconds),
+            },
+          ]),
+    ],
   };
 }
 

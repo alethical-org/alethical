@@ -228,8 +228,17 @@ are the subjects of our reporting, not our authors.
 
 **Add only what a search engine actually does something with:**
 
-- `WebSite` and `Organization` on the home page. These influence the site name and logo shown in
-  results.
+- `WebSite` on home and the same `Organization` identity on home and About,
+  `https://www.alethical.com/#organization`. The organization uses only the existing
+  visible founders, contact route, logo and approved social accounts. The website,
+  event organizer and article publisher refer to that identity.
+- Indexed published pieces carry `Article`, their visible title, canonical address,
+  original publication date and Alethical publisher identity. An explicit
+  Alethical `authorLine` uses that same identity: grounded-answers rule 13.8
+  intentionally omits a byline for our own pieces because the site is the author.
+  An empty author field stays absent. No `dateModified` is
+  inferred from `checkedOn`, data coverage or a schema change. Held/private pages
+  emit no structured data. These fields promise neither indexing nor rich results.
 - `BreadcrumbList` on detail pages, but **only where the page really shows that path**. It is
   eligible for a visible feature in results. **Measured against the shipped page, ours does not
   qualify, so this comes back out — see the ruling in §12.**
@@ -278,6 +287,21 @@ The reversal rests on three things:
 The honest counter, stated plainly: allowing would fit the mission of making this record legible
 wherever people ask, and a model that has read us may serve Minnesotans better. No provider promises
 that outcome, which is why it loses to the reversibility argument rather than to the principle.
+
+The discoverability build extends the exclusions to `CCBot`, `Bytespider`,
+`Applebot-Extended` and `meta-externalagent`. This is a reversible collection
+preference, not a claim that all 4 are used only for training or that exclusion
+has no effect on every provider's answers. Search/user-request agents and
+`Google-Extended` stay allowed. No optional Content-Signal declaration is added.
+
+The pages sitemap uses the recorded significant update date for events. The
+October 22 event update corrects the stale future invitation in its description;
+the event and replay publication dates remain separate. Articles have known later
+edits but no reliable latest-change field, so they keep no `lastmod`. Original
+publication alone cannot stand for the latest change. `checkedOn`, filing dates
+and build time never become page-change dates. Money records keep no `lastmod`,
+as §22 requires. A later article change needs its own recorded significant-change
+date before `lastmod` can be asserted.
 
 **Do not block the answer pages in `robots.txt`.**
 A crawler that is blocked from fetching a page cannot read the "do not index" instruction inside

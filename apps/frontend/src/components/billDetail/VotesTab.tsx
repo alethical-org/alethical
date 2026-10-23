@@ -1,3 +1,4 @@
+import { outcomeBillVotes } from '../../lib/billRecordReads';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -10,12 +11,11 @@ import {
   buildPartyBlocks,
   formatMonoDate,
   MemberVote,
-  parseActionDate,
   partyFull,
   PartyBlock,
   validateRoll,
 } from '../../lib/billDetail';
-import { NormalizedMotion, normalizeMemberName, normalizeMotion } from '../../lib/motionNormalize';
+import { NormalizedMotion, normalizeMemberName } from '../../lib/motionNormalize';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { SourceLine } from './SourceLine';
 import { isWeb, useHover } from './interactions';
@@ -49,23 +49,7 @@ export function VotesTab({
   // timeline. Order newest roll call first (occurred_at is 100% populated in
   // prod, so date sorting is reliable). See lib/motionNormalize.ts for the
   // classifier validated against every production roll call.
-  const rolls = useMemo(() => {
-    return bill.votes
-      .map((vote) => ({
-        vote,
-        norm: normalizeMotion({
-          motionText: vote.motion,
-          resultText: vote.result,
-          chamber: vote.chamber,
-        }),
-      }))
-      .filter((r) => r.norm.outcomeDetermining)
-      .sort(
-        (a, b) =>
-          (parseActionDate(b.vote.date)?.getTime() ?? 0) -
-          (parseActionDate(a.vote.date)?.getTime() ?? 0),
-      );
-  }, [bill.votes]);
+  const rolls = useMemo(() => outcomeBillVotes(bill.votes), [bill.votes]);
 
   // A bill with no recorded roll calls — OR only administrative motions (all
   // filtered out above) — shows the honest "no recorded roll-call votes" empty

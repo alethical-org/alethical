@@ -1,6 +1,7 @@
 import { piecePath, type PieceIndexEntry } from './researchIndex';
 import { pieceShareDescription } from './articleDateLabels';
-import { clean, pageMetadata, titleFor, type PageMetadata } from './share';
+import { ORGANIZATION_REFERENCE } from './organizationIdentity';
+import { clean, pageMetadata, publicPageUrl, titleFor, type PageMetadata } from './share';
 
 /**
  * A posted piece keeps its claims and figures out of previews. An indexed piece
@@ -9,7 +10,7 @@ import { clean, pageMetadata, titleFor, type PageMetadata } from './share';
  * retain the title and dates.
  */
 export function researchPageMetadata(
-  piece: PieceIndexEntry,
+  piece: PieceIndexEntry & { authorLine?: string },
   searchDescription?: string,
 ): PageMetadata {
   return pageMetadata({
@@ -21,5 +22,24 @@ export function researchPageMetadata(
     canonicalPath: piece.indexed ? piecePath(piece) : '',
     noindex: !piece.indexed,
     article: { publishedOn: piece.publishedOn },
+    structuredData: piece.indexed
+      ? [
+          {
+            '@context': 'https://schema.org',
+            '@type': 'Article',
+            '@id': `${publicPageUrl(piecePath(piece))}#article`,
+            headline: piece.title,
+            url: publicPageUrl(piecePath(piece)),
+            mainEntityOfPage: publicPageUrl(piecePath(piece)),
+            datePublished: piece.publishedOn,
+            publisher: ORGANIZATION_REFERENCE,
+            // Grounded-answers rule 13.8 deliberately omits a byline for pieces
+            // published in Alethical's own name. Keep unknown attribution absent.
+            ...(piece.authorLine?.trim().toUpperCase() === 'ALETHICAL'
+              ? { author: ORGANIZATION_REFERENCE }
+              : {}),
+          },
+        ]
+      : [],
   });
 }

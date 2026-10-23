@@ -12,7 +12,7 @@ export const EVENTS = [
     tagline:
       'Hear Minnesota Senate District 13 candidates discuss their views and priorities at Alethical’s first public debate.',
     publishedOn: '2026-10-07',
-    updatedOn: '2026-10-19',
+    updatedOn: '2026-10-22',
     startDate: '2026-10-15T18:00:00-05:00',
     endDate: '2026-10-15T20:00:00-05:00',
     timeLabel: '6–8 PM CDT',
@@ -40,7 +40,7 @@ export const EVENTS = [
     imageAlt:
       'The Forward Debate flyer featuring Trent Dilks, Aaron Brutger and moderator Angel Zierden, with Jared Gapinski also invited. Event details follow.',
     description:
-      'Alethical hosts its first debate on October 15, 2026: Minnesota Senate District 13 candidates at Riverside Terrace in Sauk Rapids, 6–8 PM CDT. Free admission.',
+      'Alethical hosted The Forward Debate for Minnesota Senate District 13 at Riverside Terrace in Sauk Rapids on October 15, 2026.',
     introduction:
       'The Forward Debate brings Minnesota Senate District 13 candidates to Riverside Terrace in Sauk Rapids:',
     candidates: [

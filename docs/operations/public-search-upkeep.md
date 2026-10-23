@@ -1,6 +1,7 @@
 # Public search upkeep
 
 <!-- describes: scripts/check_public_search_health.py, .github/workflows/public-search-health.yml, scripts/report_page_speed_by_address.py, scripts/notify_changed_public_pages.py, .github/workflows/public-change-notices.yml, scripts/collect_page_failure_health.py, scripts/check_page_failure_coverage.py, .github/workflows/page-failure-health.yml -->
+<!-- describes: api/traffic-google.ts, api/traffic-bing.ts, api/_lib/searchMeasurement.ts, api/search-measurements.ts, alethical/api/routers/search_measurements.py, alethical/api/services/search_measurements.py, alethical/db/search_measurements.py, alethical/alembic/versions/0071_private_search_measurements.py, scripts/prune_search_measurements.py, .github/workflows/private-search-retention.yml -->
 
 ## Outcome and limits
 
@@ -161,9 +162,20 @@ not permission for unrelated data regeneration.
 
 ## Monthly: relevance, clicks, citations and speed
 
-Compare the latest complete 28-day window with the previous complete 28-day
-window, noting source lag, seasonality and small counts. Record query, destination,
-impressions, clicks, click-through rate and average position. A low click count
+Compare equal complete windows from the same source, noting source lag, release
+dates, observed recrawl, seasonality and small counts. The existing Google totals
+reader defaults to 2 complete 28-day windows; `window=30` selects 2 complete
+30-day windows. The private collector below requests a rolling 30-day Google
+detail window. Its monthly report chooses the latest successful pull in each
+month, not a calendar-month total. Do not compare those figures with 28-day
+totals, sum overlapping pulls, combine query and page views, or treat top-row
+detail totals as the whole property's traffic. A missing or unverified date
+window, including Bing's current detail export, remains incomparable until the
+source establishes matching periods.
+
+Keep query and destination details private. Record impressions, clicks,
+click-through rate and average position with the source's filters and coverage.
+A low click count
 at a low position does not by itself demonstrate misleading page wording.
 Prioritize queries that match the website's real records and explanations.
 Improve an existing useful page before creating another page for the same question.
@@ -186,6 +198,136 @@ not a recurring AI task. No token-consuming automation or paid service loop is
 created by this work. [Technology health](technology-health.md) retains its
 existing monthly tools/security check and [published piece link checks](../../.github/workflows/published-piece-links.yml)
 retain their existing free weekly source checks.
+
+## Private search measurement: implementation ready, live checks pending
+
+The private export, storage, report and independent deletion paths are implemented.
+Production access, included service capacity, successful collection and deletion,
+and denied unauthorized reads still need the rollout checks below. The weekly
+Vercel collection schedule is **not armed**. The daily deletion workflow has a
+schedule in source; that alone does not prove a successful live sweep.
+
+### Collection and access
+
+The existing administrator-only readers at `/api/traffic-google` and
+`/api/traffic-bing` retain their normal totals responses. An explicit `view`
+request reads query or page detail; Google also supports `query-pages`.
+`days` accepts 1 through 90, with 7 as the manual export default. The existing
+administrator check runs before provider access. Responses are private and
+uncached; exporting details does not create a public report or screen.
+
+Google exchanges Vercel's short-lived identity for a read-only Google token inside
+Vercel. The identity is not copied into GitHub secrets or moved to the backend.
+Google detail reads use finalized data, Pacific dates and a recorded cutoff basis:
+the provider's first incomplete date, or a conservative 3-day delay when that
+metadata is absent. Missing date rows, withheld queries and top-row limits remain
+explicit. Pagination stops after 4 pages of 1,000 rows. A repeated page or invalid
+response fails the export instead of producing plausible totals.
+
+Bing's existing key stays in the Vercel runtime. Its documented query and page
+methods return top rows, update weekly, and offer no date-range or pagination
+parameter. The export records requested days as unapplied and retains the
+provider's date separately from its UTC interpretation. Complete-day coverage,
+timezone and final-data cutoff remain unknown. The reader does not fan out into
+unbounded per-query or per-page requests.
+
+Provider responses and complete exports are each limited to 2,000,000 bytes and
+4,000 retained rows. Each provider request times out after 5 seconds; each Google
+export has a 25-second overall limit. A failed pull is unavailable, never zero.
+
+The collection function at `/api/search-measurements` is production-only and uses
+its own server-held `CRON_SECRET`. It calls the shared provider readers directly,
+without a browser session, and requests a rolling 30-day window for 3 Google
+views and 2 Bing views. A separate `SEARCH_MEASUREMENT_WRITE_TOKEN` authorizes only
+the backend's `/internal/v1/search-measurements` write route. Both credentials must
+be distinct and at least 32 characters. They are never accepted from query strings
+or returned in a response. The function sends data only to the fixed production
+backend address and does not follow redirects with credentials or rows.
+
+The backend validates bounded bodies and records each source/view independently.
+Retries cannot let older data replace newer data. A failure receipt contains no
+provider payload and does not replace the last successful export. Administrator
+tokens do not grant machine-write access; the write token does not grant read
+access. The existing administrator guard protects both report and raw-export
+reads. No anonymous or ordinary signed-in reader is given access.
+
+### Storage, retention and reports
+
+Raw search phrases, query-page pairs, provider metadata and private inquiry or
+audit material never enter the repository, public issues, job artifacts or logs.
+Search exports live in the dedicated `search_measurement_private` database schema.
+Its tables have row-level security enabled, no public read policies, and no
+PUBLIC, anonymous or ordinary authenticated-role privileges. The production
+backend database role must be verified before activating writes. No public
+Supabase data route is used.
+
+Raw exports stop being readable after 90 days. An independent daily workflow,
+[Delete expired private search data](../../.github/workflows/private-search-retention.yml),
+runs at 08:23 UTC using existing production database access. It deletes expired
+raw payloads and safe summaries older than 13 calendar months. It needs neither
+Google/Bing credentials nor a working collector. Normal deletion can follow
+expiry by up to 1 day; scheduler or database failure can extend that delay and
+must remain visible. This is not a claim about deletion from provider backups.
+
+The cleanup and its success receipt commit together. The command then reads the
+receipt in a separate transaction and fails if the sweep cannot be verified.
+The private report exposes the last successful sweep, deletion counts, expired
+records still awaiting deletion, and missing, stale or overdue cleanup. A sweep
+older than 36 hours is stale even if no expired records remain. GitHub's failed-run
+status exposes command failure. A working collector alone does not prove cleanup
+is healthy.
+
+Administrators read the deterministic report at
+`/api/v1/admin/search-measurements`. It contains safe counts, actual measured dates,
+coverage limits, latest attempt status and the latest successful pull per month.
+It never selects raw phrases, destinations, property identifiers or provider error
+text. Reports are private even though their selected fields may support an
+approved public summary. Public reporting requires a deliberate safe summary;
+no job publishes these reports automatically. Latest successful raw exports are
+separate, administrator-only reads under the same address with provider and view
+segments, and expire independently of the retained summary.
+
+Crawler counts remain **missing** until a verified Vercel source establishes
+coverage of public-page requests. The existing bounded 5xx and recovery-log
+collector cannot stand in for all crawler traffic. Cloudflare serves the data
+service; its zone request counts do not count visits to Vercel bill pages. Browser
+beacons also cannot count a crawler that runs no JavaScript. No new tracking or
+paid logging is introduced to fill this gap.
+
+AI-referral counts likewise remain missing until the existing Cloudflare
+referrer-host source and its available fields are verified. That future read
+uses hosts only, never referring paths or query text. Missing referrers stay
+unassigned; they are not proof of no AI visit. No pages-per-visit success claim
+is made from these counts.
+
+### Rollout and acceptance
+
+1. Verify existing Vercel function/scheduler allowance and database capacity.
+   At the maximum export size, 5 exports × 2 MB × about 13 weekly pulls is about
+   130 MB of raw payload before database and index overhead. Measure actual size;
+   do not treat an unknown allowance as free capacity. No paid AI or new paid
+   service is part of this path.
+2. Apply the additive private-storage migration and deploy the backend before
+   enabling the collector. Verify schema ownership, denied public/ordinary-user
+   reads, and that the machine token cannot read administrator reports.
+3. Configure the distinct production-only collection and writer credentials
+   through existing service settings. Preserve the existing Google identity and
+   Bing key. Do not place credentials or raw responses in a terminal transcript.
+4. Run one production collection and verify saved successful data through an
+   administrator read. Confirm fixed error responses, private cache headers,
+   failed-run preservation, actual row/byte limits and date coverage. Record
+   safe receipts separately from the private data.
+5. Run the independent deletion workflow and verify its committed success receipt
+   in the private report. Confirm the daily schedule is active. A workflow file
+   or access-expiry filter alone does not satisfy retention acceptance.
+6. Arm the weekly Vercel collection schedule only after these checks pass within
+   existing included capacity. Record its actual cadence and first successful
+   run. The report remains available on demand; no recurring AI summary or paid
+   citation check is started. Monthly review follows the comparison rules above.
+
+Primary API contracts: [Google Search Analytics](https://developers.google.com/webmaster-tools/v1/searchanalytics/query),
+[Bing query statistics](https://learn.microsoft.com/en-us/dotnet/api/microsoft.bing.webmaster.api.interfaces.iwebmasterapi.getquerystats?view=bing-webmaster-dotnet)
+and [Bing page statistics](https://learn.microsoft.com/en-us/dotnet/api/microsoft.bing.webmaster.api.interfaces.iwebmasterapi.getpagestats?view=bing-webmaster-dotnet).
 
 ## Search providers and automatic change notices
 
