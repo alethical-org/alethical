@@ -796,15 +796,13 @@ describe('Short post amended sources stay visible', () => {
 });
 
 describe('Short post display boundaries', () => {
-  it('keeps Research and both-traits metadata on dates even with a search description', () => {
+  it('appends Research dates to an explicit subject and keeps social previews on dates', () => {
     const piece = readyPiece();
     piece.traits.guide = true;
-    expect(researchPageMetadata(piece, 'A subject description.').description).not.toContain(
-      'A subject description.',
-    );
-    expect(researchPageMetadata(piece, 'A subject description.').description).toContain(
-      'Published',
-    );
+    const metadata = researchPageMetadata(piece, 'A subject description.');
+    expect(metadata.description).toBe(`A subject description. ${metadata.socialDescription}`);
+    expect(metadata.socialDescription).not.toContain('A subject description.');
+    expect(metadata.socialDescription).toContain('Published');
     piece.traits.research = false;
     expect(researchPageMetadata(piece, 'A subject description.').description).toBe(
       'A subject description.',

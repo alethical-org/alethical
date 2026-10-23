@@ -2106,7 +2106,7 @@ async function contentFor(
     }
     case "guide":
     case "research": {
-      // Title and dates only in a piece's tags (grounded-answers.md rule 13);
+      // Rule 13 separates subject-only search wording from dates-only sharing;
       // an unpublished or unknown slug, or a known piece asked for under the
       // wrong folder, is a genuinely absent page. The piece's own writing goes in
       // the body instead, where the loaded page puts it (#1760) — the `indexed`
