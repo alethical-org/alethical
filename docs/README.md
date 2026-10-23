@@ -112,6 +112,15 @@ The words of every published reader-facing piece, one file each. Alethical calls
 
 - [Public search upkeep](operations/public-search-upkeep.md) — bounded free checks, search-provider evidence, truthful change notices and weekly/monthly review
 - [Article, event, recording and transcript publishing](operations/blog-publishing.md) — reusable upfront brief, final-edition media checks, correction patterns and acceptance matrix
+- [Social writing and posting](operations/social-publishing.md) — Alethical copy, people links, account checks and saved-post review
+- [Social profile review](operations/social-profile-review.md) — account evidence, approved profile rollout and execution checks
+- [Forward Debate LinkedIn publication record](operations/forward-debate-linkedin-record.md) — approved text, profile links and saved-post checks
+- [Forward Debate Bluesky publication record](operations/forward-debate-bluesky-record.md) — approved campaign-website fallback, exact text and saved links
+- [Forward Debate X publication](operations/forward-debate-x-preparation.md) — approved text, campaign destinations, edited revision and replay-preview verification
+- [Forward Debate Instagram publication record](operations/forward-debate-instagram-record.md) — exact caption, profile mentions, saved photo, Story and replay-link checks
+- [Forward Debate TikTok publication and removal](operations/forward-debate-tiktok-preparation.md) — exact photo-post source, viewing issue and confirmed public removal
+- [Forward Debate first-short publication](operations/forward-debate-short01-record.md) — 7 live posts, saved text, upload routes and remaining optimizations
+- [Video editing and recovery](operations/video/README.md) — recording recipes, shorts, production records and recovery evidence
 
 - [Preventing repeated failures](operations/repeat-failure-review.md): history collection, examined causes, retained checks and the manual isolated browser command
 - [Repeat-failure review and Paradigm comparison, 6 October 2026](research/repeat-failure-review-2026-10-06.md): the limited history sample, demonstrated prevention gaps and public-tool comparison

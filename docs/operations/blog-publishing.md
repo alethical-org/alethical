@@ -5,6 +5,10 @@ starts. It records a reusable workflow, not public article copy or permission to
 publish another article. Select the applicable steps; a text article does not need
 a video project. Existing product decisions remain authoritative.
 
+For social writing and publication, use [social-publishing.md](social-publishing.md).
+For video editing and recovery, use [video/README.md](video/README.md). Read their linked
+shared platform guidance and save new lessons in the owning repo before finishing.
+
 ## Start with the owning decisions
 
 - [published-writing-decisions.md](../architecture/published-writing-decisions.md)
