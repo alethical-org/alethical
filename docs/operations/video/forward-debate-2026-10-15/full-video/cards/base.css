@@ -1,0 +1,4 @@
+@font-face{font-family:LF;src:url(../../fonts/LibreFranklin-Bold.ttf);font-weight:700}
+@font-face{font-family:LF;src:url(../../fonts/LibreFranklin-Regular.ttf);font-weight:400}
+html,body{margin:0;width:2652px;height:1492px;overflow:hidden}
+body{font-family:LF;color:#fff;font-variant-numeric:tabular-nums}

@@ -1,0 +1,68 @@
+{
+  "status": "verified: local and Drive byte counts and SHA-256 match for all 7 assets",
+  "date": "2026-10-21",
+  "drive_parent_folder_id": "1tiaFKy0AEa_BtVeN57hzxvk2MemY-l3G",
+  "drive_folder": "Alethical Team/Media/Forward Debate 2026-10-15/short-02-draft-v2",
+  "drive_folder_id": "1xJtEkg6dUxZm_ISk6I4lQn3oOL74qsxv",
+  "local_root": "/Users/eug/Movies/Alethical/forward-debate-2026/shorts",
+  "method": "rclone lsjson --hash read of the Drive folder compared with local shasum -a 256 and byte size; Drive folder holds exactly these 7 files, no duplicates",
+  "assets": [
+    {
+      "local_path": "02-Both-Candidates-Oppose-Flock-Cameras-draft-v2.mp4",
+      "drive_path": "02-Both-Candidates-Oppose-Flock-Cameras-draft-v2.mp4",
+      "drive_id": "1QGK5NBOydF2_9Pe3bsJJ0ZMT1potii-s",
+      "bytes": 89235813,
+      "sha256": "131b53f8ae5c717888ae624ed65817ec60b0f61a9fc504dc5319c45fee04ebcc",
+      "status": "local-and-drive-hash-matched"
+    },
+    {
+      "local_path": "02-cover-draft-v2.jpg",
+      "drive_path": "02-cover-draft-v2.jpg",
+      "drive_id": "1nqu-N_Bh_EoFoenW4V1TY9AD4Axbsxy4",
+      "bytes": 192812,
+      "sha256": "343f64b8c55fb7a78fe8d4d1f4d1d53ebb0e83612fdb5e96e21b887ab430c3fa",
+      "status": "local-and-drive-hash-matched"
+    },
+    {
+      "local_path": "02-draft-v2-recipe.zip",
+      "drive_path": "02-draft-v2-recipe.zip",
+      "drive_id": "1A77l9lKz-RN2M99woJk7rYlll4LVp46l",
+      "bytes": 4322202,
+      "sha256": "ca75836c7ce1bb38ffa841f77034967ee0c513015e0dd2b3f4ed37ebfbb689f2",
+      "status": "local-and-drive-hash-matched"
+    },
+    {
+      "local_path": "02-review-audio/Trent-opening.wav",
+      "drive_path": "review-audio/Trent-opening.wav",
+      "drive_id": "14a7wbZeIlHXUlf30UtCAun3_NPGZUMio",
+      "bytes": 1382478,
+      "sha256": "06bd6b59eb4092e87d3ed795680546643203b3a50ff53bb29e44aabba335fb1c",
+      "status": "local-and-drive-hash-matched"
+    },
+    {
+      "local_path": "02-review-audio/Trent-rules.wav",
+      "drive_path": "review-audio/Trent-rules.wav",
+      "drive_id": "1tM3_ESif-0AWrmpmJWv_UgptOjXU0tcD",
+      "bytes": 1305678,
+      "sha256": "e4dff6d15176480bcefe8574df56990d52f9f8117880ed3efcc033ce1fed0b2c",
+      "status": "local-and-drive-hash-matched"
+    },
+    {
+      "local_path": "02-review-audio/Trent-ending.wav",
+      "drive_path": "review-audio/Trent-ending.wav",
+      "drive_id": "1rXOJckIs5VitPJF_9zsewp6mMGTcjQUo",
+      "bytes": 1017678,
+      "sha256": "c52dd7030c8f74a282d9cffcef14fee6e0717283666866c3aa3a6791a72c845d",
+      "status": "local-and-drive-hash-matched"
+    },
+    {
+      "local_path": "02-review-audio/Aaron-ending-with-concession.wav",
+      "drive_path": "review-audio/Aaron-ending-with-concession.wav",
+      "drive_id": "1uuCoYrD9fEQx4FpQ7JXPb0OA2hJWMlDV",
+      "bytes": 2246478,
+      "sha256": "847a2929afd88fd4aeb146e420668c1f90839e47d68ba97179ef717de9fe22e3",
+      "status": "local-and-drive-hash-matched"
+    }
+  ],
+  "publication": "No social upload, scheduling or publication"
+}

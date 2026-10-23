@@ -1,0 +1,22 @@
+{
+  "method": "Compare raw video frame hashes and PCM audio packet hashes from v2 and v3 filter outputs before lossy encoding",
+  "changed": [
+    {
+      "before": "0,        280,        280,        1,  3110400, bdc9d3f3ec33054d543d0993f988c592",
+      "after": "0,        280,        280,        1,  3110400, c415ea61469bf8301b72db148413ea6c"
+    },
+    {
+      "before": "0,        373,        373,        1,  3110400, 61f0a9b356c02c72dc299cb2a5071b72",
+      "after": "0,        373,        373,        1,  3110400, 5124e21fbdb85477d54ec9b1dc3bf23a"
+    },
+    {
+      "before": "0,        424,        424,        1,  3110400, e59ef98cf67ffa27c5cbc60daec4872a",
+      "after": "0,        424,        424,        1,  3110400, 95fb2eab7a950dd6014e36de3c98cdce"
+    }
+  ],
+  "same_total_records": 2152,
+  "scripts": [
+    "short-01/render-v2.py",
+    "short-01/render.py"
+  ]
+}

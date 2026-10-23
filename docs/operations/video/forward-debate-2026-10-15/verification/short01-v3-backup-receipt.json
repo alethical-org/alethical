@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-21",
+  "drive_folder": "Alethical Team/Media/Forward Debate 2026-10-15",
+  "drive_folder_id": "1tiaFKy0AEa_BtVeN57hzxvk2MemY-l3G",
+  "local_root": "~/Movies/Alethical/forward-debate-2026",
+  "method": "Local size and SHA-256 compared with read-only rclone lsjson --hash results for the 2 named Drive items",
+  "assets": [
+    {
+      "local_path": "shorts/01-We-Disagree-We-Can-Still-Grab-a-Beer-v3.mp4",
+      "drive_path": "01-We-Disagree-We-Can-Still-Grab-a-Beer-v3.mp4",
+      "drive_id": "1KOXQuoDE-73sCzWPPvSxoHgJXjuNIaE8",
+      "bytes": 27017469,
+      "sha256": "9dba7706b97af5812be57f83d20205d2845d0c193ec67236a83ffada902fd14d",
+      "status": "local-and-drive-hash-matched"
+    },
+    {
+      "local_path": "shorts/01-cover-v3.jpg",
+      "drive_path": "01-cover-v3.jpg",
+      "drive_id": "1blzeMQ39ssb_LkIka88l5xmlxxH0b05l",
+      "bytes": 90231,
+      "sha256": "c85ea98d7f81ee6cc4ba3143db4e215774bf043d20f00ccdb9eb3654bbb66313",
+      "status": "local-and-drive-hash-matched"
+    }
+  ],
+  "cover_source": {
+    "video_sha256": "9dba7706b97af5812be57f83d20205d2845d0c193ec67236a83ffada902fd14d",
+    "seconds": 3.5,
+    "basis": "Publishing task retained extraction record; extraction not repeated"
+  },
+  "restore_status": "Backups hash-matched; a fresh download-and-render recovery test of v3 has not been performed"
+}
