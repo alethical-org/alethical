@@ -137,4 +137,53 @@ assert.equal(expoConfig.name, 'Alethical', "Expo must load Alethical's app confi
 assert.equal(expoConfig.web?.favicon, './assets/favicon.png', 'Expo must retain the browser icon');
 assert.equal(expoConfig.web?.display, 'standalone', 'Expo must retain the browser display setting');
 
+// Expo CLI asks for zod 3, which has no fix for GHSA-mrhx-c7xc-m3w5. Its
+// dev-tools plugin schemas run on the overridden zod 4 through Expo's own code.
+const expoCliRequire = createRequire(require.resolve('expo/package.json'));
+const cliRequire = createRequire(expoCliRequire.resolve('@expo/cli/package.json'));
+assertPackageVersion(cliRequire, 'zod', '4.6.7');
+const pluginSchema = cliRequire('./build/src/start/server/DevToolsPlugin.schema.js');
+const plugin = {
+  packageName: 'example-plugin',
+  packageRoot: '/plugins/example',
+  cliExtensions: {
+    description: 'Example commands',
+    entryPoint: 'cli.js',
+    commands: [
+      {
+        name: 'go',
+        title: 'Go',
+        environments: ['cli', 'mcp'],
+        parameters: [
+          { name: 'count', type: 'number' },
+          { name: 'sure', type: 'confirm' },
+          { name: 'label', type: 'text' },
+        ],
+      },
+    ],
+  },
+};
+assert.equal(pluginSchema.PluginSchema.safeParse(plugin).success, true);
+const rejected = pluginSchema.PluginSchema.safeParse({ packageName: '', packageRoot: '/p' });
+assert.equal(rejected.success, false, 'An empty plugin name must still be rejected');
+assert.equal(typeof rejected.error.message, 'string', 'Expo reads the error message');
+assert.equal(
+  pluginSchema.DevToolsPluginOutputSchema.safeParse([
+    { type: 'text', text: 'Done', level: 'info' },
+    { type: 'image', url: 'https://example.test/a.png' },
+  ]).success,
+  true,
+);
+assert.equal(
+  pluginSchema.DevToolsPluginOutputSchema.safeParse([{ type: 'audio', url: 'not a url' }]).success,
+  false,
+  'A malformed media address must still be rejected',
+);
+const { createMCPDevToolsExtensionSchema } = cliRequire(
+  './build/src/start/server/createMCPDevToolsExtensionSchema.js',
+);
+const commandSchema = createMCPDevToolsExtensionSchema(plugin);
+assert.equal(commandSchema.safeParse({ command: 'go', count: 1, sure: true }).success, true);
+assert.equal(commandSchema.safeParse({ command: 'unknown' }).success, false);
+
 console.log('Web build-tool security compatibility checks passed.');
