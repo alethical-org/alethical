@@ -131,6 +131,7 @@ needs no configuration. See `.env.example` for what each variable does.
 | `just migrate` | Apply database migrations (`alembic upgrade head`) |
 | `uv run pytest` | Run the backend test suite |
 | `just test-frontend` | Run the frontend test suite (Vitest) |
+| `just push-full` | Upload after running the full backend and frontend suites locally |
 
 The commit hook formats the selected files and includes those results in the
 commit. Before the long tests, the push hook runs GitHub's current security scan
@@ -138,8 +139,10 @@ for every upload, including uploads without dependency changes. A failed scan
 stops the upload. It uses an isolated copy of the exact commit Git intends to
 upload and installs the frozen JavaScript dependencies once without package
 scripts; app tests reuse that installation. The hook prints the scan's elapsed
-time. It then runs the full app or server suite when that area changes. Both suites
-run together when both areas change. Upload tests start a disposable Postgres
+time. It then runs the changed area's quick checks: formatting, types, dependency
+and compatibility checks. The full app and server test suites run on GitHub, whose
+required checks pass before anything merges; `just push-full` uploads after
+running them here too. Full local server tests start a disposable Postgres
 server of their own, not the shared development server on port 54329. Docker must
 be running and its `pgvector/pgvector:pg17` image must already be cached. The normal
 Docker Compose setup downloads that image; the push hook never downloads it and

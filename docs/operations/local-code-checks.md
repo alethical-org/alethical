@@ -45,7 +45,7 @@ worktree switched to a branch missing the helper cannot commit or push until tha
 branch is updated. The common lock still protects other worktrees meanwhile.
 
 [`CONTRIBUTING.md`](../../CONTRIBUTING.md#first-time-setup) owns the normal setup.
-For server upload checks, Docker's background service must be running and
+For full local server tests (`just push-full`), Docker's background service must be running and
 `pgvector/pgvector:pg17` must already be cached. The normal
 [Docker Compose setup](../../docker-compose.yml) downloads that image. The upload
 hook uses `--pull=never`: it stops if the image is missing instead of fetching one
@@ -98,10 +98,16 @@ its common starting point with `origin/main`, or the whole saved tree if that po
 is unavailable. A missing existing remote commit stops the upload and asks for a
 fetch. Deleted remote branches upload no code and need no suite.
 
-The changed paths select suites through
+The changed paths select areas through
 [`.github/check-paths.json`](../../.github/check-paths.json), also used by GitHub.
-An affected area runs its entire suite, not just tests near changed files. Shared
-check machinery selects both areas. Files outside both groups select neither.
+Shared check machinery selects both areas. Files outside both groups select neither.
+
+A plain upload runs each affected area's quick checks and leaves its full test
+suite to GitHub. GitHub's required `backend` and `frontend` checks run both full
+suites on every change, against a branch that includes current `main`, before it
+can merge, so no untested code reaches `main`; a test failure is found minutes
+after upload, on GitHub. `just push-full` (which sets `ALETHICAL_PUSH_FULL=1`)
+runs the entire suites locally first, not just tests near changed files.
 
 Every code upload also runs the same quick document checks as GitHub: broken
 links to documents, missing entries in document indexes, and outdated quoted
@@ -137,15 +143,15 @@ The helper prints the elapsed security-scan time, including installation and rep
 checks, on success or failure. Each distinct upload commit gets a fresh scan rather
 than borrowing a result from another commit or an earlier upload.
 
-| Affected area | Checks before upload |
-| --- | --- |
-| Frontend app | Scanned saved dependencies, brand assets, package and build-tool compatibility, selected-file helper fixtures, frontend formatting, TypeScript, and the full `just test-frontend` suite |
-| Python server | Saved and declared dependencies, local-check helper fixtures, Ruff code and formatting checks, ty, and the full `uv run --frozen pytest` suite |
+| Affected area | Checks before upload | Added by `just push-full` |
+| --- | --- | --- |
+| Frontend app | Scanned saved dependencies, brand assets, package and build-tool compatibility, selected-file helper fixtures, frontend formatting, and TypeScript | The full `just test-frontend` suite |
+| Python server | Saved and declared dependencies, local-check helper fixtures, worktree helper tests, Ruff code and formatting checks, and ty | The disposable-database fixtures and the full `uv run --frozen pytest` suite |
 
 When both areas change, they run together. The helper waits for both to finish
 before removing its temporary worktree, including when a check fails. A failure
-stops the upload. Running time varies with dependency setup, the suites, and the
-computer; the check promises complete affected coverage, not a fixed duration.
+stops the upload. Running time varies with dependency setup, the checks, and the
+computer; the check promises the affected area's quick checks, not a fixed duration.
 
 The temporary worktree contains the exact saved upload commit. It does not borrow
 unfinished files, the developer's `.env`, or inherited service credentials. An empty
@@ -154,7 +160,7 @@ temporary worktree. The helper removes only the temporary worktree it created.
 
 ## Server-test database safety
 
-Both manual `uv run pytest` and server upload tests use
+Both manual `uv run pytest` and full server upload tests use
 [`database_session.py`](../../alethical/tests/database_session.py) to own the server
 until pytest finishes. Manual runs use current working files; upload runs use
 their exact saved snapshot. Each local invocation uses a new Postgres server
