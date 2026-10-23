@@ -491,23 +491,7 @@ def javascript_audit_problems(
     return sorted(problems)
 
 
-def recorded_pillow_finding(dependency: dict, vulnerability: dict) -> bool:
-    aliases = vulnerability.get("aliases", [])
-    known_ids = {"GHSA-654x-cwwv-5j9c", "CVE-2026-114501"}
-    return (
-        re.sub(r"[-_.]+", "-", dependency["name"]).lower() == "pillow"
-        and dependency["version"] == "13.0.0"
-        and vulnerability.get("id") in known_ids
-        and isinstance(aliases, list)
-        and all(isinstance(alias, str) and alias in known_ids for alias in aliases)
-        and type(vulnerability.get("fix_versions")) is list
-        and vulnerability["fix_versions"] == []
-    )
-
-
-def python_audit_problems(
-    payload: dict, *, pillow_exception_verified: bool = False
-) -> list[str]:
+def python_audit_problems(payload: dict) -> list[str]:
     if (
         not isinstance(payload, dict)
         or "error" in payload
@@ -534,10 +518,6 @@ def python_audit_problems(
                 or not vulnerability["id"]
             ):
                 raise ValueError("Python audit returned an invalid advisory")
-            if pillow_exception_verified and recorded_pillow_finding(
-                dependency, vulnerability
-            ):
-                continue
             problems.append(
                 f"{dependency['name']} {dependency['version']}: {vulnerability['id']}"
             )
@@ -559,16 +539,13 @@ def security_audit_problems(
     language: str,
     *,
     expected_python: set[tuple[str, str]] | None = None,
-    pillow_exception_verified: bool = False,
     forge_repaired: bool = False,
     braces_repaired: bool = False,
 ) -> list[str]:
     try:
         payload = json.loads(audited.stdout)
         if language == "Python":
-            problems = python_audit_problems(
-                payload, pillow_exception_verified=pillow_exception_verified
-            )
+            problems = python_audit_problems(payload)
             has_findings = any(item["vulns"] for item in payload["dependencies"])
             reported = {
                 (re.sub(r"[-_.]+", "-", item["name"]).lower(), item["version"])
@@ -736,31 +713,8 @@ def extra_security_inventory(
     return problems, packages, manual
 
 
-def verify_pillow_exception(root: Path) -> bool:
-    """The local hook and CI consume trusted evidence; neither gets production access."""
-    try:
-        result = subprocess.run(
-            [sys.executable, "-m", "scripts.check_pillow_exception"],
-            cwd=root,
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=600,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        print("The Pillow exception check did not complete.")
-        return False
-    print(result.stdout.strip())
-    return result.returncode == 0
-
-
 def run_security_audits(root: Path) -> list[str]:
     problems = []
-    pillow_exception_verified = verify_pillow_exception(root)
-    if not pillow_exception_verified:
-        problems.append(
-            "The recorded Pillow exception could not verify its source, upstream warning and current production conditions"
-        )
     research_packages: set[tuple[str, str]] = set()
     try:
         inventory_problems, research_packages, manual_sources = (
@@ -834,15 +788,9 @@ def run_security_audits(root: Path) -> list[str]:
                         ],
                         root,
                     )
-                    if audited.returncode == 1:
-                        print("Raw Python audit report:")
-                        print(audited.stdout)
                     problems.extend(
                         security_audit_problems(
-                            audited,
-                            "Python",
-                            expected_python=set(batch),
-                            pillow_exception_verified=pillow_exception_verified,
+                            audited, "Python", expected_python=set(batch)
                         )
                     )
                 print(
