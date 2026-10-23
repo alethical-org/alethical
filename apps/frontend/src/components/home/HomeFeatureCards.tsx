@@ -148,14 +148,18 @@ export function HomeFeatureCards({ servicesReady }: { servicesReady: boolean }) 
   );
   const details = event && (
     <Text style={[s.details, phone && { fontSize: 21, lineHeight: 31.5 }]}>
-      <Text style={desktop ? ({ whiteSpace: 'nowrap' } as object) : undefined}>
+      <Text style={desktop ? ({ display: 'inline-block', maxWidth: '100%' } as object) : undefined}>
         {event.district}
         {desktop ? ' ·' : ''}
       </Text>
       {desktop ? ' ' : '\n'}
-      {!desktop && <Text style={{ whiteSpace: 'nowrap' } as object}>Hosted by Alethical ·</Text>}
+      {!desktop && (
+        <Text style={{ display: 'inline-block', maxWidth: '100%' } as object}>
+          Hosted by Alethical ·
+        </Text>
+      )}
       {!desktop && ' '}
-      <Text style={{ whiteSpace: 'nowrap' } as object}>
+      <Text style={{ display: 'inline-block', maxWidth: '100%' } as object}>
         {event.dateLabel.replace(/^\w+, /, '')}
       </Text>
     </Text>
@@ -169,7 +173,7 @@ export function HomeFeatureCards({ servicesReady }: { servicesReady: boolean }) 
     <Text
       accessibilityRole="header"
       aria-level={2}
-      style={[heading, desktop && ({ whiteSpace: 'nowrap' } as object)]}
+      style={[heading, desktop && ({ display: 'inline-block', maxWidth: '100%' } as object)]}
     >
       {event.title}
     </Text>

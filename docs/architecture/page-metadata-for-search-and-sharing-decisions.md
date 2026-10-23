@@ -1834,9 +1834,8 @@ search-discovery and page-delivery repairs. The dated measurements are in
 
 The homepage's first response carries the signed-out introduction and the money,
 Legislature, The Forward Debate, and Campaign services cards. Their links open `/money`, `/bills`, `/legislators`, `/blog/events/forward-debate-2026`, and `/services`; the
-shared static navigation also links to `/blog`. The signed-out redesign approved
-on 30 September 2026 removes the separate body links to legislator search and
-Find My Legislator. Those destinations remain in the loaded Search menu.
+shared static navigation also links to `/blog`. The Legislature card provides both bill and legislator searches. Find My Legislator
+remains available through the loaded Search menu.
 The static shell and `homePageSnapshot` carry the same text and links, protected
 by their existing exact-match test. The working `/candidates` destination now appears
 in the Search menu and homepage address form. §29 adds its first-response content
