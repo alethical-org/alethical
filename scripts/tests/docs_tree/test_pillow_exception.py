@@ -403,3 +403,38 @@ def test_poll_times_out_without_reusing_other_title(monkeypatch):
     monkeypatch.setattr(CHECK.time, "sleep", lambda _: None)
     with pytest.raises(CHECK.Unavailable, match="Timed out"):
         CHECK.runtime_check({})
+
+
+def test_large_run_history_is_read_in_bounded_pages(monkeypatch):
+    from urllib.parse import parse_qs, urlsplit
+
+    proof, run, expected, workflow_id, earliest, now = fixture()
+    label = "456-2"
+    run["display_title"] = "Pillow runtime " + label
+    rows = [
+        {**run, "id": 1000 + i, "display_title": "other", "metadata": "x" * 11000}
+        for i in range(100)
+    ]
+    rows[75] = run
+    pages = []
+    monkeypatch.setattr(CHECK, "request", lambda env: (expected, label, earliest))
+
+    def invoke(command, **kwargs):
+        endpoint = command[4]
+        if "/runs?" in endpoint:
+            query = parse_qs(urlsplit(endpoint).query)
+            size = int(query["per_page"][0])
+            page = int(query.get("page", ["1"])[0])
+            pages.append(page)
+            payload = {"workflow_runs": rows[(page - 1) * size : page * size]}
+        else:
+            payload = {"path": CHECK.PATH, "id": workflow_id, "state": "active"}
+        return SimpleNamespace(returncode=0, stdout=json.dumps(payload).encode())
+
+    monkeypatch.setattr(CHECK.subprocess, "run", invoke)
+    monkeypatch.setattr(
+        CHECK, "artifact", lambda selected: proof if selected == run else None
+    )
+    monkeypatch.setattr(CHECK.time, "time", lambda: now)
+    CHECK.runtime_check({})
+    assert pages == [1, 2, 3, 4, 5]
