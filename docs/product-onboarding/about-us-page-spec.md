@@ -32,7 +32,8 @@ purpose, beliefs, team, planned work and correction-first contact in plain langu
   purpose (`/about/contact?purpose=feature-request`).
 - **Contact** carries the corrections promise, the ask@alethical.com email link (its only
   appearance in the page content) and a Contact us button that opens the form for a
-  correction (`/about/contact?purpose=correction`). Both Contact us buttons carry no arrow.
+  correction (`/about/contact?purpose=correction`). That button carries no arrow; the
+  roadmap's Contact us is a green link with the arrow, like the links in What Alethical does.
   The shared footer's contact link stays generic.
 - Contact purposes start the form with editable subject and message words from the
   trusted list in `apps/frontend/src/lib/contactPurposes.ts`; any other purpose in an
@@ -41,8 +42,9 @@ purpose, beliefs, team, planned work and correction-first contact in plain langu
 ## Visual meaning
 
 - Cyan appears only on the name-origin panel and the 6 belief cards. It marks identity.
-- Green link titles lead to features available now; on hover with a mouse or trackpad
-  they darken and gain an underline without moving.
+- Green link titles lead to features available now. On hover with a mouse or trackpad,
+  and while pressed, the words turn `#11832b` and gain an underline (the arrow does not);
+  nothing moves or resizes, and touch keeps no hover.
 - Grey holds the 5 planned areas.
 - The 2 team biographies use the same grey surface as the roadmap, with approved
   portraits treated as one warm, balanced pair.
@@ -51,8 +53,8 @@ purpose, beliefs, team, planned work and correction-first contact in plain langu
 - Otherwise green is reserved for the Contact us actions and the email link.
 - The Contact us buttons follow the green-button hover treatment in
   [design-principles.md](../design/design-principles.md): a mouse or trackpad at
-  tablet and computer widths darkens the fill without moving or resizing the
-  buttons. Touch keeps its existing press feedback; keyboard navigation keeps
+  tablet and computer widths darkens the fill to `#28bf71`, and a press shows `#24ad66`,
+  without moving or resizing the buttons. Touch keeps its existing press feedback; keyboard navigation keeps
   the separate purple focus outline.
 - The email link follows the same source's destination-link treatment: at tablet
   and computer widths with a mouse or trackpad, its words turn `#11832b` and gain

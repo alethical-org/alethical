@@ -209,7 +209,7 @@ function DebatePhoto({ narrow }: { narrow: boolean }) {
   if (!DEBATE_EVENT || failed) return null;
   const src = narrow ? DEBATE_EVENT.homePhotos.narrow : DEBATE_EVENT.homePhotos.desktop;
   return (
-    <View style={styles.photo}>
+    <View style={[styles.photo, narrow && styles.photoNarrow]}>
       {Platform.OS === 'web' ? (
         <img src={src} alt="" onError={() => setFailed(true)} style={photoImageStyle} />
       ) : (
@@ -229,12 +229,12 @@ function OfferLink({
   item,
   canHover,
   isMobile,
-  narrowPhoto,
+  isTablet,
 }: {
   item: OfferLinkItem;
   canHover: boolean;
   isMobile: boolean;
-  narrowPhoto: boolean;
+  isTablet: boolean;
 }) {
   return (
     <View style={styles.offerItem}>
@@ -244,16 +244,24 @@ function OfferLink({
             label={item.title}
             style={[
               styles.offerLinkText,
+              isTablet && styles.offerLinkTextTablet,
               isMobile && styles.offerLinkTextMobile,
-              canHover &&
-                Boolean('hovered' in state && state.hovered) &&
+              ((canHover && Boolean('hovered' in state && state.hovered)) || state.pressed) &&
                 styles.offerLinkTextHovered,
             ]}
           />
         )}
       </Pressable>
-      <Text style={[styles.offerBody, isMobile && styles.offerBodyMobile]}>{item.body}</Text>
-      {item.photo ? <DebatePhoto narrow={narrowPhoto} /> : null}
+      <Text
+        style={[
+          styles.offerBody,
+          isTablet && styles.offerBodyTablet,
+          isMobile && styles.offerBodyMobile,
+        ]}
+      >
+        {item.body}
+      </Text>
+      {item.photo ? <DebatePhoto narrow={isMobile} /> : null}
     </View>
   );
 }
@@ -280,16 +288,34 @@ function OfferRow({
         <Text
           accessibilityRole="header"
           aria-level={3}
-          style={[styles.offerHeading, isMobile && styles.offerHeadingMobile]}
+          style={[
+            styles.offerHeading,
+            isTablet && styles.offerHeadingTablet,
+            isMobile && styles.offerHeadingMobile,
+          ]}
         >
           {heading}
         </Text>
-        <Text style={[styles.offerIntroText, isMobile && styles.offerBodyMobile]}>{intro}</Text>
+        <Text
+          style={[
+            styles.offerIntroText,
+            isTablet && styles.offerIntroTextTablet,
+            isMobile && styles.offerIntroTextMobile,
+          ]}
+        >
+          {intro}
+        </Text>
       </View>
-      <View style={[styles.offerLinks, isMobile && styles.offerLinksMobile]}>
+      <View
+        style={[
+          styles.offerLinks,
+          isTablet && styles.offerLinksTablet,
+          isMobile && styles.offerLinksMobile,
+        ]}
+      >
         {items.map((item) => (
           <View key={item.title} style={isMobile ? styles.fullWidth : styles.offerLinkColumn}>
-            <OfferLink item={item} canHover={canHover} isMobile={isMobile} narrowPhoto={stacked} />
+            <OfferLink item={item} canHover={canHover} isMobile={isMobile} isTablet={isTablet} />
           </View>
         ))}
       </View>
@@ -483,11 +509,31 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
             <SectionTitle isMobile={isMobile} isTablet={isTablet}>
               {ABOUT_WHY_HEADING}
             </SectionTitle>
-            {ABOUT_WHY_LINES.map((line) => (
-              <Text key={line} style={[styles.prose, isMobile && styles.proseMobile]}>
-                {line}
-              </Text>
-            ))}
+            {ABOUT_WHY_LINES.map((line, index) =>
+              index === ABOUT_WHY_LINES.length - 1 ? (
+                <Text
+                  key={line}
+                  style={[
+                    styles.proseLead,
+                    isTablet && styles.proseLeadTablet,
+                    isMobile && styles.proseLeadMobile,
+                  ]}
+                >
+                  {line}
+                </Text>
+              ) : (
+                <Text
+                  key={line}
+                  style={[
+                    styles.prose,
+                    isTablet && styles.proseTablet,
+                    isMobile && styles.proseMobile,
+                  ]}
+                >
+                  {line}
+                </Text>
+              ),
+            )}
           </View>
 
           <View style={[styles.section, isMobile && styles.mobileSection]}>
@@ -586,12 +632,26 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
               <Text style={[styles.roadmapQuestion, isMobile && styles.roadmapQuestionMobile]}>
                 {ABOUT_ROADMAP_INVITATION}
               </Text>
-              <ContactButton
-                href={routePath.contactUs({ purpose: 'feature-request' })}
-                onPress={() => navigation.navigate('ContactUs', { purpose: 'feature-request' })}
-                isMobile={isMobile}
-                canHover={canHover}
-              />
+              <Pressable
+                {...linkProps(routePath.contactUs({ purpose: 'feature-request' }), () =>
+                  navigation.navigate('ContactUs', { purpose: 'feature-request' }),
+                )}
+                style={styles.offerLink}
+              >
+                {(state) => (
+                  <LinkArrowLabel
+                    label={ABOUT_CONTACT_LABEL}
+                    style={[
+                      styles.offerLinkText,
+                      styles.inviteLinkText,
+                      isMobile && styles.inviteLinkTextMobile,
+                      ((canHover && Boolean('hovered' in state && state.hovered)) ||
+                        state.pressed) &&
+                        styles.offerLinkTextHovered,
+                    ]}
+                  />
+                )}
+              </Pressable>
             </View>
           </View>
 
@@ -865,11 +925,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 18,
   },
-  roadmapItem: { minHeight: 186, paddingRight: 12, paddingBottom: 8 },
+  roadmapItem: { paddingRight: 12, paddingBottom: 8 },
   roadmapItemMobile: { minHeight: 0, paddingRight: 0, paddingBottom: 0 },
   contactSection: {
     alignItems: 'flex-start',
-    gap: 22,
+    gap: 14,
     marginTop: 56,
     paddingTop: 34,
     borderTopWidth: 1,
@@ -898,7 +958,7 @@ const styles = StyleSheet.create({
   },
   contactButtonMobile: { width: '100%', minHeight: 48 },
   contactButtonHovered: { backgroundColor: t.colors.brand.hover },
-  contactButtonPressed: { backgroundColor: t.colors.brand.hover, transform: [{ scale: 0.98 }] },
+  contactButtonPressed: { backgroundColor: '#24ad66' },
   contactButtonText: {
     color: t.colors.brand.darkest,
     fontFamily: t.typography.ui,
@@ -909,85 +969,115 @@ const styles = StyleSheet.create({
   // The next section's phone divider already closes the facts.
   offerRow: {
     flexDirection: 'row',
-    gap: 40,
-    paddingTop: 28,
-    paddingBottom: 30,
+    gap: 56,
+    paddingTop: 32,
+    paddingBottom: 34,
     borderTopWidth: 1,
     borderTopColor: ABOUT_COLORS.sectionRule,
   },
-  offerRowStacked: { flexDirection: 'column', gap: 18, paddingTop: 22, paddingBottom: 24 },
-  offerIntro: { flex: 1, minWidth: 0 },
-  offerIntroStacked: { flex: 0 },
+  offerRowStacked: { flexDirection: 'column', gap: 12, paddingTop: 26, paddingBottom: 28 },
+  offerIntro: { width: 340, flexShrink: 0 },
+  offerIntroStacked: { width: '100%' },
   offerHeading: {
     color: t.colors.text.primary,
     fontFamily: t.typography.title,
-    fontSize: 20,
-    lineHeight: 26,
+    fontSize: 22,
+    lineHeight: 27.5,
     fontWeight: t.fontWeights.heavy,
+    letterSpacing: -0.22,
   },
-  offerHeadingMobile: { fontSize: 18, lineHeight: 24 },
+  offerHeadingTablet: { fontSize: 20, lineHeight: 25, letterSpacing: -0.2 },
+  offerHeadingMobile: { fontSize: 18, lineHeight: 22.5, letterSpacing: -0.18 },
   offerIntroText: {
     color: t.colors.text.secondary,
     fontFamily: t.typography.body,
-    fontSize: 16,
-    lineHeight: 25,
-    marginTop: 8,
-    maxWidth: 360,
+    fontSize: 17,
+    lineHeight: 27.2,
+    marginTop: 12,
+    ...(Platform.OS === 'web' ? ({ textWrap: 'pretty' } as object) : null),
   },
+  offerIntroTextTablet: { fontSize: 16.5, lineHeight: 26.4, marginTop: 10 },
+  offerIntroTextMobile: { fontSize: 15, lineHeight: 24, marginTop: 8 },
+  // The 44px link box sits 9px above the heading's first line so the words align.
   offerLinks: {
-    flex: 2,
+    flex: 1,
     minWidth: 0,
+    marginTop: -9,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    columnGap: 36,
-    rowGap: 12,
+    columnGap: 40,
+    rowGap: 14,
   },
-  offerLinksMobile: { flexDirection: 'column', rowGap: 10 },
-  offerLinkColumn: { width: '46%', flexGrow: 1, minWidth: 0 },
-  offerItem: { minWidth: 0 },
+  offerLinksTablet: { marginTop: 0 },
+  offerLinksMobile: { marginTop: 4, flexDirection: 'column', rowGap: 14 },
+  // 2 equal columns; a row with 1 link ends after the first column.
+  offerLinkColumn: {
+    width: (Platform.OS === 'web' ? 'calc(50% - 20px)' : '47%') as ViewStyle['width'],
+    minWidth: 0,
+  },
+  offerItem: { minWidth: 0, alignItems: 'flex-start' },
   offerLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
   offerLinkText: {
     fontFamily: t.typography.ui,
-    fontSize: 17,
+    fontSize: 18,
     lineHeight: 24,
     fontWeight: t.fontWeights.bold,
-    color: t.colors.brand.deep,
+    color: t.colors.text.greenOnLight,
   },
-  offerLinkTextMobile: { fontSize: 16 },
-  offerLinkTextHovered: { color: t.colors.brand.forest, textDecorationLine: 'underline' },
+  offerLinkTextTablet: { fontSize: 17 },
+  offerLinkTextMobile: { fontSize: 16, lineHeight: 22 },
+  offerLinkTextHovered: { color: '#11832b', textDecorationLine: 'underline' },
   offerBody: {
     color: t.colors.text.secondary,
     fontFamily: t.typography.body,
-    fontSize: 15,
-    lineHeight: 23,
+    fontSize: 16,
+    lineHeight: 24.8,
+    ...(Platform.OS === 'web' ? ({ textWrap: 'pretty' } as object) : null),
   },
-  offerBodyMobile: { fontSize: 14.5, lineHeight: 22.5 },
+  offerBodyTablet: { fontSize: 15.5, lineHeight: 24 },
+  offerBodyMobile: { fontSize: 14.5, lineHeight: 21.75, marginTop: -4 },
   photo: {
     marginTop: 14,
-    borderRadius: 12,
+    width: '100%',
+    borderRadius: 14,
     overflow: 'hidden',
     backgroundColor: '#e9ebe8',
-    aspectRatio: 16 / 9,
   },
-  photoImage: { width: '100%', height: '100%' },
-  proseMobile: { fontSize: 16, lineHeight: 26 },
+  photoNarrow: { borderRadius: 12 },
+  photoImage: { width: '100%', aspectRatio: 16 / 9 },
+  proseTablet: { fontSize: 17, lineHeight: 27.5 },
+  proseMobile: { fontSize: 15, lineHeight: 24 },
+  proseLead: {
+    color: t.colors.text.primary,
+    fontFamily: t.typography.body,
+    fontSize: 21,
+    lineHeight: 30.5,
+    fontWeight: t.fontWeights.bold,
+    marginTop: 6,
+    ...(Platform.OS === 'web' ? ({ textWrap: 'pretty' } as object) : null),
+  },
+  proseLeadTablet: { fontSize: 19, lineHeight: 27.5, marginTop: 4 },
+  proseLeadMobile: { fontSize: 15.5, lineHeight: 24, marginTop: 0 },
   roadmapInvite: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    gap: 24,
-    marginTop: 18,
+    columnGap: 16,
+    marginTop: 12,
     paddingLeft: 17,
   },
-  roadmapInviteMobile: { flexDirection: 'column', alignItems: 'stretch', gap: 14, paddingLeft: 0 },
+  roadmapInviteMobile: { flexDirection: 'column', alignItems: 'flex-start', marginTop: 14 },
   roadmapQuestion: {
-    flex: 1,
     color: t.colors.text.secondary,
     fontFamily: t.typography.body,
     fontSize: 17,
-    lineHeight: 27,
+    lineHeight: 27.2,
+    ...(Platform.OS === 'web' ? ({ textWrap: 'pretty' } as object) : null),
   },
-  roadmapQuestionMobile: { flex: 0, fontSize: 15.5, lineHeight: 24 },
-  contactEmail: { marginTop: 8 },
+  roadmapQuestionMobile: { fontSize: 14.5, lineHeight: 22.5 },
+  inviteLinkText: { fontSize: 17 },
+  inviteLinkTextMobile: { fontSize: 16 },
+  contactEmail: { marginTop: 12 },
   emailLink: { color: t.colors.text.greenOnLight, fontWeight: t.fontWeights.bold },
   emailLinkHovered: { color: '#11832b', textDecorationLine: 'underline' },
 });

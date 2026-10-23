@@ -77,7 +77,7 @@ describe('About us screen contract', () => {
     );
     expect(SCREEN).toContain('linkProps(item.href, item.onPress)');
     // Only the green title is the link; the description and photo sit outside it.
-    expect(SCREEN).toMatch(/<\/Pressable>\s*<Text style=\{\[styles\.offerBody/);
+    expect(SCREEN).toMatch(/<\/Pressable>\s*<Text\s*style=\{\[\s*styles\.offerBody/);
     expect(SCREEN).toMatch(/offerLink:\s*\{[^}]*minHeight: 44/s);
   });
 
