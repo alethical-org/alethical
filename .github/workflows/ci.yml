@@ -29,6 +29,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   pull-requests: read
 
@@ -114,6 +115,8 @@ jobs:
           node-version: "22"
 
       - name: Check all locked Python and JavaScript packages for security problems
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: >
           python scripts/check_technology_health.py --security-only
           --report "$GITHUB_STEP_SUMMARY"
