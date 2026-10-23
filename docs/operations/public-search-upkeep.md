@@ -2,6 +2,7 @@
 
 <!-- describes: scripts/check_public_search_health.py, .github/workflows/public-search-health.yml, scripts/report_page_speed_by_address.py, scripts/notify_changed_public_pages.py, .github/workflows/public-change-notices.yml, scripts/collect_page_failure_health.py, scripts/check_page_failure_coverage.py, .github/workflows/page-failure-health.yml -->
 <!-- describes: api/traffic-google.ts, api/traffic-bing.ts, api/_lib/searchMeasurement.ts, api/search-measurements.ts, alethical/api/routers/search_measurements.py, alethical/api/services/search_measurements.py, alethical/db/search_measurements.py, alethical/alembic/versions/0071_private_search_measurements.py, scripts/prune_search_measurements.py, .github/workflows/private-search-retention.yml -->
+<!-- describes: api/traffic-referrals.ts, scripts/check_site_metrics_privacy.py, .github/workflows/site-metrics-health.yml -->
 
 ## Outcome and limits
 
@@ -243,6 +244,7 @@ the backend's `/internal/v1/search-measurements` write route. Both credentials m
 be distinct and at least 32 characters. They are never accepted from query strings
 or returned in a response. The function sends data only to the fixed production
 backend address and does not follow redirects with credentials or rows.
+The Node function's 180-second maximum is set in `vercel.json`.
 
 The backend validates bounded bodies and records each source/view independently.
 Retries cannot let older data replace newer data. A failure receipt contains no
@@ -294,11 +296,31 @@ service; its zone request counts do not count visits to Vercel bill pages. Brows
 beacons also cannot count a crawler that runs no JavaScript. No new tracking or
 paid logging is introduced to fill this gap.
 
-AI-referral counts likewise remain missing until the existing Cloudflare
-referrer-host source and its available fields are verified. That future read
-uses hosts only, never referring paths or query text. Missing referrers stay
-unassigned; they are not proof of no AI visit. No pages-per-visit success claim
-is made from these counts.
+The separate administrator-only `/api/traffic-referrals` read supports the monthly
+review without adding an admin screen or scheduled AI work. Its account-specific
+Cloudflare schema, dataset access and exact query have been verified; deployment
+and live access checks remain. It reads 30 complete UTC days for
+`www.alethical.com`, excluding requests Cloudflare marks as likely bots. It groups
+only by these exact referring hosts: `chatgpt.com`, `chat.openai.com`,
+`perplexity.ai`, `www.perplexity.ai`, `claude.ai`, `gemini.google.com` and
+`copilot.microsoft.com`. Generic Google and Bing hosts cannot distinguish AI
+referrals from ordinary search and are excluded.
+
+The query returns estimated page views, estimated external-entry page views and
+average sampling interval for each returned host. These are browser-beacon
+observations, not people, sessions or crawlers. No referring path, query text,
+visitor identifier or unknown host is requested. The read has a 5-second timeout,
+64 KiB response cap and at most 7 groups. Malformed counts, sampling information,
+duplicate or unexpected hosts fail with fixed private wording.
+
+Missing host groups return null metrics and `no-observations-returned`, never an
+invented zero. Sitewide source coverage is not measured by this bounded read.
+Blocked beacons, missing referrers, provider storage limits and sampling leave
+gaps; a successful empty response cannot establish that no AI visit occurred.
+Missing referrers remain unassigned. No pages-per-visit success claim follows.
+The existing daily signed-out access check includes this read, query/page export
+variants, the collection trigger and stored search reports and exports. It sends
+no credentials, saves no response bodies and accepts only explicit access denial.
 
 ### Rollout and acceptance
 

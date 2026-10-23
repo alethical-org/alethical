@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Confirm the seven private report feeds refuse signed-out reads.
+"""Confirm private report and collection routes refuse signed-out reads.
 
 This deliberately sends no credentials and never prints a response body. It cannot
 measure provider freshness now that the feeds require an administrator session.
@@ -21,6 +21,28 @@ READ_URLS = SOURCES + (
     ("google-28-day", "https://www.alethical.com/api/traffic-google?window=28"),
     ("actions-default", "https://api.alethical.com/api/v1/site-metrics"),
     ("actions-v1", "https://api.alethical.com/api/v1/site-metrics?version=1"),
+    ("ai-referrals", "https://www.alethical.com/api/traffic-referrals"),
+    ("google-queries", "https://www.alethical.com/api/traffic-google?view=queries"),
+    ("google-pages", "https://www.alethical.com/api/traffic-google?view=pages"),
+    (
+        "google-query-pages",
+        "https://www.alethical.com/api/traffic-google?view=query-pages",
+    ),
+    ("bing-queries", "https://www.alethical.com/api/traffic-bing?view=queries"),
+    ("bing-pages", "https://www.alethical.com/api/traffic-bing?view=pages"),
+    ("search-collector", "https://www.alethical.com/api/search-measurements"),
+    ("search-report", "https://api.alethical.com/api/v1/admin/search-measurements"),
+    *(
+        (
+            f"stored-{provider}-{view}",
+            f"https://api.alethical.com/api/v1/admin/search-measurements/{provider}/{view}",
+        )
+        for provider, views in (
+            ("google", ("queries", "pages", "query-pages")),
+            ("bing", ("queries", "pages")),
+        )
+        for view in views
+    ),
 )
 
 

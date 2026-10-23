@@ -10,7 +10,7 @@ from scripts import check_site_metrics_privacy as privacy
 
 class PrivateAccessCheckTest(TestCase):
     def test_covers_every_feed_and_previously_cached_query_variants(self):
-        self.assertEqual(len(privacy.READ_URLS), 11)
+        self.assertEqual(len(privacy.READ_URLS), 24)
         self.assertIn(
             ("google-default", "https://www.alethical.com/api/traffic-google"),
             privacy.READ_URLS,
@@ -19,6 +19,16 @@ class PrivateAccessCheckTest(TestCase):
             ("actions-v1", "https://api.alethical.com/api/v1/site-metrics?version=1"),
             privacy.READ_URLS,
         )
+        for name in (
+            "ai-referrals",
+            "google-query-pages",
+            "bing-queries",
+            "search-collector",
+            "search-report",
+            "stored-google-query-pages",
+            "stored-bing-pages",
+        ):
+            self.assertIn(name, dict(privacy.READ_URLS))
 
     def test_only_explicit_denial_passes(self):
         for status, expected in ((401, True), (403, True), (404, False), (503, False)):

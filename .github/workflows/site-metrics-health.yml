@@ -1,6 +1,6 @@
 name: Site Metrics private access
 
-# Check that all 7 report feeds refuse signed-out reads. Provider freshness
+# Check that private report and collection routes refuse signed-out reads. Provider freshness
 # cannot be tested without an administrator session.
 on:
   schedule:
