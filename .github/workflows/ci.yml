@@ -277,10 +277,30 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
+      # Ubuntu's package mirror has stalled this install for 56 minutes (run
+      # 39860287202). The package files are kept in a cached folder, so a warm run
+      # installs them without the mirror; only a new runner image or an empty cache
+      # reaches it, and then for at most 4 minutes before the job fails and reruns.
+      - name: Name the package cache for this runner image
+        id: apt-cache
+        run: echo "image=$ImageOS-$ImageVersion" >> "$GITHUB_OUTPUT"
+      - name: Restore the PDF renderer's packages from earlier runs
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/browser-apt-archives/*.deb
+          key: apt-poppler-${{ steps.apt-cache.outputs.image }}
+      - name: Bound package downloads
+        uses: ./.github/actions/prepare-browser-install
       - name: Install PDF renderer used by TV ad record tests
+        timeout-minutes: 4
         run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y poppler-utils
+          if ls "$HOME"/.cache/browser-apt-archives/*.deb >/dev/null 2>&1; then
+            echo "Installing the cached packages without the mirror."
+            sudo dpkg -i "$HOME"/.cache/browser-apt-archives/*.deb
+          else
+            sudo apt-get update
+            sudo apt-get install --no-install-recommends -y poppler-utils
+          fi
           pdftoppm -v
 
       # Guard against multiple Alembic heads: when two branches each add a
@@ -489,9 +509,19 @@ jobs:
       - name: Bound browser dependency downloads
         uses: ./.github/actions/prepare-browser-install
 
+      # A warm run installs the cached system packages itself and never asks the
+      # mirror; only an empty cache runs Playwright's own dependency install, for at
+      # most 5 minutes before the job fails and reruns.
       - name: Install Chromium for reader checks
-        timeout-minutes: 10
-        run: pnpm exec playwright install --with-deps chromium
+        timeout-minutes: 5
+        run: |
+          if ls "$HOME"/.cache/browser-apt-archives/*.deb >/dev/null 2>&1 && [ -d "$HOME/.cache/ms-playwright" ]; then
+            echo "Installing the cached system packages without the mirror."
+            sudo dpkg -i "$HOME"/.cache/browser-apt-archives/*.deb
+            pnpm exec playwright install chromium
+          else
+            pnpm exec playwright install --with-deps chromium
+          fi
 
       - name: Exercise the built public reader paths with fixed sample records
         run: |
