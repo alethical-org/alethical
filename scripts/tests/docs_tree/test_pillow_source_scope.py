@@ -1,6 +1,15 @@
 import ast
+import importlib.util
+from pathlib import Path
+
 import pytest
-from test_pillow_source_guard import guard as g
+
+ROOT = Path(__file__).resolve().parents[3]
+SPEC = importlib.util.spec_from_file_location(
+    "pillow_source_scope_guard", ROOT / "scripts/pillow_source_guard.py"
+)
+g = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(g)
 
 allow = [
     "bitmap.burn_pixels(data)\n",
