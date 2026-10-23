@@ -1,5 +1,5 @@
 name: Bound browser dependency downloads
-description: Apply and check GitHub's x64 apt download limits before installing Chromium
+description: Apply and check GitHub's x64 apt download limits, and keep downloaded packages in a cacheable folder, before installing system packages
 runs:
   using: composite
   steps:
