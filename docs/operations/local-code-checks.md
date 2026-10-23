@@ -188,8 +188,12 @@ by modules that were imported earlier.
 
 Changes made through GitHub's own editing tools do not invoke local Git hooks.
 That supported route still requires all 4 GitHub checks (`changes`, `backend`,
-`frontend`, `description-checks`) against current code and the merge queue's
-combined code. A fresh clone without local hooks has the same GitHub merge gate.
+`frontend`, `description-checks`) on a branch that includes current `main`. The
+merge queue is off, while strict up-to-date protection and admin enforcement stay
+on. If main moves, merge it into your own branch, push and wait for new checks;
+rerunning the old head alone is not enough. GitHub blocks stale merges even if
+main moves after a local ancestry check. A fresh clone without local hooks has the
+same GitHub merge gate.
 GitHub also runs checks absent locally, such as the production web build. Local
 tests do not prove browser behavior or replace a real user-flow check.
 
