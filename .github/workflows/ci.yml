@@ -436,7 +436,7 @@ jobs:
       - name: Test frontend
         run: pnpm run test
 
-  frontend-browser:
+  frontend-browser-reader:
     needs: select
     if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.select.outputs.frontend == 'true') }}
     runs-on: ubuntu-latest
@@ -541,12 +541,6 @@ jobs:
           node scripts/check-candidate-return.mjs http://127.0.0.1:4173
           node scripts/check-contextual-return.mjs http://127.0.0.1:4173
           node scripts/check-candidate-location.mjs http://127.0.0.1:4173 /tmp/candidate-location-check --chromium
-          E2E_STATIC_BUILD=1 E2E_BASE_URL=http://127.0.0.1:4173 pnpm exec playwright test \
-            e2e/services-print.spec.ts e2e/candidate-record-status.spec.ts \
-            e2e/tv-ad-records.spec.ts e2e/event-cards.spec.ts e2e/event-share.spec.ts \
-            e2e/footer.spec.ts e2e/contact-side-alignment.spec.ts e2e/home-hero-social.spec.ts \
-            e2e/home-hero-still.spec.ts e2e/font-stand-in.spec.ts \
-            --project=chromium
           # These failures must reach the money assertions. A crashed browser,
           # wrong release, or earlier navigation failure is not a successful test.
           for money_failure in unavailable wrong-amount missing-as-zero; do
@@ -579,7 +573,6 @@ jobs:
           PY_MONEY
           done
 
-          pnpm exec playwright test --config playwright.replay-startup.config.ts
 
       - name: Retain reader-check evidence even on failure
         if: always()
@@ -593,13 +586,112 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-  # The required `frontend` check. Type check, unit tests and the build-plus-browser
-  # walk run side by side in the 2 jobs above; this job turns their results into 1
-  # answer. A job skipped after a failed prerequisite "may not block merging", so
+
+  frontend-browser-specs:
+    needs: select
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.select.outputs.frontend == 'true') }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: ${{ github.workspace }}
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        env:
+          EXPO_PUBLIC_API_URL: https://api.alethical.com
+          ALETHICAL_COMMIT_SHA: ${{ github.sha }}
+        run: pnpm run build
+
+      - name: Name the browser cache for this runner image and Playwright version
+        id: browser-cache
+        run: |
+          echo "image=$ImageOS-$ImageVersion" >> "$GITHUB_OUTPUT"
+          echo "playwright=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # Chromium and its system packages (fonts, libnss3) are the same on every run
+      # until the runner image or Playwright changes. Ubuntu's package mirror has
+      # stalled the install past its 10-minute limit; a cached copy needs no mirror.
+      - name: Restore Chromium and its system packages from earlier runs
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/.cache/browser-apt-archives/*.deb
+          key: browser-${{ steps.browser-cache.outputs.image }}-playwright-${{ steps.browser-cache.outputs.playwright }}
+          restore-keys: |
+            browser-${{ steps.browser-cache.outputs.image }}-
+            browser-
+
+      - name: Bound browser dependency downloads
+        uses: ./.github/actions/prepare-browser-install
+
+      # A warm run installs the cached system packages itself and never asks the
+      # mirror; only an empty cache runs Playwright's own dependency install, for at
+      # most 5 minutes before the job fails and reruns.
+      - name: Install Chromium for reader checks
+        timeout-minutes: 5
+        run: |
+          if ls "$HOME"/.cache/browser-apt-archives/*.deb >/dev/null 2>&1 && [ -d "$HOME/.cache/ms-playwright" ]; then
+            echo "Installing the cached system packages without the mirror."
+            sudo dpkg -i "$HOME"/.cache/browser-apt-archives/*.deb
+            pnpm exec playwright install chromium
+          else
+            pnpm exec playwright install --with-deps chromium
+          fi
+
+      - name: Run the browser specs against the built site
+        run: |
+          node scripts/serve-reader-check-build.mjs &
+          reader_server_pid=$!
+          trap 'kill "$reader_server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/ > /dev/null; then break; fi
+            sleep 1
+          done
+          E2E_STATIC_BUILD=1 E2E_BASE_URL=http://127.0.0.1:4173 pnpm exec playwright test \
+            e2e/services-print.spec.ts e2e/candidate-record-status.spec.ts \
+            e2e/tv-ad-records.spec.ts e2e/event-cards.spec.ts e2e/event-share.spec.ts \
+            e2e/footer.spec.ts e2e/contact-side-alignment.spec.ts e2e/home-hero-social.spec.ts \
+            e2e/home-hero-still.spec.ts e2e/font-stand-in.spec.ts \
+            --project=chromium
+
+          pnpm exec playwright test --config playwright.replay-startup.config.ts
+
+      - name: Retain browser spec evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: built-browser-specs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            apps/frontend/test-results/**/*.pdf
+          if-no-files-found: warn
+          retention-days: 30
+
+  # The required `frontend` check. Type check, unit tests, the reader walk and the
+  # browser specs run side by side in the 3 jobs above; this job turns their results
+  # into 1 answer. A job skipped after a failed prerequisite "may not block merging", so
   # this job runs always and passes only when both ran and passed, or when the path
   # selection said the frontend was not needed and both were skipped.
   frontend:
-    needs: [select, frontend-checks, frontend-browser]
+    needs: [select, frontend-checks, frontend-browser-reader, frontend-browser-specs]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -608,9 +700,10 @@ jobs:
           SELECT_RESULT: ${{ needs.select.result }}
           SELECTED: ${{ github.event_name == 'workflow_dispatch' || needs.select.outputs.frontend == 'true' }}
           CHECKS_RESULT: ${{ needs.frontend-checks.result }}
-          BROWSER_RESULT: ${{ needs.frontend-browser.result }}
+          READER_RESULT: ${{ needs.frontend-browser-reader.result }}
+          SPECS_RESULT: ${{ needs.frontend-browser-specs.result }}
         run: |
-          echo "select=$SELECT_RESULT selected=$SELECTED checks=$CHECKS_RESULT browser=$BROWSER_RESULT"
+          echo "select=$SELECT_RESULT selected=$SELECTED checks=$CHECKS_RESULT reader=$READER_RESULT specs=$SPECS_RESULT"
           if [ "$SELECT_RESULT" != success ]; then
             echo "::error::Path selection ended as '$SELECT_RESULT'."
             exit 1
@@ -620,7 +713,9 @@ jobs:
           else
             expected=skipped
           fi
-          if [ "$CHECKS_RESULT" != "$expected" ] || [ "$BROWSER_RESULT" != "$expected" ]; then
-            echo "::error::Frontend jobs should both be '$expected'; got checks '$CHECKS_RESULT' and browser '$BROWSER_RESULT'."
-            exit 1
-          fi
+          for result in "$CHECKS_RESULT" "$READER_RESULT" "$SPECS_RESULT"; do
+            if [ "$result" != "$expected" ]; then
+              echo "::error::Every frontend job should be '$expected'; got checks '$CHECKS_RESULT', reader '$READER_RESULT', specs '$SPECS_RESULT'."
+              exit 1
+            fi
+          done
