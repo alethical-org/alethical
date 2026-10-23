@@ -41,8 +41,8 @@ function Action({
           (play
             ? { paddingLeft: 9, paddingRight: 12 }
             : paid
-              ? { paddingHorizontal: 12 }
-              : undefined),
+              ? { paddingHorizontal: 6 }
+              : { paddingLeft: 16, paddingRight: 13 }),
         paid && s.paid,
         hovered && (paid ? s.paidHover : s.buttonHover),
       ]}
