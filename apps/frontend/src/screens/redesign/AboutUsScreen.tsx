@@ -335,7 +335,7 @@ function AboutFactsSection({
             ))}
           </View>
         </View>
-        <View style={columnStyle}>
+        <View style={[columnStyle, isMobile && styles.factColumnMobileLast]}>
           <FactLabel>{ABOUT_FACTS_CONTACT_LABEL}</FactLabel>
           <View style={[styles.factValues, isTablet && styles.factContactTablet]}>
             <Text style={[styles.factValue, styles.factEmail]}>
@@ -1034,6 +1034,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: ABOUT_COLORS.sectionRule,
   },
+  // The next section's phone divider already closes the facts.
+  factColumnMobileLast: { borderBottomWidth: 0 },
   factLabel: {
     color: t.colors.text.secondary,
     fontFamily: t.typography.mono,
