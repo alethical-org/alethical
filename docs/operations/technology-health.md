@@ -1,4 +1,4 @@
-<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs apps/frontend/scripts/check-braces-security.mjs apps/frontend/scripts/check-source-map-security.mjs apps/frontend/scripts/test-source-map-security.mjs apps/frontend/scripts/test-compression-security.mjs patches/metro@0.84.4.patch patches/node-forge@1.4.0.patch patches/braces@3.0.3.patch pnpm-lock.yaml uv.lock alethical/tests/test_multidict_security.py -->
+<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py scripts/check_pillow_advisory.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs apps/frontend/scripts/check-braces-security.mjs apps/frontend/scripts/check-source-map-security.mjs apps/frontend/scripts/test-source-map-security.mjs apps/frontend/scripts/test-compression-security.mjs patches/metro@0.84.4.patch patches/node-forge@1.4.0.patch patches/braces@3.0.3.patch pnpm-lock.yaml uv.lock alethical/tests/test_multidict_security.py -->
 <!-- last-major-tool-review: 2026-08-15 -->
 
 # Keeping every tool supported and useful
@@ -97,6 +97,26 @@ The monthly job reports newer major versions as candidates. It fails only when t
 
 The monthly check starts failing 180 days before one of these dates. That leaves time
 to test and release a replacement before support ends.
+
+## Warnings outside the scanner feed and unfixed warnings
+
+A known advisory that the scanner's feed does not carry, or that has no fixed
+version, holds only changes that touch the affected package or its callers;
+documentation and unrelated code release normally. The advisory has its own issue
+with an owner and a free weekly GitHub Actions recheck for a fixed version.
+
+This scope rule does not waive a scanner finding. Every reported finding still
+blocks release unless its exact conditions meet a recorded exception or installed
+repair below. Missing evidence and failed checks never count as an exception.
+An explicitly scoped release hold remains until its stated conditions are met.
+
+The [Pillow Arrow advisory](https://github.com/python-pillow/Pillow/security/advisories/GHSA-654x-cwwv-5j9c)
+is tracked in [issue 2643](https://github.com/alethical-org/alethical/issues/2643).
+The existing Monday technology-health workflow runs a separate free job that reads
+the upstream repository's advisory API through `scripts/check_pillow_advisory.py`.
+It runs independently of registry scan failures and timeouts. A published fix, changed advisory identity or affected range, missing fix
+field, unreadable response or failed request fails the recheck. This upstream
+check grants no runtime exception and does not suppress any scanner finding.
 
 ## Recorded security exceptions
 

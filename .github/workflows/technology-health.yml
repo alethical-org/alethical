@@ -56,3 +56,15 @@ jobs:
         run: >
           python scripts/check_technology_health.py --security-only
           --report "$GITHUB_STEP_SUMMARY"
+
+  pillow-upstream:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Recheck the Pillow advisory directly for a fixed release
+        run: >
+          python scripts/check_pillow_advisory.py
+          --report "$GITHUB_STEP_SUMMARY"
