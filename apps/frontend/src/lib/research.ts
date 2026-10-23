@@ -186,7 +186,7 @@ export interface ResearchPiece extends PieceIndexEntry {
   shortPost?: ShortPostEditorial;
   /**
    * What a search result says under the title: what this piece covers, in the
-   * piece's own words, carrying no figure and no finding (18 Sep 2026).
+   * piece's own words, carrying no figure, finding or derived label.
    *
    * A guide used to tell a search engine only its date, which says nothing about
    * whether the page answers the question somebody typed. Rule 13's bar is
@@ -195,8 +195,10 @@ export interface ResearchPiece extends PieceIndexEntry {
    * (`socialDescription` on the page's metadata). Describing the subject is not
    * making the claim.
    *
-   * Absent on a research piece, whose dates are the more useful line beside a
-   * title that already names its subject.
+   * Research appends its existing publication and records-through dates to an
+   * explicit subject description. Missing or blank text keeps dates only.
+   * Guides retain their subject-only search line. Short post descriptions remain
+   * part of the full article fingerprint and require the same genuine review.
    */
   searchDescription?: string;
   /** The set this piece belongs to, where it belongs to one. */

@@ -1,0 +1,47 @@
+name: Delete expired private search data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 8 * * *"
+
+concurrency:
+  group: production-private-search-retention
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    if: github.repository == 'alethical-org/alethical' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out trusted main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          version: 0.12.5
+          enable-cache: true
+          prune-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      # Existing production DB access, no provider credentials or paid API.
+      # Successful deletion and its receipt commit together; failure fails the job.
+      - name: Delete expired data and verify the saved sweep receipt
+        env:
+          SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: env -u DATABASE_URL uv run python scripts/prune_search_measurements.py --target production

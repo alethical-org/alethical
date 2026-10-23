@@ -226,7 +226,16 @@ describe('sitemap endpoint', () => {
     ]) {
       expect(body).not.toContain(`<loc>https://www.alethical.com${retired}</loc>`);
     }
-    expect(body).not.toContain('<lastmod>');
+    expect(body).not.toMatch(/<loc>[^<]*\/money\/[^<]*<\/loc><lastmod>/);
+    for (const piece of indexedResearch()) {
+      expect(body).not.toContain(
+        `<loc>https://www.alethical.com${piecePath(piece)}</loc><lastmod>`,
+      );
+    }
+    expect(body).toContain(
+      '<loc>https://www.alethical.com/blog/events/forward-debate-2026</loc><lastmod>2026-10-22</lastmod>',
+    );
+    expect(body).not.toContain('<loc>https://www.alethical.com/bills</loc><lastmod>');
     expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 
@@ -290,7 +299,7 @@ describe('sitemap endpoint', () => {
     expect(body.match(/<url>/g)).toHaveLength(
       FIXED_PAGE_ROWS + 68 + 33 + indexedResearch().length + COLLECTION_PAGE_ROWS,
     );
-    expect(body).not.toContain('<lastmod>');
+    expect(body).not.toMatch(/<loc>[^<]*\/money\/[^<]*<\/loc><lastmod>/);
     expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 

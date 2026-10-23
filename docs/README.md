@@ -111,6 +111,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 
 
 - [Public search upkeep](operations/public-search-upkeep.md) — bounded free checks, search-provider evidence, truthful change notices and weekly/monthly review
+- [Discoverability build](operations/discoverability-build.md) — current delivery scope, acceptance work and held items
 - [Article, event, recording and transcript publishing](operations/blog-publishing.md) — reusable upfront brief, final-edition media checks, correction patterns and acceptance matrix
 - [Social writing and posting](operations/social-publishing.md) — Alethical copy, people links, account checks and saved-post review
 - [Social profile review](operations/social-profile-review.md) — account evidence, approved profile rollout and execution checks

@@ -292,6 +292,30 @@ describe('rendered head', () => {
     expect(bill).not.toContain('article:published_time');
   });
 
+  it('shares one organization identity with About and never invents article authors or check dates', () => {
+    const home = splitHead(renderPageHead(homePageMetadata())).blocks;
+    const about = splitHead(renderPageHead(STATIC_PAGE_METADATA['/about'])).blocks;
+    expect(about).toEqual([home[1]]);
+    for (const piece of publishedResearch()) {
+      const blocks = splitHead(
+        renderPageHead(researchPageMetadata(piece, piece.searchDescription)),
+      ).blocks;
+      expect(blocks).toHaveLength(1);
+      expect(blocks[0]).toMatchObject({
+        '@type': 'Article',
+        datePublished: piece.publishedOn,
+        publisher: { '@id': 'https://www.alethical.com/#organization' },
+      });
+      expect(blocks[0]).not.toHaveProperty('dateModified');
+      if (piece.authorLine?.toUpperCase() === 'ALETHICAL') {
+        expect(blocks[0]).toHaveProperty('author.@id', 'https://www.alethical.com/#organization');
+      } else expect(blocks[0]).not.toHaveProperty('author');
+      expect(
+        splitHead(renderPageHead(researchPageMetadata({ ...piece, indexed: false }))).blocks,
+      ).toEqual([]);
+    }
+  });
+
   // A missing page is not a copy of a real one, so it points a search engine at
   // nothing rather than at an unrelated address.
   it('omits the real-address tags when a page has no real address', () => {

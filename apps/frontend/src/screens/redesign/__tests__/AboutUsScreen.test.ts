@@ -76,14 +76,14 @@ describe('About us screen contract', () => {
     expect(SCREEN).toContain('<View style={styles.originDivider} />');
     expect(SCREEN).toContain('firstSection: { marginTop: 44 }');
     expect(SCREEN).toContain('section: { marginTop: 56 }');
-    expect(SCREEN.match(/isMobile && styles\.mobileSection/g)).toHaveLength(7);
+    expect(SCREEN.match(/isMobile && styles\.mobileSection/g)).toHaveLength(8);
     expect(SCREEN).toMatch(
       /mobileSection:\s*\{[^}]*marginTop: 34[^}]*paddingTop: 26[^}]*borderTopWidth: 1/s,
     );
   });
 
   it('gives every section heading the approved responsive size and weight', () => {
-    expect(SCREEN.match(/<SectionTitle/g)).toHaveLength(7);
+    expect(SCREEN.match(/<SectionTitle/g)).toHaveLength(8);
     expect(SCREEN.match(/aria-level=\{2\}/g)).toHaveLength(1);
     expect(SCREEN).toMatch(
       /sectionTitle:\s*\{[^}]*fontSize: 29[^}]*lineHeight: 35[^}]*fontWeight: t\.fontWeights\.heavy/s,
@@ -135,10 +135,22 @@ describe('About us screen contract', () => {
     );
   });
 
-  it('lets body prose fill the content column and shortens the feedback label', () => {
+  it('lets body prose fill the content column and shows the email once', () => {
     expect(SCREEN).toContain('proseSection: { marginTop: 56 }');
     expect(SCREEN).not.toContain('proseSection: { marginTop: 56, maxWidth: 850 }');
-    expect(SCREEN).toContain("{ABOUT_FEEDBACK_LABEL}{' '}");
-    expect(SCREEN).not.toContain("Questions and feedback:{' '}");
+    expect(SCREEN).not.toContain('ABOUT_FEEDBACK_LABEL');
+    expect(SCREEN.match(/<EmailLink /g)).toHaveLength(1);
+  });
+
+  it('draws the About facts after the name card and before Why we are doing this', () => {
+    const facts = SCREEN.indexOf('<AboutFactsSection');
+    expect(facts).toBeGreaterThan(SCREEN.indexOf('styles.originDivider'));
+    expect(facts).toBeLessThan(SCREEN.indexOf('{ABOUT_WHY_HEADING}'));
+    expect(SCREEN).toContain("navigation.navigate('Services')");
+    expect(SCREEN).toMatch(/factLink:\s*\{[^}]*minHeight: 44/s);
+  });
+
+  it('keeps both Contact us buttons free of a typed arrow', () => {
+    expect(SCREEN).not.toMatch(/\{ABOUT_CONTACT_LINK\.label\}<\/Text>\s*<LinkArrow/);
   });
 });

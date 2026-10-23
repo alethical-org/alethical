@@ -11,6 +11,9 @@
   "buildCommand": "pnpm --dir apps/frontend run build",
   "outputDirectory": "apps/frontend/dist",
   "functions": {
+    "api/search-measurements.ts": {
+      "maxDuration": 180
+    },
     "api/page.ts": {
       "includeFiles": "apps/frontend/dist/index.html"
     }

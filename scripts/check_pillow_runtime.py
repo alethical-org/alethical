@@ -7,6 +7,7 @@ PILLOW_RAILWAY_TOKEN and sent only to the fixed Railway HTTPS/WSS origins.
 from __future__ import annotations
 
 import asyncio
+from contextlib import contextmanager
 from datetime import UTC, datetime
 import json
 import logging
@@ -57,6 +58,29 @@ class CheckFailed(Exception):
 def require(condition):
     if not condition:
         raise CheckFailed
+
+
+@contextmanager
+def failure_stage(name):
+    # Only fixed local labels may reach logs. Never include provider data,
+    # exception text, variable names, commands, credentials or remote output.
+    require(
+        name
+        in {
+            "probe-build",
+            "first-provider-read",
+            "first-state-validation",
+            "instance-probe",
+            "second-provider-read",
+            "second-state-validation",
+            "state-stability",
+        }
+    )
+    try:
+        yield
+    except (Exception, KeyboardInterrupt):
+        print(f"Pillow runtime stage failed: {name}.", file=sys.stderr)
+        raise CheckFailed from None
 
 
 def unique_object(pairs):
@@ -526,15 +550,22 @@ def utc_now():
 
 def check(token):
     started_at = utc_now()
-    probe = build_probe()
-    before = query(token)
-    deployments = snapshot(before)
-    asyncio.run(verify_instances(token, probe, deployments))
-    after = query(token)
-    require(snapshot(after) == deployments)
+    with failure_stage("probe-build"):
+        probe = build_probe()
+    with failure_stage("first-provider-read"):
+        before = query(token)
+    with failure_stage("first-state-validation"):
+        deployments = snapshot(before)
+    with failure_stage("instance-probe"):
+        asyncio.run(verify_instances(token, probe, deployments))
+    with failure_stage("second-provider-read"):
+        after = query(token)
+    with failure_stage("second-state-validation"):
+        require(snapshot(after) == deployments)
     # Includes redacted config, command strings and removed-instance identities;
     # no private payload is serialized into the result or diagnostics.
-    require(after == before)
+    with failure_stage("state-stability"):
+        require(after == before)
     return {
         "schema_version": 1,
         "project_id": PROJECT,

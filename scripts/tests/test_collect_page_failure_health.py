@@ -90,14 +90,14 @@ class AggregateTest(TestCase):
             START,
             END,
         )
-        self.assertEqual(result["failures_count"], 5)
+        self.assertEqual(result["failures_count"], len(health.ADMIN_API_PATHS))
         self.assertEqual(
             result["unclassified_by_family"],
             [
                 {
                     "minute": health.iso(START),
                     "family": "admin-or-private",
-                    "count": 5,
+                    "count": len(health.ADMIN_API_PATHS),
                 }
             ],
         )

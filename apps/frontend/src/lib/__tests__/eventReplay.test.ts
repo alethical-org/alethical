@@ -88,7 +88,7 @@ describe('replay content and publication boundaries', () => {
     );
     const document = new JSDOM(renderEventReplay(event, replay)).window.document;
     expect(document.querySelector('.event-published')?.textContent).toBe(
-      'Published October 19, 2026',
+      'Published October 19, 2026 · Updated October 22, 2026',
     );
     expect(document.body.textContent).toContain('on October 15, 2026');
     expect(
@@ -212,7 +212,7 @@ describe('replay HTML and shareable timestamps', () => {
     expect(doc.querySelector('#watch,#topics,#transcript')).toBeNull();
     expect(doc.querySelector('h1')?.textContent).toBe('The Forward Debate');
     expect(doc.querySelector('.event-published')?.textContent).toBe(
-      'Debate held October 15, 2026 · Updated October 19, 2026',
+      'Debate held October 15, 2026 · Updated October 22, 2026',
     );
     expect(doc.body.textContent).not.toContain('October 7, 2026');
     expect(doc.body.textContent).toContain('Also invited: Jared Gapinski');

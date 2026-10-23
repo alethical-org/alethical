@@ -190,6 +190,9 @@ and required `changes` job, calls `scripts/check_pillow_exception.py`. It verifi
 candidate source, the direct upstream advisory and production proof bound to the
 current GitHub run and attempt or unique local request. It reads up to 100 recent
 proof runs in pages of 20, keeping each response within the transport size limit.
+Runtime failures report only a fixed stage name: probe build, provider read,
+state validation, instance probe or state stability. They never print provider
+responses, exception details, variable names, commands or credentials.
 Missing or stale evidence,
 provider failures, changed variables, packages, callers, deployment commands or
 advisory identity fail the check. A fixed release ends this exception and requires

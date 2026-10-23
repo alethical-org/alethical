@@ -28,6 +28,19 @@ The heading uses the short plain-language title. The full statutory title remain
 available as extra context on a computer, but it does not replace the readable heading
 for a screen reader.
 
+The first HTML response includes the normalized action history and outcome-setting
+roll calls with their recorded members, dates, motion names, results and source
+links. The loaded page starts from those same detail/vote payloads and immediately
+rechecks them. Rendering one bill reads only that bill's detail and votes.
+
+The API and page cache allowances add to 16 minutes for a newly delivered page;
+this is not a promise of instant refresh or measured live ingestion propagation.
+Responses known to exceed the API allowance are rejected. A failed vote read
+stays distinct from an empty recorded list and prevents caching that incomplete
+HTML response. Existing loaded history remains visible through a failed refresh,
+with a notice and retry; a definitive missing-record response still wins. No
+browser timer silently discards history and no recurring browser polling is added.
+
 ## Summary
 
 The Summary view leads with a short description and plain-language key points. Cited
@@ -85,6 +98,11 @@ When member-level records are available, names are grouped by party and the card
 members who voted against their party's majority. That mark is descriptive, not praise or
 criticism. Filters and name search work inside an opened roll call. Web may keep several
 rolls open; phone keeps 1 open at a time.
+
+Missing or unrecognized party data says **Party not recorded**, never Independent;
+only explicit Independent source values use that label. Unknown parties never
+produce a party-majority or crossover claim. Member lists contain recorded
+members only; an omitted member is not inferred to be absent or excused.
 
 If no outcome-setting roll call is recorded, the page says so and offers a grounded
 question about the bill. It does not imply nobody voted.

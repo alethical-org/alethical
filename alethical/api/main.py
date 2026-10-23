@@ -35,6 +35,9 @@ from alethical.api.routers.email_subscriptions import (
     router as email_subscriptions_router,
 )
 from alethical.api.routers.internal import router as internal_router
+from alethical.api.routers.search_measurements import (
+    router as search_measurements_router,
+)
 from alethical.api.routers.me import router as me_router
 from alethical.api.routers.lobbying import router as lobbying_router
 from alethical.api.routers.pending_actions import router as pending_actions_router
@@ -317,4 +320,5 @@ def create_app() -> FastAPI:
         pending_actions_router, prefix="/api/v1", tags=["pending-actions"]
     )
     app.include_router(internal_router, prefix="/internal/v1", tags=["internal"])
+    app.include_router(search_measurements_router, tags=["search-measurements"])
     return app

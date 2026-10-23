@@ -967,29 +967,33 @@ function servedProfileData(body: string): {
 
 describe('first-response page tags', () => {
   it('gives a bill its own title and leaves the app body intact', async () => {
-    stubNetwork(() => ({
-      status: 200,
-      payload: {
-        data: {
-          id: '94-2025-HF719',
-          companion: { id: '94-2025-SF390', code: 'SF 390' },
-          ai_analysis: {
-            short_title: 'Statewide Capital Projects and Bonding Bill',
-            summary: 'Authorizes borrowing for public buildings. More detail follows.',
-            citations: [
-              {
-                id: 'laws.1.1.0-0',
-                label: 'Art. 1, Sec. 1 · Capital improvement appropriations',
-                url: 'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/',
-                excerpt: 'Money is appropriated for public purposes.',
-                section_id: 'laws.1.1.0',
-                section_order: 1,
+    stubNetwork((url) =>
+      url.endsWith('/votes')
+        ? { status: 200, payload: { data: [], page: { has_more: false } } }
+        : {
+            status: 200,
+            payload: {
+              data: {
+                id: '94-2025-HF719',
+                companion: { id: '94-2025-SF390', code: 'SF 390' },
+                ai_analysis: {
+                  short_title: 'Statewide Capital Projects and Bonding Bill',
+                  summary: 'Authorizes borrowing for public buildings. More detail follows.',
+                  citations: [
+                    {
+                      id: 'laws.1.1.0-0',
+                      label: 'Art. 1, Sec. 1 · Capital improvement appropriations',
+                      url: 'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/',
+                      excerpt: 'Money is appropriated for public purposes.',
+                      section_id: 'laws.1.1.0',
+                      section_order: 1,
+                    },
+                  ],
+                },
               },
-            ],
+            },
           },
-        },
-      },
-    }));
+    );
 
     const { body, headers, status } = await serve({ path: '/bills/94-2025-HF719' });
 
@@ -2756,7 +2760,7 @@ describe('privacy-safe reasons for temporary page failures', () => {
       upstream_status: 503,
       attempt_count: 1,
     });
-    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
   });
 
   it.each(['network', 'timeout', 'json'])(
@@ -4775,5 +4779,127 @@ describe('a served profile links the committee a person has confirmed as the mem
       expect(body).not.toContain('/money/committees/');
       expect(body).toContain('<h1>Rep. Aaron Repinski</h1>');
     }
+  });
+});
+
+describe('bill action and vote first responses', () => {
+  const id = '94-2025-HF719';
+  const bill = {
+    id,
+    title: 'Test bill',
+    chief_sponsors: [],
+    actions: [
+      {
+        action_number: 1,
+        action_text: 'Introduction and first reading, referred to',
+        committee_name: 'Taxes',
+        action_at: '2025-01-01',
+      },
+    ],
+  };
+  const roll = {
+    id: 'roll-1',
+    chamber: 'house',
+    motion_text: 'Third reading',
+    result_text: 'Bill was passed',
+    occurred_at: '2025-05-01',
+    yes_count: 1,
+    no_count: 0,
+    official_url: 'https://www.house.mn.gov/votes/test',
+    records: [
+      { legislator_id: 'a', legislator_name: 'Anna Member', party: 'DFL', vote_value: 'yes' },
+    ],
+  };
+  it('reads only the requested bill concurrently and passes the same records to the app', async () => {
+    const starts: string[] = [];
+    let resolveDetail!: (response: Response) => void;
+    const pending = new Promise<Response>((resolve) => {
+      resolveDetail = resolve;
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        starts.push(url);
+        return url.endsWith('/votes')
+          ? Promise.resolve(
+              new Response(JSON.stringify({ data: [roll], page: { has_more: false } }), {
+                headers: { Age: '60' },
+              }),
+            )
+          : pending;
+      }),
+    );
+    const result = serve({ path: `/bills/${id}` });
+    await vi.waitFor(() => expect(starts).toHaveLength(2));
+    expect(starts.every((url) => url.includes(`/bills/${id}`))).toBe(true);
+    resolveDetail(new Response(JSON.stringify({ data: bill }), { headers: { Age: '20' } }));
+    const { body, status } = await result;
+    expect(status).toBe(200);
+    expect(body).toContain('Taxes');
+    expect(body).toContain('Final passage');
+    expect(body).toContain('Anna Member');
+    const data = body.match(
+      /<script type="application\/json" id="alethical-page-data">(.*?)<\/script>/s,
+    )?.[1];
+    expect(data).toBeDefined();
+    expect(JSON.parse(data!)).toEqual([
+      { key: ['bill', id], payload: bill, validatedAgeMs: 20_000 },
+      { key: ['bill-votes', id], payload: [roll], validatedAgeMs: 60_000 },
+    ]);
+  });
+
+  it.each(['failure', 'incomplete', 'too-old'])(
+    'does not cache %s votes or claim there were no votes',
+    async (mode) => {
+      stubNetwork((url) =>
+        url.endsWith('/votes')
+          ? mode === 'failure'
+            ? { status: 503 }
+            : {
+                status: 200,
+                payload: { data: [roll], page: { has_more: mode === 'incomplete' } },
+                age: mode === 'too-old' ? 361 : 0,
+              }
+          : { status: 200, payload: { data: bill } },
+      );
+      const { body, headers } = await serve({ path: `/bills/${id}` });
+      expect(headers.get('Cache-Control')).toBe('no-store');
+      expect(body).toContain('We couldn’t load this bill’s votes');
+      expect(body).not.toContain('No recorded roll-call votes');
+      expect(body).not.toContain('Final passage');
+    },
+  );
+
+  it('fails closed when the detail cache is past its allowance', async () => {
+    stubNetwork((url) =>
+      url.endsWith('/votes')
+        ? { status: 200, payload: { data: [] } }
+        : { status: 200, age: 361, payload: { data: bill } },
+    );
+    const { status, headers, body } = await serve({ path: `/bills/${id}` });
+    expect(status).toBe(503);
+    expect(headers.get('Cache-Control')).toBe('no-store');
+    expect(body).not.toContain('Anna Member');
+  });
+
+  it('rebuilds from new votes after a failed refresh instead of retaining an old function-local copy', async () => {
+    let state: 'old' | 'failure' | 'new' = 'old';
+    stubNetwork((url) =>
+      !url.endsWith('/votes')
+        ? { status: 200, payload: { data: bill } }
+        : state === 'failure'
+          ? { status: 503 }
+          : { status: 200, payload: { data: state === 'old' ? [] : [roll] }, age: 0 },
+    );
+    expect((await serve({ path: `/bills/${id}` })).body).toContain('No recorded roll-call votes');
+    state = 'failure';
+    expect((await serve({ path: `/bills/${id}` })).headers.get('Cache-Control')).toBe('no-store');
+    state = 'new';
+    const fresh = await serve({ path: `/bills/${id}` });
+    expect(fresh.body).toContain('Final passage');
+    expect(fresh.body).toContain('Anna Member');
+    expect(fresh.headers.get('Cache-Control')).toBe(
+      'public, max-age=0, s-maxage=300, stale-while-revalidate=300, stale-if-error=300',
+    );
   });
 });

@@ -1,4 +1,6 @@
 import { SOCIAL_ACCOUNTS } from './socialLinks';
+import { ABOUT_TEAM_MEMBERS } from './aboutUs';
+import { ORGANIZATION_REFERENCE } from './organizationIdentity';
 import {
   escapeHtml,
   PUBLIC_SITE_ORIGIN,
@@ -95,24 +97,30 @@ function clean(value: string): string {
  * designed, the markup comes back with it (decisions doc §6 and §12).
  */
 export function pageJsonLd(meta: PageMetadata): object[] {
-  if (meta.canonicalPath === '/') {
+  if (meta.noindex || !meta.canonicalPath) return [];
+  if (meta.canonicalPath === '/' || meta.canonicalPath === '/about') {
     return [
+      ...(meta.canonicalPath === '/'
+        ? [
+            {
+              '@context': 'https://schema.org',
+              '@type': 'WebSite',
+              name: SITE_NAME,
+              url: `${PUBLIC_SITE_ORIGIN}/`,
+              publisher: { '@id': ORGANIZATION_REFERENCE['@id'] },
+            },
+          ]
+        : []),
       {
         '@context': 'https://schema.org',
-        '@type': 'WebSite',
-        name: SITE_NAME,
-        url: `${PUBLIC_SITE_ORIGIN}/`,
-      },
-      {
-        '@context': 'https://schema.org',
-        '@type': 'Organization',
-        name: SITE_NAME,
-        url: `${PUBLIC_SITE_ORIGIN}/`,
+        ...ORGANIZATION_REFERENCE,
+        founder: ABOUT_TEAM_MEMBERS.map((person) => ({ '@type': 'Person', name: person.name })),
+        contactPoint: { '@type': 'ContactPoint', url: publicPageUrl('/about/contact') },
         logo: `${PUBLIC_SITE_ORIGIN}/icon-512.png`,
         // The accounts the footer already links, so a search engine can tie the
         // site and its profiles to one organisation. Google's Organization
         // guidance lists `sameAs` for exactly this; nothing else here is read.
-        sameAs: SOCIAL_ACCOUNTS.map((account) => account.url),
+        sameAs: SOCIAL_ACCOUNTS.flatMap((account) => (account.url ? [account.url] : [])),
       },
     ];
   }
