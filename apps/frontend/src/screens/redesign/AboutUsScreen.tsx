@@ -13,39 +13,45 @@ import {
   ViewStyle,
 } from 'react-native';
 
-import { LinkArrow, LinkArrowLabel } from '../../components/LinkArrow';
+import { LinkArrowLabel } from '../../components/LinkArrow';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
   ABOUT_BELIEFS,
   ABOUT_BELIEFS_HEADING,
   ABOUT_CONTACT_HEADING,
-  ABOUT_CONTACT_LINK,
+  ABOUT_CONTACT_LABEL,
   ABOUT_CORRECTION_PROMISE,
+  ABOUT_DOES_HEADING,
   ABOUT_EMAIL,
-  ABOUT_FACTS_CONTACT_LABEL,
-  ABOUT_FACTS_FOUNDERS_LABEL,
-  ABOUT_FACTS_HEADING,
-  ABOUT_FACTS_LAUNCH,
-  ABOUT_FACTS_SERVICES,
-  ABOUT_FACTS_SERVICES_LABEL,
-  ABOUT_FACTS_SERVICES_LINK,
   ABOUT_NAME_ORIGIN,
   ABOUT_PAGE_HEADING,
-  ABOUT_PAGE_SOURCE_PROMISE,
-  ABOUT_PAGE_SUBTITLE_LEAD,
-  ABOUT_START_ITEMS,
-  ABOUT_START_HEADING,
+  ABOUT_PAGE_SUBTITLE,
+  ABOUT_PLATFORM_HEADING,
+  ABOUT_PLATFORM_INTRO,
+  ABOUT_PLATFORM_ITEMS,
+  ABOUT_ROADMAP_HEADING,
+  ABOUT_ROADMAP_INVITATION,
+  ABOUT_ROADMAP_ITEMS,
+  ABOUT_SERVICES_HEADING,
+  ABOUT_SERVICES_INTRO,
+  ABOUT_SERVICES_ITEM,
   ABOUT_TEAM_HEADING,
   ABOUT_TEAM_MEMBERS,
+  ABOUT_TRACK_SIGNED_IN,
   ABOUT_WHY_HEADING,
   ABOUT_WHY_LINES,
+  ABOUT_WRITING_HEADING,
+  ABOUT_WRITING_INTRO,
+  ABOUT_WRITING_ITEMS,
 } from '../../lib/aboutUs';
+import { eventIndexBySlug } from '../../lib/eventsIndex';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { linkProps, routePath } from '../../navigation/links';
 import { navigateTopNavItem } from '../../navigation/topNavRoutes';
 import { RootScreenProps } from '../../navigation/types';
+import { useAuth } from '../../providers/AuthProvider';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
-import { prefersReducedMotion, theme as t } from '../../theme/tokens';
+import { theme as t } from '../../theme/tokens';
 
 const ABOUT_COLORS = {
   roadmapSurface: '#f7f8fa',
@@ -53,50 +59,16 @@ const ABOUT_COLORS = {
   sectionRule: 'rgba(17,21,15,0.1)',
 } as const;
 
-const nativeStartCardFocus = Platform.select({
-  web: {},
-  default: {
-    shadowColor: '#7c5cff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.42,
-    shadowRadius: 5,
-    elevation: 4,
-  },
-}) as ViewStyle;
-
-const ROADMAP_ITEMS = [
-  {
-    roadmapTitle: 'Candidates, campaigns, and money',
-    body: 'See who is running, the public record behind each campaign, and money in and out by year and source. Follow documented funding and lobbying activity alongside bills, votes, and results.',
-  },
-  {
-    roadmapTitle: 'Grounded Ask',
-    body: 'Ask AI freeform questions about bills, legislators, candidates, campaign finance, and more. Get answers with cited sources.',
-  },
-  {
-    roadmapTitle: 'Claimed Profiles',
-    body: 'Legislators and candidates can claim their profiles and speak in their own words. Legislators can explain their votes, and candidates can explain their positions, clearly labeled and kept separate from the official record.',
-  },
-  {
-    roadmapTitle: 'Personalization built around you',
-    body: 'Keep your legislators, saved bills, and followed topics in one place. Get website and email updates when something changes or a new bill matches an issue you follow.',
-  },
-  {
-    roadmapTitle: 'News connected to the Legislature',
-    body: 'Explore Minnesota political news in its own section, follow hot topics, and see stories connected to the bills they cover.',
-  },
-  {
-    roadmapTitle: 'A more complete public record',
-    body: 'Search past legislative sessions, see full voting records and bill co-authors, read explanations legislators choose to add, and jump from citations to exact official passages.',
-  },
-] as const;
-
-type StartCardItem = {
-  startTitle: string;
+type OfferLinkItem = {
+  title: string;
   body: string;
   href: string;
   onPress: () => void;
+  /** The debate link shows the event's photo under its description. */
+  photo?: boolean;
 };
+
+const DEBATE_EVENT = eventIndexBySlug('forward-debate-2026');
 
 const TEAM_PORTRAITS = [
   require('../../../assets/team/angel-zierden.jpg'),
@@ -208,47 +180,6 @@ function TeamMemberCard({
   );
 }
 
-function StartCard({
-  item,
-  widthStyle,
-  isMobile,
-}: {
-  item: StartCardItem;
-  widthStyle: StyleProp<ViewStyle>;
-  isMobile: boolean;
-}) {
-  const [hovered, setHovered] = useState(false);
-  const [focused, setFocused] = useState(false);
-  return (
-    <Pressable
-      {...linkProps(item.href, item.onPress)}
-      onHoverIn={() => setHovered(true)}
-      onHoverOut={() => setHovered(false)}
-      onFocus={Platform.OS !== 'web' ? () => setFocused(true) : undefined}
-      onBlur={Platform.OS !== 'web' ? () => setFocused(false) : undefined}
-      style={({ pressed }) => [
-        styles.startCard,
-        widthStyle,
-        hovered && styles.startCardHovered,
-        Platform.OS !== 'web' && focused && styles.startCardFocused,
-        pressed && styles.startCardPressed,
-      ]}
-    >
-      <View style={styles.startCardHeader}>
-        <Text
-          accessibilityRole="header"
-          aria-level={3}
-          style={[styles.cardTitle, isMobile && styles.startCardTitleMobile]}
-        >
-          {item.startTitle}
-        </Text>
-        <LinkArrow color={t.colors.text.primary} />
-      </View>
-      <Text style={[styles.cardBody, isMobile && styles.cardBodyMobile]}>{item.body}</Text>
-    </Pressable>
-  );
-}
-
 function EmailLink({ canHover }: { canHover: boolean }) {
   const [hovered, setHovered] = useState(false);
   return (
@@ -272,92 +203,149 @@ function EmailLink({ canHover }: { canHover: boolean }) {
   );
 }
 
-function FactLabel({ children }: { children: string }) {
-  return <Text style={styles.factLabel}>{children}</Text>;
+/** The shipped homepage photograph of The Forward Debate, decorative beside its link. */
+function DebatePhoto({ narrow }: { narrow: boolean }) {
+  const [failed, setFailed] = useState(false);
+  if (!DEBATE_EVENT || failed) return null;
+  const src = narrow ? DEBATE_EVENT.homePhotos.narrow : DEBATE_EVENT.homePhotos.desktop;
+  return (
+    <View style={[styles.photo, narrow && styles.photoNarrow]}>
+      {Platform.OS === 'web' ? (
+        <img src={src} alt="" onError={() => setFailed(true)} style={photoImageStyle} />
+      ) : (
+        <Image
+          accessible={false}
+          source={{ uri: src }}
+          onError={() => setFailed(true)}
+          resizeMode="cover"
+          style={styles.photoImage}
+        />
+      )}
+    </View>
+  );
 }
 
-function AboutFactsSection({
+function OfferLink({
+  item,
+  canHover,
+  isMobile,
+  isTablet,
+}: {
+  item: OfferLinkItem;
+  canHover: boolean;
+  isMobile: boolean;
+  isTablet: boolean;
+}) {
+  return (
+    <View style={styles.offerItem}>
+      <Pressable {...linkProps(item.href, item.onPress)} style={styles.offerLink}>
+        {(state) => (
+          <LinkArrowLabel
+            label={item.title}
+            style={[
+              styles.offerLinkText,
+              isTablet && styles.offerLinkTextTablet,
+              isMobile && styles.offerLinkTextMobile,
+              ((canHover && Boolean('hovered' in state && state.hovered)) || state.pressed) &&
+                styles.offerLinkTextHovered,
+            ]}
+          />
+        )}
+      </Pressable>
+      <Text
+        style={[
+          styles.offerBody,
+          isTablet && styles.offerBodyTablet,
+          isMobile && styles.offerBodyMobile,
+        ]}
+      >
+        {item.body}
+      </Text>
+      {item.photo ? <DebatePhoto narrow={isMobile} /> : null}
+    </View>
+  );
+}
+
+function OfferRow({
+  heading,
+  intro,
+  items,
   isMobile,
   isTablet,
   canHover,
-  onServices,
-  onContact,
 }: {
+  heading: string;
+  intro: string;
+  items: OfferLinkItem[];
   isMobile: boolean;
   isTablet: boolean;
   canHover: boolean;
-  onServices: () => void;
-  onContact: () => void;
 }) {
   const stacked = isMobile || isTablet;
-  const columnStyle = [
-    styles.factColumn,
-    isTablet && styles.factRowTablet,
-    isMobile && styles.factColumnMobile,
-  ];
   return (
-    <View style={[styles.firstSection, isMobile && styles.mobileSection]}>
-      <SectionTitle isMobile={isMobile} isTablet={isTablet} style={styles.factsTitle}>
-        {ABOUT_FACTS_HEADING}
-      </SectionTitle>
-      <Text style={styles.factsLaunch}>{ABOUT_FACTS_LAUNCH}</Text>
-      <View style={[styles.factsGrid, stacked && styles.factsGridStacked]}>
-        <View style={[columnStyle, !stacked && styles.factColumnServices]}>
-          <FactLabel>{ABOUT_FACTS_SERVICES_LABEL}</FactLabel>
-          <View style={styles.factValues}>
-            <Text style={styles.factValue}>{ABOUT_FACTS_SERVICES}</Text>
-            <Pressable
-              {...linkProps(ABOUT_FACTS_SERVICES_LINK.href, onServices)}
-              style={styles.factLink}
-            >
-              {(state) => (
-                <LinkArrowLabel
-                  label={ABOUT_FACTS_SERVICES_LINK.label}
-                  style={[
-                    styles.factLinkText,
-                    canHover &&
-                      Boolean('hovered' in state && state.hovered) &&
-                      styles.factLinkTextHovered,
-                  ]}
-                />
-              )}
-            </Pressable>
+    <View style={[styles.offerRow, stacked && styles.offerRowStacked]}>
+      <View style={[styles.offerIntro, stacked && styles.offerIntroStacked]}>
+        <Text
+          accessibilityRole="header"
+          aria-level={3}
+          style={[
+            styles.offerHeading,
+            isTablet && styles.offerHeadingTablet,
+            isMobile && styles.offerHeadingMobile,
+          ]}
+        >
+          {heading}
+        </Text>
+        <Text
+          style={[
+            styles.offerIntroText,
+            isTablet && styles.offerIntroTextTablet,
+            isMobile && styles.offerIntroTextMobile,
+          ]}
+        >
+          {intro}
+        </Text>
+      </View>
+      <View
+        style={[
+          styles.offerLinks,
+          isTablet && styles.offerLinksTablet,
+          isMobile && styles.offerLinksMobile,
+        ]}
+      >
+        {items.map((item) => (
+          <View key={item.title} style={isMobile ? styles.fullWidth : styles.offerLinkColumn}>
+            <OfferLink item={item} canHover={canHover} isMobile={isMobile} isTablet={isTablet} />
           </View>
-        </View>
-        <View style={[columnStyle, !stacked && styles.factColumnFounders]}>
-          <FactLabel>{ABOUT_FACTS_FOUNDERS_LABEL}</FactLabel>
-          <View style={styles.factValues}>
-            {ABOUT_TEAM_MEMBERS.map((member) => (
-              <Text key={member.name} style={styles.factValue}>
-                <Text style={styles.factName}>{member.name}</Text>
-                {` · ${member.title}`}
-              </Text>
-            ))}
-          </View>
-        </View>
-        <View style={[columnStyle, isMobile && styles.factColumnMobileLast]}>
-          <FactLabel>{ABOUT_FACTS_CONTACT_LABEL}</FactLabel>
-          <View style={[styles.factValues, isTablet && styles.factContactTablet]}>
-            <Text style={[styles.factValue, styles.factEmail]}>
-              <EmailLink canHover={canHover} />
-            </Text>
-            <Pressable
-              {...linkProps(routePath.contactUs(), onContact)}
-              style={(state) => [
-                styles.contactButton,
-                isMobile ? styles.contactButtonMobile : styles.factButton,
-                canHover &&
-                  Boolean('hovered' in state && state.hovered) &&
-                  styles.contactButtonHovered,
-                state.pressed && styles.contactButtonPressed,
-              ]}
-            >
-              <Text style={styles.contactButtonText}>{ABOUT_CONTACT_LINK.label}</Text>
-            </Pressable>
-          </View>
-        </View>
+        ))}
       </View>
     </View>
+  );
+}
+
+function ContactButton({
+  href,
+  onPress,
+  isMobile,
+  canHover,
+}: {
+  href: string;
+  onPress: () => void;
+  isMobile: boolean;
+  canHover: boolean;
+}) {
+  return (
+    <Pressable
+      {...linkProps(href, onPress)}
+      style={(state) => [
+        styles.contactButton,
+        isMobile && styles.contactButtonMobile,
+        canHover && Boolean('hovered' in state && state.hovered) && styles.contactButtonHovered,
+        state.pressed && styles.contactButtonPressed,
+      ]}
+    >
+      <Text style={styles.contactButtonText}>{ABOUT_CONTACT_LABEL}</Text>
+    </Pressable>
   );
 }
 
@@ -390,35 +378,28 @@ function SectionTitle({
 
 export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
   const { isMobile, isTablet } = useResponsive();
+  const { isSignedIn } = useAuth();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
-  const canHover =
+  const canHover = Boolean(
     Platform.OS === 'web' &&
     !isMobile &&
-    window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
+    window.matchMedia?.('(hover: hover) and (pointer: fine)').matches,
+  );
   const cardWidthStyle: ViewStyle = isMobile
     ? styles.fullWidth
     : isTablet
       ? styles.twoColumn
       : styles.threeColumn;
-  const startWidthStyle: StyleProp<ViewStyle> = isMobile
-    ? [styles.fullWidth, styles.startCardMobile]
-    : isTablet
-      ? styles.twoColumn
-      : styles.fourColumn;
 
   const handleNavigate = (item: IaItem) => {
     if (!navigateTopNavItem(navigation, item)) return;
     setOpenMenu(null);
   };
 
-  const startItems: StartCardItem[] = ABOUT_START_ITEMS.map((item) => {
+  const platformItems: OfferLinkItem[] = ABOUT_PLATFORM_ITEMS.map((item) => {
     switch (item.destination) {
       case 'bills':
-        return {
-          ...item,
-          href: routePath.bills(),
-          onPress: () => navigation.navigate('Bills'),
-        };
+        return { ...item, href: routePath.bills(), onPress: () => navigation.navigate('Bills') };
       case 'legislators':
         return {
           ...item,
@@ -431,14 +412,40 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
           href: routePath.findMyLegislator(),
           onPress: () => navigation.navigate('FindMyLegislator'),
         };
+      case 'candidates':
+        return { ...item, onPress: () => navigation.navigate('Candidates') };
+      case 'money':
+        return {
+          ...item,
+          href: routePath.money(),
+          onPress: () => navigation.navigate('MoneyLanding'),
+        };
       case 'track':
         return {
           ...item,
+          body: isSignedIn ? ABOUT_TRACK_SIGNED_IN : item.body,
           href: routePath.tracked(),
           onPress: () => navigation.navigate('Tabs', { screen: 'Tracked' }),
         };
     }
   });
+  const writingItems: OfferLinkItem[] = ABOUT_WRITING_ITEMS.map((item) =>
+    item.destination === 'blog'
+      ? { ...item, href: routePath.read(), onPress: () => navigation.navigate('Read') }
+      : {
+          ...item,
+          photo: true,
+          onPress: () => navigation.navigate('Event', { slug: 'forward-debate-2026' }),
+        },
+  );
+  const servicesItems: OfferLinkItem[] = [
+    {
+      ...ABOUT_SERVICES_ITEM,
+      href: routePath.services(),
+      onPress: () => navigation.navigate('Services'),
+    },
+  ];
+  const offerProps = { isMobile, isTablet, canHover };
 
   return (
     <PageBackground>
@@ -460,8 +467,7 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
               {ABOUT_PAGE_HEADING}
             </Text>
             <Text style={[styles.heroSubtitle, isMobile && styles.heroSubtitleMobile]}>
-              {ABOUT_PAGE_SUBTITLE_LEAD}
-              <Text style={styles.provenanceText}>{ABOUT_PAGE_SOURCE_PROMISE}</Text>
+              {ABOUT_PAGE_SUBTITLE}
             </Text>
           </View>
 
@@ -474,25 +480,60 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
               {ABOUT_NAME_ORIGIN.afterName}
             </Text>
           </View>
-          {isMobile ? null : <View style={styles.originDivider} />}
 
-          <AboutFactsSection
-            isMobile={isMobile}
-            isTablet={isTablet}
-            canHover={Boolean(canHover)}
-            onServices={() => navigation.navigate('Services')}
-            onContact={() => navigation.navigate('ContactUs')}
-          />
+          <View style={[styles.firstSection, isMobile && styles.mobileSection]}>
+            <SectionTitle isMobile={isMobile} isTablet={isTablet}>
+              {ABOUT_DOES_HEADING}
+            </SectionTitle>
+            <OfferRow
+              heading={ABOUT_PLATFORM_HEADING}
+              intro={ABOUT_PLATFORM_INTRO}
+              items={platformItems}
+              {...offerProps}
+            />
+            <OfferRow
+              heading={ABOUT_WRITING_HEADING}
+              intro={ABOUT_WRITING_INTRO}
+              items={writingItems}
+              {...offerProps}
+            />
+            <OfferRow
+              heading={ABOUT_SERVICES_HEADING}
+              intro={ABOUT_SERVICES_INTRO}
+              items={servicesItems}
+              {...offerProps}
+            />
+          </View>
 
           <View style={[styles.proseSection, isMobile && styles.mobileSection]}>
             <SectionTitle isMobile={isMobile} isTablet={isTablet}>
               {ABOUT_WHY_HEADING}
             </SectionTitle>
-            {ABOUT_WHY_LINES.map((line) => (
-              <Text key={line.text} style={line.lead ? styles.proseLead : styles.prose}>
-                {line.text}
-              </Text>
-            ))}
+            {ABOUT_WHY_LINES.map((line, index) =>
+              index === ABOUT_WHY_LINES.length - 1 ? (
+                <Text
+                  key={line}
+                  style={[
+                    styles.proseLead,
+                    isTablet && styles.proseLeadTablet,
+                    isMobile && styles.proseLeadMobile,
+                  ]}
+                >
+                  {line}
+                </Text>
+              ) : (
+                <Text
+                  key={line}
+                  style={[
+                    styles.prose,
+                    isTablet && styles.proseTablet,
+                    isMobile && styles.proseMobile,
+                  ]}
+                >
+                  {line}
+                </Text>
+              ),
+            )}
           </View>
 
           <View style={[styles.section, isMobile && styles.mobileSection]}>
@@ -562,50 +603,15 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
             </View>
           </View>
 
-          <View style={[styles.proseSection, isMobile && styles.mobileSection]}>
-            <SectionTitle isMobile={isMobile} isTablet={isTablet}>
-              What we’re working toward
-            </SectionTitle>
-            <Text style={styles.proseLead}>
-              A Minnesota where anyone can check the public record for themselves.
-            </Text>
-            <Text style={styles.prose}>
-              You hear about a bill that may affect your family, work, school, business, or
-              community. You find it, read what it would do in everyday words, see where it stands
-              and view any recorded votes, with the official record linked throughout.
-            </Text>
-            <Text style={styles.prose}>
-              You never have to rely on a headline, a social post, or Alethical alone.
-            </Text>
-          </View>
-
           <View style={[styles.section, isMobile && styles.mobileSection]}>
             <SectionTitle isMobile={isMobile} isTablet={isTablet}>
-              {ABOUT_START_HEADING}
-            </SectionTitle>
-            <View
-              style={[styles.cardGrid, styles.startCardGrid, isMobile && styles.cardGridMobile]}
-            >
-              {startItems.map((item) => (
-                <StartCard
-                  key={item.startTitle}
-                  item={item}
-                  widthStyle={startWidthStyle}
-                  isMobile={isMobile}
-                />
-              ))}
-            </View>
-          </View>
-
-          <View style={[styles.section, isMobile && styles.mobileSection]}>
-            <SectionTitle isMobile={isMobile} isTablet={isTablet}>
-              On the roadmap
+              {ABOUT_ROADMAP_HEADING}
             </SectionTitle>
             <View style={[styles.roadmapPanel, isMobile && styles.roadmapPanelMobile]}>
-              <View style={styles.cardGrid}>
-                {ROADMAP_ITEMS.map((item) => (
+              <View style={[styles.cardGrid, isMobile && styles.cardGridMobile]}>
+                {ABOUT_ROADMAP_ITEMS.map((item) => (
                   <View
-                    key={item.roadmapTitle}
+                    key={item.title}
                     style={[
                       styles.roadmapItem,
                       cardWidthStyle,
@@ -613,17 +619,40 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
                     ]}
                   >
                     <Text accessibilityRole="header" aria-level={3} style={styles.cardTitle}>
-                      {item.roadmapTitle}
+                      {item.title}
                     </Text>
-                    <Text style={styles.cardBody}>{item.body}</Text>
+                    <Text style={[styles.cardBody, isMobile && styles.cardBodyMobile]}>
+                      {item.body}
+                    </Text>
                   </View>
                 ))}
               </View>
             </View>
-            <Text style={styles.roadmapQuestion}>
-              Which features matter most to you? Tell us what you want us to build first, and what
-              we are missing.
-            </Text>
+            <View style={[styles.roadmapInvite, isMobile && styles.roadmapInviteMobile]}>
+              <Text style={[styles.roadmapQuestion, isMobile && styles.roadmapQuestionMobile]}>
+                {ABOUT_ROADMAP_INVITATION}
+              </Text>
+              <Pressable
+                {...linkProps(routePath.contactUs({ purpose: 'feature-request' }), () =>
+                  navigation.navigate('ContactUs', { purpose: 'feature-request' }),
+                )}
+                style={styles.offerLink}
+              >
+                {(state) => (
+                  <LinkArrowLabel
+                    label={ABOUT_CONTACT_LABEL}
+                    style={[
+                      styles.offerLinkText,
+                      styles.inviteLinkText,
+                      isMobile && styles.inviteLinkTextMobile,
+                      ((canHover && Boolean('hovered' in state && state.hovered)) ||
+                        state.pressed) &&
+                        styles.offerLinkTextHovered,
+                    ]}
+                  />
+                )}
+              </Pressable>
+            </View>
           </View>
 
           <View
@@ -638,20 +667,16 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
                 {ABOUT_CONTACT_HEADING}
               </SectionTitle>
               <Text style={styles.contactText}>{ABOUT_CORRECTION_PROMISE}</Text>
+              <Text style={[styles.contactText, styles.contactEmail]}>
+                <EmailLink canHover={canHover} />
+              </Text>
             </View>
-            <Pressable
-              {...linkProps(routePath.contactUs(), () => navigation.navigate('ContactUs'))}
-              style={(state) => [
-                styles.contactButton,
-                isMobile && styles.contactButtonMobile,
-                canHover &&
-                  Boolean('hovered' in state && state.hovered) &&
-                  styles.contactButtonHovered,
-                state.pressed && styles.contactButtonPressed,
-              ]}
-            >
-              <Text style={styles.contactButtonText}>{ABOUT_CONTACT_LINK.label}</Text>
-            </Pressable>
+            <ContactButton
+              href={routePath.contactUs({ purpose: 'correction' })}
+              onPress={() => navigation.navigate('ContactUs', { purpose: 'correction' })}
+              isMobile={isMobile}
+              canHover={canHover}
+            />
           </View>
         </Container>
 
@@ -664,6 +689,14 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
     </PageBackground>
   );
 }
+
+const photoImageStyle = {
+  display: 'block',
+  width: '100%',
+  height: 'auto',
+  aspectRatio: '16 / 9',
+  objectFit: 'cover',
+} as const;
 
 const styles = StyleSheet.create({
   page: { flexGrow: 1, backgroundColor: t.colors.surfaces.base },
@@ -690,7 +723,6 @@ const styles = StyleSheet.create({
     maxWidth: 810,
   },
   heroSubtitleMobile: { fontSize: 18, lineHeight: 27, marginTop: 14 },
-  provenanceText: { color: t.colors.purple.base },
   originPanel: {
     backgroundColor: t.colors.cyan.surface,
     borderWidth: 1,
@@ -714,11 +746,6 @@ const styles = StyleSheet.create({
   },
   originTextMobile: { fontSize: 16, lineHeight: 25 },
   originTerm: { color: t.colors.cyan.ink, fontWeight: t.fontWeights.bold },
-  originDivider: {
-    marginTop: 40,
-    height: 1,
-    backgroundColor: ABOUT_COLORS.sectionRule,
-  },
   section: { marginTop: 56 },
   proseSection: { marginTop: 56 },
   mobileSection: {
@@ -845,22 +872,11 @@ const styles = StyleSheet.create({
     lineHeight: 30,
     marginBottom: 16,
   },
-  proseLead: {
-    color: t.colors.text.primary,
-    fontFamily: t.typography.body,
-    fontSize: 21,
-    lineHeight: 30,
-    fontWeight: t.fontWeights.bold,
-    marginTop: 6,
-    marginBottom: 16,
-  },
   cardGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 18 },
-  startCardGrid: { gap: 16 },
   cardGridMobile: { gap: 12 },
   fullWidth: { width: '100%' },
   twoColumn: { width: '48%' },
   threeColumn: { width: '31.5%' },
-  fourColumn: { width: '23.5%' },
   beliefCard: {
     backgroundColor: t.colors.cyan.surface,
     borderWidth: 1,
@@ -888,11 +904,6 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.heavy,
     letterSpacing: -0.08,
   },
-  startCardTitleMobile: {
-    fontSize: 16,
-    fontWeight: t.fontWeights.heavy,
-    letterSpacing: -0.16,
-  },
   cardBody: {
     color: t.colors.text.secondary,
     fontFamily: t.typography.body,
@@ -901,46 +912,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   cardBodyMobile: { fontSize: 14.5, lineHeight: 22.5, marginTop: 6 },
-  startCard: {
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: ABOUT_COLORS.sectionRule,
-    borderRadius: 14,
-    padding: 22,
-    minHeight: 172,
-    ...(Platform.OS === 'web'
-      ? ({ boxShadow: '0 6px 18px rgba(17,21,15,0.05)' } as object)
-      : (t.shadows.card as object)),
-    ...(Platform.OS === 'web' && !prefersReducedMotion()
-      ? ({
-          transitionProperty: 'border-color, box-shadow',
-          transitionDuration: '160ms',
-          transitionTimingFunction: 'ease',
-        } as object)
-      : null),
-  },
-  startCardMobile: {
-    paddingVertical: 15,
-    paddingHorizontal: 16,
-    minHeight: 0,
-  },
-  startCardHovered: {
-    borderColor: 'rgba(45,212,126,0.55)',
-    ...(Platform.OS === 'web'
-      ? ({ boxShadow: '0 14px 34px rgba(17,21,15,0.10)' } as object)
-      : (t.shadows.lg as object)),
-  },
-  startCardFocused: {
-    borderColor: 'rgba(45,212,126,0.55)',
-    ...nativeStartCardFocus,
-  },
-  startCardPressed: { opacity: 0.76 },
-  startCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 8,
-  },
   roadmapPanel: {
     backgroundColor: ABOUT_COLORS.roadmapSurface,
     borderWidth: 1,
@@ -954,19 +925,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 18,
   },
-  roadmapItem: { minHeight: 186, paddingRight: 12, paddingBottom: 8 },
+  roadmapItem: { paddingRight: 12, paddingBottom: 8 },
   roadmapItemMobile: { minHeight: 0, paddingRight: 0, paddingBottom: 0 },
-  roadmapQuestion: {
-    color: t.colors.text.secondary,
-    fontFamily: t.typography.body,
-    fontSize: 17,
-    lineHeight: 27,
-    marginTop: 18,
-    paddingLeft: 17,
-  },
   contactSection: {
     alignItems: 'flex-start',
-    gap: 22,
+    gap: 14,
     marginTop: 56,
     paddingTop: 34,
     borderTopWidth: 1,
@@ -995,7 +958,7 @@ const styles = StyleSheet.create({
   },
   contactButtonMobile: { width: '100%', minHeight: 48 },
   contactButtonHovered: { backgroundColor: t.colors.brand.hover },
-  contactButtonPressed: { backgroundColor: t.colors.brand.hover, transform: [{ scale: 0.98 }] },
+  contactButtonPressed: { backgroundColor: '#24ad66' },
   contactButtonText: {
     color: t.colors.brand.darkest,
     fontFamily: t.typography.ui,
@@ -1003,69 +966,118 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
   },
   firstSection: { marginTop: 44 },
-  factsTitle: { marginBottom: 8 },
-  factsLaunch: {
-    color: t.colors.text.secondary,
-    fontFamily: t.typography.body,
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  factsGrid: {
+  // The next section's phone divider already closes the facts.
+  offerRow: {
     flexDirection: 'row',
-    gap: 32,
-    marginTop: 20,
-    paddingTop: 20,
+    gap: 56,
+    paddingTop: 32,
+    paddingBottom: 34,
     borderTopWidth: 1,
     borderTopColor: ABOUT_COLORS.sectionRule,
   },
-  factsGridStacked: { flexDirection: 'column', gap: 0, paddingTop: 0 },
-  factColumn: { flex: 1, minWidth: 0 },
-  factColumnServices: { flex: 1 },
-  factColumnFounders: { flex: 1.3 },
-  factRowTablet: {
-    flexDirection: 'row',
-    gap: 24,
-    paddingVertical: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: ABOUT_COLORS.sectionRule,
-  },
-  factColumnMobile: {
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: ABOUT_COLORS.sectionRule,
-  },
-  // The next section's phone divider already closes the facts.
-  factColumnMobileLast: { borderBottomWidth: 0 },
-  factLabel: {
-    color: t.colors.text.secondary,
-    fontFamily: t.typography.mono,
-    fontSize: 11,
-    lineHeight: 16,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-    minWidth: 120,
-  },
-  factValues: { flex: 1, gap: 6 },
-  factValue: {
+  offerRowStacked: { flexDirection: 'column', gap: 12, paddingTop: 26, paddingBottom: 28 },
+  offerIntro: { width: 340, flexShrink: 0 },
+  offerIntroStacked: { width: '100%' },
+  offerHeading: {
     color: t.colors.text.primary,
+    fontFamily: t.typography.title,
+    fontSize: 22,
+    lineHeight: 27.5,
+    fontWeight: t.fontWeights.heavy,
+    letterSpacing: -0.22,
+  },
+  offerHeadingTablet: { fontSize: 20, lineHeight: 25, letterSpacing: -0.2 },
+  offerHeadingMobile: { fontSize: 18, lineHeight: 22.5, letterSpacing: -0.18 },
+  offerIntroText: {
+    color: t.colors.text.secondary,
+    fontFamily: t.typography.body,
+    fontSize: 17,
+    lineHeight: 27.2,
+    marginTop: 12,
+    ...(Platform.OS === 'web' ? ({ textWrap: 'pretty' } as object) : null),
+  },
+  offerIntroTextTablet: { fontSize: 16.5, lineHeight: 26.4, marginTop: 10 },
+  offerIntroTextMobile: { fontSize: 15, lineHeight: 24, marginTop: 8 },
+  // The 44px link box sits 9px above the heading's first line so the words align.
+  offerLinks: {
+    flex: 1,
+    minWidth: 0,
+    marginTop: -9,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    columnGap: 40,
+    rowGap: 14,
+  },
+  offerLinksTablet: { marginTop: 0 },
+  offerLinksMobile: { marginTop: 4, flexDirection: 'column', rowGap: 14 },
+  // 2 equal columns; a row with 1 link ends after the first column.
+  offerLinkColumn: {
+    width: (Platform.OS === 'web' ? 'calc(50% - 20px)' : '47%') as ViewStyle['width'],
+    minWidth: 0,
+  },
+  offerItem: { minWidth: 0, alignItems: 'flex-start' },
+  offerLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
+  offerLinkText: {
+    fontFamily: t.typography.ui,
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.greenOnLight,
+  },
+  offerLinkTextTablet: { fontSize: 17 },
+  offerLinkTextMobile: { fontSize: 16, lineHeight: 22 },
+  offerLinkTextHovered: { color: '#11832b', textDecorationLine: 'underline' },
+  offerBody: {
+    color: t.colors.text.secondary,
     fontFamily: t.typography.body,
     fontSize: 16,
-    lineHeight: 24,
+    lineHeight: 24.8,
+    ...(Platform.OS === 'web' ? ({ textWrap: 'pretty' } as object) : null),
   },
-  factName: { fontWeight: t.fontWeights.bold },
-  factEmail: { marginBottom: 8 },
-  factContactTablet: { flexDirection: 'row', alignItems: 'center', gap: 20 },
-  factLink: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
-  factLinkText: {
-    fontFamily: t.typography.ui,
-    fontSize: 15,
+  offerBodyTablet: { fontSize: 15.5, lineHeight: 24 },
+  offerBodyMobile: { fontSize: 14.5, lineHeight: 21.75, marginTop: -4 },
+  photo: {
+    marginTop: 14,
+    width: '100%',
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#e9ebe8',
+  },
+  photoNarrow: { borderRadius: 12 },
+  photoImage: { width: '100%', aspectRatio: 16 / 9 },
+  proseTablet: { fontSize: 17, lineHeight: 27.5 },
+  proseMobile: { fontSize: 15, lineHeight: 24 },
+  proseLead: {
+    color: t.colors.text.primary,
+    fontFamily: t.typography.body,
+    fontSize: 21,
+    lineHeight: 30.5,
     fontWeight: t.fontWeights.bold,
-    color: t.colors.brand.deep,
+    marginTop: 6,
+    ...(Platform.OS === 'web' ? ({ textWrap: 'pretty' } as object) : null),
   },
-  factLinkTextHovered: { color: t.colors.brand.forest, textDecorationLine: 'underline' },
-  factButton: { alignSelf: 'flex-start' },
+  proseLeadTablet: { fontSize: 19, lineHeight: 27.5, marginTop: 4 },
+  proseLeadMobile: { fontSize: 15.5, lineHeight: 24, marginTop: 0 },
+  roadmapInvite: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    columnGap: 16,
+    marginTop: 12,
+    paddingLeft: 17,
+  },
+  roadmapInviteMobile: { flexDirection: 'column', alignItems: 'flex-start', marginTop: 14 },
+  roadmapQuestion: {
+    color: t.colors.text.secondary,
+    fontFamily: t.typography.body,
+    fontSize: 17,
+    lineHeight: 27.2,
+    ...(Platform.OS === 'web' ? ({ textWrap: 'pretty' } as object) : null),
+  },
+  roadmapQuestionMobile: { fontSize: 14.5, lineHeight: 22.5 },
+  inviteLinkText: { fontSize: 17 },
+  inviteLinkTextMobile: { fontSize: 16 },
+  contactEmail: { marginTop: 12 },
   emailLink: { color: t.colors.text.greenOnLight, fontWeight: t.fontWeights.bold },
   emailLinkHovered: { color: '#11832b', textDecorationLine: 'underline' },
 });

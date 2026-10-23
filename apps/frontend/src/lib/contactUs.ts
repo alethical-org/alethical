@@ -2,6 +2,7 @@ import type { PageSnapshot } from './pageSnapshot';
 import { PUBLISHED_PIECE_INDEX, piecePath } from './researchIndex';
 import { PUBLISHED_EVENT_INDEX } from './eventsIndex';
 import { SOCIAL_ACCOUNTS } from './socialLinks';
+import { contactPurpose, type ContactPurpose } from './contactPurposes';
 
 export const CONTACT_PAGE_HEADING = 'Contact us';
 export const CONTACT_PAGE_SUBTITLE =
@@ -67,14 +68,24 @@ export function correctionContactValues(article?: string): ContactValues {
 }
 
 /** Only known purposes choose trusted local copy; query text never becomes form content. */
+const PURPOSE_PREFILL: Record<ContactPurpose, Pick<ContactValues, 'subject' | 'message'>> = {
+  'host-debate': {
+    subject: 'Host a debate',
+    message: 'I’d like Alethical to host a debate in my community.\n\nCommunity:\n',
+  },
+  correction: {
+    subject: 'Possible correction',
+    message: 'Where I saw it:\n\nWhat may be wrong:\n',
+  },
+  'feature-request': {
+    subject: 'Feature suggestion',
+    message: 'What I’d like Alethical to build first:\n\nWhat’s missing:\n',
+  },
+};
+
 export function contactPrefillValues(article?: string, purpose?: string): ContactValues {
-  if (purpose === 'host-debate') {
-    return {
-      ...initialContactFormState.values,
-      subject: 'Host a debate',
-      message: 'I’d like Alethical to host a debate in my community.\n\nCommunity:\n',
-    };
-  }
+  const known = contactPurpose(purpose);
+  if (known) return { ...initialContactFormState.values, ...PURPOSE_PREFILL[known] };
   return purpose ? { ...initialContactFormState.values } : correctionContactValues(article);
 }
 

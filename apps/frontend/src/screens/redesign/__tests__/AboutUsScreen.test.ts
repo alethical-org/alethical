@@ -7,12 +7,18 @@ import {
   ABOUT_BELIEFS,
   ABOUT_NAME_ORIGIN,
   ABOUT_PAGE_HEADING,
-  ABOUT_PAGE_SOURCE_PROMISE,
-  ABOUT_PAGE_SUBTITLE_LEAD,
-  ABOUT_START_ITEMS,
+  ABOUT_PAGE_SUBTITLE,
+  ABOUT_PLATFORM_ITEMS,
+  ABOUT_ROADMAP_ITEMS,
+  ABOUT_SERVICES_ITEM,
   ABOUT_TEAM_HEADING,
   ABOUT_TEAM_MEMBERS,
+  ABOUT_TRACK_SIGNED_IN,
+  ABOUT_TRACK_SIGNED_OUT,
+  ABOUT_WRITING_ITEMS,
 } from '../../../lib/aboutUs';
+import { contactPrefillValues } from '../../../lib/contactUs';
+import { pathForRoute, targetFromPathname } from '../../../navigation/webRoutes';
 
 const SCREEN = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), '..', 'AboutUsScreen.tsx'),
@@ -20,137 +26,128 @@ const SCREEN = readFileSync(
 );
 
 describe('About us screen contract', () => {
-  it('explains the name and the public-record promise in plain words', () => {
+  it('states the promise as one plain subtitle under the heading', () => {
     expect(ABOUT_PAGE_HEADING).toBe('TRUTH, UNCONCEALED');
-    expect(ABOUT_PAGE_SUBTITLE_LEAD).toContain('Minnesota’s public record, in everyday words');
-    expect(ABOUT_PAGE_SOURCE_PROMISE).toBe('linked to the source.');
+    expect(ABOUT_PAGE_SUBTITLE).toBe(
+      'Minnesota’s public record, in everyday words and linked to the source',
+    );
+    // The whole subtitle shares one style: no purple run, link or underline.
+    expect(SCREEN).toContain('{ABOUT_PAGE_SUBTITLE}');
+    expect(SCREEN).not.toContain('provenanceText');
+    expect(SCREEN).not.toContain('purple');
     expect(ABOUT_NAME_ORIGIN.beforeName).toContain('Alethical comes from');
-    expect(ABOUT_NAME_ORIGIN.betweenNames).toContain('ancient Greek');
     expect(ABOUT_NAME_ORIGIN.betweenNames).toContain('truth brought into the open');
   });
 
-  it('keeps all 6 beliefs and all 6 roadmap items', () => {
-    expect(SCREEN).toContain('const ROADMAP_ITEMS = [');
-    expect(ABOUT_BELIEFS).toHaveLength(6);
-    expect(SCREEN.match(/roadmapTitle: '/g)).toHaveLength(6);
-    expect(SCREEN).toContain('Candidates, campaigns, and money');
-    expect(SCREEN).toContain('Grounded Ask');
-    expect(SCREEN).toContain('Claimed Profiles');
+  it('draws the sections in the agreed order', () => {
+    const order = [
+      '{ABOUT_PAGE_SUBTITLE}',
+      'ABOUT_NAME_ORIGIN.firstName',
+      '{ABOUT_DOES_HEADING}',
+      'heading={ABOUT_PLATFORM_HEADING}',
+      'heading={ABOUT_WRITING_HEADING}',
+      'heading={ABOUT_SERVICES_HEADING}',
+      '{ABOUT_WHY_HEADING}',
+      '{ABOUT_BELIEFS_HEADING}',
+      '{ABOUT_TEAM_HEADING}',
+      '{ABOUT_ROADMAP_HEADING}',
+      '{ABOUT_CONTACT_HEADING}',
+      '<Footer',
+    ].map((marker) => SCREEN.indexOf(marker));
+    expect(order.every((position) => position > 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 
-  it('shows both founders with complete bios and approved portraits', () => {
+  it('links every offering to a real address with its own description', () => {
+    const items = [...ABOUT_PLATFORM_ITEMS, ...ABOUT_WRITING_ITEMS, ABOUT_SERVICES_ITEM];
+    expect(items.map((item) => item.href)).toEqual([
+      '/bills',
+      '/legislators',
+      '/find-my-legislator',
+      '/candidates',
+      '/money',
+      '/tracked',
+      '/blog',
+      '/blog/events/forward-debate-2026',
+      '/services',
+    ]);
+    for (const item of items) expect(targetFromPathname(item.href).kind).not.toBe('notFound');
+    expect(items.find((item) => item.href === '/find-my-legislator')?.title).toBe(
+      'Find my legislators',
+    );
+    expect(SCREEN).toContain('linkProps(item.href, item.onPress)');
+    // Only the green title is the link; the description and photo sit outside it.
+    expect(SCREEN).toMatch(/<\/Pressable>\s*<Text\s*style=\{\[\s*styles\.offerBody/);
+    expect(SCREEN).toMatch(/offerLink:\s*\{[^}]*minHeight: 44/s);
+  });
+
+  it('describes Track for signed-out and signed-in readers', () => {
+    expect(ABOUT_PLATFORM_ITEMS.find((item) => item.destination === 'track')?.body).toBe(
+      ABOUT_TRACK_SIGNED_OUT,
+    );
+    expect(ABOUT_TRACK_SIGNED_IN).toBe('Follow bills and see what changes');
+    expect(SCREEN).toContain('isSignedIn ? ABOUT_TRACK_SIGNED_IN : item.body');
+  });
+
+  it('shows the debate photo as decoration that disappears if it fails', () => {
+    expect(SCREEN).toContain('alt=""');
+    expect(SCREEN).toContain('onError={() => setFailed(true)}');
+    expect(SCREEN).toContain('if (!DEBATE_EVENT || failed) return null');
+  });
+
+  it('keeps all 6 beliefs and both founders with full bios', () => {
+    expect(ABOUT_BELIEFS).toHaveLength(6);
     expect(ABOUT_TEAM_HEADING).toBe('Our team');
-    expect(ABOUT_TEAM_MEMBERS).toHaveLength(2);
     expect(ABOUT_TEAM_MEMBERS.map((member) => [member.name, member.title])).toEqual([
       ['Angel Zierden', 'Founder & CEO'],
-      ['Eugene Lopin', 'Co-Founder, CPO & Engineer'],
+      ['Eugene Lopin', 'Co-Founder & CPTO'],
     ]);
     expect(ABOUT_TEAM_MEMBERS.every((member) => member.bio.length === 3)).toBe(true);
-    expect(ABOUT_TEAM_MEMBERS[0].bio[0]).toContain('(companies, coalitions, and policy)');
-    expect(ABOUT_TEAM_MEMBERS[0].bio[0]).toContain('before they decide');
-    expect(ABOUT_TEAM_MEMBERS[1].bio[0]).toContain('records of lawmaking and money in politics');
+    expect(ABOUT_TEAM_MEMBERS[0].bio[0]).toBe(
+      'Angel builds things (companies, coalitions, and policy) at the intersection of technology, business, and public service. She leads Alethical, which makes Minnesota’s public records easier to understand and check, with plain-language explanations and links to official sources.',
+    );
     expect(SCREEN).toContain("require('../../../assets/team/angel-zierden.jpg')");
-    expect(SCREEN).toContain("require('../../../assets/team/eugene-lopin.jpg')");
-    expect(SCREEN).toContain('accessibilityRole="image"');
     expect(SCREEN).toContain('accessibilityLabel={member.name}');
   });
 
-  it('makes all 4 starting points real links and keeps roadmap items unlinked', () => {
-    expect(ABOUT_START_ITEMS).toHaveLength(4);
-    expect(SCREEN).toContain('linkProps(item.href, item.onPress)');
-    expect(SCREEN).not.toContain('linkProps(item.roadmap');
-    expect(ABOUT_START_ITEMS.find((item) => item.destination === 'findMyLegislator')?.body).toBe(
-      'See who represents you in the Minnesota House and Senate, and learn about their work and how to contact them.',
-    );
+  it('lists only unbuilt work on the roadmap, unlinked', () => {
+    expect(ABOUT_ROADMAP_ITEMS.map((item) => item.title)).toEqual([
+      'Grounded Ask, beyond bills',
+      'More from candidates and legislators',
+      'Personalization built around you',
+      'News connected to the Legislature',
+      'A more complete public record',
+    ]);
+    expect(JSON.stringify(ABOUT_ROADMAP_ITEMS)).not.toContain('Ask AI');
+    expect(SCREEN).not.toContain('linkProps(item.title');
   });
 
-  it('uses the shared page frame and the existing Contact us route', () => {
+  it('opens Contact us with editable words for its known purpose', () => {
+    expect(SCREEN).toContain("routePath.contactUs({ purpose: 'feature-request' })");
+    expect(SCREEN).toContain("routePath.contactUs({ purpose: 'correction' })");
+    expect(pathForRoute({ name: 'ContactUs', params: { purpose: 'correction' } })).toBe(
+      '/about/contact?purpose=correction',
+    );
+    expect(targetFromPathname('/about/contact?purpose=feature-request')).toMatchObject({
+      purpose: 'feature-request',
+    });
+    expect(targetFromPathname('/about/contact?purpose=anything-else')).not.toHaveProperty(
+      'purpose',
+    );
+    expect(contactPrefillValues(undefined, 'correction')).toMatchObject({
+      subject: 'Possible correction',
+    });
+    expect(contactPrefillValues(undefined, 'feature-request')).toMatchObject({
+      subject: 'Feature suggestion',
+    });
+    // The shared footer link stays generic.
+    expect(SCREEN).toContain("onContact={() => navigation.navigate('ContactUs')}");
+  });
+
+  it('shows the email once, in Contact, and uses the shared frame', () => {
+    expect(SCREEN.match(/<EmailLink /g)).toHaveLength(1);
     expect(SCREEN).toContain('<TopNav');
     expect(SCREEN).toContain('<Footer');
-    expect(SCREEN).toContain("navigation.navigate('ContactUs')");
-    expect(SCREEN).toContain('routePath.contactUs()');
-  });
-
-  it('keeps the page white and separates sections with the reference rhythm', () => {
-    expect(SCREEN).toMatch(/page:\s*\{[^}]*backgroundColor: t\.colors\.surfaces\.base[^}]*\}/s);
-    expect(SCREEN).toContain('<View style={styles.originDivider} />');
-    expect(SCREEN).toContain('firstSection: { marginTop: 44 }');
-    expect(SCREEN).toContain('section: { marginTop: 56 }');
-    expect(SCREEN.match(/isMobile && styles\.mobileSection/g)).toHaveLength(8);
-    expect(SCREEN).toMatch(
-      /mobileSection:\s*\{[^}]*marginTop: 34[^}]*paddingTop: 26[^}]*borderTopWidth: 1/s,
-    );
-  });
-
-  it('gives every section heading the approved responsive size and weight', () => {
-    expect(SCREEN.match(/<SectionTitle/g)).toHaveLength(8);
-    expect(SCREEN.match(/aria-level=\{2\}/g)).toHaveLength(1);
-    expect(SCREEN).toMatch(
-      /sectionTitle:\s*\{[^}]*fontSize: 29[^}]*lineHeight: 35[^}]*fontWeight: t\.fontWeights\.heavy/s,
-    );
-    expect(SCREEN).toMatch(/sectionTitleTablet:\s*\{[^}]*fontSize: 26[^}]*lineHeight: 31/s);
-    expect(SCREEN).toMatch(/sectionTitleMobile:\s*\{[^}]*fontSize: 22[^}]*lineHeight: 27/s);
-    expect(SCREEN).not.toMatch(/teamSectionTitle(?:Tablet|Mobile)?:\s*\{[^}]*fontSize/s);
-  });
-
-  it('keeps tinted surfaces bounded to the intended panels', () => {
-    expect(SCREEN).toContain("roadmapSurface: '#f7f8fa'");
-    expect(SCREEN).toContain("subtleBorder: 'rgba(17,21,15,0.09)'");
-    expect(SCREEN).toContain('borderRadius: 16');
-    expect(SCREEN).toContain('paddingHorizontal: 32');
-    expect(SCREEN).toContain('paddingVertical: 30');
-    expect(SCREEN).toMatch(
-      /roadmapPanelMobile:\s*\{[^}]*paddingHorizontal: 18[^}]*paddingVertical: 18[^}]*\}/s,
-    );
-  });
-
-  it('leaves keyboard focus to the shared card ring without changing hover', () => {
-    expect(SCREEN).toContain('hovered && styles.startCardHovered');
-    expect(SCREEN).toContain("Platform.OS !== 'web' && focused && styles.startCardFocused");
-    expect(SCREEN).toContain("borderColor: 'rgba(45,212,126,0.55)'");
-    expect(SCREEN).toContain("boxShadow: '0 14px 34px rgba(17,21,15,0.10)'");
-    expect(SCREEN).toContain("transitionProperty: 'border-color, box-shadow'");
-    expect(SCREEN).toContain("transitionDuration: '160ms'");
-  });
-
-  it('keeps card arrows beside their titles', () => {
-    expect(SCREEN).toContain('<LinkArrow color={t.colors.text.primary} />');
-    expect(SCREEN).not.toContain('cardTitleArrow');
-    expect(SCREEN).toMatch(/startCardHeader:\s*\{[^}]*alignSelf: 'flex-start'[^}]*gap: 8[^}]*\}/s);
-    expect(SCREEN).not.toMatch(/startCardHeader:\s*\{[^}]*justifyContent/s);
-  });
-
-  it('fits belief and starting cards closely around their content on phones', () => {
-    expect(SCREEN).toContain('isMobile && styles.beliefCardMobile');
-    expect(SCREEN).toContain('? [styles.fullWidth, styles.startCardMobile]');
-    expect(SCREEN).toMatch(
-      /beliefCardMobile:\s*\{[^}]*paddingVertical: 15[^}]*paddingHorizontal: 16[^}]*minHeight: 0[^}]*\}/s,
-    );
-    expect(SCREEN).toMatch(
-      /startCardMobile:\s*\{[^}]*paddingVertical: 15[^}]*paddingHorizontal: 16[^}]*minHeight: 0[^}]*\}/s,
-    );
-    expect(SCREEN).toMatch(/cardGridMobile:\s*\{[^}]*gap: 12[^}]*\}/s);
-    expect(SCREEN).toMatch(
-      /cardBodyMobile:\s*\{[^}]*fontSize: 14\.5[^}]*lineHeight: 22\.5[^}]*marginTop: 6[^}]*\}/s,
-    );
-  });
-
-  it('lets body prose fill the content column and shows the email once', () => {
-    expect(SCREEN).toContain('proseSection: { marginTop: 56 }');
-    expect(SCREEN).not.toContain('proseSection: { marginTop: 56, maxWidth: 850 }');
-    expect(SCREEN).not.toContain('ABOUT_FEEDBACK_LABEL');
-    expect(SCREEN.match(/<EmailLink /g)).toHaveLength(1);
-  });
-
-  it('draws the About facts after the name card and before Why we are doing this', () => {
-    const facts = SCREEN.indexOf('<AboutFactsSection');
-    expect(facts).toBeGreaterThan(SCREEN.indexOf('styles.originDivider'));
-    expect(facts).toBeLessThan(SCREEN.indexOf('{ABOUT_WHY_HEADING}'));
-    expect(SCREEN).toContain("navigation.navigate('Services')");
-    expect(SCREEN).toMatch(/factLink:\s*\{[^}]*minHeight: 44/s);
-  });
-
-  it('keeps both Contact us buttons free of a typed arrow', () => {
-    expect(SCREEN).not.toMatch(/\{ABOUT_CONTACT_LINK\.label\}<\/Text>\s*<LinkArrow/);
+    expect(SCREEN).not.toContain('Launched in Minnesota');
   });
 });
