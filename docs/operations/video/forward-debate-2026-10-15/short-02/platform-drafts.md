@@ -1,6 +1,6 @@
 # Short 02 platform copy drafts
 
-Private preparation. Nothing posted or scheduled. No publication before October 22, 2026. Native mentions, current account limits and final routes must be checked when posting.
+Unpublished preparation. Nothing posted or scheduled. No publication before October 22, 2026. Native mentions, current account limits and final routes must be checked when posting.
 
 Hashtags are relevant draft topics. No search volume or ranking gain is claimed. Narrow tags still need native suggestion review.
 

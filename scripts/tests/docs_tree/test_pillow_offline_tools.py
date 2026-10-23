@@ -98,7 +98,8 @@ def test_any_offline_source_drift_fails(boundary, change):
 
 
 def test_fourth_docs_pillow_source_is_not_exempt(boundary):
-    add_source(boundary, "docs/operations/video/new-tool.py", "from PIL import Image\n")
+    fixture_path = Path("docs") / "operations" / "video" / "new-tool.py"
+    add_source(boundary, fixture_path, "from PIL import Image\n")
     assert any("import boundary changed" in error for error in guard.validate(boundary))
 
 
@@ -134,7 +135,7 @@ def test_new_production_execution_of_offline_tools_fails(source):
     "source",
     [
         "note='docs/operations/video/forward-debate-2026-10-15/short-01/intro_frames.py'\n",
-        "import subprocess\nsubprocess.run(['git','show','branch:docs/intro_frames.py'])\n",
+        "import subprocess\nfrom pathlib import Path\nfixture_path=Path('docs')/'intro_frames.py'\nsubprocess.run(['git','show','branch:'+str(fixture_path)])\n",
         "import runpy\nrunpy.run_path('unrelated.py')\n",
         "import importlib.util\nimportlib.util.spec_from_file_location('unrelated','unrelated.py')\n",
         "import subprocess\nsubprocess.run(['python','unrelated.py'])\n",
