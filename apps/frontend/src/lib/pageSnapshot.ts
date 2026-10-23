@@ -433,7 +433,7 @@ export type SnapshotBlock =
   | {
       kind: 'table';
       columns: string[];
-      rows: (string | { text: string; colSpan: number })[][];
+      rows: (string | { text: string; colSpan: number } | { text: string; href: string })[][];
       caption?: string;
       rowHeaders?: boolean;
     }
@@ -2786,16 +2786,22 @@ function renderSnapshotBlock(block: SnapshotBlock, article = false): string {
     return `<ul class="ps-list">${links}</ul>`;
   }
   const spacer = article ? '<td class="ps-table-spacer" aria-hidden="true"></td>' : '';
-  const head = `<tr>${block.columns.map((column) => `<th${article ? ' scope="col"' : ''}>${escapeHtml(column)}</th>`).join('')}${spacer}</tr>`;
+  const head = `<tr>${block.columns.map((column) => `<th${article || block.rowHeaders ? ' scope="col"' : ''}>${escapeHtml(column)}</th>`).join('')}${spacer}</tr>`;
   const body = block.rows
     .map(
       (row) =>
         `<tr>${row
           .map((cell, index) => {
             const tag = (block.rowHeaders || article) && index === 0 ? 'th' : 'td';
-            const span = typeof cell === 'string' ? '' : ` colspan="${cell.colSpan}"`;
+            const span =
+              typeof cell !== 'string' && 'colSpan' in cell ? ` colspan="${cell.colSpan}"` : '';
             const scope = tag === 'th' ? ' scope="row"' : '';
-            return `<${tag}${scope}${span}>${escapeHtml(typeof cell === 'string' ? cell : cell.text)}</${tag}>`;
+            const text = escapeHtml(typeof cell === 'string' ? cell : cell.text);
+            const content =
+              typeof cell !== 'string' && 'href' in cell
+                ? `<a href="${escapeHtml(cell.href)}">${text}</a>`
+                : text;
+            return `<${tag}${scope}${span}>${content}</${tag}>`;
           })
           .join('')}${spacer}</tr>`,
     )

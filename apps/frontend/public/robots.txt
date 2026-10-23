@@ -5,12 +5,21 @@
 # in their own response headers instead — a crawler blocked here could never
 # read that instruction.
 #
-# The two blocks below are not about hiding anything. They stop two crawlers
-# that only collect writing to train future AI models, with no effect on
-# whether this site shows up in search results or AI answers. See
-# docs/architecture/page-metadata-for-search-and-sharing-decisions.md §7
-# (robots.txt and sitemap.xml) for the reasoning and the source for each
-# crawler's purpose.
+# Training and bulk-data preferences are separate from search access.
+# These instructions do not guarantee compliance or erase earlier copies.
+# Policy and provider references: docs/operations/public-search-upkeep.md.
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+
+User-agent: meta-externalagent
+Disallow: /
 
 # Collects text to train future OpenAI models. Confirmed by OpenAI to have no
 # effect on search visibility, so there is nothing to gain by allowing it and

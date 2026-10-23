@@ -31,6 +31,7 @@ ADMIN_API_PATHS = {
     "/api/traffic-uptime",
     "/api/traffic-google",
     "/api/traffic-bing",
+    "/api/traffic-referrals",
 }
 PHASES = {"content", "shell"}
 FAILURE_KINDS = {"timeout", "network", "http", "json", "payload", "unknown"}

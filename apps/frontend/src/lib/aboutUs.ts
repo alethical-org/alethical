@@ -122,8 +122,19 @@ export const ABOUT_START_ITEMS = [
 ] as const;
 
 export const ABOUT_CONTACT_HEADING = 'Contact';
-export const ABOUT_FEEDBACK_LABEL = 'Feedback:';
 export const ABOUT_EMAIL = 'ask@alethical.com';
+
+// The compact facts answer engines repeat, stated once near the top of the page.
+export const ABOUT_FACTS_HEADING = 'About Alethical';
+export const ABOUT_FACTS_LAUNCH = 'Launched in Minnesota';
+export const ABOUT_FACTS_SERVICES_LABEL = 'Services';
+export const ABOUT_FACTS_SERVICES = 'Political intelligence and campaign strategy';
+export const ABOUT_FACTS_SERVICES_LINK = {
+  label: 'Explore our services',
+  href: '/services',
+} as const;
+export const ABOUT_FACTS_FOUNDERS_LABEL = 'Founders';
+export const ABOUT_FACTS_CONTACT_LABEL = 'Contact';
 export const ABOUT_CORRECTION_PROMISE =
   'Think we got something wrong? Please tell us. Corrections come first.';
 export const ABOUT_CONTACT_LINK = { label: 'Contact us', href: '/about/contact' } as const;
@@ -137,6 +148,28 @@ export function aboutPageSnapshot(): PageSnapshot {
     bodyIsList: false,
     facts: [],
     sections: [
+      {
+        heading: ABOUT_FACTS_HEADING,
+        body: [ABOUT_FACTS_LAUNCH],
+        items: [
+          {
+            label: ABOUT_FACTS_SERVICES_LABEL,
+            detail: ABOUT_FACTS_SERVICES,
+          },
+          {
+            label: ABOUT_FACTS_SERVICES_LINK.label,
+            href: ABOUT_FACTS_SERVICES_LINK.href,
+          },
+          ...ABOUT_TEAM_MEMBERS.map((member) => ({
+            label: ABOUT_FACTS_FOUNDERS_LABEL,
+            detail: `${member.name} · ${member.title}`,
+          })),
+          {
+            label: ABOUT_FACTS_CONTACT_LABEL,
+            detail: ABOUT_EMAIL,
+          },
+        ],
+      },
       {
         heading: ABOUT_WHY_HEADING,
         body: ABOUT_WHY_LINES.map((line) => line.text),
@@ -165,7 +198,7 @@ export function aboutPageSnapshot(): PageSnapshot {
       },
       {
         heading: ABOUT_CONTACT_HEADING,
-        body: [`${ABOUT_FEEDBACK_LABEL} ${ABOUT_EMAIL}`, ABOUT_CORRECTION_PROMISE],
+        body: [ABOUT_CORRECTION_PROMISE],
       },
     ],
     links: [ABOUT_CONTACT_LINK, { label: ABOUT_EMAIL, href: `mailto:${ABOUT_EMAIL}` }],

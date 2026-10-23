@@ -1,3 +1,4 @@
+import { ORGANIZATION_REFERENCE } from './organizationIdentity';
 import { EVENTS_PATH, eventPath, eventHasEnded, type PublishedEvent } from './events';
 import { pageMetadata, publicPageUrl, titleFor, type PageMetadata } from './share';
 
@@ -51,7 +52,7 @@ export function eventPageMetadata(event: PublishedEvent, now = Date.now()): Page
             addressCountry: 'US',
           },
         },
-        organizer: { '@type': 'Organization', name: 'Alethical', url: publicPageUrl('/') },
+        organizer: ORGANIZATION_REFERENCE,
         // Keep past event details discoverable without advertising an active offer.
         ...(!eventHasEnded(event, now)
           ? {

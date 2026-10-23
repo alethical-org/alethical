@@ -1,3 +1,4 @@
+import { mapBillVotes, type ApiBillVotePayload } from '../lib/billRecordReads';
 import { useCallback, useEffect } from 'react';
 import {
   keepPreviousData,
@@ -17,6 +18,8 @@ import {
   getFeaturedBillsFromApi,
   getBillFromApi,
   getBillVotesFromApi,
+  mapBillDetail,
+  type ApiBillDetailPayload,
   getChatSessionFromApi,
   getCurrentUserFromApi,
   getLegislatorBillsFromApi,
@@ -267,12 +270,20 @@ export function useBill(
   const billQuery = useQuery({
     queryKey: ['bill', billId],
     queryFn: () => getBillFromApi(billId),
+    ...seededQuery(['bill', billId], (payload: ApiBillDetailPayload) => mapBillDetail(payload, [])),
+    // Recheck the seeded first response immediately. Cache propagation limits
+    // do not expire historical records already loaded in a reader's tab.
+    initialDataUpdatedAt: 0,
     retry: false,
     enabled,
   });
   const votesQuery = useQuery({
     queryKey: ['bill-votes', billId],
     queryFn: () => getBillVotesFromApi(billId),
+    ...seededQuery(['bill-votes', billId], (payload: ApiBillVotePayload[]) =>
+      mapBillVotes(payload),
+    ),
+    initialDataUpdatedAt: 0,
     retry: false,
     enabled: enabled && includeVotes,
   });
@@ -284,7 +295,12 @@ export function useBill(
     data: bill && votes ? { ...bill, votes, rollCallCount: votes.length } : bill,
     isLoading: billQuery.isLoading || (includeVotes && votesQuery.isLoading),
     voteError: votesQuery.error,
-    voteIsLoading: includeVotes && votesQuery.isLoading,
+    voteIsLoading: includeVotes && !votes && votesQuery.isFetching,
+    votesAvailable: votes !== undefined,
+    recordsRefreshing: billQuery.isFetching || (includeVotes && votesQuery.isFetching),
+    recordsRefreshError: Boolean(billQuery.error || (includeVotes && votesQuery.error)),
+    refetchRecords: () =>
+      Promise.all([billQuery.refetch(), ...(includeVotes ? [votesQuery.refetch()] : [])]),
   };
 }
 

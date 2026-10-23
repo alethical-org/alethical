@@ -19,6 +19,8 @@ const p = (text: string): ResearchBlock => ({ kind: 'paragraph', runs: [{ kind: 
 
 export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
   ...MONEY_ONLY_GOES_ONE_WAY_INDEX_ENTRY,
+  searchDescription:
+    'Minnesota campaign contributions, transfers between political accounts and lobbying records.',
   dek: "If you've ever given $50 to a candidate, this is where it went.",
   authorLine: 'ALETHICAL',
   filingBodies: ['Minnesota Campaign Finance Board'],

@@ -228,8 +228,17 @@ are the subjects of our reporting, not our authors.
 
 **Add only what a search engine actually does something with:**
 
-- `WebSite` and `Organization` on the home page. These influence the site name and logo shown in
-  results.
+- `WebSite` on home and the same `Organization` identity on home and About,
+  `https://www.alethical.com/#organization`. The organization uses only the existing
+  visible founders, contact route, logo and approved social accounts. The website,
+  event organizer and article publisher refer to that identity.
+- Indexed published pieces carry `Article`, their visible title, canonical address,
+  original publication date and Alethical publisher identity. An explicit
+  Alethical `authorLine` uses that same identity: grounded-answers rule 13.8
+  intentionally omits a byline for our own pieces because the site is the author.
+  An empty author field stays absent. No `dateModified` is
+  inferred from `checkedOn`, data coverage or a schema change. Held/private pages
+  emit no structured data. These fields promise neither indexing nor rich results.
 - `BreadcrumbList` on detail pages, but **only where the page really shows that path**. It is
   eligible for a visible feature in results. **Measured against the shipped page, ours does not
   qualify, so this comes back out — see the ruling in §12.**
@@ -278,6 +287,21 @@ The reversal rests on three things:
 The honest counter, stated plainly: allowing would fit the mission of making this record legible
 wherever people ask, and a model that has read us may serve Minnesotans better. No provider promises
 that outcome, which is why it loses to the reversibility argument rather than to the principle.
+
+The discoverability build extends the exclusions to `CCBot`, `Bytespider`,
+`Applebot-Extended` and `meta-externalagent`. This is a reversible collection
+preference, not a claim that all 4 are used only for training or that exclusion
+has no effect on every provider's answers. Search/user-request agents and
+`Google-Extended` stay allowed. No optional Content-Signal declaration is added.
+
+The pages sitemap uses the recorded significant update date for events. The
+October 22 event update corrects the stale future invitation in its description;
+the event and replay publication dates remain separate. Articles have known later
+edits but no reliable latest-change field, so they keep no `lastmod`. Original
+publication alone cannot stand for the latest change. `checkedOn`, filing dates
+and build time never become page-change dates. Money records keep no `lastmod`,
+as §22 requires. A later article change needs its own recorded significant-change
+date before `lastmod` can be asserted.
 
 **Do not block the answer pages in `robots.txt`.**
 A crawler that is blocked from fetching a page cannot read the "do not index" instruction inside
@@ -1326,9 +1350,9 @@ what the last bullet under Decision predicted.
 piece's claims out of its **share preview and metadata**, and keeps _listing_ a piece on its own
 `indexed` flag. Both are untouched:
 
-- The tags still carry title and dates only. `researchPageMetadata` (named
-  `moneyReportPageMetadata` until 27 Aug 2026) is unchanged, and a test
-  asserts the served `<head>` carries the dates line and none of the piece's figures.
+- `researchPageMetadata` follows rule 13's search-versus-share boundary and §28.4c.
+  Tests keep the piece's findings and amounts out of the served `<head>` while
+  preserving the required date wording.
 - The `indexed` flag still decides listing on its own, and serving the body never sets it. What
   changed there is rule 13 itself, not this work: since 25 Aug 2026 a posted piece is
   `indexed: true` from the day it posts, and the hold-back stays available for an explicitly named piece
@@ -2019,13 +2043,16 @@ download falls from 295,412 to 294,478 Brotli bytes: 934 bytes each visitor used
 nothing. Page speed is its own ranking factor, so this is a discovery fix rather than only a
 tidy-up, and it is what gave the bill change above room to ship.
 
-**4c. Each guide describes itself to a search engine.** The 5 guides at `/blog/guides/...` sent
-one line each that was only a date, "Written August 2026.", because rule 13 holds a piece's
-claims out of metadata. Each now carries a sentence about what it covers, written from the
-guide's own words and stating no amount, while its share preview keeps the dates-only wording
-rule 13 sets. That rule's own text carries the ruling (18 Sep 2026); describing a
-subject is not making the claim, and a date tells a searcher nothing about whether the page
-answers their question.
+**4c. Approved descriptions name the writing's subject to a search engine.** The
+optional `searchDescription` belongs to the full piece, not the lightweight index.
+It states the subject without an amount or finding. For Research, the description
+is followed by the unchanged publication and records-through dates; without an
+approved subject line, those dates remain the complete description. Guide subject
+lines keep their existing treatment. External share previews stay dates-only.
+Grounded-answers rule 13 owns this boundary. Each piece retains its review checks;
+a metadata change neither claims a new source review nor replaces human approval
+fingerprints. The Money Only Goes One Way uses its approved subject line; the 5
+Short post descriptions remain unchanged until their required review is recorded.
 
 **4d. Every legislator page names its own member to a search engine (22 Sep 2026).** All 200
 profiles sent one identical line, "Committee assignments, chief-authored bills, and contact
@@ -2115,8 +2142,8 @@ already takes its sentence (§28.4d).
 pages: §6 admits only what a shipped search feature consumes, and no listed feature reads a
 `Dataset` or `ItemList` for pages like these; `BreadcrumbList` stays out for §12's reason. A
 narrowed money view stays `noindex` (§22), which a seat never was. The bill description stays the one fixed sentence §26 rules, and
-a guide's description stays its dates (rule 13); both follow approved decisions and both cost search
-visibility, so changes require separate product approval. Host, scheme and trailing-slash
+writing's search and share descriptions follow rule 13 and §28.4c. Subject wording does
+not establish a measured search-visibility gain. Host, scheme and trailing-slash
 forwards, the 404 and 503 answers, `robots.txt`, `lang`, one `<h1>` per page, and the per-page
 canonical links all measured correct on 18 Sep 2026 and are unchanged.
 

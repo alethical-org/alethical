@@ -52,7 +52,7 @@ import {
   WORDS_PER_MINUTE,
 } from '../research';
 
-import { shortPostArticleSnapshotBlocks } from '../shortPosts';
+import { shortPostArticleSnapshotBlocks, shortPostPublicationErrors } from '../shortPosts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -210,8 +210,8 @@ describe('piece date labels', () => {
 });
 
 describe('piece share previews', () => {
-  // Rule 13: piece claims and derived labels appear in no social-share preview
-  // or metadata — a preview carries the title and the two dates, nothing else.
+  // Social previews carry dates only; search may describe a piece's subject,
+  // without carrying its findings or derived labels.
   it('describes a piece by its dates only', () => {
     expect(researchShareDescription(SAMPLE_PIECE)).toBe(
       'Published Aug 17, 2026 · records through Aug 11, 2026.',
@@ -245,13 +245,40 @@ describe('piece share previews', () => {
     }
   });
 
-  // A research piece's 2 dates are the more useful line beside a title that
-  // already names its subject, so nothing changed for it.
-  it('leaves a research piece describing itself by its dates', () => {
-    const piece = indexedResearch().find((entry) => entry.traits.research)!;
-    const metadata = researchPageMetadata(piece);
-    expect(metadata.description).toBe(pieceShareDescription(piece));
-    expect(metadata.description).toBe(metadata.socialDescription);
+  it('adds the long-form report subject to search without changing its dates or social line', () => {
+    const piece = researchBySlug('the-money-only-goes-one-way')!;
+    expect(piece.searchDescription).toBe(
+      'Minnesota campaign contributions, transfers between political accounts and lobbying records.',
+    );
+    const metadata = researchPageMetadata(piece, piece.searchDescription);
+    expect(metadata.description).toBe(
+      'Minnesota campaign contributions, transfers between political accounts and lobbying records. Published Aug 20, 2026 · records through Jul 20, 2026.',
+    );
+    expect(metadata.socialDescription).toBe(
+      'Published Aug 20, 2026 · records through Jul 20, 2026.',
+    );
+    expect(metadata.article).toEqual({ publishedOn: '2026-08-20' });
+  });
+
+  it('keeps dates only when a research subject is missing or blank', () => {
+    const piece = researchBySlug('the-money-only-goes-one-way')!;
+    for (const subject of [undefined, '', ' \n\t ']) {
+      const metadata = researchPageMetadata(piece, subject);
+      expect(metadata.description).toBe(pieceShareDescription(piece));
+      expect(metadata.socialDescription).toBe(pieceShareDescription(piece));
+    }
+  });
+
+  it('keeps the 5 reviewed Short posts on dates with their existing valid review records', () => {
+    const pieces = PUBLISHED_RESEARCH.filter((piece) => piece.format === 'short-post');
+    expect(pieces).toHaveLength(5);
+    for (const piece of pieces) {
+      expect(piece.searchDescription).toBeUndefined();
+      const metadata = researchPageMetadata(piece, piece.searchDescription);
+      expect(metadata.description).toBe(pieceShareDescription(piece));
+      expect(metadata.socialDescription).toBe(pieceShareDescription(piece));
+      expect(shortPostPublicationErrors(piece)).toEqual([]);
+    }
   });
 });
 

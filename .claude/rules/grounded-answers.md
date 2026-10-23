@@ -517,12 +517,14 @@ decides.
     Containment keeps this exception from leaking into the record surfaces. Links run 1
     way: a piece links to record pages, a record page never links back. A piece's claims
     and derived labels appear in no record-page text and in no social-share preview or
-    metadata (share previews carry title and dates only). **A guide's search-result line
-    describes what that guide covers, in the guide's own words, and states no amount.**
-    Describing the subject is not making the claim; the line carries no figure and no
-    finding, and the share preview stays on the dates-only wording (`searchDescription` on
-    each entry, `apps/frontend/src/lib/researchIndex.ts`). A research piece keeps its 2
-    dates, beside a title that already names its subject. Ordinary snippets of a piece's
+    metadata (share previews carry title and dates only). **An approved search-result
+    description names the guide or research piece's subject, with no amount or finding.**
+    The optional `searchDescription` lives on the full piece record. Research search
+    descriptions retain the publication and records-through dates after the subject;
+    without an approved description they show those dates alone. Guide descriptions keep
+    their subject wording. External share previews stay dates-only. Each description
+    change follows the piece's existing review requirements; it never certifies a fresh
+    source review or bypasses a Short post's human-review fingerprint. Ordinary snippets of a piece's
     body stay on: a snippet links to the page holding the method, and suppressing body
     text on a transparency product reads as hiding the very thing it publishes. Site search
     presents our own writing as its own labeled group. Every piece opens with a masthead
