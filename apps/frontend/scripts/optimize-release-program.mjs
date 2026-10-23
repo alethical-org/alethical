@@ -134,6 +134,10 @@ export function optimizeInWorkers(directory, workerCount = Math.min(availablePar
 
 async function optimizeBuiltReleaseProgram() {
   const bundleFiles = (await readdir(bundleDirectory)).filter((file) => file.endsWith('.js'));
+  const started = performance.now();
+  console.log(
+    `Shrinking ${bundleFiles.length} files on ${Math.min(availableParallelism(), 8)} workers (${availableParallelism()} processors)`,
+  );
 
   const results = await optimizeReleaseFiles(bundleFiles, {
     read: (file) => readFile(resolve(bundleDirectory, file), 'utf8'),
@@ -141,6 +145,7 @@ async function optimizeBuiltReleaseProgram() {
     optimize: optimizeInWorkers(bundleDirectory),
   });
 
+  console.log(`Shrinking took ${Math.round(performance.now() - started)} ms`);
   for (const result of results) {
     console.log(
       result.written
