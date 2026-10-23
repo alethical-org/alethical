@@ -1,3 +1,4 @@
+import type { ContactPurpose } from '../lib/contactPurposes';
 import { CompositeScreenProps, NavigatorScreenParams } from '@react-navigation/native';
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -189,7 +190,7 @@ export type RootStackParamList = {
   Terms: undefined;
   AboutUs: undefined;
   Services: undefined;
-  ContactUs: { article?: string; purpose?: 'host-debate' } | undefined;
+  ContactUs: { article?: string; purpose?: ContactPurpose } | undefined;
   ConfirmEmail: undefined;
   ResetPassword: undefined;
   NotFound: { path: string };

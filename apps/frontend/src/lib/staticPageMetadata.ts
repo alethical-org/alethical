@@ -1,3 +1,4 @@
+import { ABOUT_SEARCH_DESCRIPTION } from './aboutUs';
 import { MONEY_SECTION_NAME } from './moneySectionName';
 import { SERVICES_SUBTITLE } from './servicesMetadata';
 import { READ_PAGE_HEADING, READ_PAGE_INTRO, READ_PAGE_NAME } from './blogPageCopy';
@@ -104,8 +105,7 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
   '/about': pageMetadata({
     title: titleFor('About us'),
     socialTitle: 'About us',
-    description:
-      'Why this site exists, and how Minnesota’s official legislative record is turned into plain language.',
+    description: ABOUT_SEARCH_DESCRIPTION,
     canonicalPath: '/about',
   }),
   '/services': pageMetadata({

@@ -1,5 +1,5 @@
 import { SOCIAL_ACCOUNTS } from './socialLinks';
-import { ABOUT_TEAM_MEMBERS } from './aboutUs';
+import { ABOUT_DESCRIPTION, ABOUT_EMAIL, ABOUT_TEAM_MEMBERS } from './aboutUs';
 import { ORGANIZATION_REFERENCE } from './organizationIdentity';
 import {
   escapeHtml,
@@ -114,6 +114,9 @@ export function pageJsonLd(meta: PageMetadata): object[] {
       {
         '@context': 'https://schema.org',
         ...ORGANIZATION_REFERENCE,
+        // The same description and email the About page shows, so the data matches the page.
+        description: ABOUT_DESCRIPTION,
+        email: ABOUT_EMAIL,
         founder: ABOUT_TEAM_MEMBERS.map((person) => ({ '@type': 'Person', name: person.name })),
         contactPoint: { '@type': 'ContactPoint', url: publicPageUrl('/about/contact') },
         logo: `${PUBLIC_SITE_ORIGIN}/icon-512.png`,

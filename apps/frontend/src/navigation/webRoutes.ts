@@ -1,5 +1,6 @@
 import { eventIndexBySlug, PUBLISHED_EVENT_INDEX } from '../lib/eventsIndex';
 import { candidatePreviewEnabled } from '../lib/candidateLookupAvailability';
+import { contactPurpose, type ContactPurpose } from '../lib/contactPurposes';
 import { campaignMoneyYear } from '../lib/campaignMoneyYears';
 import { registrationNumberFromSlug } from '../lib/committeeRoute';
 import { paymentNameRole } from '../lib/paymentNameRoute';
@@ -94,7 +95,7 @@ type WebRouteTarget =
   | { kind: 'terms' }
   | { kind: 'aboutUs' }
   | { kind: 'services' }
-  | { kind: 'contactUs'; article?: string; purpose?: 'host-debate' }
+  | { kind: 'contactUs'; article?: string; purpose?: ContactPurpose }
   | { kind: 'confirmEmail' }
   | { kind: 'resetPassword' }
   | { kind: 'chatSession'; params: RootStackParamList['ChatSession'] }
@@ -466,7 +467,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
 
   if (segments.length === 2 && segments[0] === 'about' && segments[1] === 'contact') {
     const article = searchParams.get('article') || undefined;
-    const purpose = searchParams.get('purpose') === 'host-debate' ? 'host-debate' : undefined;
+    const purpose = contactPurpose(searchParams.get('purpose'));
     return { kind: 'contactUs', ...(article ? { article } : {}), ...(purpose ? { purpose } : {}) };
   }
 
@@ -1173,7 +1174,8 @@ export function pathForRoute(activeRoute: {
       const query: string[] = [];
       if (typeof article === 'string' && article)
         query.push(`article=${encodeURIComponent(article)}`);
-      if (activeRoute.params?.purpose === 'host-debate') query.push('purpose=host-debate');
+      const purpose = contactPurpose(String(activeRoute.params?.purpose ?? ''));
+      if (purpose) query.push(`purpose=${purpose}`);
       return `/about/contact${query.length ? `?${query.join('&')}` : ''}`;
     }
     case 'ConfirmEmail':
