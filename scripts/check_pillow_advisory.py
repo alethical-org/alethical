@@ -5,6 +5,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
+import subprocess
 import urllib.request
 from pathlib import Path
 
@@ -47,17 +50,49 @@ def problems(payload: object) -> list[str]:
     return []
 
 
-def check() -> list[str]:
-    request = urllib.request.Request(
-        URL,
-        headers={
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "alethical-pillow-advisory-check/1",
-            "X-GitHub-Api-Version": "2022-11-28",
-        },
-    )
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    """A signed request must never follow a redirect to another address."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def token(env: dict | None = None) -> str | None:
+    """GitHub's job token, else the saved local sign-in; never printed. A signed
+    read avoids the shared unauthenticated rate limit."""
+    env = os.environ if env is None else env
+    value = env.get("GH_TOKEN") or env.get("GITHUB_TOKEN")
+    if not value:
+        try:
+            result = subprocess.run(
+                ["gh", "auth", "token", "--hostname", "github.com"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        value = result.stdout.strip() if result.returncode == 0 else ""
+    if re.fullmatch(r"[A-Za-z0-9_]{20,255}", value or ""):
+        return value
+    return None
+
+
+def check(env: dict | None = None) -> list[str]:
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "alethical-pillow-advisory-check/1",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    signed = token(env)
+    if signed:
+        headers["Authorization"] = f"Bearer {signed}"
+    request = urllib.request.Request(URL, headers=headers)
     try:
-        with urllib.request.urlopen(request, timeout=20) as response:
+        with urllib.request.build_opener(NoRedirect).open(
+            request, timeout=20
+        ) as response:
             raw = response.read(MAX_RESPONSE_BYTES + 1)
         if len(raw) > MAX_RESPONSE_BYTES:
             raise ValueError("Oversized advisory")

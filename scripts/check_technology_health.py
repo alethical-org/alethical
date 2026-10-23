@@ -745,7 +745,7 @@ def verify_pillow_exception(root: Path) -> bool:
             capture_output=True,
             text=True,
             check=False,
-            timeout=600,
+            timeout=1000,
         )
     except (OSError, subprocess.TimeoutExpired):
         print("The Pillow exception check did not complete.")

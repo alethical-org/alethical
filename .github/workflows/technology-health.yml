@@ -19,7 +19,8 @@ env:
 jobs:
   review:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # The production proof may wait out an API deploy before it runs.
+    timeout-minutes: 30
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -70,6 +71,8 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Recheck the Pillow advisory directly for a fixed release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: >
           python scripts/check_pillow_advisory.py
           --report "$GITHUB_STEP_SUMMARY"

@@ -114,7 +114,9 @@ The [Pillow Arrow advisory](https://github.com/python-pillow/Pillow/security/adv
 is tracked in [issue 2643](https://github.com/alethical-org/alethical/issues/2643).
 The existing Monday technology-health workflow runs a separate free job that reads
 the upstream repository's advisory API through `scripts/check_pillow_advisory.py`.
-It runs independently of registry scan failures and timeouts. A published fix, changed advisory identity or affected range, missing fix
+The read is signed with the job's GitHub token, or the saved local `gh` sign-in,
+so it does not share GitHub's unauthenticated rate limit; it refuses redirects, so
+the signature never reaches another address. It runs independently of registry scan failures and timeouts. A published fix, changed advisory identity or affected range, missing fix
 field, unreadable response or failed request fails the recheck. This upstream
 check grants no runtime exception and does not suppress any scanner finding.
 
@@ -132,6 +134,22 @@ version, deployment identities and timestamps. A separate binding ties it to the
 requesting GitHub run and attempt, or to a unique local request. Missing evidence,
 changed commands, missing instances and provider failures fail the job. This
 workflow supplies evidence; it does not itself grant an exception.
+
+A merge to `main` starts an API deploy and a trusted check at the same moment.
+While Railway reports a named rollout state (queued, waiting, building, deploying,
+initializing or removing a deployment; created, initializing, restarting or
+removing an instance), the check re-reads every 15 seconds for up to 6 minutes,
+then runs the unchanged full proof. Saved settings and identities are checked on
+every read, so a wrong setting fails at once even mid-rollout. Failed, crashed,
+sleeping or unknown states fail at once, and a rollout that never settles fails
+at the bound. Only a lost or refused connection to an instance is retried, once;
+a wrong answer, bad exit, malformed message, certificate failure or timeout is not.
+
+GitHub starts 2 to 4 copies of this workflow for 1 requesting check. A claim job
+holding no production secret (`scripts/pillow_runtime_claim.py`) lets only the
+first copy probe production; later copies finish without probing. The requester
+waits for every copy, fails if any copy did not succeed, and reads the proof only
+from the first.
 
 The source guard distinguishes the single production renderer from 3 archived
 media tools awaiting release on `codex/social-video-guides`. Their exact paths,
