@@ -100,6 +100,7 @@ Set under **Settings** for the `alethical-web` project. Verified 2026-08-15.
 | Root Directory | `.` | The build, server functions, and `vercel.json` start at the repository root. | Live |
 | Git repository | `alethical-org/alethical`, production branch `main`, automatic releases **on** | Vercel's Git connection is the normal web release path. | Live |
 | Ignored Build Step | The `ignoreCommand` in `vercel.json` | Documentation-only and backend-only changes stop before a paid build. | Tracked file: `vercel.json` |
+| Branches that never deploy | `git.deploymentEnabled` in `vercel.json`: `gh-readonly-queue/**` off | The merge queue's temporary branches hold the same commit main receives seconds later, so their preview build is paid for and never used. | Tracked file: `vercel.json` |
 | Deployment Protection | `all_except_custom_domains` | Preview addresses require Vercel login while custom production domains stay public. | Live |
 | Protection Bypass for Automation | **On** | Signed-in checks can reach protected previews through `VERCEL_AUTOMATION_BYPASS_SECRET`. | Live |
 | Production domain | `www.alethical.com` | Names the public web address. | Live |
