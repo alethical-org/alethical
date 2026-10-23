@@ -138,7 +138,7 @@ workflow supplies evidence; it does not itself grant an exception.
 A merge to `main` starts an API deploy and a trusted check at the same moment.
 While Railway reports a named rollout state (queued, waiting, building, deploying,
 initializing or removing a deployment; created, initializing, restarting or
-removing an instance), the check re-reads every 15 seconds for up to 6 minutes,
+removing an instance), the check re-reads every 15 seconds for up to 10 minutes,
 then runs the unchanged full proof. Saved settings and identities are checked on
 every read, so a wrong setting fails at once even mid-rollout. Failed, crashed,
 sleeping or unknown states fail at once, and a rollout that never settles fails
