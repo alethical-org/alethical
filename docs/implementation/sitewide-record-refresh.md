@@ -82,7 +82,9 @@ late completion cannot erase it. A completed turn acknowledges its dispatch and
 can continue immediately; an ambiguous queued request retains duplicate protection.
 
 FCC delegates to the existing collector and fixed station scope. Numeric sanitized
-reports distinguish backlog, source gaps and processing failures. Default-off
+reports distinguish backlog, source gaps and processing failures. A late Actions
+report cannot replace a newer run's FCC issue counts or close its unfinished-work
+report. Default-off
 families retain old clocks until staged activation. Parent acceptance covers current
 schema integration, spending intent, actual settings and measurable public results;
 local tests alone cannot prove those live facts.
@@ -93,7 +95,7 @@ The current-main integration preserves merge `29dbb061` and main `4c99ecf9` thro
 merge `75296eb6`. The source implementation checkpoint is `f25a0587`. Normal
 commit hooks passed. The combined source, notice, legislative, supporting, lobbying
 and Minnesota-ingestion selection passed 277 tests; the existing FCC report passed
-6 Node tests. The current additive source schema round-trip passed with RLS on its
+8 Node tests. The current additive source schema round-trip passed with RLS on its
 3 operational tables. The final payment migration revision and combined money
 integration still require their own current-head checks.
 

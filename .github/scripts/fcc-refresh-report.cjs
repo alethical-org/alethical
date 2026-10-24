@@ -33,6 +33,7 @@ module.exports = async function report({github, context, core, failed, path = 'f
     '',
     'The next daily run resumes bounded work. For repeated failures, inspect the failed phase and private settings. Preserve saved originals and conflicting copies. Manual refreshes must share the workflow queue; coordinate any local writer.',
     '',
+    `<!-- fcc-refresh-completion:${context.runId} -->`,
     `[Latest run](${run}) · [FCC political files: collection and recovery](https://github.com/alethical-org/alethical/blob/main/docs/implementation/fcc-political-files.md)`,
   ].join('\n');
   await core.summary.addRaw(body).write();
@@ -41,6 +42,10 @@ module.exports = async function report({github, context, core, failed, path = 'f
   });
   const existing = issues.find(issue => !issue.pull_request && issue.title === title);
   if (existing) {
+    // A report job can finish after a newer collector. Never replace that
+    // newer run's retained counts or close its unfinished-work issue.
+    const savedRun = /<!-- fcc-refresh-completion:(\d+) -->/.exec(existing.body || '');
+    if (savedRun && BigInt(savedRun[1]) > BigInt(String(context.runId))) return;
     await github.rest.issues.update({
       ...context.repo, issue_number: existing.number, body,
       state: problem ? 'open' : 'closed',
