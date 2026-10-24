@@ -193,14 +193,21 @@ def main() -> int:
                 log(message)
                 record_stage("clearing saved pages", "failed", details=[message])
                 return 1
-            log(
-                "another campaign-money refresh holds the run-wide lease, so this one "
-                "does nothing; the running one covers today"
+            log("another campaign writer holds the lease; this turn remains due")
+            scheduled = bool(
+                args.collect_only
+                or args.recheck_limit is not None
+                or os.environ.get("ALETHICAL_REFRESH_JOB_NAME")
             )
             record_stage(
-                "refresh", "skipped", details=["another refresh held the lease"]
+                "refresh",
+                "pending" if scheduled else "skipped",
+                details=[
+                    "another campaign writer held the lease; no source collection completed"
+                ],
             )
-            return 76 if os.environ.get("ALETHICAL_REFRESH_JOB_NAME") else 0
+            return 76 if scheduled else 0
+
         if args.prove_alerting:
             summary = (
                 "PROVING ALERTING: this run exited 1 on purpose after taking the "

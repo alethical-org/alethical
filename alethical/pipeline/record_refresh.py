@@ -20,15 +20,22 @@ import tempfile
 import time
 import uuid
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from alethical.db.models import SourceRefreshState, SourceRefreshAttempt
+from alethical.db.models import (
+    SourceRefreshState,
+    SourceRefreshAttempt,
+    CampaignFinanceFilingCurrentSnapshot,
+)
 from alethical.pipeline.legislative_calendar import session_refresh_interval
 from alethical.pipeline.sessions import SESSION_DEFINITIONS
+from alethical.pipeline.source_record_clearing import MARKERS, drain_source_clearing
 
 ROOT = Path(__file__).resolve().parents[2]
+#: Runs only while a committed source change still owes saved-page clearing.
+CLEARING_JOB = "source-clearing"
 
 
 @dataclass(frozen=True)
@@ -51,7 +58,7 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
     definitions = [
         RefreshJob(
             "lobbying",
-            timedelta(days=1),
+            timedelta(hours=1),
             timedelta(minutes=30),
             ("scripts/refresh_lobbying_records.py", "--target", "{target}"),
             "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/",
@@ -76,7 +83,7 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
         RefreshJob(
             "filing-dates",
             timedelta(days=1),
-            timedelta(hours=2),
+            timedelta(minutes=5),
             (
                 "scripts/backfill_campaign_finance_filed_dates.py",
                 "--target",
@@ -84,6 +91,10 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
                 "--year-from",
                 "2022",
                 "--json",
+                "--batch-size",
+                "25",
+                "--max-seconds",
+                "120",
             ),
             "https://cfb.mn.gov/",
             "Copy filing dates from official report evidence",
@@ -132,6 +143,58 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
             lane="statements",
         ),
     ]
+    definitions.append(
+        RefreshJob(
+            "filing-dates-recent",
+            timedelta(hours=1),
+            timedelta(minutes=5),
+            (
+                "scripts/backfill_campaign_finance_filed_dates.py",
+                "--target",
+                "{target}",
+                "--year-from",
+                str(now.year - 1),
+                "--json",
+                "--batch-size",
+                "25",
+                "--max-seconds",
+                "120",
+            ),
+            "https://cfb.mn.gov/",
+            "Refresh dates on current/recent filed reports before older history",
+            lane="filing-dates",
+            review_exit=2,
+            priority=5,
+        )
+    )
+    for source, interval in (
+        ("roster", timedelta(minutes=15)),
+        ("maps", timedelta(hours=1)),
+        ("lobbying", timedelta(minutes=15)),
+    ):
+        definitions.append(
+            RefreshJob(
+                f"{source}-discovery",
+                interval,
+                timedelta(minutes=3),
+                (
+                    "scripts/discover_reference_records.py",
+                    "--target",
+                    "{target}",
+                    "--source",
+                    source,
+                ),
+                {
+                    "roster": "https://www.house.mn.gov/hinfo/leginfo/memroster.pdf",
+                    "maps": "https://gis.lcc.mn.gov/html/download.html",
+                    "lobbying": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/",
+                }[source],
+                "Detect official release signals without replacing checked records",
+                capture_json=True,
+                lane=f"{source}-discovery",
+                priority=4,
+            )
+        )
     definitions.append(
         RefreshJob(
             "campaign-rechecks",
@@ -264,7 +327,7 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
         [
             RefreshJob(
                 "roster",
-                timedelta(days=1),
+                timedelta(hours=4),
                 timedelta(hours=2),
                 (
                     "scripts/refresh_legislative_records.py",
@@ -312,11 +375,15 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
             ),
         ]
     )
-    for name, interval in (("maps", 7), ("candidates", 1), ("zip", 7)):
+    for name, interval in (
+        ("maps", timedelta(days=1)),
+        ("candidates", timedelta(hours=1)),
+        ("zip", timedelta(days=1)),
+    ):
         definitions.append(
             RefreshJob(
                 name,
-                timedelta(days=interval),
+                interval,
                 timedelta(minutes=10),
                 ("scripts/check_supporting_sources.py", "--source", name),
                 {
@@ -353,6 +420,19 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
             ),
         ]
     )
+    definitions.append(
+        RefreshJob(
+            CLEARING_JOB,
+            timedelta(minutes=5),
+            timedelta(minutes=5),
+            ("scripts/clear_source_record_pages.py", "--target", "{target}"),
+            "https://www.alethical.com/",
+            "Clear saved public pages owed by committed source changes",
+            capture_json=True,
+            lane="source-clearing",
+            priority=9,
+        )
+    )
     return {job.name: job for job in definitions}
 
 
@@ -362,17 +442,25 @@ FAMILIES = {"campaign", "notices", "legislative", "lobbying", "supporting", "fcc
 def job_family(name: str) -> str:
     if name in {"notices", "notice-amendments", "statement-amendments"}:
         return "notices"
-    if name.startswith("bills-") or name in {"votes", "roster", "sessions"}:
+    if name.startswith("bills-") or name in {
+        "votes",
+        "roster",
+        "roster-discovery",
+        "sessions",
+    }:
         return "legislative"
     if name in {
         "campaign-money",
         "campaign-rechecks",
         "campaign-discovery",
         "filing-dates",
+        "filing-dates-recent",
         "refunds",
         "donor-proof-preparation",
     }:
         return "campaign"
+    if name == "lobbying-discovery":
+        return "lobbying"
     if name in {"fcc", "lobbying"}:
         return name
     return "supporting"
@@ -390,7 +478,52 @@ def enabled_families() -> set[str]:
 
 
 def enabled_job(name: str) -> bool:
+    if name == CLEARING_JOB:
+        return bool(enabled_families())
     return job_family(name) in enabled_families()
+
+
+def _clearing_owed(db: Session) -> bool:
+    return (
+        db.scalar(
+            select(SourceRefreshState.name)
+            .where(SourceRefreshState.name.in_(MARKERS))
+            .limit(1)
+        )
+        is not None
+    )
+
+
+def load_progress(engine, name: str, token: str) -> dict:
+    with engine.connect() as connection:
+        value = connection.execute(
+            text("""
+            SELECT progress FROM source_refresh_state
+            WHERE name=:name AND token=CAST(:token AS uuid)
+              AND lease_expires_at > clock_timestamp()
+        """),
+            {"name": name, "token": token},
+        ).scalar_one_or_none()
+    if value is None:
+        raise RuntimeError("The source refresh no longer owns its unexpired job lease")
+    return dict(value)
+
+
+def save_progress(engine, name: str, token: str, progress: dict) -> None:
+    with engine.begin() as connection:
+        changed = connection.execute(
+            text("""
+            UPDATE source_refresh_state SET progress=CAST(:progress AS jsonb)
+            WHERE name=:name AND token=CAST(:token AS uuid)
+              AND lease_expires_at > clock_timestamp()
+            RETURNING name
+        """),
+            {"name": name, "token": token, "progress": json.dumps(progress)},
+        ).scalar_one_or_none()
+        if changed is None:
+            raise RuntimeError(
+                "The source refresh lost its lease before saving progress"
+            )
 
 
 def _next_due_at(row: SourceRefreshState, job: RefreshJob) -> datetime:
@@ -422,10 +555,34 @@ def due_names(db: Session, *, now: datetime | None = None) -> list[str]:
             .on_conflict_do_nothing(index_elements=["name"])
         )
         db.commit()
+    if "filing-dates" in active:
+        snapshot_id = db.scalar(
+            select(CampaignFinanceFilingCurrentSnapshot.snapshot_id)
+        )
+        if snapshot_id is not None:
+            identity = str(snapshot_id)
+            for name in ("filing-dates", "filing-dates-recent"):
+                if name not in active:
+                    continue
+                observed = db.get(SourceRefreshState, name)
+                signal_row = db.get(SourceRefreshState, f"signal:{name}")
+                if (observed.finding or {}).get("filings_snapshot_id") == identity:
+                    continue
+                if (
+                    signal_row
+                    and (signal_row.progress or {}).get("filings_snapshot_id")
+                    == identity
+                ):
+                    continue
+                request_refresh(
+                    db, name, now=now, progress={"filings_snapshot_id": identity}
+                )
+            db.commit()
     states = {row.name: row for row in db.scalars(select(SourceRefreshState))}
+    owed = any(name in states for name in MARKERS)
     ready = []
     for name, job in definitions.items():
-        if not enabled_job(name):
+        if not enabled_job(name) or (name == CLEARING_JOB and not owed):
             continue
         row = states.get(name)
         lane = states.get(f"lane:{job.lane}") if job.lane else None
@@ -527,7 +684,9 @@ def claim_job(
     return Claim(job, token, now)
 
 
-def request_refresh(db: Session, name: str, *, now: datetime) -> None:
+def request_refresh(
+    db: Session, name: str, *, now: datetime, progress: dict | None = None
+) -> None:
     """Durable source change signal, separate from an in-flight collector's progress."""
     db.execute(
         insert(SourceRefreshState)
@@ -537,10 +696,17 @@ def request_refresh(db: Session, name: str, *, now: datetime) -> None:
             set_={"next_due_at": func.least(SourceRefreshState.next_due_at, now)},
         )
     )
+    values = dict(
+        name=f"signal:{name}", next_due_at=now, last_started_at=now, failures=0
+    )
+    updates = {"last_started_at": now}
+    if progress is not None:
+        values["progress"] = progress
+        updates["progress"] = progress
     db.execute(
         insert(SourceRefreshState)
-        .values(name=f"signal:{name}", next_due_at=now, last_started_at=now, failures=0)
-        .on_conflict_do_update(index_elements=["name"], set_={"last_started_at": now})
+        .values(**values)
+        .on_conflict_do_update(index_elements=["name"], set_=updates)
     )
     # Caller commits this signal together with its observed source fingerprint.
 
@@ -630,8 +796,8 @@ def finish_job(
             and signal_row.last_started_at <= claim.started_at
         ):
             db.delete(signal_row)
-        else:
-            row.next_due_at = min(row.next_due_at, now)
+        elif code in (0, claim.job.review_exit):
+            row.next_due_at = now
     db.commit()
     return True
 
@@ -738,6 +904,12 @@ def health(db: Session, *, now: datetime | None = None) -> list[dict]:
         overdue = enabled and (
             completed is None or now > completed + job.interval + job.timeout
         )
+        if name == CLEARING_JOB:
+            # Owed since the oldest uncleared commit; nothing owed is never late.
+            owed_since = [rows[m].next_due_at for m in MARKERS if m in rows]
+            overdue = enabled and any(
+                now > since + job.interval + job.timeout for since in owed_since
+            )
         result.append(
             dict(
                 name=name,
@@ -815,6 +987,16 @@ def run_due(
         with session_factory() as db:
             recorded = finish_job(db, claim, code=outcome.code, finding=outcome.finding)
         failed |= outcome.code not in (0, 75, 76, claim.job.review_exit) or not recorded
+        if name != CLEARING_JOB and not stopping:
+            # Even a failed turn can have committed records before it stopped.
+            with session_factory() as db:
+                owed = _clearing_owed(db)
+                engine = db.get_bind()
+            if owed and not drain_source_clearing(engine, target=target):
+                # The records stay published; the obligation stays for the
+                # dedicated clearing job, and this run does not report success.
+                failed = True
+                print(json.dumps({"job": name, "clearing": "pending"}), flush=True)
         if outcome.code == 75 and recorded and turns[name] < max_turns:
             queue.append(name)
         print(

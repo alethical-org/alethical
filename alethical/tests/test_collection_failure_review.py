@@ -1803,7 +1803,7 @@ def test_the_refresh_script_records_its_stages():
     assert 'raiseSystemExit(run_script("refresh",main))' in flat
     assert "record_refresh_report(report)" in flat
     assert 'record_stage("drill","failed",drill=True' in flat
-    assert 'record_stage("refresh","skipped"' in flat
+    assert 'record_stage("refresh","pending"ifscheduledelse"skipped"' in flat
 
 
 class _StreamResponse(_Response):

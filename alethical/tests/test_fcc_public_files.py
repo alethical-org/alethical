@@ -437,3 +437,49 @@ def test_oversized_pdf_has_no_fallback_request():
         assert seen == [SOURCE]
     finally:
         http.close()
+
+
+def test_shared_source_budget_paces_every_hop_and_honors_busy_replies(monkeypatch):
+    from types import SimpleNamespace
+    import time as clock
+
+    from alethical.pipeline import fcc_public_files
+    from alethical.pipeline.request_limits import DatabaseRequestLimiter
+
+    monkeypatch.setattr(
+        fcc_public_files,
+        "time",
+        SimpleNamespace(monotonic=clock.monotonic, sleep=lambda seconds: None),
+    )
+    waits, deferrals, seen = [], [], []
+
+    class Limiter:
+        def wait(self, url):
+            waits.append(url)
+
+        def defer(self, url, seconds):
+            deferrals.append((url, seconds))
+
+    moved = f"{ROOT}/moved"
+
+    def handler(request):
+        seen.append(str(request.url))
+        if len(seen) == 1:
+            return httpx.Response(429, headers={"Retry-After": "7"})
+        if len(seen) == 2:
+            return httpx.Response(302, headers={"location": moved})
+        return httpx.Response(200, content=table())
+
+    http = FCCClient(
+        transport=httpx.MockTransport(handler), attempts=2, limiter=Limiter()
+    )
+    try:
+        http.read_folder(ROOT, "political-files")
+    finally:
+        http.close()
+    # The retry and the redirect destination each wait for their own slot.
+    assert waits == [ROOT, ROOT, moved]
+    assert deferrals == [(ROOT, 7.0)]
+    # Station listings and file downloads share 1 FCC budget.
+    assert DatabaseRequestLimiter.key("https://files.fcc.gov/x") == "fcc.gov"
+    assert DatabaseRequestLimiter.key(ROOT) == "fcc.gov"

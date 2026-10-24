@@ -1331,6 +1331,52 @@ def test_clearing_only_cli_rejects_other_actions_before_connecting(
     assert error.value.code == 2
 
 
+@pytest.mark.parametrize(
+    "arguments, scheduled_env, expected, status",
+    [
+        (["--collect-only"], False, 76, "pending"),
+        (["--recheck-limit", "10"], False, 76, "pending"),
+        ([], True, 76, "pending"),
+        ([], False, 0, "skipped"),
+    ],
+    ids=["collect-only", "bounded-checks", "scheduled-job", "legacy-daily"],
+)
+def test_busy_lease_keeps_scheduled_money_turns_due(
+    monkeypatch, arguments, scheduled_env, expected, status
+):
+    """A blocked scheduled turn must not record success and push collection a day."""
+    script = _refresh_script()
+    stages = []
+
+    @contextmanager
+    def busy(*args, **kwargs):
+        yield type("Lease", (), {"held": False})()
+
+    def unexpected(*args, **kwargs):
+        raise AssertionError("a turn without the lease must not collect")
+
+    if scheduled_env:
+        monkeypatch.setenv("ALETHICAL_REFRESH_JOB_NAME", "campaign-money")
+    else:
+        monkeypatch.delenv("ALETHICAL_REFRESH_JOB_NAME", raising=False)
+    monkeypatch.setattr(script, "create_engine", lambda *a, **k: "engine")
+    monkeypatch.setattr(script, "Session", lambda engine: FakeSession())
+    monkeypatch.setattr(
+        script, "database_url_for_target", lambda target: "postgresql://fake"
+    )
+    monkeypatch.setattr(script, "normalize_database_url", lambda url: url)
+    monkeypatch.setattr(script, "hold_full_run_lease", busy)
+    monkeypatch.setattr(script, "refresh_campaign_money", unexpected)
+    monkeypatch.setattr(
+        script,
+        "record_stage",
+        lambda stage, outcome, **kw: stages.append((stage, outcome)),
+    )
+    monkeypatch.setattr("sys.argv", ["refresh", *arguments])
+    assert script.main() == expected
+    assert ("refresh", status) in stages
+
+
 @pytest.mark.parametrize("busy,dry_run", [(False, False), (True, False), (True, True)])
 def test_clearing_only_cli_isolated_action_and_busy_lease_failure(
     monkeypatch, busy, dry_run

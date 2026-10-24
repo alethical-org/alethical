@@ -879,7 +879,15 @@ def refresh_campaign_money(
     """
     started = now or datetime.now(UTC)
     report = RefreshReport(started_at=started, dry_run=dry_run)
-    http = http or filings.http_session()
+    if http is None:
+        from alethical.pipeline.request_limits import (
+            DatabaseRequestLimiter,
+            RateLimitedSession,
+        )
+
+        http = RateLimitedSession(
+            filings.http_session(), DatabaseRequestLimiter(db.get_bind())
+        )
 
     def before_publish() -> Optional[str]:
         """The loaders' last word before a pointer moves: still our lease, or why not."""
@@ -923,6 +931,11 @@ def refresh_campaign_money(
             try:
                 report.totals = load_totals(
                     db,
+                    **(
+                        {"http": http}
+                        if load_totals is filings.load_campaign_finance_filings
+                        else {}
+                    ),
                     years=supported_years(today),
                     store=store,
                     log=log,
@@ -968,7 +981,12 @@ def refresh_campaign_money(
     # 4. The 3 payment files, every day, whatever happened to the lists.
     try:
         report.payments = load_payments(
-            db, dry_run=dry_run, store=store, log=log, before_publish=before_publish
+            db,
+            **({"http": http} if load_payments is load_campaign_finance else {}),
+            dry_run=dry_run,
+            store=store,
+            log=log,
+            before_publish=before_publish,
         )
     except CampaignFinanceRefusal as refusal:
         report.failures.append(f"payments refresh refused: {refusal}")

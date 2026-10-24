@@ -47,6 +47,21 @@ def refresh(
 ) -> bool:
     if not clear_pending(db, name=name, token=token, target=target, purge=purge):
         return False
-    report = load(db)
+    if load is load_lobbying:
+        from alethical.pipeline import lobbying_expenditures as spending
+        from alethical.pipeline.request_limits import (
+            DatabaseRequestLimiter,
+            RateLimitedSession,
+        )
+
+        http = RateLimitedSession(
+            spending._http_session(), DatabaseRequestLimiter(db.get_bind())
+        )
+        try:
+            report = load(db, http=http)
+        finally:
+            http.close()
+    else:
+        report = load(db)
     cleared = clear_pending(db, name=name, token=token, target=target, purge=purge)
     return not report.refusal and cleared

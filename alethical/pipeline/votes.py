@@ -19,6 +19,7 @@ from sqlalchemy import create_engine, delete, func, select
 from sqlalchemy.orm import Session
 
 from alethical.pipeline.http_text import response_text
+from alethical.pipeline.source_record_clearing import stage_source_clearing
 from alethical.db import models as schema
 from alethical.db.session import (
     NO_PREPARED_STATEMENTS,
@@ -1251,6 +1252,7 @@ def reconcile_saved_votes(
                     session_id=bill.session_id,
                     affected_legislator_ids=old_legislator_ids | new_legislator_ids,
                 )
+            stage_source_clearing(db, "legislative")
             db.commit()
         except Exception as exc:  # noqa: BLE001
             db.rollback()
@@ -1523,6 +1525,7 @@ def repair_incomplete_vote_records(
                     session_id=bill.session_id,
                     affected_legislator_ids={row[0] for row in additions},
                 )
+            stage_source_clearing(db, "legislative")
             db.commit()
         except Exception as exc:  # noqa: BLE001
             db.rollback()
@@ -1740,6 +1743,7 @@ def backfill_votes(
                     )
                     or 0
                 )
+            stage_source_clearing(db, "legislative")
             db.commit()
         except Exception as exc:  # noqa: BLE001
             db.rollback()

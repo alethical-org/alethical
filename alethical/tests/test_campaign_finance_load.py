@@ -2559,8 +2559,47 @@ def test_publication_crash_before_pruning_keeps_retry_work(
     )
     assert refresh.state_get(db, refresh.CLEARING_PENDING_KEY)
     monkeypatch.setattr(cf, "prune", original_prune)
+    accepted_ids = tuple(
+        getattr(cf.live_release(db), column)
+        for column in cf.RELEASE_SNAPSHOT_COLUMN.values()
+    )
+    before_rows = tuple(
+        db.execute(
+            text(f"SELECT count(*) FROM {table} WHERE snapshot_id = :snapshot"),
+            {"snapshot": snapshot},
+        ).scalar_one()
+        for table, snapshot in zip(CF_TABLES[:3], accepted_ids)
+    )
+    owed = refresh.state_get(db, refresh.RECHECK_PENDING_KEY)
     again = run(db, board, store)
-    assert not again.published
+    # An identical complete reread renews only the copy date: it publishes, owes no
+    # new check, and keeps the original check owed by the interrupted publication.
+    assert again.published and not again.requires_recheck
+    assert (
+        tuple(
+            getattr(cf.live_release(db), column)
+            for column in cf.RELEASE_SNAPSHOT_COLUMN.values()
+        )
+        == accepted_ids
+    )
+    assert (
+        tuple(
+            db.execute(
+                text(f"SELECT count(*) FROM {table} WHERE snapshot_id = :snapshot"),
+                {"snapshot": snapshot},
+            ).scalar_one()
+            for table, snapshot in zip(CF_TABLES[:3], accepted_ids)
+        )
+        == before_rows
+    )
+    kept = refresh.state_get(db, refresh.RECHECK_PENDING_KEY)
+    assert kept["payments_release_id"] == refresh.live_versions(db).payments_release_id
+    assert kept["pending_files"] == owed["pending_files"]
+    assert kept["after"] == owed["after"]
+    for dataset, owed_file in owed["payment_files"].items():
+        # Same exact file and checks; only the renewed copy's receipt and dates move.
+        assert kept["payment_files"][dataset]["snapshot_id"] == owed_file["snapshot_id"]
+        assert kept["payment_files"][dataset]["checks"] == owed_file["checks"]
     clears, checks = [], []
 
     def recheck(*args, **kwargs):

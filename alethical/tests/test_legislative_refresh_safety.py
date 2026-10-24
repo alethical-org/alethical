@@ -417,3 +417,67 @@ def test_cfb_posts_and_notice_gets_share_the_same_host_budget():
     ]
     limiter.defer.assert_called_once_with("https://cfb.mn.gov/rptViewer/data.php", 30)
     assert session.post.call_args.kwargs["allow_redirects"] is False
+
+
+@pytest.mark.parametrize(
+    "readings, text_changed, owed",
+    [
+        (["a", "t1", "a", "t1"], [], False),
+        (["a", "t1", "b", "t1"], [], True),
+        ([None, None, "a", "t1"], [], True),
+        (["a", "t1", "a", "t1"], ["94-2025-HF1"], True),
+    ],
+    ids=["unchanged", "new-status", "new-bill", "new-text"],
+)
+def test_only_an_accepted_bill_change_owes_saved_page_clearing(
+    monkeypatch, readings, text_changed, owed
+):
+    from unittest.mock import Mock
+
+    from alethical.pipeline import legislative_refresh as refresh
+    from alethical.pipeline import rag_ingest
+    from alethical.pipeline.minnesota import BillSearchResult
+
+    db = Mock()
+    # Status-source hash and bill row time, read before and after the ingest.
+    db.scalar.side_effect = readings
+    order = []
+    db.commit.side_effect = lambda: order.append("commit")
+    context = Mock()
+    context.__enter__ = Mock(return_value=db)
+    context.__exit__ = Mock(return_value=False)
+    monkeypatch.setattr(refresh, "Session", lambda *_: context)
+    monkeypatch.setattr(refresh, "rate_limited_source_session", lambda *a, **k: Mock())
+    pipeline = Mock()
+    pipeline.ingest_bills.return_value = {
+        "bill_refresh_rejections": [],
+        "text_changed_bill_keys": text_changed,
+        "summary_changed_bill_keys": [],
+        "bill_keys": ["94-2025-HF1"],
+    }
+    monkeypatch.setattr(refresh, "MinnesotaIngestionPipeline", lambda *a, **k: pipeline)
+    monkeypatch.setattr(rag_ingest, "build_rag_rows_for_bill_keys", Mock())
+    monkeypatch.setattr(
+        refresh,
+        "stage_source_clearing",
+        lambda session, family: order.append(("stage", session is db, family)),
+    )
+    result = refresh.refresh_bills(
+        Mock(),
+        session_code="0942025",
+        target="production",
+        inventory=[
+            BillSearchResult(
+                chamber="House",
+                file_type="HF",
+                file_number=1,
+                description="Bill",
+                status_xml_uri="https://api.revisor.mn.gov/bills/v1/94/2025/0/HF/1/",
+                latest_text_html_uri="",
+                session_code="0942025",
+            )
+        ],
+    )
+    assert result["accepted"] == 1
+    # The obligation commits in the same transaction as the bill facts.
+    assert order == ([("stage", True, "legislative"), "commit"] if owed else ["commit"])

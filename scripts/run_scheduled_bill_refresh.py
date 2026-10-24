@@ -16,10 +16,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from sqlalchemy import create_engine, select, text  # noqa: E402
+from sqlalchemy import create_engine, select  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 from alethical.db.models import Bill, LegislativeSession  # noqa: E402
 from alethical.db.session import NO_PREPARED_STATEMENTS, database_url_for_target  # noqa: E402
+from alethical.pipeline.record_refresh import load_progress, save_progress  # noqa: E402
 from alethical.pipeline.legislative_refresh import refresh_bills  # noqa: E402
 from alethical.pipeline.legislative_calendar import session_refresh_interval  # noqa: E402
 from alethical.pipeline.minnesota import (  # noqa: E402
@@ -32,36 +33,6 @@ from scripts.load_minnesota_data import _validated_database_target  # noqa: E402
 
 CHUNK_SIZE = 100
 CONTINUE = 75
-
-
-def load_progress(engine, name: str, token: str) -> dict:
-    with engine.connect() as connection:
-        value = connection.execute(
-            text("""
-            SELECT progress FROM source_refresh_state
-            WHERE name=:name AND token=CAST(:token AS uuid)
-              AND lease_expires_at > clock_timestamp()
-        """),
-            {"name": name, "token": token},
-        ).scalar_one_or_none()
-    if value is None:
-        raise RuntimeError("The bill refresh no longer owns its unexpired job lease")
-    return dict(value)
-
-
-def save_progress(engine, name: str, token: str, progress: dict) -> None:
-    with engine.begin() as connection:
-        changed = connection.execute(
-            text("""
-            UPDATE source_refresh_state SET progress=CAST(:progress AS jsonb)
-            WHERE name=:name AND token=CAST(:token AS uuid)
-              AND lease_expires_at > clock_timestamp()
-            RETURNING name
-        """),
-            {"name": name, "token": token, "progress": json.dumps(progress)},
-        ).scalar_one_or_none()
-        if changed is None:
-            raise RuntimeError("The bill refresh lost its lease before saving progress")
 
 
 def stored_bill_keys(engine, session_code: str) -> set[str]:

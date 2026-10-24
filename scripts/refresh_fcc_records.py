@@ -71,6 +71,7 @@ def main():
             "refresh",
             "--target",
             "prod" if args.target == "production" else "dev",
+            "--shared-source-budget",
             "--workers",
             "3",
             "--max-files",

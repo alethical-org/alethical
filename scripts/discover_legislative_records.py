@@ -19,11 +19,8 @@ from alethical.db.session import database_url_for_target, NO_PREPARED_STATEMENTS
 from alethical.pipeline.legislative_refresh import refresh_bills  # noqa: E402
 from alethical.pipeline.minnesota import BillSearchResult, discover_recent_action_bills  # noqa: E402
 from alethical.pipeline.votes import rate_limited_source_session  # noqa: E402
-from scripts.run_scheduled_bill_refresh import (  # noqa: E402
-    load_progress,
-    save_progress,
-    check_pending_votes,
-)
+from alethical.pipeline.record_refresh import load_progress, save_progress  # noqa: E402
+from scripts.run_scheduled_bill_refresh import check_pending_votes  # noqa: E402
 
 LIMIT = 25
 

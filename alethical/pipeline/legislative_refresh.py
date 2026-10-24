@@ -9,7 +9,10 @@ from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
+
+from alethical.db.models import Bill, SourceArtifact
 
 from alethical.pipeline.minnesota import (
     BillSearchResult,
@@ -17,6 +20,7 @@ from alethical.pipeline.minnesota import (
     discover_session_bills,
 )
 from alethical.pipeline.sessions import session_definition
+from alethical.pipeline.source_record_clearing import stage_source_clearing
 from alethical.pipeline.votes import (
     backfill_votes,
     rate_limited_source_session,
@@ -93,6 +97,15 @@ def refresh_bills(
                     db, sess=source, conditional_bill_text=True
                 )
                 try:
+                    previous_hash = db.scalar(
+                        select(SourceArtifact.content_hash)
+                        .where(SourceArtifact.source_url == result.status_xml_uri)
+                        .order_by(SourceArtifact.updated_at.desc())
+                        .limit(1)
+                    )
+                    previous_updated = db.scalar(
+                        select(Bill.updated_at).where(Bill.bill_key == result.bill_key)
+                    )
                     stats = pipeline.ingest_bills([result.target])
                     if stats["bill_refresh_rejections"]:
                         report["failed"].extend(stats["bill_refresh_rejections"])
@@ -112,6 +125,21 @@ def refresh_bills(
                         build_rag_rows_for_bill_keys(
                             db, changed, database_target=target
                         )
+                    current_hash = db.scalar(
+                        select(SourceArtifact.content_hash)
+                        .where(SourceArtifact.source_url == result.status_xml_uri)
+                        .order_by(SourceArtifact.updated_at.desc())
+                        .limit(1)
+                    )
+                    current_updated = db.scalar(
+                        select(Bill.updated_at).where(Bill.bill_key == result.bill_key)
+                    )
+                    if (
+                        changed
+                        or previous_hash != current_hash
+                        or previous_updated != current_updated
+                    ):
+                        stage_source_clearing(db, "legislative")
                     db.commit()
                     report["accepted"] += 1
                     report["accepted_bill_keys"].extend(stats["bill_keys"])
@@ -177,6 +205,9 @@ def refresh_roster(engine: Any, *, session_code: str, target: str) -> dict[str, 
             roster_text, year_start=definition.year_start, year_end=definition.year_end
         )
         members = parse_roster_pdf(roster_text)
+        with Session(engine) as pending:
+            stage_source_clearing(pending, "legislative")
+            pending.commit()
         with Session(engine) as db:
             previous, target_session = roster_session_transition(
                 db, definition, today=date.today()

@@ -57,6 +57,7 @@ class DatabaseRequestLimiter:
             "senate.mn",
             "leg.mn.gov",
             "lrl.mn.gov",
+            "fcc.gov",
         ):
             if hostname == domain or hostname.endswith("." + domain):
                 return domain
@@ -149,6 +150,16 @@ class RateLimitedSession:
         # as notice GETs and honor its busy response before any other source job.
         self.limiter.wait(url)
         response = self.session.post(url, allow_redirects=False, **kwargs)
+        if response.status_code in {429, 503}:
+            self.limiter.defer(
+                url, retry_after_seconds(response.headers.get("Retry-After"))
+            )
+        return response
+
+    def head(self, url: str, **kwargs: Any) -> requests.Response:
+        self.limiter.wait(url)
+        kwargs.setdefault("allow_redirects", False)
+        response = self.session.head(url, **kwargs)
         if response.status_code in {429, 503}:
             self.limiter.defer(
                 url, retry_after_seconds(response.headers.get("Retry-After"))

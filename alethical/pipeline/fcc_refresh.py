@@ -7,7 +7,7 @@ from typing import Any, Callable
 from sqlalchemy.orm import Session
 
 from alethical.pipeline import fcc_archive as archive
-from alethical.pipeline.fcc_public_files import DEFAULT_STATIONS
+from alethical.pipeline.fcc_public_files import DEFAULT_STATIONS, FCCClient
 
 
 def refresh(
@@ -20,6 +20,7 @@ def refresh(
     mirror_limit: int = 2500,
     workers: int = 3,
     log: Callable[[dict], None] = lambda row: None,
+    request_limiter=None,
 ) -> dict:
     """Keep every phase's evidence, including after another phase fails.
 
@@ -51,6 +52,7 @@ def refresh(
                 workers=workers,
                 max_files=max_files,
                 incremental=True,
+                client_factory=lambda: FCCClient(limiter=request_limiter),
                 log=log,
             ),
         ),
