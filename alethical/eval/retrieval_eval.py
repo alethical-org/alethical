@@ -19,7 +19,9 @@ never by vector search — so the eval is an independent answer key.
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass, field
+from math import log2
 from pathlib import Path
 
 import numpy as np
@@ -126,6 +128,175 @@ def aggregate(results: list[QueryResult]) -> dict:
             "p95": round(float(np.percentile(dists, 95)), 4) if dists else None,
         },
         "by_phrasing_type": by_type,
+    }
+
+
+# --- Evidence retrieval only; these scores do not evaluate generated answers. ---
+
+
+def _validate_evidence_id(evidence_id: str) -> None:
+    if not isinstance(evidence_id, str) or not evidence_id.strip():
+        raise ValueError("Evidence IDs must be nonempty strings")
+
+
+@dataclass(frozen=True)
+class EvidenceLabel:
+    """Human-assigned relevance: 0 is irrelevant, 1..3 are increasingly useful.
+
+    IDs identify source records or passages, not a generated answer's claims.
+    """
+
+    evidence_id: str
+    relevance: int
+
+    def __post_init__(self) -> None:
+        _validate_evidence_id(self.evidence_id)
+        if type(self.relevance) is not int or not 0 <= self.relevance <= 3:
+            raise ValueError("Evidence relevance must be an integer from 0 to 3")
+
+
+@dataclass(frozen=True)
+class EvidenceQueryResult:
+    case_id: str
+    labels: Sequence[EvidenceLabel]
+    ranked_evidence_ids: Sequence[str]
+
+
+def _evidence_cutoffs(ks: Sequence[int]) -> tuple[int, ...]:
+    cutoffs = tuple(ks)
+    if not cutoffs or any(type(k) is not int or k <= 0 for k in cutoffs):
+        raise ValueError("Evidence cutoffs must be nonempty positive integers")
+    if len(set(cutoffs)) != len(cutoffs):
+        raise ValueError("Evidence cutoffs must be unique")
+    return cutoffs
+
+
+def evidence_retrieval_metrics(
+    ranked_evidence_ids: Sequence[str],
+    labels: Sequence[EvidenceLabel],
+    *,
+    ks: Sequence[int] = RECALL_KS,
+) -> dict:
+    """Score distinct evidence in first-seen order against independent labels.
+
+    Recall is the fraction of ALL positively labelled evidence found in the top
+    k, not a bill-level hit rate. MRR uses the first positive label anywhere in
+    the supplied ranking. nDCG@k uses gain ``2**relevance - 1`` with logarithmic
+    rank discounts, normalized against the best ordering of ALL labels.
+
+    Unlabelled IDs have relevance 0. Cases with no positive labels have null
+    metrics, even when retrieval is empty; returning evidence for those cases
+    is reported separately. None of these metrics establishes answer accuracy,
+    citation validity, coverage of a source, or a correct refusal.
+    """
+    cutoffs = _evidence_cutoffs(ks)
+    grades: dict[str, int] = {}
+    for label in labels:
+        if label.evidence_id in grades:
+            raise ValueError(f"Duplicate evidence label: {label.evidence_id}")
+        grades[label.evidence_id] = label.relevance
+
+    ranked: list[str] = []
+    seen: set[str] = set()
+    for evidence_id in ranked_evidence_ids:
+        _validate_evidence_id(evidence_id)
+        if evidence_id not in seen:
+            seen.add(evidence_id)
+            ranked.append(evidence_id)
+
+    relevant = {evidence_id for evidence_id, grade in grades.items() if grade > 0}
+    answerable = bool(relevant)
+    first_rank = next(
+        (rank for rank, key in enumerate(ranked, 1) if key in relevant), None
+    )
+    ideal_grades = sorted(grades.values(), reverse=True)
+    recall: dict[int, float | None] = {}
+    ndcg: dict[int, float | None] = {}
+    for k in cutoffs:
+        if not answerable:
+            recall[k] = None
+            ndcg[k] = None
+            continue
+        recall[k] = len(set(ranked[:k]) & relevant) / len(relevant)
+        dcg = sum(
+            (2 ** grades.get(key, 0) - 1) / log2(rank + 1)
+            for rank, key in enumerate(ranked[:k], 1)
+        )
+        ideal_dcg = sum(
+            (2**grade - 1) / log2(rank + 1)
+            for rank, grade in enumerate(ideal_grades[:k], 1)
+        )
+        ndcg[k] = dcg / ideal_dcg
+
+    return {
+        "answerable": answerable,
+        "expected_relevant_count": len(relevant),
+        "retrieved_count": len(ranked),
+        "unexpected_evidence_returned": any(key not in relevant for key in ranked),
+        "recall": recall,
+        "mrr": (1 / first_rank if first_rank else 0.0) if answerable else None,
+        "ndcg": ndcg,
+    }
+
+
+def aggregate_evidence(
+    results: Sequence[EvidenceQueryResult], *, ks: Sequence[int] = RECALL_KS
+) -> dict:
+    """Macro-average retrieval scores over answerable cases, retaining every case.
+
+    The unexpected-evidence rate uses ONLY unanswerable cases as its denominator.
+    Empty denominators yield null, rather than a perfect score or a zero rate.
+    Case IDs must be unique so an accidental repeated case cannot bias averages.
+    """
+    cutoffs = _evidence_cutoffs(ks)
+    cases: list[dict] = []
+    case_ids: set[str] = set()
+    for result in results:
+        if not isinstance(result.case_id, str) or not result.case_id.strip():
+            raise ValueError("Evidence case IDs must be nonempty strings")
+        if result.case_id in case_ids:
+            raise ValueError(f"Duplicate evidence case: {result.case_id}")
+        case_ids.add(result.case_id)
+        cases.append(
+            {
+                "case_id": result.case_id,
+                **evidence_retrieval_metrics(
+                    result.ranked_evidence_ids, result.labels, ks=cutoffs
+                ),
+            }
+        )
+    answerable = [case for case in cases if case["answerable"]]
+    unanswerable = [case for case in cases if not case["answerable"]]
+    metric_n = len(answerable)
+    unexpected_n = sum(case["unexpected_evidence_returned"] for case in unanswerable)
+    return {
+        "n": len(cases),
+        "answerable_count": metric_n,
+        "unanswerable_count": len(unanswerable),
+        "denominators": {
+            "recall": dict.fromkeys(cutoffs, metric_n),
+            "mrr": metric_n,
+            "ndcg": dict.fromkeys(cutoffs, metric_n),
+            "unexpected_evidence_rate": len(unanswerable),
+        },
+        "recall": {
+            k: sum(case["recall"][k] for case in answerable) / metric_n
+            if metric_n
+            else None
+            for k in cutoffs
+        },
+        "mrr": sum(case["mrr"] for case in answerable) / metric_n if metric_n else None,
+        "ndcg": {
+            k: sum(case["ndcg"][k] for case in answerable) / metric_n
+            if metric_n
+            else None
+            for k in cutoffs
+        },
+        "unanswerable_with_evidence_count": unexpected_n,
+        "unexpected_evidence_rate": unexpected_n / len(unanswerable)
+        if unanswerable
+        else None,
+        "cases": cases,
     }
 
 

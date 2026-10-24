@@ -6,6 +6,22 @@
 
 **Net:** Improve the shared first download and the saved Ask path without changing what readers see or how current the record is. Keep every option that delays another click, risks stale data, or depends on experimental routing out of the automatic safe-work lane.
 
+## Address finder startup boundary, 9 October 2026
+
+The address suggestion release's hosted preview measured 297,679 Brotli bytes for
+the first program, 173 above the unchanged 297,506-byte limit. The shared API
+imported contact-link helpers from `lib/findMyLegislator.ts`, which also contains
+address-entry, keyboard-choice and district-error helpers needed only by finder
+screens. Contact helpers now live in `lib/legislatorContact.ts`; the shared API
+imports that small module and the finder module re-exports its existing names.
+All contact link behavior and public imports stay unchanged.
+
+A settings-less local export after this boundary change measured 296,154 bytes
+and passed the existing budget. That is a local check, not production headroom.
+Hosted preview and production must each pass their own unchanged measurement.
+The existing contact and lookup tests passed; final-head checks and live contact
+links remain acceptance conditions. No visual or loading-state change is intended.
+
 ## Priority order
 
 Reliability comes first: every public page and deep link must load on its first attempt without a refresh. After that, reduce the work before useful content appears.
@@ -223,11 +239,13 @@ answer (which also returns `confirmed_for`),
 The rule and where each side currently sits are in §23 of
 [`docs/architecture/page-metadata-for-search-and-sharing-decisions.md`](../architecture/page-metadata-for-search-and-sharing-decisions.md).
 
-**What a cache window does and does not touch.** Every money page prints `as_of`,
-read off the loaded snapshot's `fetch_completed_at`
-(`alethical/api/services/campaign_finance_register.py::_snapshot_date`) and
-carried inside the payload, so a cached copy prints the day its own records were
-copied. A stale answer therefore stays honestly dated. That is not a reason a
+**What a cache window does and does not touch.** Each money source carries its
+own copy date inside the payload. Register `as_of` comes from its loaded snapshot;
+payment dates come from the payment release. Report totals use the displayed
+committee-year's own capture time, including retained older rows. The legislator
+tab shares a report date only when all displayed committee dates agree in
+Minnesota time; otherwise each stays beside its committee. A cached answer
+therefore prints its own records' dates rather than a newer unrelated snapshot. A stale answer therefore stays honestly dated. That is not a reason a
 stale answer is acceptable: an old figure with a truthful old date is still an
 old figure, which is why the window is capped above rather than excused by the
 date.
@@ -513,9 +531,9 @@ that no word may change.
 
 That measurement originally closed
 [issue 2070](https://github.com/alethical-org/alethical/issues/2070), which was filed
-against the 39,747-byte reading and asked for a ratchet cut. Doing exactly what it asked —
-leaving no first-load file importing that module — was built and measured on 8 Sep 2026 and
-made the first load 1,013 bytes **bigger**, because the module left `index-*.js` for the
+against the 39,747-byte reading with a goal of reducing the download limit.
+Removing every first-load import of that module was built and measured on 8 Sep 2026
+and made the first load 1,013 bytes **bigger**, because the module left `index-*.js` for the
 dearer `__common-*.js` and 7 screens still read it.
 
 The ordered campaign-money speed work reopened
@@ -936,6 +954,68 @@ rarely-visited page; their statement counts and plans are the subject of "What a
 answer spends its time on" below, and a committee's payment pages now carry the day-long money
 window ("How long a nearby cache holds a public read" above).
 
+## The homepage hero holds still from its first paint, 22 October 2026
+
+**On the signed-out homepage nothing above the cards moves between the first paint and the
+finished page, at any width.** The hero text is centred beside the **Follow the money** card on
+a computer, so anything that changes that card's height moves the whole hero, and the text the
+server sends first was not drawn in the homepage's layout at all. Measured on the live site
+(release e14f1fc4), Chromium, 900px tall, by reading the hero eyebrow's position on every frame:
+
+| What moved it | 1280px | 900px | 390px |
+|---|---:|---:|---:|
+| Served text replaced by the app: hero eyebrow | 33px down | 27px up | 69px up, 4px across |
+| Served text replaced by the app: top bar links (every page) | 30 to 48px across | menu button added | menu button added |
+| Filer count arriving 2 lines tall under a 1-line loading bar: card height | 33px | 7px | 33px |
+| Card eyebrow swapping from Courier New to JetBrains Mono: card height | 2px | 2px | 3px |
+| Libre Franklin arriving after the first paint (2 of 6 cold loads): hero eyebrow | 17.8px | 0 | 0 (introduction 31.5px taller) |
+
+The browser's layout-shift score saw only the last 2 (0.0116 at 1280px): **it scores an element
+that is replaced, rather than moved, as 0**, so the largest jump never counted. A frame-by-frame
+position trace is the measure for a served-text handover.
+
+The rules that follow:
+
+- **The served homepage is drawn in the app's layout and sizes at every band**
+  (`renderHomeSnapshot` in `apps/frontend/src/lib/pageSnapshot.ts`, styles under
+  `.page-snapshot-home` in `apps/frontend/public/index.html`): the hero heading's size follows the
+  same width formula, the money card shows the same loading state the app's first frame shows,
+  and the social row is the same empty box the app fills about 50 ms later. A change to the
+  signed-out hero, money card or the 2 cards after it changes both.
+- **The shared served top bar is the app's `TopNav` at each band**: logo size, link colour and
+  menu carets on computer, the outlined **Sign in**, and the menu button on tablet and phone. It
+  is 83px tall on computer and tablet and 78px on phone, as the app's is. Candidate screens keep
+  their own spacing and the compact green **Sign in** below computer width
+  (`navigation: 'candidate'` on their snapshots). The bands switch at the app's own edges,
+  below 768px and below 1100px, fractional widths included.
+- **A loading placeholder takes the height of what replaces it.** The count's grey bar sits over
+  an invisible, screen-reader-hidden copy of the line with 12 no-break spaces where the number
+  goes, so no number is printed before it is read.
+- **Text in a font that is not preloaded states its line height.** JetBrains Mono is not
+  preloaded; with a stated line height its stand-in takes the same height.
+- **Libre Franklin has a width-matched stand-in for the visits where it still arrives late**
+  (`'Libre Franklin Fallback'` in `apps/frontend/public/index.html` and the type stacks in
+  `apps/frontend/src/theme/tokens.ts`; the reasons and limits are in
+  `docs/architecture/page-metadata-for-search-and-sharing-decisions.md` §24 (the served text's
+  own typeface)). Measured on the homepage with the font held back, at every 4px from 320 to
+  1920px: something moved at 37 widths against 120 with Helvetica, and the hero itself at 6 of
+  206 computer widths (1104, 1184, 1296, 1300, 1532 and 1536px) against 32. The served count
+  line holds its number's width with a fixed space, so it breaks where the app's does in either
+  font.
+- **On an event page the saved reading position waits for the app's header**
+  (`apps/frontend/src/screens/redesign/EventScreen.tsx`). The app empties the served header
+  before drawing its own, and a position saved in between is short by the header's height.
+
+The browser check `apps/frontend/e2e/home-hero-still.spec.ts` runs in the static-build list on
+every pull request. It holds back the app's code, the count, Libre Franklin and JetBrains Mono so each arrives
+after the first paint, and fails if the top bar, the hero or the money card moves more than 1px.
+Before release, every text above the candidate section sat within 1px of where the app draws it
+at 13 widths from 320 to 1920px.
+
+**One limit:** the candidate section below the 2 cards keeps a plain link to `/candidates`,
+because its address form only works once the app runs. On a computer window taller than about
+1,180px its heading still moves when the app draws the form.
+
 ## Every page's first download loses the code only a few screens use, 18 September 2026
 
 **A module a startup file imports 1 name from travels whole in every reader's first
@@ -968,6 +1048,17 @@ and month labels are unchanged. The local first download falls from 296,814 to
 296,278 bytes; the 296,881-byte limit stays unchanged, and hosted builds still
 must pass their own size reading. This removes article-only startup work rather
 than depending on module-numbering or compression differences to pass the limit.
+
+8 October 2026 blog release repair: hosted preview
+[dpl_2JwsCoKefBccHRdqoPkefuqTbrh2](https://vercel.com/alethical/alethical-web/2JwsCoKefBccHRdqoPkefuqTbrh2)
+measured 297,508 first-download bytes, 2 over the unchanged 297,506-byte limit.
+The blog name, description and sharing title were still exported by the startup
+article index, although their callers are lazy blog screens and server metadata.
+These exact strings move to `lib/blogPageCopy.ts`; `lib/research.ts` preserves
+its exports and server metadata imports the smaller home directly. Article
+identities, dates, approvals, routes and reader wording remain unchanged. The
+index test prevents these blog-only exports from returning to startup. Each
+hosted build must still pass its own measurement; local savings do not set the limit.
 
 Each original module re-exports what moved, so every screen keeps importing from
 where it always did, and every query key string is byte-identical
@@ -1389,9 +1480,8 @@ minutes. Words were the wrong instrument.
 
 - **Every build enforces its actual measured bytes; only hosted production establishes
   production headroom.** The earlier fixed `+542` adjustment was retired by
-  [pull request 2209](https://github.com/alethical-org/alethical/pull/2209), following
-  Eugene's instruction to use hosted measurements without a fixed local-to-host
-  adjustment. Hosted source `112c698538f11fa15ccae1d70026c45a1a5019e6` measured
+  [pull request 2209](https://github.com/alethical-org/alethical/pull/2209), to use
+  hosted measurements without a fixed local-to-host adjustment. Hosted source `112c698538f11fa15ccae1d70026c45a1a5019e6` measured
   338,820 bytes with production settings; the same app code in the pull-request
   preview measured 338,978. Adding 542 falsely described the preview as 339,520
   and refused it against the unchanged 339,072 limit. The difference changes with
@@ -2310,3 +2400,79 @@ the guard has been seen to fail, and the change has been reverted. Reviewing
 2 people over a guard's source does not substitute: both of the above were
 reviewed and neither reader could have seen it, because the guard's text looks
 correct and only its reach is wrong.
+
+
+## TV records: 13 October 2026
+
+[Issue 2606](https://github.com/alethical-org/alethical/issues/2606) covers TV
+browse tabs, file/folder/agency/station pages, search, source dates, recent files
+and the private review list. The accepted visual treatment stays.
+
+The causes were whole-archive reads for individual records, transferring all
+extracted text before matching search, repeated recent-file shaping, 2 database
+reads per review row, a second initial year request, full reloads on internal TV
+links, and repeated original-page rendering.
+
+The corrections scope deep reads to their station or complete relevant file
+histories, select only agency-bearing extraction fields, filter conservative
+indexed search candidates before exact Python casefold matching, group station
+dates into 2 reads, and shape only the 9 selected recent files. Review status and
+page counts are batched: 4 reads for 25 rows instead of 52. Copy selection remains
+bound to station, file and hash. Files that moved folders keep their full history;
+related approved copies outside the local scope use exact identity reads.
+
+The first browse response resolves the default year. All years and recent-file
+return context survive navigation. Internal TV links use the running application
+with fresh administrator access for the destination. Folder files and other-file
+suggestions use stable filename/identity order.
+
+Immutable original-page pixels use a process-local LRU bounded to 128 entries and
+32 MiB. Fresh authorization and exact retained-source existence checks precede
+every hit. PNG-only requests skip generating an unused PDF. Approved-copy images,
+checks, permissions and withdrawal decisions are not cached.
+
+### Paired read-only comparison
+
+3 before and 3 after calls per surface, alternating code order against the same
+production database in read-only transactions. These medians cover service work
+and database transport, excluding connection opening, HTTP, authorization, image
+transfer and browser rendering. They are not full-page loading promises. Small
+differences on unchanged reads reflect network variance. The held dataset had
+4,636 source rows; no production records were written.
+
+| Surface | Before, ms | After, ms |
+|---|---:|---:|
+| Station folders | 625.3 | 272.3 |
+| Agency names | 687.4 | 440.6 |
+| Stations tab | 285.5 | 320.6 |
+| Years tab | 287.4 | 311.2 |
+| Search for Crowley | 4,269.3 | 945.0 |
+| File | 391.6 | 300.7 |
+| Folder | 268.7 | 166.0 |
+| Agency | 609.0 | 408.6 |
+| Station | 604.7 | 509.7 |
+| Counts | 203.2 | 198.2 |
+| Sources | 129.8 | 138.3 |
+| Recent files | 348.1 | 276.6 |
+| Review files | 1,759.7 | 173.6 |
+| Review folders | 177.7 | 193.6 |
+
+All 14 responses retained equal data after normalizing previously unspecified
+row/category ordering. Search transferred 6,376 database rows instead of 26,344.
+Search service time fell 77.9%; review-file read time fell 90.1%.
+
+### Prevention and limits
+
+Regression checks cover Unicode expansions and literal wildcard searches, moved
+folders and older approved versions, cross-station related copies, the 4-query
+review bound and exact source binding, bounded pixel reuse and missing-source
+rejection. Browser tests cover the first year response, All years return, no
+document reload, browser Back and revoked permission during a record change.
+Existing slow/failure/out-of-order, withdrawal, menu, image and three-band checks
+remain in the acceptance suite.
+
+No shared private-response cache is added. First original renders and uncached
+network requests still incur their actual work. The reading guide and expense
+page share the navigation improvement; their evidence and rendering semantics
+are unchanged. Future archive growth may justify database-side aggregation of
+browse projections, but does not justify an unmeasured rewrite now.

@@ -1,6 +1,8 @@
 import type { PageSnapshot } from './pageSnapshot';
 import { PUBLISHED_PIECE_INDEX, piecePath } from './researchIndex';
+import { PUBLISHED_EVENT_INDEX } from './eventsIndex';
 import { SOCIAL_ACCOUNTS } from './socialLinks';
+import { contactPurpose, type ContactPurpose } from './contactPurposes';
 
 export const CONTACT_PAGE_HEADING = 'Contact us';
 export const CONTACT_PAGE_SUBTITLE =
@@ -50,36 +52,58 @@ export const initialContactFormState: ContactFormState = {
 export function correctionContactValues(article?: string): ContactValues {
   const blank = { ...initialContactFormState.values };
   if (!article) return blank;
-  const matches = PUBLISHED_PIECE_INDEX.filter(
-    (piece) => (piece.articleId ?? piece.slug) === article,
-  );
+  const published = [
+    ...PUBLISHED_PIECE_INDEX.map((piece) => ({ ...piece, path: piecePath(piece) })),
+    ...PUBLISHED_EVENT_INDEX.map((event) => ({ ...event, path: `/blog/events/${event.slug}` })),
+  ];
+  const matches = published.filter((piece) => (piece.articleId ?? piece.slug) === article);
   if (matches.length !== 1) return blank;
   const piece = matches[0];
   const subject = `Possible correction: ${piece.title}`;
   const longTitle = subject.length > 200;
-  const message = `I’d like to report a possible error in this article:\n${longTitle ? `${piece.title}\n` : ''}https://alethical.com${piecePath(piece)}\n\nWhat may be wrong:\n`;
+  const message = `I’d like to report a possible error in this article:\n${longTitle ? `${piece.title}\n` : ''}https://alethical.com${piece.path}\n\nWhat may be wrong:\n`;
   // Do not silently clip a title, URL or the reader's message to fit the API.
   if (message.length > 5000) return blank;
   return { ...blank, subject: longTitle ? 'Possible correction' : subject, message };
+}
+
+/** Only known purposes choose trusted local copy; query text never becomes form content. */
+const PURPOSE_PREFILL: Record<ContactPurpose, Pick<ContactValues, 'subject' | 'message'>> = {
+  'host-debate': {
+    subject: 'Host a debate',
+    message: 'I’d like Alethical to host a debate in my community.\n\nCommunity:\n',
+  },
+  correction: {
+    subject: 'Possible correction',
+    message: 'Where I saw it:\n\nWhat may be wrong:\n',
+  },
+};
+
+export function contactPrefillValues(article?: string, purpose?: string): ContactValues {
+  const known = contactPurpose(purpose);
+  if (known) return { ...initialContactFormState.values, ...PURPOSE_PREFILL[known] };
+  return purpose ? { ...initialContactFormState.values } : correctionContactValues(article);
 }
 
 /**
  * One in-memory draft survives screen unmounts and pending sends. Nothing is
  * written to browser storage; closing/reloading the app discards the draft.
  */
-export function createContactDraft(article?: string) {
+export function createContactDraft(article?: string, purpose?: string) {
   let state: ContactFormState = {
     ...initialContactFormState,
-    values: correctionContactValues(article),
+    values: contactPrefillValues(article, purpose),
   };
   let currentAccount: ContactAccountEmail | null = null;
   let automaticEmailAccountId: string | null = null;
+  let accountGeneration = 0;
   const editedFields = new Set<ContactField>();
   const listeners = new Set<() => void>();
   const notify = () => listeners.forEach((listener) => listener());
   const draft = {
     requestId: null as string | null,
     getSnapshot: () => state,
+    getAccountGeneration: () => accountGeneration,
     hasDraft() {
       return CONTACT_FIELD_ORDER.some(
         (field) => state.values[field].length > 0 && (field !== 'email' || editedFields.has(field)),
@@ -91,8 +115,8 @@ export function createContactDraft(article?: string) {
         listeners.delete(listener);
       };
     },
-    prefill(article?: string) {
-      const values = correctionContactValues(article);
+    prefill(article?: string, purpose?: string) {
+      const values = contactPrefillValues(article, purpose);
       if (state.status !== 'editing' || editedFields.has('subject') || editedFields.has('message'))
         return;
       const additions = (['subject', 'message'] as const).filter(
@@ -111,11 +135,23 @@ export function createContactDraft(article?: string) {
     setAccount(account: ContactAccountEmail | null | undefined) {
       // Undefined means account loading is unfinished, so it must not change the form.
       if (account === undefined) return;
-      currentAccount = account?.email ? account : null;
+      const nextAccount = account?.email ? account : null;
+      const boundary = currentAccount !== null && currentAccount.id !== nextAccount?.id;
+      currentAccount = nextAccount;
+      if (boundary) {
+        accountGeneration += 1;
+        state = { ...initialContactFormState, values: { ...initialContactFormState.values } };
+        editedFields.clear();
+        automaticEmailAccountId = null;
+        draft.requestId = null;
+      }
       if (editedFields.has('email')) return;
       const email = currentAccount?.email ?? '';
       const accountId = currentAccount?.id ?? null;
-      if (state.values.email === email && automaticEmailAccountId === accountId) return;
+      if (state.values.email === email && automaticEmailAccountId === accountId) {
+        if (boundary) notify();
+        return;
+      }
       const errors = { ...state.errors };
       delete errors.email;
       state = { ...state, values: { ...state.values, email }, errors };

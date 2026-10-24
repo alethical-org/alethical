@@ -134,8 +134,7 @@ makes false and asks Cloudflare to discard them. It is **switched off**: a purge
 leaves the process only when a token carrying the **Cache Purge** permission is set
 (`CLOUDFLARE_API_TOKEN` plus `CLOUDFLARE_ZONE_ID`) **and**
 `ALETHICAL_CLEAR_SAVED_ANSWERS=on`. Two conditions rather than one, so a token
-turning up for another reason cannot start purging by itself. The token Eugene has
-to create, and the proof recipe once it exists, are in
+turning up for another reason cannot start purging by itself. The required token and the proof recipe once it exists are in
 [`docs/operations/page-load-performance-decisions.md`](page-load-performance-decisions.md)
 under "How old a current claim can be, end to end".
 
@@ -162,7 +161,7 @@ what it sends on, so the window is invisible in the response headers), bounded b
 ## Smart Tiered Cache is on for this zone, since 8 Sep 2026 20:49 UTC
 
 Read from the zone on 8 Sep 2026 at 16:00 UTC: `tiered_cache_smart_topology_enable`
-was `"off"` and `editable: true`, on a `Free Website` plan. Eugene switched it on in
+was `"off"` and `editable: true`, on a `Free Website` plan. It was enabled in
 the dashboard at 20:49:34 UTC the same day (Caching, Tiered Cache, Smart Tiered
 Caching); the zone now reads `"on"` with that `modified_on`. Any before-and-after
 reading of origin share is bounded by that minute. The saved API token can read this

@@ -2,6 +2,28 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { candidatePreviewEnabled } from '../../lib/candidateLookupAvailability';
 import { pathForRoute, stateFromPathname, targetFromPathname } from '../webRoutes';
 
+describe('/candidates/features', () => {
+  const id = 'c'.repeat(64);
+  it('keeps only a real candidate id as claim context and never a private value', () => {
+    expect(targetFromPathname('/candidates/features')).toEqual({ kind: 'candidateFeatures' });
+    expect(targetFromPathname(`/candidates/features?candidate=${id}`)).toEqual({
+      kind: 'candidateFeatures',
+      candidateId: id,
+    });
+    expect(targetFromPathname('/candidates/features?candidate=not-an-id&role=Candidate')).toEqual({
+      kind: 'candidateFeatures',
+    });
+    expect(stateFromPathname(`/candidates/features?candidate=${id}`).routes.at(-1)).toEqual({
+      name: 'CandidateFeatures',
+      params: { candidateId: id },
+    });
+    expect(pathForRoute({ name: 'CandidateFeatures', params: { candidateId: id } })).toBe(
+      `/candidates/features?candidate=${id}`,
+    );
+    expect(pathForRoute({ name: 'CandidateFeatures' })).toBe('/candidates/features');
+  });
+});
+
 describe('public candidate destination and development record review', () => {
   beforeEach(() => {
     vi.stubGlobal('__DEV__', true);

@@ -6,8 +6,8 @@
      `apps/frontend/src/lib/researchPieces/whyNobodyCanFollowADollar.ts`, and
      `apps/frontend/src/lib/__tests__/research.test.ts` compares the 2 word for word,
      so an edit here without the matching edit there fails the build, and so does the
-     reverse. The words are settled: rule 13's publishing order lets the Alethical team
-     direct a change (point 2a) and forbids us editing them on our own initiative.
+     reverse. The words are settled: rule 13's publishing order requires explicit editorial
+     approval for a change (point 2a) and forbids autonomous edits.
 
      WHAT IT IS. The fifth piece written in the set "How the Money Works", following
      `docs/published-writing/money-spent-without-a-campaigns-say.md`. Issue #1752's first
@@ -16,8 +16,7 @@
      and what a picture of the flows can and cannot mean. A **Guide** teaches one piece
      of how the system works and draws no conclusions.
 
-     NO READER-FACING LINE NUMBERS THIS PIECE OR COUNTS THE SET, per Eugene's ruling
-     of 27 Aug 2026 (`docs/architecture/published-writing-decisions.md` §2.12).
+     NO READER-FACING LINE NUMBERS THIS PIECE OR COUNTS THE SET, under the 27 Aug 2026 editorial decision (`docs/architecture/published-writing-decisions.md` §2.12).
 
      IT CARRIES NO "NEXT" SECTION, AND THAT IS DELIBERATE. The 4 pieces before it each
      close by naming the next piece's subject, because a next piece was planned and

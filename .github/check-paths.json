@@ -1,12 +1,14 @@
 {
   "backend": [
+    ".github/scripts/fcc-refresh-report*.cjs",
+    ".github/workflows/fcc-political-files.yml",
     ".github/workflows/ci.yml",
     ".github/check-paths.json",
     ".githooks/**",
     ".python-version",
     "alembic.ini",
     "alethical/**",
-    "docs/**",
+    "docs/operations/repeat-failure-cases.json",
     "justfile",
     "lint-staged.config.mjs",
     "package.json",
@@ -16,6 +18,7 @@
   ],
   "frontend": [
     ".github/workflows/ci.yml",
+    ".github/actions/prepare-browser-install/**",
     ".github/check-paths.json",
     ".githooks/**",
     "apps/frontend/**",

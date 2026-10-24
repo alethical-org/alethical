@@ -1,8 +1,11 @@
-import { useCallback, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import { useTVAdAccess } from '../../components/tvAds/useTVAdAccess';
+import { useAuth } from '../../providers/AuthProvider';
+import { readTV } from '../../components/tvAds/api';
 import { Skeleton } from '../../components/Skeleton';
 import { LinkArrow, LinkArrowLabel, linkArrowRow } from '../../components/LinkArrow';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
@@ -54,6 +57,7 @@ import { externalLinkProps, linkProps, routePath } from '../../navigation/links'
 import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
+import { AdminMarkerChip } from '../../components/tvAds/AdminMarker';
 
 const UnconcealedInvite = loadOnDemand(
   () =>
@@ -65,7 +69,7 @@ const UnconcealedInvite = loadOnDemand(
 
 /**
  * The campaign money landing at /money — public, no sign-in gate ("Campaign
- * money IA.dc.html" §01, plus Eugene's 18 Aug 2026 decision that every lane card
+ * money IA.dc.html" §01, plus the 18 Aug 2026 decision that every lane card
  * is visible, so a reader sees the whole shape of the section). Redrawn 8 Sep
  * 2026 and refined 17 Sep: 6 lanes follow the search, then research, sources
  * and copy dates with an optional disclosure, record limits, and filed reports.
@@ -109,6 +113,8 @@ function LaneCard({
   tablet,
   wide,
   cardWidth,
+  administrator = false,
+  countLoading = false,
 }: {
   title: string;
   body: string;
@@ -123,6 +129,9 @@ function LaneCard({
   tablet: boolean;
   wide: boolean;
   cardWidth: number;
+  administrator?: boolean;
+  /** Holds the count line's place with a grey bar while the count loads. */
+  countLoading?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
   const reduceMotion = useReducedMotion();
@@ -143,6 +152,7 @@ function LaneCard({
         hovered && hasHoverPointer() && !reduceMotion && styles.laneCardLift,
       ]}
     >
+      {administrator ? <AdminMarkerChip style={{ marginBottom: 12 }} /> : null}
       <View
         style={[styles.laneTitleRow, { minHeight: stacked ? 0 : tablet ? 30 : wide ? 50 : 32 }]}
       >
@@ -160,6 +170,10 @@ function LaneCard({
       <Text style={[styles.laneBody, (tablet || stacked) && styles.laneBodyNarrow]}>{body}</Text>
       {countLine ? (
         <Text style={[styles.laneCount, stacked && styles.laneCountMobile]}>{countLine}</Text>
+      ) : countLoading ? (
+        <View style={styles.laneCountSlot} accessibilityElementsHidden>
+          <View style={styles.laneCountPlaceholder} />
+        </View>
       ) : null}
     </Pressable>
   );
@@ -194,7 +208,29 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
   const { isMobile, isTablet, width } = useResponsive();
   const narrow = isMobile || isTablet;
   const wide = width >= 1440;
-  const columns = isMobile ? 1 : isTablet ? 2 : wide ? 6 : 3;
+  const admin = useTVAdAccess();
+  const { accessToken } = useAuth();
+  // undefined while loading; null when the count could not be read, which removes
+  // the line rather than printing 0.
+  const [tvCount, setTvCount] = useState<number | null | undefined>(undefined);
+  const tvAllowed = admin.state === 'allowed';
+  useEffect(() => {
+    setTvCount(undefined);
+    if (admin.state !== 'allowed' || !accessToken) return;
+    const controller = new AbortController();
+    void readTV<{ station_files_held: number }>(accessToken, '/counts', controller.signal).then(
+      (value) => {
+        if (!controller.signal.aborted) {
+          setTvCount(value.station_files_held);
+        }
+      },
+      () => {
+        if (!controller.signal.aborted) setTvCount(null);
+      },
+    );
+    return () => controller.abort();
+  }, [admin.state, accessToken]);
+  const columns = isMobile ? 1 : isTablet ? 2 : tvAllowed ? 4 : wide ? 6 : 3;
   const gap = isMobile ? 12 : isTablet ? 14 : 16;
   const gutter = isMobile ? 20 : isTablet ? 32 : 56;
   const cardWidth = (width - 2 * gutter - gap * (columns - 1)) / columns;
@@ -366,6 +402,22 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
               onOpen={() => navigation.navigate('LobbyingLanding')}
               {...laneLayout}
             />
+            {tvAllowed ? (
+              <LaneCard
+                administrator
+                title="TV ad records"
+                body="Orders, invoices, and agreements for political ads from 3 Twin Cities TV stations"
+                countLine={
+                  typeof tvCount === 'number'
+                    ? `${tvCount.toLocaleString('en-US')} STATION ${tvCount === 1 ? 'FILE' : 'FILES'}`
+                    : null
+                }
+                countLoading={tvCount === undefined}
+                href="/money/ads"
+                onOpen={() => navigation.navigate('TVAdRecords', { kind: 'landing' })}
+                {...laneLayout}
+              />
+            ) : null}
           </View>
 
           {/* Research has its own boundary, separate from the records below it. */}
@@ -729,6 +781,8 @@ const styles = StyleSheet.create({
   laneTitleMobile: { fontSize: 20, lineHeight: 25 },
   laneBodyNarrow: { fontSize: 16.5, lineHeight: 25 },
   laneCountMobile: { fontSize: 12 },
+  laneCountSlot: { marginTop: 'auto', paddingTop: 18 },
+  laneCountPlaceholder: { width: 132, height: 14, borderRadius: 4, backgroundColor: '#e6e9e7' },
   // `flex: 1` shares a ROW; in a stacked column it would share the column's height
   // instead and let a long body spill past its card, so stacked cards size to content.
   // Spelled out as the 3 properties: react-native-web drops a bare `flex: 0`.

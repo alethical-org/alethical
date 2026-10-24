@@ -1040,7 +1040,7 @@ export function TopNav({
             </ScrollView>
             <View style={styles.menuFooter}>
               {isSignedIn ? (
-                <AccountDrawerRow />
+                <AccountDrawerRow onNavigate={closeDrawer} />
               ) : (
                 <NavSignInButton
                   drawer
@@ -1700,7 +1700,8 @@ const styles = StyleSheet.create({
   footerUtility: { alignItems: 'flex-end', gap: 28 },
   footerUtilityMobile: { alignItems: 'flex-start', gap: 20, maxWidth: '100%' },
   footerSocialLinks: { flexDirection: 'row', gap: 10 },
-  footerSocialLinksMobile: { gap: 8, flexWrap: 'wrap', maxWidth: '100%' },
+  // Phone: 4 circles on the first line and 3 on the second at every width.
+  footerSocialLinksMobile: { gap: 8, flexWrap: 'wrap', width: 4 * 44 + 3 * 8, maxWidth: '100%' },
   footerLinks: { flexDirection: 'row', alignItems: 'center', gap: 34 },
   footerLinksMobile: { flexDirection: 'column', alignItems: 'flex-start', gap: 2 },
   footerLinkTargetMobile: { minHeight: 44, justifyContent: 'center' },

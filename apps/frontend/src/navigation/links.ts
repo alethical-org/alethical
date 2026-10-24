@@ -23,7 +23,6 @@ import { Platform, type GestureResponderEvent } from 'react-native';
 
 import type { PieceTraits } from '../lib/research';
 import type { RootStackParamList } from './types';
-import { hasInAppBackEntry } from './webHistory';
 import { pathForRoute } from './webRoutes';
 import { recordOfficialSourceOpen } from '../lib/siteMetricEvents';
 
@@ -182,20 +181,22 @@ type BackHistory = {
 };
 
 const browserBackHistory: BackHistory = {
-  hasBack: hasInAppBackEntry,
+  hasBack: () => false,
   goBack: () => window.history.back(),
 };
 
 /**
- * Props for the universal "Go back" anchor. A normal web click uses the prior
- * entry only when this tab created one inside Alethical. Otherwise the browser
- * follows the real href, which is the page's safe fallback. Modified clicks are
- * always native browser actions, preserving open-in-new-tab and link previews.
+ * Props for a resolved named return. Historical restoration must be explicitly
+ * proven to match the advertised href; an unspecified history follows that href.
+ * Modified clicks remain native browser actions.
  */
 export function backLinkProps(
   href: string,
   onNativePress: (event: GestureResponderEvent) => void,
   history: BackHistory = browserBackHistory,
+  /** With no prior entry, move inside the app instead of loading the href afresh, where a
+   * page holds answers in memory that a fresh load would lose. Off by default. */
+  inAppWhenNoBack = false,
 ): {
   accessibilityRole: 'link';
   href?: string;
@@ -209,7 +210,11 @@ export function backLinkProps(
     accessibilityRole: 'link',
     href,
     onPress: (event: GestureResponderEvent) => {
-      if (browserHandlesClick(event) || !history.hasBack()) {
+      if (browserHandlesClick(event)) return;
+      if (!history.hasBack()) {
+        if (!inAppWhenNoBack) return;
+        (event as unknown as WebClickFields)?.preventDefault?.();
+        onNativePress(event);
         return;
       }
       (event as unknown as WebClickFields)?.preventDefault?.();

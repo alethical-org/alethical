@@ -1,0 +1,392 @@
+# Forward Debate public article and media integration
+
+Net: Publish the event article at its permanent address and add accepted media
+sections independently. No unfinished-content messages appear to readers.
+
+Owner: Codex task **Plan debate video blog SEO**
+(`01a15451-acb6-7a72-9607-bd86b878c5f9`). Tracking:
+[Forward Debate public article and media integration](https://github.com/alethical-org/alethical/issues/2625).
+Working folder `debate-replay-preview` is retained for follow-up and its existing
+preview address remains `http://127.0.0.1:4186/blog/events/forward-debate-2026`.
+
+## Intent and current delivery
+
+[published-writing-decisions.md §2.16 (permanent event articles)](../architecture/published-writing-decisions.md#216-events-reuse-the-blog-design-and-retain-a-permanent-address)
+owns the public behavior. Website release is authorized. The current release
+contains the factual article, PDF materials, historical announcement/flyer and
+existing comments. The Minnesota Forward Together logo appears once above the title,
+linked to Forward Coalition's candidates and visible while the original announcement
+is closed. The shared event renderer uses the same branding in announcement and
+post-event output. The final media edition was supplied on 19 October. The article
+includes an edited reading transcript with 88 retained turns, 114 paragraphs and
+28 topic headings, derived from the retained 100-turn source. The accepted thumbnail
+supplies the social preview image. The actual YouTube recording and uploaded captions
+are connected, with video search details using their publication facts.
+
+The website build uses `gpt-6-astra` at `high`; the scope includes interdependent
+server/browser output, search metadata, player permissions and independent acceptance.
+This selection is task judgment, not a comparative benchmark. The accepted media
+approach was reviewed in the named Claude conversation at Fable 5.1 High.
+
+## Implementation and inputs
+
+[eventReplayContent.ts](../../apps/frontend/src/lib/eventReplayContent.ts) supplies
+only accepted public content. [eventArticle.ts](../../apps/frontend/src/lib/eventArticle.ts)
+selects the shared renderer and metadata for both the server and React paths.
+[eventReplay.ts](../../apps/frontend/src/lib/eventReplay.ts) validates supplied
+sections, a shared final export identity, real duration, sorted/bounded speaker
+turns, chapters and image URLs. Fractional durations and overlapping turns survive.
+Checking speech is not a boolean publication gate. The transcript carries the exact
+approved machine-text disclosure and preserves marked uncertainty.
+
+Each supplied section renders independently. Without a video, transcript times are
+plain text; chapter navigation can still link to transcript headings. With video,
+ordinary timestamp links work before or without the player API. Copy and enhanced
+seeking are optional. Video search details require actual publication facts;
+missing facts omit VideoObject and the video sitemap without hiding the article.
+One chapter list drives visible topics and Clip data. The article canonical excludes
+query timestamps. No invented video content URL, upload time or ranking promise.
+
+The global browser security policy permits only the privacy-enhanced YouTube frame
+host and the official player API/script paths. This supports navigation from an
+already-loaded article without weakening other directives. No extra watch tracking,
+paid player, subscription or recurring AI run is introduced.
+
+Run `node scripts/preview-event-replay.mjs` from `apps/frontend`. The local preview
+uses the public presentation and retains loopback binding, foreign-origin rejection,
+no-store and noindex headers. Its separate `/__replay-example` fixture is explicitly
+illustrative and never enters production content. `REPLAY_CONTENT_JSON` can supply
+a private input for acceptance. Restart after input changes. Keep source media intact.
+
+## Sequenced delivery and completion checks
+
+1. Build the public article and optional media integration, update owning decisions,
+   test absence/partial/full inputs and preserve the existing preview address.
+2. Independently review the change and working phone/desktop experience; fix material
+   findings. Run required checks, publish through the normal reviewed release path
+   and inspect the live article. Retain working folder and branch for follow-up.
+3. On receipt of Claude's final media, inspect the actual export, captions, transcript,
+   chapters, thumbnail and edit notes. Match the final timeline and export identity;
+   retain uncertainty. Never require Eugene to listen or infer checked speech.
+4. Add available accepted sections and actual YouTube publication facts, then repeat
+   real playback, caption timing, keyboard/phone, timestamp/Back/copy, direct-entry
+   and client-navigation checks. The current app replaces its initial HTML on startup; preserve the player
+   outside that replaced area before adding real video, and test early playback.
+   Inspect the server-to-React player transition with the actual recording; static fixture checks do not establish uninterrupted playback.
+   Do not publish a player that restarts early playback during that transition.
+
+## Impact and prevention
+
+A changed media edit can shift every timed asset. Shared export identity, duration
+bounds and a single chapter input prevent mismatched publication. Initial/browser
+rendering shares the same source; independent media states are tested so missing
+assets cannot restore preparation prose or broken links. Escaping protects imported
+speaker and transcript text. Source copies remain untouched. Historical invitation
+status is preserved, with no invented attendance or candidate positions.
+
+Acceptance covers public output without assets, video-only, transcript-only,
+chapters-only and combined inputs; one H1; replay publication date and matching metadata; historical event dates; comments;
+PDFs and historical content; bounded deep links; no autoplay; disclosure and preserved
+uncertainty; metadata/sitemap omission until supported. Browser checks cover 320,
+390 and 1280px, keyboard focus, copy, Back, blocked-player fallback and overflow.
+The final media files have arrived. Public YouTube playback and the supplied captions
+work; final embedded playback and caption acceptance remain open.
+
+Primary references: [Google video guidance](https://developers.google.com/search/docs/appearance/video),
+[VideoObject guidance](https://developers.google.com/search/docs/appearance/structured-data/video),
+[YouTube iframe API](https://developers.google.com/youtube/iframe_api_reference),
+[YouTube chapter rules](https://support.google.com/youtube/answer/9884579).
+
+## Current acceptance checkpoint
+
+The article without media passed independent Chromium inspection at 320, 390 and 1280px:
+heading, omission of unavailable content, history keyboard opening, loaded flyer,
+PDF links, no overflow or page errors. The original article and subsequent title-logo
+change passed live acceptance. The transcript release passed live acceptance at
+[commit 978ac04e](https://github.com/alethical-org/alethical/commit/978ac04e).
+Final embedded playback and captions are the current acceptance step. The final video cannot be accepted from this local renderer alone.
+
+The approved replay date line is “Published
+October 19, 2026”, matching article publication metadata. October 15 stays in the
+introduction, Event data and historical announcement; October 7 remains the original
+announcement publication record. Do not use the held/updated
+line for this replay; generic announcements retain their own dates. Same-day update labels are omitted.
+
+The approved Claude Design invitation sits after the recording and before
+Topics: “Want a debate in your community?” and 1 “Contact Alethical” link to
+`https://www.alethical.com/about/contact`, same tab. The black background, white
+heading, green approved Alethical symbol and green link are required; do not use a white
+card. The exact flat green `mark-green-transparent.png` source is copied unchanged
+to `/alethical-mark-green.png` (504 × 492). Its SHA-256 is
+`96952d9f423ef2aa3647e61dc1eb045cee82ec410f7356fb5b309de8f9420fe4`.
+The separate gradient print symbol retains its existing uses.
+No supporting sentence or download is added. The invitation is enabled only
+for this replay, never the announcement or illustrative fixture. Acceptance covers
+320, 390, 768, 1100 and 1280 pixels, doubled text, keyboard focus, hover/pressed
+feedback, real contact navigation and Back, plus continued recording controls.
+Parent task (Plan debate video blog SEO) owns Claude Design visual review and final
+live acceptance before completion.
+
+### Accepted text edition, 19 October 2026
+
+The source package is `ForwardDebate-handoff.md` and the 7 matching final media files
+in the operator's Downloads folder. Source copies remain unchanged. The website
+edition is `forward-debate-2026-final-2026-10-19`, with actual MP4 duration 7401.85s.
+The MP4 is not included in the repository or served as a download.
+
+The 100 Markdown turn blocks match the 100 JSON turns after whitespace normalization;
+speaker labels and display times also match. Import preserves the Markdown paragraph
+breaks. All 28 headings match the chapter CSV and YouTube description. Chapter start
+seconds are floored to the supplied whole-second display values; all turn-to-heading
+assignments remain identical. Original fractional source times remain in the source CSV.
+The committed JSON is the accepted public text input, not a separate transcription.
+
+The source retains all 8 `[speaker uncertain]` labels and all `[unclear]` words.
+The edited reading edition preserves those marks in every retained turn. Aaron Brutger's
+disputed closing line around 1:55:11 remains `[unclear]` and is never used as a quotation
+or summary. The public notice is “Uncertain words and speakers are marked.”
+Internal checking commentary stays in these implementation records.
+No listening check is recorded for this edition. No claim
+of audience anonymity is added. File-to-file agreement does not establish spoken-word
+accuracy, and no listening task is assigned to Eugene.
+
+Actual SRT inspection found 1659 nonoverlapping cues inside the final video, with at
+most 2 lines of 42 characters. Contrary to the handoff's count of 5, the actual file has
+2 cues shorter than 1 second. 20 cues exceed 30 displayed characters per second, with
+the fastest at 52. This is a readability finding, not an external compliance threshold.
+The supplied captions remain unchanged. A gap between caption cues does not establish
+silence or word timing, so stretching captions into those gaps would not establish
+better synchronization. The 20 fast cues remain a documented readability limit.
+The MP4 needs no new format or encoding from
+these findings. The 3-window alignment and full-file
+decode reported by the media producer are producer evidence, not new listening checks.
+
+The managing account is available in Chrome's Dev Team (Alethical) profile. The final
+MP4 is uploaded on `@Alethical`, channel `UC6Gof3CAuynOHxpH_Bl6fQQ`, video
+`y66-Wf9bNio`. Public visibility, embedding and English are selected. The supplied
+`ForwardDebate-YouTube-final.srt` is uploaded with timing. YouTube Studio reports
+“English subtitles published” and “All changes saved”; its first imported cue starts
+at 5.8s, matching the supplied final edition. This confirms saved caption publication,
+not playback or synchronization throughout the recording.
+
+The parent browser evidence records the saved description and recording membership for the public [Candidate Debates playlist](https://www.youtube.com/playlist?list=PLCDDyJl-kiUQ).
+Reopening the playlist in in-app browser tab 29 showed 1 recording, `y66-Wf9bNio`; this establishes playlist membership, not playback or speech accuracy.
+
+The video integration uses the matching export ID and existing thumbnail.
+YouTube's public response confirms publication at `2026-10-19T11:13:45-07:00`.
+Public playback advances at 720p, a keyboard seek moves playback, and the supplied
+opening captions appear. YouTube reports 7401.881s; the shared source timing remains
+the final MP4's 7401.85s. Video search metadata and the video sitemap use the confirmed
+publication time, thumbnail and source duration. HD processing need not finish if
+the available public rendition passes playback checks. Embedded playback, chapter
+seeking, captions, phone layout and early-playback continuity remain final acceptance
+checks. No local video copy, download control or public preparation notice is added.
+
+### Direct topic links after application startup
+
+The full mounted application reproduced a direct `#topic-2983` visit at scroll position
+0 instead of the named passage. The static article renderer alone did not expose this:
+the scroll-restoration hook replaced the browser's fragment position with its default 0.
+EventScreen now opts into initial-fragment restoration. A saved history position,
+including an explicit 0, takes priority; a new visit finds the named heading inside its
+own scroller. Malformed, missing and unrelated fragments retain the default behavior.
+The event slug resets restoration when navigation reuses the screen for another event.
+Other screens keep their existing behavior. Focused regression tests preserve these
+differences, and acceptance includes the actual mounted application rather than only
+the static preview. The separate stable-player implementation is described below; final-media acceptance remains unfinished.
+
+### Stable-player implementation, acceptance pending
+
+Video events retain the same server article and iframe outside the application's
+replaced root. The real application still supplies its navigation, comments, sign-in
+and footer through portals. Other entry paths render the ordinary EventScreen.
+Keyboard focus on the static header moves to its matching real control at startup,
+unless the reader has already moved focus elsewhere.
+The direct-entry container keeps its own scroll area. The application's hidden
+layout still measures normally; the existing password notice remains visible and
+non-interactive. The native sign-in failure dialog has a separate visible,
+interactive exception; ordinary sign-in dialogs retain their document-level placement.
+Snapshot styling surrounds only the temporary header, so article styles match
+ordinary client entry without higher-specificity snapshot overrides.
+Route blur retires the container, and a fatal app error uses the same idempotent
+retirement before showing the existing recovery screen. React effect replays reuse
+the same per-iframe controller; only actual retirement or removal destroys it.
+
+Same-screen timestamp Back/Forward preserves the route and iframe in both ordinary
+and installed guarded history. In-flight editor traversals retain their existing
+protection. The player uses the shared history writer, saves the outgoing position
+before pushing, and only seeks on Back when a valid timestamp still names this event.
+An entry without a timestamp does not rewind playback to 0.
+
+Saved direct-entry positions restore through a small program after the completed
+server article, before application startup. Its exact content hash is allowed by
+the production security header and tested against the actual API-emitted program.
+The application preserves any movement made before it starts. A saved position
+beyond the initial article's extent remains pending while comments/footer load;
+it never overwrites the saved target with a clamped position. Intervening reader
+input, including focus, keyboard, touch, wheel and pointer use, cancels that pending restoration. Browser scroll anchoring as the real header appears does not cancel it.
+Native content-size and DOM changes retry only that unresolved position.
+An active comment return keeps its explicit discussion destination instead of
+restoring an older saved reading position.
+
+Focused tests cover same-frame effect reuse, real retirement, error cleanup,
+history variants, exact script permission, early reading, deep comment positions
+and intervening input. A private full-application check with the clearly labelled
+YouTube demonstration preserved the same iframe and browsing context through delayed
+startup, timestamp Back/Forward, sign-in and route departure. Those checks do not
+establish final-recording playback or captions; both remain required before the
+final video becomes part of the public article.
+
+Plain transcript topic links also use separate application history entries after
+startup. Back/Forward adopts the destination entry in the same visible article;
+legacy native fragment entries without application state gain an owner before
+restoring their contained heading. Saved exact positions take precedence for
+separate entries. A legacy cloned entry can only recover its shared saved position
+when it has no fragment. Headings receive keyboard focus and 12px clearance.
+EventScreen supplies its known address to the hook and player, so a client visit
+does not capture the previous route before navigation writes the new address.
+A replacement scroll box restores its entry even when the screen hook survived blur.
+Other hook consumers do not enable event-fragment history behavior.
+A repaired stateless native entry starts a new local depth count at 0; event controls
+do not use depth-based return jumps. Its one `replaceState` may also be recorded as
+an in-site navigation by the existing speed beacon. Neither behavior is proof that
+an additional reader navigation occurred. Enhanced topic clicks use distinct normal
+entries and avoid that legacy repair.
+
+The built-app startup regression runs in required frontend CI with locally supplied
+sample player/API responses. Its 6 cases passed on October 19 and cover: iframe/context and
+sample child state, keyboard focus and timestamp history; real deep scroll restoration;
+Tab and wheel cancellation of pending restoration; computed article-style parity;
+and ordinary native fragment Back/Forward, including return after another route.
+The tests use actual browser layout and anchoring, not modeled scroll coordinates.
+Parent browser acceptance also exercised blocked sign-in download, visible recovery
+and Close, and matching heading/link/summary styles in stable and ordinary app entry.
+Real final-recording playback, uploaded captions and public video metadata remain open.
+
+## Event introduction cards
+
+The `/blog` and `/blog/events` introductions share `renderEventList`. Each list item
+owns its white card boundary and its single stretched title link. Hover and keyboard
+focus cover that item, so additional events retain separate destinations. Fine-pointer
+hover at widths of at least 768px uses the approved white-card border, shadow and lift;
+reduced motion removes the lift. Touch does not activate that treatment.
+
+The `/blog` source order is Events, Research reports, Short posts, Guides. Initial
+HTML puts event records and the Events collection link first. Intro cards show only
+the event date. The completed Forward Debate summary omits attendance logistics;
+upcoming cards retain them. Detailed announcement facts and registration availability
+remain governed by the saved event data and end date.
+
+`e2e/event-cards.spec.ts` runs in required frontend CI against the built app. It covers
+blank-area linking, 1 keyboard stop per card, separate event destinations, full-card
+focus, reduced motion, touch, narrow/enlarged text, section order and article navigation.
+It blocks external requests and writes and supplies synthetic empty comments. The
+replay return uses an absolute public URL, so premerge tests assert that destination
+and exercise the local Events collection separately; live acceptance covers the public
+return. Source tests cover date-only summaries before/after the event and initial HTML.
+
+The replay Topics list keeps its chronological semantic list, timestamps and links
+without visible ordinal markers. The hosting invitation uses the known
+`purpose=host-debate` contact intent. The form resolves its editable subject and
+message locally; no personal information or arbitrary message text travels in the
+link. Existing correction links and generic contact navigation retain their own
+behavior. Retained or cleared draft fields take precedence over new context.
+Signed-in account email uses the shared editable account-prefill behavior, including
+delayed account loading, account changes and sign-out. Nothing submits automatically.
+
+Focused form and routing tests cover trusted intent parsing, ignored arbitrary query
+values, the actual rendered CTA destination, retained and cleared fields, and synthetic
+signed-in account transitions. The built-app replay checks cover markerless topic
+links and keyboard activation, then the hosting form at 320px and 1280px. The exact
+public contact request is redirected to the local build during those tests; final
+public acceptance exercises the real same-tab destination.
+
+The reading-edition exclusions are the 12 explicit source starts in
+`forwardDebate2026ReadingEdition.ts`, with a reason for each. Tests require the exact
+88 retained turns and paragraphs, allowing only the recorded opening-sentence exception, with original times, the clarification at 3954.78
+and uncertain-speaker soil remark at 6769.98, and the “Edited transcript” heading in
+initial HTML. No source JSON, caption or recording changes accompany these omissions.
+
+The exact sentence exception at public-video time 5.8 is recorded separately from
+whole-turn omissions. It leaves the source and remaining opening text untouched.
+The YouTube fallback row has a 16px top gap, using the existing event flyer-link
+spacing; its bottom margin and invitation margins remain unchanged. Rendered checks
+measure the gap at 320px and 1280px and require the opening sentence to be absent.
+
+The existing Debate materials section follows the hosting invitation and precedes
+Topics in both initial HTML and the loaded article. Its candidate guide and money
+report links keep their wording, destinations and treatment, with no duplicate section.
+The YouTube fallback link and duration remain visible whether or not playback works.
+
+Contact draft privacy applies across generic, article-correction and hosting entries.
+A confirmed account change discards every prior-account field, error and send state;
+the app shell observes this boundary even when Contact us is closed. Loading and
+same-account navigation keep the draft; an anonymous draft may survive its first
+sign-in. Old request results cannot change or clear the new account's draft. Focused
+React DOM tests use synthetic accounts and a mocked sender for mounted and unmounted
+transitions, A-to-signed-out-to-A, and late success/failure after B starts a new request.
+
+
+## Approved event Share build, 20 October 2026
+
+The approved design is the consolidated `Blog event hosting invitation.dc.html`
+from the 20 October 10:13 Design download. Scope: public event Share, the confirmed shared-panel behavior, private-draft
+Share exclusion, and the visible “On YouTube” label. Event-card title styling is
+excluded. The parent owns Design coordination and visual acceptance; this retained
+folder is the sole code writer. Release requires the parent and Design acceptance
+record on the owning pull request.
+
+The date row mounts the existing React Share control into a dedicated slot in the
+initial event HTML. The article and YouTube iframe stay in place. Client navigation
+uses the same slot and shared control. Canonical event addresses come from the
+public event registry, never the current query or fragment. The illustrative
+private replay has no Share slot. Research and Guide sharing already use the shared
+panel; Short post private previews omit Share.
+
+The shared panel owns fixed Copy widths, heading focus, destination dismissal,
+selected-address copy recovery and the 3 approved failure messages. Desktop
+placement uses below, above and beside positions; the body scrolls when needed.
+Phone and tablet retain their approved bottom-sheet layouts. The browser clipboard
+path awaits the browser's real write result: the installed Expo fallback returns
+success even when its legacy copy command returns false. Native copying retains
+Expo. The rendered failure test reproduces browser rejection and protects against
+false Copied feedback across every shared use.
+
+Acceptance sequence: focused source tests and initial HTML; actual app browser
+checks at 320, 390, 834, 1100, 1280×800 and 1440; parent and independent review;
+Claude Design comparison; required checks and reviewed release; live canonical
+copy, keyboard/touch open/close, unchanged iframe and direct-video link. Cover
+all destination rows, empty descriptions, short windows, enlarged text, reduced
+motion, copy failure, native cancellation/failure and private drafts. Destination
+checks capture prepared addresses without publishing or sending anything.
+
+To serve the actual application at the retained preview, export the web app, then
+run `REPLAY_APP_DIST=dist node scripts/preview-event-replay.mjs` from
+`apps/frontend`. Loopback binding, noindex and no-store remain. Without that option,
+the renderer-only preview remains available. The illustrative fixture is separate.
+The full-app preview serves local assets and client routes; it does not expose a
+production write proxy. Browser regression checks use scoped read-only API routing
+where a data-backed sibling surface needs public records.
+
+Build validation: the full frontend suite passes 4,778 tests across 361 files;
+TypeScript passes. The event browser suite passes 11 cases, and the shared suite
+passes 18 cases. Independent browser review covers copy recovery, all prepared
+destinations, native cancellation/success, public Research and Short posts, and
+leaving the event with Share open. The actual app remains at the existing 4186
+address. Actual playback continues through opening and closing Share without
+replacing the iframe. Final visual acceptance and live evidence belong in the
+owning release record.
+
+The 320px doubled-text review found destination labels extending beyond their
+buttons. Final Design review requires 2 columns when the actual label fonts cannot
+fit 3, then 1 when even 2 cannot hold the longest whole name. Preserve order,
+text size, sheet padding, tap areas and icons above their labels. The shared grid measures content fit and
+keeps its nodes mounted when columns change, so reader enlargement is preserved.
+The rendered regression checks ordinary 3 columns, enlarged 2-column and 1-column cases, every
+whole name within its button and all destinations remaining reachable.
+
+Final Design review also keeps programmatic heading focus without an outline on
+that noninteractive heading. The address field receives the approved 1px #5b30d6
+border and 3px rgba(91,48,214,.22) ring on focus, preserving selected text and
+suppressing the browser outline. Browser checks exercise heading focus, keyboard
+containment, the exact field treatment and recovery after failed copying.

@@ -58,7 +58,7 @@ export const STATIC_PAGE_SUBJECTS: Record<string, string> = {
   '/terms': 'Terms of Service',
   '/admin/operations': 'Admin metrics',
   '/admin/users': 'Users',
-  '/admin/candidate-claims': 'Candidate requests',
+  '/admin/candidate-claims': 'Profile claim requests',
   '/tracked': 'Tracked',
 };
 
@@ -100,6 +100,11 @@ function titleWithoutRecord(route: TitledRoute): string | null {
       // An unknown slug renders the NotFound screen, which titles itself.
       return piece ? titleFor(piece.title) : null;
     }
+    case 'Events':
+      return titleFor('Events');
+    // EventScreen supplies its title when its on-demand content loads.
+    case 'Event':
+      return null;
     case 'ShortPosts': {
       const page = Number(route.params?.page ?? 1);
       return titleFor(page > 1 ? `Short posts, page ${page}` : 'Short posts');

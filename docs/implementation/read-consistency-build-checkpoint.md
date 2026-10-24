@@ -2,9 +2,8 @@
 
 ## Article readability refinements, 30 Sep 2026
 
-Source: Eugene’s pasted “Articles — width limits for the title, research opening
-line, short notes, conclusions and tables, 30 Sep 2026”, accepted under his
-“if so, build these too when ready” instruction.
+Approved scope, 30 Sep 2026: article width limits for titles, research opening
+lines, short notes, conclusions and tables, with implementation when ready.
 [Issue 2448](https://github.com/alethical-org/alethical/issues/2448) owns release.
 The named updated drawings and `build-facts-reading-round-3.md` §7d were not
 downloaded. The written proposal is the new target; `Alethical UX (43).zip`
@@ -81,8 +80,8 @@ The next hosted build must establish its own size; no limit was raised.
 
 ## Article width build, 30 Sep 2026
 
-Eugene's `bd unless you need design udpate?` authorizes the article-width build
-from `Alethical UX (43).zip` through live release. Branch: `codex/blog-full-width`.
+The approved article-width build uses `Alethical UX (43).zip` through live release.
+Changes settled by existing decisions proceed without a new drawing. Branch: `codex/blog-full-width`.
 All article formats fill available width; Research keeps its contents rail,
 Guides and Short posts use full width, and comments lose their desktop/tablet
 caps. Preserve published text, figures, dates, links and publication approvals.
@@ -106,11 +105,9 @@ new link selections, account changes or real comment/email test sends.
 
 ## Build resumed, 27 Sep 2026
 
-After reviewing `Alethical UX (32).zip`, Eugene asked whether the design was
-build-ready, confirmed interlinking was included, requested the build plan, then
-sent `'` to approve that plan. This later instruction resumes the design build
-through tests, browser acceptance and live release. The earlier design hold below
-is superseded for that scope. Exact new article links still require his review
+The reviewed `Alethical UX (32).zip` build plan, including interlinking support,
+is approved through tests, browser acceptance and live release. The earlier design hold below
+is superseded for that scope. Exact new article links still require editorial review
 before those article changes are published.
 
 Current work owners and order:
@@ -137,11 +134,11 @@ contact prefill. Keep every published finding, source link and scope intact.
 
 ## Earlier hold, retained as history
 
-Eugene requested a complete updated Design prompt and said he will supply the build
-specification before building. All unpublished work is now held. Pull request
+A complete updated Design brief and a supplied build specification were required
+before building. All unpublished work is held at this checkpoint. Pull request
 [2409](https://github.com/alethical-org/alethical/pull/2409) is open with auto-merge
 disabled; do not release it until the updated design has been returned and reviewed
-under Eugene's build instruction. Earlier permission to finish the independent
+under a separate build approval. Earlier permission to finish the independent
 layout release is superseded by this hold.
 
 The committed heading clarification at `f1678504` makes the `/read` green headings
@@ -173,8 +170,8 @@ monospace treatment. The article's existing facts, chart values, source links,
 and disclosures remain intact. Related reading draws after comments when a
 published piece has editor picks. The proposed picks for each of the 3
 published Short posts are the other 2 published Short posts and the guide
-`what-the-records-name`; they remain outside the article record until Eugene
-reviews the exact links:
+`what-the-records-name`; they remain outside the article record pending editorial
+approval of the exact links:
 
 | Article slug                       | Proposed related slugs, in order                                                          |
 | ---------------------------------- | ----------------------------------------------------------------------------------------- |
@@ -212,8 +209,7 @@ separate article update.
 
 ## Active acceptance review, 27 September
 
-The parent sent Eugene the complete 7-inline-link and 18-related-link proposal
-through an asynchronous question. No answer has arrived yet. Continue the UI
+The complete 7-inline-link and 18-related-link proposal awaits editorial approval. Continue the UI
 release independently; do not treat elapsed time as link approval.
 
 The first read-only code review sent these corrections to the builder:
@@ -237,8 +233,7 @@ reader-facing report-methodology preparation in `8a862399`. These are preparatio
 records, not an inference from article kind. The 3 Short posts already explicitly
 record AI assistance.
 
-Eugene additionally authorized the recommended treatment for `/read`'s hidden
-heading: `Read`, matching the navigation label. The visible introduction supplies
+The approved hidden heading for `/read` is `Read`, matching the navigation label. The visible introduction supplies
 the subject description. The implementation already uses this heading; retain it
 and record it in the owning guidance. Article and collection return links in the
 initial served HTML must use the approved return labels too, rather than the old

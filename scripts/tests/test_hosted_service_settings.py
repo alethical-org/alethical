@@ -196,10 +196,14 @@ class HostedSettingsTest(unittest.TestCase):
         )
         results = settings.Checker(
             self.rows,
-            env={"GITHUB_REPOSITORY": "alethical-org/alethical"},
+            env={
+                "GITHUB_REPOSITORY": "alethical-org/alethical",
+                "GITHUB_READ_TOKEN": "test-read-token",
+            },
             fetch=fetch,
         ).run()
         merge_settings = {
+            "CodeQL code scanning",
             "Allow squash merge",
             "Allow merge commits",
             "Allow rebase merge",
@@ -211,10 +215,105 @@ class HostedSettingsTest(unittest.TestCase):
             if result.provider == "GitHub repository"
             and result.setting in merge_settings
         ]
-        self.assertEqual(len(admin_results), 4)
+        self.assertEqual(len(admin_results), 5)
         self.assertTrue(
             all(result.state is settings.State.UNCHECKED for result in admin_results)
         )
+        self.assertFalse(any("code-scanning" in call[1] for call in fetch.calls))
+
+    def test_codeql_default_setup_reads_state_coverage_and_schedule(self) -> None:
+        configured = {
+            "state": "configured",
+            "languages": ["python", "javascript-typescript", "actions"],
+            "schedule": "weekly",
+        }
+        cases = [
+            (configured, settings.State.MATCH),
+            (
+                {
+                    **configured,
+                    "languages": [
+                        "actions",
+                        "javascript",
+                        "javascript-typescript",
+                        "python",
+                        "typescript",
+                    ],
+                },
+                settings.State.MATCH,
+            ),
+            ({"state": "not-configured"}, settings.State.DRIFT),
+            ({**configured, "languages": ["python"]}, settings.State.DRIFT),
+            ({**configured, "languages": []}, settings.State.DRIFT),
+            ({**configured, "schedule": None}, settings.State.DRIFT),
+            ({**configured, "schedule": "monthly"}, settings.State.DRIFT),
+            ({**configured, "state": "pending"}, settings.State.UNVERIFIED),
+            ({**configured, "state": {}}, settings.State.UNVERIFIED),
+            ({**configured, "languages": "python"}, settings.State.UNVERIFIED),
+            ({**configured, "languages": [{}]}, settings.State.UNVERIFIED),
+            ({**configured, "schedule": {}}, settings.State.UNVERIFIED),
+            ({}, settings.State.UNVERIFIED),
+            ([], settings.State.UNVERIFIED),
+            *[
+                (
+                    {key: value for key, value in configured.items() if key != field},
+                    settings.State.UNVERIFIED,
+                )
+                for field in configured
+            ],
+        ]
+        responses = [
+            (settings.HttpResponse(200, value), expected) for value, expected in cases
+        ] + [
+            (settings.HttpResponse(status, None), settings.State.UNVERIFIED)
+            for status in (0, 403, 404, 503)
+        ]
+        for response, expected in responses:
+            with self.subTest(response=response):
+                fetch = FakeFetch(
+                    {
+                        "/code-scanning/default-setup": response,
+                        "/repos/alethical-org/alethical": settings.HttpResponse(
+                            200, {"visibility": "public"}
+                        ),
+                        "/orgs/alethical-org": settings.HttpResponse(403, None),
+                    }
+                )
+                checker = settings.Checker(
+                    self.rows,
+                    env={"REPO_SETTINGS_TOKEN": "test-admin-token"},
+                    fetch=fetch,
+                )
+                checker.check_github()
+                checker.classify_non_live_rows()
+                results = [
+                    result
+                    for result in checker.results
+                    if result.setting == "CodeQL code scanning"
+                ]
+                self.assertEqual(len(results), 1)
+                self.assertIs(results[0].state, expected)
+                calls = [call for call in fetch.calls if "code-scanning" in call[1]]
+                self.assertEqual(
+                    calls,
+                    [
+                        (
+                            "GET",
+                            f"{settings.GITHUB_API}/repos/alethical-org/alethical/"
+                            "code-scanning/default-setup",
+                            {
+                                "Authorization": "Bearer test-admin-token",
+                                "Accept": "application/vnd.github+json",
+                            },
+                            None,
+                        )
+                    ],
+                )
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(
+                        settings.print_results(results),
+                        0 if expected is settings.State.MATCH else 1,
+                    )
 
     def test_vercel_reads_names_and_targets_without_values(self) -> None:
         expected_env = [

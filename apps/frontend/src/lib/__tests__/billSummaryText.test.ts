@@ -18,7 +18,7 @@ describe('what a bill tells a search engine and a share card', () => {
 
   it('holds the card back when the sentence only says the title again', () => {
     // The card shows the title directly above this line, so the 2 together would
-    // say one thing twice (Eugene, 17 Sep 2026). A search result shows no title
+    // say one thing twice (17 Sep 2026). A search result shows no title
     // of ours beside it, so it still gets the sentence.
     expect(
       billDescriptionLines(

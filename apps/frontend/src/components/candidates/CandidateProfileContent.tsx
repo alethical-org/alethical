@@ -1,16 +1,24 @@
-import { useState } from 'react';
+import { TVAdConnectionCard } from '../tvAds/OnDemand';
+import { useId, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useResponsive } from '../../hooks/useResponsive';
-import {
-  CandidateLink,
-  CandidateSourceLine,
-  candidateDate,
-  candidateText,
-  safeCandidateUrl,
-} from './CandidateControls';
+import { GoBackLink } from '../GoBackLink';
+import { CandidateLink, candidateDate, candidateText, safeCandidateUrl } from './CandidateControls';
 import { candidateElectionLabel, candidateOfficeLabel, areaLabel } from './CandidateResultsContent';
 import type { CandidateProfileRecord } from './types';
+import { PERSON_RECORD_COPY } from '../../lib/personRecords';
+import { CandidateRecordSources, ElectionRecordStatus } from './ElectionResult';
+import { ProfileContextLabel } from '../ProfileContextLabel';
+
+import {
+  candidateElectionHasPassed,
+  candidateServiceSourceLabel,
+  candidatePartyLabel,
+  candidateWebsiteLabel,
+  CANDIDATE_PROFILE_COPY,
+} from '../../lib/candidatePublicCopy';
+export { candidateElectionHasPassed } from '../../lib/candidatePublicCopy';
 
 /** An approved source image keeps its natural ratio; failure removes the whole slot. */
 export function CandidatePortrait({
@@ -50,29 +58,18 @@ export function CandidatePortrait({
   );
 }
 
-export function candidateElectionHasPassed(date: string, now = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Chicago',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(now);
-  const value = (type: string) => parts.find((part) => part.type === type)?.value;
-  return date < `${value('year')}-${value('month')}-${value('day')}`;
-}
-
 export function CandidateProfileContent({
   record,
   onBack,
   onOpenLegislator,
-  fromSearch = true,
+  onOpenPerson,
   children,
 }: {
   record: CandidateProfileRecord;
   children?: React.ReactNode;
   onBack(): void;
-  fromSearch?: boolean;
   onOpenLegislator?(slug: string): void;
+  onOpenPerson?(id: string): void;
   /** Kept for the existing preview route; joint records never invent separate people. */
   onOpenProfile?(id: string): void;
 }) {
@@ -80,7 +77,10 @@ export function CandidateProfileContent({
   const bodyStyle = { fontSize: isMobile ? 16 : 17, lineHeight: isMobile ? 24 : 25.5 };
   const inset = isMobile ? 18 : isDesktop ? 28 : 24;
   const leg = record.legislator;
-  const past = candidateElectionHasPassed(record.election.date);
+  const personDescription = useId();
+  const past = record.electionEnded ?? candidateElectionHasPassed(record.election.date);
+  const showRecordStatus =
+    record.result && (record.result.status !== 'certified' || Boolean(record.result.outcome));
   const reelection = !past && leg?.serviceStatus === 'current' && leg.isReelection;
   const showService =
     leg && (leg.serviceStatus === 'former' || (leg.serviceStatus === 'current' && !reelection));
@@ -95,15 +95,18 @@ export function CandidateProfileContent({
       ]}
     >
       <View style={styles.content}>
-        <CandidateLink
-          internal
-          url="/candidates"
-          label={fromSearch ? 'Back to candidates' : 'Find my candidates'}
+        <GoBackLink
+          destinationName="Find my candidates"
+          href="/candidates"
           onPress={onBack}
+          mobile={isMobile}
+          pressedColor="#000000"
+          style={{ minHeight: 44, marginBottom: 0 }}
         />
+        <ProfileContextLabel>Candidate profile</ProfileContextLabel>
         <View
           style={{
-            marginTop: 12,
+            marginTop: 14,
             flexDirection: 'row',
             alignItems: 'flex-start',
             gap: isMobile ? 14 : isDesktop ? 22 : 20,
@@ -137,12 +140,67 @@ export function CandidateProfileContent({
             {record.candidate.name}
           </Text>
         </View>
+        {record.people?.length ? (
+          <View style={{ marginTop: 12 }}>
+            <Text nativeID={personDescription} style={candidateText.body}>
+              {PERSON_RECORD_COPY.introduction}
+            </Text>
+            <View
+              style={
+                record.isJointTicket
+                  ? { marginTop: 10, flexDirection: isMobile ? 'column' : 'row', gap: 10 }
+                  : undefined
+              }
+            >
+              {record.people.map((person) => (
+                <View
+                  key={person.id}
+                  style={
+                    record.isJointTicket
+                      ? {
+                          flex: 1,
+                          minWidth: 0,
+                          paddingHorizontal: 16,
+                          paddingTop: 12,
+                          paddingBottom: 4,
+                          borderWidth: 1,
+                          borderColor: 'rgba(17,21,15,0.1)',
+                          borderRadius: 14,
+                          backgroundColor: '#fff',
+                        }
+                      : undefined
+                  }
+                >
+                  {record.isJointTicket ? (
+                    <Text
+                      style={[
+                        candidateText.strong,
+                        { fontSize: 17, fontWeight: '800', lineHeight: 23 },
+                      ]}
+                    >
+                      {person.name}
+                    </Text>
+                  ) : null}
+                  <CandidateLink
+                    internal
+                    label={PERSON_RECORD_COPY.link}
+                    url={`${person.profileUrl}?candidate=${record.candidate.id}`}
+                    describedBy={personDescription}
+                    accessibilityLabel={`${PERSON_RECORD_COPY.link}, ${person.name}`}
+                    onPress={onOpenPerson ? () => onOpenPerson(person.id) : undefined}
+                  />
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
         {leg ? (
           <View accessibilityLabel="Legislator profile" style={styles.legislator}>
             <View
               style={{
                 paddingTop: isMobile ? 16 : 18,
-                paddingHorizontal: isMobile ? 16 : 20,
+                // One left edge with its source line and the record card below.
+                paddingHorizontal: inset,
                 paddingBottom: 8,
                 flexDirection: 'row',
                 alignItems: 'flex-start',
@@ -172,8 +230,8 @@ export function CandidateProfileContent({
                   <View style={{ gap: 3, marginBottom: 12 }}>
                     <Text style={styles.label}>
                       {leg.serviceStatus === 'current'
-                        ? 'Currently serving as'
-                        : 'Formerly served as'}
+                        ? CANDIDATE_PROFILE_COPY.currentService
+                        : CANDIDATE_PROFILE_COPY.formerService}
                     </Text>
                     {leg.office ? (
                       <Text style={[candidateText.strong, { fontSize: 17 }]}>{leg.office}</Text>
@@ -184,12 +242,12 @@ export function CandidateProfileContent({
                   </View>
                 ) : null}
                 <Text style={[candidateText.body, { fontSize: 15.5, lineHeight: 23 }]}>
-                  See their bills, votes, and work in office
+                  {CANDIDATE_PROFILE_COPY.legislatorIntro}
                 </Text>
                 <CandidateLink
                   internal
                   url={leg.profileUrl}
-                  label="View legislator profile"
+                  label={CANDIDATE_PROFILE_COPY.legislatorLink}
                   onPress={onOpenLegislator ? () => onOpenLegislator(leg.slug) : undefined}
                 />
               </View>
@@ -206,7 +264,7 @@ export function CandidateProfileContent({
               >
                 <CandidateLink
                   url={leg.source.url}
-                  label={`Service records from ${leg.source.authority}`}
+                  label={candidateServiceSourceLabel(leg.source.authority)}
                 />
               </View>
             ) : null}
@@ -217,7 +275,7 @@ export function CandidateProfileContent({
             style={{
               paddingTop: isMobile ? 20 : isDesktop ? 26 : 24,
               paddingHorizontal: inset,
-              paddingBottom: isMobile ? 16 : isDesktop ? 20 : 18,
+              paddingBottom: isMobile ? 24 : isDesktop ? 30 : 28,
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -244,54 +302,68 @@ export function CandidateProfileContent({
                   },
                 ]}
               >
-                Official candidate record
+                {CANDIDATE_PROFILE_COPY.heading}
               </Text>
             </View>
-            <View style={{ marginTop: 16, gap: 3 }}>
-              <Text style={styles.label}>
-                {past ? 'Candidate for' : reelection ? 'Running for reelection' : 'Running for'}
-              </Text>
-              <Text
-                style={[
-                  candidateText.strong,
-                  { fontSize: isMobile ? 18 : isDesktop ? 20 : 19, lineHeight: 27 },
-                ]}
-              >
-                {candidateOfficeLabel(record.office, record.votingArea)}
-              </Text>
-              <Text style={[candidateText.body, bodyStyle]}>{areaLabel(record.votingArea)}</Text>
-              <Text
-                style={[
-                  candidateText.body,
-                  bodyStyle,
-                  { marginTop: 6, fontVariant: ['tabular-nums'] },
-                ]}
-              >
-                {candidateElectionLabel(record.election)} · {candidateDate(record.election.date)}
-              </Text>
+            <View style={{ marginTop: 16, flexDirection: isMobile ? 'column' : 'row', gap: 24 }}>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <View style={{ gap: 3 }}>
+                  <Text style={styles.label}>
+                    {past
+                      ? CANDIDATE_PROFILE_COPY.past
+                      : reelection
+                        ? CANDIDATE_PROFILE_COPY.reelection
+                        : CANDIDATE_PROFILE_COPY.running}
+                  </Text>
+                  <Text
+                    style={[
+                      candidateText.strong,
+                      { fontSize: isMobile ? 18 : isDesktop ? 20 : 19, lineHeight: 27 },
+                    ]}
+                  >
+                    {candidateOfficeLabel(record.office, record.votingArea)}
+                  </Text>
+                  {isMobile && showRecordStatus ? (
+                    <View style={{ marginTop: 10, marginBottom: 8 }}>
+                      <ElectionRecordStatus result={record.result} />
+                    </View>
+                  ) : null}
+                  <Text style={[candidateText.body, bodyStyle]}>
+                    {areaLabel(record.votingArea)}
+                  </Text>
+                  <Text
+                    style={[
+                      candidateText.body,
+                      bodyStyle,
+                      { marginTop: 6, fontVariant: ['tabular-nums'] },
+                    ]}
+                  >
+                    {candidateElectionLabel(record.election)} ·{' '}
+                    {candidateDate(record.election.date)}
+                  </Text>
+                </View>
+                {record.candidate.party ? (
+                  <Text style={[candidateText.party, { marginTop: 12 }]}>
+                    {candidatePartyLabel(record.candidate.party)}
+                  </Text>
+                ) : null}
+              </View>
+              {!isMobile ? <ElectionRecordStatus result={record.result} /> : null}
             </View>
-            {record.candidate.party ? (
-              <Text style={[candidateText.party, { marginTop: 12 }]}>
-                {record.candidate.party.toUpperCase() === 'NONPARTISAN'
-                  ? 'Nonpartisan'
-                  : record.candidate.party}
-              </Text>
-            ) : null}
             {record.website && safeCandidateUrl(record.website) ? (
               <View style={{ marginTop: 16 }}>
-                <Text style={styles.label}>Campaign website</Text>
-                <CandidateLink
-                  url={record.website}
-                  label={record.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-                />
+                <Text style={styles.label}>{CANDIDATE_PROFILE_COPY.website}</Text>
+                <CandidateLink url={record.website} label={candidateWebsiteLabel(record.website)} />
               </View>
             ) : null}
           </View>
-          <CandidateSourceLine
-            source={record.source}
-            style={{ paddingHorizontal: inset, paddingTop: 8, paddingBottom: 14 }}
-          />
+          <CandidateRecordSources source={record.source} result={record.result} inset={inset} />
         </View>
+        <TVAdConnectionCard
+          kind="candidate"
+          target={record.candidate.id}
+          name={record.candidate.name}
+        />
         {children}
       </View>
     </View>

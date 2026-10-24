@@ -36,6 +36,8 @@ import { PUBLISHED_RESEARCH, piecePath, researchBySlug } from '../research';
  * checks underneath without somebody deciding what it must carry.
  */
 const PUBLISHED_ADDRESSES = [
+  '/blog/research/realtor-pacs-shared-candidates',
+  '/blog/research/committee-officers-and-the-firms-they-pay',
   '/blog/research/organizations-both-parties',
   '/blog/research/lobbyist-giving',
   '/blog/research/2-records-not-always-2-donations',
@@ -171,11 +173,13 @@ describe('the both-sides PAC label carries its complete method', () => {
 
 /**
  * Rule 13's second exception, and its publishing order point 8: a piece names, in
- * its own words, the body whose filings it read. Every piece we have published so
- * far reads Minnesota's Campaign Finance Board and nothing else.
+ * its own words, the body whose filings it read. The Realtor article uses Florida
+ * records; the earlier pieces use Minnesota’s Campaign Finance Board.
  */
 describe('every published piece names the body whose filings it read', () => {
-  it.each(PUBLISHED_ADDRESSES)('names the Campaign Finance Board on %s', (address) => {
+  it.each(
+    PUBLISHED_ADDRESSES.filter((address) => !address.endsWith('/realtor-pacs-shared-candidates')),
+  )('names the Campaign Finance Board on %s', (address) => {
     const slug = address.slice(address.lastIndexOf('/') + 1);
     expect(servedPage(slug)).toContain('Campaign Finance Board');
   });
@@ -313,5 +317,77 @@ describe('the 2 original-topic short posts preserve their evidence boundaries', 
       'Karl Procaccini',
     ])
       expect(html.toLowerCase()).toContain(required.toLowerCase());
+  });
+});
+
+describe('Realtor payments retain their exact scope and source distinctions', () => {
+  const html = servedPage('realtor-pacs-shared-candidates');
+  it.each([
+    '$36,000 is a subtotal',
+    '$55,000 in candidate payments',
+    'February 16, 2024',
+    'February 29, 2024',
+    '12 × 3 × $1,000 = $36,000',
+    'We did not merge Rick Butler with Ricky Butler',
+    'These national funding records do not trace a Minnesota member’s dues to the Florida payments described here.',
+    'The Minnesota guidance has no reliable update date',
+  ])('keeps the material limit or calculation: %s', (text) => {
+    expect(html).toContain(text);
+  });
+  it('names the Florida body whose filings it read', () => {
+    expect(html).toContain('Florida’s Division of Elections');
+  });
+  it('keeps the requested conclusion without an illegality disclaimer', () => {
+    expect(html).toContain(
+      'A $1,000 committee limit can coexist with $3,000 from an affiliated group.',
+    );
+    expect(html).not.toContain('not a finding that these payments were illegal');
+  });
+});
+
+describe('committee officers article keeps its named records and their limits', () => {
+  const html = servedPage('committee-officers-and-the-firms-they-pay');
+
+  it('omits the removed candidacy disclosure and retains the AI closing note', () => {
+    expect(html).not.toContain('CEO was a candidate');
+    expect(html).not.toContain('Senate District 6 special primary');
+    expect(html).toContain('AI helped prepare this article and can make mistakes.');
+    expect(html).toContain(
+      'We report what the cited public sources support and identify known gaps and uncertainty.',
+    );
+    expect(html).toContain('to report a possible error so we can review it and make corrections.');
+  });
+
+  it('names the federal payment and dates the company statement', () => {
+    expect(html).toContain(
+      'lists a $255 payment to AxCapital on August 7 for compliance consulting',
+    );
+    expect(html).toContain(
+      'The company page is undated; these are the roles and history it described on October 8, 2026.',
+    );
+    expect(html).toContain('https://docquery.fec.gov/dcdev/posted/2016457.fec');
+  });
+
+  it('keeps the Board finding and its evidence qualification together', () => {
+    expect(html).toContain(
+      'Its March 2023 agreement imposed a $1,000 civil penalty on Rescue Minnesota.',
+    );
+    expect(html).toContain(
+      'The same agreement says the evidence indicated that Datwyler did not share nonpublic information between the committees.',
+    );
+    expect(html).toContain('https://cfb.mn.gov/pdf/bdactions/1628_Conciliation_Agreement.pdf');
+  });
+
+  it('retains the payment scope, source page and display calculation', () => {
+    expect(html).toContain(
+      'They do not identify which candidate, if any, the media buy supported or opposed.',
+    );
+    expect(html).toContain(
+      'The Bold North table transcribes Schedule B1, page 4, of the report received August 19, 2025.',
+    );
+    expect(html).toContain(
+      'Each dollar amount is displayed by dropping cents, after calculating totals from the exact amounts',
+    );
+    expect(html).toContain('Officers are publicly named elsewhere in the Board’s records.');
   });
 });

@@ -6,7 +6,6 @@ from contextlib import asynccontextmanager
 import logging
 import threading
 
-from alethical.api.services.comment_email import comment_email_lifespan
 from alethical.api.services.source_refresh_dispatch import dispatch_due
 from alethical.db.session import get_session_factory
 
@@ -14,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def application_lifespan(app):
+async def source_refresh_lifespan(app):
     stop = threading.Event()
     wake = asyncio.Event()
 
@@ -33,11 +32,10 @@ async def application_lifespan(app):
             except TimeoutError:
                 pass
 
-    async with comment_email_lifespan(app):
-        task = asyncio.create_task(worker())
-        try:
-            yield
-        finally:
-            stop.set()
-            wake.set()
-            await task
+    task = asyncio.create_task(worker())
+    try:
+        yield
+    finally:
+        stop.set()
+        wake.set()
+        await task

@@ -373,6 +373,9 @@ class RepresentativeLookupRequest(BaseModel):
     address_text: str | None = None
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
+    # A chosen suggestion's printed address. Its point is checked against current
+    # official records before districts; the submitted point only breaks ties.
+    selected_address: str | None = Field(default=None, min_length=1, max_length=160)
 
     @model_validator(mode="after")
     def validate_lookup_input(self):
@@ -383,6 +386,10 @@ class RepresentativeLookupRequest(BaseModel):
             raise ValueError(
                 "provide either address_text or latitude/longitude, not both"
             )
+        if self.selected_address is not None:
+            self.selected_address = self.selected_address.strip()
+            if not self.selected_address or has_address:
+                raise ValueError("selected_address needs only latitude/longitude")
         if has_latitude != has_longitude:
             raise ValueError("latitude and longitude must be provided together")
         if not has_address and not (has_latitude and has_longitude):

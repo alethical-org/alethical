@@ -4,12 +4,8 @@
   "main": "index.ts",
   "scripts": {
     "start": "node ./scripts/start-expo.mjs",
-    "android": "node ./scripts/start-expo.mjs --android",
-    "android:release": "node ./scripts/build-android-release.mjs",
-    "android:sync-network": "node ./scripts/sync-android-dev-network-security.mjs",
-    "ios": "node ./scripts/start-expo.mjs --ios",
     "web": "node ./scripts/start-expo.mjs --web",
-    "build": "node ./scripts/generate-editorial-articles.mjs --check && node ./scripts/check-traffic-production-env.mjs && node ./scripts/check-brand-assets.mjs && node ./scripts/start-expo.mjs export --platform web && node ./scripts/optimize-release-program.mjs && node ./scripts/check-release-assets.mjs && node ./scripts/check-icon-bundle.mjs && node ./scripts/check-first-load-budget.mjs && node ./scripts/stamp-release-commit.mjs",
+    "build": "node ./scripts/check-return-links.mjs && node ./scripts/generate-editorial-articles.mjs --check && node ./scripts/check-traffic-production-env.mjs && node ./scripts/check-brand-assets.mjs && node ./scripts/start-expo.mjs export --platform web && node ./scripts/optimize-release-program.mjs && node ./scripts/check-release-assets.mjs && node ./scripts/check-icon-bundle.mjs && node ./scripts/check-first-load-budget.mjs && node ./scripts/stamp-release-commit.mjs",
     "comments:registry": "node ./scripts/generate-editorial-articles.mjs",
     "brand:generate": "node ./scripts/generate-brand-assets.mjs",
     "brand:check": "node ./scripts/check-brand-assets.mjs",
@@ -19,14 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "export:web": "node ./scripts/start-expo.mjs export --platform web",
-    "ios:simulator": "node ./scripts/with-root-env.mjs eas build:run --platform ios --profile simulator",
-    "eas:login": "node ./scripts/with-root-env.mjs eas login",
-    "eas:init": "node ./scripts/with-root-env.mjs eas init",
-    "build:ios:simulator": "node ./scripts/with-root-env.mjs eas build --platform ios --profile simulator",
-    "build:ios:preview": "node ./scripts/with-root-env.mjs eas build --platform ios --profile preview",
-    "build:ios:testflight": "node ./scripts/with-root-env.mjs eas build --platform ios --profile production",
-    "submit:ios:testflight": "node ./scripts/with-root-env.mjs eas submit --platform ios --profile production --latest",
-    "check:address-recovery:local": "node ./scripts/check-address-recovery-local.mjs"
+    "check:address-recovery:local": "node ./scripts/check-address-recovery-local.mjs",
+    "check:return-links": "node ./scripts/check-return-links.mjs"
   },
   "dependencies": {
     "@expo/dom-webview": "57.0.1",
@@ -67,7 +57,7 @@
     "prettier": "3.9.6",
     "terser": "5.46.2",
     "typescript": "6.0.3",
-    "vitest": "4.1.11"
+    "vitest": "4.1.12"
   },
   "expo": {
     "install": {

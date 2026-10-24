@@ -1,6 +1,6 @@
 # Lobbying search delivery plan
 
-User authorization: the September 17, 2026 go approves the reviewed Alethical UX (14) build through the verified live release. Keep the dedicated directories and the broad money search. No production data replacement or paid run is part of this work.
+Build scope approved on September 17, 2026: the reviewed Alethical UX (14) design through the verified live release. Keep the dedicated directories and the broad money search. No production data replacement or paid run is part of this work.
 
 ## Sequence
 
@@ -30,7 +30,7 @@ User authorization: the September 17, 2026 go approves the reviewed Alethical UX
 
 ## Contribution trust delivery
 
-Authorization: “build both here go” covers the lobbying and remaining money UX copy, source-date and notice changes through live release. It does not authorize historical data replacement, changing matching/calculation rules, or treating an unresolved record count as distinct donations.
+Approved scope covers the lobbying and remaining money UX copy, source-date and notice changes through live release. It does not authorize historical data replacement, changing matching/calculation rules, or treating an unresolved record count as distinct donations.
 
 - [x] Read the live wording and existing source safeguards; branch from current main.
 - [x] Use shared count/matching/coverage wording across lobbying, search and payment records, including server-rendered previews and share descriptions.

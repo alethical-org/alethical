@@ -2,7 +2,8 @@
 """Remove explicitly released external worktrees, with private recovery copies.
 
 Merging, age, silence and an absent process are never release signals. The owning
-task calls release after delivery/acceptance and after giving up every preview.
+task calls release only for user-requested cleanup after delivery/acceptance
+and after giving up every preview. Completed folders stay available for follow-up.
 The scheduler retries those receipts and removes empty external container shells.
 Codex-managed trees stay with Codex.
 """
@@ -14,7 +15,6 @@ import fcntl
 import hashlib
 import json
 import os
-import shlex
 import shutil
 import stat
 import subprocess
@@ -26,9 +26,54 @@ from contextlib import contextmanager, nullcontext
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Preserve the repository package layout in the durable installed runtime too.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 DEFAULT_STATE = (
     Path.home() / "Library/Application Support/alethical-worktree-maintenance"
 )
+PROJECT = "alethical"
+ADMITTED_PATHS: set[Path] = set()
+PROTECTED_PATHS: set[Path] = set()
+PROJECTS = ("alethical", "commercialdeals")
+
+
+def default_state(project: str) -> Path:
+    return Path.home() / f"Library/Application Support/{project}-worktree-maintenance"
+
+
+def configure_project(project: str, repo: Path, state: Path) -> None:
+    """Load explicit installation scope; never discover deletion rights from names."""
+    global PROJECT, ADMITTED_PATHS, PROTECTED_PATHS
+    if project not in PROJECTS:
+        raise CleanupError("unknown maintenance project")
+    PROJECT = project
+    ADMITTED_PATHS, PROTECTED_PATHS = set(), set()
+    installed = state / "installation.json"
+    if installed.exists():
+        config = json.loads(installed.read_text())
+        shared = (
+            Path(git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir"))
+            .resolve()
+            .parent
+        )
+        if (
+            config.get("project", "alethical") != project
+            or Path(config["repository"]) != shared
+        ):
+            raise CleanupError("maintenance storage belongs to a different project")
+        ADMITTED_PATHS = {Path(p) for p in config.get("admitted_paths", [])}
+        PROTECTED_PATHS = {Path(p) for p in config.get("protected_paths", [])}
+
+
+def is_native(path: Path) -> bool:
+    homes = {
+        Path.home() / ".codex",
+        Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))),
+    }
+    return any(home.resolve() / "worktrees" in path.parents for home in homes)
+
+
 REPLACEABLE = {
     "node_modules",
     ".venv",
@@ -106,7 +151,7 @@ def registrations(repo: Path) -> list[dict]:
     return records
 
 
-def check_scope(repo: Path, path: Path) -> Path:
+def check_scope(repo: Path, path: Path, *, allow_retained: bool = False) -> Path:
     common = Path(
         git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir")
     ).resolve()
@@ -114,30 +159,46 @@ def check_scope(repo: Path, path: Path) -> Path:
     if path == shared or path == common or common in path.parents:
         raise CleanupError("the shared checkout and its Git storage must stay")
     # Native managed state must be changed through the owning app, not Git.
-    codex = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))).resolve()
-    if codex / "worktrees" in path.parents:
+    if is_native(path):
+        if allow_retained:
+            return common
         raise CleanupError("Codex owns this folder; use its supported archive action")
+    if not allow_retained and any(
+        path == p or p in path.parents or path in p.parents for p in PROTECTED_PATHS
+    ):
+        raise CleanupError("this folder has an installation-level preview or work hold")
+    prefix = "alethical-wt-" if PROJECT == "alethical" else "CommercialDeals-worktrees"
     allowed = (
-        (path.parent == shared.parent and path.name.startswith("alethical-wt-"))
+        (
+            PROJECT == "alethical"
+            and path.parent == shared.parent
+            and path.name.startswith(prefix)
+        )
         or shared / ".claude/worktrees" in path.parents
         or any(
-            parent.name.startswith("alethical-wt-") and parent.parent == shared.parent
+            (
+                parent.name.startswith(prefix)
+                if PROJECT == "alethical"
+                else parent.name == prefix
+            )
+            and parent.parent == shared.parent
             for parent in path.parents
         )
+        or path in ADMITTED_PATHS
     )
     if not allowed:
         raise CleanupError(
-            "working folder is outside Alethical's external cleanup scope"
+            "working folder is outside this project's admitted cleanup scope"
         )
     if path.is_symlink() or path != path.resolve():
         raise CleanupError("working folder has a different real path")
     return common
 
 
-def identity(repo: Path, path: Path) -> dict:
+def identity(repo: Path, path: Path, *, allow_retained: bool = False) -> dict:
     if path.is_symlink() or not path.is_dir() or path != path.resolve():
         raise CleanupError("working folder is missing or has a different real path")
-    common = check_scope(repo, path)
+    common = check_scope(repo, path, allow_retained=allow_retained)
     matches = [r for r in registrations(repo) if r.get("worktree") == str(path)]
     if len(matches) != 1:
         raise CleanupError("working folder has a missing or duplicate Git registration")
@@ -436,10 +497,25 @@ def archive(repo: Path, state: Path, record: dict) -> dict:
 
 
 def register(repo: Path, state: Path, path: Path, owner: str) -> dict:
-    record = identity(repo, path)
+    if not owner.strip():
+        raise CleanupError("registration needs the owning task ID")
+    record = identity(repo, path, allow_retained=True)
     target = state / "owners" / (record["id"] + ".json")
-    owners = json.loads(target.read_text()).get("owners", {}) if target.exists() else {}
-    owners[owner] = {"status": "active", "started_at": now()}
+    previous = json.loads(target.read_text()) if target.exists() else {}
+    owners = previous.get("owners", {})
+    if any(
+        previous.get(key) != record[key]
+        for key in ("head", "branch", "gitdir", "common", "path")
+    ):
+        owners = {
+            key: {
+                "status": "active",
+                "reason": "saved version changed; finish decision needs renewal",
+            }
+            for key in owners
+        }
+    if owners.get(owner, {}).get("status") != "held":
+        owners[owner] = {"status": "active", "started_at": now()}
     record.update(owners=owners)
     write_json(target, record)
     released = state / "released" / (record["id"] + ".json")
@@ -699,7 +775,7 @@ def require_scheduler(repo: Path, state: Path) -> None:
         raise CleanupError(
             "install the free Mac maintenance helper before releasing a folder"
         )
-    run(["launchctl", "print", f"gui/{os.getuid()}/com.alethical.worktree-cleanup"])
+    run(["launchctl", "print", f"gui/{os.getuid()}/com.{PROJECT}.worktree-cleanup"])
 
 
 def empty_container_contents(path: Path) -> Path | None:
@@ -720,6 +796,8 @@ def empty_container_contents(path: Path) -> Path | None:
 
 def tidy_empty_containers(repo: Path, state: Path, apply: bool) -> list[dict]:
     """Remove only empty immediate external shells, never their source contents."""
+    if PROJECT != "alethical":
+        return []  # CommercialDeals legacy names may be saved designs, not containers.
     common = Path(
         git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir")
     ).resolve()
@@ -873,6 +951,9 @@ def sweep(repo: Path, state: Path, apply: bool) -> list[dict]:
             state / "last-cleanup.json",
             {"time": now(), "apply": apply, "results": results},
         )
+        from scripts.worktree_inventory import inspect_folders
+
+        write_json(state / "folder-inventory.json", inspect_folders(repo, state))
     return results
 
 
@@ -936,69 +1017,48 @@ def restore(state: Path, key: str, destination: Path) -> None:
 
 
 def hook(repo: Path, state: Path, payload: dict) -> dict | None:
-    """Register/revoke on new work; require a hold or release before a final reply.
+    """Record activity quietly; only an explicit owner release permits removal.
 
-    Stop never authorizes removal. The gate does not interpret prose or transcripts.
-    Ordinary unfinished/dirty/unmerged turns proceed without a completion decision.
+    New work cancels queued cleanup. Stop records a conservative hold when needed,
+    never blocks a reply and never interprets the reply as completed delivery.
     """
+    event = payload.get("hook_event_name")
+    if event not in ("SessionStart", "UserPromptSubmit", "Stop"):
+        return None
     cwd = Path(payload.get("cwd", "")).absolute()
     owner = payload.get("session_id")
     if not owner or not payload.get("cwd"):
         return None
     try:
         path = Path(git(cwd, "rev-parse", "--show-toplevel")).resolve()
-        record = identity(repo, path)
+        record = identity(repo, path, allow_retained=True)
     except CleanupError:
-        return None  # Main, native managed trees and other projects are out of scope.
-    event = payload.get("hook_event_name")
+        return (
+            None  # Shared checkout, unadmitted paths and other projects stay untouched.
+        )
     if event in ("SessionStart", "UserPromptSubmit"):
         register(repo, state, path, owner)
-        command = f"{shlex.quote(sys.executable)} {shlex.quote(str(Path(__file__).resolve()))} --repo {shlex.quote(str(repo))} --state {shlex.quote(str(state))}"
-        context = (
-            f"Worktree cleanup owner is {owner}. When delivery and acceptance are finished, "
-            f"release this folder with: {command} release --worktree {shlex.quote(str(path))} "
-            f"--owner {shlex.quote(owner)} --evidence 'describe the finished delivery'. "
-            "If review or a preview remains, use the hold command with its reason. "
-            "Never release merely because a change merged."
-        )
-        return {
-            "hookSpecificOutput": {"hookEventName": event, "additionalContext": context}
-        }
-    if event != "Stop":
         return None
     target = state / "owners" / (record["id"] + ".json")
     if not target.exists():
         register(repo, state, path, owner)
     registered = json.loads(target.read_text())
-    if registered.get("head") != record["head"] or owner not in registered.get(
-        "owners", {}
-    ):
+    if any(
+        registered.get(key) != record[key]
+        for key in ("head", "branch", "gitdir", "common", "path")
+    ) or owner not in registered.get("owners", {}):
         registered = register(repo, state, path, owner)
     disposition = registered.get("owners", {}).get(owner, {})
     if disposition.get("status") in ("released", "held"):
         return None
-    if run(["git", "status", "--porcelain=v1", "--untracked-files=all"], path):
-        return None
-    try:
-        run(["git", "fetch", "origin", "main", "--quiet"], repo)
-    except CleanupError:
-        return {
-            "decision": "block",
-            "reason": "Fresh delivery evidence is unavailable. Retain this working folder with hold and the remaining check, or retry when Git is available.",
-        }
-    try:
-        landing_proof(repo, record)
-    except CleanupError:
-        return None
-    return {
-        "decision": "block",
-        "reason": (
-            "This saved version is merged and clean, but its working folder has no finish decision. "
-            "If delivery and acceptance are complete, call the cleanup release command with this "
-            f"worktree and owner {owner}. Otherwise call hold with the remaining review/preview work. "
-            "The release queues recoverable cleanup; hold keeps the folder. Do not ask Eugene to clean it."
-        ),
-    }
+    retain(
+        repo,
+        state,
+        path,
+        owner,
+        "No explicit completion release; keep this working folder",
+    )
+    return None
 
 
 def status_records(state: Path) -> list[dict]:
@@ -1015,7 +1075,8 @@ def main() -> int:
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=Path.cwd())
-    parser.add_argument("--state", type=Path, default=DEFAULT_STATE)
+    parser.add_argument("--project", choices=PROJECTS, default="alethical")
+    parser.add_argument("--state", type=Path)
     sub = parser.add_subparsers(dest="command", required=True)
     finish = sub.add_parser("release")
     location = finish.add_mutually_exclusive_group(required=True)
@@ -1031,19 +1092,29 @@ def main() -> int:
     scan = sub.add_parser("sweep")
     scan.add_argument("--apply", action="store_true")
     sub.add_parser("status")
+    sub.add_parser("inspect")
+    start = sub.add_parser("register")
+    start.add_argument("--worktree", type=Path, required=True)
+    start.add_argument("--owner", required=True)
     resume = sub.add_parser("resume")
     resume.add_argument("--worktree", type=Path, required=True)
     recover = sub.add_parser("restore")
     recover.add_argument("id")
     recover.add_argument("destination", type=Path)
     args = parser.parse_args()
+    args.state = args.state or default_state(args.project)
+    payload = {}
     try:
+        if args.command == "hook":
+            payload = json.load(sys.stdin)
         guard = (
             nullcontext()
-            if args.command == "sweep" and not args.apply
+            if args.command in ("inspect", "status")
+            or (args.command == "sweep" and not args.apply)
             else locked(args.state, wait=args.command == "sweep")
         )
         with guard:
+            configure_project(args.project, args.repo, args.state)
             if args.command == "release":
                 require_scheduler(args.repo, args.state)
                 run(["git", "fetch", "origin", "main", "--quiet"], args.repo)
@@ -1071,8 +1142,13 @@ def main() -> int:
                         }
                     )
                 )
-            elif args.command == "resume":
-                register(args.repo, args.state, args.worktree.absolute(), "terminal")
+            elif args.command in ("resume", "register"):
+                register(
+                    args.repo,
+                    args.state,
+                    args.worktree.absolute(),
+                    getattr(args, "owner", "terminal"),
+                )
                 print("This working folder is retained for resumed work.")
             elif args.command == "hold":
                 retain(
@@ -1084,7 +1160,7 @@ def main() -> int:
                 )
                 print("The owning task retained this folder with its remaining work.")
             elif args.command == "hook":
-                result = hook(args.repo, args.state, json.load(sys.stdin))
+                result = hook(args.repo, args.state, payload)
                 if result:
                     print(json.dumps(result))
             elif args.command == "sweep":
@@ -1092,11 +1168,18 @@ def main() -> int:
             elif args.command == "restore":
                 restore(args.state, args.id, args.destination)
                 print(f"Recovered working files at {args.destination}")
+            elif args.command == "inspect":
+                from scripts.worktree_inventory import inspect_folders
+
+                print(json.dumps(inspect_folders(args.repo, args.state)))
             else:
                 print(json.dumps(status_records(args.state)))
         return 0
     except (CleanupError, OSError, ValueError) as error:
         if args.command == "hook":
+            if payload.get("hook_event_name") == "Stop":
+                print(f"Cleanup finish record unchanged: {error}", file=sys.stderr)
+                return 0
             print(
                 json.dumps(
                     {

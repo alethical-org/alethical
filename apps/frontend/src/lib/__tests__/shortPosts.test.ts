@@ -289,6 +289,54 @@ describe('social-derived Short post publication gate', () => {
     expect(shortPostPublicationErrors(piece).join(' ')).toContain('without invented coverage');
   });
 
+  it('allows official context snapshots without changing quantitative coverage', () => {
+    const piece = readyPiece();
+    piece.shortPost!.evidence = [
+      ...piece.shortPost!.evidence,
+      {
+        ...piece.shortPost!.evidence[0],
+        id: 'policy',
+        title: 'Undated official policy',
+        url: 'https://example.gov/policy',
+        period: undefined,
+        sourceSnapshot: {
+          copiedOn: '2026-09-24',
+          selectedRecords: 'The membership requirements on the undated official policy page',
+        },
+      },
+    ];
+    piece.sourceRuns!.push([
+      { kind: 'externalLink', text: 'Official policy', href: 'https://example.gov/policy' },
+    ]);
+    piece.shortPost!.review.eugeneApprovedFingerprint = shortPostFingerprint(piece);
+    expect(shortPostPublicationErrors(piece)).toEqual([]);
+
+    piece.recordsThrough = '2026-09-24';
+    expect(shortPostPublicationErrors(piece)).toContain(
+      'records-through must name the newest covered reporting-period end',
+    );
+    piece.recordsThrough = period.through;
+    piece.shortPost!.evidence[1].period = period;
+    expect(shortPostPublicationErrors(piece).join(' ')).toContain('without invented coverage');
+  });
+
+  it.each(['missing-date', 'missing-scope', 'both-snapshots', 'official-download'])(
+    'rejects invalid official source snapshots: %s',
+    (invalidCase) => {
+      const piece = readyPiece();
+      const evidence = piece.shortPost!.evidence[0];
+      evidence.period = undefined;
+      const snapshot = { copiedOn: '2026-09-24', selectedRecords: 'Official policy' };
+      evidence.sourceSnapshot = snapshot;
+      if (invalidCase === 'missing-date') snapshot.copiedOn = '';
+      if (invalidCase === 'missing-scope') snapshot.selectedRecords = '';
+      if (invalidCase === 'both-snapshots' || invalidCase === 'official-download')
+        evidence.downloadSnapshot = { ...snapshot };
+      if (invalidCase === 'official-download') evidence.sourceSnapshot = undefined;
+      expect(shortPostPublicationErrors(piece).join(' ')).toContain('without invented coverage');
+    },
+  );
+
   it('drops cents without rounding positive or negative dollars', () => {
     const piece = readyPiece();
     const graphic = piece.shortPost!.graphics[0];
@@ -398,11 +446,11 @@ describe('social-derived Short post publication gate', () => {
     const piece = readyPiece();
     piece.title = 'A revised title';
     expect(shortPostPublicationErrors(piece)).toContain(
-      'article or graphic inputs changed after Eugene review',
+      'article or graphic inputs changed after maintainer review',
     );
   });
 
-  it('requires an article-specific publication instruction after Eugene saw the complete piece', () => {
+  it('requires an article-specific publication instruction after the maintainer saw the complete piece', () => {
     const piece = readyPiece();
     piece.shortPost!.review.publicationInstructionAt = '';
     expect(shortPostPublicationErrors(piece)).toContain(
@@ -420,7 +468,7 @@ describe('social-derived Short post publication gate', () => {
       { kind: 'our-correction', datedOn: '2026-09-26', explanation: 'Corrected the title.' },
     ];
     expect(shortPostPublicationErrors(piece)).toContain(
-      'article or graphic inputs changed after Eugene review',
+      'article or graphic inputs changed after maintainer review',
     );
     piece.shortPost!.review.revision = {
       editorialApprovedBy: 'Editor',
@@ -433,7 +481,7 @@ describe('social-derived Short post publication gate', () => {
     expect(piece.publishedAt).toBe(originalTime);
     piece.dek = 'Changed again without review.';
     expect(shortPostPublicationErrors(piece)).toContain(
-      'revised article or graphic needs Eugene review of its current contents',
+      'revised article or graphic needs maintainer review of its current contents',
     );
   });
 
@@ -705,11 +753,14 @@ describe('Short post and topic selection', () => {
     const campaign = topicPage('campaign-finance', 1);
     expect(campaign.total).toBe(PUBLISHED_PIECE_INDEX.length);
     expect(newestShortPosts().map((piece) => piece.slug)).toEqual([
+      'committee-officers-and-the-firms-they-pay',
+      'realtor-pacs-shared-candidates',
       'lobbyist-giving',
-      'organizations-both-parties',
-      '2-records-not-always-2-donations',
     ]);
-    expect(readGroups().shortPosts).toEqual(newestShortPosts());
+    expect(readGroups().shortPosts.slice(0, 3)).toEqual(newestShortPosts());
+    expect(shortPostsPage(1).items.map((piece) => piece.slug)).toContain(
+      '2-records-not-always-2-donations',
+    );
     expect(() => topicPage('unknown' as 'lobbying', 1)).toThrow('unknown topic');
   });
 });
@@ -745,15 +796,13 @@ describe('Short post amended sources stay visible', () => {
 });
 
 describe('Short post display boundaries', () => {
-  it('keeps Research and both-traits metadata on dates even with a search description', () => {
+  it('appends Research dates to an explicit subject and keeps social previews on dates', () => {
     const piece = readyPiece();
     piece.traits.guide = true;
-    expect(researchPageMetadata(piece, 'A subject description.').description).not.toContain(
-      'A subject description.',
-    );
-    expect(researchPageMetadata(piece, 'A subject description.').description).toContain(
-      'Published',
-    );
+    const metadata = researchPageMetadata(piece, 'A subject description.');
+    expect(metadata.description).toBe(`A subject description. ${metadata.socialDescription}`);
+    expect(metadata.socialDescription).not.toContain('A subject description.');
+    expect(metadata.socialDescription).toContain('Published');
     piece.traits.research = false;
     expect(researchPageMetadata(piece, 'A subject description.').description).toBe(
       'A subject description.',

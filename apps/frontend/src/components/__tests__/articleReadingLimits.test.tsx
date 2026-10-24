@@ -80,7 +80,13 @@ describe('Published Research table semantics and contents', () => {
       expect(row.querySelectorAll('[aria-hidden="true"]')).toHaveLength(1);
       expect(row.lastElementChild?.tagName).toBe('TD');
       expect(row.lastElementChild?.textContent).toBe('');
+      expect(document.defaultView!.getComputedStyle(row.lastElementChild!).borderTopWidth).toBe(
+        '0px',
+      );
     }
+    expect(
+      document.defaultView!.getComputedStyle(table.querySelector('tbody th')!).borderTopWidth,
+    ).toBe('1px');
     expect(document.querySelector('[role="region"]')?.getAttribute('tabindex')).toBe('0');
   });
 });

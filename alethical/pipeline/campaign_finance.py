@@ -385,7 +385,7 @@ class Check:
     # "passed" | "failed" | "not_run" | "overridden" | "reported".
     # "reported" is a check that ran and answers per filer-year rather than for the
     # whole load, so it never blocks: #1433's split comparison is the only one, and
-    # Eugene ruled on 12 Aug 2026 that a committee whose 2 official figures disagree
+    # under the 12 Aug 2026 decision, a committee whose 2 official figures disagree
     # withholds its own split while every other committee publishes.
     status: str
     detail: str
@@ -1454,7 +1454,7 @@ def _reported_itemized_split(spec: DatasetSpec, coverage: Optional[Any]) -> Chec
     """Did each committee's own filing agree with the payment rows we hold for it?
 
     **This never blocks a release, and that is a ruling rather than a convenience**
-    (Eugene, 12 Aug 2026): where 2 of Minnesota's own publications disagree and we
+    (12 Aug 2026): where 2 of Minnesota's own publications disagree and we
     cannot derive the truth, we show both figures and say plainly that they disagree.
     So a committee-year that disagrees withholds its own split while every other
     committee publishes normally, and a million verified payments are not withheld

@@ -64,11 +64,41 @@ describe('district map credits', () => {
     );
     expect(markup).not.toContain('certified by the Census Bureau.');
     expect(source).toContain("{' (opens in a new tab)'}");
-    expect(source).toContain("import { LinkArrowLabel, linkArrowRow } from './LinkArrow'");
+    expect(source).toContain(
+      "import { GREEN_LINK_ARROW_COLOR, LinkArrowLabel, linkArrowRow } from './LinkArrow'",
+    );
     expect(source).not.toContain("{' →'}");
     expect(markup).toContain('data-testid="link-arrow"');
-    expect(source).toMatch(/creditLink:\s*\{[\s\S]*color: t.colors.brand.deep/);
+    expect(source).toMatch(
+      /creditLink:\s*\{[\s\S]*fontSize: 14[\s\S]*color: GREEN_LINK_ARROW_COLOR/,
+    );
+    expect(source).toMatch(
+      /creditText:\s*\{[^}]*fontSize: 14,[^}]*lineHeight: 21,[^}]*color: '#4f5651'/,
+    );
+    expect(source).toMatch(
+      /creditLinkHovered: \{ color: '#11150f', textDecorationLine: 'underline' \}/,
+    );
+    expect(source).toMatch(
+      /credits:\s*\{[^}]*paddingTop: 20,[^}]*borderTopWidth: 1,[^}]*borderTopColor: 'rgba\(17,21,15,0.08\)'/,
+    );
     expect(source).toMatch(/creditLink:\s*\{[\s\S]*textDecorationLine: 'none'/);
+  });
+
+  it('opens the notes with the lead line under its own id', () => {
+    const markup = renderToStaticMarkup(
+      <MapPinPicker
+        onCoordinateChange={vi.fn()}
+        leadNote={{
+          id: 'lead-help',
+          text: 'A city or ZIP code alone cannot identify your legislators',
+        }}
+      />,
+    );
+    const credits = markup.indexOf('district-map-credits');
+    const lead = markup.indexOf('id="lead-help"');
+    expect(credits).toBeLessThan(lead);
+    expect(lead).toBeLessThan(markup.indexOf('District lines from'));
+    expect(markup).toContain('A city or ZIP code alone cannot identify your legislators');
   });
 
   it('keeps the Minnesota outline as context below selected districts', () => {

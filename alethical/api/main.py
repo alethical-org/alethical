@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -21,16 +23,21 @@ from alethical.api.rate_limit import (
     DEFAULT_PENDING_ACTION_PER_MINUTE,
     limiter_from_env,
 )
+from alethical.api.routers.tv_ads import router as tv_ads_router
 from alethical.api.routers.admin import router as admin_router
 from alethical.api.routers.ask import router as ask_router
 from alethical.api.routers.contact import router as contact_router
 from alethical.api.routers.candidates import router as candidates_router
 from alethical.api.routers.candidate_claims import router as candidate_claims_router
+from alethical.api.routers.people import router as people_router
 from alethical.api.routers.comments import router as comments_router
 from alethical.api.routers.email_subscriptions import (
     router as email_subscriptions_router,
 )
 from alethical.api.routers.internal import router as internal_router
+from alethical.api.routers.search_measurements import (
+    router as search_measurements_router,
+)
 from alethical.api.routers.me import router as me_router
 from alethical.api.routers.lobbying import router as lobbying_router
 from alethical.api.routers.pending_actions import router as pending_actions_router
@@ -47,15 +54,40 @@ from alethical.api.request_admission import (
     RequestAdmissionMiddleware,
 )
 from alethical.api.services.contact import log_contact_delivery_readiness
-from alethical.api.services.source_refresh_lifespan import application_lifespan
+from alethical.api.services.source_refresh_lifespan import source_refresh_lifespan
+from alethical.api.services.comment_email import comment_email_lifespan
+from alethical.api.services.candidate_claim_email import candidate_claim_email_lifespan
+from alethical.api.services.address_suggestion_index import (
+    get_address_suggestion_index,
+    log_capacity,
+)
 from alethical.logging import configure_logging
 from alethical.release import release_commit
+
+
+@asynccontextmanager
+async def email_lifespan(app):
+    # Off unless ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED is set; starting an
+    # off copy does nothing. Stopping leaves the shared copy for other processes.
+    # The capacity line prints whether on or off, for the activation check.
+    address_copy = get_address_suggestion_index()
+    log_capacity(address_copy)
+    address_copy.start()
+    try:
+        async with (
+            comment_email_lifespan(app),
+            candidate_claim_email_lifespan(app),
+            source_refresh_lifespan(app),
+        ):
+            yield
+    finally:
+        await asyncio.to_thread(address_copy.stop)
 
 
 def create_app() -> FastAPI:
     configure_logging()
     log_contact_delivery_readiness()
-    app = FastAPI(title="Alethical API", version="1.0.0", lifespan=application_lifespan)
+    app = FastAPI(title="Alethical API", version="1.0.0", lifespan=email_lifespan)
     # Added before CORS so overload responses retain the same cross-origin
     # permissions as successful reads and browsers can see the 503 response.
     app.add_middleware(RequestAdmissionMiddleware, max_in_flight=MAX_IN_FLIGHT_REQUESTS)
@@ -128,6 +160,7 @@ def create_app() -> FastAPI:
         if request.url.path.startswith(
             (
                 "/api/v1/admin/",
+                "/api/v1/ads/",
                 "/api/v1/email-subscriptions/",
                 "/api/v1/me/email-",
                 "/api/v1/comments/",
@@ -135,6 +168,7 @@ def create_app() -> FastAPI:
                 "/api/v1/candidate-claims",
                 "/api/v1/candidate-statements/",
                 "/api/v1/candidates/lookup",
+                "/api/v1/candidates/locate",
                 "/api/v1/candidates/suggest",
             )
         ):
@@ -207,6 +241,7 @@ def create_app() -> FastAPI:
                 "/api/v1/candidates/",
                 "/api/v1/candidate-claims",
                 "/api/v1/candidate-statements/",
+                "/api/v1/admin/political-ads",
                 "/api/v1/admin/candidate-claims",
                 "/api/v1/admin/candidate-statement-reports",
             )
@@ -269,6 +304,7 @@ def create_app() -> FastAPI:
             return JSONResponse(status_code=503, content={"status": "not_ready"})
         return JSONResponse(content={"status": "ready"})
 
+    app.include_router(tv_ads_router, prefix="/api/v1")
     app.include_router(admin_router, prefix="/api/v1", tags=["admin"])
     app.include_router(public_router, prefix="/api/v1", tags=["public"])
     app.include_router(lobbying_router, prefix="/api/v1", tags=["lobbying"])
@@ -277,6 +313,7 @@ def create_app() -> FastAPI:
     app.include_router(contact_router, prefix="/api/v1", tags=["contact"])
     app.include_router(comments_router, prefix="/api/v1", tags=["comments"])
     app.include_router(candidates_router, prefix="/api/v1", tags=["candidates"])
+    app.include_router(people_router, prefix="/api/v1", tags=["people"])
     app.include_router(
         candidate_claims_router, prefix="/api/v1", tags=["candidate-claims"]
     )
@@ -288,4 +325,5 @@ def create_app() -> FastAPI:
         pending_actions_router, prefix="/api/v1", tags=["pending-actions"]
     )
     app.include_router(internal_router, prefix="/internal/v1", tags=["internal"])
+    app.include_router(search_measurements_router, tags=["search-measurements"])
     return app

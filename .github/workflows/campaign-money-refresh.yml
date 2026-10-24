@@ -44,6 +44,10 @@ name: Refresh campaign money from the Board
 on:
   workflow_dispatch:
     inputs:
+      clear_pending_only:
+        description: "Retry pending saved-page clearing without collecting or rechecking records"
+        type: boolean
+        default: false
       force_totals:
         description: "Refresh the official totals today even if no list changed"
         type: boolean
@@ -73,7 +77,8 @@ jobs:
       SUPABASE_STORAGE_S3_ACCESS_KEY_ID: ${{ secrets.SUPABASE_STORAGE_S3_ACCESS_KEY_ID }}
       SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY: ${{ secrets.SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY }}
       # Clearing saved pages (#1979) is armed only when all 3 are set. Unset, the run
-      # prints NOT ARMED and what it would have cleared, and still succeeds.
+      # prints NOT ARMED and what it would have cleared. Clearing-only recovery fails
+      # until clearing is armed and succeeds, keeping its pending marker.
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
       ALETHICAL_CLEAR_SAVED_ANSWERS: "on"
@@ -104,9 +109,14 @@ jobs:
         shell: bash
         run: |
           missing=()
-          for name in SUPABASE_PROJECT_URL SUPABASE_DB_PASSWORD \
-                      SUPABASE_STORAGE_S3_ENDPOINT SUPABASE_STORAGE_S3_REGION \
-                      SUPABASE_STORAGE_S3_ACCESS_KEY_ID SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY; do
+          required=(SUPABASE_PROJECT_URL SUPABASE_DB_PASSWORD)
+          if [ "${{ inputs.clear_pending_only }}" = "true" ]; then
+            required+=(CLOUDFLARE_API_TOKEN CLOUDFLARE_ZONE_ID)
+          else
+            required+=(SUPABASE_STORAGE_S3_ENDPOINT SUPABASE_STORAGE_S3_REGION
+                       SUPABASE_STORAGE_S3_ACCESS_KEY_ID SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY)
+          fi
+          for name in "${required[@]}"; do
             [ -n "${!name}" ] || missing+=("$name")
           done
           if [ ${#missing[@]} -gt 0 ]; then
@@ -120,6 +130,7 @@ jobs:
         shell: bash
         run: |
           flags=()
+          if [ "${{ inputs.clear_pending_only }}" = "true" ]; then flags+=(--clear-pending-only); fi
           if [ "${{ inputs.force_totals }}" = "true" ]; then flags+=(--force-totals); fi
           if [ "${{ inputs.prove_alerting }}" = "true" ]; then flags+=(--prove-alerting); fi
           PYTHONPATH=. uv run python scripts/refresh_campaign_finance.py \

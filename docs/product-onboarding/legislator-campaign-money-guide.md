@@ -4,7 +4,7 @@
 
 <!-- describes: apps/frontend/src/components/campaignMoney/CampaignMoneyTabOnDemand.tsx, apps/frontend/src/components/campaignMoney/YearControl.tsx, apps/frontend/src/components/campaignMoney/GroupedOutsideSpending.tsx, apps/frontend/src/lib/campaignMoneyColors.ts, apps/frontend/src/data/groupedOutsideSpending.ts, apps/frontend/src/lib/groupedOutsideSpending.ts -->
 
-<!-- describes: apps/frontend/src/components/campaignMoney/CommitteeDonationCards.tsx, apps/frontend/src/components/campaignMoney/CommitteeDonations.tsx, apps/frontend/src/components/campaignMoney/DonorBreakdown.tsx, apps/frontend/src/components/campaignMoney/DonorPaymentList.tsx, apps/frontend/src/components/campaignMoney/CommitteeMixHistory.tsx, apps/frontend/src/components/campaignMoney/MoneyCards.tsx, apps/frontend/src/lib/campaignMoneyDetails.ts, apps/frontend/src/data/campaignMoneyDetails.ts, apps/frontend/src/hooks/useCampaignMoneyDetails.ts, apps/frontend/src/components/campaignMoney/CampaignMoneyTab.tsx, apps/frontend/src/components/legislator/OutsideSpendingCard.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/independent_spending.py, apps/frontend/src/components/campaignMoney/LegislatorProfileTabs.tsx, apps/frontend/src/lib/legislatorCampaignMoney.ts, apps/frontend/src/lib/campaignMoneyFilingSchedule.ts, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, alethical/api/services/legislator_finance.py, alethical/api/services/committee_amount.py, alethical/api/routers/public.py -->
+<!-- describes: apps/frontend/src/components/campaignMoney/CommitteeDonationCards.tsx, apps/frontend/src/components/campaignMoney/CommitteeDonations.tsx, apps/frontend/src/components/campaignMoney/DonorBreakdown.tsx, apps/frontend/src/components/campaignMoney/DonorPaymentList.tsx, apps/frontend/src/components/campaignMoney/CommitteeMixHistory.tsx, apps/frontend/src/components/campaignMoney/PaymentRecheckNotice.tsx, apps/frontend/src/lib/campaignMoneyDetailsCopy.ts, apps/frontend/src/components/campaignMoney/MoneyCards.tsx, apps/frontend/src/lib/campaignMoneyDetails.ts, apps/frontend/src/data/campaignMoneyDetails.ts, apps/frontend/src/hooks/useCampaignMoneyDetails.ts, apps/frontend/src/components/campaignMoney/CampaignMoneyTab.tsx, apps/frontend/src/components/legislator/OutsideSpendingCard.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/independent_spending.py, apps/frontend/src/components/campaignMoney/LegislatorProfileTabs.tsx, apps/frontend/src/lib/legislatorCampaignMoney.ts, apps/frontend/src/lib/campaignMoneyFilingSchedule.ts, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, alethical/api/services/legislator_finance.py, alethical/api/services/committee_amount.py, alethical/api/routers/public.py -->
 
 Every current Minnesota House and Senate member's profile page has two tabs:
 **Overview**, which is the page as it has always been, and **Campaign money**, which
@@ -24,7 +24,7 @@ and
 The profile redesign is tracked in [issue 2140](https://github.com/alethical-org/alethical/issues/2140).
 This guide describes its donation lists, year choices and charts.
 
-On 12 September 2026 Eugene approved chart categories matching the donor tabs, with
+The 12 September 2026 decision approves chart categories matching the donor tabs, with
 candidate committees included in Committees & Funds, and keeping the existing
 whole-dollar display. Each payment's original kind remains available. The donut, its
 legend and the history bars use the final shared solid colour map.
@@ -94,6 +94,13 @@ unfinished clerical job of ours.
 
 ---
 
+Approved administrators may also see **TV ad records** for each confirmed campaign
+committee, below the money sections and before source dates. Each group names its
+committee; an empty group is hidden, and an unavailable committee match exposes no
+TV group. The TV records have their own checked source version and do not change
+filed totals or imply that an ad aired. Other readers see no TV group. See
+[tv-ad-records-guide.md](tv-ad-records-guide.md).
+
 ## Getting to it
 
 - The **Campaign money** tab sits next to **Overview** at the top of every legislator
@@ -120,8 +127,8 @@ of itemized contributions changed by year** chart and its **Refunds Minnesota pa
 committee's donors** card. The mix chart repeats the donor kinds from **Who gave**
 across years, using only itemized contributions. **Spending by outside groups**
 draws once, below every committee block, because it covers all of a member's confirmed
-committees at once and cannot sit inside any one of them. The tab's source-copy dates
-are the last line on the page.
+committees at once and cannot sit inside any one of them. Shared source-copy dates
+appear at the foot of the tab; differing report-copy dates stay beside their own committees.
 
 A member can hold more than one committee, because Minnesota registers one per office.
 17 sitting members tie to more than one, and 8 have 2 or more live at the same time. So
@@ -366,8 +373,8 @@ existing meaning.
 
 ### Money in
 
-Two figures, and they are different things. Their labels are the filing's own words, ruled
-by Eugene on 11 Sep 2026:
+The 2 figures describe different things. Their labels use the filing’s own words
+under the 11 Sep 2026 decision:
 
 - **Total contributions.** The committee's own report, drawn only when we hold its total.
   The date the report runs to, and the way out to the committee's record on the state's
@@ -410,7 +417,7 @@ fixed sentence says:
 > does not name
 
 Both labels are printed once and explained once, wherever the explanation happens to sit,
-because one fact at 2 places on a card is the repeat Eugene ruled out.
+to avoid repeating 1 fact in 2 places on the same card.
 
 **Read the $200 as the donor's yearly total, never the size of a single gift.** 327,759 of
 the 583,152 published donation rows are individually under $200 and are named anyway,
@@ -429,8 +436,8 @@ donation and is counted inside Itemized contributions above, so a reader told th
 leaves goods out would otherwise come looking for them here
 ([#2182](https://github.com/alethical-org/alethical/issues/2182)). It is never
 added to the donation figure, because the filing carries it on a different schedule and the
-Board's own totals exclude it. **A row the state types `Miscellaneous` is not drawn** (ruled
-by Eugene, 11 Sep 2026), and when that was the only such row the heading is not drawn
+Board's own totals exclude it. **A row the state types `Miscellaneous` is not drawn** (approved
+11 Sep 2026), and when that was the only such row the heading is not drawn
 either. Every other kind still is.
 
 The committee card ends with its human-check evidence. It has no generic downloads
@@ -597,6 +604,20 @@ show the filed purpose, kind and location where those fields exist. Goods-and-se
 rows carry their marker.
 All amounts are summed with exact decimal arithmetic inside this committee alone.
 
+A failed recheck keeps the last complete payment list and chart for the same committee,
+year and pinned summary release, with “We could not refresh these payments. This is a
+problem on our side. The last complete payment list is still shown.” and **Try again**
+above them. The action rechecks
+the summary and both payment directions without hiding accepted records; repeated
+activation waits for those payment reads. A first failed read still withholds the list.
+A successful empty answer replaces old rows; a completed response declaring unavailable clears the
+retained list and never becomes a claim of no payments. A changed committee, year or
+summary release cannot reuse that retained view. An unavailable later page is an
+incomplete replacement; it never removes a prior complete matching list or exposes
+partial new rows. The shared behavior is specified in
+[campaign-money-section-guide.md, the donor and payment browser](campaign-money-section-guide.md).
+
+
 A registered committee's name is an ordinary link to
 `/money/committees/{name}-{number}` only when the current responses say that number has
 a page. It can be opened in a new tab or copied. Private donor and vendor names are plain
@@ -626,7 +647,22 @@ The history starts loading after the selected year's received and made lists fin
 It appears only after all requested years arrive from the same release as the selected
 lists. A partial history is withheld rather than drawn with missing years. Choosing a
 year changes the selected year above. Every committee has its own history; the bars and
-amounts are never combined across a member's committees.
+amounts are never combined across a member's committees. The earlier-year and
+percentage buttons use the shared keyboard-only outline; clicking or tapping does
+not add that outline. The chart segments keep their separate inset focus treatment.
+
+After that complete history has appeared, a failed history or selected-payment recheck
+keeps the accepted bars and opened percentages for the same committee and pinned
+summary release. It says “We could not refresh this history. This is a problem on our
+side. The last complete history is still shown.” with **Try again** in the existing
+payment-recheck treatment. Retry rechecks the profile summary, both selected payment
+lists and the history; the button is unavailable while those payment/history reads
+run. A first failed history never borrows an answer. A changed committee or summary
+release, selected lists from a different release, or an explicit unavailable answer
+clears the retained history. Partial replacement years never appear. The profile's
+committee-confirmation expiry still withholds the whole committee block. This is
+separate from the selected-year payment-list correction
+([issue 2542](https://github.com/alethical-org/alethical/issues/2542)).
 
 ### Money out
 
@@ -1115,7 +1151,9 @@ readable behind it, and the word **filings** was the state's own word for the re
 committee files, which that file is not.
 
 The shared freshness note appears once at the foot of the tab. It dates Minnesota’s
-payment files and the separately copied report totals. The outside-spending card does
+payment files and dates report totals only when every visible committee shares the
+same copy day. Differing or unknown report dates stay beside their own committees.
+The outside-spending card does
 not repeat a download date. Its payment dates still describe its own source rows.
 The complete grouped answer supplies each spender's amount and count. Opening a group
 loads its complete payment list from the same published copy. Existing direction totals
@@ -1297,21 +1335,27 @@ serious warnings keep full punctuation.
    2026". A total whose coverage date falls outside the year on screen is not shown at
    all, because the Board's own service answers a request for a year it has no report
    for with the _previous_ year's figures and nothing in the answer says so.
-3. **Both source-copy dates at the foot of the tab**, shown when the displayed
-   campaign-payment and outside-spending files support the same payment-file date:
+3. **Source-copy dates belong to the records shown.** The shared line at the foot of
+   the tab appears when campaign-payment and outside-spending files support the same
+   payment date and every visible committee's report date agrees in Minnesota time:
 
    > Minnesota’s payment files copied Sep 1, 2026; report totals copied
    > Aug 11, 2026. These are copy dates, not reporting periods.
 
    The payment date is the stored download time for Minnesota's bulk payment files
-   (`fetched_at`). The report date is the end of the published filing source's own
-   stored fetch window (`filings_copied_at`, read from
-   `cf_filing_snapshot.fetch_completed_at` through `cf_filing_current`). Neither a
+   (`fetched_at`). Each committee's report date is its own committee-year's source
+   copy time (`committees[].filings_copied_at`), including `cf_filing.captured_at`
+   for retained totals. A newer overall snapshot cannot date older retained figures.
+   A shared API date is supplied only when all displayed committee dates agree. Neither a
    report's receipt date nor the day Alethical publishes stored records replaces it.
    Both dates print in Minnesota time. The same wording appears on the committee's
    money and payment pages and their text-only versions.
 
-   If the report-copy date is unavailable, the line keeps this exact fallback:
+   When committee report dates differ or any is unknown, the existing filing-period
+   panel beside each committee carries its own date and copy-period explanation, or
+   ‘The report totals’ copy date is unavailable’ without a final period. An older
+   response missing committee dates never borrows its overall snapshot date. The
+   footer keeps this fallback without claiming a shared report date:
 
    > Minnesota’s payment files copied Sep 1, 2026. This is a copy date, not a reporting
    > period. The report totals were copied separately.
@@ -1320,7 +1364,9 @@ serious warnings keep full punctuation.
    15px text and the same grey as the other explanatory notes (`#4f5651`), including
    on a phone. It stays at the foot of the tab, above the site footer. If payment-file
    dates differ or a payment-file date is missing, the tab explains that it cannot
-   state a shared date and lets the reader check the records again.
+   state a shared payment date and lets the reader check the records again. A known
+   shared report date remains visible beside that notice; the payment-date mismatch
+   never hides it. Dates belonging to withheld committee associations stay withheld.
 
 **A fourth kind of time exists and is deliberately not printed here.** Our data service
 also reports when it last confirmed that these committees are still this member's, and
@@ -1563,8 +1609,9 @@ shared-name counts and accessible history interactions for the approved UX20 bui
 
 The outside-spending card keeps its source details inside its border: payment dates,
 then the exact source filename, then the downloads link. The filename and link share
-a close group (2px gap); payment dates sit 14px above that group. The page-wide copy
-dates remain outside the card because they describe both sets of campaign records.
+a close group (2px gap); payment dates sit 14px above that group. Shared copy dates remain outside the card only when their scope applies to every
+displayed record. Differing or unknown report-copy dates stay beside their own
+committee, as specified under Dates above.
 The Who gave explanation uses secondary text (#4f5651); refund and outside-spending
 introductions use balanced word wrapping (`text-wrap: pretty`).
 

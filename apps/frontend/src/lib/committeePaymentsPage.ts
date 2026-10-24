@@ -183,7 +183,7 @@ export interface PaymentRow {
  * Where a printed name links to, and it is a SPELLING rather than a person.
  *
  * Minnesota's filings carry no identifier for a person, an employer or a vendor,
- * so the printed string is the whole of the key. Eugene ruled on 1 Sep 2026 that
+ * so the printed string is the whole of the key. The 1 Sep 2026 matching rule requires that
  * 2 spellings are joined only when they are identical, character for character
  * ([#1331](https://github.com/alethical-org/alethical/issues/1331)): "Messinger,
  * Alida" and "Messinger, Alida R" stay 2 keys. The rule can only under-report,

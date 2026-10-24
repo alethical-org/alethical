@@ -9,7 +9,9 @@ vi.hoisted(() => {
   (globalThis as { __DEV__?: boolean }).__DEV__ = false;
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 });
-const state = vi.hoisted(() => ({ record: undefined as OutsideSpendingRecordPage | undefined }));
+const state = vi.hoisted(() => ({
+  record: undefined as OutsideSpendingRecordPage | null | undefined,
+}));
 vi.mock('../../../hooks/useAppQueries', () => ({
   useOutsideSpendingRecord: () => ({ data: state.record, isError: false, isPending: false }),
   usePrefetchCommitteeMoney: () => vi.fn(),
@@ -39,6 +41,8 @@ vi.mock('react-native-svg', () => ({
 
 import { OutsideSpendingScreen } from '../OutsideSpendingScreen';
 import { outsideSpendingRecordPageFromPayload, SORT_LABELS } from '../../../lib/outsideSpending';
+import { returnPageName } from '../../../navigation/returnDestination';
+import { routePath } from '../../../navigation/links';
 import { campaignMoneyYears } from '../../../lib/legislatorCampaignMoney';
 
 type Address = NonNullable<RootScreenProps<'OutsideSpending'>['route']['params']>;
@@ -90,6 +94,33 @@ afterEach(() => {
 
 describe.each(['spender', 'about'] as const)('outside-spending %s filters', (subject) => {
   const original: Address = { [subject]: '-25', year: '2015', sort: 'largest', page: '2' };
+
+  it('forgets only a subject proved missing, not a served subject with no payment rows', async () => {
+    await render(original);
+    const path = routePath.moneyOutsideSpending(original);
+    const known = returnPageName(path);
+    expect(known).toContain('Example filed name');
+    state.record = { ...state.record!, state: 'not_reported' };
+    await act(async () =>
+      root.render(
+        <OutsideSpendingScreen
+          navigation={navigation as never}
+          route={{ key: 'subject', name: 'OutsideSpending', params: original }}
+        />,
+      ),
+    );
+    expect(returnPageName(path)).toBe(known);
+    state.record = null;
+    await act(async () =>
+      root.render(
+        <OutsideSpendingScreen
+          navigation={navigation as never}
+          route={{ key: 'subject', name: 'OutsideSpending', params: original }}
+        />,
+      ),
+    );
+    expect(returnPageName(path)).toBeNull();
+  });
 
   it('clears a historical year and payment page when All years is pressed', async () => {
     await render(original);

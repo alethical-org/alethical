@@ -44,6 +44,6 @@ alone. Phone, tablet and desktop layouts fit. Full-record links retain the accep
 destination without a selected-year query.
 
 The original whole-page help paragraph remains unchanged as required by the build
-brief. A separately proposed wording correction is awaiting Eugene's answer and is
+brief. A separately proposed wording correction is awaiting explicit approval and is
 tracked by the final campaign money delivery checkpoint. Branch and preview cleanup
 remain with the lead task.

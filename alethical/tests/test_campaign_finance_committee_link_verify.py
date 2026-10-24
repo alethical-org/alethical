@@ -168,7 +168,7 @@ def a_confirmed_link(
     registration: str,
     committee_name: str,
     *,
-    reviewer: str = "Eugene Lopin",
+    reviewer: str = "Test reviewer",
 ) -> models.LegislatorCampaignCommittee:
     return models.LegislatorCampaignCommittee(
         legislator_id=legislator.id,
@@ -400,7 +400,7 @@ def test_a_rejected_link_is_never_checked(db, tmp_path) -> None:
             registration_number="19200",
             decision=models.CommitteeLinkReviewDecision.rejected,
             committee_name_as_reviewed="Someone Else Committee",
-            reviewed_by="Eugene Lopin",
+            reviewed_by="Test reviewer",
         )
     )
     db.flush()

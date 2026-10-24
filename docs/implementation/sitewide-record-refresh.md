@@ -15,21 +15,50 @@ the approved atomic search-embedding update from
 [issue 1323](https://github.com/alethical-org/alethical/issues/1323).
 New statute and hearing products are outside this build.
 
-## Work and ownership
+## Current continuation and ownership
 
-| Order | Work | Owner | Completion proof |
-| --- | --- | --- | --- |
-| Parallel | Campaign download, reconciliation, lease and amendment fixes | money_refresh_build | Focused tests, current-source diagnosis and committed changes |
-| Parallel | Bill fingerprint refresh, source request limits, roster and vote safety | legislative_refresh_build | Complete/incomplete source tests, bounded refresh commands and migration round trip |
-| Parallel | Election, map, ZIP and cited-source release checks | supporting_refresh_build | Official-source checks, retained approved data and focused tests |
-| Parallel | Durable due-work runner, lobbying refresh and pending downstream work | parent ingestion* | Concurrent claim, restart, timeout, failure and retry tests |
-| After branches | Integration and independent review | parent plus fresh reviewer | Every affected source accounted for; tests against combined code |
-| After review | Release and safe initial collection | parent ingestion* | Current-head checks, merged release, deployed version and source-specific read-back |
-| After release | Further-improvement report and cleanup | parent ingestion* | Actual remaining gates and recovery locations |
+The user renewed full implementation on 24 October 2026: “build solutions for all
+fixes needed and proactive updating of all records as quickly as possible after
+they are published by the official source”, followed by “apply your rec on pmt
+file and all going forward without asking me”. Federal expansion remains deferred.
+Existing paid-summary, user-send and evidence-review boundaries remain in force.
 
-Parent owns shared scheduler, database models for scheduling, workflow wiring,
-central operations inventory and this plan. Legislative worker owns migration
-0067_source_request_limits; scheduler migration follows as 0068.
+The scheduler owner continues draft 2511 in the managed folder
+`/Users/eug/.codex/worktrees/source-refresh-continuation/Alethical`, local branch
+`codex/source-refresh-continuation`. Draft history at `bd466cdc` is preserved;
+parent recovery `683d1eb1` is being merged. The existing remote branch and pull
+request will be advanced normally, never force-pushed. The original build folder
+is missing and is not an active worker.
+
+| Work | Owner | Completion proof |
+| --- | --- | --- |
+| Registry, runner, dispatcher, lifecycle, legislative/supporting/lobbying integration, FCC adapter | Scheduler continuation | Current-main integration, bounded discovery, source budgets, overlap/crash/starvation tests and reviewable existing PR2511 |
+| Independent payment files, money publishers/readers, models, migration0072 and incident recovery | Payment builder in `codex/independent-payment-files` | Exact file identity/date/pairing, held-file safety, all consumers, rollback and focused tests |
+| Scheduler migrations0073/0074 | Scheduler continuation | Chain after `0072_campaign_payment_manifest`, full upgrade/downgrade/upgrade proof |
+| Credentials, production recovery, merge/deploy, activation and live measurement | Parent | Actual deployed versions, narrow App access, active clocks, completed source runs and public read-back |
+
+One writer owns each shared file. Payment owner owns `db/models.py`, `public.py`,
+campaign pipelines/readers/CLIs and `collection_failure_review.py`; scheduler sends
+exact patches for those files. Scheduler owns `api/main.py`, `ask.py`, `internal.py`
+and its independent source wrappers. Payment owner approved retaining the already
+merged additive scheduler models/public freshness changes and unioning the draft
+refresh tests with the parent's clearing-only cases.
+
+## Current completion checks
+
+1. Finish the merge without reverting current address-index lifecycle, either email
+   lifecycle, retained money dates, independent-payment intent, FCC or current reader dependencies.
+2. Preserve `pypdf[fonts]` with current minimum6.21.1/resolved6.21.2. Reader changes
+   need retained-document regressions and later exact affected live comparisons;
+   a prior font warning alone does not prove an incorrect figure.
+3. Introduce source-budgeted change discovery and explicit family activation.
+   Urgent notices, filings and new votes must not wait behind long history or
+   reconciliation work. Keep safe publication and per-host request limits.
+4. Reuse current FCC collection once, including its3stations, prod/dev target,
+   R2 credentials, local text tools, bounds and completion-report semantics.
+5. Complete focused tests, current-schema migration checks and combined acceptance,
+   then commit and advance existing draftPR2511 for parent review. No production
+   setting, job activation or data write is authorized to the scheduler helper.
 
 ## Source coverage checklist
 

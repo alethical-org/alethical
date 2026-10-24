@@ -46,6 +46,18 @@ describe('placing the Share panel in the window', () => {
     expect(top + panel.height).toBeLessThanOrEqual(shortWindow.height - PANEL_EDGE_MARGIN);
   });
 
+  it('sits beside the trigger without covering it at 1280 by 800', () => {
+    const trigger = { top: 330, bottom: 374, left: 912, right: 1015 };
+    const result = placeAnchoredPanel({
+      anchor: trigger,
+      panel: { width: 366, height: 449 },
+      viewport: { width: 1280, height: 800 },
+    });
+    expect(result.left + 366 + PANEL_GAP).toBe(trigger.left);
+    expect(result.top).toBe(trigger.top);
+    expect(result.top + 449).toBeLessThanOrEqual(800 - PANEL_EDGE_MARGIN);
+  });
+
   it('shows the top of the panel when the window is shorter than the panel itself', () => {
     const tinyWindow = { width: 1440, height: 260 };
     const { top } = placeAnchoredPanel({ anchor: control, panel, viewport: tinyWindow });

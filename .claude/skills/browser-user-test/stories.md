@@ -75,3 +75,10 @@ write-actions (sign-in, track) are never performed against production.
 - Passes when: the flow completes without sign-in; the result names legislators and
   districts; a wrong or out-of-state address fails with a helpful message, not a crash.
 - Spec: not yet.
+
+## 8. Watch the debate, read a passage and ask about hosting
+
+- Persona: wants to hear a debate answer, read the matching passage and find out how to host a debate locally.
+- Steps: open `/blog/events/forward-debate-2026` → play the recording → choose a topic timestamp → read its passage under “Edited transcript” → choose “Contact Alethical” → inspect the hosting inquiry form → use the browser Back button. Do not submit the form.
+- Passes when: playback advances; the topic timestamp reaches the named part of the recording; the edited passage is readable and remaining uncertainty is marked; the contact form opens in the same tab with the hosting purpose filled; Back returns to the debate article. Repeat on a narrow screen and with the keyboard.
+- Spec: `event-replay-preview.browser.ts` covers deterministic topic controls and layout; `event-cards.spec.ts` covers the built hosting form and retained draft with outside requests blocked. Actual recording playback and the complete public contact-and-Back journey remain browser acceptance checks.

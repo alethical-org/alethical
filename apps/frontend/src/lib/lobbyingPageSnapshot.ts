@@ -61,7 +61,7 @@ import {
   visibleLobbyingDonationYears,
 } from './lobbyingRecordCopy';
 import { centralDateLabel } from './moneyLanding';
-import { MONEY_SECTION_NAME } from './moneySectionName';
+import { BACK_TO_MONEY_SECTION } from './moneySectionName';
 import { committeeSlug, registerKindLabel } from './committeeMoneyShared';
 import { formatDay, formatMoney } from './moneyFormat';
 import { directoryTotalPages } from './directoryPagination';
@@ -71,6 +71,7 @@ const recordPath = (kind: 'principals' | 'lobbyists', name: string, id: string |
 const copied = (date: string | null) =>
   date ? `Lobbying records copied ${centralDateLabel(date)}` : '';
 const amount = (value: string | null) => formatMoney(value) ?? 'Not reported';
+const lobbyingReturnLink = { label: `Back to ${directory.title}`, href: '/money/lobbying' };
 const base = (heading: string, subheading = ''): PageSnapshot => ({
   heading,
   subheading,
@@ -78,7 +79,7 @@ const base = (heading: string, subheading = ''): PageSnapshot => ({
   body: [],
   bodyIsList: false,
   facts: [],
-  links: [{ label: directory.title, href: '/money/lobbying' }],
+  links: [lobbyingReturnLink],
 });
 
 export function lobbyingLandingSnapshot(data: LobbyingSummary): PageSnapshot {
@@ -86,7 +87,7 @@ export function lobbyingLandingSnapshot(data: LobbyingSummary): PageSnapshot {
     ...base(directory.title),
     links: [
       { label: directory.sourceLabel, href: LOBBYING_SOURCE_URL },
-      { label: MONEY_SECTION_NAME, href: '/money' },
+      { label: BACK_TO_MONEY_SECTION, href: '/money' },
     ],
     body: [directory.intro],
     records: [
@@ -232,7 +233,7 @@ export function lobbyingDirectorySnapshot(
         : []),
       ...(page > 1 ? [{ label: 'Previous', href: pagePath(page - 1) }] : []),
       ...(page < pages ? [{ label: 'Next', href: pagePath(page + 1) }] : []),
-      { label: directory.title, href: '/money/lobbying' },
+      lobbyingReturnLink,
     ],
   };
 }
@@ -300,8 +301,9 @@ export function lobbyingPrincipalSnapshot(data: LobbyingPrincipal): PageSnapshot
   return {
     ...base(
       data.name ?? `Entity ${data.entity_id}`,
-      `LOBBYING PRINCIPAL · ENTITY ID ${data.entity_id}`,
+      `Lobbying principal profile · Entity ID ${data.entity_id}`,
     ),
+    profileLabel: true,
     body: [
       principalCopy.gloss,
       ...principalSpellingLines(data.lobbyists.rows),
@@ -331,6 +333,7 @@ export function lobbyingPrincipalSnapshot(data: LobbyingPrincipal): PageSnapshot
       },
     ],
     links: [
+      lobbyingReturnLink,
       { label: principalCopy.sourceLabel, href: PRINCIPAL_SOURCE_URL },
       { label: lobbyistCopy.sourceLabel, href: LOBBYIST_SOURCE_URL },
       { label: directory.principals.title, href: '/money/lobbying/principals' },
@@ -412,8 +415,9 @@ export function lobbyingLobbyistSnapshot(
   return {
     ...base(
       data.name ?? `Registration ${data.registration_number}`,
-      `LOBBYIST · REGISTRATION ${data.registration_number}`,
+      `Lobbyist profile · Registration ${data.registration_number}`,
     ),
+    profileLabel: true,
     body: [copied(data.copied_at)].filter(Boolean),
     sections: [
       {
@@ -492,6 +496,7 @@ export function lobbyingLobbyistSnapshot(
       ...donations,
     ],
     links: [
+      lobbyingReturnLink,
       ...(data.contributions.source_url
         ? [{ label: CAMPAIGN_CONTRIBUTION_SOURCE_LABEL, href: data.contributions.source_url }]
         : []),

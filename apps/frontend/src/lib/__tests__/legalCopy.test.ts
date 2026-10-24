@@ -12,17 +12,25 @@ describe('privacy copy', () => {
   });
 
   it('does not claim that district matching sends a reader location to LCC', () => {
-    const source = readFileSync(join(__dirname, '..', '..', 'screens', 'LegalScreens.tsx'), 'utf8');
+    const source = readFileSync(join(__dirname, '..', 'legalContent.ts'), 'utf8');
 
     expect(source).toContain('The United States Census Bureau');
     expect(source).toContain('The Minnesota Geospatial Information Office');
     expect(source).toContain('while we show Minnesota address suggestions');
     expect(source).toContain('house number and street name entered so far');
+    expect(source).toContain('When you choose Use my location on Find my candidates');
+    expect(source).toContain('We do not store either, or put the position in a link');
+    expect(source).toContain(
+      'The Minnesota Secretary of State, when you look up candidates by address',
+    );
+    expect(source).toContain(
+      'the official ballot-range number for your address, which can identify 1 building or apartment',
+    );
     expect(source).not.toContain('We send latitude and longitude to its public district service');
   });
 
   it('explains where Contact us messages go', () => {
-    const source = readFileSync(join(__dirname, '..', '..', 'screens', 'LegalScreens.tsx'), 'utf8');
+    const source = readFileSync(join(__dirname, '..', 'legalContent.ts'), 'utf8');
 
     expect(source).toContain('Contact messages');
     expect(source).toContain('Resend, when you use Contact us');
@@ -31,7 +39,7 @@ describe('privacy copy', () => {
   });
 
   it('names the anonymous page counter and its privacy limits', () => {
-    const source = readFileSync(join(__dirname, '..', '..', 'screens', 'LegalScreens.tsx'), 'utf8');
+    const source = readFileSync(join(__dirname, '..', 'legalContent.ts'), 'utf8');
 
     expect(source).toContain('Vercel Web Analytics receives the page path');
     expect(source).toContain('anything following “?” or “#” is removed');
@@ -43,7 +51,7 @@ describe('privacy copy', () => {
   });
 
   it('distinguishes anonymous history from surviving account records', () => {
-    const source = readFileSync(join(__dirname, '..', '..', 'screens', 'LegalScreens.tsx'), 'utf8');
+    const source = readFileSync(join(__dirname, '..', 'legalContent.ts'), 'utf8');
 
     expect(source).toContain('bill, legislator, or money search returns results');
     expect(source).toContain('random retry key for that action');
@@ -56,7 +64,7 @@ describe('privacy copy', () => {
   });
 
   it('states the speed population and the separate observation floor for each score', () => {
-    const source = readFileSync(join(__dirname, '..', '..', 'screens', 'LegalScreens.tsx'), 'utf8');
+    const source = readFileSync(join(__dirname, '..', 'legalContent.ts'), 'utf8');
 
     expect(source).toContain('50 actual measurements for that score');
     expect(source).toContain('30 complete UTC days');
@@ -66,7 +74,7 @@ describe('privacy copy', () => {
   });
 
   it('names every new public Traffic source and the detail it receives', () => {
-    const source = readFileSync(join(__dirname, '..', '..', 'screens', 'LegalScreens.tsx'), 'utf8');
+    const source = readFileSync(join(__dirname, '..', 'legalContent.ts'), 'utf8');
 
     expect(source).toContain('Google Search Console');
     expect(source).toContain('Bing Webmaster Tools');

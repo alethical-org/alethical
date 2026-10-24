@@ -8,8 +8,8 @@ historical totals and payments grouped by name, each with a pull request and liv
 
 ## Remaining-work boundaries
 
-The documentation release and the 3 donation cards are live. Eugene's active
-order is now lobbying data, then lobbying pages. Completion of a screen change
+The documentation release and the 3 donation cards are live. The active
+sequence is now lobbying data, then lobbying pages. Completion of a screen change
 does not complete either held source replacement.
 
 - The names redesign in [pull request 2189](https://github.com/alethical-org/alethical/pull/2189)
@@ -29,7 +29,7 @@ does not complete either held source replacement.
   The complete saved replacement and recovery evidence remain available; no further
   totals fetch, source substitution or publication is authorized by this close-out.
   Reading a complete official financial summary, including balances and coverage
-  end, would be new ingestion work and requires Eugene's explicit go. A later
+  end, would be new ingestion work and requires separate approval. A later
   termination report cannot stand in for an earlier report with a different period.
 - The next bulk-payment replacement remains held under
   [issue 2171](https://github.com/alethical-org/alethical/issues/2171). Read-only
@@ -50,7 +50,7 @@ does not complete either held source replacement.
   [pull request 2203](https://github.com/alethical-org/alethical/pull/2203).
 - [Lobbying data](https://github.com/alethical-org/alethical/issues/2163) follows
   the live donation cards, then [lobbying pages](https://github.com/alethical-org/alethical/issues/2164)
-  follows the live data. Eugene authorized finishing both after the other work;
+  follows the live data. Both are approved for completion after the other work;
   the accepted 5e/5f briefs below still define their scope. No scheduled paid run.
 
 ## 13 September source-date, calendar and layout release
@@ -207,9 +207,9 @@ which rounds to the brief's 3.26:1. The palette tests cover all kinds and all 12
   and absent filer kinds, keyboard links and all 3 layout bands. Header links open
   the full committee record without a selected-year query, as accepted.
 
-The original payment-page help paragraph was kept unchanged under E's fixed-copy
-instruction. A proposed replacement describing group-name links and group subtotals
-is awaiting Eugene's answer; its wording is not changed without that answer.
+The original payment-page help paragraph is fixed copy and remains unchanged.
+A proposed replacement describing group-name links and group subtotals
+awaits editorial approval; its wording is not changed without that approval.
 
 Direct peer consultation is permitted whenever useful, and only in the existing
 Claude conversation “candidate donor profile”.
@@ -220,9 +220,9 @@ The revised corrections currently have no outstanding disagreement.
 The refund card is live in [pull request 2162](https://github.com/alethical-org/alethical/pull/2162),
 following the source import in [pull request 2160](https://github.com/alethical-org/alethical/pull/2160)
 and published-directory protection in [pull request 2161](https://github.com/alethical-org/alethical/pull/2161).
-Eugene's 7-decision version and later source corrections govern the accepted drawing.
+The approved 7-decision version and later source corrections govern the accepted drawing.
 
-- [x] Use the accepted `Alethical UX (4).zip` refund drawing, with Eugene's message
+- [x] Use the accepted `Alethical UX (4).zip` refund drawing, with the approved decisions
   taking precedence over its illustrative data and superseded wording.
 - [x] Render 1 all-years refund card directly below each confirmed committee's card,
   before outside spending. Preserve it when only the selected year has no figures;
@@ -237,7 +237,7 @@ Eugene's 7-decision version and later source corrections govern the accepted dra
   figures, missing-value wording, the conditional gap and 2 separately placed cards.
 - [x] Update the profile reader guide and complete checks, release and live review.
 
-Eugene approved both source corrections on 12 September: omit Abeler's 2016 row
+Both source corrections were approved on 12 September: omit Abeler's 2016 row
 because his oldest matching year is 2017; use Dibble (15667), whose matching 2015
 and 2017 rows surround 2016, for the gap test. Abeler's 2024 row prints $10,508
 and “Count not published”. A blank count is never a zero or an empty cell.
@@ -276,7 +276,7 @@ No paid run, real user message or destructive production change is authorized by
 These jobs start only after A through F have merged, passed live checks and been
 reported on [issue 2140](https://github.com/alethical-org/alethical/issues/2140).
 The code-release gate is met by the [A–F live report](https://github.com/alethical-org/alethical/issues/2140#issuecomment-5649295250).
-Eugene directed the historical replacement to stop and the other jobs to continue;
+The historical replacement is stopped while the other jobs continue;
 its data publication and comparison-count report remain held, not completed.
 The current task owns all 4, in this order, with 1 pull request per job, each from
 its own worktree off current `origin/main`, through the merge queue and a live check.
@@ -347,7 +347,7 @@ architecture record stays unchanged; proposed changes go on each job's issue.
 - F source enrichment completed for the 12 published candidate summaries. Only
   source metadata changed; the readback preserves all amounts, matches, copy dates
   and missing-year records. The API fields are live.
-- Eugene approved the refund gap and missing-count corrections. E's optional
+- The refund gap and missing-count corrections are approved. The optional
   grouped-page help-text proposal remains pending.
 - A new attempted consultation with the permitted Claude session was rejected by
   automatic approval review for including run status and preservation instructions.
@@ -495,7 +495,7 @@ architecture record stays unchanged; proposed changes go on each job's issue.
 
 ## Approved data-only queue after follow-on jobs 1 through 4
 
-Eugene added these 4 enumerated jobs on 12 September 2026. Run in order after
+These 4 enumerated jobs were added to the approved scope on 12 September 2026. Run in order after
 follow-on jobs 1 through 4, each with its own worktree and pull request, Net and
 Docs check lines, merge queue and live response check. These jobs change no page;
 display work awaits a separate accepted Design brief. Do not edit the architecture
@@ -541,8 +541,8 @@ each job's issue. Comment on issue 2140 after all 4 merge.
   in the same year. No normalization beyond payments-under-name. Serve distribution
   0, 1, 2, 3, 4+, numerator and denominator, and the top 5 ordered by count then
   name. Pin 17868/2025 and 2 spellings remaining 2 entries.
-- [ ] 5d, [issue 2150](https://github.com/alethical-org/alethical/issues/2150): Eugene
-  reversed the deferral of 2015–2021 official totals. Run one replacement for
+- [ ] 5d, [issue 2150](https://github.com/alethical-org/alethical/issues/2150): the deferral
+  of 2015–2021 official totals is superseded. Run one replacement for
   2015–2026 using the saved 1,603-filer directory. Retain independent checks,
   coverage-end guard, verdicts bound to both copies, receipt-date carry-forward,
   refreshed-file dates and the missing-record guard. For 2015–2021, where the
@@ -555,7 +555,7 @@ each job's issue. Comment on issue 2140 after all 4 merge.
 
 ### Job 5e: current lobbyists and lobbying lookups
 
-Eugene added job 5e after jobs 5a through 5d on 12 September 2026. This authorizes
+Job 5e was approved after jobs 5a through 5d on 12 September 2026. This authorizes
 lobbying data and server work only; the accepted lobbying display is the separate
 job 5f after this data service is live. The queued work is [issue 2163](https://github.com/alethical-org/alethical/issues/2163)
 in milestone `campaign finance`; close it with its own pull request and report live results. Keep the same
@@ -601,7 +601,7 @@ worktree, checks, merge queue, live-read and no-architecture-file-edit rules.
 
 The accepted display build is [issue 2164](https://github.com/alethical-org/alethical/issues/2164),
 in milestone `campaign finance`. It starts after the live check for
-[issue 2163](https://github.com/alethical-org/alethical/issues/2163). Eugene's
+[issue 2163](https://github.com/alethical-org/alethical/issues/2163). The approved
 12 September 2026 brief overrides both accepted Design rounds. The complete fixed
 text and measurements are in `Alethical UX (5).zip` and `Alethical UX (6).zip`;
 their separate extracted copies are under `/tmp/2140-lobbying-design-round-1/`
@@ -670,8 +670,7 @@ candidate-only filing-line source restriction.
 
 ## Resumed lobbying delivery
 
-The donation cards are live and reported. Eugene's instruction to finish lobbying
-after everything else now starts
+The donation cards are live and reported. The approved sequence now proceeds to
 [issue 2163](https://github.com/alethical-org/alethical/issues/2163), followed by
 [issue 2164](https://github.com/alethical-org/alethical/issues/2164) only after the
 data and lookups are live. The 2 held source replacements remain untouched.

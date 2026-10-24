@@ -1,4 +1,4 @@
-<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/native-release-tools.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs apps/frontend/scripts/check-braces-security.mjs apps/frontend/scripts/check-source-map-security.mjs apps/frontend/scripts/test-source-map-security.mjs apps/frontend/scripts/test-compression-security.mjs tools/native-release/** patches/metro@0.84.4.patch patches/node-forge@1.4.0.patch patches/braces@3.0.3.patch patches/source-map-js@1.2.1.patch pnpm-lock.yaml uv.lock alethical/tests/test_multidict_security.py -->
+<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py scripts/check_pillow_advisory.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs apps/frontend/scripts/check-braces-security.mjs apps/frontend/scripts/check-source-map-security.mjs apps/frontend/scripts/test-source-map-security.mjs apps/frontend/scripts/test-compression-security.mjs patches/metro@0.84.4.patch patches/node-forge@1.4.0.patch patches/braces@3.0.3.patch pnpm-lock.yaml uv.lock alethical/tests/test_multidict_security.py -->
 <!-- last-major-tool-review: 2026-08-15 -->
 
 # Keeping every tool supported and useful
@@ -19,10 +19,19 @@ the newest major release is never automatic.
   or merge-queue commit can pass. Every severity blocks release unless the exact
   finding meets the recorded exception or installed repair below. Missing packages, unreadable reports,
   scanner errors, and timeouts fail the check rather than reporting a clean result.
-- Phone publishing packages have a separate lockfile (`tools/native-release/pnpm-lock.yaml`).
-  Changes to those tools run their command and security checks in
-  `.github/workflows/native-release-tools.yml`; GitHub's update helper also watches
-  that lockfile for security fixes.
+- Native phone publishing is paused. Its packages, lockfile, workflow and update
+  entry are removed. The required security check rejects a restored `eas-cli`
+  dependency, including an alias, in any tracked package manifest. Expo and React
+  Native remain required by the browser build. [ios-release.md](ios-release.md)
+  records the restart conditions and recovery point.
+- The security check also audits exact registry package pins in tracked research
+  replay requirements under `docs/research/evidence/`. It does not install those
+  packages. Public Git dependencies must name a full commit and are explicitly
+  reported for source review outside the registry audit. Historical JSON evidence
+  is not an installation input.
+- GitHub CodeQL default setup scans Python, JavaScript/TypeScript and GitHub Actions
+  on changes and weekly. Its alerts are reviewed alongside dependency warnings.
+  Secret scanning and push protection remain enabled; TruffleHog checks new commits.
 - The same security check runs every Monday at 13:41 UTC through
   `.github/workflows/technology-health.yml`, so new warnings are found between releases.
 - The monthly technology check (`.github/workflows/technology-health.yml`) also finds
@@ -42,7 +51,25 @@ the newest major release is never automatic.
 
 Run `just doctor` after setup changes or when a newly pulled branch will not start.
 It checks Docker, uv, just, Node.js, pnpm, and the project's Python version without
-changing the Mac. Use `just doctor ios` or `just doctor android` before phone work.
+changing the Mac. Only browser development is supported while native releases are paused.
+
+## Monday repair review
+
+The Codex schedule **Alethical Monday security repairs** was approved on
+7 October 2026. It returns to the owning chat every Monday at 09:00 America/New_York
+and checks Dependabot, malware alerts, code-scanning findings, secret-scanning
+metadata, security workflow failures, package audits and runtime support deadlines.
+It carries safe fixes through tests, independent review, the merge queue and live
+acceptance, while respecting active work and keeping native publishing paused.
+It reports completed repairs, failed protection or a real need for user input;
+unchanged, non-actionable state stays quiet.
+
+This local Codex schedule requires the Mac to be on and the app running. GitHub's
+security updates, release checks and Monday machine scan do not depend on that Mac.
+The scheduled agent uses the user's Codex allowance; the GitHub scans use standard
+public-repository runners. The schedule does not authorize new paid services,
+destructive access or data changes, real messages to readers, or native releases.
+Keep the schedule prompt current through Codex's supported automation controls.
 
 ## What needs human judgment every 3 months
 
@@ -71,7 +98,129 @@ The monthly job reports newer major versions as candidates. It fails only when t
 The monthly check starts failing 180 days before one of these dates. That leaves time
 to test and release a replacement before support ends.
 
+## Warnings outside the scanner feed and unfixed warnings
+
+A known advisory that the scanner's feed does not carry, or that has no fixed
+version, holds only changes that touch the affected package or its callers;
+documentation and unrelated code release normally. The advisory has its own issue
+with an owner and a free weekly GitHub Actions recheck for a fixed version.
+
+This scope rule does not waive a scanner finding. Every reported finding still
+blocks release unless its exact conditions meet a recorded exception or installed
+repair below. Missing evidence and failed checks never count as an exception.
+An explicitly scoped release hold remains until its stated conditions are met.
+
+The [Pillow Arrow advisory](https://github.com/python-pillow/Pillow/security/advisories/GHSA-654x-cwwv-5j9c)
+is tracked in [issue 2643](https://github.com/alethical-org/alethical/issues/2643).
+The existing Monday technology-health workflow runs a separate free job that reads
+the upstream repository's advisory API through `scripts/check_pillow_advisory.py`.
+The read is signed with the job's GitHub token, or the saved local `gh` sign-in,
+so it does not share GitHub's unauthenticated rate limit; it refuses redirects, so
+the signature never reaches another address. It runs independently of registry scan failures and timeouts. A published fix, changed advisory identity or affected range, missing fix
+field, unreadable response or failed request fails the recheck. This upstream
+check grants no runtime exception and does not suppress any scanner finding.
+
+The separate `pillow-runtime.yml` workflow reads production through a dedicated
+`pillow-security-runtime` GitHub environment restricted to the `main` branch.
+It always runs trusted main code, never code, commands, dependencies or artifacts
+from a pull request. Its production-scoped Railway token is available only to the
+fixed read step. Railway does not offer a read-only project token; the job uses it
+only to read configuration and run a bounded package-and-source probe.
+
+The probe reads variable names with values hidden, checks every active production
+instance, and requires unchanged deployment identities before and after the check.
+The saved evidence contains only security booleans, reviewed fingerprints, package
+version, deployment identities and timestamps. A separate binding ties it to the
+requesting GitHub run and attempt, or to a unique local request. Missing evidence,
+changed commands, missing instances and provider failures fail the job. This
+workflow supplies evidence; it does not itself grant an exception.
+
+A merge to `main` starts an API deploy and a trusted check at the same moment.
+While Railway reports a named rollout state (queued, waiting, building, deploying,
+initializing or removing a deployment; created, initializing, restarting or
+removing an instance), the check re-reads every 15 seconds for up to 10 minutes,
+then runs the unchanged full proof. Saved settings and identities are checked on
+every read, so a wrong setting fails at once even mid-rollout. Failed, crashed,
+sleeping or unknown states fail at once, and a rollout that never settles fails
+at the bound. Only a lost or refused connection to an instance is retried, once;
+a wrong answer, bad exit, malformed message, certificate failure or timeout is not.
+
+GitHub starts 2 to 4 copies of this workflow for 1 requesting check. A claim job
+holding no production secret (`scripts/pillow_runtime_claim.py`) lets only the
+first copy probe production; later copies finish without probing. The requester
+waits for every copy, fails if any copy did not succeed, and reads the proof only
+from the first.
+
+The source guard distinguishes the single production renderer from 3 archived
+media tools awaiting release on `codex/social-video-guides`. Their exact paths,
+SHA-256 fingerprints and Pillow imports are recorded in
+`scripts/pillow_source_guard.py`. They may be absent or match the reviewed files;
+changed tools, new Pillow callers and production references to these offline tools
+require review. The source review found ordinary PNG/JPEG reading, drawing,
+resizing and saving, with no Arrow or alignment use. Their local execution
+environments are not verified, and releasing their source does not authorize
+running them. All other tracked Python files remain in the source scan.
+
 ## Recorded security exceptions
+
+### Pillow: reviewed production path outside the Arrow flaw
+
+[GHSA-654x-cwwv-5j9c](https://github.com/python-pillow/Pillow/security/advisories/GHSA-654x-cwwv-5j9c)
+(CVE-2026-114501) covers Pillow 11.2.1 through 13.0.0. Upstream reports no
+fixed release. [Issue 2643](https://github.com/alethical-org/alethical/issues/2643)
+holds the review, owned by Eugene. The exception covers only Pillow **13.0.0** on
+the direct `alethical -> pillow` path in `uv.lock`, with the existing
+`pillow>=13.0.0` requirement. It changes no Pillow code or package metadata.
+
+The flaw exposes stale memory when an image is exported through Arrow under a
+non-default alignment setting. The upstream reproduction does not require
+`pyarrow`, so its absence alone does not establish safety. Alethical's production
+renderer uses `Image.frombytes`, rectangle and text drawing, and `tobytes`, with
+no Arrow export. The source guard pins that renderer, its direct test imports,
+and the 2 service functions that call it.
+
+The [trusted production read](https://github.com/alethical-org/alethical/actions/runs/39953428120)
+verified no `PILLOW_ALIGNMENT` in saved service or shared
+variables or the actual running app's environment, no installed or importable
+`pyarrow`, Pillow 13.0.0, and matching deployed source. It identified the running
+app's interpreter, working directory and relevant Python environment, covered
+every active instance, and required stable deployment identities throughout the
+read. Each release obtains fresh evidence from the trusted main-only workflow;
+a saved successful check cannot clear a later request.
+
+The checked fingerprints are:
+
+| Boundary | SHA-256 |
+| --- | --- |
+| Canonical complete Pillow lock entry, including distribution hashes | `2694a2f9055a37e8285bf6e1af4ff7fb575e01a541ca13be29d2b1a7bac45f59` |
+| `alethical/pipeline/tv_ad_redaction.py` | `33a2f50db0ddd2bda981a131a8e6d4d2c27e9b0ebfcd04f03d10201b32533e92` |
+| `alethical/tests/test_tv_ad_review.py` | `ef3c6e5e90db7e86289d32ddb82551fe097b681a51d5f315aa643d55e2734f44` |
+| Canonical syntax of `prepare_copy` in `alethical/api/services/tv_ad_review.py` | `f8c331b1f9f341588fe4425f70e2ef8cbaed1a741931476fb45f1ae0248fc991` |
+| Canonical syntax of `render_original_page` in that service | `5d96d518905a7c362c369b58086ded8afcee8f3b0ca8e271c4c049c3b89a7790` |
+
+All tracked Python files, including root-level and documentation tools, remain
+subject to the source scan. This finite source guard detects ordinary imports,
+reflection, Arrow access and alignment changes; it is not a proof against
+arbitrary generated, obfuscated, native or dependency code.
+
+`scripts/check_technology_health.py --security-only`, used by the local push hook
+and required `changes` job, calls `scripts/check_pillow_exception.py`. It verifies
+candidate source, the direct upstream advisory and production proof bound to the
+current GitHub run and attempt or unique local request. It reads up to 100 recent
+proof runs in pages of 20, keeping each response within the transport size limit.
+Runtime failures report only a fixed stage name: probe build, provider read,
+state validation, instance probe or state stability. They never print provider
+responses, exception details, variable names, commands or credentials.
+Missing or stale evidence,
+provider failures, changed variables, packages, callers, deployment commands or
+advisory identity fail the check. A fixed release ends this exception and requires
+the upgrade. The separate free weekly upstream job continues after the review issue
+closes.
+
+If the registry feed adds this finding, only the exact advisory or its known CVE
+alias for Pillow 13.0.0 with an explicitly empty fixed-version list can meet the
+exception, and only after all checks pass. The raw audit report remains visible.
+Other findings, new aliases and missing or changed fix data still block release.
 
 The website build tools use node-forge 1.4.0 with the exact nested signature
 validation repair from [upstream pull request 1152](https://github.com/digitalbazaar/forge/pull/1152)
@@ -105,26 +254,17 @@ The raw audit warning stays visible. A changed dependency path, version,
 advisory, or repair stops release until reviewed. A fixed upstream version
 should replace the local repair after compatibility checks pass.
 
-The jsdom CSS parser and PostCSS use source-map-js 1.2.1 with the complete
-[upstream indexed-map repair](https://github.com/7rulnik/source-map-js/commit/cf7658058ceeaa8619d5ae0ec90be6905209d016).
-Its [section-offset advisory](https://github.com/advisories/GHSA-68fv-2mgg-jv7q)
-is fixed in 1.2.2, published on 30 September at 14:08:09 UTC. That package remains
-inside the saved 7-day waiting period until 7 October at 14:08:09 UTC. The exact
-backport preserves that waiting period rather than installing a young package.
+The jsdom CSS parser and PostCSS use source-map-js 1.2.2, the published fix for
+its [section-offset advisory](https://github.com/advisories/GHSA-68fv-2mgg-jv7q).
+The package was published on 30 September at 14:08:09 UTC and cleared the saved
+7-day waiting period on 7 October at 14:08:09 UTC. The temporary 1.2.1 backport,
+patch binding, and exact audit classification have been removed. Security scans
+now reject any remaining affected source-map-js version without an exception.
 
-Acceptance requires the exact high-severity advisory, version 1.2.1, affected and
-fixed ranges, and the reported jsdom CSS-parser path. The patch, lock binding,
-and all 3 repaired installed files must match their saved fingerprints through
-both CSS consumers. Bounded child processes test invalid and excessive offsets,
-the combined offset of nested maps, large valid maps, linear nested-source
-reading, and ordinary CSS generation. The raw warning stays visible. Changed
-findings, missing or drifted repair evidence, installation failure, and failed
-behavior checks block release. The proven repair has no calendar expiration:
-each scan repeats the installed-code and behavior proof. During routine
-dependency updates, replace the backport with mature 1.2.2, remove its patch
-binding and exact audit classification, and retain compatibility checks. The
-existing dependency-update and technology-health checks own that upkeep; this
-repair needs no new scheduled job.
+The build-tool checks retain bounded child processes for invalid and excessive
+offsets, combined offsets in nested maps, large valid maps, linear nested-source
+reading, and ordinary CSS generation through both actual CSS consumers. These
+behavior checks remain after replacing the local repair with the official release.
 
 React Native's development tools use shell-quote 1.11.0, the published fix for
 [command injection after a comment](https://github.com/ljharb/shell-quote/security/advisories/GHSA-pqg4-j6r4-53mv).

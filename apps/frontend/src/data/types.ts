@@ -449,6 +449,8 @@ export interface RepresentativeLookupResult {
 
 export interface RepresentativeAddressChoice extends RepresentativeLookupCoordinates {
   matchedAddress: string;
+  /** Its point must be checked against current official records when chosen. */
+  requiresLocationCheck?: boolean;
 }
 
 export interface GeoJsonGeometry {
@@ -461,7 +463,13 @@ export interface RepresentativeLookupCoordinates {
   longitude: number;
 }
 
-export type RepresentativeLookupInput = string | RepresentativeLookupCoordinates;
+/** A chosen address whose point the server checks against current official records. */
+export interface RepresentativeSelectedAddress extends RepresentativeLookupCoordinates {
+  selectedAddress: string;
+}
+
+export type RepresentativeLookupInput =
+  string | RepresentativeLookupCoordinates | RepresentativeSelectedAddress;
 
 export interface AskAnswerBill {
   id: string;
@@ -650,6 +658,8 @@ export interface CommitteeNameConnections {
  */
 export interface CampaignCommitteeMoney {
   registrationNumber: string;
+  /** This committee-year's report source copy time; absent in older responses. */
+  filingsCopiedAt?: string | null;
   /** The committee's name as the reviewer read it when they confirmed the link. */
   committeeNameAsReviewed: string;
   /** The name the current download carries. Can legitimately differ from the above:
@@ -854,7 +864,8 @@ export interface LegislatorCampaignMoney {
   /** The day we downloaded Minnesota's files. Not the period the money covers,
    *  which is per committee and always earlier. */
   fetchedAt: string | null;
-  /** The report source’s own copy time, separate from the payment files. */
+  /** Shared report copy time only when all displayed committee-years agree.
+   * Older responses may carry a snapshot-wide date: use each committee's own date. */
   filingsCopiedAt?: string | null;
   committees: CampaignCommitteeMoney[];
   /** Confirmed committees left out because they are for a race other than a

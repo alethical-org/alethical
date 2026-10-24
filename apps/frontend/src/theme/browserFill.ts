@@ -13,7 +13,7 @@ export const browserFillTextInputProps: object =
       }
     : {};
 
-const target = 'input[data-alethical-browser-fill="true"]';
+const target = ':is(input, textarea)[data-alethical-browser-fill="true"]';
 const standardSelectors = ['', ':hover', ':focus', ':active'].map(
   (state) => `${target}:autofill${state}`,
 );

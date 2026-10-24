@@ -36,8 +36,6 @@ BRACES_ADVISORY = "GHSA-vfj7-8cjw-p6xm"
 BRACES_BUILD_PATH = (
     "apps__frontend>expo>@expo/cli>@expo/metro-file-map>micromatch>braces"
 )
-SOURCE_MAP_ADVISORY = "GHSA-68fv-2mgg-jv7q"
-SOURCE_MAP_TEST_PATH = "apps__frontend>jsdom>css-tree>source-map-js"
 
 
 class VersionSource(NamedTuple):
@@ -429,7 +427,6 @@ def javascript_audit_problems(
     today: date | None = None,
     forge_repaired: bool = False,
     braces_repaired: bool = False,
-    source_map_repaired: bool = False,
 ) -> list[str]:
     today = today or date.today()
     if not isinstance(payload, dict) or "error" in payload:
@@ -455,16 +452,6 @@ def javascript_audit_problems(
             raise ValueError("JavaScript audit returned an invalid advisory")
         advisory_id = advisory.get("github_advisory_id") or key
         findings = advisory.get("findings")
-        if (
-            source_map_repaired
-            and advisory_id == SOURCE_MAP_ADVISORY
-            and advisory.get("module_name") == "source-map-js"
-            and advisory.get("severity") == "high"
-            and advisory.get("vulnerable_versions") == ">=1.0.0 <1.2.2"
-            and advisory.get("patched_versions") == ">=1.2.2"
-            and findings == [{"version": "1.2.1", "paths": [SOURCE_MAP_TEST_PATH]}]
-        ):
-            continue
         if (
             forge_repaired
             and advisory_id == FORGE_ADVISORY
@@ -504,7 +491,23 @@ def javascript_audit_problems(
     return sorted(problems)
 
 
-def python_audit_problems(payload: dict) -> list[str]:
+def recorded_pillow_finding(dependency: dict, vulnerability: dict) -> bool:
+    aliases = vulnerability.get("aliases", [])
+    known_ids = {"GHSA-654x-cwwv-5j9c", "CVE-2026-114501"}
+    return (
+        re.sub(r"[-_.]+", "-", dependency["name"]).lower() == "pillow"
+        and dependency["version"] == "13.0.0"
+        and vulnerability.get("id") in known_ids
+        and isinstance(aliases, list)
+        and all(isinstance(alias, str) and alias in known_ids for alias in aliases)
+        and type(vulnerability.get("fix_versions")) is list
+        and vulnerability["fix_versions"] == []
+    )
+
+
+def python_audit_problems(
+    payload: dict, *, pillow_exception_verified: bool = False
+) -> list[str]:
     if (
         not isinstance(payload, dict)
         or "error" in payload
@@ -531,6 +534,10 @@ def python_audit_problems(payload: dict) -> list[str]:
                 or not vulnerability["id"]
             ):
                 raise ValueError("Python audit returned an invalid advisory")
+            if pillow_exception_verified and recorded_pillow_finding(
+                dependency, vulnerability
+            ):
+                continue
             problems.append(
                 f"{dependency['name']} {dependency['version']}: {vulnerability['id']}"
             )
@@ -552,14 +559,16 @@ def security_audit_problems(
     language: str,
     *,
     expected_python: set[tuple[str, str]] | None = None,
+    pillow_exception_verified: bool = False,
     forge_repaired: bool = False,
     braces_repaired: bool = False,
-    source_map_repaired: bool = False,
 ) -> list[str]:
     try:
         payload = json.loads(audited.stdout)
         if language == "Python":
-            problems = python_audit_problems(payload)
+            problems = python_audit_problems(
+                payload, pillow_exception_verified=pillow_exception_verified
+            )
             has_findings = any(item["vulns"] for item in payload["dependencies"])
             reported = {
                 (re.sub(r"[-_.]+", "-", item["name"]).lower(), item["version"])
@@ -574,7 +583,6 @@ def security_audit_problems(
                 payload,
                 forge_repaired=forge_repaired,
                 braces_repaired=braces_repaired,
-                source_map_repaired=source_map_repaired,
             )
             has_findings = bool(payload["advisories"])
     except (ValueError, TypeError):
@@ -621,8 +629,153 @@ def locked_python_packages(root: Path) -> list[tuple[str, str]]:
     return sorted(packages)
 
 
+def tracked_security_paths(root: Path) -> list[str]:
+    """Read only tracked manifests; never walk ignored packages or worktrees."""
+    command = [
+        "git",
+        "ls-files",
+        "-z",
+        "--cached",
+        "--",
+        "package.json",
+        "**/package.json",
+        "docs/research/evidence/*/requirements.txt",
+    ]
+    try:
+        listed = subprocess.run(
+            command, cwd=root, capture_output=True, text=True, check=True, timeout=30
+        )
+        deleted = subprocess.run(
+            [
+                "git",
+                "ls-files",
+                "-z",
+                "--deleted",
+                "--",
+                "package.json",
+                "**/package.json",
+                "docs/research/evidence/*/requirements.txt",
+            ],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise ValueError("Tracked security inventory could not be read") from error
+    paths = sorted(set(listed.stdout.split("\0")) - set(deleted.stdout.split("\0")))
+    if not paths:
+        raise ValueError("Tracked security inventory contains no manifests")
+    for path in paths:
+        candidate = root / path
+        if (
+            Path(path).is_absolute()
+            or ".." in Path(path).parts
+            or candidate.is_symlink()
+            or not candidate.resolve().is_relative_to(root.resolve())
+        ):
+            raise ValueError("Tracked security inventory contains an unsafe path")
+    return paths
+
+
+def extra_security_inventory(
+    root: Path,
+) -> tuple[list[str], set[tuple[str, str]], list[str]]:
+    problems = []
+    packages = set()
+    manual = []
+    for path in tracked_security_paths(root):
+        content = (root / path).read_text(encoding="utf-8")
+        if path.endswith("package.json"):
+            manifest = json.loads(content)
+            if not isinstance(manifest, dict):
+                raise ValueError("Tracked JavaScript manifest is not an object")
+            for field in (
+                "dependencies",
+                "devDependencies",
+                "optionalDependencies",
+                "peerDependencies",
+            ):
+                dependencies = manifest.get(field, {})
+                if not isinstance(dependencies, dict):
+                    raise ValueError("Tracked JavaScript dependency list is unreadable")
+                if "eas-cli" in dependencies or any(
+                    isinstance(value, str) and value.startswith("npm:eas-cli@")
+                    for value in dependencies.values()
+                ):
+                    problems.append(
+                        f"{path}: eas-cli phone publishing is paused; remove its active dependency"
+                    )
+                    break
+            continue
+        for line_number, raw in enumerate(content.splitlines(), 1):
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            pinned = re.fullmatch(
+                r"([A-Za-z0-9][A-Za-z0-9._-]*)==([A-Za-z0-9][A-Za-z0-9.!+_-]*)", line
+            )
+            if pinned:
+                name, version = pinned.groups()
+                packages.add((re.sub(r"[-_.]+", "-", name).lower(), version))
+                continue
+            source = re.fullmatch(
+                r"([A-Za-z0-9][A-Za-z0-9._-]*) @ git\+https://github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)\.git@([0-9a-f]{40})",
+                line,
+            )
+            if source:
+                name, repository, commit = source.groups()
+                manual.append(
+                    f"{path}:{line_number}: {name} at {repository}@{commit} is outside the registry audit and requires manual source review"
+                )
+                continue
+            raise ValueError(
+                f"{path}:{line_number}: unsupported research requirement; require an exact registry pin or a full GitHub commit"
+            )
+    return problems, packages, manual
+
+
+def verify_pillow_exception(root: Path) -> bool:
+    """The local hook and CI consume trusted evidence; neither gets production access."""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "scripts.check_pillow_exception"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=1100,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        print("The Pillow exception check did not complete.")
+        return False
+    print(result.stdout.strip())
+    return result.returncode == 0
+
+
 def run_security_audits(root: Path) -> list[str]:
     problems = []
+    pillow_exception_verified = verify_pillow_exception(root)
+    if not pillow_exception_verified:
+        problems.append(
+            "The recorded Pillow exception could not verify its source, upstream warning and current production conditions"
+        )
+    research_packages: set[tuple[str, str]] = set()
+    try:
+        inventory_problems, research_packages, manual_sources = (
+            extra_security_inventory(root)
+        )
+        problems.extend(inventory_problems)
+        for source in manual_sources:
+            print(f"Manual review required: {source}")
+        print(
+            f"Research requirement inventory: {len(research_packages)} registry package versions; {len(manual_sources)} Git sources excluded from registry coverage."
+        )
+    except (OSError, UnicodeError, ValueError):
+        problems.append(
+            "The tracked JavaScript/research security inventory is unreadable or unsupported"
+        )
     with tempfile.TemporaryDirectory(
         prefix="alethical-technology-health-"
     ) as directory:
@@ -637,7 +790,7 @@ def run_security_audits(root: Path) -> list[str]:
             )
         else:
             try:
-                packages = locked_python_packages(root)
+                packages = sorted(set(locked_python_packages(root)) | research_packages)
                 pin = _source_versions(
                     root,
                     next(
@@ -681,13 +834,19 @@ def run_security_audits(root: Path) -> list[str]:
                         ],
                         root,
                     )
+                    if audited.returncode == 1:
+                        print("Raw Python audit report:")
+                        print(audited.stdout)
                     problems.extend(
                         security_audit_problems(
-                            audited, "Python", expected_python=set(batch)
+                            audited,
+                            "Python",
+                            expected_python=set(batch),
+                            pillow_exception_verified=pillow_exception_verified,
                         )
                     )
                 print(
-                    f"Python lock inventory: {len(packages)} package versions across all platforms."
+                    f"Python registry inventory: {len(packages)} package versions from uv.lock and tracked research requirements across all platforms."
                 )
 
     audited = _run(["pnpm", "audit", "--json"], root)
@@ -697,7 +856,6 @@ def run_security_audits(root: Path) -> list[str]:
     repaired = {
         FORGE_ADVISORY: False,
         BRACES_ADVISORY: False,
-        SOURCE_MAP_ADVISORY: False,
     }
     if installed.returncode:
         problems.append("The JavaScript security repair installation failed")
@@ -705,7 +863,6 @@ def run_security_audits(root: Path) -> list[str]:
         for advisory, script in (
             (FORGE_ADVISORY, "check-node-forge-security.mjs"),
             (BRACES_ADVISORY, "check-braces-security.mjs"),
-            (SOURCE_MAP_ADVISORY, "check-source-map-security.mjs"),
         ):
             repair = _run(["node", f"apps/frontend/scripts/{script}"], root)
             repaired[advisory] = repair.returncode == 0
@@ -713,6 +870,13 @@ def run_security_audits(root: Path) -> list[str]:
                 problems.append(f"The installed {advisory} repair did not pass")
             else:
                 print(repair.stdout.strip())
+        source_map = _run(
+            ["node", "apps/frontend/scripts/check-source-map-security.mjs"], root
+        )
+        if source_map.returncode:
+            problems.append("The installed source-map-js security checks did not pass")
+        else:
+            print(source_map.stdout.strip())
     print("Raw JavaScript audit report:")
     print(audited.stdout)
     problems.extend(
@@ -721,7 +885,6 @@ def run_security_audits(root: Path) -> list[str]:
             "JavaScript",
             forge_repaired=repaired[FORGE_ADVISORY],
             braces_repaired=repaired[BRACES_ADVISORY],
-            source_map_repaired=repaired[SOURCE_MAP_ADVISORY],
         )
     )
     return problems
@@ -887,12 +1050,6 @@ def main() -> int:
             "exact patch/lock/installed-code fingerprints, braces API checks in both "
             "Expo dependency trees, and real file-scanner matching checks. Any changed "
             "finding or failed repair check blocks release.\n"
-            "\nLocal security repair: source-map-js 1.2.1 retains the raw "
-            "GHSA-68fv-2mgg-jv7q warning only with the exact upstream indexed-map "
-            "repair, patch/lock/installed-code fingerprints, bounded malicious-map "
-            "checks, and both CSS consumer checks. Replace this exact backport with "
-            "mature 1.2.2 during routine dependency updates, preserving the 7-day "
-            "wait. Any changed finding or failed repair check blocks release.\n"
             "\nRecorded exception policy: only image-size 1.2.1 in Expo's Metro "
             "build tool may retain "
             + ", ".join(sorted(KNOWN_JAVASCRIPT_EXCEPTIONS))

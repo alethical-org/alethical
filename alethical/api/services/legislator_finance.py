@@ -56,8 +56,8 @@ because a wrong remainder does not look wrong -- it looks like a fact about dono
 2. **Minnesota's two publications can contradict each other.** Where the committee's
    own filed report and our copy of the state's donation list state different itemized
    figures, the comparison in ``committee_stated_split`` records a disagreement, and
-   Eugene ruled on 12 Aug 2026 that where 2 official sources disagree and we cannot
-   derive the truth, we show both figures and say plainly that they disagree.
+   the 12 Aug 2026 decision requires that, where 2 official sources disagree and
+   we cannot derive the truth, we show both figures and say plainly that they disagree.
 3. **A subtraction that comes out negative is not that.** It proves these 2 numbers
    cannot be subtracted and nothing more. Sometimes we can say why -- the committee has
    refiled the year's report and the total we hold is the superseded version's -- and

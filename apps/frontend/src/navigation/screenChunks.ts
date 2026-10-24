@@ -41,12 +41,18 @@ export const screenChunks = {
     })),
   Candidates: () =>
     import('../screens/CandidatesScreen').then((m) => ({ default: m.CandidatesScreen })),
+  CandidateFeatures: () =>
+    import('../screens/CandidateFeaturesScreen').then((m) => ({
+      default: m.CandidateFeaturesScreen,
+    })),
   CandidateProfile: () =>
     import('../screens/CandidateProfileScreen').then((m) => ({
       default: m.CandidateProfileScreen,
     })),
   CandidateClaim: () =>
     import('../screens/CandidateAccountScreens').then((m) => ({ default: m.CandidateClaimScreen })),
+  PersonOverview: () =>
+    import('../screens/PersonOverviewScreen').then((m) => ({ default: m.PersonOverviewScreen })),
   CandidateManage: () =>
     import('../screens/CandidateAccountScreens').then((m) => ({
       default: m.CandidateManageScreen,
@@ -81,6 +87,12 @@ export const screenChunks = {
     import('../screens/redesign/LobbyingLobbyistScreen').then((m) => ({
       default: m.LobbyingLobbyistScreen,
     })),
+  TVAdRecords: () =>
+    import('../screens/redesign/TVAdRecordsScreen').then((m) => ({ default: m.TVAdRecordsScreen })),
+  AdminPoliticalAds: () =>
+    import('../screens/redesign/AdminPoliticalAdsScreen').then((m) => ({
+      default: m.AdminPoliticalAdsScreen,
+    })),
   MoneyLanding: () =>
     import('../screens/redesign/MoneyLandingScreen').then((m) => ({
       default: m.MoneyLandingScreen,
@@ -102,6 +114,8 @@ export const screenChunks = {
     import('../screens/redesign/ReadCollectionScreen').then((m) => ({
       default: m.ReadCollectionScreen,
     })),
+  Events: () => import('../screens/redesign/EventScreen').then((m) => ({ default: m.EventScreen })),
+  Event: () => import('../screens/redesign/EventScreen').then((m) => ({ default: m.EventScreen })),
   ReadGuides: () =>
     import('../screens/redesign/ReadCollectionScreen').then((m) => ({
       default: m.ReadCollectionScreen,

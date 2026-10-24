@@ -1100,6 +1100,7 @@ class CandidateRecord(Base):
     election_date: Mapped[date] = mapped_column(Date, nullable=False)
     public_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
     source_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    claim_source_block: Mapped[Optional[str]] = mapped_column(String(32))
     checked_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
@@ -1136,6 +1137,71 @@ class CandidateClaim(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             unique=True,
             postgresql_where=text("status = 'approved'"),
         ),
+    )
+
+
+class CandidateClaimEvent(UUIDPrimaryKeyMixin, Base):
+    """Private immutable evidence for one saved profile claim transition."""
+
+    __tablename__ = "candidate_claim_event"
+    claim_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("candidate_claim.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    kind: Mapped[str] = mapped_column(String(24), nullable=False)
+    claim_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    actor_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("user_account.id", ondelete="SET NULL")
+    )
+    evidence_url: Mapped[str] = mapped_column(Text, nullable=False)
+    request_note: Mapped[str] = mapped_column(Text, nullable=False)
+    review_note: Mapped[Optional[str]] = mapped_column(Text)
+    identity_verified: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    statement_removed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    candidate_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    __table_args__ = (
+        UniqueConstraint("claim_id", "claim_version"),
+        CheckConstraint(
+            "kind IN ('submitted', 'resubmitted', 'withdrawn', 'given_up', 'approved', 'rejected', 'revoked')",
+            name="kind",
+        ),
+    )
+
+
+class CandidateClaimEmailDelivery(UUIDPrimaryKeyMixin, Base):
+    """One intended recipient per event; email addresses are resolved at delivery."""
+
+    __tablename__ = "candidate_claim_email_delivery"
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("candidate_claim_event.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id", ondelete="CASCADE"), nullable=False
+    )
+    recipient_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    provider_id: Mapped[Optional[str]] = mapped_column(String(200))
+    message_payload: Mapped[Optional[dict]] = mapped_column(JSONB)
+    attempted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    next_attempt_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    __table_args__ = (
+        UniqueConstraint("event_id", "user_id"),
+        CheckConstraint(
+            "recipient_kind IN ('admin', 'applicant')", name="recipient_kind"
+        ),
+        Index("ix_candidate_claim_email_delivery_pending", "state", "next_attempt_at"),
     )
 
 
@@ -2064,7 +2130,7 @@ class LegislatorCampaignCommittee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     and deliberately no default for ``reviewed_by``: a row with no reviewer is a row that
     cannot be written. What that column holds is the *accountable entity* rather than the
     individual who typed the keystroke -- ``Alethical, LLC``, the same words a reader is
-    shown on the profile (Eugene, 31 Aug 2026). A person still answers every question; what
+    shown on the profile (31 Aug 2026). A person still answers every question; what
     the row no longer records is which person, which is a real cost if 2 people ever hold
     sittings and is why the reviewing tool keeps an override.
     """
@@ -3142,8 +3208,8 @@ class CampaignFinanceStatedSplitStatus(enum.Enum):
     agrees = "agrees"
     # They differ. Money we are missing would otherwise land inside the derived figure
     # and become a positive claim that money had no donor, which is the one thing
-    # `.claude/rules/grounded-answers.md` rule 12 exists to prevent. Eugene ruled on 12
-    # Aug 2026 that where 2 official sources disagree we show both and say so.
+    # `.claude/rules/grounded-answers.md` rule 12 exists to prevent. Under the
+    # 12 Aug 2026 decision, where 2 official sources disagree we show both and say so.
     disagrees = "disagrees"
     # The comparison could not be made. The Board serves no report document before
     # 2023, serves none for several report kinds even inside the years it covers, and
@@ -3246,7 +3312,7 @@ class CampaignFinanceStatedSpendingStatus(enum.Enum):
     agrees = "agrees"
     # They differ. A shortfall makes a committee look like it spent less than it did,
     # under a real politician's name, with the state's own filing saying otherwise.
-    # Eugene ruled on 12 Aug 2026 that where 2 official sources disagree we show both.
+    # The 12 Aug 2026 decision establishes that where 2 official sources disagree we show both.
     disagrees = "disagrees"
     # The comparison could not be made: no document of this filing is stored, or the
     # catalogue serves no report, amendment index or cut-off date to bound it by.
@@ -3633,6 +3699,170 @@ class CampaignFinanceRefundNotPublished(TimestampMixin, Base):
     byte_size: Mapped[Optional[int]] = mapped_column(BigInteger)
     # Why we concluded nothing was published, in words a person can check.
     reason: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class FCCSourceBody(TimestampMixin, Base):
+    """Immutable FCC response bytes, covered by the existing source-file mirror."""
+
+    __tablename__ = "fcc_source_body"
+    content_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    object_key: Mapped[str] = mapped_column(Text, nullable=False)
+    byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    compressed_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    compressed_byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    compression: Mapped[str] = mapped_column(String(20), default="gzip", nullable=False)
+    mirrored_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class FCCScan(UUIDPrimaryKeyMixin, Base):
+    """A bounded collection attempt; incomplete listings never imply absence."""
+
+    __tablename__ = "fcc_scan"
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    stations: Mapped[list] = mapped_column(JSONB, nullable=False)
+    counts: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+
+
+class FCCObservation(Base):
+    """What one scan saw, including failed folders and downloads."""
+
+    __tablename__ = "fcc_observation"
+    scan_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("fcc_scan.id"), primary_key=True
+    )
+    url: Mapped[str] = mapped_column(Text, primary_key=True)
+    facility_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    observed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    content_hash: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("fcc_source_body.content_hash")
+    )
+    details: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    error: Mapped[Optional[str]] = mapped_column(Text)
+    __table_args__ = (Index("ix_fcc_observation_status", "scan_id", "status"),)
+
+
+class FCCDocument(Base):
+    """A source document version, distinct from an invoice or purchase."""
+
+    __tablename__ = "fcc_document"
+    facility_id: Mapped[str] = mapped_column(String(20), primary_key=True)
+    file_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    content_hash: Mapped[str] = mapped_column(
+        ForeignKey("fcc_source_body.content_hash"), primary_key=True
+    )
+    call_sign: Mapped[str] = mapped_column(String(30), nullable=False)
+    folder_id: Mapped[str] = mapped_column(Text, nullable=False)
+    folder_path: Mapped[str] = mapped_column(Text, nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    url: Mapped[str] = mapped_column(Text, nullable=False)
+    year: Mapped[Optional[int]] = mapped_column(Integer)
+    uploaded_at: Mapped[Optional[str]] = mapped_column(Text)
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    last_downloaded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    __table_args__ = (Index("ix_fcc_document_station_year", "facility_id", "year"),)
+
+
+class FCCExtraction(Base):
+    """Draft page-grounded readings, never automatically published amounts."""
+
+    __tablename__ = "fcc_extraction"
+    content_hash: Mapped[str] = mapped_column(
+        ForeignKey("fcc_source_body.content_hash"), primary_key=True
+    )
+    version: Mapped[str] = mapped_column(String(80), primary_key=True)
+    document_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    facts: Mapped[list] = mapped_column(JSONB, nullable=False)
+    errors: Mapped[list] = mapped_column(JSONB, nullable=False)
+    attempts: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    __table_args__ = (
+        Index("ix_fcc_extraction_facts", "facts", postgresql_using="gin"),
+    )
+
+
+class FCCPage(Base):
+    __tablename__ = "fcc_page"
+    content_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    version: Mapped[str] = mapped_column(String(80), primary_key=True)
+    page: Mapped[int] = mapped_column(Integer, primary_key=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    method: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    error: Mapped[Optional[str]] = mapped_column(Text)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["content_hash", "version"],
+            ["fcc_extraction.content_hash", "fcc_extraction.version"],
+        ),
+        Index(
+            "ix_fcc_page_text",
+            text,
+            postgresql_using="gin",
+            postgresql_ops={"text": "gin_trgm_ops"},
+        ),
+    )
+
+
+class FCCExpenseLink(UUIDPrimaryKeyMixin, Base):
+    """Reviewed links retain the finance evidence even after source refresh."""
+
+    __tablename__ = "fcc_expense_link"
+    content_hash: Mapped[str] = mapped_column(
+        ForeignKey("fcc_source_body.content_hash"), nullable=False
+    )
+    extraction_version: Mapped[str] = mapped_column(String(80), nullable=False)
+    source_dataset: Mapped[str] = mapped_column(String(40), nullable=False)
+    source_snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False
+    )
+    source_content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_row_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    source_row: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    evidence: Mapped[str] = mapped_column(Text, nullable=False)
+    reviewed_by: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    __table_args__ = (
+        UniqueConstraint(
+            "content_hash",
+            "extraction_version",
+            "source_dataset",
+            "source_snapshot_id",
+            "source_row_number",
+        ),
+        CheckConstraint(
+            "status IN ('suggested', 'accepted', 'rejected')", name="fcc_link_status"
+        ),
+        CheckConstraint(
+            "status = 'suggested' OR length(trim(reviewed_by)) > 0 AND reviewed_by IS NOT NULL",
+            name="fcc_link_review",
+        ),
+        CheckConstraint("length(trim(evidence)) > 0", name="fcc_link_evidence"),
+        ForeignKeyConstraint(
+            ["content_hash", "extraction_version"],
+            ["fcc_extraction.content_hash", "fcc_extraction.version"],
+        ),
+    )
 
 
 class PublishedSourceCopy(TimestampMixin, Base):
@@ -4551,14 +4781,17 @@ def find_my_legislator_stmt(session_id: uuid.UUID, district_ids: list[uuid.UUID]
             LegislatorServicePeriod.district_id.in_(district_ids),
         )
         .options(
-            selectinload(LegislatorServicePeriod.legislator)
-            .selectinload(Legislator.election_history)
-            .selectinload(LegislatorElectionHistory.chamber),
-            selectinload(LegislatorServicePeriod.district),
-            selectinload(LegislatorServicePeriod.chamber),
-            selectinload(LegislatorServicePeriod.legislator).selectinload(
-                Legislator.stats.and_(LegislatorStats.session_id == session_id)
+            # Single related rows join into the main query; lists load once each.
+            joinedload(LegislatorServicePeriod.legislator).options(
+                selectinload(Legislator.election_history).joinedload(
+                    LegislatorElectionHistory.chamber
+                ),
+                selectinload(
+                    Legislator.stats.and_(LegislatorStats.session_id == session_id)
+                ),
             ),
+            joinedload(LegislatorServicePeriod.district),
+            joinedload(LegislatorServicePeriod.chamber),
         )
     )
 
@@ -5076,5 +5309,340 @@ class CampaignFinanceDisclosureStatementSource(
     __table_args__ = (
         UniqueConstraint(
             "reading_id", "position", name="uq_cf_disclosure_statement_source_position"
+        ),
+    )
+
+
+class CandidateElection(Base):
+    """Supported elections and their separately proved source capabilities."""
+
+    __tablename__ = "candidate_election"
+    id: Mapped[str] = mapped_column(String(20), primary_key=True)
+    canonical_key: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
+    election_date: Mapped[date] = mapped_column(Date, nullable=False)
+    stage: Mapped[str] = mapped_column(String(20), nullable=False)
+    public_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    __table_args__ = (
+        CheckConstraint(
+            "stage IN ('general', 'primary', 'special')", name="valid_stage"
+        ),
+        UniqueConstraint("id", "stage"),
+    )
+
+
+class CandidateRaceRecord(Base):
+    """One exact race; certification is scoped here, never to a whole election."""
+
+    __tablename__ = "candidate_race_record"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    election_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    stage: Mapped[str] = mapped_column(String(20), nullable=False)
+    jurisdiction_scope: Mapped[str] = mapped_column(String(160), nullable=False)
+    office: Mapped[str] = mapped_column(Text, nullable=False)
+    result_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="unavailable"
+    )
+    final: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    test_data: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    authority_scope: Mapped[Optional[str]] = mapped_column(String(160))
+    result_payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["election_id", "stage"],
+            ["candidate_election.id", "candidate_election.stage"],
+        ),
+        CheckConstraint(
+            "result_status IN ('pending','unofficial','certified','recount','tie','unavailable')",
+            name="valid_result_status",
+        ),
+        CheckConstraint(
+            "NOT final OR (result_status = 'certified' AND NOT test_data)",
+            name="final_certified_real",
+        ),
+        CheckConstraint(
+            "result_status != 'certified' OR (authority_scope IS NOT NULL AND authority_scope = jurisdiction_scope AND NOT test_data AND coalesce(jsonb_array_length(result_payload->'certificationEvidence'), 0) > 0)",
+            name="certified_scope_evidence",
+        ),
+    )
+
+
+class CandidateRaceMember(Base):
+    __tablename__ = "candidate_race_member"
+    candidate_id: Mapped[str] = mapped_column(
+        ForeignKey("candidate_record.id"), primary_key=True
+    )
+    race_id: Mapped[str] = mapped_column(
+        ForeignKey("candidate_race_record.id"), nullable=False, index=True
+    )
+    # Frozen facts the cross-source join was reviewed against, not a name-only key.
+    identity: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
+class PublicPerson(UUIDPrimaryKeyMixin, Base):
+    """A public identity, unrelated to a private account or profile claim."""
+
+    __tablename__ = "public_person"
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    legislator_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("legislator.id", ondelete="SET NULL"), unique=True
+    )
+    identity_evidence: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
+class PersonCandidacy(Base):
+    __tablename__ = "person_candidacy"
+    person_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("public_person.id"), primary_key=True
+    )
+    candidate_id: Mapped[str] = mapped_column(
+        ForeignKey("candidate_record.id"), primary_key=True
+    )
+    identity: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    evidence: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
+class PersonServiceRecord(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "person_service_record"
+    person_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("public_person.id"), nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    public_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('current','elected','former','unknown')",
+            name="valid_service_status",
+        ),
+    )
+
+
+class PersonResearchRecord(Base):
+    __tablename__ = "person_research_record"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    person_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("public_person.id"), nullable=False, index=True
+    )
+    kind: Mapped[str] = mapped_column(String(30), nullable=False)
+    public_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    sort_date: Mapped[date] = mapped_column(Date, nullable=False)
+    __table_args__ = (
+        CheckConstraint("kind = 'official-record'", name="official_research_only"),
+    )
+
+
+class PublicRecordVersion(Base):
+    """Immutable accepted public source reads; no visitor or claim evidence."""
+
+    __tablename__ = "public_record_version"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    record_kind: Mapped[str] = mapped_column(String(30), nullable=False)
+    record_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    source_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    checked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    public_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    __table_args__ = (
+        CheckConstraint(
+            "record_kind IN ('candidate','ballot','race','person','service','research')",
+            name="public_record_kind",
+        ),
+        Index("ix_public_record_version_record", "record_kind", "record_id"),
+    )
+
+
+class TVAdPublication(UUIDPrimaryKeyMixin, Base):
+    """One immutable, separately reviewed privacy copy of an exact FCC identity."""
+
+    __tablename__ = "tv_ad_publication"
+    facility_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    file_id: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
+    metadata_approved: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    metadata_reviewed_by: Mapped[Optional[str]] = mapped_column(Text)
+    metadata_reviewed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+    safe_title: Mapped[str] = mapped_column(Text, nullable=False)
+    safe_folder: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(Text, nullable=False)
+    safe_pages: Mapped[list] = mapped_column(JSONB, nullable=False)
+    artifacts: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    redactions: Mapped[list] = mapped_column(JSONB, nullable=False)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_by: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    reviewed_by: Mapped[Optional[str]] = mapped_column(Text)
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    withdrawn_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["facility_id", "file_id", "content_hash"],
+            [
+                "fcc_document.facility_id",
+                "fcc_document.file_id",
+                "fcc_document.content_hash",
+            ],
+        ),
+        CheckConstraint(
+            "status IN ('draft','approved','withdrawn')", name="publication_status"
+        ),
+        CheckConstraint(
+            "status != 'approved' OR (reviewed_by IS NOT NULL AND reviewed_at IS NOT NULL)",
+            name="publication_review",
+        ),
+        Index("ix_tv_ad_publication_file", "facility_id", "file_id", "status"),
+        Index(
+            "uq_tv_ad_publication_approved_version",
+            "facility_id",
+            "file_id",
+            "content_hash",
+            unique=True,
+            postgresql_where=text("status = 'approved'"),
+        ),
+    )
+
+
+class TVAdFact(UUIDPrimaryKeyMixin, Base):
+    """A checked value with immutable evidence from one privacy-approved copy."""
+
+    __tablename__ = "tv_ad_fact"
+    publication_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tv_ad_publication.id"), nullable=False, index=True
+    )
+    field: Mapped[str] = mapped_column(String(40), nullable=False)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    organization_name: Mapped[Optional[str]] = mapped_column(Text)
+    agency_address_reviewed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    history_publication_approved: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    qualifier: Mapped[Optional[str]] = mapped_column(Text)
+    role: Mapped[Optional[str]] = mapped_column(Text)
+    supersedes_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("tv_ad_fact.id")
+    )
+    page: Mapped[int] = mapped_column(Integer, nullable=False)
+    quote: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="checked")
+    evidence: Mapped[str] = mapped_column(Text, nullable=False)
+    reviewed_by: Mapped[str] = mapped_column(Text, nullable=False)
+    checked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    publication_approved: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    withdrawn_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (
+        CheckConstraint("status IN ('checked','withdrawn')", name="fact_status"),
+        CheckConstraint("page > 0", name="fact_page"),
+    )
+
+
+class TVAdConnection(UUIDPrimaryKeyMixin, Base):
+    """A file or folder connection; file matches never inherit folder review."""
+
+    __tablename__ = "tv_ad_connection"
+    scope: Mapped[str] = mapped_column(String(12), nullable=False)
+    publication_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("tv_ad_publication.id"), index=True
+    )
+    facility_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    folder_id: Mapped[str] = mapped_column(Text, nullable=False)
+    folder_content_hash: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("fcc_source_body.content_hash")
+    )
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    target_id: Mapped[str] = mapped_column(Text, nullable=False)
+    target_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    page: Mapped[Optional[int]] = mapped_column(Integer)
+    quote: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="checked")
+    evidence: Mapped[str] = mapped_column(Text, nullable=False)
+    reviewed_by: Mapped[str] = mapped_column(Text, nullable=False)
+    checked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    publication_approved: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    withdrawn_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (
+        CheckConstraint("status IN ('checked','withdrawn')", name="connection_status"),
+        CheckConstraint(
+            "kind IN ('committee','candidate','election','expense','principal','related_document','issue')",
+            name="connection_kind",
+        ),
+        CheckConstraint(
+            "(scope = 'file' AND publication_id IS NOT NULL AND folder_content_hash IS NULL AND page > 0) OR (scope = 'folder' AND publication_id IS NULL AND folder_content_hash IS NOT NULL AND kind = 'committee' AND page IS NULL)",
+            name="connection_scope",
+        ),
+        Index("ix_tv_ad_connection_target", "kind", "target_id", "status"),
+    )
+
+
+class TVAdReviewEvent(UUIDPrimaryKeyMixin, Base):
+    """Append-only actor, decision, exact revision and evidence history."""
+
+    __tablename__ = "tv_ad_review_event"
+    entity_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    action: Mapped[str] = mapped_column(String(20), nullable=False)
+    actor: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence: Mapped[str] = mapped_column(Text, nullable=False)
+    snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class TVAdFolderApproval(UUIDPrimaryKeyMixin, Base):
+    """Reviewed safe metadata for an exact saved folder, including empty folders."""
+
+    __tablename__ = "tv_ad_folder_approval"
+    facility_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    folder_id: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(
+        ForeignKey("fcc_source_body.content_hash"), nullable=False
+    )
+    safe_label: Mapped[str] = mapped_column(Text, nullable=False)
+    safe_path: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(Text, nullable=False)
+    year: Mapped[Optional[int]] = mapped_column(Integer)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
+    created_by: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    reviewed_by: Mapped[Optional[str]] = mapped_column(Text)
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    withdrawn_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('draft','approved','withdrawn')", name="folder_approval_status"
+        ),
+        CheckConstraint(
+            "status != 'approved' OR (reviewed_by IS NOT NULL AND reviewed_at IS NOT NULL)",
+            name="folder_approval_review",
+        ),
+        Index("ix_tv_ad_folder_approval_folder", "facility_id", "folder_id", "status"),
+        Index(
+            "uq_tv_ad_folder_approval_version",
+            "facility_id",
+            "folder_id",
+            "content_hash",
+            unique=True,
+            postgresql_where=text("status = 'approved'"),
         ),
     )

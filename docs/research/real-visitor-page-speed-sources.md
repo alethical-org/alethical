@@ -467,3 +467,14 @@ the per-address read, and [PR #1983](https://github.com/alethical-org/alethical/
 corrected both counting mistakes named at the top of this file. The living record of how the measurement works is
 [`docs/product-onboarding/traffic-guide.md`](../product-onboarding/traffic-guide.md), not
 this file.
+
+
+## Public search destinations
+
+The existing private aggregate report also separates `/bills/<bill>`, `/legislators`,
+`/legislators/<legislator>`, `/candidates`, `/candidates/<candidate>`, `/blog`,
+`/blog/research/<article>` and `/blog/guides/<guide>`. Nested account claim/manage
+addresses are excluded from candidate-profile measurements. These are existing
+Cloudflare aggregates, not new reader tracking. The same minimum of 50 observations,
+reader/automated-client separation and distinct document/click readings apply.
+A missing score remains unavailable rather than 0 or a claim that a family is fast.

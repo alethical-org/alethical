@@ -4,7 +4,7 @@ Net: Release the accepted “2 records do not always mean 2 donations” with ed
 
 ## Authorization and holds
 
-Eugene authorized publication of this article on 26 September 2026 at 20:28:06 UTC in the task (social posts seo, `01a0d4e8-7a6a-7941-8124-12207773d4e2`): “publish the first post we accepted on the live site”. The same instruction called it accepted; that records his review and article-specific release instruction. The parent's completed editorial acceptance record was saved at 17:19:42 UTC after source checks and browser review. These are actual recorded event times, not placeholders.
+Publication of this article was approved on 26 September 2026 at 20:28:06 UTC in the task (social posts seo, `01a0d4e8-7a6a-7941-8124-12207773d4e2`). That approval included final content review and article-specific release authorization. The completed editorial acceptance record was saved at 17:19:42 UTC after source checks and browser review. These are recorded event times, not placeholders.
 
 This lifts the publication hold for “2 records do not always mean 2 donations” only. This release does not include the organizations or donor-totals drafts; the parent owns any separate publication instruction for those articles. Original evidence stays retained. Do not send real email.
 
@@ -17,7 +17,7 @@ The parent task “social posts seo” (`01a0d4e8-7a6a-7941-8124-12207773d4e2`) 
 3. Complete private article record, blank human approval and publication fields, matching initial HTML, full-content fingerprints and separate download copy date. Done.
 4. Editable correction-contact prefilling from registered article identity, preserving reader text across in-app navigation and retries. Done; browser delivery mocked.
 5. Frontend tests, build, contact-server tests, phone/tablet/desktop browser review and independent implementation review. Done; results below.
-6. Preparation and parent acceptance complete at [commit 8e084b02](https://github.com/alethical-org/alethical/commit/8e084b02c8becd0b47412157b85048cc6262efe2). Eugene subsequently authorized this article’s release.
+6. Preparation and parent acceptance complete at [commit 8e084b02](https://github.com/alethical-org/alethical/commit/8e084b02c8becd0b47412157b85048cc6262efe2). Article-specific release approval followed.
 
 ## Evidence handling
 
@@ -42,7 +42,7 @@ The retained-copy policy in [published-writing-decisions.md §2.14](../architect
 The task (Prepare first short post for publication, `01a0de8f-369c-7f30-a8c5-c59768f40b31`) owns the authorized release through the live result:
 
 1. Move the final private article record into the public article data module and replace private absolute imports with repository imports.
-2. Record genuine editorial approval, Eugene's review of the final contents and the article-specific publication instruction. Set the real publication date and full timestamp at release; compute approval against the final record rather than a fixture.
+2. Record genuine editorial approval, the final human content review and the article-specific publication instruction. Set the real publication date and full timestamp at release; compute approval against the final record rather than a fixture.
 3. Register the article for public navigation and search, retaining the 3 official links and internal source archive. Require the publication checks to return no errors.
 4. Repeat the production build, initial-HTML/metadata/sitemap checks and phone/desktop checks. Open the article's correction link through the real app without sending email.
 5. Merge only after required checks pass, then open the public article address and exercise the changed flow. Record the live result and any dated correction honestly.

@@ -4,7 +4,7 @@
 
 Layer: **2 (repo-local, untracked)** — `.claude/settings.local.json`, **audited for the first time**; it was the last of the five layers with no record. Diff base: the four same-day records (`workflow-rules`, `global-claude-md`, `memory-system`, `docs-layer`), which between them covered every other layer.
 
-**Scope, as instructed:** the **SessionStart hooks only**. The 62 `permissions.allow` entries in the same file were **explicitly excluded by Eugene** and are untouched — verified still 62 before and after.
+**Scope:** the **SessionStart hooks only**. The 62 `permissions.allow` entries in the same file were **outside the approved scope** and are untouched — verified still 62 before and after.
 
 **Run justified:** these two scripts execute on every session open, and one of them **deletes files**. Neither had ever been examined, and layer 2 is the one layer whose contents are untracked — so a defect here is both unreviewed and unrevertable by `git`.
 

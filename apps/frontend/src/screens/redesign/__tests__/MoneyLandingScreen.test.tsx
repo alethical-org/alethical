@@ -14,6 +14,18 @@ const queries = vi.hoisted(() => ({
   lobbying: vi.fn(),
   research: vi.fn(),
 }));
+const tvSession = vi.hoisted(() => ({
+  user: { id: 'synthetic' },
+  accessToken: '',
+  isSignedIn: false,
+  isLoading: false,
+}));
+const tvRequest = vi.hoisted(() => vi.fn());
+vi.mock('../../../providers/AuthProvider', () => ({ useAuth: () => tvSession }));
+vi.mock('../../../data/api', async (original) => ({
+  ...(await original<typeof import('../../../data/api')>()),
+  apiRequest: tvRequest,
+}));
 const viewport = vi.hoisted(() => ({ width: 1600 }));
 vi.mock('../../../hooks/useAppQueries', () => ({
   useCampaignFinanceSummary: queries.summary,
@@ -58,6 +70,7 @@ vi.mock('../../../lib/research', async (importOriginal) => ({
 import type { MoneyFilingsFeed, MoneyLandingSummary } from '../../../data/types';
 import type { LobbyingSummary } from '../../../lib/lobbyingTypes';
 import { MoneyLandingScreen } from '../MoneyLandingScreen';
+import { ApiError } from '../../../data/api';
 
 const summary: MoneyLandingSummary = {
   register: { state: 'reported', filerCount: 1603 },
@@ -116,6 +129,9 @@ function feed(): MoneyFilingsFeed {
 let root: Root;
 beforeEach(() => {
   viewport.width = 1600;
+  tvSession.accessToken = '';
+  tvSession.isSignedIn = false;
+  tvRequest.mockReset();
   queries.summary.mockReturnValue({ data: summary, isLoading: false, isPending: false });
   queries.filings.mockReturnValue({ data: feed(), isLoading: false, isPending: false });
   queries.lobbying.mockReturnValue({ data: lobbying, isLoading: false, isPending: false });
@@ -539,5 +555,51 @@ describe('the money landing makes the reporting periods and destinations explici
     const { host } = mount();
     expect(host.textContent).toContain('Example Political Fund');
     expect(host.textContent).toContain('Filed Aug 11, 2026');
+  });
+});
+
+describe('private TV lane permission', () => {
+  it('removes the entrance when permission is revoked before counts return', async () => {
+    tvSession.accessToken = 'invented-local-token';
+    tvSession.isSignedIn = true;
+    let rejectCounts!: (reason: unknown) => void;
+    let accessReads = 0;
+    tvRequest.mockImplementation((path: string) => {
+      if (path === '/ads/access')
+        return ++accessReads === 1
+          ? Promise.resolve({ allowed: true })
+          : Promise.reject(new ApiError(404, 'Not found'));
+      if (path === '/ads/counts')
+        return new Promise((_, reject) => {
+          rejectCounts = reject;
+        });
+      return Promise.reject(new Error('Unexpected private request'));
+    });
+    const { host } = mount();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(host.textContent).toContain('TV ad records');
+    await act(async () => {
+      rejectCounts(new ApiError(404, 'Not found'));
+      await Promise.resolve();
+    });
+    expect(host.textContent).not.toContain('TV ad records');
+  });
+  it('keeps the approved entrance but hides an unavailable count', async () => {
+    tvSession.accessToken = 'invented-local-token';
+    tvSession.isSignedIn = true;
+    tvRequest.mockImplementation((path: string) =>
+      path === '/ads/access'
+        ? Promise.resolve({ allowed: true })
+        : Promise.reject(new ApiError(503, 'Unavailable')),
+    );
+    const { host } = mount();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(host.textContent).toContain('TV ad records');
+    expect(host.textContent).not.toContain('0 STATION FILES');
+    expect(host.textContent).not.toContain('COUNTS UNAVAILABLE');
   });
 });

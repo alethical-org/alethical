@@ -43,7 +43,7 @@
  * under-a-dollar branch clamps at 99 cents so it cannot produce "$0.100" either. Both
  * ends and the negative case are pinned by tests.
  *
- * Ruled by Eugene on 1 Sep 2026, and applied by Design across all 21 drawings in the
+ * Approved on 1 Sep 2026, and applied by Design across all 21 drawings in the
  * campaign-money set ([#1924](https://github.com/alethical-org/alethical/issues/1924)).
  */
 export function formatMoney(value: number | string | null | undefined): string | null {
@@ -82,7 +82,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
  * An ISO date as "Jul 20, 2026", or `null` if it is not one.
  *
  * Month first, short month, then the day and a comma before the year: the one date
- * form for every date in the money section (ruled by Eugene, 2 Sep 2026, campaign-money
+ * form for every date in the money section (approved 2 Sep 2026, campaign-money
  * design copy proposal 6). An uppercased label keeps the same order ("PAID JUL 20, 2026"),
  * and a plain date never passes through a time zone; a served instant goes through
  * `centralDateLabel` in `moneyLanding.ts` instead.

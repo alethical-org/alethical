@@ -1,3 +1,4 @@
+import { TVAdConnectionCard } from '../../components/tvAds/OnDemand';
 import {
   CONFIRMATION_LOADING_LINE,
   CONFIRMATION_UNAVAILABLE_LINE,
@@ -15,6 +16,7 @@ import {
   useFinePointerHover,
 } from '../../components/campaignMoney/finePointerHover';
 import { PageContextLabel } from '../../components/PageContextLabel';
+import { PaymentRecheckNotice } from '../../components/campaignMoney/PaymentRecheckNotice';
 import {
   CommitteeDonations,
   GroupedOutsideSpending,
@@ -26,7 +28,7 @@ import {
   committeeMoneyPreferenceParams,
 } from '../../lib/committeeMoneyPreferences';
 import { committeeOutsideSpending } from '../../lib/committeeOutsideSpending';
-import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
+import { BACK_TO_MONEY_SECTION, MONEY_SECTION_NAME } from '../../lib/moneySectionName';
 import { committeeCardStyles, detailsStyles } from '../../components/campaignMoney/detailsStyles';
 import { YearControl } from '../../components/campaignMoney/YearControl';
 import {
@@ -137,6 +139,7 @@ import {
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { publicPageUrl, type ShareContent } from '../../lib/share';
 import { committeeMoneyPageMetadata } from '../../lib/screenPageMetadata';
+import { forgetReturnPageName, useReturnPageName } from '../../navigation/returnDestination';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { screenLoaderForPath } from '../../navigation/screenPreload';
@@ -262,6 +265,15 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
   // number, then the address is rewritten in place to the current spelling —
   // never pushed, so the Back button is not trapped between the two.
   const canonicalName = money ? (money.register.name ?? money.committeeName) : null;
+  useReturnPageName(
+    registrationNumber ? routePath.moneyCommittee(slug) : null,
+    money?.registrationNumber === registrationNumber && !moneyQuery.isPlaceholderData
+      ? canonicalName
+      : null,
+  );
+  useEffect(() => {
+    if (notFound && registrationNumber) forgetReturnPageName(routePath.moneyCommittee(slug));
+  }, [notFound, registrationNumber, slug]);
   useEffect(() => {
     if (!isWeb || !money || !registrationNumber || !canonicalName) return;
     const canonical = committeeSlug(canonicalName, registrationNumber);
@@ -303,7 +315,7 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
               style={styles.backLink}
             >
               <BackChevron />
-              <Text style={styles.backLabel}>{MONEY_SECTION_NAME}</Text>
+              <Text style={styles.backLabel}>{BACK_TO_MONEY_SECTION}</Text>
             </Pressable>
           </Container>
           {notFound && registrationNumber ? (
@@ -732,6 +744,7 @@ function CommitteeBody({
               </View>
             )}
           </PaymentsSection>
+          <TVAdConnectionCard kind="committee" target={registrationNumber} name={name} />
         </Container>
       </View>
     </View>
@@ -995,8 +1008,14 @@ function PaymentsSection({
     ? (details.received.data.statementsCopiedOn ?? null)
     : null;
   const unlinkedCopied = unlinked.data?.statements.length ? unlinked.data.copiedOn : null;
+  // Held payment rows can carry an older statement catalogue even when a newer
+  // received read has the same payment release. Do not borrow that newer date.
   const statementsCopied =
-    section === 'gave' ? catalogueCopiedLine(linkedCopied ?? unlinkedCopied) : null;
+    section === 'gave' &&
+    details.selectedComplete &&
+    details.received.data?.releaseId === money.releaseId
+      ? catalogueCopiedLine(linkedCopied ?? unlinkedCopied)
+      : null;
   // Committees and funds share one notice threshold; a candidate's depends on office,
   // so its lead waits for the answer.
   const kind =
@@ -1022,10 +1041,12 @@ function PaymentsSection({
   const emptyPayments =
     yearDisplayState(money) !== 'figures' &&
     Number(money.split.namedTotal ?? 0) === 0 &&
-    details.selectedComplete &&
-    !details.received.isError &&
-    !details.made.isError &&
+    // The reader returns data only after a whole direction finishes. A later
+    // recheck error does not erase that accepted empty answer.
+    details.received.data?.state !== 'unavailable' &&
+    details.made.data?.state !== 'unavailable' &&
     details.received.data?.releaseId === money.releaseId &&
+    details.made.data?.releaseId === money.releaseId &&
     details.received.data?.payments.length === 0 &&
     details.made.data?.payments.length === 0;
   return (
@@ -1063,6 +1084,17 @@ function PaymentsSection({
           </>
         ) : (
           <>
+            {emptyPayments && (details.received.isError || details.made.isError) ? (
+              <PaymentRecheckNotice
+                retrying={details.received.isFetching || details.made.isFetching}
+                onRetry={() => {
+                  if (details.received.isFetching || details.made.isFetching) return;
+                  onRefresh();
+                  void details.received.refetch();
+                  void details.made.refetch();
+                }}
+              />
+            ) : null}
             {moneyControls(emptyPayments)}
             {!emptyPayments ? (
               <>
@@ -1582,6 +1614,7 @@ const styles = StyleSheet.create({
   bodyWrap: { marginTop: 22 },
   backLink: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
   backLabel: {
+    flexShrink: 1,
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,

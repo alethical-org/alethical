@@ -1,3 +1,5 @@
+import { PUBLISHED_EVENTS } from '../events';
+import { newestShortPosts } from '../shortPostSelection';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -180,14 +182,26 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 function visibleText(html: string): string {
   return html
     .replace(/<[^>]+>/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&#x27;/g, "'")
+    .replace(/&(?:amp|lt|gt|quot|#39|#x27);/g, (entity) => {
+      const decoded: Record<string, string> = {
+        '&amp;': '&',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&quot;': '"',
+        '&#39;': "'",
+        '&#x27;': "'",
+      };
+      return decoded[entity];
+    })
     .replace(/\s+/g, ' ')
     .trim();
 }
+
+it('reads escaped entity names as literal text rather than decoding them twice', () => {
+  expect(visibleText('<p>&amp;lt;script&amp;gt; &lt;literal&gt; &amp;quot;</p>')).toBe(
+    '&lt;script&gt; <literal> &quot;',
+  );
+});
 
 /**
  * Every string the app renders as a text of its own, decoded and trimmed. Membership
@@ -578,7 +592,7 @@ describe('the legislator snapshot says only what the profile draws', () => {
     expect(former.subheading).toBe('');
     expect(former.body).toEqual([]);
     expect(former.facts).toEqual([]);
-    expect(former.links).toEqual([{ label: 'Legislators', href: '/legislators' }]);
+    expect(former.links).toEqual([{ label: 'Back to Search legislators', href: '/legislators' }]);
 
     // The 2 invented claims, and the 3 stale committee rows, in the text that
     // actually ships. `Senate` is banned outright here: this record names the
@@ -633,7 +647,9 @@ describe('the legislator snapshot says only what the profile draws', () => {
     expect(unnamedChamber.subheading).toBe('');
     expect(unnamedChamber.body).toEqual([]);
     expect(unnamedChamber.facts).toEqual([]);
-    expect(unnamedChamber.links).toEqual([{ label: 'Legislators', href: '/legislators' }]);
+    expect(unnamedChamber.links).toEqual([
+      { label: 'Back to Search legislators', href: '/legislators' },
+    ]);
     for (const guess of [
       'Sen.',
       'Rep.',
@@ -691,7 +707,7 @@ describe('the legislator snapshot says only what the profile draws', () => {
         label: `Official ${member.chamberWord} profile`,
         href: 'https://www.example.mn.gov/members/profile/99999',
       },
-      { label: 'Legislators', href: '/legislators' },
+      { label: 'Back to Search legislators', href: '/legislators' },
     ]);
     for (const kept of [
       `${member.title} Pat Doe`,
@@ -1157,10 +1173,19 @@ describe('the guide snapshot serves the guide\u2019s own writing, unchanged', ()
   });
 });
 
-describe('the /blog page snapshot links to every posted piece', () => {
+describe('the /blog page snapshot links to its visible groups and Short posts archive', () => {
   const pieces = publishedResearch();
   const snapshot = readPageSnapshot(pieces);
   const html = renderPageSnapshot(snapshot);
+
+  it('puts event introductions first with date-only summary text', () => {
+    expect(snapshot.records?.[0].href).toBe('/blog/events/forward-debate-2026');
+    expect(snapshot.records?.[0].detail).toMatch(/^October 15, 2026 · /);
+    expect(snapshot.records?.[0].detail).not.toMatch(
+      /Past event|Thursday|6–8 PM CDT|Riverside Terrace|Free admission/,
+    );
+    expect(snapshot.links?.[0]).toEqual({ label: 'All events', href: '/blog/events' });
+  });
 
   it('names the page the way the loaded page names it, then its note', () => {
     // The loaded page shows no title and carries its name on a visually hidden
@@ -1170,10 +1195,18 @@ describe('the /blog page snapshot links to every posted piece', () => {
     expect(snapshot.body).toEqual([READ_PAGE_INTRO]);
   });
 
-  it('gives every posted piece a real link a crawler can follow', () => {
+  it('links the newest 3 Short posts and lets readers reach older posts through the archive', () => {
     expect(pieces.length).toBeGreaterThan(1);
-    expect(snapshot.records).toHaveLength(pieces.length);
-    for (const piece of pieces) {
+    const newest = new Set(newestShortPosts().map((piece) => piece.slug));
+    const visible = pieces.filter(
+      (piece) => piece.format !== 'short-post' || newest.has(piece.slug),
+    );
+    expect(snapshot.records).toHaveLength(visible.length + PUBLISHED_EVENTS.length);
+    for (const piece of pieces.filter((piece) => !visible.includes(piece))) {
+      expect(html).not.toContain(`href="${piecePath(piece)}"`);
+    }
+    expect(html).toContain('href="/blog/short-posts"');
+    for (const piece of visible) {
       // Each piece's own folder, from the one function that decides it.
       expect(html).toContain(`href="${piecePath(piece)}"`);
       expect(html).toContain(piece.title);
@@ -1203,7 +1236,7 @@ describe('the /blog page snapshot links to every posted piece', () => {
   });
 
   it('says what the /blog page says when nothing is posted yet', () => {
-    const empty = readPageSnapshot([]);
+    const empty = readPageSnapshot([], []);
     expect(empty.records).toEqual([]);
     expect(empty.body).toEqual([READ_PAGE_INTRO, READ_PAGE_EMPTY_TITLE, READ_PAGE_EMPTY_BODY]);
   });
@@ -1654,6 +1687,7 @@ describe('a committee’s record in the first response', () => {
   const moneyOut = committeeFixture.money_out;
 
   it('is headed by the register’s own name and its registration number', () => {
+    expect(snapshot.backLink).toEqual({ label: 'Back to Money in politics', href: '/money' });
     expect(snapshot.heading).toBe('Jane Fonda Climate PAC');
     // Reads 'Political committee', not the register's broad 3-way kind: this fixture is
     // a `PC` filer and issue #1694 spells out all 6 of the Board's finer codes. The
@@ -1691,7 +1725,7 @@ describe('a committee’s record in the first response', () => {
     expect(text).not.toContain('Shares of the contributions this committee reported');
   });
 
-  // Ruled by Eugene, 11 Sep 2026: the money-out section is the filing's own figure
+  // Approved 11 Sep 2026: the money-out section is the filing's own figure
   // alone, so the first response carries the same and nothing of ours beside it.
   it('prints money out as the filing’s Expenditures figure and nothing else', () => {
     expect(text).toContain(`${MONEY_OUT_REPORTED_LABEL}: ${formatMoney(moneyOut.reported_total)}`);
@@ -1713,7 +1747,7 @@ describe('a committee’s record in the first response', () => {
 
   // Ruled 1 Sep 2026 (#1924): the payment count comes off both named figures, because
   // the list below the cards already prints it and one fact at 2 levels of a page is
-  // the repeat Eugene ruled out. Asserted on the prose lines rather than on the page
+  // the repetition excluded by the approved copy. Asserted on the prose lines rather than on the page
   // text, and that distinction is the point of the test: this fixture's category row
   // carries "3 payments" legitimately, the same number the money-out figure used to
   // repeat, so a page-wide search cannot tell the removal from the survivor.
@@ -1732,7 +1766,7 @@ describe('a committee’s record in the first response', () => {
 
   // A non-donation receipt row's count is that row's own fact, so it stays — except on
   // a `Miscellaneous` row, which is not drawn at all, and its heading goes with it
-  // (ruled by Eugene, 11 Sep 2026). The fixture carries no receipt rows of its own.
+  // (approved 11 Sep 2026). The fixture carries no receipt rows of its own.
   it('counts the payments on a non-donation receipt row, and hides a Miscellaneous one', () => {
     const withReceipts = (rows: { receipt_type: string; total: string; payments: number }[]) =>
       visibleText(
@@ -2223,13 +2257,17 @@ describe('a committee’s full payments list in the first response', () => {
   });
 
   it('links back to the committee whose payments these are', () => {
+    expect(snapshot.backLink).toEqual({
+      label: 'Back to Jane Fonda Climate PAC',
+      href: '/money/committees/jane-fonda-climate-pac-41326?tab=gave&year=2026',
+    });
     expect(snapshot.links.map((link) => link.href)).toContain(
       '/money/committees/jane-fonda-climate-pac-41326?tab=gave&year=2026',
     );
   });
 
   // A registered filer opens its own committee page. An unregistered printed name
-  // opens the exact-spelling payments lookup, which Eugene ruled on 1 Sep 2026
+  // opens the exact-spelling payments lookup, under the 1 Sep 2026 matching rule
   // (#1331). The guard this test was written for still holds and is asserted
   // below: that destination is NOT a profile. It quotes the string it searched,
   // joins no 2 spellings, prints no total, and so cannot be read as a person.
@@ -2405,13 +2443,13 @@ describe('rendering', () => {
     expect(snapshot.links).toEqual([]);
     expect(snapshot.sections?.map((section) => section.heading)).toEqual([
       'Follow the money',
-      'Bills and votes',
+      'Legislature',
       'Campaign services',
       'Who’s running where you live?',
     ]);
     const html = renderPageSnapshot(snapshot);
     expect(html).toContain('Search the money records');
-    expect(html).toContain('Read plain-language bill summaries, see where they stand');
+    expect(html).toContain('Bill summaries and progress, legislator profiles and votes');
     expect(html).toContain('href="/money"');
     expect(html).toContain('href="/bills"');
     expect(html).toContain('href="/services"');
@@ -2424,7 +2462,7 @@ describe('rendering', () => {
     expect(html).not.toContain('<form');
     // These remain available in shared navigation, but are not extra Home body links.
     const body = html.slice(html.indexOf('<main'));
-    expect(body).not.toContain('href="/legislators"');
+    expect(body).toContain('href="/legislators"');
     expect(body).not.toContain('href="/find-my-legislator"');
   });
 

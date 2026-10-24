@@ -51,7 +51,7 @@ describe('Approved article titles in the first HTML response', () => {
   });
 
   it('leaves every unmarked heading unchanged, even when it contains a year range', () => {
-    const snapshot = { ...homePageSnapshot(), heading: '2015–2026 <safe>' };
+    const snapshot = { ...homePageSnapshot(), layout: undefined, heading: '2015–2026 <safe>' };
     const document = documentFor(renderPageSnapshot(snapshot));
     expect(document.querySelector('h1')?.outerHTML).toBe('<h1>2015–2026 &lt;safe&gt;</h1>');
     expect(document.querySelector('.ps-title-year')).toBeNull();
@@ -79,6 +79,25 @@ describe('Approved article titles in the first HTML response', () => {
 });
 
 describe('Existing article tables in the first response', () => {
+  it('ends initial article table row lines before the empty remaining width', () => {
+    const shell = readFileSync(new URL('../../../public/index.html', import.meta.url), 'utf8');
+    const snapshot = researchPageSnapshot(MONEY_ONLY_GOES_ONE_WAY);
+    const document = documentFor(
+      shell.replace('</body>', `${renderPageSnapshot(snapshot)}</body>`),
+    );
+    for (const table of document.querySelectorAll('.page-snapshot-article table')) {
+      for (const row of table.querySelectorAll('tr')) {
+        expect(
+          document.defaultView!.getComputedStyle(row.lastElementChild!).borderBottomWidth,
+        ).toBe('0px');
+        expect(
+          document.defaultView!.getComputedStyle(row.firstElementChild!).borderBottomWidth,
+        ).toBe('1px');
+      }
+    }
+    expect(document.querySelectorAll('.ps-table-spacer').length).toBeGreaterThan(0);
+  });
+
   it('preserves all real research cells, associates headers and adds only 1 hidden spacer per row', () => {
     const snapshot = researchPageSnapshot(MONEY_ONLY_GOES_ONE_WAY);
     const tables = MONEY_ONLY_GOES_ONE_WAY.sections
@@ -120,5 +139,73 @@ describe('Existing article tables in the first response', () => {
     expect(generic.querySelectorAll('.ps-article-table-scroll')).toHaveLength(0);
     expect(generic.querySelector('thead th')?.getAttribute('scope')).toBeNull();
     expect(generic.querySelector('tbody tr')?.firstElementChild?.tagName).toBe('TD');
+  });
+});
+
+describe('Branded conclusions in the first response', () => {
+  it.each(['regular', 'bold'] as const)(
+    'breaks only a leading bold answer when the first run is %s',
+    (firstKind) => {
+      const shell = readFileSync(new URL('../../../public/index.html', import.meta.url), 'utf8');
+      const snapshot = shortPostPageSnapshot(LOBBYIST_GIVING);
+      snapshot.sections = [
+        {
+          heading: 'Conclusion fixture',
+          blocks: [
+            {
+              kind: 'runs',
+              role: 'conclusion',
+              runs: [
+                { kind: firstKind === 'bold' ? 'bold' : 'text', text: 'First sentence.' },
+                { kind: 'text', text: ' Qualification with ' },
+                { kind: 'bold', text: 'later emphasis' },
+                { kind: 'text', text: ' and ' },
+                { kind: 'externalLink', text: 'source', href: 'https://example.com/source' },
+                { kind: 'text', text: '.' },
+              ],
+            },
+          ],
+        },
+      ];
+      const document = documentFor(
+        shell.replace('</body>', `${renderPageSnapshot(snapshot)}</body>`),
+      );
+      const paragraph = document.querySelector('.ps-conclusion > p')!;
+      expect(paragraph.textContent).toBe(
+        'First sentence. Qualification with later emphasis and source.',
+      );
+      const answer = paragraph.querySelector('.ps-conclusion-answer');
+      expect(answer?.textContent ?? null).toBe(firstKind === 'bold' ? 'First sentence.' : null);
+      if (answer) expect(document.defaultView!.getComputedStyle(answer).display).toBe('block');
+      const laterEmphasis = [...paragraph.querySelectorAll('strong')].find(
+        (element) => element.textContent === 'later emphasis',
+      )!;
+      expect(laterEmphasis.classList.contains('ps-conclusion-answer')).toBe(false);
+      expect(document.defaultView!.getComputedStyle(laterEmphasis).display).not.toBe('block');
+      expect(paragraph.querySelector('a')?.getAttribute('href')).toBe('https://example.com/source');
+    },
+  );
+
+  it('puts the answer above its qualification beside the left symbol without a narrower width', () => {
+    const shell = readFileSync(new URL('../../../public/index.html', import.meta.url), 'utf8');
+    const document = documentFor(
+      shell.replace(
+        '</body>',
+        `${renderPageSnapshot(shortPostPageSnapshot(LOBBYIST_GIVING))}</body>`,
+      ),
+    );
+    const conclusion = document.querySelector('.ps-conclusion')!;
+    expect(conclusion).not.toBeNull();
+    expect(conclusion.querySelector('svg')?.getAttribute('aria-label')).toBe('Alethical');
+    expect(conclusion.querySelector('strong')).not.toBeNull();
+    expect(
+      document.defaultView!.getComputedStyle(conclusion.querySelector('strong')!).display,
+    ).toBe('block');
+    expect(conclusion.querySelectorAll('p')).toHaveLength(1);
+    expect(document.defaultView!.getComputedStyle(conclusion).maxWidth).toBe('none');
+    expect(document.defaultView!.getComputedStyle(conclusion.querySelector('p')!).flexGrow).toBe(
+      '1',
+    );
+    expect(conclusion.querySelector('svg')?.getAttribute('width')).toBe('31');
   });
 });

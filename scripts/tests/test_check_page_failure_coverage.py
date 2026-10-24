@@ -1,0 +1,845 @@
+"""Coverage fixtures contain only synthetic credentials and provider data."""
+
+from copy import deepcopy
+from datetime import datetime, timedelta, timezone
+from io import BytesIO, StringIO
+import json
+import os
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest import TestCase
+from unittest.mock import Mock, patch
+from urllib.error import HTTPError
+from zipfile import ZipFile
+
+from scripts import check_page_failure_coverage as coverage
+from scripts import collect_page_failure_health as health
+
+NOW = datetime(2026, 10, 10, 17, 17, tzinfo=timezone.utc)
+ACTIVATION = NOW - timedelta(days=3)
+SECRET = "synthetic-private-token-and-auth-callback"
+SHA = "a" * 40
+
+
+def report(start, status="collected"):
+    value = health.aggregate(b"", start, start + timedelta(hours=1))
+    value["attempt_count"] = 1
+    if status == "failed":
+        value.update(collection_status="failed", failure="command-timeout")
+    if status == "saturated":
+        value.update(rows_received=100, saturated=True)
+    return value
+
+
+def run(identifier, start, **changes):
+    return {
+        "id": identifier,
+        "workflow_id": 17,
+        "run_attempt": 1,
+        "head_sha": SHA,
+        "head_branch": "main",
+        "event": "schedule",
+        "repository": {"full_name": coverage.REPOSITORY},
+        "head_repository": {"full_name": coverage.REPOSITORY},
+        "run_started_at": health.iso(start + timedelta(hours=1, minutes=43)),
+        "updated_at": health.iso(start + timedelta(hours=1, minutes=44)),
+        **changes,
+    }
+
+
+class FakeGitHub:
+    def __init__(self, reports=None, activation=ACTIVATION, overrides=None):
+        self.reports = reports or {}
+        self.activation = activation
+        self.overrides = overrides or {}
+        self.windows = coverage.expected_windows(NOW, activation)
+        self.runs = [run(i + 1, start) for i, start in enumerate(self.windows)]
+        self.downloads = 0
+
+    def json(self, path):
+        if path == "/actions/workflows/page-failure-health.yml":
+            return {
+                "id": 17,
+                "path": coverage.WORKFLOW_PATH,
+                "state": "active",
+                "created_at": health.iso(self.activation),
+            }
+        if path.startswith("/actions/workflows/17/runs?"):
+            return {"workflow_runs": self.runs}
+        identifier = int(path.split("/")[3])
+        current = next(r for r in self.runs if r["id"] == identifier)
+        start = health.complete_hour(
+            coverage.github_timestamp(current["run_started_at"])
+        )[0]
+        if self.reports.get(start) == "missing":
+            return {"total_count": 0, "artifacts": []}
+        artifact = {
+            "id": identifier,
+            "name": f"page-failure-health-{identifier}-1",
+            "expired": False,
+            "size_in_bytes": 500,
+            "workflow_run": {"id": identifier, "head_branch": "main", "head_sha": SHA},
+        }
+        artifact.update(self.overrides)
+        return {"total_count": 1, "artifacts": [artifact]}
+
+    def artifact(self, identifier):
+        self.downloads += 1
+        current = next(r for r in self.runs if r["id"] == identifier)
+        start = health.complete_hour(
+            coverage.github_timestamp(current["run_started_at"])
+        )[0]
+        return report(start, self.reports.get(start, "collected"))
+
+
+class SchemaTest(TestCase):
+    def test_accepts_collected_failed_and_saturated_reports(self):
+        start = coverage.expected_windows(NOW, ACTIVATION)[0]
+        for state in ("collected", "failed", "saturated"):
+            self.assertEqual(
+                coverage.validate_report(report(start, state)), (start, state)
+            )
+
+    def test_every_untrusted_field_is_rejected_before_output(self):
+        start = coverage.expected_windows(NOW, ACTIVATION)[0]
+        base = report(start)
+        for changes in (
+            {"private": SECRET},
+            {"collection_status": SECRET},
+            {"failure": SECRET},
+            {"window": {"start": SECRET, "end": SECRET}},
+            {"saturated": 1},
+            {"rows_received": True},
+            {"failures_count": 1},
+            {"classifications": [{"private": SECRET}]},
+            {
+                "unclassified_by_family": [
+                    {"minute": health.iso(start), "family": SECRET, "count": 1}
+                ]
+            },
+        ):
+            with self.assertRaises(coverage.CoverageFailure) as raised:
+                coverage.validate_report({**base, **changes})
+            self.assertNotIn(SECRET, str(raised.exception))
+
+    def test_classification_minute_and_counts_must_fit_window(self):
+        start = coverage.expected_windows(NOW, ACTIVATION)[0]
+        raw = json.dumps(
+            {
+                "id": "synthetic",
+                "timestamp": int(start.timestamp() * 1000),
+                "responseStatusCode": 503,
+                "requestPath": "/ask?private=" + SECRET,
+                "source": "serverless",
+                "environment": "production",
+                "logs": [],
+            }
+        ).encode()
+        value = health.aggregate(raw, start, start + timedelta(hours=1))
+        self.assertEqual(coverage.validate_report(value)[1], "collected")
+        value["unclassified_by_family"][0]["minute"] = health.iso(
+            start + timedelta(hours=1)
+        )
+        with self.assertRaises(coverage.CoverageFailure):
+            coverage.validate_report(value)
+
+    def test_duplicate_json_keys_are_rejected(self):
+        with self.assertRaises(coverage.CoverageFailure):
+            coverage.strict_json(b'{"schema_version":1,"schema_version":1}')
+
+
+class GitHubTimestampTest(TestCase):
+    def test_provider_fractions_offsets_and_rollover_normalize_to_utc(self):
+        for value, expected in (
+            ("2026-10-07T16:24:18.000-04:00", "2026-10-07T20:24:18Z"),
+            ("2026-10-07T23:30:00-04:00", "2026-10-08T03:30:00Z"),
+            ("2026-10-07T01:30:00+02:00", "2026-10-06T23:30:00Z"),
+            ("2026-10-07T20:24:18.123456789Z", "2026-10-07T20:24:18Z"),
+            ("2026-10-07T20:24:18Z", "2026-10-07T20:24:18Z"),
+        ):
+            parsed = coverage.github_timestamp(value)
+            self.assertEqual(parsed.tzinfo, timezone.utc)
+            self.assertEqual(health.iso(parsed), expected)
+        self.assertEqual(
+            coverage.github_timestamp("2026-10-07T20:24:18.123Z").microsecond, 123000
+        )
+
+    def test_invalid_missing_zone_and_unbounded_dates_fail_with_fixed_reason(self):
+        for value in (
+            None,
+            True,
+            SECRET,
+            "2026-10-07T20:24:18",
+            "2026-10-07",
+            "2026-10-07T20:24:18+24:00",
+            "2026-10-07T20:24:18+01:60",
+            "2026-02-30T20:24:18Z",
+            "2026-10-07T25:24:18Z",
+            "2026-10-07T20:60:18Z",
+            "2026-10-07T20:24:60Z",
+            "2026-10-07T20:24:18.1234567890Z",
+            "0001-01-01T00:00:00+01:00",
+        ):
+            with self.assertRaisesRegex(
+                coverage.CoverageFailure, "^github-timestamp-invalid$"
+            ):
+                coverage.github_timestamp(value)
+
+    def test_saved_artifacts_still_require_whole_second_utc(self):
+        for value in (
+            "2026-10-07T16:24:18.000-04:00",
+            "2026-10-07T20:24:18.000Z",
+            "2026-10-07T20:24:18+00:00",
+        ):
+            with self.assertRaisesRegex(
+                coverage.CoverageFailure, "aggregate-shape-invalid"
+            ):
+                coverage.timestamp(value)
+
+    def test_real_creation_format_and_run_offsets_work_through_coverage(self):
+        client = FakeGitHub()
+        original_json = client.json
+
+        def provider_json(path):
+            result = original_json(path)
+            if path == "/actions/workflows/page-failure-health.yml":
+                result["created_at"] = "2026-10-07T16:24:18.000-04:00"
+            return result
+
+        client.json = provider_json
+        for current in client.runs:
+            for field in ("run_started_at", "updated_at"):
+                utc = coverage.timestamp(current[field])
+                current[field] = (utc - timedelta(hours=4)).strftime(
+                    "%Y-%m-%dT%H:%M:%S.123-04:00"
+                )
+        result, code = coverage.coverage(client, NOW)
+        self.assertEqual(
+            (code, result["activation"], result["collected_hours"]),
+            (0, "2026-10-07T20:24:18Z", 24),
+        )
+
+    def test_unfinished_missing_timestamps_do_not_hide_completed_coverage(self):
+        for status in ("queued", "in_progress"):
+            for field in ("run_started_at", "updated_at"):
+                client = FakeGitHub()
+                unfinished = run(1000, client.windows[-1], status=status)
+                unfinished[field] = None
+                client.runs.insert(0, unfinished)
+                result, code = coverage.coverage(client, NOW)
+                self.assertEqual(
+                    (code, result["collected_hours"], client.downloads), (0, 24, 24)
+                )
+
+    def test_missing_or_reversed_completed_times_fail_and_reason_is_saved(self):
+        for changes in (
+            {"run_started_at": None},
+            {"updated_at": None},
+            {"updated_at": "2020-01-01T00:00:00Z"},
+        ):
+            client = FakeGitHub()
+            client.runs[0].update(status="completed", **changes)
+            with self.assertRaisesRegex(
+                coverage.CoverageFailure, "github-timestamp-invalid"
+            ):
+                coverage.coverage(client, NOW)
+        with (
+            TemporaryDirectory() as folder,
+            patch.dict(os.environ, {"GH_TOKEN": SECRET}),
+            patch.object(
+                coverage,
+                "coverage",
+                side_effect=coverage.CoverageFailure("github-timestamp-invalid"),
+            ),
+            patch("sys.stdout", new_callable=StringIO),
+        ):
+            output = Path(folder) / "result.json"
+            self.assertEqual(coverage.main(["--output", str(output)]), 1)
+            self.assertEqual(
+                json.loads(output.read_text())["failure"], "github-timestamp-invalid"
+            )
+
+
+class RecoverySchemaTest(TestCase):
+    def setUp(self):
+        self.start = coverage.expected_windows(NOW, ACTIVATION)[0]
+        self.end = self.start + timedelta(hours=1)
+        self.base = report(self.start)
+        self.base.update(
+            schema_version=2,
+            recovery_collection=health.aggregate_recoveries(b"", self.start, self.end),
+        )
+
+    def test_v1_retains_failure_only_coverage_and_v2_requires_recovery_coverage(self):
+        self.assertEqual(coverage.validate_report(report(self.start))[1], "collected")
+        self.assertEqual(coverage.validate_report(self.base)[1], "collected")
+        missing = deepcopy(self.base)
+        missing.pop("recovery_collection")
+        with self.assertRaises(coverage.CoverageFailure):
+            coverage.validate_report(missing)
+        failed = deepcopy(self.base)
+        failed["recovery_collection"] = health.empty_recovery_report()
+        self.assertEqual(coverage.validate_report(failed)[1], "failed")
+        saturated = deepcopy(self.base)
+        saturated["recovery_collection"].update(rows_received=100, saturated=True)
+        self.assertEqual(coverage.validate_report(saturated)[1], "saturated")
+        unknown = deepcopy(self.base)
+        unknown["recovery_collection"].update(rows_received=1, unclassified_matches=1)
+        self.assertEqual(coverage.validate_report(unknown)[1], "failed")
+
+    def test_recovery_fields_and_counts_are_strict(self):
+        for changes in (
+            {"private": SECRET},
+            {"failure": SECRET},
+            {"collection_status": SECRET},
+            {"rows_received": True},
+            {"recoveries_count": 1},
+            {"unclassified_matches": 1},
+            {"saturated": True},
+            {"attempt_count": 3},
+            {"classifications": [{"private": SECRET}]},
+        ):
+            value = deepcopy(self.base)
+            value["recovery_collection"].update(changes)
+            with self.assertRaises(coverage.CoverageFailure) as raised:
+                coverage.validate_report(value)
+            self.assertNotIn(SECRET, str(raised.exception))
+
+    def test_recovery_classifications_validate_winner_trigger_window_and_totals(self):
+        base = deepcopy(self.base)
+        base["recovery_collection"].update(
+            rows_received=1,
+            recoveries_count=1,
+            classifications=[
+                {
+                    "minute": health.iso(self.start),
+                    "winner_attempt": 1,
+                    "trigger": "slow",
+                    "timing_bucket": "1s-5s",
+                    "count": 1,
+                }
+            ],
+        )
+        self.assertEqual(coverage.validate_report(base)[1], "collected")
+        for change in (
+            {"minute": health.iso(self.end)},
+            {"winner_attempt": True},
+            {"winner_attempt": 3},
+            {"trigger": SECRET},
+            {"timing_bucket": SECRET},
+            {"count": 2},
+        ):
+            value = deepcopy(base)
+            value["recovery_collection"]["classifications"][0].update(change)
+            with self.assertRaises(coverage.CoverageFailure):
+                coverage.validate_report(value)
+        duplicate = deepcopy(base)
+        duplicate["recovery_collection"]["classifications"] *= 2
+        duplicate["recovery_collection"].update(rows_received=2, recoveries_count=2)
+        with self.assertRaises(coverage.CoverageFailure):
+            coverage.validate_report(duplicate)
+
+    def test_daily_coverage_counts_failed_and_capped_recovery_channels(self):
+        for kind in ("failed", "saturated"):
+            client = FakeGitHub()
+            original = client.artifact
+
+            def artifact(identifier):
+                value = original(identifier)
+                start = coverage.timestamp(value["window"]["start"])
+                value.update(
+                    schema_version=2,
+                    recovery_collection=health.aggregate_recoveries(
+                        b"", start, start + timedelta(hours=1)
+                    ),
+                )
+                if identifier <= 3:
+                    if kind == "failed":
+                        value["recovery_collection"] = health.empty_recovery_report()
+                    else:
+                        value["recovery_collection"].update(
+                            rows_received=100, saturated=True
+                        )
+                return value
+
+            client.artifact = artifact
+            result, code = coverage.coverage(client, NOW)
+            self.assertEqual(code, 1)
+            self.assertEqual(result[kind + "_hours"], 3)
+            self.assertEqual(result["recovery_collected_hours"], 21)
+            self.assertEqual(result["failure_only_hours"], 0)
+
+
+class CoverageTest(TestCase):
+    def test_daily_run_excludes_newest_completed_hour_and_reads_only_24_artifacts(self):
+        client = FakeGitHub()
+        result, code = coverage.coverage(client, NOW)
+        self.assertEqual(code, 0)
+        self.assertEqual(result["eligible_end"], "2026-10-10T16:00:00Z")
+        self.assertEqual(result["expected_hours"], 24)
+        self.assertEqual(result["collected_hours"], 24)
+        self.assertEqual(result["failure_only_hours"], 24)
+        self.assertEqual(result["recovery_collected_hours"], 0)
+        self.assertEqual(client.downloads, 24)
+        self.assertNotIn(SECRET, json.dumps(result))
+
+    def test_setup_crossing_hour_keeps_first_eligible_report(self):
+        client = FakeGitHub()
+        start = client.windows[0]
+        client.runs[0].update(
+            run_started_at=health.iso(start + timedelta(minutes=59)),
+            updated_at=health.iso(start + timedelta(hours=1, minutes=3)),
+        )
+        original = client.artifact
+
+        def artifact(identifier):
+            if identifier == 1:
+                client.downloads += 1
+                return report(start)
+            return original(identifier)
+
+        client.artifact = artifact
+        result, code = coverage.coverage(client, NOW)
+        self.assertEqual(
+            (code, result["collected_hours"], client.downloads), (0, 24, 24)
+        )
+
+    def test_crossing_run_is_not_skipped_when_predicted_hour_already_counted(self):
+        client = FakeGitHub()
+        previous, actual = client.windows[-2:]
+        client.runs[-2].update(
+            run_started_at=health.iso(
+                previous + timedelta(hours=1, minutes=59, seconds=30)
+            ),
+            updated_at=health.iso(
+                previous + timedelta(hours=1, minutes=59, seconds=50)
+            ),
+        )
+        client.runs[-1].update(
+            run_started_at=health.iso(actual + timedelta(minutes=59)),
+            updated_at=health.iso(actual + timedelta(hours=1, minutes=3)),
+        )
+        identifier = client.runs[-1]["id"]
+        original = client.artifact
+
+        def artifact(current):
+            if current == identifier:
+                client.downloads += 1
+                return report(actual)
+            return original(current)
+
+        client.artifact = artifact
+        result, code = coverage.coverage(client, NOW)
+        self.assertEqual(
+            (code, result["collected_hours"], client.downloads), (0, 24, 24)
+        )
+
+    def test_real_transport_budget_handles_full_day_manual_duplicates_and_missing_files(
+        self,
+    ):
+        fixture = FakeGitHub()
+        missing = {101, 102, 106, 107}
+        for index, identifier in enumerate((101, 102, 103, 104, 105, 106, 107), 1):
+            start = fixture.windows[-index]
+            fixture.runs.append(
+                run(
+                    identifier,
+                    start,
+                    event="workflow_dispatch",
+                    run_started_at=health.iso(start + timedelta(hours=1, minutes=50)),
+                    updated_at=health.iso(start + timedelta(hours=1, minutes=51)),
+                )
+            )
+        client = coverage.GitHub(SECRET)
+
+        def response(request, **kwargs):
+            address = request.full_url
+            if address.startswith("https://test.blob.core.windows.net/"):
+                identifier = int(address.rsplit("/", 1)[1])
+                body = BytesIO()
+                with ZipFile(body, "w") as archive:
+                    archive.writestr(
+                        "page-failure-health.json",
+                        json.dumps(fixture.artifact(identifier)),
+                    )
+                return BytesIO(body.getvalue())
+            suffix = address.removeprefix(coverage.API_ROOT)
+            if suffix.startswith("/actions/artifacts/"):
+                identifier = int(suffix.split("/")[3])
+                raise HTTPError(
+                    address,
+                    302,
+                    "redirect",
+                    {"Location": f"https://test.blob.core.windows.net/{identifier}"},
+                    BytesIO(),
+                )
+            if (
+                suffix.startswith("/actions/runs/")
+                and int(suffix.split("/")[3]) in missing
+            ):
+                value = {"total_count": 0, "artifacts": []}
+            else:
+                value = fixture.json(suffix)
+            return BytesIO(json.dumps(value).encode())
+
+        client.opener.open = Mock(side_effect=response)
+        result, code = coverage.coverage(client, NOW)
+        self.assertEqual(
+            (code, result["collected_hours"], result["artifacts_read"]), (0, 24, 24)
+        )
+        self.assertEqual(client.requests, 78)
+        self.assertLess(client.requests, coverage.MAX_REQUESTS)
+        self.assertEqual(client.opener.open.call_count, 78)
+
+    def test_missing_and_failed_hours_need_three_gaps(self):
+        windows = coverage.expected_windows(NOW, ACTIVATION)
+        client = FakeGitHub(dict(zip(windows[:3], ("missing", "failed", "failed"))))
+        result, code = coverage.coverage(client, NOW)
+        self.assertEqual(code, 1)
+        self.assertEqual(
+            (
+                result["missing_hours"],
+                result["failed_hours"],
+                result["saturated_hours"],
+            ),
+            (1, 2, 0),
+        )
+        client.reports[windows[0]] = "collected"
+        self.assertEqual(coverage.coverage(client, NOW)[1], 0)
+
+    def test_single_saturated_hour_fails_even_during_startup(self):
+        for activation in (ACTIVATION, NOW - timedelta(hours=23)):
+            client = FakeGitHub(activation=activation)
+            client.reports[client.windows[0]] = "saturated"
+            result, code = coverage.coverage(client, NOW)
+            self.assertEqual(
+                (result["saturated_hours"], result["coverage_status"], code),
+                (1, "failed", 1),
+            )
+
+    def test_warmup_is_fixed_at_creation_and_broken_first_day_then_fails(self):
+        client = FakeGitHub(activation=NOW - timedelta(hours=23))
+        client.runs = []
+        self.assertEqual(coverage.coverage(client, NOW)[0]["coverage_status"], "warmup")
+        result, code = coverage.coverage(client, NOW + timedelta(hours=1))
+        self.assertEqual(code, 1)
+        self.assertEqual(result["coverage_status"], "failed")
+        self.assertGreaterEqual(result["missing_hours"], 3)
+
+    def test_green_run_cannot_hide_failed_collection(self):
+        client = FakeGitHub()
+        client.reports = {window: "failed" for window in client.windows}
+        for current in client.runs:
+            current["conclusion"] = "success"
+        result, code = coverage.coverage(client, NOW)
+        self.assertEqual((result["failed_hours"], code), (24, 1))
+
+    def test_fork_nonmain_and_pr_runs_do_not_supply_coverage(self):
+        for changes in (
+            {"head_branch": "evil"},
+            {"event": "pull_request"},
+            {"head_repository": {"full_name": "untrusted/fork"}},
+            {"workflow_id": 18},
+        ):
+            client = FakeGitHub()
+            for current in client.runs:
+                current.update(changes)
+            result, code = coverage.coverage(client, NOW)
+            self.assertEqual(
+                (result["missing_hours"], code, client.downloads), (24, 1, 0)
+            )
+
+    def test_wrong_artifact_attribution_is_rejected(self):
+        for change in (
+            {"expired": True},
+            {"size_in_bytes": coverage.MAX_ZIP_BYTES + 1},
+            {"workflow_run": {"id": 7, "head_branch": "main", "head_sha": SHA}},
+        ):
+            with self.assertRaises(coverage.CoverageFailure):
+                coverage.coverage(FakeGitHub(overrides=change), NOW)
+
+    def test_duplicate_manual_runs_do_not_use_more_downloads(self):
+        client = FakeGitHub()
+        client.runs += deepcopy(client.runs)
+        self.assertEqual(coverage.coverage(client, NOW)[1], 0)
+        self.assertEqual(client.downloads, 24)
+
+    def test_newer_run_without_artifact_does_not_hide_older_complete_hour(self):
+        client = FakeGitHub()
+        start = client.windows[-1]
+        newer = run(
+            1000,
+            start,
+            status="in_progress",
+            conclusion=None,
+            run_started_at=health.iso(start + timedelta(hours=1, minutes=44)),
+        )
+        client.runs.append(newer)
+        original_json = client.json
+
+        def json_response(path):
+            if path.startswith("/actions/runs/1000/artifacts"):
+                return {"total_count": 0, "artifacts": []}
+            return original_json(path)
+
+        client.json = json_response
+        result, code = coverage.coverage(client, NOW)
+        self.assertEqual(
+            (result["collected_hours"], result["missing_hours"], code), (24, 0, 0)
+        )
+        self.assertEqual(client.downloads, 24)
+
+    def test_unexpected_private_error_is_never_saved_or_printed(self):
+        with (
+            TemporaryDirectory() as folder,
+            patch.dict(os.environ, {"GH_TOKEN": SECRET}),
+            patch.object(coverage, "coverage", side_effect=RuntimeError(SECRET)),
+            patch("sys.stdout", new_callable=StringIO) as stdout,
+        ):
+            output = Path(folder) / "safe.json"
+            self.assertEqual(coverage.main(["--output", str(output)]), 1)
+            self.assertNotIn(SECRET, output.read_text() + stdout.getvalue())
+            self.assertEqual(
+                json.loads(output.read_text())["failure"], "unexpected-coverage-failure"
+            )
+
+
+class TransportTest(TestCase):
+    def test_redirect_strips_token_and_accepts_only_github_artifact_storage(self):
+        client = coverage.GitHub(SECRET)
+        response = Mock()
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        response.read.return_value = b"safe"
+        signed = "https://productionresultssa1.blob.core.windows.net/fake?sig=" + SECRET
+        redirect = HTTPError(
+            coverage.API_ROOT, 302, "private", {"Location": signed}, BytesIO(b"private")
+        )
+        client.opener.open = Mock(side_effect=[redirect, response])
+        self.assertEqual(
+            client.fetch(
+                coverage.API_ROOT + "/actions/artifacts/1/zip", 100, redirect=True
+            ),
+            b"safe",
+        )
+        requests = [call.args[0] for call in client.opener.open.call_args_list]
+        self.assertEqual(requests[0].get_header("Authorization"), "Bearer " + SECRET)
+        self.assertIsNone(requests[1].get_header("Authorization"))
+        for url in (
+            "http://productionresultssa1.blob.core.windows.net/x",
+            "https://evil.example/x",
+            "https://user@productionresultssa1.blob.core.windows.net/x",
+            "https://productionresultssa1.blob.core.windows.net.evil.example/x",
+        ):
+            with self.assertRaises(coverage.CoverageFailure):
+                client.fetch(url, 100, authenticated=False)
+
+    def test_zip_never_extracts_paths_and_has_small_decompressed_limit(self):
+        for name, body in (
+            ("../../private.txt", b"private"),
+            ("page-failure-health.json", b"x" * (coverage.MAX_REPORT_BYTES + 1)),
+        ):
+            raw = BytesIO()
+            with ZipFile(raw, "w") as archive:
+                archive.writestr(name, body)
+            client = coverage.GitHub(SECRET)
+            client.fetch = Mock(return_value=raw.getvalue())
+            with self.assertRaises(coverage.CoverageFailure):
+                client.artifact(1)
+
+    def test_budget_response_limit_and_auth_failure_are_fixed_errors(self):
+        client = coverage.GitHub(SECRET)
+        client.requests = coverage.MAX_REQUESTS
+        with self.assertRaisesRegex(coverage.CoverageFailure, "request-budget"):
+            client.fetch(coverage.API_ROOT, 10)
+        client = coverage.GitHub(SECRET)
+        client.deadline = 0
+        with self.assertRaisesRegex(coverage.CoverageFailure, "request-budget"):
+            client.fetch(coverage.API_ROOT, 10)
+        client = coverage.GitHub(SECRET)
+        response = Mock()
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        response.read.return_value = b"x" * 11
+        client.opener.open = Mock(return_value=response)
+        with self.assertRaisesRegex(coverage.CoverageFailure, "response-limit"):
+            client.fetch(coverage.API_ROOT, 10)
+        client = coverage.GitHub(SECRET)
+        client.opener.open = Mock(
+            side_effect=HTTPError(
+                coverage.API_ROOT, 403, SECRET, {}, BytesIO(SECRET.encode())
+            )
+        )
+        with self.assertRaisesRegex(coverage.CoverageFailure, "auth-rejected"):
+            client.fetch(coverage.API_ROOT, 10)
+
+
+class WorkflowTest(TestCase):
+    def test_daily_and_manual_token_read_scope_and_retained_evidence(self):
+        path = (
+            Path(__file__).resolve().parents[2]
+            / ".github/workflows/public-search-health.yml"
+        )
+        text = path.read_text()
+        self.assertIn("actions: read", text)
+        block = text.split("name: Read daily coverage")[1].split("- name:")[0]
+        self.assertIn("github.event_name == 'schedule'", block)
+        self.assertIn("github.event_name == 'workflow_dispatch'", block)
+        self.assertIn("github.repository == 'alethical-org/alethical'", block)
+        self.assertIn("github.ref == 'refs/heads/main'", block)
+        self.assertIn("if: always()", block)
+        self.assertIn("GH_TOKEN: ${{ github.token }}", block)
+        self.assertNotIn("secrets.", block)
+        self.assertIn("page-failure-coverage.json", text)
+
+
+def catchup_bundle(end, hours=12, state="collected"):
+    reports = []
+    for i in range(hours, 0, -1):
+        start = end - timedelta(hours=i)
+        value = report(start, state)
+        value.update(
+            schema_version=2,
+            recovery_collection=health.aggregate_recoveries(
+                b"", start, start + timedelta(hours=1)
+            ),
+        )
+        value["recovery_collection"]["attempt_count"] = 1
+        reports.append(value)
+    return health.bundle(reports)
+
+
+class CatchupCoverageTest(TestCase):
+    def test_delayed_six_or_eight_hour_runs_cover_day(self):
+        for spacing in (6, 8):
+            client = FakeGitHub()
+            client.runs = [
+                run(i + 1, client.windows[index])
+                for i, index in enumerate(range(spacing - 1, 24, spacing))
+            ]
+            client.artifact = lambda identifier: catchup_bundle(
+                health.complete_hour(
+                    coverage.github_timestamp(
+                        next(r for r in client.runs if r["id"] == identifier)[
+                            "run_started_at"
+                        ]
+                    )
+                )[1]
+            )
+            result, code = coverage.coverage(client, NOW)
+            self.assertEqual(
+                (result["collected_hours"], result["recovery_collected_hours"], code),
+                (24, 24, 0),
+            )
+            self.assertLessEqual(result["artifacts_read"], 4)
+
+    def test_legacy_mixture_and_newer_failed_duplicate(self):
+        client = FakeGitHub()
+        original = client.artifact
+        latest = client.windows[-1]
+        client.runs.append(
+            run(
+                1000,
+                latest,
+                run_started_at=health.iso(latest + timedelta(hours=1, minutes=50)),
+                updated_at=health.iso(latest + timedelta(hours=1, minutes=51)),
+            )
+        )
+        client.artifact = lambda identifier: (
+            catchup_bundle(latest + timedelta(hours=1), state="failed")
+            if identifier == 1000
+            else original(identifier)
+        )
+        result, code = coverage.coverage(client, NOW)
+        # Failed duplicate consumes one bounded download, older reports still win.
+        self.assertEqual(result["failed_hours"], 0)
+        self.assertEqual(result["collected_hours"], 23)
+        self.assertEqual(code, 0)
+        self.assertEqual(result["artifacts_read"], coverage.MAX_ARTIFACTS)
+
+    def test_every_hour_and_envelope_are_strict_even_outside_eligible_day(self):
+        base = catchup_bundle(NOW.replace(minute=0))
+        mutations = [
+            lambda b: b.update(private=SECRET),
+            lambda b: b.update(hours=True),
+            lambda b: b.update(bundle_version=True),
+            lambda b: b.update(hours=13),
+            lambda b: b["window"].update(private=SECRET),
+            lambda b: b["reports"][0].update(private=SECRET),
+            lambda b: b["reports"].reverse(),
+            lambda b: b["reports"].pop(),
+            lambda b: b["reports"][0].update(schema_version=1),
+        ]
+        for mutate in mutations:
+            value = deepcopy(base)
+            mutate(value)
+            with self.assertRaises(coverage.CoverageFailure):
+                coverage.validate_collection(value)
+        self.assertEqual(len(coverage.validate_collection(base)), 12)
+
+    def test_future_and_too_old_bundle_rejected(self):
+        for shift in (-13, 1):
+            client = FakeGitHub()
+            client.runs = [client.runs[-1]]
+            end = client.windows[-1] + timedelta(hours=1 + shift)
+            client.artifact = lambda identifier: catchup_bundle(end)
+            with self.assertRaises(coverage.CoverageFailure):
+                coverage.coverage(client, NOW)
+
+    def test_mixed_legacy_and_bundle_and_failed_overlap_cover_all_hours(self):
+        client = FakeGitHub()
+        client.runs = [
+            run(1, client.windows[7]),
+            run(2, client.windows[15]),
+            run(3, client.windows[22]),
+            run(4, client.windows[23]),
+        ]
+        end = client.windows[23] + timedelta(hours=1)
+        client.runs.append(
+            run(
+                5,
+                client.windows[23],
+                run_started_at=health.iso(end + timedelta(minutes=50)),
+                updated_at=health.iso(end + timedelta(minutes=51)),
+            )
+        )
+
+        def artifact(identifier):
+            if identifier == 5:
+                return catchup_bundle(end, state="failed")
+            if identifier == 4:
+                return report(client.windows[23])
+            current = next(r for r in client.runs if r["id"] == identifier)
+            return catchup_bundle(
+                health.complete_hour(
+                    coverage.github_timestamp(current["run_started_at"])
+                )[1]
+            )
+
+        client.artifact = artifact
+        result, code = coverage.coverage(client, NOW)
+        self.assertEqual(
+            (
+                result["collected_hours"],
+                result["failed_hours"],
+                result["missing_hours"],
+                result["failure_only_hours"],
+                code,
+            ),
+            (24, 0, 0, 1, 0),
+        )
+
+    def test_recovery_cap_and_failure_never_become_healthy_coverage(self):
+        for state in ("failed", "saturated"):
+            value = catchup_bundle(NOW.replace(minute=0))
+            for hour in value["reports"]:
+                recovery = hour["recovery_collection"]
+                if state == "failed":
+                    recovery.update(
+                        collection_status="failed", failure="command-output-limit"
+                    )
+                else:
+                    recovery.update(rows_received=100, saturated=True)
+            self.assertEqual(
+                {item[2] for item in coverage.validate_collection(value)}, {state}
+            )

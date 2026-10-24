@@ -110,7 +110,7 @@ def _refuse_local_url_when_target_is_production(url: str) -> None:
     fixture data that resembles production cannot be spotted from the output at
     all. And the wrongness **compounds** -- on 6 Aug 2026 a row count read this
     way became "an account was deleted", became "probably the test account",
-    became doubt cast on an unrelated issue, and reached Eugene before anyone
+    became doubt cast on an unrelated issue, and was reported before anyone
     caught it. Production had *more* accounts, not fewer.
 
     Deliberately a refusal, not a redirect. Making ``get_engine`` honour the

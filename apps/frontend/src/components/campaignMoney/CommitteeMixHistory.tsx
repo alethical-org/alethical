@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 import { Pressable, StyleSheet, Text, View, type TextStyle } from 'react-native';
 
@@ -12,6 +12,8 @@ import {
 import { numericText, useDetailsStyles } from './detailsStyles';
 import { moneyDetailsCopy as copy } from '../../lib/campaignMoneyDetailsCopy';
 import { yearFilterButtonStyle, yearFilterLabelStyle } from '../../theme/yearFilters';
+import { MoneyDetailsReadError } from '../../data/moneyDetailsReadError';
+import { PaymentRecheckNotice } from './PaymentRecheckNotice';
 
 type Slice = ContributionChart['slices'][number];
 const percentage = (slice: Slice) => `${Math.round(slice.share * 1000) / 10}%`;
@@ -23,21 +25,58 @@ export function CommitteeMixHistory({
   year,
   releaseId,
   onSelectYear,
+  onRefresh,
 }: {
   registrationNumber: string;
   committeeName: string;
   year: number;
   releaseId?: string;
   onSelectYear: (year: number) => void;
+  onRefresh?: () => void;
 }) {
   const details = useCampaignMoneyDetails(registrationNumber, year);
-  if (
-    !details.historyComplete ||
-    !details.history.data ||
-    (releaseId && details.history.data.releaseId !== releaseId)
-  )
-    return null;
-  const charts = details.history.data.years.map((record) => ({
+  // A failed refresh changes query status, not the already complete history.
+  // Retain only a history accepted beside this profile's pinned source copy.
+  const key = `${registrationNumber}:${releaseId ?? ''}`;
+  const lastAccepted = useRef<{
+    key: string;
+    history: NonNullable<typeof details.history.data>;
+  } | null>(null);
+  const selectedLists = [details.received.data, details.made.data];
+  const unavailable =
+    selectedLists.some((list) => list?.state === 'unavailable') ||
+    (details.history.error instanceof MoneyDetailsReadError &&
+      details.history.error.reason === 'history_unavailable');
+  const changedCopy = Boolean(
+    releaseId && selectedLists.some((list) => list && list.releaseId !== releaseId),
+  );
+  if (lastAccepted.current?.key !== key || unavailable || changedCopy) lastAccepted.current = null;
+  const complete =
+    details.historyComplete &&
+    details.history.data &&
+    (!releaseId || details.history.data.releaseId === releaseId);
+  if (complete && releaseId && details.history.data)
+    lastAccepted.current = { key, history: details.history.data };
+  const matchingLists = Boolean(
+    releaseId && selectedLists.every((list) => list && list.releaseId === releaseId),
+  );
+  const shown = complete
+    ? details.history.data
+    : matchingLists
+      ? lastAccepted.current?.history
+      : null;
+  if (!shown) return null;
+  const recheckFailed = details.history.isError || details.received.isError || details.made.isError;
+  const retrying =
+    details.history.isFetching || details.received.isFetching || details.made.isFetching;
+  const retry = () => {
+    if (retrying) return;
+    onRefresh?.();
+    void details.received.refetch();
+    void details.made.refetch();
+    void details.history.refetch();
+  };
+  const charts = shown.years.map((record) => ({
     year: record.year,
     chart: prepareContributionChart(record.payments, {
       state: 'no_reported_total',
@@ -48,10 +87,13 @@ export function CommitteeMixHistory({
   }));
   return (
     <MixHistory
-      key={`${registrationNumber}:${details.history.data.releaseId}`}
+      key={`${registrationNumber}:${shown.releaseId}`}
       charts={charts}
       year={year}
       onSelectYear={onSelectYear}
+      recheckFailed={Boolean(!complete && recheckFailed)}
+      retrying={retrying}
+      onRetry={retry}
     />
   );
 }
@@ -60,10 +102,16 @@ function MixHistory({
   charts,
   year,
   onSelectYear,
+  recheckFailed,
+  retrying,
+  onRetry,
 }: {
   charts: { year: number; chart: ContributionChart }[];
   year: number;
   onSelectYear: (year: number) => void;
+  recheckFailed: boolean;
+  retrying: boolean;
+  onRetry: () => void;
 }) {
   const s = useDetailsStyles();
   const { isMobile } = useResponsive();
@@ -86,16 +134,23 @@ function MixHistory({
         {copy.historyHeading}
       </Text>
       <Text style={[s.body, styles.explanation]}>{copy.historyExplanation}</Text>
+      {recheckFailed && (
+        <PaymentRecheckNotice
+          message={copy.heldHistoryRecheck}
+          retrying={retrying}
+          onRetry={onRetry}
+        />
+      )}
       {hiddenCount > 0 && (
         <Pressable
           accessibilityRole="button"
           aria-expanded={earlierVisible}
           aria-controls={`${id}-years`}
           onPress={() => setEarlierVisible((value) => !value)}
+          // Normal history buttons use the app’s keyboard-only :focus-visible ring.
           style={(state) => [
             styles.control,
             Boolean('hovered' in state && state.hovered) && styles.hover,
-            Boolean('focused' in state && state.focused) && s.focus,
           ]}
         >
           <Text style={[s.controlText, styles.controlText]}>
@@ -161,7 +216,6 @@ function MixHistory({
                       style={(state) => [
                         styles.control,
                         Boolean('hovered' in state && state.hovered) && styles.hover,
-                        Boolean('focused' in state && state.focused) && s.focus,
                       ]}
                     >
                       <Text style={[s.controlText, styles.controlText]}>

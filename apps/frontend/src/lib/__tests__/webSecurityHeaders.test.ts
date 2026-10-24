@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+import { STABLE_EVENT_SCROLL_BOOT } from '../stableEventScrollBoot';
 
 type Header = { key: string; value: string };
 type HeaderRule = { source: string; headers: Header[] };
@@ -57,7 +58,7 @@ describe('web security response headers', () => {
     ]);
     // Fonts are served from this address (public/fonts), so no outside font host is allowed.
     expect(directives.get('font-src')).toEqual(["'self'", 'data:']);
-    expect(directives.get('frame-src')).toEqual(["'none'"]);
+    expect(directives.get('frame-src')).toEqual(['https://www.youtube-nocookie.com']);
     expect(directives.get('img-src')).toEqual(["'self'", 'data:', 'blob:', 'https:']);
     expect(directives.get('object-src')).toEqual(["'none'"]);
     expect(directives.get('style-src')).toEqual(["'self'", "'unsafe-inline'"]);
@@ -73,10 +74,13 @@ describe('web security response headers', () => {
       inlineProgram('apps/frontend/public/index.html', 'alethical-release-recovery'),
       inlineProgram('api/page.ts', 'alethical-email-link-bootstrap'),
       inlineProgram('api/page.ts', 'alethical-forgot-password-bootstrap'),
+      STABLE_EVENT_SCROLL_BOOT,
     ];
 
     expect(directives.get('script-src')).toEqual([
       "'self'",
+      'https://www.youtube.com/iframe_api',
+      'https://www.youtube.com/s/player/',
       'https://static.cloudflareinsights.com',
       ...programs.map(policyHash),
     ]);

@@ -21,7 +21,7 @@ import { useResponsive } from '../../hooks/useResponsive';
 import { outsideSpendingPageMetadata } from '../../lib/screenPageMetadata';
 import { formatMoney } from '../../lib/moneyFormat';
 import { centralDateLabel, formatCount } from '../../lib/moneyLanding';
-import { MONEY_SECTION_NAME } from '../../lib/moneySectionName';
+import { BACK_TO_MONEY_SECTION } from '../../lib/moneySectionName';
 import { outsideBrowseShareContent } from '../../lib/moneyResultsShare';
 import {
   inKindCountLine,
@@ -472,7 +472,7 @@ export function OutsideSpendingBrowseScreen({
             style={styles.back}
           >
             <Chevron />
-            <Text style={styles.backText}>{MONEY_SECTION_NAME}</Text>
+            <Text style={styles.backText}>{BACK_TO_MONEY_SECTION}</Text>
           </Pressable>
           <ResultsHeading
             isMobile={isMobile}
@@ -718,6 +718,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   backText: {
+    flexShrink: 1,
     fontFamily: t.typography.ui,
     fontSize: 16,
     fontWeight: '700',

@@ -7,14 +7,13 @@ import uuid
 
 from fastapi import HTTPException
 import pytest
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text, update
 
 from alethical.api.auth import get_auth_service
 from alethical.api.services.auth import AuthenticatedPrincipal
 from alethical.api.routers.admin import administrator_access
 from alethical.api.services import candidate_claims as service
 from alethical.db.models import (
-    AuthIdentity,
     CandidateClaim,
     CandidateRecord,
     CandidateStatement,
@@ -33,22 +32,62 @@ REVIEWER = {"Authorization": "Bearer candidate-test-reviewer"}
 
 
 @pytest.fixture(autouse=True)
-def clean(seed_database, client):
+def clean(seed_database, client, monkeypatch):
+    monkeypatch.setenv("ALETHICAL_ADMIN_ACCOUNT_IDS", "")
     original = client.app.dependency_overrides[get_auth_service]()
 
+    # Provisioning joins confirmed identities by email. Keep both fake subjects
+    # and emails separate from the shared API fixtures so these tests cannot
+    # delete their accounts or attach a second identity to their metric readers.
     class ClaimsAuth:
         def authenticate(self, token):
             if token == "candidate-test-reviewer":
-                return AuthenticatedPrincipal(
+                principal = AuthenticatedPrincipal(
                     provider="supabase",
                     provider_subject="candidate-test-reviewer",
                     email="reviewer@example.com",
                     email_verified=True,
                 )
-            return original.authenticate(token)
+            else:
+                principal = original.authenticate(token)
+            return AuthenticatedPrincipal(
+                provider="supabase",
+                provider_subject=str(
+                    uuid.uuid5(
+                        uuid.NAMESPACE_URL,
+                        f"candidate-profile-claim-test:{principal.provider_subject}",
+                    )
+                ),
+                email=f"candidate-profile-claim-test-{principal.email}",
+                email_verified=principal.email_verified,
+            )
 
     client.app.dependency_overrides[get_auth_service] = ClaimsAuth
     with get_session_factory()() as db:
+        db.execute(text("CREATE SCHEMA IF NOT EXISTS auth"))
+        db.execute(
+            text("""CREATE TABLE IF NOT EXISTS auth.users (
+            id uuid PRIMARY KEY, email text, email_confirmed_at timestamptz,
+            deleted_at timestamptz, banned_until timestamptz,
+            is_anonymous boolean NOT NULL DEFAULT false)""")
+        )
+        for subject, email in (
+            ("supabase-user-ada", "ada@example.com"),
+            ("supabase-user-grace", "grace@example.com"),
+            ("candidate-test-reviewer", "reviewer@example.com"),
+        ):
+            db.execute(
+                text("""INSERT INTO auth.users (id,email,email_confirmed_at)
+                VALUES (:id,:email,CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET
+                email=EXCLUDED.email, email_confirmed_at=EXCLUDED.email_confirmed_at,
+                deleted_at=NULL, banned_until=NULL, is_anonymous=false"""),
+                {
+                    "id": uuid.uuid5(
+                        uuid.NAMESPACE_URL, f"candidate-profile-claim-test:{subject}"
+                    ),
+                    "email": f"candidate-profile-claim-test-{email}",
+                },
+            )
         for model in (
             CandidateStatementReport,
             CandidateStatementRevision,
@@ -57,7 +96,7 @@ def clean(seed_database, client):
             CandidateRecord,
         ):
             db.execute(delete(model))
-        db.execute(UserAccount.__table__.update().values(is_active=True))
+        db.execute(update(UserAccount).values(is_active=True))
         db.add(
             CandidateRecord(
                 id=CANDIDATE,
@@ -89,7 +128,7 @@ def apply(client, headers=FIRST, version=0, **changes):
             "expected_account_id": account(client, headers),
             "expected_version": version,
             "evidence_url": "https://example.com/campaign",
-            "request_note": "I am this candidate; verify through my published campaign contact.",
+            "request_note": "Candidate\n\nI am this candidate; verify through my published campaign contact.",
             **changes,
         },
     )
@@ -163,7 +202,14 @@ def test_request_does_not_grant_editing_and_account_change_is_rejected(client):
     assert statement(client, item).status_code == 403
     assert apply(client, expected_account_id=str(uuid.uuid4())).status_code == 409
     assert apply(client).status_code == 409
-    assert apply(client, version=1).json()["claim"]["version"] == 2
+    pending = apply(
+        client,
+        version=1,
+        request_note="Candidate\n\nChanged evidence must not replace the pending request",
+    )
+    assert pending.json()["claim"]["version"] == 1
+    assert pending.json()["already_submitted"] is True
+    assert "Changed evidence" not in pending.json()["claim"]["request_note"]
 
 
 def test_review_requires_admin_independent_person_and_verification(client):
@@ -320,9 +366,9 @@ def test_unconfirmed_claimant_cannot_be_approved(client):
     item = claim(client)
     with get_session_factory()() as db:
         db.execute(
-            AuthIdentity.__table__.update()
-            .where(AuthIdentity.user_id == uuid.UUID(account(client)))
-            .values(email_verified_at=None)
+            text("""UPDATE auth.users SET email_confirmed_at=NULL
+            WHERE id::text IN (SELECT provider_subject FROM auth_identity WHERE user_id=:user_id)"""),
+            {"user_id": uuid.UUID(account(client))},
         )
         db.commit()
     assert review(client, item).status_code == 403
@@ -626,3 +672,138 @@ def test_database_boundary_suppresses_private_exception_traceback():
     else:
         pytest.fail("Expected a safe unavailable response")
     db.rollback.assert_called_once()
+
+
+def remove(client, item, version, headers=FIRST):
+    return client.request(
+        "DELETE",
+        f"{BASE}/{item['id']}/statement",
+        headers=headers,
+        json={
+            "expected_account_id": account(client, headers),
+            "expected_version": version,
+        },
+    )
+
+
+def test_published_and_edited_dates_follow_the_current_publication(client):
+    item = approved(client)
+    first = statement(client, item, "First published text").json()["statement"]
+    assert first["published_at"] is not None and first["edited_at"] is None
+    assert public(client).json()["statement"]["published_at"] == first["published_at"]
+    edited = statement(client, item, "Edited text", 1).json()["statement"]
+    # An edit keeps the first publication and adds the latest saved edit.
+    assert edited["published_at"] == first["published_at"]
+    assert edited["edited_at"] == edited["updated_at"]
+    assert public(client).json()["statement"]["edited_at"] == edited["edited_at"]
+    removed = remove(client, item, 2).json()["statement"]
+    assert removed["published_at"] is None and removed["edited_at"] is None
+    # Version 4 after a removal is a new publication, not an edit.
+    again = statement(client, item, "Published again", 3).json()["statement"]
+    assert again["version"] == 4
+    assert again["edited_at"] is None
+    assert again["published_at"] > first["published_at"]
+    private = client.get(f"{BASE}/{item['id']}/statement", headers=FIRST).json()
+    assert private["statement"]["published_at"] == again["published_at"]
+
+
+def test_publication_dates_are_omitted_without_revision_evidence(client):
+    item = approved(client)
+    statement(client, item, "Words")
+    statement(client, item, "Edited words", 1)
+    with get_session_factory()() as db:
+        db.execute(delete(CandidateStatementRevision))
+        db.commit()
+    # The row's own date could be an edit, so neither date is claimed.
+    shown = public(client).json()["statement"]
+    assert shown["body"] == "Edited words"
+    assert shown["published_at"] is None
+    assert shown["edited_at"] is None
+
+
+def test_publication_dates_are_omitted_when_the_last_revision_is_a_removal(client):
+    item = approved(client)
+    statement(client, item, "Words")
+    with get_session_factory()() as db:
+        # A legacy row whose only evidence is a later removal cannot date the words.
+        db.execute(delete(CandidateStatementRevision))
+        db.add(
+            CandidateStatementRevision(
+                candidate_id=CANDIDATE,
+                claim_id=uuid.UUID(item["id"]),
+                body="",
+                action="removed",
+                created_at=datetime.now(timezone.utc),
+            )
+        )
+        db.commit()
+    shown = public(client).json()["statement"]
+    assert shown["published_at"] is None and shown["edited_at"] is None
+
+
+def test_new_owner_publication_is_dated_from_its_own_history(client):
+    item = approved(client)
+    statement(client, item, "Old owner words")
+    statement(client, item, "Old owner edit", 1)
+    assert review(client, item, action="revoke").status_code == 200
+    successor = claim(client, SECOND)
+    assert review(client, successor).status_code == 200
+    successor = client.get(f"{BASE}/me", headers=SECOND).json()["claims"][0]
+    fresh = statement(client, successor, "New owner words", headers=SECOND)
+    assert fresh.status_code == 200, fresh.text
+    shown = public(client).json()["statement"]
+    assert shown["body"] == "New owner words"
+    assert shown["edited_at"] is None
+    assert shown["published_at"] == fresh.json()["statement"]["published_at"]
+
+
+def make_legacy(version, body=None):
+    """An older statement row: no revision history and a later version number."""
+    with get_session_factory()() as db:
+        db.execute(delete(CandidateStatementRevision))
+        row = db.get(CandidateStatement, CANDIDATE)
+        row.version = version
+        if body is not None:
+            row.body = body
+        db.commit()
+
+
+def test_editing_a_legacy_statement_is_not_dated_as_a_first_publication(client):
+    item = approved(client)
+    statement(client, item, "Legacy words")
+    make_legacy(7)
+    edited = statement(client, item, "Edited legacy words", 7)
+    assert edited.status_code == 200, edited.text
+    shown = edited.json()["statement"]
+    assert shown["version"] == 8
+    # 1 retained revision after unrecorded words: an edit or a republish, unknown.
+    assert shown["published_at"] is None and shown["edited_at"] is None
+    assert public(client).json()["statement"]["published_at"] is None
+    # A second edit is known to be an edit, while its first publication stays unknown.
+    again = statement(client, item, "Edited twice", 8).json()["statement"]
+    assert again["edited_at"] == again["updated_at"]
+    assert again["published_at"] is None
+
+
+def test_republishing_after_a_recorded_removal_of_a_legacy_statement_is_dated(client):
+    item = approved(client)
+    statement(client, item, "Legacy words")
+    make_legacy(7)
+    assert remove(client, item, 7).status_code == 200
+    republished = statement(client, item, "Published again", 8).json()["statement"]
+    assert republished["version"] == 9
+    # The recorded removal ended the unrecorded publication, so this one starts here.
+    assert republished["published_at"] is not None
+    assert republished["edited_at"] is None
+    edited = statement(client, item, "Published again, edited", 9).json()["statement"]
+    assert edited["published_at"] == republished["published_at"]
+    assert edited["edited_at"] == edited["updated_at"]
+
+
+def test_publishing_over_an_emptied_legacy_statement_is_not_dated(client):
+    item = approved(client)
+    statement(client, item, "Legacy words")
+    make_legacy(7, body="")
+    shown = statement(client, item, "New words", 7).json()["statement"]
+    # No recorded removal: the empty row's history is unknown, so no date is claimed.
+    assert shown["published_at"] is None and shown["edited_at"] is None

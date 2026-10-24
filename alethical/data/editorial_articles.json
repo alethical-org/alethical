@@ -1,5 +1,10 @@
 [
   {
+    "article_id": "forward-debate-2026",
+    "title": "The Forward Debate",
+    "path": "/blog/events/forward-debate-2026"
+  },
+  {
     "article_id": "guide-money-spent-without-a-campaigns-say",
     "title": "Money spent without a campaign’s say",
     "path": "/blog/guides/money-spent-without-a-campaigns-say"
@@ -25,9 +30,19 @@
     "path": "/blog/guides/why-nobody-can-follow-a-dollar"
   },
   {
+    "article_id": "realtor-pacs-shared-candidates",
+    "title": "3 Realtor PACs. 12 shared campaigns.",
+    "path": "/blog/research/realtor-pacs-shared-candidates"
+  },
+  {
     "article_id": "research-the-money-only-goes-one-way",
     "title": "The Money Only Goes One Way",
     "path": "/blog/research/the-money-only-goes-one-way"
+  },
+  {
+    "article_id": "short-committee-officers-and-vendors",
+    "title": "Who keeps the books, and who gets paid?",
+    "path": "/blog/research/committee-officers-and-the-firms-they-pay"
   },
   {
     "article_id": "short-lobbyist-giving-2015-2026",

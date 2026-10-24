@@ -1,6 +1,6 @@
 # Outside-spending browsing build
 
-User authorization, 17 Sep 2026: “Minor pagination design correction in this version. Build it based on your rec.” This authorizes the approved version 13 design and prior review corrections through tests, browser review, pull request, merge, deployment, and live checks. No renewed approval is needed between these steps. Design taste remains with the supplied drawing.
+Build scope approved on 17 Sep 2026: the version 13 design, including its pagination correction and prior review corrections, through tests, browser review, pull request, merge, deployment, and live checks. No renewed approval is needed between these steps. Design taste remains with the supplied drawing.
 
 ## Scope
 

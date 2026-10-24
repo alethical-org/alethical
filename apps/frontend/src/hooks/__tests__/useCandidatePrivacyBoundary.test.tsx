@@ -9,7 +9,7 @@ import type { CandidateElection, CandidateSearchServices } from '../../component
 const auth = vi.hoisted(() => {
   process.env.EXPO_PUBLIC_API_URL = 'https://api.alethical.com';
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  return { isSignedIn: false, user: null as { id: string } | null };
+  return { isLoading: false, isSignedIn: false, user: null as { id: string } | null };
 });
 vi.mock('../../providers/AuthProvider', () => ({ useAuth: () => auth }));
 vi.mock('react-native-svg', () => ({
@@ -38,6 +38,7 @@ let root: Root;
 let host: HTMLDivElement;
 beforeEach(() => {
   candidateFlow.clear();
+  auth.isLoading = false;
   auth.isSignedIn = false;
   auth.user = null;
   host = document.createElement('div');
@@ -161,5 +162,174 @@ it('clears private searches and cancels their pending replacement on sign-in, ac
   auth.isSignedIn = false;
   auth.user = null;
   act(() => root.render(<Boundary />));
+  expect(candidateFlow.getState().draftAddress).toBe('');
+});
+
+const election: CandidateElection = {
+  id: '8334',
+  label: 'General election',
+  date: '2030-11-05',
+  type: 'general',
+};
+const resultBody = {
+  kind: 'results',
+  electionId: '8334',
+  matchedAddress: '100 Example Street',
+  races: [],
+  coverage: [],
+};
+function beginRestoration() {
+  auth.isLoading = true;
+  act(() => root.render(<Boundary key="restoring" />));
+}
+function finishRestoration() {
+  auth.isSignedIn = true;
+  auth.user = { id: 'account-a' };
+  auth.isLoading = false;
+  act(() => root.render(<Boundary key="restoring" />));
+}
+
+it('preserves the rendered draft and outstanding suggestions when the initial saved account resolves', async () => {
+  vi.useFakeTimers();
+  beginRestoration();
+  let resolve!: (value: { id: string; address: string; label: string }[]) => void;
+  const suggest = vi.fn<CandidateSearchServices['suggest']>(
+    () =>
+      new Promise((yes) => {
+        resolve = yes;
+      }),
+  );
+  const services: CandidateSearchServices = {
+    getElections: async () => [election],
+    suggest,
+    lookup: vi.fn(),
+  };
+  await act(async () => root.render(<Boundary key="restoring" services={services} />));
+  const field = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  act(() => {
+    field.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(
+      field,
+      '100 Example Street',
+    );
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await act(async () => vi.advanceTimersByTime(180));
+  expect(suggest).toHaveBeenCalledOnce();
+  const version = candidateFlow.getState().resetVersion;
+  auth.isSignedIn = true;
+  auth.user = { id: 'account-a' };
+  auth.isLoading = false;
+  await act(async () => root.render(<Boundary key="restoring" services={services} />));
+  expect(host.querySelector('textarea')).toBe(field);
+  expect(field.value).toBe('100 Example Street');
+  expect(candidateFlow.getState().resetVersion).toBe(version);
+  expect(suggest.mock.calls[0][1].aborted).toBe(false);
+  await act(async () =>
+    resolve([{ id: 'example', address: '100 Example Street', label: '100 Example Street' }]),
+  );
+  expect(host.querySelector('[role="option"]')?.textContent).toBe('100 Example Street');
+});
+
+it.each(['pending', 'completed'] as const)(
+  'preserves a %s search when initial saved-account restoration completes',
+  async (stage) => {
+    beginRestoration();
+    let resolve!: (value: Response) => void;
+    let signal!: AbortSignal;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_: string, options: RequestInit) => {
+        signal = options.signal as AbortSignal;
+        return new Promise<Response>((yes) => {
+          resolve = yes;
+        });
+      }),
+    );
+    const search = candidateFlow.search(
+      { address: '100 Example Street', electionId: '8334' },
+      election,
+    );
+    if (stage === 'completed') {
+      resolve(new Response(JSON.stringify(resultBody)));
+      await search;
+    }
+    const before = candidateFlow.getState();
+    finishRestoration();
+    expect(signal.aborted).toBe(false);
+    expect(candidateFlow.getState()).toBe(before);
+    if (stage === 'pending') {
+      resolve(new Response(JSON.stringify(resultBody)));
+      await search;
+    }
+    expect(candidateFlow.getState().displayed?.results.matchedAddress).toBe('100 Example Street');
+    expect(candidateFlow.getState().draftAddress).toBe('100 Example Street');
+  },
+);
+
+it.each([
+  ['sign-in', null, 'account-a'],
+  ['account switch', 'account-a', 'account-b'],
+  ['sign-out or rejection', 'account-a', null],
+] as const)(
+  'clears and cancels an established %s boundary even while validation is loading',
+  async (_, previousId, nextId) => {
+    auth.isSignedIn = previousId !== null;
+    auth.user = previousId ? { id: previousId } : null;
+    act(() => root.render(<Boundary />));
+    let resolve!: (value: Response) => void;
+    let signal!: AbortSignal;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_: string, options: RequestInit) => {
+        signal = options.signal as AbortSignal;
+        return new Promise<Response>((yes) => {
+          resolve = yes;
+        });
+      }),
+    );
+    const search = candidateFlow.search(
+      { address: '100 Example Street', electionId: '8334' },
+      election,
+    );
+    auth.isLoading = true;
+    auth.isSignedIn = nextId !== null;
+    auth.user = nextId ? { id: nextId } : null;
+    act(() => root.render(<Boundary />));
+    expect(signal.aborted).toBe(true);
+    expect(candidateFlow.getState().draftAddress).toBe('');
+    resolve(new Response(JSON.stringify(resultBody)));
+    await search;
+    expect(candidateFlow.getState().displayed).toBeNull();
+  },
+);
+
+it('preserves same-account renewal without reopening the startup exemption', () => {
+  auth.isSignedIn = true;
+  auth.user = { id: 'account-a' };
+  act(() => root.render(<Boundary />));
+  candidateFlow.setDraftAddress('100 Example Street');
+  const before = candidateFlow.getState();
+  auth.isLoading = true;
+  act(() => root.render(<Boundary />));
+  auth.isLoading = false;
+  auth.user = { id: 'account-a' };
+  act(() => root.render(<Boundary />));
+  expect(candidateFlow.getState()).toBe(before);
+  auth.user = { id: 'account-b' };
+  act(() => root.render(<Boundary />));
+  expect(candidateFlow.getState().draftAddress).toBe('');
+});
+
+it('establishes anonymous identity after initial failure or rejection and clears on a later accepted account', () => {
+  beginRestoration();
+  candidateFlow.setDraftAddress('100 Example Street');
+  const before = candidateFlow.getState();
+  auth.isLoading = false;
+  act(() => root.render(<Boundary key="restoring" />));
+  expect(candidateFlow.getState()).toBe(before);
+  auth.isLoading = true;
+  act(() => root.render(<Boundary key="restoring" />));
+  finishRestoration();
   expect(candidateFlow.getState().draftAddress).toBe('');
 });

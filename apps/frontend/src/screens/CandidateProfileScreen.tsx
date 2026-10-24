@@ -1,10 +1,11 @@
+import { useEntityReturnPageNames } from '../hooks/useEntityReturnPageNames';
 import { CandidateClaimPanel } from '../components/candidates/CandidateClaimPanel';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { CandidateProfileContent } from '../components/candidates/CandidateProfileContent';
+import { GoBackLink } from '../components/GoBackLink';
 import {
   CandidateButton,
-  CandidateLink,
   CandidateNotice,
   candidateText,
 } from '../components/candidates/CandidateControls';
@@ -12,6 +13,7 @@ import type { CandidateProfileRecord } from '../components/candidates/types';
 import { isNotFoundError } from '../data/api';
 import { candidateFlow, getCandidateProfile } from '../data/candidates';
 import { candidatePreviewEnabled } from '../lib/candidateLookupAvailability';
+import { useResponsive } from '../hooks/useResponsive';
 import { useDocumentTitle } from '../navigation/documentTitle';
 import type { RootScreenProps } from '../navigation/types';
 import { Footer, PageBackground, TopNav } from '../theme/primitives';
@@ -27,6 +29,7 @@ type ProfileState =
   | { id: string; kind: 'ready'; record: CandidateProfileRecord };
 
 export function CandidateProfileScreen(props: RootScreenProps<'CandidateProfile'>) {
+  const { isMobile } = useResponsive();
   const { navigation, route } = props;
   const id = route.params.candidateId;
   const fromSearch = Boolean(
@@ -48,6 +51,12 @@ export function CandidateProfileScreen(props: RootScreenProps<'CandidateProfile'
   const [state, setState] = useState<ProfileState>({ id, kind: 'loading' });
   const [retry, setRetry] = useState(0);
   const current = state.id === id ? state : { id, kind: 'loading' as const };
+  useEntityReturnPageNames(
+    `/candidates/${id}`,
+    current.kind === 'ready' ? `/candidates/${current.record.candidate.id}` : null,
+    current.kind === 'ready' ? `${current.record.candidate.name}’s candidate profile` : null,
+    current.kind === 'not-found',
+  );
   useEffect(() => {
     if (illustrative) return;
     const controller = new AbortController();
@@ -89,10 +98,12 @@ export function CandidateProfileScreen(props: RootScreenProps<'CandidateProfile'
         {current.kind === 'ready' ? (
           <CandidateProfileContent
             record={current.record}
-            fromSearch={fromSearch}
             onBack={returnToCandidates}
             onOpenLegislator={(slug) =>
               navigation.navigate('LegislatorProfile', { legislatorId: slug })
+            }
+            onOpenPerson={(personId) =>
+              navigation.navigate('PersonOverview', { personId, fromCandidateId: id })
             }
             onOpenProfile={(candidateId) =>
               navigation.navigate('CandidateProfile', { candidateId })
@@ -102,16 +113,23 @@ export function CandidateProfileScreen(props: RootScreenProps<'CandidateProfile'
               record={current.record}
               onClaim={() => navigation.navigate('CandidateClaim', { candidateId: id })}
               onManage={() => navigation.navigate('CandidateManage', { candidateId: id })}
-              onAdmin={() => navigation.navigate('AdminCandidateClaims')}
+              onAdmin={() =>
+                navigation.navigate('AdminCandidateClaims', {
+                  candidateId: id,
+                  fromProfile: true,
+                })
+              }
             />
           </CandidateProfileContent>
         ) : (
           <View style={{ padding: 32, maxWidth: 760, width: '100%', alignSelf: 'center', flex: 1 }}>
-            <CandidateLink
-              internal
-              url="/candidates"
-              label={fromSearch ? 'Back to candidates' : 'Find my candidates'}
+            <GoBackLink
+              destinationName="Find my candidates"
+              href="/candidates"
               onPress={returnToCandidates}
+              mobile={isMobile}
+              pressedColor="#000000"
+              style={{ minHeight: 44, marginBottom: 0 }}
             />
             {current.kind === 'error' ? (
               <CandidateNotice error>

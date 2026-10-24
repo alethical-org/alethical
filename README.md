@@ -41,7 +41,7 @@ pnpm --dir apps/frontend run build
 
 `pnpm-workspace.yaml` enforces a seven-day minimum release age for all resolved packages.
 
-Authenticated frontend features use Supabase Auth. For local web or native sign-in, set these environment variables before starting the frontend:
+Authenticated frontend features use Supabase Auth. For local browser sign-in, set these environment variables before starting the frontend:
 
 ```bash
 SUPABASE_URL=https://your-project.supabase.co
@@ -52,12 +52,10 @@ EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 
 Copy `.env.example` to `.env` at the repo root and fill in your values. That template documents every variable the backend, ingestion pipeline, and frontend read, with safe defaults for everything except the secrets you must supply (Supabase keys, `OPENAI_API_KEY`). The backend loads `.env` from the repo root automatically, and the Expo frontend reads the same file for its `EXPO_PUBLIC_*` values. Keep the `EXPO_PUBLIC_*` values publishable-only; never put service-role keys in frontend environment variables.
 
-The Find My Legislator map uses raster map tiles. For Android/native builds, set a stable tile request identity and use an approved tile URL:
-
-```bash
-EXPO_PUBLIC_MAP_TILE_URL=https://tile.openstreetmap.org/{z}/{x}/{y}.png
-EXPO_PUBLIC_MAP_TILE_USER_AGENT="Alethical/0.1 (+https://www.alethical.com)"
-```
+Alethical supports desktop and phone browsers. Native iOS and Android publishing
+is paused. The [native restart notes](docs/operations/ios-release.md) retain the
+recovery point and requirements for future work; ordinary website setup needs no
+native publishing tools.
 
 Manual Supabase setup:
 
@@ -65,9 +63,9 @@ Manual Supabase setup:
 2. In Google Cloud Console, create or select an OAuth client for the app and add Supabase's Google callback URL from the Supabase Google provider screen.
 3. Copy the Google client ID and client secret into the Supabase Google provider settings.
 4. In Supabase Authentication > URL Configuration, set the site URL to the deployed web app URL when production is ready.
-5. Add redirect URLs for local web, production web, and native deep links:
+5. Add redirect URLs for local and production browsers:
    `http://localhost:19006/**`, `http://127.0.0.1:19006/**`, `https://www.alethical.com/**`,
-   `https://alethical.com/**`, and `alethical://auth/callback`. Do not add any other host: a
+   `https://alethical.com/**`. Do not add any other host: a
    redirect target that is allow-listed here is a host Google sign-in will return people to.
 6. If you use a different local Expo web port, add that exact wildcard origin too, for example `http://localhost:19007/**`.
 

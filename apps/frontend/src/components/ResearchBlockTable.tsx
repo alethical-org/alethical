@@ -50,6 +50,6 @@ const tableCss = `
 .research-table{width:100%;border-collapse:collapse;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums;color:#11150f}
 .research-table th,.research-table td{box-sizing:border-box;padding:13px 16px;font-size:16px;line-height:24px;font-weight:400;text-align:left;border-top:1px solid rgba(17,21,15,.08)}
 .research-table thead th,.research-table thead td{padding:12px 16px;background:#f7f8fa;border-top:0;color:#4f5651;font-size:11px;line-height:normal;font-weight:700;letter-spacing:.7px;text-transform:uppercase}
-.research-table tr>:first-child{width:1%}.research-table tr>:not(:first-child):not(.research-table-spacer){width:1%;min-width:160px;text-align:right;white-space:nowrap}.research-table .research-table-spacer{width:auto;padding:0}.research-table-total th,.research-table-total td{font-weight:700}
+.research-table tr>:first-child{width:1%}.research-table tr>:not(:first-child):not(.research-table-spacer){width:1%;min-width:160px;text-align:right;white-space:nowrap}.research-table .research-table-spacer{width:auto;padding:0;border:0}.research-table-total th,.research-table-total td{font-weight:700}
 @media(min-width:768px){.research-table tr>:first-child{white-space:nowrap}}
 `;

@@ -310,6 +310,9 @@ Reconciliation examples:
 
 - joint roster is authoritative for current membership existence
 - chamber profile page is authoritative for richer member detail
+- House profile parsing uses the parsed hostname `house.mn.gov` or `www.house.mn.gov`,
+  not that text appearing in a query, login name or another website's hostname;
+  biography backfill also keeps its explicit House chamber selection
 - Revisor is authoritative for bill status and text version inventory
 - vote detail adapters can augment, but not replace, canonical bill actions
 

@@ -1,4 +1,6 @@
 import { SOCIAL_ACCOUNTS } from './socialLinks';
+import { ABOUT_DESCRIPTION, ABOUT_EMAIL, ABOUT_TEAM_MEMBERS } from './aboutUs';
+import { ORGANIZATION_REFERENCE } from './organizationIdentity';
 import {
   escapeHtml,
   PUBLIC_SITE_ORIGIN,
@@ -95,28 +97,37 @@ function clean(value: string): string {
  * designed, the markup comes back with it (decisions doc §6 and §12).
  */
 export function pageJsonLd(meta: PageMetadata): object[] {
-  if (meta.canonicalPath === '/') {
+  if (meta.noindex || !meta.canonicalPath) return [];
+  if (meta.canonicalPath === '/' || meta.canonicalPath === '/about') {
     return [
+      ...(meta.canonicalPath === '/'
+        ? [
+            {
+              '@context': 'https://schema.org',
+              '@type': 'WebSite',
+              name: SITE_NAME,
+              url: `${PUBLIC_SITE_ORIGIN}/`,
+              publisher: { '@id': ORGANIZATION_REFERENCE['@id'] },
+            },
+          ]
+        : []),
       {
         '@context': 'https://schema.org',
-        '@type': 'WebSite',
-        name: SITE_NAME,
-        url: `${PUBLIC_SITE_ORIGIN}/`,
-      },
-      {
-        '@context': 'https://schema.org',
-        '@type': 'Organization',
-        name: SITE_NAME,
-        url: `${PUBLIC_SITE_ORIGIN}/`,
+        ...ORGANIZATION_REFERENCE,
+        // The same description and email the About page shows, so the data matches the page.
+        description: ABOUT_DESCRIPTION,
+        email: ABOUT_EMAIL,
+        founder: ABOUT_TEAM_MEMBERS.map((person) => ({ '@type': 'Person', name: person.name })),
+        contactPoint: { '@type': 'ContactPoint', url: publicPageUrl('/about/contact') },
         logo: `${PUBLIC_SITE_ORIGIN}/icon-512.png`,
         // The accounts the footer already links, so a search engine can tie the
         // site and its profiles to one organisation. Google's Organization
         // guidance lists `sameAs` for exactly this; nothing else here is read.
-        sameAs: SOCIAL_ACCOUNTS.map((account) => account.url),
+        sameAs: SOCIAL_ACCOUNTS.flatMap((account) => (account.url ? [account.url] : [])),
       },
     ];
   }
-  return [];
+  return meta.structuredData ?? [];
 }
 
 /**
@@ -135,8 +146,8 @@ export function renderPageHead(meta: PageMetadata): string {
   // Empty on a "not found" page: it is not a copy of any real address, so it
   // declares none rather than pointing a search engine at an unrelated page.
   const url = meta.canonicalPath ? escapeHtml(publicPageUrl(meta.canonicalPath)) : '';
-  const image = escapeHtml(SOCIAL_PREVIEW_IMAGE_URL);
-  const imageAlt = escapeHtml(SOCIAL_PREVIEW_IMAGE_ALT);
+  const image = escapeHtml(meta.socialImage?.url ?? SOCIAL_PREVIEW_IMAGE_URL);
+  const imageAlt = escapeHtml(meta.socialImage?.alt ?? SOCIAL_PREVIEW_IMAGE_ALT);
   const jsonLd = pageJsonLd(meta)
     // `<` is escaped so a stored string can never close the script element early.
     .map(
@@ -168,8 +179,8 @@ export function renderPageHead(meta: PageMetadata): string {
     `    <meta property="og:description" content="${socialDescription}" />`,
     ...(url ? [`    <meta property="og:url" content="${url}" />`] : []),
     `    <meta property="og:image" content="${image}" />`,
-    `    <meta property="og:image:width" content="1200" />`,
-    `    <meta property="og:image:height" content="630" />`,
+    `    <meta property="og:image:width" content="${meta.socialImage?.width ?? 1200}" />`,
+    `    <meta property="og:image:height" content="${meta.socialImage?.height ?? 630}" />`,
     `    <meta property="og:image:alt" content="${imageAlt}" />`,
     `    <meta name="twitter:card" content="summary_large_image" />`,
     `    <meta name="twitter:title" content="${socialTitle}" />`,

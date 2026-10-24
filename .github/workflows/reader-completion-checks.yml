@@ -64,7 +64,11 @@ jobs:
       - name: Test target, privacy, and network safety guards
         run: node --test apps/frontend/scripts/test-reader-completion-policy.mjs
 
+      - name: Bound browser dependency downloads
+        uses: ./.github/actions/prepare-browser-install
+
       - name: Install Chromium
+        timeout-minutes: 10
         run: pnpm --dir apps/frontend exec playwright install --with-deps chromium
 
       # Uses the fixed official address, never a URL carried by an event.

@@ -667,7 +667,7 @@ The overclaim rate is **flat** across passage budgets: 80% at 4 passages, 89% at
 5 of 20 questions still have a partial context — but on the bills that remain
 partial, models overclaim just as often.
 
-> **The scores above were produced against a prompt production no longer sends, and the re-run below must fix that first** ([#868](https://github.com/alethical-org/alethical/issues/868), Jul 31 2026). This eval imports `RAG_CHAT_SYSTEM_PROMPT` by identity so it can never score a drifted *copy* — a good guard, and #868 slipped past it, because the drift is not a copy but a **layer production adds on top**. Production now composes that constant with a coverage rule that forbids exactly the overclaiming this section measures: on a partial read it says *"NEVER state or imply that the bill omits … something"* and *"NEVER give a total, a count, or a list you call complete"*, and on either read *"NEVER tell the reader your list is complete."*
+> **The scores above were produced against a prompt production no longer sends, and the re-run below must fix that first** ([#868](https://github.com/alethical-org/alethical/issues/868), Jul 31 2026). This eval imports `RAG_CHAT_SYSTEM_PROMPT` by identity so it can never score a drifted *copy* — a good guard, and #868 slipped past it, because the drift is not a copy but a **layer production adds on top**. Production now composes that constant with a coverage rule that forbids the overclaiming measured here. Partial reads cannot support claims that a bill omits something or claims of complete totals, counts or lists. Neither partial nor complete reads permit the model to describe its own list as complete.
 >
 > So **the 80% / 89% / 80% figures are the overclaim rate of an unprompted model**, which is the right number for the question this section asks (does more context fix it?) and the wrong one for "what will a reader see." Call `rag_chat_system_prompt(coverage)` (`alethical/api/routers/me.py`) instead of the constant. **This originally said to pass `rag_chat_system_prompt(None)` — the partial rule — for everything, and that is the fix the code has since tried and rejected:** `production_system_prompt()` (`scripts/answer_eval.py`) records that a blanket `None` "was right when every frozen context was four passages … and wrong the moment #868 started reading some bills whole." It now derives coverage per question. The baseline itself is still deliberately unmoved, because shifting a published baseline mid-decision is worse than a recorded gap.
 >
@@ -1138,7 +1138,7 @@ that this fixture cannot.
 ### What is deliberately not being done here
 
 **The live model is not being changed.** This section is a recommendation; the
-switch is Eugene's, because it changes what every visitor reads and what every
+switch requires separate product approval, because it changes what every visitor reads and what every
 answer costs. Nothing in this work modified `OPENAI_RAG_CHAT_MODEL` in any
 environment.
 
@@ -1261,11 +1261,11 @@ worth taking from it:
   record of what was measured on 20 questions, and this section says plainly where
   that record did not replicate rather than editing it to agree.
 - **No model configuration moved.** `OPENAI_RAG_CHAT_MODEL` is unchanged in every
-  environment; the choice remains Eugene's.
-- **The coverage-rule wording is untouched.** It belongs to
-  [#868](https://github.com/alethical-org/alethical/issues/868)'s session, which asked
-  to be told once a fixture made a prompt experiment measurable. It now is: three
-  enumerable bills, two scales, one non-place shape, sampled three times.
+  environment; the choice requires separate product approval.
+- **The coverage-rule wording is untouched.** Its ownership remains with
+  [#868](https://github.com/alethical-org/alethical/issues/868). The fixture now supports
+  a measurable prompt experiment: 3 enumerable bills, 2 scales and 1 non-place
+  shape, sampled 3 times.
 - **Cost: $0.25 measured for generation** — 68 answers, and the only half the eval
   meters — against a pre-run estimate of $3.40 for the whole thing including the 88
   judgments, itself under the $3.81 #895 authorised and against ~$11 for §12's seven

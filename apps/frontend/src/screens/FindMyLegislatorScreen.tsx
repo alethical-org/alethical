@@ -1,5 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -8,7 +8,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
@@ -16,7 +15,16 @@ import { AlertCircle, Crosshair, Search } from '../components/icons';
 
 import { MINNESOTA_MAP_VIEWPORT, MapPinPicker, type MapViewport } from '../components/MapPinPicker';
 import { RepresentativeCard, VacantSeatCard } from '../components/find/RepresentativeCard';
-import { ApiError } from '../data/api';
+import {
+  AddressSuggestionField,
+  type AddressFieldHandle,
+} from '../components/address/AddressSuggestionField';
+import {
+  ApiError,
+  lookupRepresentativeFromApi,
+  suggestRepresentativeAddressesFromApi,
+} from '../data/api';
+import { readerIsSavingData } from '../lib/dataSaving';
 import { isCoordinateInMinnesota } from '../data/minnesotaBoundary';
 import type {
   RepresentativeAddressChoice,
@@ -25,12 +33,8 @@ import type {
 } from '../data/types';
 import { useResponsive } from '../hooks/useResponsive';
 import { useHistoryScrollRestoration } from '../hooks/useHistoryScrollRestoration';
-import { useAddressSuggestions, useRepresentativeLookup } from '../hooks/useAppQueries';
-import { useDebouncedSearchCommit } from '../hooks/useDebouncedSearchCommit';
+import { useRepresentativeLookup } from '../hooks/useAppQueries';
 import {
-  FIND_MY_LEGISLATOR_INSTRUCTIONS,
-  addressSuggestionInput,
-  addressSuggestionResultsAreCurrent,
   addressChoiceKey,
   confirmedAddressForLookup,
   legislatureLabel,
@@ -41,15 +45,13 @@ import {
 import { recordSiteMetricEvent } from '../lib/siteMetricEvents';
 import type { IaItem, MenuKey } from '../navigation/ia';
 import type { RootStackParamList } from '../navigation/types';
-import { currentAddressInput } from '../lib/currentAddressInput';
-import { browserFillTextInputProps } from '../theme/browserFill';
-import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../theme/fieldFocus';
 import { Container, Footer, PageBackground, TopNav } from '../theme/primitives';
 import { theme as t } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FindMyLegislator'>;
-const EXAMPLE_ADDRESS = '350 S 5th St, Minneapolis, MN 55415';
 const ADDRESS_ERROR_ID = 'find-legislator-address-error';
+const ADDRESS_HELP_ID = 'find-legislator-address-help';
+const ADDRESS_HELP = 'A city or ZIP code alone cannot identify your legislators';
 const LOCATION_ERROR_ID = 'find-legislator-location-error';
 const ADDRESS_CHOICES_ID = 'find-legislator-address-choices';
 const isWeb = Platform.OS === 'web';
@@ -124,22 +126,41 @@ function reducedMotion() {
     : false;
 }
 
+/** The checked request for a marked choice: the exact text the reader picked. */
+function selectedChoiceInput(choice: RepresentativeAddressChoice, shown: string) {
+  return { latitude: choice.latitude, longitude: choice.longitude, selectedAddress: shown };
+}
+
 function errorKind(error: unknown) {
   if (!(error instanceof ApiError)) return 'service-down' as const;
   if (error.problem === 'representative-lookup-outside-minnesota')
     return 'outside-minnesota' as const;
   if (error.status === 429) return 'rate-limited' as const;
+  // Official points for this address fall in different districts: never guess.
+  if (error.problem === 'representative-lookup-ambiguous-location')
+    return 'ambiguous-location' as const;
   if (error.status === 404) return 'not-found' as const;
   return 'service-down' as const;
 }
 
 function errorCopy(
-  state: 'not-found' | 'outside-minnesota' | 'location-error' | 'rate-limited' | 'service-down',
+  state:
+    | 'not-found'
+    | 'ambiguous-location'
+    | 'outside-minnesota'
+    | 'location-error'
+    | 'rate-limited'
+    | 'service-down',
 ) {
   if (state === 'not-found')
     return {
       field: 'No match for that address',
-      answer: 'Enter a house number and street name, like 350 S 5th St, Minneapolis, MN 55415',
+      answer: 'Enter a house number and street name, like 350 S 5th St, Minneapolis 55415',
+    };
+  if (state === 'ambiguous-location')
+    return {
+      field: 'We couldn’t safely identify your districts from this address',
+      answer: 'Check your full street address, or choose where you live on the map',
     };
   if (state === 'outside-minnesota')
     return {
@@ -196,7 +217,7 @@ function DistrictChips({
 }
 
 export function FindMyLegislatorScreen({ navigation, route }: Props) {
-  const { isMobile } = useResponsive();
+  const { isMobile, isDesktop } = useResponsive();
   const historyScrollProps = useHistoryScrollRestoration();
   const requestedAddress =
     typeof route.params?.address === 'string' ? route.params.address : undefined;
@@ -213,40 +234,78 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [choiceIndex, setChoiceIndex] = useState(0);
   const [choiceClosed, setChoiceClosed] = useState(false);
-  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
-  const [suggestionInput, setSuggestionInput] = useState('');
   const [findingLocation, setFindingLocation] = useState(false);
   const [rateLimitSeconds, setRateLimitSeconds] = useState(0);
   const [shimmerEnabled, setShimmerEnabled] = useState(false);
   const [findHovered, setFindHovered] = useState(false);
   const [locationHovered, setLocationHovered] = useState(false);
-  const { focused: addressFocused, focusProps: addressFocusProps } = useFieldFocus();
-  const lookup = useRepresentativeLookup();
-  const currentSuggestionInput = addressSuggestionInput(address) ?? '';
-  useDebouncedSearchCommit(currentSuggestionInput, suggestionInput, setSuggestionInput, 300);
-  const suggestionsAreCurrent = addressSuggestionResultsAreCurrent(
-    currentSuggestionInput,
-    suggestionInput,
+  const [retainedServiceError, setRetainedServiceError] = useState<unknown>(null);
+  const locationGeneration = useRef(0);
+  useEffect(
+    () => () => {
+      locationGeneration.current += 1;
+    },
+    [],
   );
-  const addressSuggestions = useAddressSuggestions(suggestionInput, {
-    enabled: suggestionsOpen && suggestionsAreCurrent && !lookup.isPending,
-  });
+  const lookup = useRepresentativeLookup();
+  const lookupError = lookup.error ?? retainedServiceError;
   const autoRanFor = useRef<string | null>(null);
-  const addressInputRef = useRef<TextInput | null>(null);
-  useLayoutEffect(() => {
-    if (!isWeb) return;
-    const field = addressInputRef.current as unknown as HTMLInputElement | null;
-    if (field && field.value !== address) field.value = address;
-  }, [address]);
+  const addressInputRef = useRef<AddressFieldHandle>(null);
+  const suggest = useCallback(
+    async (value: string, signal: AbortSignal) =>
+      (await suggestRepresentativeAddressesFromApi(value, signal)).map((choice) => ({
+        id: `${choice.matchedAddress}-${choice.latitude}-${choice.longitude}`,
+        address: choice.matchedAddress,
+        value: choice,
+      })),
+    [],
+  );
+  // Start the current-records check for at most 2 rows per typed address, so
+  // pointing at a row hides most of its wait without spending the lookup limit.
+  // It is optional, so a reader saving data or on a slow connection skips it;
+  // a deliberate pick still runs the same check.
+  const preparedChoices = useRef<{ address: string; keys: Set<string> }>({
+    address: '',
+    keys: new Set(),
+  });
+  const prepareChoice = (choice: RepresentativeAddressChoice, shown: string) => {
+    if (!choice.requiresLocationCheck || rateLimitSeconds > 0 || lookup.isPending) return;
+    if (readerIsSavingData()) return;
+    const typed = addressInputRef.current?.value() ?? address;
+    if (preparedChoices.current.address !== typed)
+      preparedChoices.current = { address: typed, keys: new Set() };
+    const { keys } = preparedChoices.current;
+    if (keys.has(shown) || keys.size >= 2) return;
+    keys.add(shown);
+    // Shared with the pick through the lookup's in-flight and 60-second reuse,
+    // which match because both send the shown text, apartment and ZIP+4 included.
+    lookupRepresentativeFromApi(selectedChoiceInput(choice, shown)).catch(() => undefined);
+  };
+  const choicesRef = useRef<View>(null);
+  const confirmedChoice = useRef<
+    { coordinate: RepresentativeLookupCoordinates; address: string } | undefined
+  >(undefined);
+  const lastFoundAddress = useRef<string | undefined>(undefined);
   const lastFoundResult = useRef<RepresentativeLookupResult | undefined>(undefined);
   const recordedFoundResult = useRef<RepresentativeLookupResult | undefined>(undefined);
   const geolocation = browserGeolocation();
   const result = lookup.data ?? undefined;
   const settledResult = lookup.isPending ? undefined : result;
   const retainLastFoundResult =
-    preserveMapViewport && (lookup.isPending || Boolean(lookup.error) || Boolean(clientError));
+    lookup.isPending ||
+    Boolean(lookupError) ||
+    Boolean(clientError) ||
+    settledResult?.status !== 'found';
   const retainedMapResult = retainLastFoundResult ? lastFoundResult.current : undefined;
   const displayedResult = retainedMapResult ?? settledResult;
+  const resultAddress = settledResult?.address;
+  const settledAddress =
+    confirmedChoice.current && lookup.variables === confirmedChoice.current.coordinate
+      ? confirmedChoice.current.address
+      : resultAddress && !/^-?[\d.]+\s*,\s*-?[\d.]+$/.test(resultAddress)
+        ? resultAddress
+        : undefined;
+  const displayedAddress = retainedMapResult ? lastFoundAddress.current : settledAddress;
   const alignRepresentativeSections = Boolean(
     !isMobile &&
     displayedResult?.status === 'found' &&
@@ -257,25 +316,12 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     settledResult?.status === 'address-choice' && !choiceClosed
       ? (settledResult.choices ?? []).slice(0, 5)
       : [];
-  const suggestedChoices =
-    suggestionsOpen && suggestionsAreCurrent && !lookupChoices.length
-      ? (addressSuggestions.data ?? []).slice(0, 5)
-      : [];
-  const choices = lookupChoices.length ? lookupChoices : suggestedChoices;
-  const showingSuggestions = !lookupChoices.length && suggestedChoices.length > 0;
-  const suggestionStatus =
-    suggestionsOpen && suggestionsAreCurrent
-      ? addressSuggestions.isFetching
-        ? 'Finding matching addresses…'
-        : addressSuggestions.isError
-          ? 'Address suggestions are unavailable. You can still choose Find.'
-          : addressSuggestions.isSuccess && !addressSuggestions.data.length
-            ? 'No matching Minnesota addresses yet. Keep typing.'
-            : null
-      : null;
-  // Phone browsers can move a focused field when content appears above the
-  // on-screen keyboard. Reserve this row so loading copy does not change height.
-  const keepSuggestionStatusSpace = isMobile && !choices.length;
+  const choices = lookupChoices;
+  useEffect(() => {
+    if (settledResult?.status === 'address-choice' && !choiceClosed) {
+      (choicesRef.current as unknown as HTMLElement | null)?.focus?.();
+    }
+  }, [settledResult, choiceClosed]);
   const found = settledResult?.status === 'found';
   const hasVacancy = Boolean(
     found && (!settledResult.houseLegislator || !settledResult.senateLegislator),
@@ -285,20 +331,24 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     found,
     choices: lookupChoices.length,
     vacant: hasVacancy,
-    error: clientError ?? (lookup.error ? errorKind(lookup.error) : undefined),
+    error: clientError ?? (lookupError ? errorKind(lookupError) : undefined),
   });
   const activeError =
     state === 'not-found' ||
+    state === 'ambiguous-location' ||
     state === 'outside-minnesota' ||
     state === 'location-error' ||
     state === 'rate-limited' ||
     state === 'service-down'
       ? errorCopy(state)
       : null;
-  const addressError =
-    activeError && state !== 'location-error' && !retainedMapResult ? activeError : null;
+  const addressError = activeError && state !== 'location-error' ? activeError : null;
+  const addressInvalid =
+    state === 'not-found' || state === 'ambiguous-location' || state === 'outside-minnesota';
   const locationButtonError = state === 'location-error' ? activeError : null;
-  const mapUpdateLabel = lookup.isPending ? 'Updating districts' : 'Couldn’t update districts';
+  const mapUpdateLabel = lookup.isPending
+    ? 'Updating legislators: showing the previous results'
+    : 'Couldn’t update legislators: showing the previous results';
 
   useEffect(() => {
     if (!(lookup.error instanceof ApiError) || lookup.error.status !== 429) return;
@@ -317,12 +367,13 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (settledResult?.status === 'found') {
       lastFoundResult.current = settledResult;
+      lastFoundAddress.current = settledAddress;
       if (recordedFoundResult.current !== settledResult) {
         recordedFoundResult.current = settledResult;
         recordSiteMetricEvent('find_my_legislator_with_results');
       }
     }
-  }, [settledResult]);
+  }, [settledResult, settledAddress]);
 
   useEffect(() => {
     if (!lookup.isPending) {
@@ -336,7 +387,10 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (
       address.trim() &&
-      (state === 'not-found' || state === 'outside-minnesota' || state === 'service-down')
+      (state === 'not-found' ||
+        state === 'ambiguous-location' ||
+        state === 'outside-minnesota' ||
+        state === 'service-down')
     ) {
       addressInputRef.current?.focus();
     }
@@ -364,12 +418,15 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     if (rateLimitSeconds > 0) return;
     const { serviceAddress } = prepareAddressLookup(value);
     if (!serviceAddress) return;
+    locationGeneration.current += 1;
+    setFindingLocation(false);
+    setRetainedServiceError(null);
     setAddress(value);
     setClientError(null);
     setPreserveMapViewport(false);
     setSelectedCoordinate(undefined);
     setChoiceClosed(false);
-    setSuggestionsOpen(false);
+    addressInputRef.current?.dismiss();
     setChoiceIndex(0);
     autoRanFor.current = serviceAddress;
     navigation.setParams({
@@ -385,9 +442,12 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     source: 'choice' | 'location' | 'map' = 'map',
   ) => {
     if (rateLimitSeconds > 0) return;
+    locationGeneration.current += 1;
+    setFindingLocation(false);
+    setRetainedServiceError(null);
     setClientError(null);
     setChoiceClosed(true);
-    setSuggestionsOpen(false);
+    addressInputRef.current?.dismiss();
     if (!isCoordinateInMinnesota(coordinate)) {
       lookup.reset();
       setSelectedCoordinate(undefined);
@@ -445,18 +505,21 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const useLocation = () => {
     if (findingLocation || lookup.isPending || rateLimitSeconds > 0) return;
     setAddress('');
-    setSuggestionsOpen(false);
+    addressInputRef.current?.dismiss();
     lookup.reset();
     setPreserveMapViewport(false);
     setSelectedCoordinate(undefined);
     setClientError(null);
+    setRetainedServiceError(null);
     if (!geolocation) {
       setClientError('location');
       return;
     }
     setFindingLocation(true);
+    const request = ++locationGeneration.current;
     geolocation.getCurrentPosition(
       (position) => {
+        if (request !== locationGeneration.current) return;
         setFindingLocation(false);
         runCoordinate(
           { latitude: position.coords.latitude, longitude: position.coords.longitude },
@@ -464,6 +527,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
         );
       },
       () => {
+        if (request !== locationGeneration.current) return;
         setFindingLocation(false);
         setClientError('location');
       },
@@ -472,16 +536,31 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   };
   const editAddress = (value: string) => {
     setAddress(value);
+    // Reset detaches this screen from unfinished mutation replies. Keep an
+    // already-reported service failure, which clearing text cannot repair.
+    if (lookupError && ['service-down', 'rate-limited'].includes(errorKind(lookupError)))
+      setRetainedServiceError(lookupError);
     lookup.reset();
     setClientError(null);
     setSelectedCoordinate(undefined);
     setChoiceClosed(false);
-    setSuggestionsOpen(true);
     setChoiceIndex(0);
+  };
+  const clearAddress = () => {
+    locationGeneration.current += 1;
+    setFindingLocation(false);
+    setChoiceClosed(true);
+    confirmedChoice.current = undefined;
+    navigation.setParams({
+      address: undefined,
+      coordinate: undefined,
+      lookupAddress: undefined,
+      locationFailure: undefined,
+    });
   };
   const findAddress = () => {
     if (lookup.isPending || rateLimitSeconds > 0) return;
-    const value = currentAddressInput(addressInputRef.current, address);
+    const value = addressInputRef.current?.value() ?? address;
     if (!value.trim()) {
       setAddress(value);
       addressInputRef.current?.focus();
@@ -489,28 +568,35 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     }
     runAddress(value);
   };
-  const chooseAddress = (choice: RepresentativeAddressChoice) => {
+  const chooseAddress = (choice: RepresentativeAddressChoice, selectedAddress?: string) => {
     if (lookup.isPending || rateLimitSeconds > 0) return;
-    const value = currentAddressInput(addressInputRef.current, address);
-    if (value !== address) {
+    const value = addressInputRef.current?.value() ?? address;
+    if (selectedAddress === undefined && value !== address) {
       setChoiceClosed(true);
-      setSuggestionsOpen(false);
+      addressInputRef.current?.dismiss();
       findAddress();
       return;
     }
-    const { serviceAddress } = prepareAddressLookup(choice.matchedAddress);
-    setAddress(choice.matchedAddress);
+    const matchedAddress = selectedAddress ?? choice.matchedAddress;
+    const { serviceAddress } = prepareAddressLookup(matchedAddress);
+    setAddress(matchedAddress);
     setChoiceClosed(true);
-    setSuggestionsOpen(false);
+    addressInputRef.current?.dismiss();
     setPreserveMapViewport(false);
     autoRanFor.current = serviceAddress || null;
     navigation.setParams({
-      address: choice.matchedAddress,
+      address: matchedAddress,
       coordinate: undefined,
       lookupAddress: undefined,
       locationFailure: undefined,
     });
-    runCoordinate({ latitude: choice.latitude, longitude: choice.longitude }, 'choice');
+    // A copied or conflicting point is only a hint: the server checks the printed
+    // address against current official records before choosing districts.
+    const coordinate = choice.requiresLocationCheck
+      ? selectedChoiceInput(choice, matchedAddress)
+      : { latitude: choice.latitude, longitude: choice.longitude };
+    confirmedChoice.current = { coordinate, address: matchedAddress };
+    runCoordinate(coordinate, 'choice');
   };
   const onChoiceKey = (event: { nativeEvent?: { key?: string }; preventDefault?: () => void }) => {
     const action = addressChoiceKey(event.nativeEvent?.key ?? '', choiceIndex, choices.length);
@@ -520,15 +606,17 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     if (action.action === 'choose') chooseAddress(choices[action.index]);
     if (action.action === 'close') {
       setChoiceClosed(true);
-      setSuggestionsOpen(false);
+      addressInputRef.current?.dismiss();
       addressInputRef.current?.focus();
     }
   };
   const onChoiceListKey = (event: {
     nativeEvent?: { key?: string };
     preventDefault?: () => void;
+    target?: unknown;
+    currentTarget?: unknown;
   }) => {
-    if (event.nativeEvent?.key === 'Enter') return;
+    if (event.nativeEvent?.key === 'Enter' && event.target !== event.currentTarget) return;
     onChoiceKey(event);
   };
   const navigateFromMenu = (item: IaItem) => {
@@ -538,7 +626,8 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
     if (item.id === 'track-bills') navigation.navigate('Tabs', { screen: 'Tracked' });
   };
   const mapResult = displayedResult?.status === 'found' ? displayedResult : undefined;
-  const mapCoordinate = state === 'looking' ? selectedCoordinate : mapResult?.coordinate;
+  const mapCoordinate =
+    state === 'looking' ? (selectedCoordinate ?? mapResult?.coordinate) : mapResult?.coordinate;
   const map = (
     <MapPinPicker
       coordinate={mapCoordinate}
@@ -550,6 +639,8 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       initialViewport={mapViewport}
       onViewportChange={setMapViewport}
       mobile={isMobile}
+      // Printed once, opening the notes at the foot; the address field still names it.
+      leadNote={{ id: ADDRESS_HELP_ID, text: ADDRESS_HELP }}
       onCoordinateChange={(coordinate) => {
         setPreserveMapViewport(true);
         runCoordinate(coordinate, 'map');
@@ -583,17 +674,21 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       style={({ pressed }) => [
         styles.findButton,
         mobile && styles.fullWidthButton,
-        findHovered && styles.findButtonHovered,
-        lookupDisabled && styles.disabledButton,
-        pressed && styles.pressed,
+        findHovered && !lookupDisabled && styles.findButtonHovered,
+        rateLimitSeconds > 0 && styles.disabledButton,
+        pressed && !lookupDisabled && styles.pressed,
       ]}
     >
-      <Search size={17} color="#06231a" aria-hidden />
+      {lookup.isPending ? (
+        <ActivityIndicator size="small" color="#06231a" />
+      ) : (
+        <Search size={17} color="#06231a" aria-hidden />
+      )}
       <Text style={[styles.findButtonText, mobile && styles.findButtonTextMobile]}>
         {rateLimitSeconds > 0
           ? `Try again in ${rateLimitSeconds}s`
-          : mobile
-            ? 'Find my legislator'
+          : lookup.isPending
+            ? 'Finding…'
             : 'Find'}
       </Text>
     </Pressable>
@@ -611,9 +706,9 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
       style={({ pressed }) => [
         styles.locationButton,
         mobile && styles.locationButtonMobile,
-        locationHovered && styles.locationButtonHovered,
+        locationHovered && !locationDisabled && styles.locationButtonHovered,
         locationDisabled && styles.disabledButton,
-        pressed && styles.pressed,
+        pressed && !locationDisabled && styles.pressed,
       ]}
     >
       <Crosshair size={mobile ? 18 : 19} color="#11150f" aria-hidden />
@@ -644,63 +739,55 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
               aria-level={1}
               style={[styles.title, isMobile && styles.titleMobile]}
             >
-              Find my legislator
+              Find my legislators
             </Text>
-            <Text style={styles.explainer}>{FIND_MY_LEGISLATOR_INSTRUCTIONS}</Text>
+            <Text
+              style={[
+                styles.description,
+                {
+                  fontSize: isMobile ? 16.5 : isDesktop ? 19 : 18,
+                  lineHeight: isMobile ? 25 : isDesktop ? 28.5 : 27,
+                },
+              ]}
+            >
+              See who represents you in the Minnesota House and Senate
+            </Text>
           </View>
           <View style={styles.addressArea}>
+            <Text nativeID="find-legislator-address-label" style={styles.addressLabel}>
+              Full street address
+            </Text>
             <View style={[styles.controlRow, isMobile && styles.controlRowMobile]}>
               <View
-                {...(isWeb ? ({ onKeyDownCapture: onChoiceKey } as object) : null)}
-                style={[
-                  styles.inputShell,
-                  isMobile && styles.inputShellMobile,
-                  addressError && styles.inputShellError,
-                  ...fieldFocusRing(addressFocused),
-                ]}
+                style={{
+                  flex: isMobile ? undefined : 1,
+                  minWidth: isMobile ? 0 : 260,
+                  width: isMobile ? '100%' : undefined,
+                  zIndex: 2,
+                }}
               >
-                <TextInput
-                  ref={addressInputRef}
-                  {...browserFillTextInputProps}
-                  accessibilityLabel="Full Minnesota street address"
-                  aria-describedby={addressError ? ADDRESS_ERROR_ID : undefined}
-                  aria-invalid={addressError ? true : undefined}
-                  {...(!isWeb ? ({ onKeyPress: onChoiceKey } as object) : null)}
-                  {...({
-                    role: 'combobox',
-                    'aria-autocomplete': 'list',
-                    'aria-expanded': choices.length > 0,
-                    'aria-controls': choices.length > 0 ? ADDRESS_CHOICES_ID : undefined,
-                    'aria-activedescendant':
-                      choices.length > 0 ? `find-legislator-choice-${choiceIndex}` : undefined,
-                  } as object)}
-                  autoComplete="street-address"
-                  placeholder={EXAMPLE_ADDRESS}
-                  placeholderTextColor={t.colors.text.faint}
-                  // A suggestion or hover render must not erase browser-filled
-                  // text before its change event; explicit edits sync above.
-                  {...(isWeb ? { defaultValue: address } : { value: address })}
-                  onChangeText={editAddress}
-                  onSubmitEditing={findAddress}
-                  style={[styles.input, isMobile && styles.inputMobile, fieldOutlineReset]}
-                  onFocus={() => {
-                    const value = currentAddressInput(addressInputRef.current, address);
-                    if (value !== address) editAddress(value);
-                    addressFocusProps.onFocus();
-                    setChoiceClosed(false);
-                    if (!lookup.error && !clientError) setSuggestionsOpen(true);
-                  }}
-                  onBlur={() => {
-                    const value = currentAddressInput(addressInputRef.current, address);
-                    if (value !== address) editAddress(value);
-                    addressFocusProps.onBlur();
-                    if (!isWeb) setSuggestionsOpen(false);
-                  }}
-                  {...({ name: 'street-address' } as object)}
+                <AddressSuggestionField
+                  fieldRef={addressInputRef}
+                  address={address}
+                  onAddress={editAddress}
+                  onClear={clearAddress}
+                  suggestionsEnabled={!choices.length && rateLimitSeconds === 0}
+                  suggest={suggest}
+                  onPrepare={prepareChoice}
+                  onSubmit={(value, choice) =>
+                    choice ? chooseAddress(choice, value) : runAddress(value)
+                  }
+                  labelId="find-legislator-address-label"
+                  describedBy={
+                    addressError ? `${ADDRESS_HELP_ID} ${ADDRESS_ERROR_ID}` : ADDRESS_HELP_ID
+                  }
+                  invalid={addressInvalid}
+                  busy={lookup.isPending}
+                  mobile={isMobile}
                 />
-                {!isMobile ? renderFindButton(false) : null}
               </View>
-              {!isMobile ? renderLocationButton(false) : null}
+              {renderFindButton(isMobile)}
+              {renderLocationButton(isMobile)}
             </View>
             {addressError ? (
               <View nativeID={ADDRESS_ERROR_ID} style={styles.fieldErrorRow}>
@@ -718,25 +805,13 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                 </Text>
               </View>
             ) : null}
-            {suggestionStatus || keepSuggestionStatusSpace ? (
-              <View style={styles.suggestionStatusSlot}>
-                {suggestionStatus ? (
-                  <Text style={styles.suggestionStatus} accessibilityLiveRegion="polite">
-                    {suggestionStatus}
-                  </Text>
-                ) : null}
-              </View>
-            ) : null}
             {choices.length ? (
               <View style={styles.choiceWrap}>
-                <Text style={styles.choiceTitle}>
-                  {showingSuggestions
-                    ? choices.length === 1
-                      ? 'Suggested address'
-                      : 'Suggested addresses'
-                    : 'Choose your address'}
-                </Text>
+                <Text style={styles.choiceTitle}>Choose your address</Text>
                 <View
+                  ref={choicesRef}
+                  tabIndex={0}
+                  aria-activedescendant={`find-legislator-choice-${choiceIndex}`}
                   nativeID={ADDRESS_CHOICES_ID}
                   {...({ role: 'listbox' } as object)}
                   accessibilityLabel="Matching Minnesota addresses"
@@ -767,27 +842,15 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                 ) : null}
               </View>
             ) : null}
-            {isMobile ? renderFindButton(true) : null}
-            {isMobile ? renderLocationButton(true) : null}
           </View>
 
-          {state === 'empty' ? renderMapSection() : null}
+          {state === 'empty' && !displayedResult ? renderMapSection() : null}
           <View
-            style={state === 'empty' ? undefined : styles.answer}
+            style={state === 'empty' && !displayedResult ? undefined : styles.answer}
             accessibilityLiveRegion="polite"
           >
             {state === 'looking' && !retainedMapResult ? (
               <View accessible accessibilityLabel="Looking up districts">
-                <View style={styles.looking}>
-                  {reducedMotion() ? (
-                    <View style={styles.staticSpinner} />
-                  ) : (
-                    <ActivityIndicator color="#6f756f" />
-                  )}
-                  <Text style={[styles.lookingTitle, isMobile && styles.lookingTitleMobile]}>
-                    Looking up districts
-                  </Text>
-                </View>
                 <View style={[styles.skeletonCards, isMobile && styles.skeletonCardsMobile]}>
                   <LoadingCard animate={shimmerEnabled} />
                   <LoadingCard animate={shimmerEnabled} />
@@ -800,10 +863,25 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
               </View>
             ) : null}
             {displayedResult?.status === 'found' ? (
-              <View
-                style={styles.foundWrap}
-                accessibilityState={{ busy: Boolean(retainedMapResult) }}
-              >
+              <View style={styles.foundWrap} accessibilityState={{ busy: lookup.isPending }}>
+                {retainedMapResult && (lookup.isPending || activeError) ? (
+                  <View
+                    accessible
+                    accessibilityLabel={mapUpdateLabel}
+                    accessibilityLiveRegion="polite"
+                  >
+                    <View style={styles.mapUpdatingBadge}>
+                      {!lookup.isPending ? (
+                        <AlertCircle size={18} color="#a36215" aria-hidden />
+                      ) : reducedMotion() ? (
+                        <View style={styles.staticSpinner} />
+                      ) : (
+                        <ActivityIndicator color="#2d7a52" />
+                      )}
+                      <Text style={styles.mapUpdatingText}>{mapUpdateLabel}</Text>
+                    </View>
+                  </View>
+                ) : null}
                 <View style={[styles.foundHeader, foundHeaderGradient]}>
                   {!isMobile ? (
                     <View aria-hidden style={styles.foundHeaderPin}>
@@ -822,6 +900,9 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                     <Text accessibilityRole="header" aria-level={2} style={styles.answerTitle}>
                       Your Minnesota legislators
                     </Text>
+                    {displayedAddress ? (
+                      <Text style={styles.addressHint}>{displayedAddress}</Text>
+                    ) : null}
                     {isMobile && displayedResult.houseDistrict && displayedResult.senateDistrict ? (
                       <DistrictChips
                         houseDistrict={displayedResult.houseDistrict}
@@ -913,30 +994,11 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
                     />
                   )}
                 </View>
-                {retainedMapResult ? (
-                  <View
-                    accessible
-                    accessibilityLabel={mapUpdateLabel}
-                    accessibilityLiveRegion="polite"
-                    style={styles.mapUpdatingOverlay}
-                  >
-                    <View style={styles.mapUpdatingBadge}>
-                      {!lookup.isPending ? (
-                        <AlertCircle size={18} color="#a36215" aria-hidden />
-                      ) : reducedMotion() ? (
-                        <View style={styles.staticSpinner} />
-                      ) : (
-                        <ActivityIndicator color="#2d7a52" />
-                      )}
-                      <Text style={styles.mapUpdatingText}>{mapUpdateLabel}</Text>
-                    </View>
-                  </View>
-                ) : null}
               </View>
             ) : null}
           </View>
 
-          {state !== 'empty' ? renderMapSection() : null}
+          {state !== 'empty' || displayedResult ? renderMapSection() : null}
         </Container>
         <Footer
           onPrivacy={() => navigation.navigate('Privacy')}
@@ -952,7 +1014,8 @@ const styles = StyleSheet.create({
   scrollContent: { minHeight: '100%' },
   main: { maxWidth: 1180, alignSelf: 'center', paddingTop: 74, paddingBottom: 88 },
   mainMobile: { paddingTop: 44, paddingBottom: 64 },
-  intro: { maxWidth: 780, gap: 16 },
+  intro: { maxWidth: 780, gap: 14 },
+  description: { fontFamily: t.typography.body, color: '#4f5651' },
   title: {
     fontFamily: t.typography.title,
     fontSize: 52,
@@ -961,58 +1024,49 @@ const styles = StyleSheet.create({
     color: t.colors.ink,
   },
   titleMobile: { fontSize: 38, lineHeight: 43 },
-  explainer: {
+  addressArea: { marginTop: 34, maxWidth: 900, width: '100%', gap: 8, zIndex: 2 },
+  addressLabel: {
     fontFamily: t.typography.body,
-    fontSize: 18,
-    lineHeight: 29,
-    color: t.colors.text.secondary,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#11150f',
   },
-  addressArea: { marginTop: 34, maxWidth: 900, width: '100%', gap: 8 },
-  controlRow: { width: '100%', flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  controlRowMobile: { flexDirection: 'column' },
-  inputShell: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 62,
+  addressHint: {
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#4f5651',
+    marginBottom: 4,
+  },
+  controlRow: {
+    zIndex: 1,
+    flexWrap: 'wrap',
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(17,21,15,0.16)',
-    paddingVertical: 4,
-    paddingLeft: 20,
-    paddingRight: 8,
+    gap: 12,
   },
-  inputShellMobile: { width: '100%' },
-  inputShellError: { borderColor: '#a3421a' },
-  input: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 52,
-    fontFamily: t.typography.body,
-    fontSize: 18,
-    color: t.colors.ink,
-  },
-  inputMobile: { fontSize: 16 },
+  controlRowMobile: { flexDirection: 'column', alignItems: 'stretch' },
   findButton: {
-    minHeight: 44,
+    minHeight: 60,
+    width: 150,
     flexDirection: 'row',
     gap: 9,
     borderRadius: 12,
     backgroundColor: '#2ed47e',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 13,
-    paddingRight: 26,
-    paddingBottom: 13,
-    paddingLeft: 23,
+    // The magnifier carries less weight than the word: centre the pair 3px left.
+    paddingTop: 6,
+    paddingRight: 23,
+    paddingBottom: 6,
+    paddingLeft: 17,
   },
   findButtonHovered: { backgroundColor: '#28bf71' },
   disabledButton: { opacity: 0.55 },
   fullWidthButton: {
     width: '100%',
-    minHeight: 48,
+    minHeight: 60,
   },
   findButtonText: {
     fontFamily: t.typography.ui,
@@ -1030,8 +1084,8 @@ const styles = StyleSheet.create({
     color: '#a36215',
   },
   locationButton: {
-    height: 62,
-    alignSelf: 'flex-start',
+    height: 60,
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1042,7 +1096,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(17,21,15,0.16)',
     borderRadius: 14,
   },
-  locationButtonMobile: { width: '100%', minHeight: 48, height: 48, borderRadius: 12 },
+  locationButtonMobile: { width: '100%', minHeight: 60, height: 60, borderRadius: 14 },
   locationButtonHovered: { borderColor: '#2ed47e' },
   locationText: {
     fontFamily: t.typography.ui,
@@ -1051,11 +1105,6 @@ const styles = StyleSheet.create({
     color: '#11150f',
   },
   answer: { marginTop: 22 },
-  looking: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 11,
-  },
   staticSpinner: {
     width: 20,
     height: 20,
@@ -1063,13 +1112,6 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#6f756f',
   },
-  lookingTitle: {
-    fontFamily: t.typography.body,
-    fontSize: 17,
-    fontWeight: '700',
-    color: t.colors.ink,
-  },
-  lookingTitleMobile: { fontSize: 15 },
   skeletonCards: { marginTop: 20, flexDirection: 'row', alignItems: 'flex-start', gap: 18 },
   skeletonCardsMobile: { flexDirection: 'column' },
   skeletonCard: {
@@ -1110,13 +1152,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: t.colors.ink,
-  },
-  suggestionStatusSlot: { minHeight: 24 },
-  suggestionStatus: {
-    fontFamily: t.typography.body,
-    fontSize: 14,
-    lineHeight: 20,
-    color: t.colors.text.secondary,
   },
   choiceHelp: {
     paddingHorizontal: 14,
@@ -1163,13 +1198,6 @@ const styles = StyleSheet.create({
     color: '#4f5651',
   },
   foundWrap: { gap: 20, position: 'relative' },
-  mapUpdatingOverlay: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(247,248,247,0.58)',
-  },
   mapUpdatingBadge: {
     flexDirection: 'row',
     alignItems: 'center',

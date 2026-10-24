@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 from datetime import UTC, date, datetime
 from alethical.db.models import (
     CandidateClaim,
-    CandidateRecord,
     CandidateSnapshot,
     CandidateStatement,
     CandidateStatementRevision,
@@ -92,15 +91,19 @@ def test_candidates_migration_blocks_untrusted_roles_without_host_trigger(prior_
         db.flush()
         owner_id = owner.id
         now = datetime.now(UTC)
-        record = CandidateRecord(
-            id="a" * 64,
-            election_id="8334",
-            election_date=date(2026, 11, 3),
-            public_payload={},
-            source_sha256="b" * 64,
-            checked_at=now,
+        record_id = "a" * 64
+        # This test intentionally exercises 0066, before later record columns.
+        db.execute(
+            text("""INSERT INTO candidate_record
+            (id,election_id,election_date,public_payload,source_sha256,checked_at)
+            VALUES (:id,'8334',:date,'{}',:hash,:checked)"""),
+            {
+                "id": record_id,
+                "date": date(2026, 11, 3),
+                "hash": "b" * 64,
+                "checked": now,
+            },
         )
-        db.add(record)
         db.add(
             CandidateSnapshot(
                 id="b" * 64,
@@ -112,7 +115,7 @@ def test_candidates_migration_blocks_untrusted_roles_without_host_trigger(prior_
         )
         db.flush()
         claim = CandidateClaim(
-            candidate_id=record.id,
+            candidate_id=record_id,
             user_id=owner.id,
             status="approved",
             evidence_url="https://example.invalid",
@@ -122,7 +125,7 @@ def test_candidates_migration_blocks_untrusted_roles_without_host_trigger(prior_
         db.flush()
         db.add(
             CandidateStatement(
-                candidate_id=record.id,
+                candidate_id=record_id,
                 claim_id=claim.id,
                 body="Public statement",
                 updated_at=now,
@@ -130,7 +133,7 @@ def test_candidates_migration_blocks_untrusted_roles_without_host_trigger(prior_
         )
         db.add(
             CandidateStatementRevision(
-                candidate_id=record.id,
+                candidate_id=record_id,
                 claim_id=claim.id,
                 body="Old public statement",
                 action="published",
@@ -139,7 +142,7 @@ def test_candidates_migration_blocks_untrusted_roles_without_host_trigger(prior_
         )
         db.add(
             CandidateStatementReport(
-                candidate_id=record.id,
+                candidate_id=record_id,
                 claim_id=claim.id,
                 reason="Private report",
                 statement_body="Public statement",

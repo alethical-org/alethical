@@ -1,3 +1,4 @@
+import { useReturnPageName, forgetReturnPageName } from '../../navigation/returnDestination';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -124,6 +125,12 @@ function PrivateUsers({
 
   const current = loaded?.search === search && loaded.attempt === attempt ? loaded : null;
   const result = current?.state === 'ready' ? current.result : null;
+  useEffect(() => {
+    if (current?.state === 'restricted') {
+      forgetReturnPageName('/admin/users');
+      forgetReturnPageName('/admin');
+    }
+  }, [current?.state]);
   const submit = () => setSearch((value) => ({ ...value, query: draft.trim(), offset: 0 }));
   const reset = () => {
     setDraft('');
@@ -346,6 +353,14 @@ function PrivateUsers({
 export function AdminUsersScreen({ navigation }: RootScreenProps<'AdminUsers'>) {
   const { user, accessToken } = useAuth();
   const access = useAdminAccess();
+  useReturnPageName('/admin/users', access.state === 'allowed' ? 'Users' : null);
+  useReturnPageName('/admin', access.state === 'allowed' ? 'Users' : null);
+  useEffect(() => {
+    if (access.state === 'restricted' || access.state === 'signed-out') {
+      forgetReturnPageName('/admin/users');
+      forgetReturnPageName('/admin');
+    }
+  }, [access.state]);
   const { openSignIn } = useSignInModal();
   const { isMobile } = useResponsive();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
@@ -362,13 +377,10 @@ export function AdminUsersScreen({ navigation }: RootScreenProps<'AdminUsers'>) 
       hero={
         <View>
           <GoBackLink
+            destinationName="Home"
             href={routePath.home()}
             mobile={isMobile}
-            onPress={() =>
-              navigation.canGoBack()
-                ? navigation.goBack()
-                : navigation.navigate('Tabs', { screen: 'Home' })
-            }
+            onPress={() => navigation.navigate('Tabs', { screen: 'Home' })}
           />
           <Text style={styles.adminLabel}>Admin</Text>
           <Text

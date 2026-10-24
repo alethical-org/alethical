@@ -9,7 +9,7 @@ following the live source import in [pull request 2160](https://github.com/aleth
 and published-directory protection in [pull request 2161](https://github.com/alethical-org/alethical/pull/2161).
 The accepted design is `Alethical UX (4).zip`, extracted locally beside `support.js`
 at `/tmp/2147-refund-design/exports/design_review_money_refunds_to_donors/`.
-Eugene's latest 7-decision message overrides the drawing, including omission of
+The latest 7 approved decisions override the drawing, including omission of
 its extra registration line and keeping the year as a row header in gap rows.
 
 The build worktree is `/private/tmp/alethical-2147-refund-card`, branch
@@ -58,7 +58,7 @@ or candidate match was recomputed.
 
 ## Approved source corrections
 
-Eugene approved these on 12 September 2026:
+Approved on 12 September 2026:
 
 1. Abeler's oldest matching refund year is 2017. His card omits 2016. The real
    Dibble Senate committee (15667) has matching 2015 and 2017 rows for the gap test.

@@ -120,6 +120,7 @@ from alethical.api.services.legislator_finance import (
 )
 from alethical.api.services.representative_lookup import (
     DistrictMatch,
+    RepresentativeLookupAmbiguousLocation,
     RepresentativeLookupChoices,
     RepresentativeLookupNotFound,
     RepresentativeLookupOutsideMinnesota,
@@ -546,33 +547,36 @@ def representative_source_updated_at(db: Session, legislator_ids) -> datetime | 
     """Oldest successful refresh among the displayed roster and authored bills."""
     ids = list(legislator_ids)
     dates: list[datetime] = []
-    roster_date = db.scalar(
-        select(func.max(IngestionRun.finished_at)).where(
-            IngestionRun.adapter == "minnesota_live",
-            IngestionRun.target_type == "legislator_roster",
-            IngestionRun.status == IngestionStatus.succeeded,
+    roster_date, bill_date = db.execute(
+        select(
+            select(func.max(IngestionRun.finished_at))
+            .where(
+                IngestionRun.adapter == "minnesota_live",
+                IngestionRun.target_type == "legislator_roster",
+                IngestionRun.status == IngestionStatus.succeeded,
+            )
+            .scalar_subquery(),
+            select(func.min(IngestionRun.finished_at))
+            .join(Bill, Bill.ingestion_run_id == IngestionRun.id)
+            .join(Sponsorship, Sponsorship.bill_id == Bill.id)
+            .where(
+                Sponsorship.legislator_id.in_(ids),
+                Sponsorship.role.in_(
+                    [SponsorshipRole.chief_author, SponsorshipRole.co_author]
+                ),
+                IngestionRun.status == IngestionStatus.succeeded,
+            )
+            .scalar_subquery(),
         )
-    )
+    ).one()
     if roster_date:
         dates.append(roster_date)
-    bill_date = db.scalar(
-        select(func.min(IngestionRun.finished_at))
-        .join(Bill, Bill.ingestion_run_id == IngestionRun.id)
-        .join(Sponsorship, Sponsorship.bill_id == Bill.id)
-        .where(
-            Sponsorship.legislator_id.in_(ids),
-            Sponsorship.role.in_(
-                [SponsorshipRole.chief_author, SponsorshipRole.co_author]
-            ),
-            IngestionRun.status == IngestionStatus.succeeded,
-        )
-    )
     if bill_date:
         dates.append(bill_date)
     return min(dates) if dates else None
 
 
-_BILL_NUMBER_QUERY_RE = re.compile(r"^\s*([A-Za-z]{2})?\s*0*(\d+)\s*$")
+_BILL_NUMBER_QUERY_RE = re.compile(r"^(?:([A-Za-z]{2})\s*)?(\d+)$")
 
 
 def bill_number_clause(q: str):
@@ -582,10 +586,17 @@ def bill_number_clause(q: str):
     the bill with that file number in either chamber — users need not know the
     HF/SF prefix. Returns None when the query isn't a bill number, leaving keyword
     search untouched."""
-    match = _BILL_NUMBER_QUERY_RE.match(q)
+    match = _BILL_NUMBER_QUERY_RE.fullmatch(q.strip())
     if match is None:
         return None
-    file_type, file_number = match.group(1), int(match.group(2))
+    # Strip zeros once, after matching, rather than backtracking across 0* and
+    # \d+. Reject values PostgreSQL's integer column cannot hold before int().
+    digits = match.group(2).lstrip("0") or "0"
+    if len(digits) > 10:
+        return None
+    file_type, file_number = match.group(1), int(digits)
+    if file_number > 2_147_483_647:
+        return None
     if file_type is None:
         return Bill.file_number == file_number
     return and_(
@@ -848,7 +859,7 @@ def tracking_user_id(include_set: set[str], current_user):
     return current_user.id
 
 
-def district_for_match(db: Session, match: DistrictMatch | None):
+def _district_key(match: DistrictMatch | None) -> tuple[ChamberType, str] | None:
     if match is None:
         return None
     if match.chamber == "house":
@@ -864,14 +875,37 @@ def district_for_match(db: Session, match: DistrictMatch | None):
         if code_match
         else service_code
     )
-    return db.scalar(
-        select(District)
-        .join(Chamber, Chamber.id == District.chamber_id)
-        .where(
-            District.code == database_code,
-            Chamber.chamber_type == chamber_type,
-        )
-    )
+    return chamber_type, database_code
+
+
+def district_for_match(db: Session, match: DistrictMatch | None):
+    return districts_for_matches(db, match)[0]
+
+
+def districts_for_matches(db: Session, *matches: DistrictMatch | None) -> list:
+    """Each match's database district, read together in 1 query."""
+    keys = [_district_key(match) for match in matches]
+    wanted = [key for key in keys if key is not None]
+    found: dict[tuple[ChamberType, str], District] = {}
+    if wanted:
+        rows = db.execute(
+            select(District, Chamber.chamber_type)
+            .join(Chamber, Chamber.id == District.chamber_id)
+            .where(
+                or_(
+                    *(
+                        and_(
+                            District.code == code,
+                            Chamber.chamber_type == chamber_type,
+                        )
+                        for chamber_type, code in wanted
+                    )
+                )
+            )
+        ).all()
+        for district, chamber_type in rows:
+            found.setdefault((chamber_type, district.code), district)
+    return [found.get(key) if key is not None else None for key in keys]
 
 
 def status_filter_clause(status: str):
@@ -5022,6 +5056,18 @@ def legislator_campaign_finance(
         )
     except ReleaseNoLongerHeld:
         raise unusable from None
+    # Retained committee-years keep their own copy date. A snapshot-wide timestamp
+    # cannot date them, and excluded committees cannot date the displayed records.
+    committee_copy_dates = {
+        entry.registration_number: filings_copied_at(
+            db, entry.registration_number, finance.year
+        )
+        for entry in finance.committees
+    }
+    distinct_copy_dates = set(committee_copy_dates.values())
+    shared_copy_date = (
+        next(iter(distinct_copy_dates)) if len(distinct_copy_dates) == 1 else None
+    )
     return DetailResponse(
         data={
             "legislator_id": str(legislator.id),
@@ -5054,10 +5100,13 @@ def legislator_campaign_finance(
             ],
             "release_id": str(release.id),
             "fetched_at": release.fetched_at,
-            "filings_copied_at": filings_copied_at(db),
+            "filings_copied_at": shared_copy_date,
             "committees": [
                 {
                     "registration_number": entry.registration_number,
+                    "filings_copied_at": committee_copy_dates[
+                        entry.registration_number
+                    ],
                     # What the reviewer read when they confirmed the link, and what the
                     # release names the same number today. They can legitimately
                     # differ: the Board publishes a committee's *current* name against
@@ -5432,6 +5481,7 @@ def address_suggestions(
                     "latitude": suggestion.latitude,
                     "longitude": suggestion.longitude,
                     "state_code": suggestion.state_code,
+                    "requires_location_check": suggestion.requires_location_check,
                 }
                 for suggestion in suggestions
             ]
@@ -5453,6 +5503,15 @@ def representative_lookup(
         if request.address_text:
             lookup_result = lookup_service.lookup(request.address_text)
             input_mode = "address"
+        elif request.selected_address:
+            assert request.latitude is not None
+            assert request.longitude is not None
+            lookup_result = lookup_service.lookup_selected(
+                request.selected_address,
+                latitude=request.latitude,
+                longitude=request.longitude,
+            )
+            input_mode = "address"
         else:
             assert request.latitude is not None
             assert request.longitude is not None
@@ -5467,7 +5526,7 @@ def representative_lookup(
                 "status": "address-choice",
                 "resolved_place": {
                     "input_mode": "address",
-                    "address_text": request.address_text,
+                    "address_text": request.address_text or request.selected_address,
                 },
                 "address_choices": [
                     {
@@ -5475,6 +5534,7 @@ def representative_lookup(
                         "latitude": choice.latitude,
                         "longitude": choice.longitude,
                         "state_code": choice.state_code,
+                        "requires_location_check": choice.requires_location_check,
                     }
                     for choice in exc.choices
                 ],
@@ -5486,6 +5546,14 @@ def representative_lookup(
             "Outside Minnesota",
             str(exc),
             type_slug="representative-lookup-outside-minnesota",
+        ) from None
+    except RepresentativeLookupAmbiguousLocation as exc:
+        # Same printed address, current official points in different districts.
+        raise problem_exception(
+            404,
+            "Not Found",
+            str(exc),
+            type_slug="representative-lookup-ambiguous-location",
         ) from None
     except RepresentativeLookupNotFound as exc:
         raise problem_exception(
@@ -5499,8 +5567,9 @@ def representative_lookup(
             type_slug="representative-lookup-upstream-error",
         ) from None
 
-    house_district = district_for_match(db, lookup_result.house_district)
-    senate_district = district_for_match(db, lookup_result.senate_district)
+    house_district, senate_district = districts_for_matches(
+        db, lookup_result.house_district, lookup_result.senate_district
+    )
     district_ids = [
         district.id
         for district in [house_district, senate_district]

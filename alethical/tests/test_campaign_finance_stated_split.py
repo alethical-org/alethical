@@ -1419,7 +1419,7 @@ def test_the_loader_names_the_command_when_nobody_has_compared_these_records(
 def test_the_loader_reports_a_disagreement_and_does_not_block_the_release(
     db, board, store
 ) -> None:
-    """Eugene ruled on 12 Aug 2026 that this is a display state, not a release fault.
+    """The 12 Aug 2026 decision establishes that this is a display state, not a release fault.
 
     A million verified payment records must not be withheld because 1 committee's own
     2 published figures contradict each other.

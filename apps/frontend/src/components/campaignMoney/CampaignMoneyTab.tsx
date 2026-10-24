@@ -1,3 +1,4 @@
+import { TVAdConnectionCard } from '../tvAds/OnDemand';
 import { contributionDetailRows, withContributionDetailRows } from '../../lib/contributionDetails';
 import { CommitteeDonationCards } from './CommitteeDonationCards';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
@@ -155,6 +156,20 @@ export function CampaignMoneyTab({
     dataUpdatedAt: money ? moneyUpdatedAt : undefined,
     refetch: refetchMoney,
   });
+  // A shared date is true only for every visible committee-year. Older responses
+  // carry only a snapshot-wide date, which cannot date an individually retained row.
+  const committeeCopyDays =
+    !committeesWithheld && !isLoading
+      ? (money?.committees ?? []).map((committee) =>
+          committee.filingsCopiedAt ? centralDateLabel(committee.filingsCopiedAt) : null,
+        )
+      : [];
+  const sharedCopyDay =
+    committeeCopyDays.length &&
+    committeeCopyDays[0] &&
+    committeeCopyDays.every((day) => day === committeeCopyDays[0])
+      ? committeeCopyDays[0]
+      : null;
   // Money others spent about this member, from #1332. Fetched here rather than by the
   // profile screens so a reader who never opens this tab never pays for the request,
   // and so both records sit on one page under one heading. It is a different record
@@ -200,6 +215,7 @@ export function CampaignMoneyTab({
         committeeName={committee.committeeName || committee.committeeNameAsReviewed}
         year={year}
         releaseId={money.releaseId}
+        onRefresh={refetchMoney}
         onSelectYear={onSelectYear}
       />
     ) : null;
@@ -271,6 +287,7 @@ export function CampaignMoneyTab({
             <CommitteeCard
               key={committee.registrationNumber}
               committee={committee}
+              showCopyDate={!sharedCopyDay}
               year={year}
               releaseId={money.releaseId}
               onRefresh={refetchMoney}
@@ -315,6 +332,7 @@ export function CampaignMoneyTab({
             <CommitteeCard
               key={committee.registrationNumber}
               committee={committee}
+              showCopyDate={!sharedCopyDay}
               year={year}
               releaseId={money.releaseId}
               onRefresh={refetchMoney}
@@ -362,8 +380,22 @@ export function CampaignMoneyTab({
         />
       )}
 
+      {money && !committeesWithheld && !isLoading
+        ? [...money.committees, ...money.committeesOutsideThisYear].map((committee) => (
+            <TVAdConnectionCard
+              key={`tv-${committee.registrationNumber}`}
+              kind="committee"
+              target={committee.registrationNumber}
+              name={committee.committeeNameAsReviewed}
+              scopeLabel={committee.committeeNameAsReviewed}
+              legislatorTab
+              hideEmpty
+            />
+          ))
+        : null}
+
       <FreshnessNote
-        filingsCopiedAt={money?.filingsCopiedAt}
+        filingsCopiedOn={sharedCopyDay}
         fetchedAts={[
           ...(money ? [money.fetchedAt] : []),
           ...(selectedOutsideYear?.state === 'reported' ? [selectedOutsideYear.fetchedAt] : []),
@@ -498,6 +530,7 @@ function CommitteeRecordLink({
 
 function CommitteeCard({
   committee,
+  showCopyDate,
   year,
   releaseId,
   onRefresh,
@@ -510,6 +543,7 @@ function CommitteeCard({
   expandedRows?: readonly number[];
   onExpandedRowsChange?: (rows: number[]) => void;
   committee: CampaignCommitteeMoney;
+  showCopyDate: boolean;
   year: CampaignMoneyYear;
   releaseId?: string;
   onRefresh: () => void;
@@ -522,9 +556,16 @@ function CommitteeCard({
   const { isMobile, isTablet } = useResponsive();
   const type = useCampaignMoneyTypography();
   const name = committee.committeeName || committee.committeeNameAsReviewed;
-  // The filing's period and link, once, above both cards — never inside one. The
-  // tab's own freshness note at the foot carries the day we copied the files, so the
-  // stamp here states the filing's coverage alone.
+  // Keep distinct source dates beside their committees. A shared date moves to the
+  // footer only when every displayed committee-year was copied on that day.
+  const copiedOn = committee.filingsCopiedAt ? centralDateLabel(committee.filingsCopiedAt) : null;
+  const copyNotes = showCopyDate
+    ? [
+        copiedOn
+          ? `Report totals copied ${copiedOn}. This is a copy date, not a reporting period.`
+          : 'The report totals’ copy date is unavailable',
+      ]
+    : undefined;
   const through = committee.split.reportedThrough;
   const periodStart = committee.moneyIn?.reportedPeriodStart ?? null;
   const recordAndSchedule = (
@@ -561,6 +602,7 @@ function CommitteeCard({
             <FilingStamp
               line={coveredPeriodLine(through, periodStart)}
               detail={coveredPeriodDetail(through, null, { reportedPeriodStart: periodStart })}
+              notes={copyNotes}
               boardRecordUrl={boardRecordUrl(
                 committee.registerKind,
                 committee.registrationNumber,
@@ -583,6 +625,7 @@ function CommitteeCard({
                   ? (splitExplanation(committee.split.state) ?? '')
                   : ''
               }
+              notes={copyNotes}
               ourRecord={recordAndSchedule}
               covered
               isMobile={isMobile}
@@ -741,11 +784,11 @@ function OtherOfficeNote({ count }: { count: number }) {
  * paragraph here describing Minnesota's calendar in general (#1642).
  */
 function FreshnessNote({
-  filingsCopiedAt,
+  filingsCopiedOn,
   fetchedAts,
   onRefresh,
 }: {
-  filingsCopiedAt?: string | null;
+  filingsCopiedOn?: string | null;
   fetchedAts: (string | null)[];
   onRefresh: () => void;
 }) {
@@ -756,6 +799,11 @@ function FreshnessNote({
   if (!day || days.some((value) => value !== day))
     return (
       <View style={styles.freshness}>
+        {filingsCopiedOn ? (
+          <Text style={text.small}>
+            {`Report totals copied ${filingsCopiedOn}. This is a copy date, not a reporting period.`}
+          </Text>
+        ) : null}
         <Text style={text.small}>{copy.freshnessMismatch}</Text>
         <Pressable
           accessibilityRole="button"
@@ -775,10 +823,7 @@ function FreshnessNote({
           on the tab and it was the only bold one, and the only one under the 15px the
           notes inside the cards above it use. Tabular figures stay, for the date. */}
       <Text style={[text.small, styles.freshnessLine]}>
-        {paymentFilesDownloadedLine(
-          day,
-          filingsCopiedAt ? centralDateLabel(filingsCopiedAt) : null,
-        )}
+        {paymentFilesDownloadedLine(day, filingsCopiedOn)}
       </Text>
     </View>
   );

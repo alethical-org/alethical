@@ -1,5 +1,7 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { candidateDate, candidateElectionLabel } from '../lib/candidatePublicCopy';
+import { CANDIDATE_LOOKUP_COPY } from '../lib/candidatePublicCopy';
+import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { Platform, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useResponsive } from '../hooks/useResponsive';
 import { CandidateSearchContent } from '../components/candidates/CandidateSearchContent';
@@ -27,7 +29,17 @@ export function CandidatesScreen(props: RootScreenProps<'Candidates'>) {
     );
     return () => cancelAnimationFrame(frame);
   }, [focused]);
-  useDocumentTitle('/candidates', 'Find My Candidates | Alethical');
+  const displayed = useSyncExternalStore(
+    candidateFlow.subscribe,
+    candidateFlow.getState,
+    candidateFlow.getState,
+  ).displayed;
+  useDocumentTitle(
+    '/candidates',
+    displayed?.results.resultsAvailable
+      ? `Election results · ${candidateElectionLabel(displayed.election)} · ${candidateDate(displayed.election.date)} | Alethical`
+      : 'Find My Candidates | Alethical',
+  );
   if (__DEV__ && candidatePreviewEnabled() && Preview)
     return (
       <Suspense fallback={<Text accessibilityLiveRegion="polite">Loading preview…</Text>}>
@@ -38,6 +50,9 @@ export function CandidatesScreen(props: RootScreenProps<'Candidates'>) {
     <PageBackground candidateSurface>
       <ScrollView
         ref={scroll}
+        // Browser scroll anchoring can move phone results after our saved
+        // position is restored. Keep the explicit return position instead.
+        style={Platform.OS === 'web' ? ({ overflowAnchor: 'none' } as object) : undefined}
         contentContainerStyle={{ flexGrow: 1 }}
         scrollEventThrottle={100}
         onScroll={(event) => candidateFlow.setScrollOffset(event.nativeEvent.contentOffset.y)}
@@ -53,8 +68,9 @@ export function CandidatesScreen(props: RootScreenProps<'Candidates'>) {
           <CandidateSearchContent
             services={candidateSearchServices}
             flow={candidateFlow}
+            active={focused}
             initialAddress={candidateFlow.getState().draftAddress}
-            privacyDisclosure="Address lookup uses Minnesota Secretary of State and Minnesota mapping services"
+            privacyDisclosure={CANDIDATE_LOOKUP_COPY.privacy}
             imageSource={require('../../assets/mn-outline-candidates.svg')}
             onOpenProfile={(candidateId) =>
               navigation.navigate('CandidateProfile', { candidateId })

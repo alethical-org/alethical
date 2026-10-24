@@ -19,6 +19,8 @@ const data = vi.hoisted(() => {
 });
 vi.mock('../../../hooks/useCampaignMoneyDetails', () => ({
   useCampaignMoneyDetails: () => ({
+    received: { data: undefined, isError: false, isFetching: false },
+    made: { data: undefined, isError: false, isFetching: false },
     historyComplete: data.complete,
     history: { data: { years: data.years, releaseId: data.releaseId } },
   }),
@@ -235,4 +237,32 @@ it('withholds history while incomplete or from another release', () => {
     ),
   );
   expect(host.textContent).toBe('');
+});
+
+it('leaves earlier-year and percentage button focus to the shared keyboard-only outline', () => {
+  data.years = [
+    { year: 2024, payments: [] },
+    { year: 2025, payments: [gift()] },
+  ];
+  render();
+  const earlier = buttonText('Show earlier years');
+  const percentages = button('View percentages for 2025');
+  for (const control of [earlier, percentages]) {
+    expect(control.tagName).toBe('BUTTON');
+    expect(control.tabIndex).toBe(0);
+    expect(control.hasAttribute('data-arrow-focus')).toBe(false);
+    expect(getComputedStyle(control).minHeight).toBe('44px');
+    act(() => control.focus());
+    expect(document.activeElement).toBe(control);
+    // jsdom does not apply the site's :focus-visible rule. A 2px outline here
+    // therefore exposes an unconditional Pressable focus style instead.
+    expect(getComputedStyle(control).outlineWidth).not.toBe('2px');
+    act(() => control.click());
+    expect(control.getAttribute('aria-expanded')).toBe('true');
+    expect(getComputedStyle(control).minHeight).toBe('44px');
+  }
+  const segment = button('2025, Individuals 100%');
+  act(() => segment.focus());
+  expect(getComputedStyle(segment).outlineWidth).toBe('2px');
+  expect(getComputedStyle(segment).outlineOffset).toBe('-2px');
 });

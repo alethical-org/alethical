@@ -28,10 +28,10 @@
       }
     </style>
     <style id="alethical-browser-fill">
-      input[data-alethical-browser-fill="true"]:autofill,
-      input[data-alethical-browser-fill="true"]:autofill:hover,
-      input[data-alethical-browser-fill="true"]:autofill:focus,
-      input[data-alethical-browser-fill="true"]:autofill:active {
+      :is(input, textarea)[data-alethical-browser-fill="true"]:autofill,
+      :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:hover,
+      :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:focus,
+      :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:active {
         background-color: #ffffff !important;
         -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
         box-shadow: 0 0 0 1000px #ffffff inset !important;
@@ -39,10 +39,10 @@
         color: #11150f !important;
         caret-color: #11150f !important;
       }
-      input[data-alethical-browser-fill="true"]:-webkit-autofill,
-      input[data-alethical-browser-fill="true"]:-webkit-autofill:hover,
-      input[data-alethical-browser-fill="true"]:-webkit-autofill:focus,
-      input[data-alethical-browser-fill="true"]:-webkit-autofill:active {
+      :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill,
+      :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:hover,
+      :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:focus,
+      :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:active {
         background-color: #ffffff !important;
         -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
         box-shadow: 0 0 0 1000px #ffffff inset !important;
@@ -51,10 +51,10 @@
         caret-color: #11150f !important;
       }
       @media (forced-colors: active) {
-        input[data-alethical-browser-fill="true"]:autofill,
-        input[data-alethical-browser-fill="true"]:autofill:hover,
-        input[data-alethical-browser-fill="true"]:autofill:focus,
-        input[data-alethical-browser-fill="true"]:autofill:active {
+        :is(input, textarea)[data-alethical-browser-fill="true"]:autofill,
+        :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:hover,
+        :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:focus,
+        :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:active {
           background-color: Canvas !important;
           -webkit-box-shadow: none !important;
           box-shadow: none !important;
@@ -62,10 +62,10 @@
           color: CanvasText !important;
           caret-color: CanvasText !important;
         }
-        input[data-alethical-browser-fill="true"]:-webkit-autofill,
-        input[data-alethical-browser-fill="true"]:-webkit-autofill:hover,
-        input[data-alethical-browser-fill="true"]:-webkit-autofill:focus,
-        input[data-alethical-browser-fill="true"]:-webkit-autofill:active {
+        :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill,
+        :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:hover,
+        :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:focus,
+        :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:active {
           background-color: Canvas !important;
           -webkit-box-shadow: none !important;
           box-shadow: none !important;
@@ -124,29 +124,50 @@
       content="Alethical: Minnesota’s legislative record in plain language, with links to official sources."
     />
     <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "Alethical",
-        "url": "https://www.alethical.com/"
+{
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Alethical",
+      "url": "https://www.alethical.com/",
+      "publisher": {
+            "@id": "https://www.alethical.com/#organization"
       }
+}
     </script>
     <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "Organization",
-        "name": "Alethical",
-        "url": "https://www.alethical.com/",
-        "logo": "https://www.alethical.com/icon-512.png",
-        "sameAs": [
-          "https://www.linkedin.com/company/alethical",
-          "https://www.facebook.com/people/Alethical/61588261592240/",
-          "https://www.instagram.com/alethicaltruth",
-          "https://x.com/alethical",
-          "https://www.tiktok.com/@alethicaltruth",
-          "https://www.youtube.com/@Alethical"
-        ]
+{
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Alethical",
+      "url": "https://www.alethical.com/",
+      "description": "Alethical makes Minnesota’s public records easier to understand and check, publishes research and guides, hosts candidate debates, and offers political intelligence and campaign strategy.",
+      "email": "ask@alethical.com",
+      "logo": "https://www.alethical.com/icon-512.png",
+      "sameAs": [
+            "https://www.youtube.com/@Alethical",
+            "https://www.linkedin.com/company/alethical",
+            "https://www.facebook.com/people/Alethical/61588261592240/",
+            "https://x.com/alethical",
+            "https://bsky.app/profile/alethical.com",
+            "https://www.instagram.com/alethicaltruth",
+            "https://www.tiktok.com/@alethicaltruth"
+      ],
+      "@id": "https://www.alethical.com/#organization",
+      "founder": [
+            {
+                  "@type": "Person",
+                  "name": "Angel Zierden"
+            },
+            {
+                  "@type": "Person",
+                  "name": "Eugene Lopin"
+            }
+      ],
+      "contactPoint": {
+            "@type": "ContactPoint",
+            "url": "https://www.alethical.com/about/contact"
       }
+}
     </script>
     <!--/alethical:page-head-->
     <link rel="preconnect" href="https://api.alethical.com" crossorigin />
@@ -195,6 +216,69 @@
         font-display: swap;
         src: url(/fonts/libre-franklin-latin.woff2) format('woff2');
         unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      /*
+        Libre Franklin's stand-in while its file loads: Arial (or Helvetica, or
+        Liberation Sans) scaled per weight to Libre Franklin's text width, with its
+        height. Lines break in nearly the same places, so text drawn before the font
+        arrives does not reflow when it does. Measured over the homepage's hero and
+        card copy; only the characters the 2 faces above actually draw (their
+        files' character maps within their ranges), so nothing else changes.
+      */
+      @font-face {
+        font-family: 'Libre Franklin Fallback';
+        font-style: normal;
+        font-weight: 300 450;
+        src: local('Arial'), local('ArialMT'), local('Helvetica'), local('Liberation Sans'), local('LiberationSans'), local('Arimo');
+        size-adjust: 103.8%;
+        ascent-override: 93.06%;
+        descent-override: 23.70%;
+        line-gap-override: 0%;
+        unicode-range: U+0020-007E, U+00A0-00AC, U+00AE-017E, U+018F, U+0192, U+01A0-01A1, U+01AF-01B0, U+01C4-01CC, U+01E6-01E7, U+01EA-01EB, U+01F1-01F5, U+01FA-021B, U+022A-022D, U+0230-0233, U+0237, U+0259, U+02B9-02BC, U+02BE-02BF, U+02C6-02CC, U+02DA, U+02DC-02DD, U+0304, U+0308, U+1E08-1E09, U+1E0C-1E0F, U+1E14-1E17, U+1E1C-1E1D, U+1E20-1E21, U+1E24-1E25, U+1E2A-1E2B, U+1E2E-1E2F, U+1E36-1E37, U+1E3A-1E3B, U+1E42-1E49, U+1E4C-1E53, U+1E5A-1E5B, U+1E5E-1E69, U+1E6C-1E6F, U+1E78-1E7B, U+1E80-1E85, U+1E8E-1E8F, U+1E92-1E93, U+1E97, U+1E9E, U+1EF2-1EF9, U+2009, U+200B, U+2013-2014, U+2018-201A, U+201C-201E, U+2020, U+2022, U+2026, U+2032-2033, U+2039-203A, U+2044, U+20A1, U+20A3-20A4, U+20A6-20A7, U+20A9, U+20AB-20AE, U+20B1-20B2, U+20B4-20B5, U+20B8-20BA, U+20BC-20BD, U+2113, U+2122, U+2212, U+2215;
+      }
+      @font-face {
+        font-family: 'Libre Franklin Fallback';
+        font-style: normal;
+        font-weight: 451 550;
+        src: local('Arial'), local('ArialMT'), local('Helvetica'), local('Liberation Sans'), local('LiberationSans'), local('Arimo');
+        size-adjust: 104.66%;
+        ascent-override: 92.30%;
+        descent-override: 23.50%;
+        line-gap-override: 0%;
+        unicode-range: U+0020-007E, U+00A0-00AC, U+00AE-017E, U+018F, U+0192, U+01A0-01A1, U+01AF-01B0, U+01C4-01CC, U+01E6-01E7, U+01EA-01EB, U+01F1-01F5, U+01FA-021B, U+022A-022D, U+0230-0233, U+0237, U+0259, U+02B9-02BC, U+02BE-02BF, U+02C6-02CC, U+02DA, U+02DC-02DD, U+0304, U+0308, U+1E08-1E09, U+1E0C-1E0F, U+1E14-1E17, U+1E1C-1E1D, U+1E20-1E21, U+1E24-1E25, U+1E2A-1E2B, U+1E2E-1E2F, U+1E36-1E37, U+1E3A-1E3B, U+1E42-1E49, U+1E4C-1E53, U+1E5A-1E5B, U+1E5E-1E69, U+1E6C-1E6F, U+1E78-1E7B, U+1E80-1E85, U+1E8E-1E8F, U+1E92-1E93, U+1E97, U+1E9E, U+1EF2-1EF9, U+2009, U+200B, U+2013-2014, U+2018-201A, U+201C-201E, U+2020, U+2022, U+2026, U+2032-2033, U+2039-203A, U+2044, U+20A1, U+20A3-20A4, U+20A6-20A7, U+20A9, U+20AB-20AE, U+20B1-20B2, U+20B4-20B5, U+20B8-20BA, U+20BC-20BD, U+2113, U+2122, U+2212, U+2215;
+      }
+      @font-face {
+        font-family: 'Libre Franklin Fallback';
+        font-style: normal;
+        font-weight: 551 650;
+        src: local('Arial Bold'), local('Arial-BoldMT'), local('Helvetica Bold'), local('Helvetica-Bold'), local('Liberation Sans Bold'), local('LiberationSans-Bold'), local('Arimo Bold');
+        size-adjust: 98.16%;
+        ascent-override: 98.41%;
+        descent-override: 25.06%;
+        line-gap-override: 0%;
+        unicode-range: U+0020-007E, U+00A0-00AC, U+00AE-017E, U+018F, U+0192, U+01A0-01A1, U+01AF-01B0, U+01C4-01CC, U+01E6-01E7, U+01EA-01EB, U+01F1-01F5, U+01FA-021B, U+022A-022D, U+0230-0233, U+0237, U+0259, U+02B9-02BC, U+02BE-02BF, U+02C6-02CC, U+02DA, U+02DC-02DD, U+0304, U+0308, U+1E08-1E09, U+1E0C-1E0F, U+1E14-1E17, U+1E1C-1E1D, U+1E20-1E21, U+1E24-1E25, U+1E2A-1E2B, U+1E2E-1E2F, U+1E36-1E37, U+1E3A-1E3B, U+1E42-1E49, U+1E4C-1E53, U+1E5A-1E5B, U+1E5E-1E69, U+1E6C-1E6F, U+1E78-1E7B, U+1E80-1E85, U+1E8E-1E8F, U+1E92-1E93, U+1E97, U+1E9E, U+1EF2-1EF9, U+2009, U+200B, U+2013-2014, U+2018-201A, U+201C-201E, U+2020, U+2022, U+2026, U+2032-2033, U+2039-203A, U+2044, U+20A1, U+20A3-20A4, U+20A6-20A7, U+20A9, U+20AB-20AE, U+20B1-20B2, U+20B4-20B5, U+20B8-20BA, U+20BC-20BD, U+2113, U+2122, U+2212, U+2215;
+      }
+      @font-face {
+        font-family: 'Libre Franklin Fallback';
+        font-style: normal;
+        font-weight: 651 750;
+        src: local('Arial Bold'), local('Arial-BoldMT'), local('Helvetica Bold'), local('Helvetica-Bold'), local('Liberation Sans Bold'), local('LiberationSans-Bold'), local('Arimo Bold');
+        size-adjust: 99.21%;
+        ascent-override: 97.37%;
+        descent-override: 24.80%;
+        line-gap-override: 0%;
+        unicode-range: U+0020-007E, U+00A0-00AC, U+00AE-017E, U+018F, U+0192, U+01A0-01A1, U+01AF-01B0, U+01C4-01CC, U+01E6-01E7, U+01EA-01EB, U+01F1-01F5, U+01FA-021B, U+022A-022D, U+0230-0233, U+0237, U+0259, U+02B9-02BC, U+02BE-02BF, U+02C6-02CC, U+02DA, U+02DC-02DD, U+0304, U+0308, U+1E08-1E09, U+1E0C-1E0F, U+1E14-1E17, U+1E1C-1E1D, U+1E20-1E21, U+1E24-1E25, U+1E2A-1E2B, U+1E2E-1E2F, U+1E36-1E37, U+1E3A-1E3B, U+1E42-1E49, U+1E4C-1E53, U+1E5A-1E5B, U+1E5E-1E69, U+1E6C-1E6F, U+1E78-1E7B, U+1E80-1E85, U+1E8E-1E8F, U+1E92-1E93, U+1E97, U+1E9E, U+1EF2-1EF9, U+2009, U+200B, U+2013-2014, U+2018-201A, U+201C-201E, U+2020, U+2022, U+2026, U+2032-2033, U+2039-203A, U+2044, U+20A1, U+20A3-20A4, U+20A6-20A7, U+20A9, U+20AB-20AE, U+20B1-20B2, U+20B4-20B5, U+20B8-20BA, U+20BC-20BD, U+2113, U+2122, U+2212, U+2215;
+      }
+      @font-face {
+        font-family: 'Libre Franklin Fallback';
+        font-style: normal;
+        font-weight: 751 900;
+        src: local('Arial Bold'), local('Arial-BoldMT'), local('Helvetica Bold'), local('Helvetica-Bold'), local('Liberation Sans Bold'), local('LiberationSans-Bold'), local('Arimo Bold');
+        size-adjust: 99.5%;
+        ascent-override: 97.09%;
+        descent-override: 24.72%;
+        line-gap-override: 0%;
+        unicode-range: U+0020-007E, U+00A0-00AC, U+00AE-017E, U+018F, U+0192, U+01A0-01A1, U+01AF-01B0, U+01C4-01CC, U+01E6-01E7, U+01EA-01EB, U+01F1-01F5, U+01FA-021B, U+022A-022D, U+0230-0233, U+0237, U+0259, U+02B9-02BC, U+02BE-02BF, U+02C6-02CC, U+02DA, U+02DC-02DD, U+0304, U+0308, U+1E08-1E09, U+1E0C-1E0F, U+1E14-1E17, U+1E1C-1E1D, U+1E20-1E21, U+1E24-1E25, U+1E2A-1E2B, U+1E2E-1E2F, U+1E36-1E37, U+1E3A-1E3B, U+1E42-1E49, U+1E4C-1E53, U+1E5A-1E5B, U+1E5E-1E69, U+1E6C-1E6F, U+1E78-1E7B, U+1E80-1E85, U+1E8E-1E8F, U+1E92-1E93, U+1E97, U+1E9E, U+1EF2-1EF9, U+2009, U+200B, U+2013-2014, U+2018-201A, U+201C-201E, U+2020, U+2022, U+2026, U+2032-2033, U+2039-203A, U+2044, U+20A1, U+20A3-20A4, U+20A6-20A7, U+20A9, U+20AB-20AE, U+20B1-20B2, U+20B4-20B5, U+20B8-20BA, U+20BC-20BD, U+2113, U+2122, U+2212, U+2215;
       }
       @font-face {
         font-family: 'JetBrains Mono';
@@ -260,15 +344,17 @@
     </style>
     <style id="alethical-comment-return">
       .comment-return-loading { display: none; }
-      html[data-comment-return] #root { visibility: hidden; }
+      html[data-comment-return] #root,
+      html[data-comment-return] #stable-event-document { visibility: hidden; }
       html[data-comment-return] .comment-return-loading {
         display: block;
         position: fixed;
+        z-index: 3;
         inset: 0;
         padding: 32px;
         background: #fff;
         color: #11150f;
-        font: 16px 'Libre Franklin', Helvetica, Arial, sans-serif;
+        font: 16px 'Libre Franklin', 'Libre Franklin Fallback', Helvetica, Arial, sans-serif;
       }
     </style>
     <!--
@@ -290,12 +376,38 @@
       only while the font came late from Google (issue 1997).
     -->
     <style id="alethical-page-snapshot">
+      #stable-event-document {
+        position: fixed;
+        inset: 0;
+        z-index: 1;
+        height: 100%;
+        overflow-y: auto;
+        background: #f7f8fa;
+        background-image: linear-gradient(180deg,#f4f5f7 0%,#f7f8fa 60%,#fdfdfe 92%,#ffffff 100%);
+      }
+      @media(max-width:767.98px) {
+        #stable-event-document { background-image: none; }
+      }
+      body[data-stable-event-document] #root {
+        position: fixed;
+        inset: 0;
+        z-index: 2;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      html:not([data-comment-return]) body[data-stable-event-document] [data-event-global-feedback="true"] {
+        visibility: visible;
+      }
+      html:not([data-comment-return]) body[data-stable-event-document] [data-event-global-feedback="dialog"] {
+        visibility: visible;
+        pointer-events: auto;
+      }
       .page-snapshot {
         flex: 1;
         overflow-y: auto;
         background: #ffffff;
         color: #11150f;
-        font-family: 'Libre Franklin', Helvetica, Arial, sans-serif;
+        font-family: 'Libre Franklin', 'Libre Franklin Fallback', Helvetica, Arial, sans-serif;
         line-height: 1.55;
       }
       .page-snapshot .ps-inner {
@@ -307,10 +419,16 @@
         padding-top: 28px;
         padding-bottom: 64px;
       }
+      /* The top bar as the app's TopNav draws it at each band (theme/primitives.tsx),
+         so it holds still when the app replaces it. */
+      .page-snapshot .ps-nav {
+        line-height: normal;
+      }
       .page-snapshot .ps-nav-row {
         display: flex;
         flex-wrap: wrap;
         row-gap: 12px;
+        column-gap: 56px;
         align-items: center;
         justify-content: space-between;
         padding-top: 26px;
@@ -319,43 +437,79 @@
       .page-snapshot .ps-logo {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 16px;
         color: #11150f;
         text-decoration: none;
       }
       .page-snapshot .ps-mark {
-        width: 30.7px;
-        height: 30px;
+        display: block;
+        width: 40.98px;
+        height: 40px;
       }
       .page-snapshot .ps-wordmark {
         font-family: 'Space Grotesk', 'Libre Franklin', Helvetica, Arial, sans-serif;
-        font-weight: 500;
-        font-size: 26px;
-        line-height: 26px;
-        letter-spacing: 4.16px;
+        font-weight: 600;
+        font-size: 25px;
+        line-height: 25px;
+        letter-spacing: 4px;
+      }
+      .page-snapshot .ps-nav-right {
+        display: flex;
+        align-items: center;
+        gap: 30px;
       }
       .page-snapshot .ps-nav-links {
         display: flex;
         align-items: center;
-        gap: 34px;
+        gap: 32px;
       }
       .page-snapshot .ps-nav-links a,
-      .page-snapshot .ps-nav-links > span:not(.ps-signin) {
-        color: #11150f;
+      .page-snapshot .ps-nav-links > span {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 0;
+        color: #4b524b;
         text-decoration: none;
         font-size: 18px;
         font-weight: 500;
-        padding: 4px 0;
+      }
+      .page-snapshot .ps-nav-links svg {
+        flex: none;
+        width: 14px;
+        height: 14px;
       }
       .page-snapshot .ps-signin {
-        margin-left: -4px;
-        background: #2ed47e;
+        background: #ffffff;
         color: #11150f;
+        border: 1px solid rgba(17, 21, 15, 0.16);
         border-radius: 12px;
-        padding: 12px 22px;
+        padding: 13px 26px;
         font-size: 18px;
-        line-height: 1.2;
         font-weight: 600;
+      }
+      .page-snapshot .ps-menu {
+        display: none;
+        box-sizing: border-box;
+        width: 44px;
+        height: 44px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 11px;
+        background: #ffffff;
+        border: 1px solid #cfd6d2;
+      }
+      .page-snapshot .ps-menu svg {
+        width: 20px;
+        height: 20px;
+      }
+      /* Candidate screens draw the bar with their own spacing and, below
+         computer width, a compact green Sign in beside the menu button. */
+      .page-snapshot .ps-nav-candidate .ps-nav-row {
+        padding: 22px 40px 0;
+      }
+      .page-snapshot .ps-nav-candidate .ps-logo {
+        min-height: 44px;
       }
       .page-snapshot .ps-back {
         display: inline-flex;
@@ -377,6 +531,33 @@
         letter-spacing: 2.4px;
         text-transform: uppercase;
         color: #0f7a45;
+      }
+      .page-snapshot .ps-back:has(+ .ps-profile-label) {
+        min-height: 44px;
+        gap: 9px;
+        color: #4b524b;
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .page-snapshot .ps-profile-label {
+        margin-top: 14px;
+        line-height: 1.5;
+        font-variant-numeric: tabular-nums;
+      }
+      .page-snapshot .ps-profile-label + h1 {
+        margin-top: 14px;
+      }
+      .page-snapshot .ps-profile-identifier {
+        white-space: nowrap;
+      }
+      @media (max-width: 767.98px) {
+        .page-snapshot .ps-back:has(+ .ps-profile-label) {
+          font-size: 15px;
+        }
+        .page-snapshot .ps-profile-label {
+          margin-top: 6px;
+          font-size: 12px;
+        }
       }
       .page-snapshot h1 {
         margin: 12px 0 0;
@@ -462,6 +643,22 @@
         font-size: 17px;
         line-height: 26.35px;
         color: #4f5651;
+      }
+      .page-snapshot-article .ps-conclusion {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+      }
+      .page-snapshot-article .ps-conclusion > svg {
+        flex: none;
+        margin-top: 11.35px;
+      }
+      .page-snapshot-article .ps-conclusion > p {
+        flex: 1;
+        min-width: 0;
+      }
+      .page-snapshot-article .ps-conclusion > p > .ps-conclusion-answer {
+        display: block;
       }
       .page-snapshot .ps-prose:last-child {
         margin-bottom: 0;
@@ -578,6 +775,7 @@
       .page-snapshot-article .ps-table .ps-table-spacer {
         width: auto;
         padding: 0;
+        border: 0;
       }
       .page-snapshot-article .ps-table tbody th {
         font-size: 16px;
@@ -640,14 +838,491 @@
       .page-snapshot-dark .ps-record-label {
         color: #35c46b;
       }
-      /* Tablet: the app folds the bar's links into a menu and grows the logo. */
-      @media (max-width: 1099px) {
-        .page-snapshot .ps-nav-links a,
-        .page-snapshot .ps-nav-links > span:not(.ps-signin) {
+      /*
+        Signed-out Home in the app's own layout and sizes
+        (components/home/SignedOutHomepage.tsx and MoneyPromoCard.tsx). The hero
+        text is centred beside the money card, so every size above and inside the
+        card is the app's: a different height here moved the whole hero when the
+        app took over. Computer first; tablet and phone follow.
+      */
+      .page-snapshot-home {
+        background: #fbfcfd;
+        line-height: normal;
+      }
+      .page-snapshot-home h1,
+      .page-snapshot-home h2,
+      .page-snapshot-home p {
+        margin: 0;
+      }
+      /* The app's text keeps the spaces where a line wraps, as here. */
+      .page-snapshot-home .ph-copy,
+      .page-snapshot-home .ph-money,
+      .page-snapshot-home .ph-invite {
+        white-space: pre-wrap;
+      }
+      .page-snapshot-home .ph-hero {
+        position: relative;
+        background: #ffffff;
+        background-image: linear-gradient(180deg, #f4f5f7 0%, #f7f8fa 55%, #fdfdfe 90%, #ffffff 100%);
+      }
+      .page-snapshot-home .ph-dots {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image: radial-gradient(rgba(17, 21, 15, 0.07) 1.4px, transparent 1.5px);
+        background-size: 30px 30px;
+        -webkit-mask-image: linear-gradient(to bottom, transparent 110px, #000 230px, #000 calc(100% - 180px), transparent 100%);
+        mask-image: linear-gradient(to bottom, transparent 110px, #000 230px, #000 calc(100% - 180px), transparent 100%);
+      }
+      .page-snapshot-home > .ps-nav {
+        position: relative;
+        z-index: 1;
+      }
+      /* The app draws the top bar inside the hero, 83px tall (78px on phone). */
+      .page-snapshot-home .ph-hero {
+        margin-top: -83px;
+        padding-top: 83px;
+      }
+      .page-snapshot-home .ph-hero-inner {
+        position: relative;
+      }
+      .page-snapshot-home .ph-inner {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0 56px;
+      }
+      .page-snapshot-home .ph-hero-inner {
+        padding-top: 64px;
+        padding-bottom: 96px;
+      }
+      .page-snapshot-home .ph-hero-row {
+        display: flex;
+        align-items: center;
+        gap: 96px;
+      }
+      .page-snapshot-home .ph-copy {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 0%;
+        min-width: 0;
+      }
+      .page-snapshot-home .ph-money-column {
+        display: flex;
+        flex-direction: column;
+        flex: 0.72 1 0%;
+        min-width: 0;
+      }
+      .page-snapshot-home .ph-eyebrow {
+        margin-bottom: 36px;
+        font-size: 15px;
+        font-weight: 500;
+        letter-spacing: 2.7px;
+        color: #0f7a45;
+      }
+      .page-snapshot-home .ph-heading {
+        --ph-heading: min(72px, calc((100vw - 208px) / 1.72 * 0.089));
+        font-size: var(--ph-heading);
+        line-height: var(--ph-heading);
+        letter-spacing: calc(var(--ph-heading) * -0.02);
+        font-weight: 800;
+        color: #11150f;
+        white-space: pre-wrap;
+      }
+      .page-snapshot-home .ph-green {
+        color: #149d5b;
+      }
+      .page-snapshot-home .ph-intro {
+        margin-top: 36px;
+        max-width: 640px;
+        font-size: 23px;
+        line-height: 34.5px;
+        color: #6b716b;
+      }
+      .page-snapshot-home .ph-social {
+        margin-top: 28px;
+        margin-left: -8px;
+        width: 292px;
+        height: 40px;
+      }
+      .page-snapshot-home .ph-money {
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+        width: 100%;
+        padding: 46px 44px;
+        background: #ffffff;
+        border: 1px solid rgba(17, 21, 15, 0.08);
+        border-radius: 20px;
+        box-shadow: 0 18px 44px rgba(17, 21, 15, 0.08);
+        color: #11150f;
+        text-decoration: none;
+      }
+      .page-snapshot-home .ph-money-phone {
+        display: none;
+      }
+      .page-snapshot-home .ph-money-eyebrow {
+        font-family: 'JetBrains Mono', 'Courier New', monospace;
+        font-size: 14px;
+        line-height: 18px;
+        font-weight: 700;
+        letter-spacing: 1.9px;
+        color: #0f7a45;
+      }
+      .page-snapshot-home .ph-money-heading {
+        margin-top: 30px;
+        font-size: 48px;
+        line-height: 50px;
+        font-weight: 800;
+        letter-spacing: -0.6px;
+        color: #11150f;
+      }
+      .page-snapshot-home .ph-money-body {
+        margin-top: 28px;
+        font-size: 21px;
+        line-height: 32px;
+        color: #4f5651;
+      }
+      .page-snapshot-home .ph-count {
+        position: relative;
+        margin-top: 20px;
+      }
+      .page-snapshot-home .ph-count-reserve {
+        display: block;
+        opacity: 0;
+        font-size: 17px;
+        line-height: 26px;
+      }
+      /* The width of the app's 12 no-break spaces in Libre Franklin, held without a
+         font so the line breaks in the same place before the font arrives. */
+      .page-snapshot-home .ph-count-reserve > span {
+        display: inline-block;
+        width: 42.6px;
+      }
+      .page-snapshot-home .ph-count-bar {
+        position: absolute;
+        top: 2px;
+        left: 0;
+        width: 328px;
+        max-width: 100%;
+        height: 17px;
+        border-radius: 6px;
+        background: rgba(17, 21, 15, 0.08);
+      }
+      .page-snapshot-home .ph-money-cta {
+        display: flex;
+        align-items: center;
+        align-self: flex-start;
+        gap: 11px;
+        box-sizing: border-box;
+        min-height: 44px;
+        margin-top: 32px;
+        padding: 18px 32px;
+        border: 1px solid #2ed47e;
+        border-radius: 12px;
+        background: #2ed47e;
+        color: #06231a;
+        font-size: 18px;
+        font-weight: 700;
+      }
+      .page-snapshot-home .ph-money-cta svg {
+        flex: none;
+        width: 17px;
+        height: 17px;
+      }
+      .page-snapshot-home .ph-invites {
+        display: flex;
+        align-items: stretch;
+        gap: 24px;
+      }
+      .page-snapshot-home .ph-invite {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 0%;
+        min-width: 0;
+        box-sizing: border-box;
+        padding: 34px 32px 32px;
+        background: #ffffff;
+        border: 1px solid rgba(17, 21, 15, 0.08);
+        border-radius: 20px;
+        box-shadow: 0 18px 44px rgba(17, 21, 15, 0.08);
+        color: #11150f;
+        text-decoration: none;
+      }
+      .page-snapshot-home .ph-invite h2 {
+        font-size: 30px;
+        line-height: 34px;
+        font-weight: 800;
+        letter-spacing: -0.6px;
+        color: #11150f;
+      }
+      .page-snapshot-home .ph-invite-body {
+        margin-top: 14px;
+        max-width: 680px;
+        font-size: 18px;
+        line-height: 28px;
+        color: #4f5651;
+      }
+      .page-snapshot-home .ph-invite-action {
+        display: flex;
+        flex-direction: column;
+        margin-top: auto;
+        padding-top: 28px;
+      }
+      .page-snapshot-home .ph-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        align-self: flex-start;
+        gap: 6px;
+        box-sizing: border-box;
+        min-height: 52px;
+        padding: 14px 24px;
+        border: 1px solid rgba(17, 21, 15, 0.16);
+        border-radius: 12px;
+        background: #ffffff;
+        color: #11150f;
+        font-size: 17px;
+        font-weight: 700;
+      }
+      .page-snapshot-home .ph-button-paid {
+        background: #11150f;
+        border-color: #11150f;
+        color: #ffffff;
+      }
+      .page-snapshot-home .ph-button svg {
+        flex: none;
+        width: 19px;
+        height: 19px;
+      }
+      .page-snapshot-home .ph-candidates {
+        padding-top: 96px;
+        padding-bottom: 96px;
+      }
+      .page-snapshot-home .ph-candidates h2 {
+        font-size: 34px;
+        line-height: 41px;
+        font-weight: 800;
+      }
+      .page-snapshot-home .ph-candidates p {
+        margin-top: 14px;
+        font-size: 18px;
+        line-height: 28px;
+        color: #4f5651;
+      }
+      .page-snapshot-home .ph-candidates a {
+        display: inline-block;
+        margin-top: 20px;
+        color: #0f7a45;
+        font-weight: 700;
+      }
+      @media (max-width: 1099.98px) {
+        .page-snapshot-home .ph-inner {
+          padding-left: 40px;
+          padding-right: 40px;
+        }
+        .page-snapshot-home .ph-hero-inner {
+          padding-bottom: 80px;
+        }
+        .page-snapshot-home .ph-hero-row {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 0;
+        }
+        .page-snapshot-home .ph-copy,
+        .page-snapshot-home .ph-money-column {
+          flex: none;
+        }
+        .page-snapshot-home .ph-money-column {
+          margin-top: 48px;
+        }
+        .page-snapshot-home .ph-eyebrow {
+          margin-bottom: 30px;
+        }
+        .page-snapshot-home .ph-heading {
+          --ph-heading: 58px;
+          line-height: 59.16px;
+        }
+        .page-snapshot-home .ph-intro {
+          margin-top: 28px;
+          font-size: 21px;
+          line-height: 31.5px;
+        }
+        .page-snapshot-home .ph-social {
+          margin-top: 24px;
+        }
+        .page-snapshot-home .ph-money {
+          padding: 38px 36px;
+        }
+        .page-snapshot-home .ph-money-heading {
+          font-size: 40px;
+          line-height: 42px;
+        }
+        .page-snapshot-home .ph-invite {
+          padding: 30px 28px 28px;
+        }
+        .page-snapshot-home .ph-invite h2 {
+          font-size: 26px;
+          line-height: 30px;
+        }
+        .page-snapshot-home .ph-candidates {
+          padding-top: 80px;
+          padding-bottom: 80px;
+        }
+      }
+      @media (max-width: 767.98px) {
+        .page-snapshot-home .ph-hero {
+          margin-top: -78px;
+          padding-top: 78px;
+          background-image: none;
+        }
+        .page-snapshot-home .ph-dots,
+        .page-snapshot-home .ph-money-column {
           display: none;
         }
+        .page-snapshot-home .ph-inner {
+          padding-left: 20px;
+          padding-right: 20px;
+        }
+        .page-snapshot-home .ph-hero-inner {
+          padding-top: 36px;
+          padding-bottom: 56px;
+        }
+        .page-snapshot-home .ph-eyebrow {
+          font-size: 21px;
+          letter-spacing: 3.78px;
+        }
+        .page-snapshot-home .ph-heading {
+          --ph-heading: min(36px, calc((100vw - 40px) * 0.1));
+          line-height: calc(var(--ph-heading) * 1.05);
+        }
+        .page-snapshot-home .ph-intro {
+          margin-top: 26px;
+        }
+        .page-snapshot-home .ph-social {
+          margin-top: 18px;
+          margin-left: -9px;
+          width: 308px;
+          height: 44px;
+        }
+        .page-snapshot-home .ph-band {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+          padding: 40px 20px 56px;
+          background-color: #eaf6ef;
+          background-image: linear-gradient(180deg, #eaf6ef 0%, #f1f9f4 18%, #f8fbf9 60%, #ffffff 100%);
+        }
+        .page-snapshot-home .ph-band > .ph-inner {
+          padding: 0;
+        }
+        .page-snapshot-home .ph-money-phone {
+          display: flex;
+          padding: 26px 24px 28px;
+          border-color: rgba(17, 21, 15, 0.1);
+          box-shadow: 0 10px 28px rgba(17, 21, 15, 0.07);
+        }
+        .page-snapshot-home .ph-money-eyebrow {
+          font-size: 15px;
+          line-height: 20px;
+        }
+        .page-snapshot-home .ph-money-heading {
+          margin-top: 14px;
+          font-size: 34px;
+          line-height: 35px;
+        }
+        .page-snapshot-home .ph-money-body {
+          margin-top: 14px;
+        }
+        .page-snapshot-home .ph-count {
+          margin-top: 16px;
+        }
+        .page-snapshot-home .ph-money-cta {
+          align-self: stretch;
+          justify-content: center;
+          min-height: 56px;
+          margin-top: 24px;
+          padding: 15px 20px;
+          border-radius: 14px;
+          font-size: 17px;
+        }
+        .page-snapshot-home .ph-money-cta svg {
+          width: 16px;
+          height: 16px;
+        }
+        .page-snapshot-home .ph-invites {
+          flex-direction: column;
+        }
+        .page-snapshot-home .ph-invite {
+          flex: none;
+          padding: 26px 24px 28px;
+          border-color: rgba(17, 21, 15, 0.1);
+          box-shadow: 0 10px 28px rgba(17, 21, 15, 0.07);
+        }
+        .page-snapshot-home .ph-invite h2 {
+          font-size: 28px;
+          line-height: 31px;
+        }
+        .page-snapshot-home .ph-invite-body {
+          font-size: 21px;
+          line-height: 31.5px;
+        }
+        .page-snapshot-home .ph-invite-action {
+          padding-top: 24px;
+        }
+        .page-snapshot-home .ph-button {
+          align-self: stretch;
+          min-height: 56px;
+          padding: 15px 20px;
+          border-radius: 14px;
+          font-size: 19px;
+        }
+        .page-snapshot-home .ph-candidates {
+          padding-top: 56px;
+          padding-bottom: 56px;
+        }
+      }
+      @media (max-width: 335.98px) {
+        .page-snapshot-home .ph-social {
+          width: 176px;
+          height: 88px;
+        }
+      }
+      /* Tablet: the app folds the bar's links into a menu and grows the logo. */
+      @media (max-width: 1099.98px) {
+        .page-snapshot .ps-nav-row {
+          column-gap: 0;
+        }
+        .page-snapshot .ps-nav-links {
+          display: none;
+        }
+        .page-snapshot .ps-nav-right {
+          gap: 12px;
+          margin-left: auto;
+        }
+        .page-snapshot .ps-menu {
+          display: flex;
+        }
+        .page-snapshot .ps-nav-candidate .ps-nav-row {
+          padding: 14px 32px 0;
+        }
+        .page-snapshot .ps-nav-candidate .ps-signin {
+          display: flex;
+          align-items: center;
+          box-sizing: border-box;
+          min-height: 44px;
+          padding: 0 16px;
+          border-color: #2ed47e;
+          border-radius: 10px;
+          background: #2ed47e;
+          color: #06231a;
+          font-size: 15px;
+          font-weight: 700;
+        }
+        .page-snapshot .ps-logo {
+          gap: 14px;
+        }
         .page-snapshot .ps-mark {
-          width: 34.8px;
+          width: 34.83px;
           height: 34px;
         }
         .page-snapshot .ps-wordmark {
@@ -657,7 +1332,7 @@
         }
       }
       /* Phone: narrower gutters, a smaller logo, a smaller heading. */
-      @media (max-width: 767px) {
+      @media (max-width: 767.98px) {
         .page-snapshot .ps-inner {
           padding-left: 24px;
           padding-right: 24px;
@@ -665,18 +1340,26 @@
         .page-snapshot main.ps-inner {
           padding-top: 18px;
         }
+        .page-snapshot .ps-logo {
+          gap: 10px;
+        }
         .page-snapshot .ps-mark {
-          width: 22.5px;
-          height: 22px;
+          width: 26.63px;
+          height: 26px;
         }
         .page-snapshot .ps-wordmark {
-          font-size: 20px;
-          line-height: 20px;
-          letter-spacing: 3.2px;
+          font-size: 19px;
+          line-height: 19px;
+          letter-spacing: 3.04px;
         }
         .page-snapshot .ps-signin {
-          padding: 10px 16px;
-          font-size: 16px;
+          display: none;
+        }
+        .page-snapshot .ps-nav-candidate .ps-nav-row {
+          padding: 14px 20px 0;
+        }
+        .page-snapshot .ps-nav-candidate .ps-signin {
+          display: flex;
         }
         .page-snapshot h1 {
           font-size: 30px;
@@ -697,7 +1380,7 @@
       .ps-services-footer nav { display: flex; flex-wrap: wrap; gap: 24px; margin: 24px 0; }
       .ps-services-footer a { color: #cfd6d2; }
       .ps-services-footer span { color: #35c46b; }
-      @media (max-width: 767px) {
+      @media (max-width: 767.98px) {
         .ps-services-row { flex-wrap: wrap; gap: 0; justify-content: space-between; padding-top: 8px; }
         .ps-services-row img { width: 140px; }
         .ps-services-row nav { order: 3; flex-basis: 100%; justify-content: flex-start; gap: 24px; border-top: 1px solid #1c1c1c; margin: 0 calc(-1 * clamp(16px, 4vw, 48px)); padding: 0 16px; }
@@ -705,6 +1388,61 @@
         .ps-services-footer { padding: 34px 0 40px; }
       }
       @media (max-width: 359px) { .ps-services-row img { width: 124px; } .ps-services-row .ps-services-contact { padding-left: 14px; padding-right: 14px; } }
+
+      /* Homepage card grid, shared with HomeFeatureCards. */
+      .page-snapshot-home .ph-money-heading { margin-top:0; }
+      .page-snapshot-home .ph-invites {display:grid; grid-template-columns:minmax(0,48fr) minmax(0,52fr); gap:24px;}
+      .page-snapshot-home .ph-features-tablet,.page-snapshot-home .ph-features-phone {display:none;}
+      .ph-legislature {grid-column:1;grid-row:1;}
+      .ph-services {grid-column:1;grid-row:2;}
+      .ph-debate {grid-column:2;grid-row:1 / span 2;}
+      .ph-bill-actions {display:flex;flex-wrap:wrap;gap:12px 16px;margin-top:auto;padding-top:28px;}
+      .page-snapshot-home .ph-button {gap:10px;text-decoration:none;}
+      .ph-debate-title {display:flex;flex-wrap:wrap;align-items:baseline;column-gap:14px;row-gap:6px;}
+      .ph-debate-title h2 {white-space:nowrap;}
+      .ph-host {font-size:16px;line-height:24px;font-weight:600;color:#4f5651;}
+      .ph-photo {display:block;position:relative;overflow:hidden;border-radius:12px;background:#dfe3e0;min-width:0;}
+      .ph-crop {position:absolute;left:0;bottom:0;width:100%;height:0;min-height:100%;padding-top:68.15%;box-sizing:border-box;}
+      .ph-photo img {position:absolute;left:-41.38%;top:0;width:182.9%;max-width:none;height:auto;}
+      .ph-debate-details {display:block;margin-top:16px;font-size:18px;line-height:28px;color:#4f5651;font-variant-numeric:tabular-nums;}
+      .ph-date {display:inline-block;max-width:100%;}
+      .ph-features-desktop .ph-photo {margin-top:20px;flex:1;min-height:281px;}
+      .ph-features-desktop .ph-debate-words .ph-invite-action {display:none;}
+      .ph-features-tablet .ph-invites {grid-template-columns:repeat(auto-fit,minmax(300px,1fr));}
+      @media (min-width:768px) and (max-width:1099px) {
+        .page-snapshot-home .ph-features-desktop {display:none;}
+        .page-snapshot-home .ph-features-tablet {display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));}
+        .ph-legislature,.ph-services {grid-column:auto;grid-row:auto;}
+        .page-snapshot-home .ph-debate {grid-column:1 / -1;grid-row:auto;flex-direction:row;gap:28px;}
+        .ph-debate-words {display:flex;flex-direction:column;flex:48;min-width:0;}
+        .ph-debate .ph-photo {flex:52;aspect-ratio:16/9;align-self:stretch;}
+      }
+      @media (max-width:767px) {
+        .page-snapshot-home .ph-features-desktop {display:none;}
+        .page-snapshot-home .ph-features-phone {display:flex;flex-direction:column;}
+        .ph-debate-title h2 {white-space:normal;}
+        .ph-features-phone .ph-debate {display:flex;}
+        .ph-features-phone .ph-debate-words {display:contents;}
+        .ph-features-phone .ph-debate-title {order:0;}
+        .ph-features-phone .ph-photo {order:1;aspect-ratio:3/2;margin-top:20px;}
+        .ph-features-phone .ph-debate-details {order:2;font-size:21px;line-height:31.5px;}
+        .ph-features-phone .ph-invite-action {order:3;padding-top:24px;}
+        .ph-bill-actions {flex-direction:column;align-items:stretch;padding-top:24px;}
+      }
+      @media (max-width:1099px) {
+        .ph-crop {top:0;bottom:0;height:100%;padding:0;}
+        .ph-photo img {top:50%;margin-top:-48.28%;}
+      }
+      .page-snapshot-home .ph-invite-body {text-wrap:pretty;}
+      @media (max-width:767px) {
+        .ph-bill-actions .ph-button {width:100%;align-self:stretch;}
+        
+      }
+      @media (max-width:767px) {
+        .ph-debate .ph-button {padding-left:9px;padding-right:12px;}
+        .ph-services .ph-button {padding-left:6px;padding-right:6px;}
+        .ph-bill-actions .ph-button {padding-left:16px;padding-right:13px;}
+      }
     </style>
   </head>
 
@@ -857,7 +1595,8 @@
       page is served straight off the filesystem and never reaches api/page.ts.
     -->
     <div class="comment-return-loading" role="status">Loading comments…</div>
-    <div id="root"><!--alethical:page-snapshot--><div class="page-snapshot"><header class="ps-nav"><div class="ps-inner ps-nav-row"><a class="ps-logo" href="/" aria-label="Alethical home"><svg class="ps-mark" viewBox="0 0 84 82" fill="none" aria-hidden="true"><path d="M0 82 L38 0 L38 82 Z M84 82 L46 0 L46 82 Z" fill="currentColor"></path></svg><span class="ps-wordmark">ALETHICAL</span></a><nav class="ps-nav-links" aria-label="Site"><a href="/money">Money</a><a href="/bills">Search</a><a href="/blog">Blog</a><a href="/about">About</a><span class="ps-signin">Sign in</span></nav></div></header><main class="ps-inner"><h1>Grounded answers on Minnesota politics</h1><p class="ps-sub">TRUTH, UNCONCEALED</p><section class="ps-card"><p class="ps-prose">We turn scattered public records into clear information you can use. Understand what’s happening, check the evidence, and get practical support to act on what you learn.</p></section><section class="ps-card"><h2>Follow the money</h2><p class="ps-prose">See who gives, who spends, who gets paid, and who is registered to lobby, using records reported to the state</p><ul class="ps-list"><li><a href="/money">Search the money records</a></li></ul></section><section class="ps-card"><h2>Bills and votes</h2><p class="ps-prose">Read plain-language bill summaries, see where they stand, and find out how legislators voted</p><ul class="ps-list"><li><a href="/bills">Search bills</a></li></ul></section><section class="ps-card"><h2>Campaign services</h2><p class="ps-prose">Get political intelligence through campaign-finance research, plus websites, marketing, and custom software for your campaign or organization</p><ul class="ps-list"><li><a href="/services">Explore our services</a></li></ul></section><section class="ps-card"><h2>Who’s running where you live?</h2><p class="ps-prose">Explore the candidates in your Minnesota races, with links to official records</p><ul class="ps-list"><li><a href="/candidates">Find my candidates</a></li></ul></section></main></div><!--/alethical:page-snapshot--></div>
+    <div id="root"><!--alethical:page-snapshot--><div class="page-snapshot page-snapshot-home"><header class="ps-nav"><div class="ps-inner ps-nav-row"><a class="ps-logo" href="/" aria-label="Alethical home"><svg class="ps-mark" viewBox="0 0 84 82" fill="none" aria-hidden="true"><path d="M0 82 L38 0 L38 82 Z M84 82 L46 0 L46 82 Z" fill="currentColor"></path></svg><span class="ps-wordmark">ALETHICAL</span></a><div class="ps-nav-right"><nav class="ps-nav-links" aria-label="Site"><a href="/money">Money</a><a href="/bills">Search<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></a><a href="/blog">Blog</a><a href="/about">About<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></a></nav><span class="ps-signin">Sign in</span><span class="ps-menu" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#11150f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg></span></div></div></header><main><div class="ph-hero"><div class="ph-dots"></div><div class="ph-inner ph-hero-inner"><div class="ph-hero-row"><div class="ph-copy"><p class="ph-eyebrow">TRUTH, UNCONCEALED</p><h1 class="ph-heading">Grounded answers
+<span class="ph-green">on Minnesota politics</span></h1><p class="ph-intro">We turn scattered public records into clear information you can use. Understand what’s happening, check the evidence, and get practical support to act on what you learn.</p><div class="ph-social"></div></div><div class="ph-money-column"><a class="ph-money ph-money-hero" href="/money"><h2 class="ph-money-heading">Follow the money</h2><span class="ph-money-body">Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.</span><span class="ph-count" aria-hidden="true"><span class="ph-count-reserve"><span></span> registered campaigns, parties, and funds</span><span class="ph-count-bar"></span></span><span class="ph-money-cta"><span>Search the money records</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12 H19 M14 7 L19 12 L14 17" stroke="#06231a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></a></div></div></div></div><div class="ph-band"><a class="ph-money ph-money-phone" href="/money"><h2 class="ph-money-heading">Follow the money</h2><span class="ph-money-body">Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.</span><span class="ph-count" aria-hidden="true"><span class="ph-count-reserve"><span></span> registered campaigns, parties, and funds</span><span class="ph-count-bar"></span></span><span class="ph-money-cta"><span>Search the money records</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12 H19 M14 7 L19 12 L14 17" stroke="#06231a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></a><div class="ph-inner"><div class="ph-invites ph-features-desktop"><div class="ph-invite ph-legislature"><h2>Legislature</h2><span class="ph-invite-body">Bill summaries and progress, legislator profiles and votes</span><div class="ph-bill-actions"><a class="ph-button" href="/bills">Search bills<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#0f7a45" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></a><a class="ph-button" href="/legislators">Search legislators<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#0f7a45" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></a></div></div><a class="ph-invite ph-debate" href="/blog/events/forward-debate-2026"><div class="ph-debate-words"><div class="ph-debate-title"><h2>The Forward Debate</h2><span class="ph-host">Hosted by Alethical</span></div><span class="ph-invite-action"><span class="ph-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" fill="#0f7a45"></path></svg>Watch the debate</span></span></div><span class="ph-photo"><span class="ph-crop"><img src="/events/forward-debate-2026-home-desktop.jpg" alt="" /></span></span><span class="ph-debate-details"><span class="ph-date">Minnesota Senate District 13 ·</span> <span class="ph-date">October 15, 2026</span></span><span class="ph-invite-action"><span class="ph-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" fill="#0f7a45"></path></svg>Watch the debate</span></span></a><a class="ph-invite ph-services" href="/services"><h2>Campaign services</h2><span class="ph-invite-body">Political intelligence and practical support for candidates and organizations, including campaign-finance research, websites, content, tools and hosted debates</span><span class="ph-invite-action"><span class="ph-button ph-button-paid"><span>Explore our services</span><span aria-hidden="true">→</span></span></span></a></div><div class="ph-invites ph-features-tablet"><a class="ph-invite ph-debate" href="/blog/events/forward-debate-2026"><div class="ph-debate-words"><div class="ph-debate-title"><h2>The Forward Debate</h2></div><span class="ph-debate-details">Minnesota Senate District 13<br/><span class="ph-date">Hosted by Alethical ·</span> <span class="ph-date">October 15, 2026</span></span><span class="ph-invite-action"><span class="ph-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" fill="#0f7a45"></path></svg>Watch the debate</span></span></div><span class="ph-photo"><span class="ph-crop"><img src="/events/forward-debate-2026-home.jpg" alt="" /></span></span></a><div class="ph-invite ph-legislature"><h2>Legislature</h2><span class="ph-invite-body">Bill summaries and progress, legislator profiles and votes</span><div class="ph-bill-actions"><a class="ph-button" href="/bills">Search bills<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#0f7a45" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></a><a class="ph-button" href="/legislators">Search legislators<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#0f7a45" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></a></div></div><a class="ph-invite ph-services" href="/services"><h2>Campaign services</h2><span class="ph-invite-body">Political intelligence and practical support for candidates and organizations, including campaign-finance research, websites, content, tools and hosted debates</span><span class="ph-invite-action"><span class="ph-button ph-button-paid"><span>Explore our services</span><span aria-hidden="true">→</span></span></span></a></div><div class="ph-invites ph-features-phone"><a class="ph-invite ph-debate" href="/blog/events/forward-debate-2026"><div class="ph-debate-words"><div class="ph-debate-title"><h2>The Forward Debate</h2></div><span class="ph-debate-details">Minnesota Senate District 13<br/><span class="ph-date">Hosted by Alethical ·</span> <span class="ph-date">October 15, 2026</span></span><span class="ph-invite-action"><span class="ph-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" fill="#0f7a45"></path></svg>Watch the debate</span></span></div><span class="ph-photo"><span class="ph-crop"><img src="/events/forward-debate-2026-home.jpg" alt="" /></span></span></a><a class="ph-invite ph-services" href="/services"><h2>Campaign services</h2><span class="ph-invite-body">Political intelligence and practical support for candidates and organizations, including campaign-finance research, websites, content, tools and hosted debates</span><span class="ph-invite-action"><span class="ph-button ph-button-paid"><span>Explore our services</span><span aria-hidden="true">→</span></span></span></a><div class="ph-invite ph-legislature"><h2>Legislature</h2><span class="ph-invite-body">Bill summaries and progress, legislator profiles and votes</span><div class="ph-bill-actions"><a class="ph-button" href="/bills">Search bills<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#0f7a45" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></a><a class="ph-button" href="/legislators">Search legislators<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#0f7a45" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></a></div></div></div></div></div><section class="ph-inner ph-candidates"><h2>Who’s running where you live?</h2><p>Explore the candidates in your Minnesota races, with links to official records</p><a href="/candidates">Find my candidates</a></section></main></div><!--/alethical:page-snapshot--></div>
     <!--
       The records api/page.ts already read for this address, handed to the app in
       the same response so it draws them without asking the data service for the

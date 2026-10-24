@@ -1,3 +1,13 @@
+import { eventReplayBySlug } from "../apps/frontend/src/lib/eventReplayContent";
+import {
+  hasVideoMetadata,
+  replayVideoSitemapEntry,
+} from "../apps/frontend/src/lib/eventReplay";
+import {
+  EVENTS_PATH,
+  PUBLISHED_EVENTS,
+  eventPath,
+} from "../apps/frontend/src/lib/events";
 import { publicPageUrl } from "../apps/frontend/src/lib/share";
 import {
   collectionPage,
@@ -61,6 +71,8 @@ const FIXED_PAGES = [
   "/bills",
   "/legislators",
   "/find-my-legislator",
+  "/candidates",
+  "/candidates/features",
   "/money",
   "/money/lobbying",
   "/money/lobbying/principals",
@@ -96,9 +108,18 @@ function urlset(entries: string[]): string {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries.join("\n")}\n</urlset>`;
 }
 
+function videoEntries(): string[] {
+  return PUBLISHED_EVENTS.flatMap((event) => {
+    const replay = eventReplayBySlug(event.slug);
+    return replay && hasVideoMetadata(replay)
+      ? [replayVideoSitemapEntry(event, replay)]
+      : [];
+  });
+}
 function sitemapIndex(): string {
   const children = [
     "pages",
+    ...(videoEntries().length ? ["videos"] : []),
     "bills",
     "legislators",
     "committees",
@@ -116,8 +137,12 @@ function pagesUrlset(
   data?: SitemapPayload,
   lobbyingCounts: Partial<Record<"principals" | "lobbyists", number>> = {},
 ): string {
-  const paths = [...FIXED_PAGES];
-  // A posted piece is in the sitemap from the day it posts (Eugene, 25 Aug 2026).
+  const paths = [
+    ...FIXED_PAGES,
+    ...(PUBLISHED_EVENTS.length ? [EVENTS_PATH] : []),
+    ...PUBLISHED_EVENTS.map(eventPath),
+  ];
+  // A posted piece is in the sitemap from the day it posts (25 Aug 2026).
   // `indexed` is true on everything we publish; it stays as a way to hold one back
   // for a stated reason, not as a checking step every piece waits behind.
   for (const piece of indexedResearch()) {
@@ -188,7 +213,15 @@ function pagesUrlset(
       paths.push(directoryPagePath(`/money/lobbying/${kind}`, page));
     }
   }
-  return urlset(paths.map((path) => urlEntry(publicPageUrl(path))));
+  // Publication alone does not establish the latest significant change. Articles
+  // have later edits but no reliable modification field, so keep them dateless.
+  const changedOn = new Map<string, string>();
+  for (const event of PUBLISHED_EVENTS) {
+    changedOn.set(eventPath(event), event.updatedOn || event.publishedOn);
+  }
+  return urlset(
+    paths.map((path) => urlEntry(publicPageUrl(path), changedOn.get(path))),
+  );
 }
 
 /**
@@ -369,6 +402,18 @@ export default async function handler(
     return;
   }
 
+  if (section === "videos") {
+    const entries = videoEntries();
+    if (!entries.length) {
+      sendNotFound(response);
+      return;
+    }
+    sendXml(
+      response,
+      `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">${entries.join("")}</urlset>`,
+    );
+    return;
+  }
   if (section === "pages") {
     let data: SitemapPayload | undefined;
     try {

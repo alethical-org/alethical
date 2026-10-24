@@ -20,4 +20,4 @@
 
 ## Next decision boundary
 
-The public Short posts, topic, chart, and article screens wait for accepted drawings and Eugene's separate build instruction. Publishing any individual article requires another explicit instruction.
+The public Short posts, topic, chart, and article screens wait for accepted drawings and separate explicit build approval. Publishing any individual article requires another explicit instruction.

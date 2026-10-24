@@ -7,8 +7,8 @@ workflow is implemented. [Issue 147](https://github.com/alethical-org/alethical/
 records the hosted checks and live release evidence. The original preview remains `http://localhost:19047/candidates`.
 The current behavior is owned by [How Find My Candidates works](../product-onboarding/find-my-candidates-guide.md).
 
-The dated sections below retain the earlier decisions and checkpoints. Eugene's latest
-instruction to finish the complete working feature supersedes the earlier interim stops;
+The dated sections below retain the earlier decisions and checkpoints. The approved
+complete working feature supersedes the earlier interim stops;
 the active scope and verification checkpoints are recorded at the end of this plan.
 
 Owner: Codex task **candidate lookup** (`01a0f355-a105-7543-8036-7c5274c0d5b7`).
@@ -16,18 +16,12 @@ Tracking: [Search candidates and candidate profiles](https://github.com/alethica
 
 ## Authorization and boundaries
 
-On 30 September 2026 Eugene instructed: “give design prompt then start building
-everything possible efficiently until designs are ready”. This authorizes the
-independent build work and its checks. New visual choices wait for returned drawings
+Scope approved on 30 September 2026: prepare the Design brief and begin independent
+build work and its checks while drawings are pending. New visual choices wait for returned drawings
 and review. Providing the Design prompt does not send it to Design.
 
-Later on 30 September Eugene corrected the destination scope, in this order:
-
-1. “its a public page which Find my candidates in nav should go to (see task building nav)”
-2. “go”
-3. “remove private labeling”
-
-This authorizes the public `/candidates` destination and removal of private labeling.
+The later 30 September scope revision approves the public `/candidates`
+destination and removal of private labeling.
 The navigation's **Find my candidates** link goes to `/candidates`; the separate
 navigation task owns that integration. The accepted `/candidates` title remains
 **Find My Candidates**. The public destination must not collect an address before a
@@ -36,10 +30,9 @@ Development review retains **ILLUSTRATIVE DATA** so examples cannot be mistaken 
 official records. Earlier private-release boundaries below are dated history, not a
 continuing hold on the public destination.
 
-Eugene's next instruction was: “eval why and when records are not avail and explain
-to me, are we able to see everyone running for the nov election now? based on MN
-public data, research more if needed to find everything the State informs”. That
-research is separate from opening the destination. The public notice is **Candidate
+The next research scope covers why and when records are unavailable, whether
+Minnesota's public sources cover everyone running in November, and further official
+source research needed to establish coverage. That research is separate from opening the destination. The public notice is **Candidate
 records are not available on Alethical yet**, describing Alethical's unconnected
 service rather than claiming Minnesota has not published records. Source research
 must establish actual November coverage before promising everyone is included.
@@ -53,7 +46,7 @@ an ownership shortcut based on possession of a publicly available filing certifi
 
 This follows the [product scope's candidate-data direction](../product-onboarding/product-scope.md)
 and the [existing address-privacy policy](../product-onboarding/user-data-retention-policy.md).
-The meeting notes and Eugene's instructions supply the narrower address-search scope;
+The meeting notes and approved build scope supply the narrower address-search scope;
 the older saved requirements do not settle candidate claim verification.
 
 The homepage and navigation have separate active design work. This branch does not
@@ -71,7 +64,7 @@ layout and supporting text. The older planned `/search/candidates` entry remains
 | Strict election-file parser and offline retained import          | `candidate_foundation` helper   | Now                                                               | Real source excerpt, malformed-response rejection, election separation, immutable replay and coverage tests               |
 | Temporary browser search state                                   | `candidate_search_state` helper | Now                                                               | Old responses cannot replace newer searches; retry retains coherent results; clearing removes private state               |
 | Source review, integration, documentation and independent review | Current task                    | Each result                                                       | Read actual source and code; focused checks; safe release of dormant foundation                                           |
-| Public `/candidates` destination                                 | Current task                    | Authorized by Eugene's later correction                           | Production route and HTTP response succeed; truthful unavailable notice, official link, no address collection or examples |
+| Public `/candidates` destination                                 | Current task                    | Approved by the later destination-scope revision                           | Production route and HTTP response succeed; truthful unavailable notice, official link, no address collection or examples |
 | Navigation link to `/candidates`                                 | Separate navigation task        | Its authorized navigation build                                   | Find my candidates opens the public destination                                                                           |
 | Real search/results and homepage address handoff                 | Current task                    | Reviewed drawings and source contract                             | Desktop/phone browser journeys; keyboard, slow/failure/retry and privacy checks                                           |
 | Candidate profiles and claim management                          | Current task                    | Profile/claim design review and settled identity/evidence rules   | Public record remains immutable; account separation and claim-review checks                                               |
@@ -202,7 +195,7 @@ make network calls, resolve ambiguous addresses, or implement the drawn controls
 
 - Started from `origin/main` at `9474b8b6fe9186d2b9dd456f94b63f5f9b3982d8` on
   `codex/147-candidate-lookup-foundation` in the current task's isolated checkout.
-- Delivered the `/candidates` search/results Design prompt in chat; it includes
+- Prepared the `/candidates` search/results Design brief; it includes
   desktop, tablet, phone, ambiguity, partial coverage, election switching, and failures.
 - Built the 2 offline source parsers, retained snapshots, exact state-race matching,
   and temporary browser search state. No public route, account claim, database table
@@ -219,8 +212,8 @@ make network calls, resolve ambiguous addresses, or implement the drawn controls
 
 ## 30 September: reviewed screens and private build
 
-Eugene then instructed **“bd unless you need drawings”**. The latest completed design
-is `Alethical UX (45).zip`. Search/results and read-only source profiles are build-ready.
+Build scope was then approved against the latest completed design,
+`Alethical UX (45).zip`. Search/results and read-only source profiles are build-ready.
 Claims, management, campaign statements and services remain held. No additional drawing
 is needed for the settled search/profile corrections described here.
 
@@ -249,7 +242,19 @@ The [official Minnesota sample-ballot website](https://myballotmn.sos.mn.gov/) u
 `/api/PollingPlaceData/GetPollingPlaceData?prodAddressRangeId=<id>`.
 The ZIP table supplies number bounds, parity, full street directions, suffix and unit
 fields. Require exactly 1 complete match; unresolved units or multiple matches must
-remain unresolved. Postal city is not municipality: a SHAKOPEE postal range returned
+remain unresolved. A ZIP-table range marked `DisplayUnitNbr` carries no unit list of
+its own (`UnitNumberRange` was empty on all 19 marked rows across 15 tables read on
+9 October 2026). The same site reads it in 2 further requests:
+`/api/FilteredAddress/GetFilteredAddresses?address=<street city ZIP>` returns the
+street's `FullStreetNameCityNameZipCodeId`, and
+`/api/UnitNumberRangesData/GetUnitNumberRanges?FullStreetNameCityNameZipCodeId=<id>`
+returns `ProdAddressRangeId`, `UnitNumberRange` (such as `101 - 248` or
+`SIDE - SIDE`), `HouseNumberRange` and `OddEvenInd`, which follows the house numbers.
+The site offers each unit label as a choice whose value is its ballot range. A
+street with no list answers HTTP 404 `{"message":"Unit number data not found."}`.
+Matching rules and the dated replies are in
+[find-my-candidates-guide.md, units](../product-onboarding/find-my-candidates-guide.md)
+and `alethical/tests/fixtures/sos_unit_number_ranges_2026-10-09.json`. Postal city is not municipality: a SHAKOPEE postal range returned
 JACKSON TWP. P-1. Never assign city races from the postal name.
 
 The current response supplies election ID `8334`, 3 November 2026, plus exact-precinct
@@ -323,7 +328,7 @@ On 30 September 2026, website and server both reported release
 addresses returned 404 with that same website release and no illustrative records.
 The final independent visitor review passed after deployment.
 The accepted preview stayed at its original address; its worktree remained
-available while Eugene reviewed it. Final release evidence and visitor acceptance are
+available for review. Final release evidence and visitor acceptance are
 recorded on [issue 147](https://github.com/alethical-org/alethical/issues/147).
 
 ## Public-destination build checkpoint, 30 September 2026
@@ -398,14 +403,10 @@ completeness or authorizes claims about everyone running.
 
 ## Full working feature resumed, 30 September 2026
 
-Eugene explicitly corrected the artificial stop: “i told you earlier to build
-eveyrthing including what you have NEXT. build evveyrhting means everything to be
-fully working, the ideal build, why didnt you start it?” He then instructed:
-“update rules so you would have not stopped in this type of scenario given what I
-instructed, and then keep building through the end”. These instructions carry the
-existing full build through real data, profiles, claims, testing, release and live
+The complete build scope includes real data, profiles, claims, testing, release and live
 acceptance. The temporary public notice and completed research were checkpoints,
-not completion. Earlier implementation holds are replaced by the concrete checks
+not completion. Workflow guidance must preserve that finish across interim checkpoints.
+Earlier implementation holds are replaced by the concrete checks
 below. Candidate-specific paid services remain the explicitly later phase.
 
 Current branch: `codex/147-complete-candidate-lookup`, same isolated checkout and
@@ -511,7 +512,7 @@ commit and deployment evidence rather than treating a local checkpoint as live.
 
 ## Public design release, October 1, 2026
 
-Eugene authorized “set. build through live deployment without stop”. The pinned
+Implementation through live deployment is approved. The pinned
 input is Alethical UX (51).zip; the complete scope and independent coverage review
 are recorded in [Candidate design acceptance](candidate-design-release-acceptance.md).
 Public search/profile drawings and homepage candidate-search copy are implemented;
@@ -533,3 +534,158 @@ covered homepage-to-results, group controls, profile/back navigation, phone/tabl
 layouts and unknown profiles. All 7 reviewed legislator connections and official
 portrait URLs respond correctly. The exact live paths, corrections and limits are
 saved in [Candidate design acceptance](candidate-design-release-acceptance.md#live-acceptance-october-1-2026).
+
+
+## Address suggestions consultation, October 8, 2026
+
+Review only; no new application build is authorized by this consultation. Direct
+consultation and follow-up in the existing Alethical UX project are approved. The original supplied brief is
+`/Users/eug/.codex/attachments/5e85f9b9-3c6b-4258-ac22-11e0049793b5/Pasted text.txt`.
+Design's first response is the top reply card in
+[Alethical UX Prompt.dc.html](https://claude.ai/design/p/e592f874-1b47-4dda-a8d9-2e9f086f2bac?file=Prompt.dc.html).
+The follow-up review accepted the corrections below. They supersede
+conflicting details in that reply card. This is a proposed approach, not a record
+that application behavior or approved product requirements have been changed.
+
+- Evidence: candidate and legislator forms differ in debounce, selection,
+  guidance and styling. Existing candidate guide activates the first option;
+  Design reports its current drawing opens without an active option. The proposed
+  no-active-option behavior must update the written requirement during an approved build.
+- Affected uses: candidate entry, candidate Change address and Find my legislator.
+  Share presentation/interaction, preserving their separate services, matching,
+  source notices, privacy boundaries and ambiguous-address confirmation.
+- Proposed behavior: house number plus 2 street-name characters or first numbered
+  street digit; 180ms pause; at most 5 Minnesota suggestions; newest request only.
+  No active option on opening; Down/Up select first/last and wrap; Enter submits
+  typed input unless an option is active. Hover grey, keyboard active green;
+  hover never changes the keyboard target and green wins on overlap.
+- Preserve Design's panel, pin, row spacing and full wrapped address treatment.
+  Entry fields/buttons are 60px; Change address remains a 56px field with 52px
+  button. Label and hint precede the field. Normal rows use fill, with an active
+  outline in forced-colors mode. Suggestions remain above ordinary content and
+  below dialogs, with pointer access across the panel.
+- Completed clicks/taps select, never initial touch-down. Preserve scrolling and
+  cancellation, first-tap selection and a stable Search button through dismissal.
+  A focus event with null relatedTarget must not erase an in-progress tap.
+- Phone: reveal only as needed after keyboard resize, keep label clearance of
+  12px when feasible, and stop unsolicited adjustments after manual scrolling.
+  Deliberate arrow navigation still reveals the active row. No inner list scroller.
+- Preserve autofill submission from the current field, US suffix normalization,
+  units/directions/ZIP+4, latest-request handling and drafts on failure. Carry a
+  typed unit only after establishing the same base location, respecting supplied
+  city/state/ZIP. Never append a unit to an unrelated address or silently change it.
+- Optional suggestion failure stays quiet; submitted search retains errors/retry.
+  Find my legislators uses Finding… in a steady button. First-load placeholders
+  only when no usable results exist; later searches retain old results and their
+  true address/context until the replacement succeeds.
+- Spoken counts on each opening and count changes while open, silent on closing.
+  Neutral wording by default; keyboard guidance follows actual input method, not
+  attempted screen-reader detection. Reuse readable autofill styling and preserve
+  system high-contrast colors.
+- Prevention: shared component checks for typing/autofill/edit/Enter, stale answers,
+  click versus scroll/cancel, failed searches, unit mismatch, wrapped text, layering,
+  keyboard and screen-reader use. Real iPhone/Android keyboard and accessibility
+  behavior remains untested until the authorized implementation is exercised.
+- Separate exposure: sign-in restoration can reset candidate input; tracked in
+  [issue 2529](https://github.com/alethical-org/alethical/issues/2529), not fixed by
+  this list change. Removing legislator addresses from URLs is a separate proposed
+  privacy change requiring its own product approval.
+- Owner: current Codex task candidate lookup. Review outcome: no remaining material
+  disagreement on the proposed approach; implementation and device checks are pending.
+
+
+### Build authorization and model selection, October 8, 2026
+
+The approved address-suggestions scope includes implementation, tests, browser
+review, Design record updates and verified live release. The separate sign-in
+restoration issue and legislator URL privacy change remain outside this scope.
+
+Recommendation: gpt-6-astra with high reasoning. Strongest practical alternative:
+gpt-6.1-sol with high or xhigh reasoning. Visual decisions are settled, but the
+lead still owns shared browser event ordering, autofill, asynchronous request
+replacement, address identity/unit preservation and accessible phone behavior.
+Current official OpenAI model-selection and Astra guidance (read October 8)
+positions Astra for demanding reasoning, coding and computer use; high is supported
+by the receiving host. High is the task judgment for these interacting constraints;
+there is no task-specific comparative measurement proving speed or equal quality.
+The choice does not claim Astra can substitute for unavailable physical devices.
+Sources: https://developers.openai.com/api/docs/guides/model-selection and
+https://developers.openai.com/api/docs/models/gpt-6-astra .
+Implementation remains approved after the model-setting decision; no separate
+build approval is needed when that decision is complete.
+
+### Active build and acceptance order
+
+The build authorization supersedes the review-only status above. Available automated
+and computer-browser checks precede deployment; physical
+iPhone/Android checks follow the live release. Neither emulation nor
+synthetic input is evidence that real keyboard saved-address suggestions were tested.
+
+Implementation is on `codex/shared-address-suggestions`, based on current main.
+The frontend worker owns the shared field/list, both integrations and focused tests;
+the lead owns the guides, Design record update, independent review and release.
+Steps: implement with focused tests; review integration and browser flows; complete
+required checks; merge and deploy; exercise live search; retain exact phone-test gaps
+for later device acceptance. No worker changes the separate sign-in restoration or URL privacy scope.
+
+
+### Shared address design comparison and prevention
+
+Tracked in [issue 2535](https://github.com/alethical-org/alethical/issues/2535).
+The supplied `Pasted text.txt` has SHA-256
+`17bc69f8af917bff748d33e11c2ca2f0e99c1f426b03ee654a9579780d4cac9e`.
+The accepted sources are the address controls in `Candidates search.dc.html`,
+`LIVE Find My Legislator.dc.html`, and the 2 direct consultation clarifications
+recorded above. The 768px and 1100px layout boundaries remain unchanged.
+The comparison covers these control sections in visual order:
+
+| Section | Required outcome | Evidence to collect |
+| --- | --- | --- |
+| Heading, field label and hint | Plural legislator heading; Full street address; surface-specific city/ZIP hint above field | Rendered entry and Change address at phone, tablet and computer widths |
+| Field | Entry 60px; compact 56px; full wrapping, saved-address readability, purple typing focus | Dimensions, long text, browser-filled current value and keyboard submit |
+| Optional suggestions | 180ms eligibility trigger; at most 5; singular/plural heading; quiet empty/failure; latest text only | Focused tests and partial-typing browser paths |
+| List position and rows | Overlay at field width on larger screens; inline on phone; 8px gap; approved pin, padding, type and fills | Rendered list, row hit targets and overflow checks |
+| Selection and dismissal | No initial selection; independent mouse/keyboard states; wrapped arrow navigation; completed tap; no scroll selection; Escape/Tab/outside | Focused event tests and browser keyboard/click paths |
+| Submit buttons | Entry 60px and compact 52px; first click delivered; stable busy label/spinner; no repeated submission | Busy and first-click tests; actual browser submit |
+| Source and results context | Preserve distinct sources/privacy; retain previous success and its address during replacement/failure | Integration tests, guides and search-result browser paths |
+| Address identity | Preserve US-suffix handling, units, direction and ZIP+4; never transfer a unit across different supplied locations | Matching-boundary tests and displayed/submitted equality |
+| Phone access | Small necessary reveal, manual-scroll suppression, arrow reveal, no inner list scroller | Browser narrow widths plus explicit physical-phone follow-up |
+| Spoken state | Neutral count on opening and count change; silent closing; valid combobox/list relationships | Accessibility attributes and announcement tests |
+
+The independent reviewer checks the source-to-requirement coverage and the shared
+implementation for missing affected uses. The shared field is the prevention
+mechanism for divergence between the 3 forms; their lookup services and ambiguity
+confirmation remain separate. Browser checks do not establish physical keyboard,
+VoiceOver or TalkBack behavior. Those limits remain explicit after deployment.
+
+### Shared address acceptance
+
+The current-main frontend suite passes 4,225 tests across 334 files.
+The required upload check also passes all 4,602 backend tests. TypeScript, frontend
+formatting, documentation checks and the production web build pass. The production
+build measures 296,135 first-load bytes against the 297,506-byte limit. Independent
+source review found no remaining actionable frontend defects. A fresh-context
+browser reviewer exercised candidate and legislator searches at 390px, 900px and
+1440px, including partial typing, keyboard selection, click selection, typed Enter,
+country suffixes, Change address, dismissal, retry and retained result context.
+Physical iPhone/Android keyboards and VoiceOver/TalkBack remain untested.
+
+The selected legislator suggestion initially showed coordinates as its result
+address. The implementation now binds the selected readable street address to its
+exact request and preserves that address with retained results. Focused tests and
+the fresh browser review cover the correction.
+
+The candidate example at 350 S 5th St, Minneapolis, MN 55415 cannot match the official
+candidate address ranges even when submitted directly without a suggestion. On
+2026-10-08 the official SOS GetStreets response for ZIP 55415 had 44 ranges, and
+the sole 5TH ST S range (316911) covered only even house 600. The mapping service
+suggests 350, but candidate lookup requires the separate SOS range. Preserve safe
+no-match rather than borrowing another address's ballot; this source limitation
+is independent of the shared control.
+
+Design updated `Candidates search.dc.html`, `LIVE Find My Legislator.dc.html` and
+the shared-address section of `build-facts-candidates.md` in Alethical UX. The lead
+inspected the rendered controls and read the saved notes. The candidate apartment
+specimen was corrected to an explicit matching S direction with 1 suggestion;
+uncertain unit transfer omits the optional suggestion and leaves typed submission
+available. No additional address confirmation flow was introduced.

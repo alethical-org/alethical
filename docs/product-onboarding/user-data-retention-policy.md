@@ -1,4 +1,4 @@
-<!-- describes: alethical/db/models.py, alethical/api/auth.py, alethical/api/routers/me.py, alethical/api/routers/contact.py, alethical/api/services/auth.py, alethical/api/services/contact.py, alethical/api/services/representative_lookup.py, alethical/logging.py, alethical/monitoring.py, apps/frontend/src/screens/LegalScreens.tsx -->
+<!-- describes: alethical/db/models.py, alethical/api/auth.py, alethical/api/routers/me.py, alethical/api/routers/contact.py, alethical/api/services/auth.py, alethical/api/services/contact.py, alethical/api/services/candidate_claims.py, alethical/api/services/candidate_claim_events.py, alethical/api/services/candidate_claim_email.py, alethical/alembic/versions/0068_profile_claim_review.py, alethical/alembic/versions/0070_tv_ad_records.py, alethical/api/routers/tv_ads.py, alethical/api/services/tv_ad_review.py, alethical/pipeline/fcc_expense_links.py, alethical/api/services/representative_lookup.py, alethical/logging.py, alethical/monitoring.py, apps/frontend/src/screens/LegalScreens.tsx, apps/frontend/src/lib/legalContent.ts -->
 
 # What we keep about readers, and for how long
 
@@ -309,17 +309,78 @@ Public-name changes, deletion and removal do not themselves send mail.
 The exact choices and copy are in
 [editorial-comments-guide.md](editorial-comments-guide.md).
 
+### 2.10 Candidate profile claims and campaign statements
+
+A profile claim requests campaign access to a candidate profile. The selected role,
+supporting public link and explanation are private evidence, available to the
+requesting account and eligible administrators. Review notes are also private.
+An approved campaign statement is public and remains separate from official records.
+There is 1 administrator role; administrator accounts cannot claim candidate profiles.
+
+| Stored record | Contents and lifetime |
+| --- | --- |
+| `candidate_claim` | Requesting account, candidate, status, private evidence and review note, reviewing account reference, dates and version; retained while the requesting account exists |
+| `candidate_claim_event` | Submitted, resubmitted, withdrawn, given up, approved, rejected and revoked events, each with its own evidence, review note, public candidate snapshot, actor reference, saved version and date; retained with the claim |
+| `candidate_statement` | Currently published campaign statement; removal, giving up, revocation or requesting-account deletion removes it; public reads also hide it when its owner is inactive or an administrator |
+| `candidate_statement_revision` | Private published and removed statement versions; retained with the claim after public removal |
+| `candidate_statement_report` | Private report reason and the statement text and version reported; retained with the claim, including after resolution |
+| `candidate_claim_email_delivery` | Event and recipient account identifiers, recipient kind, attempt dates/count, provider receipt and delivery state; retained with the claim, or removed earlier if the recipient account is deleted |
+
+Withdrawal, rejection, giving up, revocation and the election ending do not erase
+private claim history. No automatic age limit is applied to these records. These
+purpose-specific lifetimes govern profile claim evidence and campaign statements;
+§5 governs private bill questions and notes. Legacy history is not reconstructed.
+
+**Prepared email content is temporary.** Queued deliveries initially store account
+identifiers, not email addresses. Before delivery, current confirmed recipient
+addresses are resolved. The prepared message holds that address and the candidate,
+office, voting area, election and private destination link. Administrator decision
+messages also hold the decision, reviewer name or account identifier, and saved
+time. Private supporting links, explanations, review notes and statement reports
+never enter the email. The 8 message variants notify administrators about submitted
+and resubmitted requests, and notify the applicant and other administrators
+separately about approval, rejection and revocation.
+
+Prepared content is cleared on sent, cancelled, failed or uncertain delivery states.
+Retry attempts keep the same prepared message and provider key; an uncertain send
+cannot retry beyond 23 hours. Expiry cleanup occurs when the sender next processes
+the delivery. A disabled or unavailable sender can leave other prepared messages
+waiting, but does not delay the account-deletion rules that follow.
+
+**Requesting-account deletion removes the claim and its dependent records.** The
+published statement, private revisions, reports, events and all deliveries for those
+events are deleted with it. Recipient-account deletion also deletes that recipient's
+deliveries. Official candidate, election, person, service and research records remain.
+
+**Reviewing-administrator deletion clears copied identity immediately.** Retained
+claims and events lose the reviewing account reference. A database trigger also
+clears prepared administrator-decision messages containing that reviewer, even when
+sending is turned off. A message never attempted returns to pending and can be
+prepared again with “an administrator”. An attempted message is cancelled, keeping
+its attempt and duplicate-prevention information; its content is not changed and
+retried under the same provider key. A sender returning from an in-flight request
+respects that cancellation instead of restoring the cleared content.
+
+These rules run when Alethical's local account row is deleted. They do not make
+Supabase account removal automatically delete the local account, or provide an
+account-deletion button. The manual deletion limits in §7 still apply. An email
+already handed to Resend cannot be recalled; delivered copies remain with recipients
+and the provider under their own terms.
+
+The profile actions and notifications are described in
+[find-my-candidates-guide.md](find-my-candidates-guide.md).
+
 ---
 
 ## 3. Given, generated, or just written down
 
-The issue behind this doc asked for this distinction, and it turns out to be the most
-useful cut through the whole list — because it predicts how a reader will feel about
-each item without them having to be asked.
+The distinction between deliberate input, generated content and incidental records
+helps explain what readers expect Alethical to retain or delete.
 
 **Given deliberately.** Bills someone chose to follow. Their alert settings. A note on a
 bill. A chosen public name, published comments and replies, and comment email
-choices. A saved address, if the feature ever ships. The reader performed an act meant to
+choices. Candidate profile claim evidence, published campaign statements and statement
+reports (§2.10). A saved address, if the feature ever ships. The reader performed an act meant to
 be remembered, and would be annoyed if we forgot.
 
 **Volunteered without being asked for.** Every question typed into a bill conversation.
@@ -352,6 +413,8 @@ The published Privacy Policy names the recipients and purposes in this table.
 | **Anthropic**                               | **A reader-written question, word for word; or public suggestion text**                                               | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **Yes**                      |
 | **US Census Bureau**                        | **The full street address, with surrounding spaces removed**                                                          | Every Find My Legislator address search                                                              | **Yes**                      |
 | **Minnesota Geospatial Information Office** | **The house number and street-name prefix, without city or ZIP**                                                      | While suggestions are open; also after Census retries find no match                                  | **Yes**                      |
+| **Minnesota Geospatial Information Office** | **The device position and a search distance, sent by Alethical's server**                                             | Once per **Use my location** tap on `/candidates`; never stored or put in a link                     | **Yes**                      |
+| **Minnesota Secretary of State**            | **The ZIP code and the official ballot-range number, which can identify 1 building or apartment; for a building divided by apartment number, also the official street, city and ZIP. Never the typed address, house number or unit** | Every **Find my candidates** address search; the street only when the source marks the house range as needing a unit | **Yes**                      |
 | Vercel                                      | Hosts the web app, so its request logs see every page address (§7)                                                    | Every page load                                                                                      | Yes                          |
 | Cloudflare                                  | Sits in front of the API; its Web Analytics script also receives page-speed and broad browser details                 | Every API call; every website visit after the script loads                                           | Yes                          |
 | Google Search Console                       | Sitewide search appearances and visits; Alethical publishes no search phrase, page, country, device, or person detail | When the private Site Metrics totals refresh                                                          | Yes                          |
@@ -360,6 +423,7 @@ The published Privacy Policy names the recipients and purposes in this table.
 | Railway                                     | Runs the API and captures its log stream (§7)                                                                         | Every API call                                                                                       | Yes                          |
 | Sentry                                      | Error class, code stack, safe route pattern, and public operating labels; **no reader data**                          | Only when an import, sign-in service, answer provider, or API request fails                          | Yes                          |
 | Resend | Contact form fields; for comment mail, recipient address, public names, article title, contribution link and private stop links, never comment text | Contact and comment email sends | Yes |
+| Resend, profile claim mail | Current confirmed recipient address, candidate, office, voting area, election, message and private link; administrator decision messages also contain the decision, reviewer name or account identifier, and saved time; no private claim evidence, review notes or recipient lists | Separate applicant and administrator profile claim notifications (§2.10) | Yes |
 | Google Workspace | Alethical's delivered contact copy; comment administrator alerts containing article title and contribution link | Contact sends and comment administrator alerts | Yes, through the Resend lines |
 
 **The good half.** No account identifier ever reaches a model. The prompt we send is
@@ -423,7 +487,7 @@ dangerous one.
 3. **A typed message may never be copied into anything that outlives it.** No log line,
    no diagnostic receipt, no analytics event, no evaluation fixture, no error report. If
    we cannot delete every copy when the 24 months run out, the retention rule is
-   decorative. This is the constraint the issue asked us to place on per-answer receipts:
+   decorative. The same privacy constraint applies to per-answer receipts:
    **a receipt may record which passages were retrieved, which model answered, and how
    long it took — and may not record the question, the answer, or anything that
    identifies who asked.** A receipt that carries the question is a second, undeletable
@@ -451,8 +515,8 @@ small.
 ## 6. What deletion should mean
 
 There is no reader-facing account deletion flow yet (§7). This specifies the
-whole operation; the comment tables already enforce the erasure described here
-when an account row is deleted.
+whole operation; the comment, profile claim and TV review tables enforce the erasure described
+here when an account row is deleted.
 
 **"Delete my account" should mean:**
 
@@ -468,6 +532,25 @@ when an account row is deleted.
 | Conversations and every message | Deleted      | Typed text (§5) — this is the one that most needs to actually happen |
 | Public comments and replies | Erase text and author link; retain anonymous structure needed by other replies | Preserve other readers' contributions without preserving the deleted person's words |
 | Comment name, choices, retry receipts, stop tokens and reader deliveries | Deleted | All belong to the account; administrator delivery records instead lose their actor link (§2.9) |
+| Candidate profile claims, their events, published statements, revisions, reports and event deliveries | Deleted with the requesting account | Private campaign access records belong to that account (§2.10) |
+| Profile claim deliveries to the deleted account | Deleted | No recipient remains (§2.10) |
+| Profile claims reviewed by a deleted administrator | Retain the decision with no actor reference; clear copied reviewer identity from prepared administrator messages immediately | Preserve the applicant's history without keeping the deleted reviewer's identity in queued mail (§2.10) |
+| TV ad copies, facts, connections, folder decisions and review events | Retain evidence and decisions; replace the deleted administrator’s account identifier with the shared `deleted-account` marker | Preserve source history without retaining the reviewer’s identity |
+| Official candidate, election, person, service and research records | Retained independently | These public records do not belong to the deleted campaign account |
+
+**TV review identity.** Review writes first establish the administrator's local account
+and sign-in link. The transaction holds those records while saving the decision, so
+account deletion cannot race a new review into retained history. Deleting either the
+account or its Supabase identity replaces that identity in copy preparation, metadata
+checks, publication decisions, facts, connections, folder approvals and review events.
+The shared `deleted-account` value is a text marker, not an account or a shadow user.
+
+The same removal covers the archive's campaign-payment connection reviewer and older
+generated review-history lines, even when another administrator later reviewed the
+connection. New generated history keeps dates, decisions and evidence without copying
+account identifiers into prose. Original public documents, quoted source evidence,
+redaction masks, approval state and source links retain their existing meaning.
+Administrator accounts and review notes remain private; this does not publish them.
 
 **What we would keep.** Anonymous action counts and hourly totals of local first use,
 bill-follow creation, and committee-follow creation have no account, email, bill, or
@@ -514,7 +597,7 @@ nothing to check the complete operation against. **The complete account deletion
 flow in §6 remains a proposal; comment erasure on account removal is implemented.**
 Building the complete flow is [#1040](https://github.com/alethical-org/alethical/issues/1040).
 
-**The published Privacy Policy now matches this document** (`apps/frontend/src/screens/LegalScreens.tsx`,
+**The published Privacy Policy matches these requirements** ([legalContent.ts](../../apps/frontend/src/lib/legalContent.ts) holds the shared words; [LegalScreens.tsx](../../apps/frontend/src/screens/LegalScreens.tsx) shows them,
 updated 26 September 2026 for editorial comments; its original alignment was
 [#1041](https://github.com/alethical-org/alethical/issues/1041)).
 _Information We Collect_ lists every category in §2 that a reader can actually reach: the
@@ -689,6 +772,11 @@ write path if a real product need appears.
 | Comment email choices, retry receipts and stop-token digests | Life of the account | Preserve reader choices, dependable retries and working stop links |
 | Comment reader delivery records | Life of the account; prepared payload cleared on a terminal outcome | Prevent duplicate sends without retaining the delivered message payload |
 | Comment administrator delivery records | Event record retained; actor link cleared on account deletion and prepared payload cleared on a terminal outcome | Record the operational outcome without retaining comment text |
+| Candidate profile claims, evidence, review notes and 7-kind event history | Life of the requesting account | Retain campaign-access decisions, including closed elections and ended access (§2.10) |
+| Published campaign statements | Until removal, giving up, revocation or requesting-account deletion; inactive/admin owner statements are hidden | Public campaign speech remains separate from official facts (§2.10) |
+| Private statement revisions and statement reports | Life of the requesting account, through their claim | Preserve the reviewed version and report after public removal (§2.10) |
+| Profile claim delivery records | Life of the requesting account or recipient account, whichever ends first | Prevent duplicate notifications while the event and recipient exist (§2.10) |
+| Prepared profile claim email content | Cleared on terminal delivery outcomes; expiry processed on the next eligible sender run; copied reviewer identity cleared immediately on reviewer-account deletion | Limit private message copies without changing an attempted message under the same provider key (§2.10) |
 | Saved address (if ever built)                        | Life of the account, deletable on its own                                              | Most sensitive thing we would hold; the reader should be able to remove it without losing everything else |
 | Notes on bills                                       | Typed text — §5 rules apply                                                            | A free-text box is a free-text box                                                                        |
 | Sent bill alerts                                     | 90 days after sending                                                                  | A delivery receipt nobody asks about after three months                                                   |

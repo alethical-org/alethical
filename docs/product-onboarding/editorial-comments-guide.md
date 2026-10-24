@@ -2,7 +2,7 @@
 
 <!-- describes: apps/frontend/src/components/comments/**, apps/frontend/src/data/comments.ts, apps/frontend/src/screens/redesign/CommentEmailsScreen.tsx, alethical/api/routers/comments.py, alethical/api/services/comments.py, alethical/api/services/comment_email.py -->
 
-Eugene approved this feature on 26 September 2026, including implementation through
+This feature was approved on 26 September 2026, including implementation through
 release in [issue 2399](https://github.com/alethical-org/alethical/issues/2399).
 This guide records the approved product behavior. Release progress lives in
 [editorial-comments-build-plan.md](../operations/editorial-comments-build-plan.md).

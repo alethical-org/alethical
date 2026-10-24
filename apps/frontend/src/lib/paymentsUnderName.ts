@@ -199,7 +199,7 @@ export const LOAD_MORE_ERROR =
 export const REFRESH_ERROR =
   'We couldn’t refresh these payments. The payments already loaded are still shown.';
 
-export const BACK_TO_RESULTS = 'Search results';
+export const BACK_TO_RESULTS = 'Back to money search';
 
 // --- Rows ---------------------------------------------------------------------
 

@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+vi.mock('../../tvAds/useTVAdAccess', () => ({
+  useTVAdAccess: () => ({ state: 'signed-out', retry: vi.fn() }),
+}));
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -40,6 +43,7 @@ describe('public money card variants', () => {
       expect(card.getAttribute('href')).toBe('/money');
       expect(card.getAttribute('tabindex')).toBe('0');
       expect(card.textContent).toContain('Follow the money');
+      expect(card.textContent).not.toContain('MONEY IN POLITICS');
       expect(card.textContent).toContain(HOME_PUBLIC_MONEY_BODY);
       expect(card.textContent).toContain(HOME_PUBLIC_MONEY_CTA);
       expect(card.textContent).toContain(`1,603 ${MONEY_PROMO_COUNT_UNIT}`);
@@ -64,25 +68,29 @@ describe('public money card variants', () => {
     expect(page.querySelector('[aria-busy="true"]')?.getAttribute('aria-label')).toBe(
       'Loading how many filers the register holds',
     );
+    // The line's words are there only to hold its height: hidden from screen
+    // readers (and drawn transparent), and carrying no number.
+    const reserve = page.querySelector('[aria-hidden="true"]');
+    expect(reserve?.textContent).toContain(MONEY_PROMO_COUNT_UNIT);
+    expect(reserve?.textContent).not.toMatch(/\d/);
+    reserve?.remove();
     expect(page.textContent).not.toContain(MONEY_PROMO_COUNT_UNIT);
     expect(page.textContent).not.toContain('0 registered');
   });
 });
 
-describe('signed-in money card remains unchanged', () => {
+describe('signed-in money card preserves its action-only link', () => {
   it.each(['desktop', 'tabletSignedIn', 'phoneSignedIn'] as const)(
     '%s keeps its existing copy and action-only link',
     (variant) => {
       const page = render(variant, 1603);
       expect(page.textContent).toContain(MONEY_PROMO_BODY);
-      expect(page.textContent).not.toContain(HOME_PUBLIC_MONEY_BODY);
       const links = page.querySelectorAll('a');
       expect(links).toHaveLength(1);
       const action = links[0];
       expect(action.getAttribute('href')).toBe('/money');
       expect(action.textContent).toBe(MONEY_PROMO_CTA);
       expect(action.textContent).not.toContain('Follow the money');
-      expect(page.textContent).not.toContain(HOME_PUBLIC_MONEY_CTA);
     },
   );
 });

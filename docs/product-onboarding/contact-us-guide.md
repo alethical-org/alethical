@@ -10,15 +10,17 @@ copy.
 
 - Choose **About**, then **Contact us** in the shared top menu.
 - Open `/about/contact` directly.
-- Choose **Go back** to return to the prior Alethical page, or Home when there is no prior page.
+- Use **Back to <destination name>** for a known safe earlier Alethical page, or **Back to Home** on a direct visit. The words, copied address and click name the same page; an article prefill alone does not establish a return destination.
 
 ## The form
 
 Before the app starts, the first response carries the same heading, explanation,
-email address and 6 working social links as the loaded screen. The loaded computer
-screen also shows Instagram at full strength and links it to the Alethical Instagram account.
-The phone screen omits the Follow Alethical block because the shared footer repeats
-the same accounts nearby. The form and its delivery states appear only in the loaded
+email address and 7 working social links as the loaded screen, in the order YouTube,
+LinkedIn, Facebook, X, Bluesky, Instagram, TikTok. On computer and tablet the side column
+holds an **Email us** card and, 24px below it, a **Follow Alethical** card with the 7
+accounts as 4 circles then 3. The top of the Email us card lines up with the top of the
+Your name field box, not its label. The phone screen omits the Follow Alethical block
+because the shared footer repeats the same accounts nearby, as 4 circles then 3. The form and its delivery states appear only in the loaded
 app. Both presentations read their shared words from `contactUs.ts`, and every loaded
 social row reads its order and destinations from `socialLinks.ts`; serving the initial
 text sends nothing.
@@ -34,8 +36,12 @@ The fields stay in this order:
 For a signed-in person, a fresh Contact us form fills the email address from their
 Alethical account. The email stays editable. Anything the person types, including
 deliberately clearing the email field, stays in place through account loading, navigation,
-and a failed send. Signing out or changing accounts removes an email that Alethical filled
-automatically, so one account's address never becomes another account's default. A signed-out
+and a failed send for the same account. Confirmed sign-out or an account change discards
+all contact fields, errors and pending-send state, including while Contact us is closed.
+A late result from the old account cannot change or clear a new account's draft.
+Temporary account loading and a failed sign-out with unchanged identity retain the draft.
+An anonymous draft survives its first sign-in; only an untouched email receives the
+account default. A signed-out
 person starts with a blank email field. The name and phone fields always start blank.
 
 A published article's correction link carries only its stable article identity in
@@ -51,6 +57,21 @@ What may be wrong:
 
 ```
 
+The debate-hosting invitation opens `/about/contact?purpose=host-debate`. The known
+purpose selects trusted local copy, with subject **Host a debate** and message:
+
+```text
+I’d like Alethical to host a debate in my community.
+
+Community:
+
+```
+
+The link carries no personal details or arbitrary form text. Unknown purposes do
+not choose a template. Generic navigation stays blank apart from account email,
+and article-correction links retain their own template. Both templates share the
+same editable fields, account-email behavior and retained-draft protection.
+
 The reader can edit every field. The article link never fills name, email, or phone; the
 signed-in account supplies email separately. Unknown identities, private drafts and
 arbitrary title or URL parameters do not fill the form. Only **Send message** submits it.
@@ -60,7 +81,9 @@ title appears in the message. If the complete message would exceed 5000 characte
 the form stays blank instead of cutting the title or address.
 
 An unfinished message stays in memory while the app remains open, including navigation
-away and back, changed article links, and failed-send retries. A new link never overwrites
+away and back, changed article links, and failed-send retries within the same account.
+An app-wide account boundary observes sign-out and account switches while the form is
+closed, so returning to the former account cannot revive its discarded draft. A new link never overwrites
 that draft. The app does not store the draft in browser storage; closing or reloading
 the app discards it. A successful send clears the retained draft. **Send another message**
 opens a fresh form with the current signed-in account email, or a blank email field when

@@ -1,8 +1,7 @@
 # Sitewide sharing corrections
 
-The user authorized the shared panel build on September 17, 2026, then explicitly
-said “Fix it now” for the omitted results controls and repeated share copy. The
-follow-up includes the modal preview. Its heading and prepared text must not repeat
+The shared panel build and correction of omitted results controls and repeated
+share copy were approved on September 17, 2026. The follow-up includes the modal preview. Its heading and prepared text must not repeat
 the same information. Authorization continues through the verified live release.
 
 ## Scope and decisions
@@ -53,8 +52,8 @@ are tracked in [pull request 2246](https://github.com/alethical-org/alethical/pu
 Do not post or send messages during checks;
 intercept prepared destination addresses instead.
 
-The earlier version of this plan incorrectly excluded results controls. That was
-not a user decision: the earlier agreed placement scope explicitly included them.
+The earlier version of this plan incorrectly excluded results controls that were
+already part of the approved placement scope.
 The complete scope is now recorded above and covered by results-specific tests.
 
 The preceding panel-only release and its verification are recorded in

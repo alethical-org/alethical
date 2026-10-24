@@ -2,7 +2,13 @@ import { JSDOM } from 'jsdom';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../billDetail/SharePopover', () => ({ SharePopover: () => null }));
+vi.mock('../../billDetail/SharePopover', () => ({
+  SharePopover: ({ disabled }: { disabled?: boolean }) => (
+    <button disabled={disabled} data-test-share>
+      Share
+    </button>
+  ),
+}));
 vi.mock('react-native-svg', () => ({
   default: () => null,
   Path: () => null,
@@ -51,6 +57,16 @@ const graphic: ShortPostGraphic = {
 graphic.altDescription = chartDescription(graphic.input);
 
 describe('Short post article and charts', () => {
+  it('shows sharing on a public article and omits it from private previews', () => {
+    const publicDoc = new JSDOM(renderToStaticMarkup(<ShortPostArticle piece={LOBBYIST_GIVING} />))
+      .window.document;
+    const privateDoc = new JSDOM(
+      renderToStaticMarkup(<ShortPostArticle piece={LOBBYIST_GIVING} privatePreview />),
+    ).window.document;
+    expect(publicDoc.querySelector('[data-test-share]')).not.toBeNull();
+    expect(privateDoc.querySelector('[data-test-share]')).toBeNull();
+  });
+
   it('keeps each published table’s exact figures and accessible headers with 1 hidden spacer per row', () => {
     for (const piece of [
       LOBBYIST_GIVING,
@@ -67,7 +83,14 @@ describe('Short post article and charts', () => {
           expect(row.querySelectorAll('.sp-table-spacer')).toHaveLength(1);
           expect(row.lastElementChild?.getAttribute('aria-hidden')).toBe('true');
           expect(row.lastElementChild?.textContent).toBe('');
+          expect(
+            document.defaultView!.getComputedStyle(row.lastElementChild!).borderBottomWidth,
+          ).toBe('0px');
         }
+        expect(
+          document.defaultView!.getComputedStyle(table.querySelector('thead th')!)
+            .borderBottomWidth,
+        ).toBe('1px');
         for (const row of table.querySelectorAll('tbody tr'))
           expect(row.firstElementChild?.getAttribute('scope')).toBe('row');
       }
@@ -82,6 +105,40 @@ describe('Short post article and charts', () => {
         ),
       ).toEqual(proseTables.map((block) => block.rows));
     }
+  });
+
+  it('ends chart table dividers at the real columns while retaining their padding', () => {
+    const document = new JSDOM(
+      renderToStaticMarkup(
+        <ShortPostChart
+          graphic={graphic}
+          display={{
+            graphicId: graphic.id,
+            title: 'Named records',
+            sourceEvidenceId: evidence.id,
+            limitation: evidence.limitations,
+            treatment: 'table',
+          }}
+          evidence={evidence}
+          articleId="table-divider-check"
+        />,
+      ),
+    ).window.document;
+    const table = document.querySelector('table')!;
+    for (const row of table.querySelectorAll('tr')) {
+      expect(document.defaultView!.getComputedStyle(row.lastElementChild!).borderBottomWidth).toBe(
+        '0px',
+      );
+    }
+    const header = document.defaultView!.getComputedStyle(table.querySelector('thead th')!);
+    expect(header.borderBottomWidth).toBe('1px');
+    expect(header.paddingRight).toBe('12px');
+    const finalValue = table.querySelector('tbody tr')!.children[2];
+    expect(document.defaultView!.getComputedStyle(finalValue).paddingRight).toBe('0px');
+    expect(
+      document.defaultView!.getComputedStyle(table.querySelector('.sp-chart-table-total th')!)
+        .borderBottomWidth,
+    ).toBe('0px');
   });
 
   it('shows the approved publication line without changing the article records', () => {
@@ -330,4 +387,45 @@ it('uses the article source list without a redundant jump link and retains direc
     if (url.startsWith('#')) expect(sourceLink).toBeUndefined();
     else expect(sourceLink).toContain('target="_blank"');
   }
+});
+
+it('puts bold conclusion answers above full-width qualifications beside the symbol', () => {
+  const article = new JSDOM(renderToStaticMarkup(<ShortPostArticle piece={LOBBYIST_GIVING} />))
+    .window.document;
+  const conclusion = article.querySelector('.sp-prose-conclusion')!;
+  expect(conclusion).not.toBeNull();
+  expect(article.defaultView!.getComputedStyle(conclusion).maxWidth).toBe('none');
+  expect(article.defaultView!.getComputedStyle(conclusion.querySelector('p')!).flexGrow).toBe('1');
+  expect(conclusion.querySelector('svg')?.getAttribute('aria-label')).toBe('Alethical');
+  expect(conclusion.querySelector('strong')).not.toBeNull();
+  expect(article.defaultView!.getComputedStyle(conclusion.querySelector('strong')!).display).toBe(
+    'block',
+  );
+  const chart = new JSDOM(
+    renderToStaticMarkup(
+      <ShortPostChart
+        graphic={graphic}
+        display={{
+          graphicId: graphic.id,
+          title: 'Named records',
+          sourceEvidenceId: evidence.id,
+          limitation: evidence.limitations,
+          conclusion: 'The records support this answer.',
+        }}
+        evidence={evidence}
+        articleId="conclusion-width-check"
+      />,
+    ),
+  ).window.document;
+  const foot = chart.querySelector('.sp-chart-foot-conclusion')!;
+  expect(chart.defaultView!.getComputedStyle(foot).maxWidth).toBe('none');
+  expect(
+    chart.defaultView!.getComputedStyle(foot.querySelector('.sp-chart-foot-text')!).flexGrow,
+  ).toBe('1');
+  expect(chart.defaultView!.getComputedStyle(foot.querySelector('strong')!).display).toBe('block');
+  expect(foot.querySelector('strong')?.textContent).toBe(
+    'Conclusion: The records support this answer.',
+  );
+  expect(foot.querySelector('p')?.textContent).toContain(evidence.limitations);
+  expect(chart.defaultView!.getComputedStyle(foot.querySelector('strong')!).display).toBe('block');
 });

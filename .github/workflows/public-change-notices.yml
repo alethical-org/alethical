@@ -1,0 +1,86 @@
+name: Public changed-page notices
+
+# Existing daily/release search-health runs provide the cadence. No paid APIs,
+# agents, extra clock job, or full inventory submissions. Persistent state is a
+# state.json and deployment-disabled vercel.json on codex/indexnow-state;
+# main is never written by this workflow.
+on:
+  workflow_run:
+    workflows: [Public search health]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      initialize:
+        description: Save the first baseline and send 0 existing addresses
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-change-notices-state
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    # The fixed state branch needs writes; the job is restricted to trusted main.
+    # No personal/provider secret is used. Checkout retains no Git credentials.
+    permissions:
+      contents: write
+    steps:
+      - name: Save pending evidence before setup
+        run: |
+          python3 - <<'PY_EVIDENCE'
+          import json
+          from pathlib import Path
+          Path("public-change-notices-results.json").write_text(json.dumps({
+              "schema_version": 1, "passed": False,
+              "failure": "changed-page-notices-not-started"
+          }) + "\n")
+          PY_EVIDENCE
+
+      - name: Require trusted main
+        run: test "$GITHUB_REF" = refs/heads/main
+
+      - name: Check out trusted main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+          clean: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - name: Test real changes, durable retry, and first-baseline safety offline
+        run: python -m unittest scripts.tests.test_notify_changed_public_pages
+
+      - name: Notify only validated changed public addresses
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INITIALIZE: ${{ github.event_name == 'workflow_dispatch' && inputs.initialize }}
+        run: |
+          initialize=()
+          if [ "$INITIALIZE" = "true" ]; then initialize=(--initialize); fi
+          PYTHONPATH=. python scripts/notify_changed_public_pages.py \
+            --apply --output public-change-notices-results.json "${initialize[@]}"
+
+      - name: Retain notice receipts even after failure
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: public-change-notices-${{ github.run_id }}-${{ github.run_attempt }}
+          path: public-change-notices-results.json
+          if-no-files-found: warn
+          retention-days: 35

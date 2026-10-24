@@ -55,9 +55,12 @@ jobs:
         with:
           node-version: "22"
       - name: Install the saved browser-check tools
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm --dir apps/frontend exec playwright install --with-deps chromium
+        run: pnpm install --frozen-lockfile
+      - name: Bound browser dependency downloads
+        uses: ./.github/actions/prepare-browser-install
+      - name: Install Chromium
+        timeout-minutes: 10
+        run: pnpm --dir apps/frontend exec playwright install --with-deps chromium
       - name: Install the pinned release tool without production credentials
         run: |
           npm install --prefix "$RUNNER_TEMP/alethical-release-tools" \

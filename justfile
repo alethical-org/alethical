@@ -19,6 +19,10 @@ maintenance-install:
 install-wip-backup: maintenance-install
 
 maintenance-status:
+  python3 scripts/worktree_cleanup.py inspect
+
+# Release and recovery history, separate from the full current folder inventory.
+maintenance-history:
   python3 scripts/worktree_cleanup.py status
 
 stop-wip-backup:
@@ -49,12 +53,12 @@ worktree branch:
   # Tolerant of failure on purpose: with hooks installed, .githooks/post-checkout
   # has already locked it, and a second lock is an error. Kept as a belt so a clone
   # that never ran `just install-hooks` still gets locked worktrees from this recipe.
-  -git worktree lock ../alethical-wt-{{branch}} --reason "live session; release after delivery: just worktree-rm <branch> <owner-id> <evidence>"
+  -git worktree lock ../alethical-wt-{{branch}} --reason "retain for follow-up; user-requested cleanup: just worktree-rm <branch> <owner-id> <evidence>"
   main_root="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"; [ -f "$main_root/.env" ] && ln -sf "$main_root/.env" ../alethical-wt-{{branch}}/.env || true
   cd ../alethical-wt-{{branch}} && pnpm install --frozen-lockfile
   @echo "✅ Worktree ready: ../alethical-wt-{{branch}} (branch {{branch}}). cd there to build, commit, and push."
 
-# Queue cleanup after delivery and acceptance, retaining the branch and recovery copy.
+# Queue user-requested cleanup after delivery and acceptance; keep branch and recovery.
 # Owner is the task/session ID; evidence states the completed delivery and checks.
 [positional-arguments]
 worktree-rm branch owner evidence:
@@ -72,10 +76,9 @@ worktree-hold path owner reason:
 worktree-restore id destination:
   python3 scripts/worktree_cleanup.py restore "$1" "$2"
 
-# Read-only setup check. `just doctor ios` and `just doctor android` also check
-# the phone-only tool needed for that target.
-doctor target="web":
-  python3 scripts/check_local_env.py {{target}}
+# Read-only setup check for the supported desktop and phone browser client.
+doctor:
+  python3 scripts/check_local_env.py
 
 # Pinned to the same ruff CI runs (.github/workflows/ci.yml). Unpinned, `uvx`
 # resolves the newest release: today that is ruff 0.16, which reports 778 findings
@@ -101,6 +104,12 @@ lint:
 # Format only the staged selection and preserve unfinished edits.
 format-staged:
   python3 scripts/local_checks.py staged
+
+# Upload with the full backend and frontend test suites run locally first.
+# A plain `git push` leaves them to GitHub's required checks before merge.
+[positional-arguments]
+push-full *args:
+  ALETHICAL_PUSH_FULL=1 git push "$@"
 
 test-frontend:
   pnpm --dir apps/frontend run test

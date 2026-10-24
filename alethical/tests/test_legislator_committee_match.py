@@ -1387,7 +1387,7 @@ def test_an_other_office_account_under_the_members_own_name_is_never_rejected():
 
 
 def test_a_decision_is_recorded_against_the_company_not_the_person_who_typed_it():
-    # Ruled by Eugene on 31 Aug 2026: the row names the accountable entity, and the same
+    # The 31 Aug 2026 decision: the row names the accountable entity, and the same
     # words a reader is shown on the profile. A person still answers every question; the row
     # no longer says which person, and that cost is accepted and written down in
     # campaign-finance-system-design.md 5.1.
@@ -1424,7 +1424,7 @@ def test_a_decision_records_why_it_was_made_and_from_which_snapshot():
     row = link_row(
         result.member,
         result.proposals[0],
-        "Eugene Lopin",
+        "Test reviewer",
         confirmed=True,
         note=None,
         records_through="2026-08-27",
@@ -1435,7 +1435,7 @@ def test_a_decision_records_why_it_was_made_and_from_which_snapshot():
     assert row.records_through_as_reviewed == "2026-08-27"
     # The choice is still recorded too, so the basis is an addition and not a replacement.
     assert row.committee_name_as_reviewed == "Acomb, Patty House Committee"
-    assert row.reviewed_by == "Eugene Lopin"
+    assert row.reviewed_by == "Test reviewer"
 
 
 def test_a_rejection_records_its_basis_as_well_as_a_confirmation():
@@ -1449,7 +1449,7 @@ def test_a_rejection_records_its_basis_as_well_as_a_confirmation():
     row = link_row(
         result.member,
         result.proposals[0],
-        "Eugene Lopin",
+        "Test reviewer",
         confirmed=False,
         note="different person",
         records_through="2026-08-27",
@@ -1572,7 +1572,7 @@ def test_party_money_disagreeing_sends_an_otherwise_perfect_match_to_a_person():
 
 
 def confirmed(
-    legislator_id: str, registration: str, name: str, reviewer: str = "Eugene Lopin"
+    legislator_id: str, registration: str, name: str, reviewer: str = "Test reviewer"
 ) -> ConfirmedLink:
     return ConfirmedLink(
         legislator_id=legislator_id,

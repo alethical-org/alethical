@@ -1,0 +1,146 @@
+name: Keep private FCC political files
+
+# Full folder inventory daily; bounded downloads, second copies and local reading.
+# Scope stays KSTP-TV, KARE and KMSP-TV, across every available political year.
+# No AI API is used: text recognition runs on this runner with local software.
+on:
+  schedule:
+    - cron: "23 6 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Describe scope without database, source, or storage connections"
+        type: boolean
+        default: true
+      max_files:
+        description: "Maximum new, changed or due downloads (1 to 2000)"
+        type: number
+        default: 1000
+      extract_limit:
+        description: "Maximum archived documents read locally (1 to 2000)"
+        type: number
+        default: 1000
+      mirror_limit:
+        description: "Maximum bodies copied to Cloudflare R2 (1 to 5000)"
+        type: number
+        default: 2500
+
+concurrency:
+  group: production-fcc-political-files
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      PYTHONPATH: .
+      # Scheduled events do not have workflow_dispatch input defaults.
+      MAX_FILES: ${{ github.event_name == 'schedule' && '1000' || inputs.max_files }}
+      EXTRACT_LIMIT: ${{ github.event_name == 'schedule' && '1000' || inputs.extract_limit }}
+      MIRROR_LIMIT: ${{ github.event_name == 'schedule' && '2500' || inputs.mirror_limit }}
+      OPENAI_API_KEY: ""
+      SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_STORAGE_S3_ENDPOINT: ${{ secrets.SUPABASE_STORAGE_S3_ENDPOINT }}
+      SUPABASE_STORAGE_S3_REGION: ${{ secrets.SUPABASE_STORAGE_S3_REGION }}
+      SUPABASE_STORAGE_S3_ACCESS_KEY_ID: ${{ secrets.SUPABASE_STORAGE_S3_ACCESS_KEY_ID }}
+      SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY: ${{ secrets.SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY }}
+      CLOUDFLARE_R2_ENDPOINT: ${{ secrets.CLOUDFLARE_R2_ENDPOINT }}
+      CLOUDFLARE_R2_BUCKET: ${{ secrets.CLOUDFLARE_R2_BUCKET }}
+      CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+      CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          version: 0.12.5
+          enable-cache: true
+          prune-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Describe and validate the bounded scope
+        shell: bash
+        run: |
+          uv run python scripts/fcc_political_files.py refresh --target prod --dry-run \
+            --max-files "$MAX_FILES" --extract-limit "$EXTRACT_LIMIT" --mirror-limit "$MIRROR_LIMIT"
+
+      - name: Check required private settings
+        if: ${{ github.event_name == 'schedule' || !inputs.dry_run }}
+        shell: bash
+        run: |
+          missing=()
+          for name in SUPABASE_PROJECT_URL SUPABASE_DB_PASSWORD \
+                      SUPABASE_STORAGE_S3_ENDPOINT SUPABASE_STORAGE_S3_REGION \
+                      SUPABASE_STORAGE_S3_ACCESS_KEY_ID SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY \
+                      CLOUDFLARE_R2_ENDPOINT CLOUDFLARE_R2_BUCKET \
+                      CLOUDFLARE_R2_ACCESS_KEY_ID CLOUDFLARE_R2_SECRET_ACCESS_KEY; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf 'Missing repository settings: %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      - name: Install local PDF and text recognition tools
+        if: ${{ github.event_name == 'schedule' || !inputs.dry_run }}
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y poppler-utils tesseract-ocr
+
+      - name: Archive changes, copy originals and read new documents
+        id: refresh
+        if: ${{ github.event_name == 'schedule' || !inputs.dry_run }}
+        shell: bash
+        run: |
+          uv run python scripts/fcc_political_files.py refresh --target prod \
+            --workers 3 --max-files "$MAX_FILES" --extract-limit "$EXTRACT_LIMIT" \
+            --mirror-limit "$MIRROR_LIMIT" --summary fcc-refresh-report.json
+
+      - name: Keep the completion report
+        if: ${{ always() && (github.event_name == 'schedule' || !inputs.dry_run) }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: fcc-refresh-report
+          path: fcc-refresh-report.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  report:
+    needs: archive
+    if: ${{ always() && (github.event_name == 'schedule' || !inputs.dry_run) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Read the collection report if it was produced
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: fcc-refresh-report
+      # A separate job can report a collector timeout or setup failure too.
+      - name: Report coverage and keep one problem report
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          JOB_FAILED: ${{ needs.archive.result != 'success' || steps.download.outcome != 'success' }}
+        with:
+          script: |
+            const report = require('./.github/scripts/fcc-refresh-report.cjs');
+            await report({github, context, core, failed: process.env.JOB_FAILED === 'true'});

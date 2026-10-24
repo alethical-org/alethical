@@ -15,8 +15,15 @@ for (const width of [320, 390, 900, 1600]) {
   }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/');
-    const links = page.getByRole('link', { name: /^Alethical on / });
-    await expect(links).toHaveCount(6);
+    // The homepage hero holds the same 7 links in its own group; measure the footer's.
+    const links = page.locator('a[aria-label^="Alethical on "]:not([role="group"] a)');
+    await expect(links).toHaveCount(7);
+    const order = ['YouTube', 'LinkedIn', 'Facebook', 'X', 'Bluesky', 'Instagram', 'TikTok'];
+    for (const [index, platform] of order.entries()) {
+      await expect(links.nth(index)).toHaveAccessibleName(
+        `Alethical on ${platform} (opens in a new tab)`,
+      );
+    }
     await page.evaluate(() => document.fonts.ready);
     // Scroll vertically, as a reader would. scrollIntoView can silently shift an
     // overflowing ancestor sideways and hide the defect this test must catch.
@@ -50,6 +57,13 @@ for (const width of [320, 390, 900, 1600]) {
           };
         }),
       );
+    const measureRows = () =>
+      links.evaluateAll((nodes) =>
+        nodes.map((node) => {
+          const box = node.getBoundingClientRect();
+          return { top: box.top, left: box.left };
+        }),
+      );
     const assertFits = async () => {
       for (const box of await measure()) {
         expect(box.width).toBe(width < 768 ? 44 : 42);
@@ -65,9 +79,20 @@ for (const width of [320, 390, 900, 1600]) {
       }
     };
     await assertFits();
+    // Computer and tablet keep 1 line; phone puts 4 circles on line 1 and 3 on
+    // line 2, so Bluesky starts the second line under YouTube.
+    const boxes = await measureRows();
+    if (width < 768) {
+      expect(new Set(boxes.slice(0, 4).map((box) => box.top)).size).toBe(1);
+      expect(new Set(boxes.slice(4).map((box) => box.top)).size).toBe(1);
+      expect(boxes[4].top - boxes[0].top).toBe(44 + 8);
+      expect(boxes[4].left).toBe(boxes[0].left);
+    } else {
+      expect(new Set(boxes.map((box) => box.top)).size).toBe(1);
+    }
     await links.first().focus();
     await page.keyboard.press('Shift+Tab');
-    for (let index = 0; index < 6; index += 1) {
+    for (let index = 0; index < 7; index += 1) {
       await page.keyboard.press('Tab');
       await expect(links.nth(index)).toBeFocused();
       await expect(links.nth(index)).toHaveCSS('outline-style', 'solid');

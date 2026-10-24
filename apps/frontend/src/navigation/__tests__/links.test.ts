@@ -149,6 +149,23 @@ describe('backLinkProps keeps the fallback URL while preferring in-app history',
     expect(event.preventDefault).not.toHaveBeenCalled();
     expect(goBack).not.toHaveBeenCalled();
   });
+  it('moves inside the app with no prior entry only when asked to, keeping modified clicks native', () => {
+    const fallback = vi.fn();
+    const goBack = vi.fn();
+    const event = clickEvent();
+    press(backLinkProps('/claim', fallback, { hasBack: () => false, goBack }, true), event);
+    expect(event.preventDefault).toHaveBeenCalledOnce();
+    expect(fallback).toHaveBeenCalledOnce();
+    expect(goBack).not.toHaveBeenCalled();
+    const modified = clickEvent({ metaKey: true });
+    press(backLinkProps('/claim', fallback, { hasBack: () => false, goBack }, true), modified);
+    expect(modified.preventDefault).not.toHaveBeenCalled();
+    expect(fallback).toHaveBeenCalledOnce();
+    // With a prior entry it still goes back.
+    const withHistory = clickEvent();
+    press(backLinkProps('/claim', fallback, { hasBack: () => true, goBack }, true), withHistory);
+    expect(goBack).toHaveBeenCalledOnce();
+  });
 });
 
 describe('linkProps gives an in-app destination a real href', () => {

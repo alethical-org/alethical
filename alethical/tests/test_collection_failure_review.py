@@ -944,6 +944,81 @@ def test_a_self_explanatory_failure_spends_nothing():
 # --- Recovery ------------------------------------------------------------------------------------
 
 
+@pytest.mark.parametrize("failed_step", ["Check the secrets are set", "Unknown step"])
+@pytest.mark.parametrize("legacy_empty_stages", [False, True])
+def test_clearing_only_cannot_recover_unidentified_collection_failure(
+    failed_step, legacy_empty_stages
+):
+    issues = FakeIssues()
+    jobs = [
+        {
+            "id": 1,
+            "name": "refresh",
+            "conclusion": "failure",
+            "started_at": "x",
+            "steps": [{"name": failed_step, "conclusion": "failure"}],
+        }
+    ]
+    run_once(
+        FakeRunReader(
+            jobs=jobs,
+            log="Not set as repository secrets: SUPABASE_STORAGE_S3_ACCESS_KEY_ID",
+        ),
+        issues,
+        switch=None,
+    )
+    number = issues.open_numbers()[0]
+    state = cfr.read_state(issues.issues[number]["body"])
+    assert state["required_stages"] == ["lists", "payments"]
+    if legacy_empty_stages:
+        state["required_stages"] = []
+        issues.issues[number]["body"] = cfr.write_state(
+            issues.issues[number]["body"], state
+        )
+    clearing_only = [
+        stage(name, "skipped") for name in ("lists", "totals", "payments", "rechecks")
+    ] + [stage("clearing saved pages", "unchanged")]
+    _, decision, _, _ = run_once(
+        FakeRunReader(conclusion="success", records=clearing_only, run_id=102),
+        issues,
+        switch=None,
+    )
+    assert issues.issues[number]["state"] == "open"
+    assert decision["targets"][0]["missing"] == ["lists", "payments"]
+    assert "did not run again" in issues.comments[number][-1]["body"]
+    run_once(
+        FakeRunReader(
+            conclusion="success",
+            records=[stage("lists", "unchanged"), stage("payments", "unchanged")],
+            run_id=103,
+        ),
+        issues,
+        switch=None,
+    )
+    assert issues.issues[number]["state"] == "closed"
+    assert "lists, payments finished" in issues.comments[number][-1]["body"]
+
+
+def test_clearing_only_can_still_recover_a_known_clearing_failure():
+    issues = FakeIssues()
+    run_once(
+        FakeRunReader(records=[stage("clearing saved pages", "failed")]),
+        issues,
+        switch=None,
+    )
+    number = issues.open_numbers()[0]
+    run_once(
+        FakeRunReader(
+            conclusion="success",
+            records=[stage("clearing saved pages", "unchanged")],
+            run_id=102,
+        ),
+        issues,
+        switch=None,
+    )
+    assert issues.issues[number]["state"] == "closed"
+
+
 def test_a_success_whose_summary_says_every_stage_finished_closes_the_incident():
     issues = FakeIssues()
     run_once(FakeRunReader(records=QUARANTINE), issues, switch=None)
@@ -1331,6 +1406,35 @@ class NoticesReader(FakeRunReader):
     def __init__(self, **kwargs: Any):
         super().__init__(**kwargs)
         self._run.update(name=NOTICES.name, path=NOTICES.path)
+
+
+def test_notice_setup_recovery_keeps_its_existing_prerequisites():
+    issues = FakeIssues()
+    jobs = [
+        {
+            "id": 1,
+            "name": "collect",
+            "conclusion": "failure",
+            "started_at": "x",
+            "steps": [{"name": "Check the secrets are set", "conclusion": "failure"}],
+        }
+    ]
+    cfr.record(*_plan(NoticesReader(jobs=jobs, run_id=300), issues), issues, now=NOW)
+    number = issues.open_numbers()[0]
+    assert cfr.read_state(issues.issues[number]["body"])["required_stages"] == []
+    cfr.record(
+        *_plan(
+            NoticesReader(
+                conclusion="success",
+                records=[stage("notices", "unchanged")],
+                run_id=301,
+            ),
+            issues,
+        ),
+        issues,
+        now=NOW,
+    )
+    assert issues.issues[number]["state"] == "closed"
 
 
 def test_an_incident_stays_open_until_the_stage_that_failed_finishes_again():

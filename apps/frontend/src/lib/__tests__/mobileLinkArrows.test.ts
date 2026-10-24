@@ -6,6 +6,8 @@ import ts from 'typescript';
 const SRC = join(__dirname, '..', '..');
 
 const legacyTextArrowLimits: Record<string, number> = {
+  // October22 homepage handoff explicitly preserves the Services CTA's typed arrow.
+  'components/home/HomeFeatureCards.tsx': 1,
   'components/read/SetBox.tsx': 1, // Approved Open group page action.
   'screens/redesign/ReadScreen.tsx': 1, // Approved collection link arrow.
   'components/billDetail/CitationCard.tsx': 1,
@@ -70,6 +72,12 @@ describe('mobile link arrows', () => {
         legacyTextArrowLimits[file] ?? 0,
       );
     }
+  });
+
+  it('keeps first-response event links free of typed arrow characters', () => {
+    const source = readFileSync(join(SRC, 'lib/eventMarkup.ts'), 'utf8');
+    expect(visibleTextArrowCount(source)).toBe(0);
+    expect(source).not.toContain('‹');
   });
 
   it('blocks local copies of the old green link drawing', () => {

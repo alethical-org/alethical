@@ -1,6 +1,7 @@
+import { ABOUT_SEARCH_DESCRIPTION } from './aboutUs';
 import { MONEY_SECTION_NAME } from './moneySectionName';
 import { SERVICES_SUBTITLE } from './servicesMetadata';
-import { READ_PAGE_HEADING, READ_PAGE_INTRO, READ_PAGE_NAME } from './researchIndex';
+import { READ_PAGE_HEADING, READ_PAGE_INTRO, READ_PAGE_NAME } from './blogPageCopy';
 import {
   committeeListPageMetadata,
   moneyByRacePageMetadata,
@@ -8,6 +9,22 @@ import {
   titleFor,
   type PageMetadata,
 } from './share';
+
+/** /candidates/features. The bare address is indexed with its canonical; an address carrying
+ * `?candidate=` is a claim-step context view of the same words, so like a filtered address it is
+ * kept out of search with no canonical. Neither ever names the candidate. */
+export function candidateFeaturesPageMetadata(
+  options: { candidateContext?: boolean } = {},
+): PageMetadata {
+  return pageMetadata({
+    title: titleFor('Candidate profile features'),
+    socialTitle: 'Candidate profile features',
+    description:
+      'What a claimed candidate profile will offer campaigns and voters. Every feature listed is on the roadmap.',
+    canonicalPath: options.candidateContext ? '' : '/candidates/features',
+    noindex: options.candidateContext,
+  });
+}
 
 /** Pages whose wording never varies. */
 export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
@@ -88,8 +105,7 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
   '/about': pageMetadata({
     title: titleFor('About us'),
     socialTitle: 'About us',
-    description:
-      'Why this site exists, and how Minnesota’s official legislative record is turned into plain language.',
+    description: ABOUT_SEARCH_DESCRIPTION,
     canonicalPath: '/about',
   }),
   '/services': pageMetadata({
@@ -133,9 +149,9 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
     noindex: true,
   }),
   '/admin/candidate-claims': pageMetadata({
-    title: titleFor('Candidate requests'),
-    socialTitle: 'Candidate requests',
-    description: 'Private candidate ownership requests and statement reports.',
+    title: titleFor('Profile claim requests'),
+    socialTitle: 'Profile claim requests',
+    description: 'Private candidate profile claim requests and statement reports.',
     canonicalPath: '/admin/candidate-claims',
     noindex: true,
   }),

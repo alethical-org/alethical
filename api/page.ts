@@ -1,4 +1,34 @@
+import {
+  BILL_DETAIL_INCLUDE,
+  billReadWithinCacheWindow,
+  type ApiBillVotePayload,
+} from "../apps/frontend/src/lib/billRecordReads";
+import { billHistorySnapshot } from "../apps/frontend/src/lib/billHistorySnapshot";
+import type { ApiBillDetailPayload } from "../apps/frontend/src/data/api";
+import { renderEventArticle, publishedEventMetadata } from "../apps/frontend/src/lib/eventArticle";
+import { eventBySlug, eventPath } from "../apps/frontend/src/lib/events";
+import { eventReplayBySlug } from "../apps/frontend/src/lib/eventReplayContent";
+import {
+  eventsPageMetadata,
+} from "../apps/frontend/src/lib/eventMetadata";
+import {
+  renderEventsCollection,
+} from "../apps/frontend/src/lib/eventMarkup";
+import { legalPageSnapshot } from "../apps/frontend/src/lib/legalPageSnapshot";
+import {
+  candidateLookupPageSnapshot,
+  candidateProfilePageSnapshot,
+  validCandidateProfileRecord,
+} from "../apps/frontend/src/lib/candidatePageSnapshot";
 import { candidateProfileMetadata } from "../apps/frontend/src/lib/candidateMetadata";
+import { personPageMetadata } from "../apps/frontend/src/lib/personMetadata";
+import {
+  personPageSnapshot,
+  validPersonRecord,
+  validPublicPersonLink,
+} from "../apps/frontend/src/lib/personPageSnapshot";
+import { PERSON_RECORD_COPY } from "../apps/frontend/src/lib/personRecords";
+import type { PersonRecord } from "../apps/frontend/src/data/personRecords";
 import type { CandidateProfileRecord } from "../apps/frontend/src/components/candidates/types";
 import { lobbyingPageMetadata } from "../apps/frontend/src/lib/lobbyingMetadata";
 import {
@@ -58,8 +88,8 @@ import {
   readCollectionPageSnapshot,
   readPageSnapshot,
   renderPageSnapshot,
+  renderEventPageSnapshot,
   type BillDirectorySnapshotSource,
-  type BillSnapshotSource,
   type CommitteeDirectorySnapshotSource,
   type CommitteeMoneySnapshotSource,
   type LegislatorDirectorySnapshotSource,
@@ -144,7 +174,11 @@ import {
   publicPageUrl,
   type PageMetadata,
 } from "../apps/frontend/src/lib/share";
-import { STATIC_PAGE_METADATA } from "../apps/frontend/src/lib/staticPageMetadata";
+import {
+  STATIC_PAGE_METADATA,
+  candidateFeaturesPageMetadata,
+} from "../apps/frontend/src/lib/staticPageMetadata";
+import { candidateFeaturesPageSnapshot } from "../apps/frontend/src/lib/candidateFeatures";
 import { researchPageMetadata } from "../apps/frontend/src/lib/researchMetadata";
 import {
   shortPostsPageMetadata,
@@ -307,7 +341,100 @@ class RecordNotFound extends Error {}
 /** The address itself has no page, so the generic useful screen is the right body. */
 class UnknownAddress extends RecordNotFound {}
 /** We could not tell. Never a 404: a hiccup must not unlist a real page. */
-class DataUnavailable extends Error {}
+type FailureKind =
+  "timeout" | "network" | "http" | "json" | "payload" | "unknown";
+type SourceFamily =
+  | "committee-finance"
+  | "committee-confirmation"
+  | "committee-notices"
+  | "committee-disclosures"
+  | "committee-payments"
+  | "bills"
+  | "legislators"
+  | "campaign-finance"
+  | "lobbying"
+  | "candidates"
+  | "public-api"
+  | "shell"
+  | "none";
+type FailureDetails = {
+  kind: FailureKind;
+  source: SourceFamily;
+  elapsedMs: number;
+  attemptCount: number;
+  upstreamStatus?: number;
+};
+
+class DataUnavailable extends Error {
+  constructor(
+    message: string,
+    readonly details?: FailureDetails,
+  ) {
+    super(message);
+  }
+}
+
+function sourceFamily(path: string): SourceFamily {
+  const bare = path.split("?", 1)[0];
+  const committee =
+    /^\/committees\/[^/]+\/(finance|confirmation|notices|disclosure-statements|payments)$/.exec(
+      bare,
+    );
+  if (committee) {
+    return {
+      finance: "committee-finance",
+      confirmation: "committee-confirmation",
+      notices: "committee-notices",
+      "disclosure-statements": "committee-disclosures",
+      payments: "committee-payments",
+    }[committee[1]] as SourceFamily;
+  }
+  if (/^\/bills(?:\/|$)/.test(bare)) return "bills";
+  if (/^\/legislators(?:\/|$)/.test(bare)) return "legislators";
+  if (/^\/campaign-finance(?:\/|$)/.test(bare)) return "campaign-finance";
+  if (/^\/lobbying(?:\/|$)/.test(bare)) return "lobbying";
+  if (/^\/candidates(?:\/|$)/.test(bare)) return "candidates";
+  return "public-api";
+}
+
+function elapsedMs(started: number): number {
+  return Math.max(0, Math.round(performance.now() - started));
+}
+
+function failurePageFamily(
+  path: string,
+): ReturnType<typeof targetFromPathname>["kind"] | "unknown" {
+  try {
+    return targetFromPathname(path).kind;
+  } catch {
+    // Reporting a routing error must not try the same failing parser again.
+    return "unknown";
+  }
+}
+
+/** Exactly one fixed-shape log per 503, never an error object or request value. */
+function reportPageFailure(
+  phase: "content" | "shell",
+  pageFamily: ReturnType<typeof failurePageFamily>,
+  error: unknown,
+  started: number,
+) {
+  const details = error instanceof DataUnavailable ? error.details : undefined;
+  console.error(
+    JSON.stringify({
+      event: "page_response_failure",
+      phase,
+      page_family: pageFamily,
+      source_family: details?.source ?? (phase === "shell" ? "shell" : "none"),
+      failure_kind: details?.kind ?? "unknown",
+      elapsed_ms: details?.elapsedMs ?? elapsedMs(started),
+      attempt_count: details?.attemptCount ?? 0,
+      ...(details?.upstreamStatus !== undefined
+        ? { upstream_status: details.upstreamStatus }
+        : {}),
+    }),
+  );
+}
 
 function one(value: QueryValue): string {
   return Array.isArray(value) ? (value[0] ?? "") : (value ?? "");
@@ -322,19 +449,31 @@ function titleCase(value: string): string {
 
 async function getApiRead<T>(
   path: string,
-): Promise<{ body: T; ageSeconds: number | null }> {
+  validateForRecovery?: (body: T) => boolean,
+): Promise<{ body: T; ageSeconds: number | null; elapsedMs: number }> {
+  if (validateForRecovery)
+    return getRecoverableApiRead(path, validateForRecovery);
+  const started = performance.now();
+  const signal = AbortSignal.timeout(API_TIMEOUT_MS);
+  const failure = (kind: FailureKind, upstreamStatus?: number) =>
+    new DataUnavailable("public API read failed", {
+      kind,
+      source: sourceFamily(path),
+      elapsedMs: elapsedMs(started),
+      attemptCount: 1,
+      upstreamStatus,
+    });
   let response: Response;
   try {
     response = await fetch(`${API_ORIGIN}/api/v1${path}`, {
       headers: { Accept: "application/json", Origin: SITE_ORIGIN },
-      signal: AbortSignal.timeout(API_TIMEOUT_MS),
+      signal,
     });
   } catch {
-    throw new DataUnavailable(`could not reach ${path}`);
+    throw failure(signal.aborted ? "timeout" : "network");
   }
   if (response.status === 404) throw new RecordNotFound(path);
-  if (!response.ok)
-    throw new DataUnavailable(`API returned ${response.status}`);
+  if (!response.ok) throw failure("http", response.status);
   const rawAge = response.headers.get("age");
   const ageSeconds = rawAge === null ? null : Number.parseInt(rawAge, 10);
   try {
@@ -342,10 +481,183 @@ async function getApiRead<T>(
       body: (await response.json()) as T,
       ageSeconds:
         ageSeconds !== null && Number.isFinite(ageSeconds) ? ageSeconds : null,
+      elapsedMs: elapsedMs(started),
     };
   } catch {
-    throw new DataUnavailable(`unreadable response for ${path}`);
+    throw failure(signal.aborted ? "timeout" : "json", response.status);
   }
+}
+
+/** Required committee money only: at most 2 identical reads under one deadline. */
+function getRecoverableApiRead<T>(
+  path: string,
+  validate: (body: T) => boolean,
+): Promise<{ body: T; ageSeconds: number | null; elapsedMs: number }> {
+  const started = performance.now();
+  const controllers: AbortController[] = [];
+  const responses: (Response | undefined)[] = [];
+  const cancelledResponses = new Set<Response>();
+  let attempts = 0;
+  let pending = 0;
+  let settled = false;
+  let originalFailed = false;
+  let originalError: unknown;
+  let trigger: "slow" | "network" | "http" = "slow";
+  let hedgeTimer: ReturnType<typeof setTimeout>;
+  let deadlineTimer: ReturnType<typeof setTimeout>;
+  const failure = (kind: FailureKind, upstreamStatus?: number) =>
+    new DataUnavailable("public API read failed", {
+      kind,
+      source: "committee-finance",
+      elapsedMs: elapsedMs(started),
+      attemptCount: attempts,
+      upstreamStatus,
+    });
+  const cancelBody = (response?: Response) => {
+    if (!response || cancelledResponses.has(response)) return;
+    cancelledResponses.add(response);
+    // A JSON reader may already hold the stream lock; abort also stops that read.
+    try {
+      void response?.body?.cancel().catch(() => {});
+    } catch {
+      // Cancellation must not replace the read's result.
+    }
+  };
+  const cleanup = (winner?: number) => {
+    clearTimeout(hedgeTimer);
+    clearTimeout(deadlineTimer);
+    controllers.forEach((controller, index) => {
+      if (index !== winner) {
+        controller.abort();
+        cancelBody(responses[index]);
+      }
+    });
+  };
+  return new Promise((resolve, reject) => {
+    const finishFailure = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(
+        error instanceof DataUnavailable && error.details
+          ? new DataUnavailable("public API read failed", {
+              ...error.details,
+              elapsedMs: elapsedMs(started),
+              attemptCount: attempts,
+            })
+          : error,
+      );
+    };
+    const deadlineFailure = () => {
+      finishFailure(
+        originalFailed
+          ? originalError
+          : failure("timeout", responses[0]?.status),
+      );
+    };
+    const startAttempt = () => {
+      const index = attempts++;
+      const controller = new AbortController();
+      controllers.push(controller);
+      pending++;
+      const read = async () => {
+        let response: Response;
+        try {
+          response = await fetch(`${API_ORIGIN}/api/v1${path}`, {
+            headers: { Accept: "application/json", Origin: SITE_ORIGIN },
+            signal: controller.signal,
+          });
+        } catch {
+          throw failure("network");
+        }
+        responses[index] = response;
+        if (settled) {
+          cancelBody(response);
+          return;
+        }
+        if (response.status === 404) throw new RecordNotFound(path);
+        if (!response.ok) throw failure("http", response.status);
+        let body: T;
+        try {
+          body = (await response.json()) as T;
+        } catch {
+          throw failure("json", response.status);
+        }
+        if (!validate(body)) throw failure("payload", response.status);
+        const rawAge = response.headers.get("age");
+        const age = rawAge === null ? null : Number.parseInt(rawAge, 10);
+        return {
+          body,
+          ageSeconds: age !== null && Number.isFinite(age) ? age : null,
+          elapsedMs: elapsedMs(started),
+        };
+      };
+      void read().then(
+        (result) => {
+          if (settled || !result) return;
+          if (performance.now() - started >= API_TIMEOUT_MS) {
+            deadlineFailure();
+            return;
+          }
+          settled = true;
+          cleanup(index);
+          if (attempts === 2) {
+            console.info(
+              JSON.stringify({
+                event: "page_read_recovery",
+                source_family: "committee-finance",
+                attempt_count: 2,
+                winner_attempt: index + 1,
+                trigger,
+                elapsed_ms: elapsedMs(started),
+              }),
+            );
+          }
+          resolve(result);
+        },
+        (error: unknown) => {
+          if (settled) return;
+          if (performance.now() - started >= API_TIMEOUT_MS) {
+            deadlineFailure();
+            return;
+          }
+          pending--;
+          controller.abort();
+          cancelBody(responses[index]);
+          if (index === 0) {
+            originalFailed = true;
+            originalError = error;
+          }
+          const details =
+            error instanceof DataUnavailable ? error.details : undefined;
+          const retryable =
+            details?.kind === "network" ||
+            (details?.kind === "http" &&
+              [502, 503, 504].includes(details.upstreamStatus ?? 0));
+          if (attempts === 1) {
+            // A terminal original result does not create a backup request.
+            if (!retryable) {
+              finishFailure(error);
+              return;
+            }
+            trigger = details?.kind === "network" ? "network" : "http";
+            clearTimeout(hedgeTimer);
+            startAttempt();
+          }
+          // Either validated answer can still win. If both fail, the original
+          // error determines whether the page is missing or temporarily unavailable.
+          if (pending === 0) finishFailure(originalError);
+        },
+      );
+    };
+    deadlineTimer = setTimeout(deadlineFailure, API_TIMEOUT_MS);
+    hedgeTimer = setTimeout(() => {
+      if (settled) return;
+      if (performance.now() - started >= API_TIMEOUT_MS) deadlineFailure();
+      else if (attempts === 1 && pending > 0) startAttempt();
+    }, API_TIMEOUT_MS / 2);
+    startAttempt();
+  });
 }
 
 async function getApiResponse<T>(path: string): Promise<T> {
@@ -388,8 +700,6 @@ async function getDirectoryApiResponse<T>(path: string): Promise<T> {
   }
 }
 
-type BillPayload = BillSnapshotSource & { id?: string };
-
 type LegislatorPayload = LegislatorSnapshotSource & { slug?: string };
 
 /** What `/campaign-finance/payments-under-name` serves, as far as this file reads it. */
@@ -415,7 +725,7 @@ type CollectionPayload<T> = {
  * Home and unfiltered public directories use the crawlable paths in issue #1396.
  *
  * Whether an address serves a body and what a search engine is told about it are
- * 2 separate decisions. Answer and static pages send no snapshot. A filtered view
+ * 2 separate decisions. Private and answer pages send no snapshot. A filtered view
  * sends none either, with 2 exceptions that carry their page's own explanation
  * rather than any filtered result: `/money/search` and a `noindex` money address
  * that would otherwise show nothing at all until the program arrives (#1966).
@@ -463,10 +773,32 @@ function headOnly(metadata: PageMetadata): PageContent {
 }
 
 async function billContent(id: string): Promise<PageContent> {
-  const bill = await getApiData<BillPayload>(
-    `/bills/${encodeURIComponent(id)}?include=ai_analysis`,
-  );
+  const encoded = encodeURIComponent(id);
+  const [detailRead, votesRead] = await Promise.all([
+    getApiRead<{ data: ApiBillDetailPayload }>(
+      `/bills/${encoded}?include=${BILL_DETAIL_INCLUDE}`,
+    ),
+    getApiRead<{ data: ApiBillVotePayload[]; page?: { has_more?: boolean } }>(
+      `/bills/${encoded}/votes`,
+    ).catch(() => null),
+  ]);
+  if (!billReadWithinCacheWindow(detailRead.ageSeconds)) {
+    throw new DataUnavailable("bill detail exceeds its cache window");
+  }
+  const bill = detailRead.body.data;
   const billId = bill.id || id;
+  const votes =
+    votesRead &&
+    billReadWithinCacheWindow(votesRead.ageSeconds) &&
+    Array.isArray(votesRead.body.data) &&
+    !votesRead.body.page?.has_more
+      ? votesRead.body.data
+      : null;
+  const snapshot = billPageSnapshot({ ...bill, id: billId });
+  snapshot.sections = [
+    ...(snapshot.sections ?? []),
+    ...billHistorySnapshot({ ...bill, id: billId }, votes),
+  ];
   return {
     metadata: billPageMetadata({
       billId,
@@ -481,7 +813,24 @@ async function billContent(id: string): Promise<PageContent> {
         bill.ai_analysis?.summary,
       ),
     }),
-    snapshot: renderPageSnapshot(billPageSnapshot({ ...bill, id: billId })),
+    snapshot: renderPageSnapshot(snapshot),
+    noStore: votes === null,
+    data: [
+      {
+        key: ["bill", id],
+        payload: bill,
+        validatedAgeMs: servedClaimAgeMs(detailRead.ageSeconds),
+      },
+      ...(votes === null
+        ? []
+        : [
+            {
+              key: ["bill-votes", id],
+              payload: votes,
+              validatedAgeMs: servedClaimAgeMs(votesRead?.ageSeconds),
+            },
+          ]),
+    ],
   };
 }
 
@@ -526,6 +875,31 @@ async function legislatorContent(
   const chamber = titleCase(legislator.current_service?.chamber || "");
   // A UUID address canonicalises to the readable slug the profile links use.
   const slug = legislator.slug || id;
+  // The server checks the reviewed identity link using the resolved slug. A
+  // missing or unavailable connection must not hide this legislator's record.
+  const person = await getApiResponse<unknown>(
+    `/people/for-legislator/${encodeURIComponent(slug)}`,
+  ).catch(() => null);
+  const snapshot = legislatorPageSnapshot(
+    legislator,
+    Array.isArray(chiefBills) ? chiefBills : null,
+    confirmedCommitteeLinks(legislator),
+  );
+  if (validPublicPersonLink(person)) {
+    snapshot.sections = [
+      {
+        heading: "",
+        body: [PERSON_RECORD_COPY.introduction],
+        items: [
+          {
+            label: PERSON_RECORD_COPY.link,
+            href: `${person.profileUrl}?legislator=${encodeURIComponent(slug)}`,
+          },
+        ],
+      },
+      ...(snapshot.sections ?? []),
+    ];
+  }
   const data: PageDataEntry[] = [
     { key: legislatorRecordQueryKey(id), payload: legislator },
   ];
@@ -570,13 +944,7 @@ async function legislatorContent(
       // record carries a current photo worth asking for.
       photoUrl: chamber ? legislator.current_service?.photo_url : null,
     }),
-    snapshot: renderPageSnapshot(
-      legislatorPageSnapshot(
-        legislator,
-        Array.isArray(chiefBills) ? chiefBills : null,
-        confirmedCommitteeLinks(legislator),
-      ),
-    ),
+    snapshot: renderPageSnapshot(snapshot),
   };
 }
 
@@ -1025,18 +1393,27 @@ async function committeeFinance(
   registrationNumber: string,
   year: number,
 ): Promise<CommitteeMoneySnapshotSource> {
+  const read = await getApiRead<{ data?: CommitteeMoneySnapshotSource }>(
+    `/committees/${encodeURIComponent(registrationNumber)}/finance?year=${year}&include_confirmation=false`,
+    (body) => {
+      const payload = body?.data;
+      return (
+        !!payload &&
+        typeof payload === "object" &&
+        !Array.isArray(payload) &&
+        payload.registration_number === registrationNumber &&
+        payload.year === year
+      );
+    },
+  );
   const {
     confirmed_for: _confirmedFor,
     current_claim_validated_at: _currentClaimValidatedAt,
     ...money
-  } = await getApiData<
-    CommitteeMoneySnapshotSource & {
-      confirmed_for?: unknown;
-      current_claim_validated_at?: unknown;
-    }
-  >(
-    `/committees/${encodeURIComponent(registrationNumber)}/finance?year=${year}&include_confirmation=false`,
-  );
+  } = read.body.data as CommitteeMoneySnapshotSource & {
+    confirmed_for?: unknown;
+    current_claim_validated_at?: unknown;
+  };
   return money;
 }
 
@@ -1660,6 +2037,20 @@ async function contentFor(
         metadata: STATIC_PAGE_METADATA["/blog"],
         snapshot: renderPageSnapshot(readPageSnapshot(publishedResearch())),
       };
+    case "events":
+      return {
+        metadata: eventsPageMetadata(),
+        snapshot: renderEventPageSnapshot(renderEventsCollection()),
+      };
+    case "event": {
+      const event = eventBySlug(target.slug);
+      if (!event) throw new UnknownAddress(`no event ${target.slug}`);
+      const now = Date.now();
+      return {
+        metadata: publishedEventMetadata(event, now),
+        snapshot: renderEventPageSnapshot(renderEventArticle(event, now, { origin: "https://www.alethical.com", search: pathWithQuery(query).split("?")[1] ?? "" }), eventReplayBySlug(event.slug)?.video ? eventPath(event) : undefined),
+      };
+    }
     case "readResearch":
     case "readGuides":
     case "readSet": {
@@ -1715,7 +2106,7 @@ async function contentFor(
     }
     case "guide":
     case "research": {
-      // Title and dates only in a piece's tags (grounded-answers.md rule 13);
+      // Rule 13 separates subject-only search wording from dates-only sharing;
       // an unpublished or unknown slug, or a known piece asked for under the
       // wrong folder, is a genuinely absent page. The piece's own writing goes in
       // the body instead, where the loaded page puts it (#1760) — the `indexed`
@@ -1777,11 +2168,17 @@ async function contentFor(
     case "moneyCommitteePayments":
       return committeePaymentsContent(target.slug, target.year, target.tab);
     case "privacy":
-      return headOnly(STATIC_PAGE_METADATA["/privacy"]);
+      return {
+        metadata: STATIC_PAGE_METADATA["/privacy"],
+        snapshot: renderPageSnapshot(legalPageSnapshot("/privacy")),
+      };
     case "siteMetrics":
       return headOnly(STATIC_PAGE_METADATA["/admin/site-metrics"]);
     case "terms":
-      return headOnly(STATIC_PAGE_METADATA["/terms"]);
+      return {
+        metadata: STATIC_PAGE_METADATA["/terms"],
+        snapshot: renderPageSnapshot(legalPageSnapshot("/terms")),
+      };
     case "aboutUs":
       return {
         metadata: STATIC_PAGE_METADATA["/about"],
@@ -1804,20 +2201,48 @@ async function contentFor(
     case "chatSession":
       return headOnly(homePageMetadata());
     case "candidates":
-      return headOnly(STATIC_PAGE_METADATA["/candidates"]);
+      return {
+        metadata: STATIC_PAGE_METADATA["/candidates"],
+        snapshot: renderPageSnapshot(candidateLookupPageSnapshot()),
+      };
+    case "candidateFeatures":
+      // Public words only: no candidate name, claim state or account context. Any
+      // `candidate` parameter, valid or not, makes this a context view kept out of search.
+      return {
+        metadata: candidateFeaturesPageMetadata({
+          candidateContext: new URLSearchParams(
+            pathWithQuery(query).split("?")[1] ?? "",
+          ).has("candidate"),
+        }),
+        snapshot: renderPageSnapshot(candidateFeaturesPageSnapshot()),
+      };
+    case "personOverview": {
+      const record = await getApiResponse<PersonRecord>(
+        `/people/${target.personId}`,
+      );
+      if (!validPersonRecord(record, target.personId))
+        throw new DataUnavailable("invalid person record");
+      return {
+        metadata: personPageMetadata(record),
+        snapshot: renderPageSnapshot(personPageSnapshot(record)),
+        noStore: true,
+      };
+    }
     case "candidateProfile": {
       // Only public election records enter this page response. Never call address lookup.
       const record = await getApiResponse<CandidateProfileRecord>(
         `/candidates/${target.candidateId}`,
       );
-      if (
-        record.candidate?.id !== target.candidateId ||
-        !record.election?.id ||
-        !record.candidate.name?.trim()
-      )
+      if (!validCandidateProfileRecord(record, target.candidateId))
         throw new DataUnavailable("invalid candidate record");
-      return { ...headOnly(candidateProfileMetadata(record)), noStore: true };
+      return {
+        metadata: candidateProfileMetadata(record),
+        snapshot: renderPageSnapshot(candidateProfilePageSnapshot(record)),
+        noStore: true,
+      };
     }
+    case "tvAdRecords":
+    case "adminPoliticalAds":
     case "notFound":
       throw new UnknownAddress(`unknown address ${path}`);
   }
@@ -1833,15 +2258,26 @@ const PAGE_SHELL_PATH = resolve(process.cwd(), "apps/frontend/dist/index.html");
 
 async function pageShell(): Promise<string> {
   if (cachedShell) return cachedShell;
+  const started = performance.now();
   let html: string;
   try {
     html = await readFile(PAGE_SHELL_PATH, "utf8");
   } catch {
-    throw new DataUnavailable("could not read the page shell");
+    throw new DataUnavailable("could not read the page shell", {
+      kind: "unknown",
+      source: "shell",
+      elapsedMs: elapsedMs(started),
+      attemptCount: 0,
+    });
   }
   // Proves the bundled file is the real shell rather than an unrelated build file.
   if (!html.includes("alethical:page-head")) {
-    throw new DataUnavailable("page shell is missing its head markers");
+    throw new DataUnavailable("page shell is missing its head markers", {
+      kind: "payload",
+      source: "shell",
+      elapsedMs: elapsedMs(started),
+      attemptCount: 0,
+    });
   }
   cachedShell = html;
   return html;
@@ -1924,8 +2360,10 @@ export default async function handler(
   request: RequestLike,
   response: ResponseLike,
 ) {
+  const started = performance.now();
   const query = request.query ?? {};
   const requestedPath = one(query.path) || "/";
+  const pageFamily = failurePageFamily(requestedPath);
   const isEmailLinkPage =
     requestedPath === "/confirm" || requestedPath === "/reset";
   const isForgotPasswordBridge = requestedPath === "/forgot-password";
@@ -1936,11 +2374,13 @@ export default async function handler(
   const isAdminPage = [
     "candidateClaim",
     "candidateManage",
+    "tvAdRecords",
+    "adminPoliticalAds",
     "adminCandidateClaims",
     "adminUsers",
     "adminSiteMetrics",
     "siteMetrics",
-  ].includes(targetFromPathname(requestedPath).kind);
+  ].includes(pageFamily);
 
   let content: PageContent;
   let status = 200;
@@ -1956,6 +2396,7 @@ export default async function handler(
       };
       status = 404;
     } else {
+      reportPageFailure("content", pageFamily, error, started);
       // A brief outage must never tell a search engine our pages are gone.
       response.setHeader("Content-Type", "text/plain; charset=utf-8");
       response.setHeader("Cache-Control", "no-store");
@@ -1990,7 +2431,8 @@ export default async function handler(
     } else if (isForgotPasswordBridge) {
       html = forgotPasswordBridgeShell(html);
     }
-  } catch {
+  } catch (error) {
+    reportPageFailure("shell", pageFamily, error, started);
     response.setHeader("Content-Type", "text/plain; charset=utf-8");
     response.setHeader("Cache-Control", "no-store");
     if (isPrivateEmailPage)
@@ -2041,7 +2483,7 @@ export default async function handler(
   }
   response.setHeader(
     "Cache-Control",
-    content.noStore ? "no-store" : status === 404 ? NOT_FOUND_CACHE : OK_CACHE,
+    isAdminPage ? "private, no-store" : content.noStore ? "no-store" : status === 404 ? NOT_FOUND_CACHE : OK_CACHE,
   );
   if (content.metadata.noindex) response.setHeader("X-Robots-Tag", "noindex");
   response.status(status).send(html);

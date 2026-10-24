@@ -8,6 +8,7 @@ import {
   View,
   type StyleProp,
   type ViewStyle,
+  type TextStyle,
 } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { externalLinkProps, linkProps } from '../../navigation/links';
@@ -15,32 +16,20 @@ import { theme as t } from '../../theme/tokens';
 import { LinkArrow } from '../LinkArrow';
 import type { CandidateSource } from './types';
 
+import {
+  candidateRecordsSourceLabel,
+  CANDIDATE_PROFILE_COPY,
+  safeCandidateUrl,
+} from '../../lib/candidatePublicCopy';
+import { ballotCheckedLabel } from '../../lib/personRecords';
+export { candidateDate, safeCandidateUrl, sampleBallotUrl } from '../../lib/candidatePublicCopy';
+
 export const candidateColors = {
   ink: '#11150f',
   muted: '#4f5651',
   link: '#0f7a45',
   focus: '#7c5cff',
 };
-export const sampleBallotUrl = 'https://www.sos.mn.gov/elections-voting/whats-on-my-ballot/';
-export function candidateDate(value: string) {
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00Z`) : null;
-  return date && !Number.isNaN(date.getTime())
-    ? date.toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-        timeZone: 'UTC',
-      })
-    : value;
-}
-export function safeCandidateUrl(url: string) {
-  try {
-    const parsed = new URL(url);
-    return ['http:', 'https:'].includes(parsed.protocol) ? url : null;
-  } catch {
-    return null;
-  }
-}
 function canHover() {
   return (
     Platform.OS === 'web' &&
@@ -48,6 +37,9 @@ function canHover() {
     Boolean(window.matchMedia?.('(hover: hover) and (pointer: fine)').matches)
   );
 }
+/** Marks focus a pointer press moved onto a button, which keeps its ring hidden. */
+export const CANDIDATE_POINTER_FOCUS_ATTRIBUTE = 'data-candidate-pointer-focus';
+
 export function CandidateButton({
   label,
   onPress,
@@ -59,19 +51,32 @@ export function CandidateButton({
   href,
   keepFieldFocus = false,
   busyLabel,
+  reserveBusyLabel = false,
+  pressedStyle,
+  textStyle,
   buttonRef,
+  describedBy,
+  accessibilityLabel,
+  fontSize,
 }: {
   label: string;
   onPress(): void;
   busy?: boolean;
   disabled?: boolean;
-  icon?: 'search' | 'none';
-  kind?: 'green' | 'outline' | 'text';
+  icon?: 'search' | 'none' | 'location';
+  kind?: 'green' | 'black' | 'outline' | 'text';
+  /** Label size in px; the line height follows it. */
+  fontSize?: number;
   style?: StyleProp<ViewStyle>;
   href?: string;
   keepFieldFocus?: boolean;
   busyLabel?: string;
+  reserveBusyLabel?: boolean;
+  pressedStyle?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
   buttonRef?: RefObject<View | null>;
+  describedBy?: string;
+  accessibilityLabel?: string;
 }) {
   const [hovered, setHovered] = useState(false);
   const localRef = useRef<View>(null);
@@ -81,7 +86,10 @@ export function CandidateButton({
     const sheet = document.createElement('style');
     sheet.id = 'alethical-candidate-controls';
     sheet.textContent =
-      '@keyframes alethical-candidate-spin{to{transform:rotate(360deg)}}[data-candidate-spinner="true"]{animation:alethical-candidate-spin .8s linear infinite}@media(prefers-reduced-motion:reduce){[data-candidate-spinner="true"]{animation:none}}';
+      '@keyframes alethical-candidate-spin{to{transform:rotate(360deg)}}[data-candidate-spinner="true"]{animation:alethical-candidate-spin .8s linear infinite}@media(prefers-reduced-motion:reduce){[data-candidate-spinner="true"]{animation:none}}' +
+      // Outranks the sitewide keyboard ring, whose [tabindex] branch is very
+      // specific, only while the pointer marker is set. The :not(#…) adds rank.
+      `button[${CANDIDATE_POINTER_FOCUS_ATTRIBUTE}="true"]:not(#candidate-pointer-focus):focus-visible{outline:none !important}`;
     document.head.append(sheet);
   }, []);
   useEffect(() => {
@@ -90,10 +98,90 @@ export function CandidateButton({
     if (busy || disabled) element?.setAttribute('aria-disabled', 'true');
     else element?.removeAttribute('aria-disabled');
   }, [busy, disabled, control]);
+  const ink = kind === 'green' ? '#06231a' : candidateColors.ink;
+  const buttonIcon = (spinning: boolean) => {
+    if (spinning && (kind === 'green' || icon === 'location'))
+      return (
+        <View
+          aria-hidden
+          {...({ dataSet: { candidateSpinner: 'true' } } as object)}
+          style={{ width: 17, height: 17 }}
+        >
+          <Svg width={17} height={17} viewBox="0 0 24 24" fill="none" aria-hidden>
+            <Circle
+              cx={12}
+              cy={12}
+              r={9}
+              stroke={
+                kind === 'green'
+                  ? busyLabel
+                    ? 'rgba(6,35,26,0.25)'
+                    : '#6a8478'
+                  : 'rgba(17,21,15,0.18)'
+              }
+              strokeWidth={busyLabel ? 2.4 : 2}
+            />
+            <Path
+              d="M21 12a9 9 0 0 0-9-9"
+              stroke={ink}
+              strokeWidth={busyLabel ? 2.4 : 2}
+              strokeLinecap="round"
+            />
+          </Svg>
+        </View>
+      );
+    if (icon === 'location')
+      return (
+        <Svg width={19} height={19} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <Circle cx={12} cy={12} r={3.4} stroke={ink} strokeWidth={2} />
+          <Path
+            d="M12 2 V5 M12 19 V22 M22 12 H19 M5 12 H2"
+            stroke={ink}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+          <Circle cx={12} cy={12} r={8.5} stroke={ink} strokeWidth={2} />
+        </Svg>
+      );
+    if (kind === 'green' && icon === 'search')
+      return (
+        <View aria-hidden style={{ width: 17, height: 17 }}>
+          <Svg width={17} height={17} viewBox="0 0 24 24" fill="none" aria-hidden>
+            <Circle cx={11} cy={11} r={7} stroke={ink} strokeWidth={2} />
+            <Path d="M16.5 16.5L21 21" stroke={ink} strokeWidth={2} strokeLinecap="round" />
+          </Svg>
+        </View>
+      );
+    return null;
+  };
+  const buttonLabel = (text: string, visible: boolean) => (
+    <Text
+      style={[
+        styles.buttonText,
+        { flexShrink: 1 },
+        fontSize ? { fontSize, lineHeight: Math.round(fontSize * 1.4) } : null,
+        textStyle,
+        kind === 'green' && { color: '#06231a' },
+        kind === 'black' && { color: '#ffffff' },
+        kind === 'text' && { textDecorationLine: 'underline' },
+        kind === 'text' &&
+          visible &&
+          Platform.OS === 'web' &&
+          ({
+            textDecorationThickness: hovered ? '3px' : '1px',
+            textUnderlineOffset: '3px',
+          } as object),
+      ]}
+    >
+      {text}
+    </Text>
+  );
   return (
     <Pressable
       ref={control}
       accessibilityRole={href ? 'link' : 'button'}
+      aria-describedby={describedBy}
+      accessibilityLabel={accessibilityLabel}
       aria-busy={busy || undefined}
       disabled={disabled || (busy && !busyLabel)}
       accessibilityState={{ busy, disabled: busy || disabled }}
@@ -113,66 +201,63 @@ export function CandidateButton({
       onHoverOut={() => setHovered(false)}
       style={({ pressed }) => [
         styles.button,
-        kind === 'green' ? styles.green : kind === 'text' ? styles.textButton : styles.outline,
+        kind === 'green'
+          ? styles.green
+          : kind === 'black'
+            ? styles.black
+            : kind === 'text'
+              ? styles.textButton
+              : styles.outline,
         hovered &&
           !busy &&
           !disabled &&
           (kind === 'green'
             ? styles.greenHover
-            : kind === 'text'
-              ? styles.textHover
-              : styles.outlineHover),
+            : kind === 'black'
+              ? styles.blackHover
+              : kind === 'text'
+                ? styles.textHover
+                : styles.outlineHover),
         pressed &&
           !busy &&
           !disabled &&
           (kind === 'green'
             ? styles.greenPressed
-            : kind === 'outline'
-              ? styles.outlinePressed
-              : null),
+            : kind === 'black'
+              ? styles.blackPressed
+              : kind === 'outline'
+                ? styles.outlinePressed
+                : null),
+        pressed && !busy && !disabled && pressedStyle,
         disabled && { opacity: 0.5 },
         busy && busyLabel && Platform.OS === 'web' && ({ cursor: 'progress' } as object),
         style,
       ]}
     >
-      {kind === 'green' && (icon === 'search' || busy) ? (
-        <View
-          aria-hidden
-          {...({ dataSet: { candidateSpinner: busy ? 'true' : 'false' } } as object)}
-          style={{ width: 17, height: 17 }}
-        >
-          <Svg width={17} height={17} viewBox="0 0 24 24" fill="none" aria-hidden>
-            <Circle
-              cx={busy ? 12 : 11}
-              cy={busy ? 12 : 11}
-              r={busy ? 9 : 7}
-              stroke={busy ? (busyLabel ? 'rgba(6,35,26,0.25)' : '#6a8478') : '#06231a'}
-              strokeWidth={busy && busyLabel ? 2.4 : 2}
-            />
-            <Path
-              d={busy ? 'M21 12a9 9 0 0 0-9-9' : 'M16.5 16.5L21 21'}
-              stroke="#06231a"
-              strokeWidth={busy && busyLabel ? 2.4 : 2}
-              strokeLinecap="round"
-            />
-          </Svg>
+      {reserveBusyLabel && busyLabel ? (
+        // The hidden busy group only reserves the box. The visible icon and word
+        // stay 1 centred group above it, so the reserved width never separates them.
+        <View style={styles.buttonLayers}>
+          <View
+            aria-hidden
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={[styles.buttonGroup, { opacity: 0 }]}
+          >
+            {buttonIcon(true)}
+            {buttonLabel(busyLabel, false)}
+          </View>
+          <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.buttonGroup]}>
+            {buttonIcon(busy)}
+            {buttonLabel(busy ? busyLabel : label, true)}
+          </View>
         </View>
-      ) : null}
-      <Text
-        style={[
-          styles.buttonText,
-          kind === 'green' && { color: '#06231a' },
-          kind === 'text' && { textDecorationLine: 'underline' },
-          kind === 'text' &&
-            Platform.OS === 'web' &&
-            ({
-              textDecorationThickness: hovered ? '3px' : '1px',
-              textUnderlineOffset: '3px',
-            } as object),
-        ]}
-      >
-        {busy && busyLabel ? busyLabel : label}
-      </Text>
+      ) : (
+        <>
+          {buttonIcon(busy)}
+          {buttonLabel(busy && busyLabel ? busyLabel : label, true)}
+        </>
+      )}
     </Pressable>
   );
 }
@@ -182,14 +267,21 @@ export function CandidateLink({
   onPress,
   internal = false,
   accessibilityLabel,
+  describedBy,
+  direction,
   style,
+  textSize,
 }: {
   label: string;
   url: string;
   onPress?(): void;
   internal?: boolean;
   accessibilityLabel?: string;
+  describedBy?: string;
+  direction?: 'back';
   style?: StyleProp<ViewStyle>;
+  /** Profile claim screens draw their links at 16px; others keep 15px. */
+  textSize?: number;
 }) {
   const [hovered, setHovered] = useState(false);
   if (!internal && !safeCandidateUrl(url)) return null;
@@ -203,15 +295,22 @@ export function CandidateLink({
       accessibilityLabel={
         accessibilityLabel ?? `${label}${internal ? '' : ' (opens in a new tab)'}`
       }
+      aria-describedby={describedBy}
       onHoverIn={() => {
         if (canHover()) setHovered(true);
       }}
       onHoverOut={() => setHovered(false)}
       style={[styles.link, style]}
     >
-      <Text style={[styles.linkText, hovered && { color: '#11832b' }]}>
+      <Text
+        style={[
+          styles.linkText,
+          textSize ? { fontSize: textSize, lineHeight: Math.round(textSize * 1.45) } : null,
+          hovered && { color: '#11832b' },
+        ]}
+      >
         {Platform.OS === 'web' ? (
-          label === 'Back to candidates' ? (
+          direction === 'back' || label.startsWith('Back to ') ? (
             <span>
               <span style={{ whiteSpace: 'nowrap' }}>
                 <Svg
@@ -230,20 +329,29 @@ export function CandidateLink({
                     strokeLinejoin="round"
                   />
                 </Svg>
-                <span style={{ textDecoration: hovered ? 'underline' : 'none' }}>Back</span>
+                <span style={{ textDecoration: hovered ? 'underline' : 'none' }}>
+                  {label.split(' ')[0]}
+                </span>
               </span>
-              <span style={{ textDecoration: hovered ? 'underline' : 'none' }}> to candidates</span>
+              <span style={{ textDecoration: hovered ? 'underline' : 'none' }}>
+                {label.slice(label.indexOf(' '))}
+              </span>
             </span>
           ) : (
             <span>
               <span style={{ textDecoration: hovered ? 'underline' : 'none' }}>
                 {label.slice(0, label.lastIndexOf(' ') + 1)}
               </span>
-              <span style={{ whiteSpace: 'nowrap' }}>
+              <span style={{ display: 'inline-block', maxWidth: '100%', whiteSpace: 'normal' }}>
                 <span style={{ textDecoration: hovered ? 'underline' : 'none' }}>
-                  {label.slice(label.lastIndexOf(' ') + 1)}
+                  {label.slice(label.lastIndexOf(' ') + 1, -1)}
                 </span>
-                <LinkArrow color="#0f7a45" placement="candidate-inline" />
+                <span style={{ whiteSpace: 'nowrap' }}>
+                  <span style={{ textDecoration: hovered ? 'underline' : 'none' }}>
+                    {label.slice(-1)}
+                  </span>
+                  <LinkArrow color="#0f7a45" placement="candidate-inline" />
+                </span>
               </span>
             </span>
           )
@@ -257,10 +365,14 @@ export function CandidateLink({
 export function CandidateSourceLine({
   source,
   group = false,
+  showChecked = true,
+  checkedStyle,
   style,
 }: {
   source: CandidateSource;
   group?: boolean;
+  showChecked?: boolean;
+  checkedStyle?: StyleProp<TextStyle>;
   style?: StyleProp<ViewStyle>;
 }) {
   return (
@@ -281,16 +393,18 @@ export function CandidateSourceLine({
         style,
       ]}
     >
-      <CandidateLink url={source.url} label={`Candidate records from ${source.authority}`} />
-      <Text style={styles.small}>Checked {candidateDate(source.checkedDate)}</Text>
-      {source.stale ? (
+      <CandidateLink url={source.url} label={candidateRecordsSourceLabel(source.authority)} />
+      {showChecked ? (
+        <Text style={[styles.small, checkedStyle]}>{ballotCheckedLabel(source)}</Text>
+      ) : null}
+      {source.stale && !source.retained ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" aria-hidden>
             <Circle cx={12} cy={12} r={9} stroke="#8f5a12" strokeWidth={1.8} />
             <Path d="M12 6v6l4 2" stroke="#8f5a12" strokeWidth={1.8} strokeLinecap="round" />
           </Svg>
           <Text style={[styles.small, { color: '#8f5a12', fontWeight: '700' }]}>
-            May be out of date
+            {CANDIDATE_PROFILE_COPY.stale}
           </Text>
         </View>
       ) : null}
@@ -361,6 +475,9 @@ const styles = StyleSheet.create({
   green: { backgroundColor: '#2ed47e', borderColor: '#2ed47e' },
   greenHover: { backgroundColor: '#28bf71', borderColor: '#28bf71' },
   greenPressed: { backgroundColor: '#23ad66', borderColor: '#23ad66' },
+  black: { backgroundColor: '#11150f', borderColor: '#11150f' },
+  blackHover: { backgroundColor: '#2c322c', borderColor: '#2c322c' },
+  blackPressed: { backgroundColor: '#000000', borderColor: '#000000' },
   outline: { backgroundColor: '#fff', borderColor: 'rgba(17,21,15,0.2)' },
   outlineHover: { backgroundColor: '#f7f8fa', borderColor: 'rgba(17,21,15,0.3)' },
   outlinePressed: { backgroundColor: '#eceff1' },
@@ -378,6 +495,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: candidateColors.ink,
     textAlign: 'center',
+  },
+  buttonLayers: { position: 'relative', flexShrink: 1, minWidth: 0 },
+  buttonGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    minWidth: 0,
   },
   link: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', maxWidth: '100%' },
   linkText: {

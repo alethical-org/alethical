@@ -29,7 +29,7 @@ assert.match(
 );
 
 const { privateKey: pem } = generateKeyPairSync('rsa', {
-  modulusLength: 1024,
+  modulusLength: 2048,
   publicExponent: 3,
   privateKeyEncoding: { type: 'pkcs1', format: 'pem' },
   publicKeyEncoding: { type: 'pkcs1', format: 'pem' },

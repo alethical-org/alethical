@@ -16,18 +16,24 @@ import {
 } from '../findMyLegislator';
 
 describe('Find My Legislator state and copy helpers', () => {
-  it('uses the complete address instructions at every screen width', () => {
-    expect(FIND_MY_LEGISLATOR_INSTRUCTIONS).toBe(
-      "Enter a full street address — a city or ZIP code alone can't identify your legislators",
-    );
-
+  it('labels the shared field and opens the foot notes with the legislator hint', () => {
     const source = readFileSync(
       join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
       'utf8',
     );
-    expect(source).toContain('{FIND_MY_LEGISLATOR_INSTRUCTIONS}');
+    expect(source).toContain('Find my legislators');
+    expect(source.match(/A city or ZIP code alone cannot identify your legislators/g)).toHaveLength(
+      1,
+    );
+    const label = source.indexOf('Full street address');
+    const field = source.indexOf('<AddressSuggestionField');
+    expect(source.slice(label, field)).not.toContain('ADDRESS_HELP');
+    expect(source).toContain('leadNote={{ id: ADDRESS_HELP_ID, text: ADDRESS_HELP }}');
+    expect(source).toMatch(
+      /describedBy=\{\s*addressError \? `\$\{ADDRESS_HELP_ID\} \$\{ADDRESS_ERROR_ID\}` : ADDRESS_HELP_ID\s*\}/,
+    );
+    expect(source).not.toContain('{FIND_MY_LEGISLATOR_INSTRUCTIONS}');
   });
-
   it('keeps all 10 page states distinct', () => {
     expect([
       viewStateForLookup({}),
@@ -35,6 +41,7 @@ describe('Find My Legislator state and copy helpers', () => {
       viewStateForLookup({ found: true }),
       viewStateForLookup({ choices: 2 }),
       viewStateForLookup({ error: 'not-found' }),
+      viewStateForLookup({ error: 'ambiguous-location' }),
       viewStateForLookup({ error: 'outside-minnesota' }),
       viewStateForLookup({ error: 'location' }),
       viewStateForLookup({ found: true, vacant: true }),
@@ -46,6 +53,7 @@ describe('Find My Legislator state and copy helpers', () => {
       'found',
       'choice',
       'not-found',
+      'ambiguous-location',
       'outside-minnesota',
       'location-error',
       'vacant',
@@ -85,50 +93,26 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(addressSuggestionResultsAreCurrent('', '3040 Ex')).toBe(false);
   });
 
-  it('wires the address choices to real web keyboard, hover, and selected-value behavior', () => {
+  it('shares suggestions while retaining submitted ambiguous choices', () => {
     const source = readFileSync(
       join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
       'utf8',
     );
-
-    expect(source).toContain('onKeyDownCapture: onChoiceKey');
-    expect(source).toContain("if (event.nativeEvent?.key === 'Enter') return;");
-    expect(source).not.toContain('onKeyPress={onChoiceKey}');
-    expect(source).toContain('setAddress(choice.matchedAddress)');
-    expect(source).toContain('onHoverIn={() => setChoiceIndex(index)}');
-    expect(source).toContain('borderColor: t.colors.brand.base');
-    expect(source).toContain("borderColor: 'transparent'");
-    expect(source).toContain('borderWidth: 2');
-    expect(source).not.toContain('choiceRowActive: { backgroundColor:');
-    expect(source).toContain("overflowY: 'auto', overflowX: 'hidden'");
-    expect(source).toContain('maxHeight: 300');
-    expect(source).toContain('useDebouncedSearchCommit(');
-    expect(source).toContain('useAddressSuggestions(');
-    expect(source).toContain("'aria-autocomplete': 'list'");
-    expect(source).toContain('Finding matching addresses…');
-    expect(source).toContain('No matching Minnesota addresses yet. Keep typing.');
-    expect(source).not.toContain('Finding matching Minnesota addresses…');
-    expect(source).not.toContain('Keep typing or choose Find.');
-    expect(source).toContain('FIND_MY_LEGISLATOR_INSTRUCTIONS');
-    expect(source).toContain('if (!lookup.error && !clientError) setSuggestionsOpen(true)');
-    expect(source).toContain('<Text style={styles.choiceKey}>↑</Text>');
-    expect(source).toContain('<Text style={styles.choiceKey}>↓</Text>');
-    expect(source).toContain('<Text style={styles.choiceKey}>Enter</Text>');
-    expect(source).not.toContain('<Text style={styles.choiceKey}>Esc</Text>');
-    expect(source).toContain('{choices.length > 1 ? (');
+    expect(source).toContain('<AddressSuggestionField');
+    expect(source).toContain('suggestRepresentativeAddressesFromApi(value, signal)');
+    expect(source).toContain('onKeyDownCapture: onChoiceListKey');
+    expect(source).toContain('Choose your address');
+    expect(source).not.toContain('useAddressSuggestions(');
   });
-
-  it('uses a singular suggestion heading only when exactly 1 suggestion is shown', () => {
+  it('uses singular and plural headings in the shared suggestion field', () => {
     const source = readFileSync(
-      join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
+      join(__dirname, '..', '..', 'components', 'address', 'AddressSuggestionField.tsx'),
       'utf8',
     );
-
-    expect(source).toContain('choices.length === 1');
-    expect(source).toContain("? 'Suggested address'");
-    expect(source).toContain(": 'Suggested addresses'");
+    expect(source).toContain('options.length === 1');
+    expect(source).toContain("'Suggested address'");
+    expect(source).toContain("'Suggested addresses'");
   });
-
   it('replaces only a successful typed address with the confirmed address', () => {
     const confirmedResult = {
       status: 'found' as const,
@@ -217,22 +201,20 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).toContain('Looking up districts');
     expect(source).not.toContain('Looking up your districts');
     expect(source).toContain('setShimmerEnabled(true)');
-    expect(source).toContain("role: 'combobox'");
+    expect(source).toContain('<AddressSuggestionField');
     expect(source).toContain("role: 'listbox'");
     expect(source).toContain("role: 'option'");
-    expect(source).toContain('aria-activedescendant');
-    expect(source).toContain('onKeyDownCapture: onChoiceKey');
+    expect(source).toContain('onKeyDownCapture: onChoiceListKey');
     expect(source).toMatch(/const runCoordinate[\s\S]*setChoiceClosed\(true\)/);
     expect(source).toContain(
-      'Enter a house number and street name, like 350 S 5th St, Minneapolis, MN 55415',
+      'Enter a house number and street name, like 350 S 5th St, Minneapolis 55415',
     );
     expect(source).not.toContain(
-      'Enter a house number and street name, like 350 S 5th St, Minneapolis, MN 55415.',
+      'Enter a house number and street name, like 350 S 5th St, Minneapolis 55415.',
     );
     expect(source).toContain('LOCATION_ERROR_ID');
     expect(source).toContain('onOutsideMinnesota');
     expect(source).toContain("alignItems: 'flex-start'");
-    expect(source).toContain("inputShellMobile: { width: '100%' }");
     expect(source).toContain('addressInputRef.current?.focus()');
     expect(source).toContain("field: 'Too many lookups'");
     expect(source).toContain("answer: 'Try again in up to 60 seconds'");
@@ -305,9 +287,9 @@ describe('Find My Legislator state and copy helpers', () => {
     );
     expect(source).toContain('const displayedResult = retainedMapResult ?? settledResult');
     expect(source).toContain("state === 'looking' && !retainedMapResult");
-    expect(source).toContain("const mapUpdateLabel = lookup.isPending ? 'Updating districts'");
+    expect(source).toContain('Updating legislators: showing the previous results');
     expect(source).toContain('accessibilityLabel={mapUpdateLabel}');
-    expect(source).toContain('styles.mapUpdatingOverlay');
+    expect(source).toContain('styles.mapUpdatingBadge');
   });
 
   it('keeps the accepted result mounted when a map-selected lookup fails', () => {
@@ -317,10 +299,10 @@ describe('Find My Legislator state and copy helpers', () => {
     );
 
     expect(source).toMatch(
-      /const retainLastFoundResult =\s*preserveMapViewport[\s\S]*lookup\.isPending[\s\S]*lookup\.error[\s\S]*clientError/,
+      /const retainLastFoundResult =[\s\S]*lookup\.isPending[\s\S]*lookupError[\s\S]*clientError/,
     );
     expect(source).toContain('activeError && !retainedMapResult');
-    expect(source).toContain("'Couldn’t update districts'");
+    expect(source).toContain('Couldn’t update legislators: showing the previous results');
   });
 
   it('keeps the reader at the same page position while lookup content appears', () => {
@@ -334,15 +316,14 @@ describe('Find My Legislator state and copy helpers', () => {
     expect(source).toContain('style={[styles.scroll, preserveLookupScrollStyle]}');
   });
 
-  it('reserves the mobile suggestion status row before loading starts', () => {
+  it('keeps optional suggestion failures quiet and places progress in Find', () => {
     const source = readFileSync(
       join(__dirname, '..', '..', 'screens', 'FindMyLegislatorScreen.tsx'),
       'utf8',
     );
-
-    expect(source).toContain('const keepSuggestionStatusSpace = isMobile && !choices.length');
-    expect(source).toContain('suggestionStatus || keepSuggestionStatusSpace');
-    expect(source).toContain('style={styles.suggestionStatusSlot}');
-    expect(source).toContain('suggestionStatusSlot: { minHeight: 24 }');
+    expect(source).not.toContain('Finding matching addresses');
+    expect(source).not.toContain('suggestionStatus ||');
+    expect(source).toContain("'Finding…'");
+    expect(source).not.toContain('<Text style={[styles.lookingTitle');
   });
 });

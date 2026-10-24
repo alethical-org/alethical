@@ -1,3 +1,6 @@
+import { PUBLISHED_EVENTS } from '../events';
+import { IA, ROUTES } from '../../navigation/ia';
+import { NAV_ITEM_HREFS } from '../../navigation/topNavRoutes';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import handler from '../../../../../api/sitemap';
@@ -22,7 +25,7 @@ const COLLECTION_PAGE_ROWS =
  * adds one to the sitemap, and this stops failing on every publish for a reason
  * that is not a defect.
  */
-const FIXED_PAGE_ROWS = 17;
+const FIXED_PAGE_ROWS = 19 + (PUBLISHED_EVENTS.length ? 1 : 0) + PUBLISHED_EVENTS.length;
 /** The numbered directory rows the live counts add: 2 for bills, 1 for
  *  legislators, 2 for the register of campaign committees. */
 const DIRECTORY_PAGE_ROWS = 5;
@@ -51,7 +54,7 @@ afterEach(() => {
 });
 
 describe('sitemap endpoint', () => {
-  it('lists exactly the seven child sitemaps and makes no network call', async () => {
+  it('lists the eight published child sitemaps and makes no network call', async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
     const recorder = responseRecorder();
@@ -68,8 +71,60 @@ describe('sitemap endpoint', () => {
     expect(body).toContain('<loc>https://www.alethical.com/sitemaps/races.xml</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/sitemaps/lobbying-principals.xml</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/sitemaps/lobbying-lobbyists.xml</loc>');
-    expect(body.match(/<sitemap>/g)).toHaveLength(7);
+    expect(body).toContain('<loc>https://www.alethical.com/sitemaps/videos.xml</loc>');
+    expect(body.match(/<sitemap>/g)).toHaveLength(8);
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('covers every shipped public navigation destination, with explicit private and answer exclusions', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('data unavailable')));
+    const recorder = responseRecorder();
+    await handler({ query: { section: 'pages' } }, recorder.response);
+    const { body, status } = recorder.read();
+    expect(status).toBe(200);
+    // Ask is a personal question/answer surface; tracked bills belongs to an account.
+    const deliberatelyExcluded = new Map([
+      ['/ask', 'personal question and answer views'],
+      ['/tracked', 'account-specific followed bills'],
+    ]);
+    const shipped = IA.filter((item) => item.availability === 'mvp');
+    const destinations = new Set([
+      ROUTES.home,
+      ROUTES.privacy,
+      ROUTES.terms,
+      ...shipped.map((item) => NAV_ITEM_HREFS[item.id] ?? item.path),
+    ]);
+    for (const path of destinations) {
+      const entry = `<loc>https://www.alethical.com${path}</loc>`;
+      if (deliberatelyExcluded.has(path)) expect(body).not.toContain(entry);
+      else expect(body).toContain(entry);
+    }
+    // A new exclusion needs a stated reason, and an obsolete one fails here.
+    for (const [path, reason] of deliberatelyExcluded) {
+      expect(destinations.has(path)).toBe(true);
+      expect(reason).not.toBe('');
+    }
+    for (const privatePath of [
+      '/admin',
+      '/admin/site-metrics',
+      '/admin/candidate-claims',
+      '/account',
+      '/sign-in',
+      '/confirm',
+      '/reset',
+      '/email-preferences',
+      '/unsubscribe',
+      '/comment-emails',
+      `/candidates/${'a'.repeat(64)}/claim`,
+      `/candidates/${'a'.repeat(64)}/manage`,
+    ]) {
+      expect(body).not.toContain(`<loc>https://www.alethical.com${privatePath}</loc>`);
+    }
+    for (const item of IA.filter((item) => item.availability === 'roadmap'))
+      expect(body).not.toContain(`<loc>https://www.alethical.com${item.path}</loc>`);
+    // Held candidate records are not a complete statewide address-free directory. The
+    // features page is a fixed public page, not a candidate record.
+    expect(body).not.toMatch(/<loc>[^<]*\/candidates\/(?!features<)/);
   });
 
   it('lists fixed pages plus every numbered directory page from current record counts', async () => {
@@ -97,6 +152,8 @@ describe('sitemap endpoint', () => {
       '/bills',
       '/legislators',
       '/find-my-legislator',
+      '/candidates',
+      '/candidates/features',
       '/money',
       '/money/lobbying',
       '/money/lobbying/principals',
@@ -112,6 +169,7 @@ describe('sitemap endpoint', () => {
       expect(body).toContain(`<loc>https://www.alethical.com${path}</loc>`);
     }
     expect(body).not.toContain('<loc>https://www.alethical.com/site-metrics</loc>');
+    expect(body).not.toContain('/candidates/features?');
     expect(body).toContain('<loc>https://www.alethical.com/bills?page=2</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/bills?page=3</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/legislators?page=2</loc>');
@@ -168,7 +226,16 @@ describe('sitemap endpoint', () => {
     ]) {
       expect(body).not.toContain(`<loc>https://www.alethical.com${retired}</loc>`);
     }
-    expect(body).not.toContain('<lastmod>');
+    expect(body).not.toMatch(/<loc>[^<]*\/money\/[^<]*<\/loc><lastmod>/);
+    for (const piece of indexedResearch()) {
+      expect(body).not.toContain(
+        `<loc>https://www.alethical.com${piecePath(piece)}</loc><lastmod>`,
+      );
+    }
+    expect(body).toContain(
+      '<loc>https://www.alethical.com/blog/events/forward-debate-2026</loc><lastmod>2026-10-22</lastmod>',
+    );
+    expect(body).not.toContain('<loc>https://www.alethical.com/bills</loc><lastmod>');
     expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 
@@ -232,7 +299,7 @@ describe('sitemap endpoint', () => {
     expect(body.match(/<url>/g)).toHaveLength(
       FIXED_PAGE_ROWS + 68 + 33 + indexedResearch().length + COLLECTION_PAGE_ROWS,
     );
-    expect(body).not.toContain('<lastmod>');
+    expect(body).not.toMatch(/<loc>[^<]*\/money\/[^<]*<\/loc><lastmod>/);
     expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 

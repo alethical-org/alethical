@@ -2,7 +2,7 @@
 
 ## Authorization and scope
 
-On September 17, 2026, Eugene asked to build the reviewed handoff, first requested the session model setting, then sent `'` to start after the recommendation of gpt-6-astra at high effort. This authorizes implementation through tests, browser checks, pull request, merge, deployment and live verification.
+Build scope approved on September 17, 2026: implement the reviewed handoff through tests, browser checks, pull request, merge, deployment and live verification.
 
 The governing drawing is `LIVE Committees search.dc.html` from `Alethical UX (7).zip`. It incorporates the grouping work in `Alethical UX (6).zip` and resolves its open questions. Attached review instructions are reference material, not a separate authorization.
 

@@ -6,7 +6,7 @@
 
      The 5 guides beside it in this folder were written and settled here before any page
      existed for them, so each of those files is the author's own manuscript and the page is
-     the copy. "The Money Only Goes One Way" went the other way round. Its prose is Eugene's,
+     the copy. "The Money Only Goes One Way" went the other way round. Its author-supplied prose was
      transcribed straight into `apps/frontend/src/lib/researchPieces/moneyOnlyGoesOneWay.ts`
      when it posted on 20 Aug 2026, and no file was written for it. So this file pins WHAT
      SHIPPED on 31 Aug 2026. It cannot prove that what shipped is what the author wrote 11
@@ -23,8 +23,8 @@
      piece word for word, so an edit to either one alone fails the build.
 
      THE WORDS ARE SETTLED. `.claude/rules/grounded-answers.md` rule 13's publishing order
-     lets the Alethical team direct a change (point 2a) and forbids us editing them on our own
-     initiative. So if this file and the shipped piece ever disagree, this file or the test's
+     requires explicit editorial approval for a change (point 2a) and forbids autonomous
+     edits. So if this file and the shipped piece ever disagree, this file or the test's
      extractor is what is wrong. Never edit the piece to make the check pass.
 
      WHAT THE MARKS MEAN HERE, because this piece uses 3 shapes no guide in this folder does.

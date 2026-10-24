@@ -45,7 +45,7 @@ worktree switched to a branch missing the helper cannot commit or push until tha
 branch is updated. The common lock still protects other worktrees meanwhile.
 
 [`CONTRIBUTING.md`](../../CONTRIBUTING.md#first-time-setup) owns the normal setup.
-For server upload checks, Docker's background service must be running and
+For full local server tests (`just push-full`), Docker's background service must be running and
 `pgvector/pgvector:pg17` must already be cached. The normal
 [Docker Compose setup](../../docker-compose.yml) downloads that image. The upload
 hook uses `--pull=never`: it stops if the image is missing instead of fetching one
@@ -98,14 +98,23 @@ its common starting point with `origin/main`, or the whole saved tree if that po
 is unavailable. A missing existing remote commit stops the upload and asks for a
 fetch. Deleted remote branches upload no code and need no suite.
 
-The changed paths select suites through
+The changed paths select areas through
 [`.github/check-paths.json`](../../.github/check-paths.json), also used by GitHub.
-An affected area runs its entire suite, not just tests near changed files. Shared
-check machinery selects both areas. Files outside both groups select neither.
+Shared check machinery selects both areas. Files outside both groups select neither.
+
+A plain upload runs each affected area's quick checks and leaves its full test
+suite to GitHub. GitHub's required `backend` and `frontend` checks run both full
+suites on every change, against a branch that includes current `main`, before it
+can merge, so no untested code reaches `main`; a test failure is found minutes
+after upload, on GitHub. `just push-full` (which sets `ALETHICAL_PUSH_FULL=1`)
+runs the entire suites locally first, not just tests near changed files.
 
 Every code upload also runs the same quick document checks as GitHub: broken
 links to documents, missing entries in document indexes, and outdated quoted
-claims. These checks run even when neither app suite is selected.
+claims. These checks run even when neither app suite is selected. So do the tests
+that read the whole docs tree (`scripts/tests/docs_tree`); they need no database,
+and GitHub runs them in its `changes` job on every change, so a docs-only change
+does not start the backend suite.
 
 Before document checks or app suites, every upload runs GitHub's current security
 scan ([`scripts/check_technology_health.py --security-only`](../../scripts/check_technology_health.py))
@@ -117,6 +126,15 @@ before the long tests start. The same exact installed-repair checks and narrow
 exceptions as GitHub apply; [technology health](technology-health.md#recorded-security-exceptions)
 owns that policy.
 
+The Pillow exception also needs a fresh production result from the trusted
+main-only GitHub workflow. Local pushes require the GitHub CLI (`gh`) signed in
+to `github.com` with access to start repository workflows and read their results.
+The checker uses that saved sign-in, requests a unique check on `main`, and waits
+for its matching result; during an API deploy that wait can reach about 15 minutes. Missing access or failed production evidence stops the
+push. No Railway credential belongs in the local checkout or upload environment.
+GitHub checks receive only read access to the result; the production token stays
+in the separate trusted workflow's main-only environment.
+
 The scan installs the frozen JavaScript dependencies once, without package scripts.
 The frontend suite reuses that installation, while retaining its separate build-tool
 compatibility checks. Python auditing reads the lock inventory without installing
@@ -125,15 +143,15 @@ The helper prints the elapsed security-scan time, including installation and rep
 checks, on success or failure. Each distinct upload commit gets a fresh scan rather
 than borrowing a result from another commit or an earlier upload.
 
-| Affected area | Checks before upload |
-| --- | --- |
-| Frontend app | Scanned saved dependencies, brand assets, package and build-tool compatibility, selected-file helper fixtures, frontend formatting, TypeScript, and the full `just test-frontend` suite |
-| Python server | Saved and declared dependencies, local-check helper fixtures, Ruff code and formatting checks, ty, and the full `uv run --frozen pytest` suite |
+| Affected area | Checks before upload | Added by `just push-full` |
+| --- | --- | --- |
+| Frontend app | Scanned saved dependencies, brand assets, package and build-tool compatibility, selected-file helper fixtures, frontend formatting, and TypeScript | The full `just test-frontend` suite |
+| Python server | Saved and declared dependencies, local-check helper fixtures, worktree helper tests, Ruff code and formatting checks, and ty | The disposable-database fixtures and the full `uv run --frozen pytest` suite |
 
 When both areas change, they run together. The helper waits for both to finish
 before removing its temporary worktree, including when a check fails. A failure
-stops the upload. Running time varies with dependency setup, the suites, and the
-computer; the check promises complete affected coverage, not a fixed duration.
+stops the upload. Running time varies with dependency setup, the checks, and the
+computer; the check promises the affected area's quick checks, not a fixed duration.
 
 The temporary worktree contains the exact saved upload commit. It does not borrow
 unfinished files, the developer's `.env`, or inherited service credentials. An empty
@@ -142,7 +160,7 @@ temporary worktree. The helper removes only the temporary worktree it created.
 
 ## Server-test database safety
 
-Both manual `uv run pytest` and server upload tests use
+Both manual `uv run pytest` and full server upload tests use
 [`database_session.py`](../../alethical/tests/database_session.py) to own the server
 until pytest finishes. Manual runs use current working files; upload runs use
 their exact saved snapshot. Each local invocation uses a new Postgres server
@@ -185,10 +203,26 @@ by modules that were imported earlier.
 
 Changes made through GitHub's own editing tools do not invoke local Git hooks.
 That supported route still requires all 4 GitHub checks (`changes`, `backend`,
-`frontend`, `description-checks`) against current code and the merge queue's
-combined code. A fresh clone without local hooks has the same GitHub merge gate.
+`frontend`, `description-checks`) on a branch that includes current `main`. The
+merge queue is off, while strict up-to-date protection and admin enforcement stay
+on. If main moves, merge it into your own branch, push and wait for new checks;
+rerunning the old head alone is not enough. GitHub blocks stale merges even if
+main moves after a local ancestry check. A fresh clone without local hooks has the
+same GitHub merge gate.
 GitHub also runs checks absent locally, such as the production web build. Local
 tests do not prove browser behavior or replace a real user-flow check.
+
+### Backend runner count
+
+Keep 6 backend workers on 1 runner. The [2-runner trial](https://github.com/alethical-org/alethical/pull/2678)
+preserved all 5,175 test identities and outcomes in 3 runs, and deliberately skipped
+groups made its required gate fail. Backend gate time improved from a median
+281 seconds to 228 seconds, but full CI improved only from 281 to 271 seconds;
+frontend checks finished last in every split run. This did not meet the agreed
+useful-gain threshold of more than 30 seconds, so the split was not merged.
+These are warm-cache workflow-creation-to-gate times, including queue, setup and
+final gate overhead, not summed test durations. Reconsider extra backend runners
+when a matched trial establishes the full-run gain without dropping checks.
 
 ## GitHub description-check activation
 

@@ -16,10 +16,24 @@ import {
   true;
 
 let currentScroll: ReturnType<typeof useHistoryScrollRestoration>;
-function ScrollHarness({ ready = true, article }: { ready?: boolean; article?: string }) {
-  const scroll = useHistoryScrollRestoration(ready, article);
+function ScrollHarness({
+  ready = true,
+  article,
+  fragment = false,
+  visible = true,
+  path,
+}: {
+  ready?: boolean;
+  article?: string;
+  fragment?: boolean;
+  visible?: boolean;
+  path?: string;
+}) {
+  const scroll = useHistoryScrollRestoration(ready, article, fragment, path);
   currentScroll = scroll;
-  return <div data-testid="page-scroller" ref={scroll.ref as unknown as Ref<HTMLDivElement>} />;
+  return visible ? (
+    <div data-testid="page-scroller" ref={scroll.ref as unknown as Ref<HTMLDivElement>} />
+  ) : null;
 }
 
 beforeEach(() => {
@@ -39,7 +53,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function mountScroll(ready = true, article?: string) {
+function mountScroll(ready = true, article?: string, fragment = false, path?: string) {
   const frames = new Map<number, FrameRequestCallback>();
   let nextFrame = 0;
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
@@ -56,8 +70,18 @@ function mountScroll(ready = true, article?: string) {
   const mount = document.createElement('div');
   document.body.append(mount);
   const root = createRoot(mount);
-  const render = (ready: boolean, article?: string) =>
-    act(() => root.render(<ScrollHarness ready={ready} article={article} />));
+  const render = (ready: boolean, article?: string, visible = true) =>
+    act(() =>
+      root.render(
+        <ScrollHarness
+          ready={ready}
+          article={article}
+          fragment={fragment}
+          visible={visible}
+          path={path}
+        />,
+      ),
+    );
   render(ready, article);
   const node = mount.querySelector<HTMLDivElement>('[data-testid="page-scroller"]')!;
   return { root, node, flush, render };
@@ -68,6 +92,144 @@ function scrollEvent(y: number): Parameters<typeof currentScroll.onScroll>[0] {
 }
 
 describe('browser-history scroll restoration', () => {
+  it.each(['#%E0%A4%A', '#missing', '#outside'])('ignores unusable fragment %s', (hash) => {
+    window.history.replaceState({}, '', `/blog/events/forward-debate-2026${hash}`);
+    initializeWebHistory();
+    const outside = document.createElement('h3');
+    outside.id = 'outside';
+    document.body.append(outside);
+    const screen = mountScroll(true, 'forward-debate-2026', true);
+    screen.flush();
+    expect(screen.node.scrollTop).toBe(0);
+    act(() => screen.root.unmount());
+  });
+
+  it.each([null, 0, 640])(
+    'opens a shared event topic without overriding saved position %s',
+    (saved) => {
+      window.history.replaceState({}, '', '/blog/events/forward-debate-2026#topic-2983');
+      initializeWebHistory();
+      if (saved !== null) saveCurrentScrollPosition(saved);
+      const screen = mountScroll(true, 'forward-debate-2026', true);
+      const topic = document.createElement('h3');
+      topic.id = 'topic-2983';
+      screen.node.append(topic);
+      vi.spyOn(topic, 'getBoundingClientRect').mockReturnValue({ top: 1200 } as DOMRect);
+      vi.spyOn(screen.node, 'getBoundingClientRect').mockReturnValue({ top: 40 } as DOMRect);
+      screen.flush();
+      expect(screen.node.scrollTop).toBe(saved ?? 1160);
+      act(() => screen.root.unmount());
+    },
+  );
+
+  it('uses the known article path when client navigation updates the address after mount', () => {
+    window.history.replaceState({}, '', '/blog/events');
+    initializeWebHistory();
+    const screen = mountScroll(
+      true,
+      'forward-debate-2026',
+      true,
+      '/blog/events/forward-debate-2026',
+    );
+    pushWebHistory('/blog/events/forward-debate-2026');
+    screen.flush();
+    saveCurrentScrollPosition(640);
+    pushWebHistory('/blog/events/forward-debate-2026#topic-100');
+    screen.flush();
+    window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }));
+    saveCurrentScrollPosition(1200);
+    screen.flush();
+    expect(screen.node.scrollTop).toBe(1200);
+    act(() => screen.root.unmount());
+  });
+
+  it('restores the saved reading position when a returning screen creates a new scroll box', () => {
+    window.history.replaceState({}, '', '/blog/events/forward-debate-2026');
+    initializeWebHistory();
+    const screen = mountScroll(true, 'forward-debate-2026', true);
+    screen.flush();
+    screen.node.scrollTop = 640;
+    currentScroll.onScroll(scrollEvent(640));
+    screen.render(false, 'forward-debate-2026', false);
+    screen.render(true, 'forward-debate-2026');
+    screen.flush();
+    const replacement = document.querySelector<HTMLElement>('[data-testid="page-scroller"]')!;
+    expect(replacement).not.toBe(screen.node);
+    expect(replacement.scrollTop).toBe(640);
+    act(() => screen.root.unmount());
+  });
+
+  it('restores distinct same-article entries through Back and Forward', () => {
+    window.history.replaceState({}, '', '/blog/events/forward-debate-2026#topic-0');
+    initializeWebHistory();
+    const first = window.history.state;
+    saveCurrentScrollPosition(400);
+    const screen = mountScroll(true, 'forward-debate-2026', true);
+    screen.flush();
+    pushWebHistory('/blog/events/forward-debate-2026#topic-3451');
+    const second = window.history.state;
+    saveCurrentScrollPosition(1300);
+    window.dispatchEvent(new Event('alethical-return-context'));
+    screen.flush();
+    expect(screen.node.scrollTop).toBe(1300);
+
+    window.history.replaceState(first, '', '/blog/events/forward-debate-2026#topic-0');
+    window.dispatchEvent(new PopStateEvent('popstate', { state: first }));
+    screen.flush();
+    expect(screen.node.scrollTop).toBe(400);
+    window.history.replaceState(second, '', '/blog/events/forward-debate-2026#topic-3451');
+    window.dispatchEvent(new PopStateEvent('popstate', { state: second }));
+    screen.flush();
+    expect(screen.node.scrollTop).toBe(1300);
+    act(() => screen.root.unmount());
+  });
+
+  it.each([{}, null])(
+    'restores a native fragment with state %s to its contained heading',
+    (state) => {
+      window.history.replaceState({}, '', '/blog/events/forward-debate-2026');
+      initializeWebHistory();
+      const screen = mountScroll(true, 'forward-debate-2026', true);
+      screen.flush();
+      const topic = document.createElement('h3');
+      topic.id = 'topic-3451';
+      topic.style.scrollMarginTop = '12px';
+      screen.node.append(topic);
+      vi.spyOn(topic, 'getBoundingClientRect').mockReturnValue({ top: 1500 } as DOMRect);
+      vi.spyOn(screen.node, 'getBoundingClientRect').mockReturnValue({ top: 0 } as DOMRect);
+      window.history.replaceState(state, '', '/blog/events/forward-debate-2026#topic-3451');
+      window.dispatchEvent(new PopStateEvent('popstate', { state }));
+      screen.flush();
+      expect(screen.node.scrollTop).toBe(1488);
+      act(() => screen.root.unmount());
+    },
+  );
+
+  it('restores a legacy cloned fragment entry to its contained heading', () => {
+    window.history.replaceState({}, '', '/blog/events/forward-debate-2026');
+    initializeWebHistory();
+    saveCurrentScrollPosition(640);
+    const screen = mountScroll(true, 'forward-debate-2026', true);
+    const topic = document.createElement('h3');
+    topic.id = 'topic-3451';
+    topic.style.scrollMarginTop = '12px';
+    screen.node.append(topic);
+    vi.spyOn(topic, 'getBoundingClientRect').mockImplementation(
+      () => ({ top: 1500 - screen.node.scrollTop }) as DOMRect,
+    );
+    vi.spyOn(screen.node, 'getBoundingClientRect').mockReturnValue({ top: 0 } as DOMRect);
+    screen.flush();
+    window.history.replaceState(
+      window.history.state,
+      '',
+      '/blog/events/forward-debate-2026#topic-3451',
+    );
+    window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }));
+    screen.flush();
+    expect(screen.node.scrollTop).toBe(1488);
+    act(() => screen.root.unmount());
+  });
+
   it('opens another article at the top when the reading screen is reused', () => {
     window.history.replaceState({}, '', '/blog/guides/first');
     initializeWebHistory();

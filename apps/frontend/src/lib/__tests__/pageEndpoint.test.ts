@@ -1,3 +1,6 @@
+import { privacyContent, termsContent } from '../legalContent';
+import type { CandidateProfileRecord } from '../../components/candidates/types';
+import type { PersonRecord } from '../../data/personRecords';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runInNewContext } from 'node:vm';
 
@@ -11,6 +14,7 @@ import {
 import { MONEY_ONLY_GOES_ONE_WAY } from '../researchPieces/moneyOnlyGoesOneWay';
 import { WHO_HAS_TO_REPORT_THEIR_MONEY } from '../researchPieces/whoHasToReportTheirMoney';
 import { escapeHtml } from '../share';
+import { newestShortPosts, shortPostsPage, topicPage } from '../shortPostSelection';
 import { API_SHARED_CACHE_MAX_AGE_MS } from '../currentClaimFreshness';
 import { CONFIRMATION_UNAVAILABLE_LINE } from '../committeeConfirmation';
 import { whoseCommitteeText } from '../committeeMoney';
@@ -136,6 +140,27 @@ async function serve(query: Record<string, string>) {
   return recorder.read();
 }
 
+it.each([
+  ['/blog/research', '1', 'Back to Research reports'],
+  ['/blog/short-posts', '1', 'Back to Short posts'],
+  ['/blog/guides', '1', 'Back to Guides'],
+  ['/blog/sets/how-the-money-works', '1', 'Back to How the Money Works'],
+  ['/blog/topics/campaign-finance', '2', 'Back to Campaign finance'],
+])('keeps the %s return on an article clicked before the app starts', async (path, page, label) => {
+  stubNetwork(() => ({ status: 500 }));
+  const collection = await serve({ path, page });
+  const href = collection.body.match(/href="(\/blog\/(?:research|guides)\/[^"\s]+)"/)?.[1];
+  expect(href).toBeDefined();
+  const article = new URL(href!.replaceAll('&amp;', '&'), 'https://www.alethical.com');
+  const from = article.searchParams.get('from');
+  expect(from).toBe(
+    `${path}?${page === '1' ? '' : `page=${page}&`}post=${article.pathname.split('/').at(-1)}`,
+  );
+  const response = await serve({ path: article.pathname, from: from! });
+  expect(response.status).toBe(200);
+  expect(response.body).toContain(`href="${escapeHtml(from!)}">${label}</a>`);
+});
+
 it('serves the public candidates destination without example records or data-service requests', async () => {
   stubNetwork(() => ({ status: 500 }));
   const { body, status, headers } = await serve({ path: '/candidates' });
@@ -144,7 +169,59 @@ it('serves the public candidates destination without example records or data-ser
   expect(body).toContain('Enter a Minnesota street address');
   expect(body).toContain('href="https://www.alethical.com/candidates"');
   expect(headers.get('X-Robots-Tag')).toBeUndefined();
+  const snapshot = body
+    .split('<!--alethical:page-snapshot-->')[1]
+    .split('<!--/alethical:page-snapshot-->')[0];
+  expect(snapshot).toContain('<h1>Find my candidates</h1>');
+  expect(snapshot).toContain('Full street address');
+  expect(snapshot).toContain('A city or ZIP code alone cannot identify your local races');
+  expect(snapshot).toContain(
+    'Address lookup uses Minnesota’s Secretary of State and mapping services',
+  );
+  expect(snapshot).not.toContain('Home snapshot');
   expect(body).not.toMatch(/PRIVATE DRAFT|ILLUSTRATIVE DATA|preview-general-alex/);
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it('serves the bare /candidates/features as an ordinary indexed page with its public words', async () => {
+  stubNetwork(() => ({ status: 500 }));
+  const { body, status, headers } = await serve({ path: '/candidates/features' });
+  expect(status).toBe(200);
+  expect(body).toContain('<title>Candidate profile features | Alethical</title>');
+  expect(body).toContain('rel="canonical" href="https://www.alethical.com/candidates/features"');
+  expect(body).not.toMatch(/noindex/);
+  expect(headers.get('X-Robots-Tag')).toBeUndefined();
+  expect(body).toContain('Every feature listed is on the roadmap.');
+  const snapshot = body
+    .split('<!--alethical:page-snapshot-->')[1]
+    .split('<!--/alethical:page-snapshot-->')[0];
+  expect(snapshot).toContain('<h1>Candidate profile features</h1>');
+  expect(snapshot).toContain('On the roadmap');
+  expect(snapshot).toContain('Questions from voters');
+  expect(snapshot).toContain('Following puts voters in control');
+  expect(snapshot).toContain('href="/candidates"');
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it('keeps /candidates/features with a candidate out of search, with no canonical or candidate detail', async () => {
+  stubNetwork(() => ({ status: 500 }));
+  for (const candidate of ['a'.repeat(64), 'not-a-record']) {
+    const { body, status, headers } = await serve({
+      path: `/candidates/features?candidate=${candidate}`,
+    });
+    expect(status).toBe(200);
+    expect(body).toContain('<title>Candidate profile features | Alethical</title>');
+    expect(body).toMatch(/noindex/);
+    expect(headers.get('X-Robots-Tag')).toBe('noindex');
+    expect(body).not.toContain('rel="canonical"');
+    // A candidate id in the address never puts a name, claim action or account context in the page.
+    expect(body).not.toContain(candidate);
+    const snapshot = body
+      .split('<!--alethical:page-snapshot-->')[1]
+      .split('<!--/alethical:page-snapshot-->')[0];
+    expect(snapshot).toContain('<h1>Candidate profile features</h1>');
+    expect(snapshot).not.toContain('Continue claiming this candidate profile');
+  }
   expect(fetch).not.toHaveBeenCalled();
 });
 
@@ -189,10 +266,247 @@ it('uses the public candidate record for profile metadata without address reques
   expect(status).toBe(200);
   expect(body).toContain('<title>Public Candidate | Alethical</title>');
   expect(body).toContain(`href="https://www.alethical.com/candidates/${id}"`);
-  expect(body).toContain('House District 1A');
+  const snapshot = body
+    .split('<!--alethical:page-snapshot-->')[1]
+    .split('<!--/alethical:page-snapshot-->')[0];
+  expect(snapshot).toContain('<h1>Public Candidate</h1>');
+  expect(snapshot).toContain('Official candidate record');
+  expect(snapshot).toContain('State Representative');
+  expect(snapshot).toContain('House District 1A');
+  expect(snapshot).toContain('November 3, 2026');
+  expect(snapshot).toContain('Checked September 30, 2026');
+  expect(snapshot).toContain('href="https://myballotmn.sos.mn.gov/"');
+  expect(snapshot).toContain('Candidate records from Minnesota Secretary of State');
   expect(body).not.toContain('private-home');
   expect(headers.get('Cache-Control')).toBe('no-store');
 });
+
+function publicCandidateRecord(): CandidateProfileRecord {
+  return {
+    candidate: {
+      id: 'a'.repeat(64),
+      name: 'Public Candidate',
+      sortName: 'Candidate, Public',
+      party: 'NONPARTISAN',
+    },
+    office: 'State Representative, District 1A',
+    votingArea: 'House District 1A',
+    election: {
+      id: '8334',
+      label: 'November 3, 2026 State General Election',
+      date: '2026-11-03',
+      type: 'general',
+    },
+    source: {
+      authority: 'Minnesota Secretary of State',
+      url: 'https://myballotmn.sos.mn.gov/',
+      checkedDate: '2026-10-01',
+      stale: true,
+    },
+    website: 'https://campaign.example.org/',
+    legislator: {
+      id: 'held-legislator',
+      slug: 'public-candidate',
+      name: 'Public Candidate',
+      profileUrl: '/legislators/public-candidate',
+      serviceStatus: 'current',
+      isReelection: true,
+      office: 'State Representative',
+      votingArea: 'House District 1A',
+      source: { authority: 'Minnesota House of Representatives', url: 'https://www.house.mn.gov/' },
+    },
+  };
+}
+
+it('serves only source-backed candidate facts, dates and the confirmed legislator link', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-10-07T12:00:00Z'));
+  try {
+    const record = publicCandidateRecord();
+    // Unknown payload fields never enter the public snapshot or seeded data.
+    const payload = {
+      ...record,
+      matchedAddress: 'private-address',
+      coordinates: [1, 2],
+      claimNotes: 'private-notes',
+      campaignStatement: 'campaign-authored-claim',
+      filedDate: 'invented-filing-date',
+    };
+    stubNetwork(() => ({ status: 200, payload }));
+    const { body, status, headers } = await serve({
+      path: `/candidates/${record.candidate.id}?address=private-query&token=private-token`,
+    });
+    expect(status).toBe(200);
+    const snapshot = body
+      .split('<!--alethical:page-snapshot-->')[1]
+      .split('<!--/alethical:page-snapshot-->')[0];
+    expect(snapshot).toContain('Running for reelection');
+    expect(snapshot).toContain('General Election · November 3, 2026');
+    expect(snapshot).toContain('Nonpartisan');
+    expect(snapshot).toContain('Checked October 1, 2026');
+    expect(snapshot).toContain('May be out of date');
+    expect(snapshot).toContain('href="/legislators/public-candidate"');
+    expect(snapshot).toContain('View legislator profile');
+    expect(snapshot).toContain('Service records from Minnesota House of Representatives');
+    expect(snapshot).toContain('href="https://campaign.example.org/"');
+    for (const privateText of [
+      'private-address',
+      'private-notes',
+      'campaign-authored-claim',
+      'invented-filing-date',
+      'private-query',
+      'private-token',
+    ])
+      expect(body).not.toContain(privateText);
+    expect(body).not.toContain('data-alethical-page-data');
+    expect(headers.get('Cache-Control')).toBe('no-store');
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('keeps a reviewed historical ballot distinct from stale live records', async () => {
+  const record = publicCandidateRecord();
+  record.source.retained = true;
+  record.source.stale = true;
+  stubNetwork(() => ({ status: 200, payload: record }));
+  const { body, status } = await serve({ path: `/candidates/${record.candidate.id}` });
+  expect(status).toBe(200);
+  expect(body).toContain('Ballot record saved October 1, 2026');
+  expect(body).not.toContain('May be out of date');
+});
+
+it('escapes candidate fields and omits an unsafe campaign website', async () => {
+  const record = publicCandidateRecord();
+  record.candidate.name = '<script>alert("name")</script> & Person';
+  record.candidate.party = '<img src=x onerror=alert(1)>';
+  record.office = '<b>Office</b>';
+  record.website = 'javascript:alert(1)';
+  stubNetwork(() => ({ status: 200, payload: record }));
+  const { body, status } = await serve({ path: `/candidates/${record.candidate.id}` });
+  expect(status).toBe(200);
+  expect(body).toContain(escapeHtml(record.candidate.name));
+  expect(body).toContain(escapeHtml(record.candidate.party));
+  expect(body).toContain(escapeHtml(record.office));
+  expect(body).not.toContain(record.candidate.name);
+  expect(body).not.toContain('javascript:');
+});
+
+it.each([
+  [
+    'wrong candidate',
+    (record: CandidateProfileRecord) => {
+      record.candidate.id = 'b'.repeat(64);
+    },
+  ],
+  [
+    'missing name',
+    (record: CandidateProfileRecord) => {
+      record.candidate.name = '';
+    },
+  ],
+  [
+    'missing election',
+    (record: CandidateProfileRecord) => {
+      record.election.id = '';
+    },
+  ],
+  [
+    'impossible election date',
+    (record: CandidateProfileRecord) => {
+      record.election.date = '2026-02-30';
+    },
+  ],
+  [
+    'missing office',
+    (record: CandidateProfileRecord) => {
+      record.office = '';
+    },
+  ],
+  [
+    'missing voting area',
+    (record: CandidateProfileRecord) => {
+      record.votingArea = '';
+    },
+  ],
+  [
+    'unsafe source',
+    (record: CandidateProfileRecord) => {
+      record.source.url = 'javascript:alert(1)';
+    },
+  ],
+  [
+    'missing check date',
+    (record: CandidateProfileRecord) => {
+      record.source.checkedDate = '';
+    },
+  ],
+  [
+    'mismatched legislator link',
+    (record: CandidateProfileRecord) => {
+      record.legislator!.profileUrl = '/legislators/somebody-else';
+    },
+  ],
+  [
+    'external legislator link',
+    (record: CandidateProfileRecord) => {
+      record.legislator!.profileUrl = 'https://other.example.org/';
+    },
+  ],
+])(
+  'returns unavailable for %s rather than publishing a partial or wrong identity',
+  async (_, mutate) => {
+    const record = publicCandidateRecord();
+    mutate(record);
+    stubNetwork(() => ({ status: 200, payload: record }));
+    const { body, status, headers } = await serve({ path: `/candidates/${'a'.repeat(64)}` });
+    expect(status).toBe(503);
+    expect(body).toBe('This page is temporarily unavailable.');
+    expect(headers.get('Cache-Control')).toBe('no-store');
+  },
+);
+
+it.each([
+  ['/privacy', privacyContent],
+  ['/terms', termsContent],
+] as const)(
+  'serves all visible legal text at %s without a data-service read',
+  async (path, content) => {
+    stubNetwork(() => ({ status: 500 }));
+    const { body, status, headers } = await serve({ path });
+    const snapshot = body
+      .split('<!--alethical:page-snapshot-->')[1]
+      .split('<!--/alethical:page-snapshot-->')[0];
+    expect(status).toBe(200);
+    expect(snapshot).toContain(`<h1>${content.title}</h1>`);
+    expect(snapshot.match(/<h1>/g)).toHaveLength(1);
+    expect(snapshot).toContain(escapeHtml(content.meta));
+    for (const section of content.sections) {
+      if (section.title) expect(snapshot).toContain(escapeHtml(section.title));
+      for (const block of section.blocks) {
+        const lines =
+          block.kind === 'list'
+            ? block.items
+            : [
+                block.kind === 'callout'
+                  ? `${block.text}${block.linkText ?? ''}${block.trailingText ?? ''}`
+                  : block.text,
+              ];
+        for (const line of lines) {
+          expect(snapshot.replace(/<[^>]+>/g, '')).toContain(escapeHtml(line));
+        }
+        if (block.kind === 'callout' && block.linkHref) {
+          expect(snapshot).toContain(
+            `<a href="${escapeHtml(block.linkHref)}">${escapeHtml(block.linkText ?? '')}</a>`,
+          );
+        }
+      }
+    }
+    expect(snapshot).not.toContain('Home snapshot');
+    expect(headers.get('X-Robots-Tag')).toBeUndefined();
+    expect(fetch).not.toHaveBeenCalled();
+  },
+);
 
 it('distinguishes missing candidate records from unavailable records', async () => {
   const path = `/candidates/${'b'.repeat(64)}`;
@@ -200,6 +514,149 @@ it('distinguishes missing candidate records from unavailable records', async () 
   expect((await serve({ path })).status).toBe(404);
   stubNetwork(() => ({ status: 503 }));
   expect((await serve({ path })).status).toBe(503);
+});
+
+const publicPersonId = '85c4572a-eb0e-405e-8e30-372cdbcca752';
+function publicPersonRecord(): PersonRecord {
+  const candidate = publicCandidateRecord();
+  return {
+    id: publicPersonId,
+    name: 'Public Person',
+    service: [
+      {
+        id: 'service-1',
+        status: 'unknown',
+        office: 'School board member',
+        votingArea: 'Example district',
+        source: candidate.source,
+        termStart: { value: '2025', precision: 'year' },
+      },
+    ],
+    elections: [
+      {
+        candidateId: candidate.candidate.id,
+        name: 'Public Person and Running Mate',
+        profileUrl: `/candidates/${candidate.candidate.id}`,
+        office: candidate.office,
+        votingArea: candidate.votingArea,
+        election: candidate.election,
+        source: { ...candidate.source, retained: true },
+        isJointTicket: true,
+      },
+    ],
+    research: { items: [], nextCursor: null },
+  };
+}
+
+it('serves a public person record without leaking return queries or private claim fields', async () => {
+  stubNetwork((url) => {
+    expect(url).toBe(`https://api.alethical.com/api/v1/people/${publicPersonId}`);
+    return {
+      status: 200,
+      payload: {
+        ...publicPersonRecord(),
+        request_note: 'private-evidence',
+        email: 'private@example.org',
+        campaignStatement: 'campaign-copy',
+      },
+    };
+  });
+  const { body, status, headers } = await serve({
+    path: `/people/${publicPersonId}?candidate=${'a'.repeat(64)}&address=private-home`,
+  });
+  expect(status).toBe(200);
+  expect(body).toContain('<title>Public Person | Alethical</title>');
+  expect(body).toContain(`href="https://www.alethical.com/people/${publicPersonId}"`);
+  expect(body).toContain('Current service not confirmed');
+  expect(body).toContain('Term starts 2025');
+  expect(body).not.toContain('January 1');
+  expect(body).not.toContain('Public Person and Running Mate');
+  expect(body).not.toContain('Ballot record saved October 1, 2026');
+  expect(body).not.toContain('Candidate records from');
+  expect(body).toContain(`href="/candidates/${'a'.repeat(64)}">View election record</a>`);
+  expect(body).toContain('No research records added');
+  for (const privateText of [
+    'private-evidence',
+    'private@example.org',
+    'campaign-copy',
+    'private-home',
+  ])
+    expect(body).not.toContain(privateText);
+  expect(headers.get('Cache-Control')).toBe('no-store');
+});
+
+it('keeps year and month service dates precise and optional legacy source dates absent', async () => {
+  const record = publicPersonRecord();
+  record.legislator = { slug: 'public-person', profileUrl: '/legislators/public-person' };
+  record.service = [
+    {
+      id: 'legacy-service',
+      office: 'State Representative',
+      votingArea: 'House District 1A',
+      status: 'current',
+      profileUrl: record.legislator.profileUrl,
+      source: { authority: 'Minnesota Legislature', url: 'https://www.leg.mn.gov/' },
+      termStart: { value: '2025', precision: 'year' },
+      termEnd: { value: '2027', precision: 'year' },
+    },
+    {
+      id: 'expected-service',
+      office: 'School board member',
+      votingArea: 'Example district',
+      status: 'elected',
+      source: { ...record.elections[0].source, checkedDate: '2024-11-12' },
+      expectedStart: { value: '2025-01', precision: 'month' },
+      expectedStartPassed: true,
+    },
+  ];
+  const source = { ...record.elections[0].source, checkedDate: '2024-11-12' };
+  record.elections[0].result = {
+    status: 'certified',
+    outcome: 'elected',
+    certification: { date: '2024-11-12', authority: source.authority, url: source.url },
+    source,
+  };
+  stubNetwork(() => ({ status: 200, payload: record }));
+  const { body, status } = await serve({ path: `/people/${publicPersonId}` });
+  expect(status).toBe(200);
+  expect(body).toContain('Term 2025–2027');
+  expect(body).toContain('Expected start January 2025');
+  expect(body).toContain('Current service not confirmed');
+  expect(body).toContain('Certified November 12, 2024');
+  expect(body).not.toContain('January 1');
+  expect(body).not.toContain('Checked undefined');
+  expect(body).not.toContain('Invalid Date');
+  expect(body).not.toContain('Results from');
+  expect(body.match(/View legislator profile/g)).toHaveLength(1);
+  // Source-backed legislative history can also use the verified profile itself.
+  delete record.service[0].source;
+  const withoutSource = await serve({ path: `/people/${publicPersonId}` });
+  expect(withoutSource.status).toBe(200);
+  expect(withoutSource.body).toContain('Term 2025–2027');
+  expect(withoutSource.body).toContain('View legislator profile');
+});
+
+it.each(['wrong-identity', 'unsafe-link', 'uncertified-outcome', 'impossible-date'] as const)(
+  'does not publish an invalid person record: %s',
+  async (fault) => {
+    const record = publicPersonRecord();
+    if (fault === 'wrong-identity') record.id = '00000000-0000-4000-8000-000000000001';
+    if (fault === 'unsafe-link') record.elections[0].profileUrl = 'https://elsewhere.example/';
+    if (fault === 'uncertified-outcome')
+      record.elections[0].result = { status: 'unofficial', outcome: 'elected' };
+    if (fault === 'impossible-date') record.service[0].startDate = '2025-02-31';
+    stubNetwork(() => ({ status: 200, payload: record }));
+    const { body, status } = await serve({ path: `/people/${publicPersonId}` });
+    expect(status).toBe(503);
+    expect(body).not.toContain('<h1>Public Person</h1>');
+  },
+);
+
+it('keeps absent people distinct from failed record reads', async () => {
+  stubNetwork(() => ({ status: 404 }));
+  expect((await serve({ path: `/people/${publicPersonId}` })).status).toBe(404);
+  stubNetwork(() => ({ status: 503 }));
+  expect((await serve({ path: `/people/${publicPersonId}` })).status).toBe(503);
 });
 
 it.each([
@@ -220,11 +677,24 @@ it.each([
   },
 );
 
-it('serves the approved article links in the first HTTP response of all 9 published pages', async () => {
+it('serves the approved article links in the first HTTP response of the original 9 published pages', async () => {
   stubNetwork(() => ({ status: 500 }));
   expect(approvedInlineLinks).toHaveLength(7);
-  expect(publishedResearch()).toHaveLength(9);
-  for (const piece of publishedResearch()) {
+  const approvedSlugs = [
+    'the-money-only-goes-one-way',
+    'lobbyist-giving',
+    'organizations-both-parties',
+    '2-records-not-always-2-donations',
+    'who-has-to-report-their-money',
+    'what-the-records-name',
+    'why-2-official-numbers-can-both-be-right',
+    'money-spent-without-a-campaigns-say',
+    'why-nobody-can-follow-a-dollar',
+  ];
+  expect(approvedSlugs).toHaveLength(9);
+  for (const approvedSlug of approvedSlugs) {
+    const piece = publishedResearch().find((entry) => entry.slug === approvedSlug)!;
+    expect(piece).toBeDefined();
     const { body, status } = await serve({ path: piecePath(piece) });
     expect(status).toBe(200);
     for (const [, label, href] of approvedInlineLinks.filter(([slug]) => slug === piece.slug)) {
@@ -240,6 +710,19 @@ it('serves the approved article links in the first HTTP response of all 9 publis
     }
   }
 });
+
+it.each(['realtor-pacs-shared-candidates', 'committee-officers-and-the-firms-they-pay'])(
+  'serves %s without inventing unapproved related links',
+  async (slug) => {
+    stubNetwork(() => ({ status: 500 }));
+    const piece = publishedResearch().find((entry) => entry.slug === slug)!;
+    expect(piece).toBeDefined();
+    const { body, status } = await serve({ path: piecePath(piece) });
+    expect(status).toBe(200);
+    expect(piece.relatedSlugs ?? piece.shortPost?.relatedSlugs ?? []).toEqual([]);
+    expect(body).not.toContain('Related reading');
+  },
+);
 
 it.each(['/admin', '/admin/users', '/admin/metrics', '/admin/site-metrics', '/admin/operations'])(
   'keeps %s private with no account HTML or analytics',
@@ -484,29 +967,33 @@ function servedProfileData(body: string): {
 
 describe('first-response page tags', () => {
   it('gives a bill its own title and leaves the app body intact', async () => {
-    stubNetwork(() => ({
-      status: 200,
-      payload: {
-        data: {
-          id: '94-2025-HF719',
-          companion: { id: '94-2025-SF390', code: 'SF 390' },
-          ai_analysis: {
-            short_title: 'Statewide Capital Projects and Bonding Bill',
-            summary: 'Authorizes borrowing for public buildings. More detail follows.',
-            citations: [
-              {
-                id: 'laws.1.1.0-0',
-                label: 'Art. 1, Sec. 1 · Capital improvement appropriations',
-                url: 'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/',
-                excerpt: 'Money is appropriated for public purposes.',
-                section_id: 'laws.1.1.0',
-                section_order: 1,
+    stubNetwork((url) =>
+      url.endsWith('/votes')
+        ? { status: 200, payload: { data: [], page: { has_more: false } } }
+        : {
+            status: 200,
+            payload: {
+              data: {
+                id: '94-2025-HF719',
+                companion: { id: '94-2025-SF390', code: 'SF 390' },
+                ai_analysis: {
+                  short_title: 'Statewide Capital Projects and Bonding Bill',
+                  summary: 'Authorizes borrowing for public buildings. More detail follows.',
+                  citations: [
+                    {
+                      id: 'laws.1.1.0-0',
+                      label: 'Art. 1, Sec. 1 · Capital improvement appropriations',
+                      url: 'https://www.revisor.mn.gov/bills/94/2025/0/HF/719/versions/2/',
+                      excerpt: 'Money is appropriated for public purposes.',
+                      section_id: 'laws.1.1.0',
+                      section_order: 1,
+                    },
+                  ],
+                },
               },
-            ],
+            },
           },
-        },
-      },
-    }));
+    );
 
     const { body, headers, status } = await serve({ path: '/bills/94-2025-HF719' });
 
@@ -551,6 +1038,84 @@ describe('first-response page tags', () => {
       expect.anything(),
     );
   });
+
+  it('links a reviewed person from the resolved legislator slug, including UUID entry', async () => {
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      calls.push(url);
+      if (url.includes('/people/for-legislator/')) {
+        expect(url).toBe('https://api.alethical.com/api/v1/people/for-legislator/aisha-gomez');
+        return {
+          status: 200,
+          payload: {
+            id: publicPersonId,
+            name: 'Aisha Gomez',
+            profileUrl: `/people/${publicPersonId}`,
+          },
+        };
+      }
+      return {
+        status: 200,
+        payload: {
+          data: url.includes('/bills?')
+            ? []
+            : {
+                slug: 'aisha-gomez',
+                full_name: 'Aisha Gomez',
+                current_service: { chamber: 'house', district: { code: '62A' } },
+              },
+        },
+      };
+    });
+    const redirect = await serve({ path: '/legislators/8c31565f-e674-462d-b71f-a1d1ebcc' });
+    expect(redirect.status).toBe(301);
+    expect(calls.some((url) => url.includes('/people/for-legislator/aisha-gomez'))).toBe(true);
+    const { body, status } = await serve({ path: '/legislators/aisha-gomez' });
+    expect(status).toBe(200);
+    expect(body).toContain('Elections and service over time');
+    expect(body).toContain(
+      `href="/people/${publicPersonId}?legislator=aisha-gomez">View person profile</a>`,
+    );
+  });
+
+  it.each([404, 503, 'invalid-link', 'missing-identity'] as const)(
+    'keeps a legislator readable when its optional person link is %s',
+    async (fault) => {
+      stubNetwork((url) => {
+        if (url.includes('/people/for-legislator/'))
+          return typeof fault === 'number'
+            ? { status: fault }
+            : {
+                status: 200,
+                payload: {
+                  id: fault === 'missing-identity' ? '' : publicPersonId,
+                  name: 'Aisha Gomez',
+                  profileUrl:
+                    fault === 'invalid-link'
+                      ? 'https://elsewhere.example/'
+                      : `/people/${publicPersonId}`,
+                },
+              };
+        return {
+          status: 200,
+          payload: {
+            data: url.includes('/bills?')
+              ? []
+              : {
+                  slug: 'aisha-gomez',
+                  full_name: 'Aisha Gomez',
+                  current_service: { chamber: 'house' },
+                },
+          },
+        };
+      });
+      const { body, status } = await serve({ path: '/legislators/aisha-gomez' });
+      expect(status).toBe(200);
+      expect(body).toContain('<h1>Rep. Aisha Gomez</h1>');
+      expect(body).not.toContain('View person profile');
+      expect(body).not.toContain('elsewhere.example');
+    },
+  );
 
   it('names a legislator, and forwards a UUID address to their readable one', async () => {
     const calls: string[] = [];
@@ -876,9 +1441,7 @@ describe('first-response page tags', () => {
     expect((await serve({ path: '/site-metrics' })).body).toContain(
       '<title>Site Metrics | Alethical</title>',
     );
-    expect((await serve({ path: '/privacy' })).body).toContain(
-      '<div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',
-    );
+    expect((await serve({ path: '/privacy' })).body).toContain('<h1>Privacy Policy</h1>');
     expect(calls).toHaveLength(0);
     expect(readPageShell).toHaveBeenCalledTimes(1);
   });
@@ -907,7 +1470,7 @@ describe('first-response page tags', () => {
   // sent its text straight away. These two checks are the `curl` measurement in
   // the issue, run on every pull request, because a silent reopening is exactly
   // how the gap arrived.
-  it('sends the /blog page its list, with a followable link per posted piece', async () => {
+  it('sends the /blog page its groups, newest 3 Short posts and archive link', async () => {
     const calls: string[] = [];
     stubNetwork((url) => {
       calls.push(url);
@@ -918,14 +1481,22 @@ describe('first-response page tags', () => {
 
     expect(status).toBe(200);
     expect(body).toContain(`<h1>${READ_PAGE_NAME}</h1>`);
-    expect(body).toContain('plus guides to how state government works');
+    expect(body).toContain(
+      'Research, guides and events that help you understand Minnesota government',
+    );
     expect(publishedResearch().length).toBeGreaterThan(1);
+    const newest = new Set(newestShortPosts().map((piece) => piece.slug));
     for (const piece of publishedResearch()) {
+      if (piece.format === 'short-post' && !newest.has(piece.slug)) {
+        expect(body).not.toContain(`href="${piecePath(piece)}"`);
+        continue;
+      }
       // Each piece's own folder, so a crawler is never sent to an address the
       // router rejects.
       expect(body).toContain(`href="${piecePath(piece)}"`);
       expect(body).toContain(piece.title);
     }
+    expect(body).toContain('href="/blog/short-posts"');
     // Read from the registry the server already holds, so no data call.
     expect(calls).toHaveLength(0);
   });
@@ -941,13 +1512,49 @@ describe('first-response page tags', () => {
     const topic = await serve({ path: '/blog/topics/campaign-finance' });
     expect(topic.status).toBe(200);
     expect(topic.body).toContain('<h1>Campaign finance</h1>');
-    expect(topic.body).toContain(`href="${piecePath(WHO_HAS_TO_REPORT_THEIR_MONEY)}"`);
-    expect(topic.body).toContain(WHO_HAS_TO_REPORT_THEIR_MONEY.title);
+    for (const slug of [
+      'realtor-pacs-shared-candidates',
+      'committee-officers-and-the-firms-they-pay',
+    ]) {
+      expect(topic.body).toContain(
+        `href="/blog/research/${slug}?from=${encodeURIComponent(`/blog/topics/campaign-finance?post=${slug}`)}"`,
+      );
+    }
+    expect(topic.body.match(/class="ps-record-label"/g)).toHaveLength(6);
+    const topicPieces = publishedResearch().filter((piece) =>
+      piece.topics?.includes('campaign-finance'),
+    );
+    const seen: string[] = [];
+    const pageCount = topicPage('campaign-finance', 1).pageCount;
+    for (let page = 1; page <= pageCount; page++) {
+      const response =
+        page === 1
+          ? topic
+          : await serve({ path: '/blog/topics/campaign-finance', page: String(page) });
+      expect(response.status).toBe(200);
+      const selection = topicPage('campaign-finance', page);
+      expect(selection.items.length).toBeLessThanOrEqual(6);
+      for (const piece of topicPieces) {
+        const expected = selection.items.some((entry) => entry.slug === piece.slug);
+        const source = `/blog/topics/campaign-finance?${page === 1 ? '' : `page=${page}&`}post=${piece.slug}`;
+        expect(
+          response.body.includes(`href="${piecePath(piece)}?from=${encodeURIComponent(source)}"`),
+        ).toBe(expected);
+        if (expected) seen.push(piece.slug);
+      }
+      if (page < pageCount)
+        expect(response.body).toContain(`href="/blog/topics/campaign-finance?page=${page + 1}"`);
+      if (page > 1) expect(response.body).toContain('Previous page');
+    }
+    expect(seen.sort()).toEqual(topicPieces.map((piece) => piece.slug).sort());
     expect(topic.body).toContain(
       '<link rel="canonical" href="https://www.alethical.com/blog/topics/campaign-finance"',
     );
 
-    const absent = await serve({ path: '/blog/short-posts', page: '2' });
+    const absent = await serve({
+      path: '/blog/short-posts',
+      page: String(shortPostsPage(1).pageCount + 1),
+    });
     expect(absent.status).toBe(404);
   });
 
@@ -990,7 +1597,7 @@ describe('first-response page tags', () => {
     }
 
     // Every published piece is visible to search engines from the day it posts
-    // (Eugene, 25 Aug 2026), so a posted piece carries no skip instruction and
+    // (25 Aug 2026), so a posted piece carries no skip instruction and
     // does carry a canonical address.
     expect(piece.indexed).toBe(true);
     expect(headers.get('X-Robots-Tag')).toBeUndefined();
@@ -1052,8 +1659,8 @@ describe('first-response page tags', () => {
     for (const href of hrefs) {
       expect(body).toContain(`<a href="${escapeHtml(href)}">`);
     }
-    expect(hrefs.filter((href) => href.includes('cfb.mn.gov'))).toHaveLength(8);
-    expect(hrefs.filter((href) => href.includes('revisor.mn.gov'))).toHaveLength(3);
+    expect(hrefs.filter((href) => new URL(href).hostname === 'cfb.mn.gov')).toHaveLength(8);
+    expect(hrefs.filter((href) => new URL(href).hostname === 'www.revisor.mn.gov')).toHaveLength(3);
 
     expect(guide.indexed).toBe(true);
     expect(headers.get('X-Robots-Tag')).toBeUndefined();
@@ -1665,6 +2272,654 @@ describe('when the data service is unwell', () => {
     }));
 
     expect((await serve({ path: '/bills' })).status).toBe(503);
+  });
+});
+
+describe('bounded recovery of mandatory committee money reads', () => {
+  const privateText = 'PRIVATE-CALLBACK-REMOTE-ERROR-AND-BODY';
+  const query = {
+    path: '/money/committees/jane-fonda-climate-pac-41326',
+    year: '2025',
+    tab: 'filings',
+    q: privateText,
+    access_token: privateText,
+  };
+  const payload = {
+    data: {
+      registration_number: '41326',
+      year: 2025,
+      committee_name: 'Jane Fonda Climate PAC',
+      register: {
+        state: 'reported',
+        kind: 'political_committee_or_fund',
+        name: 'Jane Fonda Climate PAC',
+      },
+      money_in: { state: 'not_reported' },
+      money_out: { state: 'not_reported' },
+      split: { state: 'no_reported_total' },
+    },
+  };
+  type Plan = {
+    headerDelay?: number;
+    bodyDelay?: number;
+    status?: number;
+    payload?: unknown;
+    networkError?: boolean;
+    jsonError?: boolean;
+    stalledBody?: boolean;
+    ignoreAbort?: boolean;
+  };
+  let errorLog: ReturnType<typeof vi.spyOn>;
+  let recoveryLog: ReturnType<typeof vi.spyOn>;
+  let signals: AbortSignal[];
+  let cancellations: ReturnType<typeof vi.fn>[];
+  let financeCalls: string[];
+  let optionalCalls: string[];
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+    recoveryLog = vi.spyOn(console, 'info').mockImplementation(() => {});
+    signals = [];
+    cancellations = [];
+    financeCalls = [];
+    optionalCalls = [];
+  });
+
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    errorLog.mockRestore();
+    recoveryLog.mockRestore();
+  });
+
+  function network(plans: Plan[]) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, options: RequestInit) => {
+        if (!url.includes('/finance?')) {
+          optionalCalls.push(url);
+          return { ok: false, status: 503, body: null };
+        }
+        const plan = plans[financeCalls.length];
+        if (!plan) throw new Error('unexpected extra finance attempt');
+        financeCalls.push(url);
+        const signal = options.signal as AbortSignal;
+        signals.push(signal);
+        const wait = (delay?: number, stalled = false) =>
+          new Promise<void>((resolve, reject) => {
+            const abort = () => {
+              if (timer !== undefined) clearTimeout(timer);
+              signal.removeEventListener('abort', abort);
+              reject(new Error(privateText));
+            };
+            const timer = stalled
+              ? undefined
+              : setTimeout(() => {
+                  signal.removeEventListener('abort', abort);
+                  resolve();
+                }, delay ?? 0);
+            if (!plan.ignoreAbort) {
+              if (signal.aborted) abort();
+              else signal.addEventListener('abort', abort, { once: true });
+            }
+          });
+        if (plan.headerDelay) await wait(plan.headerDelay);
+        if (plan.networkError) throw new TypeError(privateText);
+        const cancel = vi.fn(async () => {});
+        cancellations.push(cancel);
+        const status = plan.status ?? 200;
+        return {
+          ok: status >= 200 && status < 300,
+          status,
+          headers: { get: () => null },
+          body: { cancel },
+          json: async () => {
+            await wait(plan.bodyDelay, plan.stalledBody);
+            if (plan.jsonError) throw new SyntaxError(privateText);
+            return plan.payload ?? payload;
+          },
+        };
+      }),
+    );
+  }
+
+  function recovered(winner: 1 | 2, trigger: 'slow' | 'network' | 'http') {
+    expect(errorLog).not.toHaveBeenCalled();
+    expect(recoveryLog).toHaveBeenCalledTimes(1);
+    const [text] = recoveryLog.mock.calls[0];
+    expect(recoveryLog.mock.calls[0]).toHaveLength(1);
+    expect(text).not.toContain(privateText);
+    expect(text).not.toMatch(/https?:|\/committees\/|year=|access_token/);
+    expect(JSON.parse(text)).toEqual({
+      event: 'page_read_recovery',
+      source_family: 'committee-finance',
+      attempt_count: 2,
+      winner_attempt: winner,
+      trigger,
+      elapsed_ms: expect.any(Number),
+    });
+    expect(Number.isInteger(JSON.parse(text).elapsed_ms)).toBe(true);
+    expect(financeCalls).toHaveLength(2);
+    expect(financeCalls[0]).toBe(financeCalls[1]);
+    expect(vi.getTimerCount()).toBe(0);
+  }
+
+  it('recovers a stalled 200 body without extending the 5-second deadline', async () => {
+    network([{ stalledBody: true }, {}]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(2499);
+    expect(financeCalls).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(financeCalls).toHaveLength(2);
+    await vi.advanceTimersByTimeAsync(1);
+    expect((await result).status).toBe(200);
+    expect(signals[0].aborted).toBe(true);
+    expect(cancellations[0]).toHaveBeenCalledOnce();
+    recovered(2, 'slow');
+  });
+
+  it('fails at 5 seconds when both 200 bodies stall, reporting 2 attempts and 200 headers', async () => {
+    network([{ stalledBody: true }, { stalledBody: true }]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect((await result).status).toBe(503);
+    expect(errorLog).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(errorLog.mock.calls[0][0])).toMatchObject({
+      source_family: 'committee-finance',
+      failure_kind: 'timeout',
+      upstream_status: 200,
+      attempt_count: 2,
+      elapsed_ms: 5000,
+    });
+    expect(errorLog.mock.calls[0][0]).not.toContain(privateText);
+    expect(recoveryLog).not.toHaveBeenCalled();
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each([502, 503, 504])('starts the second read immediately after HTTP %s', async (status) => {
+    network([{ status }, {}]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(1);
+    expect((await result).status).toBe(200);
+    expect(cancellations[0]).toHaveBeenCalledOnce();
+    recovered(2, 'http');
+  });
+
+  it('starts the second read immediately after a network failure', async () => {
+    network([{ networkError: true }, {}]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(1);
+    expect((await result).status).toBe(200);
+    recovered(2, 'network');
+  });
+
+  it('stops after 2 transient failures and clears both timers', async () => {
+    network([{ networkError: true }, { status: 503 }]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(1);
+    expect((await result).status).toBe(503);
+    expect(financeCalls).toHaveLength(2);
+    expect(errorLog).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(errorLog.mock.calls[0][0])).toMatchObject({
+      failure_kind: 'network',
+      attempt_count: 2,
+    });
+    expect(JSON.parse(errorLog.mock.calls[0][0])).not.toHaveProperty('upstream_status');
+    expect(recoveryLog).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each([
+    { status: 404 },
+    { status: 500 },
+    { status: 429 },
+    { jsonError: true },
+    { payload: { data: { ...payload.data, year: 2024 } } },
+    { payload: { data: { ...payload.data, registration_number: '99999' } } },
+  ])('does not retry a terminal first response: %j', async (plan) => {
+    network([plan]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(1);
+    expect((await result).status).toBe(plan.status === 404 ? 404 : 503);
+    expect(financeCalls).toHaveLength(1);
+    expect(recoveryLog).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('keeps the first read alive so its valid 3-second answer can win', async () => {
+    network([{ bodyDelay: 3000 }, { stalledBody: true }]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect((await result).status).toBe(200);
+    expect(signals[0].aborted).toBe(false);
+    expect(signals[1].aborted).toBe(true);
+    expect(cancellations[1]).toHaveBeenCalledOnce();
+    recovered(1, 'slow');
+  });
+
+  it.each([404, 500])(
+    'does not let backup HTTP %s defeat the healthy 3-second original',
+    async (status) => {
+      network([{ bodyDelay: 3000 }, { headerDelay: 100, status }]);
+      const result = serve(query);
+      await vi.advanceTimersByTimeAsync(3000);
+      expect((await result).status).toBe(200);
+      recovered(1, 'slow');
+    },
+  );
+
+  it('lets a valid backup win after the original returns a delayed 404', async () => {
+    network([{ headerDelay: 3000, status: 404 }, { bodyDelay: 700 }]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(3200);
+    expect((await result).status).toBe(200);
+    recovered(2, 'slow');
+  });
+
+  it.each([{ jsonError: true }, { payload: { data: { ...payload.data, year: 2016 } } }])(
+    'lets a validated backup win after a delayed invalid original: %j',
+    async (plan) => {
+      network([{ bodyDelay: 3000, ...plan }, { bodyDelay: 700 }]);
+      const result = serve(query);
+      await vi.advanceTimersByTimeAsync(3200);
+      expect((await result).status).toBe(200);
+      recovered(2, 'slow');
+    },
+  );
+
+  it.each([
+    { original: 500, backup: 404, status: 503 },
+    { original: 404, backup: 500, status: 404 },
+    { original: 404, backup: 404, status: 404 },
+  ])('keeps the original result when both delayed reads fail: %j', async (test) => {
+    network([
+      { headerDelay: 3000, status: test.original },
+      { headerDelay: 600, status: test.backup },
+    ]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(3100);
+    expect((await result).status).toBe(test.status);
+    if (test.status === 503) {
+      expect(errorLog).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(errorLog.mock.calls[0][0])).toMatchObject({
+        failure_kind: 'http',
+        upstream_status: test.original,
+        attempt_count: 2,
+      });
+      expect(errorLog.mock.calls[0][0]).not.toContain(privateText);
+    } else expect(errorLog).not.toHaveBeenCalled();
+    expect(recoveryLog).not.toHaveBeenCalled();
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each([404, 500])(
+    'keeps original HTTP %s when the pending backup reaches the deadline',
+    async (status) => {
+      network([{ headerDelay: 3000, status }, { stalledBody: true }]);
+      const result = serve(query);
+      await vi.advanceTimersByTimeAsync(5000);
+      expect((await result).status).toBe(status === 404 ? 404 : 503);
+      if (status !== 404) {
+        expect(JSON.parse(errorLog.mock.calls[0][0])).toMatchObject({
+          failure_kind: 'http',
+          upstream_status: status,
+          attempt_count: 2,
+          elapsed_ms: 5000,
+        });
+      } else expect(errorLog).not.toHaveBeenCalled();
+      expect(recoveryLog).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
+    },
+  );
+
+  it.each([502, 503, 504, 'network'] as const)(
+    'does not substitute a backup 404 for original %s',
+    async (first) => {
+      network([first === 'network' ? { networkError: true } : { status: first }, { status: 404 }]);
+      const result = serve(query);
+      await vi.advanceTimersByTimeAsync(1);
+      expect((await result).status).toBe(503);
+      expect(errorLog).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(errorLog.mock.calls[0][0])).toMatchObject({
+        failure_kind: first === 'network' ? 'network' : 'http',
+        attempt_count: 2,
+        ...(first === 'network' ? {} : { upstream_status: first }),
+      });
+      expect(errorLog.mock.calls[0][0]).not.toContain(privateText);
+      expect(recoveryLog).not.toHaveBeenCalled();
+      expect(financeCalls).toHaveLength(2);
+      expect(vi.getTimerCount()).toBe(0);
+    },
+  );
+
+  it('consumes a late loser rejection even when its reader ignores cancellation', async () => {
+    network([{ bodyDelay: 3000 }, { bodyDelay: 1000, jsonError: true, ignoreAbort: true }]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect((await result).status).toBe(200);
+    expect(signals[1].aborted).toBe(true);
+    await vi.advanceTimersByTimeAsync(500);
+    recovered(1, 'slow');
+  });
+
+  it('refuses a valid answer that finishes at the 5-second deadline', async () => {
+    network([{ bodyDelay: 5000 }, { stalledBody: true }]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect((await result).status).toBe(503);
+    expect(JSON.parse(errorLog.mock.calls[0][0])).toMatchObject({
+      failure_kind: 'timeout',
+      upstream_status: 200,
+      attempt_count: 2,
+    });
+    expect(recoveryLog).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each([
+    { status: 404 },
+    { status: 500 },
+    { jsonError: true },
+    { payload: { data: { ...payload.data, year: 2016 } } },
+  ])('keeps waiting for the original after a terminal backup response: %j', async (plan) => {
+    network([{ stalledBody: true }, plan]);
+    const result = serve(query);
+    let finished = false;
+    void result.then(() => {
+      finished = true;
+    });
+    await vi.advanceTimersByTimeAsync(2501);
+    expect(finished).toBe(false);
+    await vi.advanceTimersByTimeAsync(2499);
+    expect((await result).status).toBe(503);
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    expect(recoveryLog).not.toHaveBeenCalled();
+    expect(errorLog).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(errorLog.mock.calls[0][0])).toMatchObject({
+      failure_kind: 'timeout',
+      upstream_status: 200,
+      attempt_count: 2,
+      elapsed_ms: 5000,
+    });
+    expect(errorLog.mock.calls[0][0]).not.toContain(privateText);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('keeps the original payload error if the already-started backup stalls until the deadline', async () => {
+    network([
+      { bodyDelay: 3000, payload: { data: { ...payload.data, year: 2016 } } },
+      { stalledBody: true },
+    ]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect((await result).status).toBe(503);
+    expect(JSON.parse(errorLog.mock.calls[0][0])).toMatchObject({
+      failure_kind: 'payload',
+      attempt_count: 2,
+    });
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    expect(recoveryLog).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('lets the pending first response win after the second has a transient failure', async () => {
+    network([{ bodyDelay: 3000 }, { status: 504 }]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect((await result).status).toBe(200);
+    recovered(1, 'slow');
+  });
+
+  it('bounds requests that stall before headers as well as stalled bodies', async () => {
+    network([{ headerDelay: 10000 }, { headerDelay: 10000 }]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect((await result).status).toBe(503);
+    expect(JSON.parse(errorLog.mock.calls[0][0])).toMatchObject({
+      failure_kind: 'timeout',
+      attempt_count: 2,
+      elapsed_ms: 5000,
+    });
+    expect(JSON.parse(errorLog.mock.calls[0][0])).not.toHaveProperty('upstream_status');
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('preserves a healthy 1.878-second first response without a second request', async () => {
+    network([{ bodyDelay: 1878 }]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(1878);
+    expect((await result).status).toBe(200);
+    expect(financeCalls).toHaveLength(1);
+    expect(recoveryLog).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('does not add another read or recovery log to a fast valid result or optional failures', async () => {
+    network([{}]);
+    const result = serve(query);
+    await vi.advanceTimersByTimeAsync(1);
+    expect((await result).status).toBe(200);
+    expect(financeCalls).toHaveLength(1);
+    expect(optionalCalls.length).toBeGreaterThan(0);
+    expect(new Set(optionalCalls).size).toBe(optionalCalls.length);
+    expect(errorLog).not.toHaveBeenCalled();
+    expect(recoveryLog).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe('privacy-safe reasons for temporary page failures', () => {
+  let failureLog: ReturnType<typeof vi.spyOn>;
+  const secret = 'PRIVATE-CALLBACK-AND-REMOTE-TEXT';
+
+  beforeEach(() => {
+    failureLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => failureLog.mockRestore());
+
+  function loggedFailure() {
+    expect(failureLog).toHaveBeenCalledTimes(1);
+    expect(failureLog.mock.calls[0]).toHaveLength(1);
+    const text = failureLog.mock.calls[0][0] as string;
+    expect(text).not.toContain(secret);
+    expect(text).not.toContain('https://');
+    expect(text).not.toContain('/bills/');
+    const log = JSON.parse(text);
+    expect(Object.keys(log).sort()).toEqual(
+      [
+        'attempt_count',
+        'elapsed_ms',
+        'event',
+        'failure_kind',
+        'page_family',
+        'phase',
+        'source_family',
+        ...(log.upstream_status === undefined ? [] : ['upstream_status']),
+      ].sort(),
+    );
+    expect(log.elapsed_ms).toBeGreaterThanOrEqual(0);
+    return log;
+  }
+
+  it('records an upstream server status once without request or response text', async () => {
+    stubNetwork(() => ({ status: 503, payload: { error: secret } }));
+    const result = await serve({ path: '/bills/94-2025-HF719', code: secret, q: secret });
+    expect(result.status).toBe(503);
+    expect(result.headers.get('Cache-Control')).toBe('no-store');
+    expect(loggedFailure()).toMatchObject({
+      event: 'page_response_failure',
+      phase: 'content',
+      page_family: 'bill',
+      source_family: 'bills',
+      failure_kind: 'http',
+      upstream_status: 503,
+      attempt_count: 1,
+    });
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['network', 'timeout', 'json'])(
+    'distinguishes %s failures without exception text',
+    async (kind) => {
+      if (kind === 'timeout') {
+        vi.spyOn(AbortSignal, 'timeout').mockReturnValue(AbortSignal.abort());
+      }
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => {
+          if (kind !== 'json') throw new Error(secret);
+          return {
+            ok: true,
+            status: 200,
+            headers: { get: () => null },
+            json: async () => {
+              throw new Error(secret);
+            },
+          };
+        }),
+      );
+      try {
+        expect((await serve({ path: '/bills/94-2025-HF719', token: secret })).status).toBe(503);
+        expect(loggedFailure()).toMatchObject({
+          phase: 'content',
+          source_family: 'bills',
+          failure_kind: kind,
+          attempt_count: 1,
+        });
+      } finally {
+        if (kind === 'timeout') vi.mocked(AbortSignal.timeout).mockRestore();
+      }
+    },
+  );
+
+  it.each([
+    undefined,
+    null,
+    [],
+    'invalid',
+    { registration_number: '99999', year: 2025 },
+    { registration_number: '41326', year: 2024 },
+  ])('classifies a malformed mandatory committee answer as payload failure', async (data) => {
+    stubNetwork(() => ({ status: 200, payload: { data } }));
+    expect(
+      (
+        await serve({
+          path: '/money/committees/jane-fonda-climate-pac-41326',
+          year: '2025',
+          tab: 'filings',
+        })
+      ).status,
+    ).toBe(503);
+    expect(loggedFailure()).toMatchObject({
+      phase: 'content',
+      page_family: 'moneyCommittee',
+      source_family: 'committee-finance',
+      failure_kind: 'payload',
+      attempt_count: 1,
+    });
+  });
+
+  it('reports an unknown content error without inspecting its message', async () => {
+    stubNetwork(() => ({ status: 200, payload: undefined }));
+    expect((await serve({ path: '/bills/94-2025-HF719', access_token: secret })).status).toBe(503);
+    expect(loggedFailure()).toMatchObject({
+      phase: 'content',
+      failure_kind: 'unknown',
+      source_family: 'none',
+      attempt_count: 0,
+    });
+  });
+
+  it('keeps reporting safe when the route reader itself throws', async () => {
+    const routes = await import('../../navigation/webRoutes');
+    const routeReader = vi.spyOn(routes, 'targetFromPathname').mockImplementation(() => {
+      throw new Error(secret);
+    });
+    try {
+      expect((await serve({ path: '/ask', q: secret })).status).toBe(503);
+      expect(loggedFailure()).toMatchObject({
+        phase: 'content',
+        page_family: 'unknown',
+        failure_kind: 'unknown',
+        attempt_count: 0,
+      });
+    } finally {
+      routeReader.mockRestore();
+    }
+  });
+
+  it.each(['/ask', '/confirm', '/reset', '/email-preferences', '/auth/callback'])(
+    'keeps private and authentication values out of a shell failure log at %s',
+    async (path) => {
+      readPageShell.mockRejectedValue(new Error(secret));
+      expect(
+        (await serve({ path, q: secret, code: secret, access_token: secret, state: secret }))
+          .status,
+      ).toBe(503);
+      expect(loggedFailure()).toMatchObject({
+        phase: 'shell',
+        source_family: 'shell',
+        failure_kind: 'unknown',
+        attempt_count: 0,
+      });
+    },
+  );
+
+  it('classifies missing shell markers without leaking the bundled text', async () => {
+    readPageShell.mockResolvedValue(`<html><head>${secret}</head></html>`);
+    expect((await serve({ path: '/privacy' })).status).toBe(503);
+    expect(loggedFailure()).toMatchObject({
+      phase: 'shell',
+      source_family: 'shell',
+      failure_kind: 'payload',
+      attempt_count: 0,
+    });
+  });
+
+  it('does not log ordinary missing records or successful private pages', async () => {
+    stubNetwork(() => ({ status: 404 }));
+    expect((await serve({ path: '/bills/94-2025-HF719' })).status).toBe(404);
+    expect((await serve({ path: '/email-preferences', token: secret })).status).toBe(200);
+    expect(failureLog).not.toHaveBeenCalled();
+  });
+
+  it('keeps an optional ownership-read failure partial and unlogged', async () => {
+    stubNetwork((url) =>
+      url.includes('/finance?')
+        ? {
+            status: 200,
+            payload: {
+              data: {
+                registration_number: '41326',
+                year: 2025,
+                committee_name: 'Jane Fonda Climate PAC',
+                register: {
+                  state: 'reported',
+                  kind: 'political_committee_or_fund',
+                  name: 'Jane Fonda Climate PAC',
+                },
+                money_in: { state: 'not_reported' },
+                money_out: { state: 'not_reported' },
+                split: { state: 'no_reported_total' },
+              },
+            },
+          }
+        : { status: 503 },
+    );
+    const result = await serve({
+      path: '/money/committees/jane-fonda-climate-pac-41326',
+      year: '2025',
+      tab: 'filings',
+    });
+    expect(result.status).toBe(200);
+    expect(result.headers.get('Cache-Control')).toBe('no-store');
+    expect(result.body).toContain(CONFIRMATION_UNAVAILABLE_LINE);
+    expect(failureLog).not.toHaveBeenCalled();
   });
 });
 
@@ -3418,6 +4673,7 @@ describe('a record reached under another spelling forwards to its own address', 
 
     const { status, body } = await serve({
       path: '/money/committees/jane-fonda-climate-pac-41326',
+      year: '2025',
     });
 
     expect(status).toBe(200);
@@ -3523,5 +4779,127 @@ describe('a served profile links the committee a person has confirmed as the mem
       expect(body).not.toContain('/money/committees/');
       expect(body).toContain('<h1>Rep. Aaron Repinski</h1>');
     }
+  });
+});
+
+describe('bill action and vote first responses', () => {
+  const id = '94-2025-HF719';
+  const bill = {
+    id,
+    title: 'Test bill',
+    chief_sponsors: [],
+    actions: [
+      {
+        action_number: 1,
+        action_text: 'Introduction and first reading, referred to',
+        committee_name: 'Taxes',
+        action_at: '2025-01-01',
+      },
+    ],
+  };
+  const roll = {
+    id: 'roll-1',
+    chamber: 'house',
+    motion_text: 'Third reading',
+    result_text: 'Bill was passed',
+    occurred_at: '2025-05-01',
+    yes_count: 1,
+    no_count: 0,
+    official_url: 'https://www.house.mn.gov/votes/test',
+    records: [
+      { legislator_id: 'a', legislator_name: 'Anna Member', party: 'DFL', vote_value: 'yes' },
+    ],
+  };
+  it('reads only the requested bill concurrently and passes the same records to the app', async () => {
+    const starts: string[] = [];
+    let resolveDetail!: (response: Response) => void;
+    const pending = new Promise<Response>((resolve) => {
+      resolveDetail = resolve;
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        starts.push(url);
+        return url.endsWith('/votes')
+          ? Promise.resolve(
+              new Response(JSON.stringify({ data: [roll], page: { has_more: false } }), {
+                headers: { Age: '60' },
+              }),
+            )
+          : pending;
+      }),
+    );
+    const result = serve({ path: `/bills/${id}` });
+    await vi.waitFor(() => expect(starts).toHaveLength(2));
+    expect(starts.every((url) => url.includes(`/bills/${id}`))).toBe(true);
+    resolveDetail(new Response(JSON.stringify({ data: bill }), { headers: { Age: '20' } }));
+    const { body, status } = await result;
+    expect(status).toBe(200);
+    expect(body).toContain('Taxes');
+    expect(body).toContain('Final passage');
+    expect(body).toContain('Anna Member');
+    const data = body.match(
+      /<script type="application\/json" id="alethical-page-data">(.*?)<\/script>/s,
+    )?.[1];
+    expect(data).toBeDefined();
+    expect(JSON.parse(data!)).toEqual([
+      { key: ['bill', id], payload: bill, validatedAgeMs: 20_000 },
+      { key: ['bill-votes', id], payload: [roll], validatedAgeMs: 60_000 },
+    ]);
+  });
+
+  it.each(['failure', 'incomplete', 'too-old'])(
+    'does not cache %s votes or claim there were no votes',
+    async (mode) => {
+      stubNetwork((url) =>
+        url.endsWith('/votes')
+          ? mode === 'failure'
+            ? { status: 503 }
+            : {
+                status: 200,
+                payload: { data: [roll], page: { has_more: mode === 'incomplete' } },
+                age: mode === 'too-old' ? 361 : 0,
+              }
+          : { status: 200, payload: { data: bill } },
+      );
+      const { body, headers } = await serve({ path: `/bills/${id}` });
+      expect(headers.get('Cache-Control')).toBe('no-store');
+      expect(body).toContain('We couldn’t load this bill’s votes');
+      expect(body).not.toContain('No recorded roll-call votes');
+      expect(body).not.toContain('Final passage');
+    },
+  );
+
+  it('fails closed when the detail cache is past its allowance', async () => {
+    stubNetwork((url) =>
+      url.endsWith('/votes')
+        ? { status: 200, payload: { data: [] } }
+        : { status: 200, age: 361, payload: { data: bill } },
+    );
+    const { status, headers, body } = await serve({ path: `/bills/${id}` });
+    expect(status).toBe(503);
+    expect(headers.get('Cache-Control')).toBe('no-store');
+    expect(body).not.toContain('Anna Member');
+  });
+
+  it('rebuilds from new votes after a failed refresh instead of retaining an old function-local copy', async () => {
+    let state: 'old' | 'failure' | 'new' = 'old';
+    stubNetwork((url) =>
+      !url.endsWith('/votes')
+        ? { status: 200, payload: { data: bill } }
+        : state === 'failure'
+          ? { status: 503 }
+          : { status: 200, payload: { data: state === 'old' ? [] : [roll] }, age: 0 },
+    );
+    expect((await serve({ path: `/bills/${id}` })).body).toContain('No recorded roll-call votes');
+    state = 'failure';
+    expect((await serve({ path: `/bills/${id}` })).headers.get('Cache-Control')).toBe('no-store');
+    state = 'new';
+    const fresh = await serve({ path: `/bills/${id}` });
+    expect(fresh.body).toContain('Final passage');
+    expect(fresh.body).toContain('Anna Member');
+    expect(fresh.headers.get('Cache-Control')).toBe(
+      'public, max-age=0, s-maxage=300, stale-while-revalidate=300, stale-if-error=300',
+    );
   });
 });

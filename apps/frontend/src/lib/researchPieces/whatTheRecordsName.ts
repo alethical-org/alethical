@@ -64,7 +64,7 @@ export const WHAT_THE_RECORDS_NAME: ResearchPiece = {
   searchDescription:
     'Why a Minnesota campaign account’s published list of donors is real and is still not everyone who gave, and what decides who lands on it.',
   // Rule 13 point 7a: the corrected wording replaces the wrong wording and this dated
-  // banner is its only trace. Eugene approved the cut on 27 Aug 2026.
+  // banner is its only trace. The removal was approved on 27 Aug 2026.
   correction: {
     datedLabel: 'CORRECTED AUG 27 2026',
     note: 'Two quotations from the Board\u2019s Political Party Unit Handbook were removed. The Board replaced that handbook the day this piece posted, and the served copy no longer contains them.',
@@ -295,7 +295,7 @@ export const WHAT_THE_RECORDS_NAME: ResearchPiece = {
               // The piece names only that a different figure applies to a
               // ballot-question filer, and links both sources. That stayed correct
               // through 2 changes to what the record pages print — silence, then $500
-              // once Eugene lifted the ban on 31 Aug 2026 — which is why it needs no
+              // once the restriction was removed on 31 Aug 2026 — which is why it needs no
               // edit here. A posted piece's words are its author's (rule 13), so this
               // would take a directed change rather than an update of our own.
               text: ' set up to campaign on a ballot question, which is a vote on a proposal rather than on a person. A different figure applies to money given to those, so nothing above describes them. The law and the Board’s own handbook for those accounts are both linked below.',

@@ -1,3 +1,4 @@
+import type { ContactPurpose } from '../lib/contactPurposes';
 import { CompositeScreenProps, NavigatorScreenParams } from '@react-navigation/native';
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -79,10 +80,30 @@ export type RootStackParamList = {
     | undefined;
   // Candidate addresses stay in memory, never in route parameters or URLs.
   Candidates: undefined;
+  CandidateFeatures: { candidateId?: string } | undefined;
   CandidateProfile: { candidateId: string };
   CandidateClaim: { candidateId: string };
   CandidateManage: { candidateId: string };
-  AdminCandidateClaims: undefined;
+  PersonOverview: { personId: string; fromCandidateId?: string; fromLegislatorSlug?: string };
+  TVAdRecords: {
+    kind: 'landing' | 'file' | 'folder' | 'agency' | 'station' | 'guide';
+    key?: string;
+    q?: string;
+    tab?: string;
+    station?: string;
+    year?: string;
+    category?: string;
+    page?: string;
+    version?: string;
+    text?: string;
+    history?: string;
+    from?: string;
+    expense?: string;
+    copy?: string;
+  };
+  AdminPoliticalAds: undefined;
+  AdminCandidateClaims:
+    { candidateId?: string; claimId?: string; fromProfile?: boolean } | undefined;
   // Campaign money section (campaign money IA handoff, Aug 2026). All public —
   // the section has no sign-in gate.
   MoneyLanding: undefined;
@@ -96,6 +117,8 @@ export type RootStackParamList = {
   LobbyingLobbyist: { slug: string; year?: string };
   Read: undefined;
   ReadResearch: { page?: string; post?: string } | undefined;
+  Events: undefined;
+  Event: { slug: string };
   ReadGuides: { page?: string; post?: string } | undefined;
   ReadSet: { slug: string; post?: string };
   ShortPosts: { page?: string; post?: string } | undefined;
@@ -167,7 +190,7 @@ export type RootStackParamList = {
   Terms: undefined;
   AboutUs: undefined;
   Services: undefined;
-  ContactUs: { article?: string } | undefined;
+  ContactUs: { article?: string; purpose?: ContactPurpose } | undefined;
   ConfirmEmail: undefined;
   ResetPassword: undefined;
   NotFound: { path: string };

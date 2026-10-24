@@ -1,9 +1,12 @@
 # What runs, when, and what it costs
 
-<!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py -->
+<!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py, alethical/api/services/candidate_claim_email.py, alethical/api/main.py, api/search-measurements.ts -->
 
-Net: The repository has 30 GitHub Actions workflows. 23 can start automatically
-and 7 run only when a person starts them.
+Net: The repository has 38 GitHub Actions workflows. 29 can start automatically
+and 9 run only when a person starts them. Scheduled checks, releases, and local
+backups do not call paid AI services. Reader questions and deliberately started
+AI work do. The review of a failed campaign-money collection has a paid AI
+reviewer too, and its switch is off until its limits are approved.
 
 Public-record collection uses saved deadlines and 1 shared scheduled workflow.
 The existing API can also wake due jobs through a restricted GitHub App. Source
@@ -11,14 +14,21 @@ checks and ordinary collection use free official reads and existing infrastructu
 Changed bill text keeps the approved search-index update; automatic AI summaries
 and the paid failure reviewer remain switched off.
 
+[Public-record updates: coverage and recovery](public-record-refresh-status.md)
+tracks the measured freshness gaps and the completion checks for the existing shared
+update work. A listed timer does not establish that its latest records are live.
+
 ## What starts automatically
 
 | Work | Starts when | What it does | Usage-based cost |
 | --- | --- | --- | --- |
 | Public reader checks (`.github/workflows/reader-completion-checks.yml`) | A commit reaches `main`, a trusted caller, or by hand | Exercises real public reader actions and proves the intended website changes reached the live address | No paid AI call; existing GitHub runner usage and public GET reads |
+| Public search response checks (`.github/workflows/public-search-health.yml`) | Daily at 17:17 UTC, after successful trusted-main reader checks, or by hand; Monday samples more records | Checks public sitemaps, indexing instructions, useful initial text and separately allowed year/tab record views with bounded reads, retaining failure evidence for 35 days | No paid AI call or new service fee; existing GitHub runner usage and public GET reads |
+| Temporary page-failure evidence (`.github/workflows/page-failure-health.yml`) | Hourly, or by hand on trusted `main` | Saves bounded public-safe failure and recovery counts and types for 35 days; the daily search check detects missed or incomplete hours | No paid AI call or new service fee; standard free GitHub runner and existing Vercel read access |
+| Expired private search data (`.github/workflows/private-search-retention.yml`) | Daily at 08:23 UTC, or by hand on trusted `main`; live sweep verification pending | Deletes expired raw search exports and safe summaries without depending on provider collection; commits a success receipt with deletion, verifies it separately and fails visibly on error | No paid AI call or new service; standard free GitHub runner and bounded use of the existing database |
+| Public changed-page notices (`.github/workflows/public-change-notices.yml`) | After a successful trusted-main public search check, or by hand on `main`; first initialization sends 0 old addresses | Saves a bounded public change queue on a deployment-disabled state branch; sends at most 100 validated notices and retains unaccepted changes and requested retry waits | No paid AI call, provider fee or new clock job; existing GitHub runner and public IndexNow endpoint |
 | Bounded website repair (`.github/workflows/website-release-recovery.yml`) | A trusted current-main missing-release alarm fails, or by hand with dry run on by default | Stages and promotes at most 1 proven missed website release per commit, preserving rollback holds and checking live reader actions | No paid AI call; existing GitHub and Vercel build/hosting usage |
-| Project checks (`.github/workflows/ci.yml`) | Pull request code events, merge-queue checks, and pushes to `main` | Runs the code, formatting, security, and document checks | No paid AI call; [standard GitHub-hosted runners are free for public repositories](https://docs.github.com/en/actions/concepts/billing-and-usage) |
-| Phone release tool checks (`.github/workflows/native-release-tools.yml`) | Pull requests that change phone release tools or settings, and by hand | Installs the optional phone publishing tools and checks their commands and security fixes | No paid AI call; standard GitHub-hosted runner for relevant changes only |
+| Project checks (`.github/workflows/ci.yml`) | Pull request code events, merge-queue checks, and pushes to `main` | Runs the code, formatting, security and document checks, including built-app replay startup and recovery with local sample records | No paid AI call; [standard GitHub-hosted runners are free for public repositories](https://docs.github.com/en/actions/concepts/billing-and-usage) |
 | Latest change explanation (`.github/workflows/pr-description.yml`) | Pull request opens, code updates, reopens, ready-for-review events, description edits, and merge-queue checks | Reads the latest `Docs check:` explanation against the current code; does not rerun app or server tests or replace their results | No paid AI call; read-only GitHub requests on a standard free runner |
 | Due public records (`.github/workflows/source-record-refresh.yml`) | Hourly at minute 17; optionally woken by the existing API; also by hand | Runs the oldest due work in each shared source lane, with saved progress, exclusive leases, retries and 1 grouped health issue; see the source table below | Free public GitHub runners and official reads; changed bill search embeddings retain the approval in [issue 1323](https://github.com/alethical-org/alethical/issues/1323) |
 | Missing bill sections (`.github/workflows/bill-section-gaps.yml`) | Daily at 11:00 UTC | Opens or updates an issue when stored bill text is incomplete | No paid AI call; reads the database |
@@ -26,10 +36,13 @@ and the paid failure reviewer remain switched off.
 | Copy of every cited source (`.github/workflows/published-source-archive.yml`) | Weekly, Mondays at 10:00 UTC | Re-reads every outside address our published research and guides cite, keeps our own copy of each version, and opens or updates an issue when one has gone or changed | No paid AI call; free government page reads and storage in a bucket we already pay for |
 | Published piece links still work (`.github/workflows/published-piece-links.yml`) | Weekly, Mondays at 13:00 UTC, and on relevant pull requests | Opens or updates an issue when a link inside a published piece no longer reaches a real page; a pull request only checks the pieces' own links, without reading the network | No paid AI call; free government page reads |
 | Bills missing from search (`.github/workflows/rag-coverage-gaps.yml`) | Daily at 12:00 UTC | Opens or updates an issue when a stored bill has no current search index | No paid AI call; reads the database and does not rebuild the index |
-| Second copy of source files (`.github/workflows/mirror-raw-files.yml`) | Daily at 13:00 UTC | Checks current files in Supabase and Cloudflare R2, repairs missing second copies, and renews old hash proofs within a 256 MiB combined read budget. Covers all 5 kinds of stored body (bulk downloads, totals archives, report documents, published-source copies, and the lobbying principal-expenditures download), discovered from the database schema so a later 6th kind is copied from the day it ships | No paid AI call; [Cloudflare R2 includes 10 GB of Standard storage and large monthly operation allowances](https://developers.cloudflare.com/r2/pricing/) before charges |
+| FCC political-file archive (`.github/workflows/fcc-political-files.yml`) | Daily at 06:23 UTC, or by hand with dry run on by default | Lists all available political folders and years for KSTP-TV, KARE and KMSP-TV; attempts up to 1,000 new, changed or due downloads, up to 2,500 second copies and up to 1,000 local readings; reports source gaps, operational failures and unfinished work in a run summary and 1 continuing issue | No paid AI call; free FCC downloads, existing GitHub runner usage and private Supabase/R2 storage and transfer allowances |
+| Second copy of source files (`.github/workflows/mirror-raw-files.yml`) | Daily at 13:00 UTC | Checks current files in Supabase and Cloudflare R2, repairs missing second copies, and renews old hash proofs within a 256 MiB combined read budget. Discovers stored-source tables from the database schema, including FCC political-file copies, so a new source joins the backup without a separate table list | No paid AI call; [Cloudflare R2 includes 10 GB of Standard storage and large monthly operation allowances](https://developers.cloudflare.com/r2/pricing/) before charges |
 | Bills with summary gaps (`.github/workflows/bill-summary-coverage.yml`) | Daily at 14:00 UTC | Opens or updates 1 issue when a bill has complete current text but its full summary is missing or was made from older text or instructions | No paid AI call; reads the database and does not create or change a summary |
 | Homepage fact check (`.github/workflows/home-hero-card-facts.yml`) | Daily at 12:00 UTC, and on relevant pull requests | Checks the homepage's 5 bill claims against Minnesota's published record | No paid AI call; reads public government pages |
-| Technology health (`.github/workflows/technology-health.yml`) | Security every Monday at 13:41 UTC; full review monthly at 13:17 UTC on day 1, and by hand | Checks known package vulnerabilities weekly; the monthly review also checks saved tool versions, support dates, and whether the 3-month major-release review is overdue | No paid AI call; reads public package lists on GitHub's standard computer |
+| Pillow runtime (`.github/workflows/pillow-runtime.yml`) | Each CI or technology-health run, or a local security request on `main` | Lets only the first of the copies GitHub starts for 1 request probe production; waits up to 10 minutes for an API deploy to finish, then reads saved production variable names and all active image instances; binds the evidence to one requesting check | No paid AI or new service fee; standard free GitHub runner and a production-scoped token kept in a `main`-only environment |
+| Technology health (`.github/workflows/technology-health.yml`) | Security every Monday at 13:41 UTC; full review monthly at 13:17 UTC on day 1, and by hand | Checks known package vulnerabilities and the unfixed Pillow advisory weekly; the monthly review also checks saved tool versions, support dates, and whether the 3-month major-release review is overdue | No paid AI call; reads public package lists on GitHub's standard computer |
+| Railway deployment timing (`.github/workflows/railway-timings.yml`) | Relevant pull requests run credential-free tests; deployment timing is read only by hand | Reads selected production deployment event times, retaining unknown phases and separate attempts; never deploys or reads service variables/logs | No paid AI call or new service fee; bounded reads on the existing Railway account and a standard free GitHub runner |
 | Hosted service settings (`.github/workflows/hosted-service-settings.yml`) | Monthly at 09:30 UTC on day 1, on relevant pull requests, and after relevant changes reach `main` | Compares the intended GitHub, Vercel, Railway, and Supabase settings with their live read routes; keeps Supabase's rotating read grant as 2 encrypted 90-day artifacts; lists every setting it cannot safely read | No paid AI call; reads existing service APIs on GitHub's standard free runner |
 | Failed-collection review (`.github/workflows/collection-failure-review.yml`) | When the daily campaign-money refresh or the notices collection finishes on `main` from its schedule or by hand, and by hand for a named run | Keeps 1 issue per distinct collection failure (label `collection-incident`), removes secrets and personal details from the evidence first, adds 1 comment only when the evidence changes, and closes the issue only when a later run's own summary says every stage finished. Never re-runs a collection. Turns the run red while an issue is open, and files a plain alert if the review itself breaks. [Decisions](../architecture/collection-failure-review-decisions.md) | No paid AI call while its switch is off, which it is; a few GitHub reads per completion on a standard free runner. The paid reviewer's costs are under "What spends money" |
 | Money pages stay warm (`.github/workflows/warm-money-pages.yml`) | After each successful production release, and daily at 16:00 UTC | Reads the 5 money addresses and the 4 campaign-money data routes once, so the first real reader after a release is not the one who waits on a cold read. Prints nothing when every address answers; opens no issue | No paid AI call; a handful of reads of our own live site on GitHub's standard free runner |
@@ -38,20 +51,33 @@ and the paid failure reviewer remain switched off.
 | Missing release says so (`.github/workflows/production-release-missing.yml`) | After each change reaches `main`, and by hand | Reads which commit the live site says built it and compares that with `main`. Opens 1 issue when a merged website change is not reaching readers after 10 minutes, comments rather than opening a second, and closes that issue once readers are up to date. Says nothing for a documents-only merge, which correctly needs no release. Turns the run red as well when it alarms on `main`, so the Actions tab cannot read as quiet while its issue is open | No paid AI call; 1 read a minute of our own live site on GitHub's standard free runner |
 | Missing API release says so (`.github/workflows/api-release-missing.yml`) | After each change reaches `main`, and by hand | Asks the live API which commit it is running and compares that with `main`. Opens 1 issue when a merged API change has not reached the API after 15 minutes, comments rather than opening a second, and closes that issue once the API is up to date. Says nothing for a merge that changes only the website or documents, which correctly needs no API release. Turns the run red as well when it alarms on `main`, so the Actions tab cannot read as quiet while its issue is open | No paid AI call; 1 read a minute of our own live API on GitHub's standard free runner |
 | Traffic access key (`.github/workflows/traffic-token-expiry.yml`) | Daily at 12:00 UTC | Opens 1 issue 60 days before the private Vercel Traffic key expires and adds 1 urgent note 14 days before | No paid AI call; reads 1 date stored in the repository |
+| Profile claim notification queue (`alethical/api/services/candidate_claim_email.py`, started by `alethical/api/main.py`) | API startup, then 10 seconds after each completed drain; sending requires the profile-claim and general email switches | Sends saved request/decision notices separately to eligible current recipients, considers 20 ready deliveries per drain by default (maximum 100), shares the comment sender's lock, and limits uncertain-send retries to 23 hours | No paid AI call or new service; idle wakeups use existing hosting/database resources, and actual messages use the existing Resend account and its allowance |
+| Address suggestion copy (`alethical/api/services/address_suggestion_index.py`, started by `alethical/api/main.py`) | Only when `ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED` is on (`true` in production): API startup, then a check every 5 minutes; every API start, on or off, prints 1 `ADDRESS_COPY_CAPACITY` line of host facts | Downloads Minnesota's public address file when the shared copy is missing, damaged or 12 hours old, at most 1 build per machine, retrying after 1 hour on failure; [deployment.md § Address suggestion copy activation](deployment.md#address-suggestion-copy-activation) owns the gates | No paid AI call or new service; downloads a free public government file using existing hosting disk, memory and network |
 | Backend release (Railway Git connection) | A commit reaches `main` | Applies database changes, then releases the API if its readiness check passes | No paid AI call; build and hosting usage stays on the existing Railway account |
 | Website release (Vercel Git connection) | A relevant commit reaches `main` | Builds and releases the web app | No paid AI call; build and hosting usage stays on the existing Vercel account |
-| Unsaved-work backup (`com.alethical.wip-backup`) | Every 5 minutes after `just maintenance-install` or `just install-wip-backup` is installed on Eugene's Mac | Saves each working folder's staged and on-disk source separately, with a private outside bundle and a unique folder ID | No outside service or paid AI call |
-| Finished working-folder cleanup (`com.alethical.worktree-cleanup`) | At login, when an owner releases a folder, and daily to retry held removals | Saves independent recovery copies, then removes clean delivered folders only after every owner releases them and no program still uses them; Codex-managed folders use the app's own archive tool | No outside service charge or paid AI call; reads GitHub change status |
+| Unsaved-work backup (`com.alethical.wip-backup`, `com.commercialdeals.wip-backup`) | Every 5 minutes after each project's profile is installed on the configured Mac | Saves each working folder's staged and on-disk source separately, with private outside bundles and separate project storage | No outside service or paid AI call |
+| Working-folder inventory and released-folder cleanup (`com.alethical.worktree-cleanup`, `com.commercialdeals.worktree-cleanup`) | At login, when an owner releases a folder, and daily to refresh the report and retry held removals | Reports every registered folder, saves independent recovery copies, then removes admitted clean delivered folders only after every owner releases them and no program still uses them; persistent preview holds remain, and Codex-managed folders use the app's archive tool | No outside service charge or paid AI call; reads GitHub change status |
+| [Local coding job activity](agent-job-outcomes.md) | Supported Claude Code and Codex events after installation, host review and explicit job registration | Saves private event metadata against the existing job; a reply ending never finishes a job or starts another turn | No outside call or paid AI call |
 
-The 14 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
+[FCC political-file instructions](../implementation/fcc-political-files.md#ongoing-collection-and-reporting)
+own the fixed scope, retry order, reporting, pause, recovery and acceptance checks.
+
+The profile-claim sender is an API worker, not another GitHub workflow. Its intended
+accepted-production flag is `true`, staged off until
+[deployment.md § Profile claim email activation](deployment.md#profile-claim-email-activation)
+passes. Its queue wakeup calls no paid API; only eligible queued messages reach Resend.
+
+The 18 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
 Time and Central Daylight Time, so their local hour changes by 1 during the year.
 
 ## What GitHub runs only by hand
 
-These 7 workflows complete the total of 30:
+These 9 workflows complete the total of 38:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |
+| `.github/workflows/address-copy-capacity.yml` | Read the existing Railway server’s capacity without exposing private logs | No paid AI call; bounded reads on the existing account |
+| `.github/workflows/address-copy-control.yml` | Switch copied address suggestions on after measured capacity and charges review, or restore live suggestions | No paid AI call or new resource; existing Railway deployment and hosting usage |
 | `.github/workflows/campaign-money-notices.yml` | Collect notices and disclosure statements by hand for recovery | No paid AI call; official sources and existing storage |
 | `.github/workflows/campaign-money-refresh.yml` | Run the campaign-money refresh or its failure-report drill by hand | No paid AI call; official sources and existing database |
 | `.github/workflows/vote-backfill.yml` | Collect missing vote records by hand | No paid AI call; official sources and existing database |
@@ -63,11 +89,36 @@ These 7 workflows complete the total of 30:
 [Deployment](deployment.md) owns the release setup and recovery steps. This page
 owns the workflow count, triggers, and costs.
 
+## Private search collection awaiting activation
+
+| Work | Intended trigger and current state | What it does | Usage-based cost |
+| --- | --- | --- | --- |
+| Private search exports (`api/search-measurements.ts`) | Weekly Vercel schedule not armed; implementation ready, live access and collection unverified | Uses Vercel's existing short-lived Google identity and runtime Bing key to collect 3 Google views and 2 Bing views; writes bounded exports through a separate write-only credential to private database storage | No paid AI or new paid service; verify existing Vercel and database allowance before activation |
+| Private monthly comparison (`alethical/api/services/search_measurements.py`) | Administrator request; monthly human or explicitly started task review, no recurring AI job | Selects the latest successful pull per month, retaining actual rolling 30-day Google windows and unknown Bing date coverage; never sums overlapping pulls or compares them as 28-day totals | Deterministic reads from the existing database; no paid AI call |
+
+These are not additional GitHub workflows. Their access, private output, retention,
+coverage limits and required live checks are owned by
+[Public search upkeep](public-search-upkeep.md#private-search-measurement-implementation-ready-live-checks-pending).
+The separate daily deletion job above does not need a working weekly collector.
+
+## Retry pending money-page clearing
+
+The campaign-money workflow's manual `clear_pending_only` input runs only the saved
+clearing obligations, using its existing Cloudflare access. It does not download
+source files, publish records or run money checks. The equivalent command is
+`PYTHONPATH=. uv run python scripts/refresh_campaign_finance.py --target production --clear-pending-only`.
+Use `--dry-run` to list pending clearing without a write or request to Cloudflare.
+A busy campaign run, missing clearing access, unknown event or failed purge leaves
+work pending and fails recovery. Retry after the current campaign run releases its
+lease. A green clearing-only run cannot resolve an incident whose collection or
+rechecks remain unfinished.
+
 ## Command-line tools
 
-The `scripts/` folder has 98 runnable files. GitHub jobs call 34 of them
-directly and 3 document checks through `local_checks.py`. The 2 Mac helpers above
-call `worktree_backup.py` and `worktree_cleanup.py`; the older shell command
+The `scripts/` folder has 118 runnable files. GitHub jobs call 48 of them
+directly and 3 document checks through `local_checks.py`. The 4 Mac helpers above
+call `worktree_backup.py` and `worktree_cleanup.py`, which uses `worktree_inventory.py`
+for the complete folder report; the older shell command
 for source backups calls `worktree_backup.py` too. A workflow also calls
 `apps/frontend/scripts/traffic-token-expiry.mjs`, a similarly named script that
 lives in a different folder and is not part of this list or its totals. The
@@ -81,22 +132,28 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Detect official sources needing a reviewed mapping | `check_legislative_sessions.py`, `check_supporting_sources.py` |
 | Prepare private donor evidence and recover reviewed campaign totals | `prepare_lobbyist_donor_evidence.py`, `rollback_campaign_finance_filings.py` |
 | Import official records or test data | `build_legislative_district_boundaries.py`, `build_zip_state_reference.py`, `load_campaign_finance.py`, `collect_campaign_finance_notices.py`, `collect_campaign_finance_statements.py`, `load_campaign_finance_filings.py`, `refresh_campaign_finance.py` (the daily campaign-money refresh, all steps in order), `load_lobbying.py` (paired current lobbyists and spending), `load_lobbying_expenditures.py` (spending-only compatibility command), `load_minnesota_data.py`, `load_refund_summaries.py`, `load_sample_data.py` |
-| Check data, code, documents, local tools, and hosted settings | `audit_repaired_bill_prompt_context.py`, `check_bill_section_gaps.py`, `check_bill_summary_coverage.py`, `check_campaign_finance_stated_spending.py`, `check_campaign_finance_stated_split.py`, `check_declared_dependencies.py`, `check_doc_quotes.py`, `check_doc_references.py`, `check_doc_structure.py`, `check_doc_sync.py`, `check_home_hero_card_literals.py`, `check_hosted_service_settings.py`, `check_jobs_and_scripts_inventory.py`, `check_local_env.py`, `check_lobbyist_donor_evidence.py`, `check_no_cross_committee_total.py`, `check_no_merge_conflict_markers.py`, `check_no_nul_bytes.py`, `check_production_release_reached_readers.py`, `check_published_piece_links.py`, `check_rag_coverage.py`, `check_schema_drift.py`, `check_shared_checkout_rules_in_sync.py`, `check_site_metrics_health.py`, `check_site_metrics_privacy.py`, `check_technology_health.py`, `check_timeless_docs.py` |
+| Check data, code, documents, local tools, and hosted settings | `audit_repaired_bill_prompt_context.py`, `check_bill_section_gaps.py`, `check_bill_summary_coverage.py`, `check_campaign_finance_stated_spending.py`, `check_campaign_finance_stated_split.py`, `check_declared_dependencies.py`, `check_doc_quotes.py`, `check_doc_references.py`, `check_doc_structure.py`, `check_doc_sync.py`, `check_home_hero_card_literals.py`, `check_hosted_service_settings.py`, `check_jobs_and_scripts_inventory.py`, `check_local_env.py`, `check_lobbyist_donor_evidence.py`, `check_no_cross_committee_total.py`, `check_no_merge_conflict_markers.py`, `check_no_nul_bytes.py`, `check_production_release_reached_readers.py`, `check_public_search_health.py`, `check_page_failure_coverage.py`, `check_pillow_advisory.py`, `check_pillow_exception.py`, `check_pillow_runtime.py`, `pillow_runtime_claim.py`, `pillow_runtime_evidence.py`, `pillow_source_guard.py`, `check_published_piece_links.py`, `check_rag_coverage.py`, `check_schema_drift.py`, `check_shared_checkout_rules_in_sync.py`, `check_site_metrics_health.py`, `check_site_metrics_privacy.py`, `check_technology_health.py`, `check_timeless_docs.py` |
 | Fill missing fields on older records | `backfill_bill_action_committee_name.py`, `backfill_bill_section_body_blocks.py`, `backfill_bill_title_from_current_version.py`, `backfill_campaign_finance_filed_dates.py`, `backfill_campaign_finance_report_documents.py`, `backfill_companion_links.py`, `backfill_rag_bulk.py`, `backfill_vote_event_dates.py`, `enrich_refund_source_metadata.py` |
 | Repair damage from past bugs | `clean_stale_bill_versions.py`, `correct_bill_current_statuses.py`, `dedupe_ai_enrichment.py`, `delete_fixture_bills.py`, `dump_evidence_document.py`, `reanchor_rag_to_current_version.py`, `repair_companion_links.py`, `repair_incomplete_vote_records.py`, `repair_missing_bill_sections.py`, `repair_mojibake_text.py`, `repair_vote_roster_identities.py` |
 | Prepare a chosen public research email; live delivery is separately gated off | `send_unconcealed.py` |
 | Test reader comments with a disposable database and all outgoing mail disabled | `comments_local_qa.py` |
 | Review campaign-finance records | `recompute_lobbying_published_figures.py`, `record_disclosure_statement_readings.py`, `review_legislator_campaign_committees.py`, `show_party_and_caucus_money.py` |
-| Measure private agent job outcomes | `agent_job_outcomes.py` |
+| Register approved jobs, record private activity and report outcomes | `agent_job_outcomes.py`, `agent_job_events.py` |
+| Read current completion sources and retain a private receipt | `check_agent_job_completion.py` |
+| Install pinned local coding hooks while preserving other settings | `install_agent_job_hooks.py` |
+| Read selected Railway deployment event times without configuration or logs | `railway_deployment_timings.py` |
+| Read the current address-copy host capacity or safely switch the copy on or off | `address_copy_capacity.py`, `address_copy_control.py` |
 | Recover 1 proven missed website release with saved evidence | `website_release_recovery.py` |
-| Measure AI answers and search | `answer_eval.py`, `retrieval_eval.py`, `try_queries.py`, `validate_query_rubric.py` |
+| Measure AI answers and search | `answer_eval.py`, `graph_retrieval_eval.py`, `retrieval_eval.py`, `try_queries.py`, `validate_query_rubric.py` |
 | Compare printed-name search offline without paid calls or live changes | `benchmark_campaign_finance_name_search.py` |
 | Collect change history by hand, report examined causes and retain prevention references | `review_repeat_failures.py` |
 | Run existing tests once and retain named money-prevention results for the exact tested code | `repeat_failure_runs.py` |
 | Measure what real visitors waited for | `report_origin_share_by_address.py`, `report_page_speed_by_address.py` |
-| Maintain search and stored files | `archive_published_sources.py`, `build_rag_hnsw_index.py`, `mirror_raw_files.py` |
+| Refresh, archive and search FCC political advertising evidence, restore source copies and review expense links | `fcc_political_files.py` |
+| Maintain search and stored files | `archive_published_sources.py`, `collect_page_failure_health.py` (public-safe hourly failure counts), `build_rag_hnsw_index.py`, `mirror_raw_files.py`, `notify_changed_public_pages.py` (bounded real public changes with durable receipts) |
+| Delete expired private search exports and verify the saved cleanup receipt | `prune_search_measurements.py` |
 | Protect unfinished work and rotating read grants | `back-up-uncommitted-worktree-work.sh`, `worktree_backup.py`, `supabase_oauth_state.mjs` |
-| Install free Mac maintenance and safely remove released working folders | `install_worktree_maintenance.py`, `worktree_cleanup.py` |
+| Install free Mac maintenance, report every folder and safely remove released working folders | `install_worktree_maintenance.py`, `worktree_cleanup.py`, `worktree_inventory.py` |
 | Decide whether our website host needs to rebuild | `vercel-ignore-build.sh` |
 | Check fresh change explanations | `check_pr_descriptions.py` |
 | Install shared Git hooks, format selected files, and test exact upload commits | `install_git_hooks.py`, `format_frontend.mjs`, `local_checks.py` |
@@ -170,6 +227,7 @@ on. The last 2 are off by default. No clock-based job above opens either.
 | Write a cited Ask answer (`alethical/api/routers/me.py`) | A reader asks a question with enough source text to answer | OpenAI or Anthropic text generation | Recurs with reader traffic; varies with answer length and configured model |
 | Write bill summaries, key points, questions, citations, and topic tags (`alethical/pipeline/anthropic_enrichment.py`, `ai_enrichment.py`, `bill_summary_requests.py`, `codex_enrichment.py`) | A person starts generation, or saved official text creates a ready request while all automatic-spending settings are open | Claude subscription, Anthropic API, OpenAI API, or Codex subscription, depending on the chosen path; the automatic request uses Anthropic API only | The older bulk run measured about $0.064 to $0.072 per bill, about $730 for 10,471 bills at list price or about $365 through the half-price batch path. Those figures do not approve the new automatic path; its per-bill and monthly limits must be measured and approved before its switch changes from `false` |
 | Build or replace a bill's search index (`alethical/pipeline/rag_ingest.py`, `scripts/backfill_rag_bulk.py`, or a queued RAG worker) | A person starts or queues an ingest, or a checked official bill-text change reaches the scheduled refresh | OpenAI embeddings | About $0.001 per bill in the measured run, or about $10 for 10,500 bills |
+| Run the private relationship search comparison (`scripts/graph_retrieval_eval.py`) | A person starts the command | Database export and comparison are read-only; only `embed --execute` makes 1 bounded OpenAI embedding request | Dry run by default; cached question vectors avoid repeat calls; no answer-writing call |
 | Run AI answer or retrieval evaluations (`scripts/answer_eval.py`, `scripts/retrieval_eval.py`, `scripts/try_queries.py`) | A person starts the command | OpenAI, Anthropic, or Voyage APIs, depending on the mode | Varies by mode; cached results avoid paying again for unchanged work |
 | Diagnose a failed campaign-money collection (`alethical/pipeline/collection_failure_review.py`) | A collection fails with new evidence while the switch below is on | Anthropic API, `claude-opus-5-5` | At most $0.44 a review and $8.80 a month; waiting for approval, below |
 
@@ -179,7 +237,7 @@ on. The last 2 are off by default. No clock-based job above opens either.
 | --- | --- |
 | The review workflow, its issues, redaction, recovery and fallback alert | **Installed and on.** Runs on every completion of a watched collection |
 | The AI reviewer's code and its limits | **Installed, switched off.** No call can be made |
-| The limits, the key and the switch | **Waiting for Eugene's approval** |
+| The limits, the key and the switch | **Waiting for explicit spending and activation approval** |
 
 The worst case for 1 review is what its caps allow: 50,000 input tokens at $4 per
 million ($0.20) plus 12,000 output tokens at $20 per million ($0.24), which is
@@ -204,8 +262,8 @@ console as the outer wall. All but the console limit are constants in
 `alethical/pipeline/collection_failure_review.py`, and each review is counted at its
 $0.44 worst case before it is bought, so a failed step can only overcount.
 
-**To switch it on, once the limits are approved** (Eugene only; this session cannot
-create an API key or a secret):
+**To switch it on, once the limits are approved** (requires the account owner;
+the coding task cannot create an API key or a secret):
 
 1. In Anthropic's console, on the Alethical organisation's API account, create a
    workspace for this reviewer, set its monthly spending limit to $10, and create an

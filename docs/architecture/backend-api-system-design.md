@@ -1,6 +1,6 @@
 # Alethical Backend API System Design
 
-<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/services/independent_spending.py, alethical/api/services/committee_finance.py, alethical/api/services/committee_stated_by_kind.py, alethical/api/services/committee_donor_states.py, alethical/api/services/committee_name_connections.py, alethical/api/services/zip_state_reference.py, scripts/build_zip_state_reference.py, alethical/api/services/legislator_finance.py, alethical/api/services/campaign_finance_payments.py, alethical/api/services/campaign_finance_register.py, alethical/api/services/campaign_finance_search.py, alethical/api/services/lobbying.py, alethical/api/auth.py, alethical/api/services/auth.py -->
+<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/services/independent_spending.py, alethical/api/services/committee_finance.py, alethical/api/services/committee_stated_by_kind.py, alethical/api/services/committee_donor_states.py, alethical/api/services/committee_name_connections.py, alethical/api/services/zip_state_reference.py, scripts/build_zip_state_reference.py, alethical/api/services/legislator_finance.py, alethical/api/services/campaign_finance_payments.py, alethical/api/services/campaign_finance_register.py, alethical/api/services/campaign_finance_search.py, alethical/api/services/lobbying.py, alethical/api/auth.py, alethical/api/services/auth.py, alethical/api/services/tv_ads.py, alethical/api/services/tv_ad_review.py, alethical/api/tv_ad_schemas.py -->
 
 Status: **design reference, not an inventory of what exists.** Much of this document is the
 target shape rather than the shipped API, so every unbuilt endpoint is marked **NOT BUILT**
@@ -1316,9 +1316,14 @@ approximation as the period. Almost every Minnesota report runs from
 1 January and a special-election filer's does not — filer 19223 reports from 11 July 2025 — so
 no surface may hardcode 1 January either. `fetched_at` is when the published payment
 files were copied. Both the committee and legislator finance responses also carry
-`filings_copied_at`, a nullable ISO timestamp from the published
-`cf_filing_current` → `cf_filing_snapshot.fetch_completed_at`. It names when the
-Board's report totals were copied, not report receipt, period coverage or publication.
+`filings_copied_at`, a nullable ISO timestamp for the displayed committee-year.
+The resolver uses that filing row’s `captured_at`, then the filer’s retained copy
+time or the published snapshot’s fetch time when no row-specific time is held.
+Legislator responses carry the exact date on each `committees[]` entry and supply
+a shared top-level date only when all displayed timestamps agree. The UI may share
+a visible Minnesota calendar date when those days agree; otherwise dates stay
+beside their own committees. These date source copying, not receipt, coverage or
+publication. A newer snapshot never refreshes an older retained record’s date.
 
 `filing_schedule` describes the selected committee-year. Published candidate calendars
 cover 2015–2026, with each year's actual office scope preserved. Historical
@@ -2145,6 +2150,16 @@ Pinned location request body:
 }
 ```
 
+Chosen suggestion request body, for a choice marked `requires_location_check`:
+
+```json
+{
+  "selected_address": "350 5th Street South, Minneapolis, MN 55415",
+  "latitude": 44.9774,
+  "longitude": -93.2657
+}
+```
+
 Response:
 
 - normalized place
@@ -2162,8 +2177,12 @@ Rationale:
 - the parser ignores commas, periods, repeated spaces, common street abbreviations, and full street endings found in Minnesota's official address list; `St`, `Mt`, and `Ft` city forms are normalized for ranking
 - if Census finds nothing or stays unavailable, the backend asks Minnesota's public statewide address-point list using only the exact house number and street name; it tries an exact street first, then allows 1 added, missing, changed, or swapped character only in a word with at least 5 characters
 - exact ZIP and close city matches rank official results, while the supplied street type and direction break remaining ties; equally close addresses become choices, and an incomplete state result list is refused rather than guessed
+- an exact state answer that reports omitted rows is asked again at the service's 2,000-row maximum; if it is still cut short the lookup fails as a source error (`AddressPointsIncomplete`) instead of claiming a unique address
+- rows printing the same address keep every distinct official point (`conflicting_points`); the lookup continues only when every point has the same single House, Senate and congressional answer from the stored maps (a point on a shared border has none), and otherwise returns `404` `representative-lookup-ambiguous-location`; an unreadable district map is a `502` source failure, never a disagreement
+- a `selected_address` request re-reads that printed address from Minnesota's current address points before districts: 1 current point is used even if it moved; several points sharing districts use the one nearest the submitted point; points in different districts return the ambiguous-location answer; a missing, capped or failed check runs the normal address lookup on the printed address, so the submitted point never decides districts
 - House, Senate, and Congress are read from the Minnesota Legislative Coordinating Commission's official 2022 boundary files stored with the backend, including the May 26, 2023 legislative corrections; a person's precise point is not sent to the commission during a lookup
 - single-digit House and Senate numbers from that map are padded before the saved district lookup (`4A`/`4` becomes `04A`/`04`), matching the official records instead of falsely reporting no address match
+- each database round trip adds to every search, so the House and Senate districts are read in 1 query, each member's district, chamber and person are joined into the member query, and both freshness dates are read in 1 query; `test_representative_lookup_reads_the_database_in_few_statements` holds a found lookup to 9 statements
 - the bundled map is refused unless it has all 134 House and 67 Senate district codes and valid shapes; each returned shape must cover the selected point, and the smaller browser copy is made only after that check
 - the browser shares identical requests already in progress and reuses a successful result for 60s; the API still allows 10 lookup requests per public IP in 60s and returns the remaining wait in `Retry-After` when the limit is reached
 
@@ -2185,6 +2204,7 @@ Response:
 
 - up to 5 unique active addresses from Minnesota's official statewide address points
 - the full official address and its latitude and longitude for each choice
+- `requires_location_check`, true when the choice came from the public copy below or its printed address carries more than 1 official point; the same field appears on `address_choices` from a lookup
 
 Rationale:
 
@@ -2192,8 +2212,27 @@ Rationale:
   1 digit for a numbered street
 - the state request contains the house number and street-name prefix, not the city or ZIP;
   supplied city and ZIP text rank the returned choices inside Alethical
-- choosing a suggestion gives the existing representative lookup its official point, so
-  the reader does not need a second click or another geocoding request
+- state and active status are filtered locally to reduce source-query work; if the source
+  reports omitted rows, retry the original state-and-active-filtered query before returning
+  suggestions
+- Census, Minnesota address-point and MyBallot requests share 1 thread-local connection
+  pool (`public_source_session`) without cookies, credentials, environment proxies or
+  saved passwords, including across redirects; each caller keeps its own timeout,
+  redirect and streaming settings, MyBallot redirects stay refused, and no
+  address/query result cache is added
+- choosing an unmarked suggestion gives the existing representative lookup its official
+  point, so the reader does not need a second click or another geocoding request; a
+  marked choice sends `selected_address`, the exact shown text including any typed
+  apartment or ZIP+4, with its point so the server checks current records first; the
+  browser starts that same request early when the reader points at, presses or arrows
+  to the row (at most 2 rows per typed address, shared with the pick, skipped when the
+  browser asks to save data or reports a slow connection)
+- an optional public copy (`alethical/api/services/address_suggestion_index.py`) can
+  answer suggestions without a source request; it is off unless
+  `ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED` is set, refreshes every 12 hours, expires
+  24 hours after its download, and returns nothing (so the live source answers) when
+  missing, expired, damaged, over 5,000 rows or without a usable match; activation is in
+  [deployment.md § Address suggestion copy activation](../operations/deployment.md#address-suggestion-copy-activation)
 - the endpoint has its own 60-requests-per-public-IP-per-60-seconds limit, separate from
   the 10 full representative lookups
 
@@ -2606,6 +2645,34 @@ current accounts. `excluded_accounts` is an independent array of `{id, email}` r
 normal results and totals. Search, filters, and pagination never change this array.
 The same fresh administrator check and `private, no-store` policy apply.
 
+### Private TV ad records and review
+
+`/api/v1/ads/*` serves the administrator reader: access, counts, source dates,
+recent files, browse/search, connections, exact file/folder/agency/station views,
+retained expense evidence, approved copy images and private original page images. `/api/v1/admin/political-ads/*`
+serves the private review queue, original page previews, preparation, target
+inspection, approvals, corrections and withdrawals. Every route requires a fresh
+administrator check; other callers receive 404. Responses, including failures and
+images, use `Cache-Control: private, no-store`.
+
+Reader JSON uses the explicit nested response fields in
+`alethical/api/tv_ad_schemas.py`. Object-store keys, administrator identities and
+review notes never enter browsing responses. Administrator browsing includes held
+original names and machine-read text without requiring publication approval.
+`/ads/files/{key}/source-pages/{page}?version=<hash>` renders the exact held source
+version after the same fresh administrator check, with private, no-store responses.
+Original records carry `copy_status=archive`; extracted agency names carry an
+unchecked flag. Checked facts and connections remain separate approved projections.
+Exact approved-copy image routes still require a version and copy ID; withdrawal
+returns 410 and never silently substitutes a different copy or original. Private
+source access does not change any publication state.
+
+Preparation and approval are separate writes. Approval checks the exact prepared
+fingerprint and required attestations; a connection checks the inspected target’s
+fingerprint. The authenticated server subject supplies the audit actor, never a
+submitted identity. [tv-ad-records-guide.md](../product-onboarding/tv-ad-records-guide.md)
+owns evidence, correction and connection rules.
+
 ## Internal Operations API
 
 These endpoints should not be exposed to public clients.
@@ -2620,6 +2687,9 @@ section originally listed were never built, and two that exist were never listed
 #### `GET /internal/v1/oban/jobs`
 
 Background-job rows. Real, and absent from this doc until the Aug 3 2026 audit.
+If a saved job result cannot be decoded, its `return` field contains
+`{"decode_error": "Stored job result could not be decoded"}`. The decoder's
+exception text is not returned to either the JSON route or HTML dashboard.
 
 #### `GET /internal/v1/oban`
 
@@ -2714,7 +2784,10 @@ Frontend access path:
 
 Economic access:
 
-- one debounced suggestion request after a typing pause, cached for 60s per partial address
+- the first eligible input and edits after idle request suggestions immediately; continuing
+  typing shares 1 trailing request after a 180ms pause
+- at most 8 successful exact inputs are reused for 60 seconds within the mounted field;
+  clearing, submitting, replacing the source or unmounting erases them, with no shared cache
 - one representative lookup after the reader chooses a suggestion or submits a full address
 
 ### 5. Cross-Entity Search

@@ -1659,19 +1659,21 @@ export function rollPassed(result: string): boolean {
 // party. Crossover = a member voting against their OWN party's majority on THAT
 // vote (majority computed per party from the actual votes, never hardcoded).
 
+export type VoteParty = 'DFL' | 'R' | 'I' | 'unknown';
+
 export type MemberVote = {
   legislatorId: string;
   /** Readable profile-URL segment carried through from the roll-call record, so
    *  the member chip links to /legislators/{slug} rather than the UUID. */
   slug?: string;
   name: string;
-  party: 'DFL' | 'R' | 'I';
+  party: VoteParty;
   vote: 'YES' | 'NO' | 'ABSENT';
   crossover: boolean;
 };
 
 export type PartyBlock = {
-  party: 'DFL' | 'R' | 'I';
+  party: VoteParty;
   label: string;
   seats: number;
   yes: number;
@@ -1680,23 +1682,25 @@ export type PartyBlock = {
   members: MemberVote[];
 };
 
-const PARTY_LABEL: Record<'DFL' | 'R' | 'I', string> = {
+const PARTY_LABEL: Record<VoteParty, string> = {
   DFL: 'Democratic-Farmer-Labor',
   R: 'Republican',
   I: 'Independent',
+  unknown: 'Party not recorded',
 };
 
-function normalizeParty(p: string | undefined): 'DFL' | 'R' | 'I' {
-  const c = (p || '').toUpperCase();
+function normalizeParty(p: string | undefined): VoteParty {
+  const c = (p || '').trim().toUpperCase();
   if (c === 'R' || c === 'REPUBLICAN') return 'R';
-  if (c === 'DFL' || c === 'D' || c === 'DEMOCRAT' || c.includes('DEMOCRAT')) return 'DFL';
-  return 'I';
+  if (['DFL', 'D', 'DEMOCRAT', 'DEMOCRATIC', 'DEMOCRATIC-FARMER-LABOR'].includes(c)) return 'DFL';
+  if (c === 'I' || c === 'INDEPENDENT') return 'I';
+  return 'unknown';
 }
 
 // Group per-member votes into party blocks and mark crossovers against each
 // party's own majority. Party + name are carried inline on each roll-call record
 // (the /legislators list doesn't serve party), so no roster join is needed.
-// Returns blocks ordered DFL, Republican, then any Independents (only when non-empty).
+// Returns DFL, Republican, then non-empty Independent and unknown-party blocks.
 export function buildPartyBlocks(votes: IndividualVote[]): PartyBlock[] {
   const members: MemberVote[] = votes.map((v) => ({
     legislatorId: v.legislatorId,
@@ -1707,14 +1711,15 @@ export function buildPartyBlocks(votes: IndividualVote[]): PartyBlock[] {
     crossover: false,
   }));
 
-  const parties: Array<'DFL' | 'R' | 'I'> = ['DFL', 'R', 'I'];
+  const parties: VoteParty[] = ['DFL', 'R', 'I', 'unknown'];
   const blocks: PartyBlock[] = parties.map((party) => {
     const mem = members.filter((m) => m.party === party);
     const yes = mem.filter((m) => m.vote === 'YES').length;
     const no = mem.filter((m) => m.vote === 'NO').length;
     const absent = mem.filter((m) => m.vote === 'ABSENT').length;
-    // Majority side among this party's *voting* members; ties → no crossover flags.
-    const majority: 'YES' | 'NO' | null = yes > no ? 'YES' : no > yes ? 'NO' : null;
+    // Unknown members do not form a known party; ties also have no majority.
+    const majority: 'YES' | 'NO' | null =
+      party === 'unknown' ? null : yes > no ? 'YES' : no > yes ? 'NO' : null;
     mem.forEach((m) => {
       if (majority && (m.vote === 'YES' || m.vote === 'NO') && m.vote !== majority) {
         m.crossover = true;
@@ -1731,8 +1736,8 @@ export function buildPartyBlocks(votes: IndividualVote[]): PartyBlock[] {
     };
   });
 
-  // DFL + Republican always shown when present; Independents only when non-empty.
-  return blocks.filter((b) => (b.party === 'I' ? b.seats > 0 : true));
+  // Keep the existing major-party rows; other groups appear only with records.
+  return blocks.filter((b) => b.party === 'DFL' || b.party === 'R' || b.seats > 0);
 }
 
 // Dev-only sum-check (spec §Validation guard): each block's Yes+No+absent must

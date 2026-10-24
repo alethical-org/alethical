@@ -4,13 +4,16 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, Header
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 from supabase_auth.errors import AuthApiError, AuthInvalidJwtError
 
 from alethical.api.auth import get_auth_service
 from alethical.api.problems import problem_exception
-from alethical.api.services.admin_access import ADMIN_EMAILS, configured_admin_subjects
+from alethical.api.services.admin_access import (
+    ADMIN_EMAILS,
+    administrator_subject_access,
+    configured_admin_subjects,
+)
 from alethical.api.services.admin_accounts import (
     load_account_inventory,
     search_reader_accounts,
@@ -78,28 +81,13 @@ def administrator_access(
     ):
         return False
     try:
-        active = db.scalar(
-            text("""
-            SELECT true FROM auth.users u
-            WHERE u.id = CAST(:subject AS uuid)
-              AND u.deleted_at IS NULL AND NOT u.is_anonymous
-              AND u.email_confirmed_at IS NOT NULL
-              AND lower(u.email) = :email
-              AND (u.banned_until IS NULL OR u.banned_until <= CURRENT_TIMESTAMP)
-              AND NOT EXISTS (
-                SELECT 1 FROM public.auth_identity a
-                JOIN public.user_account p ON p.id = a.user_id
-                WHERE a.provider = 'supabase' AND a.provider_subject = u.id::text
-                  AND NOT p.is_active
-              )
-            """),
-            {"subject": principal.provider_subject, "email": confirmed.email.lower()},
+        return administrator_subject_access(
+            db, principal.provider_subject, expected_email=confirmed.email
         )
     except Exception:
         raise problem_exception(
             503, "Service Unavailable", "Account access is temporarily unavailable."
         ) from None
-    return active is True
 
 
 def require_admin(is_admin: bool = Depends(administrator_access)) -> None:

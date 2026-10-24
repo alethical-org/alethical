@@ -13,12 +13,11 @@ than only by pasting an address, and a name that got paid opens every payment fi
 that exact spelling
 ([#1780](https://github.com/alethical-org/alethical/issues/1780)). Our own signed research
 lives one level up, on the `/blog` page, which the money landing points at. The `/blog`
-page lists 6 long-form pieces (1 Research piece and 5 Guides) and 3 Short posts:
-“2 records do not always mean 2 donations” at
-`/blog/research/2-records-not-always-2-donations`, “Political donors appearing in both
-parties’ Minnesota caucus records” at `/blog/research/organizations-both-parties`,
-and “What Minnesota’s records show about lobbyist contributions, 2015–2026” at
-`/blog/research/lobbyist-giving`.
+page lists 6 long-form pieces (1 Research piece and 5 Guides) and the newest 3 Short
+posts. The full Short post collection at `/blog/short-posts` also retains older
+articles. The newest article, “3 Realtor PACs. 12 shared campaigns.”, is at
+`/blog/research/realtor-pacs-shared-candidates`. It separates Florida candidate
+payments from national dues-funded election spending and brokerage membership rules.
 
 Lobbying is available at `/money/lobbying`, with the copied lobbyist list, represented
 organisations and yearly spending. The earlier lobbying-under-development strip is removed
@@ -100,6 +99,17 @@ the page reads them with the same code it uses for records it fetches itself, an
 arrives whole, so a figure and the freshness date beside it always come from one reading of
 the files. If any of it is missing or unreadable the page just asks for the records itself.
 
+## Administrator-only TV records
+
+Approved administrators also see a 7th card, **TV ad records**, after Lobbying,
+linking to `/money/ads`. Its station-file count loads independently and never
+substitutes zero for a failed read. `/money/search` adds a separate TV result group;
+committee, outside-spender and race views add their own checked connections.
+Payment-name views for vendors offer exact printed-name records or a name search,
+not an identity claim. These additions occupy no space for other readers and do
+not change campaign-money totals, public snapshots or shared previews.
+[tv-ad-records-guide.md](tv-ad-records-guide.md) owns their source and review rules.
+
 ## The landing page (`/money`)
 
 The heading, browser title and shared-link title name this destination **Money in
@@ -119,7 +129,7 @@ Top to bottom:
    Clicking inside the drawn field focuses it; arrival never does. Matching accepts
    partial names without guessing spelling corrections. A short query reaches the
    results page, which explains its 3-character minimum.
-3. **6 navigation cards**, in this order: Legislators, Committees, Who got paid,
+3. **6 public navigation cards**, in this order: Legislators, Committees, Who got paid,
    Money by race, Outside spending and Lobbying. Every card opens its named route.
    Legislators opens `/legislators?tab=money`; profiles chosen from that directory open
    Campaign money. The ordinary `/legislators` directory and direct profile addresses
@@ -478,7 +488,7 @@ block the landing and the search carry.
 The whole register of everyone allowed to raise or spend money in Minnesota state politics,
 ordered by the name as filed, A to Z. The address forwarded to `/money` until this shipped.
 
-Above the title, “Money in politics” has a left-pointing arrow and links to `/money`.
+Above the title, **Back to Money in politics** has a left-pointing arrow and links to `/money`.
 The arrow and label are one link, matching the return link on an individual committee’s page.
 
 The line above the rows says which of them this page holds: "Showing 551–600 of 1,603
@@ -572,9 +582,11 @@ register does not hold is not forwarded: that address opens the directory with
 "We couldn't find this office, district or court seat", while the seat address itself
 reports that the page does not exist. Legacy `#house-12a` links continue
 to resolve. Directory search text uses `q`; opening a group clears that search in its new
-address, while Go back restores the earlier office, search and position. Browser Back
-and Forward restore the appropriate view. A fresh shared group's Go back action falls
-back to the directory. Links retain normal new-tab behavior; opening a group moves focus
+address, while **Back to Money by race** names and restores the known directory
+with its earlier office, search and position. A known safe source elsewhere uses that
+page's actual name. Browser Back and Forward restore the appropriate view. A fresh
+shared group uses **Back to Money by race** at the directory with the selected year.
+The visible words, accessible name, copied address and ordinary click agree. Links retain normal new-tab behavior; opening a group moves focus
 to its heading. Committee links retain the selected year.
 
 Each focused group shows every committee in filed-name A–Z order, including closed
@@ -880,7 +892,7 @@ Campaign money, top to bottom:
    shows the in-kind donations and says it holds no official total it can stand behind
    rather than printing a $0 the filing's own Total column contradicts (16 committee-years
    across 2024 to 2026, 11 Sep 2026). The labels are the filing's own words
-   (ruled by Eugene, 11 Sep 2026). Where a summary is used without its chart, a fixed sentence directly under the itemized figure says what it is and states
+   (approved 11 Sep 2026). Where a summary is used without its chart, a fixed sentence directly under the itemized figure says what it is and states
    the naming rule. On most pages it reads exactly:
 
    > Donations where the filing names who gave. Named donors include people, lobbyists,
@@ -1005,8 +1017,26 @@ Campaign money, top to bottom:
    must not call all received payments contributions.
 
    Every page must arrive from the same release before counts, sums, grouping or sorting
-   claim a complete list. Failed reads keep the load-failed words and withhold those
-   figures, never the sentence saying the file names no payments. When every read
+   claim a complete list. A failed first read keeps the load-failed words and withholds
+   those figures, never the sentence saying the file names no payments. A failed recheck
+   retains the last complete chart and list only while the committee, year and pinned
+   summary release remain unchanged. Above those records, the page says “We could not
+   refresh these payments. This is a problem on our side. The last complete payment list
+   is still shown.” and offers
+   **Try again**. The action rechecks the summary and both payment directions; accepted
+   records remain visible while it waits, and repeat activation is disabled until the
+   payment reads finish. Its label and size stay unchanged. A successful empty list
+   replaces old rows; a completed response declaring unavailable clears the retained list and
+   remains a failure, never a claim of no payments. An unavailable later page is an
+   incomplete replacement: keep the prior matching list and never show partial new rows.
+   The committee page’s compact empty-year result follows the same recheck and retry rules.
+   While a previously accepted list is held, omit the shared report-catalogue copy-date
+   line until a complete matching pair returns; the newest incoming-payment response
+   may carry a newer statement catalogue than the statement links still displayed.
+   Changing committee, year or summary
+   release discards the retained view. This first-load versus recheck distinction applies
+   to both committee pages and legislator money tabs through their shared display.
+   [Issue 2540](https://github.com/alethical-org/alethical/issues/2540) records the repair. When every read
    succeeded but the lists and the totals above them came from 2 different copies of the
    records, which happens in the minutes after a new copy is published, the list says
    “Our totals and this payment list were copied from Minnesota’s records at different
@@ -1091,9 +1121,11 @@ Campaign money, top to bottom:
      committee's statements afresh for every report, so a statement is its report and its
      number; a second copy of a statement filed under a later report is kept and shown
      once.
-   - When the tab shows a statement, linked or not, **Minnesota’s report catalogue copied
-     {date}** prints under the payment-file freshness line, 16px in, dating the catalogue
-     copy the statements came from. Filed reports lists neither statements nor notices.
+   - When the tab shows a statement from the complete matching payment lists, linked or
+     not, **Minnesota’s report catalogue copied {date}** prints under the payment-file
+     freshness line, 16px in, dating the catalogue copy the statements came from. While
+     an earlier accepted list is retained, omit this line until a complete matching pair
+     returns, as described above. Filed reports lists neither statements nor notices.
    - The selected donor-kind tab, like the selected section tab above it, prints its
      label in green (`#0f7a45`, weight 700) over the green underline (`#2ed47e`).
 
@@ -1139,12 +1171,17 @@ Campaign money, top to bottom:
      description, and **LOAN**; then its status and **View notice PDF**, whose spoken name
      adds the contributor and the date: “View notice PDF, HEAD, MARTHA M, Aug 6, 2026”.
    - The status is one of 3. A payment row with the same contributor, date and amount,
-     ignoring only letter case and surrounding spaces, gives the link “Also a payment in
+     ignoring only letter case and surrounding spaces, gives the button “Also a payment in
      the list above, under {tab}”, which selects that tab, opens the row and moves focus
      to the payment (instantly under reduced motion). A gift dated after the end of the
      latest report in our copy, where that date is known, prints “Our latest copied report
      covers dates through {date}”. Every other notice prints “We have not linked this
      notice to a payment in our copied records”, which names no cause.
+   - The matched-payment button works with Enter and Space. Its label and arrow use the
+     approved near-black same-screen action treatment; the arrow keeps its shape, gap
+     and final-word wrapping. Its spoken name starts with the complete visible label,
+     then gives the existing contributor/date instruction. Official PDF destinations
+     remain green links.
    - An amended notice shows its latest filing marked **AMENDED**, with “As first filed:
      {value}” beneath it, and “Amended means the committee filed a revised version” under
      the windows.
@@ -1352,8 +1389,10 @@ this year” and **View filed reports**, which opens this committee's Filed repo
 Hide the empty money cards, donor browser and contribution-detail disclosures in this
 state. Keep the independent outside-spending section and “What this record covers”.
 Missing report figures alone never hide available payments. A reported zero, partial
-lists, loading, failure or a release mismatch never qualifies as this empty state.
-Empty-state text uses regular weight 400.
+lists, a first read still loading or failed, or a release mismatch cannot establish this
+empty state. An already accepted empty result stays visible during a failed recheck and
+retry only for the same committee, year and pinned summary release, with the failure
+notice and retry described above. Empty-state text uses regular weight 400.
 
 **The way onward is View filed reports.** Missing-year and closed-empty states never
 guess a useful destination year with “See {year}”. Their link opens the committee's
@@ -1414,7 +1453,7 @@ download, and **they are never added to the ordinary
 payments-out figures anywhere**: 491 of them coincide with a payment in the expenditures file,
 and whether that is one payment filed twice or two that coincide is not established.
 
-The page opens with a back arrow labelled **Money in politics**, linked to `/money`. The bare
+The page opens with a back arrow labelled **Back to Money in politics**, linked to `/money`. The bare
 address is now the complete directory of names in the outside-spending records, rather than an
 overview with shortcuts to other lists. Its browsing state lives in the address:
 `browse=groups|committees`, `year`, `q` and `page`. Missing values mean groups, all years, no
@@ -1482,7 +1521,7 @@ separate spending record for this name”.
    about a candidate we have identified." A confirmation adds one sentence naming the member
    with a link to their campaign money, and changes no figure: the filings never name a person.
 
-The old 3-choice strip is absent from both payment views. Their **Outside spending** link and
+The old 3-choice strip is absent from both payment views. Their **Back to Outside spending** link and
 browser Back return to the browsing choice, year, search, page and name position the reader left
 when that state is available. A directly opened group or committee address returns instead to the
 matching browsing choice and year, with no search and page 1. It never claims another reader's
@@ -1578,7 +1617,14 @@ guides to how state government works". The page's name still exists for a screen
 in the browser tab, on a heading that is there but not drawn; it is taken from the top bar's
 own label, so the 2 cannot end up saying different words.
 
-**Two kinds of writing, in 3 groups: RESEARCH REPORTS, SHORT POSTS, then GUIDES.** Research is
+**Events come first, followed by RESEARCH REPORTS, SHORT POSTS, then GUIDES.**
+The EVENTS group appears when a published event is available. Its shared introduction
+card on `/blog` and `/blog/events` shows the event date without weekday, time or
+“Past event”. The completed Forward Debate card shows “October 15, 2026” and omits
+venue and admission logistics; its article and original announcement retain those
+details. Upcoming-event cards retain useful logistics.
+
+The writing groups hold 2 kinds of writing. Research is
 Alethical's own digging through these records, signed and dated. A guide explains 1 term
 in plain language, concludes nothing, and adds nothing up across members, so it needs no
 part of rule 13's exception. Short post names a focused format, not a third kind or a word
@@ -1593,7 +1639,8 @@ or reading set in this first release
 The order is the order the page is written in, not a styling trick, so what a person sees,
 what a screen reader reads out and what the keyboard reaches are the same order. All visible
 group headings are ordinary level-2 headings, so someone skipping through the page by heading
-meets RESEARCH REPORTS first, then SHORT POSTS when it has a published piece, then GUIDES.
+meets EVENTS first when present, then RESEARCH REPORTS, SHORT POSTS when it has a
+published piece, and GUIDES.
 
 **A group with nothing in it shows no heading and no list.** A heading over nothing reads as
 broken. The spacing belongs to the position rather than to the group, so whichever group comes
@@ -1654,9 +1701,8 @@ That policy made an article's own address and its `/blog` link available on publ
 and put the newest Research piece on `/money`. It also let an unchecked figure reach a
 search result, so checking promptly and correcting an agreed wrong figure mattered.
 A social-derived Short post needs the separate checks and article-specific instruction
-below before publication. Search engines see a published piece the same day (Eugene,
-25 Aug 2026): its address goes into the site map (`/sitemap.xml`) and its page carries no
-instruction to skip it, unless Eugene names a reason to hold that particular piece back.
+below before publication. Search engines see a published piece the same day (25 Aug 2026): its address goes into the site map (`/sitemap.xml`) and its page carries no
+instruction to skip it, unless an explicit decision holds that particular piece back for a stated reason.
 
 The `/blog` page and every piece's page hand their words over in the **very first response
 from the server**, before any of the app's own code runs: `/blog` includes its visible
@@ -1665,7 +1711,7 @@ the numbered lists link to the older Short posts, and each article includes its 
 That puts our own writing on the same
 footing as a bill page, which hands its text over straight away too
 ([#1760](https://github.com/alethical-org/alethical/issues/1760)). This is separate from
-whether a search engine may _list_ a piece, which is still Eugene's per-piece decision
+whether a search engine may _list_ a piece, which still follows the per-piece approval decision
 above: a piece marked to be skipped is served in full and still asks to be skipped.
 
 6 long-form pieces are posted: the research piece "The Money Only Goes One Way" at
@@ -1725,7 +1771,7 @@ and its label reads Research, because rule 13 binds it in full
   because the site is the author, and the "where these numbers come from" block names every
   filing body used. Where a figure comes from records Alethical does not hold, that block
   names those records and the years they cover; the records-through date speaks only for
-  Alethical's own loaded data (Eugene, 20 Aug 2026).
+  Alethical's own loaded data (20 Aug 2026).
 - The publication date is the day the piece posts, in Minnesota time, and it never moves
   afterwards. The records-through date is separate and stays pinned to the records the
   figures were computed from, so a piece read late never looks fresher than its data.
@@ -1840,6 +1886,11 @@ its areas show group sizes. Labels and any needed explanation follow
 the approved organizations draft omits the generic overlap sentence.
 The original social image is temporary working material, not the article's graphic.
 
+Conclusion rows fill the available article or chart width, with the Alethical
+symbol on the left, the bold answer on its own line, and regular supporting
+text beginning immediately below across the available text width. Table row lines end after the real columns and their padding; unused space
+to the right stays blank. These treatments also appear in the first server response.
+
 The sources block links each source and states its coverage and limits. **Records through**
 means the newest covered reporting-period end in cited records Alethical holds, not the
 day Alethical copied them. When only official sources supply the figures, the article
@@ -1868,10 +1919,9 @@ published Short post is included by default in the separately approved
 [editorial comments](editorial-comments-guide.md) feature, tracked in
 [issue 2399](https://github.com/alethical-org/alethical/issues/2399).
 
-The social copy and image Angel gives Eugene do not themselves publish. The coding
+Supplied social copy and images are inputs, not publication approval. The coding
 agent records each claim's source, period, method, coverage, scope, checked result and
-human reviewer, then reconciles factual changes with the article and graphics. Eugene
-reviews the complete article and graphics; each article needs its own publication
+human reviewer, then reconciles factual changes with the article and graphics. Human editorial review covers the complete article and graphics; each article needs its own publication
 instruction after that review. A missing check, unresolved claim, absent chart or
 notice, changed material after approval, or missing instruction blocks publication.
 These extra checks apply to social-derived Short posts, not retroactively to the 6

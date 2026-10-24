@@ -12,6 +12,7 @@ export function AppFailureDialog({ onClose }: { onClose: () => void }) {
   return (
     <dialog
       ref={dialog}
+      data-event-global-feedback="dialog"
       aria-label="Sign-in unavailable"
       onCancel={(event) => {
         event.preventDefault();

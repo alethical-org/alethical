@@ -192,7 +192,7 @@ def main() -> int:
     print(summary(run))
     # A committee-year whose figures disagree exits 0. That is a finding to display, not
     # a failure to stop a pipeline with, and exiting non-zero on it would invite exactly
-    # the release-wide refusal Eugene ruled against on 12 Aug 2026.
+    # the release-wide refusal excluded by the 12 Aug 2026 decision.
     return 0
 
 

@@ -143,7 +143,8 @@ describe('administrator menu visibility', () => {
       'User Accounts',
       'Site Metrics',
       'Operations',
-      'Candidate requests',
+      'Profile claim requests',
+      'Review TV ad records',
     ]);
     act(() => root.unmount());
     auth.access = 'denied';

@@ -147,10 +147,10 @@ export async function runReaderChecks(options) {
         );
       } while (true);
       await expect(page).toHaveTitle(/Alethical/);
-      await expect(page.getByRole('link', { name: /Bills and votes/ })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Search bills', exact: true })).toBeVisible();
     });
     await check('home-link-opens-bills', async () => {
-      await page.getByRole('link', { name: /Bills and votes/ }).click();
+      await page.getByRole('link', { name: 'Search bills', exact: true }).click();
       await expect(page).toHaveURL(
         new RegExp(`${base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/bills$`),
       );
@@ -240,7 +240,7 @@ export async function runReaderChecks(options) {
       activeCheck = 'research-article-has-title-and-return-link';
       await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
       const returnLink = page
-        .getByRole('link', { name: /^(Back to Blog|All research reports)$/ })
+        .getByRole('link', { name: 'Back to Research reports', exact: true })
         .first();
       await expect(returnLink).toBeVisible();
       await returnLink.click();

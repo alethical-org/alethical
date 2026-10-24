@@ -101,8 +101,14 @@ subprocess authenticated with a personal OAuth token (§4); a production API ser
 can neither spawn a subprocess per request nor hold one person's login. So the rule to
 remember is not "generation → subscription" but **"generation *in a batch job* →
 subscription; generation *in a request* → API."** These two are also the only AI jobs
-whose cost **recurs with traffic** rather than being paid once per bill, which is why
-a per-answer price rise multiplies in a way an enrichment re-run never does.
+whose cost **recurs with use** rather than being paid once per bill, which is why
+a per-answer price rise multiplies in a way an enrichment re-run never does. What
+"use" means today: a reader cannot yet type a question (the typed Ask entry is a
+roadmap item, `grounded-ask-spec.md` §1, Goal); an answer page is reached by choosing one
+of a bill's pre-written suggested questions, and that answer is written once on the
+first choice, saved, and served to every later reader until the bill's text, the
+suggestion or the answer instructions change (`grounded-ask-spec.md` §8 item 2, Answer persistence).
+Signed-in bill chat writes a fresh answer for every message and is never saved.
 
 ## 4. Anatomy of an enrichment run (where the cost actually is)
 

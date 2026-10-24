@@ -37,9 +37,9 @@ const homeSource = readFileSync(
 );
 
 describe('the money card never re-promises a per-row link to a filing', () => {
-  it('says the records are reported to the state', () => {
+  it('describes the records and supported browse paths', () => {
     expect(MONEY_PROMO_BODY).toBe(
-      'Explore Minnesota’s campaign finance and lobbying records, as reported to the state.',
+      'Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.',
     );
   });
 
@@ -86,6 +86,6 @@ describe('the rest of the card', () => {
 
   it('keeps the heading and the call to action verbatim', () => {
     expect(MONEY_PROMO_HEADING).toBe('Follow the money');
-    expect(MONEY_PROMO_CTA).toBe('Money in politics');
+    expect(MONEY_PROMO_CTA).toBe('Search the money records');
   });
 });

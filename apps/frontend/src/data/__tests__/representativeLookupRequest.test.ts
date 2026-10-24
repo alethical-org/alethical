@@ -40,6 +40,52 @@ afterEach(() => {
   vi.resetModules();
 });
 
+describe('lookupRepresentativeFromApi chosen addresses', () => {
+  it('sends a chosen address with its point so the server checks it first', async () => {
+    const fetch = vi.fn().mockImplementation(() => Promise.resolve(successfulResponse()));
+    const lookup = await loadLookup(fetch);
+
+    await lookup({
+      selectedAddress: '350 S 5th St, Minneapolis, MN 55415',
+      latitude: 44.976,
+      longitude: -93.266,
+    });
+    await lookup({ latitude: 44.976, longitude: -93.266 });
+
+    expect(fetch.mock.calls.map(([, init]) => JSON.parse(init.body))).toEqual([
+      {
+        selected_address: '350 S 5th St, Minneapolis, MN 55415',
+        latitude: 44.976,
+        longitude: -93.266,
+      },
+      { latitude: 44.976, longitude: -93.266 },
+    ]);
+  });
+
+  it('keeps the check mark on a returned address choice', async () => {
+    const body = structuredClone(responseBody);
+    Object.assign(body.data.address_choices[0], { requires_location_check: true });
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    const lookup = await loadLookup(fetch);
+
+    const result = await lookup('350 S 5th St, Minneapolis, MN 55415');
+
+    expect(result?.choices).toEqual([
+      {
+        matchedAddress: '350 S 5TH ST, MINNEAPOLIS, MN 55415',
+        latitude: 44.976,
+        longitude: -93.266,
+        requiresLocationCheck: true,
+      },
+    ]);
+  });
+});
+
 describe('lookupRepresentativeFromApi request reuse', () => {
   it('shares an identical request that is already running', async () => {
     let finishRequest: ((response: Response) => void) | undefined;

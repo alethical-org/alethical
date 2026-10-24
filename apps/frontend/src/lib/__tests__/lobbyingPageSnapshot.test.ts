@@ -17,6 +17,28 @@ import type {
 } from '../lobbyingTypes';
 
 describe('lobbying before the app starts', () => {
+  it('names both fixed directory returns in the first response', () => {
+    for (const [kind, data] of [
+      ['lobbyists', live.lobbyists_page_2],
+      ['principals', live.principals_page_2],
+    ] as const) {
+      const snapshot = lobbyingDirectorySnapshot(
+        data as LobbyingLobbyistsPage | LobbyingPrincipalsPage,
+        kind,
+        2,
+      );
+      expect(snapshot.links).toContainEqual({ label: 'Back to Lobbying', href: '/money/lobbying' });
+    }
+  });
+  it('keeps the fixed return on both record types beside their source and browse links', () => {
+    for (const snapshot of [
+      lobbyingPrincipalSnapshot(live.principal as LobbyingPrincipal),
+      lobbyingLobbyistSnapshot(live.kozak as LobbyingLobbyist),
+    ]) {
+      expect(snapshot.links).toContainEqual({ label: 'Back to Lobbying', href: '/money/lobbying' });
+      expect(snapshot.links.length).toBeGreaterThan(1);
+    }
+  });
   it('rejects non-positive and unsafe record numbers before starting a read', () => {
     expect(lobbyingRecordNumberFromSlug('kozak-andrew-141')).toBe('141');
     expect(lobbyingRecordNumberFromSlug('unlisted-0')).toBeNull();
@@ -60,7 +82,7 @@ describe('lobbying before the app starts', () => {
         label: 'View Minnesota’s lobbying source files',
         href: 'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/',
       },
-      { label: 'Money in politics', href: '/money' },
+      { label: 'Back to Money in politics', href: '/money' },
     ]);
     const html = renderPageSnapshot(snapshot);
     expect(html).toContain('/money/lobbying/lobbyists');
@@ -130,7 +152,7 @@ describe('lobbying before the app starts', () => {
     const html = renderPageSnapshot(snapshot);
     expect(html).toContain('American Express');
     expect(html).toContain('$0');
-    expect(html).toContain('LOBBYING PRINCIPAL · ENTITY ID 2263');
+    expect(html).toContain('Lobbying principal profile · Entity ID 2263');
     expect(html).toContain('Reported amounts may be rounded. $0 is the value in the Board’s file.');
     expect(snapshot.links).toContainEqual({
       label: "View the Board's Lobbying Organizations Search Tool",

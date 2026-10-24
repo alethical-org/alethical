@@ -2,10 +2,10 @@
 
 ## Authorization and finish
 
-Eugene first requested an assessment of the September 8-15 GitHub alert email,
-then authorized: "Perform all the necessary fixes. Don't stop to present approach
-first. Only stop if the optimal model is not Astra Extra High So I can change it."
-The task owns fixes, prevention, tests, independent review, merge, deployment,
+The approved scope covers assessment and repair of the September 8–15 GitHub
+security alerts without a separate approach-approval stage. Work may proceed at
+Astra Extra High; a different optimal model setting requires approval before
+continuing. The task owns fixes, prevention, tests, independent review, merge, deployment,
 live checks, and a fresh GitHub alert count. No production data replacement or
 paid service is needed.
 

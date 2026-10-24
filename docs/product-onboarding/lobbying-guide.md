@@ -248,6 +248,16 @@ retained and explains its missing amounts. “No matching donation records” an
 “Amount unavailable” never become $0. This approved directory order does not
 rank influence, combine donors or join client spending to donations.
 
+## Profile labels
+
+Loaded lobbyist records show **Lobbyist profile · Registration {number}** above the
+name. Principal records show **Lobbying principal profile · Entity ID {id}**;
+this does not guess whether the principal is a person or an organisation. Source
+text uses sentence case, with capitals applied visually. Both labels follow the
+shared profile treatment in [design-principles.md](../design/design-principles.md).
+The label wraps between words, keeping the middle dot with the preceding text and
+the identifier phrase together. Loading and unavailable states omit the label.
+
 ## The principal address
 
 The page defines a principal as a person or organisation that funds lobbying and must
@@ -287,6 +297,12 @@ not claim an empty list.
 At phone widths, Share sits below the copied-date line so the title, definition and date
 each use the full content width. At tablet and computer widths, Share stays beside the
 heading block.
+
+Approved administrators also see **TV ad records** after a principal’s ordinary
+records. Connections use the exact Board entity ID and retain a checked printed
+role when supplied. With no checked connection, a name-search invitation does not
+establish identity. Other readers see no TV group; spending totals and public
+snapshots remain unchanged. See [tv-ad-records-guide.md](tv-ad-records-guide.md).
 
 ## The lobbyist address
 

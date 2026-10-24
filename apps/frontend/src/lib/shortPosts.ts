@@ -27,11 +27,11 @@ export interface ShortPostEvidence {
   kind: 'held-records' | 'official-source';
   /** End of a quantitative source's covered reporting period, not extraction day. */
   period?: ReportingPeriod;
-  /** The real date of a source used by a purely explanatory Guide, when known. */
+  /** The real date of an explanatory source, when known; not a reporting-period end. */
   sourceDatedOn?: string;
   /** A selected download is evidence, not a claim about its overall reporting coverage. */
   downloadSnapshot?: { copiedOn: string; selectedRecords: string };
-  /** A retained notice or identity response whose reporting coverage is not defined. */
+  /** Retained held or official context, such as a notice or policy, without reporting coverage. */
   sourceSnapshot?: { copiedOn: string; selectedRecords: string };
   method: string;
   limitations: string;
@@ -117,7 +117,7 @@ export interface ShortPostEditorial {
   review: {
     editorialApprovedBy: string;
     editorialApprovedAt: string;
-    /** Fingerprint of the complete piece, checks, and graphic inputs Eugene saw. */
+    /** Fingerprint of the complete piece, checks, and graphic inputs covered by final review. */
     eugeneApprovedFingerprint: string;
     eugeneReviewedAt: string;
     /** Each article needs its own explicit instruction, after the complete review. */
@@ -143,6 +143,7 @@ export interface ShortPostEditorial {
 
 export interface ShortPostArticleSnapshotBlock {
   kind: 'heading' | 'paragraph';
+  role?: 'conclusion';
   text: string;
   runs?: readonly ResearchInline[];
   links?: readonly { text: string; href: string }[];
@@ -196,7 +197,11 @@ export function shortPostArticleSnapshotBlocks(
   }
   for (const block of body) {
     if (block.kind === 'heading') blocks.push({ kind: 'heading', text: block.text });
-    else if (block.kind === 'paragraph') blocks.push(snapshotRuns(block.runs));
+    else if (block.kind === 'paragraph')
+      blocks.push({
+        ...snapshotRuns(block.runs),
+        ...(block.role === 'conclusion' ? { role: block.role, runs: block.runs } : {}),
+      });
     else if (block.kind === 'bullets')
       block.items.forEach((runs) => blocks.push(snapshotRuns(runs)));
     else if (block.kind === 'table') {
@@ -227,7 +232,12 @@ export function shortPostArticleSnapshotBlocks(
       if (display.conclusion) {
         blocks.push({
           kind: 'paragraph',
+          role: 'conclusion',
           text: `Conclusion: ${display.conclusion} ${source.limitations}`,
+          runs: [
+            { kind: 'bold', text: `Conclusion: ${display.conclusion}` },
+            { kind: 'text', text: ` ${source.limitations}` },
+          ],
         });
       }
       if (display.sourcePlacement !== 'sources' && !source.url.startsWith('#')) {
@@ -371,7 +381,9 @@ export function shortPostFingerprint(piece: ResearchPiece): string {
   const { review: _review, ...checkedMaterial } = editorial;
   let visibleBlocks: unknown;
   try {
-    visibleBlocks = shortPostArticleSnapshotBlocks(piece).map(({ runs: _runs, ...block }) => block);
+    visibleBlocks = shortPostArticleSnapshotBlocks(piece).map(
+      ({ runs: _runs, role: _role, ...block }) => block,
+    );
   } catch (error) {
     // Invalid inputs must still produce publication errors, never crash the checker.
     visibleBlocks = { renderError: (error as Error).message };
@@ -429,7 +441,7 @@ export function shortPostOriginalContentFingerprint(piece: ResearchPiece): strin
   });
 }
 
-/** Eugene approved these exact existing-word links and related picks on 27 September 2026. */
+/** These exact existing-word links and related picks were approved on 27 September 2026. */
 const APPROVED_LINK_ONLY_REVISIONS: Record<
   string,
   {
@@ -609,12 +621,12 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
       retainedSnapshot &&
       (evidence.period ||
         (evidence.downloadSnapshot && evidence.sourceSnapshot) ||
-        evidence.kind !== 'held-records' ||
+        (evidence.downloadSnapshot && evidence.kind !== 'held-records') ||
         !validDate(retainedSnapshot.copiedOn) ||
         !nonempty(retainedSnapshot.selectedRecords))
     ) {
       errors.push(
-        `evidence ${evidence.id} needs a dated, scoped held download without invented coverage`,
+        `evidence ${evidence.id} needs a dated, scoped source snapshot or held download without invented coverage`,
       );
     }
     if (evidence.sourceDatedOn && !validDate(evidence.sourceDatedOn)) {
@@ -850,7 +862,7 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
     !validInstant(review.eugeneReviewedAt) ||
     Date.parse(review.eugeneReviewedAt) < Date.parse(review.editorialApprovedAt)
   ) {
-    errors.push('Eugene review after editorial approval is missing');
+    errors.push('maintainer review after editorial approval is missing');
   }
   if (
     !validInstant(review.publicationInstructionAt) ||
@@ -906,7 +918,7 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
       Date.parse(revision.eugeneReviewedAt) < Date.parse(revision.editorialApprovedAt) ||
       revision.eugeneApprovedFingerprint !== currentFingerprint
     ) {
-      errors.push('revised article or graphic needs Eugene review of its current contents');
+      errors.push('revised article or graphic needs maintainer review of its current contents');
     }
     if (
       !validInstant(revision.releaseInstructionAt) ||
@@ -915,7 +927,7 @@ export function shortPostPublicationErrors(piece: ResearchPiece): string[] {
       errors.push('revised article needs its own release instruction');
     }
   } else if (review.eugeneApprovedFingerprint !== currentFingerprint) {
-    errors.push('article or graphic inputs changed after Eugene review');
+    errors.push('article or graphic inputs changed after maintainer review');
   }
   return errors;
 }

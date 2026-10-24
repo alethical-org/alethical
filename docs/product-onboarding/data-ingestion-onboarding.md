@@ -26,9 +26,14 @@ credential exists, and it is a different kind: campaign finance needs **no key t
 fetch** and Storage credentials to **keep** what it fetched, because the Board keeps
 no archive and our copy is the only record of what it published on a given date
 (section **H**).
-Everything is orchestrated through an **Oban (Postgres-backed) job queue driven
-from a CLI** — **nothing ingests on a schedule; a human runs the pipeline**. All
-batch ingestion is **dry-run by default** and **idempotent**. Scheduled jobs do
+The separate private FCC archive uses a direct command rather than Oban. Its local
+collection command writes unless `--dry-run` is supplied. Its GitHub workflow
+checks KSTP-TV, KARE and KMSP-TV daily at 06:23 UTC; a manual start defaults to a dry run. See [FCC collection instructions](../implementation/fcc-political-files.md)
+for station addresses, setup, repeat runs, storage, recovery and known limits.
+
+The legislative pipeline is orchestrated through an **Oban (Postgres-backed) job queue driven
+from a CLI** — **nothing ingests on a schedule; a human runs the pipeline**. That
+legislative batch pipeline is **dry-run by default** and **idempotent**. Scheduled jobs do
 exist beside it (`.github/workflows/`) and **none of them ingests**: they check for
 gaps a human run left behind, and one copies stored files to a second place
 (section **H**).
@@ -143,6 +148,7 @@ specifically the ingestion that _builds the retrieval corpus_ those depend on.
 | H   | Campaign finance (money in and out)      | MN Campaign Finance Board data downloads                                               | HTTP `GET`, 3 whole CSV files              | none to fetch; storage credentials to keep the files | [campaign_finance.py](../../alethical/pipeline/campaign_finance.py), [raw_file_store.py](../../alethical/pipeline/raw_file_store.py) |
 | H2  | What each committee itself reported, and Minnesota's registered-filer list | MN Campaign Finance Board per-filer services (undocumented) | HTTP `POST`, JSON — and money inside an HTML table inside JSON | none to fetch; storage credentials to keep the responses | [campaign_finance_filings.py](../../alethical/pipeline/campaign_finance_filings.py) |
 | H3  | Lobbying (what each principal spent per year) | MN Campaign Finance Board lobbying data downloads | HTTP `GET`, 1 whole CSV file | none to fetch; storage credentials to keep the file | [lobbying_expenditures.py](../../alethical/pipeline/lobbying_expenditures.py) |
+| H4 | TV political advertising files | FCC station political folders, initially KSTP-TV, KARE and KMSP-TV | HTTP `GET`, folder listings and original served files | none to fetch; private storage credentials to retain and mirror | [fcc_archive.py](../../alethical/pipeline/fcc_archive.py), [FCC political files](../implementation/fcc-political-files.md) |
 
 **Every one of those `GET`s decodes through one helper, and it has to**
 ([http_text.py](../../alethical/pipeline/http_text.py)). Sources A, B and C each
@@ -403,7 +409,12 @@ runs when Census finds nothing or stays unavailable after those retries:
    The house number stays exact. The street first matches exactly, then may differ by 1
    character only in a word with at least 5 characters. Exact ZIP, close city, street
    type, and direction rank the official results; equally close results become choices.
-   The fallback refuses a close match when the state says its result list was cut short.
+   The fallback refuses a close match when the state says its result list was cut short,
+   and an exact answer cut short is asked again at 2,000 rows before it can count as 1
+   address. When the optional public copy is on, suggestions read Minnesota's published
+   address file (`https://operations.gis.data.mn.gov/api/publicdownload/download/497/loc_addresses_open.gpkg`,
+   about 1.06 GB, 2,220,021 rows on 9 October 2026) instead of this service, and a chosen
+   copied suggestion is re-read from this service before districts.
 3. **District:** check the point against the official 2022 House, Senate, and
    congressional boundary files stored with the backend. The local copy contains the
    May 26, 2023 LCC corrections. It must contain all 134 House and 67 Senate district
@@ -411,7 +422,15 @@ runs when Census finds nothing or stays unavailable after those retries:
    Geometry is reduced only for the browser map afterward. No address or coordinate is
    sent to LCC during a lookup.
 
-The browser waits 300ms after typing stops and reuses each suggestion result for 60s.
+The shared web field starts the first eligible input and edits after an idle period
+immediately, then waits 180ms after continuing typing stops. It reuses at most 8
+successful exact inputs for 60 seconds within that mounted field only; clearing,
+submitting, replacing the source or unmounting erases them. There is no shared
+suggestion cache. State and active status are checked locally; if the state source
+reports omitted rows, suggestions retry the original state-and-active-filtered query.
+Minnesota address-point requests reuse thread-local connections that reject cookies
+and strip credentials, including redirects; they retain no address/query results.
+Census transport and full address validation are unchanged.
 Suggestions have their own 60-request-per-source-address limit, separate from the full
 lookup. The browser also shares identical lookups already in progress and reuses a
 successful result for 60s. The full-lookup endpoint still allows 10 requests per source address in 60s.
@@ -442,7 +461,11 @@ fingerprint). Full reasoning:
 §4 (Ingestion: snapshot and replace).
 
 **It runs every day without anyone.** `.github/workflows/campaign-money-refresh.yml`
-runs `scripts/refresh_campaign_finance.py` at 15:30 UTC daily and on a button press.
+runs `scripts/refresh_campaign_finance.py` at 15:30 UTC daily and, by default, on a
+button press. The manual `clear_pending_only` option is a scoped exception: it
+retries saved-page clearing without collection, publication or rechecks, as described
+in [Retry pending money-page clearing](../operations/jobs-and-scripts.md#retry-pending-money-page-clearing).
+The normal refresh follows the steps below.
 It takes 1 run-wide lease in the database (a row with a 4-hour expiry, shared with a
 hand-started run and with both hand-run loader commands below, so 2 starts produce 1
 run and a run whose lease another has taken does not publish), retries any saved-page
@@ -564,7 +587,7 @@ just check-campaign-finance-stated-split production false 2025
 
 Five things about it that are not obvious:
 
-- **It never blocks a release.** Eugene ruled on 12 Aug 2026 that where 2 of
+- **It never blocks a release.** The 12 Aug 2026 decision is that where 2 of
   Minnesota's own publications disagree and we cannot derive the truth, we show both
   figures and say plainly that they disagree. So it answers per committee-year: one
   committee whose figures contradict each other withholds its own split while every
@@ -1074,6 +1097,26 @@ not a property of the source. And 48 of its 17,842 rows carry no amounts at all:
 blank money lands as NULL ("not reported"), never as 0, while `.0000` is the file's
 explicit zero and stays one.
 
+### H4: FCC political advertising evidence
+
+The private FCC archive retains all available political folders for each selected
+station, including listings with missing downloads. It preserves source versions,
+reads PDF pages with local tools and stores draft facts with page quotations.
+Orders, invoices, credits and evidence of payment remain separate. The station
+hosting a file is not proof that every billed spot aired on that station.
+
+Run `uv run python scripts/fcc_political_files.py collect --target prod --dry-run`
+to inspect the collection plan. Collection, text reading, backup and search are
+separate restartable commands. The daily GitHub workflow runs bounded collection,
+backup and text-reading batches through `refresh`, with no paid AI service.
+An administrator-only reader and separate preparation/review flow use these saved
+versions; public access remains on hold. Preparation never approves a copy or
+changes the original. [tv-ad-records-guide.md](tv-ad-records-guide.md) owns this
+private review and reader boundary. The
+[FCC political-file implementation and operator instructions](../implementation/fcc-political-files.md)
+own the commands, bounds, source gaps and acceptance evidence. This archive uses
+its own tables and does not change published campaign expense totals.
+
 ## E & F: the credentialed AI sources (Anthropic and OpenAI)
 
 **E. AI bill summaries.** Every production summary currently comes from Anthropic
@@ -1253,7 +1296,8 @@ just pipeline local --write --allow-writes     # commit after review
   [`.env.example`](../../.env.example) for every variable, grouped by source, and
   [`CONTRIBUTING.md`](../../CONTRIBUTING.md) for setup.
 - **System deps:** `uv`, Postgres **with pgvector**, and **`pdftotext`
-  (poppler-utils)** for Senate votes; the `codex` CLI only for the Codex backend.
+  (poppler-utils)** for Senate votes, plus **`pdftoppm`** from the same package for
+  administrator TV page preparation; the `codex` CLI only for the Codex backend.
 
 ## Gotchas
 

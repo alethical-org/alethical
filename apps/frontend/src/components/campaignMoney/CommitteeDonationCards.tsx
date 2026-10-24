@@ -657,7 +657,7 @@ function FiledLines({
 }
 
 /** The bar's fixed order: Minnesota, Other states, Unknown. Three hues rather than one
- *  neutral at 3 lightnesses, at Eugene's instruction of 19 Sep 2026. Measured relative
+ *  neutral at 3 lightnesses, under the 19 Sep 2026 design decision. Measured relative
  *  luminance: each clears 3:1 against white (5.40, 5.17 and 4.06), which the outlined
  *  zero swatch needs, but the green and the blue separate by only 1.04:1 from each
  *  other, so in greyscale they are all but the same. How they read under the various

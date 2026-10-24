@@ -8,7 +8,9 @@ import {
 
 import {
   currentWebHistoryEntry,
+  initializeWebHistory,
   readCurrentScrollPosition,
+  readSavedCurrentScrollPosition,
   saveCurrentScrollPosition,
   type AppHistoryEntry,
 } from '../navigation/webHistory';
@@ -17,14 +19,38 @@ function visibleScroller(node: HTMLElement | null): node is HTMLElement {
   return Boolean(node?.isConnected && node.getClientRects().length);
 }
 
+function fragmentPosition(node: HTMLElement): number | null {
+  if (!window.location.hash) return null;
+  let heading: HTMLElement | null = null;
+  try {
+    heading = document.getElementById(decodeURIComponent(window.location.hash.slice(1)));
+  } catch {
+    return null;
+  }
+  if (!heading || !node.contains(heading)) return null;
+  return Math.max(
+    0,
+    node.scrollTop +
+      heading.getBoundingClientRect().top -
+      node.getBoundingClientRect().top -
+      (parseFloat(window.getComputedStyle(heading).scrollMarginTop) || 0),
+  );
+}
+
 /**
  * Saves a page's inner ScrollView position on its exact browser-history entry,
  * then restores it when Back returns to that entry. Search filters and page
  * numbers already live in the URL; this supplies the remaining "same place"
  * part of browser Back for React Native Web's nested scroller.
  */
-export function useHistoryScrollRestoration(ready = true, contentKey?: string) {
+export function useHistoryScrollRestoration(
+  ready = true,
+  contentKey?: string,
+  initialFragment = false,
+  contentPath?: string,
+) {
   const scrollRef = useRef<ScrollView | null>(null);
+  const lastScrollNode = useRef<HTMLElement | null>(null);
   const previousContentKey = useRef(contentKey);
   // React Navigation draws the destination screen before RootNavigator adds its
   // browser-history entry. Reading here during render therefore reads the page
@@ -60,11 +86,13 @@ export function useHistoryScrollRestoration(ready = true, contentKey?: string) {
     if (!visibleScroller(node) || !ownsCurrentEntry()) {
       return;
     }
-    const target = targetRef.current ?? readCurrentScrollPosition();
+    let target = targetRef.current ?? readSavedCurrentScrollPosition();
+    if (target === null && initialFragment) target = fragmentPosition(node);
+    target ??= readCurrentScrollPosition();
     targetRef.current = target;
     node.scrollTop = target;
     restoredRef.current = Math.abs(node.scrollTop - target) < 2;
-  }, [ready, ownsCurrentEntry]);
+  }, [ready, ownsCurrentEntry, initialFragment]);
 
   const scheduleRestore = useCallback(() => {
     if (
@@ -78,12 +106,58 @@ export function useHistoryScrollRestoration(ready = true, contentKey?: string) {
   }, [restore]);
 
   useEffect(() => {
+    if (!initialFragment || Platform.OS !== 'web' || !ready) return;
+    const path = contentPath ?? window.location.pathname;
+    const adopt = (event: Event) => {
+      const node = scrollRef.current as unknown as HTMLElement | null;
+      if (window.location.pathname !== path || !visibleScroller(node)) return;
+      // Native fragment visits may have no application history state at all.
+      // Give that actual destination an owner before restoring its passage.
+      if (!currentWebHistoryEntry()) initializeWebHistory();
+      const next = currentWebHistoryEntry();
+      const previous = ownerRef.current;
+      const sameEntry =
+        next?.sessionId === previous?.sessionId && next?.entryId === previous?.entryId;
+      ownerRef.current = next;
+      // Native links used before enhancement can clone their history identifier.
+      // Their fragment remains the reliable destination; enhanced entries retain
+      // their separate saved reading positions instead.
+      targetRef.current = event.type === 'popstate' && sameEntry ? fragmentPosition(node) : null;
+      restoredRef.current = false;
+      if (event.type === 'popstate' && window.location.hash) {
+        try {
+          const heading = document.getElementById(
+            decodeURIComponent(window.location.hash.slice(1)),
+          );
+          if (heading && node.contains(heading)) heading.focus({ preventScroll: true });
+        } catch {
+          /* Malformed fragments have no focus destination. */
+        }
+      }
+      scheduleRestore();
+    };
+    window.addEventListener('popstate', adopt);
+    window.addEventListener('alethical-return-context', adopt);
+    return () => {
+      window.removeEventListener('popstate', adopt);
+      window.removeEventListener('alethical-return-context', adopt);
+    };
+  }, [contentPath, initialFragment, ready, scheduleRestore]);
+
+  useEffect(() => {
     if (Platform.OS !== 'web' || typeof requestAnimationFrame === 'undefined') {
       return;
     }
     const frame = requestAnimationFrame(() => {
       const node = scrollRef.current as unknown as HTMLElement | null;
       if (!visibleScroller(node)) return;
+      // A blurred screen can retain this hook while replacing its scroll box.
+      // The replacement still needs the saved position of the returning entry.
+      if (lastScrollNode.current !== node) {
+        lastScrollNode.current = node;
+        targetRef.current = null;
+        restoredRef.current = Platform.OS !== 'web';
+      }
       // Filters can create a new history entry without remounting this screen.
       // Adopt that entry only after navigation has finished and this screen is visible.
       ownerRef.current = currentWebHistoryEntry();

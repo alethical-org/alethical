@@ -36,9 +36,10 @@ It reads required versions from `.python-version`, `docker-compose.yml`, and
 `pre-commit` and `pre-push` files and can run, Docker uses a local connection that
 responds, and `pgvector/pgvector:pg17` is already cached. It reports problems
 without installing helpers, starting Docker, downloading an image, or blocking
-work. Use `just doctor ios` before iPhone work or `just doctor
-android` before Android work to also check Xcode or Java; web work does not need
-either one.
+work. Desktop and phone browsers are the supported clients. Native iOS and Android
+builds are paused; website work does not require Xcode, Java or phone publishing
+tools. [Native restart notes](docs/operations/ios-release.md) preserve the future
+release requirements.
 
 ### Keeping Node 22 beside other Node versions
 
@@ -88,8 +89,9 @@ boundary, and it only covers worktrees created after the hook is installed.
 
 **On a Mac, run `just maintenance-install` once per machine.** It installs
 private backups every 5 minutes and automatic removal of working folders that
-all their owners explicitly release after delivery and acceptance. The existing
-`just install-wip-backup` command installs the same complete setup. The helpers
+all their owners explicitly release for user-requested cleanup after delivery
+and acceptance. Completed tasks keep their working folders for follow-up by
+default. The existing `just install-wip-backup` command installs the same complete setup. The helpers
 run from saved copies outside every working folder, so removing a folder does
 not remove the program that maintains the others. No AI or paid service runs.
 
@@ -129,6 +131,7 @@ needs no configuration. See `.env.example` for what each variable does.
 | `just migrate` | Apply database migrations (`alembic upgrade head`) |
 | `uv run pytest` | Run the backend test suite |
 | `just test-frontend` | Run the frontend test suite (Vitest) |
+| `just push-full` | Upload after running the full backend and frontend suites locally |
 
 The commit hook formats the selected files and includes those results in the
 commit. Before the long tests, the push hook runs GitHub's current security scan
@@ -136,8 +139,10 @@ for every upload, including uploads without dependency changes. A failed scan
 stops the upload. It uses an isolated copy of the exact commit Git intends to
 upload and installs the frozen JavaScript dependencies once without package
 scripts; app tests reuse that installation. The hook prints the scan's elapsed
-time. It then runs the full app or server suite when that area changes. Both suites
-run together when both areas change. Upload tests start a disposable Postgres
+time. It then runs the changed area's quick checks: formatting, types, dependency
+and compatibility checks. The full app and server test suites run on GitHub, whose
+required checks pass before anything merges; `just push-full` uploads after
+running them here too. Full local server tests start a disposable Postgres
 server of their own, not the shared development server on port 54329. Docker must
 be running and its `pgvector/pgvector:pg17` image must already be cached. The normal
 Docker Compose setup downloads that image; the push hook never downloads it and
@@ -151,8 +156,10 @@ and why local checks do not replace GitHub's production build.
 
 Changes made directly through GitHub do not run local Git hooks. That is a supported
 editing route, not a local hook-skip setting. They still need the 4 required GitHub
-checks (`changes`, `backend`, `frontend`, `description-checks`) on current code and
-the merge queue's combined code before merging.
+checks (`changes`, `backend`, `frontend`, `description-checks`) on a branch that
+includes current `main` before merging. The merge queue is off; strict up-to-date
+protection stays on for everyone, including admins. If main moves, update your own
+branch and let its new checks finish before squash auto-merge.
 
 **`just lint` and `just format` pin the same tool versions CI runs** (`ruff@0.15.0`,
 `ty@0.0.72` — see the justfile and `.github/workflows/ci.yml`). If you ever call
@@ -174,6 +181,13 @@ owns the server-identity check, cleanup, and safety limits.
 
 The test runner selects its verified address before importing test modules, so
 application connections, migrations, and seeding use the same temporary server.
+
+GitHub's backend job runs the suite on 6 parallel workers (`pytest-xdist`), each with
+its own copy of the job database (`alethical_gw0` to `alethical_gw5`), made and
+migrated by `scripts/repeat_failure_runs.py run --workers 6` before pytest starts.
+Parallel workers are refused outside GitHub; run locally without `-n`. A test whose
+name holds a random value breaks parallel workers, which must all collect identical
+names, so parametrized tests give fixed `ids`.
 It does not delete databases based on another clone's working-copy list. Existing
 development and old test databases are left alone. Every run pays for fresh
 migrations and sample data instead of reusing an earlier test database.
@@ -181,9 +195,12 @@ migrations and sample data instead of reusing an earlier test database.
 An explicit `ALETHICAL_TEST_DATABASE_URL` override is refused. A remote
 `DATABASE_URL` or non-local `ALETHICAL_DATABASE_TARGET` is also refused before
 startup. Unset those values for local testing; they cannot direct fixture writes
-into an existing server. GitHub Actions uses its fresh, job-owned PostgreSQL
-service on port 5432 without starting another container. Setting `CI=true` on a
-laptop does not enable that exception.
+into an existing server. GitHub Actions starts its fresh, job-owned PostgreSQL
+container on port 5432 before tests. The job pulls the same `pgvector/pgvector:pg17`
+image directly from Google's public Docker Hub cache (`mirror.gcr.io`), then falls back to
+Docker Hub if the image is missing from that cache. This avoids a shared Docker Hub
+download limit when the image is cached. Setting `CI=true` on a laptop does not
+enable the GitHub database exception.
 
 ### Frontend tests
 
@@ -203,8 +220,11 @@ remains separate: agent-driven user stories and Playwright checks in
 `apps/frontend/e2e/` (`just e2e`, Chrome, Firefox, and Safari), owned by the
 [`browser-user-test` skill](.claude/skills/browser-user-test/SKILL.md).
 Those broader browser stories run on demand. The focused public reader subset
-runs in the required frontend CI job against the built website with fixed public
+runs in the `frontend-browser-reader` CI job (part of the required `frontend` check) against
+the built website with fixed public
 records, and against the live website after main releases.
+The same CI job exercises `/services` printing, including generated first-response
+HTML with JavaScript disabled, and retains the resulting Letter and A4 PDFs.
 [Reader completion checks](docs/operations/reader-completion-checks.md) owns its
 scope, read-only safety guards and saved commit evidence.
 
@@ -249,8 +269,9 @@ ten bullets of shape at the top, then the numbered rules. The short version:
    automatically; fill in the template's **`Closes #<issue>`** line so the issue
    closes on merge (no issue? delete the line and say why in "What").
 4. **Merge** once the checks pass on the current head (squash-merge keeps `main` to
-   one commit per topic), then finish deployment checks and acceptance. Release
-   the working folder only when every owner is finished and no preview needs it:
+   one commit per topic), then finish deployment checks and acceptance. Keep the
+   working folder and local branch for follow-up, with no automatic expiry. Release
+   only when Eugene requests cleanup, every owner is finished and no preview needs it:
    `just worktree-rm <branch> <owner-id> '<delivery evidence>'`. Cleanup keeps the
    branch and a private recovery copy. Use the Codex app's archive control for
    its managed working folders instead.
@@ -268,6 +289,7 @@ On every PR (`.github/workflows/ci.yml`):
 
 - **Failure-prevention evidence** (always): history-tool tests, retained source/test references, named-result checker tests, and native process-cleanup tests run without browser or paid-service calls. When the backend suite runs, its captured test results must include every registered money-prevention case and match the exact tested code. Full address-recovery browser journeys remain on demand.
 - **Working-folder safety** (always): `python3 -m unittest discover -s scripts/tests -p 'test_worktree_*.py'` exercises backup, cleanup, recovery, and installation in disposable folders, without production data or network services.
+- **Docs-tree tests** (always): the tests that read the whole docs tree (`scripts/tests/docs_tree`, such as the describes-declaration and quoted-claim checks) run in the `changes` job without a database, so a docs-only change does not run the backend suite. Their results must be exactly the collected tests, each passed.
 - **Backend** (when backend paths change): `ruff check`, `ty check`, and `pytest` against a real Postgres
 - **Frontend** (when frontend paths change): `tsc --noEmit`, `prettier --check`, the Vitest suite, and a production build
 - **Doc references** (always, no path filter): `scripts/check_doc_references.py` confirms every `docs/...` path and every relative link inside `docs/` points at a real file. This one runs on every PR on purpose — a broken doc pointer is usually introduced by a docs-only or rules-only change, which the two jobs above skip. You can run it locally any time with `python scripts/check_doc_references.py`.
@@ -326,6 +348,10 @@ and ignore that schedule entirely.
   Scanner failures and incomplete reports fail the check. The narrow, time-limited
   exceptions are recorded in
   [`docs/operations/technology-health.md`](docs/operations/technology-health.md#recorded-security-exceptions).
+- The recorded Pillow exception requires fresh production evidence. Local checks need
+  `gh` signed in to `github.com`, with permission to start this repository's workflows
+  and read their results. Production access remains in the trusted main-only workflow;
+  no Railway credential is needed locally. Missing access or evidence blocks release.
 - Run `python scripts/check_technology_health.py --security-only` for the same check
   locally, with the project's saved uv and pnpm versions available.
 
@@ -342,7 +368,8 @@ and database migrations can run against production. Treat `main` as production
 and land everything through reviewed PRs.
 
 Since 2026-07-28 this is enforced, not just a convention: `main` requires a PR,
-the 3 `ci.yml` checks, and a branch tested with the current `main`; it also
+the 3 `ci.yml` checks plus `description-checks`, and a branch tested with the
+current `main`; it also
 rejects unresolved review comments, force pushes, deletion, and owner bypasses.
 Approvals are set to **zero**, so you can still merge your own work. Changes to
 sensitive files ask both owners for review through `.github/CODEOWNERS`, but that

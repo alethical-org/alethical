@@ -6,19 +6,23 @@ import { describe, expect, it } from 'vitest';
 import {
   ABOUT_BELIEFS,
   ABOUT_BELIEFS_HEADING,
-  ABOUT_CONTACT_LINK,
   ABOUT_CONTACT_HEADING,
+  ABOUT_CONTACT_LABEL,
+  ABOUT_CORRECTION_CONTACT_HREF,
   ABOUT_CORRECTION_PROMISE,
+  ABOUT_DOES_HEADING,
   ABOUT_EMAIL,
-  ABOUT_FEEDBACK_LABEL,
   ABOUT_PAGE_HEADING,
   ABOUT_PAGE_SUBTITLE,
-  ABOUT_START_ITEMS,
-  ABOUT_START_HEADING,
+  ABOUT_PLATFORM_ITEMS,
+  ABOUT_ROADMAP_HEADING,
+  ABOUT_ROADMAP_ITEMS,
+  ABOUT_SERVICES_ITEM,
   ABOUT_TEAM_HEADING,
   ABOUT_TEAM_MEMBERS,
   ABOUT_WHY_HEADING,
   ABOUT_WHY_LINES,
+  ABOUT_WRITING_ITEMS,
   aboutPageSnapshot,
 } from '../aboutUs';
 import {
@@ -40,43 +44,69 @@ const CONTACT_SCREEN = readFileSync(
 );
 
 describe('the static About and Contact snapshots', () => {
-  it('serves About’s source promise, beliefs, and public starting links from shared copy', () => {
+  it('serves the About page in the order and words the screen draws', () => {
     const snapshot = aboutPageSnapshot();
+    const section = (heading: string) =>
+      snapshot.sections?.find((candidate) => candidate.heading === heading);
 
     expect(snapshot.heading).toBe(ABOUT_PAGE_HEADING);
     expect(snapshot.subheading).toBe(ABOUT_PAGE_SUBTITLE);
-    expect(
-      snapshot.sections?.find((section) => section.heading === ABOUT_WHY_HEADING)?.body,
-    ).toEqual(ABOUT_WHY_LINES.map((line) => line.text));
-    expect(
-      snapshot.sections?.find((section) => section.heading === ABOUT_BELIEFS_HEADING)?.items,
-    ).toEqual(ABOUT_BELIEFS.map((belief) => ({ label: belief.beliefTitle, detail: belief.body })));
-    expect(
-      snapshot.sections?.find((section) => section.heading === ABOUT_START_HEADING)?.items,
-    ).toEqual(
-      ABOUT_START_ITEMS.filter((item) => item.destination !== 'track').map((item) => ({
-        label: item.startTitle,
-        detail: item.body,
-        href: item.href,
-      })),
+    expect(snapshot.sections?.map((candidate) => candidate.heading)).toEqual([
+      ABOUT_DOES_HEADING,
+      ABOUT_WHY_HEADING,
+      ABOUT_BELIEFS_HEADING,
+      ABOUT_TEAM_HEADING,
+      ABOUT_ROADMAP_HEADING,
+      ABOUT_CONTACT_HEADING,
+    ]);
+    expect(section(ABOUT_WHY_HEADING)?.body).toEqual([...ABOUT_WHY_LINES]);
+    expect(section(ABOUT_BELIEFS_HEADING)?.items).toEqual(
+      ABOUT_BELIEFS.map((belief) => ({ label: belief.beliefTitle, detail: belief.body })),
     );
-    expect(
-      snapshot.sections?.find((section) => section.heading === ABOUT_TEAM_HEADING)?.items,
-    ).toEqual(
+    expect(section(ABOUT_TEAM_HEADING)?.items).toEqual(
       ABOUT_TEAM_MEMBERS.map((member) => ({
         label: `${member.name}, ${member.title}`,
         detail: member.bio.join(' '),
       })),
     );
-    expect(JSON.stringify(snapshot)).not.toContain('On the roadmap');
-    expect(JSON.stringify(snapshot)).not.toContain('/tracked');
+    expect(section(ABOUT_CONTACT_HEADING)?.body).toEqual([ABOUT_CORRECTION_PROMISE]);
     expect(snapshot.links).toEqual([
-      ABOUT_CONTACT_LINK,
       { label: ABOUT_EMAIL, href: `mailto:${ABOUT_EMAIL}` },
+      { label: ABOUT_CONTACT_LABEL, href: ABOUT_CORRECTION_CONTACT_HREF },
     ]);
-    expect(
-      snapshot.sections?.find((section) => section.heading === ABOUT_CONTACT_HEADING)?.body,
-    ).toEqual([`${ABOUT_FEEDBACK_LABEL} ${ABOUT_EMAIL}`, ABOUT_CORRECTION_PROMISE]);
+  });
+
+  it('serves all 3 offerings as real links, including the signed-out Track path', () => {
+    const blocks = aboutPageSnapshot().sections?.[0].blocks ?? [];
+    const links = blocks.flatMap((block) => (block.kind === 'links' ? block.items : []));
+    const expected = [...ABOUT_PLATFORM_ITEMS, ...ABOUT_WRITING_ITEMS, ABOUT_SERVICES_ITEM];
+
+    expect(links).toEqual(
+      expected.map((item) => ({ label: item.title, detail: item.body, href: item.href })),
+    );
+    expect(links.find((link) => link.href === '/tracked')?.detail).toBe(
+      'Sign in to follow bills and see what changes',
+    );
+  });
+
+  it('serves only unbuilt work on the roadmap, clearly as future, with no link of its own', () => {
+    const roadmap = aboutPageSnapshot().sections?.find(
+      (candidate) => candidate.heading === ABOUT_ROADMAP_HEADING,
+    );
+    const text = JSON.stringify(roadmap);
+
+    expect(ABOUT_ROADMAP_ITEMS).toHaveLength(5);
+    expect(text).not.toContain('Ask AI');
+    expect(text).not.toMatch(/Candidates, campaigns, and money|co-authors/);
+    expect(text).not.toContain('/about/contact');
+  });
+
+  it('states each fact once: no founder list or contact before the team', () => {
+    const snapshot = aboutPageSnapshot();
+    const beforeTeam = JSON.stringify(snapshot.sections?.slice(0, 3));
+    for (const member of ABOUT_TEAM_MEMBERS) expect(beforeTeam).not.toContain(member.name);
+    expect(JSON.stringify(snapshot)).not.toContain('Launched in Minnesota');
+    expect(JSON.stringify(snapshot.sections)).not.toContain(ABOUT_EMAIL);
   });
 
   it('serves Contact’s purpose and direct links without pretending the form works', () => {
@@ -97,22 +127,23 @@ describe('the static About and Contact snapshots', () => {
   it('makes both screens draw the same shared values their snapshots serve', () => {
     for (const name of [
       'ABOUT_PAGE_HEADING',
-      'ABOUT_PAGE_SUBTITLE_LEAD',
-      'ABOUT_PAGE_SOURCE_PROMISE',
+      'ABOUT_PAGE_SUBTITLE',
       'ABOUT_NAME_ORIGIN',
+      'ABOUT_DOES_HEADING',
+      'ABOUT_PLATFORM_ITEMS',
+      'ABOUT_WRITING_ITEMS',
+      'ABOUT_SERVICES_ITEM',
       'ABOUT_WHY_HEADING',
       'ABOUT_WHY_LINES',
       'ABOUT_BELIEFS_HEADING',
       'ABOUT_BELIEFS',
       'ABOUT_TEAM_HEADING',
       'ABOUT_TEAM_MEMBERS',
-      'ABOUT_START_HEADING',
-      'ABOUT_START_ITEMS',
+      'ABOUT_ROADMAP_ITEMS',
+      'ABOUT_ROADMAP_INVITATION',
       'ABOUT_CONTACT_HEADING',
-      'ABOUT_CONTACT_LINK',
       'ABOUT_CORRECTION_PROMISE',
       'ABOUT_EMAIL',
-      'ABOUT_FEEDBACK_LABEL',
     ]) {
       expect(ABOUT_SCREEN).toContain(name);
     }

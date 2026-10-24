@@ -145,6 +145,10 @@ def confirmed_legislator(db: Session, profile: dict, *, today: date) -> dict | N
         area = "House District" if chamber == "house" else "Senate District"
         result["office"] = office
         result["votingArea"] = f"{area} {period.district.code}"
+        if period.start_date:
+            result["startDate"] = period.start_date.isoformat()
+        if period.end_date:
+            result["endDate"] = period.end_date.isoformat()
         result["isReelection"] = (
             service is not None
             and _same_legislative_seat(profile["office"], chamber, period.district.code)

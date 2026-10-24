@@ -70,8 +70,8 @@ import { theme as t } from '../../theme/tokens';
  * content instead.
  *
  * Rule 13 constraints this layout owns:
- * - A research piece's masthead carries the 2 dates and nothing else (Eugene,
- *   20 Aug 2026). The author line, the filing bodies, and the undated-records
+ * - A research piece's masthead carries the 2 dates and nothing else (20 Aug 2026).
+ *   The author line, the filing bodies, and the undated-records
  *   note were removed from it; the sources block still names every filing body
  *   and the years each set of outside records covers.
  * - Links run one way. The piece may link outward to record pages and official
@@ -80,7 +80,7 @@ import { theme as t } from '../../theme/tokens';
  *   researchPageMetadata); the Share control's prepared text says the same.
  * - A correction replaces the wrong figure in the piece's own text; the dated
  *   correction banner, when the piece carries one, is the only trace, and a
- *   wrong number is never left readable (rule 13, Eugene 25 Aug 2026).
+ *   wrong number is never left readable (rule 13, 25 Aug 2026).
  */
 
 const isWeb = Platform.OS === 'web';
@@ -438,16 +438,22 @@ function ContentsLink({
   );
 }
 
-export function ResearchScreen({ navigation, route }: RootScreenProps<'Research' | 'Guide'>) {
+export function ResearchScreen({
+  navigation,
+  route,
+  privatePiece,
+}: RootScreenProps<'Research' | 'Guide'> & { privatePiece?: ResearchPiece }) {
   const { isMobile, isTablet } = useResponsive();
   // Back out of a #section address should return the reader to where they were
   // reading, not to the top. The browser cannot do it here — the page scrolls
   // an inner container, not the document — so this is the shared hook that
   // saves the position against the exact history entry.
   const scrollRestoration = useHistoryScrollRestoration(true, route.params.slug);
-  const piece = researchBySlug(route.params.slug);
+  const piece = privatePiece ?? researchBySlug(route.params.slug);
   const titleOverflow = useArticleTitleOverflow(piece?.title ?? '');
-  const returnLink = articleReturnLink(route.params.returnContext);
+  const returnLink = privatePiece
+    ? { href: '/money/ads', label: 'Back to TV ad records' }
+    : articleReturnLink(route.params.returnContext);
   const returnToSource = (event: MouseEvent<HTMLAnchorElement>) => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
       return;
@@ -457,7 +463,9 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
       current &&
       origin?.depth !== undefined &&
       origin.sessionId === current.sessionId &&
-      current.depth === origin.depth + 1
+      current.depth === origin.depth + 1 &&
+      current.returnTo?.entryId === origin.entryId &&
+      current.returnTo?.href === returnLink.href
     ) {
       event.preventDefault();
       window.history.back();
@@ -479,7 +487,9 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
     const jump = () => {
       const anchor = articleOpeningSection(
         window.location.pathname,
-        `/blog/${route.name === 'Research' ? 'research' : 'guides'}/${route.params.slug}`,
+        privatePiece
+          ? '/money/ads/guide'
+          : `/blog/${route.name === 'Research' ? 'research' : 'guides'}/${route.params.slug}`,
         window.location.hash,
         anchors,
       );
@@ -491,7 +501,7 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
       clearTimeout(first);
       clearTimeout(settled);
     };
-  }, [route.name, route.params.slug, anchors]);
+  }, [route.name, route.params.slug, anchors, privatePiece]);
 
   // The router only produces this route for published slugs, so this is a
   // belt-and-braces guard, not a reachable state.
@@ -531,7 +541,7 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
               }
             />
           </Container>
-          {piece.articleId && <ReaderComments articleId={piece.articleId} />}
+          {!privatePiece && piece.articleId && <ReaderComments articleId={piece.articleId} />}
           <ShortPostRelatedReading piece={piece} />
           <Footer
             onContact={() => navigation.navigate('ContactUs')}
@@ -619,7 +629,7 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
                 <View style={styles.mastheadMeta}>
                   <Text style={styles.mastheadLineMuted}>{pieceMastheadLine(piece)}</Text>
                 </View>
-                <SharePopover content={shareContent} />
+                {!privatePiece && <SharePopover content={shareContent} />}
               </View>
               {!!piece.topics?.length && (
                 <nav className="article-topics" aria-labelledby="article-topic-label">
@@ -702,7 +712,7 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
           </View>
         </Container>
 
-        {piece.articleId && <ReaderComments articleId={piece.articleId} />}
+        {!privatePiece && piece.articleId && <ReaderComments articleId={piece.articleId} />}
         <ShortPostRelatedReading piece={piece} />
         <Footer
           onContact={() => navigation.navigate('ContactUs')}

@@ -159,12 +159,12 @@ it('names the address field, rejects empty input without a request, and keeps ty
     root.render(<CandidateSearchContent services={services(lookup)} onOpenProfile={() => {}} />),
   );
   await flush();
-  click(button('Find my candidates'));
+  click(button('Find'));
   expect(host.textContent).toContain('Enter your full Minnesota street address');
   expect(host.querySelector('textarea')?.getAttribute('aria-invalid')).toBe('true');
   expect(lookup).not.toHaveBeenCalled();
   const input = type('100 Example Street');
-  click(button('Find my candidates'));
+  click(button('Find'));
   await flush();
   expect(input.value).toBe('100 Example Street');
   expect(host.textContent).toContain('Candidate results are unavailable');
@@ -198,7 +198,7 @@ it('shows notices after races, alphabetical names and real profile links without
   click(link);
   expect(open).toHaveBeenCalledWith('general-a');
   expect(host.textContent).toContain('Candidate records from Example election office');
-  expect(host.textContent).not.toContain('Claim this profile');
+  expect(host.textContent).not.toMatch(/Claim this (candidate )?profile/);
 });
 it('keeps old results and election attached while changing selection by keyboard, then retries failure', async () => {
   let reject!: (error: Error) => void;
@@ -241,8 +241,8 @@ it('keeps old results and election attached while changing selection by keyboard
   expect(host.querySelector('a[href="/candidates/primary-a"]')).toBeTruthy();
   expect(host.textContent).not.toContain('Elect 1');
 });
-it('does not silently use an old election when none is upcoming', async () => {
-  const lookup = vi.fn<CandidateSearchServices['lookup']>();
+it('uses the most recent supported past election when none is upcoming', async () => {
+  const lookup = vi.fn<CandidateSearchServices['lookup']>().mockResolvedValue(result());
   const service = {
     ...services(lookup),
     getElections: async () => [{ ...general, date: '2000-11-07' }],
@@ -257,9 +257,11 @@ it('does not silently use an old election when none is upcoming', async () => {
     ),
   );
   await flush();
-  expect(host.textContent).toContain('Records for upcoming elections are not available yet');
-  expect(lookup).not.toHaveBeenCalled();
-  expect(host.querySelector('[role="combobox"]')).toBeNull();
+  expect(lookup).toHaveBeenCalledWith(
+    expect.objectContaining({ electionId: general.id }),
+    expect.any(AbortSignal),
+  );
+  expect(host.textContent).toContain('November 7, 2000');
 });
 it('requires a keyboard-confirmed ambiguous address and passes its choice to the service', async () => {
   const choice = {
@@ -376,7 +378,7 @@ it('keeps the same focused busy button and prevents repeat submission', async ()
   );
   await flush();
   type('100 Example Street');
-  const find = button('Find my candidates');
+  const find = button('Find');
   act(() => find.focus());
   click(find);
   click(find);
@@ -384,9 +386,13 @@ it('keeps the same focused busy button and prevents repeat submission', async ()
   expect(document.activeElement).toBe(find);
   expect(find.getAttribute('aria-busy')).toBe('true');
   expect(find.getAttribute('aria-disabled')).toBe('true');
-  expect(find.textContent).toBe('Finding candidates…');
+  expect(find.textContent).toBe('Finding…');
   expect(find.getAttribute('disabled')).toBeNull();
-  expect(host.querySelector('[aria-live="polite"]')?.textContent).toContain('Finding candidates…');
+  expect(
+    [...host.querySelectorAll('[aria-live="polite"]')]
+      .map((region) => region.textContent)
+      .join(' '),
+  ).toContain('Finding…');
   await act(async () => resolve(result()));
   await flush();
 });
@@ -410,7 +416,7 @@ it('uses the same explicit address-choice flow when changing an address and keep
   await flush();
   click(button('Change address'));
   type('200 Example Street');
-  click(button('Find my candidates'));
+  click(button('Find'));
   await flush();
   expect(host.querySelector('a[href="/candidates/general-a"]')).toBeTruthy();
   expect(host.textContent).toContain('Choose your address');
@@ -421,6 +427,89 @@ it('uses the same explicit address-choice flow when changing an address and keep
   expect(host.querySelector('textarea')).toBeNull();
   expect(host.textContent).toContain(choice.address);
 });
+
+it('selects the address once, keeps opening quiet, and clears without erasing results', async () => {
+  vi.useFakeTimers();
+  const service = services();
+  service.suggest = vi.fn(async () => []);
+  await act(async () =>
+    root.render(
+      <CandidateSearchContent
+        services={service}
+        initialAddress="100 Example Street"
+        onOpenProfile={() => {}}
+      />,
+    ),
+  );
+  await flush();
+  click(button('Change address'));
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  expect(document.activeElement).toBe(input);
+  expect([input.selectionStart, input.selectionEnd]).toEqual([0, input.value.length]);
+  await act(async () => vi.advanceTimersByTimeAsync(200));
+  expect(service.suggest).not.toHaveBeenCalled();
+  act(() => input.setSelectionRange(3, 3));
+  await act(async () => vi.advanceTimersByTimeAsync(600));
+  expect([input.selectionStart, input.selectionEnd]).toEqual([3, 3]);
+  click(host.querySelector<HTMLButtonElement>('button[aria-label="Clear address"]')!);
+  expect(input.value).toBe('');
+  expect(document.activeElement).toBe(input);
+  expect(host.querySelector('a[href="/candidates/general-a"]')).toBeTruthy();
+  expect(host.textContent).toContain(result().matchedAddress);
+  click(button('Cancel'));
+  expect(host.querySelector('textarea')).toBeNull();
+  expect(document.activeElement).toBe(button('Change address'));
+  click(button('Change address'));
+  expect(host.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe(result().matchedAddress);
+});
+
+it.each(['Cancel', 'Escape', 'Escape on Cancel', 'Escape on Find'])(
+  'cancels a pending edited address with %s and ignores its late response',
+  async (action) => {
+    let resolve!: (value: CandidateLookupResponse) => void;
+    let signal!: AbortSignal;
+    const lookup = vi
+      .fn<CandidateSearchServices['lookup']>()
+      .mockResolvedValueOnce(result())
+      .mockImplementationOnce(async (_, requestSignal) => {
+        signal = requestSignal;
+        return new Promise((done) => {
+          resolve = done;
+        });
+      });
+    const service = services(lookup);
+    const flow = createCandidateFlow(service);
+    await act(async () =>
+      root.render(
+        <CandidateSearchContent
+          services={service}
+          flow={flow}
+          initialAddress="100 Example Street"
+          onOpenProfile={() => {}}
+        />,
+      ),
+    );
+    await flush();
+    click(button('Change address'));
+    type('200 Example Street');
+    click(button('Find'));
+    await flush();
+    expect(flow.getState().status).toBe('updating');
+    expect(
+      host.querySelector<HTMLButtonElement>('button[aria-label="Clear address"]')?.style.visibility,
+    ).toBe('hidden');
+    if (action === 'Cancel') click(button('Cancel'));
+    else if (action === 'Escape on Cancel') press(button('Cancel'), 'Escape');
+    else if (action === 'Escape on Find') press(button('Finding…'), 'Escape');
+    else press(host.querySelector<HTMLTextAreaElement>('textarea')!, 'Escape');
+    expect(signal.aborted).toBe(true);
+    expect(host.querySelector('textarea')).toBeNull();
+    expect(document.activeElement).toBe(button('Change address'));
+    await act(async () => resolve({ ...result(), matchedAddress: '200 Example Street' }));
+    expect(flow.getState().displayed?.results.matchedAddress).toBe(result().matchedAddress);
+    expect(host.textContent).not.toContain('200 Example Street');
+  },
+);
 
 it('keeps address editing open when typing the previous request and closes only after submitting', async () => {
   const lookup = vi.fn<CandidateSearchServices['lookup']>().mockResolvedValue(result());
@@ -449,7 +538,7 @@ it('keeps address editing open when typing the previous request and closes only 
   type('100 Example Street');
   await flush();
   expect(host.querySelector('textarea')).toBeTruthy();
-  click(button('Find my candidates'));
+  click(button('Find'));
   await flush();
   expect(host.querySelector('textarea')).toBeNull();
   // The submitted exact request can use the recent result without another network call.
@@ -481,7 +570,7 @@ it('keeps a newer typed address when a slow earlier search finishes and preserve
   await flush();
   click(button('Change address'));
   type('200 Example Street');
-  click(button('Find my candidates'));
+  click(button('Find'));
   const input = type('300 Example Street');
   expect(lookup.mock.calls[1][1].aborted).toBe(true);
   await act(async () => resolveOld({ ...result(), matchedAddress: '200 Example Street' }));
@@ -496,7 +585,7 @@ it('keeps a newer typed address when a slow earlier search finishes and preserve
   );
   await flush();
   expect(host.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('300 Example Street');
-  click(button('Find my candidates'));
+  click(button('Find'));
   await flush();
   expect(host.querySelector('textarea')).toBeNull();
   expect(host.textContent).toContain('300 Example Street');
@@ -607,7 +696,7 @@ it('keeps a November 3 election available during Minnesota evening after UTC has
   await flush();
   expect(host.querySelector('textarea')).toBeTruthy();
   type('100 Example Street');
-  click(button('Find my candidates'));
+  click(button('Find'));
   await flush();
   expect(lookup).toHaveBeenCalledOnce();
 });
@@ -661,11 +750,10 @@ it('keeps confirmed service distinct, links the same legislator and removes fail
   expect(host.textContent).not.toContain('Formerly served as');
   expect(host.querySelector('a[href="/legislators/sample-person"]')).toBeTruthy();
 });
-it('shows a reelection office once and offers Find my candidates on direct entry', () => {
+it('shows a reelection office once and keeps a safe Back to Find my candidates link on direct entry', () => {
   act(() =>
     root.render(
       <CandidateProfileContent
-        fromSearch={false}
         onBack={() => {}}
         record={{
           candidate: { id: 'sample', name: 'Sample Person', sortName: 'Person' },
@@ -689,7 +777,10 @@ it('shows a reelection office once and offers Find my candidates on direct entry
   );
   expect(host.textContent).toContain('Running for reelection');
   expect(host.textContent!.match(/State Senator/g)).toHaveLength(1);
-  expect(host.textContent).toContain('Find my candidates');
+  const back = host.querySelector<HTMLAnchorElement>('a[aria-label="Back to Find my candidates"]');
+  expect(back?.getAttribute('href')).toBe('/candidates');
+  expect(back?.textContent).toBe('Back to Find my candidates');
+  expect(back?.querySelector('svg path')?.getAttribute('d')).toBe('M15 5 L8 12 L15 19');
   expect(host.textContent).not.toContain('Back to candidates');
 });
 

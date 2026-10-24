@@ -32,6 +32,7 @@ things work in practice and are the place to start if you're new.
 - [How Home works](product-onboarding/home-screen-guide.md) — the signed-out and signed-in opening sections, bill activity, editorial news picks, and phone layout
 - [How Bill Detail works](product-onboarding/bill-detail-guide.md) — the summary, actions, votes, versions, Bill Text, source line, and phone order
 - [How legislator profiles work](product-onboarding/legislator-profile-guide.md) — identity, committees, bills, service history, public money records, and planned features
+- [Legislator profile claims and the candidate survey](product-onboarding/legislator-profile-claims-spec.md) — proposed: how a sitting legislator or their office claims a profile with their official email and admin approval, what claiming unlocks, and the legislator survey. Nothing built yet
 - [Bill Text tab spec](product-onboarding/bill-text-tab-spec.md) — how a bill's official text is parsed, marked up, and rendered, plus the section-index rail and citation anchors
 - [Answer quality bar](product-onboarding/answer-quality-bar.md) — what a good generated answer is, how the eval measures it, and the judge calibration behind the scores
 - [Campaign finance roadmap](product-onboarding/campaign-finance-roadmap.md) — plain-language plan for putting Minnesota campaign money on the site: what we are building, in what order, and the one rule that shapes it
@@ -75,7 +76,9 @@ The words of every published reader-facing piece, one file each. Alethical calls
 
 **Research** — our own digging, in no set.
 
+- [Who keeps the books, and who gets paid?](published-writing/committee-officers-and-the-firms-they-pay.md) — committee officers, reported vendors and the separate records that connect them
 - [2 records do not always mean 2 donations](published-writing/2-records-not-always-2-donations.md) — the accepted Short post comparing 2 identical download entries with 1 matching $500 entry in each cited filing
+- [3 Realtor PACs. 12 shared campaigns.](published-writing/realtor-pacs-shared-candidates.md): Florida committee payments, separate contribution limits, and dated Realtor dues and brokerage policies
 - [Political donors appearing in both parties’ Minnesota caucus records](published-writing/organizations-both-parties.md): the reviewed Short post about overlapping donor registrations and listed contribution values
 - [What Minnesota’s records show about lobbyist contributions, 2015–2026](published-writing/lobbyist-giving.md): the reviewed Short post separating candidate-committee counts, 2025 caucus contributions and unresolved full-period totals
 - [The Money Only Goes One Way](published-writing/the-money-only-goes-one-way.md) — where a $50 donation actually goes: $13.9 million leaving candidate accounts for the 6 party and caucus committees against $730,338 coming back down, the 191 PACs funding both parties' caucuses, and the $886 million of reported lobbying that dwarfs every election dollar. Unlike the 5 files above, this one was written from the shipped piece rather than settled before it, so it pins what shipped and says so in its own opening comment
@@ -104,6 +107,22 @@ The words of every published reader-facing piece, one file each. Alethical calls
 
 ## Operations
 
+- [Security policy](../SECURITY.md) — supported clients and private vulnerability reporting
+
+
+- [Public search upkeep](operations/public-search-upkeep.md) — bounded free checks, search-provider evidence, truthful change notices and weekly/monthly review
+- [Discoverability build](operations/discoverability-build.md) — current delivery scope, acceptance work and held items
+- [Article, event, recording and transcript publishing](operations/blog-publishing.md) — reusable upfront brief, final-edition media checks, correction patterns and acceptance matrix
+- [Social writing and posting](operations/social-publishing.md) — Alethical copy, people links, account checks and saved-post review
+- [Social profile review](operations/social-profile-review.md) — account evidence, approved profile rollout and execution checks
+- [Forward Debate LinkedIn publication record](operations/forward-debate-linkedin-record.md) — approved text, profile links and saved-post checks
+- [Forward Debate Bluesky publication record](operations/forward-debate-bluesky-record.md) — approved campaign-website fallback, exact text and saved links
+- [Forward Debate X publication](operations/forward-debate-x-preparation.md) — approved text, campaign destinations, edited revision and replay-preview verification
+- [Forward Debate Instagram publication record](operations/forward-debate-instagram-record.md) — exact caption, profile mentions, saved photo, Story and replay-link checks
+- [Forward Debate TikTok publication and removal](operations/forward-debate-tiktok-preparation.md) — exact photo-post source, viewing issue and confirmed public removal
+- [Forward Debate first-short publication](operations/forward-debate-short01-record.md) — 7 live posts, saved text, upload routes and remaining optimizations
+- [Video editing and recovery](operations/video/README.md) — recording recipes, shorts, production records and recovery evidence
+
 - [Preventing repeated failures](operations/repeat-failure-review.md): history collection, examined causes, retained checks and the manual isolated browser command
 - [Repeat-failure review and Paradigm comparison, 6 October 2026](research/repeat-failure-review-2026-10-06.md): the limited history sample, demonstrated prevention gaps and public-tool comparison
 - [Portable Paradigm comparison evidence](research/evidence/paradigm-2026-10-06/README.md): pinned inputs, recorded local outputs and instructions for repeating the experiment
@@ -119,15 +138,17 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [First Short post preparation](operations/first-short-post-preparation.md) — accepted article checks, editable correction contact and authorized publication steps
 - [Short posts screen delivery plan](operations/short-posts-screen-plan.md) — archive, topic and article screen release checks and the separate article-publication boundary
 - [Reading layout delivery checkpoint](implementation/read-consistency-build-checkpoint.md) — approved listing and article layouts, navigation checks, and remaining related-reading review
-- [Proposed article links for review](implementation/reading-links-review-2026-09-27.md) — exact article links awaiting Eugene’s approval
+- [Proposed article links for review](implementation/reading-links-review-2026-09-27.md) — exact article links awaiting editorial approval
 - [Short posts foundation delivery plan](operations/short-posts-foundation-plan.md) — nonvisual build sequence, checks, and the drawing and publication boundaries for issue 2377
 - [How a legislator is matched to their campaign account](operations/how-a-legislator-is-matched-to-their-campaign-account.md) — the public audit record of the one decision no machine may make: what we claim, the 3 pieces of evidence a person reads, who signs, how a wrong match surfaces, how to challenge one, and where all 200 sitting members stand today
+- [Public-record updates: coverage and recovery](operations/public-record-refresh-status.md) — source freshness gaps, immediate state-money recovery and shared update acceptance
 - [What runs, when, and what it costs](operations/jobs-and-scripts.md) — every GitHub workflow, command-line tool, and job-driven AI cost
 - [Independent public-record wakeups](operations/source-refresh-dispatch.md) — saved deadlines, the restricted GitHub App and activation checks
 - [Supporting source checks](operations/supporting-source-checks.md) — candidate, district-map, ZIP and cited-source checks and review limits
 - [Automatic public-record updates](implementation/sitewide-record-refresh.md) — source coverage, authorization, review holds and release evidence
 - [Copying the Board's lobbying files](operations/lobbying-source-import.md) — the paired import, contact-field exclusion, link checks and rollback
 - [Offline name-search comparison](operations/name-search-offline-benchmark.md) — how to compare name-search behavior without changing public results
+- [Private Forward Debate replay](operations/forward-debate-replay-preview.md): preview, media handoff, checks and publication boundary
 - [Working-folder cleanup and recovery](operations/worktree-lifecycle.md) — automatic removal after owner release, private backups, recovery, and Codex-managed folder limits
 - [Local code checks](operations/local-code-checks.md) — shared setup, selected-file formatting, exact-commit upload checks, and staged GitHub description-check activation
 - [Error monitoring](operations/error-monitoring.md) — which server failures alert through Sentry, the privacy limits, setup, incident checks, and why Alethical buys this instead of building it
@@ -136,8 +157,8 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [Private repository cost outlook](operations/private-repository-cost-outlook.md) — the 2026-08-11 cost, security, access, job-limit, and Vercel-seat decision for making Alethical private
 - [API CDN setup](operations/api-cdn-setup.md) — Cloudflare in front of the API, plus email authentication records
 - [Page-load performance decisions](operations/page-load-performance-decisions.md): measured safe speed work, remaining tradeoffs, and the proof required before release
-- [iOS release workflow](operations/ios-release.md) — simulator QA, TestFlight, and ad hoc builds
-- [Android prototype handoff](operations/android-prototype-handoff.md) — the Expo/RN Android build path
+- [Native app publishing pause and restart](operations/ios-release.md) — what is retired and how approved native work can resume
+- [Android prototype: paused](operations/android-prototype-handoff.md) — historical recovery reference
 - [Windows local development notes](operations/local-dev-windows.md)
 - [Keeping docs current — decisions](operations/keeping-docs-current-decisions.md) — why the stale-docs check relies on declarations a human writes, and the four automated alternatives we measured and rejected
 - [Production database schema drift](operations/production-database-schema-drift.md) — the eleven ways production and the code disagreed, which side was right in each, and the CI check that now catches the next one
@@ -149,15 +170,26 @@ issues and pull requests establish what remains. Preserve explicit data-replacem
 a completed code release does not approve a held data run. Remove a finished plan once its
 lasting decisions and release evidence have their permanent homes.
 
+- [Faster address search results](implementation/address-result-speed-plan.md) — why both address searches waited, the fewer-database-trips fix, its tests and release evidence
 - [Candidate autofill and result recovery](implementation/candidate-autofill-recovery-plan.md) — shared address handling, stable results, related-use review and release evidence
+- [Public profile labels](implementation/profile-labels-plan.md) — record-kind labels, claim action, phone wrapping and release checks
 - [Candidate design acceptance](implementation/candidate-design-release-acceptance.md) — approved public search and profile controls, source limits, and release checks
+- [Candidate profile claim button](implementation/claim-profile-button-plan.md) — green claim action, distinct account states, alignment and release checks
+- [Candidate record status](implementation/candidate-record-status-plan.md) — office status, source dates, claim actions, comparison checks and release ownership
 - [Candidate result notices](implementation/candidate-notices-last.md) — bottom notice placement, empty-race wording, affected uses and release evidence
+- [Candidate location shortcut and Find buttons](implementation/candidate-location-shortcut-build-plan.md) — Use my location with home address confirmation, unit joining, and Find button sizing and centring
 - [Candidate lookup delivery](implementation/candidate-lookup-build-plan.md) — staged candidate imports, private address handling, and the design and source requirements before launch
+- [Address controls delivery](implementation/address-controls-build-plan.md) — clear buttons, candidate address replacement and cancellation, and browser acceptance
+- [Address help lines and foot notes](implementation/address-help-notes-build-plan.md) — 1 help line per page, and the `/find-my-legislator` foot notes as 1 group
 - [Navigation design 47 delivery](implementation/navigation-design-47-plan.md) — approved navigation and account-menu changes, comparison evidence, and release dependencies
+- [Contextual page-return delivery](implementation/contextual-return-links-plan.md) — destination names, safe saved context, required checks and live release ownership
 - [Lobbyist donation proof release report](implementation/lobbyist-donation-proof.md) — live before/after coverage, source evidence, validation and remaining gaps
 - [Lobbyist donor evidence](operations/lobbyist-donor-evidence.md) — source matching, review, safe publication and rollback.
+- [Candidate profile records and profile claim review](implementation/candidate-profile-records-plan.md) — approved public history, campaign access, administrator review and release checks
 - [Private account activation](implementation/admin-users-plan.md) — approved account access and the remaining administrator activation
 - [Campaign-finance history refresh](implementation/campaign-finance-history-refresh.md) — source-replacement boundaries, failed-source handling and saved recovery evidence
+- [TV ad records guide](product-onboarding/tv-ad-records-guide.md) — private reader routes, reviewed evidence, counts, version history and administrator review tools
+- [FCC political-file archive](implementation/fcc-political-files.md) — station source addresses, collection and refresh steps, private storage, recovery, searchable readings and the private TV records review boundary
 - [Legislator campaign-money delivery](implementation/legislator-campaign-money-tab-plan.md) — coordinated releases, outstanding decisions and held data work
 - [Campaign-money review scope](implementation/campaign-money-final-review-prompt.md) — the releases to inspect and the work still excluded from that review
 - [Committee search and payment design](implementation/committee-search-payment-design.md) — the accepted committee and payment-list behavior
@@ -165,6 +197,8 @@ lasting decisions and release evidence have their permanent homes.
 - [Lobbying search delivery](implementation/lobbying-search-plan.md) — agreed search behavior and release checks
 - [Money page refinements](implementation/money-page-refinements.md) — wording, search and navigation acceptance checks
 - [Outside-spending browse delivery](implementation/outside-spending-browse-plan.md) — all-years browsing, paging and source checks
+- [Public search delivery](implementation/sitewide-search-improvements-plan.md) — source-backed first responses, discoverability, free upkeep checks and live release acceptance
+- [Google indexing alerts](implementation/google-indexing-alerts-plan.md) — October report evidence, public variant checks, failure diagnosis and routine-review limits
 - [Sharing delivery](implementation/sitewide-sharing-plan.md) — shared controls, address preservation and release checks
 - [Committee money refinements](plans/committee-money-refinements.md) — coordinated source-label and money-card refinements
 - [Committee empty-year refinements](plans/committee-empty-year-refinements.md) — missing figures, contribution terms and filed-report navigation
@@ -202,3 +236,5 @@ still describe today's service. Keep the evidence and its limits together.
 - [Unconcealed email signup](product-onboarding/unconcealed-email-spec.md) — explicit research consent, preferences, unsubscribe and manual delivery.
 - [Unconcealed delivery plan](implementation/unconcealed-plan.md) — implementation ownership, API contract and release checks.
 - [Unconcealed keyboard design prompt](design/unconcealed-keyboard-design-prompt.md) — approved interaction corrections and the bounded Design update.
+
+- [Events section and Forward Debate delivery](implementation/forward-debate-events-plan.md) — event announcement, signup, image and release checks.

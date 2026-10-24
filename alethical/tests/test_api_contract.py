@@ -19,6 +19,7 @@ from alethical.db.session import get_engine
 from alethical.api.services.representative_lookup import (
     DistrictMatch,
     GeocodedAddress,
+    RepresentativeLookupAmbiguousLocation,
     RepresentativeLookupChoices,
     RepresentativeLookupNotFound,
     RepresentativeLookupOutsideMinnesota,
@@ -2242,6 +2243,31 @@ def test_representative_lookup_maps_service_district_codes_to_legislators(client
     assert "service_history" in payload["house_legislator"]
 
 
+def test_representative_lookup_reads_the_database_in_few_statements(client):
+    from sqlalchemy import event
+
+    from alethical.db.session import get_engine
+
+    address = {"address_text": "75 Rev Dr Martin Luther King Jr Blvd, Saint Paul, MN"}
+    client.post("/api/v1/representative-lookups", json=address)
+    statements = []
+
+    def before(conn, cursor, statement, *args):
+        statements.append(statement)
+
+    # Each statement is a round trip to the database server on every search.
+    event.listen(get_engine(), "before_cursor_execute", before)
+    try:
+        response = client.post("/api/v1/representative-lookups", json=address)
+    finally:
+        event.remove(get_engine(), "before_cursor_execute", before)
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["house_legislator"]["service_history"]["periods"]
+    assert payload["senate_legislator"]["current_service"]["district"]["code"] == "35"
+    assert len(statements) <= 9, statements
+
+
 def test_representative_lookup_matches_single_digit_district_codes(client):
     schema = load_schema()
     from alethical.api.routers.public import district_for_match
@@ -2372,8 +2398,147 @@ def test_address_suggestions_return_choices_without_a_district_lookup(client):
             "latitude": 44.9475,
             "longitude": -93.3212,
             "state_code": "MN",
+            "requires_location_check": False,
         }
     ]
+
+
+def test_address_suggestions_mark_a_choice_whose_point_must_be_checked(client):
+    class SuggestionService:
+        def suggest_addresses(self, address_text: str):
+            return [
+                GeocodedAddress(
+                    address_text,
+                    "3040 Excelsior Boulevard, Minneapolis, MN 55416",
+                    44.9475,
+                    -93.3212,
+                    "MN",
+                    requires_location_check=True,
+                )
+            ]
+
+    client.app.dependency_overrides[get_representative_lookup_service] = lambda: (
+        SuggestionService()
+    )
+
+    response = client.post(
+        "/api/v1/address-suggestions", json={"address_text": "3040 Ex"}
+    )
+
+    assert response.json()["data"]["suggestions"][0]["requires_location_check"]
+
+
+def test_a_chosen_suggestion_is_checked_before_districts(client):
+    calls = []
+
+    class SelectionService:
+        def lookup_selected(self, selected_address, *, latitude, longitude):
+            calls.append((selected_address, latitude, longitude))
+            return RepresentativeLookupResult(
+                geocoded_address=GeocodedAddress(
+                    selected_address,
+                    "75 Rev Dr Martin Luther King Jr Boulevard, Saint Paul, MN 55155",
+                    44.9551,
+                    -93.1022,
+                    "MN",
+                ),
+                house_district=DistrictMatch(chamber="house", district_code="51A"),
+                senate_district=DistrictMatch(chamber="senate", district_code="35"),
+                congressional_district="4",
+            )
+
+        def lookup_coordinates(self, **kwargs):
+            raise AssertionError("a chosen suggestion's point is never used unchecked")
+
+    client.app.dependency_overrides[get_representative_lookup_service] = lambda: (
+        SelectionService()
+    )
+    label = "75 Rev Dr Martin Luther King Jr Boulevard, Saint Paul, MN 55155"
+
+    response = client.post(
+        "/api/v1/representative-lookups",
+        json={"selected_address": f" {label} ", "latitude": 44.9, "longitude": -93.1},
+    )
+
+    assert response.status_code == 200
+    assert calls == [(label, 44.9, -93.1)]
+    place = response.json()["data"]["resolved_place"]
+    assert place["input_mode"] == "address"
+    assert (place["latitude"], place["longitude"]) == (44.9551, -93.1022)
+    assert place["house_district"] == "51A"
+
+
+def test_a_chosen_suggestion_in_disagreeing_districts_is_not_guessed(client):
+    class SelectionService:
+        def lookup_selected(self, selected_address, *, latitude, longitude):
+            raise RepresentativeLookupAmbiguousLocation(
+                "official points for this address are in different districts"
+            )
+
+    client.app.dependency_overrides[get_representative_lookup_service] = lambda: (
+        SelectionService()
+    )
+
+    response = client.post(
+        "/api/v1/representative-lookups",
+        json={"selected_address": "350 S 5th St", "latitude": 44.9, "longitude": -93.2},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["type"].endswith("representative-lookup-ambiguous-location")
+
+
+def test_a_chosen_suggestion_choice_carries_its_check_mark(client):
+    class SelectionService:
+        def lookup_selected(self, selected_address, *, latitude, longitude):
+            raise RepresentativeLookupChoices(
+                [
+                    GeocodedAddress(
+                        selected_address,
+                        "10 Main Street, Ada, MN 56510",
+                        47.3,
+                        -96.5,
+                        "MN",
+                        requires_location_check=True,
+                    ),
+                    GeocodedAddress(
+                        selected_address, "10 Main Street, Anoka, MN 55303", 45.2, -93.4
+                    ),
+                ]
+            )
+
+    client.app.dependency_overrides[get_representative_lookup_service] = lambda: (
+        SelectionService()
+    )
+
+    response = client.post(
+        "/api/v1/representative-lookups",
+        json={"selected_address": "10 Main St", "latitude": 47.3, "longitude": -96.5},
+    )
+
+    payload = response.json()["data"]
+    assert payload["status"] == "address-choice"
+    assert payload["resolved_place"]["address_text"] == "10 Main St"
+    assert [
+        choice["requires_location_check"] for choice in payload["address_choices"]
+    ] == [
+        True,
+        False,
+    ]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"selected_address": "350 S 5th St"},
+        {"selected_address": "  ", "latitude": 44.9, "longitude": -93.2},
+        {"selected_address": "350 S 5th St", "address_text": "350 S 5th St"},
+    ],
+)
+def test_a_chosen_suggestion_needs_its_point_and_nothing_else(client, body):
+    response = client.post("/api/v1/representative-lookups", json=body)
+
+    assert response.status_code == 422
 
 
 def test_representative_lookup_distinguishes_outside_minnesota(client):

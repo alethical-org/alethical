@@ -25,6 +25,7 @@ const BILL_LIST_SUBJECT = 'Search Minnesota bills';
 const LEGISLATOR_LIST_SUBJECT = 'Minnesota House and Senate members';
 
 export type ShareSubject =
+  | 'post'
   | 'bill'
   | 'legislator'
   | 'answer'
@@ -192,6 +193,10 @@ export interface PageMetadata {
    * title through a summary that paraphrases it. Absent = the 2 are the same.
    */
   socialDescription?: string;
+  /** Host-authored event information matching the visible announcement. */
+  structuredData?: object[];
+  /** Use the event’s own supplied flyer rather than the generic site preview. */
+  socialImage?: { url: string; alt: string; width: number; height: number };
 }
 
 export function pageMetadata(
@@ -275,7 +280,7 @@ export function billPageMetadata(input: {
   });
   // The search result always gets this bill's own first sentence; the share card
   // gets it only when it adds to the title, and the fixed label when it restates
-  // it (Eugene, 17 and 18 Sep 2026, decisions doc §26).
+  // it (17 and 18 Sep 2026, decisions doc §26).
   const searchDescription = clean(input.lines?.search ?? '');
   return pageMetadata({
     title: titleFor(content.title),

@@ -1,6 +1,6 @@
 # Repo and service settings
 
-<!-- describes: scripts/check_hosted_service_settings.py, scripts/supabase_oauth_state.mjs, .github/workflows/hosted-service-settings.yml -->
+<!-- describes: .github/workflows/railway-timings.yml, scripts/railway_deployment_timings.py, scripts/check_hosted_service_settings.py, scripts/supabase_oauth_state.mjs, scripts/lib/supabase_oauth_artifacts.mjs, .github/workflows/hosted-service-settings.yml -->
 
 This file is the source of truth for Alethical's GitHub, Vercel, Railway, and
 Supabase settings outside the repository. The free read-only check in
@@ -30,6 +30,7 @@ Set under **Settings** on `github.com/alethical-org/alethical`. Verified 2026-08
 | Dependabot malware alerts | **On** | Adds free warnings for dependencies known to contain malware. | Unchecked: GitHub has no official per-repository read field for this switch; [#1559](https://github.com/alethical-org/alethical/issues/1559) |
 | Dependabot automatic security fixes | **On** | Grouping in `.github/dependabot.yml` keeps the updates reviewable. Nothing self-merges. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Private vulnerability reporting | **On** | Lets a visitor report a security flaw without publishing it. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
+| CodeQL code scanning | **On**; languages `actions`, `javascript-typescript`, `python`; schedule `weekly` | Default setup checks these languages on changes and weekly; the Monday security repair review handles findings. Enabled 7 October 2026. | Live with `REPO_SETTINGS_TOKEN`; read-only default-setup API requires Administration read access. Without that token this job reports unchecked; the Monday Codex review reads setup through existing local GitHub access. |
 | Secret scanning | **On** | GitHub looks for leaked credentials in the full public history. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Secret scanning push protection | **On** | Blocks a found credential before it becomes public. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Free secret scan in `ci.yml` | **On** | TruffleHog remains the free fallback if GitHub's public-repository protection changes. | Tracked file: `.github/workflows/ci.yml` |
@@ -56,10 +57,12 @@ Enabled 2026-07-28.
 | Resolve review conversations | **On** | Open review findings must be answered before merge. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Enforce for admins | **On** | Owners cannot skip a failed check or the pull-request path. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Force pushes / branch deletion | **Blocked** | Prevents rewriting or deleting the protected branch. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
-| Merge queue | **On** (added 2026-08-17) | Stops the "green alone, red together" failure: 2 pull requests that each pass CI on their own can still break `main` once both land, because neither was tested against the other ([#990](https://github.com/alethical-org/alethical/issues/990)/[#1020](https://github.com/alethical-org/alethical/issues/1020), [#662](https://github.com/alethical-org/alethical/issues/662)/[#663](https://github.com/alethical-org/alethical/issues/663)). Squash merge, 1-5 pull requests merged per group, no batching wait, 60-minute check timeout. See `.claude/rules/workflow.md` rule 10. | Unchecked: this setting lives on the repository's rule set, which `scripts/check_hosted_service_settings.py` does not read yet (it reads the older branch-protection API only). |
+| Merge queue | **Off** | Strict up-to-date protection and all 4 required checks remain on for admins too. Every PR must include current `main`; when main moves, update the branch and retest before squash auto-merge. This preserves testing of combined changes while avoiding a second run when main has not moved. [Issue 2654](https://github.com/alethical-org/alethical/issues/2654) holds the timing evidence and policy decision. See `.claude/rules/workflow.md` rule 10. | Unchecked: the hosted-settings checker reads only classic branch protection. Verify the repository rule set separately: no `merge_queue` rule. |
 
-The required `backend` and `frontend` jobs report `skipped` on unrelated changes, which
-GitHub accepts as satisfied. Keep path filters inside jobs, not on the workflow trigger,
+The required `backend` check reports `skipped` on unrelated changes, which GitHub
+accepts as satisfied; the required `frontend` check is a small job that passes once its
+3 jobs (`frontend-checks`, `frontend-browser-reader`, `frontend-browser-specs`) all passed, or all were skipped
+because the path selection said the frontend was not needed. Keep path filters inside jobs, not on the workflow trigger,
 so all 4 required checks report for pull requests and merge groups. Editing a pull
 request description refreshes `description-checks`, not the saved code-test results.
 
@@ -74,7 +77,7 @@ Set under **Settings, Secrets and variables, Actions**. The live check reads nam
 | `CLOUDFLARE_R2_BUCKET` | Present | `mirror-raw-files.yml` | Names the backup bucket. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `CLOUDFLARE_R2_ENDPOINT` | Present | `mirror-raw-files.yml` | Reaches the backup bucket. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `CLOUDFLARE_R2_SECRET_ACCESS_KEY` | Present | `mirror-raw-files.yml` | Authenticates writes to the backup bucket. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
-| `RAILWAY_TOKEN` | Present | `railway-deploy.yml`, `hosted-service-settings.yml` | Targets the production Railway project for manual releases and read-only checks. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
+| `RAILWAY_TOKEN` | Present | `railway-deploy.yml`, `hosted-service-settings.yml`, `railway-timings.yml` | Targets the production Railway project for manual releases and read-only checks. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `SUPABASE_OAUTH_CLIENT_ID` | Present | `hosted-service-settings.yml` | Names the Supabase OAuth app that can read sign-in settings only. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `SUPABASE_OAUTH_CLIENT_SECRET` | Present | `hosted-service-settings.yml` | Authenticates the narrow Supabase OAuth app when it refreshes access. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `SUPABASE_OAUTH_REFRESH_TOKEN` | Present | `hosted-service-settings.yml` | Starts the first read-only Supabase check; each later rotating token comes from the encrypted workflow artifact. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
@@ -98,6 +101,7 @@ Set under **Settings** for the `alethical-web` project. Verified 2026-08-15.
 | Root Directory | `.` | The build, server functions, and `vercel.json` start at the repository root. | Live |
 | Git repository | `alethical-org/alethical`, production branch `main`, automatic releases **on** | Vercel's Git connection is the normal web release path. | Live |
 | Ignored Build Step | The `ignoreCommand` in `vercel.json` | Documentation-only and backend-only changes stop before a paid build. | Tracked file: `vercel.json` |
+| Branches that never deploy | `git.deploymentEnabled` in `vercel.json`: `gh-readonly-queue/**` off | The merge queue's temporary branches hold the same commit main receives seconds later, so their preview build is paid for and never used. | Tracked file: `vercel.json` |
 | Deployment Protection | `all_except_custom_domains` | Preview addresses require Vercel login while custom production domains stay public. | Live |
 | Protection Bypass for Automation | **On** | Signed-in checks can reach protected previews through `VERCEL_AUTOMATION_BYPASS_SECRET`. | Live |
 | Production domain | `www.alethical.com` | Names the public web address. | Live |
@@ -170,14 +174,44 @@ read of the final deployment settings would create a false alarm. The live check
 only the supported `railwayConfigFile` value until Railway adds typed fields for the final
 deployment settings.
 
+### Read deployment stage times
+
+Run **Railway deployment timings** manually. Leave
+`deployment_id` blank for the latest production API deployment, or supply a Railway
+deployment ID. The job confirms project `alethical`, environment `production`, and
+service `alethical-api` before reading events. It uses only `RAILWAY_TOKEN`; the
+settings workflow, including its Supabase grant history and concurrency group,
+is separate and unchanged. Pull requests only run credential-free fixtures.
+
+[`railway_deployment_timings.py`](../../scripts/railway_deployment_timings.py) reads
+fixed queries from Railway's [typed API schema](https://github.com/railwayapp/cli/blob/master/src/gql/schema.json).
+It retains event IDs, phase names, start/end times, reported durations, attempt
+numbers and skipped markers in the `railway-timings-<run>-<attempt>` artifact.
+It never queries logs, variable values, configuration or untyped deployment metadata.
+The read has request, response-size and pagination limits; detected truncation or
+failed pagination stops the report. Events can change while pages are read, and a
+provider-omitted history cannot be detected; this is not an atomic snapshot.
+
+Each event stays separate, including retries and overlaps. Missing phases and
+unfinished, skipped or invalid event times stay unknown, never zero. Durations
+are not added into a deployment total. Dependency waiting excludes unreported queue
+waits; before-deploy time does not isolate database migrations; container creation
+does not measure the exact app start; healthcheck events do not establish the first
+successful public readiness response. Deployment dates do not prove a Git commit.
+These limits also appear inside the retained report. Measure before proposing a
+build or deployment change.
+
 ### Railway environment variables
 
 The live check reads names only with Railway's `decryptVariables: false` option.
 
 | Setting | Intended | Why | Automated check |
 | --- | --- | --- | --- |
+| `ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED` | Present; intended accepted-production value `true` | Answers suggestions from the shared public address copy after [deployment.md § Address suggestion copy activation](deployment.md#address-suggestion-copy-activation) passes; missing, expired or unusable copies use Minnesota's live service. | Live: presence only; value and activation gates are checked during release |
+| `ALETHICAL_ADDRESS_SUGGESTION_INDEX_DIRECTORY` | Absent | The copy uses the container's temporary folder; set only if activation chooses a different shared folder. | Live |
 | `ALETHICAL_ADMIN_ACCOUNT_IDS` | Present | Binds private account visibility to explicitly approved Supabase identities; current confirmed email and active status are also required. An approved email needs an existing confirmed account and a listed identifier before access activates. | Live |
 | `ALETHICAL_COMMENT_EMAIL_ENABLED` | Present | Enables durable reader and administrator comment alerts after the release privacy checks; local and test environments keep it false. | Live |
+| `ALETHICAL_PROFILE_CLAIM_EMAIL_ENABLED` | Present; intended accepted-production value `true` | Staged absent/off until the profile-claim release checks pass, then enables saved request and decision notifications through the existing Resend service; local and test environments keep it false. | Live: presence only; value and activation gates are checked during release |
 | `ALETHICAL_CONTACT_RATE_PER_MIN` | Present | Limits repeated Contact us requests. | Live |
 | `ALETHICAL_CORS_ORIGINS` | Present | Limits which websites can call the API from a browser. | Live |
 | `ALETHICAL_EMAIL_ENABLED` | Present | Turns production Contact us delivery on. | Live |
@@ -194,9 +228,21 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 | `SUPABASE_PUBLISHABLE_KEY` | Present | Lets the API make public Supabase requests. | Live |
 | `SUPABASE_PROJECT_REF` | Present | Names the Supabase database user for production maintenance commands. | Live |
 | `SUPABASE_PROJECT_URL` | Present | Targets the production Supabase project for maintenance commands. | Live |
+| `SUPABASE_STORAGE_S3_ACCESS_KEY_ID` | Present | Identifies production source-file storage requests. | Live: presence only |
+| `SUPABASE_STORAGE_S3_ENDPOINT` | Present | Reaches the primary source-file store used by production collection commands. | Live: presence only |
+| `SUPABASE_STORAGE_S3_REGION` | Present | Names the primary source-file store region for production collection commands. | Live: presence only |
+| `SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY` | Present | Authenticates production source-file storage requests. | Live: presence only |
 | `SUPABASE_URL` | Present | Points the API at the production Supabase project. | Live |
 | `TRAFFIC_EXCLUDED_ACCOUNT_IDS` | Present | Discards confirmed team actions and removes confirmed team readers and watches from public totals. | Live |
 | `UV_VERSION` | Present | Pins the package installer Railway uses to build the API. | Live |
+
+Profile-claim email activation is part of the accepted release, not evidence that
+sending is already on. Keep `ALETHICAL_PROFILE_CLAIM_EMAIL_ENABLED` absent or `false`
+until the checks in
+[deployment.md § Profile claim email activation](deployment.md#profile-claim-email-activation)
+pass, then set it to `true` in Railway. The other email readiness settings must also
+remain valid. The settings checker reads variable names and cannot prove the value
+or that a message was delivered.
 
 Team exclusion is active for 3 of the 4 team accounts. Append the 4th stable Supabase
 account identifier to `TRAFFIC_EXCLUDED_ACCOUNT_IDS` in Vercel and Railway after it is
@@ -227,8 +273,23 @@ The monthly check uses a Supabase OAuth grant limited to `auth:read`. It cannot 
 Supabase setting. No Supabase personal access token is stored. Supabase replaces the
 refresh token after every use, so the workflow encrypts each replacement with the OAuth
 client secret and keeps 2 ciphertext-only GitHub Actions artifacts for 90 days. Runs wait
-for the prior run. Only artifacts made by this trusted workflow can be restored, and a
-missing, expired, corrupt, or unsaved replacement fails the check.
+for the prior run. Both restore jobs use the same metadata-only selector, which reads all
+pages for the 2 saved names and selects by artifact creation time, not run creation time:
+retrying an older run can save the newest replacement. Each candidate must belong to this
+repository and workflow, with a `push`, `schedule`, `workflow_dispatch`, or
+`pull_request_target` event. The run must be complete, except the current run's exact
+retry may restore the copy its prior attempt saved. A failed later settings check does
+not make a successfully saved replacement unusable.
+
+The selector makes at most 50 metadata requests. Missing pages, changed pagination,
+unreadable metadata, exhausted budget, or equal newest creation times across different
+trusted runs stop restoration. Equal times within 1 run use the larger artifact ID. An
+expired newest copy also stops restoration, even if an older copy remains: its grant
+may already be consumed. Only a complete search finding no trusted saved history permits
+the existing bootstrap secret. The listing API is not an atomic snapshot; serialization
+prevents this workflow from publishing a replacement during its own lookup. The selector
+reads no artifact contents. The workflow downloads only the selected encrypted copy;
+missing, corrupt, or unsaved replacements fail the check.
 
 Failures identify whether access renewal or the settings read failed, without printing
 response bodies or credentials. An HTTP error during renewal means the settings were

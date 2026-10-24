@@ -76,7 +76,7 @@ describe('a loading page holds its space', () => {
     const block = shell.match(/<style id="alethical-page-snapshot">[\s\S]*?<\/style>/)?.[0];
     expect(block).toBeTruthy();
     expect(block).toMatch(
-      /\.page-snapshot \{[^}]*font-family: 'Libre Franklin', Helvetica, Arial, sans-serif;/,
+      /\.page-snapshot \{[^}]*font-family: 'Libre Franklin', 'Libre Franklin Fallback', Helvetica, Arial, sans-serif;/,
     );
     expect(shell).toMatch(
       /<link\s+rel="preload"\s+as="font"\s+type="font\/woff2"\s+crossorigin\s+href="\/fonts\/libre-franklin-latin\.woff2"/,
@@ -134,12 +134,17 @@ describe('a loading page holds its space', () => {
   });
 
   it.each([
-    ['bill, desktop', 'BillDetailWebScreen.tsx'],
-    ['legislator, desktop', 'LegislatorProfileWebScreen.tsx'],
-  ])('hands the frame a placeholder band while the %s page loads', (_name, file) => {
+    ['bill, desktop', 'BillDetailWebScreen.tsx', /billQuery\.isLoading && !bill/],
+    ['legislator, desktop', 'LegislatorProfileWebScreen.tsx', /\w+\.isLoading/],
+  ])('hands the frame a placeholder band while the %s page loads', (_name, file, condition) => {
     // The held height above is only ever right because a band was handed over
     // first. A loading state that stopped doing that would leave nothing to hold.
     const source = readFileSync(join(root, 'src', 'screens', 'redesign', file), 'utf8');
-    expect(source).toMatch(/isLoading\)\s*\{\s*return shell\([^;]*HeroSkeleton \/>\);/);
+    // A bill with seeded or previously loaded records keeps those records visible.
+    expect(source).toMatch(
+      new RegExp(
+        `if \\(${condition.source}\\)\\s*\\{\\s*return shell\\([^;]*HeroSkeleton \\/>\\);`,
+      ),
+    );
   });
 });

@@ -56,6 +56,7 @@ vi.mock('react-native-svg', () => ({ default: () => null, Path: () => null, Circ
 import { CommitteePaymentsScreen } from '../CommitteePaymentsScreen';
 import { CommitteeMoneyScreen } from '../CommitteeMoneyScreen';
 import { committeeFinanceFromPayload, publicApiRequest } from '../../../data/api';
+import { returnPageName } from '../../../navigation/returnDestination';
 import type { RootScreenProps } from '../../../navigation/types';
 let host: HTMLDivElement;
 let root: ReturnType<typeof createRoot>;
@@ -202,6 +203,43 @@ function openFull(report = {}, query = {}) {
   drawFull();
 }
 describe('independent report and payments states', () => {
+  it('names the committee and preserves its year and payment tab in the return address', () => {
+    openFull();
+    const link = [...host.querySelectorAll<HTMLAnchorElement>('a')].find(
+      (node) => node.textContent === 'Back to Example committee',
+    )!;
+    expect(link.getAttribute('href')).toBe('/money/committees/example-20003?tab=gave&year=2026');
+    state.report = { data: undefined, isError: true };
+    drawFull();
+    expect(host.textContent).toContain('Back to Example committee');
+    expect(link.getAttribute('href')).toBe('/money/committees/example-20003?tab=gave&year=2026');
+  });
+  it('forgets a served committee only after both record reads prove it is missing', () => {
+    openFull();
+    const path = '/money/committees/example-20003';
+    expect(returnPageName(path)).toBe('Example committee');
+    state.report = { data: undefined, isError: true };
+    drawFull();
+    expect(returnPageName(path)).toBe('Example committee');
+    state.report = { data: null, isPending: false, isError: false };
+    state.query = { data: { pages: [null] }, isPending: false, isError: false };
+    drawFull();
+    expect(returnPageName(path)).toBeNull();
+    expect(host.textContent).toContain('Back to Committees');
+  });
+  it('returns to the named committee list when no served identity is known', () => {
+    openFull({ data: undefined, isError: true });
+    const link = [...host.querySelectorAll<HTMLAnchorElement>('a')].find(
+      (node) => node.textContent === 'Back to Committees',
+    )!;
+    expect(link.getAttribute('href')).toBe('/money/committees');
+  });
+  it('does not borrow a different committee’s placeholder name for a return', () => {
+    openFull({ isPlaceholderData: true });
+    expect(host.textContent).toContain('Back to Committees');
+    expect(host.textContent).not.toContain('Back to Example committee');
+  });
+
   it('keeps payment rows while report information is loading without claiming no figures', () => {
     openFull({ data: undefined, isPending: true });
     expect(host.textContent).toContain('Loading report information');

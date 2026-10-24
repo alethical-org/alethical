@@ -7,7 +7,7 @@
  * every page downloads before anything draws. Reading the registry in
  * `lib/research.ts` for that put every published article's full text into that
  * first download. This module holds only
- * what those readers need and imports only the top bar's items.
+ * what those readers need. Blog-only wording lives in `blogPageCopy.ts`.
  *
  * Article-only date and share wording lives in `articleDateLabels.ts`, so
  * formatting it never adds code to another page’s first download.
@@ -17,8 +17,6 @@
  * re-exports every name here and keeps the full pieces, the /blog page's other
  * wording and everything that needs a piece's text.
  */
-
-import { IA } from '../navigation/ia';
 
 /**
  * Which of Alethical's 2 kinds of writing a piece carries. Two flags rather
@@ -85,10 +83,10 @@ export interface PieceIndexEntry {
   traits: PieceTraits;
   /**
    * Whether search engines may list the piece. **Every published piece is
-   * visible from the day it posts (Eugene, 25 Aug 2026)**, so this is `true` on
+   * visible from the day it posts (25 Aug 2026)**, so this is `true` on
    * anything we publish and the field exists only to hold a piece back for a
-   * reason Eugene names. It governs the sitemap row, the indexing tag and the
-   * canonical link together, so all 3 follow from the one value.
+   * separately approved editorial reason. It governs the sitemap row, the indexing
+   * tag and the canonical link together, so all 3 follow from the one value.
    */
   indexed: boolean;
   title: string;
@@ -118,52 +116,6 @@ export interface PieceIndexEntry {
    */
   checkedOn?: string;
 }
-
-/**
- * The /blog page's own fixed wording, in one place because 3 surfaces draw
- * it: the screen, its search description in lib/share.ts, and the text
- * served in the first response before any JavaScript runs
- * (lib/pageSnapshot.ts). A second copy is how a served page and a rendered page
- * start disagreeing, which is worse than either one being wrong alone.
- */
-
-/**
- * The page's own name, taken from the label the top bar already draws for it
- * rather than typed again here.
- *
- * The page shows no visible title: the bar and the address both say the word
- * already, and a third visible instance is what the naming rule forbids (Design,
- * 27 Aug 2026). So this is the name a screen reader reads off the visually
- * hidden `h1` and the name the browser tab carries, and nothing draws it in ink.
- *
- * Read off the bar's own item because that is Design's whole reason for hiding
- * the title: 2 copies of the word could disagree, and this one cannot.
- */
-export const READ_PAGE_NAME = IA.find((item) => item.id === 'read')?.label ?? 'Blog';
-
-/**
- * The page's descriptive title, for the 2 places its name has to survive out of
- * context: the back link at the top of a piece, and the share card. Neither has
- * the bar or the address beside it to supply the subject, so neither can use
- * `READ_PAGE_NAME`, because "Blog" alone tells a person nothing about what they
- * would be opening.
- */
-export const READ_PAGE_HEADING = 'Campaign money research and guides';
-
-/**
- * The note under the hidden title. A note rather than a heading, in regular
- * weight and grey, because the bold heads on this page are the kind sections and
- * a reader should see the shape of what we publish before reading a sentence
- * about it (Design, 27 Aug 2026).
- *
- * No terminal period on this line or on the 2 empty-state lines
- * (`READ_PAGE_EMPTY_TITLE` and `READ_PAGE_EMPTY_BODY` in `lib/research.ts`): a
- * period says another sentence is coming, so on a line with nothing after it the
- * eye waits for something that never arrives (Eugene, 2 Sep 2026). A piece's own
- * standfirst, drawn on its card, keeps the period its author wrote.
- */
-export const READ_PAGE_INTRO =
-  'What we found in Minnesota\u2019s public records, plus guides to how state government works';
 
 /**
  * The label a reader sees for a piece: **Research** when it carries the research
@@ -276,6 +228,19 @@ export const MONEY_ONLY_GOES_ONE_WAY_INDEX_ENTRY: PieceIndexEntry = {
   recordsThrough: '2026-07-20',
 };
 
+export const COMMITTEE_OFFICERS_INDEX_ENTRY: PieceIndexEntry = {
+  articleId: 'short-committee-officers-and-vendors',
+  slug: 'committee-officers-and-the-firms-they-pay',
+  format: 'short-post',
+  topics: ['campaign-finance', 'elections'],
+  traits: { research: true, guide: true },
+  indexed: true,
+  title: 'Who keeps the books, and who gets paid?',
+  publishedOn: '2026-10-08',
+  recordsThrough: '2026-09-30',
+  publishedAt: '2026-10-08T09:10:00Z',
+};
+
 export const TWO_RECORDS_NOT_TWO_DONATIONS_INDEX_ENTRY: PieceIndexEntry = {
   articleId: 'short-records-not-donations-2023',
   slug: '2-records-not-always-2-donations',
@@ -318,11 +283,29 @@ export const LOBBYIST_GIVING_INDEX_ENTRY: PieceIndexEntry = {
   publishedAt: '2026-09-26T20:54:05Z',
 };
 
+export const REALTOR_PACS_INDEX_ENTRY: PieceIndexEntry = {
+  articleId: 'realtor-pacs-shared-candidates',
+  slug: 'realtor-pacs-shared-candidates',
+  title: '3 Realtor PACs. 12 shared campaigns.',
+  traits: {
+    research: true,
+    guide: false,
+  },
+  format: 'short-post',
+  topics: ['campaign-finance', 'elections'],
+  indexed: true,
+  publishedOn: '2026-10-08',
+  recordsThrough: '2024-03-31',
+  publishedAt: '2026-10-08T08:57:17.929Z',
+};
+
 /**
  * Every posted piece, newest first, in the order `PUBLISHED_RESEARCH` lists the
  * full pieces (`lib/research.ts`).
  */
 export const PUBLISHED_PIECE_INDEX: PieceIndexEntry[] = [
+  COMMITTEE_OFFICERS_INDEX_ENTRY,
+  REALTOR_PACS_INDEX_ENTRY,
   LOBBYIST_GIVING_INDEX_ENTRY,
   ORGANIZATIONS_BOTH_PARTIES_INDEX_ENTRY,
   TWO_RECORDS_NOT_TWO_DONATIONS_INDEX_ENTRY,

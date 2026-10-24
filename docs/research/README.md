@@ -17,3 +17,5 @@ Point-in-time research investigations, grouped by topic. These are **dated snaps
 **Topics:**
 - [Persona research](persona/persona-rag-chatbot-research.md) — real-human persona / agent-persona chatbots (identity grounding, role-vs-persona, citation fidelity).
 - [Retrieval research](retrieval/retrieval-strategy-research.md) — retrieval strategy for grounded Q&A (embeddings, reranking, hybrid search, contextual retrieval, routing, evaluation).
+
+- [Private relationship retrieval evaluation](retrieval/graph-evaluation/README.md) — frozen evidence, fair search comparisons and a gated private graph trial (7 October 2026).

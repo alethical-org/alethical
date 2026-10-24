@@ -1,0 +1,5 @@
+2026/10/20 20:53:19 NOTICE: alethical-drive{ysOIc}: This remote uses rclone's shared Google Drive client_id, which is being retired and will stop working during 2026. Create your own client_id to avoid interruption: https://rclone.org/drive/#making-your-own-client-id
+MATCH existing ForwardDebate-sound-fixed.mov
+MATCH existing ForwardDebate-original-audio-stereo.m4a
+MATCH existing ForwardDebate-original-audio-spatial-4ch.mov
+MATCH restored references/short-01-33cae638.mp4

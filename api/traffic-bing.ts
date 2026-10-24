@@ -1,6 +1,15 @@
 import { requireSiteMetricsAdmin } from "./_lib/requireSiteMetricsAdmin";
+import {
+  bingSearchExport,
+  providerFailureReason,
+  searchExportRequest,
+} from "./_lib/searchMeasurement";
 
-type RequestLike = { method?: string; headers?: Record<string, string | string[] | undefined> };
+type RequestLike = {
+  method?: string;
+  url?: string;
+  headers?: Record<string, string | string[] | undefined>;
+};
 type ResponseLike = {
   status: (code: number) => ResponseLike;
   setHeader: (name: string, value: string) => void;
@@ -57,6 +66,20 @@ export default async function handler(
     return;
   }
   if (!(await requireSiteMetricsAdmin(request, response))) return;
+  let exportRequest;
+  try {
+    exportRequest = searchExportRequest(request.url);
+    if (exportRequest?.view === "query-pages")
+      throw new Error("Unsupported view");
+  } catch {
+    sendJson(
+      response,
+      400,
+      { error: "Invalid search export request." },
+      OK_CACHE,
+    );
+    return;
+  }
   const apiKey = process.env.BING_WEBMASTER_API_KEY?.trim();
   const siteUrl = process.env.BING_WEBMASTER_SITE_URL?.trim();
   if (!apiKey || !siteUrl) {
@@ -70,6 +93,15 @@ export default async function handler(
   }
 
   try {
+    if (exportRequest) {
+      sendJson(
+        response,
+        200,
+        await bingSearchExport(siteUrl, apiKey, exportRequest),
+        OK_CACHE,
+      );
+      return;
+    }
     const url = new URL(ENDPOINT);
     url.searchParams.set("siteUrl", siteUrl);
     url.searchParams.set("apikey", apiKey);
@@ -147,7 +179,8 @@ export default async function handler(
       },
       OK_CACHE,
     );
-  } catch {
+  } catch (error) {
+    console.error(`Bing reader failed: ${providerFailureReason(error)}`);
     sendJson(
       response,
       503,

@@ -5,8 +5,8 @@
      piece is `apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts`, and
      `apps/frontend/src/lib/__tests__/research.test.ts` compares the 2 word for word,
      so an edit here without the matching edit there fails the build, and so does the
-     reverse. The words are settled: rule 13's publishing order lets the Alethical team
-     direct a change (point 2a) and forbids us editing them on our own initiative.
+     reverse. The words are settled: rule 13's publishing order requires explicit editorial
+     approval for a change (point 2a) and forbids autonomous edits.
 
 
      WHAT IT IS. Piece 1 of 5 in the set "How the Money Works" (#1752's comment fixes
@@ -16,17 +16,16 @@
 
      NO READER-FACING LINE NUMBERS THIS PIECE OR COUNTS THE SET. The position line names
      the set and stops, and the closing paragraph names no title for the next piece.
-     Eugene ruled on 27 Aug 2026 that a piece's number is internal talk and never
-     reaches a reader, so "piece 1" came off after "piece 1 of 5" had already come off
-     earlier the same day. Eugene ratified on 27 Aug 2026 that a set names only its published
-     pieces and never its unwritten ones, on the ground that
+     The 27 Aug 2026 editorial decision keeps piece numbers internal, so the reader-facing
+     position was removed in stages that day. A set names only its published
+     pieces and never its unwritten ones, because
      `.claude/rules/grounded-answers.md` rule 2 forbids naming what we cannot deliver
      (`docs/architecture/published-writing-decisions.md` §2.3). A printed "of 5" is that
      same promise inside the prose, and it also goes stale if the set turns out to be 4
      pieces or 7. The set framing stays in this comment, which no reader sees.
 
-     THE FORWARD LINK IS PAID. This paragraph used to end "This paragraph gains a link
-     to it the day that piece posts." Guide 2 posted on 27 Aug 2026 at
+     THE FORWARD LINK IS PAID. This paragraph previously promised a link upon the
+     next guide's publication. Guide 2 posted on 27 Aug 2026 at
      /blog/guides/what-the-records-name, so the link went in and the sentence that
      explained its absence came out with it. That is not an edit on our own initiative,
      which rule 13 point 2 forbids: the piece's own text instructed it, and issue #1752's

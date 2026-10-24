@@ -11,6 +11,9 @@ on:
   workflow_dispatch:
   # Scheduled starts now use source-record-refresh.yml, including safe corrections.
 
+permissions:
+  contents: read
+
 concurrency:
   group: production-vote-backfill
   cancel-in-progress: false

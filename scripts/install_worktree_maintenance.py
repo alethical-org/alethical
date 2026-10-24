@@ -57,7 +57,14 @@ def durable_python(repo: Path) -> str:
 
 
 def install(
-    repo: Path, state: Path, home: Path = Path.home(), activate: bool = True
+    repo: Path,
+    state: Path,
+    home: Path = Path.home(),
+    activate: bool = True,
+    project: str = "alethical",
+    admitted_paths: tuple[Path, ...] = (),
+    protected_paths: tuple[Path, ...] = (),
+    install_codex_hooks: bool = False,
 ) -> dict:
     if activate and sys.platform != "darwin":
         raise cleanup.CleanupError("automatic installation is supported on macOS")
@@ -70,24 +77,52 @@ def install(
         raise cleanup.CleanupError(
             "maintenance storage must be outside every working folder"
         )
-    plugin = home / ".claude/skills/alethical-worktree-maintenance"
+    with cleanup.locked(state, wait=True):
+        return install_locked(
+            repo,
+            state,
+            home,
+            activate,
+            project,
+            admitted_paths,
+            protected_paths,
+            install_codex_hooks,
+        )
+
+
+def install_locked(
+    repo: Path,
+    state: Path,
+    home: Path,
+    activate: bool,
+    project: str,
+    admitted_paths: tuple[Path, ...],
+    protected_paths: tuple[Path, ...],
+    install_codex_hooks: bool,
+) -> dict:
+    cleanup.configure_project(project, repo, state)
+    labels = tuple(
+        f"com.{project}.{suffix}" for suffix in ("worktree-cleanup", "wip-backup")
+    )
+    plugin_name = f"{project}-worktree-maintenance"
+    plugin = home / ".claude/skills" / plugin_name
     if plugin.exists():
         marker = plugin / ".claude-plugin/plugin.json"
-        if (
-            not marker.is_file()
-            or json_plugin_name(marker) != "alethical-worktree-maintenance"
-        ):
+        if not marker.is_file() or json_plugin_name(marker) != plugin_name:
             raise cleanup.CleanupError(
                 "the maintenance plugin path belongs to other contents"
             )
     sources = Path(__file__).parent
     interpreter = durable_python(repo)
-    names = ("worktree_cleanup.py", "worktree_backup.py")
+    names = ("worktree_cleanup.py", "worktree_backup.py", "worktree_inventory.py")
     data = {name: (sources / name).read_bytes() for name in names}
+    # A regular package must win over unrelated packages named scripts later on
+    # Python's search path; a namespace directory alone does not provide that.
+    data["__init__.py"] = b""
     digest = hashlib.sha256(
         b"".join(name.encode() + content for name, content in data.items())
     ).hexdigest()[:20]
-    runtime = state / "runtime" / digest
+    runtime = state / "runtime" / digest / "scripts"
     runtime.mkdir(parents=True, exist_ok=True, mode=0o700)
     for name, content in data.items():
         target = runtime / name
@@ -124,14 +159,45 @@ def install(
         cleanup.git(repo, "rev-parse", "--path-format=absolute", "--git-common-dir")
     ).resolve()
     shared = common.parent
-    for label in LABELS:
-        backup = label == "com.alethical.wip-backup"
+    admitted = cleanup.ADMITTED_PATHS | {p.absolute() for p in admitted_paths}
+    protected = cleanup.PROTECTED_PATHS | {p.absolute() for p in protected_paths}
+    cleanup.ADMITTED_PATHS = admitted
+    # Already removed historical admissions must not prevent runtime updates.
+    # Every removal still rechecks exact Git identity before touching a folder.
+    for path in {p.absolute() for p in (*admitted_paths, *protected_paths)}:
+        record = cleanup.identity(repo, path, allow_retained=True)
+        if cleanup.is_native(path) or Path(record["common"]) != common:
+            raise cleanup.CleanupError(
+                "external admission must belong to this repository outside Codex"
+            )
+    cleanup.PROTECTED_PATHS = protected
+    backup_dir = home / f"Library/Application Support/{project}-wip-backups"
+    result = {
+        "runtime": str(runtime),
+        "python": interpreter,
+        "repository": str(shared),
+        "project": project,
+        "admitted_paths": sorted(str(p) for p in admitted),
+        "protected_paths": sorted(str(p) for p in protected),
+        "backup_directory": str(backup_dir),
+        "labels": list(labels),
+        "claude_plugin": str(plugin),
+        "activated": False,
+        "codex_hooks": "prepared; not installed",
+    }
+    # Persist protections under the same lock held by removal BEFORE RunAtLoad.
+    # A failed/retried installation keeps these holds, never restores a looser scope.
+    cleanup.write_json(state / "installation.json", result)
+    for label in labels:
+        backup = label.endswith(".wip-backup")
         program = [
             interpreter,
             str(runtime / ("worktree_backup.py" if backup else "worktree_cleanup.py")),
         ]
         if not backup:
             program += [
+                "--project",
+                project,
                 "--repo",
                 str(shared),
                 "--state",
@@ -139,6 +205,8 @@ def install(
                 "sweep",
                 "--apply",
             ]
+        else:
+            program += ["--repo", str(shared), "--destination", str(backup_dir)]
         payload = {
             "Label": label,
             "ProgramArguments": program,
@@ -188,6 +256,8 @@ def install(
         for arg in [
             interpreter,
             str(runtime / "worktree_cleanup.py"),
+            "--project",
+            project,
             "--repo",
             str(shared),
             "--state",
@@ -202,22 +272,68 @@ def install(
     cleanup.write_json(
         plugin / ".claude-plugin/plugin.json",
         {
-            "name": "alethical-worktree-maintenance",
-            "version": "1.0.0",
-            "description": "Keep finished Alethical external working folders from accumulating",
+            "name": plugin_name,
+            "version": "1.1.0",
+            "description": f"Record {project} folder ownership and finish decisions",
         },
     )
     cleanup.write_json(plugin / "hooks/hooks.json", {"hooks": hooks})
-    result = {
-        "runtime": str(runtime),
-        "python": interpreter,
-        "repository": str(shared),
-        "labels": list(LABELS),
-        "claude_plugin": str(plugin),
-        "activated": activate,
-    }
+    codex_hooks = {"hooks": hooks}
+    cleanup.write_json(state / "codex-hooks.json", codex_hooks)
+    if install_codex_hooks:
+        # Only configuration is installed. Codex's native trust review stays required.
+        merge_codex_hooks(home / ".codex/hooks.json", codex_hooks, project, state)
+    result["activated"] = activate
+    result["codex_hooks"] = (
+        "installed; native trust review required"
+        if install_codex_hooks
+        else "prepared; not installed"
+    )
     cleanup.write_json(state / "installation.json", result)
     return result
+
+
+def merge_codex_hooks(path: Path, new: dict, project: str, state: Path) -> None:
+    """Preserve unrelated hooks and keep rollback bytes; never set trust state."""
+    import json
+
+    target = path.resolve() if path.is_symlink() else path
+    original = target.read_bytes() if target.exists() else None
+    data = json.loads(original) if original is not None else {}
+    if not isinstance(data, dict) or not isinstance(data.get("hooks", {}), dict):
+        raise cleanup.CleanupError("Codex hooks have an unexpected shape")
+    if original is not None:
+        backup = (
+            state
+            / "previous-installations"
+            / ("codex-hooks-" + hashlib.sha256(original).hexdigest()[:16] + ".json")
+        )
+        if not backup.exists():
+            backup.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            backup.write_bytes(original)
+            backup.chmod(0o600)
+    events = data.setdefault("hooks", {})
+    marker = f"Working-folder ownership ({project})"
+    for event, groups in new["hooks"].items():
+        existing = events.get(event, [])
+        if not isinstance(existing, list):
+            raise cleanup.CleanupError("Codex hook event has an unexpected shape")
+        kept = []
+        for group in existing:
+            handlers = [h for h in group["hooks"] if h.get("statusMessage") != marker]
+            if handlers:
+                kept.append({**group, "hooks": handlers})
+        for group in groups:
+            kept.append(
+                {
+                    **group,
+                    "hooks": [{**h, "statusMessage": marker} for h in group["hooks"]],
+                }
+            )
+        events[event] = kept
+    if target.exists() and target.read_bytes() != original:
+        raise cleanup.CleanupError("Codex hooks changed during installation; retry")
+    cleanup.write_json(target, data)
 
 
 def json_plugin_name(path: Path) -> str:
@@ -230,10 +346,23 @@ if __name__ == "__main__":
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=Path.cwd())
-    parser.add_argument("--state", type=Path, default=cleanup.DEFAULT_STATE)
+    parser.add_argument("--project", choices=cleanup.PROJECTS, default="alethical")
+    parser.add_argument("--state", type=Path)
+    parser.add_argument("--admit-external", type=Path, action="append", default=[])
+    parser.add_argument("--protect", type=Path, action="append", default=[])
+    parser.add_argument("--install-codex-hooks", action="store_true")
     args = parser.parse_args()
     try:
-        print(install(args.repo, args.state))
+        print(
+            install(
+                args.repo,
+                args.state or cleanup.default_state(args.project),
+                project=args.project,
+                admitted_paths=tuple(args.admit_external),
+                protected_paths=tuple(args.protect),
+                install_codex_hooks=args.install_codex_hooks,
+            )
+        )
     except (OSError, cleanup.CleanupError) as error:
         print(f"Installation held: {error}", file=sys.stderr)
         sys.exit(1)

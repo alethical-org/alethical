@@ -268,7 +268,7 @@ it('keeps retained address results steady through desktop edits and failed repla
   });
   expect(field.value).toBe('200 New Street Unit 2');
   expect(host.textContent).toContain('Showing results for 100 Original Street, MN 55415');
-  click(button('Find my candidates'));
+  click(button('Find'));
   await flush();
   expect(host.querySelector('a[href="/candidates/a-person"]')).toBeTruthy();
   expect(host.textContent?.match(/Showing results for State general election/g)).toBeNull();
@@ -277,7 +277,16 @@ it('keeps retained address results steady through desktop edits and failed repla
   expect(field.value).toBe('200 New Street Unit 2');
   expect(host.textContent).toContain('Showing results for 100 Original Street, MN 55415');
   expect(host.textContent).toContain('We couldn’t update the results');
-  expect(host.textContent?.match(/Showing results for State general election/g)).toHaveLength(1);
+  // The desktop caption remains visible beside the old races. Its hidden copy
+  // keeps the separate error announcement meaningful to screen-reader users.
+  const captions = [...host.querySelectorAll<HTMLElement>('div')].filter(
+    (element) =>
+      element.textContent === 'Showing results for State general election · November 5, 2030',
+  );
+  expect(captions.filter((element) => getComputedStyle(element).opacity !== '0')).toHaveLength(1);
+  expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+    'Showing results for State general election · November 5, 2030',
+  );
   expect(host.querySelector('[role="region"]')?.textContent).toContain('About these results');
   expect(
     host
@@ -305,10 +314,10 @@ it('announces initial loading once while the election source is slow', async () 
   await act(async () =>
     root.render(<CandidateSearchContent services={services} onOpenProfile={() => {}} />),
   );
-  expect(host.textContent?.match(/Finding candidates…/g)).toHaveLength(2);
-  expect(button('Finding candidates…').getAttribute('aria-disabled')).toBe('true');
+  expect(host.textContent?.match(/Finding…/g)).toHaveLength(2);
+  expect(button('Finding…').getAttribute('aria-disabled')).toBe('true');
   const announcements = [...host.querySelectorAll('[aria-live="polite"]')].filter(
-    (node) => node.textContent === 'Finding candidates…',
+    (node) => node.textContent === 'Finding…',
   );
   expect(announcements).toHaveLength(1);
   expect(getComputedStyle(announcements[0]).width).toBe('1px');
@@ -344,20 +353,20 @@ it('gives an initial address retry 1 waiting announcement inside its steady form
   const retry = button('Try again');
   click(retry);
   await flush();
-  expect(button('Finding candidates…').getAttribute('aria-disabled')).toBe('true');
-  expect(host.textContent?.match(/Finding candidates…/g)).toHaveLength(2);
+  expect(button('Finding…').getAttribute('aria-disabled')).toBe('true');
+  expect(host.textContent?.match(/Finding…/g)).toHaveLength(2);
   const announcements = [...host.querySelectorAll('[aria-live="polite"]')].filter(
-    (node) => node.textContent === 'Finding candidates…',
+    (node) => node.textContent === 'Finding…',
   );
   expect(announcements).toHaveLength(1);
   expect(getComputedStyle(announcements[0]).width).toBe('1px');
   expect(button('Try again')).toBe(retry);
   click(retry);
-  click(button('Finding candidates…'));
+  click(button('Finding…'));
   expect(lookup).toHaveBeenCalledTimes(2);
   await act(async () => finish({ kind: 'no-match' }));
   await flush();
-  expect(button('Find my candidates').getAttribute('aria-disabled')).toBeNull();
+  expect(button('Find').getAttribute('aria-disabled')).toBeNull();
 });
 
 it.each([

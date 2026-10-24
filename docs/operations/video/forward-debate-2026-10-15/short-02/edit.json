@@ -1,0 +1,43 @@
+{
+  "status": "PRIVATE DRAFT; no publication or scheduling authorized",
+  "source": "ForwardDebate-sound-fixed.mov",
+  "source_sha256": "81589c34d8ae50c704f1622bfe030e9930c51f691b9a1534cd56af6708d4f680",
+  "source_bounds": [
+    3100.64,
+    3185.24
+  ],
+  "published_bounds": [
+    3061.58,
+    3146.18
+  ],
+  "intro_seconds": 1.8,
+  "closing_seconds": 4,
+  "duration_seconds": 90.4,
+  "source_shots": [
+    [
+      3100.64,
+      3104.64,
+      "angel",
+      497
+    ],
+    [
+      3104.64,
+      3148.64,
+      "trent",
+      1592
+    ],
+    [
+      3148.64,
+      3185.24,
+      "aaron",
+      1132
+    ]
+  ],
+  "name_seconds": {
+    "angel": 4,
+    "trent": 4,
+    "aaron": 6
+  },
+  "caption_method": "Retained transcript wording, source word-time anchors, conservative uncertainty marks; no listening established",
+  "website": "https://www.alethical.com/blog/events/forward-debate-2026"
+}

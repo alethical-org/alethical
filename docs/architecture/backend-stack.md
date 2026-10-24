@@ -1,6 +1,6 @@
 # Backend stack
 
-<!-- describes: pyproject.toml, Dockerfile.backend, docker-compose.yml, railway.json, oban.toml, alethical/api/main.py, alethical/db/session.py, alethical/api/rate_limit.py -->
+<!-- describes: pyproject.toml, Dockerfile.backend, docker-compose.yml, railway.json, oban.toml, alethical/api/main.py, alethical/db/session.py, alethical/api/rate_limit.py, railpack.json, alethical/pipeline/tv_ad_redaction.py, alethical/assets/fonts/* -->
 
 **Net:** The backend is one Python web service that answers requests, one Postgres database
 that stores everything, and a set of jobs that pull the Minnesota legislative record in.
@@ -29,6 +29,7 @@ first and follow the link for the part you need.
 | Storing data | Postgres 17 with the `pgvector` add-on | `docker-compose.yml` (local), Supabase (production) |
 | Keeping the exact files we downloaded | Supabase Storage, reached over the S3 protocol (`boto3`) | `alethical/pipeline/raw_file_store.py` |
 | Reading a committee's filed money report | `pypdf`, pure Python with no system libraries behind it | `alethical/pipeline/campaign_finance_report_documents.py` |
+| Preparing permanently redacted TV pages | Poppler (`pdftoppm`), Pillow and bundled Libre Franklin; PNG pages and an image-only PDF go to private source-file storage | `alethical/pipeline/tv_ad_redaction.py`, `railpack.json`, `Dockerfile.backend` |
 | Preparing the manual ZIP-to-state reference | `openpyxl` reads the official HUD workbook; web requests use the prepared JSON | `scripts/build_zip_state_reference.py`, `alethical/api/services/zip_state_reference.py` |
 | Sign-in | Supabase Auth | `alethical/api/auth.py`, `alethical/api/services/auth.py` |
 | Background jobs | `oban`, a queue that lives in Postgres | `oban.toml`, `alethical/pipeline/oban.py` |
@@ -60,6 +61,12 @@ them to FastAPI. One Uvicorn process runs per container.
 - The app is assembled in one function (`create_app` in `alethical/api/main.py`), which the
   start command calls. This is what lets tests build a fresh app instead of importing a
   half-configured one.
+- The public address suggestion copy is off by default. When switched on, the app's
+  startup starts 1 background refresher per process; every process on a machine reads 1
+  shared copy, and only the holder of the folder lock downloads and builds a
+  replacement. Startup never waits for the copy, and shutdown leaves it for the other
+  processes. See
+  [deployment.md § Address suggestion copy activation](../operations/deployment.md#address-suggestion-copy-activation).
 - Public and signed-in routes sit under `/api/v1`. Operations routes we use ourselves sit
   under `/internal/v1`. The version number is in the address so a future change can ship
   beside the old one instead of breaking every client at once.

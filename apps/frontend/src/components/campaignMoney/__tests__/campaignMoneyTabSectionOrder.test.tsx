@@ -11,10 +11,16 @@
  * `campaignMoneyTabDrawsOutsideSpending.test.tsx` gives: a check on an import passes
  * while a reader sees nothing.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { CampaignCommitteeMoney, LegislatorCampaignMoney } from '../../../data/types';
 import { refundFixture } from './refundFixtures';
+import type { OutsideSpendingYear } from '../../../lib/outsideSpending';
+
+const outsideSpending = vi.hoisted(() => ({ years: [] as OutsideSpendingYear[] }));
+afterEach(() => {
+  outsideSpending.years = [];
+});
 
 vi.mock('../MoneyDetailsOnDemand', () => import('../MoneyDetailsBundle'));
 vi.mock('@react-navigation/native', () => ({ useNavigation: () => ({ navigate: vi.fn() }) }));
@@ -24,7 +30,11 @@ vi.mock('react-native-svg', () => ({
   Path: () => <path />,
 }));
 vi.mock('../../../hooks/useAppQueries', () => ({
-  useLegislatorOutsideSpending: () => ({ data: [], isLoading: false, isError: false }),
+  useLegislatorOutsideSpending: () => ({
+    data: outsideSpending.years,
+    isLoading: false,
+    isError: false,
+  }),
 }));
 vi.mock(
   '../../../hooks/useCampaignMoneyYearStates',
@@ -85,13 +95,17 @@ function committee(registration: '17868' | '15667'): CampaignCommitteeMoney {
   };
 }
 
-function render(committees: CampaignCommitteeMoney[], filingsCopiedAt?: string | null): string {
+function render(
+  committees: CampaignCommitteeMoney[],
+  filingsCopiedAt?: string | null,
+  servedAgeMs = 0,
+): string {
   const money: LegislatorCampaignMoney = {
     legislatorId: 'fixture-member',
     year: 2025,
     linkState: 'confirmed',
     releaseId: 'release-1',
-    currentClaim: { servedAgeMs: 0, validatedAt: '2026-09-12T12:00:00Z' },
+    currentClaim: { servedAgeMs, validatedAt: '2026-09-12T12:00:00Z' },
     committees,
     committeesOutsideThisYear: [],
     otherOfficeCommittees: 0,
@@ -174,15 +188,99 @@ describe('the order of the Campaign money tab', () => {
 
 describe('the tab dates both sources at its foot', () => {
   it('prints the separately copied totals date in Minnesota time', () => {
-    const html = render([committee('17868')], '2026-08-12T02:00:00Z');
+    const html = render(
+      [{ ...committee('17868'), filingsCopiedAt: '2026-08-12T02:00:00Z' }],
+      '2026-10-24T12:00:00Z',
+    );
     expect(html).toContain('report totals copied Aug 11,\u00a02026.');
     expect(html).toContain('These are copy dates, not reporting periods.');
     expect(html).not.toContain('The report totals were copied separately.');
   });
 
   it('retains the honest one-date line when the response has no report date', () => {
-    const html = render([committee('17868')]);
+    const html = render([committee('17868')], '2026-10-24T12:00:00Z');
     expect(html).toContain('The report totals were copied separately.');
     expect(html).not.toContain('report totals copied');
+    expect(html).toContain('The report totals’ copy date is unavailable');
+    expect(html).not.toContain('Oct 24');
+  });
+
+  it('keeps mixed dates beside their own committee, without a borrowed shared date', () => {
+    const html = render(
+      [
+        { ...committee('17868'), filingsCopiedAt: '2026-10-07T21:00:00Z' },
+        { ...committee('15667'), filingsCopiedAt: '2026-10-24T19:00:00Z' },
+      ],
+      '2026-10-24T19:00:00Z',
+    );
+    const second = html.indexOf('Fixture Senate committee 15667');
+    expect(html.indexOf('Report totals copied Oct 7, 2026.')).toBeGreaterThan(0);
+    expect(html.indexOf('Report totals copied Oct 7, 2026.')).toBeLessThan(second);
+    expect(html.indexOf('Report totals copied Oct 24, 2026.')).toBeGreaterThan(second);
+    expect(html).not.toContain('report totals copied');
+  });
+
+  it('groups different times on the same Minnesota day once', () => {
+    const html = render([
+      { ...committee('17868'), filingsCopiedAt: '2026-08-11T22:00:00Z' },
+      { ...committee('15667'), filingsCopiedAt: '2026-08-12T02:00:00Z' },
+    ]);
+    expect(html.split('report totals copied Aug 11,\u00a02026.')).toHaveLength(2);
+    expect(html).not.toContain('Report totals copied');
+  });
+
+  it.each(['2026-10-24T19:00:00Z', null])(
+    'keeps the shared report date when outside payment dates differ or are missing: %s',
+    (fetchedAt) => {
+      outsideSpending.years = [
+        {
+          year: 2025,
+          state: 'reported',
+          snapshotId: 'outside-snapshot',
+          committees: [],
+          supporting: 100,
+          opposing: 0,
+          directionNotRecorded: 0,
+          supportingPayments: 1,
+          opposingPayments: 0,
+          directionNotRecordedPayments: 0,
+          firstPaymentOn: '2025-01-01',
+          lastPaymentOn: '2025-12-31',
+          sourceUrl: 'https://cfb.mn.gov/',
+          fetchedAt,
+        },
+      ];
+      const html = render([
+        { ...committee('17868'), filingsCopiedAt: '2026-08-11T22:00:00Z' },
+        { ...committee('15667'), filingsCopiedAt: '2026-08-12T02:00:00Z' },
+      ]);
+      expect(html.split('Report totals copied Aug 11, 2026.')).toHaveLength(2);
+      expect(html).toContain('Their recorded dates differ or a date is missing.');
+      expect(html).toContain('Try again');
+      expect(html).not.toContain('report totals copied');
+    },
+  );
+
+  it('keeps a known date local when another committee has no date', () => {
+    const html = render([
+      { ...committee('17868'), filingsCopiedAt: '2026-10-07T21:00:00Z' },
+      committee('15667'),
+    ]);
+    const second = html.indexOf('Fixture Senate committee 15667');
+    expect(html.indexOf('Report totals copied Oct 7, 2026.')).toBeLessThan(second);
+    expect(html.indexOf('The report totals’ copy date is unavailable')).toBeGreaterThan(second);
+    expect(html).not.toContain('report totals copied');
+  });
+
+  it('withholds committee copy dates when the committee association has expired', () => {
+    const html = render(
+      [{ ...committee('17868'), filingsCopiedAt: '2026-10-07T21:00:00Z' }],
+      '2026-10-24T19:00:00Z',
+      24 * 60 * 60 * 1000,
+    );
+    expect(html).not.toContain('Fixture Senate committee 17868');
+    expect(html).not.toContain('Oct 7');
+    expect(html).not.toContain('Oct 24');
+    expect(html).not.toContain('Report totals copied');
   });
 });

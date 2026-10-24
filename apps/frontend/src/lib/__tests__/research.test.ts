@@ -52,14 +52,14 @@ import {
   WORDS_PER_MINUTE,
 } from '../research';
 
-import { shortPostArticleSnapshotBlocks } from '../shortPosts';
+import { shortPostArticleSnapshotBlocks, shortPostPublicationErrors } from '../shortPosts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 // A populated piece that exists ONLY here: nothing a reader can reach may show
 // a figure or a claim from an unpublished piece, so the populated states are
 // exercised with obviously-fake sample content instead of the real text
-// (Eugene's 19 Aug 2026 decision — build the page and its container only).
+// (19 Aug 2026 scope: the page and its container only).
 export const SAMPLE_PIECE: ResearchPiece = {
   slug: 'sample-piece',
   traits: { research: true, guide: false },
@@ -210,8 +210,8 @@ describe('piece date labels', () => {
 });
 
 describe('piece share previews', () => {
-  // Rule 13: piece claims and derived labels appear in no social-share preview
-  // or metadata — a preview carries the title and the two dates, nothing else.
+  // Social previews carry dates only; search may describe a piece's subject,
+  // without carrying its findings or derived labels.
   it('describes a piece by its dates only', () => {
     expect(researchShareDescription(SAMPLE_PIECE)).toBe(
       'Published Aug 17, 2026 · records through Aug 11, 2026.',
@@ -224,7 +224,7 @@ describe('piece share previews', () => {
 
   // A date says nothing about whether a page answers the question somebody
   // typed, and until 18 Sep 2026 it was the whole of what a guide told a search
-  // engine. A guide now describes its own subject there (Eugene, 18 Sep 2026),
+  // engine. A guide now describes its own subject there (18 Sep 2026),
   // while the share preview stays on rule 13's dates-only wording.
   it('gives every guide a search line about its subject, and keeps the card on dates', () => {
     // The sentence lives on the full piece record, not on the light index the
@@ -245,13 +245,40 @@ describe('piece share previews', () => {
     }
   });
 
-  // A research piece's 2 dates are the more useful line beside a title that
-  // already names its subject, so nothing changed for it.
-  it('leaves a research piece describing itself by its dates', () => {
-    const piece = indexedResearch().find((entry) => entry.traits.research)!;
-    const metadata = researchPageMetadata(piece);
-    expect(metadata.description).toBe(pieceShareDescription(piece));
-    expect(metadata.description).toBe(metadata.socialDescription);
+  it('adds the long-form report subject to search without changing its dates or social line', () => {
+    const piece = researchBySlug('the-money-only-goes-one-way')!;
+    expect(piece.searchDescription).toBe(
+      'Minnesota campaign contributions, transfers between political accounts and lobbying records.',
+    );
+    const metadata = researchPageMetadata(piece, piece.searchDescription);
+    expect(metadata.description).toBe(
+      'Minnesota campaign contributions, transfers between political accounts and lobbying records. Published Aug 20, 2026 · records through Jul 20, 2026.',
+    );
+    expect(metadata.socialDescription).toBe(
+      'Published Aug 20, 2026 · records through Jul 20, 2026.',
+    );
+    expect(metadata.article).toEqual({ publishedOn: '2026-08-20' });
+  });
+
+  it('keeps dates only when a research subject is missing or blank', () => {
+    const piece = researchBySlug('the-money-only-goes-one-way')!;
+    for (const subject of [undefined, '', ' \n\t ']) {
+      const metadata = researchPageMetadata(piece, subject);
+      expect(metadata.description).toBe(pieceShareDescription(piece));
+      expect(metadata.socialDescription).toBe(pieceShareDescription(piece));
+    }
+  });
+
+  it('keeps the 5 reviewed Short posts on dates with their existing valid review records', () => {
+    const pieces = PUBLISHED_RESEARCH.filter((piece) => piece.format === 'short-post');
+    expect(pieces).toHaveLength(5);
+    for (const piece of pieces) {
+      expect(piece.searchDescription).toBeUndefined();
+      const metadata = researchPageMetadata(piece, piece.searchDescription);
+      expect(metadata.description).toBe(pieceShareDescription(piece));
+      expect(metadata.socialDescription).toBe(pieceShareDescription(piece));
+      expect(shortPostPublicationErrors(piece)).toEqual([]);
+    }
   });
 });
 
@@ -404,7 +431,7 @@ describe('the 2 trait flags decide the label and the address', () => {
 });
 
 describe('set membership, and the number a reader never sees', () => {
-  // §2.12, Eugene 27 Aug 2026: no reader-facing surface prints a piece's position
+  // §2.12, 27 Aug 2026: no reader-facing surface prints a piece's position
   // in its set. Not "piece 1", not "piece 1 of 5", not a numbered row.
   it('names the set and nothing else on every line a reader reads', () => {
     const guide = researchBySlug('who-has-to-report-their-money');
@@ -448,7 +475,10 @@ describe('reading time, computed from the piece\u2019s own words', () => {
 
   it('does not count Related reading links as words in a Short post', () => {
     const shortPosts = PUBLISHED_RESEARCH.filter((piece) => piece.format === 'short-post');
-    expect(shortPosts).toHaveLength(3);
+    expect(shortPosts.map((piece) => piece.slug)).toContain('realtor-pacs-shared-candidates');
+    expect(shortPosts.map((piece) => piece.slug)).toContain(
+      'committee-officers-and-the-firms-they-pay',
+    );
     shortPosts.forEach((piece) => {
       const withoutRelated = {
         ...piece,
@@ -621,15 +651,29 @@ const blockText = (blocks: readonly ResearchBlock[]): string[] =>
  * piece uses today, because a field left out is a field where a sentence can be
  * dropped and no test notices — which is the whole reason issue 1832 exists.
  */
+function shortPostTableText(piece: ResearchPiece): Map<string, string> {
+  // Table separators belong to layout. Preserve punctuation within each cell.
+  return new Map(
+    (piece.shortPost?.body ?? [])
+      .filter((block) => block.kind === 'table')
+      .flatMap((block) => [block.columns, ...block.rows])
+      .map((cells) => [cells.join(' · '), cells.join(' ')]),
+  );
+}
+
 function shippedWords(piece: ResearchPiece): string {
   if (piece.format === 'short-post') {
     const blocks = shortPostArticleSnapshotBlocks(piece);
+    const tableText = shortPostTableText(piece);
     const relatedStart = blocks.findIndex(
       (block) => block.kind === 'heading' && block.text === 'Related reading',
     );
     return [
       piece.title,
-      ...blocks.slice(0, relatedStart < 0 ? undefined : relatedStart).map((block) => block.text),
+      piece.dek,
+      ...blocks
+        .slice(0, relatedStart < 0 ? undefined : relatedStart)
+        .map((block) => tableText.get(block.text) ?? block.text),
     ]
       .join(' ')
       .replace(/\s+/g, ' ')
@@ -666,7 +710,8 @@ function shippedWords(piece: ResearchPiece): string {
 }
 
 /** The same words as the file holds them, with markdown marks removed. */
-function draftWords(file: string): string {
+function draftWords(file: string, piece: ResearchPiece): string {
+  const tableText = shortPostTableText(piece);
   return (
     readFileSync(join(HERE, '../../../../..', `docs/published-writing/${file}`), 'utf8')
       // The opening HTML comments are the doc-sync declaration and a note to
@@ -685,6 +730,8 @@ function draftWords(file: string): string {
       // cells then each row, which is this file's own reading order.
       .replace(/^\|(?: *:?-+:? *\|)+$/gm, '')
       .replace(/\|/g, ' ')
+      // Earlier Short post drafts store table rows as text separated by dots.
+      .replace(/^.*$/gm, (line) => tableText.get(line.trim()) ?? line)
       .replace(/\*/g, '')
       .replace(/\s+/g, ' ')
       .trim()
@@ -693,6 +740,11 @@ function draftWords(file: string): string {
 
 describe('every shipped piece is its settled prose, word for word', () => {
   const pieces = [
+    { slug: 'realtor-pacs-shared-candidates', file: 'realtor-pacs-shared-candidates.md' },
+    {
+      slug: 'committee-officers-and-the-firms-they-pay',
+      file: 'committee-officers-and-the-firms-they-pay.md',
+    },
     { slug: 'organizations-both-parties', file: 'organizations-both-parties.md' },
     { slug: 'lobbyist-giving', file: 'lobbyist-giving.md' },
     { slug: '2-records-not-always-2-donations', file: '2-records-not-always-2-donations.md' },
@@ -724,7 +776,8 @@ describe('every shipped piece is its settled prose, word for word', () => {
   it.each(pieces)(
     'ships every word the settled file of $slug holds, in that file\u2019s own order',
     ({ slug, file }) => {
-      expect(shippedWords(researchBySlug(slug)!)).toBe(draftWords(file));
+      const piece = researchBySlug(slug)!;
+      expect(shippedWords(piece)).toBe(draftWords(file, piece));
     },
   );
 });
@@ -753,8 +806,8 @@ describe('the first guide carries the structure its draft gives it', () => {
       .filter((run) => run.kind === 'externalLink')
       .map((run) => (run as { href: string }).href);
     expect(links).toHaveLength(11);
-    expect(links.filter((href) => href.includes('cfb.mn.gov'))).toHaveLength(8);
-    expect(links.filter((href) => href.includes('revisor.mn.gov'))).toHaveLength(3);
+    expect(links.filter((href) => new URL(href).hostname === 'cfb.mn.gov')).toHaveLength(8);
+    expect(links.filter((href) => new URL(href).hostname === 'www.revisor.mn.gov')).toHaveLength(3);
     expect(links.every((href) => href.startsWith('https://'))).toBe(true);
   });
 
@@ -811,8 +864,8 @@ describe('the second guide carries the structure its draft gives it', () => {
       .filter((run) => run.kind === 'externalLink')
       .map((run) => run.href);
     expect(links).toHaveLength(7);
-    expect(links.filter((href) => href.includes('cfb.mn.gov'))).toHaveLength(6);
-    expect(links.filter((href) => href.includes('revisor.mn.gov'))).toHaveLength(1);
+    expect(links.filter((href) => new URL(href).hostname === 'cfb.mn.gov')).toHaveLength(6);
+    expect(links.filter((href) => new URL(href).hostname === 'www.revisor.mn.gov')).toHaveLength(1);
     expect(links.every((href) => href.startsWith('https://'))).toBe(true);
   });
 
@@ -994,7 +1047,11 @@ describe('the 3 guides that complete the set', () => {
       .map((run) => run.href);
     expect(links.length).toBeGreaterThan(0);
     expect(
-      links.every((href) => href.includes('cfb.mn.gov') || href.includes('revisor.mn.gov')),
+      links.every(
+        (href) =>
+          new URL(href).hostname === 'cfb.mn.gov' ||
+          new URL(href).hostname === 'www.revisor.mn.gov',
+      ),
     ).toBe(true);
     expect(links.every((href) => href.startsWith('https://'))).toBe(true);
     expect(guide.sources).toEqual([]);
@@ -1043,7 +1100,7 @@ describe('the 3 guides that complete the set', () => {
 });
 
 describe('a line sitting on its own takes no closing period', () => {
-  // Eugene, 2 Sep 2026: a period says another sentence is coming, so on a line
+  // 2 Sep 2026: a period says another sentence is coming, so on a line
   // with nothing after it the eye waits for something that never arrives. The
   // rule reaches the lines the /blog page writes itself; it does not reach an
   // explaining sentence inside a piece.
@@ -1126,6 +1183,9 @@ describe('the light index agrees with the full registry', () => {
       'pieceWrittenLine',
       'pieceWrittenSentence',
       'pieceShareDescription',
+      'READ_PAGE_HEADING',
+      'READ_PAGE_INTRO',
+      'READ_PAGE_NAME',
     ]) {
       expect(lightweightIndex).not.toHaveProperty(name);
     }

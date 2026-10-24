@@ -205,6 +205,155 @@ class RunEvidenceTests(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 runs.run(self.root, "money", output)
 
+    def backend_tree(self):
+        """A repository holding an allowed-skip list, for backend-scope runs."""
+        self.init_repository()
+        skips = self.root / runs.EXPECTED_SKIPS
+        skips.parent.mkdir(parents=True)
+        skips.write_text(
+            json.dumps([{"classname": "other", "name": "test_ocr", "reason": "no OCR"}])
+        )
+        runs.git(self.root, "add", ".")
+        runs.git(self.root, "commit", "-qm", "Skips")
+
+    def test_backend_run_proves_every_collected_test_ran(self):
+        self.backend_tree()
+        collected = sorted(runs.EXPECTED)
+        with (
+            patch.object(runs, "expected_cases", return_value=[]),
+            patch.object(runs, "collect", return_value=collected),
+            patch.object(runs, "run_command", side_effect=self.fake_runner),
+        ):
+            receipt = runs.run(self.root, "backend", self.output)
+            self.assertEqual(receipt["coverage"]["collected"], 3)
+            self.assertEqual(receipt["coverage"]["passed"], 3)
+            commit = receipt["source"]["commit"]
+            self.assertEqual(runs.check(self.root, self.output, commit), receipt)
+            receipt["coverage"]["collected"] = 4
+            (self.output / "receipt.json").write_text(json.dumps(receipt))
+            with self.assertRaisesRegex(runs.ReviewError, "every collected test"):
+                runs.check(self.root, self.output, commit)
+
+    def test_backend_run_fails_when_a_collected_test_has_no_result(self):
+        self.backend_tree()
+        collected = sorted(runs.EXPECTED | {("other", "test_dropped")})
+        with (
+            patch.object(runs, "expected_cases", return_value=[]),
+            patch.object(runs, "collect", return_value=collected),
+            patch.object(runs, "run_command", side_effect=self.fake_runner),
+        ):
+            with self.assertRaisesRegex(runs.ReviewError, "1 collected tests have no"):
+                runs.run(self.root, "backend", self.output)
+        receipt = json.loads((self.output / "receipt.json").read_text())
+        self.assertEqual(receipt["status"], "incomplete")
+
+    def test_backend_run_fails_without_a_results_file_or_collection(self):
+        self.backend_tree()
+        with (
+            patch.object(runs, "expected_cases", return_value=[]),
+            patch.object(runs, "collect", return_value=sorted(runs.EXPECTED)),
+            patch.object(runs, "run_command", return_value=0),
+        ):
+            with self.assertRaises(OSError):
+                runs.run(self.root, "backend", self.output)
+        failed = self.root / ".tmp" / "collection"
+        with (
+            patch.object(runs, "expected_cases", return_value=[]),
+            patch.object(
+                runs, "collect", side_effect=runs.ReviewError("Test collection failed")
+            ),
+            patch.object(runs, "run_command", side_effect=self.fake_runner) as runner,
+        ):
+            with self.assertRaisesRegex(runs.ReviewError, "collection failed"):
+                runs.run(self.root, "backend", failed)
+            runner.assert_not_called()
+        for output in (self.output, failed):
+            receipt = json.loads((output / "receipt.json").read_text())
+            self.assertEqual(receipt["status"], "incomplete")
+
+    def test_parallel_workers_get_prepared_databases_and_only_for_backend(self):
+        self.backend_tree()
+        commands = []
+
+        def runner(command, root, env):
+            commands.append(command)
+            return self.fake_runner(command, root, env)
+
+        with (
+            patch.object(runs, "expected_cases", return_value=[]),
+            patch.object(runs, "collect", return_value=sorted(runs.EXPECTED)),
+            patch.object(runs, "prepare_worker_databases") as prepare,
+            patch.object(runs, "run_command", side_effect=runner),
+        ):
+            receipt = runs.run(self.root, "backend", self.output, workers=4)
+            with self.assertRaisesRegex(runs.ReviewError, "Only backend"):
+                runs.run(self.root, "money", self.root / ".tmp" / "money", workers=4)
+        self.assertEqual(receipt["workers"], 4)
+        self.assertEqual(prepare.call_args.args[2], 4)
+        self.assertIn(
+            ["-n", "4"], [commands[0][i : i + 2] for i in range(len(commands[0]))]
+        )
+        with self.assertRaisesRegex(runs.ReviewError, "GitHub job database"):
+            runs.prepare_worker_databases(self.root, {"PATH": ""}, 4)
+
+    def test_coverage_requires_the_exact_set_with_only_allowed_skips(self):
+        collected = [["a", "test_1"], ["a", "test_2"], ["b", "test_ocr"]]
+        allowed = {("b", "test_ocr")}
+        passing = {("a", "test_1"): "passed", ("a", "test_2"): "passed"}
+        for ocr in ("passed", "skipped"):
+            summary = runs.coverage(
+                collected, {**passing, ("b", "test_ocr"): ocr}, allowed
+            )
+            self.assertEqual(summary["collected"], 3)
+        cases = {
+            "1 collected tests have no result": passing,
+            "1 results were never collected": {
+                **passing,
+                ("b", "test_ocr"): "passed",
+                ("c", "test_new"): "passed",
+            },
+            "skipped without being allowed": {
+                ("a", "test_1"): "skipped",
+                ("a", "test_2"): "passed",
+                ("b", "test_ocr"): "passed",
+            },
+            "failed tests": {**passing, ("b", "test_ocr"): "error"},
+        }
+        for message, outcomes in cases.items():
+            with self.assertRaisesRegex(runs.ReviewError, message):
+                runs.coverage(collected, outcomes, allowed)
+
+    def test_collection_listing_is_exact_and_counted(self):
+        listing = "\n".join(
+            [
+                "Test database ready: example (local port 1).",
+                "pkg/test_a.py::test_plain",
+                "pkg/test_a.py::TestGroup::test_method[x::y/z]",
+                "pkg/sub/test_b.py::Outer::Inner::test_nested",
+                "",
+                "pkg/test_a.py::test_plain",
+                "  a warning that repeats the id above",
+                "3 tests collected in 0.01s",
+            ]
+        )
+        self.assertEqual(
+            runs.collected_tests(listing),
+            [
+                ("pkg.sub.test_b.Outer.Inner", "test_nested"),
+                ("pkg.test_a", "test_plain"),
+                ("pkg.test_a.TestGroup", "test_method[x::y/z]"),
+            ],
+        )
+        broken = {
+            "count disagrees": listing.replace("3 tests", "4 tests"),
+            "listed a test twice": "pkg/test_a.py::test_x\npkg/test_a.py::test_x\n\n2 tests collected",
+            "no end of the test list": "pkg/test_a.py::test_x",
+            "listed no tests": "\n0 tests collected",
+        }
+        for message, text in broken.items():
+            with self.assertRaisesRegex(runs.ReviewError, message):
+                runs.collected_tests(text)
+
     def test_child_environment_excludes_credentials_and_plugin_overrides(self):
         env = {
             "PATH": os.environ.get("PATH", ""),

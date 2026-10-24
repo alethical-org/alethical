@@ -1,6 +1,6 @@
-# How Find My Legislator works (plain-English guide)
+# How Find my legislators works (plain-English guide)
 
-<!-- describes: alethical/api/services/address_format.py, apps/frontend/src/lib/currentAddressInput.ts, apps/frontend/src/components/home/HomeLegislatorFinder.tsx, apps/frontend/src/screens/FindMyLegislatorScreen.tsx, apps/frontend/src/components/MapPinPicker.tsx, apps/frontend/src/components/find/RepresentativeCard.tsx, apps/frontend/src/lib/findMyLegislator.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, alethical/api/routers/public.py, alethical/api/services/representative_lookup.py, alethical/api/serializers.py -->
+<!-- describes: alethical/api/services/address_format.py, apps/frontend/src/lib/currentAddressInput.ts, apps/frontend/src/lib/addressSuggestion.ts, apps/frontend/src/components/address/*.tsx, apps/frontend/src/components/home/HomeLegislatorFinder.tsx, apps/frontend/src/screens/FindMyLegislatorScreen.tsx, apps/frontend/src/components/MapPinPicker.tsx, apps/frontend/src/components/find/RepresentativeCard.tsx, apps/frontend/src/lib/findMyLegislator.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, alethical/api/routers/public.py, alethical/api/services/representative_lookup.py, alethical/api/serializers.py -->
 
 **Find My Legislator** tells you which current Minnesota state senator and state
 representative serve one location. It also shows the location's state House, state
@@ -14,24 +14,94 @@ homepage has **Find my candidates**.
 
 ## 1. Search with a street address
 
-The page and home-page finder say: **Enter a full street address — a city or ZIP code
-alone can't identify your legislators**. This same instruction appears at phone and
-wider screen widths.
+The heading is **Find my legislators**, followed by **See who represents you in
+the Minnesota House and Senate**. This introduction uses the same responsive
+size, color and heading gap as the candidate introduction. The visible field label is **Full street
+address**, 8px above the box. **A city or ZIP code alone cannot identify your
+legislators** opens the notes at the foot of the page instead, and the field's
+screen-reader description still names it, so a screen reader hears it while typing.
+The signed-in homepage's separate finder retains its own introduction.
 
 Start with a house number and at least 2 street-name characters. `350 S` is not enough,
 because `S` could mean South or the start of a street name. `350 Su` can start a named-
-street search, and `350 S 5` can start a numbered-street search. After a short pause,
-the page says **Suggested address** for 1 choice or **Suggested addresses** for 2 to 5
-active addresses from Minnesota's official statewide list. City and ZIP are optional,
-but adding either can narrow or reorder the choices.
+street search, and `350 S 5` can start a numbered-street search. The first eligible
+input starts immediately; continuing edits share a request after a 180-millisecond
+typing pause. An edit after at least 180 milliseconds of idle time starts immediately. Pasting, dropping or accepting a browser-provided replacement also starts immediately. Spaces before or after the same address reuse its pending request or recent successful reply; spaces within the address remain distinct.
+The shared address component shows **Suggested address** for 1 choice or
+**Suggested addresses** for 2 to 5 active Minnesota addresses. City and ZIP are
+optional, but adding either can narrow or reorder the choices. Slow, failed or empty
+optional suggestions stay quiet; **Find** still searches the typed text.
+The field can reuse an exact successful input for 60 seconds, keeping at most 8
+entries only in that mounted field’s memory. Clearing the field, starting a search,
+changing its suggestion source or leaving the form clears these entries. No
+address suggestions are saved in browser storage or a shared server cache.
+The shared suggestion service filters active status and state locally to reduce the
+source query wait. If the source reports omitted rows, it retries with both filters
+at the source so excluded records cannot crowd out valid choices. House, state,
+street, direction and unit matching remain unchanged. Census and Minnesota address
+requests reuse a connection within each server worker without retaining cookies,
+credentials, queries or responses.
 
-On a phone, the page reserves the short message row before matching begins. This keeps
-the address field and buttons in place when **Finding matching addresses…** appears
-while the on-screen keyboard is open.
+Suggestions come from Alethical's own copy of Minnesota's published address
+file when a usable copy is available. The server switch
+(`ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED`) is on in production. The
+server downloads the whole public file every 12 hours, checks it before using it, and
+never uses a copy more than 24 hours after its download. Typing then gets suggestions
+from the copy without asking the state's service. A missing, expired or damaged copy,
+more than 5,000 matching rows, or no usable match asks the state's live service
+instead. The state compiles the file from the counties that take part and updates it
+about every 3 months, so a newly added or removed address can lag the live service by
+the state's own delay plus up to 24 hours of ours. The copy holds public address
+records only, never what readers type.
 
-Choose an address to put its full official form in the box and find its legislators in
-the same step. Or enter a full Minnesota street address and choose **Find**. Pressing
-Enter does the same thing.
+The same printed address can carry more than 1 official map point, for example 1 per
+unit. A suggestion from the copy, or one whose printed address has more than 1 point,
+is offered once. When chosen, the server checks the exact chosen text, including any
+apartment or ZIP+4 detail the reader typed, against Minnesota's current address points
+before finding districts. When every current point has the same single House, Senate
+and congressional answer, the result uses the point nearest the suggestion. A point on
+a district border has no single answer. When the points disagree, the page refuses to
+guess (see **What the messages mean**). When the check cannot settle the point,
+Alethical searches the chosen text as if it were typed. Pointing at, pressing or
+arrowing to such a suggestion starts this check early, for at most 2 suggestions per
+typed address, so a choice made after a glance usually finishes sooner. A reader whose
+browser asks to save data, or reports a slow connection, skips the early check; the
+choice itself still runs it. Each early check counts toward the lookup limit below.
+
+No row is selected on opening. Down starts at the first row and Up at the last;
+both wrap. Enter chooses an active keyboard row, otherwise it searches the typed
+address. Hover is grey and never changes the keyboard choice, which is pale green.
+Escape, Tab and an outside click close the list and keep the text. Keyboard focus
+stays in the field. System high-contrast mode adds an outline to the active row.
+A screen reader hears the count on every opening and count change while open.
+
+A completed click or tap fills the box and starts the search. Touch-down, scrolling
+and cancelled gestures do not select. Focus changes cannot swallow the first tap
+or move **Find** between press and release. New text clears old choices; old replies
+cannot replace current suggestions or reopen a dismissed list. External Find, location
+and map searches also keep suggestions closed when loading ends or the returned
+address changes; editing or freshly focusing the address field enables them again.
+
+A filled address box shows a 44px **Clear address** button (×), including saved
+browser addresses. Clearing empties and focuses the box without searching, dismisses
+choices and ignores older lookup or location replies. Existing successful results
+remain. Address-specific errors disappear; service failures remain without marking
+the cleared box invalid. The reserved button space stays when empty or busy.
+This finder does not select all on focus or add Cancel.
+
+The field and buttons have a 60px minimum height. Full addresses wrap. Computer and
+tablet suggestions overlay content 8px below the box and stay exactly its width;
+on phones they sit in the page flow before the full-width buttons. The page scrolls
+all rows into reach without an inner list scroller. Necessary opening or delayed
+keyboard-resize scrolling keeps the label visible. Manual scrolling suppresses
+further unsolicited movement until the list closes; arrow navigation still reveals
+the selected row. The browser's readable saved-address styling and system contrast
+colors are retained.
+
+Typed units carry only onto a confidently matching full base location, respecting
+supplied city, state and ZIP as well as house number, street and direction. An
+uncertain match cannot silently remove or transfer a unit. A different returned
+unit stays visible for explicit selection, and displayed and submitted choices agree.
 
 Keyboard and button submission read the address visible in the box, including a
 saved browser address filled just before submission. Entering or leaving the box
@@ -41,8 +111,10 @@ newly visible address instead of selecting an unrelated location.
 
 - Include a house number and street name. A city or ZIP code alone is not enough
   because a city or ZIP can cross district lines.
-- Suggestions are Minnesota-only, so they do not need `MN`. Include `MN` for a full
-  manual search, especially when the city name also exists in another state.
+- Suggestions are Minnesota-only, so they do not need `MN`. A full manual search
+  needs a street, city and ZIP; `MN` before the ZIP is optional. Without `MN`, the
+  backup Minnesota address list reads a 55xxx or 56xxx ZIP as Minnesota, and another
+  state's code before the ZIP is never read as Minnesota.
 - Commas, periods, repeated spaces, and common street abbreviations do not have to be
   perfect. `4255 215th St E Farmington MN 55024` and
   `4255 215th St E, Farmington, MN 55024` are treated as the same address.
@@ -59,6 +131,9 @@ newly visible address instead of selecting an unrelated location.
   `215th`.
 - Common direction order does not have to match the official record. For example,
   `350 S 5` can suggest an address stored as `350 5th Street South`.
+- While typing, a lone street-name word that is also a street type, such as
+  `1006 Summit`, still offers matching streets. This suggestion-only allowance
+  does not relax the checks on a submitted address.
 - The house number must be exact. Alethical will not quietly move you to a nearby
   number or a different street.
 
@@ -73,16 +148,21 @@ The formatting cleanup also applies to that Minnesota fallback and the Minnesota
 street-only retry sent to Census. It does not change which source is tried first
 or the matching rules below.
 
+An official answer that says its row list was cut short never counts as proof of a
+single address: Alethical asks again with the service's full 2,000-row allowance and
+reports the service as unavailable if the answer is still cut short. When rows printing
+the same address carry map points in different districts, Alethical shows **No match
+for that address** rather than choosing one.
+
 If 1 address is clearly closest, Alethical uses it. If several official addresses are
 equally close, **Choose your address** appears with up to 5 choices. Click or tap the
 right one. With a keyboard, use the up and down arrows, Enter to choose, or Escape to
 close the list. The page shows the movement hint only when the list has at least 2
 choices.
 
-Both address lists use the same keyboard, mouse, and touch behavior. Moving with the
-arrow keys or hovering puts a bright-green line around the current choice while keeping its
-background white. Alethical never chooses a
-suggestion without the reader's click, tap, or Enter key.
+The submitted **Choose your address** confirmation keeps its existing selection
+treatment and keyboard guidance. It is separate from typing suggestions. Neither
+list chooses an address without a completed click, tap or explicit Enter selection.
 
 After a successful search, the address box and the page's browser link use the official
 address that was found. For example, a safe typo match replaces the typo instead of
@@ -167,8 +247,12 @@ number, but it does not show a member of Congress.
 ## 5. What the messages mean
 
 - **No match for that address:** The public address sources could not find 1 safe
-  Minnesota match. Check the house number and street name, include `MN`, and try the
-  full city and ZIP.
+  Minnesota match. Check the house number and street name, and try the full city and
+  ZIP.
+- **We couldn’t safely identify your districts from this address:** Minnesota's
+  current records give this address points in different districts, or a point on a
+  district border, so Alethical will not guess. It says **Check your full street
+  address, or choose where you live on the map**.
 - **That address is outside Minnesota:** Alethical only covers Minnesota state
   legislative districts.
 - **We couldn't use your location:** The browser blocked location access, could not get
@@ -180,13 +264,12 @@ number, but it does not show a member of Congress.
   answer, or a local district file could not be read. The address itself may be fine.
   Try again later.
 - **Seat vacant:** The district was found, but no current member holds that seat.
-- **No matching Minnesota addresses yet:** Keep typing.
-- **Address suggestions are unavailable:** The official suggestion list did not answer.
-  The **Find** button and **Use my location** still work.
 
-While a lookup is running, the page says **Looking up districts** and shows 2
-placeholder cards. The page does not show an old address result as if it belonged to a
-new typed address.
+While an address lookup runs, **Find** changes to **Finding…** with a spinner in
+the same-sized button and a polite waiting announcement. The first search shows
+2 placeholder cards. Later searches retain successful results with their original
+address and district context until replacement succeeds. A failure keeps those
+results with the error and a retry action; only the latest request can replace them.
 
 The placeholder animation waits 250 milliseconds, so a quick result does not flash
 an animation on screen.
@@ -207,8 +290,13 @@ The lookup uses public records and public map services:
 - [OpenStreetMap contributors](https://www.openstreetmap.org/copyright) supply the
   background map.
 
-On phones and computers, the 3 map credit lines begin below the first map view. They
-remain available by scrolling farther down the page.
+On phones and computers, the notes at the foot begin below the first map view, under a
+thin grey line, in this order: the address help line, **© OpenStreetMap contributors**,
+**District lines from Minnesota’s Legislature**, and the Census notice. They remain
+available by scrolling farther down the page. Every line is the same size (14px, grey
+`#4f5651`, 6px apart). The 2 links are green and semibold, with the shared arrow 6px after
+the last word; on pointer hover the words turn black and underline while the arrow stays
+green. Each link tells screen readers it opens in a new tab.
 
 The complete Census notice reads: **This product uses the Census Bureau Data API
 but is not endorsed or certified by the Census Bureau**.
@@ -219,6 +307,9 @@ What happens to the location data:
 - While suggestions are open, Minnesota's address service receives the exact house
   number and the street-name prefix. It does not receive the city or ZIP. The same
   service later receives the house number and street name if Census search fails.
+- When the address copy answers a suggestion, typing sends nothing to Minnesota's
+  address service. Choosing a suggestion that needs the current-records check, or
+  pointing at one, sends its house number and street name to that service.
 - A successful address, browser location, or map point is checked against official
   district files stored with Alethical. Its latitude and longitude are not sent to the
   Minnesota Legislative Coordinating Commission.
@@ -255,8 +346,9 @@ existing address-in-the-link behavior. See
   seconds. The browser blocks both lookup buttons for the remaining wait after the
   endpoint returns that limit.
 - Suggestions have their own 60-requests-per-60-seconds limit, so normal typing does not
-  spend the 10 full lookups. The browser waits 300 milliseconds after typing stops and
-  reuses a recent suggestion result for 60 seconds.
+  spend the 10 full lookups. First input and edits after an idle period start immediately;
+  continuing edits wait 180 milliseconds after typing stops. The browser cancels
+  obsolete suggestion requests when the text changes.
 - Results depend on 2 public government address services. Both must remain unavailable
   after their retries before a temporary source failure blocks an address lookup.
 - The page shows current state legislators from Alethical's official-record database.

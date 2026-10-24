@@ -47,6 +47,30 @@ describe('suggestRepresentativeAddressesFromApi', () => {
     );
   });
 
+  it('keeps the mark saying a chosen point must be checked', async () => {
+    vi.stubEnv('EXPO_PUBLIC_API_URL', 'https://api.example.test');
+    const suggestion = { ...responseBody.data.suggestions[0], requires_location_check: true };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ data: { suggestions: [suggestion] } }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    const { suggestRepresentativeAddressesFromApi } = await import('../api');
+
+    await expect(suggestRepresentativeAddressesFromApi('3040 Ex')).resolves.toEqual([
+      {
+        matchedAddress: '3040 Excelsior Boulevard, Minneapolis, MN 55416',
+        latitude: 44.9475,
+        longitude: -93.3212,
+        requiresLocationCheck: true,
+      },
+    ]);
+  });
+
   it('does not request suggestions for an empty value', async () => {
     vi.stubEnv('EXPO_PUBLIC_API_URL', 'https://api.example.test');
     const fetch = vi.fn();

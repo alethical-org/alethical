@@ -1,18 +1,24 @@
+import { CANDIDATE_LOOKUP_COPY } from '../../lib/candidatePublicCopy';
 import {
   useEffect,
   useId,
-  useLayoutEffect,
+  useCallback,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
+  type RefObject,
 } from 'react';
-import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
-import { currentAddressInput } from '../../lib/currentAddressInput';
+import { AddressSuggestionField, type AddressFieldHandle } from '../address/AddressSuggestionField';
 import { useResponsive } from '../../hooks/useResponsive';
 import { theme as t } from '../../theme/tokens';
-import { fieldFocusRing, fieldOutlineReset } from '../../theme/fieldFocus';
-import { CandidateButton, candidateText } from './CandidateControls';
+import {
+  CANDIDATE_POINTER_FOCUS_ATTRIBUTE,
+  CandidateButton,
+  CandidateLink,
+  candidateText,
+} from './CandidateControls';
 import type {
   CandidateAddressChoice,
   CandidateLookupResponse,
@@ -20,7 +26,8 @@ import type {
 } from './types';
 
 const errors = {
-  'no-match': 'We couldn’t match that address: check the street address, city, and ZIP code',
+  'historical-match-unavailable': 'We couldn’t confirm the races for this address and election',
+  'no-match': 'We couldn’t match that address to election records',
   'outside-minnesota': 'This search covers Minnesota addresses',
   'rate-limited': 'Too many searches: try again shortly',
 };
@@ -36,6 +43,11 @@ export function CandidateAddressForm({
   compact = false,
   privacyDisclosure,
   showBusyMessage = true,
+  fieldRef,
+  onUseLocation,
+  locating = false,
+  notice,
+  onFindPress,
 }: {
   services: CandidateSearchServices;
   address: string;
@@ -48,78 +60,62 @@ export function CandidateAddressForm({
   compact?: boolean;
   privacyDisclosure?: string;
   showBusyMessage?: boolean;
+  fieldRef?: RefObject<AddressFieldHandle | null>;
+  /** Entry only: offers Use my location, which suggests an address to confirm. */
+  onUseLocation?(): void;
+  locating?: boolean;
+  /** Information that leaves the typed address valid, such as a location failure. */
+  notice?: string | null;
+  /** Every Find activation, including an empty box that only shows an error. */
+  onFindPress?(): void;
 }) {
-  const { isMobile, isDesktop } = useResponsive();
+  const { isMobile } = useResponsive();
   const id = useId().replace(/:/g, '');
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-  const nativeRef = useRef<TextInput>(null);
+  const localInputRef = useRef<AddressFieldHandle>(null);
+  const inputRef = fieldRef ?? localInputRef;
   const buttonRef = useRef<View>(null);
   const choicesRef = useRef<View>(null);
-  const generation = useRef(0);
-  const [suggestions, setSuggestions] = useState<CandidateAddressChoice[]>([]);
-  const [suggestOpen, setSuggestOpen] = useState(false);
-  const [active, setActive] = useState(-1);
   const [choiceActive, setChoiceActive] = useState(0);
   const [choicesOpen, setChoicesOpen] = useState(false);
-  const [focused, setFocused] = useState(false);
   const [missing, setMissing] = useState(false);
-  const [fieldHover, setFieldHover] = useState(false);
-  useLayoutEffect(() => {
-    // Explicit address changes still update the field. Suggestion, hover, and
-    // other renders must not overwrite a browser fill whose event has not fired.
-    if (inputRef.current && inputRef.current.value !== address) inputRef.current.value = address;
-  }, [address]);
-  useLayoutEffect(() => {
-    const field = inputRef.current;
-    if (!field) return;
-    const resize = () => {
-      field.style.height = 'auto';
-      field.style.height = `${Math.max(compact ? 54 : 58, field.scrollHeight)}px`;
+  // Whether the latest press in this form came from a mouse, pen or finger.
+  const pointerInput = useRef(false);
+  const formRef = useRef<View>(null);
+  useEffect(() => {
+    const form = formRef.current as unknown as HTMLElement | null;
+    if (Platform.OS !== 'web' || !form?.addEventListener) return;
+    const clear = (event: Event) =>
+      (event.target as HTMLElement | null)?.removeAttribute?.(CANDIDATE_POINTER_FOCUS_ATTRIBUTE);
+    const pointer = () => {
+      pointerInput.current = true;
     };
-    resize();
-    if (typeof ResizeObserver === 'undefined') return;
-    let width = field.getBoundingClientRect().width;
-    const observer = new ResizeObserver(() => {
-      const nextWidth = field.getBoundingClientRect().width;
-      if (nextWidth !== width) {
-        width = nextWidth;
-        resize();
-      }
-    });
-    observer.observe(field);
-    return () => observer.disconnect();
-  }, [address, compact]);
-  const focusField = () => {
-    inputRef.current?.focus();
-    nativeRef.current?.focus();
-  };
-  useEffect(() => {
-    if (focus) focusField();
-  }, [focus]);
-  useEffect(() => {
-    const token = ++generation.current;
-    const controller = new AbortController();
-    setSuggestions([]);
-    setSuggestOpen(false);
-    setActive(-1);
-    if (!focused || address.trim().length < 6 || busy) return () => controller.abort();
-    const timer = setTimeout(() => {
-      void services
-        .suggest(address.trim(), controller.signal)
-        .then((matches) => {
-          if (token !== generation.current || controller.signal.aborted) return;
-          setSuggestions(matches);
-          setSuggestOpen(matches.length > 0);
-        })
-        .catch(() => {
-          /* Suggestions are optional; explicit submit still works. */
-        });
-    }, 180);
+    const key = (event: Event) => {
+      pointerInput.current = false;
+      clear(event);
+    };
+    form.addEventListener('pointerdown', pointer, true);
+    form.addEventListener('keydown', key, true);
+    // A later keyboard visit, such as Tab, shows the ring again.
+    form.addEventListener('focusout', clear, true);
     return () => {
-      clearTimeout(timer);
-      controller.abort();
+      form.removeEventListener('pointerdown', pointer, true);
+      form.removeEventListener('keydown', key, true);
+      form.removeEventListener('focusout', clear, true);
     };
-  }, [address, busy, focused, services]);
+  }, []);
+  const focusField = () => inputRef.current?.focus();
+  useEffect(() => {
+    if (focus) inputRef.current?.selectAll();
+  }, [focus]);
+  const suggest = useCallback(
+    async (value: string, signal: AbortSignal) =>
+      (await services.suggest(value, signal)).map((choice) => ({
+        id: choice.id,
+        address: choice.address,
+        value: choice,
+      })),
+    [services],
+  );
   useEffect(() => {
     setChoicesOpen(outcome?.kind === 'ambiguous');
     setChoiceActive(0);
@@ -131,58 +127,36 @@ export function CandidateAddressForm({
     }
   }, [choicesOpen]);
   const choices = outcome?.kind === 'ambiguous' ? outcome.choices : [];
-  const visibleAddress = () => currentAddressInput(inputRef.current, address);
-  const submit = (choice?: CandidateAddressChoice) => {
+  const submit = (choice?: CandidateAddressChoice, suggestionAddress?: string) => {
     if (busy) return;
-    const value = visibleAddress();
-    // A browser-filled replacement invalidates any old highlighted suggestion.
-    const changed = value !== address;
-    if (changed) {
-      generation.current += 1;
-      setSuggestions([]);
-      setActive(-1);
-      onAddress(value);
-    }
+    onFindPress?.();
+    const value = suggestionAddress ?? inputRef.current?.value() ?? address;
+    inputRef.current?.dismiss();
+    if (value !== address) onAddress(value);
     if (!value.trim()) {
-      setMissing(true);
       focusField();
+      setMissing(true);
       return;
     }
     setMissing(false);
-    setSuggestOpen(false);
     setChoicesOpen(false);
-    // Focus belongs to this submitted action, not election changes or retries.
-    if (Platform.OS === 'web') (buttonRef.current as unknown as HTMLElement | null)?.focus();
-    if (choice && !changed) onSubmit(value, choice);
+    if (Platform.OS === 'web') {
+      const button = buttonRef.current as unknown as HTMLElement | null;
+      // Moving focus here from the text box would inherit its always-visible ring.
+      // Show the ring for a keyboard search only; a pointer press keeps it hidden.
+      if (pointerInput.current) button?.setAttribute(CANDIDATE_POINTER_FOCUS_ATTRIBUTE, 'true');
+      else button?.removeAttribute(CANDIDATE_POINTER_FOCUS_ATTRIBUTE);
+      button?.focus();
+    }
+    // A suggestion that carries the reader's own apartment or ZIP+4 detail is no
+    // longer the official choice, so its full text takes the normal address check.
+    if (choice && suggestionAddress !== undefined && suggestionAddress !== choice.address)
+      onSubmit(value);
+    else if (choice && (suggestionAddress !== undefined || value === address))
+      onSubmit(value, choice);
     else onSubmit(value);
   };
   const pick = (choice: CandidateAddressChoice) => submit(choice);
-  const fieldKey = (event: ReactKeyboardEvent<HTMLElement>) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      if (!suggestOpen && !choicesOpen) onCancel?.();
-      setSuggestOpen(false);
-      setChoicesOpen(false);
-      return;
-    }
-    if (
-      suggestOpen &&
-      suggestions.length &&
-      (event.key === 'ArrowDown' || event.key === 'ArrowUp')
-    ) {
-      event.preventDefault();
-      setActive(
-        (index) =>
-          (index + (event.key === 'ArrowDown' ? 1 : -1) + suggestions.length) % suggestions.length,
-      );
-      return;
-    }
-    if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
-      event.preventDefault();
-      if (suggestOpen && active >= 0 && suggestions[active]) pick(suggestions[active]);
-      else submit();
-    }
-  };
   const choiceKey = (event: ReactKeyboardEvent<HTMLElement>) => {
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -212,155 +186,131 @@ export function CandidateAddressForm({
         : '';
   const invalid =
     !busy && (missing || errorKind === 'no-match' || errorKind === 'outside-minnesota');
-  const inputStyle = {
-    width: '100%',
-    minHeight: compact ? 54 : 58,
-    padding: compact ? '14px 16px' : '16px 18px',
-    border: 'none',
-    borderRadius: compact ? 12 : 14,
-    background: '#fff',
-    color: '#11150f',
-    fontFamily: t.typography.body,
-    fontSize: compact ? 16.5 : 17,
-    outline: 'none',
-    boxSizing: 'border-box' as const,
-    fontVariantNumeric: 'tabular-nums' as const,
-    scrollMarginTop: 90,
-    resize: 'none' as const,
-    overflow: 'hidden',
-    overflowWrap: 'anywhere' as const,
-    lineHeight: '26px',
-  };
   return (
-    <View style={[styles.form, compact && { marginTop: 0 }]}>
+    <View
+      ref={formRef}
+      style={[styles.form, compact && { marginTop: 0 }]}
+      {...(Platform.OS === 'web' && onCancel
+        ? {
+            onKeyDown: (event: ReactKeyboardEvent<HTMLElement>) => {
+              // The field and open choice list handle their own Escape first.
+              if (event.key !== 'Escape' || event.defaultPrevented) return;
+              event.preventDefault();
+              onCancel();
+            },
+          }
+        : {})}
+    >
       <Text nativeID={`${id}-label`} style={candidateText.strong}>
-        Full street address
+        {CANDIDATE_LOOKUP_COPY.addressLabel}
       </Text>
-      <View style={[styles.controls, (isMobile || compact) && { flexDirection: 'column' }]}>
+      {/* The help line prints once per page: entry shows it below the divider and
+          Change address on results omits it. */}
+      <View
+        style={[
+          styles.controls,
+          compact && { marginTop: 10 },
+          (isMobile || compact) && { flexDirection: 'column' },
+        ]}
+      >
         <View
           style={[styles.fieldWrap, (isMobile || compact) && { flex: undefined, width: '100%' }]}
         >
-          <View
-            style={[
-              styles.inputBorder,
-              compact && { minHeight: 56, borderRadius: 12 },
-              {
-                borderColor: invalid
-                  ? '#a3421a'
-                  : fieldHover
-                    ? 'rgba(17,21,15,0.4)'
-                    : 'rgba(17,21,15,0.18)',
-              },
-              ...fieldFocusRing(focused),
-            ]}
-          >
-            {Platform.OS === 'web' ? (
-              <textarea
-                rows={1}
-                ref={inputRef}
-                aria-labelledby={`${id}-label`}
-                role="combobox"
-                aria-autocomplete="list"
-                aria-expanded={suggestOpen}
-                aria-controls={`${id}-suggestions`}
-                aria-activedescendant={
-                  suggestOpen && active >= 0 ? `${id}-suggestion-${active}` : undefined
-                }
-                aria-invalid={invalid || undefined}
-                aria-describedby={`${id}-message ${id}-help`}
-                autoComplete="street-address"
-                enterKeyHint="search"
-                defaultValue={address}
-                placeholder="350 S 5th St, Minneapolis, MN 55415"
-                style={inputStyle}
-                onChange={(event) => {
-                  setMissing(false);
-                  setChoicesOpen(false);
-                  const value = event.target.value.replace(/[\r\n]+/g, ' ');
-                  event.target.value = value;
-                  onAddress(value);
-                }}
-                onFocus={() => {
-                  const value = visibleAddress();
-                  if (value !== address) onAddress(value);
-                  setFocused(true);
-                  if (isMobile) inputRef.current?.scrollIntoView?.({ block: 'nearest' });
-                }}
-                onBlur={() => {
-                  const value = visibleAddress();
-                  if (value !== address) {
-                    generation.current += 1;
-                    setSuggestions([]);
-                    setChoicesOpen(false);
-                    onAddress(value);
-                  }
-                  setFocused(false);
-                  setSuggestOpen(false);
-                }}
-                onKeyDown={fieldKey}
-                onMouseEnter={() => !isMobile && setFieldHover(true)}
-                onMouseLeave={() => setFieldHover(false)}
-              />
-            ) : (
-              <TextInput
-                ref={nativeRef}
-                accessibilityLabel="Full street address"
-                value={address}
-                onChangeText={onAddress}
-                onSubmitEditing={() => submit()}
-                autoComplete="street-address"
-                placeholder="350 S 5th St, Minneapolis, MN 55415"
-                style={[styles.nativeInput, fieldOutlineReset]}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
-              />
-            )}
-          </View>
-          {suggestOpen ? (
-            <View
-              nativeID={`${id}-suggestions`}
-              {...({ role: 'listbox' } as object)}
-              accessibilityLabel={
-                suggestions.length === 1 ? 'Suggested address' : 'Suggested addresses'
-              }
-              style={[styles.suggestions, !isMobile && styles.suggestionOverlay]}
-            >
-              <Text style={styles.suggestionHeading}>
-                {suggestions.length === 1 ? 'Suggested address' : 'Suggested addresses'}
-              </Text>
-              {suggestions.map((choice, index) => (
-                <Choice
-                  key={choice.id}
-                  id={`${id}-suggestion-${index}`}
-                  label={choice.label}
-                  selected={active === index}
-                  onPress={() => pick(choice)}
-                  keepFieldFocus
-                />
-              ))}
-            </View>
+          <AddressSuggestionField
+            fieldRef={inputRef}
+            address={address}
+            onAddress={(value) => {
+              setMissing(false);
+              setChoicesOpen(false);
+              onAddress(value);
+            }}
+            suggestionsEnabled={!choicesOpen}
+            suggest={suggest}
+            onSubmit={(value, choice) => submit(choice, value)}
+            labelId={`${id}-label`}
+            describedBy={compact ? `${id}-message` : `${id}-message ${id}-help`}
+            invalid={invalid}
+            busy={busy}
+            mobile={isMobile}
+            compact={compact}
+            emptyRightPadding={compact ? undefined : 18}
+            onEscape={() => {
+              if (choicesOpen) setChoicesOpen(false);
+              else onCancel?.();
+            }}
+          />
+        </View>
+        <View
+          style={{
+            flexDirection: 'row',
+            gap: 12,
+            width: isMobile || compact ? '100%' : undefined,
+            // Entry buttons keep their 60px row at the top when a long address wraps.
+            alignSelf: compact ? 'center' : 'flex-start',
+            alignItems: 'stretch',
+          }}
+        >
+          <CandidateButton
+            label="Find"
+            busyLabel="Finding…"
+            reserveBusyLabel={compact}
+            buttonRef={buttonRef}
+            busy={busy}
+            // Keep suggestions from collapsing and moving this target between
+            // pointer press and release. Keyboard focus remains unchanged.
+            keepFieldFocus
+            onPress={() => submit()}
+            fontSize={compact ? 16.5 : 17}
+            // The magnifier carries less weight than the word: centre the pair 3px left.
+            style={{
+              minHeight: compact ? 52 : 60,
+              width: isMobile || compact ? undefined : 150,
+              flex: isMobile || compact ? 1 : undefined,
+              paddingLeft: 19,
+              paddingRight: 25,
+              alignSelf: 'stretch',
+              paddingVertical: compact ? 8 : 6,
+              borderRadius: compact ? 12 : 14,
+            }}
+          />
+          {onCancel ? (
+            <CandidateButton
+              label="Cancel"
+              kind="outline"
+              pressedStyle={{ backgroundColor: '#eceeed' }}
+              icon="none"
+              onPress={onCancel}
+              style={{
+                minHeight: 52,
+                paddingHorizontal: 16,
+                borderRadius: 12,
+                alignSelf: 'stretch',
+              }}
+            />
           ) : null}
         </View>
-        <CandidateButton
-          label="Find my candidates"
-          busyLabel="Finding candidates…"
-          buttonRef={buttonRef}
-          busy={busy}
-          // Keep suggestions from collapsing and moving this target between
-          // pointer press and release. Keyboard focus remains unchanged.
-          keepFieldFocus
-          onPress={() => submit()}
-          style={{
-            minHeight: compact ? 52 : 60,
-            width: isMobile || compact ? '100%' : isDesktop ? 248 : 220,
-            alignSelf: 'flex-start',
-            height: compact ? 52 : 60,
-            borderRadius: 14,
-          }}
-        />
+        {onUseLocation && !compact ? (
+          <CandidateButton
+            label="Use my location"
+            busyLabel="Locating…"
+            kind="outline"
+            icon="location"
+            busy={locating}
+            onPress={onUseLocation}
+            style={{
+              width: isMobile ? '100%' : 200,
+              minHeight: 60,
+              paddingHorizontal: 20,
+              paddingVertical: 6,
+              borderRadius: 14,
+              borderColor: 'rgba(17,21,15,0.16)',
+              alignSelf: isMobile ? 'stretch' : 'flex-start',
+            }}
+          />
+        ) : null}
       </View>
       <View aria-live="polite" style={styles.hiddenStatus}>
-        {busy && showBusyMessage ? <Text>Finding candidates…</Text> : null}
+        {busy && showBusyMessage ? <Text>Finding…</Text> : locating ? <Text>Locating…</Text> : null}
       </View>
       <View
         nativeID={`${id}-message`}
@@ -369,7 +319,7 @@ export function CandidateAddressForm({
         style={[styles.message, compact && { marginTop: 10 }]}
       >
         {message ? (
-          <>
+          <View style={styles.messageLine}>
             {!busy ? <MessageIcon rate={errorKind === 'rate-limited'} /> : null}
             <Text
               style={[
@@ -384,16 +334,24 @@ export function CandidateAddressForm({
             >
               {message}
             </Text>
-          </>
+          </View>
+        ) : null}
+        {notice && !busy && !compact ? (
+          <View style={styles.messageLine}>
+            <InfoIcon />
+            <Text
+              style={[
+                candidateText.strong,
+                { fontSize: 15, lineHeight: 22, flexShrink: 1, color: '#11150f' },
+              ]}
+            >
+              {notice}
+            </Text>
+          </View>
         ) : null}
       </View>
-      {compact ? (
-        <Text
-          nativeID={`${id}-help`}
-          style={[candidateText.body, { fontSize: 14.5, lineHeight: 22 }]}
-        >
-          A city or ZIP code alone cannot identify your local races
-        </Text>
+      {outcome?.kind === 'historical-match-unavailable' && !busy ? (
+        <CandidateLink label="Official election results" url={outcome.officialResultsUrl} />
       ) : null}
       {choicesOpen ? (
         <View style={{ marginTop: 22, gap: 10 }}>
@@ -422,14 +380,11 @@ export function CandidateAddressForm({
         </View>
       ) : null}
       {!compact ? (
-        <View style={styles.privacy}>
+        <View style={[styles.privacy, !isMobile && styles.privacyWide]}>
           <Text nativeID={`${id}-help`} style={styles.help}>
-            A city or ZIP code alone cannot identify your local races
+            {CANDIDATE_LOOKUP_COPY.addressHelp}
           </Text>
-          <Text style={styles.help}>
-            {privacyDisclosure ??
-              'Address lookup uses Minnesota Secretary of State and Minnesota mapping services'}
-          </Text>
+          <Text style={styles.help}>{privacyDisclosure ?? CANDIDATE_LOOKUP_COPY.privacy}</Text>
         </View>
       ) : null}
     </View>
@@ -440,13 +395,11 @@ function Choice({
   label,
   selected,
   onPress,
-  keepFieldFocus = false,
 }: {
   id: string;
   label: string;
   selected: boolean;
   onPress(): void;
-  keepFieldFocus?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
   const { isMobile } = useResponsive();
@@ -459,20 +412,10 @@ function Choice({
       onPress={onPress}
       onHoverIn={() => !isMobile && setHovered(true)}
       onHoverOut={() => setHovered(false)}
-      {...(Platform.OS === 'web' && keepFieldFocus
-        ? { onMouseDown: (event: React.MouseEvent) => event.preventDefault() }
-        : {})}
       style={[
         styles.choice,
-        keepFieldFocus && {
-          minHeight: 52,
-          paddingHorizontal: 12,
-          paddingVertical: 10,
-          borderRadius: 10,
-          borderWidth: 0,
-        },
         selected && {
-          backgroundColor: keepFieldFocus ? '#e9f7ef' : '#f2fbf6',
+          backgroundColor: '#f2fbf6',
           borderColor: '#2ed47e',
         },
         hovered && { backgroundColor: '#f5f6f7', borderColor: 'rgba(17,21,15,0.3)' },
@@ -499,25 +442,43 @@ function Choice({
       >
         {label}
       </Text>
-      {!keepFieldFocus ? (
-        <Svg
-          width={18}
-          height={18}
-          viewBox="0 0 24 24"
-          fill="none"
-          aria-hidden
-          style={{ flexShrink: 0 }}
-        >
-          <Path
-            d="M9 6 L15 12 L9 18"
-            stroke="#6f756f"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </Svg>
-      ) : null}
+      <Svg
+        width={18}
+        height={18}
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden
+        style={{ flexShrink: 0 }}
+      >
+        <Path
+          d="M9 6 L15 12 L9 18"
+          stroke="#6f756f"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
     </Pressable>
+  );
+}
+function InfoIcon() {
+  return (
+    <Svg
+      width={17}
+      height={17}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+      style={{ flexShrink: 0, marginTop: 2 }}
+    >
+      <Circle cx={12} cy={12} r={9} stroke="#4f5651" strokeWidth={2} />
+      <Path
+        d="M12 11 V16.5 M12 7.6 V7.7"
+        stroke="#4f5651"
+        strokeWidth={2.2}
+        strokeLinecap="round"
+      />
+    </Svg>
   );
 }
 function MessageIcon({ rate }: { rate: boolean }) {
@@ -553,7 +514,17 @@ const styles = StyleSheet.create({
       ? ({ clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap' } as object)
       : {}),
   },
-  controls: { flexDirection: 'row', gap: 12, marginTop: 8, alignItems: 'flex-start' },
+  controls: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+    alignItems: 'flex-start',
+    // RNW Views start at z-index 0. Lift this row above its helper siblings so
+    // the desktop dropdown receives clicks where it extends beyond the row.
+    zIndex: 1,
+  },
+  // The suggestion list overlays the help and source lines on computer and tablet.
+  privacyWide: { marginTop: 56 },
   privacy: {
     marginTop: 36,
     paddingTop: 20,
@@ -563,42 +534,8 @@ const styles = StyleSheet.create({
   },
   help: { ...candidateText.body, fontSize: 14, lineHeight: 21 },
   fieldWrap: { flex: 1, minWidth: 0, zIndex: 2 },
-  inputBorder: { borderWidth: 1, borderRadius: 14, backgroundColor: '#fff', minHeight: 60 },
-  nativeInput: {
-    minHeight: 60,
-    padding: 18,
-    backgroundColor: '#fff',
-    borderWidth: 0,
-    borderColor: 'rgba(17,21,15,0.18)',
-    borderRadius: 14,
-    fontFamily: t.typography.body,
-    fontSize: 17,
-  },
-  message: { minHeight: 22, marginTop: 12, flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  suggestions: {
-    zIndex: 30,
-    marginTop: 8,
-    padding: 6,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: 'rgba(17,21,15,0.14)',
-    borderRadius: 14,
-    gap: 2,
-  },
-  suggestionOverlay: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    boxShadow: '0 16px 40px rgba(17,21,15,0.16)',
-  },
-  suggestionHeading: {
-    ...candidateText.strong,
-    color: '#4f5651',
-    fontSize: 13.5,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
+  message: { minHeight: 22, marginTop: 12, gap: 6 },
+  messageLine: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   choice: {
     paddingHorizontal: 14,
     paddingVertical: 12,

@@ -9,6 +9,7 @@ import threading
 import time
 from collections import OrderedDict
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta
 from functools import lru_cache
 from typing import Any
@@ -20,11 +21,14 @@ from sqlalchemy.orm import Session
 
 from alethical.api.services.address_format import normalize_address_format
 from alethical.api.services.representative_lookup import (
+    _STREET_TYPE_ALIASES,
     MINNESOTA_ADDRESS_POINTS_URL,
+    AddressPointsIncomplete,
     MinnesotaAddressPointGeocoder,
     RepresentativeLookupNotFound,
     RepresentativeLookupOutsideMinnesota,
     RepresentativeLookupUpstreamError,
+    public_source_session,
 )
 from alethical.api.services.zip_state_reference import SUPPORTED_STATES
 from alethical.pipeline.candidate_ballot import (
@@ -34,15 +38,39 @@ from alethical.pipeline.candidate_ballot import (
     BallotRace,
     CandidateAddressNotFound,
     CandidateBallotError,
+    CandidateUnitRangesNeeded,
+    CandidateUnitRequired,
     StreetAddress,
+    StreetRangeMatch,
+    UnitNumberRange,
     ballot_jurisdiction,
     candidate_ballot_document,
     match_street_range,
     parse_candidate_ballot,
+    parse_unit_ranges,
     validate_street_rows,
 )
 
 STREETS_URL = "https://myballotmn.sos.mn.gov/api/Streets/GetStreets"
+# The official app reads a flagged range's unit list in 2 steps: the street's
+# listing number, then that street's unit-number ranges (read 2026-10-09).
+STREET_ID_URL = "https://myballotmn.sos.mn.gov/api/FilteredAddress/GetFilteredAddresses"
+UNIT_RANGES_URL = (
+    "https://myballotmn.sos.mn.gov/api/UnitNumberRangesData/GetUnitNumberRanges"
+)
+
+
+def _source_params(url: str) -> tuple[str, str] | None:
+    # Read at call time, so a test's local stand-in for a URL is honoured.
+    return {
+        STREETS_URL: ("ZipCode", r"[0-9]{1,12}"),
+        SOURCE_URL: ("prodAddressRangeId", r"[0-9]{1,12}"),
+        # Street, city and ZIP from the official street table: never a house number.
+        STREET_ID_URL: ("address", r"[A-Z0-9][A-Z0-9 .'&/-]{2,149}"),
+        UNIT_RANGES_URL: ("FullStreetNameCityNameZipCodeId", r"[0-9]{1,12}"),
+    }.get(url)
+
+
 BALLOT_HOME = "https://myballotmn.sos.mn.gov/"
 SUPPORTED_ELECTION = {
     "id": "8334",
@@ -51,6 +79,13 @@ SUPPORTED_ELECTION = {
     "type": "general",
 }
 PRIVATE_HEADERS = {"Cache-Control": "private, no-store", "Vary": "Origin"}
+# Device-location suggestions. A browser's accuracy is a 95% radius in meters.
+# Address points can sit up to about 30m from where a person stands in the
+# building; neighbouring Minneapolis points are about 11m apart.
+MINNESOTA_BOUNDS = (43.499, 49.385, -97.24, -89.48)
+LOCATION_MAX_ACCURACY_METERS = 100
+LOCATION_PLACEMENT_SLACK_METERS = 30
+LOCATION_MIN_SEPARATION_METERS = 8
 
 
 class CandidateLookupUnavailable(Exception):
@@ -59,18 +94,17 @@ class CandidateLookupUnavailable(Exception):
 
 def official_bytes(url: str, params: dict[str, str | int]) -> bytes:
     """The fixed source allowlist cannot be changed by a submitted address."""
-    if url not in (STREETS_URL, SOURCE_URL):
+    allowlisted = _source_params(url)
+    if allowlisted is None:
         raise CandidateLookupUnavailable("Unsupported candidate source")
-    expected = "ZipCode" if url == STREETS_URL else "prodAddressRangeId"
-    if set(params) != {expected} or not re.fullmatch(
-        r"[0-9]{1,12}", str(params[expected])
-    ):
+    expected, allowed = allowlisted
+    if set(params) != {expected} or not re.fullmatch(allowed, str(params[expected])):
         raise CandidateLookupUnavailable("Unsupported candidate source request")
     # Do not follow a redirect to an unrelated host, or include source exceptions
     # (which can contain the request parameters) in operational reports.
     try:
         started = time.monotonic()
-        with requests.get(
+        with public_source_session().get(
             url,
             params=params,
             timeout=(3.05, 12),
@@ -80,6 +114,15 @@ def official_bytes(url: str, params: dict[str, str | int]) -> bytes:
             # for application/json, but sends the actual object as text/plain.
             headers={"Accept": "text/plain"},
         ) as response:
+            if url == UNIT_RANGES_URL and response.status_code == 404:
+                # The source's own answer for a street with no unit list.
+                try:
+                    payload = json.loads(response.raw.read(1000, decode_content=True))
+                except Exception:
+                    # A broken or slow error body is a failure, never "no list".
+                    payload = None
+                if payload == {"message": "Unit number data not found."}:
+                    return b"[]"
             if response.status_code != 200:
                 raise CandidateLookupUnavailable("Official ballot service unavailable")
             body = bytearray()
@@ -121,8 +164,14 @@ _ALIASES = {
 
 
 def _normal(value: str) -> str:
+    # Both spellings of a street type compare equal ("TER" and "TERRACE"), on both
+    # sides of every comparison, so the state's address points and the election
+    # source's abbreviations name the same street.
     return " ".join(
-        _ALIASES.get(word, word) for word in value.upper().replace(".", "").split()
+        _STREET_TYPE_ALIASES.get(word, word)
+        for word in (
+            _ALIASES.get(word, word) for word in value.upper().replace(".", "").split()
+        )
     )
 
 
@@ -135,7 +184,8 @@ def _choice(address: str) -> dict:
 
 
 _UNIT_PATTERN = re.compile(
-    r"(?:\b(?:APT|APARTMENT|UNIT|SUITE|STE)\s+|#\s*)[A-Z0-9-]+\b", re.IGNORECASE
+    r"(?:\b(?:APT|APARTMENT|UNIT|SUITE|STE)(?:\.\s*|\s+)|#\s*)[A-Z0-9-]+\b",
+    re.IGNORECASE,
 )
 
 
@@ -182,7 +232,67 @@ def _street_json_object(pairs: list[tuple[str, object]]) -> dict:
 def _parse_with_rows(
     text: str, rows: list[dict], *, prefix: bool = False
 ) -> list[StreetAddress]:
-    """Match all supplied words against source streets, not coordinates or incumbents."""
+    """Match all supplied words against source streets, not coordinates or incumbents.
+
+    A unit normally ends the street segment. When the canonical reading finds
+    nothing, 1 unit elsewhere in the street or locality (after a comma, or after
+    the city) is read as that unit. 2 different units are never reconciled.
+    """
+    matches = _parse_rows_once(text, rows, prefix=prefix)
+    if matches:
+        return matches
+    upper = normalize_address_format(text).upper()
+    units = list(_UNIT_PATTERN.finditer(upper))
+    if len(units) != 1:
+        return matches
+    unit = units[0]
+    without = upper[: unit.start()] + upper[unit.end() :]
+    # Drop the empty segment the unit leaves behind ("street, , city").
+    without = ", ".join(
+        part
+        for part in (" ".join(piece.split()) for piece in without.split(","))
+        if part
+    )
+    unit_text = _unit_spelling(unit.group())
+    street, separator, locality = without.partition(",")
+    if separator:
+        matches = _parse_rows_once(
+            f"{street.strip()} {unit_text},{locality}", rows, prefix=prefix
+        )
+        if matches:
+            return matches
+    # Comma-free text, or a unit placed after the city: each source row's own
+    # city marks where the street ends.
+    return _parse_rows_once(without, rows, prefix=prefix, unit=unit_text)
+
+
+# "Apt.250" is the same supported spelling as "Apt 250" and "Apt. 250".
+_UNIT_START = re.compile(r"(?:APT|APARTMENT|UNIT|SUITE|STE)(?:\.|\s)|#")
+
+
+def _unit_spelling(unit: str) -> str:
+    """Print a label's dot as a space: "APT.250" and "APT. 250" become "APT 250"."""
+    return re.sub(r"^([A-Z]+)\.\s*", r"\1 ", " ".join(unit.upper().split()))
+
+
+def _trailing_unit_start(text: str) -> int | None:
+    """Where a unit begins in the last comma segment, after whitespace, or None.
+
+    A linear scan: the first unit label after whitespace in that segment that is
+    followed by more text, so "APT 2 APT 3" stays 1 unit for the matcher to refuse.
+    """
+    tail = text.rfind(",") + 1
+    for found in _UNIT_START.finditer(text, tail):
+        start = found.start()
+        if start > tail and text[start - 1].isspace() and text[found.end() :].strip():
+            return start
+    return None
+
+
+def _parse_rows_once(
+    text: str, rows: list[dict], *, prefix: bool = False, unit: str = ""
+) -> list[StreetAddress]:
+    supplied_unit = " ".join(unit.upper().split())
     text = normalize_address_format(text).upper()
     found = re.fullmatch(
         r"(\d{1,8})(?:\s+(1/2)|([A-Z]))?\s+(.+?)\s+(\d{5})(?:-\d{4})?", text
@@ -197,6 +307,7 @@ def _parse_with_rows(
             return []
         remainder = remainder[: state.start()].strip(" ,")
     matches: dict[tuple, StreetAddress] = {}
+    city_spellings: dict[tuple, str] = {}
     for row in rows:
         street, city = row.get("FullStreetName"), row.get("CityName")
         if not isinstance(street, str) or not isinstance(city, str):
@@ -205,19 +316,27 @@ def _parse_with_rows(
             continue
         requested = remainder
         # Postal city belongs to the address match, never to a municipal race.
-        city_pattern = r"(?:,?\s+)" + re.escape(city.strip()) + r"$"
+        city_words = city.strip().split()
+        city_name = re.escape(city.strip())
+        if len(city_words) > 1 and city_words[0] in {"ST", "ST.", "SAINT"}:
+            # Minnesota address points print SAINT PAUL; election street tables
+            # print ST PAUL. Accept that exact prefix spelling, preserving every
+            # remaining city word and the source's house/street/ZIP/range checks.
+            city_name = r"(?:ST\.?|SAINT)\s+" + re.escape(" ".join(city_words[1:]))
+        city_pattern = r"(?:,?\s+)" + city_name + r"$"
         city_match = re.search(city_pattern, requested)
         if city_match:
             requested = requested[: city_match.start()].strip(" ,")
         elif "," in requested:
             continue
-        unit = ""
-        unit_match = re.search(
-            r"\s+((?:(?:APT|APARTMENT|UNIT|SUITE|STE)\s+|#\s*)[^,]+)$", requested
-        )
-        if unit_match:
-            unit = unit_match.group(1).strip()
-            requested = requested[: unit_match.start()]
+        unit = supplied_unit
+        unit_start = _trailing_unit_start(requested)
+        if unit_start is not None:
+            if supplied_unit:
+                continue
+            unit = _unit_spelling(requested[unit_start:].strip())
+            # "Street, Apt 3, City" leaves the separating comma behind.
+            requested = requested[:unit_start].strip(" ,")
         expected, supplied = _normal(street), _normal(requested)
         if not (expected.startswith(supplied) if prefix else expected == supplied):
             continue
@@ -234,6 +353,10 @@ def _parse_with_rows(
             # An individual row is only a suggestion. Full resolution below
             # still checks every row and rejects overlapping ranges.
             match_street_range([row], address)
+        except (CandidateUnitRangesNeeded, CandidateUnitRequired):
+            # The house is in a unit-specific range: the street spelling still
+            # matches. Its unit list is read only when this address is searched.
+            pass
         except CandidateAddressNotFound:
             continue
         except CandidateBallotError:
@@ -248,8 +371,30 @@ def _parse_with_rows(
             address.house_number_suffix,
             address.unit,
         )
+        city_key = (
+            _normal(address.street),
+            re.sub(r"^(?:SAINT|ST\.)\s+", "ST ", " ".join(address.city.split())),
+            *key[2:],
+        )
+        if city_key in city_spellings and city_spellings[city_key] != address.city:
+            # Equivalent city spellings must not turn overlapping official
+            # records into choices a confirmation can use to select a range.
+            return []
+        city_spellings[city_key] = address.city
         matches[key] = address
     return list(matches.values())
+
+
+# A shared street-table fetch is bounded by official_bytes (about 23 seconds).
+STREET_FETCH_WAIT_SECONDS = 30
+
+
+class _StreetFetch:
+    """1 in-flight public street-table fetch that simultaneous requests share."""
+
+    def __init__(self) -> None:
+        self.done = threading.Event()
+        self.rows: list[dict] | None = None
 
 
 class CandidateLookupService:
@@ -269,26 +414,52 @@ class CandidateLookupService:
         )
         self._streets: OrderedDict[str, tuple[float, list[dict], int]] = OrderedDict()
         self._street_bytes = 0
+        # 1 fetch per ZIP at a time: simultaneous misses wait for the same answer.
+        self._street_fetches: dict[str, _StreetFetch] = {}
         self._lock = threading.Lock()
 
     def elections(self) -> list[dict]:
-        # Do not offer an old ballot as a future election after its date passes.
-        return (
-            [dict(SUPPORTED_ELECTION)]
-            if self.now().astimezone(ZoneInfo("America/Chicago")).date()
-            <= date(2026, 11, 3)
-            else []
-        )
+        from alethical.api.services.person_records import supported_elections
+
+        return supported_elections()
 
     def streets(self, zip_code: str) -> list[dict]:
         if not re.fullmatch(r"\d{5}", zip_code):
             return []
-        now = self.clock()
         with self._lock:
             cached = self._streets.get(zip_code)
-            if cached and cached[0] > now:
+            if cached and cached[0] > self.clock():
                 self._streets.move_to_end(zip_code)
                 return cached[1]
+            pending = self._street_fetches.get(zip_code)
+            leader = pending is None
+            if pending is None:
+                pending = self._street_fetches[zip_code] = _StreetFetch()
+        if not leader:
+            # The leading request's own source deadline bounds this wait.
+            if not pending.done.wait(STREET_FETCH_WAIT_SECONDS) or pending.rows is None:
+                raise CandidateLookupUnavailable("Official street records unavailable")
+            return pending.rows
+        try:
+            rows, size = self._fetch_streets(zip_code)
+            with self._lock:
+                previous = self._streets.pop(zip_code, None)
+                if previous:
+                    self._street_bytes -= previous[2]
+                self._streets[zip_code] = (self.clock() + 300, rows, size)
+                self._street_bytes += size
+                self._streets.move_to_end(zip_code)
+                while len(self._streets) > 32 or self._street_bytes > 8_000_000:
+                    _, dropped = self._streets.popitem(last=False)
+                    self._street_bytes -= dropped[2]
+            pending.rows = rows
+            return rows
+        finally:
+            with self._lock:
+                self._street_fetches.pop(zip_code, None)
+            pending.done.set()
+
+    def _fetch_streets(self, zip_code: str) -> tuple[list[dict], int]:
         try:
             body = self.fetch(STREETS_URL, {"ZipCode": zip_code})
             if len(body) > 4_000_000:
@@ -310,17 +481,47 @@ class CandidateLookupService:
             raise CandidateLookupUnavailable(
                 "Official street records unavailable"
             ) from None
-        with self._lock:
-            previous = self._streets.pop(zip_code, None)
-            if previous:
-                self._street_bytes -= previous[2]
-            self._streets[zip_code] = (now + 300, rows, len(body))
-            self._street_bytes += len(body)
-            self._streets.move_to_end(zip_code)
-            while len(self._streets) > 32 or self._street_bytes > 8_000_000:
-                _, dropped = self._streets.popitem(last=False)
-                self._street_bytes -= dropped[2]
-        return rows
+        return rows, len(body)
+
+    def _eligible_choices(self, choices: list[dict]) -> list[dict]:
+        """Offer only complete addresses supported by one official ballot range.
+
+        Map address points include locations the election source cannot resolve.
+        Load each ZIP once, concurrently when necessary, using the existing bounded
+        public street-table cache. Never fetch ballots or save personal queries here.
+        """
+        choices_with_zip = [
+            (choice, match.group(1))
+            for choice in choices[:5]
+            if (match := re.search(r"\b(\d{5})(?:-\d{4})?$", choice["address"]))
+        ]
+        zip_codes = list(dict.fromkeys(zip_code for _, zip_code in choices_with_zip))
+        if not zip_codes:
+            return []
+        if len(zip_codes) == 1:
+            tables = {zip_codes[0]: self.streets(zip_codes[0])}
+        else:
+            with ThreadPoolExecutor(max_workers=len(zip_codes)) as executor:
+                tables = dict(zip(zip_codes, executor.map(self.streets, zip_codes)))
+        eligible = []
+        for choice, zip_code in choices_with_zip:
+            rows = tables[zip_code]
+            matches = _parse_with_rows(choice["address"], rows)
+            if len(matches) != 1:
+                continue
+            try:
+                match_street_range(rows, matches[0])
+            except CandidateUnitRangesNeeded:
+                pass
+            except CandidateAddressNotFound:
+                continue
+            except CandidateBallotError:
+                raise CandidateLookupUnavailable(
+                    "Official street records unavailable"
+                ) from None
+            if choice not in eligible:
+                eligible.append(choice)
+        return eligible
 
     def suggest(self, text: str) -> list[dict]:
         text = normalize_address_format(text)
@@ -329,23 +530,129 @@ class CandidateLookupService:
             addresses = _parse_with_rows(
                 text, self.streets(zip_match.group(1)), prefix=True
             )
-            return [_choice(_address_label(address)) for address in addresses[:5]]
+            return self._eligible_choices(
+                [_choice(_address_label(address)) for address in addresses[:5]]
+            )
         try:
             matches = self.geocoder.suggest_matches(text)
         except (requests.RequestException, RepresentativeLookupUpstreamError):
             raise CandidateLookupUnavailable(
                 "Government address service unavailable"
             ) from None
-        return [
-            choice
-            for match in matches[:5]
-            if match.state_code in (None, "MN")
-            if (choice := _geocoded_choice(text, match.matched_address)) is not None
-        ]
+        return self._eligible_choices(
+            [
+                choice
+                for match in matches[:5]
+                if match.state_code in (None, "MN")
+                if (choice := _geocoded_choice(text, match.matched_address)) is not None
+            ]
+        )
+
+    def locate(self, latitude: float, longitude: float, accuracy: float) -> dict:
+        """Suggest 1 home address for the reader to confirm; never search with it.
+
+        A device reading is a point plus a 95% accuracy radius. The suggestion is
+        offered only when that reading separates the nearest building from every
+        other address; otherwise the reader types the address. Nothing is stored.
+        """
+        if not (
+            MINNESOTA_BOUNDS[0] <= latitude <= MINNESOTA_BOUNDS[1]
+            and MINNESOTA_BOUNDS[2] <= longitude <= MINNESOTA_BOUNDS[3]
+        ):
+            return {"kind": "outside-minnesota"}
+        if accuracy > LOCATION_MAX_ACCURACY_METERS:
+            return {"kind": "imprecise"}
+        reach = accuracy + LOCATION_PLACEMENT_SLACK_METERS
+        separation = max(accuracy, LOCATION_MIN_SEPARATION_METERS)
+        try:
+            # Look far enough past the nearest possible building to see every
+            # neighbour that the separation rule must rule out.
+            nearby = self.geocoder.nearby_addresses(
+                latitude, longitude, reach + separation
+            )
+        except AddressPointsIncomplete:
+            return {"kind": "imprecise"}
+        except Exception:
+            # Upstream text can include the submitted point. Report nothing of it.
+            raise CandidateLookupUnavailable(
+                "Government address service unavailable"
+            ) from None
+        if not nearby or nearby[0][1] > reach or nearby[0][0] is None:
+            # No building close enough, or the nearest point has no usable address.
+            return {"kind": "imprecise"}
+        if len(nearby) > 1 and nearby[1][1] - nearby[0][1] < separation:
+            return {"kind": "imprecise"}
+        return {"kind": "address", "address": self._official_spelling(nearby[0][0])}
+
+    def _official_spelling(self, label: str) -> str:
+        """Print the election source's spelling when exactly 1 of its streets matches.
+
+        Anything else keeps the state's address-point wording; the reader's
+        confirmed search still decides the match.
+        """
+        zip_code = re.search(r"\b(\d{5})$", label)
+        if not zip_code:
+            return label
+        try:
+            rows = self.streets(zip_code.group(1))
+            matches = _parse_with_rows(label, rows)
+            if not matches:
+                # Postal community names can differ from the source's city name.
+                street = label.partition(",")[0]
+                matches = _parse_with_rows(f"{street} MN {zip_code.group(1)}", rows)
+        except CandidateLookupUnavailable:
+            return label
+        return _address_label(matches[0]) if len(matches) == 1 else label
+
+    def unit_ranges(self, address: StreetAddress) -> tuple[UnitNumberRange, ...]:
+        """Read 1 street's official unit-number ranges, as MyBallot itself does.
+
+        Only the official street, city and ZIP leave Alethical, never the house
+        number or unit, and nothing is cached. A source failure is unavailable.
+        """
+        try:
+            listings = json.loads(
+                self.fetch(
+                    STREET_ID_URL,
+                    {"address": f"{address.street} {address.city} {address.zip_code}"},
+                ),
+                object_pairs_hook=_street_json_object,
+            )
+            if not isinstance(listings, list) or len(listings) > 1000:
+                raise ValueError
+            ids = {
+                listing.get("FullStreetNameCityNameZipCodeId")
+                for listing in listings
+                if isinstance(listing, dict)
+                and isinstance(listing.get("FullStreetName"), str)
+                and isinstance(listing.get("CityName"), str)
+                and " ".join(listing["FullStreetName"].upper().split())
+                == " ".join(address.street.upper().split())
+                and " ".join(listing["CityName"].upper().split())
+                == " ".join(address.city.upper().split())
+                and listing.get("ZipCode") == address.zip_code
+            }
+            if len(ids) != 1:
+                raise ValueError
+            street_id = ids.pop()
+            if type(street_id) is not int or street_id <= 0:
+                raise ValueError
+            return parse_unit_ranges(
+                json.loads(
+                    self.fetch(
+                        UNIT_RANGES_URL, {"FullStreetNameCityNameZipCodeId": street_id}
+                    ),
+                    object_pairs_hook=_street_json_object,
+                )
+            )
+        except (ValueError, TypeError, CandidateBallotError):
+            raise CandidateLookupUnavailable(
+                "Official unit records unavailable"
+            ) from None
 
     def resolve(
         self, text: str, confirmed: dict | None = None
-    ) -> tuple[StreetAddress, list[dict]] | dict:
+    ) -> tuple[StreetAddress, StreetRangeMatch] | dict:
         text = normalize_address_format(text)
         # Confirmation never acts as an arbitrary range selector or replacement
         # address. Recompute choices from the submitted original address first.
@@ -370,14 +677,19 @@ class CandidateLookupService:
             if confirmed is not None:
                 if confirmed not in choices:
                     return {"kind": "no-match"}
+                # Resolve only the chosen address. A source failure for an
+                # unrelated alternative must not block a valid confirmation.
                 text = confirmed["address"]
                 confirmed = None
-            elif choices:
+            else:
+                choices = self._eligible_choices(choices)
                 # Even one geocoded answer may correct the street or locality.
                 # The reader must explicitly choose that complete address.
-                return {"kind": "ambiguous", "choices": choices[:5]}
-            else:
-                return {"kind": "no-match"}
+                return (
+                    {"kind": "ambiguous", "choices": choices}
+                    if choices
+                    else {"kind": "no-match"}
+                )
             zip_match = re.search(r"\b(\d{5})(?:-\d{4})?$", text.strip())
         if not zip_match:
             return {"kind": "no-match"}
@@ -392,20 +704,25 @@ class CandidateLookupService:
         if confirmed is not None and confirmed not in choices:
             # For no-ZIP geocoding the original confirmed string may have been
             # standardized. It must nevertheless resolve to exactly 1 official
-            # address, with the same words after harmless formatting changes.
+            # address, including the same unit, through the same exact parser.
+            confirmed_matches = _parse_with_rows(confirmed["address"], rows)
             if (
                 len(matches) != 1
                 or confirmed != _choice(confirmed["address"])
-                or _normal(confirmed["address"].replace(",", " "))
-                != _normal(choices[0]["address"].replace(",", " "))
+                or len(confirmed_matches) != 1
+                or _address_label(confirmed_matches[0]) != choices[0]["address"]
             ):
                 return {"kind": "no-match"}
-            # The complete choice's label/id are internally valid and every
-            # address word matches the sole official result after abbreviation
-            # expansion. Carry that canonical choice into the exact filter.
+            # The complete choice and input identify the same sole official
+            # address. Carry that canonical choice into the exact filter.
             confirmed = choices[0]
         if len(matches) > 1 and confirmed is None:
-            return {"kind": "ambiguous", "choices": choices[:5]}
+            eligible = self._eligible_choices(choices)
+            return (
+                {"kind": "ambiguous", "choices": eligible}
+                if eligible
+                else {"kind": "no-match"}
+            )
         if confirmed is not None:
             matches = [
                 address
@@ -415,25 +732,40 @@ class CandidateLookupService:
         if len(matches) != 1:
             return {"kind": "no-match"}
         try:
-            match_street_range(rows, matches[0])
+            try:
+                found = match_street_range(rows, matches[0])
+            except CandidateUnitRangesNeeded:
+                found = match_street_range(
+                    rows, matches[0], self.unit_ranges(matches[0])
+                )
         except CandidateAddressNotFound:
             return {"kind": "no-match"}
         except CandidateBallotError:
             raise CandidateLookupUnavailable(
                 "Official street records unavailable"
             ) from None
-        return matches[0], rows
+        return matches[0], found
 
     def lookup(
         self, text: str, election_id: str, confirmed: dict | None = None
     ) -> tuple[dict, BallotCatalogue | None]:
-        if election_id not in {item["id"] for item in self.elections()}:
+        election = next(
+            (item for item in self.elections() if item["id"] == election_id), None
+        )
+        if election is None:
             return {"kind": "no-elections"}, None
+        if election["capabilities"]["addressLookup"] == "unavailable":
+            return {
+                "kind": "historical-match-unavailable",
+                "electionId": election_id,
+                "message": "We couldn’t confirm the races for this address and election",
+                "officialResultsUrl": election["officialResultsUrl"],
+            }, None
         resolved = self.resolve(text, confirmed)
         if isinstance(resolved, dict):
             return resolved, None
-        address, rows = resolved
-        range_id = match_street_range(rows, address).range_id
+        address, found = resolved
+        range_id = found.range_id
         body = self.fetch(SOURCE_URL, {"prodAddressRangeId": range_id})
         try:
             catalogue = parse_candidate_ballot(
@@ -571,7 +903,13 @@ def race_payload(race: BallotRace, catalogue: BallotCatalogue) -> dict:
 
 
 def persist_catalogue(db: Session, catalogue: BallotCatalogue) -> None:
-    from alethical.db.models import CandidateRecord, CandidateSnapshot
+    from alethical.db.models import CandidateSnapshot
+    from alethical.api.services.person_records import (
+        public_version,
+        retain_public_versions,
+        save_candidate_records,
+        sync_reviewed_legislators,
+    )
 
     document = candidate_ballot_document(catalogue)
     document["publication_status"] = "source_backed_ballot_lookup"
@@ -585,14 +923,38 @@ def persist_catalogue(db: Session, catalogue: BallotCatalogue) -> None:
         ensure_ascii=False,
         separators=(",", ":"),
     ).encode()
+    snapshot_id = hashlib.sha256(canonical).hexdigest()
+    old = db.get(CandidateSnapshot, snapshot_id)
+    versions = [
+        public_version(
+            kind="ballot",
+            record_id=snapshot_id,
+            payload=document,
+            source_hash=catalogue.source_sha256,
+            checked_at=catalogue.checked_at,
+        )
+    ]
+    if old is not None:
+        versions.insert(
+            0,
+            public_version(
+                kind="ballot",
+                record_id=snapshot_id,
+                payload=old.public_payload,
+                source_hash=old.source_sha256,
+                checked_at=old.checked_at,
+            ),
+        )
+    retain_public_versions(db, versions)
     snapshot = insert(CandidateSnapshot).values(
-        id=hashlib.sha256(canonical).hexdigest(),
+        id=snapshot_id,
         election_id=catalogue.election.election_id,
         source_sha256=catalogue.source_sha256,
         public_payload=document,
         checked_at=catalogue.checked_at,
     )
-    # Repeated identical public facts share evidence; retain the newest read/hash.
+    # This existing index keeps its newest accepted read. Every read and its
+    # actual source hash/check time is retained separately above.
     snapshot = snapshot.on_conflict_do_update(
         index_elements=["id"],
         set_={
@@ -603,6 +965,7 @@ def persist_catalogue(db: Session, catalogue: BallotCatalogue) -> None:
         where=CandidateSnapshot.checked_at <= snapshot.excluded.checked_at,
     )
     db.execute(snapshot)
+    profiles = []
     for race in catalogue.races:
         for candidate in race.candidates:
             profile: dict[str, Any] = {
@@ -614,24 +977,20 @@ def persist_catalogue(db: Session, catalogue: BallotCatalogue) -> None:
             }
             if candidate.campaign_website:
                 profile["website"] = candidate.campaign_website
-            statement = insert(CandidateRecord).values(
-                id=candidate.stable_id,
-                election_id=catalogue.election.election_id,
-                election_date=catalogue.election.election_date,
-                public_payload=profile,
-                source_sha256=catalogue.source_sha256,
-                checked_at=catalogue.checked_at,
-            )
-            statement = statement.on_conflict_do_update(
-                index_elements=["id"],
-                set_={
-                    "public_payload": statement.excluded.public_payload,
-                    "source_sha256": statement.excluded.source_sha256,
-                    "checked_at": statement.excluded.checked_at,
-                },
-                where=CandidateRecord.checked_at <= statement.excluded.checked_at,
-            )
-            db.execute(statement)
+            profiles.append(profile)
+    # Every candidate lock is taken in 1 ordered statement, so simultaneous ballots
+    # sharing races cannot cross locks. Records apply in stable candidate order.
+    save_candidate_records(
+        db,
+        profiles=sorted(profiles, key=lambda item: item["candidate"]["id"]),
+        source_hash=catalogue.source_sha256,
+        checked_at=catalogue.checked_at,
+    )
+    sync_reviewed_legislators(
+        db,
+        today=catalogue.checked_at.astimezone(ZoneInfo("America/Chicago")).date(),
+        candidate_ids={profile["candidate"]["id"] for profile in profiles},
+    )
     db.commit()
 
 
@@ -640,6 +999,7 @@ def load_profile(
 ) -> dict | None:
     from alethical.db.models import CandidateRecord
     from alethical.api.services.candidate_legislators import confirmed_legislator
+    from alethical.api.services.person_records import add_profile_records
 
     if not re.fullmatch(r"[a-f0-9]{64}", candidate_id):
         return None
@@ -648,7 +1008,9 @@ def load_profile(
         return None
     payload = {**record.public_payload, "source": dict(record.public_payload["source"])}
     checked_now = now or datetime.now(UTC)
-    if checked_now - record.checked_at > timedelta(hours=24):
+    if not payload["source"].get(
+        "retained"
+    ) and checked_now - record.checked_at > timedelta(hours=24):
         payload["source"]["stale"] = True
     payload["isJointTicket"] = payload.get("office") == "Governor & Lt Governor"
     connection = confirmed_legislator(
@@ -658,4 +1020,6 @@ def load_profile(
         payload["legislator"] = connection
         if connection.get("photoUrl") and not payload["isJointTicket"]:
             payload["photo"] = {"url": connection["photoUrl"]}
-    return payload
+    return add_profile_records(
+        db, payload, today=checked_now.astimezone(ZoneInfo("America/Chicago")).date()
+    )

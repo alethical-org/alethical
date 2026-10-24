@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { Linking, Pressable, StyleSheet } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { useHover } from './billDetail/interactions';
+import { useFineHover, useHover } from './billDetail/interactions';
 import { SocialAccount, SocialPlatform } from '../lib/socialLinks';
 import { externalLinkProps } from '../navigation/links';
 import { theme as t } from '../theme/tokens';
 
-type SocialSurface = 'footer' | 'contact';
+type SocialSurface = 'footer' | 'contact' | 'hero';
 
 const GLYPH_SIZES: Record<SocialSurface, Record<SocialPlatform, number>> = {
   footer: {
@@ -15,6 +15,7 @@ const GLYPH_SIZES: Record<SocialSurface, Record<SocialPlatform, number>> = {
     facebook: 23,
     instagram: 22,
     x: 20,
+    bluesky: 20,
     tiktok: 20,
     youtube: 23,
   },
@@ -23,22 +24,31 @@ const GLYPH_SIZES: Record<SocialSurface, Record<SocialPlatform, number>> = {
     facebook: 24,
     instagram: 23,
     x: 21,
+    bluesky: 21,
     tiktok: 21,
     youtube: 24,
+  },
+  // Homepage hero, computer and tablet; phone draws each mark 2px larger.
+  hero: {
+    linkedin: 18,
+    facebook: 20,
+    instagram: 19,
+    x: 17,
+    bluesky: 17,
+    tiktok: 18,
+    youtube: 20,
   },
 };
 
 function SocialGlyph({
   platform,
-  surface,
+  size,
   color,
 }: {
   platform: SocialPlatform;
-  surface: SocialSurface;
+  size: number;
   color: string;
 }) {
-  const size = GLYPH_SIZES[surface][platform];
-
   if (platform === 'linkedin') {
     return (
       <Svg width={size} height={size} viewBox="0.87 2.87 22 22" fill={color} aria-hidden>
@@ -67,6 +77,13 @@ function SocialGlyph({
       </Svg>
     );
   }
+  if (platform === 'bluesky') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden>
+        <Path d="M12 10.8c-1.087-2.114-4.046-6.053-6.798-7.995C2.566.944 1.561 1.266.902 1.565.139 1.908 0 3.08 0 3.768c0 .69.378 5.65.624 6.479.815 2.736 3.713 3.66 6.383 3.364-3.912.58-7.387 2.005-2.83 7.078 5.013 5.19 6.87-1.113 7.823-4.308.953 3.195 2.05 9.271 7.733 4.308 4.267-4.308 1.172-6.498-2.74-7.078 2.67.296 5.568-.628 6.383-3.364.246-.829.624-5.79.624-6.479 0-.688-.139-1.86-.902-2.203-.659-.299-1.664-.621-4.3 1.24C16.046 4.747 13.087 8.686 12 10.8z" />
+      </Svg>
+    );
+  }
   if (platform === 'youtube') {
     return (
       <Svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden>
@@ -91,14 +108,18 @@ export function SocialIconLink({
   mobile?: boolean;
 }) {
   const [hovered, hoverProps] = useHover();
+  const [fineHovered, fineHoverProps] = useFineHover();
   const [focused, setFocused] = useState(false);
   const active = hovered || focused;
   const isFooter = surface === 'footer';
+  const isHero = surface === 'hero';
   const baseStyles = [
     styles.link,
-    isFooter ? styles.footer : styles.contact,
+    isHero ? styles.hero : isFooter ? styles.footer : styles.contact,
     isFooter && mobile && styles.footerMobile,
+    isHero && mobile && styles.heroMobile,
   ];
+  const glyphSize = GLYPH_SIZES[surface][social.platform] + (isHero && mobile ? 2 : 0);
 
   const url = social.url;
 
@@ -106,19 +127,35 @@ export function SocialIconLink({
     <Pressable
       accessibilityLabel={`Alethical on ${social.label} (opens in a new tab)`}
       {...(url ? externalLinkProps(url, () => void Linking.openURL(url)) : {})}
-      {...hoverProps}
+      {...(isHero ? fineHoverProps : hoverProps)}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
-      style={({ pressed }) => [
-        ...baseStyles,
-        (active || pressed) && (isFooter ? styles.footerActive : styles.contactActive),
-      ]}
+      style={({ pressed }) =>
+        isHero
+          ? // The hero row is bare grey marks at rest; keyboard focus shows only the
+            // site ring, and hover appears only where a mouse can hover.
+            [...baseStyles, pressed ? styles.heroPressed : fineHovered && styles.heroHovered]
+          : [
+              ...baseStyles,
+              (active || pressed) && (isFooter ? styles.footerActive : styles.contactActive),
+            ]
+      }
     >
       {({ pressed }) => (
         <SocialGlyph
           platform={social.platform}
-          surface={surface}
-          color={isFooter && (active || pressed) ? '#ffffff' : isFooter ? '#eef1ef' : t.colors.ink}
+          size={glyphSize}
+          color={
+            isHero
+              ? pressed || fineHovered
+                ? t.colors.ink
+                : '#6b716b'
+              : isFooter && (active || pressed)
+                ? '#ffffff'
+                : isFooter
+                  ? '#eef1ef'
+                  : t.colors.ink
+          }
         />
       )}
     </Pressable>
@@ -142,4 +179,8 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.surfaces.s400,
   },
   contactActive: { backgroundColor: '#e7e8ec' },
+  hero: { width: 40, height: 40, borderRadius: 20 },
+  heroMobile: { width: 44, height: 44, borderRadius: 22 },
+  heroHovered: { backgroundColor: 'rgba(17,21,15,0.06)' },
+  heroPressed: { backgroundColor: 'rgba(17,21,15,0.1)' },
 });

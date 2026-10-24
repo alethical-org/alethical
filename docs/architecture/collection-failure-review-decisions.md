@@ -6,7 +6,7 @@
 failed, `.github/workflows/collection-failure-review.yml` opens 1 GitHub issue for the
 problem, keeps it current, and closes it only when a later run's own record says every
 step finished. A restricted AI reviewer can add a plain-language diagnosis, but that part
-is switched off and costs nothing until Eugene approves its limits. Nothing in this
+is switched off and costs nothing until its limits receive explicit approval. Nothing in this
 workflow re-runs a collection, changes data, or approves an exception.
 
 Issue: [#2350](https://github.com/alethical-org/alethical/issues/2350). What runs, when,
@@ -307,8 +307,8 @@ quiet while an issue is open.
 
 ## 8. Who hears about it
 
-Eugene's GitHub account (`euglopi`) watches the repository (`subscribed: true`, read
-23 Sep 2026), so a new issue reaches his GitHub notifications, and each issue mentions
-him, which notifies him as a participant as well. Whether a notification reaches his
-email or phone depends on his own GitHub notification settings, which this repository
+The configured GitHub account (`euglopi`) watches the repository
+(`subscribed: true`, read 23 Sep 2026). New issues reach that account’s GitHub
+notifications, and each issue also mentions the account. Email or phone delivery
+depends on the account’s GitHub notification settings, which this repository
 cannot read.

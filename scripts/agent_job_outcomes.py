@@ -220,7 +220,13 @@ def read_ledger(path: Path) -> tuple[list[dict], dict[str, dict]]:
     return rows, latest
 
 
-def save_record(path: Path, record: dict, *, update: bool = False) -> dict:
+def save_record(
+    path: Path,
+    record: dict,
+    *,
+    update: bool = False,
+    expected_revision: int | None = None,
+) -> dict:
     """Serialize cooperating writers; publish a whole new append-only history atomically."""
     validate(record)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -232,6 +238,12 @@ def save_record(path: Path, record: dict, *, update: bool = False) -> dict:
         previous = latest.get(record["job_id"])
         if update != (previous is not None):
             raise ValueError("update needs an existing job; record needs a new job_id")
+        if expected_revision is not None and (
+            type(expected_revision) is not int
+            or previous is None
+            or previous["revision"] != expected_revision
+        ):
+            raise ValueError("job changed during verification")
         if previous:
             validate_update(record, previous)
         row = {

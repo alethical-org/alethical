@@ -24,7 +24,7 @@
  *      both contribution labels are explained (#2182); the figure itself stays here.
  *   f. That state's own withheld sentence in (e)'s position — when it is not.
  *   g. "Not a contribution" rows — only when the filing carries other receipt kinds, and
- *      never a `Miscellaneous` row (ruled by Eugene, 11 Sep 2026); the heading goes with
+ *      never a `Miscellaneous` row (approved 11 Sep 2026); the heading goes with
  *      the last row.
  *   h. The source link to the Board's downloads page — whenever a download address is
  *      served, derived from it (`downloadsPageUrl`).

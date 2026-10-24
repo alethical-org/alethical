@@ -41,9 +41,7 @@ for (const width of [1100, 1440, 1680]) {
         page.getByRole('heading', { name: 'Find my candidates', exact: true }),
       ).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
-      await expect(
-        page.getByRole('button', { name: 'Find my candidates', exact: true }),
-      ).toBeEnabled();
+      await expect(page.getByRole('button', { name: 'Find', exact: true })).toBeEnabled();
       await expect(page.locator('img[src*="mn-outline-candidates"]')).toBeVisible();
       const trigger = page.getByRole('button', { name: menu, exact: true });
       await trigger.hover();

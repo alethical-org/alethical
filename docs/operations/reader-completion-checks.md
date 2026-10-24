@@ -1,6 +1,6 @@
 # Reader completion checks
 
-<!-- describes: apps/frontend/scripts/reader-completion-*.mjs, apps/frontend/scripts/reader-official-bill.mjs, apps/frontend/scripts/reader-release-relation.mjs, apps/frontend/scripts/serve-reader-check-build.mjs, .github/workflows/reader-completion-checks.yml, .github/workflows/ci.yml -->
+<!-- describes: apps/frontend/scripts/reader-completion-*.mjs, apps/frontend/scripts/reader-official-bill.mjs, apps/frontend/scripts/reader-release-relation.mjs, apps/frontend/scripts/serve-reader-check-build.mjs, apps/frontend/scripts/serve-replay-check-build.mjs, apps/frontend/scripts/check-candidate-return.mjs, apps/frontend/scripts/check-candidate-location.mjs, .github/workflows/reader-completion-checks.yml, .github/workflows/ci.yml, .github/actions/prepare-browser-install/action.yml -->
 
 Alethical's completion evidence includes what a reader can do on the deployed
 website. A successful build or merge alone does not establish that result.
@@ -31,14 +31,53 @@ Live counts, result order, a particular legislator, and a particular bill are no
 fixed expectations. The search needs at least 1 actual result; an empty result is an
 honest product state but does not prove this search-to-source action works.
 
-On pull requests and merge-queue commits, the required frontend CI job builds the tested website
-and serves it on loopback. Saved public API snapshots supply bill and legislator
+On pull requests and merge-queue commits, the `frontend-browser-reader` CI job, part of the required
+`frontend` check, builds the tested website
+and serves it on loopback. Chromium and its system packages come from GitHub's
+cache when an earlier run on the same runner image and Playwright version saved
+them, so Ubuntu's package mirror is needed only after either changes. Saved public API snapshots supply bill and legislator
 reads, including Jim Abeler’s profile and his retained 2025 committee figures.
 The Revisor destination is a labelled fixture response. All outside
 requests are handled locally or blocked, so outside service outages cannot block
 premerge checks. Missing unrelated eager fixture reads receive HTTP 503; they
 are not invented records or evidence that campaign figures loaded. The 3 named
 money fixture checks now require the rendered figures themselves.
+
+The same `frontend-browser-reader` job also runs
+[`check-candidate-return.mjs`](../../apps/frontend/scripts/check-candidate-return.mjs)
+against the same production build. Its explicitly illustrative candidate records
+exercise search, a collapsed group, a profile visit and return at desktop, tablet
+and phone widths. The same result text, group states and link position must return.
+Candidate API answers are supplied locally; unrelated outside requests receive
+HTTP 503. The test sends no address to a service and starts no sign-in or paid work.
+
+It also runs
+[`check-candidate-location.mjs`](../../apps/frontend/scripts/check-candidate-location.mjs)
+in Chromium at 1280, 900, 390, 320 and 640 wide with doubled text. Fixture device
+locations and fixture API answers exercise **Use my location**: blocked, imprecise and
+unavailable lines, the confirmation card, Enter, unit joining and **Enter a different
+address**. It measures the **Find** buttons on `/candidates`, **Change address** and
+`/find-my-legislator`: width, height, the 9px icon gap, the 3px nudge and steady busy
+boxes. It also requires every row of an open suggestion list, including the last, to
+take a click above the help lines and outline. Unrelated outside requests receive
+HTTP 503; nothing reaches a location or address service.
+
+### Replay startup fixture evidence
+
+The `frontend-browser-specs` job runs
+[`event-replay-startup.browser.ts`](../../apps/frontend/e2e/event-replay-startup.browser.ts)
+against the real production build, served by the loopback-only
+[`serve-replay-check-build.mjs`](../../apps/frontend/scripts/serve-replay-check-build.mjs).
+Shared rendering supplies a clearly labelled sample article before application startup.
+The test holds the actual application program while a reader begins using that article.
+It then requires the same iframe, child browsing context and sample playing state,
+keyboard focus, timestamp Back/Forward, deep reading restoration, reader-input priority,
+usable sign-in failure recovery and matching article styles.
+
+YouTube, comments and decorative image reads are supplied locally; writes, authentication,
+metrics and unrelated outside requests are blocked. These deterministic checks prevent
+startup regressions but do not establish real YouTube sound, picture, captions or availability.
+Final recording and live browser acceptance remain separate.
 
 ### Campaign-money fixture evidence
 
@@ -92,6 +131,27 @@ unsupported command, a changed website, or a Git error cannot prove equivalence.
 Unrelated or unknown stamps fail. Reusable callers supply `expected_commit`; the workflow
 requires main and main ancestry before using it. Event-carried website addresses
 are never accepted.
+
+## Browser installation limits
+
+The required frontend checks, live reader checks and
+[website release recovery](website-release-recovery.md) share
+[browser installation preparation](../../.github/actions/prepare-browser-install/action.yml).
+These 3 workflows use GitHub's Linux X64 runners. The preparation rejects other
+runner types, which need their own supported settings before adoption.
+
+Ubuntu package downloads use 1 retry and 15-second HTTP/HTTPS connection and idle
+waits, matching the [official x64 runner settings](https://github.com/actions/runner-images/blob/c03600ca998467081ccec9bb9dbf5de6b68e862a/images/ubuntu/scripts/build/configure-apt.sh).
+The preparation prints and checks the effective settings, so an override cannot
+silently restore longer waits. Existing download mirrors and package signature
+checks stay intact. The 15-second limit applies to each stalled connection or
+idle transfer, not to the whole installation.
+
+Each workflow still installs Chromium and its system dependencies with
+`playwright install --with-deps chromium`. That step has a 10-minute total limit;
+an installation failure or timeout fails the browser check. The full required
+browser tests remain enabled. Changes to the shared preparation select frontend
+checks through [check-paths.json](../../.github/check-paths.json).
 
 ## Commands and evidence
 

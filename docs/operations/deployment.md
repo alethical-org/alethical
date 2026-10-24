@@ -1,4 +1,4 @@
-<!-- describes: alethical/release.py, alethical/api/main.py, apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, api/page.ts, alethical/api/routers/me.py, alethical/api/main.py, alethical/api/request_admission.py, alethical/api/services/ask_router.py, alethical/pipeline/rag_ingest.py, alethical/logging.py, alethical/monitoring.py, railway.json, vercel.json, apps/frontend/metro.config.js, patches/@expo__metro-config@57.0.7.patch, pnpm-workspace.yaml, pnpm-lock.yaml -->
+<!-- describes: alethical/api/services/candidate_claim_email.py, alethical/alembic/versions/0068_profile_claim_review.py, alethical/release.py, alethical/api/main.py, apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, api/page.ts, alethical/api/routers/me.py, alethical/api/main.py, alethical/api/request_admission.py, alethical/api/services/ask_router.py, alethical/pipeline/rag_ingest.py, alethical/logging.py, alethical/monitoring.py, railway.json, vercel.json, apps/frontend/metro.config.js, patches/@expo__metro-config@57.0.7.patch, pnpm-workspace.yaml, pnpm-lock.yaml, railpack.json, Dockerfile.backend, alethical/pipeline/tv_ad_redaction.py, alethical/assets/fonts/* -->
 
 # Production setup and recovery
 
@@ -101,6 +101,214 @@ API process drains saved messages independently from reader requests. See
 for delivery gates, retries and safe checks; do not send real test messages.
 Keep values only in Railway, never in this repository.
 
+### Profile claim email activation
+
+The intended accepted-production setting is
+`ALETHICAL_PROFILE_CLAIM_EMAIL_ENABLED=true`. Delivery is staged off until these
+release checks pass; an absent value also means off. This uses the existing
+`ALETHICAL_EMAIL_ENABLED=true`, `ALETHICAL_EMAIL_TRANSPORT=resend` and
+`RESEND_API_KEY` settings, with no new email service or paid AI call.
+
+Before activation:
+
+1. Confirm migrations `0068_profile_claim_review` and `0069_candidate_person_records`
+   are applied, the private claim event/delivery tables have row security enabled
+   with no public policies, and the reviewer-deletion cleanup trigger is installed.
+2. Pass the real PostgreSQL claim, permission, deletion, concurrent-decision and
+   delivery tests with the provider replaced by a test substitute; send no real test
+   email. Check current confirmed recipient handling and duplicate protection.
+3. Confirm the live candidate/admin routes and approved email image asset answer,
+   and the reviewed official public records have been imported and read back.
+4. Read the production delivery queue without changing it and confirm the launch
+   queue is empty. An unexpected queued row needs investigation before enabling
+   sending; never activate the sender merely to test it.
+5. Set the profile-claim flag to `true` in Railway, allow the settings release to
+   complete, and check service readiness and the saved flag without submitting a
+   real claim or decision to generate test mail.
+
+The API starts the saved-message worker at startup and waits 10 seconds after each
+completed drain. A drain considers up to 20 ready deliveries by default, with an
+absolute limit of 100, and shares the comment sender's database lock. Attempted
+messages retain their content and provider key; uncertain delivery stops retrying
+after 23 hours. Profile claim requests and admin decisions only save the queue entry, so a
+mail failure does not reverse a saved decision. Recipient eligibility is checked
+again before delivery. Setting the flag back to `false` pauses future drains;
+already handed-off email cannot be recalled.
+
+[find-my-candidates-guide.md § Profile claim email notifications](../product-onboarding/find-my-candidates-guide.md#profile-claim-email-notifications)
+owns recipient and message behavior.
+[user-data-retention-policy.md §2.10](../product-onboarding/user-data-retention-policy.md#210-candidate-profile-claims-and-campaign-statements)
+owns private retention and immediate deleted-reviewer cleanup, including while the
+sender is off. Keep all setting values in Railway, never in this repository.
+
+### Address suggestion copy activation
+
+`ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED` is `true` in production. The API
+answers suggestions from a shared copy of the state's published address file
+(`alethical/api/services/address_suggestion_index.py`). The optional
+`ALETHICAL_ADDRESS_SUGGESTION_INDEX_DIRECTORY` names the shared folder; without it the
+copy lives in the system temporary folder, shared by every API process in 1 container.
+
+What the copy needs, measured on a Mac on 9 October 2026 from the saved official file:
+the source file is 1,057,136,640 bytes; the finished copy is 288,256,000 bytes; a build
+peaks at about 1.36 GB of folder space and about 48 MB of memory and takes about 12
+seconds after a download that took 39 seconds on that network. The refresher refuses
+to start a build with less than 3 GB free. A new container starts with no copy, so each
+release downloads the file once more and suggestions use the live service until that
+build finishes. The refresher keeps the current and previous good copies,
+about 576.5 MB together for this file. With both retained, the source download and
+new copy give a calculated later-build file layout of about 1.92 GB. About 1.35 GB
+of that is new space during the rebuild; the 3 GB guard checks free space before it.
+The 1.36 GB first-build peak is measured. The later layout is calculated, not a
+measured maximum: database-index sorting can need additional temporary files, and
+a changed source can change these sizes.
+
+Every API start prints 1 line, whether the copy is on or off, so these facts come
+from the real host. It starts with `ADDRESS_COPY_CAPACITY ` followed by JSON holding
+only `enabled` (true or false), `free_bytes` (free space where the copy folder lives,
+read from the nearest existing folder without creating it), `cgroup_current_bytes`
+and `cgroup_max_bytes` (the container's memory in use and its limit, `"max"` when
+unlimited), and `api_process_count` (running processes with the API's program name,
+read without arguments or environment). Any fact the host cannot report is `null`.
+A start on a Mac printed
+`ADDRESS_COPY_CAPACITY {"api_process_count": null, "cgroup_current_bytes": null, "cgroup_max_bytes": null, "enabled": false, "free_bytes": 394287038464}`.
+
+The manual-only [Address copy capacity workflow](../../.github/workflows/address-copy-capacity.yml)
+uses the existing project token to read the exact `alethical` production
+`alethical-api` service. Its report contains plan, configured replicas, active
+deployment and running-instance IDs, sampled resource usage, and the filtered startup
+capacity line. Raw provider replies, other log lines, commands and environment
+values remain private. Unknown values remain `null`; sampled disk usage does not
+prove free disk. A startup line describes only its container at its dated start.
+The shared provider reader identifies itself as
+`alethical-address-copy-capacity/1` in its `User-Agent` header. On 9 October 2026,
+the same unauthenticated endpoint returned HTTP 403 for Python's default client
+and reached GraphQL with the named client. This header applies to capacity reads
+and control calls; it does not change token access or activation gates.
+Replica counts come from the active deployment's
+`meta.serviceManifest.deploy.multiRegionConfig` and the saved environment
+configuration, read with `decryptVariables: false`. Only explicit numeric counts
+are reported; missing counts never mean 1. Raw metadata and configuration stay
+private. The nullable legacy dashboard count is reported separately. A separate
+exact-service disk request omits instance grouping, because disk usage may lack
+an instance tag.
+The authenticated service and instance disk requests can return no usage. The
+signed-in owning workspace's service Console provides a read-only terminal for
+the exact deployment and instance without registering another access key.
+A root-folder scan alone is insufficient: deleted files can remain allocated
+through open handles or memory mappings, and mounts can hide application storage.
+
+When disk telemetry is unavailable, the operator may supply `console_storage`
+to the control workflow after a complete read-only Console assessment. This is a
+conservative operational assessment, not Railway's exact quota measurement. The
+record contains the exact `projectId`, `environmentId`, `serviceId`,
+`deployment_id`, `instance_id`, and timezone-aware `recorded_at`, plus:
+
+- `root_bytes_before` and `root_bytes_after`: complete allocated-block root scans
+  (`du -sx -B1 /`), both greater than 0 and at most 5 GB, differing by at most 1 MiB
+- `free_bytes`: at least 3 GB on the copy destination's existing parent
+- `deleted_open_bytes`, `deleted_mappings`, `read_errors`: all 0 after examining
+  every live process's file handles and mapping list, including traversal errors
+- `root_is_overlay`, `copy_on_root_mount`, `expected_runtime_mounts`: exactly true
+  after inspecting the mount layout and confirming only provider runtime/system
+  mounts, with no separate application storage or concealed application directory
+- `expected_processes`: exactly true, and `api_process_count`: exactly 1, with only
+  the expected application, launch wrapper,
+  reviewed Console shell processes and measurement programs present throughout the scan
+
+Read process names only, never arguments or environment values. Treat failed,
+denied, timed-out or unstable reads as incomplete; do not forward raw terminal
+output, paths, mount lists or memory maps into the workflow. Retain the private
+numeric assessment and the operator's mount/process review. These conditions are
+restricted to a small off-state service: the 5 GB ceiling leaves 95 GB of the
+published paid allowance for the measured 1.36 GB build and unmeasured filesystem
+bookkeeping. They do not establish an unconditional upper bound for hidden provider
+storage. Different mounts, unexplained processes or larger use require another
+capacity assessment; the console fallback must not be generalized to them.
+
+The evidence must be at most 5 minutes old. Immediately before changing the flag,
+the control re-reads the exact active deployment and running instance and validates
+freshness again. Missing evidence preserves the metric-only gate. Supplied evidence
+cannot override any populated provider disk reading, even a partial or stale one;
+that reading must be resolved through the provider path. All existing off-state,
+replica, process, memory, deployment ownership and rollback checks remain required.
+
+Railway's [published container rates](https://docs.railway.com/pricing/plans), read
+on 9 October, are $10 per GB memory per month, $20 per vCPU per month and $0.05 per
+GB outbound. The published table lists no separate incoming-download or ephemeral
+storage price. Runtime copy building uses billable CPU and memory; measure the
+added live use after activation. These rates are not an account invoice or proof
+of no added charge. This activation does not request another resource. The owning Pro workspace has 100 GB shared disk
+and $20 included monthly usage. The completed live copy contains 2,220,021 rows
+in 288,256,000 bytes. The first post-activation provider samples report about
+0.80 GB total API memory, with a 1.70 GB peak against a 24 GB limit. At the published
+memory rate, holding 0.80 GB constant for a month would cost about $8 for the whole
+API, before CPU and outgoing traffic. This is not an added-copy estimate or an
+invoice: the samples are short, and the copy and normal requests share the process.
+The paid disk allowance already covers the copy; no new storage plan is needed.
+
+The manual-only [Address copy control workflow](../../.github/workflows/address-copy-control.yml)
+accepts `enabled` (default `false`), `release_commit` (the reviewed live API's
+40-character commit), and optional `console_storage` (the reviewed numeric JSON
+assessment; empty by default). Before turning on, it requires a Hobby or Pro plan, 1 configured
+replica in both saved settings and the active deployment, exactly 1 active
+deployment and running instance, the repository start
+command, a fresh off-state capacity line with 1 API-program process and at least
+3 GB free, and at least 256 MiB memory headroom above the higher of startup usage
+and that instance's observed usage peak. It also requires either a fresh disk-usage sample leaving at least 3 GB within
+Railway's published 100 GB paid-deployment allowance or the complete bounded
+Console assessment described above. The host filesystem's larger free-space
+reading alone cannot replace that check.
+Missing, stale or conflicting facts refuse
+activation. Establish applicable charges separately; the automated gate cannot
+prove the account's invoice or authorize a new resource.
+
+The control changes only `ALETHICAL_ADDRESS_SUGGESTION_INDEX_ENABLED`, without
+starting an automatic deployment, then redeploys the exact reviewed deployment.
+It uses the public Railway origin (`https://alethical-api-production.up.railway.app`)
+to require the same release, ready status and a fresh startup line with the requested
+switch. Turning on also requires the known `350 5th Street South, Minneapolis, MN
+55415` suggestion to carry `requires_location_check: true`. The first 8 minutes
+include checks, deployment, download and building; 6 minutes remain for restoring
+off within the 15-minute workflow. These are safety budgets, not measured production
+activation times. A failed or uncertain on attempt saves `false`. When the job
+holds its exact activation deployment ID, it reads all ownership IDs and cancels
+only that deployment in `BUILDING` or `QUEUED`. It waits at most 90 seconds for
+that deployment to end or reach `SUCCESS`, reserving 200 seconds for off restoration.
+A cancellation reply alone does not establish that the activation has ended.
+Other pending states receive no cancellation. Only after the owned activation
+settles and no other operator has replaced or queued work does the job redeploy
+the reviewed version and inspect the off replacement. Lost deployment IDs,
+unknown ownership, and unsettled attempts remain explicitly unconfirmed; the job
+never guesses which deployment to cancel. Both workflows preserve the existing
+production-deployment queue and never create resources.
+
+Activation and later capacity reviews are tracked in
+[issue 2585](https://github.com/alethical-org/alethical/issues/2585):
+
+1. Establish the Railway service's actual free disk in its running container,
+   memory headroom and process count from the `ADDRESS_COPY_CAPACITY` line in
+   Railway's logs, and whether the plan charges for that disk, memory or the incoming
+   1.06 GB per release and per 12 hours. Do not assume these from another service or plan. A persistent volume would
+   avoid downloading on every release but is a new paid resource needing its own
+   approval.
+2. Run the Address copy control workflow with `enabled=true` and the reviewed live
+   release commit. Change the flag's row in
+   [repo-and-service-settings.md § Railway environment variables](repo-and-service-settings.md#railway-environment-variables)
+   to Present in the same change.
+3. After the release finishes and the copy has had time to build, send a public
+   suggestion request such as `{"address_text": "350 S 5"}` to
+   `/api/v1/address-suggestions`. `requires_location_check: true` on a single-point
+   address shows the copy answered it. Compare server timings before and after.
+4. Choose that suggestion on `/find-my-legislator` and confirm the request carries
+   `selected_address` and the result shows the expected districts.
+
+Run the Address copy control workflow with `enabled=false` and the reviewed live
+release commit to stop copy reads through a confirmed redeployment. The live service
+answers again with no data change. The copy never holds reader input.
+
+### Answer generation and error reporting
+
 `OPENAI_API_KEY` powers live Ask question sorting and search embeddings. It also
 writes answers unless `OPENAI_RAG_CHAT_MODEL` names an Anthropic model; that choice
 also needs `ANTHROPIC_API_KEY`. These calls spend money for each reader question.
@@ -131,6 +339,19 @@ The build installs dependencies with:
 ```bash
 uv sync --frozen
 ```
+
+TV copy preparation also needs the system program `pdftoppm`. The repository-root
+`railpack.json` installs `poppler-utils` in the Railway runtime;
+`Dockerfile.backend` installs it for container builds. The Python dependencies
+include Pillow, and `alethical/assets/fonts/LibreFranklin-Bold.ttf` supplies the
+font for burned-in “Name withheld” labels, with its license alongside it.
+Preparation uses the configured private raw-file store for originals and generated
+artifacts. A missing renderer or failed render rejects preparation; it must never
+serve an original as a substitute. Release checks must exercise a prepared PNG
+through the authenticated review route, approved PNG delivery, and withdrawal
+revocation using synthetic records. Preparation and approval of real source files
+remain separate administrator actions. See
+[tv-ad-records-guide.md](../product-onboarding/tv-ad-records-guide.md).
 
 The service start command starts Uvicorn:
 
@@ -169,6 +390,10 @@ opens only the connections the shipped website uses:
   receiver at `cloudflareinsights.com`
 - HTTPS images, which covers official legislator photos and OpenStreetMap tiles
 - inline styles, because React Native Web creates them while rendering
+- privacy-enhanced YouTube frames at `www.youtube-nocookie.com`, plus the official
+  `www.youtube.com/iframe_api` and `www.youtube.com/s/player/` program paths for
+  optional debate timestamp controls. These permissions apply across navigation;
+  a video loads only when the article supplies an accepted recording.
 
 Inline programs are not broadly allowed. The release-recovery program and the 2
 email-link safety programs are allowed only by a fingerprint of their exact text.
@@ -247,16 +472,19 @@ cannot lower that limit.
 
 ### Frontend first-load recovery
 
-The successful path stays direct: a public read makes 1 request with no retry delay, and
+The successful path stays direct: a browser public read makes 1 request with no retry delay, and
 the release page does no recovery work unless its main program file fails to load.
 
-- Public GET requests have a 5-second limit per attempt and get at most 2 attempts total.
+- Browser public GET requests have a 5-second limit per attempt and get at most 2 attempts total.
   Only a network failure, timeout, or `5xx` server response gets the second attempt. A
   `4xx` response, including an honest missing record, is final and keeps its normal page
   behavior. For HTTP 503, the browser honors `Retry-After` up to 1 second before its
   second attempt. A longer requested wait returns the failure without retrying early.
   Cancellation stops the wait as well as an active request. Successful reads incur no
   delay.
+- Server-generated committee first responses use the separate bounded recovery in
+  [page-metadata-for-search-and-sharing-decisions.md](../architecture/page-metadata-for-search-and-sharing-decisions.md):
+  at most 2 overlapping required-finance reads within 1 total 5-second deadline.
 - Restoring a saved sign-in has a 5-second limit. The public home renders while that check
   runs, and every success, service error, rejected request, or timeout ends the loading
   state.
@@ -461,8 +689,9 @@ failed-release watch above compares deployment state instead of fetching the sit
 
 ## Related releases
 
-The web app is the shipped client. [iOS release](ios-release.md) owns simulator,
-TestFlight, and future native iOS steps.
+Desktop and phone browsers are the supported clients. Native iOS and Android
+publishing is paused; [native restart notes](ios-release.md) retain the recovery
+point and acceptance requirements for explicitly approved future work.
 
 ## Preserve Site metrics history during rollback
 

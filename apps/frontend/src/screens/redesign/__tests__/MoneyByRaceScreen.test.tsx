@@ -274,7 +274,7 @@ describe('Money by race directory and focused group', () => {
     render();
     const back = host.querySelector<HTMLAnchorElement>('a[href="/money"]')!;
     const heading = host.querySelector<HTMLElement>('[aria-level="1"]')!;
-    expect(back.textContent).toBe('Money in politics');
+    expect(back.textContent).toBe('Back to Money in politics');
     expect(back.querySelector('svg')).not.toBeNull();
     expect(getComputedStyle(heading).marginTop).toBe('18px');
   });
@@ -363,7 +363,7 @@ describe('Money by race directory and focused group', () => {
       house.committees.map((entry) => entry.name),
     );
     expect(host.querySelector('input')).toBeTruthy();
-    const back = host.querySelector<HTMLAnchorElement>('a[aria-label="Go back"]')!;
+    const back = host.querySelector<HTMLAnchorElement>('a[aria-label="Back to Money by race"]')!;
     expect(queryOf(back)).toEqual({ year: '2026' });
     expect(back.querySelector('svg')).not.toBeNull();
     expect(getComputedStyle(back).borderTopWidth).toBe('1px');
@@ -680,10 +680,11 @@ describe('Money by race figures and unavailable records', () => {
       expect(state.refetch).toHaveBeenCalledTimes(1);
     },
   );
-  it('does not repeat Money by race when a shared group cannot be loaded', () => {
+  it('names the directory return and keeps only 1 heading when a shared group cannot be loaded', () => {
     respond(undefined, { isError: true });
     render({ group: house.anchor, office: 'House', year: '2026' });
-    expect(host.textContent?.match(/Money by race/g)).toHaveLength(1);
+    expect(host.querySelector('h1')?.textContent).toBe('Money by race');
+    expect(host.querySelector('a[aria-label="Back to Money by race"]')).not.toBeNull();
     expect(host.textContent).not.toContain('CAMPAIGN MONEY');
   });
 });

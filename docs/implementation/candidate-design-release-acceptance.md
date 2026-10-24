@@ -1,15 +1,99 @@
 # Candidate design build acceptance inventory
 
+## Public profile claim button, October 9, 2026
+
+The newer accepted public-profile design changes Claim this profile to the same
+green filled treatment as Manage this profile. Account controls start at the
+same left edge as their explanation on desktop/tablet and stay full-width on
+phone. Saved-request status and administrator review actions remain outlined.
+The inactive legislator claim preview retains its pale appearance.
+
+This supersedes the outlined new-claim treatment in P20 below. The older table
+retains its original comparison; the current design requirements, bundle hash,
+affected uses and acceptance evidence are in
+[claim-profile-button-plan.md](claim-profile-button-plan.md).
+
+## Candidate profile return link
+
+Public candidate profiles use the grey **Back to <destination name>** control, with **Back to Find my candidates** on direct entry. Apply [contextual page-return links](../design/design-principles.md#contextual-page-return-links). Candidate-specific
+green “Back to candidates” and “Find my candidates” links do not occupy the return slot.
+A green right arrow suggests moving onward in the slot used for return navigation.
+A normal click opens the safe earlier destination named by the link, restoring its
+permitted context only when it matches; otherwise **Back to Find my candidates**
+opens `/candidates`. Copied and new-tab addresses name that same destination. Apply the same control
+to loading and error states and the initial page snapshot. Keep search results and
+its address, election, open groups, and scroll position when returning from a
+search, and check that behavior in the working browser before reporting it.
+P02 and the direct-profile journey below specify this same return behavior.
+The local browser's illustrative search retained the address, election, results,
+closed county group and 500px scroll position on return. A direct profile visit
+followed the fallback on desktop and phone; the phone link measured 44px tall.
+
+Live phone acceptance exposed browser scroll anchoring moving returned results
+114px after the explicit saved-position restore. The same link moved from y400
+to y286 at 390px width. Disabling anchoring in the actual browser preserved both
+the 481px scroll position and y400 link position. Candidate results therefore
+disable browser scroll anchoring on their own ScrollView, as the legislator
+lookup already does. Preserve native scrolling and the approved visual treatment.
+The rendered `check-candidate-return.mjs` regression exercises a collapsed group,
+profile visit and return at desktop, tablet and phone widths with fixed public
+sample records. It compares the same link's position, complete result text and
+group states. CI runs it against the production build; live acceptance repeats
+the phone touch journey. The production-build check passes with the correction;
+reenabling browser anchoring reproduces the same 114px phone shift and fails the
+position assertion. Physical-device behavior remains outside emulated checks.
+
+## Partial address suggestion match, October 8, 2026
+
+Authorized target: the supplied screenshot `Screenshot 2026-10-08 at 4.05.57 AM.jpg`
+and the live `/find-my-legislator` dropdown. [Issue 2526](https://github.com/alethical-org/alethical/issues/2526)
+owns the build and live release. Suggestions must appear while a street address is
+partially typed, without waiting for a full address or Search.
+
+Direct comparison found that both live searches already return the same partial
+street match. Candidate input has a separate 6-character gate that delays short
+valid prefixes. Reuse the legislator house-number/street-prefix helper. Match the
+reference white rounded dropdown, bold heading, plain address rows and green
+active-row outline. Preserve the candidate form, busy button, desktop overlay and
+inline phone placement. Submitted ambiguous-address choices keep their own design.
+
+Impact and prevention: the shared CandidateAddressForm covers initial lookup and
+Change address. The homepage hands input to this form rather than owning its own
+suggestion list. Both searches share the Minnesota address-point source for partial
+input without ZIP; candidates retain their official ballot street-range branch
+for ZIP input, POST requests without address URLs, and explicit confirmation.
+No provider, Census notice, location sharing or persistence change is needed.
+Checks cover short prefixes, number-only/direction-only rejection, singular/plural
+headings, active rows, click/keyboard selection, late replies, Escape, autofill and
+the previously fixed stable-results and busy-button behavior. A typeahead selection
+submits the selected complete address for official validation, rather than asking
+an exact-address resolver to resolve the incomplete prefix. Submitted ambiguous
+choices retain their original-input confirmation path. Browser-filled replacements
+invalidate stale selections. The live pre-fix browser also reproduced a
+no-match after keyboard selection from an incomplete street-name prefix, and a
+pointer selection that closed the list before submission. Browser hit testing
+showed the helper text below the field receiving clicks through the visible
+overlay. The input row must stack above its message/help siblings so the entire
+visible list receives clicks; keyboard and phone-inline behavior stay intact.
+
+Local browser acceptance: desktop 1280×720 and simulated phone widths 390 and 320
+show readable suggestions and visible active outlines. Enter and pointer selection,
+Escape followed by typing, submitted ambiguity selection, and retained results
+during slow/failed address changes pass. Multiple typeahead choices and late replies
+are covered by focused component tests; the local preview supplies 1 typeahead
+choice. Physical devices and software keyboards were not exercised. Live release
+acceptance is recorded on the owning issue.
+
 Status: coverage accepted by the parent implementation owner on October 1, 2026 after independent comparison of build-facts sections, match-design items and the profile drawings, plus the search builder’s direct search-drawing comparison. The target tables retain the starting-code observations; the acceptance evidence below records completed checks and explicit limits. Local, hosted and live acceptance are complete, including the final court-label follow-up.
 
 ## Accepted inputs and scope
 
-- User authorization: “set. build through live deployment without stop”; public candidate search, public candidate profiles and homepage candidate-search copy. User explicitly approved the newer, higher arrow position.
+- Approved build scope through live deployment: public candidate search, public candidate profiles and homepage candidate-search copy, including the newer, higher arrow position.
 - Source: `/Users/eug/Downloads/Alethical UX (51).zip`, SHA-256 `f2feabf5f778d6852679930ddce7ad7d9253f2cba8e7e8c1fba373c20c715365`, extracted at `/tmp/candidate-design-review/package51`.
 - All 8 source files reviewed: `Candidates search.dc.html`, `Candidates profile.dc.html`, `Candidates claim.dc.html`, `Candidates manage.dc.html`, `build-facts-candidates.md`, `match-design-candidates.md`, `copy-proposals-candidates.md`, `review-prompt-candidates.md`.
 - Acceptance owner: `docs/design/design-principles.md`, “Build acceptance for controls”. Inventory must be independently accepted before affected implementation, then every required row needs actual behavior/visual evidence or an explicitly approved exception. Reused shared controls remain in scope for review. Final independent review starts from the handoff, not just this checklist or the code changes.
 - Claim/manage drawings are context only. `copy-proposals-candidates.md` excludes their redraw from this round. Public profile account controls, campaign statement, reporting and correct navigation to existing claim/manage screens ARE in scope. Do not introduce the old drawing's email-code or uploaded-record verification workflow. Preserve real staff-reviewed access and existing security boundaries.
-- Homepage copy is expressly authorized by the user even where the review prompt excludes homepage work. Do not silently expand that into a homepage interaction redesign.
+- Homepage copy is expressly approved even where the review prompt excludes homepage work. Do not silently expand that into a homepage interaction redesign.
 - Actual production address disclosure must name Minnesota government services, including the Minnesota Secretary of State and Minnesota mapping services as applicable. Census language in illustrative drawings is not permission to misstate production processing. Preserve source-injected truthful disclosure.
 - Current source capability controls production states: do not invent a primary election, official seat counts, missing named offices, portraits, service history, individual members of a joint ticket or legislator identity matches. Use controlled fixtures for conditional drawing acceptance, and mark fixture-only evidence.
 - No new paid services, unrelated navigation rewrite, sitewide arrow replacement or claim/manage redraw is authorized by this inventory.
@@ -24,7 +108,7 @@ Source abbreviations: S = `Candidates search.dc.html`; P = `Candidates profile.d
 | G02 | Libre Franklin, equal-width digits for numbers per saved product rule. White cards; page `#fbfcfd`; ink `#11150f`; secondary `#4f5651`; green action `#2ed47e` / `#06231a`; neutral party `#f1f1f4` / `#4f5651`; amber `#fdf6e7` / `#efd9a8` / `#8f5a12`; error `#a3421a`. | Measure actual rendered fonts, sizes, colors; review marks, amber copy-review underlines and state switches never ship. |
 | G03 | Every button/link target at least 44px. Keyboard-only control focus 2px purple `#7c5cff`, offset 2; text fields retain typing focus on pointer/touch. Focus rings fully visible. | Tab, click and touch separately; no mouse-created keyboard outline on ordinary buttons/links, no removed field focus. |
 | G04 | Hover follows each named control's approved treatment, only when hover is available. Press feedback distinct; disabled/busy controls cannot advertise another action. Busy button width, height, location remain steady; reserve predictable feedback and allow errors to grow. | Actual hover/pressed/busy measurements for all controls listed below; slow and immediate completion. |
-| G05 | Preserve shared sitewide geometry: forward arrow19px, established `M3.5…` path and stroke1.8; back18px chevron with9px gap. Apply only the approved newer higher candidate inline-arrow position from eug-17. Word hover is `#11832b` and underline on words only; arrow and last word stay together. | Parent resolved the source reconciliation: Design recommends eug-17 alignment with shared geometry. User “yes newer arrow position” approves height, not new path/stroke or mirrored back arrow. Existing diagonal external candidate arrow needs the shared forward treatment. |
+| G05 | Preserve shared sitewide geometry: forward arrow19px, established `M3.5…` path and stroke1.8; back18px chevron with9px gap. Apply only the approved newer higher candidate inline-arrow position from eug-17. Word hover is `#11832b` and underline on words only; arrow and last word stay together. | The reconciled target uses eug-17 alignment with shared geometry. Approval covers the higher position, not a new path/stroke or mirrored back arrow. Existing diagonal external candidate arrow needs the shared forward treatment. |
 | G06 | External links open real official destinations in a new tab and announce this accessibly. Internal links use same-tab app navigation. Never invent URLs from labels. | Inspect actual destinations and return paths, not merely clickability. |
 | G07 | Reused header: desktop full navigation; tablet/phone drawer and green Sign in; menu hit target 44 with 38 visible square. Footer includes Contact us at every width alongside Privacy Policy and Terms. Phone copyright differs as drawn. | Browser open/close menu, focus return, header/footer routes, hover, touch. Reuse does not waive checks. |
 | G08 | Interface punctuation: prefer a clean single sentence/line without ending period. Messages with multiple sentences end every sentence with a period. Count sentences, not wrap lines; preserve source quotations. | Sweep rendered strings across ready, error, loading, report and account states. Exact build corrections recorded in design update notes. |
@@ -33,16 +117,16 @@ Source abbreviations: S = `Candidates search.dc.html`; P = `Candidates profile.d
 
 | ID | Role / start / action | Expected result and source | Current gap / verification |
 |---|---|---|---|
-| S01 | Visitor, direct/menu `/candidates` | Empty form, no account requirement. Heading and button “Find my candidates”. Support “See who’s running where you live in Minnesota, with candidate profiles linked to official records”. S/BF. | Existing heading/button capitalization and support differ. Compare text and order at 3 widths. |
+| S01 | Visitor, direct/menu `/candidates` | Empty form, no account requirement. Heading “Find my candidates” and button “Find”. Support “See who’s running where you live in Minnesota”. S/BF. | Existing heading/button capitalization and support differ. Compare text and order at 3 widths. |
 | S02 | Visitor, homepage search block | Exact approved support: “Explore the candidates in your Minnesota races, with links to official records”. Keep heading “Who’s running where you live?” and existing homepage behavior. Preserve truthful injected privacy disclosure. | Replace the old “Enter your Minnesota street address to see who is running for office in your area” support. Parent has reconciled the exact homepage copy. |
 | S03 | Visitor, homepage handoff | Typed address carried in temporary memory, `/candidates` address bar stays clean. Drawn arrival has populated field and finding feedback. Direct visits remain empty. | Existing homepage waits for search before navigating; scope is homepage copy, so report any timing difference explicitly rather than silently broadening. Verify actual route handoff and no address in URL. |
-| S04 | Visitor, entry layout | Desktop max1168, remaining-width form +300 outline, gap64; tablet200 outline/gap40; phone160×176 decorative outline centered below the address notes with40px above, superseding the beside-title outline under the user's October2 isolated mobile change. H1 48/42/32; lead19/18/16.5; page top padding64/48/32, superseding S's36/32/24 under the user's October1 live-review correction. The same outer padding applies to results. Input/button top-aligned; desktop button248, tablet220, phone full width, height60. S plus explicit user correction. | Existing entry cap1080/form700/gap80 and map placement differ. Decorative outline excluded from accessibility tree. |
-| S05 | Visitor, street field typing/paste | Label “Full street address”; placeholder “350 S 5th St, Minneapolis, MN 55415”. 60px minimum, radius14, font17. Grow for wrapped text without an internal scrollbar or clipping. Pasted line breaks become spaces; Enter picks/submits, no inserted newline. | Auto-growing textarea exists but paste normalization/IME guard need attention; compact height currently52. Check long address and composed text. |
+| S04 | Visitor, entry layout | Desktop max1168, remaining-width form +300 outline, gap64; tablet200 outline/gap40; phone160×176 decorative outline centered below the address notes with40px above, superseding the beside-title outline under the approved October2 isolated mobile change. H1 48/42/32; lead19/18/16.5; page top padding64/48/32, superseding S's36/32/24 under the approved October1 live-review correction. The same outer padding applies to results. Input/button top-aligned; desktop button248, tablet220, phone full width, height60. S plus the approved corrections. | Existing entry cap1080/form700/gap80 and map placement differ. Decorative outline excluded from accessibility tree. |
+| S05 | Visitor, street field typing/paste | Label “Full street address”; placeholder “350 S 5th St, Minneapolis 55415”. 60px minimum, radius14, font17. Grow for wrapped text without an internal scrollbar or clipping. Pasted line breaks become spaces; Enter picks/submits, no inserted newline. | Auto-growing textarea exists but paste normalization/IME guard need attention; compact height currently52. Check long address and composed text. |
 | S06 | Visitor, submit ready/busy | Search icon changes to spinner with “Finding candidates…” inside the same button. A hidden polite live region announces once; no visible repeated busy line. Entry248/220/full width×60; Change address full width×52. Field remains editable, repeated pointer/Enter submission guarded, activated button keeps focus with aria-disabled and progress cursor. 22px minimum error space at12px below (10px for compact). | Current stretch alignment can change button height with textarea. Measure ready/busy/error. |
 | S07 | Visitor, helper/disclosure | Hairline36px after feedback,20px before helper; 14px/21px gray lines with6px gaps. City/ZIP limitation, actual-service privacy disclosure, and actual-service attribution only. Field described-by includes help. | Existing helper position/sizes differ. Census fallback cannot replace production Minnesota-service wording. |
 | S08 | Visitor, suggestions after supported typing | 6-character start; singular/plural heading. Desktop/tablet overlay8px below field; phone inline under field. Up/Down wrap; Enter select; Escape close with draft preserved and field focus retained. Accessible active descendant. | Exercise existing behavior plus phone keyboard, field visibility, suggestion reachability. Suggestions failure must not prevent normal submit. |
 | S09 | Visitor, ambiguous submitted address | “Choose your address”, explicit listbox selection with Up/Down/Enter/Space/click; no silent choice. Escape returns to field. | Existing listbox must survive visual updates; test multiple returned matches. |
-| S10 | Visitor, missing/no-match/outside/limited/lost | Exact strings: “Enter your full Minnesota street address”; “We couldn’t match that address: check the street address, city, and ZIP code”; “This search covers Minnesota addresses”; “Too many searches: try again shortly”; “Enter your address again to find candidates”. Finding: “Finding candidates…”. | Existing mixed sentence ending differs. Missing/no-match/outside mark field invalid; rate limit is amber clock feedback, not invalid-address feedback. Retain draft in every failure. |
+| S10 | Visitor, missing/no-match/outside/limited/lost | Exact strings: “Enter your full Minnesota street address”; “We couldn’t match that address to election records”; “This search covers Minnesota addresses”; “Too many searches: try again shortly”; “Enter your address again to find candidates”. Finding: “Finding candidates…”. | Existing mixed sentence ending differs. Missing/no-match/outside mark field invalid; rate limit is amber clock feedback, not invalid-address feedback. Retain draft in every failure. |
 | S11 | Visitor, phone on-screen keyboard | Field label stays visible; suggestions and submit reachable; error wrapping grows normally. | Actual keyboard/viewport behavior required, not established by drawing. |
 | S12 | Visitor, new tab/reload/privacy boundary | Address remains temporary, excluded from query strings, browser saved storage, analytics, logs and accounts; privacy boundary clears flow/cache. | Existing flow uses private memory; preserve while adding group/scroll state. Inspect storage/network payload scope safely. |
 
@@ -91,7 +175,7 @@ Group colors (tint / edge / square / pressed): State `e8f6ee/a8dcbf/15834a/d6efe
 | ID | Role / start / action | Expected result and source | Current gap / verification |
 |---|---|---|---|
 | P01 | Visitor, valid profile | Back/find → portrait/name → legislator panel when known → official candidate record → campaign statement when available → account action → footer.760px max; padding40/32/20;top24/22/16;name44/40/32. | Current name48/34 and identity outside record; whole profile restructuring needed. |
-| P02 | Visitor, entry from search/direct | Search entry “Back to candidates” restores search; direct entry “Find my candidates” opens empty search. Back stays reachable in loading/unavailable states. | Current always Back. Test cold URL, refresh, app back and browser back. |
+| P02 | Visitor, entry from search/direct | Both show a grey **Back to <destination name>** link naming a known safe earlier page; direct visits use **Back to Find my candidates** at `/candidates`. Its visible/accessible words, copied/new-tab address and ordinary click agree. The named return stays reachable in loading/unavailable states. | Test cold URL, refresh, app back and browser back. |
 | P03 | Visitor, confirmed portrait | Real confirmed image beside name, entire image with its own ratio; width120/112/84,gap22/20/14,1px edge. No crop/circle/retouch/link or substitute illustration. Credit12 only when supplied/required. | Profile types/rendering currently have no portrait. Sitting legislator image may be used only for confirmed same person. Credible data source and valid URL required. |
 | P04 | Visitor, portrait loading/failure/missing | Loading holds image-sized space with drawn light placeholder; failure/missing cleanly omit image/frame, no broken symbol or empty permanent box. | Exercise successful, slow and broken image with long name. Joint ticket does not receive a misleading one-person hero portrait. |
 | P05 | Visitor, confirmed legislator connection | Near name, visible without opening anything. Existing same person's `/legislators/<slug>` link labeled “View legislator profile”; support “See their bills, votes, and work in office”. Panel white1px/r14,no shadow,padding18 20 8 /phone16 16 8. | No current connection data/rendering. Never match by name alone. Existing API must supply grounded association or no addition. |
@@ -151,10 +235,10 @@ Account state coverage: public, approved owner, pending, loading, failure. Campa
 2. Resolve data-backed conditional behavior through actual held fields: joint ticket name, source seat count, current/former service, verified legislator ID, portrait provenance, saved check time. A fixture makes a layout testable, not a production fact.
 3. Preserve current real production limitations. Current official election list may expose only general election; named local gaps must remain generic when records lack identifiers. Claim/manage are existing staff-reviewed flows, not the old prototype.
 4. For every row, append: implementation location; tested role/start/action; actual result; desktop/tablet/phone screenshot or measurement; keyboard/touch/error evidence; live result or approved exception. Use the evidence coverage table below; do not interpret the starting-code column as current behavior.
-5. Minimum realistic journeys: homepage→search→suggestion→results→profile→legislator→back; direct empty→ambiguous→choice; editing address failure with old results; election rapid changes/failure/retry; closed group jump/find/print; direct profile→Find my candidates; account role entrances; campaign/report all feedback outcomes.
+5. Minimum realistic journeys: homepage→search→suggestion→results→profile→legislator→back; direct empty→ambiguous→choice; editing address failure with old results; election rapid changes/failure/retry; closed group jump/find/print; direct profile→Back to Find my candidates→`/candidates`; account role entrances; campaign/report all feedback outcomes.
 6. Browser tests must inspect every whole authorized screen including reused header/footer and every hover state. Test long text, large text, phone keyboard, focus return, slow and instant responses. Check parent coordinates independent final review from drawings and live release evidence.
 7. Safe tests use controlled service responses for report submissions and source-dependent states. Actual production read-only navigation/data/portrait links can be inspected without writes. Do not send emails or create production claims/reports solely to prove appearance.
-8. Carry exact settled copy/source corrections and user-approved arrow precedence into saved implementation/design-update notes. A returned drawing is not a dependency for objective settled corrections.
+8. Carry exact settled copy/source corrections and approved arrow precedence into saved implementation/design-update notes. A returned drawing is not a dependency for objective settled corrections.
 
 ## Reconciled implementation decisions
 
@@ -262,7 +346,7 @@ address search followed by opening Judges shows both corrected Supreme Court sea
 
 ## Isolated phone outline update, October 2, 2026
 
-User authorization: “bd mobile isolated change”. Latest completed download:
+Approved scope: the isolated mobile outline change. Latest completed download:
 `Alethical UX (52).zip`, downloaded October 2 at 08:13, SHA-256
 `8e7c8f1639775dff5751f8a8b7b5f8576ac883d3f36906bf84c55d83282996d1`.
 The isolated `review-prompt.md` and the updated entry drawing agree: below768px,
@@ -300,7 +384,7 @@ The mobile change's scope and larger-screen appearance remain unchanged.
 
 ## Isolated address search busy buttons, October 2, 2026
 
-User authorization: “bd for the candidate search button update see it?” Accepted
+Approved scope: the candidate search button update. Accepted
 `Alethical UX (55).zip`, downloaded October2 at14:02:40, SHA-256
 `ea9f1bb90e3fbbd0d7ab1f1d5e448eb0b269f665a37b21b817a519719a682c50`.
 The isolated `review-prompt-busy-button.md`, `build-facts-busy-button.md` and
@@ -359,3 +443,18 @@ within the approved stable-update behavior and does not change election meanings
 
 Physical phone keyboard, native autofill and screen-reader speech remain untested; DOM
 checks establish the single polite live region without claiming spoken output.
+
+## Use my location and Find buttons, 9 October 2026
+
+The reviewed bundle `Alethical UX (74).zip` (9 October 2026) supersedes the entry
+widths, busy wording, help-line position and outline position recorded in S04, S06 and
+S10 and in the busy-button comparison above. Entry is 1 centred 840px column; **Find**
+is 150px on computer and tablet, full width on phones, 60px tall, padded 0 25px 0 19px
+for a 3px optical nudge, and its busy label is **Finding…** on entry and in **Change
+address**. **Change address** keeps its 52px height and gains the same padding; its icon
+and word stay 1 centred group in ready and busy states. The help line sits below the
+divider, which is 56px below the message area on computer and tablet. The outline is
+below the source line. **Use my location** and its confirmation card are new. The build
+record is [candidate-location-shortcut-build-plan.md](candidate-location-shortcut-build-plan.md);
+behaviour is owned by
+[find-my-candidates-guide.md](../product-onboarding/find-my-candidates-guide.md).

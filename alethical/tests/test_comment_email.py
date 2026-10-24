@@ -10,7 +10,7 @@ from urllib.parse import parse_qs, urlparse
 
 import httpx
 import pytest
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 
 from alethical.api.services import comment_email as service
 from alethical.db.models import (
@@ -130,9 +130,15 @@ def saved(row_id):
         return db.get(CommentEmailDelivery, row_id)
 
 
+def mark_due(db, row):
+    # drain_once compares against the database clock. The app clock may differ,
+    # so make retry setup overdue on that same clock without waiting or sleeping.
+    row.next_attempt_at = db.scalar(select(func.now())) - timedelta(seconds=1)
+
+
 def due(row_id):
     with get_session_factory()() as db:
-        db.get(CommentEmailDelivery, row_id).next_attempt_at = service._now()
+        mark_due(db, db.get(CommentEmailDelivery, row_id))
         db.commit()
 
 
@@ -412,7 +418,7 @@ def test_uncertain_attempt_never_resends_a_changed_or_expired_payload(
                 select(AuthIdentity).where(AuthIdentity.user_id == discussion[1])
             )
             identity.email = "new@example.org"
-        row.next_attempt_at = service._now()
+        mark_due(db, row)
         db.commit()
     assert service.drain_once() == 0
     assert not requests
@@ -506,13 +512,20 @@ def test_slow_delivery_does_not_delay_stops_or_account_writes(monkeypatch, discu
     assert saved(row_id).state == "cancelled"
 
 
-def test_restart_recovers_committed_sending_row(monkeypatch, discussion):
+@pytest.mark.parametrize("app_clock_lead_ms", [0, 100])
+def test_restart_recovers_committed_sending_row(
+    monkeypatch, discussion, app_clock_lead_ms
+):
+    now = service._now
+    monkeypatch.setattr(
+        service, "_now", lambda: now() + timedelta(milliseconds=app_clock_lead_ms)
+    )
     requests = accepted(monkeypatch)
     row_id = discussion[3]()
     with get_session_factory()() as db:
         row = db.get(CommentEmailDelivery, row_id)
         assert service._prepare(db, row)
-        row.next_attempt_at = service._now()
+        mark_due(db, row)
         original = row.message_payload
         db.commit()
     assert service.drain_once() == 1
@@ -549,7 +562,14 @@ def test_lifespan_runs_off_event_loop_and_waits_for_shutdown(monkeypatch):
     asyncio.run(exercise())
 
 
-def test_retry_does_not_restore_deleted_target_identity(monkeypatch, discussion):
+@pytest.mark.parametrize("app_clock_lead_ms", [0, 100])
+def test_retry_does_not_restore_deleted_target_identity(
+    monkeypatch, discussion, app_clock_lead_ms
+):
+    now = service._now
+    monkeypatch.setattr(
+        service, "_now", lambda: now() + timedelta(milliseconds=app_clock_lead_ms)
+    )
     row_id = discussion[3]("new_reply", direct=False, updates=True)
 
     def timeout(*args, **kwargs):

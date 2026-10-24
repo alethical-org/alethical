@@ -105,6 +105,7 @@ from alethical.pipeline.cache_purge import (
     A_MONEY_CHECK_VERDICT_SET,
     A_MONEY_DOWNLOAD_RELEASE,
     Clearing,
+    clear as clear_saved_pages,
     clear_after_publish,
     when_a_filings_release_lands,
     when_a_money_download_release_lands,
@@ -763,6 +764,56 @@ class RefreshReport:
         else:
             out.append("  every step finished")
         return "\n".join(out)
+
+
+def retry_pending_campaign_clearing(
+    db: Session,
+    *,
+    dry_run: bool = False,
+    lease: Optional[FullRunLease] = None,
+    clear=clear_saved_pages,
+    log: Callable[[str], None] = print,
+) -> RefreshReport:
+    """Retry only saved-page clearing; never collect, publish or recheck records.
+
+    The caller holds the normal run-wide lease. Unlike a normal unarmed collection,
+    recovery is unfinished until Cloudflare actually accepts the clearing, so an
+    absent credential keeps the durable marker and fails this operation.
+    """
+    report = RefreshReport(started_at=datetime.now(UTC), dry_run=dry_run)
+    report.lines.append(
+        "saved-page clearing only; source collection and money checks skipped"
+    )
+    pending = state_get(db, CLEARING_PENDING_KEY)
+    if dry_run:
+        events = list((pending or {}).get("events") or [])
+        report.lines.append(
+            "would retry saved-page clearing: " + ", ".join(events)
+            if events
+            else "no saved-page clearing is pending"
+        )
+    elif lease is None or not lease.held:
+        report.failures.append("clearing saved pages requires the run-wide lease")
+    else:
+        refusal = lease.refusal()
+        if refusal:
+            report.failures.append("clearing saved pages refused: " + refusal)
+        elif not pending:
+            report.lines.append("no saved-page clearing is pending")
+        else:
+
+            def require_clearing(clearing: Clearing, *, published: bool, log) -> bool:
+                refusal = lease.refusal()
+                if refusal:
+                    log("clearing saved pages refused: " + refusal)
+                    return True
+                result = clear(clearing)
+                log(result.report())
+                return not (result.armed and result.ok)
+
+            _retry_pending_clearing(db, report, clear=require_clearing, log=log)
+    report.finished_at = datetime.now(UTC)
+    return report
 
 
 def refresh_campaign_money(

@@ -14,10 +14,10 @@
 export type AnchorRect = { top: number; right: number; bottom: number; left: number };
 
 /** Distance between the Share control and the panel below or above it. */
-export const PANEL_GAP = 12;
+export const PANEL_GAP = 10;
 
 /** Smallest gap the panel keeps to any edge of the window. */
-export const PANEL_EDGE_MARGIN = 12;
+export const PANEL_EDGE_MARGIN = 16;
 
 export function placeAnchoredPanel({
   anchor,
@@ -41,14 +41,18 @@ export function placeAnchoredPanel({
     Math.min(anchor.right - panel.width, viewport.width - margin - panel.width),
   );
 
-  // Below the control by default. If the whole panel would not fit there, flip
-  // above it; if it does not fit above either (a short window with the control
-  // in the middle), sit as low as the window allows and, failing even that,
-  // start at the top margin so the panel's first rows are the ones on screen.
+  // Prefer below, then above, then beside the trigger. In a short window,
+  // keep the panel to one side so its scrolling body never covers the trigger.
   const lowestTop = viewport.height - margin - panel.height;
   const below = anchor.bottom + gap;
   const above = anchor.top - gap - panel.height;
-  const top = below <= lowestTop ? below : above >= margin ? above : Math.max(margin, lowestTop);
-
-  return { left, top };
+  if (below <= lowestTop) return { left, top: below };
+  if (above >= margin) return { left, top: above };
+  const sideTop = Math.max(margin, Math.min(anchor.top, lowestTop));
+  const besideLeft = anchor.left - gap - panel.width;
+  if (besideLeft >= margin) return { left: besideLeft, top: sideTop };
+  const besideRight = anchor.right + gap;
+  if (besideRight + panel.width <= viewport.width - margin)
+    return { left: besideRight, top: sideTop };
+  return { left, top: Math.max(margin, lowestTop) };
 }

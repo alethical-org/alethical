@@ -1,6 +1,6 @@
 # Navigation design 47 delivery
 
-User authorization: “bd and things you missed in the first build”, 30 September 2026.
+Build scope approved on 30 September 2026: the revised navigation design and corrections omitted from the first build.
 
 Pinned input: Alethical UX (47).zip, downloaded 30 September 2026 18:17 EDT.
 SHA-256: dde3d5f86ae471b5b6034f160827a621c0c34a7ee8eff309a816a2e42d791bf5.
@@ -12,7 +12,7 @@ The bundle is retained outside the repository as the temporary visual reference.
 - Apply the revised About label/icon/content width, dropdown states, drawer geometry, and bar/drawer Sign in treatments.
 - Account menu icons.dc.html explicitly preserves existing menu geometry and identity while setting uniform action labels and icons; it takes precedence over older account details in LIVE Nav.dc.html.
 - Preserve Tracked's combined bill/committee count, actual password-method wording, administrator permission checks and routes, and established error/retry/focus behavior.
-- Updated authorization: Eugene corrected candidate lookup to a public page and said go in the candidate lookup task. Add the active /candidates row and NEW badge, remove its roadmap pill, and wait for the candidate owner's public-route release before merging. Real record availability and claims remain separate holds.
+- Updated scope: candidate lookup is a public page. Add the active /candidates row and NEW badge, remove its roadmap pill, and wait for the candidate owner's public-route release before merging. Real record availability and claims remain separate holds.
 - Tablet remains the existing 366px right panel with bar account access, per build-facts-nav.md.
 - Email preferences is a linked reference, not a new page redesign in this navigation build.
 - The separately owned Services header release is outside shared TopNav scope.

@@ -109,7 +109,7 @@ it('keeps startup free of search requests and rejects an incomplete address in p
   const { load, navigate } = setup();
   expect(load).not.toHaveBeenCalled();
   expect(host.querySelector('label')?.htmlFor).toBe(host.querySelector('textarea')?.id);
-  expect(host.querySelector('textarea')?.placeholder).toBe('Street address, city, MN ZIP');
+  expect(host.querySelector('textarea')?.placeholder).toBe('Street address, city, ZIP');
   type('Minneapolis 55414');
   submit();
   await flush();
@@ -164,25 +164,25 @@ it('does not navigate to newer address choices when its old search finishes late
   await act(async () => finishOld({ kind: 'no-match' }));
   expect(navigate).not.toHaveBeenCalled();
 });
-it.each<Exclude<CandidateLookupResponse['kind'], 'results' | 'ambiguous'>>([
-  'no-match',
-  'outside-minnesota',
-  'rate-limited',
-  'no-elections',
-])('retains the typed address and stays home for %s', async (kind) => {
-  const { navigate } = setup(async () => ({ kind }));
-  const input = type(address);
-  submit();
-  await flush();
-  expect(navigate).not.toHaveBeenCalled();
-  expect(input.value).toBe(address);
-  expect(host.textContent).toContain(
-    kind === 'no-match' || kind === 'outside-minnesota'
-      ? 'We couldn’t match that address'
-      : 'We couldn’t complete your search',
-  );
-  expect(host.textContent).not.toContain('no candidates');
-});
+it.each<
+  Exclude<CandidateLookupResponse['kind'], 'results' | 'ambiguous' | 'historical-match-unavailable'>
+>(['no-match', 'outside-minnesota', 'rate-limited', 'no-elections'])(
+  'retains the typed address and stays home for %s',
+  async (kind) => {
+    const { navigate } = setup(async () => ({ kind }));
+    const input = type(address);
+    submit();
+    await flush();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(input.value).toBe(address);
+    expect(host.textContent).toContain(
+      kind === 'no-match' || kind === 'outside-minnesota'
+        ? 'We couldn’t match that address'
+        : 'We couldn’t complete your search',
+    );
+    expect(host.textContent).not.toContain('no candidates');
+  },
+);
 it('keeps the busy button size and ignores repeated submits, then retries failure', async () => {
   let resolve!: (value: CandidateLookupResponse) => void;
   const { services, navigate } = setup(
@@ -197,12 +197,14 @@ it('keeps the busy button size and ignores repeated submits, then retries failur
   submit();
   await flush();
   expect(services.lookup).toHaveBeenCalledOnce();
-  expect(host.querySelector('button')?.disabled).toBe(true);
+  expect(host.querySelector<HTMLButtonElement>('button[type=submit]')?.disabled).toBe(true);
   expect(host.querySelector('textarea')?.readOnly).toBe(true);
   expect(host.textContent).toContain('Finding candidates…');
   await act(async () => resolve({ kind: 'rate-limited' }));
-  expect(host.querySelector('button')?.textContent).toContain('Try again');
-  expect(host.querySelector('button')?.disabled).toBe(false);
+  expect(host.querySelector<HTMLButtonElement>('button[type=submit]')?.textContent).toContain(
+    'Try again',
+  );
+  expect(host.querySelector<HTMLButtonElement>('button[type=submit]')?.disabled).toBe(false);
   expect(host.querySelector('textarea')?.value).toBe(address);
   submit();
   await flush();
@@ -235,12 +237,31 @@ it.each([1440, 900, 375])('keeps the approved map and phone form choices at %ipx
   setup();
   expect(Boolean(host.querySelector('[data-testid=home-candidate-outline]'))).toBe(width >= 768);
   const field = host.querySelector('.hc-field')!;
-  expect(field.querySelector('svg') !== null).toBe(width >= 768);
+  expect(field.querySelector(':scope > svg') !== null).toBe(width >= 768);
   expect(host.querySelector('textarea')?.getAttribute('autocomplete')).toBe('street-address');
   expect(host.textContent).toContain(
     'Explore the candidates in your Minnesota races, with links to official records',
   );
-  expect(host.textContent).toContain('Alethical does not save it');
+  const note = 'Your address is sent to Minnesota government services for this lookup';
+  const privacy = [...host.querySelectorAll('p')].find((node) => node.textContent === note);
+  expect(privacy).toBeDefined();
+  expect(host.textContent).not.toContain('Alethical does not save it');
+  expect(host.textContent).not.toContain('A city or ZIP code alone cannot identify');
+  // The note is described while no message shows; the message joins only when one does.
+  expect(host.querySelector('textarea')?.getAttribute('aria-describedby')).toBe(privacy!.id);
+});
+it('adds the message to the field description only while one shows', () => {
+  setup();
+  submit();
+  const field = host.querySelector('textarea')!;
+  const ids = field.getAttribute('aria-describedby')!.split(' ');
+  expect(ids).toHaveLength(2);
+  expect(document.getElementById(ids[0])?.textContent).toBe(
+    'Enter your full Minnesota street address',
+  );
+  expect(document.getElementById(ids[1])?.textContent).toBe(
+    'Your address is sent to Minnesota government services for this lookup',
+  );
 });
 it('ignores a late response after the homepage is removed', async () => {
   let resolve!: (value: CandidateLookupResponse) => void;
@@ -323,4 +344,57 @@ it('keeps a browser-filled address through blur and an unrelated homepage render
     { address: filled, electionId: 'future' },
     expect.any(AbortSignal),
   );
+});
+
+it('clears an invalid address without searching, restores typing focus and removes its error', async () => {
+  const { load, navigate } = setup();
+  const input = type('Minneapolis');
+  submit();
+  await flush();
+  const clear = host.querySelector<HTMLButtonElement>('[aria-label="Clear address"]')!;
+  expect(clear.style.visibility).not.toBe('hidden');
+  act(() => clear.click());
+  expect(input.value).toBe('');
+  expect(input.getAttribute('aria-invalid')).toBe('false');
+  expect(document.activeElement).toBe(input);
+  expect(host.textContent).not.toContain('Enter your full Minnesota street address');
+  expect(load).not.toHaveBeenCalled();
+  expect(navigate).not.toHaveBeenCalled();
+  type(address);
+  expect(input.value).toBe(address);
+});
+
+it('keeps a service failure after clearing and hides clear during lookup', async () => {
+  let finish!: (value: CandidateLookupResponse) => void;
+  setup(() => new Promise((resolve) => (finish = resolve)));
+  const input = type(address);
+  submit();
+  await flush();
+  const clear = host.querySelector<HTMLButtonElement>('[aria-label="Clear address"]')!;
+  expect(clear.style.visibility).toBe('hidden');
+  await act(async () => finish({ kind: 'rate-limited' }));
+  expect(clear.style.visibility).not.toBe('hidden');
+  act(() => clear.click());
+  expect(input.value).toBe('');
+  expect(host.textContent).toContain('We couldn’t complete your search');
+  expect(host.querySelector<HTMLButtonElement>('button[type=submit]')?.textContent).toContain(
+    'Try again',
+  );
+});
+
+it('shows clear for a browser fill without an input event and clears that actual value', () => {
+  vi.useFakeTimers();
+  setup();
+  const input = host.querySelector<HTMLTextAreaElement>('textarea')!;
+  Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(
+    input,
+    address,
+  );
+  act(() => vi.advanceTimersByTime(500));
+  const clear = host.querySelector<HTMLButtonElement>('[aria-label="Clear address"]')!;
+  expect(clear.style.visibility).not.toBe('hidden');
+  act(() => clear.click());
+  expect(input.value).toBe('');
+  expect(document.activeElement).toBe(input);
+  vi.useRealTimers();
 });

@@ -1,6 +1,6 @@
 # Alethical design principles — the green system
 
-<!-- describes: apps/frontend/src/components/ArticleTitleText.tsx, apps/frontend/src/components/ResearchBlockTable.tsx, apps/frontend/src/components/shortPosts/ShortPostArticle.tsx, apps/frontend/src/components/shortPosts/ShortPostChart.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/components/GoBackLink.tsx, apps/frontend/src/components/LinkArrow.tsx, apps/frontend/src/components/ChangeBlock.tsx, apps/frontend/src/components/auth/LoadingButton.tsx, apps/frontend/src/components/auth/SignInDialog.tsx, apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/components/billDetail/SourceLine.tsx, apps/frontend/src/components/billDetail/billTrackButtonAppearance.ts, apps/frontend/src/components/lobbying/LobbyingPageFrame.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/hooks/useHistoryScrollRestoration.ts, apps/frontend/src/hooks/useResponsive.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/navigation/webHistory.ts, apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx, apps/frontend/src/theme/browserFill.ts, apps/frontend/src/theme/tokens.ts, apps/frontend/src/theme/primitives.tsx, apps/frontend/src/theme/pageBackground.ts -->
+<!-- describes: apps/frontend/src/components/ArticleTitleText.tsx, apps/frontend/src/components/ResearchBlockTable.tsx, apps/frontend/src/components/shortPosts/ShortPostArticle.tsx, apps/frontend/src/components/shortPosts/ShortPostChart.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/components/GoBackLink.tsx, apps/frontend/src/components/LinkArrow.tsx, apps/frontend/src/components/ChangeBlock.tsx, apps/frontend/src/components/auth/LoadingButton.tsx, apps/frontend/src/components/auth/SignInDialog.tsx, apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/components/billDetail/SourceLine.tsx, apps/frontend/src/components/billDetail/billTrackButtonAppearance.ts, apps/frontend/src/components/lobbying/LobbyingPageFrame.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/hooks/useHistoryScrollRestoration.ts, apps/frontend/src/hooks/useResponsive.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/navigation/webHistory.ts, apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx, apps/frontend/src/theme/browserFill.ts, apps/frontend/src/theme/tokens.ts, apps/frontend/src/theme/primitives.tsx, apps/frontend/src/theme/pageBackground.ts, apps/frontend/src/lib/socialLinks.ts -->
 
 > **What this is.** The written design intent behind Alethical's green visual system: what
 > the product should feel like, and the visual/interaction rules that get it there. It is the
@@ -44,7 +44,7 @@ credibility first.
   text adds an interpretation, source, limitation or other necessary context. Preserve
   distinct periods, units and qualifications where needed to avoid ambiguity. Keep the
   information available as text and usable with a screen reader without announcing the
-  same chart data twice. Eugene approved this rule on 26 September 2026; wording guidance
+  same chart data twice. This rule was approved on 26 September 2026; wording guidance
   is in [ui-copy-guide.md](ui-copy-guide.md#avoid-redundant-nearby-text).
 - **Neutral by construction.** Layout, color, and emphasis describe records; they never editorialize.
   We don't use visual weight to imply a position (see `grounded-answers.md` rule 3, grounded
@@ -76,7 +76,8 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
 - **Campaign services presentation.** `/services` uses the approved black background,
   light text and green accents inside its customer presentation. It has 1 dedicated
   dark header with a home-linked wordmark, section links and Contact Us, followed
-  by the existing dark footer. Other routes retain their shared navigation. This is a scoped exception, described in
+  by the existing dark footer. Browser printing uses the approved white branding and
+  4 portrait sheets with both audiences visible; the screen remains dark. Other routes retain their shared navigation. This is a scoped exception, described in
   [services-guide.md](../product-onboarding/services-guide.md), not a restyle of record pages.
 - **Green roles on light surfaces.** UI-sized green text, including links such as
   `revisor.mn.gov →`, uses `text.greenOnLight` (`#0f7a45`). SVG strokes/fills use
@@ -190,7 +191,7 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   issue label without relying on color alone. On phones, its 44px target comes from a minimum height,
   not inflated vertical padding. The shared implementation is `VoteCountLinkChip`; the action
   timeline's per-action "View votes →" text link is a different element and stays unchanged.
-- **Every green trailing destination-link arrow uses the Board-refund treatment (Eugene, 17 Sep 2026).** The
+- **Every green trailing destination-link arrow uses the Board-refund treatment (17 Sep 2026).** The
   approved example is “The Board’s refund summaries” on the legislator money page. Draw the arrow
   with [`LinkArrow.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/LinkArrow.tsx):
   a 19×19 box, `#0f7a45` stroke, 1.8px line, rounded ends and joins, and the shared path in that
@@ -208,7 +209,7 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
 - **Candidate search and profile links keep their approved higher inline position.**
   The candidate surfaces use the shared 19px geometry and 6px gap with
   `LinkArrow`'s `candidate-inline` placement (`vertical-align: -0.26em`). This is
-  the scope of Eugene's approved newer arrow position. Other surfaces keep the
+  the scope of the approved newer arrow position. Other surfaces keep the
   standard centered treatment. Return links retain the 18px chevron and 9px gap.
 - **A link's underline covers every word and the spaces between them, including the final word
   beside its arrow.** Keep each link's accepted always-visible or hover/focus-only underline
@@ -221,7 +222,7 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   links in the working browser at rest, on pointer hover, and with keyboard focus. Check that the
   underline is continuous through spaces and that the arrow stays bare; never copy a partial
   underline from a Design drawing.
-- **Add pointer hover only where the live control lacks it (Eugene, 25 Sep 2026).** Preserve an
+- **Add pointer hover only where the live control lacks it (25 Sep 2026).** Preserve an
   existing hover even when it differs from this table. Use these treatments only for a mouse or
   trackpad on computer and tablet widths, never for a touch tap, and keep busy or disabled
   controls from suggesting an available action. Keyboard focus keeps its independent purple
@@ -250,7 +251,7 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
 - **The rule standardizes arrows that already exist; it does not add them.** A green link whose
   accepted surface has no trailing arrow keeps no arrow. Back arrows, disclosure chevrons, and
   arrows used as data or diagrams are outside this rule.
-- **On-screen actions keep their own appearance (Eugene, 17 Sep 2026).** This treatment applies
+- **On-screen actions keep their own appearance (17 Sep 2026).** This treatment applies
   to links that open another internal or external page, not controls that act on the current
   screen. Preserve an action's accepted arrow presence or absence, drawing, size, spacing,
   and alignment. On light surfaces, ordinary action labels use near-black `#11150f`
@@ -535,15 +536,15 @@ names wrap inside their available width instead of creating a horizontal scrollb
   holding a fixed single-line height that crops line 2. The action button (Ask/Search/Find) stays
   vertically centered as the field grows, or sits full-width below on mobile per the stacked-field
   rule (learned on the home hero Ask field, [#468](https://github.com/alethical-org/alethical/pull/468)).
+- **A ZIP field's placeholder, example and help text never name the state.** Follow
+  [ui-copy-guide.md, address fields leave the state implied](ui-copy-guide.md#address-fields-leave-the-state-implied).
 - **State lives in the URL.** Filters, tabs, pagination, and expanded panels are URL-addressable, not
   buried in component state — this is also `grounded-answers.md` rule 5 (anything linked-to must be
   URL-addressable). Same principle, restated for design.
-- **Every detail-page back link tells the truth.** A link labelled “Go back” stays a real link whose
-  address is the safe list or parent page. A normal click returns to the earlier Alethical page in
-  that browser tab when one exists, including its filters, page number, and scroll position; a fresh
-  or shared visit follows the fallback address instead. A link that names a destination, such as
-  “Back to Lobbying”, always opens that destination. Modified clicks stay native browser actions.
-  Top-level pages do not show this control.
+- **Every page-return link names its actual destination.** Apply the
+  [contextual page-return links](#contextual-page-return-links) requirement to new pages,
+  existing page edits, initial HTML, drawings and build handoffs. Top-level pages do not
+  acquire a return control merely to satisfy this requirement.
 - **A link to another article opens at its title.** Guides, research articles, and short posts
   start at the top when a reader follows a link to a different article. A link to a named
   section of an article opens at that section. Browser Back and Forward return to the saved
@@ -579,6 +580,74 @@ names wrap inside their available width instead of creating a horizontal scrollb
   Source: [`LoadingButton.tsx`, `LoadingButton`, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/components/auth/LoadingButton.tsx#L19-L145)
   and [`SignInDialog.tsx`, `SignInDialog`, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/components/auth/SignInDialog.tsx#L486-L493)
   ([#1533](https://github.com/alethical-org/alethical/issues/1533)).
+
+### Contextual page-return links
+
+This requirement governs every page-return control at every page depth, including
+new pages, edits to existing pages, loading/error states and the first HTML response.
+
+- Write **Back to <destination name>**, in sentence case, without an ending period.
+  Name the actual page in words readers recognize. Generic **Go back**, bare **Back**,
+  **Return** and an unnamed arrow are not page-return labels.
+- Resolve a safe destination and its name together before rendering the link. Its visible
+  text, accessible name, copied address, ordinary activation and new-tab address must
+  describe the same page. An earlier history entry alone does not establish its address
+  or name. Restore that entry only when it is the presented destination; otherwise open
+  the presented address. Native browser Back and Forward remain independent.
+- Existing contextual returns retain a known safe earlier Alethical page and its permitted
+  search, filter, page and scroll context. Existing fixed returns keep their fixed
+  destinations. Without usable context, use the screen's explicit named safe list or
+  parent. Never guess a parent by removing address segments, trust outside history, or
+  turn a person/candidate identifier or slug into a display name.
+- Use 1 stable name for each destination, including filtered searches: **Back to Search
+  bills**, **Back to Search legislators**, **Back to Find my candidates**, and **Back to
+  money search**. Filters remain in the permitted address/state, not in a second name for
+  that page. The money search includes lobbying, so its return label does not narrow it
+  to campaign money.
+- Keep a name established for the same record through temporary loading or failure.
+  Never retain another record's name after changing records. With no established identity,
+  use the named safe list as the fallback when no safe earlier destination exists.
+  A confirmed missing record or lost access invalidates its affected name and context.
+  When destination information becomes available, update the
+  words, accessible name, address and activation together. Do not expose private candidate
+  addresses, unsent answers, account data or authentication details in return state.
+- **Plain return-link visual pattern.** Use a neutral text link, Libre Franklin 600,
+  16px on computer/tablet and 15px below 768px, with 22px line height and no resting
+  underline. Color is `#4b524b`. The separate 18px SVG chevron has viewBox
+  `0 0 24 24`, path `M15 5 L8 12 L15 19`, current-color 2.2px stroke and rounded
+  ends/joins. Keep it hidden from screen readers, non-shrinking, 9px from the label
+  and 2px below the row's top. Hold the whole label in 1 wrapping span.
+  The link is inline-flex, aligned at the top, with 11px vertical padding, a 44px
+  minimum total height and 4px corners. Pointer hover on hover-capable devices at
+  widths of at least 768px and press use `#11150f` with a 1px underline 3px below
+  the label only. Keyboard focus uses a 2px `#7c5cff` ring offset 2px; clicks and
+  taps do not add that ring. Keep the chevron and gap undecorated.
+  Collection pages leave 14px before their H1, or 10px below 768px. The flyer-first
+  event article leaves 20px before its flyer. This visual pattern does not change
+  the contextual destination rules above or replace approved outlined variants
+  elsewhere. Apply it to new plain return links and scoped corrections.
+- Preserve approved chevrons, spacing, hover, pressed and keyboard-focus treatments.
+  Long names wrap without clipping or covering controls. Naming corrections do not add
+  breadcrumbs or authorize a visual redesign. **Previous**, **Close**, **Cancel**, recovery
+  actions and sign-in step returns describe their own actions; they are not page returns.
+- This requirement takes precedence over contradictory drawings, build notes, prompts,
+  peer coding advice and older saved instructions. Only a later explicit instruction from
+  the human product owner changes it. During an authorized build, the coding agent corrects
+  a settled contradiction in the implementation and records the exact words, destination
+  and behavior for Design. A replacement drawing is not a dependency for that correction.
+- Send settled corrections directly to Design when authorized and safely separate from
+  other Design work; apply the existing destination, activity and model-control checks.
+  A `bd` build includes direct Design coordination: resolve access or ownership boundaries
+  and continue independent work instead of defaulting to a relay. For other work where
+  relay delivery is permitted, provide a complete prompt if direct sending is unsafe. Inspect the
+  returned drawings, build notes and saved-rule changes. This does not authorize new visual
+  choices, a new Design round beyond the approved correction, or sending when the user
+  requested a prompt only.
+- Build checks must reject generic page-return labels and missing destination names.
+  Review drawings for direct entry, known earlier context, unknown names, loading/errors,
+  long names and narrow layouts. Exercise actual clicks, copied/new-tab links, browser
+  history and restored searches in the built screen. Static wording checks do not establish
+  that destinations agree or that context restoration works.
 
 ## 4. What to avoid (directionally wrong for Alethical)
 
@@ -654,6 +723,59 @@ under reduced motion. Keyboard focus draws 1 purple 2px ring, offset 2px, around
 the whole Short post row or card from its title link; pointer clicks draw no ring.
 The Guide fold button and topic links keep their separate focus and hover states.
 
+### Event announcement summaries and supporting links
+
+Event cards and announcement introductions lead with a concise summary of what
+an event is about and what readers can do now. Upcoming-event summaries help
+readers attend; summaries for an available replay help them watch or read. A past
+event date alone does not establish that a replay is available. Format details
+such as question rules do not replace that purpose. Preserve approved source flyers unchanged.
+The `/blog` Events group comes before Research reports, Short posts and Guides.
+Each introductory event card on `/blog` and `/blog/events` has its own white
+boundary and full-card title link. Reuse the white clickable-card hover above
+at widths of at least 768px with a fine pointer; touch remains unchanged and
+reduced motion removes the lift. Keyboard focus outlines the entire card with
+the existing purple 2px ring and 2px offset, with only 1 keyboard stop per card.
+Introductory cards show the date alone, such as “October 15, 2026”, without a
+weekday, time or “Past event”. Detailed announcements retain their date/time
+and meaningful registration status. Available-replay summaries omit spent attendance
+logistics, such as free admission; upcoming-event cards keep useful attendance
+information. Keep useful event history in the full article, plus meaningful
+cancellation, postponement and availability information. The completed Forward
+Debate replay omits the venue/city/free-admission line. Approved on 19 October
+2026; the reusable replay-summary rule was approved on 20 October 2026.
+Keep invitations concise: omit explanations already implied by the action, such
+as why the host needs an RSVP, and do not repeat the RSVP button in nearby prose.
+
+Use timezone abbreviations in event times, matched to the event's date and place.
+For Minnesota, use CDT during daylight saving time and CST during standard time.
+The displayed abbreviation must agree with the saved start/end UTC offsets; do
+not relabel an October daylight-saving event as CST.
+
+Download links name the material and retain the format in parentheses, such as
+“Download Forward Debate Candidate Guide (PDF)”. Omit file sizes from event
+announcement link labels. Keep the actual downloadable file unchanged unless a
+separate correction is approved.
+
+In Alethical event copy, display the branded website name as “Alethical.com”,
+with an uppercase A; preserve the actual link address.
+
+A closing partner-logo row on an Alethical event announcement does not repeat an
+Alethical home link. Keep the real partner link and the normal site header.
+These rules govern similar event announcements, not unrelated research layouts.
+
+### Forward Coalition branding in related posts
+
+Every Alethical blog post related to Minnesota Forward Together / Forward Coalition,
+including its candidates and events, displays the existing Minnesota Forward
+Together logo near the article title. Keep it visible without opening an expandable
+section. The Forward Debate places it directly above the title, aligned with the
+article text. Reuse `/services-coalition.webp`, preserve its proportions and wording,
+and link it to `https://forwardcoalition.com/candidates`. Show the logo once rather
+than repeating it inside the original announcement. Keep the normal Alethical site
+header. The logo does not add an endorsement or co-host claim. This 19 October 2026
+decision supersedes the former closing-logo placement for related posts.
+
 ### Implied information in post graphics
 
 Remove text and visual marks that add no needed meaning beyond nearby labels,
@@ -661,11 +783,15 @@ values and structure. Directly labelled comparison bars omit an isolated zero
 and its horizontal axis line while retaining a true shared zero and equal scale.
 Keep meaningful data, boundaries and qualifications. The full drafting rule is in
 [ui-copy-guide.md](ui-copy-guide.md#remove-implied-information-from-text-and-visuals).
-Approved by Eugene on 26 September 2026.
+Approved on 26 September 2026.
 
 ### Post chart readability and conclusions
 
-- In a post table, lines separate rows; the last total row has no closing line
+- In a post table, lines separate rows and end at the last real column, including
+  its normal padding. Do not extend lines through empty space to the article's
+  right edge. This applies to tables in Research, Guides and Short posts,
+  including chart tables, in private previews and published articles. Approved
+  on 8 October 2026. The last total row has no closing line
   underneath. Leave a clear gap before explanatory text following a table or
   chart, using the post's existing paragraph spacing. Keep every value and label
   unchanged when adjusting this space.
@@ -683,10 +809,21 @@ Approved by Eugene on 26 September 2026.
   appears inside a chart or as article text. Mark standalone conclusion paragraphs
   explicitly in the article's rendering inputs so rebuilding preserves the logo.
   Do not depend on a chart wrapper to supply branding.
+- Conclusion rows use the full available article or chart content width, with
+  the logo on the left and the text filling the remaining row. Do not apply a
+  separate narrow maximum to the row or its text. The 8 October 2026 approval
+  replaces the earlier 880px whole-conclusion maximum.
 - A post's supported answer should be visually distinct from its evidence limits.
   In the approved conclusion treatment, put the symbol on the left and bold
-  “Conclusion:” plus the answer. Short supporting qualifications continue in regular
-  text within the same paragraph. Do not repeat the answer elsewhere in the chart.
+  the answer, with “Conclusion:” only when the optional label helps readers
+  recognize a conclusion. Keep findings distinct from recommendations, following
+  [ui-copy-guide.md](ui-copy-guide.md#make-the-answer-easy-to-find).
+  Put that leading bold answer on its own line;
+  supporting qualifications start on the next line in regular text and fill the
+  available text width beside the symbol, with no extra blank-line gap. Let a long
+  bold answer wrap naturally on narrow screens; the supporting text starts after
+  the entire answer. This line separation was approved on 8 October 2026.
+  Do not repeat the answer elsewhere in the chart.
 - Center the symbol against the first 2 text lines, not against the top edge or
   the entire paragraph including any later wrapped explanation. Derive the offset
   from the actual line height and symbol height. With 24px lines and a 30px symbol,
@@ -699,7 +836,7 @@ Approved by Eugene on 26 September 2026.
 
 The wording and caveat rules live in
 [ui-copy-guide.md](ui-copy-guide.md#make-the-answer-easy-to-find).
-Approved from Eugene's first-post refinements on 26 September 2026; preserve each
+Approved for post refinements on 26 September 2026; preserve each
 surface's other approved visual choices.
 
 ### Article text limits and table columns
@@ -714,24 +851,45 @@ fonts, balanced wrapping and maximum width; ordinary titles add no keyboard
 stop or visible control. Long Research’s
 22px opening line under H1 has an 880px maximum; Guide and Short post openings
 retain their current widths. Essential method summaries, Full method controls,
-closing AI-preparation paragraphs and existing whole conclusion rows have an
-880px maximum. Keep expanded method text and enclosing boxes full width. The
-conclusion limit includes its existing symbol and gap, not just its text.
+closing AI-preparation paragraphs have an 880px maximum. Keep expanded method
+text, enclosing boxes and conclusion rows full width. The conclusion logo stays
+on the left with its existing size, clear space and first-2-line alignment.
 
 Article prose and chart tables remain 100% wide. Label columns use width 1% and
 no wrapping from 768px; phone labels may wrap. Numeric columns use width 1%, a
 160px minimum and no wrapping, growing for their widest heading or value. Keep
 Libre Franklin equal-width digits and current alignment. An empty aria-hidden
-spacer cell ends each header/body row, fills remaining width and carries the same
-row lines. Preserve the last real value’s padding and real header scope. Confine
+spacer cell ends each header/body row and fills remaining width without a row
+line. The visible lines span the real columns and their normal padding only;
+they do not continue across the empty spacer. Preserve the last real value’s
+padding and real header scope. Confine
 necessary horizontal scrolling to the table at every screen width, with keyboard
 access and the existing purple 2px keyboard-focus outline. Keep all other article
-styling and text unchanged. Approved by Eugene on 30 September 2026;
+styling and text unchanged. Approved on 30 September 2026, with row-line
+length and conclusion width revised on 8 October 2026. Check the header and every body-row divider on
+phone, tablet and desktop, including wrapped labels and wide numbers; shortening
+the lines must not clip, wrap or shrink a number. This records the design change.
+Implementation and live release were authorized on 8 October 2026.
 [published-writing-decisions.md §Article widths](../architecture/published-writing-decisions.md#article-widths-30-september-2026)
 owns the scope and [issue 2448](https://github.com/alethical-org/alethical/issues/2448)
-owns the release.
+records the 30 September release.
 
 ### Article metadata and Share
+
+Every public blog post has a visible Share button, including research reports,
+guides, short posts, events and recordings. Before designing or reviewing another
+public surface, assess whether sharing helps readers and propose it where useful.
+Reuse the approved shared control and interaction treatment: a bottom sheet below
+1100px and a window-bounded desktop popover. Share a stable public address and
+accurate identifying text without private account data or temporary state; preserve
+private-draft and restricted-content access boundaries.
+
+Include sharing in the upfront brief and acceptance checks: discoverability,
+keyboard/touch use, panel placement, copy success/failure, available destinations
+and the actual shared address. Design and coding carry the same requirement.
+[published-writing-decisions.md §2.18](../architecture/published-writing-decisions.md#218-public-blog-posts-include-sharing-assess-other-surfaces-proactively)
+owns the scope. Unrelated sitewide changes and requested design approvals remain
+separate. The approved event treatment below applies to the Forward Debate.
 
 Publication dates and reporting periods remain near the title. Source-copy dates
 follow [ui-copy-guide.md §Dates on a page](ui-copy-guide.md#dates-on-a-page).
@@ -739,15 +897,75 @@ When redundant metadata is removed, Share remains right-aligned on the same row
 as the remaining metadata wherever both fit. Keep the approved narrow-screen
 wrapping and spacing; do not leave an empty row for the removed wording.
 
+Event article metadata uses a wrapping row with the date left and Share right,
+16px horizontal and 4px row gaps, 8px below the title and 20px before the introduction.
+The approved Share control is white with a 1px ink-16 border, 11px radius, 44px
+minimum height, 16px icon and 15px bold label. Hover on fine pointers at 768px and
+wider uses #f7f8fa with an ink-30 border; pressed uses #f1f1f4 with that border.
+Open keeps the hover treatment; keyboard focus uses the shared purple outline.
+
+The shared desktop panel is 366px wide, with a 10px trigger gap and at least 16px
+inside the window. Try below, above, then beside the trigger; constrain and scroll
+the body in a short window without covering the trigger. Below 1100px, use the
+bottom sheet over the approved half-opacity dark scrim. Tablet Copy stays inline
+with 6 destinations in 1 row; below 768px Copy fills its row and destinations use
+2 rows of 3 at ordinary text sizes. When the actual destination names cannot fit
+3 columns, use 2 columns, then 1 if needed, in the same order without splitting names midword. Base
+this on content fit, including enlarged text, rather than a single phone width.
+Focus the noninteractive heading on open without drawing an outline around it.
+Trap keyboard focus, close with Escape,
+Close, outside activation or successful destination opening, then return focus to
+the trigger. Scrims and panels prevent click-through. Native chooser cancellation
+is silent; unavailable native sharing is omitted.
+
+Copy keeps its width through confirmation: 112px desktop, 156px tablet and full
+width phone. Omit an empty description. Announce copying or opening failures with
+the approved recovery text; a failed copy focuses and selects the address field.
+The focused address field uses a 1px #5b30d6 border and a 3px
+rgba(91,48,214,.22) ring. Suppress its browser outline, preserve selected-text
+highlighting, and retain the existing keyboard-focus treatment on controls.
+Only a successful clipboard write may show Copied. Preserve existing trigger
+styling and identifying content on other shared-panel uses.
+
+
 ### Build acceptance for controls
 
-**Open menus stay visible and receive input.** Every menu update, Design handoff
-and authorized build must check the open menu over realistic page content, even
-when drawings omit that state. Maps, images, buttons and sticky sections must not
-cover a menu or intercept pointer movement or clicks inside it. Preserve the
+**Compare changed elements with the rest of the screen before handoff.** Design
+and the coding agent proactively compare every new or changed element with
+actual same-purpose elements on the surrounding screen and the nearest approved
+matching component, even when no mismatch was reported. Compare layout, spacing,
+type, colours, borders, motion and applicable resting, hover, pressed, keyboard
+focus, touch, disabled and loading states. Account for differences using approved
+intent or a distinct reader need; preserve content, action, accessibility and
+privacy differences. A live screenshot can expose a mismatch but cannot approve
+one. Resolve conflicts between drawings, saved rules and the working screen
+before calling the affected work ready; Design owns genuinely open visual choices
+under the existing send permissions. The coding agent repeats the comparison in
+the working build across supported layout bands, wrapped text and applicable
+states and transitions. A resting screenshot does not establish interaction
+behavior. This covers changed elements and confirmed shared causes within the
+authorized scope, not an unrelated sitewide retrofit.
+
+**Open menus and floating controls stay visible and receive input.** This covers
+address suggestions, dropdowns, date pickers and popovers as well as navigation
+menus. Design must show changed controls open beside realistic surrounding
+controls in every distinct placement and supported layout band. Entry and
+results/editing forms are separate placements even when they reuse a component.
+State whether the panel overlays content or pushes it down; preserve approved
+in-flow treatments on narrow screens.
+
+Every Design handoff and authorized build must check the open panel over actual
+page content, even when drawings omit that state. Maps, images, buttons and sticky
+sections must not cover a menu or intercept pointer movement or clicks inside it. Preserve the
 intended priority of dialogs and other higher-level overlays. Check containing
 elements for clipping and isolated display layers; increasing a menu's own layer
 number cannot lift it out of a lower parent layer.
+
+Every visible row, including the bottom row and wrapped text, must receive clicks
+and taps without activating a control behind it. Review the containing layout and
+its neighboring controls, not only the component in isolation. Establish whether
+a failure originates in the drawing, handoff or implementation before assigning
+its cause. Preserve the intended priority of site navigation and dialogs.
 
 Move the pointer from each trigger into its menu, between items and back,
 including slow and diagonal paths across the intended gap. The menu must remain
@@ -757,6 +975,14 @@ assume a sitewide hover defect or hide an overlap with longer close delays.
 Check keyboard opening and selection, visible focus, Escape, outside dismissal,
 touch, scrolling, wrapped text and screen edges across the supported layout
 bands. A screenshot proves neither pointer access nor successful selection.
+
+For overlay placements, select a lower row where it covers another control and
+confirm only the selected action fires. Reproduce overlap in a rendered browser
+regression with realistic neighboring controls; a component-only test or a layer
+number assertion does not establish this. Inventory the actual shared control
+and enclosing layout uses, then check each distinct placement. Do not conceal a
+layering failure with extra spacing, a delayed close or an arbitrary large layer
+number.
 
 State this display order and interaction behavior in menu build handoffs. During
 authorized builds, correct confirmed failures using existing approved behavior,
@@ -876,6 +1102,16 @@ release checked; a local preview does not prove the live result. Keep temporary
 drawings and screenshots with the task or review evidence, not in permanent
 product documentation.
 
+**Review every host of a repeated element, including entrances on other pages.**
+A marker, chip or label that appears in more than one place is one shared
+component that sets its own size, padding and text centring; a host supplies
+placement only. Inventory every host from the code, including cards and groups on
+pages outside the feature, and review the rendered element in each one at every
+layout band, even where the drawing is faithful. For bordered text, a rendered
+browser check measures the clear space between border and text from screenshot
+pixels in each host; a stylesheet assertion does not establish what a reader sees.
+Report any host without rendered evidence as untested.
+
 Use the loaded web font explicitly on shared buttons. Review browser-computed
 font family, weight and size, not just declarations in a stylesheet: a form
 reset or a more specific selector can override the intended style. Include
@@ -888,3 +1124,73 @@ and exercise the tablet layout where its structure differs. Inspect both populat
 and empty states, including content order, gaps, and absent controls. An empty
 list must not reserve space for sorting or feedback that is not shown. A passing
 build or a test of stylesheet text does not establish visual fidelity.
+
+## Profile labels
+
+Every public profile identifies its record kind above the whole identity group:
+Candidate profile, Legislator profile, Person profile, Lobbyist profile, or Lobbying
+principal profile. The name remains the main heading. The label appears only once
+a named record has loaded; it does not imply current office, campaign authority or
+an election outcome. Joint tickets and historical records keep their route's label.
+
+Use Libre Franklin 700, green #0f7a45, letter spacing 2.4px, 13px on computer/tablet
+and 12px on phone. Source text stays sentence case; styling displays capitals.
+It is plain text, with no link, button, keyboard stop or hover response. Candidate,
+person and lobbying labels have 14px above them after a 44px return target on
+computer/tablet and 6px on phone; the identity group follows after 14px. Preserve
+the existing legislator header's visible spacing.
+
+Lobbying labels retain their exact source identifier, use equal-width digits and
+line height 1.5, and wrap between words. Keep the middle dot with the preceding
+text and keep Registration {number} or Entity ID {id} together. Test the real font
+at 320px and each layout band; do not shrink, clip or truncate the label.
+
+### Recording links and video topics
+
+Approved on 20 October 2026. When a recording has supporting guides, reports or
+slides, show their links once near the video, before long topic or transcript
+sections. Keep a visible link to watch on the original video site below the
+embedded player, with clear space using the approved spacing treatment. The
+Forward Debate's placement below its contact invitation and its 16px player-link
+gap remain specific to that design.
+
+Timestamp-and-title video chapter lists omit extra visible ordinal numbers. Keep
+chronological order, accessible list structure, keyboard navigation and working
+time links. Numbered instructions and other ordered content retain meaningful
+numbering. Apply the accepted treatment in initial HTML and the loaded page.
+
+### Debate replay topic links and contact context
+
+Replay Topics show chronological timestamps and titles without visible ordinal
+numbers, retaining semantic list structure, keyboard links and the existing touch
+targets. Other ordered article lists keep their own meaning and markers. The
+debate-hosting invitation opens the Contact us form with a known hosting purpose:
+subject “Host a debate” and message “I’d like Alethical to host a debate in my
+community.” followed by a blank Community field in the editable message. The
+signed-in account supplies an editable email address separately. Never replace
+an unfinished draft or a field the reader deliberately cleared within the same account.
+Discard the full prior-account draft on confirmed sign-out or account changes, even
+while the form is closed; only Send message
+submits. Generic contact navigation and correction links retain their own context.
+
+## Order of Alethical's accounts
+
+Wherever Alethical lists its own addresses, the order is: website, YouTube, LinkedIn,
+Facebook, X, Bluesky, Instagram, TikTok. The website comes first wherever a list can
+hold it (a social bio's link list, the Organization card's `sameAs` entries, a printed
+list); the site's own footer row and Contact us omit it and start at YouTube. One list,
+`apps/frontend/src/lib/socialLinks.ts`, carries the 7 accounts in this order and every
+surface reads it; an account missing from that list is missing everywhere.
+
+Why each sits where it does: the website holds the work, and a visit there is the only
+one that counts for search; YouTube holds the work in full, reaches the most people and
+is the social surface answer engines read, because its videos are transcribed and
+indexed; LinkedIn is where campaigns and organizations check a company before
+contacting it; Facebook is where Minnesota's local political audience and candidates'
+pages are; X carries the political and press conversation; Bluesky carries the same
+conversation on the open web, under Alethical's own domain as its handle; Instagram
+and TikTok reach younger audiences, are closed to search engines and AI crawlers, and
+offer the fewest link fields. LinkedIn precedes Facebook while campaign inquiries are
+the lead outcome; Facebook moves ahead if readership becomes the lead outcome.
+Rebuilding a surface to this order is design-led work and follows a Design handoff;
+social bios follow the same order under the socials publishing rules.

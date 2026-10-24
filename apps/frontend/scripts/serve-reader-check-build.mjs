@@ -4,6 +4,8 @@ import { readFile } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const port = Number(process.env.ALETHICAL_READER_PORT ?? 4173);
+if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Invalid reader port');
 const root = resolve(fileURLToPath(new URL('../dist/', import.meta.url)));
 const types = {
   '.html': 'text/html',
@@ -45,6 +47,6 @@ createServer(async (request, response) => {
   } catch {
     response.writeHead(400).end();
   }
-}).listen(4173, '127.0.0.1', () =>
-  console.log('Reader fixture build available on loopback port 4173'),
+}).listen(port, '127.0.0.1', () =>
+  console.log(`Reader fixture build available on loopback port ${port}`),
 );

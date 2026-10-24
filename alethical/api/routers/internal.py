@@ -80,8 +80,8 @@ def _decode_oban_return(meta: dict | None):
         from oban._recorded import decode_recorded
 
         return _jsonable(decode_recorded(meta["return"]))
-    except Exception as exc:  # pragma: no cover - defensive around private oban API
-        return {"decode_error": str(exc), "raw": meta.get("return")}
+    except Exception:  # defensive around private oban API
+        return {"decode_error": "Stored job result could not be decoded"}
 
 
 def _pretty_json(value) -> str:

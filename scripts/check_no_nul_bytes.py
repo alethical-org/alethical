@@ -46,6 +46,7 @@ BINARY_SUFFIXES = {
     ".zip",
     ".gz",
     ".mp4",
+    ".wav",
     ".keystore",
 }
 

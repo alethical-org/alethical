@@ -2,8 +2,8 @@
 
 <!-- describes: apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx, apps/frontend/src/components/home/SignedOutHomepage.tsx, apps/frontend/src/components/home/*.tsx, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/hooks/useTrackedBillsLastVisit.ts, apps/frontend/src/lib/homepage.ts, apps/frontend/src/lib/sessionWatch.ts, apps/frontend/src/lib/trackedBillsLastVisit.ts, apps/frontend/src/theme/pageBackground.ts, scripts/check_home_hero_card_literals.py, .github/workflows/home-hero-card-facts.yml -->
 
-Signed-out Home introduces Alethical, then leads with money records and bills and
-votes. Campaign services follows bills and opens the public `/services` presentation. Home
+Signed-out Home introduces Alethical, then leads with money records, the Legislature, the Forward Debate and
+campaign services. Campaign services opens the public `/services` presentation. Home
 has no free-form question box because reader-written questions are not a live feature.
 
 ## Signed-out opening and tool cards
@@ -13,34 +13,54 @@ has no free-form question box because reader-written questions are not a live fe
   can use. Understand what’s happening, check the evidence, and get practical support
   to act on what you learn.** It describes the overall purpose; the cards explain
   the individual tools.
+- Under the introduction sits a row of Alethical's 7 accounts as grey marks with no
+  label, in the order YouTube, LinkedIn, Facebook, X, Bluesky, Instagram, TikTok, the
+  same list as the footer. Each opens in a new tab and is announced as "Alethical on
+  [platform] (opens in a new tab)"; screen readers hear the row as a group named
+  "Social media". The first mark starts 2px inside the text's left edge, so its
+  rounded shape does not read as sticking out past the letters. Phones below
+  336px wide show 4 marks, then 3. Hover shows a light circle on computer and tablet
+  only. The signed-in homepage does not show this row.
 - **Follow the money** remains beside the introduction on desktop, stacks below
-  it on tablet, and follows it in a green band on phone. Its body reads **See who gives, who spends, who gets paid,
-  and who is registered to lobby, using records reported to the state**. Its action
-  says **Search the money records** and opens `/money`. This approved signed-out
-  homepage wording is an exception to the destination name **Money in politics**.
-- **Bills and votes** follows money. Its body reads **Read plain-language bill
-  summaries, see where they stand, and find out how legislators voted**. Its action
-  says **Search bills** and opens `/bills`. This card replaces the full bill-activity
-  lists on signed-out Home. It also replaces the separate Search Bills and Search
-  Legislators action pair; both searches remain available through shared navigation.
-- **Campaign services** follows bills and votes. Its body reads **Get political
-  intelligence through campaign-finance research, plus websites, marketing, and
-  custom software for your campaign or organization**. Its action says **Explore
-  our services** and opens `/services`. The public services release enables this
-  card in the loaded homepage and in the first server response.
-- Bills sits left and services right on desktop and
-  tablet. Phone order is money, bills, services.
+  it on tablet, and follows it in a green band on phone. Its body reads **Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.** Its action
+  says **Search the money records** and opens `/money`. This approved homepage
+  wording is an exception to the destination name **Money in politics**.
+- **Legislature** says **Bill summaries and progress, legislator profiles and votes**.
+  It is a static card with 2 links: **Search bills** opens `/bills` and **Search
+  legislators** opens `/legislators`. Each outlined button fits its own label;
+  they wrap when needed, and stack at full width on phone.
+- **The Forward Debate** is 1 link to `/blog/events/forward-debate-2026`.
+  **Watch the debate** opens the replay page. Nothing plays on Home.
+  Title, district, date and photo paths share the event's lightweight index.
+  Desktop shows the approved bottle-free JPEG, with host beside the heading and
+  district/date below the photo. Tablet and phone retain the original frame and
+  show district, then host/date. These band differences are deliberate.
+- **Campaign services** says **Political intelligence and practical support for
+  candidates and organizations, including campaign-finance research, websites,
+  content, tools and hosted debates**. **Explore our services** opens `/services`.
+  The linked services presentation currently lists its existing service groups;
+  adding a dedicated debate group is separate work.
+- Desktop has Legislature above services on the left and debate spanning both
+  on the right, with reading and keyboard order Legislature, debate, services.
+  Tablet has debate above Legislature and services. Phone order is debate,
+  services, Legislature. Debate and services each have 1 whole-card link;
+  Legislature has 2 button links and no card hover. No Share control is added
+  to Home; the replay page offers sharing.
+- The signed-out money card begins with **Follow the money**, without the repeated
+  **MONEY IN POLITICS** label or its gap. Signed-in money keeps its existing label.
 - Signed-out Home removes Find My Legislator from the page body. The shared Search
   menu still offers `/find-my-legislator`.
-- **Who’s running where you live?** follows the bills and services row. Its supporting
+- **Who’s running where you live?** follows the 3 feature cards. Its supporting
   text says **Enter your Minnesota street address to see who is running for office
   in your area**. The **Find my candidates** button submits a full street address
   to the official Minnesota address and ballot services. A ZIP code alone is not enough.
 - A successful lookup opens `/candidates` with the results already available. An address
   requiring confirmation opens the same destination with its choices. Failure stays
   beside the homepage form with a retry. The address is carried in temporary memory,
-  never in the destination URL or browser storage. The form explains which government
-  services receive it and that Alethical does not save it.
+  never in the destination URL or browser storage. Below the message slot, 1 note
+  reads **Your address is sent to Minnesota government services for this lookup**.
+  The field's screen-reader description names that note, plus the message while one
+  shows. The form prints no city-or-ZIP help line.
 - The Minnesota outline sits to the right on desktop, beside the heading on tablet,
   and is omitted on phone, following the supplied homepage drawing. The example input
   is generic because the previously drawn city-hall address is absent from the official
@@ -62,11 +82,32 @@ has no free-form question box because reader-written questions are not a live fe
   punctuation changes are separate proposals. The hero has 2 sentences and keeps
   both periods; the card bodies have 1 sentence each and omit their ending periods.
 
+## Address controls
+
+Both homepage address fields grow to show the full value and placeholder. A filled
+field shows a 44px **Clear address** button (×), including browser-filled text.
+Clearing empties and focuses the field without submitting. Its space is reserved
+when empty or busy. The signed-out finder removes address errors while retaining
+service failures. Neither homepage field adds typing suggestions, Cancel, or
+select-all on focus.
+
+The signed-in finder navigates to `/find-my-legislator`. Its button remains **Find**
+on desktop and **Find my legislator** on tablet and phone. **Use my location**
+becomes **Finding your location…** only during the location wait. Homepage lookup
+loading and no-match messages belong to the signed-out candidate finder, not this
+navigation form. Tablet actions stay below the address side by side; phone actions
+stack at full width. Desktop actions stay centered beside a growing field, with
+wrapping retained so the location action can move below rather than squeeze text.
+The desktop field reserves 56px for clear in addition to its previous 360px minimum,
+for 416px bounded by its container.
+
 ## Shared money-record safeguards
 
 - The money count is read live from the register on every load. If the register
   does not answer, the whole line disappears: never a zero, never a dash, never a
-  remembered number. While it loads, a grey bar stands in its place.
+  remembered number. While it loads, a grey bar stands in its place, in a space
+  already the height of the finished line, so the introduction centred beside the
+  card and everything below it stay still when the number arrives.
 - The count says **registered campaigns, parties, and funds** and counts campaign
   filers only. Lobbying records are separate and are not included in that number.
 - The card never says each entry is tied to the filing it came from. Published
@@ -86,9 +127,7 @@ bill-activity and legislator-finder sections described here.
   does.
 - A reader tracking nothing retains the existing bill search and link to bill
   activity already on Home. This signed-out update does not remove that target.
-- The signed-in money body remains **Explore Minnesota’s campaign finance and
-  lobbying records, as reported to the state.** Its action remains **Money in
-  politics**, opening `/money`.
+- The signed-in money body and **Search the money records** action match the signed-out card. Approved administrators instead see **Explore records of campaign donations, political spending, lobbying, and TV ads. Browse campaign money by legislator, committee, or race.** The action still opens `/money`; TV access follows [tv-ad-records-guide.md](tv-ad-records-guide.md).
 - The signed-in Search Bills and Search Legislators pair remains in place.
 - The money card sits below the signed-in greeting and tracked card, inside the
   same hero background, with 120px above it and 120px below.
@@ -222,7 +261,7 @@ bill.
 
 ## Small screens
 
-Signed-out phone Home uses this order: introduction, money, bills, services,
+Signed-out phone Home uses this order: introduction, money, debate, services, Legislature, candidate lookup,
 In the News, and footer. In the News sits directly before the footer, with
 no general bill-activity or legislator-finder section after it. Its current pins
 remain HF 4138 and SF 856; each card uses that bill's real records. News retains
@@ -244,8 +283,11 @@ desktop and tablet, not phone or signed-in Home.
 ## The first response
 
 The text served before the app starts uses the same signed-out introduction,
-money card, bills card, campaign services card, and candidate introduction as the screen.
-The candidate introduction links to `/candidates` before the interactive form loads. Shared navigation still offers
+money card, Legislature card, debate card, campaign services card, and candidate introduction as the screen,
+drawn in the screen's own layout and sizes at each width, so the top bar, the introduction
+and the cards stay where they are when the app takes over. The money card shows its loading
+bar until the app reads the count. The candidate introduction links to `/candidates` before
+the interactive form loads. Shared navigation still offers
 Money, Search, Blog, and About, including legislator search and Find My Legislator.
 `homePageSnapshot()` and the generated initial `public/index.html` stay in sync.
 

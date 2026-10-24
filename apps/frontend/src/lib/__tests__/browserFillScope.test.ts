@@ -6,13 +6,13 @@ import { describe, expect, it } from 'vitest';
 const SRC = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const MARKERS = ['browserFillInputProps', 'browserFillTextInputProps'] as const;
 const EXPECTED_CONSUMERS = [
+  'components/address/AddressSuggestionField.tsx',
   'components/auth/AccountControl.tsx',
   'components/auth/CodeField.tsx',
   'components/auth/EmailField.tsx',
   'components/auth/PasswordField.tsx',
   'components/home/HomeCandidateFinder.tsx',
   'components/home/HomeLegislatorFinder.tsx',
-  'screens/FindMyLegislatorScreen.tsx',
   'screens/redesign/ContactUsScreen.tsx',
 ] as const;
 
@@ -57,7 +57,7 @@ describe('browser-filled field scope', () => {
   it('marks the account proof code and both legislator address fields', () => {
     const account = source('components/auth/AccountControl.tsx');
     const home = source('components/home/HomeLegislatorFinder.tsx');
-    const finder = source('screens/FindMyLegislatorScreen.tsx');
+    const finder = source('components/address/AddressSuggestionField.tsx');
 
     expect(account).toContain('...browserFillTextInputProps');
     expect(account).toContain('nativeID="fresh-proof-code"');
@@ -65,8 +65,8 @@ describe('browser-filled field scope', () => {
     expect(home).toContain('...browserFillTextInputProps');
     expect(home).toContain('accessibilityLabel="Full street address"');
     expect(home).toContain('autoComplete="street-address"');
-    expect(finder).toContain('...browserFillTextInputProps');
-    expect(finder).toContain('accessibilityLabel="Full Minnesota street address"');
+    expect(finder).toContain('...browserFillInputProps');
+    expect(finder).toContain('accessibilityLabel="Full street address"');
     expect(finder).toContain('autoComplete="street-address"');
   });
 

@@ -12,10 +12,19 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import QueuePool
 from starlette.responses import StreamingResponse
 
+
 from alethical.api import main
 from alethical.api.request_admission import MAX_IN_FLIGHT_REQUESTS
 from alethical.api.schemas import DetailResponse
 from alethical.db import session as database
+
+
+# How long a test waits for a request to reach a known point (entered, cleanup
+# started) or for admitted requests to finish. A bound on test setup, not the
+# behaviour under test: the 0.25 s limits below are the assertions that rejected
+# requests answer at once. 1 s failed once under 6 parallel workers in CI (run
+# 39860287202, attempt 2); 10 s costs nothing when the suite is healthy.
+SETTLE = 10
 
 
 def _app(monkeypatch, limit=1):
@@ -91,7 +100,7 @@ async def test_busy_database_requests_cannot_starve_response_cleanup(monkeypatch
             rejected = await asyncio.wait_for(asyncio.gather(*overflow), 0.25)
             assert [response.status_code for response in rejected] == [503] * 6
             release_queries.set()
-            completed = await asyncio.wait_for(asyncio.gather(*admitted), 1)
+            completed = await asyncio.wait_for(asyncio.gather(*admitted), SETTLE)
             assert [response.status_code for response in completed] == [200, 200]
             assert engine.pool.checkedout() == 0
             assert (await client.get("/api/v1/admission-test")).status_code == 200
@@ -121,7 +130,7 @@ async def test_overload_shares_budget_and_keeps_cors_and_health(monkeypatch):
     async with _client(app) as client:
         running = asyncio.create_task(client.get("/api/v1/admission-test"))
         try:
-            await asyncio.wait_for(entered.wait(), 1)
+            await asyncio.wait_for(entered.wait(), SETTLE)
             for path in ("/api/v1/meta", "/internal/v1/test", "/readyz"):
                 response = await asyncio.wait_for(
                     client.get(path, headers={"Origin": "https://alethical.com"}),
@@ -202,7 +211,7 @@ async def test_admission_covers_stream_and_dependency_cleanup(monkeypatch):
     async with _client(app) as client:
         running = asyncio.create_task(client.get("/api/v1/admission-test"))
         try:
-            await asyncio.wait_for(cleanup_started.wait(), 1)
+            await asyncio.wait_for(cleanup_started.wait(), SETTLE)
             response = await client.get("/api/v1/meta")
             assert response.status_code == 503
         finally:
@@ -228,7 +237,7 @@ async def test_cancelled_or_failed_requests_return_admission(monkeypatch, failur
 
     async with _client(app) as client:
         running = asyncio.create_task(client.get("/api/v1/admission-test"))
-        await asyncio.wait_for(entered.wait(), 1)
+        await asyncio.wait_for(entered.wait(), SETTLE)
         if failure == "cancel":
             running.cancel()
             with pytest.raises(asyncio.CancelledError):

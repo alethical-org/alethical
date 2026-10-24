@@ -44,11 +44,14 @@ overrides:
   "minimatch@3.1.5>brace-expansion": 2.1.7 # the 2.x line of the same DoS
   nanoid: 3.3.18 # React Navigation and build tools — infinite loop when a generator size is 0 (GHSA-2v37-7h3g-55p8)
   postcss: 8.5.23 # @expo/metro-config — source-map arbitrary file read
+  source-map-js: 1.2.2 # CSS parsers — bounded indexed-map offsets
   shell-quote: 1.11.0 # react-devtools-core — reject line breaks after comments (CVE-2026-102422)
   "ws@7": 7.5.11 # metro, react-native dev server
   "ws@8": 8.21.0 # @expo/cli and @supabase/realtime-js (which never imports it)
-  undici: 8.10.2 # jsdom test HTTP client — patched request, cache and WebSocket handling
+  undici: 8.12.2 # jsdom test HTTP client — patched request, cache, WebSocket, EventSource and content-encoding handling (GHSA-xjj6-f33q-929c, GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472)
   uuid: 11.1.1 # Expo telemetry uses compatible v1/v4/validate APIs
+  zod: 4.6.7 # Expo CLI dev-tools plugin schemas and Vercel CLI config: memory exhaustion on oversized collections (GHSA-mrhx-c7xc-m3w5); they use only object, string, enum, array, union, literal and safeParse, which zod 4 keeps
+  vite: 8.1.6 # Vitest dev server — patched launch-editor command handling
 patchedDependencies:
   # Exact nested DigestAlgorithm validation from digitalbazaar/forge#1152.
   # check-node-forge-security.mjs proves installed content and behavior before
@@ -60,5 +63,3 @@ patchedDependencies:
   # No upstream repair exists for GHSA-vfj7-8cjw-p6xm. Limit pattern nesting
   # before braces' recursive walkers can exhaust the Node.js call stack.
   braces@3.0.3: patches/braces@3.0.3.patch
-  # Exact upstream CVE-2026-93749 repair while 1.2.2 is inside the 7-day wait.
-  source-map-js@1.2.1: patches/source-map-js@1.2.1.patch

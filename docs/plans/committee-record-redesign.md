@@ -1,6 +1,6 @@
 # Committee record redesign
 
-User authorization: on September 17, 2026, after reviewing Alethical UX (11).zip, Eugene said “build”. This authorizes implementation through tests, browser review, pull request, merge, deployment and live checks. Earlier review-only status is superseded.
+Build scope approved on September 17, 2026 after review of Alethical UX (11).zip: implementation through tests, browser review, pull request, merge, deployment and live checks. Earlier review-only status is superseded.
 
 ## Scope
 

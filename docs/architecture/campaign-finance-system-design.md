@@ -20,25 +20,30 @@ filed with any other agency is out of scope, is not read, is not stored, and is 
 not in a page, a filter, a chip, an empty state, a search placeholder, a roadmap line, or a
 "coming soon". A surface says what this record **is**; it never lists what it is not, because naming
 an absence advertises a thing we do not have (`.claude/rules/grounded-answers.md` rule 2, never
-advertise what you can't answer, and rule 6, copy claims match shipped capability). Eugene's call,
+advertise what you can't answer, and rule 6, copy claims match shipped capability). Decision of
 12 Aug 2026, tightening an earlier "deferred" framing that had begun to read as a promise.
 
 ---
 
 ## Who edits this document
 
-**One session owns it. Every other session sends findings instead of editing.** Eugene's
-decision, 11 Aug 2026. Three sessions wrote this file inside three hours; nothing collided,
-because each edited a different section, and that is exactly why it went unnoticed that two
-decisions were taken against text which had already been replaced. One session recommended
-keeping downloaded files in the database an hour after its own merged work had settled on
-Supabase Storage; another merged a display rule that a third had already measured to be wrong.
+**1 task owns this file. Other tasks send findings instead of editing.**
+Adopted on 11 Aug 2026 after concurrent edits produced decisions based on
+superseded text. The incidents included a database-storage recommendation
+after Supabase Storage had been selected, and a display rule contradicted by
+already available measurements.
 
-- **The owner** is the task **Committees** (`01a0ab8e-ab12-7fa2-80ff-c2b6f042fcd9`),
-  on branch `codex/committee-empty-year`, for the empty-year and contribution-terminology
-  refinements in [issue 2274](https://github.com/alethical-org/alethical/issues/2274).
+- **The owner** is the task **2611 Close TV ad records design gaps**, in the worktree
+  `.claude/worktrees/tv-ad-records-design-gaps-0ce312` on branch
+  `claude/tv-ad-records-design-gaps-0ce312`, for §10 (where the TV ad records decisions live)
+  in [issue 2611](https://github.com/alethical-org/alethical/issues/2611).
   The task **money** (`01a0ab28-d848-7890-9741-70e5ff7027fd`) explicitly disclaims ownership
   of this file and owns the separate selected-tab treatment.
+  - The previous claim named the task **Committees** (`01a0ab8e-ab12-7fa2-80ff-c2b6f042fcd9`)
+    on branch `codex/committee-empty-year`, for
+    [issue 2274](https://github.com/alethical-org/alethical/issues/2274). That issue is closed,
+    the branch is gone and the task is in no live list on 14 Oct 2026, which is what permits
+    this handover.
   - The previous claim named `.claude/worktrees/zealous-curie-c0f954` on branch
     `claude/legislator-money-tab-review-6bf9e7`, appointed 12 Sep 2026. That worktree now
     holds `claude/tab-order-consult-only`. Its decisions came from
@@ -69,7 +74,7 @@ Supabase Storage; another merged a display rule that a third had already measure
     here: [#1661](https://github.com/alethical-org/alethical/issues/1661)'s §9.7/§7/§2.1/§2.3
     wording, which is still unlanded; [PR #1768](https://github.com/alethical-org/alethical/pull/1768)'s
     party-unit findings, written into `backend-api-system-design.md` instead; and this
-    issue's, posted as a comment on that draft. Eugene had it marked ready and merged on
+    issue's, posted as a comment on that draft. It was marked ready and merged on
     31 Aug 2026, which is what freed the pen. **The flaw the episode exposes is real and is
     not fixed here:** the rule has no tie-break between "an open pull request holds the pen"
     and "the named owner session is gone", and a parked draft is nobody mid-sentence.
@@ -80,7 +85,7 @@ Supabase Storage; another merged a display rule that a third had already measure
     §7 as "A person's committees are never added together".
   - The previous claim named the worktree `.claude/worktrees/clever-mclaren-6c4785` (the campaign
     finance assessment and design-review session), appointed 19 Aug 2026. It is in no live session
-    list as of 28 Aug 2026, which is what triggered this handover. Its content came from Eugene's
+    list as of 28 Aug 2026, which is what triggered this handover. Its content came from the
     signed-reports decision of 18 Aug 2026, landed as
     [PR #1659](https://github.com/alethical-org/alethical/pull/1659) and amended by
     [PR #1665](https://github.com/alethical-org/alethical/pull/1665), written up here as §7.1.
@@ -88,7 +93,7 @@ Supabase Storage; another merged a display rule that a third had already measure
     18 Aug 2026 by way of [PR #1417](https://github.com/alethical-org/alethical/pull/1417). That
     session confirmed in writing that it published nothing, discarded its in-progress edit, and
     stopped, so the claim lapsed. The session briefed to pick it up
-    (`.claude/worktrees/nifty-mendel-9aaf82`) is paused by Eugene and declined the pen explicitly.
+    (`.claude/worktrees/nifty-mendel-9aaf82`) is explicitly paused and declined ownership.
     Both are recorded because a lapsed claim that nobody narrates is how this file ends up with two
     editors who each believe the other is gone.
   - **Why a worktree and not a title.** The rule asks for a title copied verbatim from the live
@@ -98,10 +103,10 @@ Supabase Storage; another merged a display rule that a third had already measure
     that is what is recorded. **If you hold the pen and can read your own title, use it**; fall
     back to your worktree only if you cannot.
   - The previous claim named the session `1328 Finish the campaign finance loader`
-    (`e8c5a620-e1d7-417c-ac06-8273a0b416f3`), appointed by Eugene 13 Aug 2026. It is in no live
+    (`e8c5a620-e1d7-417c-ac06-8273a0b416f3`), appointed on 13 Aug 2026. It is in no live
     task list as of 18 Aug 2026, which is what triggered the handover.
-- **The pen passes; it never lapses (Eugene, 13 Aug 2026).** The rule as first written said to ask
-  Eugene when the named session is gone, and that is exactly what went wrong: `design IA` finished
+- **The pen passes; it never lapses (13 Aug 2026).** The original handover rule required escalation
+  when the named session was gone, and that is exactly what went wrong: `design IA` finished
   and 4 measured corrections then sat in issue comments where no builder reads them, including a
   wrong number in this file that others were budgeting against. So **if the named session is not in
   your live list, you may take the pen**: name yourself here in the same commit as your edit, and
@@ -823,7 +828,7 @@ whole files and replaces whole sets.
    estimate from it, on the reasoning that the 2 now do the same work over the same documents, and
    the next publish is what turns it into a measurement (§9.9).
 
-**The cycle runs daily, unattended (Eugene, 23 Sep 2026,
+**The cycle runs daily, unattended (23 Sep 2026,
 [#2344](https://github.com/alethical-org/alethical/issues/2344), D3).**
 `.github/workflows/campaign-money-refresh.yml` runs `scripts/refresh_campaign_finance.py`
 at 15:30 UTC, after 8 a.m. Central, which is when Minnesota Statutes 10A.20 subd. 1b
@@ -886,10 +891,39 @@ Routine catalogue scans include all filer kinds so candidate and party-unit amen
 markers are included. Notices and statement details remain separate from campaign totals.
 
 
-**Related files release together.** Contributions, general expenditures, independent
-expenditures and the reports that cover the same period form one release. Files fetched on
-different days must never be shown together, or a committee's spending will be from a
-different day than its income.
+**Each checked payment file updates independently (approved; implementation pending).**
+Contributions, general expenditures and independent expenditures each replace their
+complete accepted file after that file passes its own checks. A held replacement keeps
+the previous file and its date; it does not block another file that passes. No row merging,
+automatic deduplication or unexplained-loss exception follows from this approval. The
+shipped collector still releases all 3 together until the following contract is built
+and verified; [issue 2504](https://github.com/alethical-org/alethical/issues/2504) owns
+that change.
+
+Each release retains the exact accepted file identity, source-copy receipt and paired
+totals snapshot for each of its 3 slots. A request resolves that release once, preserving
+the consistent-view rule above. Each displayed section uses its own input's copy date;
+a shared date is allowed only when its scope and dates agree. A slot's date means the
+most recent complete, successful, validated read of the expected Board file whose parsed
+`record_set_hash` matches its accepted records. Zero parsing errors and the retained read
+receipt are required. Reordered source bytes do not imply changed records; first creation,
+approval time and a rejected replacement do not renew the carried file's date.
+
+Any comparison or derived figure must identify its exact input versions and prove
+compatible reporting coverage. Otherwise it stays withheld. Pairing with totals,
+verification results, pending rechecks and saved-page clearing follow the relevant file,
+not the newest unrelated slot. An incident remains open while any required file or
+follow-up is unresolved. Replaying a rejected file changes neither its accepted rows nor
+their date. Rollback restores all slot identities, dates and pairings exactly; pruning
+keeps every file still named by the live or rollback release.
+
+Acceptance includes mixed-date and held-file cases across committee and legislator
+pages, races, the money landing page, search groups, outside spending, lobbying evidence,
+large-contribution comparisons, TV-ad links, leadership metrics, register counts,
+homepage facts, exports and source-dependent research notices. Inventory every consumer
+that reads multiple files; test its compatibility check and source dates. A successful
+file publication does not finish recovery until its required checks and public pages
+are current. These conditions must pass before independent publication is enabled.
 
 **The derived comparison is drawn only from a checked pair of generations.** The filed
 totals (`cf_filing_snapshot`, pointed to by `cf_filing_current`) and the payment files
@@ -958,7 +992,7 @@ A snapshot must pass all of these:
   degrading it.
 
 **A published year that loses more than the larger of 1% or 25 rows blocks publication, and
-nothing about why the rows went changes that (Eugene, 23 Sep 2026, after Codex's review,
+nothing about why the rows went changes that (23 Sep 2026,
 [#2344](https://github.com/alethical-org/alethical/issues/2344)).** What the loader adds for a
 person is a 3-bin table, printed with the failed check and stored with the quarantined snapshot:
 every vanished row, compared on all of its stored fields with exact decimals and untrimmed
@@ -989,7 +1023,7 @@ unchanged from that release. A passed check records a sentence that is true of a
 the sentence written for its failure. The same shape governs the totals
 loader (`--publish-hash`, `--publish-stored-hash`, `--waive check[:registration/year]`,
 `--decision`), where a lost filer-year is waived by its exact pair and, once waived, is retained
-rather than dropped (§4.4). **Granting the exception is the operator's own call once the evidence explains every failed guard (Eugene, 23 Sep 2026)**: the swap is reversible, the previous set is kept and 1 command restores it, so an explained guard is a judgement to record and act on, never a question to hand up. A guard nobody can explain from evidence is the one that waits for a person who can. **A committee-year a person
+rather than dropped (§4.4). **Granting the exception is the operator's own call once the evidence explains every failed guard (23 Sep 2026)**: the swap is reversible, the previous set is kept and 1 command restores it, so an explained guard is a judgement to record and act on, never a question to hand up. A guard nobody can explain from evidence is the one that waits for a person who can. **A committee-year a person
 has waived on the published release, its split already withheld, is carried forward by the next
 comparison rather than failed again**: the daily job's first run (24 Sep 2026) quarantined every
 payments file on exactly the 6 committee-years waived the night before, and would have every day
@@ -1018,7 +1052,7 @@ decisions into three kinds and never mix them:
   never a hidden edit to an official row.
 
 **One imported thing does survive replacement, and it is the source's, not ours: a committee
-the Board's current register no longer lists (Eugene, 23 Sep 2026,
+the Board's current register no longer lists (23 Sep 2026,
 [#2344](https://github.com/alethical-org/alethical/issues/2344)).** The register rebuilds from
 the Board's 3 current lists on every run, and a terminated committee drops off those lists
 rather than staying on them with a date: 15 published committees were absent from the lists on
@@ -1050,7 +1084,11 @@ the newest figures we hold for each waived pair into the new snapshot with `cf_f
 holds the response, which is where `archive_line` points). Provenance is per committee-year,
 because one committee can carry a 2026 figure read on 12 Aug beside 2024 and 2025 figures read on
 23 Sep, and a committee-wide date would misdate one of them; `filings_copied_at(db, registration,
-year)` prints the row's own date. A retained pair the Board still serves nothing for is carried
+year)` prints the row's own date. Legislator responses carry that exact date for
+each displayed committee-year too. The legislator tab shares one date only when all
+displayed committee dates match in Minnesota time; otherwise each committee carries
+its own date beside its figures. An unknown date never borrows the snapshot's date,
+and a withheld committee association never contributes a visible date. A retained pair the Board still serves nothing for is carried
 forward on later refreshes without a new waiver and is never "lost" again; the moment the Board
 serves figures, the fresh ones replace the copy. `--restore-filer-years 19448/2026 --decision ...`
 is the one-time forward correction for a pair dropped before this existed: it copies the newest
@@ -1429,8 +1467,7 @@ internal inconsistency, and the useful form is a re-check against a download the
 replaced. Measured on 31 Aug 2026, the first time anything looked: all 242 links agreed with both
 sources, against the download they were decided from.
 
-**The reviewer of record is `Alethical, LLC`, not the individual who typed the keystroke (Eugene,
-31 Aug 2026).** A person still answers every question, and `reviewed_by` is still `NOT NULL` with
+**The reviewer of record is `Alethical, LLC`, not the individual who typed the keystroke (31 Aug 2026).** A person still answers every question, and `reviewed_by` is still `NOT NULL` with
 no default, so an unsigned decision still cannot exist. What changed is who the signature names:
 the company is the entity accountable for the match, and it is the entity a reader is told checked
 it, so the stored words and the published words are the same. Two consequences, both accepted. The
@@ -2068,7 +2105,7 @@ and the caucus later gave a candidate $5,000 are two documented facts. That the 
 travelled is not a fact and no filing establishes it. Show each transfer with its own amount,
 date and source. A network view may show the shape; it may not imply continuation.
 
-**The legislator money tab, redrawn (Eugene, 12 Sep 2026;
+**The legislator money tab, redrawn (12 Sep 2026;
 [#2140](https://github.com/alethical-org/alethical/issues/2140)).** Every rule above still binds
 it. These are the rules the redesign adds, each with the reason it exists.
 
@@ -2083,7 +2120,7 @@ it. These are the rules the redesign adds, each with the reason it exists.
   Expenditures.** A gift from another candidate's committee sits under Committees & Funds with the
   state's words "Candidate committee" on its row, so the row keeps the filed kind. A sixth tab
   appears only for rows the state marks Self, Other, Unknown or blank. Every row lands in exactly 1
-  tab. **The order never follows the figures** (Eugene, 16 Sep 2026): a tab holding nothing keeps
+  tab. **The order never follows the figures** (16 Sep 2026): a tab holding nothing keeps
   its place, so Lobbyists sits second on a member no lobbyist gave to, reading `Lobbyists 0`.
   When all itemized lists are successfully loaded and empty, the entire browser is replaced
   by one plain empty-state sentence, without empty search, sort or zero-total controls.
@@ -2164,6 +2201,11 @@ only.
   and re-reads held notice and statement PDFs weekly to detect corrections.
   `.github/workflows/campaign-money-notices.yml` remains a manual recovery route.
   Both collectors share the campaign writer lease and defer while another copy is running.
+- **Notice ordering.** Newer contribution dates come first. Within the same contribution
+  date, known Board received dates come first, newest first, followed by missing dates.
+  Amount descending and then the opaque notice ID descending break ties consistently;
+  the ID does not imply chronology. A missing received date remains missing in the
+  response and display, never a substituted date.
 - **Covered years.** The card draws only for a year some completed copy of the list covers. A year
   outside every copy, a party unit, and a filer with no window draw no card at all, never an empty
   one.
@@ -2180,6 +2222,14 @@ only.
   of the latest report this filer has filed in our copy of the catalogue is known and the gift is
   dated after it; the page then prints that date. `no_exact_match` for every other notice, which
   names no cause and never says the gift is missing.
+- **Matched-payment action.** The notice control opens and focuses a payment within the
+  current screen, so it is a native button supporting Enter and Space. Keep the visible
+  sentence and existing arrow layout. The action label and arrow use the neutral color
+  in [design-principles.md](../design/design-principles.md); official PDF links remain green
+  destination links. The accessible name starts with the exact visible sentence, followed
+  by the existing date-and-contributor instruction, with a period after each sentence.
+  This preserves the words needed for voice activation under
+  [WCAG 2.5.3](https://www.w3.org/WAI/WCAG22/Understanding/label-in-name.html).
 - **Amendments.** The catalogue's amendment marker for a notice file above 0 marks it amended; the
   row shows the latest filing with its earlier value kept readable on the record.
 - **A disclosure statement** is filed by an unregistered association giving to an
@@ -2237,7 +2287,7 @@ contract is in
 [published-writing-decisions.md](published-writing-decisions.md).
 
 - **The masthead sits above the first claim** and names 2 things: the publication date and the
-  date its records run through (Eugene, 20 Aug 2026). Authorship and the filing bodies moved into
+  date its records run through (20 Aug 2026). Authorship and the filing bodies moved into
   the report itself — the site is the author, and the sources block names every body used. The
   known cost: a reader arriving from a search engine no longer sees which filing bodies the page
   used until they reach the sources block.
@@ -2248,7 +2298,7 @@ contract is in
 - **A report is a snapshot of its records-through date, never silently edited.** When the Board
   holds filings newer than that date, the page carries a dated newer-data notice. When a figure
   itself is corrected, the text is updated to the corrected figure and the wrong one is gone
-  (Eugene, 25 Aug 2026); a dated correction note at the top says what changed, and it leaves
+  (25 Aug 2026); a dated correction note at the top says what changed, and it leaves
   the page's metadata entirely so a stale number cannot travel in a preview or a search result.
 - **Share previews carry the title and the two dates only** — never a claim, never a derived
   label. **Ordinary search-engine snippets of the body stay on**, never suppressed: a snippet always
@@ -2289,7 +2339,7 @@ for a rule somebody needs while doing arithmetic 3 months from now.
 
 **The under-development strip is a statement about the whole money section, so it stays on
 every money surface until lobbying ships and then comes off all of them in one release
-(Eugene, 13 Sep 2026).** Its sentence names a gap the section still has, so a page that drops
+(13 Sep 2026).** Its sentence names a gap the section still has, so a page that drops
 it while its siblings keep it makes the section say 2 different things about itself.
 `apps/frontend/src/components/campaignMoney/UnderDevelopmentNotice.tsx` carries the mechanics:
 deleting that file and its call sites is the whole removal, and it has no dismiss control, flag
@@ -3195,8 +3245,7 @@ Recorded as not run, never as passed:
   18488's, not two**, and HRCC's contribution shortfall of $5,250.00 still stands as the
   pre-amendment cause. Verified independently 31 Aug 2026 before landing; the withdrawal is written
   out rather than deleted because the figure was published to 4 issues. **No reader saw it** — the
-  figure appears nowhere in `apps/frontend/src`. That one gap needs the Board itself and sits with
-  Eugene. Those two samples establish that the comparison works and the documents
+  figure appears nowhere in `apps/frontend/src`. That gap requires clarification from the Board. Those two samples establish that the comparison works and the documents
   are there; they do **not** establish a failure rate for either kind, and HRCC is one hit rather than
   a measured rate. ~~The check has not run for any year before 2025, nor for any filer outside those
   samples~~ — **it has since run across every committee-year of 2024, 2025 and 2026**, which is the
@@ -3205,8 +3254,8 @@ Recorded as not run, never as passed:
   ([#1650](https://github.com/alethical-org/alethical/issues/1650)). **And the 4th filer's gap is no
   longer particular to one committee**: filer 18488's missing 2 years are 1 of 5 instances of the
   whole-filer-year skip §2.1 measures. What no session can establish is **why** the Board's export
-  behaves any of these ways, and Eugene ruled on 12 Aug 2026 that we show both figures and say they
-  disagree rather than chase it.
+  behaves any of these ways, and the 12 Aug 2026 decision is to show both figures and state the
+  disagreement rather than delay publication for that explanation.
 - ~~**The stated-split comparison has run for 2025 only.**~~ **Run for 2024, 2025 and 2026 since**,
   and the count it produces is 5 times the one this document and 2 code comments carried
   ([#1496](https://github.com/alethical-org/alethical/issues/1496), 18 Aug 2026). Against the live
@@ -3287,3 +3336,25 @@ Recorded as not run, never as passed:
 Codex reviewed this section adversarially before it was committed and could not reach
 cfb.mn.gov from its own environment, so its objections about rate limits, blocking and current
 response contents are unverified by it as well as by us.
+
+## 10. TV ad records: where their decisions live
+
+TV ad records are the station political files Alethical copies from the Federal
+Communications Commission's public file website for KSTP-TV, KARE and KMSP-TV. They sit
+beside the campaign-finance records this document describes and connect to them only
+through checked connections (a checked committee, candidate, election, lobbying principal
+or reported expense). This document does not repeat their rules. 3 documents own them:
+
+- [tv-ad-records-guide.md](../product-onboarding/tv-ad-records-guide.md) owns what an
+  administrator sees and can do: who can reach the section (signed-in administrators
+  only; everyone else gets the existing not-found page), the counts and what they mean,
+  the file, folder, agency and station pages, the connection cards on money pages, and
+  how review works.
+- [fcc-political-files.md](../implementation/fcc-political-files.md) owns how the files
+  are collected, stored, backed up and read by machine, and what each collection run
+  checks.
+- [backend-api-system-design.md, "Private TV ad records and review"](backend-api-system-design.md#private-tv-ad-records-and-review)
+  owns the private reader and review interfaces, their response allowlists and the
+  separation between administrator access to held originals and approved publication
+  copies.
+
