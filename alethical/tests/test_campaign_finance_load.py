@@ -29,6 +29,7 @@ Needs the local Postgres on port 54329.
 from __future__ import annotations
 
 import re
+import copy
 
 import hashlib
 import threading
@@ -297,6 +298,7 @@ CF_FILING_TABLES = (
 
 def _clear(session) -> None:
     session.rollback()
+    session.execute(text("DELETE FROM cf_refresh_state WHERE key != 'full_run_lease'"))
     session.execute(text("UPDATE cf_current_release SET release_id = NULL"))
     session.execute(text("DELETE FROM cf_release"))
     for table in CF_TABLES:
@@ -623,7 +625,9 @@ def test_every_row_carries_its_date_and_a_traceable_record_number(
 # --- Running it twice -------------------------------------------------------
 
 
-def test_running_the_same_import_twice_changes_nothing(db, board, store) -> None:
+def test_running_the_same_import_twice_reconfirms_dates_without_changing_rows(
+    db, board, store
+) -> None:
     """The whole point of replacing sets rather than merging rows.
 
     What may grow is the record of *what we checked and when*: a second run adds one
@@ -634,12 +638,12 @@ def test_running_the_same_import_twice_changes_nothing(db, board, store) -> None
     before = _published_state(db)
 
     second = run(db, board, store)
-    assert second.no_change
-    assert not second.published
-    assert second.release_id is None
+    assert second.published
+    assert not second.requires_recheck
+    assert second.release_id != first.release_id
 
-    assert _published_state(db) == before
-    assert live(db).id == first.release_id
+    assert {**_published_state(db), "release": before["release"]} == before
+    assert live(db).id != first.release_id
     snapshots = db.scalars(select(models.CampaignFinanceSnapshot)).all()
     assert len(snapshots) == 3
     observations = db.scalars(select(models.CampaignFinanceFetchObservation)).all()
@@ -652,7 +656,7 @@ def test_running_the_same_import_twice_changes_nothing(db, board, store) -> None
     ]
 
 
-def test_the_same_records_in_a_different_order_are_not_a_new_release(
+def test_the_same_records_in_a_different_order_reconfirm_without_new_rows(
     db, board, store
 ) -> None:
     """The Board's export shuffles, and this is the test that stops it costing us.
@@ -671,10 +675,10 @@ def test_the_same_records_in_a_different_order_are_not_a_new_release(
     board.set_rows(Dataset.contributions, list(reversed(CONTRIBUTION_ROWS)))
     shuffled = run(db, board, store)
 
-    assert shuffled.no_change
-    assert not shuffled.published
-    assert live(db).id == first.release_id
-    assert _published_state(db) == before
+    assert shuffled.published
+    assert not shuffled.requires_recheck
+    assert live(db).id != first.release_id
+    assert {**_published_state(db), "release": before["release"]} == before
     # One snapshot per dataset still, and no second copy of the same records in the
     # store: what is kept is one body per distinct record set, not per download.
     assert len(db.scalars(select(models.CampaignFinanceSnapshot)).all()) == 3
@@ -819,13 +823,16 @@ def test_a_truncated_download_is_kept_quarantined_and_the_previous_set_stays_liv
     report = run(db, board, store)
 
     assert report.refusal is not None
-    assert not report.published
+    assert report.published
+    assert Dataset.contributions in [
+        outcome.spec.dataset for outcome in report.quarantined
+    ]
     assert [outcome.spec.key for outcome in report.quarantined] == ["contributions"]
     failed = {check.name for outcome in report.quarantined for check in outcome.blocked}
     assert "row_count_within_band" in failed
 
-    assert live(db).id == first.release_id
-    assert _published_state(db) == before
+    assert live(db).id != first.release_id
+    assert {**_published_state(db), "release": before["release"]} == before
 
     truncated = db.scalars(
         select(models.CampaignFinanceSnapshot).where(
@@ -1195,6 +1202,8 @@ def test_publishing_refuses_a_candidate_older_than_the_live_release(
     # had started before the live release's did.
     staged = run(db, board, store)
     assert staged.published
+    # Recency belongs to the candidate's own file, not an unrelated release window.
+    staged.outcomes[0].fetched.started_at -= timedelta(hours=1)
     with pytest.raises(cf.CampaignFinanceRefusal) as refusal:
         cf.publish(
             db,
@@ -1204,7 +1213,7 @@ def test_publishing_refuses_a_candidate_older_than_the_live_release(
             ingestion_run_id=None,
             notes=None,
         )
-    assert "older data" in str(refusal.value)
+    assert "accepted file was fetched after this candidate" in str(refusal.value)
 
 
 # --- The checks that read Minnesota's own figures -----------------------------
@@ -1711,7 +1720,7 @@ def test_a_published_set_says_what_it_has_not_been_compared_with(
     seed_filings_snapshot(db, reported={("19200", 2025): "2000.00"})
     report = publish_first(db, board, store)
     line = report.reconciliation_line()
-    assert line.startswith("reconciled against Minnesota's own figures")
+    assert line.startswith("compared against Minnesota's own figures")
     assert "#1433" in line
     assert "SHORT" in line
     assert line in report.summary()
@@ -1953,7 +1962,9 @@ def test_a_truncated_export_with_repeated_rows_still_blocks_and_the_table_says_w
     board.set_rows(Dataset.expenditures, distinct)
     report = run(db, board, store)
 
-    assert report.refusal is not None and not report.published
+    assert report.refusal is not None and Dataset.expenditures in [
+        outcome.spec.dataset for outcome in report.quarantined
+    ]
     check = _row_loss_check(report)
     assert check.status == "failed"
     assert "2024 fell from 60 rows to 30" in check.detail
@@ -2009,7 +2020,9 @@ def test_a_same_date_same_amount_collision_pairs_one_to_one_and_still_blocks(
     board.set_rows(Dataset.expenditures, merged)
     report = run(db, board, store)
 
-    assert report.refusal is not None and not report.published
+    assert report.refusal is not None and Dataset.expenditures in [
+        outcome.spec.dataset for outcome in report.quarantined
+    ]
     check = _row_loss_check(report)
     assert check.status == "failed"
     assert "2024 fell from 60 rows to 30" in check.detail
@@ -2041,7 +2054,9 @@ def test_a_changed_payment_type_is_a_changed_row_and_still_blocks(
     board.set_rows(Dataset.expenditures, retyped)
     report = run(db, board, store)
 
-    assert report.refusal is not None and not report.published
+    assert report.refusal is not None and Dataset.expenditures in [
+        outcome.spec.dataset for outcome in report.quarantined
+    ]
     check = _row_loss_check(report)
     assert check.status == "failed"
     assert "0 fewer identical copies, 30 possible replacements, 30 unmatched" in (
@@ -2060,7 +2075,9 @@ def test_a_loss_concentrated_in_one_small_committee_is_unmatched_and_still_block
     board.set_rows(Dataset.expenditures, big)
     report = run(db, board, store)
 
-    assert report.refusal is not None and not report.published
+    assert report.refusal is not None and Dataset.expenditures in [
+        outcome.spec.dataset for outcome in report.quarantined
+    ]
     check = _row_loss_check(report)
     assert check.status == "failed"
     table = check.investigation or ""
@@ -2195,7 +2212,9 @@ def test_a_waiver_for_the_wrong_year_does_not_waive_a_row_loss(
         for key in failed_comparison_waivers(blocked)
     ]
     still = run(db, board, store, publish_hashes=hashes, waive=waivers, decision="t")
-    assert not still.published
+    assert Dataset.expenditures in [
+        outcome.spec.dataset for outcome in still.quarantined
+    ]
     check = _row_loss_check(still)
     assert check.status == "failed"
     assert "Not waived: expenditures/no_published_year_lost_rows:2024" in check.detail
@@ -2219,7 +2238,9 @@ def test_a_waiver_never_covers_a_check_it_does_not_name(db, board, store) -> Non
         waive=["expenditures/no_published_year_lost_rows:2024"],
         decision="t",
     )
-    assert not only_loss.published
+    assert Dataset.expenditures in [
+        outcome.spec.dataset for outcome in only_loss.quarantined
+    ]
     names = {check.name for o in only_loss.quarantined for check in o.blocked}
     assert "row_count_within_band" in names
     assert "no_published_year_lost_rows" not in names
@@ -2372,8 +2393,15 @@ def test_changed_itemized_amount_cannot_reuse_a_previous_reconcile_waiver(
     new_pair = check.figures["19200:2025"]
     assert check.status == "failed", check.detail
     assert check.blocks_publication
-    assert not changed.published
-    assert cf.live_release(db).id == published.release_id
+    assert Dataset.contributions in [
+        outcome.spec.dataset for outcome in changed.quarantined
+    ]
+    assert (
+        cf.live_release(db).contributions_snapshot_id
+        == db.get(
+            models.CampaignFinanceRelease, published.release_id
+        ).contributions_snapshot_id
+    )
     assert new_pair["reported"] == old_pair["reported"] == "1500.00"
     assert Decimal(new_pair["ours"]) == Decimal(old_pair["ours"]) + delta
     assert f"then {old_pair['ours']} against 1500.00" in check.detail
@@ -2433,7 +2461,9 @@ def test_a_reconcile_committee_year_waived_on_the_published_release_is_carried_n
     assert "waived on the published release against different figures" in check.detail
     assert f"then {ours_then} against 1500.00" in check.detail
     assert f"now {ours_then} against 1400.00" in check.detail
-    assert not moved.published
+    assert Dataset.contributions in [
+        outcome.spec.dataset for outcome in moved.quarantined
+    ]
     seed_filings_snapshot(db, reported={("19200", 2025): "1500.00"})
 
     # A release that recorded the pair without its figures says nothing about what was
@@ -2442,7 +2472,10 @@ def test_a_reconcile_committee_year_waived_on_the_published_release_is_carried_n
     for entry in checks:
         if entry["name"] == "reported_totals_reconcile":
             entry.pop("figures")
-    snapshot.validation_json = {"checks": checks}
+    accepted_release = live(db)
+    manifest = copy.deepcopy(accepted_release.file_manifest)
+    manifest["contributions"]["checks"] = copy.deepcopy(checks)
+    accepted_release.file_manifest = manifest
     db.commit()
     rows.append(
         '40858,"Libertarian Party of Minnesota",PTU,,30.0000,2025-04-07,2025,'
@@ -2453,11 +2486,15 @@ def test_a_reconcile_committee_year_waived_on_the_published_release_is_carried_n
     check = contributions_checks(unrecorded)["reported_totals_reconcile"]
     assert check.status == "failed", check.detail
     assert "waived with no figures recorded" in check.detail
-    assert not unrecorded.published
+    assert Dataset.contributions in [
+        outcome.spec.dataset for outcome in unrecorded.quarantined
+    ]
     for entry in checks:
         if entry["name"] == "reported_totals_reconcile":
             entry["figures"] = figures
-    snapshot.validation_json = {"checks": checks}
+    manifest = copy.deepcopy(live(db).file_manifest)
+    manifest["contributions"]["checks"] = copy.deepcopy(checks)
+    live(db).file_manifest = manifest
     db.commit()
 
     # A NEW committee-year over its reported figure still fails, naming only the new
@@ -2491,3 +2528,97 @@ def test_a_reconcile_committee_year_waived_on_the_published_release_is_carried_n
     check = contributions_checks(waived)["reported_totals_reconcile"]
     assert check.status == "overridden"
     assert set(check.filer_years) == {"40858:2025", "19200:2025"}
+
+
+def test_publication_crash_before_pruning_keeps_retry_work(
+    db, board, store, monkeypatch
+):
+    from alethical.pipeline import campaign_finance_refresh as refresh
+    from alethical.pipeline.campaign_finance_recheck import RecheckReport, CheckOutcome
+
+    publish_first(db, board, store)
+    refresh.state_update(
+        db, delete_keys=[refresh.CLEARING_PENDING_KEY, refresh.RECHECK_PENDING_KEY]
+    )
+    rows = list(CONTRIBUTION_ROWS)
+    rows[0] = rows[0].replace("Retired", "Teacher")
+    board.set_rows(Dataset.contributions, rows)
+    original_prune = cf.prune
+
+    def interrupted(*args, **kwargs):
+        raise RuntimeError("stopped immediately after publish commit")
+
+    monkeypatch.setattr(cf, "prune", interrupted)
+    with pytest.raises(RuntimeError, match="immediately after publish commit"):
+        run(db, board, store)
+    db.rollback()
+    live = refresh.live_versions(db)
+    assert (
+        refresh.state_get(db, refresh.RECHECK_PENDING_KEY)["payments_release_id"]
+        == live.payments_release_id
+    )
+    assert refresh.state_get(db, refresh.CLEARING_PENDING_KEY)
+    monkeypatch.setattr(cf, "prune", original_prune)
+    accepted_ids = tuple(
+        getattr(cf.live_release(db), column)
+        for column in cf.RELEASE_SNAPSHOT_COLUMN.values()
+    )
+    before_rows = tuple(
+        db.execute(
+            text(f"SELECT count(*) FROM {table} WHERE snapshot_id = :snapshot"),
+            {"snapshot": snapshot},
+        ).scalar_one()
+        for table, snapshot in zip(CF_TABLES[:3], accepted_ids)
+    )
+    owed = refresh.state_get(db, refresh.RECHECK_PENDING_KEY)
+    again = run(db, board, store)
+    # An identical complete reread renews only the copy date: it publishes, owes no
+    # new check, and keeps the original check owed by the interrupted publication.
+    assert again.published and not again.requires_recheck
+    assert (
+        tuple(
+            getattr(cf.live_release(db), column)
+            for column in cf.RELEASE_SNAPSHOT_COLUMN.values()
+        )
+        == accepted_ids
+    )
+    assert (
+        tuple(
+            db.execute(
+                text(f"SELECT count(*) FROM {table} WHERE snapshot_id = :snapshot"),
+                {"snapshot": snapshot},
+            ).scalar_one()
+            for table, snapshot in zip(CF_TABLES[:3], accepted_ids)
+        )
+        == before_rows
+    )
+    kept = refresh.state_get(db, refresh.RECHECK_PENDING_KEY)
+    assert kept["payments_release_id"] == refresh.live_versions(db).payments_release_id
+    assert kept["pending_files"] == owed["pending_files"]
+    assert kept["after"] == owed["after"]
+    for dataset, owed_file in owed["payment_files"].items():
+        # Same exact file and checks; only the renewed copy's receipt and dates move.
+        assert kept["payment_files"][dataset]["snapshot_id"] == owed_file["snapshot_id"]
+        assert kept["payment_files"][dataset]["checks"] == owed_file["checks"]
+    clears, checks = [], []
+
+    def recheck(*args, **kwargs):
+        checks.append(True)
+        return RecheckReport(
+            years=refresh.recheck_years(),
+            outcomes=[
+                CheckOutcome(name="money in", verdicts=1),
+                CheckOutcome(name="money out", verdicts=1),
+            ],
+        )
+
+    result = refresh.finish_manual_publication(
+        db,
+        refresh.when_a_money_download_release_lands(),
+        published=False,
+        clear=lambda clearing, **kw: clears.append(clearing.event),
+        recheck=recheck,
+    )
+    assert result.ok and checks == [True] and clears
+    assert refresh.state_get(db, refresh.RECHECK_PENDING_KEY) is None
+    assert refresh.state_get(db, refresh.CLEARING_PENDING_KEY) is None

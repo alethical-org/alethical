@@ -143,6 +143,9 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [How a legislator is matched to their campaign account](operations/how-a-legislator-is-matched-to-their-campaign-account.md) — the public audit record of the one decision no machine may make: what we claim, the 3 pieces of evidence a person reads, who signs, how a wrong match surfaces, how to challenge one, and where all 200 sitting members stand today
 - [Public-record updates: coverage and recovery](operations/public-record-refresh-status.md) — source freshness gaps, immediate state-money recovery and shared update acceptance
 - [What runs, when, and what it costs](operations/jobs-and-scripts.md) — every GitHub workflow, command-line tool, and job-driven AI cost
+- [Independent public-record wakeups](operations/source-refresh-dispatch.md) — saved deadlines, the restricted GitHub App and activation checks
+- [Supporting source checks](operations/supporting-source-checks.md) — candidate, district-map, ZIP and cited-source checks and review limits
+- [Automatic public-record updates](implementation/sitewide-record-refresh.md) — source coverage, authorization, review holds and release evidence
 - [Copying the Board's lobbying files](operations/lobbying-source-import.md) — the paired import, contact-field exclusion, link checks and rollback
 - [Offline name-search comparison](operations/name-search-offline-benchmark.md) — how to compare name-search behavior without changing public results
 - [Private Forward Debate replay](operations/forward-debate-replay-preview.md): preview, media handoff, checks and publication boundary
@@ -185,6 +188,7 @@ lasting decisions and release evidence have their permanent homes.
 - [Candidate profile records and profile claim review](implementation/candidate-profile-records-plan.md) — approved public history, campaign access, administrator review and release checks
 - [Private account activation](implementation/admin-users-plan.md) — approved account access and the remaining administrator activation
 - [Campaign-finance history refresh](implementation/campaign-finance-history-refresh.md) — source-replacement boundaries, failed-source handling and saved recovery evidence
+- [Independent payment-file updates](implementation/independent-payment-files.md) — each file's accepted source proof and date, bounded checks, rollback order and retained source records
 - [TV ad records guide](product-onboarding/tv-ad-records-guide.md) — private reader routes, reviewed evidence, counts, version history and administrator review tools
 - [FCC political-file archive](implementation/fcc-political-files.md) — station source addresses, collection and refresh steps, private storage, recovery, searchable readings and the private TV records review boundary
 - [Legislator campaign-money delivery](implementation/legislator-campaign-money-tab-plan.md) — coordinated releases, outstanding decisions and held data work

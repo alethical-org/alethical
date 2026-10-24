@@ -60,6 +60,11 @@ from sqlalchemy.orm import Session
 from alethical.db.models import CampaignFinanceFilerKind as FilerKind
 from alethical.db.models import CampaignFinanceStatedSpendingStatus as Status
 from alethical.pipeline import campaign_finance_reader as reader
+from alethical.pipeline.campaign_finance_check_identity import (
+    READER_PREDICATE,
+    reader_identity,
+    stage_reader_identity,
+)
 from alethical.pipeline.campaign_finance_report_document_store import DocumentLibrary
 from alethical.pipeline.campaign_finance_report_documents import (
     TOLERANCE,
@@ -630,6 +635,13 @@ def run_stated_spending_check(
             "to prove this reader against. Run "
             "scripts/load_campaign_finance_filings.py first."
         )
+    if (
+        release.expenditures.checks is not None
+        and release.paired_filings(reader.Dataset.expenditures) != snapshot
+    ):
+        raise RuntimeError(
+            "expenditures is not paired with the current totals; its comparison stays withheld until a complete accepted source read"
+        )
     # Checked here rather than discovered at the end, for the reason the money-in check
     # learned the hard way: the first write is the last thing this does, so a missing
     # table threw a whole run away.
@@ -651,6 +663,10 @@ def run_stated_spending_check(
         for target in targets(db, release, snapshot, years)
         if wanted is None or target.registration_number in wanted
     ]
+    if not population:
+        raise RuntimeError(
+            "no complete target population was established; the file's check remains pending"
+        )
     if progress:
         progress(
             f"{len(population):,} committee-years to check across "
@@ -698,6 +714,8 @@ def store_verdicts(
     published *now*. Two verdicts for one committee-year would leave a page choosing
     between them, and the older one is always the wrong choice.
     """
+    proof = reader_identity()
+    stage_reader_identity(db, proof)
     written = 0
     for verdict in verdicts:
         db.execute(
@@ -706,13 +724,13 @@ def store_verdicts(
                 "  snapshot_id, registration_number, filing_year, filings_snapshot_id,"
                 "  status, reason, self_test, report_type, amendment_index,"
                 "  cut_off_date, document_hash, document_byte_size, stated_itemized,"
-                "  stated_itemized_paid, stated_non_itemized, ours_itemized, checked_at"
+                "  stated_itemized_paid, stated_non_itemized, ours_itemized, checked_at, reader_identity"
                 ") VALUES ("
                 "  :snapshot_id, :registration_number, :filing_year,"
                 "  :filings_snapshot_id, :status, :reason, :self_test, :report_type,"
                 "  :amendment_index, :cut_off_date, :document_hash,"
                 "  :document_byte_size, :stated_itemized, :stated_itemized_paid,"
-                "  :stated_non_itemized, :ours_itemized, :checked_at"
+                "  :stated_non_itemized, :ours_itemized, :checked_at, :reader_identity"
                 ") ON CONFLICT (snapshot_id, registration_number, filing_year) "
                 "DO UPDATE SET"
                 "  filings_snapshot_id = EXCLUDED.filings_snapshot_id,"
@@ -727,7 +745,7 @@ def store_verdicts(
                 "  stated_itemized_paid = EXCLUDED.stated_itemized_paid,"
                 "  stated_non_itemized = EXCLUDED.stated_non_itemized,"
                 "  ours_itemized = EXCLUDED.ours_itemized,"
-                "  checked_at = EXCLUDED.checked_at"
+                "  checked_at = EXCLUDED.checked_at, reader_identity = EXCLUDED.reader_identity"
             ),
             {
                 "snapshot_id": expenditures_snapshot_id,
@@ -747,6 +765,7 @@ def store_verdicts(
                 "stated_non_itemized": verdict.stated_non_itemized,
                 "ours_itemized": verdict.ours_itemized,
                 "checked_at": datetime.now(UTC),
+                "reader_identity": proof,
             },
         )
         written += 1
@@ -803,7 +822,8 @@ def stated_spending_coverage(
         text(
             "SELECT status, count(*), max(checked_at) FROM cf_stated_spending "
             " WHERE snapshot_id = :snapshot AND filings_snapshot_id = "
-            "(SELECT snapshot_id FROM cf_filing_current WHERE id IS TRUE) GROUP BY status"
+            "(SELECT snapshot_id FROM cf_filing_current WHERE id IS TRUE) "
+            f"AND {READER_PREDICATE} GROUP BY status"
         ),
         {"snapshot": expenditures_snapshot_id},
     ).all()

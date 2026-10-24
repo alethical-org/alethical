@@ -163,7 +163,6 @@ def current_legislator_rows(db: Session, session_id: Any) -> list[tuple[Any, Any
         .where(
             LegislatorServicePeriod.session_id == session_id,
             LegislatorServicePeriod.is_current.is_(True),
-            LegislatorServicePeriod.profile_url.is_not(None),
         )
         .order_by(Chamber.slug, Legislator.sort_name)
     ).all()
@@ -171,7 +170,9 @@ def current_legislator_rows(db: Session, session_id: Any) -> list[tuple[Any, Any
     deduped: dict[tuple[Any, str], tuple[Any, Any, str]] = {}
     for legislator, chamber, profile_url in rows:
         if not profile_url:
-            continue
+            raise RuntimeError(
+                "A current member has no profile URL; retaining all saved memberships"
+            )
         deduped[(legislator.id, chamber.slug)] = (legislator, chamber, str(profile_url))
     return list(deduped.values())
 
@@ -291,24 +292,31 @@ def refresh_committee_stats(db: Session, session_id: Any) -> None:
         )
 
 
-def backfill(db: Session, *, dry_run: bool, cleanup_orphans: bool) -> BackfillStats:
+def backfill(
+    db: Session,
+    *,
+    dry_run: bool,
+    cleanup_orphans: bool,
+    source_session: Any | None = None,
+) -> BackfillStats:
     current_session = db.scalar(
         select(LegislativeSession).where(LegislativeSession.is_current.is_(True))
     )
     if current_session is None:
         raise RuntimeError("No current legislative session found")
 
+    # Gather every profile before removing any saved assignment. Missing sections
+    # and empty responses are failed source reads, never evidence of no committees.
     stats = BackfillStats()
-    if cleanup_orphans:
-        stats.orphan_legislators_deleted = cleanup_orphan_legislators(db)
-
-    clear_current_memberships(db, current_session.id)
-
-    sess = requests.Session()
+    collected: list[tuple[Any, Any, list[CommitteeAssignment]]] = []
+    sess = source_session or requests.Session()
     sess.headers.update({"User-Agent": USER_AGENT})
-    for legislator, chamber, profile_url in current_legislator_rows(
-        db, current_session.id
-    ):
+    rows = current_legislator_rows(db, current_session.id)
+    if not rows:
+        raise RuntimeError(
+            "No current member profiles; refusing to clear committee memberships"
+        )
+    for legislator, chamber, profile_url in rows:
         if chamber.slug not in {"house", "senate"}:
             continue
         stats.legislators_seen += 1
@@ -317,7 +325,15 @@ def backfill(db: Session, *, dry_run: bool, cleanup_orphans: bool) -> BackfillSt
         assignments = parse_committee_assignments(html_text, profile_url, chamber.slug)
         if not assignments:
             stats.profiles_without_assignments += 1
-            continue
+            raise RuntimeError(
+                f"No readable committee assignments at {profile_url}; "
+                "retaining all saved memberships for source review"
+            )
+        collected.append((legislator, chamber, assignments))
+    if cleanup_orphans:
+        stats.orphan_legislators_deleted = cleanup_orphan_legislators(db)
+    clear_current_memberships(db, current_session.id)
+    for legislator, chamber, assignments in collected:
         for assignment in assignments:
             if upsert_assignment(
                 db, current_session.id, chamber, legislator, assignment

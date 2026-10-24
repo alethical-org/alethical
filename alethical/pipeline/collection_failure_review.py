@@ -727,7 +727,7 @@ class IssueStore(Protocol):
 
 # --- The run's own summary -------------------------------------------------------------
 
-STAGE_STATUSES = ("published", "unchanged", "failed", "skipped", "dry_run")
+STAGE_STATUSES = ("published", "unchanged", "failed", "pending", "skipped", "dry_run")
 
 
 def parse_summary(raw: bytes) -> Optional[list[dict[str, Any]]]:
@@ -872,7 +872,7 @@ class Outcome:
 def outcome_from(records: Optional[list[dict[str, Any]]]) -> Outcome:
     if records is None:
         return Outcome(found=False)
-    failed = [r for r in records if r["status"] == "failed"]
+    failed = [r for r in records if r["status"] in ("failed", "pending")]
     hashes: dict[str, str] = {}
     for record in records:
         hashes.update(record["source_hashes"])

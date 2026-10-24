@@ -178,6 +178,38 @@ describe('lobbying search groups keep their own counts and proven destinations',
     };
   }
 
+  it('keeps each payment group’s copy date beside that group', async () => {
+    const payload = combinedAnswer();
+    const dates: Record<string, string | null> = {
+      gave: '2026-10-24T18:00:00Z',
+      got_paid: '2026-10-09T18:00:00Z',
+      got_paid_independent: null,
+    };
+    serve({
+      Kozak: {
+        data: {
+          ...payload.data,
+          fetched_at: '2026-10-24T18:00:00Z',
+          groups: payload.data.groups.map((group) => ({ ...group, fetched_at: dates[group.kind] })),
+        },
+      },
+    });
+    const page = openSearchPage('Kozak');
+    await vi.waitFor(async () => {
+      await settle();
+      expect(section(page.host, 'NAMES ON INCOMING PAYMENT RECORDS')).toBeDefined();
+    });
+    const incoming = section(page.host, 'NAMES ON INCOMING PAYMENT RECORDS')!;
+    const spending = section(page.host, 'NAMES ON ORDINARY SPENDING RECORDS')!;
+    const outside = section(page.host, 'NAMES ON INDEPENDENT-SPENDING RECORDS')!;
+    expect(incoming.textContent).toContain('Contributions file copied Oct 24,\u00a02026');
+    expect(incoming.textContent).not.toContain('Oct 9');
+    expect(spending.textContent).toContain('Spending file copied Oct 9,\u00a02026');
+    expect(spending.textContent).not.toContain('Oct 24');
+    expect(outside.textContent).toContain('Outside-spending file copy date unavailable');
+    expect(outside.textContent).not.toContain('Oct 24');
+  });
+
   it('draws the real current registration separately from the 2 payment-name spellings', async () => {
     serve({ Kozak: { data: lobbyingLive.kozak } });
     const page = openSearchPage('Kozak');
@@ -213,7 +245,8 @@ describe('lobbying search groups keep their own counts and proven destinations',
     expect(group.textContent).toContain(
       'Entity 7325 · Latest spending year in these records: 2017',
     );
-    expect(page.words()).toContain('Campaign payment files copied Sep 1, 2026');
+    expect(page.words()).toContain('Contributions file copy date unavailable');
+    expect(page.words()).not.toContain('Campaign payment files copied Sep 1, 2026');
     expect(page.words()).toContain(
       'The copy date is when Alethical obtained the source, not the end date of every filing.',
     );

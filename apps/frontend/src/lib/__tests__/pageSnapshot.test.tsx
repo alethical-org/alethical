@@ -1299,6 +1299,11 @@ describe('the money landing serves the section’s own words and a live count', 
   const snapshot = moneyLandingPageSnapshot({
     registerFilerCount: 1603,
     filesLastCopiedAt: '2026-08-12T02:54:22.402100Z',
+    paymentCopiedAt: {
+      contributions: '2026-08-12T02:54:22.402100Z',
+      expenditures: '2026-08-12T02:54:22.402100Z',
+      independentExpenditures: '2026-08-12T02:54:22.402100Z',
+    },
     registerLastCopiedAt: '2026-08-11T22:10:00Z',
     lobbyingFilesLastCopiedAt: '2026-09-13T18:00:00Z',
     registeredLobbyists: 1665,
@@ -1802,7 +1807,7 @@ describe('a committee’s record in the first response', () => {
       'gave',
     );
     expect(visibleText(renderPageSnapshot(dated))).toContain(
-      'report totals copied Aug 11, 2026. These are copy dates, not reporting periods.',
+      'Report totals copied Aug 11, 2026. This is a copy date, not a reporting period.',
     );
   });
 

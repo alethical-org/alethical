@@ -347,6 +347,7 @@ class FCCClient:
         max_listing_bytes: int = 10 * 1024 * 1024,
         max_file_bytes: int = 100 * 1024 * 1024,
         transport: httpx.BaseTransport | None = None,
+        limiter=None,
     ) -> None:
         if (
             timeout <= 0
@@ -356,6 +357,7 @@ class FCCClient:
             raise ValueError(
                 "FCC request limits must be positive; attempts must be 1 to 5"
             )
+        self.limiter = limiter
         self.attempts = attempts
         self.max_listing_bytes = max_listing_bytes
         self.max_file_bytes = max_file_bytes
@@ -383,6 +385,9 @@ class FCCClient:
             started = time.monotonic()
             try:
                 for _ in range(5):
+                    # A shared-budget wait counts against this request's total time.
+                    if self.limiter is not None:
+                        self.limiter.wait(current)
                     remaining = self.timeout - (time.monotonic() - started)
                     if remaining <= 0:
                         raise FCCFetchError(
@@ -391,6 +396,20 @@ class FCCClient:
                     with self.http.stream(
                         "GET", current, timeout=remaining
                     ) as response:
+                        if self.limiter is not None and response.status_code in {
+                            429,
+                            503,
+                        }:
+                            from alethical.pipeline.request_limits import (
+                                retry_after_seconds,
+                            )
+
+                            self.limiter.defer(
+                                current,
+                                retry_after_seconds(
+                                    response.headers.get("Retry-After")
+                                ),
+                            )
                         if response.is_redirect:
                             location = response.headers.get("location")
                             if location is None:

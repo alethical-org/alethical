@@ -235,7 +235,8 @@ import {
   ZERO_REPORTED_NOTE,
 } from './committeeMoneyShared';
 import { COMMITTEE_PAYMENTS_LINK_LABEL } from './committeeMoneyShared';
-import { paymentFilesDownloadedLine } from './campaignMoneyDetailsPageCopy';
+import { paymentCopyLines, paymentFileCopyLine, paymentSourceCopyLines } from './paymentCopyDates';
+import type { PaymentCopyDates } from '../data/types';
 import {
   emptyListTitle,
   emptyListWhy,
@@ -1455,6 +1456,7 @@ export interface MoneyLandingSnapshotSource {
   registerFilerCount: number | null;
   /** When we last copied the Board's files, as the served instant. */
   filesLastCopiedAt: string | null;
+  paymentCopiedAt?: PaymentCopyDates;
   /** When we last copied the Board's register, report catalogue and official
    *  totals: its own copy, its own date (#2344). */
   registerLastCopiedAt?: string | null;
@@ -1526,9 +1528,7 @@ export function moneyLandingPageSnapshot(
         separated: true,
         body: [
           MONEY_SOURCES_ATTRIBUTION,
-          ...(source.filesLastCopiedAt
-            ? [`Campaign payment files last copied: ${centralDateLabel(source.filesLastCopiedAt)}`]
-            : []),
+          ...paymentSourceCopyLines(source.paymentCopiedAt),
           ...(source.registerLastCopiedAt
             ? [
                 `Committee register and report totals last copied: ${centralDateLabel(source.registerLastCopiedAt)}`,
@@ -2020,6 +2020,11 @@ export interface CommitteeMoneySnapshotSource {
   entity_sub_type?: string | null;
   year?: number | null;
   fetched_at?: string | null;
+  payment_copied_at?: {
+    contributions?: string | null;
+    expenditures?: string | null;
+    independent_expenditures?: string | null;
+  } | null;
   filings_copied_at?: string | null;
   register?: {
     state?: string | null;
@@ -2075,7 +2080,7 @@ interface CommitteeIdentity {
   subheading: string;
   /** The same facts as `subheading`, minus the eyebrow, as the drawn chip row. */
   chips: string[];
-  checkedOn: string | null;
+  paymentCopiedAt: PaymentCopyDates;
   filingsCopiedOn: string | null;
   state: 'closed-empty' | 'empty-year' | 'figures';
   periodLine: string | null;
@@ -2153,7 +2158,11 @@ function committeeIdentity(
       byType: moneyOut.by_type ?? [],
     },
   });
-  const checkedOn = money.fetched_at ? centralDateLabel(money.fetched_at) : null;
+  const paymentCopiedAt = {
+    contributions: money.payment_copied_at?.contributions ?? null,
+    expenditures: money.payment_copied_at?.expenditures ?? null,
+    independentExpenditures: money.payment_copied_at?.independent_expenditures ?? null,
+  };
   const year = money.year ?? new Date().getFullYear();
   const isPartyUnit = registerKind === 'party_unit';
   return {
@@ -2191,7 +2200,7 @@ function committeeIdentity(
     ].filter(Boolean),
     state,
     formerRegisterNote: formerRegisterNote(registerView),
-    checkedOn,
+    paymentCopiedAt,
     filingsCopiedOn: money.filings_copied_at ? centralDateLabel(money.filings_copied_at) : null,
     periodLine:
       state === 'closed-empty'
@@ -2552,9 +2561,7 @@ export function committeePageSnapshot(
                 lines: [
                   identity.periodDetail,
                   ...(identity.formerRegisterNote ? [identity.formerRegisterNote] : []),
-                  ...(identity.checkedOn
-                    ? [paymentFilesDownloadedLine(identity.checkedOn, identity.filingsCopiedOn)]
-                    : []),
+                  ...paymentCopyLines(identity.paymentCopiedAt, identity.filingsCopiedOn),
                 ],
               },
             ],
@@ -2654,12 +2661,14 @@ export function committeePaymentsPageSnapshot(
     money.split?.reported_through ?? money.money_out?.reported_through,
     money.money_in?.reported_period_start,
   );
-  const copiedOn = payments.fetchedAt ? centralDateLabel(payments.fetchedAt) : identity.checkedOn;
-  const copyLine = copiedOn
-    ? identity.filingsCopiedOn
-      ? paymentFilesDownloadedLine(copiedOn, identity.filingsCopiedOn)
-      : `Minnesota’s payment files copied ${copiedOn}. This is a copy date, not a reporting period.`
-    : null;
+  const copyLines = [
+    paymentFileCopyLine(tab === 'gave' ? 'contributions' : 'expenditures', payments.fetchedAt),
+    ...(identity.filingsCopiedOn
+      ? [
+          `Report totals copied ${identity.filingsCopiedOn}. This is a copy date, not a reporting period.`,
+        ]
+      : []),
+  ];
   return {
     backLink: {
       label: `Back to ${identity.name}`,
@@ -2709,7 +2718,7 @@ export function committeePaymentsPageSnapshot(
                         : []),
                     ]
                   : [uncoveredPeriodDetail(year, null)]),
-              ...(copyLine ? [copyLine] : []),
+              ...copyLines,
             ],
           },
         ],

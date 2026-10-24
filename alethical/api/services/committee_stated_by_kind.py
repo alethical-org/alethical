@@ -12,6 +12,7 @@ from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import text
+from alethical.pipeline.campaign_finance_check_identity import READER_PREDICATE
 from sqlalchemy.orm import Session
 
 from alethical.pipeline import campaign_finance_reader as reader
@@ -62,6 +63,8 @@ def stated_by_kind(
         "contributions": release.contributions.snapshot_id,
         "registration": registration_number,
         "year": year,
+        "legacy_pair": release.contributions.checks is None,
+        "paired_filings": release.contributions.filing_snapshot_id,
     }
     # The filed lines and the cash rows in 1 statement (18 Sep 2026). The cash rows
     # are bounded by the filing's own period end, which only the first half knows, so
@@ -69,7 +72,7 @@ def stated_by_kind(
     # second runs only where a filed line exists at all.
     answer = db.execute(
         text(
-            """
+            f"""
             WITH figures AS (
                 SELECT figure.line_key, figure.label_as_served, figure.amount,
                        filing.reported_through
@@ -86,6 +89,8 @@ def stated_by_kind(
                    AND filing.filer_kind = 'candidate_committee'
                    AND extract(year FROM filing.reported_through) = :year
                    AND verdict.snapshot_id = :contributions
+                     AND (:legacy_pair OR filing.snapshot_id = :paired_filings)
+                   AND {READER_PREDICATE.replace("OR reader_identity =", "OR verdict.reader_identity =")}
                    AND verdict.status = 'agrees'
                    AND verdict.cut_off_date = filing.reported_through
                    AND NOT EXISTS (

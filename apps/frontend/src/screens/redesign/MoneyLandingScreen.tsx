@@ -1,3 +1,4 @@
+import { paymentSourceCopyLines } from '../../lib/paymentCopyDates';
 import { useCallback, useEffect, useId, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -283,7 +284,6 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
     const q = searchDraft.trim();
     navigation.navigate('MoneySearch', q ? { q } : {});
   };
-  const filesLastCopied = summary?.freshness.downloadsFetchedAt ?? null;
   const registerLastCopied = summary?.freshness.registerFetchedAt ?? null;
   const lobbyingLastCopied = lobbyingQuery.data?.copied_at ?? null;
   const feed = filingsQuery.data;
@@ -501,16 +501,15 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
               </Text>
               <Text style={styles.infoNote}>{MONEY_SOURCES_ATTRIBUTION}</Text>
               <View style={styles.copyDates}>
-                <Text style={styles.infoBody}>
-                  Campaign payment files last copied:{' '}
-                  <Text style={styles.freshnessDate}>
-                    {filesLastCopied
-                      ? centralDateLabel(filesLastCopied)
-                      : summaryQuery.isLoading
-                        ? 'Loading…'
-                        : 'Copy date unavailable'}
-                  </Text>
-                </Text>
+                {summaryQuery.isLoading ? (
+                  <Text style={styles.infoBody}>Loading…</Text>
+                ) : (
+                  paymentSourceCopyLines(summary?.freshness.paymentCopiedAt).map((line) => (
+                    <Text key={line} style={[styles.infoBody, styles.freshnessDate]}>
+                      {line}
+                    </Text>
+                  ))
+                )}
                 <Text style={styles.infoBody}>
                   Committee register and report totals last copied:{' '}
                   <Text style={styles.freshnessDate}>

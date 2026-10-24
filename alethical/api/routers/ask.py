@@ -39,6 +39,7 @@ from alethical.api.serializers import (
     current_bill_summary_enrichment,
     section_chip_topic,
 )
+from alethical.api.services.legislative_freshness import legislative_copy_date
 from alethical.api.services.legislative_sessions import (
     LegislatureScope,
     current_legislature_scope,
@@ -74,7 +75,6 @@ SourceArtifact = schema.SourceArtifact
 Chamber = schema.Chamber
 District = schema.District
 IngestionRun = schema.IngestionRun
-IngestionStatus = schema.IngestionStatus
 LegislativeSession = schema.LegislativeSession
 Legislator = schema.Legislator
 LegislatorServicePeriod = schema.LegislatorServicePeriod
@@ -185,11 +185,7 @@ def _topic_bills_answer(
     # come back full of regular-session bills. Defaults to the whole Legislature.
     scope = current_legislature_scope(db)
     session_ids = tuple(session_ids) if session_ids else scope.ids
-    data_as_of = db.scalar(
-        select(func.max(IngestionRun.finished_at)).where(
-            IngestionRun.status == IngestionStatus.succeeded
-        )
-    )
+    data_as_of = legislative_copy_date(db, session_ids)
     session_ref = _scope_session_ref(scope)
 
     raw_topic = (topic or "").strip()
@@ -229,11 +225,7 @@ def _topic_legislators_answer(
     db: Session, topic: str | None
 ) -> AskTopicLegislatorsAnswer:
     scope = current_legislature_scope(db)
-    data_as_of = db.scalar(
-        select(func.max(IngestionRun.finished_at)).where(
-            IngestionRun.status == IngestionStatus.succeeded
-        )
-    )
+    data_as_of = legislative_copy_date(db, scope.ids, roster_slug=scope.primary.slug)
     session_ref = _scope_session_ref(scope)
 
     raw_topic = (topic or "").strip()
@@ -384,10 +376,8 @@ def _ambiguous_number_answer(
     matches. This is the honest shape for a question we cannot resolve: the reader
     named a number that means two different laws, and both are one click away.
     """
-    data_as_of = db.scalar(
-        select(func.max(IngestionRun.finished_at)).where(
-            IngestionRun.status == IngestionStatus.succeeded
-        )
+    data_as_of = legislative_copy_date(
+        db, scope.ids, bill_ids=[bill.id for bill in collisions]
     )
     first = collisions[0]
     return AskTopicBillsAnswer(
@@ -1099,10 +1089,8 @@ def _bill_text_answer(
                 section_topic=section_topic,
             )
         )
-    data_as_of = db.scalar(
-        select(func.max(IngestionRun.finished_at)).where(
-            IngestionRun.status == IngestionStatus.succeeded
-        )
+    data_as_of = legislative_copy_date(
+        db, [resolved.session_id], bill_ids=[resolved.id]
     )
     return AskBillTextAnswer(
         answer=prose,
@@ -1211,11 +1199,7 @@ def _hydrate_suggested_answer(
 ) -> AskBillTextAnswer:
     """Combine saved prose/evidence with current bill and citation facts."""
     bill = match.bill
-    data_as_of = db.scalar(
-        select(func.max(IngestionRun.finished_at)).where(
-            IngestionRun.status == IngestionStatus.succeeded
-        )
-    )
+    data_as_of = legislative_copy_date(db, [bill.session_id], bill_ids=[bill.id])
     bill_last_pulled_at = (
         db.scalar(
             select(
@@ -1315,11 +1299,7 @@ def _vote_deflection_answer(
     cited topic_bills list. No tallies or vote positions in either shape — those
     are records on the Votes tab, not a generated answer (grounded rule 4)."""
     scope = current_legislature_scope(db)
-    data_as_of = db.scalar(
-        select(func.max(IngestionRun.finished_at)).where(
-            IngestionRun.status == IngestionStatus.succeeded
-        )
-    )
+    data_as_of = legislative_copy_date(db, scope.ids)
     session_ref = _scope_session_ref(scope)
 
     session_ids = _question_session_ids(scope, content)

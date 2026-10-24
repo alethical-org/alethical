@@ -431,6 +431,13 @@ def statement_links(
     linked: dict[int, AttachedStatement] = {}
     unlinked: list[ListedStatement] = []
     for statement, reading in order:
+        # A reading belongs to exact retained bytes. A corrected PDF needs review
+        # before its old donor names, amounts or repeat marker can be shown again.
+        if (
+            reading is not None
+            and reading.document_hash_read != statement.document_hash
+        ):
+            reading = None
         if reading is not None and reading.repeat_of_number is not None:
             continue
         match = None
@@ -478,11 +485,19 @@ def attached_statements(
     return [item for number, item in sorted(links.linked.items()) if number in numbers]
 
 
-def statements_copied_on(db: Session) -> Optional[date]:
-    completed = db.scalar(
-        select(func.max(schema.CampaignFinanceStatementScan.completed_at))
-    )
-    return minnesota_date(completed)
+def statements_copied_on(db: Session, statement_ids: Iterable[str]) -> Optional[date]:
+    """A common listing date only for the exact statements displayed."""
+    wanted = {uuid.UUID(value) for value in statement_ids}
+    if not wanted:
+        return None
+    model = schema.CampaignFinanceDisclosureStatement
+    rows = db.execute(
+        select(model.id, model.last_listed_at).where(model.id.in_(wanted))
+    ).all()
+    if len(rows) != len(wanted) or any(moment is None for _, moment in rows):
+        return None
+    dates = {minnesota_date(moment) for _, moment in rows}
+    return next(iter(dates)) if len(dates) == 1 else None
 
 
 @dataclass(frozen=True)
@@ -523,6 +538,8 @@ def statement_detail(db: Session, statement_id: uuid.UUID) -> Optional[Statement
     if reading is None:
         return None
     statement = db.get(schema.CampaignFinanceDisclosureStatement, statement_id)
+    if statement is None or reading.document_hash_read != statement.document_hash:
+        return None
     base = dict(
         id=str(statement.id),
         recipient_registration_number=statement.recipient_registration_number,

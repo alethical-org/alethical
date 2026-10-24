@@ -75,9 +75,10 @@ dependencies = [
   # the deployed image beyond itself. Nothing is rebuilt from those documents -- one
   # stated subtotal is read per schedule and the payment rows keep coming from the
   # bulk download (§2.3).
-  "pypdf>=6.21.1",
+  "pypdf[fonts]>=6.21.1",
   # Manual HUD ZIP-reference workbook import; API requests read packaged JSON.
   "openpyxl==3.1.5",
+  "pyjwt[crypto]>=2.12.0",
   "pillow>=13.0.0",
   # Fixed client for the trusted, read-only production security probe.
   "websockets==15.0.1",

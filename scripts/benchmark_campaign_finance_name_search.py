@@ -316,6 +316,7 @@ def search_group(
         at_least=answer.at_least,
         has_more=bool(rows) and int(rows[0].counted) > limit,
         reason=answer.reason,
+        fetched_at=release.copied_at(dataset),
     )
 
 

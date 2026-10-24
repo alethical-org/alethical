@@ -6,8 +6,8 @@ import re
 import time
 import uuid
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
-from datetime import UTC, datetime
+from dataclasses import dataclass, replace
+from datetime import UTC, date, datetime, timedelta
 from html.parser import HTMLParser
 from typing import Any, Iterable
 from urllib.parse import urljoin, urlsplit
@@ -116,6 +116,8 @@ class BillTarget:
     chamber: str
     bill_number: str
     session_code: str = DEFAULT_SESSION_CODE
+    status_xml_uri: str | None = None
+    latest_text_html_uri: str | None = None
 
 
 @dataclass(frozen=True)
@@ -206,6 +208,8 @@ class BillSearchResult:
             chamber=self.chamber,
             bill_number=str(self.file_number),
             session_code=self.session_code,
+            status_xml_uri=self.status_xml_uri,
+            latest_text_html_uri=self.latest_text_html_uri,
         )
 
 
@@ -514,14 +518,28 @@ def discover_bill_range(
         "GET", "https://www.revisor.mn.gov/bills/status_result.php", params=params
     ).prepare()
     xml_text = fetch_text(sess, request.url or "")
+    return parse_bill_search_results(
+        xml_text, chamber=chamber, session_code=session_code
+    )
+
+
+def parse_bill_search_results(
+    xml_text: str, *, chamber: str, session_code: str
+) -> list[BillSearchResult]:
     root = ET.fromstring(xml_text)
+    if root.tag != "SEARCH_RESULTS" or root.find("API_INFO") is None:
+        raise MinnesotaIngestionError(
+            "Bill discovery returned an unreadable source envelope"
+        )
     results = []
     for result in root.findall(".//BILL_RESULT"):
         status_xml_uri = result.findtext("STATUS_XML_URI", "").strip()
         latest_text_html_uri = result.findtext("LATEST_TEXT_HTML_URI", "").strip()
         file_number = (result.findtext("FILE_NUMBER") or "").strip()
         if not file_number.isdigit():
-            continue
+            raise MinnesotaIngestionError(
+                "Bill discovery returned a nonnumeric file number"
+            )
         results.append(
             BillSearchResult(
                 chamber=chamber,
@@ -559,6 +577,135 @@ def discover_session_bills(
             ):
                 seen[(result.file_type, result.file_number)] = result
     return sorted(seen.values(), key=lambda item: (item.file_type, item.file_number))
+
+
+def discover_complete_session_bills(
+    sess: requests.Session, *, session_code: str = DEFAULT_SESSION_CODE
+) -> list[BillSearchResult]:
+    """Split capped source ranges until each response is demonstrably below its cap.
+
+    The official XML search returns at most 500 rows, observed 2026-10-07.
+    Splitting capped ranges avoids relying on response order or bill numbering
+    continuity. 99,999 is a safety ceiling, not a claim of unlimited coverage.
+    """
+    cap, ceiling = 500, 99_999
+    found: dict[str, BillSearchResult] = {}
+    for chamber, file_type in (("House", "HF"), ("Senate", "SF")):
+        pending = [(1, ceiling)]
+        while pending:
+            start, end = pending.pop()
+            rows = discover_bill_range(
+                sess,
+                chamber=chamber,
+                bill_range=f"{start}-{end}",
+                session_code=session_code,
+            )
+            numbers = [item.file_number for item in rows]
+            if len(numbers) != len(set(numbers)) or any(
+                item.file_type != file_type
+                or not start <= item.file_number <= end
+                or not item.status_xml_uri.startswith("https://api.revisor.mn.gov/")
+                or not item.latest_text_html_uri.startswith(
+                    "https://www.revisor.mn.gov/"
+                )
+                for item in rows
+            ):
+                raise MinnesotaIngestionError(
+                    "Bill discovery returned invalid or duplicate identities"
+                )
+            if ceiling in numbers:
+                raise MinnesotaIngestionError(
+                    "Bill discovery reached its safety ceiling"
+                )
+            if len(rows) >= cap:
+                if end - start + 1 < cap:
+                    raise MinnesotaIngestionError(
+                        "Bill discovery exceeded its range size"
+                    )
+                middle = (start + end) // 2
+                pending.extend(((middle + 1, end), (start, middle)))
+            else:
+                found.update((item.bill_key, item) for item in rows)
+    return sorted(found.values(), key=lambda item: (item.file_type, item.file_number))
+
+
+def discover_recent_action_bills(
+    sess: requests.Session, *, session_code: str, start: date, end: date
+) -> list[BillSearchResult]:
+    """Read both official dated-action searches, splitting capped date windows.
+
+    The source warns that undated actions are omitted. This is a scoped fast path,
+    never a replacement for complete inventory and status/text reconciliation.
+    """
+    definition = session_definition(session_code)
+    if start > end or (end - start).days > 31:
+        raise ValueError("Action discovery requires a bounded date window")
+    found: dict[str, BillSearchResult] = {}
+    for chamber in ("House", "Senate"):
+        pending = [(start, end)]
+        while pending:
+            left, right = pending.pop()
+            params = {
+                "body": chamber,
+                "search": "advanced",
+                "session": session_code,
+                "search_type": "andor",
+                "biennium[]": f"LS{definition.session_number}",
+                "action[]": "",
+                "fromDate": left.strftime("%m/%d/%y"),
+                "toDate": right.strftime("%m/%d/%y"),
+                "submit_advanced": "GO",
+                "format": "xml",
+            }
+            request = requests.Request(
+                "GET",
+                "https://www.revisor.mn.gov/bills/status_result.php",
+                params=params,
+            ).prepare()
+            rows = parse_bill_search_results(
+                fetch_text(sess, request.url or ""),
+                chamber=chamber,
+                session_code=session_code,
+            )
+            if len(rows) >= 500:
+                if left == right:
+                    raise MinnesotaIngestionError(
+                        "Official dated-action search reached its single-day cap; full reconciliation remains due"
+                    )
+                middle = left + timedelta(days=(right - left).days // 2)
+                pending.extend(((left, middle), (middle + timedelta(days=1), right)))
+                continue
+            for item in rows:
+                match = re.fullmatch(
+                    r"https://api\.revisor\.mn\.gov/bills/v1/(\d+)/(\d{4})/(\d+)/(HF|SF)/(\d+)/",
+                    item.status_xml_uri,
+                )
+                if (
+                    match is None
+                    or int(match[1]) != definition.session_number
+                    or match[4] != item.file_type
+                    or int(match[5]) != item.file_number
+                    or not item.latest_text_html_uri.startswith(
+                        "https://www.revisor.mn.gov/bills/"
+                    )
+                ):
+                    raise MinnesotaIngestionError(
+                        "Action discovery returned an invalid official bill identity"
+                    )
+                mapped_code = f"{int(match[3])}{int(match[1]):02d}{match[2]}"
+                session_definition(mapped_code)
+                item = replace(
+                    item,
+                    chamber="House" if item.file_type == "HF" else "Senate",
+                    session_code=mapped_code,
+                )
+                previous = found.get(item.bill_key)
+                if previous is not None and previous != item:
+                    raise MinnesotaIngestionError(
+                        "Chamber action searches disagree on a bill identity"
+                    )
+                found[item.bill_key] = item
+    return sorted(found.values(), key=lambda item: item.bill_key)
 
 
 def parse_bill_xml(xml_text: str) -> dict[str, object]:
@@ -1894,9 +2041,16 @@ def parse_member_profile(html_text: str, source_url: str) -> dict[str, object]:
 
 
 class MinnesotaIngestionPipeline:
-    def __init__(self, db: Session, sess: requests.Session | None = None) -> None:
+    def __init__(
+        self,
+        db: Session,
+        sess: requests.Session | None = None,
+        *,
+        conditional_bill_text: bool = False,
+    ) -> None:
         self.db = db
         self.http = sess or http_session()
+        self.conditional_bill_text = conditional_bill_text
 
     def advisory_xact_lock(self, key: int) -> None:
         self.db.execute(text("select pg_advisory_xact_lock(:key)"), {"key": key})
@@ -2454,14 +2608,20 @@ class MinnesotaIngestionPipeline:
             self.db.flush()
         service_period.chamber_id = chamber.id
         service_period.district_id = district.id
-        service_period.party = str(profile.get("party") or "") or None
-        service_period.email = str(profile.get("email") or "") or None
-        service_period.phone = str(profile.get("office_phone") or "") or None
-        service_period.profile_url = (
-            str(profile.get("source_url") or profile.get("profile_url") or "") or None
-        )
-        service_period.photo_url = str(profile.get("image_url") or "") or None
-        service_period.office_address = str(profile.get("office_block") or "") or None
+        # Partial profile pages must not erase previously sourced contacts or
+        # photos. Nonempty official corrections replace held values; clearing
+        # needs an explicit source absence signal, which these parsers lack.
+        values = {
+            "party": profile.get("party"),
+            "email": profile.get("email"),
+            "phone": profile.get("office_phone"),
+            "profile_url": profile.get("source_url") or profile.get("profile_url"),
+            "photo_url": profile.get("image_url"),
+            "office_address": profile.get("office_block"),
+        }
+        for field, value in values.items():
+            if value is not None and str(value).strip():
+                setattr(service_period, field, str(value).strip())
         return service_period
 
     def upsert_committees(
@@ -2545,10 +2705,22 @@ class MinnesotaIngestionPipeline:
         return legislator
 
     def ingest_roster(
-        self, *, limit: int | None = None, fetch_profiles: bool = True
+        self,
+        *,
+        limit: int | None = None,
+        fetch_profiles: bool = True,
+        session_code: str = DEFAULT_SESSION_CODE,
+        validated_session_transition: bool = False,
     ) -> dict[str, Any]:
-        refs = self.seed_reference_data()
-        run = self.start_run("legislator_roster", CURRENT_SESSION_SLUG)
+        definition = session_definition(session_code)
+        # The scheduled caller validates the full PDF's biennium and seats,
+        # locks the current DB session, and checks accepted next-session bills.
+        if not definition.is_current and not validated_session_transition:
+            raise ValueError(
+                "The live roster can only populate the reviewed current session"
+            )
+        refs = self.seed_reference_data(session_code)
+        run = self.start_run("legislator_roster", definition.slug)
         roster_url = "https://www.leg.mn.gov/leg/legislators"
         roster_html = fetch_text(self.http, roster_url)
         self.record_artifact(
@@ -2573,7 +2745,12 @@ class MinnesotaIngestionPipeline:
                     profile_html,
                     source_key=profile_url,
                 )
-                profile.update(parse_member_profile(profile_html, profile_url))
+                parsed_profile = parse_member_profile(profile_html, profile_url)
+                if not parsed_profile.get("name") or not parsed_profile.get("district"):
+                    raise MinnesotaIngestionError(
+                        f"Incomplete member profile at {profile_url}; keeping the saved roster"
+                    )
+                profile.update(parsed_profile)
                 profile["image_url"] = member.get("image_url")
             self.ingest_member_profile(refs, profile)
             ingested += 1
@@ -2602,7 +2779,7 @@ class MinnesotaIngestionPipeline:
         warning. Idempotent and safe to re-run.
         """
         if roster_members is None:
-            roster_members = parse_roster_pdf(fetch_roster_pdf_text())
+            roster_members = parse_roster_pdf(fetch_roster_pdf_text(session=self.http))
 
         session = self.db.scalar(
             select(LegislativeSession).where(LegislativeSession.slug == session_slug)
@@ -2659,10 +2836,73 @@ class MinnesotaIngestionPipeline:
             dry_run=dry_run,
         )
 
+    def _fetch_bill_html(self, run: Any, url: str, bill_key: str) -> tuple[str, Any]:
+        """Use the state's validators, never a status XML guess, to reuse text.
+
+        A new version or a server without validators gets a full response. The
+        exact saved body is reused only after the source returns HTTP 304.
+        """
+        if not self.conditional_bill_text:
+            body = fetch_text(self.http, url)
+            return body, self.record_artifact(
+                run, ArtifactType.html, url, body, source_key=bill_key
+            )
+        prior = self.db.scalar(
+            select(SourceArtifact)
+            .where(
+                SourceArtifact.adapter == "minnesota_live",
+                SourceArtifact.source_url == url,
+                SourceArtifact.artifact_type == ArtifactType.html,
+            )
+            .order_by(SourceArtifact.updated_at.desc())
+            .limit(1)
+        )
+        metadata = prior.metadata_json if prior is not None else {}
+        headers: dict[str, str] = {}
+        body = metadata.get("conditional_body")
+        if isinstance(body, str) and content_hash(body) == prior.content_hash:
+            if metadata.get("etag"):
+                headers["If-None-Match"] = metadata["etag"]
+            elif metadata.get("last_modified"):
+                headers["If-Modified-Since"] = metadata["last_modified"]
+        response = self.http.get(url, headers=headers, timeout=TIMEOUT)
+        if response.status_code == 304:
+            if not headers or not isinstance(body, str):
+                raise MinnesotaIngestionError(
+                    "The source returned 304 without a saved matching bill text"
+                )
+            return body, prior
+        if response.status_code in {429, 500, 502, 503, 504}:
+            # Existing bounded retry path, still subject to shared source pacing.
+            body = fetch_text(self.http, url)
+            response_headers: dict[str, str] = {}
+        else:
+            response.raise_for_status()
+            body = response_text(response)
+            response_headers = dict(response.headers)
+        artifact = self.record_artifact(
+            run, ArtifactType.html, url, body, source_key=bill_key
+        )
+        artifact.metadata_json = {
+            **(artifact.metadata_json or {}),
+            "conditional_body": body,
+            "etag": response_headers.get("ETag") or response_headers.get("etag"),
+            "last_modified": response_headers.get("Last-Modified")
+            or response_headers.get("last-modified"),
+        }
+        return body, artifact
+
     def _fetch_bill_source(self, target: BillTarget, run: Any) -> BillSourcePayload:
         """Fetch and parse all 3 official responses for one bill."""
         try:
-            discovery = discover_bill(self.http, target)
+            discovery = (
+                {
+                    "status_xml_uri": target.status_xml_uri,
+                    "latest_text_html_uri": target.latest_text_html_uri,
+                }
+                if target.status_xml_uri and target.latest_text_html_uri
+                else discover_bill(self.http, target)
+            )
             xml_text = fetch_text(self.http, discovery["status_xml_uri"])
             xml_artifact = self.record_artifact(
                 run, ArtifactType.xml, discovery["status_xml_uri"], xml_text
@@ -2675,13 +2915,8 @@ class MinnesotaIngestionPipeline:
                 latest_version_payload.get("html_uri")
                 or discovery["latest_text_html_uri"]
             )
-            latest_html_text = fetch_text(self.http, latest_html_url)
-            html_artifact = self.record_artifact(
-                run,
-                ArtifactType.html,
-                latest_html_url,
-                latest_html_text,
-                source_key=str(canonical["bill_key"]),
+            latest_html_text, html_artifact = self._fetch_bill_html(
+                run, latest_html_url, str(canonical["bill_key"])
             )
             bill_text = parse_bill_text_html(latest_html_text, latest_html_url)
         except (ET.ParseError, ValueError) as exc:

@@ -487,10 +487,16 @@ def test_a_run_where_both_checks_worked_carries_no_banner() -> None:
 # --- Which years, and when it runs at all -------------------------------------
 
 
-def test_the_default_years_are_this_year_and_the_2_before_it() -> None:
-    """Narrower would silently shrink what the stored verdicts already cover; wider
-    could only add years the Board serves no document for."""
-    assert recheck.recheck_years(datetime(2026, 9, 2, tzinfo=UTC)) == (2024, 2025, 2026)
+def test_the_default_years_keep_every_supported_year() -> None:
+    """New hashes invalidate older supported years too, without opening held years."""
+    assert recheck.recheck_years(datetime(2026, 9, 2, tzinfo=UTC)) == (
+        2022,
+        2023,
+        2024,
+        2025,
+        2026,
+    )
+    assert recheck.recheck_years(datetime(2027, 1, 1, tzinfo=UTC))[-1] == 2027
 
 
 def test_named_years_are_used_and_deduplicated() -> None:
@@ -511,6 +517,7 @@ def test_named_years_are_used_and_deduplicated() -> None:
 
 @dataclass
 class FakeLoadReport:
+    requires_recheck: bool = True
     published: bool = False
     no_change: bool = False
     dry_run: bool = False
@@ -566,7 +573,7 @@ def call_loader(
         def __exit__(self, *args):
             return False
 
-    def fake_recheck(session, *, years, log):
+    def fake_recheck(session, *, years, log, datasets=None):
         calls.append({"session": session, "years": years})
         return recheck_report or FakeRecheckReport()
 
@@ -580,6 +587,19 @@ def call_loader(
     )
     monkeypatch.setattr(loader_script, "load_campaign_finance", fake_load)
     monkeypatch.setattr(loader_script, "recheck_stated_figures", fake_recheck)
+
+    def fake_followup(
+        session, clearing, *, published, dry_run, requires_recheck, recheck, log
+    ):
+        from types import SimpleNamespace
+
+        result = recheck(session, log=log) if published and not dry_run else None
+        return SimpleNamespace(ok=result is None or not result.failed)
+
+    # The real helper's pending retries and source-generation checks are covered
+    # with a database in test_campaign_finance_refresh.py.
+    monkeypatch.setattr(loader_script, "finish_manual_publication", fake_followup)
+
     monkeypatch.setattr("sys.argv", ["load_campaign_finance.py", *(argv or [])])
     return loader_script.main(), calls
 

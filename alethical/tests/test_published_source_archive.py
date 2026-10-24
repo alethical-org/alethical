@@ -449,3 +449,61 @@ def test_a_store_that_cannot_verify_writes_no_row(db, tmp_path):
         keep(db, RefusingStore(), str(tmp_path), HANDBOOK, LIVE_PDF)
     db.rollback()
     assert archive.known_versions(db) == {}
+
+
+def test_source_timeout_that_recovers_is_quiet(monkeypatch):
+    answers = iter(
+        [
+            (archive.UNREACHABLE, "timeout", 0, "", b""),
+            ("", "", 200, "application/pdf", LIVE_PDF),
+        ]
+    )
+    monkeypatch.setattr(runner, "read_one", lambda *args: next(answers))
+    monkeypatch.setattr(runner.time, "sleep", lambda _: None)
+    report = runner.check_sources(
+        {CALENDAR_2026: ["piece.ts"]},
+        links=None,
+        db=None,
+        store=None,
+        directory=None,
+        timeout=1,
+        spacing=0,
+        log=lambda *args: None,
+    )
+    assert not report.needs_attention
+    assert report.outcomes[0].action == archive.DOCUMENT
+
+
+def test_repeated_unreachable_source_fails_without_calling_it_gone(monkeypatch):
+    calls = []
+
+    def read(*args):
+        calls.append(args)
+        return archive.UNREACHABLE, "timeout", 0, "", b""
+
+    monkeypatch.setattr(runner, "read_one", read)
+    monkeypatch.setattr(runner.time, "sleep", lambda _: None)
+    report = runner.check_sources(
+        {CALENDAR_2026: ["piece.ts"]},
+        links=None,
+        db=None,
+        store=None,
+        directory=None,
+        timeout=1,
+        spacing=0,
+        log=lambda *args: None,
+    )
+    assert len(calls) == 3
+    assert len(report.needs_attention) == 1
+    assert not report.of(archive.GONE)
+    assert report.outcomes[0].attempts == 3
+
+
+def test_archive_cannot_silently_omit_piece_with_unreadable_links(tmp_path):
+    from types import SimpleNamespace
+
+    piece = tmp_path / "newFormat.ts"
+    piece.write_text("export const changedFormat = {}")
+    links = SimpleNamespace(piece_files=lambda: [piece], links_in=lambda _: [])
+    with pytest.raises(ValueError, match="no readable source links"):
+        runner.cited_addresses(links)

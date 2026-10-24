@@ -19,20 +19,21 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import os
 import sys
+from contextlib import redirect_stdout
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import create_engine, select, text
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from alethical.api.services.campaign_finance_register import sub_types_for  # noqa: E402
-from alethical.db import models as schema  # noqa: E402
 from alethical.db.session import (  # noqa: E402
     NO_PREPARED_STATEMENTS,
     database_url_for_target,
@@ -40,7 +41,6 @@ from alethical.db.session import (  # noqa: E402
 )
 from alethical.pipeline import campaign_finance_filings as filings  # noqa: E402
 from alethical.pipeline import campaign_finance_notices as notices  # noqa: E402
-from alethical.pipeline.campaign_finance_reader import live_release  # noqa: E402
 from alethical.pipeline.collection_run_summary import (  # noqa: E402
     record_stage,
     run_script,
@@ -50,6 +50,12 @@ from alethical.pipeline.cache_purge import (  # noqa: E402
     when_notices_or_statements_are_stored,
 )
 from alethical.pipeline.raw_file_store import raw_file_store_from_env  # noqa: E402
+from alethical.pipeline.notice_collection_lock import (  # noqa: E402
+    NoticeWriterBusy,
+    NoticeWriterLost,
+)
+from alethical.pipeline.campaign_notice_reference import load_reference  # noqa: E402
+from alethical.pipeline.request_limits import DatabaseRequestLimiter, RateLimitedSession  # noqa: E402
 
 
 def _ballot(http) -> tuple[list, list, list[str]]:
@@ -80,6 +86,14 @@ def main() -> int:
     parser.add_argument("--database-url", default=None)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
+        "--json", action="store_true", help="Print a safe source-check summary as JSON."
+    )
+    parser.add_argument(
+        "--refresh-existing",
+        action="store_true",
+        help="Re-download held notice PDFs to detect corrections at unchanged addresses.",
+    )
+    parser.add_argument(
         "--pdf-cache",
         default=None,
         help="A folder of notice PDFs already read. Read from it before asking the "
@@ -98,8 +112,61 @@ def main() -> int:
         ),
         connect_args=NO_PREPARED_STATEMENTS,
     )
+    try:
+        if args.json:
+            output = sys.stdout
+            with redirect_stdout(sys.stderr):
+                return _collect(args, engine, json_output=output)
+        return _collect(args, engine)
+    except (NoticeWriterBusy, NoticeWriterLost) as error:
+        print(str(error), file=sys.stderr)
+        record_stage(
+            "notices", "skipped", details=["notice/statement writer unavailable"]
+        )
+        return 76
+    finally:
+        engine.dispose()
+
+
+def notice_finding(report, *, now_year: int, skip_ballot: bool, failed: bool) -> dict:
+    missing_windows = sorted(set(report.observed_years) - notices.NOTICE_WINDOWS.keys())
+    missing_ballot_sources = (
+        [now_year]
+        if not skip_ballot
+        and now_year in notices.NOTICE_WINDOWS
+        and now_year != notices.BALLOT_SOURCE_YEAR
+        else []
+    )
+    needs_review = bool(
+        missing_windows or missing_ballot_sources or report.parse_failures
+    )
+    return {
+        "status": "failed" if failed else "review" if needs_review else "complete",
+        "finding_key": hashlib.sha256(
+            json.dumps(
+                {
+                    "missing_windows": missing_windows,
+                    "missing_ballot_sources": missing_ballot_sources,
+                    "unreadable_notices": len(report.parse_failures),
+                },
+                sort_keys=True,
+            ).encode()
+        ).hexdigest(),
+        "source_url": notices.NOTICE_LIST_URL,
+        "source_page_sha256": report.source_page_sha256,
+        "observed_notice_years": report.observed_years,
+        "missing_notice_window_years": missing_windows,
+        "ballot_source_years_needing_review": missing_ballot_sources,
+        "notices_needing_reading": len(report.parse_failures),
+        "notices_listed": report.listed,
+        "notices_kept": report.new,
+        "notices_corrected": report.changed,
+    }
+
+
+def _collect(args, engine, *, json_output=None) -> int:
     now = datetime.now(UTC)
-    http = filings.http_session()
+    http = RateLimitedSession(filings.http_session(), DatabaseRequestLimiter(engine))
     exit_code = 0
     ballot_failures: list[str] = []
     with Session(engine) as db:
@@ -120,11 +187,12 @@ def main() -> int:
             dry_run=args.dry_run,
             cache=notices.PdfCache(args.pdf_cache),
             now=now,
+            refresh_existing=args.refresh_existing,
         )
         print(
             f"notices listed on the Board's page: {report.listed}; already held: "
             f"{report.already_held}; {'would read' if args.dry_run else 'read and kept'}: "
-            f"{report.new}"
+            f"{report.new}; changed PDFs: {report.changed}"
         )
         for line in report.page_errors:
             print(f"page problem: {line}")
@@ -135,7 +203,11 @@ def main() -> int:
         if not report.ok:
             exit_code = 1
 
-        if not args.skip_ballot and now.year in notices.NOTICE_WINDOWS:
+        if (
+            not args.skip_ballot
+            and now.year in notices.NOTICE_WINDOWS
+            and now.year == notices.BALLOT_SOURCE_YEAR
+        ):
             primary, general, failures = _ballot(http)
             ballot_failures = failures
             for line in failures:
@@ -143,27 +215,26 @@ def main() -> int:
             if failures:
                 exit_code = 1
             else:
-                snapshot = filings.live_filings_snapshot(db)
-                filers = (
-                    db.scalars(
-                        select(schema.CampaignFinanceFiler).where(
-                            schema.CampaignFinanceFiler.snapshot_id == snapshot.id
-                        )
-                    ).all()
-                    if snapshot is not None
-                    else []
-                )
-                release = live_release(db)
-                sub_types = (
-                    sub_types_for(db, release, [f.registration_number for f in filers])
-                    if release is not None
-                    else {}
-                )
+                try:
+                    reference = load_reference(engine, require_payments=True)
+                except ValueError as error:
+                    print(f"ballot reference unavailable: {error}", file=sys.stderr)
+                    return 1
+                if not reference.still_current(db, require_payments=True):
+                    print(
+                        "ballot reference changed; exclusions retained", file=sys.stderr
+                    )
+                    return 76
+                filers = reference.filers
+                sub_types = reference.sub_types
                 decided = notices.record_window_exclusions(
                     db,
                     election_year=now.year,
                     filers=filers,
                     sub_types=sub_types,
+                    completion_check=lambda: reference.still_current(
+                        db, require_payments=True
+                    ),
                     primary=primary,
                     general=general,
                     dry_run=args.dry_run,
@@ -186,6 +257,11 @@ def main() -> int:
     )
     if clearing_failed:
         exit_code = 1
+    finding = notice_finding(
+        report, now_year=now.year, skip_ballot=args.skip_ballot, failed=bool(exit_code)
+    )
+    if not exit_code and finding["status"] == "review":
+        exit_code = 2
     # What this run did, for the failure review (#2350).
     checks = [
         name
@@ -197,6 +273,15 @@ def main() -> int:
         )
         if problems
     ]
+    checks += (
+        ["notice windows need review"] if finding["missing_notice_window_years"] else []
+    )
+    checks += (
+        ["ballot source year needs review"]
+        if finding["ballot_source_years_needing_review"]
+        else []
+    )
+    checks += ["notice fields need review"] if report.parse_failures else []
     record_stage(
         "notices",
         "failed"
@@ -204,7 +289,7 @@ def main() -> int:
         else "dry_run"
         if args.dry_run
         else "published"
-        if report.new
+        if report.new or report.changed
         else "unchanged",
         failed_checks=checks,
         details=[
@@ -213,8 +298,14 @@ def main() -> int:
             *ballot_failures,
             clearing_note,
         ],
-        counts={"notices listed": report.listed, "notices kept": report.new},
+        counts={
+            "notices listed": report.listed,
+            "notices kept": report.new,
+            "notices corrected": report.changed,
+        },
     )
+    if json_output is not None:
+        print(json.dumps(finding, sort_keys=True), file=json_output)
     return exit_code
 
 

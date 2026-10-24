@@ -36,6 +36,8 @@ request) and only the PDFs it does not already hold.
 
 from __future__ import annotations
 
+import hashlib
+
 import gzip
 import html
 import io
@@ -57,6 +59,11 @@ from alethical.db import models as schema
 from alethical.pipeline import campaign_finance_filings as filings
 from alethical.pipeline.campaign_finance_report_document_store import gzip_bytes_to
 from alethical.pipeline.raw_file_store import sha256_of_file
+from alethical.pipeline.notice_collection_lock import (
+    hold_notice_writer,
+    notice_commit,
+    synchronized_notice_writer,
+)
 
 FilerKind = schema.CampaignFinanceFilerKind
 
@@ -66,6 +73,8 @@ NOTICE_LIST_URL = (
     "large-contribution-notices/"
 )
 PDF_VIEWER_URL = f"{BOARD_BASE_URL}/rptViewer/Main.php"
+# These 2 reviewed ballot source files cover this election year only.
+BALLOT_SOURCE_YEAR = 2026
 PRIMARY_CANDIDATES_URL = "https://electionresultsfiles.sos.mn.gov/20260811/cand.txt"
 GENERAL_CANDIDATES_URL = "https://electionresultsfiles.sos.mn.gov/20261103/cand.txt"
 
@@ -852,9 +861,12 @@ def fetch_pdf(
 
 @dataclass
 class NoticeRunReport:
+    observed_years: list[int] = field(default_factory=list)
+    source_page_sha256: Optional[str] = None
     listed: int = 0
     new: int = 0
     already_held: int = 0
+    changed: int = 0
     parse_failures: list[str] = field(default_factory=list)
     fetch_failures: list[str] = field(default_factory=list)
     page_errors: list[str] = field(default_factory=list)
@@ -898,6 +910,7 @@ def _apply_parsed(
     row.parse_error = "; ".join(errors) or None
 
 
+@synchronized_notice_writer
 def collect_notices(
     db: Session,
     http: requests.Session,
@@ -907,8 +920,9 @@ def collect_notices(
     cache: Optional[PdfCache] = None,
     page_body: Optional[bytes] = None,
     now: Optional[datetime] = None,
+    refresh_existing: bool = False,
 ) -> NoticeRunReport:
-    """Read the notice page, fetch each notice PDF not yet held, and record it.
+    """Read notices and optionally check held PDFs for changes at the same URL.
 
     A failure keeps every record already held: nothing is deleted, a notice no longer
     listed keeps its row (``last_listed_at`` says when it was last seen), and the list's
@@ -926,6 +940,8 @@ def collect_notices(
     listed, errors = parse_notice_list(page)
     report.page_errors.extend(errors)
     report.listed = len(listed)
+    report.observed_years = sorted({notice.filing_year for notice in listed})
+    report.source_page_sha256 = hashlib.sha256(page_body).hexdigest()
     if report.page_errors:
         return report
 
@@ -940,72 +956,89 @@ def collect_notices(
         for n in db.scalars(select(schema.CampaignFinanceContributionNotice))
     }
     for notice in listed:
-        key = (
-            notice.registration_number,
-            notice.filing_year,
-            notice.notice_period,
-            notice.special_election,
-            notice.board_notice_id,
-        )
-        row = held.get(key)
-        if row is not None and row.document_hash is not None:
-            report.already_held += 1
-            if not dry_run:
-                row.last_listed_at = now
-                row.committee_name_as_listed = notice.committee_name_as_listed
-            continue
-        body, failure = fetch_pdf(
-            http,
-            notice.pdf_url,
-            cache,
-            f"notice-{notice.registration_number}-{notice.filing_year}-"
-            f"{notice.notice_period}-{int(notice.special_election)}-"
-            f"{notice.board_notice_id}.pdf",
-        )
-        if body is None:
-            report.fetch_failures.append(f"{notice.pdf_url}: {failure}")
-            continue
-        parsed = parse_notice_text(pdf_text(body))
-        if parsed.errors:
-            report.parse_failures.append(
-                f"{notice.pdf_url}: {'; '.join(parsed.errors)}"
+        with hold_notice_writer(db, dry_run=dry_run):
+            key = (
+                notice.registration_number,
+                notice.filing_year,
+                notice.notice_period,
+                notice.special_election,
+                notice.board_notice_id,
             )
-        report.new += 1
-        if dry_run:
-            continue
-        kept = keep_pdf(store, NOTICE_OBJECT_PREFIX, body)
-        if row is None:
-            row = schema.CampaignFinanceContributionNotice(
-                registration_number=notice.registration_number,
-                filer_kind=notice.filer_kind,
-                filing_year=notice.filing_year,
-                notice_period=notice.notice_period,
-                special_election=notice.special_election,
-                board_notice_id=notice.board_notice_id,
-                first_listed_at=now,
-                last_listed_at=now,
+            row = held.get(key)
+            if row is not None and not dry_run:
+                db.refresh(row)
+            if (
+                row is not None
+                and row.document_hash is not None
+                and not refresh_existing
+            ):
+                report.already_held += 1
+                if not dry_run:
+                    row.last_listed_at = now
+                    row.committee_name_as_listed = notice.committee_name_as_listed
+                continue
+            body, failure = fetch_pdf(
+                http,
+                notice.pdf_url,
+                PdfCache(None) if refresh_existing else cache,
+                f"notice-{notice.registration_number}-{notice.filing_year}-"
+                f"{notice.notice_period}-{int(notice.special_election)}-"
+                f"{notice.board_notice_id}.pdf",
             )
-            db.add(row)
-        row.committee_name_as_listed = notice.committee_name_as_listed
-        row.listed_on = notice.listed_on
-        row.last_listed_at = now
-        _apply_parsed(row, parsed, notice)
-        if parsed.amended and (row.amendment_index or 0) == 0:
-            row.amendment_index = 1
-        row.document_hash = kept.document_hash
-        row.object_key = kept.object_key
-        row.compressed_hash = kept.compressed_hash
-        row.byte_size = kept.byte_size
-        row.fetched_at = now
-        db.commit()
+            if body is None:
+                report.fetch_failures.append(f"{notice.pdf_url}: {failure}")
+                continue
+            if (
+                row is not None
+                and row.document_hash == hashlib.sha256(body).hexdigest()
+            ):
+                report.already_held += 1
+                if not dry_run:
+                    row.last_listed_at = now
+                    row.committee_name_as_listed = notice.committee_name_as_listed
+                continue
+            parsed = parse_notice_text(pdf_text(body))
+            if parsed.errors:
+                report.parse_failures.append(
+                    f"{notice.pdf_url}: {'; '.join(parsed.errors)}"
+                )
+            if row is None or row.document_hash is None:
+                report.new += 1
+            else:
+                report.changed += 1
+            if dry_run:
+                continue
+            kept = keep_pdf(store, NOTICE_OBJECT_PREFIX, body)
+            if row is None:
+                row = schema.CampaignFinanceContributionNotice(
+                    registration_number=notice.registration_number,
+                    filer_kind=notice.filer_kind,
+                    filing_year=notice.filing_year,
+                    notice_period=notice.notice_period,
+                    special_election=notice.special_election,
+                    board_notice_id=notice.board_notice_id,
+                    first_listed_at=now,
+                    last_listed_at=now,
+                )
+                db.add(row)
+            row.committee_name_as_listed = notice.committee_name_as_listed
+            row.listed_on = notice.listed_on
+            row.last_listed_at = now
+            _apply_parsed(row, parsed, notice)
+            if parsed.amended and (row.amendment_index or 0) == 0:
+                row.amendment_index = 1
+            row.document_hash = kept.document_hash
+            row.object_key = kept.object_key
+            row.compressed_hash = kept.compressed_hash
+            row.byte_size = kept.byte_size
+            row.fetched_at = now
+            notice_commit(db)
 
     if not dry_run and report.ok:
         years = sorted(
             {n.filing_year for n in listed}
             | ({now.year} if now.year in NOTICE_WINDOWS else set())
         )
-        import hashlib
-
         db.add(
             schema.CampaignFinanceNoticeListCopy(
                 fetched_at=now,
@@ -1015,10 +1048,11 @@ def collect_notices(
                 source_url=NOTICE_LIST_URL,
             )
         )
-        db.commit()
+        notice_commit(db)
     return report
 
 
+@synchronized_notice_writer
 def record_notice_amendment(
     db: Session,
     http: requests.Session,
@@ -1047,7 +1081,7 @@ def record_notice_amendment(
     if row is None or amendment_index <= (row.amendment_index or 0):
         if row is not None and row.amendment_index is None:
             row.amendment_index = amendment_index
-            db.commit()
+            notice_commit(db)
         return False
     cache = cache or PdfCache(None)
     now = now or datetime.now(UTC)
@@ -1070,7 +1104,7 @@ def record_notice_amendment(
     kept = keep_pdf(store, NOTICE_OBJECT_PREFIX, body)
     if kept.document_hash == row.document_hash:
         row.amendment_index = amendment_index
-        db.commit()
+        notice_commit(db)
         return False
     earlier = (row.contributor_name, row.contribution_date, row.amount)
     listed = ListedNotice(
@@ -1096,13 +1130,14 @@ def record_notice_amendment(
     row.compressed_hash = kept.compressed_hash
     row.byte_size = kept.byte_size
     row.fetched_at = now
-    db.commit()
+    notice_commit(db)
     return True
 
 
 # --- Window exclusions from the ballot files -------------------------------------
 
 
+@synchronized_notice_writer
 def record_window_exclusions(
     db: Session,
     *,
@@ -1113,6 +1148,7 @@ def record_window_exclusions(
     general: list[BallotCandidate],
     dry_run: bool,
     now: Optional[datetime] = None,
+    completion_check=None,
 ) -> list[tuple[str, str, str]]:
     """Replace the year's exclusions with what the ballot files and the statute say.
 
@@ -1176,7 +1212,10 @@ def record_window_exclusions(
             row.reason = reason
             row.source_url = source
             row.determined_at = now
-    db.commit()
+    if completion_check is not None and not completion_check():
+        db.rollback()
+        raise ValueError("published ballot references changed; exclusions retained")
+    notice_commit(db)
     return [(r, w, why) for r, w, why, _ in decided]
 
 
@@ -1194,6 +1233,7 @@ class StatementRunReport:
     not_served: list[str] = field(default_factory=list)
 
 
+@synchronized_notice_writer
 def record_catalogue_statements(
     db: Session,
     registration_number: str,
@@ -1240,7 +1280,7 @@ def record_catalogue_statements(
             row.report_name = statement.report_name
             row.report_cut_off = statement.report_cut_off
             row.listed_under_reports = [statement.report_name]
-    db.commit()
+    notice_commit(db)
     return len(statements), new, errors
 
 
@@ -1252,6 +1292,7 @@ def record_catalogue_statements(
 KEEP_STATEMENT_PDFS_FROM = 2022
 
 
+@synchronized_notice_writer
 def fetch_missing_statement_pdfs(
     db: Session,
     http: requests.Session,
@@ -1260,6 +1301,7 @@ def fetch_missing_statement_pdfs(
     cache: Optional[PdfCache] = None,
     now: Optional[datetime] = None,
     from_year: int = KEEP_STATEMENT_PDFS_FROM,
+    refresh_existing: bool = False,
 ) -> tuple[int, list[str], list[str]]:
     """Fetch and keep each listed statement's PDF that is not yet held, once.
 
@@ -1272,11 +1314,10 @@ def fetch_missing_statement_pdfs(
     failures: list[str] = []
     not_served: list[str] = []
     model = schema.CampaignFinanceDisclosureStatement
-    rows = db.scalars(
-        select(model).where(
-            model.document_hash.is_(None), model.filing_year >= from_year
-        )
-    ).all()
+    query = select(model).where(model.filing_year >= from_year)
+    if not refresh_existing:
+        query = query.where(model.document_hash.is_(None))
+    rows = db.scalars(query).all()
     for row in rows:
         url = statement_pdf_url(
             row.filing_year,
@@ -1287,7 +1328,7 @@ def fetch_missing_statement_pdfs(
         body, failure = fetch_pdf(
             http,
             url,
-            cache,
+            PdfCache(None) if refresh_existing else cache,
             f"statement-{row.recipient_registration_number}-{row.filing_year}-"
             f"{row.report_period}{row.statement_number}.pdf",
         )
@@ -1296,17 +1337,20 @@ def fetch_missing_statement_pdfs(
                 f"{url}: {failure}"
             )
             continue
+        if row.document_hash == hashlib.sha256(body).hexdigest():
+            continue
         kept = keep_pdf(store, STATEMENT_OBJECT_PREFIX, body)
         row.document_hash = kept.document_hash
         row.object_key = kept.object_key
         row.compressed_hash = kept.compressed_hash
         row.byte_size = kept.byte_size
         row.fetched_at = now
-        db.commit()
+        notice_commit(db)
         fetched += 1
     return fetched, failures, not_served
 
 
+@synchronized_notice_writer
 def scan_catalogues_for_statements(
     db: Session,
     http: requests.Session,
@@ -1319,6 +1363,8 @@ def scan_catalogues_for_statements(
     cache: Optional[PdfCache] = None,
     spacing_seconds: float = 0.5,
     notice_amendment_http: Optional[requests.Session] = None,
+    refresh_existing: bool = False,
+    completion_check=None,
 ) -> StatementRunReport:
     """Read each filer's catalogue for statements and notice amendment markers.
 
@@ -1368,12 +1414,22 @@ def scan_catalogues_for_statements(
                     report.notice_amendments += 1
     if not dry_run:
         fetched, failures, not_served = fetch_missing_statement_pdfs(
-            db, http, store, cache=cache
+            db, http, store, cache=cache, refresh_existing=refresh_existing
         )
         report.pdfs_fetched = fetched
         report.failures.extend(failures)
         report.not_served.extend(not_served)
-        if report.catalogues_read == len(filers):
+        if completion_check is not None and not completion_check():
+            report.failures.append(
+                "published register changed during the scan; full coverage remains due"
+            )
+        if (
+            scope == "all"
+            and filers
+            and report.catalogues_read == len(filers)
+            and not report.failures
+            and not report.not_served
+        ):
             db.add(
                 schema.CampaignFinanceStatementScan(
                     started_at=started,
@@ -1383,7 +1439,7 @@ def scan_catalogues_for_statements(
                     scope=scope,
                 )
             )
-            db.commit()
+            notice_commit(db)
     return report
 
 
@@ -1544,6 +1600,7 @@ def _same_reading(row: Any, reading: StatementReadingInput) -> bool:
     )
 
 
+@synchronized_notice_writer
 def record_statement_reading(
     db: Session, store: Any, reading: StatementReadingInput, *, dry_run: bool
 ) -> str:
@@ -1618,5 +1675,5 @@ def record_statement_reading(
                 )
             )
     db.add(row)
-    db.commit()
+    notice_commit(db)
     return f"recorded {label} ({reading.state})"

@@ -90,6 +90,7 @@ release still holds rows before it reports an empty result, and raises
 from __future__ import annotations
 
 import uuid
+import re
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -151,11 +152,16 @@ class SourceFile:
     snapshot_id: uuid.UUID
     source_url: str
     row_count: int
+    copied_at: Optional[datetime] = None
+    filing_snapshot_id: Optional[uuid.UUID] = None
+    receipt_id: Optional[uuid.UUID] = None
+    record_set_hash: Optional[str] = None
+    checks: Optional[list[dict]] = None
 
 
 @dataclass(frozen=True)
 class Release:
-    """The set of 3 files published together, resolved once for a whole request."""
+    """The 3 accepted file slots, resolved once for a whole request."""
 
     id: uuid.UUID
     # The page's freshness date (#861). It is the date the files were fetched, and
@@ -164,7 +170,7 @@ class Release:
     # back in the session's own timezone and this instant is a date a page prints —
     # so an unnormalized value can tell a reader the money was fetched on the wrong
     # day (found by the #1332 session, `alethical/api/services/independent_spending.py`).
-    fetched_at: datetime
+    fetched_at: Optional[datetime]
     contributions: SourceFile
     expenditures: SourceFile
     independent_expenditures: SourceFile
@@ -184,15 +190,36 @@ class Release:
             Dataset.independent_expenditures: self.independent_expenditures,
         }[dataset]
 
+    def copied_at(self, dataset: Dataset) -> Optional[datetime]:
+        source = self.file_for(dataset)
+        return source.copied_at if source.checks is not None else self.fetched_at
+
+    @property
+    def payment_copied_at(self) -> dict[str, Optional[datetime]]:
+        return {dataset.value: self.copied_at(dataset) for dataset in Dataset}
+
+    def paired_filings(self, dataset: Dataset) -> Optional[uuid.UUID]:
+        source = self.file_for(dataset)
+        return (
+            source.filing_snapshot_id
+            if source.checks is not None
+            else self.filing_snapshot_id
+        )
+
+
+_RECEIPT_PROOF_SQL = "(\n    SELECT jsonb_object_agg(o.id::text, jsonb_build_object(\n        'snapshot_id', o.snapshot_id, 'dataset', o.dataset,\n        'started_at', o.started_at, 'completed_at', o.completed_at, 'content_hash', o.content_hash, 'ingestion_run_id', o.ingestion_run_id))\n    FROM cf_fetch_observation o\n    WHERE o.id::text IN (\n        r.file_manifest->'contributions'->>'receipt_id',\n        r.file_manifest->'expenditures'->>'receipt_id',\n        r.file_manifest->'independent_expenditures'->>'receipt_id')\n)"
+
 
 _LIVE_RELEASE_SQL = text(
-    """
+    f"""
     SELECT r.id,
            r.fetch_completed_at,
            c.id, c.source_url, c.row_count, c.status,
            e.id, e.source_url, e.row_count, e.status,
            i.id, i.source_url, i.row_count, i.status,
-           r.filing_snapshot_id
+           r.filing_snapshot_id, r.file_manifest,
+           c.record_set_hash, e.record_set_hash, i.record_set_hash,
+           {_RECEIPT_PROOF_SQL}
       FROM cf_current_release p
       JOIN cf_release r ON r.id = p.release_id
       JOIN cf_snapshot c ON c.id = r.contributions_snapshot_id
@@ -220,13 +247,78 @@ def live_release(db: Session) -> Optional[Release]:
     return release_from_row(row)
 
 
-def release_from_row(row) -> Release:
-    """Build a ``Release`` from the 15 columns ``_LIVE_RELEASE_SQL`` selects, in order.
+def validate_file_manifest(
+    manifest, identities: dict, hashes: dict, window_end: datetime, receipts=None
+) -> None:
+    """Refuse damaged evidence instead of treating it as an older atomic release."""
+    try:
+        if not isinstance(manifest, dict) or set(manifest) != set(identities):
+            raise ValueError("expected exactly 3 payment file slots")
+        for dataset, snapshot_id in identities.items():
+            entry = manifest[dataset]
+            if uuid.UUID(entry["snapshot_id"]) != snapshot_id:
+                raise ValueError(f"{dataset} snapshot differs from its release slot")
+            if not re.fullmatch(r"[0-9a-f]{64}", entry["record_set_hash"]) or entry[
+                "record_set_hash"
+            ] != hashes.get(dataset):
+                raise ValueError(f"{dataset} records differ from their snapshot")
+            uuid.UUID(entry["receipt_id"])
+            uuid.UUID(entry["receipt_ingestion_run_id"])
+            if not re.fullmatch(r"[0-9a-f]{64}", entry["receipt_content_hash"]):
+                raise ValueError(f"{dataset} receipt has no byte fingerprint")
+            if receipts is not None:
+                receipt = receipts.get(entry["receipt_id"], {})
+                if (
+                    receipt.get("snapshot_id") != str(snapshot_id)
+                    or receipt.get("dataset") != dataset
+                    or receipt.get("content_hash") != entry["receipt_content_hash"]
+                    or receipt.get("ingestion_run_id")
+                    != entry["receipt_ingestion_run_id"]
+                    or datetime.fromisoformat(receipt["started_at"])
+                    != datetime.fromisoformat(entry["fetch_started_at"])
+                    or datetime.fromisoformat(receipt["completed_at"])
+                    != datetime.fromisoformat(entry["copied_at"])
+                ):
+                    raise ValueError(
+                        f"{dataset} receipt does not prove this source copy"
+                    )
+            if entry["filing_snapshot_id"] is not None:
+                uuid.UUID(entry["filing_snapshot_id"])
+            copied = datetime.fromisoformat(entry["copied_at"])
+            started = datetime.fromisoformat(entry["fetch_started_at"])
+            if (
+                copied.tzinfo is None
+                or started.tzinfo is None
+                or not started <= copied <= window_end
+            ):
+                raise ValueError(f"{dataset} copy receipt has an invalid date")
+            checks = entry["checks"]
+            if not isinstance(checks, list) or any(
+                check.get("status") == "failed" for check in checks
+            ):
+                raise ValueError(f"{dataset} publication checks failed")
+            by_name = {check["name"]: check["status"] for check in checks}
+            if any(
+                by_name.get(name) != "passed"
+                for name in ("download_is_the_expected_file", "parses_completely")
+            ):
+                raise ValueError(f"{dataset} has no complete validated read")
+    except (KeyError, TypeError, ValueError, AttributeError) as error:
+        raise ReleaseNoLongerHeld(
+            f"Payment release manifest is unusable: {error}"
+        ) from error
 
-    Shared with the API's pinned read, which selects the same 15 columns through the
-    same joins and rides 2 more answers on the statement (``committee_finance.
-    current_release``), so both paths refuse a pruned snapshot by the same test.
+
+def release_from_row(row) -> Release:
+    """Build a release from every column of the common evidence-bearing query.
+
+    The pinned API read uses the same columns/joins. Only an explicit empty
+    manifest is legacy; a caller that omitted evidence columns must fail closed.
     """
+    if len(row) != 20:
+        raise ReleaseNoLongerHeld(
+            "The release resolution omitted source evidence columns"
+        )
     (
         release_id,
         fetched_at,
@@ -243,7 +335,21 @@ def release_from_row(row) -> Release:
         independent_rows,
         independent_status,
         filing_snapshot_id,
+        *manifest_columns,
     ) = row
+    manifest = manifest_columns[0]
+    if manifest != {}:
+        validate_file_manifest(
+            manifest,
+            {
+                "contributions": contributions_id,
+                "expenditures": expenditures_id,
+                "independent_expenditures": independent_id,
+            },
+            dict(zip((dataset.value for dataset in Dataset), manifest_columns[1:4])),
+            fetched_at,
+            manifest_columns[4] or {},
+        )
     statuses = (contributions_status, expenditures_status, independent_status)
     loaded = schema.CampaignFinanceSnapshotStatus.loaded
     if any(status != loaded and status != loaded.value for status in statuses):
@@ -253,6 +359,29 @@ def release_from_row(row) -> Release:
             f"release {release_id} names a snapshot that is no longer loaded "
             f"(statuses {statuses}). Re-resolve the live release."
         )
+
+    def source_metadata(dataset: Dataset) -> dict:
+        if not manifest:
+            return {}
+        entry = manifest[dataset.value]
+        return {
+            "copied_at": datetime.fromisoformat(entry["copied_at"]).astimezone(UTC),
+            "filing_snapshot_id": uuid.UUID(entry["filing_snapshot_id"])
+            if entry.get("filing_snapshot_id")
+            else None,
+            "receipt_id": uuid.UUID(entry["receipt_id"])
+            if entry.get("receipt_id")
+            else None,
+            "record_set_hash": entry.get("record_set_hash"),
+            "checks": entry.get("checks", []),
+        }
+
+    if manifest:
+        dates = {
+            datetime.fromisoformat(entry["copied_at"]).astimezone(UTC)
+            for entry in manifest.values()
+        }
+        fetched_at = next(iter(dates)) if len(dates) == 1 else None
     return Release(
         id=release_id,
         fetched_at=fetched_at.astimezone(UTC) if fetched_at is not None else fetched_at,
@@ -261,21 +390,56 @@ def release_from_row(row) -> Release:
             contributions_id,
             contributions_url,
             contributions_rows or 0,
+            **source_metadata(Dataset.contributions),
         ),
         expenditures=SourceFile(
             Dataset.expenditures,
             expenditures_id,
             expenditures_url,
             expenditures_rows or 0,
+            **source_metadata(Dataset.expenditures),
         ),
         independent_expenditures=SourceFile(
             Dataset.independent_expenditures,
             independent_id,
             independent_url,
             independent_rows or 0,
+            **source_metadata(Dataset.independent_expenditures),
         ),
         filing_snapshot_id=filing_snapshot_id,
     )
+
+
+def source_copy_date(
+    db: Session, dataset: Dataset, snapshot_id: uuid.UUID
+) -> Optional[datetime]:
+    """Date retained evidence by a published receipt, never by row creation."""
+    column = {
+        Dataset.contributions: "contributions_snapshot_id",
+        Dataset.expenditures: "expenditures_snapshot_id",
+        Dataset.independent_expenditures: "independent_expenditures_snapshot_id",
+    }[dataset]
+    query = (
+        str(_LIVE_RELEASE_SQL)
+        .replace(
+            "FROM cf_current_release p\n      JOIN cf_release r ON r.id = p.release_id",
+            "FROM cf_release r",
+        )
+        .replace(
+            "WHERE p.id = true",
+            f"WHERE r.{column} = :snapshot AND r.status IN ('published', 'superseded') ORDER BY r.fetch_completed_at DESC LIMIT 1",
+        )
+    )
+    row = db.execute(text(query), {"snapshot": snapshot_id}).one_or_none()
+    if row is None:
+        return None
+    manifest = row[15]
+    if manifest == {}:
+        return row[1].astimezone(UTC)
+    identities = dict(zip((one.value for one in Dataset), (row[2], row[6], row[10])))
+    hashes = dict(zip((one.value for one in Dataset), row[16:19]))
+    validate_file_manifest(manifest, identities, hashes, row[1], row[19] or {})
+    return datetime.fromisoformat(manifest[dataset.value]["copied_at"]).astimezone(UTC)
 
 
 def _refuse_if_rows_are_gone(db: Session, release: Release, dataset: Dataset) -> None:
@@ -648,6 +812,10 @@ def filer_years_that_must_not_show_a_split(
     so a surface sees exactly what the release decided rather than a second opinion
     formed later against rows that may since have been replaced.
     """
+    if release.contributions.checks is not None:
+        return withheld_filer_years_from_checks(
+            {"checks": release.contributions.checks}
+        )
     recorded = db.execute(
         text(
             "SELECT validation_json FROM cf_snapshot WHERE id = :snapshot",

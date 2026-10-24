@@ -28,6 +28,7 @@ let root: Root;
 let host: HTMLDivElement;
 let failedDirection: string | null;
 let responseRelease: string;
+let responseCopiedAt: string;
 let donor: string;
 let empty: boolean;
 let unavailable: boolean;
@@ -59,7 +60,7 @@ function payload(path: string) {
       payments,
       release_id: responseRelease,
       linkable_registration_numbers: [],
-      fetched_at: '2026-10-01',
+      fetched_at: responseCopiedAt,
       source_url: 'https://cfb.mn.gov/fixture',
       page: { limit: 250, offset: 0, total_payments: payments.length, has_more: false },
     },
@@ -93,6 +94,7 @@ async function recheck() {
 beforeEach(() => {
   failedDirection = null;
   responseRelease = 'release-A';
+  responseCopiedAt = '2026-10-01T18:00:00Z';
   donor = 'Accepted Donor';
   empty = false;
   unavailable = false;
@@ -144,8 +146,12 @@ describe.each(['committee', 'profile'])('%s payment rechecks', (surface) => {
       await settled();
       expect(host.textContent).toContain('Accepted Donor');
       expect(host.querySelector('svg')).not.toBeNull();
+      expect(host.textContent).toContain('Contributions file copied Oct 1,\u00a02026');
       failedDirection = direction;
+      responseCopiedAt = '2026-10-24T18:00:00Z';
       await recheck();
+      expect(host.textContent).toContain('Contributions file copied Oct 1,\u00a02026');
+      expect(host.textContent).not.toContain('Contributions file copied Oct 24');
       expect(host.textContent).toContain('Accepted Donor');
       expect(host.querySelector('svg')).not.toBeNull();
       expect(host.textContent).toContain(
@@ -161,6 +167,7 @@ describe.each(['committee', 'profile'])('%s payment rechecks', (surface) => {
       await settled();
       expect(refresh).toHaveBeenCalledOnce();
       expect(host.textContent).toContain('Replacement Donor');
+      expect(host.textContent).toContain('Contributions file copied Oct 24,\u00a02026');
       expect(host.textContent).not.toContain('Accepted Donor');
       expect(host.textContent).not.toContain('last complete payment list');
     },

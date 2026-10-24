@@ -1,3 +1,5 @@
+import type { PaymentCopyDates } from '../../data/types';
+import { paymentFileCopyLine } from '../../lib/paymentCopyDates';
 import { CAMPAIGN_MONEY_COLORS as c } from '../../lib/campaignMoneyColors';
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -38,6 +40,7 @@ function wash(hex: string): string {
 
 export function DonorPaymentList({
   groups,
+  paymentCopiedAt,
   year,
   tab,
   onSelectTab,
@@ -50,6 +53,7 @@ export function DonorPaymentList({
   showStatements = false,
 }: {
   groups: MoneyDetailsGroup[];
+  paymentCopiedAt?: PaymentCopyDates;
   year: number;
   tab: MoneyDetailsTab;
   onSelectTab: (tab: MoneyDetailsTab) => void;
@@ -192,6 +196,14 @@ export function DonorPaymentList({
         </View>
       </View>
       <View nativeID={panelId} role="tabpanel" aria-label={current.label} style={styles.panel}>
+        {ready ? (
+          <Text style={s.small}>
+            {paymentFileCopyLine(
+              isExpenditures ? 'expenditures' : 'contributions',
+              isExpenditures ? paymentCopiedAt?.expenditures : paymentCopiedAt?.contributions,
+            )}
+          </Text>
+        ) : null}
         {!ready ? (
           <View style={s.section}>
             <Text accessibilityRole={failed ? 'alert' : undefined} style={s.body}>

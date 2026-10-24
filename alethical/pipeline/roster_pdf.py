@@ -152,6 +152,17 @@ def _parse_section(text: str, chamber: str) -> list[RosterMember]:
     return members
 
 
+def validate_roster_biennium(text: str, *, year_start: int, year_end: int) -> None:
+    """A current PDF must never be filed under a previous legislature."""
+    header = re.search(
+        r"(\d{4})\s*[-–]\s*(\d{4})\s+Minnesota House of Representatives Members", text
+    )
+    if header is None or tuple(map(int, header.groups())) != (year_start, year_end):
+        raise ValueError(
+            "The live roster's biennium does not match the reviewed session; session mapping review is required"
+        )
+
+
 def parse_roster_pdf(text: str) -> list[RosterMember]:
     """Parse ``pdftotext -layout`` output into the canonical member list."""
     house_start = text.find(_HOUSE_HEADER)
@@ -165,7 +176,39 @@ def parse_roster_pdf(text: str) -> list[RosterMember]:
     grid_start = grid_start if grid_start != -1 else len(text)
     house_text = text[house_start:senate_start]
     senate_text = text[senate_start:grid_start]
-    return _parse_section(house_text, "house") + _parse_section(senate_text, "senate")
+    members: list[RosterMember] = []
+    for chamber, section, expected in (
+        (
+            "house",
+            house_text,
+            {f"{n:02d}{suffix}" for n in range(1, 68) for suffix in "AB"},
+        ),
+        ("senate", senate_text, {f"{n:02d}" for n in range(1, 68)}),
+    ):
+        parsed = _parse_section(section, chamber)
+        occupied = [member.district_code for member in parsed]
+        vacancy_pattern = (
+            r"(?<!\d)(\d{1,2}[AB])\s+Vacant\b"
+            if chamber == "house"
+            else r"(?<!\d)(\d{1,2})\s+Vacant\b"
+        )
+        normalize = (
+            _normalize_house_district
+            if chamber == "house"
+            else _normalize_senate_district
+        )
+        vacant = [
+            normalize(value) for value in re.findall(vacancy_pattern, section, re.I)
+        ]
+        seats = occupied + vacant
+        if len(seats) != len(set(seats)) or set(seats) != expected:
+            missing = sorted(expected - set(seats))
+            raise ValueError(
+                f"Incomplete or duplicate {chamber} roster seats; missing={missing}. "
+                "Retaining current membership until a complete roster is available."
+            )
+        members.extend(parsed)
+    return members
 
 
 def normalize_name_tokens(name: str) -> list[str]:

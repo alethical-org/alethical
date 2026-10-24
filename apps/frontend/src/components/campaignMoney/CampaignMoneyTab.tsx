@@ -1,3 +1,5 @@
+import type { PaymentCopyDates } from '../../data/types';
+import { paymentCopyLines } from '../../lib/paymentCopyDates';
 import { TVAdConnectionCard } from '../tvAds/OnDemand';
 import { contributionDetailRows, withContributionDetailRows } from '../../lib/contributionDetails';
 import { CommitteeDonationCards } from './CommitteeDonationCards';
@@ -78,10 +80,7 @@ import {
   DEFAULT_MONEY_DETAILS_PREFERENCES,
   type MoneyDetailsPreferences,
 } from '../../lib/campaignMoneyPreferences';
-import {
-  moneyDetailsPageCopy as copy,
-  paymentFilesDownloadedLine,
-} from '../../lib/campaignMoneyDetailsPageCopy';
+import { moneyDetailsPageCopy as copy } from '../../lib/campaignMoneyDetailsPageCopy';
 import {
   committeeCardStyles,
   detailsStyles,
@@ -396,10 +395,11 @@ export function CampaignMoneyTab({
 
       <FreshnessNote
         filingsCopiedOn={sharedCopyDay}
-        fetchedAts={[
-          ...(money ? [money.fetchedAt] : []),
-          ...(selectedOutsideYear?.state === 'reported' ? [selectedOutsideYear.fetchedAt] : []),
-        ]}
+        enabled={Boolean(money)}
+        paymentCopiedAt={money?.paymentCopiedAt}
+        outsideCopiedAt={
+          selectedOutsideYear?.state === 'reported' ? selectedOutsideYear.fetchedAt : undefined
+        }
         onRefresh={() => {
           refetchMoney();
           void outsideSpending.refetch();
@@ -785,46 +785,55 @@ function OtherOfficeNote({ count }: { count: number }) {
  */
 function FreshnessNote({
   filingsCopiedOn,
-  fetchedAts,
+  paymentCopiedAt,
+  outsideCopiedAt,
+  enabled,
   onRefresh,
 }: {
   filingsCopiedOn?: string | null;
-  fetchedAts: (string | null)[];
+  paymentCopiedAt?: PaymentCopyDates;
+  outsideCopiedAt?: string | null;
+  enabled: boolean;
   onRefresh: () => void;
 }) {
   const text = useDetailsStyles();
-  if (!fetchedAts.length) return null;
-  const days = fetchedAts.map((date) => (date ? centralDateLabel(date) : null));
-  const day = days[0];
-  if (!day || days.some((value) => value !== day))
-    return (
-      <View style={styles.freshness}>
-        {filingsCopiedOn ? (
-          <Text style={text.small}>
-            {`Report totals copied ${filingsCopiedOn}. This is a copy date, not a reporting period.`}
-          </Text>
-        ) : null}
-        <Text style={text.small}>{copy.freshnessMismatch}</Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={onRefresh}
-          style={(state) => [
-            detailsStyles.control,
-            Boolean('focused' in state && state.focused) && detailsStyles.focus,
-          ]}
-        >
-          <Text style={detailsStyles.controlText}>{copy.refreshRecords}</Text>
-        </Pressable>
-      </View>
-    );
+  if (!enabled) return null;
+  const mismatch =
+    outsideCopiedAt !== undefined &&
+    (!outsideCopiedAt ||
+      !paymentCopiedAt?.independentExpenditures ||
+      centralDateLabel(outsideCopiedAt) !==
+        centralDateLabel(paymentCopiedAt.independentExpenditures));
+  const displayedDates = {
+    contributions: paymentCopiedAt?.contributions ?? null,
+    expenditures: paymentCopiedAt?.expenditures ?? null,
+    independentExpenditures:
+      outsideCopiedAt !== undefined
+        ? outsideCopiedAt
+        : (paymentCopiedAt?.independentExpenditures ?? null),
+  };
   return (
     <View style={styles.freshness}>
-      {/* The ordinary body weight, not the heavy one: this is the least important line
-          on the tab and it was the only bold one, and the only one under the 15px the
-          notes inside the cards above it use. Tabular figures stay, for the date. */}
-      <Text style={[text.small, styles.freshnessLine]}>
-        {paymentFilesDownloadedLine(day, filingsCopiedOn)}
-      </Text>
+      {paymentCopyLines(displayedDates, filingsCopiedOn).map((line) => (
+        <Text key={line} style={[text.small, styles.freshnessLine]}>
+          {line}
+        </Text>
+      ))}
+      {mismatch ? (
+        <>
+          <Text style={text.small}>{copy.freshnessMismatch}</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onRefresh}
+            style={(state) => [
+              detailsStyles.control,
+              Boolean('focused' in state && state.focused) && detailsStyles.focus,
+            ]}
+          >
+            <Text style={detailsStyles.controlText}>{copy.refreshRecords}</Text>
+          </Pressable>
+        </>
+      ) : null}
     </View>
   );
 }

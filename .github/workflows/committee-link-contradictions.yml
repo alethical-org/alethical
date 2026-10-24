@@ -87,14 +87,21 @@ jobs:
       #   * shell: bash — GitHub's default is `bash -e` WITHOUT pipefail, so the `| tee`
       #     would hand back tee's exit code and swallow the script's non-zero.
       - name: Re-check every confirmed link against both sources
+        id: verify
         shell: bash
         run: |
+          set +e
           PYTHONPATH=. uv run python scripts/review_legislator_campaign_committees.py \
-            verify --download contributions.csv --target production \
+            verify --download contributions.csv --target production 2>&1 \
             | tee recheck-report.txt
+          result=${PIPESTATUS[0]}
+          if [ "$result" = 1 ] && grep -q 'need a person to look again:' recheck-report.txt; then
+            echo "contradictions=true" >> "$GITHUB_OUTPUT"
+          fi
+          exit "$result"
 
       - name: Open an alert issue if any link contradicts its sources
-        if: failure()
+        if: failure() && steps.verify.outputs.contradictions == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -107,4 +114,26 @@ jobs:
             gh issue comment "$existing" --body "Still contradicting as of this run — $RUN_URL"$'\n\n```\n'"$report"$'\n```'
           else
             gh issue create --title "🚨 $title" --label backend --body "$body"
+          fi
+
+      - name: Report an incomplete check without alleging an identity contradiction
+        if: failure() && steps.verify.outputs.contradictions != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          title="Committee-link source check could not finish"
+          {
+            printf 'Net: The automatic committee-link check could not finish. This run does not establish that any confirmed identity is wrong.\n\n'
+            printf 'Retain existing confirmed links and repair the source read or failed check before comparing identities again.\n\nRun: %s\n\n' "$RUN_URL"
+            printf '```\n'
+            cat recheck-report.txt 2>/dev/null || printf 'The check stopped before producing a report.\n'
+            printf '```\n'
+          } > incomplete-check.md
+          existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file incomplete-check.md
+          else
+            gh issue create --title "$title" --body-file incomplete-check.md
           fi

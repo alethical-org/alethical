@@ -36,7 +36,7 @@ Needs the local Postgres on port 54329.
 
 from __future__ import annotations
 
-import json
+from dataclasses import replace
 import threading
 from datetime import timedelta
 from decimal import Decimal
@@ -621,7 +621,7 @@ def test_the_release_is_resolved_once_with_all_three_files(db, release):
     assert release.independent_expenditures.dataset == Dataset.independent_expenditures
     assert release.contributions.row_count == len(CONTRIBUTIONS)
     assert release.expenditures.row_count == len(EXPENDITURES)
-    assert release.fetched_at is not None
+    assert all(release.copied_at(dataset) is not None for dataset in Dataset)
 
 
 def test_the_freshness_date_is_normalized_to_utc(db, release):
@@ -631,8 +631,9 @@ def test_the_freshness_date_is_normalized_to_utc(db, release):
     unnormalized value can tell a reader the files were fetched on the wrong day
     (found by the #1332 session, ``alethical/api/services/independent_spending.py``).
     """
-    assert release.fetched_at.tzinfo is not None
-    assert release.fetched_at.utcoffset() == timedelta(0)
+    for dataset in Dataset:
+        assert release.copied_at(dataset).tzinfo is not None
+        assert release.copied_at(dataset).utcoffset() == timedelta(0)
 
 
 def test_an_emptied_release_refuses_rather_than_reporting_a_zero(db, release):
@@ -687,25 +688,20 @@ def test_a_filer_year_the_release_refused_is_named_to_the_caller(db, release):
     share for exactly these committees (§9.5, a negative reconciliation is a failure
     rather than a number to clamp).
     """
-    db.execute(
-        text("UPDATE cf_snapshot SET validation_json = :recorded WHERE id = :snapshot"),
-        {
-            "recorded": json.dumps(
+    release = replace(
+        release,
+        contributions=replace(
+            release.contributions,
+            checks=[
                 {
-                    "checks": [
-                        {
-                            "name": "reported_totals_reconcile",
-                            "status": "overridden",
-                            "detail": "reviewed and published anyway",
-                            "filer_years": ["19200:2025", "30654:2024"],
-                        }
-                    ]
+                    "name": "reported_totals_reconcile",
+                    "status": "overridden",
+                    "detail": "reviewed and published anyway",
+                    "filer_years": ["19200:2025", "30654:2024"],
                 }
-            ),
-            "snapshot": release.contributions.snapshot_id,
-        },
+            ],
+        ),
     )
-    db.commit()
 
     assert reader.filer_years_that_must_not_show_a_split(db, release) == frozenset(
         {("19200", 2025), ("30654", 2024)}
@@ -715,25 +711,20 @@ def test_a_filer_year_the_release_refused_is_named_to_the_caller(db, release):
 def test_a_registration_number_holding_a_colon_still_resolves(db, release):
     """The year is split off the right-hand end, so a number containing a colon keeps
     its whole self rather than being truncated at the first one."""
-    db.execute(
-        text("UPDATE cf_snapshot SET validation_json = :recorded WHERE id = :snapshot"),
-        {
-            "recorded": json.dumps(
+    release = replace(
+        release,
+        contributions=replace(
+            release.contributions,
+            checks=[
                 {
-                    "checks": [
-                        {
-                            "name": "reported_totals_reconcile",
-                            "status": "failed",
-                            "detail": "x",
-                            "filer_years": ["A:B:2025", "malformed", "19200:notayear"],
-                        }
-                    ]
+                    "name": "reported_totals_reconcile",
+                    "status": "failed",
+                    "detail": "x",
+                    "filer_years": ["A:B:2025", "malformed", "19200:notayear"],
                 }
-            ),
-            "snapshot": release.contributions.snapshot_id,
-        },
+            ],
+        ),
     )
-    db.commit()
 
     assert reader.filer_years_that_must_not_show_a_split(db, release) == frozenset(
         {("A:B", 2025)}

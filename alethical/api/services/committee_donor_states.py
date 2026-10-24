@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from sqlalchemy import text
+from alethical.pipeline.campaign_finance_check_identity import READER_PREDICATE
 from sqlalchemy.orm import Session
 
 from alethical.pipeline import campaign_finance_reader as reader
@@ -56,6 +57,8 @@ def donor_states(
         "snapshot": release.contributions.snapshot_id,
         "registration": registration_number,
         "year": year,
+        "legacy_pair": release.contributions.checks is None,
+        "paired_filings": release.contributions.filing_snapshot_id,
     }
     # The eligibility test and the rows in 1 statement (18 Sep 2026): the test is a
     # 1-row derived table, and the rows are a lateral read that runs only where it is
@@ -63,7 +66,7 @@ def donor_states(
     # rows", or the rows themselves -- and each is told apart below by exactly the
     # column that carries it, never by counting.
     answer = db.execute(
-        text("""
+        text(f"""
             SELECT eligible.ok, held.contributor, held.contrib_zip, held.cash,
                    held.unreadable
               FROM (
@@ -81,7 +84,9 @@ def donor_states(
                      AND filing.filer_kind = 'candidate_committee'
                      AND extract(year FROM filing.reported_through) = :year
                      AND verdict.snapshot_id = :snapshot
-                     AND verdict.status = 'agrees'
+                     AND (:legacy_pair OR filing.snapshot_id = :paired_filings)
+                     AND {READER_PREDICATE.replace("OR reader_identity =", "OR verdict.reader_identity =")}
+                   AND verdict.status = 'agrees'
                      AND verdict.cut_off_date = filing.reported_through
                      AND NOT EXISTS (
                          SELECT 1 FROM cf_filing_report report

@@ -37,6 +37,7 @@ from alethical.api.serializers import (
     sponsor_payloads,
     tracking_payload,
 )
+from alethical.api.services.legislative_freshness import legislative_copy_date
 from alethical.api.services.legislative_sessions import (
     current_legislature_scope,
     named_special_session,
@@ -729,13 +730,9 @@ def keyword_search_clause(columns, q: str):
 
 
 def latest_ingested_at(db: Session):
-    """Newest succeeded-ingestion finish time — the "Data as of" provenance
-    timestamp shown on the bill search screen and Ask answer pages (#134)."""
-    return db.scalar(
-        select(func.max(IngestionRun.finished_at)).where(
-            IngestionRun.status == IngestionStatus.succeeded
-        )
-    )
+    """Shared source-copy date supported by the held current bills and roster."""
+    scope = current_legislature_scope(db)
+    return legislative_copy_date(db, scope.ids, roster_slug=scope.primary.slug)
 
 
 def get_session_by_slug(db: Session, slug: str | None):
@@ -2618,7 +2615,7 @@ def bill_detail(
         # is", and the two values that were available before this both said
         # something else. `latest_action_at` is the Legislature's last action on the
         # bill (a fact the bill card already states, correctly labelled), and the
-        # corpus-wide max(IngestionRun.finished_at) covers every bill at once, so it
+        # A shared corpus date describes multiple records, so it
         # can post-date the very record it stamps — measured Jul 31 2026, it would
         # have claimed Jul 30 for 10,414 bills last pulled Jul 14 or 15.
         # One indexed primary-key lookup; `Bill.ingestion_run_id` is set on every
@@ -3443,6 +3440,7 @@ def committee_finance_for_year(
             "year": finance.year,
             "release_id": str(finance.release_id),
             "fetched_at": finance.fetched_at,
+            "payment_copied_at": release.payment_copied_at,
             "filings_copied_at": filings_copied_at(
                 db, finance.committee.registration_number, finance.year
             ),
@@ -3794,7 +3792,11 @@ def committee_payments(
             "disclosure_statements": [asdict(item) for item in statements],
             # The day the catalogue the statements came from was copied, printed as
             # "Minnesota’s report catalogue copied {date}" whenever one shows.
-            "statements_copied_on": (statements_copied_on(db) if statements else None),
+            "statements_copied_on": (
+                statements_copied_on(db, [item.statement_id for item in statements])
+                if statements
+                else None
+            ),
         }
     )
 
@@ -3886,7 +3888,9 @@ def committee_unlinked_statements(
             "registration_number": registration_number,
             "year": year,
             "statements": [asdict(item) for item in links.unlinked],
-            "copied_on": statements_copied_on(db) if links.unlinked else None,
+            "copied_on": statements_copied_on(db, [item.id for item in links.unlinked])
+            if links.unlinked
+            else None,
         }
     )
 
@@ -4259,6 +4263,7 @@ def campaign_finance_summary(db: Session = Depends(get_db)):
             },
             "freshness": {
                 "downloads_fetched_at": dates.downloads_fetched_at,
+                "payment_copied_at": dates.payment_copied_at,
                 "register_fetched_at": dates.register_fetched_at,
                 "release_id": str(dates.release_id) if dates.release_id else None,
             },
@@ -4814,6 +4819,7 @@ def campaign_finance_search(
             "groups": [
                 {
                     "kind": group.kind,
+                    "fetched_at": group.fetched_at,
                     "state": group.state,
                     "results": [_search_result_payload(row) for row in group.results],
                     "total": group.total,
@@ -5103,6 +5109,7 @@ def legislator_campaign_finance(
             ],
             "release_id": str(release.id),
             "fetched_at": release.fetched_at,
+            "payment_copied_at": release.payment_copied_at,
             "filings_copied_at": shared_copy_date,
             "committees": [
                 {
@@ -5397,6 +5404,7 @@ def legislator_campaign_finance_years(
             # not (``current_claim_validated_at``, issue 2023).
             "current_claim_validated_at": current_claim_validated_at(),
             "fetched_at": release.fetched_at,
+            "payment_copied_at": release.payment_copied_at,
             "years": [
                 {
                     "year": entry.year,

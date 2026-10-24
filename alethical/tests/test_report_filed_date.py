@@ -259,3 +259,33 @@ def test_a_stamp_with_anything_after_the_year_is_refused_rather_than_trimmed() -
 
     assert filed_date is None
     assert errors == []
+
+
+@pytest.mark.parametrize(
+    ("outcomes", "expected"),
+    [
+        ({"served": 3}, 0),
+        ({}, 0),
+        ({"served": 3, "http_error": 1}, 1),
+        ({"not_released": 4, "http_error": 1}, 1),
+        ({"empty": 1}, 1),
+        ({"unrecognized_problem": 1}, 1),
+        ({"served": 1, "served_without_a_readable_date": 1}, 2),
+        ({"not_found": 1}, 2),
+        ({"not_released": 1}, 2),
+        ({"error_page": 1}, 2),
+    ],
+)
+def test_filed_date_stage_distinguishes_failed_reads_from_source_limits(
+    outcomes, expected
+):
+    from collections import Counter
+    from scripts.backfill_campaign_finance_filed_dates import Report
+
+    report = Report(outcomes=Counter(outcomes))
+    assert report.exit_code == expected
+    assert (
+        report.finding()["status"]
+        == {0: "succeeded", 1: "failed", 2: "review_required"}[expected]
+    )
+    assert report.finding()["outcomes"] == outcomes

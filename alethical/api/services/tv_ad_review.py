@@ -7,6 +7,8 @@ commit. No command here automatically reviews source data or publishes a draft.
 
 from __future__ import annotations
 
+from alethical.pipeline.campaign_finance_reader import source_copy_date
+
 from collections import OrderedDict
 from threading import Lock
 
@@ -600,7 +602,11 @@ def target_preview(
             "source_snapshot_id": str(snapshot.id),
             "source_content_hash": snapshot.content_hash,
             "source_row_number": row.row_number,
-            "source_date": snapshot.created_at.isoformat(),
+            "source_date": (
+                copied.isoformat()
+                if (copied := source_copy_date(db, snapshot.dataset, snapshot.id))
+                else None
+            ),
             "target_fingerprint": _target_fingerprint(
                 kind,
                 target_id,

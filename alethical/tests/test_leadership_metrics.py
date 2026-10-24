@@ -308,7 +308,8 @@ def test_report_reads_aggregates_without_private_records_or_writes(db):
         result = leadership_metrics(db, now=NOW)
     finally:
         event.remove(connection, "before_cursor_execute", collect)
-    assert len(statements) == 4
+    # The extra bounded release read carries per-file accepted receipts.
+    assert len(statements) == 5
     assert all(statement.lstrip().startswith("SELECT") for statement in statements)
     assert not any(
         name in statement.lower()

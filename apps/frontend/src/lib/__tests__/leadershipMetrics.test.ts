@@ -118,3 +118,23 @@ describe('honest history display', () => {
     expect(leadershipDate(null)).toBe('Not recorded yet');
   });
 });
+
+it('accepts dated payment slots on the campaign source only, keeping strict date validation', () => {
+  const value = leadershipFixture();
+  const source = value.operations!.freshness.find(
+    (row) => row.source === 'Minnesota campaign payments',
+  )!;
+  source.paymentCopiedAt = {
+    contributions: '2026-10-24T18:00:00Z',
+    expenditures: '2026-10-09T18:00:00Z',
+    independent_expenditures: null,
+  };
+  source.currentPublishedFetchCompletedAt = null;
+  source.publishedDataUnavailableReason = 'Payment files have different copy dates.';
+  expect(isLeadershipMetrics(value)).toBe(true);
+  source.paymentCopiedAt.expenditures = 'wrong';
+  expect(isLeadershipMetrics(value)).toBe(false);
+  source.paymentCopiedAt.expenditures = null;
+  value.operations!.freshness[0].paymentCopiedAt = source.paymentCopiedAt;
+  expect(isLeadershipMetrics(value)).toBe(false);
+});

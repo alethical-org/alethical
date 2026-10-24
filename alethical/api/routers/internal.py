@@ -377,3 +377,35 @@ def oban_dashboard(
         </html>
         """
     )
+
+
+@router.get("/source-refresh")
+def source_refresh_health(
+    _=Depends(require_internal_token), db: Session = Depends(get_db)
+):
+    from alethical.pipeline.record_refresh import health
+
+    from alethical.api.services.source_refresh_dispatch import configuration
+
+    try:
+        dispatch = "configured" if configuration() else "disabled"
+    except ValueError:
+        dispatch = "missing_access"
+    from alethical.db.models import SourceRefreshState
+
+    dispatch_rows = db.scalars(
+        select(SourceRefreshState).where(SourceRefreshState.name.like("dispatch:%"))
+    ).all()
+    return {
+        "data": health(db),
+        "independent_clock": dispatch,
+        "dispatches": [
+            {
+                "name": row.name,
+                "status": row.last_status,
+                "last_dispatched_at": row.last_dispatched_at,
+                "failures": row.failures,
+            }
+            for row in dispatch_rows
+        ],
+    }

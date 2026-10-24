@@ -65,7 +65,8 @@ The `missing` list is a **warning only** — reconciliation never creates or rea
 Reconciliation targets one session (default `CURRENT_SESSION_SLUG`), mirroring the session parameterization precedent (#219).
 
 - **Every biennium (~every 2 years):** Minnesota sessions are two-year bienniums (`94-2025-regular` = 2025–2026; next is 2027–2028). When a new biennium begins, run the full roster ingest + reconcile against the new session slug. The PDF URL does not change.
-- **Mid-session removals (rare):** re-running the reconcile at any time catches a member who has dropped off the official roster. Low frequency, so it stays a manual/on-demand recipe rather than being wired into the continuous bill-sync (Oban) pipeline.
+- **Routine refreshes:** the sitewide refresh runner invokes the callable roster refresh in `alethical/pipeline/legislative_refresh.py`. It reads a complete roster PDF before making changes, refreshes profile details, reconciles membership, then refreshes committee assignments, service history and biographies. The reviewed current session code is explicit; a historical or unmapped session cannot receive the current roster.
+- **Incomplete sources:** the roster parser requires every 134 House and 67 Senate seat exactly once, either occupied or explicitly vacant. A missing or duplicate seat rejects the copy before anyone is removed. Committee assignments are collected before saved memberships are cleared; a missing or unreadable assignment block keeps the saved set for source review. Biography refreshes retain saved city, election and term values when a page supplies no readable replacement.
 
 ## Out of scope
 
@@ -78,3 +79,11 @@ Reconciliation targets one session (default `CURRENT_SESSION_SLUG`), mirroring t
 - Unit: `parse_roster_pdf` against a checked-in text fixture (a representative slice of `pdftotext -layout` output incl. a vacant seat, hyphenated/multi-word/diacritic names) asserts 200 members and exact fields.
 - Unit/integration: `reconcile_current_members` against a seeded session with a contested seat (successor + predecessor both current), a vacated seat, and a matched seat → asserts the predecessor and vacated member deactivate, the successor and matched member stay, and `dry_run` writes nothing.
 - Production: read-only dry-run prints the exact six deactivations; apply; re-query confirms 133 House + 67 Senate = 200 current, and Eichorn `is_current = False`.
+
+### Reviewed next-biennium rollover (October 2026)
+
+The roster scheduler selects the newest started, reviewed regular session. A complete official PDF must name that biennium and account for all 201 seats, including explicit vacancies, before any profile writes. The new session must already contain accepted official bill records. The importer then stages all profiles and reconciles every occupied PDF seat in the same transaction. Only complete agreement promotes the new session: the old current service and committee flags become false, the new session becomes the sole current session, and all historical rows remain. A failed source or reconciliation rolls back the transaction and retains the previous roster.
+
+Human-reviewed campaign-account links and their reviewed office/year bounds are not copied, widened, or otherwise changed during rollover. New members still require their own campaign-link review. Later committee, service-history and biography stages report their failures separately; a partial stage cannot claim a completely refreshed job. Missing member profile links block whole-list committee replacement, and unreadable biography responses preserve held biographies.
+
+Profile refreshes accept nonempty official contact, party, address and photo corrections. A field missing from a partial profile does not erase its held value; clearing requires a recognized source absence signal.

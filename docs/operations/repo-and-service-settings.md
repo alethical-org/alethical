@@ -72,6 +72,7 @@ Set under **Settings, Secrets and variables, Actions**. The live check reads nam
 
 | Secret | Intended | Used by | For | Automated check |
 | --- | --- | --- | --- | --- |
+| `OPENAI_API_KEY` | Present | `source-record-refresh.yml` bill jobs only | Refreshes search for changed official text under [issue 1323](https://github.com/alethical-org/alethical/issues/1323); automatic summaries remain off. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `CLOUDFLARE_R2_ACCESS_KEY_ID` | Present | `mirror-raw-files.yml` | Writes the backup copy of source files. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `CLOUDFLARE_R2_BUCKET` | Present | `mirror-raw-files.yml` | Names the backup bucket. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `CLOUDFLARE_R2_ENDPOINT` | Present | `mirror-raw-files.yml` | Reaches the backup bucket. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
@@ -112,6 +113,8 @@ The live check reads names and release targets only. It never asks Vercel for va
 
 | Setting | Intended | Why | Automated check |
 | --- | --- | --- | --- |
+| `CRON_SECRET` | Production | Lets only Vercel's own scheduled call open the private search-measurement route (`api/search-measurements.ts`); shorter than 32 characters refuses every request. | Live |
+| `SEARCH_MEASUREMENT_WRITE_TOKEN` | Production | Lets that route save its measurements through the API's private write endpoint; it must equal the API's own copy. | Live |
 | `EXPO_PUBLIC_API_URL` | Preview, Production | Points each released web app at the production API. | Live |
 | `EXPO_PUBLIC_AUTH_RESEND_WAIT_SECONDS` | Production | Matches Supabase's real email resend wait. | Live |
 | `EXPO_PUBLIC_CHECKLY_STATUS_URL` | Production | Gives every reader the public Checkly availability detail page. | Live |
@@ -212,6 +215,11 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 | `ALETHICAL_COMMENT_EMAIL_ENABLED` | Present | Enables durable reader and administrator comment alerts after the release privacy checks; local and test environments keep it false. | Live |
 | `ALETHICAL_PROFILE_CLAIM_EMAIL_ENABLED` | Present; intended accepted-production value `true` | Staged absent/off until the profile-claim release checks pass, then enables saved request and decision notifications through the existing Resend service; local and test environments keep it false. | Live: presence only; value and activation gates are checked during release |
 | `ALETHICAL_CONTACT_RATE_PER_MIN` | Present | Limits repeated Contact us requests. | Live |
+| `ALETHICAL_SOURCE_REFRESH_APP_ID` | Present | Identifies the dedicated `alethical-record-updater` GitHub App, limited to Actions write and metadata read on this repository, that queues due public-record work ([source-refresh-dispatch.md](source-refresh-dispatch.md)). | Live: presence only |
+| `ALETHICAL_SOURCE_REFRESH_INSTALLATION_ID` | Present | Names that App's single-repository installation. | Live: presence only |
+| `ALETHICAL_SOURCE_REFRESH_PRIVATE_KEY` | Present | Signs the App's short-lived installation token requests; never printed or logged. | Live: presence only |
+| `ALETHICAL_SOURCE_REFRESH_DISPATCH_ENABLED` | Present; `true` only after the activation checks in [source-refresh-dispatch.md](source-refresh-dispatch.md) pass | Turns on the API's 60-second wake that queues due source jobs; off, the hourly GitHub schedule is the only clock. | Live: presence only; value is checked during activation |
+| `ALETHICAL_SOURCE_REFRESH_FAMILIES` | Present when dispatch is on, holding the same JSON list as the `SOURCE_REFRESH_FAMILIES` repository variable | Limits the wake to the source families already activated. | Live: presence only |
 | `ALETHICAL_CORS_ORIGINS` | Present | Limits which websites can call the API from a browser. | Live |
 | `ALETHICAL_EMAIL_ENABLED` | Present | Turns production Contact us delivery on. | Live |
 | `ALETHICAL_EMAIL_FROM` | Present | Sets the verified sender address. | Live |
@@ -221,6 +229,7 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 | `OPENAI_API_KEY` | Present | Powers live question sorting, answers, and search embeddings. | Live |
 | `PYTHON_VERSION` | Present | Pins the Python version Railway uses to build the API. | Live |
 | `RESEND_API_KEY` | Present | Authenticates production Contact us email. | Live |
+| `SEARCH_MEASUREMENT_WRITE_TOKEN` | Present | Accepts saved search measurements from the website's private scheduled route (`alethical/api/routers/search_measurements.py`); shorter than 32 characters refuses every write. | Live: presence only |
 | `SENTRY_DSN` | Present | Sends deliberately limited server failures to Alethical's Sentry project. | Live |
 | `SUPABASE_DB_PASSWORD` | Present | Lets production maintenance commands build a database connection without copying a full address. | Live |
 | `SUPABASE_POOLER_HOST` | Present | Routes production maintenance commands through Supabase's reachable connection pool. | Live |

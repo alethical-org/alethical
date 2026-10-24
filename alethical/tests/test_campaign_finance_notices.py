@@ -975,7 +975,7 @@ def test_a_statement_attaches_only_to_the_gift_it_names(db, client):
     assert attached[named]["state"] == "read"
     assert attached[named]["pdf_url"].endswith("period=D&regnum=41412&disc=2")
     assert attached[rslc]["state"] == "gift_identified"
-    assert body["statements_copied_on"] == "2026-09-23"
+    assert body["statements_copied_on"] == "2026-09-22"
 
     detail = client.get(
         f"/api/v1/campaign-finance/disclosure-statements/{attached[named]['statement_id']}"
@@ -1008,7 +1008,7 @@ def test_a_statement_attaches_only_to_the_gift_it_names(db, client):
     assert by_id[str(off_by_a_day.id)]["donor_name"] == "Restoration of America PAC"
     # Earliest report first.
     assert [item["report_period"] for item in listed["statements"]] == ["A", "B"]
-    assert listed["copied_on"] == "2026-09-23"
+    assert listed["copied_on"] == "2026-09-22"
 
 
 def test_matching_reads_the_whole_year_not_the_page_a_reader_is_on(db, client):
@@ -1194,3 +1194,83 @@ def test_the_launch_readings_file_is_well_formed():
     assert (
         readings[("B", 2)].signed_on is None and readings[("B", 2)].received_on is None
     )
+
+
+def test_refresh_existing_detects_same_url_correction_and_keeps_old_bytes(
+    db, monkeypatch
+):
+    report, store = _collect(db, monkeypatch, RESTORE_TEXTS)
+    old_hashes = set(
+        db.scalars(select(models.CampaignFinanceContributionNotice.document_hash))
+    )
+    old_objects = set(store.objects)
+    monkeypatch.setattr(notices, "fetch_pdf", lambda *a: (b"changed PDF", None))
+    monkeypatch.setattr(notices, "pdf_text", lambda body: BOARD_LAYOUT)
+    report = notices.collect_notices(
+        db,
+        None,
+        store,
+        dry_run=False,
+        page_body=NOTICE_PAGE.encode(),
+        refresh_existing=True,
+    )
+    assert report.changed == 3 and report.new == 0
+    assert old_objects <= set(store.objects)
+    assert not old_hashes.intersection(
+        db.scalars(select(models.CampaignFinanceContributionNotice.document_hash))
+    )
+    report = notices.collect_notices(
+        db,
+        None,
+        store,
+        dry_run=False,
+        page_body=NOTICE_PAGE.encode(),
+        refresh_existing=True,
+    )
+    assert report.changed == 0 and report.already_held == 3
+
+
+def test_statement_correction_hides_old_review_until_matching_bytes_are_reviewed(
+    db, monkeypatch
+):
+    row = _statement(db, 1, reading=_read("Old donor", date(2026, 1, 1), "10"))
+    assert service.statement_detail(db, row.id) is not None
+    monkeypatch.setattr(notices, "fetch_pdf", lambda *a: (b"%PDF changed scan", None))
+    fetched, failures, _ = notices.fetch_missing_statement_pdfs(
+        db,
+        None,
+        MemoryStore(),
+        refresh_existing=True,
+    )
+    assert fetched == 1 and not failures
+    assert service.statement_detail(db, row.id) is None
+    result = service.statement_links(db, RESTORE_SANITY, 2026, None)
+    assert not result.linked
+    assert result.unlinked[0].state == "not_read"
+
+
+def test_statement_copy_date_uses_exact_displayed_records_not_newer_unrelated_scan(db):
+    from alethical.api.services.committee_notices import statements_copied_on
+    from sqlalchemy import update
+
+    first = _statement(db, 1, period="A")
+    second = _statement(db, 2, period="B")
+    db.add(
+        models.CampaignFinanceStatementScan(
+            started_at=datetime(2026, 10, 24, 15, tzinfo=UTC),
+            completed_at=datetime(2026, 10, 24, 16, tzinfo=UTC),
+            catalogues_read=1,
+            statements_listed=1,
+            scope="an unrelated subset",
+        )
+    )
+    db.commit()
+    # Listing fixture was copied at midnight UTC, September22 in Minnesota.
+    assert statements_copied_on(db, [str(first.id)]) == date(2026, 9, 22)
+    db.execute(
+        update(models.CampaignFinanceDisclosureStatement)
+        .where(models.CampaignFinanceDisclosureStatement.id == second.id)
+        .values(last_listed_at=datetime(2026, 10, 9, 15, tzinfo=UTC))
+    )
+    db.commit()
+    assert statements_copied_on(db, [str(first.id), str(second.id)]) is None

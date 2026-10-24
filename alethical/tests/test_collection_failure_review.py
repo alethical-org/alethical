@@ -1791,6 +1791,7 @@ def test_the_real_refresh_report_maps_to_stages(monkeypatch, tmp_path):
     crs.record_refresh_report(report)
     by_stage = {r["stage"]: r for r in cfr.parse_summary(target.read_bytes())}
     assert by_stage["payments"]["status"] == "failed"
+    assert by_stage["payments"]["counts"] == {"payments releases published": 0}
     assert by_stage["totals"]["status"] == "skipped"
     assert by_stage["refresh"]["status"] == "unchanged", "no unrecognised failure"
 
@@ -1802,7 +1803,7 @@ def test_the_refresh_script_records_its_stages():
     assert 'raiseSystemExit(run_script("refresh",main))' in flat
     assert "record_refresh_report(report)" in flat
     assert 'record_stage("drill","failed",drill=True' in flat
-    assert 'record_stage("refresh","skipped"' in flat
+    assert 'record_stage("refresh","pending"ifscheduledelse"skipped"' in flat
 
 
 class _StreamResponse(_Response):
@@ -2185,3 +2186,28 @@ def test_a_dry_run_edit_prints_the_body_it_would_write():
         "statements: failed after storing 5 statements listed" in w for w in dry.writes
     )
     assert issues.writes.count(("create", issues.open_numbers()[0])) == 1
+
+
+def test_a_published_sibling_and_pending_checks_cannot_close_a_held_file_incident():
+    issues = FakeIssues()
+    held = [
+        stage("payments/contributions", "published"),
+        stage("payments/expenditures", "failed"),
+        stage("payments", "failed"),
+        stage("rechecks", "pending"),
+    ]
+    run_once(FakeRunReader(records=held), issues, switch=None)
+    number = issues.open_numbers()[0]
+    required = cfr.read_state(issues.issues[number]["body"])["required_stages"]
+    assert "payments/expenditures" in required and "rechecks" in required
+    partial = [
+        stage("payments/contributions", "published"),
+        stage("payments/expenditures", "unchanged"),
+        stage("payments", "published"),
+        stage("rechecks", "pending"),
+    ]
+    run_once(FakeRunReader(conclusion="success", records=partial, run_id=103), issues)
+    assert issues.issues[number]["state"] == "open"
+    complete = [*partial[:-1], stage("rechecks", "unchanged")]
+    run_once(FakeRunReader(conclusion="success", records=complete, run_id=104), issues)
+    assert issues.issues[number]["state"] == "closed"

@@ -67,5 +67,10 @@
     "first_payment_on": null,
     "last_payment_on": null,
     "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-617535497"
+  },
+  "payment_copied_at": {
+    "contributions": "2026-08-12T02:54:22.402100Z",
+    "expenditures": "2026-08-12T02:54:22.402100Z",
+    "independent_expenditures": "2026-08-12T02:54:22.402100Z"
   }
 }

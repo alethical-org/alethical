@@ -508,6 +508,7 @@ class MemoryStore:
 
 def _clear(session) -> None:
     session.rollback()
+    session.execute(text("DELETE FROM cf_refresh_state"))
     session.execute(text("UPDATE cf_filing_current SET snapshot_id = NULL"))
     for table in (
         "cf_filing_figure",
@@ -1275,6 +1276,12 @@ def test_a_stored_set_publishes_from_its_kept_bytes_without_fetching_again(
     snapshot = db.get(models.CampaignFinanceFilingSnapshot, first.snapshot_id)
     assert snapshot.status is models.CampaignFinanceSnapshotStatus.loaded
     assert snapshot.filer_years_without_figures == len(first.without_figures)
+    from alethical.pipeline import campaign_finance_refresh as refresh
+
+    assert refresh.state_get(db, refresh.RECHECK_PENDING_KEY)[
+        "filings_snapshot_id"
+    ] == str(first.snapshot_id)
+    assert refresh.state_get(db, refresh.CLEARING_PENDING_KEY)
 
 
 def test_publishing_a_stored_hash_nobody_stored_is_a_refusal_not_a_fetch(
@@ -2248,6 +2255,11 @@ def test_restoring_a_dropped_filer_year_copies_the_newest_held_figures_with_thei
     with pytest.raises(filings.CampaignFinanceFilingsRefusal, match="already carries"):
         filings.restore_lost_filer_years(db, [("11880", 2025)], decision="t")
 
+    from alethical.pipeline import campaign_finance_refresh as refresh
+
+    refresh.state_update(
+        db, delete_keys=[refresh.RECHECK_PENDING_KEY, refresh.CLEARING_PENDING_KEY]
+    )
     restored = filings.restore_lost_filer_years(
         db,
         [("18999", 2025), ("40404", 2025)],
@@ -2255,6 +2267,11 @@ def test_restoring_a_dropped_filer_year_copies_the_newest_held_figures_with_thei
         log=lambda m: None,
     )
     assert restored == 1  # 40404 is held nowhere, so there was nothing to restore
+    assert refresh.state_get(db, refresh.RECHECK_PENDING_KEY)[
+        "filings_snapshot_id"
+    ] == str(published.snapshot_id)
+    assert refresh.state_get(db, refresh.CLEARING_PENDING_KEY)
+
     assert figures_of(db, published.snapshot_id, "18999", 2025) == before
     row = db.scalars(
         select(models.CampaignFinanceFiling).where(
@@ -2437,3 +2454,58 @@ def test_the_callers_last_word_before_publish_can_refuse_and_nothing_goes_live(
     )
     assert published.published, published.summary()
     assert filings.live_filings_snapshot(db).id == published.snapshot_id
+
+
+def test_publication_crash_before_pruning_keeps_retry_work(
+    db, board, store, monkeypatch
+):
+    from alethical.pipeline import campaign_finance_refresh as refresh
+    from alethical.pipeline.campaign_finance_recheck import RecheckReport, CheckOutcome
+
+    publish_first(db, board, store)
+    refresh.state_update(
+        db, delete_keys=[refresh.CLEARING_PENDING_KEY, refresh.RECHECK_PENDING_KEY]
+    )
+    board.amount_overrides[("11880", 2025)] = {
+        "Individuals contributions": "$13,000.00"
+    }
+    original_prune = filings.prune_filings
+
+    def interrupted(*args, **kwargs):
+        raise RuntimeError("stopped immediately after publish commit")
+
+    monkeypatch.setattr(filings, "prune_filings", interrupted)
+    with pytest.raises(RuntimeError, match="immediately after publish commit"):
+        run(db, board, store)
+    db.rollback()
+    live = refresh.live_versions(db)
+    assert (
+        refresh.state_get(db, refresh.RECHECK_PENDING_KEY)["filings_snapshot_id"]
+        == live.filings_snapshot_id
+    )
+    assert refresh.state_get(db, refresh.CLEARING_PENDING_KEY)
+    monkeypatch.setattr(filings, "prune_filings", original_prune)
+    again = run(db, board, store)
+    assert not again.published
+    clears, checks = [], []
+
+    def recheck(*args, **kwargs):
+        checks.append(True)
+        return RecheckReport(
+            years=refresh.recheck_years(),
+            outcomes=[
+                CheckOutcome(name="money in", verdicts=1),
+                CheckOutcome(name="money out", verdicts=1),
+            ],
+        )
+
+    result = refresh.finish_manual_publication(
+        db,
+        refresh.when_a_money_download_release_lands(),
+        published=False,
+        clear=lambda clearing, **kw: clears.append(clearing.event),
+        recheck=recheck,
+    )
+    assert result.ok and checks == [True] and clears
+    assert refresh.state_get(db, refresh.RECHECK_PENDING_KEY) is None
+    assert refresh.state_get(db, refresh.CLEARING_PENDING_KEY) is None

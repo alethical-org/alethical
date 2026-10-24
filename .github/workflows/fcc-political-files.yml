@@ -34,6 +34,7 @@ permissions:
 
 jobs:
   archive:
+    if: ${{ github.event_name != 'schedule' || !contains(fromJSON(vars.SOURCE_REFRESH_FAMILIES || '[]'), 'fcc') }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
@@ -109,7 +110,7 @@ jobs:
             --mirror-limit "$MIRROR_LIMIT" --summary fcc-refresh-report.json
 
       - name: Keep the completion report
-        if: ${{ always() && (github.event_name == 'schedule' || !inputs.dry_run) }}
+        if: ${{ always() && needs.archive.result != 'skipped' && (github.event_name == 'schedule' || !inputs.dry_run) }}
         uses: actions/upload-artifact@v7
         with:
           name: fcc-refresh-report
@@ -119,7 +120,7 @@ jobs:
 
   report:
     needs: archive
-    if: ${{ always() && (github.event_name == 'schedule' || !inputs.dry_run) }}
+    if: ${{ always() && needs.archive.result != 'skipped' && (github.event_name == 'schedule' || !inputs.dry_run) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

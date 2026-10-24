@@ -78,3 +78,15 @@ test('persisted unreadable documents keep the existing issue open', async () => 
   assert.equal(update.state, 'open');
   assert.match(update.body, /Documents with incomplete readings: 3/);
 });
+
+test('a late report cannot erase a newer run problem or close its issue', async () => {
+  const newer = [{...existing[0], body: '<!-- fcc-refresh-completion:124 -->\nNewer run has unfinished work'}];
+  const calls = await run(clean, newer);
+  assert.deepEqual(calls.map(([kind]) => kind), ['summary']);
+});
+
+test('the same run may replace its own report after a successful rerun', async () => {
+  const same = [{...existing[0], body: '<!-- fcc-refresh-completion:123 -->\nEarlier attempt failed'}];
+  const calls = await run(clean, same);
+  assert.equal(calls.find(([kind]) => kind === 'update')[1].state, 'closed');
+});

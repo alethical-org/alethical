@@ -46,6 +46,7 @@ fallback, not a route) and §9.6 (which version is effective).
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 import time
@@ -54,6 +55,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
+import requests
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
@@ -72,6 +74,7 @@ from alethical.pipeline.campaign_finance_filings import (  # noqa: E402
     http_session,
     live_filings_snapshot,
 )
+from alethical.pipeline.request_limits import DatabaseRequestLimiter, RateLimitedSession  # noqa: E402
 from alethical.pipeline.campaign_finance_report_documents import (  # noqa: E402
     DocumentOutcome,
     extract_lines,
@@ -151,6 +154,47 @@ class Report:
     asked: int = 0
     outcomes: Counter = field(default_factory=Counter)
     unreadable: list[str] = field(default_factory=list)
+    snapshot_changed: bool = False
+    incomplete: bool = False
+    #: A finished bounded pass treats per-report source errors as gaps to retry on
+    #: the next pass, not a failed pass that restarts the whole history at once.
+    source_gaps_are_review: bool = False
+    snapshot_id: str | None = None
+    last_key: list | None = None
+
+    @property
+    def exit_code(self) -> int:
+        if self.snapshot_changed or self.incomplete:
+            return 75
+        known = {outcome.value for outcome in DocumentOutcome} | {
+            "served_without_a_readable_date"
+        }
+        gaps = set() if self.source_gaps_are_review else {"http_error", "empty"}
+        if any(
+            count and (name in gaps or name not in known)
+            for name, count in self.outcomes.items()
+        ):
+            return 1
+        if any(count and name != "served" for name, count in self.outcomes.items()):
+            return 2
+        return 0
+
+    def finding(self) -> dict:
+        return {
+            "status": {
+                0: "succeeded",
+                1: "failed",
+                2: "review_required",
+                75: "continuing",
+            }[self.exit_code],
+            "carried_forward": self.carried_forward,
+            "documents_asked": self.asked,
+            "dates_stored": self.dated,
+            "outcomes": dict(self.outcomes),
+            "snapshot_changed": self.snapshot_changed,
+            "incomplete": self.incomplete,
+            "filings_snapshot_id": self.snapshot_id,
+        }
 
     def summary(self) -> str:
         lines = [
@@ -189,13 +233,13 @@ def _wanted(db: Session, snapshot_id, year_from: int) -> list[Wanted]:
     return wanted
 
 
-def _store(db: Session, snapshot_id, item: Wanted, filed_date: date) -> None:
+def _store(db: Session, snapshot_id, item: Wanted, filed_date: date) -> bool:
     """Write one date, and only onto the row that is still blank.
 
     The ``IS NULL`` guard is what makes a re-run idempotent rather than merely
     repeatable: 2 passes overlapping cannot move a date that is already stored.
     """
-    db.execute(
+    result = db.execute(
         text(
             "UPDATE cf_filing_report SET filed_date = :filed_date "
             "WHERE snapshot_id = :snapshot_id AND row_number = :row_number "
@@ -207,6 +251,12 @@ def _store(db: Session, snapshot_id, item: Wanted, filed_date: date) -> None:
             "row_number": item.row_number,
         },
     )
+
+    if result.rowcount == 1:
+        from alethical.pipeline.source_record_clearing import stage_source_clearing
+
+        stage_source_clearing(db, "filing-dates")
+    return result.rowcount == 1
 
 
 def describe(db: Session, *, year_from: int, limit: int | None) -> None:
@@ -258,35 +308,74 @@ def backfill(
     limit: int | None,
     carry_forward: bool,
     progress,
+    source_session=None,
+    after_key=None,
+    on_item=None,
+    before_write=None,
+    max_seconds=None,
+    expected_snapshot_id=None,
 ) -> Report:
     report = Report()
     snapshot = live_filings_snapshot(db)
     if snapshot is None:
         raise SystemExit("refused: no filings snapshot is loaded.")
 
+    snapshot_id = snapshot.id
+    report.snapshot_id = str(snapshot_id)
+    if expected_snapshot_id is not None and report.snapshot_id != expected_snapshot_id:
+        report.snapshot_changed = True
+        return report
     if carry_forward:
-        result = db.execute(text(_CARRY_FORWARD_SQL), {"snapshot_id": snapshot.id})
+        if before_write is not None:
+            before_write(db)
+        result = db.execute(text(_CARRY_FORWARD_SQL), {"snapshot_id": snapshot_id})
         report.carried_forward = result.rowcount or 0
+        if report.carried_forward:
+            from alethical.pipeline.source_record_clearing import stage_source_clearing
+
+            stage_source_clearing(db, "filing-dates")
         db.commit()
         progress(f"carried forward {report.carried_forward:,} date(s), free.")
 
-    todo = _wanted(db, snapshot.id, year_from)
+    todo = _wanted(db, snapshot_id, year_from)
+    if after_key is not None:
+        todo = [
+            item
+            for item in todo
+            if (-item.filing_year, item.registration_number, item.row_number)
+            > tuple(after_key)
+        ]
     if limit is not None:
+        report.incomplete = len(todo) > limit
         todo = todo[:limit]
+    db.commit()
+    if on_item is not None:
+        on_item(report)
+    deadline = None if max_seconds is None else time.monotonic() + max_seconds
     progress(f"{len(todo):,} document(s) to ask for.")
-    http = http_session()
+    http = source_session or http_session()
     for index, item in enumerate(todo, start=1):
-        response, outcome, _note = fetch_document(
-            http,
-            registration_number=item.registration_number,
-            filing_year=item.filing_year,
-            kind=item.kind,
-            report_type=item.report_type,
-            amendment_index=item.amendment_index,
-            special_election=item.special_election,
-        )
+        if deadline is not None and time.monotonic() >= deadline:
+            report.incomplete = True
+            break
+        try:
+            response, outcome, _note = fetch_document(
+                http,
+                registration_number=item.registration_number,
+                filing_year=item.filing_year,
+                kind=item.kind,
+                report_type=item.report_type,
+                amendment_index=item.amendment_index,
+                special_election=item.special_election,
+            )
+        except requests.RequestException:
+            if on_item is None:
+                raise
+            # A bounded turn records the source gap and moves on, so 1 report
+            # that always times out cannot hold the whole pass in place.
+            response, outcome = None, None
         report.asked += 1
-        report.outcomes[outcome.value] += 1
+        report.outcomes["http_error" if outcome is None else outcome.value] += 1
         if outcome is DocumentOutcome.served:
             lines, _pages = extract_lines(response.body)
             filed_date, errors = filed_date_from_lines(lines)
@@ -298,8 +387,13 @@ def backfill(
                     + ("; ".join(errors) if errors else "no received stamp in the text")
                 )
             else:
-                _store(db, snapshot.id, item, filed_date)
-                report.dated += 1
+                if before_write is not None:
+                    before_write(db)
+                report.dated += int(_store(db, snapshot_id, item, filed_date))
+        report.last_key = [-item.filing_year, item.registration_number, item.row_number]
+        if on_item is not None:
+            db.commit()
+            on_item(report)
         if index % COMMIT_EVERY == 0:
             db.commit()
             progress(
@@ -308,7 +402,95 @@ def backfill(
             )
         time.sleep(REQUEST_SPACING_SECONDS)
     db.commit()
+    # Old snapshot rows remain safe, but a completed old pass never dates the
+    # newly published register. Retry current work on the next bounded turn.
+    current = db.execute(
+        text("SELECT snapshot_id FROM cf_filing_current WHERE id = true")
+    ).scalar_one_or_none()
+    report.snapshot_changed = current != snapshot_id
     return report
+
+
+def run_batch(
+    engine, *, name, token, year_from, limit, max_seconds, carry_forward, progress
+):
+    from alethical.pipeline.record_refresh import load_progress, save_progress
+
+    saved = load_progress(engine, name, token)
+    with Session(engine) as db:
+        current = live_filings_snapshot(db)
+        if current is None:
+            raise RuntimeError("No published filing snapshot")
+        snapshot_id = str(current.id)
+        scope = saved.get("filing_date_pass") or {}
+        if (
+            scope.get("snapshot_id") != snapshot_id
+            or scope.get("year_from") != year_from
+        ):
+            scope = {
+                "snapshot_id": snapshot_id,
+                "year_from": year_from,
+                "after_key": None,
+                "carried_forward": 0,
+                "dated": 0,
+                "asked": 0,
+                "outcomes": {},
+            }
+        base = dict(scope)
+
+        def fence(session):
+            owner = session.execute(
+                text(
+                    "SELECT name FROM source_refresh_state WHERE name=:name AND token=CAST(:token AS uuid) AND lease_expires_at>clock_timestamp() FOR UPDATE"
+                ),
+                {"name": name, "token": token},
+            ).first()
+            if owner is None:
+                raise RuntimeError("Filing-date turn lost its owner before writing")
+
+        def checkpoint(report):
+            scope.update(
+                after_key=report.last_key or base["after_key"],
+                carried_forward=base["carried_forward"] + report.carried_forward,
+                dated=base["dated"] + report.dated,
+                asked=base["asked"] + report.asked,
+                outcomes=dict(Counter(base["outcomes"]) + report.outcomes),
+            )
+            saved["filing_date_pass"] = scope
+            save_progress(engine, name, token, saved)
+
+        source = RateLimitedSession(http_session(), DatabaseRequestLimiter(engine))
+        try:
+            report = backfill(
+                db,
+                year_from=year_from,
+                limit=limit,
+                carry_forward=carry_forward and base["after_key"] is None,
+                progress=progress,
+                source_session=source,
+                after_key=base["after_key"],
+                on_item=checkpoint,
+                before_write=fence,
+                max_seconds=max_seconds,
+                expected_snapshot_id=snapshot_id,
+            )
+        finally:
+            source.close()
+        checkpoint(report)
+        combined = Report(
+            carried_forward=scope["carried_forward"],
+            dated=scope["dated"],
+            asked=scope["asked"],
+            outcomes=Counter(scope["outcomes"]),
+            snapshot_id=base["snapshot_id"],
+            snapshot_changed=report.snapshot_changed,
+            incomplete=report.incomplete,
+            source_gaps_are_review=True,
+        )
+        if report.snapshot_changed or not report.incomplete:
+            saved.pop("filing_date_pass", None)
+            save_progress(engine, name, token, saved)
+        return combined
 
 
 def main() -> int:
@@ -344,7 +526,16 @@ def main() -> int:
         help="Skip the free pass that copies a date from an identical report version in "
         "an earlier snapshot.",
     )
+    parser.add_argument(
+        "--json", action="store_true", help="Print structured stage outcomes"
+    )
+    parser.add_argument("--batch-size", type=int, default=None)
+    parser.add_argument("--max-seconds", type=int, default=120)
     args = parser.parse_args()
+    if args.batch_size is not None and not 1 <= args.batch_size <= 100:
+        parser.error("batch size must be between 1 and 100")
+    if not 1 <= args.max_seconds <= 240:
+        parser.error("batch seconds must be between 1 and 240")
 
     engine = create_engine(
         normalize_database_url(
@@ -381,15 +572,31 @@ def main() -> int:
         if args.dry_run:
             describe(session, year_from=args.year_from, limit=args.limit)
             return 0
-        report = backfill(
-            session,
-            year_from=args.year_from,
-            limit=args.limit,
-            carry_forward=not args.no_carry_forward,
-            progress=lambda message: print(message, file=sys.stderr, flush=True),
-        )
-    print("\n" + report.summary())
-    return 0
+        if args.batch_size is not None:
+            session.rollback()
+            report = run_batch(
+                engine,
+                name=os.environ["ALETHICAL_REFRESH_JOB_NAME"],
+                token=os.environ["ALETHICAL_REFRESH_JOB_TOKEN"],
+                year_from=args.year_from,
+                limit=args.batch_size,
+                max_seconds=args.max_seconds,
+                carry_forward=not args.no_carry_forward,
+                progress=lambda message: print(message, file=sys.stderr, flush=True),
+            )
+        else:
+            report = backfill(
+                session,
+                year_from=args.year_from,
+                limit=args.limit,
+                carry_forward=not args.no_carry_forward,
+                progress=lambda message: print(message, file=sys.stderr, flush=True),
+                source_session=RateLimitedSession(
+                    http_session(), DatabaseRequestLimiter(engine)
+                ),
+            )
+    print(json.dumps(report.finding()) if args.json else "\n" + report.summary())
+    return report.exit_code
 
 
 if __name__ == "__main__":

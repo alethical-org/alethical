@@ -536,9 +536,9 @@ describe('Money by race figures and unavailable records', () => {
     render({ group: house.anchor, year: '2026' });
     const text = host.textContent ?? '';
     expect(text.indexOf('Named donors include people')).toBeLessThan(
-      text.indexOf('Payment files copied Sep 1, 2026'),
+      text.indexOf('Contributions file copied Sep 1, 2026'),
     );
-    expect(text.indexOf('Payment files copied Sep 1, 2026')).toBeLessThan(
+    expect(text.indexOf('Contributions file copied Sep 1, 2026')).toBeLessThan(
       text.indexOf('Total contributions'),
     );
     expect(text.indexOf('Total contributions')).toBeLessThan(text.indexOf(reported.name));
@@ -561,7 +561,7 @@ describe('Money by race figures and unavailable records', () => {
       expect(host.textContent).not.toContain('$0');
       expect(host.textContent).not.toContain('Not reported');
       expect(host.textContent?.match(/A candidate committee must name a donor/g)).toHaveLength(1);
-      expect(host.textContent?.match(/Payment files copied Sep 1, 2026/g)).toHaveLength(1);
+      expect(host.textContent?.match(/Contributions file copied Sep 1, 2026/g)).toHaveLength(1);
       const amount = leaf('$100');
       expect(amount.parentElement?.textContent).toContain('Total contributions');
       expect(amount.parentElement?.textContent).not.toContain('Jul 20');

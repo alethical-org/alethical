@@ -247,6 +247,16 @@ def download_contributions(destination: str) -> str:
             "The downloaded file's first line is not the expected column header, so it is "
             f"not the contributions file. Got: {first_line[:120]!r}"
         )
+    with open(destination, encoding="utf-8-sig", newline="") as handle:
+        if not any(
+            (row.get("Recipient reg num") or "").strip()
+            and (row.get("Recipient") or "").strip()
+            for row in csv.DictReader(handle)
+        ):
+            raise RuntimeError(
+                "SOURCE INCOMPLETE: the contributions file contains no usable records. "
+                "No committee identities were compared or changed."
+            )
     print(
         f"downloaded {os.path.getsize(destination):,} bytes to {destination}",
         file=sys.stderr,
@@ -1059,6 +1069,13 @@ def run_verify(
     if not rows:
         print("no confirmed links yet, so there is nothing to re-check.")
         return 0
+
+    if not committees or not filers_by_registration:
+        print(
+            "SOURCE INCOMPLETE: contributions or the registered-filer directory "
+            "contains no usable records. No committee identities were compared or changed."
+        )
+        return 2
 
     problems = recheck_confirmed_links(
         [

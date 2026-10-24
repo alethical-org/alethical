@@ -54,6 +54,7 @@ from alethical.api.request_admission import (
     RequestAdmissionMiddleware,
 )
 from alethical.api.services.contact import log_contact_delivery_readiness
+from alethical.api.services.source_refresh_lifespan import source_refresh_lifespan
 from alethical.api.services.comment_email import comment_email_lifespan
 from alethical.api.services.candidate_claim_email import candidate_claim_email_lifespan
 from alethical.api.services.address_suggestion_index import (
@@ -73,7 +74,11 @@ async def email_lifespan(app):
     log_capacity(address_copy)
     address_copy.start()
     try:
-        async with comment_email_lifespan(app), candidate_claim_email_lifespan(app):
+        async with (
+            comment_email_lifespan(app),
+            candidate_claim_email_lifespan(app),
+            source_refresh_lifespan(app),
+        ):
             yield
     finally:
         await asyncio.to_thread(address_copy.stop)

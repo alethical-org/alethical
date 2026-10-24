@@ -7,7 +7,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 from collections.abc import Sequence
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import (
     and_,
@@ -66,6 +66,63 @@ naming_convention = {
 
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=naming_convention)
+
+
+class SourceRequestLimit(Base):
+    """Shared request reservations and source-requested cooldowns."""
+
+    __tablename__ = "source_request_limits"
+    host: Mapped[str] = mapped_column(Text, primary_key=True)
+    next_request_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    blocked_until: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
+class SourceRefreshState(Base):
+    """One durable deadline per named source job, not a public source-copy date."""
+
+    __tablename__ = "source_refresh_state"
+    name: Mapped[str] = mapped_column(Text, primary_key=True)
+    next_due_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    last_started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    last_finished_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+    last_succeeded_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+    last_dispatched_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+    last_checked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    progress: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
+    finding: Mapped[Optional[dict]] = mapped_column(JSONB)
+    last_status: Mapped[Optional[str]] = mapped_column(Text)
+    failures: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    token: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True))
+    lease_expires_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+
+
+class SourceRefreshAttempt(Base):
+    """Bounded operational evidence; never source bodies or visitor details."""
+
+    __tablename__ = "source_refresh_attempt"
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    exit_code: Mapped[Optional[int]] = mapped_column(Integer)
+    finding: Mapped[Optional[dict]] = mapped_column(JSONB)
 
 
 class TimestampMixin:
@@ -2435,7 +2492,7 @@ class CampaignFinanceFetchObservation(UUIDPrimaryKeyMixin, TimestampMixin, Base)
 
 
 class CampaignFinanceRelease(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    """The set of 3 files published together.
+    """One accepted file per dataset, named by a single request-consistent release.
 
     Three named non-null columns rather than a membership table, because
     ``UNIQUE (release_id, dataset)`` on a membership table happily permits a
@@ -2459,10 +2516,9 @@ class CampaignFinanceRelease(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     status: Mapped[CampaignFinanceReleaseStatus] = mapped_column(
         SQLEnum(CampaignFinanceReleaseStatus, name="cf_release_status"), nullable=False
     )
-    # The run's fetch window. `fetch_completed_at` is the page's freshness date
-    # (#861), NOT a snapshot's first fetch: an unchanged file re-confirmed today
-    # is current data, and the 3 downloads take ~93 seconds so the window is
-    # recorded rather than collapsed to an instant.
+    # The run's fetch window. Per-file freshness belongs to the accepted manifest
+    # receipt; this end time remains the fallback only for a legacy empty manifest.
+    # A complete unchanged file may be re-confirmed without changing its snapshot.
     fetch_started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
@@ -2484,6 +2540,12 @@ class CampaignFinanceRelease(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # saying so.
     filing_snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("cf_filing_snapshot.id")
+    )
+
+    # Immutable per-file receipts, dates, totals pairing and publication checks.
+    # Empty only for releases written before independent file publication.
+    file_manifest: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
     )
 
     __table_args__ = (
@@ -3235,6 +3297,8 @@ class CampaignFinanceStatedSplit(Base):
     ours_itemized: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 4))
     ours_itemized_cash: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 4))
 
+    reader_identity: Mapped[Optional[str]] = mapped_column(String(64))
+
     checked_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
@@ -3334,6 +3398,8 @@ class CampaignFinanceStatedSpending(Base):
     # nothing" is the sharpest case this check exists for and an absent number would
     # read as a year nobody looked at.
     ours_itemized: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 4))
+
+    reader_identity: Mapped[Optional[str]] = mapped_column(String(64))
 
     checked_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False

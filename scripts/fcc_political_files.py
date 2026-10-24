@@ -118,6 +118,7 @@ def parser_for_commands() -> argparse.ArgumentParser:
     refresh.add_argument("--mirror-limit", type=positive, default=2500)
     refresh.add_argument("--workers", type=int, choices=range(1, 5), default=3)
     refresh.add_argument("--dry-run", action="store_true")
+    refresh.add_argument("--shared-source-budget", action="store_true")
     refresh.add_argument(
         "--summary", type=Path, help="Save the sanitized run report as JSON"
     )
@@ -267,10 +268,15 @@ def run(args: argparse.Namespace) -> int:
     try:
         with Session(engine) as db:
             if args.command == "refresh":
+                from alethical.pipeline.request_limits import DatabaseRequestLimiter
+
                 result = fcc_refresh.refresh(
                     db,
                     raw_file_store_from_env(),
                     mirror_file_store_from_env(),
+                    request_limiter=DatabaseRequestLimiter(engine)
+                    if args.shared_source_budget
+                    else None,
                     max_files=args.max_files,
                     extract_limit=args.extract_limit,
                     mirror_limit=args.mirror_limit,

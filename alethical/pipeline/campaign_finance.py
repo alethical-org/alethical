@@ -75,6 +75,7 @@ as stale, never as an answer about a person.
 from __future__ import annotations
 
 import csv
+import copy
 import gzip
 import hashlib
 import html
@@ -603,6 +604,7 @@ class DatasetOutcome:
     # real id when these records are new, and is discarded when they are not.
     candidate_snapshot_id: uuid.UUID = field(default_factory=uuid.uuid4)
     snapshot_id: Optional[uuid.UUID] = None
+    observation_id: Optional[uuid.UUID] = None
     measurements: Optional[Measurements] = None
     checks: list[Check] = field(default_factory=list)
     unchanged: bool = False
@@ -631,6 +633,7 @@ class LoadReport:
     release_id: Optional[uuid.UUID] = None
     published: bool = False
     no_change: bool = False
+    requires_recheck: bool = True
     dry_run: bool = False
     pruned_snapshots: int = 0
     pruned_rows: int = 0
@@ -653,13 +656,19 @@ class LoadReport:
         released set that reads as fully checked is worse than one that says where it
         stops.
         """
+        contributions = next(
+            (one for one in self.outcomes if one.spec.dataset is Dataset.contributions),
+            None,
+        )
+        if contributions is not None and contributions.blocked:
+            return "contributions retained: their replacement was refused; no new contribution comparison is claimed"
         found = self._check("reported_totals_reconcile")
-        if found is None or found.status == "not_run":
+        if found is None or found.status in ("not_run", "failed"):
             return "not reconciled against Minnesota's own figures: " + (
                 found.detail if found else "the check did not run"
             )
         return (
-            f"reconciled against Minnesota's own figures ({found.detail}). "
+            f"compared against Minnesota's own figures ({found.detail}). "
             + self._stated_split_line()
         )
 
@@ -697,9 +706,15 @@ class LoadReport:
             measured = outcome.measurements
             rows = f"{measured.row_count:,} rows" if measured else "not parsed"
             state = (
-                "unchanged"
+                "quarantined"
+                if outcome.blocked
+                else "reconfirmed"
+                if self.published and outcome.unchanged
+                else "published"
+                if self.published
+                else "unchanged"
                 if outcome.unchanged
-                else ("quarantined" if outcome.blocked else "ready")
+                else "ready"
             )
             lines.append(
                 f"  {outcome.spec.key}: {state}, {rows}, "
@@ -729,7 +744,7 @@ class LoadReport:
                         )
         if self.refusal:
             lines.append(f"  refused: {self.refusal}")
-        elif self.dry_run:
+        if self.dry_run:
             lines.append("  dry run: nothing was written")
         elif self.no_change:
             lines.append("  no change: the published set already holds these 3 files")
@@ -784,7 +799,10 @@ class ResolvedDownload:
 
 
 def resolve_downloads(
-    http: requests.Session, landing_page: str = LANDING_PAGE
+    http: requests.Session,
+    landing_page: str = LANDING_PAGE,
+    *,
+    errors: Optional[dict[Dataset, str]] = None,
 ) -> dict[Dataset, ResolvedDownload]:
     """Find each dataset's "All" download on the Board's landing page.
 
@@ -840,12 +858,16 @@ def resolve_downloads(
     for spec in DATASETS:
         matches = found[spec.dataset]
         if len(matches) != 1:
-            raise CampaignFinanceRefusal(
+            reason = (
                 f"Expected exactly 1 'All' download for {spec.key} under a heading "
                 f"containing {spec.heading!r} on {landing_page}, found "
                 f"{len(matches)}. The page's labels have changed, so refusing to "
                 "guess which file is which."
             )
+            if errors is None:
+                raise CampaignFinanceRefusal(reason)
+            errors[spec.dataset] = reason
+            continue
         resolved[spec.dataset] = matches[0]
     return resolved
 
@@ -2295,22 +2317,23 @@ def _record_observation(
     also where a reshuffled download's byte hash is kept when its bytes were not.
     """
     fetched = outcome.fetched
-    db.add(
-        schema.CampaignFinanceFetchObservation(
-            snapshot_id=snapshot.id,
-            dataset=outcome.spec.dataset,
-            ingestion_run_id=ingestion_run_id,
-            download_id=fetched.download_id,
-            requested_url=fetched.requested_url,
-            final_url=fetched.final_url,
-            started_at=fetched.started_at,
-            completed_at=fetched.completed_at,
-            byte_size=fetched.byte_size,
-            content_hash=fetched.content_hash,
-            response_headers=fetched.response_headers,
-            reused_existing_snapshot=reused,
-        )
+    observation = schema.CampaignFinanceFetchObservation(
+        snapshot_id=snapshot.id,
+        dataset=outcome.spec.dataset,
+        ingestion_run_id=ingestion_run_id,
+        download_id=fetched.download_id,
+        requested_url=fetched.requested_url,
+        final_url=fetched.final_url,
+        started_at=fetched.started_at,
+        completed_at=fetched.completed_at,
+        byte_size=fetched.byte_size,
+        content_hash=fetched.content_hash,
+        response_headers=fetched.response_headers,
+        reused_existing_snapshot=reused,
     )
+    db.add(observation)
+    db.flush()
+    outcome.observation_id = observation.id
     db.commit()
     return snapshot.id, reused
 
@@ -2338,6 +2361,23 @@ def live_release(db: Session) -> Optional[Any]:
     )
 
 
+class AcceptedBaseline:
+    """Snapshot measurements with this release's immutable accepted checks."""
+
+    def __init__(self, snapshot: Any, checks: list[dict]):
+        self.snapshot = snapshot
+        self.validation_json = {"checks": copy.deepcopy(checks)}
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self.snapshot, name)
+
+
+def accepted_baseline(snapshot: Any, release: Any, dataset: Dataset) -> Any:
+    if release.file_manifest == {}:
+        return snapshot
+    return AcceptedBaseline(snapshot, release.file_manifest[dataset.value]["checks"])
+
+
 def baseline_snapshots(db: Session) -> dict[Dataset, Any]:
     """The snapshot per dataset that the live release published, if any."""
     release = live_release(db)
@@ -2347,7 +2387,7 @@ def baseline_snapshots(db: Session) -> dict[Dataset, Any]:
     for dataset, column in RELEASE_SNAPSHOT_COLUMN.items():
         snapshot = db.get(schema.CampaignFinanceSnapshot, getattr(release, column))
         if snapshot is not None:
-            found[dataset] = snapshot
+            found[dataset] = accepted_baseline(snapshot, release, dataset)
     return found
 
 
@@ -2449,6 +2489,54 @@ def rows_from_retained_body(
     return copy_path
 
 
+def accepted_file_manifest(db: Session, release: Any, dataset: Dataset) -> dict:
+    """Carry accepted evidence exactly; never borrow a newer rejected receipt."""
+    if release.file_manifest != {}:
+        return copy.deepcopy(release.file_manifest[dataset.value])
+    snapshot = db.get(
+        schema.CampaignFinanceSnapshot,
+        getattr(release, RELEASE_SNAPSHOT_COLUMN[dataset]),
+    )
+    receipt = db.scalar(
+        select(schema.CampaignFinanceFetchObservation)
+        .where(
+            schema.CampaignFinanceFetchObservation.snapshot_id == snapshot.id,
+            schema.CampaignFinanceFetchObservation.dataset == dataset,
+            schema.CampaignFinanceFetchObservation.started_at
+            >= release.fetch_started_at,
+            schema.CampaignFinanceFetchObservation.completed_at
+            <= release.fetch_completed_at,
+            schema.CampaignFinanceFetchObservation.ingestion_run_id
+            == release.ingestion_run_id,
+        )
+        .order_by(schema.CampaignFinanceFetchObservation.completed_at.desc())
+        .limit(1)
+    )
+    if receipt is None:
+        raise CampaignFinanceRefusal(
+            f"{dataset.value} has no accepted source receipt; re-confirm the complete file"
+        )
+    return {
+        "snapshot_id": str(snapshot.id),
+        "record_set_hash": snapshot.record_set_hash,
+        "receipt_id": str(receipt.id),
+        "receipt_content_hash": receipt.content_hash,
+        "receipt_ingestion_run_id": str(receipt.ingestion_run_id)
+        if receipt.ingestion_run_id
+        else None,
+        "copied_at": (
+            receipt.completed_at if receipt else release.fetch_completed_at
+        ).isoformat(),
+        "fetch_started_at": (
+            receipt.started_at if receipt else release.fetch_started_at
+        ).isoformat(),
+        "filing_snapshot_id": str(release.filing_snapshot_id)
+        if release.filing_snapshot_id
+        else None,
+        "checks": copy.deepcopy(snapshot.validation_json.get("checks", [])),
+    }
+
+
 def publish(
     db: Session,
     outcomes: list[DatasetOutcome],
@@ -2510,14 +2598,24 @@ def publish(
             f"{current.id if current is not None else 'none'} is live now. Re-run to "
             "compare against what is actually published."
         )
-    if current is not None and current.fetch_started_at > fetch_started_at:
-        raise CampaignFinanceRefusal(
-            "Refusing to publish: the live release was fetched starting "
-            f"{current.fetch_started_at.isoformat()}, after this run started "
-            f"{fetch_started_at.isoformat()}. Replacing newer data with older data "
-            "is the one thing the pointer row exists to prevent. Re-run to fetch "
-            "the current files."
-        )
+    if current is not None and current.file_manifest == {}:
+        # Freeze the legacy accepted proof before a reused snapshot can acquire
+        # this run's new checks. No receipt or source date is synthesized.
+        current.file_manifest = {
+            dataset.value: accepted_file_manifest(db, current, dataset)
+            for dataset in RELEASE_SNAPSHOT_COLUMN
+        }
+    if current is not None:
+        for outcome in outcomes:
+            accepted = accepted_file_manifest(db, current, outcome.spec.dataset)
+            if (
+                datetime.fromisoformat(accepted["fetch_started_at"])
+                > outcome.fetched.started_at
+            ):
+                raise CampaignFinanceRefusal(
+                    f"Refusing to publish {outcome.spec.key}: its accepted file was fetched "
+                    "after this candidate. Re-run to fetch the current file."
+                )
     # **And refuse if the reported totals moved while this run was downloading.**
     # Codex found this at maximum reasoning effort, and it is the one hazard the release
     # lock cannot see: the 2 pipelines take different locks on purpose, so a filings run
@@ -2552,7 +2650,7 @@ def publish(
                 populate_existing=True,
             )
             if baseline is not None:
-                inside_lock[dataset] = baseline
+                inside_lock[dataset] = accepted_baseline(baseline, current, dataset)
     for outcome in outcomes:
         measured = outcome.measurements
         rechecked = validate(
@@ -2633,19 +2731,82 @@ def publish(
         snapshot.error_text = None
 
     by_dataset = {outcome.spec.dataset: outcome for outcome in outcomes}
+    if current is None and set(by_dataset) != set(RELEASE_SNAPSHOT_COLUMN):
+        raise CampaignFinanceRefusal("A first release requires all 3 accepted files")
+    manifest = {}
+    slot_ids = {}
+    for dataset, column in RELEASE_SNAPSHOT_COLUMN.items():
+        outcome = by_dataset.get(dataset)
+        if outcome is None:
+            slot_ids[column] = getattr(current, column)
+            manifest[dataset.value] = accepted_file_manifest(db, current, dataset)
+            continue
+        snapshot = db.get(schema.CampaignFinanceSnapshot, outcome.snapshot_id)
+        receipt = (
+            db.get(schema.CampaignFinanceFetchObservation, outcome.observation_id)
+            if outcome.observation_id
+            else None
+        )
+        if (
+            receipt is None
+            or receipt.snapshot_id != outcome.snapshot_id
+            or receipt.dataset != dataset
+            or receipt.ingestion_run_id is None
+            or receipt.ingestion_run_id != ingestion_run_id
+            or receipt.content_hash != outcome.fetched.content_hash
+            or not fetch_started_at
+            <= receipt.started_at
+            <= receipt.completed_at
+            <= fetch_completed_at
+            or outcome.measurements is None
+            or outcome.measurements.errors
+        ):
+            raise CampaignFinanceRefusal(
+                f"{dataset.value} has no complete validated copy receipt"
+            )
+        slot_ids[column] = outcome.snapshot_id
+        manifest[dataset.value] = {
+            "snapshot_id": str(snapshot.id),
+            "record_set_hash": snapshot.record_set_hash,
+            "receipt_id": str(receipt.id),
+            "receipt_content_hash": receipt.content_hash,
+            "receipt_ingestion_run_id": str(receipt.ingestion_run_id),
+            "copied_at": receipt.completed_at.isoformat(),
+            "fetch_started_at": receipt.started_at.isoformat(),
+            "filing_snapshot_id": str(checked_against) if checked_against else None,
+            "checks": [check.as_json() for check in outcome.checks],
+        }
+    from alethical.pipeline.campaign_finance_reader import validate_file_manifest
+
+    validate_file_manifest(
+        manifest,
+        {
+            dataset.value: slot_ids[column]
+            for dataset, column in RELEASE_SNAPSHOT_COLUMN.items()
+        },
+        {
+            dataset.value: db.get(
+                schema.CampaignFinanceSnapshot, slot_ids[column]
+            ).record_set_hash
+            for dataset, column in RELEASE_SNAPSHOT_COLUMN.items()
+        },
+        fetch_completed_at,
+    )
+    pairings = {entry["filing_snapshot_id"] for entry in manifest.values()}
     release = schema.CampaignFinanceRelease(
-        contributions_snapshot_id=by_dataset[Dataset.contributions].snapshot_id,
-        expenditures_snapshot_id=by_dataset[Dataset.expenditures].snapshot_id,
-        independent_expenditures_snapshot_id=by_dataset[
-            Dataset.independent_expenditures
-        ].snapshot_id,
+        **slot_ids,
         status=ReleaseStatus.published,
         fetch_started_at=fetch_started_at,
         fetch_completed_at=fetch_completed_at,
         published_at=datetime.now(UTC),
         ingestion_run_id=ingestion_run_id,
         notes=notes,
-        filing_snapshot_id=checked_against,
+        filing_snapshot_id=(
+            uuid.UUID(next(iter(pairings)))
+            if len(pairings) == 1 and next(iter(pairings))
+            else None
+        ),
+        file_manifest=manifest,
     )
     db.add(release)
     db.flush()
@@ -2656,8 +2817,80 @@ def publish(
         text("UPDATE cf_current_release SET release_id = :release WHERE id = true"),
         {"release": release.id},
     )
+    # The pointer and its recovery obligations commit together. A process dying
+    # immediately after this commit cannot strand public pages or verification.
+    from alethical.pipeline.campaign_finance_refresh import record_payment_publication
+
+    changed_files = [
+        dataset.value
+        for dataset in RELEASE_SNAPSHOT_COLUMN
+        if current is None
+        or any(
+            manifest[dataset.value][key]
+            != accepted_file_manifest(db, current, dataset)[key]
+            for key in ("snapshot_id", "filing_snapshot_id")
+        )
+    ]
+    record_payment_publication(
+        db,
+        release,
+        [outcome.spec.dataset.value for outcome in outcomes],
+        recheck_files=changed_files,
+    )
     db.commit()
     return release.id
+
+
+def rollback_release(db: Session, release_id: uuid.UUID) -> None:
+    """Restore a retained manifest exactly; refuse missing rows before moving it.
+
+    The caller holds the full-run lease, as for forward publication. No source
+    date, receipt, pairing or publication check is rewritten by rollback.
+    """
+    db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": PUBLISH_LOCK_KEY})
+    current = live_release(db)
+    target = db.get(schema.CampaignFinanceRelease, release_id, populate_existing=True)
+    if target is None:
+        raise CampaignFinanceRefusal("The requested release is not retained")
+    if current is not None and current.id == target.id:
+        return
+    from alethical.pipeline import campaign_finance_reader as reader
+
+    query = (
+        str(reader._LIVE_RELEASE_SQL)
+        .replace(
+            "FROM cf_current_release p\n      JOIN cf_release r ON r.id = p.release_id",
+            "FROM cf_release r",
+        )
+        .replace("WHERE p.id = true", "WHERE r.id = :release")
+    )
+    reader.release_from_row(db.execute(text(query), {"release": target.id}).one())
+    for spec in DATASETS:
+        snapshot = db.get(
+            schema.CampaignFinanceSnapshot,
+            getattr(target, RELEASE_SNAPSHOT_COLUMN[spec.dataset]),
+        )
+        if (
+            snapshot is None
+            or snapshot.status != SnapshotStatus.loaded
+            or rows_present(db, spec, snapshot.id) != snapshot.row_count
+        ):
+            raise CampaignFinanceRefusal(
+                f"Cannot roll back: {spec.key} rows are not retained"
+            )
+    if current is not None:
+        current.status = ReleaseStatus.superseded
+        current.superseded_at = datetime.now(UTC)
+    target.status = ReleaseStatus.published
+    target.superseded_at = None
+    db.execute(
+        text("UPDATE cf_current_release SET release_id = :release WHERE id = true"),
+        {"release": target.id},
+    )
+    from alethical.pipeline.campaign_finance_refresh import record_payment_publication
+
+    record_payment_publication(db, target, [])
+    db.commit()
 
 
 def prune(db: Session) -> tuple[int, int]:
@@ -2735,8 +2968,9 @@ def quarantine(db: Session, outcome: DatasetOutcome) -> None:
     snapshot = db.get(schema.CampaignFinanceSnapshot, outcome.snapshot_id)
     if snapshot is None:  # pragma: no cover
         return
-    if snapshot.status != SnapshotStatus.loaded:
-        snapshot.status = SnapshotStatus.quarantined
+    if snapshot.status == SnapshotStatus.loaded:
+        return
+    snapshot.status = SnapshotStatus.quarantined
     snapshot.validation_json = {"checks": [check.as_json() for check in outcome.checks]}
     # None, not an empty string, when this file itself passed: the run stopped
     # because a sibling file failed, and this snapshot has no fault to record.
@@ -2992,8 +3226,9 @@ def load_campaign_finance(
     report = LoadReport(dry_run=dry_run)
 
     with tempfile.TemporaryDirectory(prefix="alethical-cf-") as directory:
-        resolved = resolve_downloads(http, landing_page)
-        log(f"resolved 3 downloads from {landing_page}")
+        resolution_errors: dict[Dataset, str] = {}
+        resolved = resolve_downloads(http, landing_page, errors=resolution_errors)
+        log(f"resolved {len(resolved)} downloads from {landing_page}")
 
         ingestion_run_id = None
         if not dry_run:
@@ -3028,7 +3263,30 @@ def load_campaign_finance(
 
         fetch_started_at = datetime.now(UTC)
         for spec in DATASETS:
-            fetched = fetch_download(http, spec, resolved[spec.dataset], directory)
+            try:
+                if spec.dataset in resolution_errors:
+                    raise CampaignFinanceRefusal(resolution_errors[spec.dataset])
+                fetched = fetch_download(http, spec, resolved[spec.dataset], directory)
+            except CampaignFinanceRefusal as error:
+                # Retain partial bytes as a failed attempt; never parse or publish them.
+                path = os.path.join(directory, f"{spec.key}.csv")
+                if not os.path.exists(path):
+                    open(path, "wb").close()
+                link = resolved.get(spec.dataset)
+                fetched = FetchedFile(
+                    spec,
+                    link.download_id if link else "unresolved",
+                    link.url if link else landing_page,
+                    link.url if link else landing_page,
+                    path,
+                    os.path.getsize(path),
+                    sha256_of_file(path),
+                    None,
+                    {},
+                    fetch_started_at,
+                    datetime.now(UTC),
+                    str(error),
+                )
             log(
                 f"{spec.key}: {fetched.byte_size:,} bytes, "
                 f"sha256 {fetched.content_hash[:12]}"
@@ -3109,19 +3367,6 @@ def load_campaign_finance(
                 and baseline.record_set_hash == measured.record_set_hash
             )
 
-        if not dry_run and all(outcome.unchanged for outcome in report.outcomes):
-            usable = all(
-                baselines[outcome.spec.dataset].status == SnapshotStatus.loaded
-                and rows_present(db, outcome.spec, baselines[outcome.spec.dataset].id)
-                == (baselines[outcome.spec.dataset].row_count or -1)
-                for outcome in report.outcomes
-            )
-            if usable:
-                report.no_change = True
-                _finish_run(db, ingestion_run_id, report)
-                log("all 3 files hold the records already published")
-                return report
-
         for outcome in report.outcomes:
             measured = outcome.measurements
             outcome.checks = validate(
@@ -3174,22 +3419,36 @@ def load_campaign_finance(
             log(f"{outcome.spec.key}: row-loss table\n{check.investigation}")
 
         blocked = [outcome for outcome in report.outcomes if outcome.blocked]
+        accepted = [outcome for outcome in report.outcomes if not outcome.blocked]
         if blocked:
-            if approved and len(approved) != 3:
-                log(
-                    "note: --publish-hashes needs all 3 hashes, and waives only the "
-                    "comparison checks"
-                )
-            if not dry_run:
-                for outcome in report.outcomes:
-                    quarantine(db, outcome)
-                _finish_run(db, ingestion_run_id, report)
-            report.refusal = (
-                "quarantined "
-                + ", ".join(outcome.spec.key for outcome in blocked)
-                + ". Nothing was published and the previous set is still live."
+            report.refusal = "held " + ", ".join(
+                outcome.spec.key for outcome in blocked
             )
-            return report
+            if not dry_run:
+                from alethical.pipeline.campaign_finance_refresh import (
+                    state_get,
+                    state_set,
+                )
+
+                held = dict(state_get(db, "payment_file_holds") or {})
+                for outcome in blocked:
+                    quarantine(db, outcome)
+                    held[outcome.spec.dataset.value] = {
+                        "snapshot_id": str(outcome.snapshot_id)
+                        if outcome.snapshot_id
+                        else None,
+                        "receipt_id": str(outcome.observation_id)
+                        if outcome.observation_id
+                        else None,
+                        "recorded_at": datetime.now(UTC).isoformat(),
+                        "reason": "; ".join(check.detail for check in outcome.blocked),
+                    }
+                state_set(db, "payment_file_holds", held)
+            # A first release still requires all 3 complete files.
+            if not accepted or live_release(db) is None:
+                if not dry_run:
+                    _finish_run(db, ingestion_run_id, report)
+                return report
 
         if dry_run:
             return report
@@ -3207,8 +3466,16 @@ def load_campaign_finance(
             return report
 
         baseline_release = live_release(db)
+        report.requires_recheck = baseline_release is None or any(
+            not outcome.unchanged
+            or accepted_file_manifest(db, baseline_release, outcome.spec.dataset)[
+                "filing_snapshot_id"
+            ]
+            != (str(filings.snapshot_id) if filings else None)
+            for outcome in accepted
+        )
         notes = release_notes(
-            report.outcomes,
+            accepted,
             approved,
             waivers=waivers,
             baseline_release=baseline_release,
@@ -3216,7 +3483,7 @@ def load_campaign_finance(
         )
         report.release_id = publish(
             db,
-            report.outcomes,
+            accepted,
             fetch_started_at=fetch_started_at,
             fetch_completed_at=fetch_completed_at,
             ingestion_run_id=ingestion_run_id,

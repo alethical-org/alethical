@@ -169,6 +169,11 @@ def _leadership_metrics(db: Session, *, now: datetime | None) -> dict[str, Any]:
         )
     ).one()
     published_by_source = dict(zip([source[2] for source in SOURCES[2:]], published))
+    from alethical.pipeline.campaign_finance_reader import live_release
+
+    payment_release = live_release(db)
+    if payment_release is not None:
+        published_by_source["Minnesota campaign payments"] = payment_release.fetched_at
     freshness = []
     for adapter, target, source, meaning in SOURCES:
         succeeded_at = latest_checks.get((adapter, target))
@@ -200,6 +205,21 @@ def _leadership_metrics(db: Session, *, now: datetime | None) -> dict[str, Any]:
                 ),
             }
         )
+
+    for entry in freshness:
+        if (
+            entry["source"] == "Minnesota campaign payments"
+            and payment_release is not None
+        ):
+            entry["paymentCopiedAt"] = {
+                key: _iso(value)
+                for key, value in payment_release.payment_copied_at.items()
+            }
+            entry["publishedDataMeaning"] = "Each payment file keeps its own copy date."
+            if payment_release.fetched_at is None:
+                entry["publishedDataUnavailableReason"] = (
+                    "Payment files have different copy dates."
+                )
 
     valid_cost = request.actual_cost_microusd >= 0
     summary = db.execute(

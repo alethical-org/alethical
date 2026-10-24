@@ -54,8 +54,8 @@ from sqlalchemy.orm import Session
 from alethical.db import models as schema
 from alethical.pipeline.raw_file_store import sha256_of_file
 
-# What one address ended a check in. Only GONE and CHANGED are worth a person's
-# attention; NEW is the first archive of something and UNCHANGED is a quiet week.
+# What one address ended a check in. Changed, missing, failed storage and
+# exhausted reads need attention; a first copy or unchanged copy is quiet.
 NEW = "new"
 UNCHANGED = "unchanged"
 # What ``--classify-only`` reports: the address served a document, and nothing was
@@ -255,6 +255,7 @@ class SourceOutcome:
     detail: str = ""
     byte_size: int = 0
     cited_by: str = ""
+    attempts: int = 1
 
 
 @dataclass
@@ -268,12 +269,17 @@ class ArchiveReport:
 
     @property
     def needs_attention(self) -> list[SourceOutcome]:
-        """The 2 things worth a person's Monday: a source gone, and a source changed.
+        """Changed/missing copies, failed storage and exhausted reads need review.
 
-        A failure to store is here too. It means we read a document we now hold no copy
-        of, and the next run cannot tell that from never having seen it.
+        An exhausted read is not evidence of a missing document. Its previously
+        kept copies survive unchanged, and it cannot make the weekly run green.
         """
-        return self.of(GONE) + self.of(CHANGED) + self.of(FAILED)
+        return (
+            self.of(GONE)
+            + self.of(CHANGED)
+            + self.of(FAILED)
+            + [item for item in self.of(UNREACHABLE) if item.attempts >= 3]
+        )
 
 
 def classify(
@@ -326,7 +332,7 @@ def format_report(report: ArchiveReport) -> str:
     if unreachable:
         lines.append(
             "\nCould not be reached, so they are not treated as gone (a timeout or a "
-            "5xx is the site having a bad minute, not our link being wrong):"
+            "5xx does not prove a missing document; repeated failures need review):"
         )
         lines.extend(f"  - {o.url}\n      {o.detail}" for o in unreachable)
     for action, heading in (

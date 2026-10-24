@@ -1104,6 +1104,7 @@ type MoneySummaryPayload = {
   register?: { state?: string | null; filer_count?: number | null } | null;
   freshness?: {
     downloads_fetched_at?: string | null;
+    payment_copied_at?: { contributions?: string | null; expenditures?: string | null; independent_expenditures?: string | null } | null;
     register_fetched_at?: string | null;
   } | null;
 };
@@ -1223,6 +1224,11 @@ async function moneyLandingContent(): Promise<PageContent> {
             ? (summary.register.filer_count ?? null)
             : null,
         filesLastCopiedAt: summary?.freshness?.downloads_fetched_at ?? null,
+        paymentCopiedAt: {
+          contributions: summary?.freshness?.payment_copied_at?.contributions ?? null,
+          expenditures: summary?.freshness?.payment_copied_at?.expenditures ?? null,
+          independentExpenditures: summary?.freshness?.payment_copied_at?.independent_expenditures ?? null,
+        },
         registerLastCopiedAt: summary?.freshness?.register_fetched_at ?? null,
         lobbyingFilesLastCopiedAt:
           lobbying?.state === "reported" ? lobbying.copied_at : null,

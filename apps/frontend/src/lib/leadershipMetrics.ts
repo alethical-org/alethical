@@ -30,6 +30,11 @@ export type LeadershipOperations = {
     meaning: string;
     unavailableReason: string | null;
     currentPublishedFetchCompletedAt: string | null;
+    paymentCopiedAt?: {
+      contributions: string | null;
+      expenditures: string | null;
+      independent_expenditures: string | null;
+    };
     publishedDataMeaning: string;
     publishedDataUnavailableReason: string | null;
   }>;
@@ -133,15 +138,26 @@ const sourceNames = [
   'Minnesota campaign filings',
   'Minnesota lobbying expenditures',
 ];
-const freshness = shape({
-  source: (v) => typeof v === 'string' && sourceNames.includes(v),
+const freshnessFields = {
+  source: (v: unknown) => typeof v === 'string' && sourceNames.includes(v),
   lastSucceededAt: nullable(date),
   meaning: text,
   unavailableReason: nullable(text),
   currentPublishedFetchCompletedAt: nullable(date),
   publishedDataMeaning: text,
   publishedDataUnavailableReason: nullable(text),
+};
+const legacyFreshness = shape(freshnessFields);
+const paymentFreshness = shape({
+  ...freshnessFields,
+  source: literal('Minnesota campaign payments'),
+  paymentCopiedAt: shape({
+    contributions: nullable(date),
+    expenditures: nullable(date),
+    independent_expenditures: nullable(date),
+  }),
 });
+const freshness: Check = (value) => legacyFreshness(value) || paymentFreshness(value);
 const operations = shape({
   fetchedAt: date,
   periodStartedAt: date,

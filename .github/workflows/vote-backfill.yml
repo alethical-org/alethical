@@ -10,7 +10,6 @@ name: Backfill roll-call votes
 on:
   workflow_dispatch:
   schedule:
-    # 09:00 UTC daily (~3-4am America/Chicago — off-peak for the MN .gov sources)
     - cron: "0 9 * * *"
 
 permissions:
@@ -22,6 +21,7 @@ concurrency:
 
 jobs:
   backfill:
+    if: ${{ github.event_name != 'schedule' || !contains(fromJSON(vars.SOURCE_REFRESH_FAMILIES || '[]'), 'legislative') }}
     runs-on: ubuntu-latest
     # Build the production URL from the same Supabase inputs the app/migrations
     # use (supabase_database_url), so there is no separate DATABASE_URL copy of

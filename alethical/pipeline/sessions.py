@@ -2,9 +2,9 @@
 
 The 94th Legislature is one biennium (2025-2026) modeled as a single
 ``LegislativeSession`` row (one-drawer -- see #155); bills from either year
-attach to it. Discovery, however, pulls the Revisor bill list *per year*, so the
-session code carries the year and defaults to 2025. Override it (e.g. "0942026")
-to ingest a later year into the same biennium session.
+attach to it. Both yearly discovery codes return the whole biennium; each bill's
+status URI identifies its actual introduction year. Scheduled work uses the latest
+reviewed code once per session slug, avoiding duplicate source requests.
 
 A special session is the exception: it gets its own ``LegislativeSession`` row, since
 its files are numbered from 1 independently of the regular session's (#746).
@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-# Default Revisor discovery session code: 94th Legislature, 2025 bill list.
+# Legacy default Revisor discovery code; either regular code returns the biennium.
 DEFAULT_SESSION_CODE = "0942025"
 
 # Slug of the single biennium ``LegislativeSession`` row bills attach to.
@@ -54,15 +54,15 @@ class SessionDef:
     year_start: int
     year_end: int
     start_date: datetime
-    end_date: datetime
+    end_date: datetime | None
     # Exactly one definition may be current: the API resolves "the current session"
     # with a single-row read (``select … where is_current``), so a second current row
     # would make that read pick arbitrarily.
     is_current: bool
 
 
-# Which session row each Revisor discovery code ingests into. Both years of a
-# biennium share one row (one-drawer, #155); a special session gets its own,
+# Which session row each Revisor discovery code ingests into. Both regular codes
+# return the whole biennium and share one row (#155); a special session gets its own,
 # because a Legislature numbers its special-session files from 1 all over again,
 # so "HF 5" exists in both and they are different bills (#746).
 #
@@ -95,6 +95,20 @@ SESSION_DEFINITIONS: dict[str, SessionDef] = {
         # https://www.lrl.mn.gov/history/sessions).
         start_date=datetime(2025, 6, 9, tzinfo=UTC),
         end_date=datetime(2025, 6, 10, tzinfo=UTC),
+        is_current=False,
+    ),
+    "0952027": SessionDef(
+        slug="95-2027-regular",
+        name="95th Legislature (2027 - 2028) Regular Session",
+        session_number=95,
+        session_type="regular",
+        year_start=2027,
+        year_end=2028,
+        # Revisor's selector and House session information, read 2026-10-07:
+        # https://www.house.mn.gov/hinfo/news.asp. The 2027 deadline is not
+        # the actual final adjournment of the 2027-2028 biennium.
+        start_date=datetime(2027, 1, 12, tzinfo=UTC),
+        end_date=None,
         is_current=False,
     ),
 }

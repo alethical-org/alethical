@@ -74,7 +74,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import literal_column, select
 from sqlalchemy.orm import Session, aliased
 
 from alethical.api.services.independent_spending import (
@@ -280,7 +280,7 @@ class CommitteeFinance:
     committee: Committee
     year: int
     release_id: UUID
-    fetched_at: datetime
+    fetched_at: datetime | None
     money_in: MoneyIn
     money_out: MoneyOut
     independent_spending: IndependentSpendingAbout
@@ -420,6 +420,15 @@ def current_release(db: Session) -> Release | None:
             independent.row_count,
             independent.status,
             release_model.filing_snapshot_id,
+            release_model.file_manifest,
+            contributions.record_set_hash,
+            expenditures.record_set_hash,
+            independent.record_set_hash,
+            literal_column(
+                reader._RECEIPT_PROOF_SQL.replace(
+                    "r.file_manifest", "cf_release.file_manifest"
+                )
+            ),
             contributions.validation_json,
             filing_snapshot,
         )
@@ -442,8 +451,11 @@ def current_release(db: Session) -> Release | None:
         return None
     *release_columns, checks, snapshot = row
     memo["snapshot"] = snapshot
+    release = reader.release_from_row(release_columns)
+    if release.contributions.checks is not None:
+        checks = {"checks": release.contributions.checks}
     memo["withheld_filer_years"] = reader.withheld_filer_years_from_checks(checks)
-    return reader.release_from_row(release_columns)
+    return release
 
 
 def withheld_filer_years(db: Session, release: Release) -> frozenset[tuple[str, int]]:
@@ -482,10 +494,11 @@ def generations_differ(db: Session, release: Release) -> bool:
     total to subtract from in the first place. Inside a pinned request the snapshot is
     already in the memo, so this costs no statement.
     """
-    if release.filing_snapshot_id is None:
-        return False
+    paired = release.paired_filings(schema.CampaignFinanceDataset.contributions)
     live = filings.live_filings_snapshot(db)
-    return live is not None and live.id != release.filing_snapshot_id
+    if release.contributions.checks is not None and paired is None:
+        return live is not None
+    return live is not None and paired is not None and live.id != paired
 
 
 def money_rows(

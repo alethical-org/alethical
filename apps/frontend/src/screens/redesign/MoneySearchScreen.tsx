@@ -1,3 +1,5 @@
+import { FILE_COPY_MEANING } from '../../lib/moneyRecordTrust';
+import { paymentFileCopyLine } from '../../lib/paymentCopyDates';
 import { TVAdSearchGroup } from '../../components/tvAds/OnDemand';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -27,7 +29,6 @@ import { BACK_TO_MONEY_SECTION } from '../../lib/moneySectionName';
 import { moneySearchShareContent } from '../../lib/moneyResultsShare';
 import {
   BROWSE_ALL_COMMITTEES,
-  campaignFilesCopiedLine,
   countedUpToNote,
   GROUP_EMPTY,
   GROUP_UNAVAILABLE,
@@ -58,7 +59,6 @@ import {
   tooShortWhy,
   type NameSearchGroupKind,
 } from '../../lib/moneyNameSearch';
-import { centralDateLabel } from '../../lib/moneyLanding';
 import { MONEY_LIST_COVERAGE, MONEY_LIST_COVERAGE_HEADING } from '../../lib/moneyListCopy';
 import { paymentNameRole } from '../../lib/paymentsUnderName';
 import { useDocumentTitle } from '../../navigation/documentTitle';
@@ -146,9 +146,6 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
   const groups = answer?.groups ?? [];
   const anyResult = hasAnyResult(groups);
   const everySearched = everyGroupWasSearched(groups);
-  const campaignFilesCopied = campaignFilesCopiedLine(
-    answer?.fetchedAt ? centralDateLabel(answer.fetchedAt) : null,
-  );
 
   useSearchMetric({
     event: 'money_search_with_results',
@@ -338,11 +335,9 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
                   how the names were matched, and the counting ceiling when one
                   group hit it. */}
                 <Text style={styles.matchedOn}>{NAME_SEARCH_MATCHED_ON}</Text>
+                <Text style={styles.matchedOn}>{FILE_COPY_MEANING}</Text>
               </View>
             )}
-            {campaignFilesCopied && !waitingForThisQuery && !tooShort ? (
-              <Text style={styles.matchedOn}>{campaignFilesCopied}</Text>
-            ) : null}
           </View>
           <TVAdSearchGroup query={query} />
         </Container>
@@ -466,6 +461,18 @@ function ResultGroup({
         </View>
       )}
 
+      {['gave', 'got_paid', 'got_paid_independent'].includes(kind) ? (
+        <Text style={styles.groupNote}>
+          {paymentFileCopyLine(
+            kind === 'gave'
+              ? 'contributions'
+              : kind === 'got_paid'
+                ? 'expenditures'
+                : 'independentExpenditures',
+            group.fetchedAt,
+          )}
+        </Text>
+      ) : null}
       {group.results.length > 0 && group.state !== 'unavailable' ? (
         <>
           {capNote ? <Text style={styles.groupNote}>{capNote}</Text> : null}

@@ -99,6 +99,11 @@ function render(
   committees: CampaignCommitteeMoney[],
   filingsCopiedAt?: string | null,
   servedAgeMs = 0,
+  paymentCopiedAt: LegislatorCampaignMoney['paymentCopiedAt'] = {
+    contributions: '2026-09-12T12:00:00Z',
+    expenditures: '2026-09-12T12:00:00Z',
+    independentExpenditures: '2026-09-12T12:00:00Z',
+  },
 ): string {
   const money: LegislatorCampaignMoney = {
     legislatorId: 'fixture-member',
@@ -111,6 +116,7 @@ function render(
     otherOfficeCommittees: 0,
     fetchedAt: '2026-09-12T12:00:00Z',
     filingsCopiedAt,
+    paymentCopiedAt,
   } as LegislatorCampaignMoney;
   return renderToStaticMarkup(
     <QueryClientProvider client={new QueryClient()}>
@@ -282,5 +288,31 @@ describe('the tab dates both sources at its foot', () => {
     expect(html).not.toContain('Oct 7');
     expect(html).not.toContain('Oct 24');
     expect(html).not.toContain('Report totals copied');
+  });
+});
+
+describe('independent payment file dates in the rendered tab', () => {
+  it('keeps newer contributions distinct from retained spending', () => {
+    const html = render([committee('17868')], null, 0, {
+      contributions: '2026-10-24T18:00:00Z',
+      expenditures: '2026-10-09T18:00:00Z',
+      independentExpenditures: '2026-10-09T18:00:00Z',
+    });
+    expect(html).toContain('Contributions file copied Oct 24,\u00a02026');
+    expect(html).toContain('Spending file copied Oct 9,\u00a02026');
+    expect(html).toContain('Outside-spending file copied Oct 9,\u00a02026');
+    expect(html).not.toContain('Try again');
+    expect(html).not.toContain('Minnesota’s payment files copied');
+  });
+  it('does not turn an old response’s root date into a known source date', () => {
+    const html = render([committee('17868')], null, 0, {
+      contributions: null,
+      expenditures: null,
+      independentExpenditures: null,
+    });
+    expect(html).toContain('Contributions file copy date unavailable');
+    expect(html).toContain('Spending file copy date unavailable');
+    expect(html).not.toContain('file copied Sep 12');
+    expect(html).not.toContain('Minnesota’s payment files copied Sep 12');
   });
 });

@@ -179,3 +179,22 @@ describe('private leadership screen', () => {
     expect(container.textContent).toContain('2,001');
   });
 });
+
+it('shows independently dated published payment files without borrowing the aggregate date', async () => {
+  const data = leadershipFixture();
+  const source = data.operations!.freshness.find(
+    (row) => row.source === 'Minnesota campaign payments',
+  )!;
+  source.paymentCopiedAt = {
+    contributions: '2026-10-24T18:00:00Z',
+    expenditures: '2026-10-09T18:00:00Z',
+    independent_expenditures: null,
+  };
+  source.currentPublishedFetchCompletedAt = null;
+  source.publishedDataUnavailableReason = 'Payment files have different copy dates.';
+  vi.mocked(getLeadershipMetricsFromApi).mockResolvedValue(data);
+  await render();
+  expect(container.textContent).toContain('Contributions file copied Oct 24,\u00a02026');
+  expect(container.textContent).toContain('Spending file copied Oct 9,\u00a02026');
+  expect(container.textContent).toContain('Outside-spending file copy date unavailable');
+});

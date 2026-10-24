@@ -84,6 +84,11 @@ const summary: MoneyLandingSummary = {
   independentExpenditureRows: { state: 'reported', rowCount: 41130 },
   freshness: {
     downloadsFetchedAt: '2026-09-01T18:00:00Z',
+    paymentCopiedAt: {
+      contributions: '2026-09-01T18:00:00Z',
+      expenditures: '2026-09-01T18:00:00Z',
+      independentExpenditures: '2026-09-01T18:00:00Z',
+    },
     registerFetchedAt: '2026-08-12T12:00:00Z',
   },
 };
@@ -292,7 +297,7 @@ describe('the money landing makes the reporting periods and destinations explici
     for (const words of [
       '200 MEMBERS',
       '1,665 REGISTERED LOBBYISTS',
-      'Sep 1, 2026',
+      'Campaign payment files last copied: Sep 1, 2026',
       'Sep 13, 2026',
       'PUBLISHED AUG 20 2026',
       'Filed Aug 11, 2026',
@@ -432,12 +437,50 @@ describe('the money landing makes the reporting periods and destinations explici
     expect(sourceToggle(host).getAttribute('aria-expanded')).toBe('false');
   });
 
+  it.each([390, 900, 1440])(
+    'places independently dated files in the sources section at %spx',
+    (width) => {
+      viewport.width = width;
+      queries.summary.mockReturnValue({
+        data: {
+          ...summary,
+          freshness: {
+            ...summary.freshness,
+            downloadsFetchedAt: '2026-10-24T18:00:00Z',
+            paymentCopiedAt: {
+              contributions: '2026-10-24T18:00:00Z',
+              expenditures: '2026-10-09T18:00:00Z',
+              independentExpenditures: null,
+            },
+          },
+        },
+      });
+      const { host } = mount();
+      const text = host.textContent ?? '';
+      const sources = text.indexOf('SOURCES AND COPY DATES');
+      for (const line of [
+        'Contributions file copied Oct 24,\u00a02026',
+        'Spending file copied Oct 9,\u00a02026',
+        'Outside-spending file copy date unavailable',
+      ]) {
+        expect(text.indexOf(line)).toBeGreaterThan(sources);
+        expect(text.indexOf(line)).toBeLessThan(text.indexOf('View source links'));
+      }
+      expect(text).not.toContain('Campaign payment files last copied:');
+    },
+  );
+
   it('uses each source’s own date instead of a hard-coded or shared date', () => {
     queries.summary.mockReturnValue({
       data: {
         ...summary,
         freshness: {
           downloadsFetchedAt: '2026-09-09T02:00:00Z',
+          paymentCopiedAt: {
+            contributions: '2026-09-09T02:00:00Z',
+            expenditures: '2026-09-09T02:00:00Z',
+            independentExpenditures: '2026-09-09T02:00:00Z',
+          },
           registerFetchedAt: '2026-09-23T20:00:00Z',
         },
       },

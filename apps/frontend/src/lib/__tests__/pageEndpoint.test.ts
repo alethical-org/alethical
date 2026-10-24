@@ -3225,6 +3225,11 @@ describe('the records a money page hands to the app', () => {
       },
       freshness: {
         downloads_fetched_at: '2026-09-01T12:00:00Z',
+        payment_copied_at: {
+          contributions: '2026-09-01T12:00:00Z',
+          expenditures: '2026-09-01T12:00:00Z',
+          independent_expenditures: '2026-09-01T12:00:00Z',
+        },
         register_fetched_at: '2026-08-12T12:00:00Z',
       },
     };

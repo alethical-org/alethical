@@ -3077,6 +3077,11 @@ def publish_filings(
         text("UPDATE cf_filing_current SET snapshot_id = :snapshot WHERE id = true"),
         {"snapshot": snapshot.id},
     )
+    # Keep the retry work durable even if pruning or the caller dies next.
+    from alethical.pipeline.campaign_finance_refresh import stage_publication_followups
+    from alethical.pipeline.cache_purge import when_a_filings_release_lands
+
+    stage_publication_followups(db, when_a_filings_release_lands())
     db.commit()
     run.published = True
     return snapshot.id
@@ -3375,6 +3380,13 @@ def restore_lost_filer_years(
             f"snapshots on {datetime.now(UTC).isoformat()}: {decision.strip()}"
         ).strip(),
     }
+    if copied:
+        from alethical.pipeline.campaign_finance_refresh import (
+            stage_publication_followups,
+        )
+        from alethical.pipeline.cache_purge import when_a_filings_release_lands
+
+        stage_publication_followups(db, when_a_filings_release_lands())
     db.commit()
     log(f"restored {copied} of {len(to_restore)} filer-year(s) into snapshot {live.id}")
     return copied
@@ -3399,10 +3411,35 @@ def prune_filings(db: Session) -> tuple[int, int]:
         .where(schema.CampaignFinanceFilingSnapshot.status == SnapshotStatus.loaded)
         .order_by(schema.CampaignFinanceFilingSnapshot.fetch_completed_at.desc())
     ).all()
+    releases = db.scalars(
+        select(schema.CampaignFinanceRelease).where(
+            schema.CampaignFinanceRelease.status
+            == schema.CampaignFinanceReleaseStatus.published
+        )
+    ).all()
+    releases += db.scalars(
+        select(schema.CampaignFinanceRelease)
+        .where(
+            schema.CampaignFinanceRelease.status
+            == schema.CampaignFinanceReleaseStatus.superseded
+        )
+        .order_by(schema.CampaignFinanceRelease.superseded_at.desc())
+        .limit(1)
+    ).all()
+    paired = set()
+    for release in releases:
+        if release.file_manifest:
+            paired.update(
+                uuid.UUID(entry["filing_snapshot_id"])
+                for entry in release.file_manifest.values()
+                if entry.get("filing_snapshot_id")
+            )
+        elif release.filing_snapshot_id:
+            paired.add(release.filing_snapshot_id)
     stale: list[Any] = []
     spared = 0
     for snapshot in loaded:
-        if live is not None and snapshot.id == live.id:
+        if (live is not None and snapshot.id == live.id) or snapshot.id in paired:
             continue
         if spared < KEEP_SUPERSEDED_GENERATIONS:
             spared += 1
