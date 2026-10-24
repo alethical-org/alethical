@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { googleSearchIdentity } from "./traffic-google";
 import {
   bingSearchExport,
+  providerFailureReason,
   googleSearchExport,
   type SearchView,
 } from "./_lib/searchMeasurement";
@@ -113,8 +114,11 @@ export default async function handler(
         );
       }
       status = "success";
-    } catch {
-      /* Provider errors are unknown, never zero or logged raw. */
+    } catch (error) {
+      // Provider errors are unknown, never zero; only a fixed reason label is logged.
+      console.error(
+        `Search export failed: ${job.provider} ${job.view}: ${providerFailureReason(error)}`,
+      );
     }
     try {
       const stored = await fetch(

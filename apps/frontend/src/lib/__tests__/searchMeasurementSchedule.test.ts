@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ identity: vi.fn(), google: vi.fn(), bing: vi.fn() }));
 vi.mock('../../../../../api/traffic-google', () => ({ googleSearchIdentity: mocks.identity }));
-vi.mock('../../../../../api/_lib/searchMeasurement', () => ({
+vi.mock('../../../../../api/_lib/searchMeasurement', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   googleSearchExport: mocks.google,
   bingSearchExport: mocks.bing,
 }));
@@ -58,12 +59,20 @@ describe('scheduled private measurements', () => {
   });
   it('persists safe failure receipts and continues independent providers', async () => {
     mocks.google.mockRejectedValue(new Error('PRIVATE PROVIDER FAILURE'));
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
     const fetcher = vi.fn().mockResolvedValue(new Response('{"stored":true}'));
     vi.stubGlobal('fetch', fetcher);
     const { response, result } = recorder();
     await handler({ method: 'GET', headers: auth }, response);
     expect(result.status).toBe(503);
     expect(result.body).not.toContain('PRIVATE');
+    // The log names the failed source and a fixed reason, never provider text.
+    expect(logged.mock.calls.map((call) => call.join(' '))).toEqual([
+      'Search export failed: google queries: other',
+      'Search export failed: google pages: other',
+      'Search export failed: google query-pages: other',
+    ]);
+    logged.mockRestore();
     expect(fetcher).toHaveBeenCalledTimes(5);
     expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({
       provider: 'google',

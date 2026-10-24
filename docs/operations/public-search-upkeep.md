@@ -229,8 +229,11 @@ Bing's existing key stays in the Vercel runtime. Its documented query and page
 methods return top rows, update weekly, and offer no date-range or pagination
 parameter. The export records requested days as unapplied and retains the
 provider's date separately from its UTC interpretation. Complete-day coverage,
-timezone and final-data cutoff remain unknown. The reader does not fan out into
-unbounded per-query or per-page requests.
+timezone and final-data cutoff remain unknown. Bing reports an average position of
+-1 when a row has no position; the export stores that as no position (null), never
+as a rank. The reader does not fan out into unbounded per-query or per-page requests.
+A failed provider export logs only its source, view and a fixed reason label
+(`timeout`, a named validation failure, or `other`), never provider text or rows.
 
 Provider responses and complete exports are each limited to 2,000,000 bytes and
 4,000 retained rows. Each provider request times out after 5 seconds; each Google

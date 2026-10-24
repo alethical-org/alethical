@@ -1,6 +1,7 @@
 import { requireSiteMetricsAdmin } from "./_lib/requireSiteMetricsAdmin";
 import {
   bingSearchExport,
+  providerFailureReason,
   searchExportRequest,
 } from "./_lib/searchMeasurement";
 
@@ -178,7 +179,8 @@ export default async function handler(
       },
       OK_CACHE,
     );
-  } catch {
+  } catch (error) {
+    console.error(`Bing reader failed: ${providerFailureReason(error)}`);
     sendJson(
       response,
       503,
