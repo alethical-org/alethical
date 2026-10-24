@@ -50,7 +50,7 @@ Enabled 2026-07-28.
 | --- | --- | --- | --- |
 | Require a pull request | **Yes** | Closes the direct-push release path. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Required approving reviews | `0` | Sessions can merge low-risk work under the repository release rules. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
-| Required Code Owner review | **No** | Only 1 current owner has reviewed past work, so requiring this would stop releases. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
+| Required Code Owner review | **No** | Pull requests carry no human reviewers and the repository has no `.github/CODEOWNERS` file; required checks, security scans and independent AI review gate merges. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Dismiss old approvals after a new push | **No** | A required current branch can change after review without causing a repeat-review loop. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Required status checks | `changes`, `backend`, `frontend`, `description-checks` | Code checks run in `.github/workflows/ci.yml`; `.github/workflows/pr-description.yml` checks the latest change explanation without rerunning code tests. All 4 results must come from GitHub Actions. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Strict (branch must be up to date) | **On** | Every merge is tested with current `main`. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |

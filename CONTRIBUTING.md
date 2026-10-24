@@ -371,9 +371,10 @@ Since 2026-07-28 this is enforced, not just a convention: `main` requires a PR,
 the 3 `ci.yml` checks plus `description-checks`, and a branch tested with the
 current `main`; it also
 rejects unresolved review comments, force pushes, deletion, and owner bypasses.
-Approvals are set to **zero**, so you can still merge your own work. Changes to
-sensitive files ask both owners for review through `.github/CODEOWNERS`, but that
-review is not a hard gate until a second owner is ready to review releases.
+Approvals are set to **zero**, so you can still merge your own work. Pull requests
+never request human reviewers: the repository has no `.github/CODEOWNERS` file, and
+nobody is added as a reviewer by hand. The required checks, security scans and an
+independent AI review for production, security and schema changes are the gate.
 Details and the reason behind each value:
 `docs/operations/repo-and-service-settings.md` § "Branch protection on `main`".
 
