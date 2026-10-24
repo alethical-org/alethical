@@ -40,6 +40,7 @@ import sys
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 import requests
@@ -776,3 +777,128 @@ def test_a_pasted_trailing_newline_is_dropped_and_a_2_line_token_is_named():
     )
     assert result.failed is True and sent == []
     assert TOKEN_SETTING in result.detail and "1 line" in result.detail
+
+
+def _website_env():
+    from alethical.pipeline.cache_purge import (
+        WEBSITE_ENABLE_SETTING,
+        WEBSITE_PROJECT_ID,
+        WEBSITE_TEAM_ID,
+    )
+
+    return {
+        **ARMED,
+        WEBSITE_ENABLE_SETTING: "on",
+        "VERCEL_TOKEN": "website-token",
+        "VERCEL_PROJECT_ID": WEBSITE_PROJECT_ID,
+        "VERCEL_ORG_ID": WEBSITE_TEAM_ID,
+    }
+
+
+def test_website_copies_clear_after_api_with_production_only_tag():
+    from alethical.pipeline.cache_purge import WEBSITE_TAG
+
+    sent = []
+    result = clear(
+        when_a_filings_release_lands(), env=_website_env(), post=accepting(sent)
+    )
+    assert result.armed and result.ok
+    assert len(sent) == 2
+    assert sent[0]["url"].startswith("https://api.cloudflare.com/")
+    assert sent[1]["url"].startswith(
+        "https://api.vercel.com/v1/edge-cache/dangerously-delete-by-tags?"
+    )
+    assert sent[1]["body"] == {
+        "tags": [WEBSITE_TAG],
+        "target": "production",
+        "revalidationDeadlineSeconds": 0,
+    }
+    assert sent[1]["headers"]["Authorization"] == "Bearer website-token"
+    assert "Vercel accepted" in result.report()
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "missing-key",
+        "wrong-project",
+        "wrong-team",
+        "multiline-key",
+        "refused",
+        "no-confirmation",
+        "error-body",
+        "network",
+    ],
+)
+def test_website_failure_does_not_report_complete_or_expose_key(fault):
+    values = _website_env()
+    if fault == "missing-key":
+        values.pop("VERCEL_TOKEN")
+    if fault == "wrong-project":
+        values["VERCEL_PROJECT_ID"] = "prj_elsewhere"
+    if fault == "wrong-team":
+        values["VERCEL_ORG_ID"] = "team_elsewhere"
+    if fault == "multiline-key":
+        values["VERCEL_TOKEN"] = "website-token\nsecond-line"
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append(url)
+        if urlsplit(url).hostname == "api.cloudflare.com":
+            return FakeResponse(200, {"success": True})
+        if fault == "network":
+            raise requests.ConnectionError("website-token")
+        if fault == "refused":
+            return FakeResponse(403, {"error": "website-token"})
+        if fault == "no-confirmation":
+            return FakeResponse(200, None)
+        if fault == "error-body":
+            return FakeResponse(200, {"success": False})
+        return FakeResponse(200, {})
+
+    result = clear(when_a_filings_release_lands(), env=values, post=post)
+    assert result.armed and result.failed
+    assert "Website clearing failed" in result.detail
+    assert "website-token" not in result.report()
+    if fault in {"missing-key", "wrong-project", "wrong-team", "multiline-key"}:
+        assert len(calls) == 1
+
+
+def test_refused_api_clear_never_clears_website_against_stale_api():
+    calls = []
+
+    def post(url, **kwargs):
+        calls.append(url)
+        return FakeResponse(200, {"success": False})
+
+    result = clear(when_a_filings_release_lands(), env=_website_env(), post=post)
+    assert result.failed and len(calls) == 1
+    assert urlsplit(calls[0]).hostname == "api.cloudflare.com"
+
+
+def test_vercel_http_200_with_empty_body_is_its_measured_success_response():
+    def post(url, **kwargs):
+        if urlsplit(url).hostname == "api.cloudflare.com":
+            return FakeResponse(200, {"success": True})
+        return FakeResponse(200, text="")
+
+    result = clear(when_a_filings_release_lands(), env=_website_env(), post=post)
+    assert result.armed and result.ok
+    assert "Vercel accepted" in result.detail
+
+
+@pytest.mark.parametrize("setting", [TOKEN_SETTING, ZONE_SETTING, ENABLE_SETTING])
+def test_required_website_clearing_cannot_complete_with_unarmed_api(setting):
+    values = _website_env()
+    values.pop(setting)
+    sent = []
+    result = clear(when_a_filings_release_lands(), env=values, post=accepting(sent))
+    assert result.armed and result.failed and sent == []
+    assert "API clearing first" in result.detail
+    assert clear_after_publish(
+        when_a_filings_release_lands(),
+        published=True,
+        env=values,
+        post=accepting(sent),
+        log=lambda message: None,
+    )

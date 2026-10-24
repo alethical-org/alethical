@@ -168,6 +168,7 @@ it('serves the public candidates destination without example records or data-ser
   expect(body).toContain('<title>Find My Candidates | Alethical</title>');
   expect(body).toContain('Enter a Minnesota street address');
   expect(body).toContain('href="https://www.alethical.com/candidates"');
+  expect(headers.get('Vercel-Cache-Tag')).toBe('alethical-public-records');
   expect(headers.get('X-Robots-Tag')).toBeUndefined();
   const snapshot = body
     .split('<!--alethical:page-snapshot-->')[1]
@@ -279,6 +280,7 @@ it('uses the public candidate record for profile metadata without address reques
   expect(snapshot).toContain('Candidate records from Minnesota Secretary of State');
   expect(body).not.toContain('private-home');
   expect(headers.get('Cache-Control')).toBe('no-store');
+  expect(headers.get('Vercel-Cache-Tag')).toBeUndefined();
 });
 
 function publicCandidateRecord(): CandidateProfileRecord {
@@ -360,6 +362,7 @@ it('serves only source-backed candidate facts, dates and the confirmed legislato
       expect(body).not.toContain(privateText);
     expect(body).not.toContain('data-alethical-page-data');
     expect(headers.get('Cache-Control')).toBe('no-store');
+    expect(headers.get('Vercel-Cache-Tag')).toBeUndefined();
   } finally {
     vi.useRealTimers();
   }
@@ -463,6 +466,7 @@ it.each([
     expect(status).toBe(503);
     expect(body).toBe('This page is temporarily unavailable.');
     expect(headers.get('Cache-Control')).toBe('no-store');
+    expect(headers.get('Vercel-Cache-Tag')).toBeUndefined();
   },
 );
 
@@ -583,6 +587,7 @@ it('serves a public person record without leaking return queries or private clai
   ])
     expect(body).not.toContain(privateText);
   expect(headers.get('Cache-Control')).toBe('no-store');
+  expect(headers.get('Vercel-Cache-Tag')).toBeUndefined();
 });
 
 it('keeps year and month service dates precise and optional legacy source dates absent', async () => {
@@ -670,6 +675,7 @@ it.each([
     const { body, status, headers } = await serve({ path });
     expect(status).toBe(200);
     expect(headers.get('Cache-Control')).toBe('private, no-store');
+    expect(headers.get('Vercel-Cache-Tag')).toBeUndefined();
     expect(headers.get('Referrer-Policy')).toBe('no-referrer');
     expect(headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
     expect(body).not.toContain('cloudflareinsights.com');
@@ -732,6 +738,7 @@ it.each(['/admin', '/admin/users', '/admin/metrics', '/admin/site-metrics', '/ad
     const { body, headers, status } = await serve({ path, query: 'private@example.test' });
     expect(status).toBe(200);
     expect(headers.get('Cache-Control')).toBe('private, no-store');
+    expect(headers.get('Vercel-Cache-Tag')).toBeUndefined();
     expect(headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
     expect(headers.get('Referrer-Policy')).toBe('no-referrer');
     expect(body).toContain(
@@ -756,6 +763,7 @@ it.each(['/email-preferences', '/unsubscribe'])(
     const { body, headers, status } = await serve({ path, query: 'private@example.test' });
     expect(status).toBe(200);
     expect(headers.get('Cache-Control')).toBe('private, no-store');
+    expect(headers.get('Vercel-Cache-Tag')).toBeUndefined();
     expect(headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
     expect(headers.get('Referrer-Policy')).toBe('no-referrer');
     expect(body).not.toContain('private@example.test');
@@ -834,6 +842,7 @@ describe('private email-link page shell', () => {
 
     expect(status).toBe(200);
     expect(headers.get('Cache-Control')).toBe('no-store');
+    expect(headers.get('Vercel-Cache-Tag')).toBeUndefined();
     expect(headers.get('Referrer-Policy')).toBe('no-referrer');
     expect(headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
     expect(body).toContain('window.__alethicalEmailLink');
@@ -932,6 +941,7 @@ describe('retired forgot-password address', () => {
 
     expect(status).toBe(200);
     expect(headers.get('Cache-Control')).toBe('no-store');
+    expect(headers.get('Vercel-Cache-Tag')).toBeUndefined();
     expect(headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
     expect(body.indexOf('alethical-forgot-password-bootstrap')).toBeLessThan(
       body.indexOf('/_expo/static/js/web/index-abc.js'),
@@ -2063,6 +2073,7 @@ describe('addresses that are not real pages', () => {
     expect(headers.get('X-Robots-Tag')).toBe('noindex');
     // A failed read is not cached as the page (issue 2068); the app fetches instead.
     expect(headers.get('Cache-Control')).toBe('no-store');
+    expect(headers.get('Vercel-Cache-Tag')).toBeUndefined();
     expect(body).not.toContain('rel="canonical"');
     expect(body).toContain(
       '<title>Incoming payment records under the name “Heat &amp; Frost Insulators Local #34” | Alethical</title>',
@@ -2148,6 +2159,7 @@ describe('addresses that are not real pages', () => {
     });
     expect(status).toBe(200);
     expect(headers.get('Cache-Control')).toBe('no-store');
+    expect(headers.get('Vercel-Cache-Tag')).toBeUndefined();
     expect(servedProfileData(body)).toEqual([]);
     expect(body).toContain(
       '<div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',
@@ -2229,6 +2241,7 @@ describe('when the data service is unwell', () => {
     expect(status).toBe(503);
     expect(headers.get('Retry-After')).toBe('120');
     expect(headers.get('Cache-Control')).toBe('no-store');
+    expect(headers.get('Vercel-Cache-Tag')).toBeUndefined();
   });
 
   it('returns 503 rather than an empty directory when its records cannot be read', async () => {
@@ -4340,6 +4353,7 @@ describe('a committee page hands its records to the app', () => {
       expect(body).not.toContain('/legislators/jane-fonda');
       expect(body).not.toContain('This record covers the political committee or fund named above');
       expect(headers.get('Cache-Control')).toBe('no-store');
+      expect(headers.get('Vercel-Cache-Tag')).toBeUndefined();
       expect(servedData(body)).toEqual([
         { key: ['committee-money', '41326', 2026], payload: FINANCE },
       ]);
@@ -4392,6 +4406,7 @@ describe('a committee page hands its records to the app', () => {
 
     expect(status).toBe(503);
     expect(headers.get('Cache-Control')).toBe('no-store');
+    expect(headers.get('Vercel-Cache-Tag')).toBeUndefined();
     expect(servedData(body)).toEqual([]);
     expect(body).not.toContain('$2,700');
   });
@@ -4524,6 +4539,7 @@ describe('a committee page hands its records to the app', () => {
       expect(body).not.toContain('No payments named');
       expect(body).not.toContain('files we hold name none');
       expect(headers.get('Cache-Control')).toBe('no-store');
+      expect(headers.get('Vercel-Cache-Tag')).toBeUndefined();
       expect(servedData(body).map((entry) => entry.key[0])).toEqual(['committee-money']);
     },
   );
@@ -4563,6 +4579,7 @@ describe('a committee page hands its records to the app', () => {
     );
     expect(body).not.toContain('No donors named');
     expect(headers.get('Cache-Control')).toBe('no-store');
+    expect(headers.get('Vercel-Cache-Tag')).toBeUndefined();
     expect(servedData(body).map((entry) => entry.key[0])).toEqual(['committee-payments-list']);
   });
 
@@ -4869,6 +4886,7 @@ describe('bill action and vote first responses', () => {
       );
       const { body, headers } = await serve({ path: `/bills/${id}` });
       expect(headers.get('Cache-Control')).toBe('no-store');
+      expect(headers.get('Vercel-Cache-Tag')).toBeUndefined();
       expect(body).toContain('We couldn’t load this bill’s votes');
       expect(body).not.toContain('No recorded roll-call votes');
       expect(body).not.toContain('Final passage');
@@ -4884,6 +4902,7 @@ describe('bill action and vote first responses', () => {
     const { status, headers, body } = await serve({ path: `/bills/${id}` });
     expect(status).toBe(503);
     expect(headers.get('Cache-Control')).toBe('no-store');
+    expect(headers.get('Vercel-Cache-Tag')).toBeUndefined();
     expect(body).not.toContain('Anna Member');
   });
 

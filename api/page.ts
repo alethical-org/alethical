@@ -323,13 +323,10 @@ const API_TIMEOUT_MS = 5000;
 // windows a reader waits for this function, and past them an outage returns the
 // handler's own 503 instead of a dated page.
 //
-// Nothing clears a held copy when a record changes. Vercel clears these on a
-// deployment and a campaign-money import makes no deployment, and the warming job
-// is a set of GETs, which a held address answers from what it holds. So window
-// length is the only protection there is, which is why it is 5 minutes rather than
-// merely shorter. Splitting the rule by what an address actually contains is
-// issue #1985, deliberately not built here: a short window is safe with no
-// classification at all.
+// Successful source updates clear tagged public copies after clearing API copies.
+// A failed clear remains owed; these windows still bound a missed retry. Private
+// and no-store responses are never tagged, and immutable assets are unaffected.
+const PUBLIC_RECORDS_CACHE_TAG = "alethical-public-records";
 const OK_CACHE =
   "public, max-age=0, s-maxage=300, stale-while-revalidate=300, stale-if-error=300";
 // A record that does not exist today may exist after the next ingestion run, so a
@@ -2418,6 +2415,7 @@ export default async function handler(
   if (redirect) {
     response.setHeader("Location", redirect);
     response.setHeader("Cache-Control", OK_CACHE);
+    response.setHeader("Vercel-Cache-Tag", PUBLIC_RECORDS_CACHE_TAG);
     response.setHeader("Content-Type", "text/plain; charset=utf-8");
     response.status(301).send(`Moved permanently to ${redirect}`);
     return;
@@ -2491,6 +2489,8 @@ export default async function handler(
     "Cache-Control",
     isAdminPage ? "private, no-store" : content.noStore ? "no-store" : status === 404 ? NOT_FOUND_CACHE : OK_CACHE,
   );
+  if (!content.noStore)
+    response.setHeader("Vercel-Cache-Tag", PUBLIC_RECORDS_CACHE_TAG);
   if (content.metadata.noindex) response.setHeader("X-Robots-Tag", "noindex");
   response.status(status).send(html);
 }
