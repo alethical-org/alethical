@@ -19,7 +19,8 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from alethical.pipeline import campaign_finance_filings as filings
-from alethical.pipeline.campaign_finance_reader import Release
+from alethical.pipeline.campaign_finance_reader import Dataset, Release
+from alethical.pipeline.campaign_finance_check_identity import READER_PREDICATE
 
 SPENDING = "spending"
 SPLIT = "split"
@@ -27,7 +28,7 @@ SPLIT = "split"
 # ``status`` is a different enum on each table, so both are read as text; the 2
 # modules turn the text back into their own status values.
 _SQL = text(
-    """
+    f"""
     SELECT 'spending' AS verdict, registration_number, filing_year, status::text,
            reason, stated_itemized, stated_itemized_paid, ours_itemized,
            stated_non_itemized, cut_off_date, report_type, amendment_index,
@@ -37,6 +38,8 @@ _SQL = text(
        AND filings_snapshot_id = (
            SELECT snapshot_id FROM cf_filing_current WHERE id IS TRUE
        )
+       AND (:legacy_expenditures OR filings_snapshot_id = :paired_expenditures)
+       AND {READER_PREDICATE}
        AND registration_number = :reg_num
     UNION ALL
     SELECT 'split', registration_number, filing_year, status::text,
@@ -48,6 +51,8 @@ _SQL = text(
        AND filings_snapshot_id = (
            SELECT snapshot_id FROM cf_filing_current WHERE id IS TRUE
        )
+       AND (:legacy_contributions OR filings_snapshot_id = :paired_contributions)
+       AND {READER_PREDICATE}
        AND registration_number = :reg_num
     """
 )
@@ -72,6 +77,10 @@ def verdict_rows(db: Session, release: Release, reg_num: str) -> dict[str, list]
                 "expenditures": release.expenditures.snapshot_id,
                 "contributions": release.contributions.snapshot_id,
                 "reg_num": reg_num,
+                "legacy_expenditures": release.expenditures.checks is None,
+                "legacy_contributions": release.contributions.checks is None,
+                "paired_expenditures": release.paired_filings(Dataset.expenditures),
+                "paired_contributions": release.paired_filings(Dataset.contributions),
             },
         ).all():
             found[verdict].append(tuple(columns))

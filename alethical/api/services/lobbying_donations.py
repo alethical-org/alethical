@@ -208,7 +208,7 @@ def annual_donations(db: Session, lobbyist_snapshot_id: UUID) -> DonationYears:
                 reverse=True,
             ),
             "release_id": str(release.id),
-            "copied_at": release.fetched_at,
+            "copied_at": release.copied_at(release.contributions.dataset),
             "source_url": release.contributions.source_url,
             "evidence_id": evidence["id"] if evidence else None,
             "evidence_checked_at": evidence["checked_at"] if evidence else None,

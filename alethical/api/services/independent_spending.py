@@ -54,7 +54,7 @@ ways that arises here, both ours and both ``UNAVAILABLE``:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -246,30 +246,17 @@ def current_release(db: Session) -> Release | None:
     ``None`` means no release is published — which is a fact about us, never a
     fact about a legislator.
     """
-    row = db.execute(
-        select(
-            CampaignFinanceRelease.independent_expenditures_snapshot_id,
-            CampaignFinanceSnapshot.source_url,
-            CampaignFinanceRelease.fetch_completed_at,
-        )
-        .join(
-            CampaignFinanceCurrentRelease,
-            CampaignFinanceCurrentRelease.release_id == CampaignFinanceRelease.id,
-        )
-        .join(
-            CampaignFinanceSnapshot,
-            CampaignFinanceSnapshot.id
-            == CampaignFinanceRelease.independent_expenditures_snapshot_id,
-        )
-    ).first()
-    if row is None:
+    from alethical.pipeline.campaign_finance_reader import live_release
+
+    release = live_release(db)
+    if release is None:
         return None
-    # The driver can hand back a `timestamptz` in the session's own timezone
-    # (`docs/architecture/backend-api-system-design.md`, sitemap `lastmod`), and this
-    # instant is the freshness date a page prints. Normalized here so a reader is
-    # never told the money was fetched on the wrong day.
-    fetched_at = row[2].astimezone(UTC) if row[2] is not None else None
-    return Release(snapshot_id=row[0], source_url=row[1], fetched_at=fetched_at)
+    source = release.independent_expenditures
+    return Release(
+        snapshot_id=source.snapshot_id,
+        source_url=source.source_url,
+        fetched_at=release.copied_at(source.dataset),
+    )
 
 
 def every_link(db: Session, legislator_id: UUID) -> list[LegislatorCampaignCommittee]:

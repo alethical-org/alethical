@@ -25,7 +25,7 @@ from datetime import UTC, datetime
 from typing import Callable, Iterable, Mapping, Optional
 
 ENV = "COLLECTION_RUN_SUMMARY"
-STATUSES = ("published", "unchanged", "failed", "skipped", "dry_run")
+STATUSES = ("published", "unchanged", "failed", "pending", "skipped", "dry_run")
 _recorded: set[str] = set()
 
 
@@ -164,6 +164,22 @@ def record_refresh_report(report: object) -> None:
         )
         if getattr(fetched, "content_hash", None):
             hashes[str(name)] = fetched.content_hash
+    for outcome in outcomes:
+        dataset = outcome.spec.dataset.value
+        failed = list(outcome.blocked)
+        record_stage(
+            f"payments/{dataset}",
+            "failed"
+            if failed
+            else "dry_run"
+            if dry
+            else "published"
+            if getattr(payments, "published", False)
+            else "skipped",
+            failed_checks=[check.name for check in failed],
+            source_hashes={dataset: outcome.fetched.content_hash},
+            details=[getattr(check, "detail", check.name) for check in failed],
+        )
     blocked = [
         check for outcome in outcomes for check in getattr(outcome, "blocked", []) or []
     ]
@@ -203,7 +219,18 @@ def record_refresh_report(report: object) -> None:
             failed_checks=["re-check did not finish"],
             details=recheck_failed,
         )
-    elif getattr(report, "recheck", None) is not None:
+    elif getattr(report, "rechecks_pending", None) is True:
+        record_stage(
+            "rechecks",
+            "pending",
+            details=[
+                "exact-file checks remain queued; source publication is a separate completed step"
+            ],
+        )
+    elif (
+        getattr(report, "recheck", None) is not None
+        or getattr(report, "rechecks_pending", None) is False
+    ):
         record_stage("rechecks", "unchanged")
 
     clearing_failed = take("clearing saved pages") + take("clearing_pending")

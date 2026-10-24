@@ -2435,7 +2435,7 @@ class CampaignFinanceFetchObservation(UUIDPrimaryKeyMixin, TimestampMixin, Base)
 
 
 class CampaignFinanceRelease(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    """The set of 3 files published together.
+    """One accepted file per dataset, named by a single request-consistent release.
 
     Three named non-null columns rather than a membership table, because
     ``UNIQUE (release_id, dataset)`` on a membership table happily permits a
@@ -2459,10 +2459,9 @@ class CampaignFinanceRelease(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     status: Mapped[CampaignFinanceReleaseStatus] = mapped_column(
         SQLEnum(CampaignFinanceReleaseStatus, name="cf_release_status"), nullable=False
     )
-    # The run's fetch window. `fetch_completed_at` is the page's freshness date
-    # (#861), NOT a snapshot's first fetch: an unchanged file re-confirmed today
-    # is current data, and the 3 downloads take ~93 seconds so the window is
-    # recorded rather than collapsed to an instant.
+    # The run's fetch window. Per-file freshness belongs to the accepted manifest
+    # receipt; this end time remains the fallback only for a legacy empty manifest.
+    # A complete unchanged file may be re-confirmed without changing its snapshot.
     fetch_started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
@@ -3241,6 +3240,8 @@ class CampaignFinanceStatedSplit(Base):
     ours_itemized: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 4))
     ours_itemized_cash: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 4))
 
+    reader_identity: Mapped[Optional[str]] = mapped_column(String(64))
+
     checked_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
@@ -3340,6 +3341,8 @@ class CampaignFinanceStatedSpending(Base):
     # nothing" is the sharpest case this check exists for and an absent number would
     # read as a year nobody looked at.
     ours_itemized: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 4))
+
+    reader_identity: Mapped[Optional[str]] = mapped_column(String(64))
 
     checked_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False

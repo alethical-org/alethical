@@ -54,6 +54,7 @@ from alethical.pipeline import campaign_finance_stated_split as split
 from alethical.pipeline import campaign_finance_report_document_store as document_store
 from alethical.pipeline import campaign_finance_report_documents as documents
 from alethical.tests.test_campaign_finance_load import (
+    run as load_again,
     FakeBoard,
     MemoryStore,
     _clear,
@@ -465,6 +466,9 @@ def documents_server() -> Iterator[tuple[str, dict[str, bytes]]]:
 def db(seed_database: None):
     session = get_session_factory()()
     _clear(session)
+    session.execute(
+        text("DELETE FROM cf_refresh_state WHERE key = 'money_check_reader_identity'")
+    )
     session.execute(text("DELETE FROM cf_stated_split"))
     session.commit()
     try:
@@ -1342,6 +1346,13 @@ def test_a_stored_verdict_reads_back_for_the_release_it_was_made_about(
             )
         ],
     )
+    assert not service.stated_split_for_year(
+        db, release, "19200", 2025
+    ).may_show_a_split
+    # A stored comparison cannot substitute for a new complete source read that
+    # proves this payment file still pairs with the replacement totals.
+    assert load_again(db, board, store).published
+    release = live(db)
     assert service.stated_split_for_year(db, release, "19200", 2025).may_show_a_split
 
 

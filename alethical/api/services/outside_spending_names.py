@@ -96,7 +96,7 @@ def outside_spending_names(
         },
         "release_id": str(release.id),
         "snapshot_id": str(source.snapshot_id),
-        "fetched_at": release.fetched_at,
+        "fetched_at": release.copied_at(release.independent_expenditures.dataset),
         "source_url": source.source_url,
     }
     if snapshot_id is not None and snapshot_id != source.snapshot_id:

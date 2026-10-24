@@ -46,6 +46,7 @@ from alethical.pipeline import campaign_finance_report_document_store as documen
 from alethical.pipeline import campaign_finance_report_documents as documents
 from alethical.pipeline import campaign_finance_stated_spending as spending
 from alethical.tests.test_campaign_finance_load import (
+    run as load_again,
     FakeBoard,
     MemoryStore,
     _clear,
@@ -323,6 +324,9 @@ def test_no_money_out_figure_at_all_is_not_available_rather_than_a_pass() -> Non
 def db(seed_database: None):
     session = get_session_factory()()
     _clear(session)
+    session.execute(
+        text("DELETE FROM cf_refresh_state WHERE key = 'money_check_reader_identity'")
+    )
     session.execute(text("DELETE FROM cf_stated_spending"))
     session.commit()
     try:
@@ -644,6 +648,13 @@ def test_a_stored_verdict_reads_back_for_the_release_it_was_made_about(
             )
         ],
     )
+    assert not service.stated_spending_for_year(
+        db, release, "19004", 2025
+    ).figures_agree
+    # A stored comparison cannot substitute for a new complete source read that
+    # proves this payment file still pairs with the replacement totals.
+    assert load_again(db, board, store).published
+    release = live(db)
     assert service.stated_spending_for_year(db, release, "19004", 2025).figures_agree
 
 

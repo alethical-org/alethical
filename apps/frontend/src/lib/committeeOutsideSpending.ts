@@ -42,6 +42,6 @@ export function committeeOutsideSpending(money: CommitteeMoney): OutsideSpending
     firstPaymentOn: source?.first_payment_on ?? null,
     lastPaymentOn: source?.last_payment_on ?? null,
     sourceUrl: source?.source_url ?? null,
-    fetchedAt: money.fetchedAt,
+    fetchedAt: money.paymentCopiedAt?.independentExpenditures ?? null,
   };
 }

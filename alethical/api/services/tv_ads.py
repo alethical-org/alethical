@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from alethical.pipeline.campaign_finance_reader import source_copy_date
+
 import hashlib
 import json
 import re
@@ -1684,7 +1686,9 @@ def expense_detail(db, connection_id):
         "id": str(c.id),
         "label": "Reported campaign expense",
         "dataset": evidence["source_dataset"],
-        "source_date": iso(snapshot.created_at) if snapshot else None,
+        "source_date": iso(source_copy_date(db, snapshot.dataset, snapshot.id))
+        if snapshot
+        else None,
         "source_url": snapshot.source_url if snapshot else None,
         "source_changed": _expense_changed(db, c),
         "fields": fields,

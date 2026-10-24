@@ -77,6 +77,7 @@ function nameSearchGroupState(state: string | undefined): NameSearchGroup['state
 export function nameSearchGroups(groups: ApiNameSearchPayload['groups']): NameSearchGroup[] {
   return (groups ?? []).map((group) => ({
     kind: group.kind ?? '',
+    fetchedAt: group.fetched_at ?? null,
     state: nameSearchGroupState(group.state),
     results:
       group.state === 'reported'

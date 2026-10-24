@@ -202,6 +202,11 @@ function data(year: number, registrations = ['17868']): LegislatorCampaignMoney 
     committeesOutsideThisYear: [],
     otherOfficeCommittees: 0,
     fetchedAt: '2026-09-12T10:00:00Z',
+    paymentCopiedAt: {
+      contributions: '2026-09-12T10:00:00Z',
+      expenditures: '2026-09-12T10:00:00Z',
+      independentExpenditures: '2026-09-12T10:00:00Z',
+    },
   };
 }
 let root: Root | undefined;

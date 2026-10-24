@@ -792,6 +792,13 @@ export interface MoneyFilingsFeed {
   newestPeriod: { periodEnd: string | null; filingCount: number } | null;
 }
 
+/** Each official transaction file keeps its own source-copy time. */
+export interface PaymentCopyDates {
+  contributions: string | null;
+  expenditures: string | null;
+  independentExpenditures: string | null;
+}
+
 /** The landing's counts and dates (GET /campaign-finance/summary). Five
  *  independent blocks, each with its own state, so one gap cannot blank the
  *  others. A null count is our gap and never renders as 0; a served 0 is a
@@ -821,9 +828,9 @@ export interface MoneyLandingSummary {
     rowCount: number | null;
   };
   freshness: {
-    /** ISO timestamp we last copied the Board's 3 payment files. Printed in
-     *  Central time. */
+    /** Shared copy timestamp only when all 3 payment sources agree. */
     downloadsFetchedAt: string | null;
+    paymentCopiedAt?: PaymentCopyDates;
     /** ISO timestamp we last copied the Board's register of filers, report
      *  catalogue and official totals: a separate copy on its own day, so it gets
      *  its own printed date beside the payments date (#2344). */
@@ -861,9 +868,9 @@ export interface LegislatorCampaignMoney {
   linkState: LinkState;
   /** How old `linkState` and the confirmed committees under it are. */
   currentClaim: CurrentClaimFreshness;
-  /** The day we downloaded Minnesota's files. Not the period the money covers,
-   *  which is per committee and always earlier. */
+  /** Shared payment copy timestamp only when all source timestamps agree. */
   fetchedAt: string | null;
+  paymentCopiedAt?: PaymentCopyDates;
   /** Shared report copy time only when all displayed committee-years agree.
    * Older responses may carry a snapshot-wide date: use each committee's own date. */
   filingsCopiedAt?: string | null;
@@ -986,9 +993,9 @@ export interface CommitteeMoney {
   /** The Board's sub-type code (CAU a caucus, BC/BF a ballot-question filer). */
   entitySubType: string | null;
   year: number;
-  /** ISO timestamp we last copied Minnesota's payment downloads, printed in
-   *  Central time. Never the period money covers. */
+  /** Shared payment copy timestamp only when all source timestamps agree. */
   fetchedAt: string | null;
+  paymentCopiedAt?: PaymentCopyDates;
   /** The report source’s own copy time, separate from the payment files. */
   filingsCopiedAt?: string | null;
   register: CommitteeRegisterEntry;
@@ -1272,6 +1279,7 @@ export type NameSearchRow =
  *  "a gap on our side" over a verified nothing, which is the missing-versus-zero
  *  failure `.claude/rules/grounded-answers.md` rule 12 forbids. */
 export interface NameSearchGroup {
+  fetchedAt?: string | null;
   kind: string;
   state: 'reported' | 'not_reported' | 'unavailable';
   results: NameSearchRow[];

@@ -305,6 +305,7 @@ class Freshness:
     """
 
     downloads_fetched_at: Optional[datetime]
+    payment_copied_at: dict[str, Optional[datetime]]
     register_fetched_at: Optional[datetime]
     release_id: Optional[UUID]
 
@@ -1247,6 +1248,7 @@ def freshness(db: Session, release) -> Freshness:
     snapshot = live_filings_snapshot(db)
     return Freshness(
         downloads_fetched_at=_as_utc(getattr(release, "fetched_at", None)),
+        payment_copied_at=release.payment_copied_at if release else {},
         register_fetched_at=_register_completed_at(snapshot),
         release_id=getattr(release, "id", None),
     )

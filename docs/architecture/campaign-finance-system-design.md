@@ -851,7 +851,7 @@ the 3 registered-filer lists and the 3 current-report lists and hash their conte
 order removed; on any change, or weekly regardless, refresh the totals for every supported
 year, because a totals publication replaces the whole set and a 2-year run would erase 2022
 to 2023; download the 3 payment files, which serve no size, date or change marker, and
-publish when every check passes; after any publish clear the saved pages, run both
+publish each complete file after its own checks pass; after any publish clear the saved pages, run both
 re-checks and clear again once their verdicts are live, each unfinished step leaving its
 own marker (`clearing_pending`, `recheck_pending`) that only its success removes. A list is
 recorded as handled (`cf_refresh_state`) only after the work succeeded, and a list that
@@ -866,14 +866,15 @@ GitHub issue the run files quotes that summary rather than asserting anything it
 Freshness, wherever stated: payments checked daily; totals refreshed on list change and
 weekly; a run whose lists could not be read is reported as incomplete.
 
-**Each checked payment file updates independently (approved; implementation pending).**
+**Each checked payment file updates independently.**
 Contributions, general expenditures and independent expenditures each replace their
 complete accepted file after that file passes its own checks. A held replacement keeps
 the previous file and its date; it does not block another file that passes. No row merging,
 automatic deduplication or unexplained-loss exception follows from this approval. The
-shipped collector still releases all 3 together until the following contract is built
-and verified; [issue 2504](https://github.com/alethical-org/alethical/issues/2504) owns
-that change.
+collector keeps an immutable 3-slot manifest, so a request still resolves 1 consistent
+release. [Issue 2504](https://github.com/alethical-org/alethical/issues/2504) owns rollout
+and live acceptance; [the implementation and consumer inventory](../implementation/independent-payment-files.md)
+records its source, comparison and recovery checks.
 
 Each release retains the exact accepted file identity, source-copy receipt and paired
 totals snapshot for each of its 3 slots. A request resolves that release once, preserving
@@ -887,7 +888,17 @@ approval time and a rejected replacement do not renew the carried file's date.
 Any comparison or derived figure must identify its exact input versions and prove
 compatible reporting coverage. Otherwise it stays withheld. Pairing with totals,
 verification results, pending rechecks and saved-page clearing follow the relevant file,
-not the newest unrelated slot. An incident remains open while any required file or
+not the newest unrelated slot. Collection can finish with `--collect-only`, clearing
+published pages promptly and retaining each owed comparison. `--recheck-limit 10
+--recheck-seconds 120 --recheck-requests 10` then checks at most 10 exact committee-years
+for 1 file per writer-lease turn, with request and elapsed-time caps. Its durable cursor
+binds the exact file, paired/current totals, supported years, ordered population and
+reader code/dependency fingerprint. Each idempotent verdict commits before its cursor;
+only the whole exact population completes the file. A new reader retires old proof on
+both files; APIs and coverage withhold older-reader verdicts during a partial rerun.
+A `pending` run-summary stage keeps recovery open without calling publication complete
+proof. Exit 75 requests another bounded turn; an unpaired held file requests no PDFs
+and remains pending with its reason. An incident remains open while any required file or
 follow-up is unresolved. Replaying a rejected file changes neither its accepted rows nor
 their date. Rollback restores all slot identities, dates and pairings exactly; pruning
 keeps every file still named by the live or rollback release.
@@ -905,7 +916,8 @@ totals (`cf_filing_snapshot`, pointed to by `cf_filing_current`) and the payment
 (`cf_release`, pointed to by `cf_current_release`) are 2 pipelines with 2 refresh days, and a
 committee page's non-itemized figure is the one minus the other. A release records which
 filings snapshot its rows were reconciled against when it published
-(`cf_release.filing_snapshot_id`), and the API withholds the subtraction, in its own split
+(the contributions entry of `cf_release.file_manifest`; `cf_release.filing_snapshot_id`
+on a legacy empty manifest), and the API withholds the subtraction, in its own split
 state `generations_differ`, whenever the live filings snapshot is a different one
 (`generations_differ` in `alethical/api/services/committee_finance.py`, asked before every
 other comparison in `split_from_money_in`). Each source figure still travels with its own

@@ -41,6 +41,7 @@ from decimal import Decimal
 from typing import Iterable, Optional
 
 from sqlalchemy import text
+from alethical.pipeline.campaign_finance_check_identity import READER_PREDICATE
 from sqlalchemy.orm import Session
 
 from alethical.api.services.committee_stated_verdicts import SPENDING, verdict_rows
@@ -187,7 +188,8 @@ def committee_years_whose_spending_disagrees(
     rows = db.execute(
         text(
             "SELECT registration_number, filing_year FROM cf_stated_spending "
-            " WHERE snapshot_id = :snapshot AND status = 'disagrees'"
+            " WHERE snapshot_id = :snapshot AND status = 'disagrees' "
+            f"AND {READER_PREDICATE} "
             " AND filings_snapshot_id = (SELECT snapshot_id "
             "FROM cf_filing_current WHERE id IS TRUE)"
         ),

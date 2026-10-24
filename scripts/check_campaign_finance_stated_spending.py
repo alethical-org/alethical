@@ -74,6 +74,11 @@ from alethical.pipeline.campaign_finance_stated_spending import (  # noqa: E402
     run_stated_spending_check,
 )
 from alethical.pipeline.raw_file_store import raw_file_store_from_env  # noqa: E402
+from alethical.pipeline.cache_purge import when_the_money_checks_finish  # noqa: E402
+from alethical.pipeline.campaign_finance_refresh import (  # noqa: E402
+    finish_manual_publication,
+    hold_full_run_lease_until_exit,
+)
 
 
 def summary(run: StatedSpendingRun) -> str:
@@ -169,6 +174,10 @@ def main() -> int:
     engine = create_engine(
         database_url, echo=False, connect_args=NO_PREPARED_STATEMENTS
     )
+    if not args.dry_run and not hold_full_run_lease_until_exit(
+        engine, purpose="a hand-run campaign-money spending check"
+    ):
+        return 1
     with (
         Session(engine) as session,
         tempfile.TemporaryDirectory(prefix="cf-report-document-") as directory,
@@ -188,6 +197,16 @@ def main() -> int:
         except RuntimeError as refusal:
             print(f"refused: {refusal}", file=sys.stderr)
             return 1
+        if not args.dry_run:
+            follow_up = finish_manual_publication(
+                session,
+                when_the_money_checks_finish(),
+                published=False,
+                run_rechecks=False,
+                log=lambda message: print(message, file=sys.stderr),
+            )
+            if not follow_up.ok:
+                return 1
 
     print(summary(run))
     # A committee-year whose figures disagree exits 0. That is a finding to display, not

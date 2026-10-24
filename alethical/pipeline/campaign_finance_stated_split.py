@@ -59,6 +59,11 @@ from sqlalchemy.orm import Session
 from alethical.db.models import CampaignFinanceFilerKind as FilerKind
 from alethical.db.models import CampaignFinanceStatedSplitStatus as Status
 from alethical.pipeline import campaign_finance_reader as reader
+from alethical.pipeline.campaign_finance_check_identity import (
+    READER_PREDICATE,
+    reader_identity,
+    stage_reader_identity,
+)
 from alethical.pipeline.campaign_finance_filings import (
     BOARD_BASE_URL,
     REQUEST_SPACING_SECONDS,
@@ -916,6 +921,13 @@ def run_stated_split_check(
             "to prove this reader against. Run "
             "scripts/load_campaign_finance_filings.py first."
         )
+    if (
+        release.contributions.checks is not None
+        and release.paired_filings(reader.Dataset.contributions) != snapshot
+    ):
+        raise RuntimeError(
+            "contributions is not paired with the current totals; its comparison stays withheld until a complete accepted source read"
+        )
     # Checked here rather than discovered at the end. A run is about 1,300 requests to
     # the Board over roughly 20 minutes, and the first write is the last thing it does,
     # so a missing table threw all of that away and asked the Board for it twice. Found
@@ -944,6 +956,10 @@ def run_stated_split_check(
         for target in targets(db, release, snapshot, years)
         if wanted is None or target.registration_number in wanted
     ]
+    if not population:
+        raise RuntimeError(
+            "no complete target population was established; the file's check remains pending"
+        )
     if progress:
         progress(
             f"{len(population):,} committee-years to check across "
@@ -1008,6 +1024,8 @@ def store_verdicts(
     published *now*. Two verdicts for one committee-year would leave a page choosing
     between them, and the older one is always the wrong choice.
     """
+    proof = reader_identity()
+    stage_reader_identity(db, proof)
     written = 0
     for verdict in verdicts:
         db.execute(
@@ -1017,14 +1035,14 @@ def store_verdicts(
                 "  status, reason, self_test, report_type, amendment_index,"
                 "  cut_off_date, document_hash, document_byte_size, stated_itemized,"
                 "  stated_itemized_cash, stated_non_itemized, ours_itemized,"
-                "  ours_itemized_cash, checked_at"
+                "  ours_itemized_cash, checked_at, reader_identity"
                 ") VALUES ("
                 "  :snapshot_id, :registration_number, :filing_year,"
                 "  :filings_snapshot_id, :status, :reason, :self_test, :report_type,"
                 "  :amendment_index, :cut_off_date, :document_hash,"
                 "  :document_byte_size, :stated_itemized, :stated_itemized_cash,"
                 "  :stated_non_itemized, :ours_itemized, :ours_itemized_cash,"
-                "  :checked_at"
+                "  :checked_at, :reader_identity"
                 ") ON CONFLICT (snapshot_id, registration_number, filing_year) "
                 "DO UPDATE SET"
                 "  filings_snapshot_id = EXCLUDED.filings_snapshot_id,"
@@ -1040,7 +1058,7 @@ def store_verdicts(
                 "  stated_non_itemized = EXCLUDED.stated_non_itemized,"
                 "  ours_itemized = EXCLUDED.ours_itemized,"
                 "  ours_itemized_cash = EXCLUDED.ours_itemized_cash,"
-                "  checked_at = EXCLUDED.checked_at"
+                "  checked_at = EXCLUDED.checked_at, reader_identity = EXCLUDED.reader_identity"
             ),
             {
                 "snapshot_id": contributions_snapshot_id,
@@ -1061,6 +1079,7 @@ def store_verdicts(
                 "ours_itemized": verdict.ours_itemized,
                 "ours_itemized_cash": verdict.ours_itemized_cash,
                 "checked_at": datetime.now(UTC),
+                "reader_identity": proof,
             },
         )
         written += 1
@@ -1140,7 +1159,8 @@ def stated_split_coverage(
         text(
             "SELECT status, count(*), max(checked_at) FROM cf_stated_split "
             " WHERE snapshot_id = :snapshot AND filings_snapshot_id = "
-            "(SELECT snapshot_id FROM cf_filing_current WHERE id IS TRUE) GROUP BY status"
+            "(SELECT snapshot_id FROM cf_filing_current WHERE id IS TRUE) "
+            f"AND {READER_PREDICATE} GROUP BY status"
         ),
         {"snapshot": contributions_snapshot_id},
     ).all()
@@ -1153,7 +1173,8 @@ def stated_split_coverage(
             "SELECT registration_number, filing_year FROM cf_stated_split "
             " WHERE snapshot_id = :snapshot AND status = 'disagrees' "
             " AND filings_snapshot_id = (SELECT snapshot_id "
-            "FROM cf_filing_current WHERE id IS TRUE)"
+            "FROM cf_filing_current WHERE id IS TRUE) "
+            f"AND {READER_PREDICATE}"
             " ORDER BY registration_number, filing_year"
         ),
         {"snapshot": contributions_snapshot_id},

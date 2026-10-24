@@ -92,6 +92,23 @@ describe('complete single-committee payment reads', () => {
     );
   });
 
+  it('rejects a changed source date even when the release identifier stays the same', async () => {
+    request.mockResolvedValueOnce(
+      page(
+        Array.from({ length: 250 }, () => row),
+        0,
+        251,
+        true,
+      ),
+    );
+    const changed = page([row], 250, 251);
+    changed.data.fetched_at = '2026-10-24';
+    request.mockResolvedValueOnce(changed);
+    await expect(getCompleteCampaignMoneyPayments('17868', 2025, 'received')).rejects.toMatchObject(
+      { reason: 'release_changed' },
+    );
+  });
+
   it('rejects a truncated list and a stalled page', async () => {
     request.mockResolvedValueOnce(page([row], 0, 2));
     await expect(getCompleteCampaignMoneyPayments('17868', 2025, 'received')).rejects.toMatchObject(

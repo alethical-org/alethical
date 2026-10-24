@@ -397,6 +397,8 @@ def races(
         as_of=summary.as_of,
         snapshot_id=summary.snapshot_id,
         release_id=getattr(release, "id", None),
-        fetched_at=getattr(release, "fetched_at", None),
+        fetched_at=release.copied_at(release.contributions.dataset)
+        if release
+        else None,
         reason=None,
     )

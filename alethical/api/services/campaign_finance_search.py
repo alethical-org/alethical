@@ -255,6 +255,7 @@ class ResultGroup:
     at_least: Optional[int]
     has_more: bool
     reason: Optional[str]
+    fetched_at: Optional[datetime] = None
 
 
 @dataclass(frozen=True)
@@ -574,6 +575,7 @@ def _name_group(
     capped = counted > COUNTED_UP_TO
     return ResultGroup(
         kind=kind,
+        fetched_at=release.copied_at(dataset),
         state=REPORTED if rows else NOT_REPORTED,
         results=tuple(
             PaymentNameResult(name=name, role=role, payment_count=count)

@@ -1,7 +1,7 @@
 import { useMemo, useRef, type ReactNode } from 'react';
 import { View } from 'react-native';
 
-import type { CampaignCommitteeMoney } from '../../data/types';
+import type { CampaignCommitteeMoney, PaymentCopyDates } from '../../data/types';
 import { useCampaignMoneyDetails } from '../../hooks/useCampaignMoneyDetails';
 import {
   groupContributionPayments,
@@ -75,6 +75,7 @@ export function CommitteeDonations({
     key: string;
     groups: typeof groups;
     payments: NonNullable<typeof details.received.data>['payments'];
+    paymentCopiedAt: PaymentCopyDates;
   } | null>(null);
   const key = `${committee.registrationNumber}:${year}:${releaseId ?? ''}`;
   const unavailable =
@@ -84,8 +85,18 @@ export function CommitteeDonations({
   if (lastMatched.current?.key !== key || unavailable) lastMatched.current = null;
   const recheckFailed = details.received.isError || details.made.isError;
   const complete = details.selectedComplete && !failed;
+  const paymentCopiedAt: PaymentCopyDates = {
+    contributions: details.received.data?.fetchedAt ?? null,
+    expenditures: details.made.data?.fetchedAt ?? null,
+    independentExpenditures: null,
+  };
   if (complete && details.received.data) {
-    lastMatched.current = { key, groups, payments: details.received.data.payments };
+    lastMatched.current = {
+      key,
+      groups,
+      payments: details.received.data.payments,
+      paymentCopiedAt,
+    };
   }
   const kept =
     !complete &&
@@ -120,6 +131,7 @@ export function CommitteeDonations({
       {children}
       <DonorPaymentList
         groups={shownGroups}
+        paymentCopiedAt={kept ? kept.paymentCopiedAt : paymentCopiedAt}
         year={year}
         tab={preferences.tab}
         onSelectTab={(tab) => onPreferences({ ...preferences, tab })}

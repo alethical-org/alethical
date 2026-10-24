@@ -70,7 +70,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
-from alethical.pipeline.campaign_finance_filings import live_filings_snapshot
 from alethical.pipeline.raw_file_store import sha256_of_file
 
 # The two files the Board publishes each year.
@@ -1039,30 +1038,41 @@ def registered_candidates(
     wanted = list(registration_numbers)
     if not wanted:
         return None, []
-    snapshot = live_filings_snapshot(db)
-    if snapshot is None:
-        return None, []
+    pointer = schema.CampaignFinanceFilingCurrentSnapshot
+    snapshot = schema.CampaignFinanceFilingSnapshot
+    filer = schema.CampaignFinanceFiler
     rows = db.execute(
         select(
-            schema.CampaignFinanceFiler.registration_number,
-            schema.CampaignFinanceFiler.candidate_name,
-            schema.CampaignFinanceFiler.party,
-            schema.CampaignFinanceFiler.office,
-            schema.CampaignFinanceFiler.district,
-        ).where(
-            schema.CampaignFinanceFiler.snapshot_id == snapshot.id,
-            schema.CampaignFinanceFiler.registration_number.in_(wanted),
+            snapshot.id,
+            filer.registration_number,
+            filer.candidate_name,
+            filer.party,
+            filer.office,
+            filer.district,
+        )
+        .select_from(pointer)
+        .join(snapshot, snapshot.id == pointer.snapshot_id)
+        .outerjoin(
+            filer,
+            (filer.snapshot_id == snapshot.id) & filer.registration_number.in_(wanted),
+        )
+        .where(
+            pointer.id.is_(True),
+            snapshot.status == schema.CampaignFinanceSnapshotStatus.loaded,
         )
     ).all()
-    return snapshot.id, [
+    if not rows:
+        return None, []
+    return rows[0][0], [
         RegisteredCandidate(
-            registration_number=row[0],
-            candidate_name=row[1],
-            party=row[2],
-            office=row[3],
-            district=row[4],
+            registration_number=row[1],
+            candidate_name=row[2],
+            party=row[3],
+            office=row[4],
+            district=row[5],
         )
         for row in rows
+        if row[1] is not None
     ]
 
 

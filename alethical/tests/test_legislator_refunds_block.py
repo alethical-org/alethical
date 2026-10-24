@@ -404,3 +404,26 @@ def test_without_a_published_directory_no_register_fields_are_guessed(
 
     assert _registered_since(db, ABELER_SENATE) is None
     assert registered_candidates(db, registration_numbers=[ABELER_SENATE]) == (None, [])
+
+
+def test_refund_register_pointer_and_candidate_rows_share_one_read(db):
+    from sqlalchemy import event
+    from alethical.pipeline.campaign_finance_refunds import registered_candidates
+
+    _abeler(db)
+    statements = []
+    connection = db.connection()
+
+    def collect(_conn, _cursor, statement, _parameters, _context, _executemany):
+        statements.append(statement)
+
+    event.listen(connection, "before_cursor_execute", collect)
+    try:
+        snapshot, rows = registered_candidates(db, registration_numbers=[ABELER_SENATE])
+    finally:
+        event.remove(connection, "before_cursor_execute", collect)
+    assert len(statements) == 1
+    assert snapshot is not None and [row.candidate_name for row in rows] == [
+        ABELER_NAME
+    ]
+    assert "cf_filing_current" in statements[0] and "cf_filer" in statements[0]

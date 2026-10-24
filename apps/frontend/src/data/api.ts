@@ -575,6 +575,20 @@ interface ApiCommitteeRefundsPayload {
   }[];
 }
 
+export interface ApiPaymentCopyDates {
+  contributions?: string | null;
+  expenditures?: string | null;
+  independent_expenditures?: string | null;
+}
+
+export function paymentCopyDatesFromPayload(dates?: ApiPaymentCopyDates | null) {
+  return {
+    contributions: dates?.contributions ?? null,
+    expenditures: dates?.expenditures ?? null,
+    independentExpenditures: dates?.independent_expenditures ?? null,
+  };
+}
+
 export interface ApiLegislatorCampaignMoneyPayload {
   /** When the origin last confirmed `link_state`. A validation time, never a
    *  record date (`alethical/api/routers/public.py`). */
@@ -591,6 +605,7 @@ export interface ApiLegislatorCampaignMoneyPayload {
   }[];
   release_id: string;
   fetched_at?: string | null;
+  payment_copied_at?: ApiPaymentCopyDates | null;
   filings_copied_at?: string | null;
   committees: {
     registration_number: string;
@@ -2424,6 +2439,7 @@ export function legislatorCampaignMoneyFromPayload(
     },
     fetchedAt: payload.fetched_at ?? null,
     filingsCopiedAt: payload.filings_copied_at ?? null,
+    paymentCopiedAt: paymentCopyDatesFromPayload(payload.payment_copied_at),
     otherOfficeCommittees: payload.other_office_committees ?? 0,
     committeesOutsideThisYear: (payload.committees_outside_this_year ?? []).map((entry) => ({
       registrationNumber: entry.registration_number,
@@ -2550,6 +2566,7 @@ export interface ApiCampaignFinanceSummaryPayload {
   } | null;
   freshness?: {
     downloads_fetched_at?: string | null;
+    payment_copied_at?: ApiPaymentCopyDates | null;
     register_fetched_at?: string | null;
   } | null;
 }
@@ -2596,6 +2613,7 @@ export function campaignFinanceSummaryFromPayload(
     },
     freshness: {
       downloadsFetchedAt: payload.freshness?.downloads_fetched_at ?? null,
+      paymentCopiedAt: paymentCopyDatesFromPayload(payload.freshness?.payment_copied_at),
       registerFetchedAt: payload.freshness?.register_fetched_at ?? null,
     },
   };
@@ -2758,6 +2776,7 @@ export interface ApiNameSearchPayload {
   groups?:
     | {
         kind?: string;
+        fetched_at?: string | null;
         state?: string;
         results?: ApiNameSearchRowPayload[] | null;
         total?: number | null;
@@ -3092,6 +3111,7 @@ export interface ApiCommitteeMoneyPayload {
   entity_sub_type?: string | null;
   year: number;
   fetched_at?: string | null;
+  payment_copied_at?: ApiPaymentCopyDates | null;
   filings_copied_at?: string | null;
   register?: ApiCommitteeRegisterPayload | null;
   money_in?: {
@@ -3165,6 +3185,7 @@ export function committeeFinanceFromPayload(payload: ApiCommitteeMoneyPayload): 
     year: payload.year,
     fetchedAt: payload.fetched_at ?? null,
     filingsCopiedAt: payload.filings_copied_at ?? null,
+    paymentCopiedAt: paymentCopyDatesFromPayload(payload.payment_copied_at),
     register: {
       state: committeeRegisterState(register?.state),
       kind: register?.kind ?? null,

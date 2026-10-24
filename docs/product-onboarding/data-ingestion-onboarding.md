@@ -503,6 +503,23 @@ then re-runs the 2 checks that compare a committee against its own filed report 
 for them, which adds roughly 42 minutes — see "A bulk-payments publish runs both of those checks itself"
 below.
 
+**Each complete payment file publishes after its own checks pass.** A held replacement
+keeps its accepted rows, source receipt, date and totals pairing while a checked sibling
+can update. The release manifest always names all 3 slots. Dates come from each slot's
+most recent complete validated read of the same records, never a newer unrelated file.
+An unchanged record set can renew its source date without repeating PDF comparisons;
+old obligations remain owed. A malformed nonempty manifest is refused, not treated as
+legacy data.
+
+The scheduler uses `refresh_campaign_finance.py --collect-only` to publish and clear
+pages without waiting behind hours of PDF checks. Separate `--recheck-limit 10
+--recheck-seconds 120 --recheck-requests 10` turns finish at most 10 exact committee-years
+for 1 owed file, saving exact-input progress and releasing the same writer lease between
+turns. Source publication, whole-file comparison completion and saved-page recovery are
+separate steps. A new reader invalidates older reader proof, including while a rerun is
+partial. [The implementation inventory](../implementation/independent-payment-files.md)
+names every consumer, rollback protection and deployment boundary.
+
 **A first import is quarantined on purpose, and so is any set that fails a check.**
 There is no first-load exception: a first import has nothing to compare against, so
 it stops like any other, prints its measurements, and an operator publishes it by
