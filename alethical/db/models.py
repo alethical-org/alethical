@@ -7,7 +7,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 from collections.abc import Sequence
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import (
     and_,
@@ -2541,6 +2541,12 @@ class CampaignFinanceRelease(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # saying so.
     filing_snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("cf_filing_snapshot.id")
+    )
+
+    # Immutable per-file receipts, dates, totals pairing and publication checks.
+    # Empty only for releases written before independent file publication.
+    file_manifest: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
     )
 
     __table_args__ = (
