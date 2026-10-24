@@ -239,11 +239,13 @@ answer (which also returns `confirmed_for`),
 The rule and where each side currently sits are in §23 of
 [`docs/architecture/page-metadata-for-search-and-sharing-decisions.md`](../architecture/page-metadata-for-search-and-sharing-decisions.md).
 
-**What a cache window does and does not touch.** Every money page prints `as_of`,
-read off the loaded snapshot's `fetch_completed_at`
-(`alethical/api/services/campaign_finance_register.py::_snapshot_date`) and
-carried inside the payload, so a cached copy prints the day its own records were
-copied. A stale answer therefore stays honestly dated. That is not a reason a
+**What a cache window does and does not touch.** Each money source carries its
+own copy date inside the payload. Register `as_of` comes from its loaded snapshot;
+payment dates come from the payment release. Report totals use the displayed
+committee-year's own capture time, including retained older rows. The legislator
+tab shares a report date only when all displayed committee dates agree in
+Minnesota time; otherwise each stays beside its committee. A cached answer
+therefore prints its own records' dates rather than a newer unrelated snapshot. A stale answer therefore stays honestly dated. That is not a reason a
 stale answer is acceptable: an old figure with a truthful old date is still an
 old figure, which is why the window is capped above rather than excused by the
 date.

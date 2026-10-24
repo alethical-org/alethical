@@ -201,7 +201,7 @@ describe('the tab dates both sources at its foot', () => {
     const html = render([committee('17868')], '2026-10-24T12:00:00Z');
     expect(html).toContain('The report totals were copied separately.');
     expect(html).not.toContain('report totals copied');
-    expect(html).toContain('The report totals’ copy date is unavailable.');
+    expect(html).toContain('The report totals’ copy date is unavailable');
     expect(html).not.toContain('Oct 24');
   });
 
@@ -268,7 +268,7 @@ describe('the tab dates both sources at its foot', () => {
     ]);
     const second = html.indexOf('Fixture Senate committee 15667');
     expect(html.indexOf('Report totals copied Oct 7, 2026.')).toBeLessThan(second);
-    expect(html.indexOf('The report totals’ copy date is unavailable.')).toBeGreaterThan(second);
+    expect(html.indexOf('The report totals’ copy date is unavailable')).toBeGreaterThan(second);
     expect(html).not.toContain('report totals copied');
   });
 

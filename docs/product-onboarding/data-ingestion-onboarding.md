@@ -461,7 +461,11 @@ fingerprint). Full reasoning:
 §4 (Ingestion: snapshot and replace).
 
 **It runs every day without anyone.** `.github/workflows/campaign-money-refresh.yml`
-runs `scripts/refresh_campaign_finance.py` at 15:30 UTC daily and on a button press.
+runs `scripts/refresh_campaign_finance.py` at 15:30 UTC daily and, by default, on a
+button press. The manual `clear_pending_only` option is a scoped exception: it
+retries saved-page clearing without collection, publication or rechecks, as described
+in [Retry pending money-page clearing](../operations/jobs-and-scripts.md#retry-pending-money-page-clearing).
+The normal refresh follows the steps below.
 It takes 1 run-wide lease in the database (a row with a 4-hour expiry, shared with a
 hand-started run and with both hand-run loader commands below, so 2 starts produce 1
 run and a run whose lease another has taken does not publish), retries any saved-page

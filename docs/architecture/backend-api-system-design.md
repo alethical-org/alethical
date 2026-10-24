@@ -1316,9 +1316,14 @@ approximation as the period. Almost every Minnesota report runs from
 1 January and a special-election filer's does not — filer 19223 reports from 11 July 2025 — so
 no surface may hardcode 1 January either. `fetched_at` is when the published payment
 files were copied. Both the committee and legislator finance responses also carry
-`filings_copied_at`, a nullable ISO timestamp from the published
-`cf_filing_current` → `cf_filing_snapshot.fetch_completed_at`. It names when the
-Board's report totals were copied, not report receipt, period coverage or publication.
+`filings_copied_at`, a nullable ISO timestamp for the displayed committee-year.
+The resolver uses that filing row’s `captured_at`, then the filer’s retained copy
+time or the published snapshot’s fetch time when no row-specific time is held.
+Legislator responses carry the exact date on each `committees[]` entry and supply
+a shared top-level date only when all displayed timestamps agree. The UI may share
+a visible Minnesota calendar date when those days agree; otherwise dates stay
+beside their own committees. These date source copying, not receipt, coverage or
+publication. A newer snapshot never refreshes an older retained record’s date.
 
 `filing_schedule` describes the selected committee-year. Published candidate calendars
 cover 2015–2026, with each year's actual office scope preserved. Historical

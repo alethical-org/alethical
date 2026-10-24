@@ -563,7 +563,7 @@ function CommitteeCard({
     ? [
         copiedOn
           ? `Report totals copied ${copiedOn}. This is a copy date, not a reporting period.`
-          : 'The report totals’ copy date is unavailable.',
+          : 'The report totals’ copy date is unavailable',
       ]
     : undefined;
   const through = committee.split.reportedThrough;
