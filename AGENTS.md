@@ -85,22 +85,6 @@ see [manual server tests](CONTRIBUTING.md#manual-server-tests-use-a-temporary-po
 - **Never fire an irreversible action to prove a change works** — a real send to real
   users, a paid run, or a destructive production data or schema change. Keep the live
   trigger behind config and verify with a dry run.
-- **Never complete OAuth only to prove that a return address is allowed.** Check the
-  saved redirect list instead, or stop at the provider page before choosing an account.
-  A real sign-in check may continue only after proving the browser is a fresh isolated
-  profile with no signed-in account, or that Google is using the saved Alethical test
-  account (`alethicaldev@gmail.com`). Never ask a browser tool for the full address after
-  sign-in. No task output, tool output, log, file, issue, or pull request may contain a
-  real authentication callback query or fragment; clearly fake callback values may exist
-  only inside the focused tests that prove this protection. Code-driven browser checks
-  must inspect the address in memory with
-  [`safe-auth-callback-report.mjs`](apps/frontend/scripts/safe-auth-callback-report.mjs)
-  and report only the origin, path, and the 2 booleans saying whether private fields were
-  present. Interactive browser checks must compute that same report inside the page; if a
-  tool can only return the full address, stop before the callback. Never retrieve the full
-  address first and clean it afterward.
-  [Issue 1600](https://github.com/alethical-org/alethical/issues/1600) holds the record
-  behind this rule without storing a credential.
 - **Any write into the shared checkout is the danger, not only a git command.** Several
   agents work in this repository at once, in separate worktrees under `.claude/worktrees/`
   and elsewhere. `cd` into the shared checkout (`/Users/eug/Code/Alethical`, the main
