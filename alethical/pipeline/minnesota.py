@@ -2034,8 +2034,20 @@ def parse_senate_profile(html_text: str, source_url: str) -> dict[str, object]:
     }
 
 
+#: The House roster links members through its older host, which redirects to
+#: house.mn.gov and serves the same profile page.
+HOUSE_PROFILE_HOSTS = frozenset(
+    {
+        "house.mn.gov",
+        "www.house.mn.gov",
+        "house.leg.state.mn.us",
+        "www.house.leg.state.mn.us",
+    }
+)
+
+
 def parse_member_profile(html_text: str, source_url: str) -> dict[str, object]:
-    if urlsplit(source_url).hostname in {"house.mn.gov", "www.house.mn.gov"}:
+    if urlsplit(source_url).hostname in HOUSE_PROFILE_HOSTS:
         return parse_house_profile(html_text, source_url)
     return parse_senate_profile(html_text, source_url)
 
