@@ -628,9 +628,11 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
                 ))}
               </View>
             </View>
-            <Text style={[styles.roadmapQuestion, isMobile && styles.roadmapQuestionMobile]}>
-              {ABOUT_ROADMAP_INVITATION}
-            </Text>
+            <View style={[styles.roadmapInvite, isMobile && styles.roadmapInviteMobile]}>
+              <Text style={[styles.roadmapQuestion, isMobile && styles.roadmapQuestionMobile]}>
+                {ABOUT_ROADMAP_INVITATION}
+              </Text>
+            </View>
           </View>
 
           <View
@@ -1036,16 +1038,17 @@ const styles = StyleSheet.create({
   },
   proseLeadTablet: { fontSize: 19, lineHeight: 27.5, marginTop: 4 },
   proseLeadMobile: { fontSize: 15.5, lineHeight: 24, marginTop: 0 },
+  // The invitation keeps the drawing's 44px row, so Contact stays where it was drawn.
+  roadmapInvite: { marginTop: 12, paddingLeft: 17, minHeight: 44, justifyContent: 'center' },
+  roadmapInviteMobile: { marginTop: 14, minHeight: 0 },
   roadmapQuestion: {
-    marginTop: 12,
-    paddingLeft: 17,
     color: t.colors.text.secondary,
     fontFamily: t.typography.body,
     fontSize: 17,
     lineHeight: 27.2,
     ...(Platform.OS === 'web' ? ({ textWrap: 'pretty' } as object) : null),
   },
-  roadmapQuestionMobile: { marginTop: 14, fontSize: 14.5, lineHeight: 22.5 },
+  roadmapQuestionMobile: { fontSize: 14.5, lineHeight: 22.5 },
   contactEmail: { marginTop: 12 },
   emailLink: { color: t.colors.text.greenOnLight, fontWeight: t.fontWeights.bold },
   emailLinkHovered: { color: '#11832b', textDecorationLine: 'underline' },
