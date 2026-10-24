@@ -21,14 +21,15 @@ current installation and runtime settings before requesting human action.
 
 The October 24 campaign collection
 ([run 40119861839](https://github.com/alethical-org/alethical/actions/runs/40119861839))
-published neither totals nor payments. A separate read-only production query confirmed:
+published neither totals nor payments. Before the scoped recovery below, a separate
+read-only production query confirmed:
 
 - Official totals and register: snapshot `115fa74f-de67-4317-b734-f7e1ae4397c6`,
   copied October 7; 1,613 registered filers. An unpublished directory refresh does not
   update the homepage count independently of this accepted snapshot.
 - Listed payments: release `f09e9ba5-2692-404d-a0b2-9c7de70c2310`, copied October 9.
   The public committee-finance route returned this same release and copy time.
-- The held October 24 totals candidate has 5,329 filer-years against the published
+- The October 24 totals candidate had 5,329 filer-years against the earlier published
   snapshot's recorded 5,611. The archive's compressed hash, every response hash and
   parsed record hash reproduce. All 272 newly missing figure-bearing committee-years
   are 2026 records; every corresponding source response says
@@ -42,6 +43,42 @@ published neither totals nor payments. A separate read-only production query con
 current state-money failure. Retaining the last accepted records prevents deletion;
 it does not make those records current. Never mark the incident resolved merely
 because the timer ran or one stage succeeded.
+
+### Scoped totals recovery
+
+The [recorded release decision](https://github.com/alethical-org/alethical/issues/2667#issuecomment-6389566384)
+published totals snapshot `397b0667-5235-4624-80ba-afd4f550bf70`, copied October 24 at
+19:07:49 UTC. The release contains 5,329 current filer-years plus 272 newly unavailable
+and 46 former-filer records retained with their own original dates. All 5,647 loaded
+committee-years were compared against the source and retention plan after publication;
+amounts and provenance matched, and the prior baseline remained available for rollback.
+The exception names the exact source hash and failed checks. It does not waive future
+unexplained losses. Complete private backups and an isolated publication, pruning and
+rollback rehearsal preceded the change.
+
+The public response for registration 19081, year 2025, now returns reported spending
+of $887.55 and an October 24 totals copy date. The payments release remains October 9.
+The retained committee route keeps its October 7 date. Live review found that the
+legislator route still applies the overall October 24 date to those older totals;
+that date defect must be corrected before recovery is complete. Shared dates must
+apply only when every displayed committee has the same date, otherwise each
+committee needs its own. The release's existing comparison
+guard withholds derived splits while payment and totals generations differ; running
+checks alone does not change their pairing or restore those splits.
+
+The all-year checks for 2022–2026 are running. Saved-page clearing remains pending:
+the local repair credential cannot purge Cloudflare, while the existing Actions job
+has separately configured credentials previously proven on the live site. This is a
+local recovery-route gap, not proof that scheduled clearing is unconfigured. Recovery
+must use that existing route, prove the accepted clearing, and verify public responses
+before marking the follow-up complete. No credential permissions are widened.
+
+The newer totals resolve 3 of the 6 newly failing contribution comparisons. The other
+3 (40745/2026, 41391/2026 and 80020/2026) still contradict the official totals and
+report documents for the same periods. The 18127/2017 spending loss remains unexplained:
+its catalogue lists original and amended reports, but the document route returned an
+HTML error rather than either PDF. No payment exception or row deduplication was applied.
+The existing rule that all 3 payment files release together remains in force.
 
 The cited-source archive's October 19 red result
 ([run 39287503123](https://github.com/alethical-org/alethical/actions/runs/39287503123))
@@ -147,7 +184,11 @@ path is measured and its replacement recorded in the owning cadence decision.
    public result. Unrelated new data never refreshes an older record's date.
 6. Measure delay separately for each source and feature. Use official publication
    timestamps when present and explicitly distinguish first observation otherwise.
-   Include runner delay and public read-back. A fast clock alone is not success.
+   Include runner delay, database publication and public read-back. The current
+   totals publisher calls `flush()` for each filing before adding its figures;
+   the October 24 recovery observed those repeated database writes in flight.
+   Measure and batch these writes where equivalent checks and atomic replacement
+   can be preserved. A fast clock alone is not success.
 7. Use official filing and release calendars to trigger bounded discovery near
    expected publication. Distinguish a missing source publication from a failed
    collection and from a filer who has not filed; never infer a late filing from
