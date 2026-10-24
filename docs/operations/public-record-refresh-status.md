@@ -60,9 +60,9 @@ The public response for registration 19081, year 2025, now returns reported spen
 of $887.55 and an October 24 totals copy date. The payments release remains October 9.
 The retained committee route keeps its October 7 date. Live review found that the
 legislator route still applies the overall October 24 date to those older totals;
-that date defect must be corrected before recovery is complete. Shared dates must
-apply only when every displayed committee has the same date, otherwise each
-committee needs its own. The release's existing comparison
+the scoped correction carries each committee-year date and shares a date only
+when all displayed committees agree. Mixed or unknown dates stay beside their
+own committee. Its deployment and live read-back remain part of recovery. The release's existing comparison
 guard withholds derived splits while payment and totals generations differ; running
 checks alone does not change their pairing or restore those splits.
 

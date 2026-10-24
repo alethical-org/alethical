@@ -658,6 +658,8 @@ export interface CommitteeNameConnections {
  */
 export interface CampaignCommitteeMoney {
   registrationNumber: string;
+  /** This committee-year's report source copy time; absent in older responses. */
+  filingsCopiedAt?: string | null;
   /** The committee's name as the reviewer read it when they confirmed the link. */
   committeeNameAsReviewed: string;
   /** The name the current download carries. Can legitimately differ from the above:
@@ -862,7 +864,8 @@ export interface LegislatorCampaignMoney {
   /** The day we downloaded Minnesota's files. Not the period the money covers,
    *  which is per committee and always earlier. */
   fetchedAt: string | null;
-  /** The report source’s own copy time, separate from the payment files. */
+  /** Shared report copy time only when all displayed committee-years agree.
+   * Older responses may carry a snapshot-wide date: use each committee's own date. */
   filingsCopiedAt?: string | null;
   committees: CampaignCommitteeMoney[];
   /** Confirmed committees left out because they are for a race other than a

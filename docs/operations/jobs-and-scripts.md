@@ -94,6 +94,18 @@ coverage limits and required live checks are owned by
 [Public search upkeep](public-search-upkeep.md#private-search-measurement-implementation-ready-live-checks-pending).
 The separate daily deletion job above does not need a working weekly collector.
 
+## Retry pending money-page clearing
+
+The campaign-money workflow's manual `clear_pending_only` input runs only the saved
+clearing obligations, using its existing Cloudflare access. It does not download
+source files, publish records or run money checks. The equivalent command is
+`PYTHONPATH=. uv run python scripts/refresh_campaign_finance.py --target production --clear-pending-only`.
+Use `--dry-run` to list pending clearing without a write or request to Cloudflare.
+A busy campaign run, missing clearing access, unknown event or failed purge leaves
+work pending and fails recovery. Retry after the current campaign run releases its
+lease. A green clearing-only run cannot resolve an incident whose collection or
+rechecks remain unfinished.
+
 ## Command-line tools
 
 The `scripts/` folder has 109 runnable files. GitHub jobs call 46 of them

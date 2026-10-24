@@ -5059,6 +5059,18 @@ def legislator_campaign_finance(
         )
     except ReleaseNoLongerHeld:
         raise unusable from None
+    # Retained committee-years keep their own copy date. A snapshot-wide timestamp
+    # cannot date them, and excluded committees cannot date the displayed records.
+    committee_copy_dates = {
+        entry.registration_number: filings_copied_at(
+            db, entry.registration_number, finance.year
+        )
+        for entry in finance.committees
+    }
+    distinct_copy_dates = set(committee_copy_dates.values())
+    shared_copy_date = (
+        next(iter(distinct_copy_dates)) if len(distinct_copy_dates) == 1 else None
+    )
     return DetailResponse(
         data={
             "legislator_id": str(legislator.id),
@@ -5091,10 +5103,13 @@ def legislator_campaign_finance(
             ],
             "release_id": str(release.id),
             "fetched_at": release.fetched_at,
-            "filings_copied_at": filings_copied_at(db),
+            "filings_copied_at": shared_copy_date,
             "committees": [
                 {
                     "registration_number": entry.registration_number,
+                    "filings_copied_at": committee_copy_dates[
+                        entry.registration_number
+                    ],
                     # What the reviewer read when they confirmed the link, and what the
                     # release names the same number today. They can legitimately
                     # differ: the Board publishes a committee's *current* name against

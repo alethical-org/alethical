@@ -1030,7 +1030,11 @@ the newest figures we hold for each waived pair into the new snapshot with `cf_f
 holds the response, which is where `archive_line` points). Provenance is per committee-year,
 because one committee can carry a 2026 figure read on 12 Aug beside 2024 and 2025 figures read on
 23 Sep, and a committee-wide date would misdate one of them; `filings_copied_at(db, registration,
-year)` prints the row's own date. A retained pair the Board still serves nothing for is carried
+year)` prints the row's own date. Legislator responses carry that exact date for
+each displayed committee-year too. The legislator tab shares one date only when all
+displayed committee dates match in Minnesota time; otherwise each committee carries
+its own date beside its figures. An unknown date never borrows the snapshot's date,
+and a withheld committee association never contributes a visible date. A retained pair the Board still serves nothing for is carried
 forward on later refreshes without a new waiver and is never "lost" again; the moment the Board
 serves figures, the fresh ones replace the copy. `--restore-filer-years 19448/2026 --decision ...`
 is the one-time forward correction for a pair dropped before this existed: it copies the newest
