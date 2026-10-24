@@ -40,6 +40,7 @@ import sys
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 import requests
@@ -843,7 +844,7 @@ def test_website_failure_does_not_report_complete_or_expose_key(fault):
 
     def post(url, **kwargs):
         calls.append(url)
-        if "cloudflare.com" in url:
+        if urlsplit(url).hostname == "api.cloudflare.com":
             return FakeResponse(200, {"success": True})
         if fault == "network":
             raise requests.ConnectionError("website-token")
@@ -872,12 +873,12 @@ def test_refused_api_clear_never_clears_website_against_stale_api():
 
     result = clear(when_a_filings_release_lands(), env=_website_env(), post=post)
     assert result.failed and len(calls) == 1
-    assert "cloudflare.com" in calls[0]
+    assert urlsplit(calls[0]).hostname == "api.cloudflare.com"
 
 
 def test_vercel_http_200_with_empty_body_is_its_measured_success_response():
     def post(url, **kwargs):
-        if "cloudflare.com" in url:
+        if urlsplit(url).hostname == "api.cloudflare.com":
             return FakeResponse(200, {"success": True})
         return FakeResponse(200, text="")
 
