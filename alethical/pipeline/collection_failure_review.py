@@ -1282,13 +1282,23 @@ def month_spend(store: IssueStore, now: datetime) -> tuple[int, float]:
     return reviews, round(dollars, 4)
 
 
+def _recovery_stages(workflow: str, stages: list[str]) -> list[str]:
+    # Clearing-only recovery checks different credentials and does no collection.
+    # It cannot prove an unidentified collection/setup failure has recovered. Apply
+    # this floor to older incidents too, whose saved required_stages may be empty.
+    if not stages and workflow == "Refresh campaign money from the Board":
+        return ["lists", "payments"]
+    return stages
+
+
 def required_stages(packet: dict[str, Any]) -> list[str]:
     """The stages a later run must finish before this incident counts as recovered.
 
     The stages the run's own summary says failed; or, when it wrote none, the stages
     its failed steps run (``WatchedWorkflow.step_stages``). An empty list means a step
-    every run must pass before any stage (setup, the secrets check), so any later run
-    that did real work has passed it.
+    every run must pass before any stage (setup, the secrets check). Campaign-money
+    recovery also has a clearing-only mode with different prerequisites, so an
+    unidentified failure requires its normal list and payment stages to finish.
     """
     if packet.get("failed_stages"):
         return sorted(set(packet["failed_stages"]))
@@ -1297,7 +1307,7 @@ def required_stages(packet: dict[str, Any]) -> list[str]:
     for job in packet.get("jobs") or []:
         for step in job.get("failed_steps") or []:
             stages.update(dict(watched.step_stages).get(step, ()) if watched else ())
-    return sorted(stages)
+    return _recovery_stages(packet["workflow"]["name"], sorted(stages))
 
 
 def decide(
@@ -1336,7 +1346,8 @@ def decide(
                     {"issue": number, "do": "note", "note": "older"}
                 )
                 continue
-            missing = sorted(set(state.get("required_stages") or []) - finished)
+            required = _recovery_stages(workflow, state.get("required_stages") or [])
+            missing = sorted(set(required) - finished)
             if missing:
                 decision["targets"].append(
                     {
@@ -2165,10 +2176,13 @@ def record(
                 continue
             issue, state = found
             if target["do"] == "recover":
+                required = _recovery_stages(
+                    packet["workflow"]["name"], state.get("required_stages") or []
+                )
                 store.comment(
                     number,
                     f"**Net:** recovered. {run_url} finished, and its own summary says "
-                    f"{', '.join(state.get('required_stages') or []) or 'every stage'} finished "
+                    f"{', '.join(required) or 'every stage'} finished "
                     f"({', '.join(packet.get('published_stages') or []) or 'nothing new to publish'} published). "
                     "Closed automatically. If the cause was never found, it may come back.",
                 )
