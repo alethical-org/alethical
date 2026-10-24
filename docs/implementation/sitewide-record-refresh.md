@@ -87,6 +87,22 @@ families retain old clocks until staged activation. Parent acceptance covers cur
 schema integration, spending intent, actual settings and measurable public results;
 local tests alone cannot prove those live facts.
 
+## Local continuation evidence
+
+The current-main integration preserves merge `29dbb061` and main `4c99ecf9` through
+merge `75296eb6`. The source implementation checkpoint is `f25a0587`. Normal
+commit hooks passed. The combined source, notice, legislative, supporting, lobbying
+and Minnesota-ingestion selection passed 277 tests; the existing FCC report passed
+6 Node tests. The current additive source schema round-trip passed with RLS on its
+3 operational tables. The final payment migration revision and combined money
+integration still require their own current-head checks.
+
+Source-only October 24 measurements distinguish the full inventory from dated-action
+discovery and actual bill rereads; [bill refresh cadence](../architecture/bill-refresh-cadence-decisions.md#fast-dated-action-discovery)
+owns the parameters, counts, timing, phase choice and coverage limits. None of those
+measurements wrote records, embedded text, sent mail or changed production settings.
+The release owner still owns activation, public read-back and final acceptance.
+
 ## Source coverage checklist
 
 - [ ] Bills: reviewed sitting intervals, new-session catch-up, source fingerprint

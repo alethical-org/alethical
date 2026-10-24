@@ -214,6 +214,56 @@ The scheduler wrapper (`scripts/run_scheduled_bill_refresh.py`) pins the officia
 
 `scripts/check_legislative_sessions.py` checks the official session selector for new current or future codes and returns exit 2 for mapping review. It never creates a session definition. Scheduled roster imports also compare the PDF's printed biennium with the reviewed current session before updating any member.
 
+### Fast dated-action discovery
+
+`scripts/discover_legislative_records.py` supplements full reconciliation with the
+[official advanced dated-action search](https://www.revisor.mn.gov/bills/status_search.php?body=House&search=advanced&session=0942026),
+using the XML format documented by the [Bill Status API](https://www.revisor.mn.gov/bills/service).
+It queries both House and Senate views for today plus the previous 2 calendar days,
+using Minnesota's date. A daily pass looks back 14 days for delayed publication.
+Both views are required; seeing Senate bills in the House view alone does not
+establish complete Senate coverage. Exact bill identities deduplicate overlap.
+Capped date windows split until below 500 results; a capped single day is
+incomplete and leaves full reconciliation due. Unknown session identities require
+mapping review, including special sessions within the same Legislature.
+
+Each scoped pass pins a finite candidate list and refreshes at most 25 bills per
+turn. Every candidate's status and current text are reread even if its listing
+wording and addresses stay the same. Vote follow-ups are saved before action
+writes, and acceptance waits for those follow-ups. Failed records remain owed
+without blocking discovery of newer records. A completed scoped pass waits for
+its next due time; an unchanged listing never creates an endless continuation.
+
+The short-window target is every 5 minutes during reviewed sittings and the
+14-day follow-up, and every 15 minutes otherwise. Shared per-host pacing remains
+0.5 seconds. This is a discovery target, not a 5-minute source-to-reader promise:
+a large candidate list takes several turns, and GitHub queue delay is unknown.
+The source explicitly omits undated actions from date searches. Same-address
+text corrections with no recent dated action and changes backdated beyond the
+lookback remain covered by complete inventory/status/text reconciliation at the
+existing phase cadence. Neither listing equality nor a scoped pass advances
+unrelated records' copy dates.
+
+Source-only measurements on October 24, 2026: a complete `0942026` inventory
+returned 10,472 bills in 70 GETs, 10,692,793 decoded body bytes and 386.393 seconds,
+including 0.5 seconds of local spacing per request. Both short-window views for
+October 22–24 returned no dated actions in 2 GETs, 276 body bytes and 1.886 seconds.
+A 25-bill sample from the May 1–18 dated-action results read each status XML and
+its current official HTML: 50 GETs, 3,161,009 body bytes and 29.25 seconds including
+spacing. All measured responses lacked ETag and Last-Modified validators. These
+are source-read timings, excluding database work, embeddings, vote documents and
+runner startup; retries and safety confirmations can add requests.
+
+For an empty window, 5-, 15- and 60-minute polling means 576, 192 and 48 initial
+GETs per day respectively. The measured 25-bill source-read batch fits inside
+the 5-minute target at the existing source pace. A finite large pass releases its
+lane between turns, so voting and old reconciliation still progress. Polling the
+entire inventory at those intervals would repeat about 3.08 GB, 1.03 GB and
+0.26 GB of decoded bodies per day before any bill rereads; it is not the fast path.
+These body sizes do not measure compressed transfer charges or establish the
+source's acceptable rate, which remains undocumented. HTTP busy replies extend
+the shared cooldown rather than trading correctness for a cadence target.
+
 ### Reviewed sitting calendar and next-session review
 
 `alethical/pipeline/legislative_calendar.py` exports `session_refresh_interval(session_code, date)` for the shared runner. The [Legislative Reference Library session history](https://www.lrl.mn.gov/history/sessions), read October 7, 2026, records these calendar dates:

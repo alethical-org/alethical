@@ -223,9 +223,9 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
     definitions.append(
         RefreshJob(
             f"bills-discovery-{current_code}",
-            timedelta(minutes=15)
+            timedelta(minutes=5)
             if session_refresh_interval(current_code, now.date()) <= timedelta(hours=4)
-            else timedelta(hours=1),
+            else timedelta(minutes=15),
             timedelta(minutes=30),
             (
                 "scripts/discover_legislative_records.py",
@@ -591,7 +591,7 @@ def finish_job(
         else "failed"
     )
     attempt.finding = finding
-    if finding is not None:
+    if finding is not None or code == 0:
         row.finding = finding
     if lane and lane.token == claim.token:
         lane.token = None

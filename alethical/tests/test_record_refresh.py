@@ -434,3 +434,13 @@ def test_expired_source_owner_cannot_complete_even_before_a_replacement(sessions
         claim = runner.claim_job(db, job(), now=NOW)
         assert not runner.finish_job(db, claim, code=0, now=NOW + timedelta(hours=1))
         assert db.get(SourceRefreshState, "test").last_checked_at is None
+
+
+def test_completed_source_clears_an_obsolete_hold_finding(sessions):
+    definition = job()
+    with sessions() as db:
+        first = runner.claim_job(db, definition, now=NOW)
+        runner.finish_job(db, first, code=76, now=NOW, finding={"status": "held"})
+        second = runner.claim_job(db, definition, now=NOW + timedelta(minutes=16))
+        runner.finish_job(db, second, code=0, now=NOW + timedelta(minutes=16))
+        assert db.get(SourceRefreshState, "test").finding is None
