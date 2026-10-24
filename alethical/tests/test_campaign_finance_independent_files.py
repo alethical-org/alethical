@@ -13,6 +13,8 @@ from alethical.db import models
 from alethical.pipeline import campaign_finance as cf
 from alethical.pipeline import campaign_finance_reader as reader
 from alethical.pipeline import campaign_finance_refresh as refresh
+from alethical.pipeline import campaign_finance_stated_split as stated_split
+from alethical.pipeline import campaign_finance_stated_spending as stated_spending
 from alethical.tests.test_campaign_finance_load import (
     CONTRIBUTION_ROWS,
     EXPENDITURE_ROWS,
@@ -342,9 +344,10 @@ def test_rollback_of_one_slot_does_not_cancel_another_slots_owed_check():
 def test_unpaired_file_never_creates_checked_comparison(
     db, board, store, monkeypatch, module_name, dataset
 ):
-    from importlib import import_module
-
-    module = import_module("alethical.pipeline." + module_name)
+    module = {
+        "campaign_finance_stated_split": stated_split,
+        "campaign_finance_stated_spending": stated_spending,
+    }[module_name]
     publish_first(db, board, store)
     monkeypatch.setattr(module, "_live_filings_snapshot_id", lambda db: uuid.uuid4())
     with pytest.raises(RuntimeError, match="not paired"):
@@ -492,12 +495,11 @@ def test_first_forward_publish_freezes_legacy_proof_before_shared_snapshot_chang
 def test_full_checker_cannot_complete_a_missing_target_population(
     db, board, store, monkeypatch, kind
 ):
-    from importlib import import_module
     from alethical.tests.test_campaign_finance_load import seed_filings_snapshot
 
     seed_filings_snapshot(db, reported={})
     publish_first(db, board, store)
-    module = import_module("alethical.pipeline.campaign_finance_stated_" + kind)
+    module = stated_split if kind == "split" else stated_spending
     monkeypatch.setattr(module, "targets", lambda *a: [])
     with pytest.raises(RuntimeError, match="no complete target population"):
         if kind == "split":
