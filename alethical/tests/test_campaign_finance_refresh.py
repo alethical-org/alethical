@@ -395,6 +395,7 @@ class FakeTotals:
 
 @dataclass
 class FakePayments:
+    requires_recheck: bool = True
     refusal: str | None = None
     published: bool = False
     no_change: bool = False

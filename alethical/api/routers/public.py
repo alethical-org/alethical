@@ -3440,6 +3440,7 @@ def committee_finance_for_year(
             "year": finance.year,
             "release_id": str(finance.release_id),
             "fetched_at": finance.fetched_at,
+            "payment_copied_at": release.payment_copied_at,
             "filings_copied_at": filings_copied_at(
                 db, finance.committee.registration_number, finance.year
             ),
@@ -3791,7 +3792,11 @@ def committee_payments(
             "disclosure_statements": [asdict(item) for item in statements],
             # The day the catalogue the statements came from was copied, printed as
             # "Minnesota’s report catalogue copied {date}" whenever one shows.
-            "statements_copied_on": (statements_copied_on(db) if statements else None),
+            "statements_copied_on": (
+                statements_copied_on(db, [item.statement_id for item in statements])
+                if statements
+                else None
+            ),
         }
     )
 
@@ -3883,7 +3888,9 @@ def committee_unlinked_statements(
             "registration_number": registration_number,
             "year": year,
             "statements": [asdict(item) for item in links.unlinked],
-            "copied_on": statements_copied_on(db) if links.unlinked else None,
+            "copied_on": statements_copied_on(db, [item.id for item in links.unlinked])
+            if links.unlinked
+            else None,
         }
     )
 
@@ -4256,6 +4263,7 @@ def campaign_finance_summary(db: Session = Depends(get_db)):
             },
             "freshness": {
                 "downloads_fetched_at": dates.downloads_fetched_at,
+                "payment_copied_at": dates.payment_copied_at,
                 "register_fetched_at": dates.register_fetched_at,
                 "release_id": str(dates.release_id) if dates.release_id else None,
             },
@@ -4811,6 +4819,7 @@ def campaign_finance_search(
             "groups": [
                 {
                     "kind": group.kind,
+                    "fetched_at": group.fetched_at,
                     "state": group.state,
                     "results": [_search_result_payload(row) for row in group.results],
                     "total": group.total,
@@ -5100,6 +5109,7 @@ def legislator_campaign_finance(
             ],
             "release_id": str(release.id),
             "fetched_at": release.fetched_at,
+            "payment_copied_at": release.payment_copied_at,
             "filings_copied_at": shared_copy_date,
             "committees": [
                 {
@@ -5394,6 +5404,7 @@ def legislator_campaign_finance_years(
             # not (``current_claim_validated_at``, issue 2023).
             "current_claim_validated_at": current_claim_validated_at(),
             "fetched_at": release.fetched_at,
+            "payment_copied_at": release.payment_copied_at,
             "years": [
                 {
                     "year": entry.year,

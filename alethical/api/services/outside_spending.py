@@ -596,7 +596,7 @@ def outside_spending(
             source_url=release.independent_expenditures.source_url,
             release_id=release.id,
             snapshot_id=release.independent_expenditures.snapshot_id,
-            fetched_at=release.fetched_at,
+            fetched_at=release.copied_at(release.independent_expenditures.dataset),
             groups=() if group_by_spender else None,
         )
 
@@ -690,7 +690,7 @@ def outside_spending(
         source_url=release.independent_expenditures.source_url,
         release_id=release.id,
         snapshot_id=release.independent_expenditures.snapshot_id,
-        fetched_at=release.fetched_at,
+        fetched_at=release.copied_at(release.independent_expenditures.dataset),
         groups=groups,
     )
 

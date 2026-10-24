@@ -412,7 +412,7 @@ def _page(
         dataset=dataset,
         source_url=release.file_for(dataset).source_url,
         release_id=release.id,
-        fetched_at=release.fetched_at,
+        fetched_at=release.copied_at(dataset),
     )
 
 

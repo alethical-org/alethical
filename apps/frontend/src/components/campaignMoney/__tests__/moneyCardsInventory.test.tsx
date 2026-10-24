@@ -139,6 +139,11 @@ function money(committees: CampaignCommitteeMoney[]): LegislatorCampaignMoney {
     committeesOutsideThisYear: [],
     otherOfficeCommittees: 0,
     fetchedAt: '2026-09-01T18:33:35.639027Z',
+    paymentCopiedAt: {
+      contributions: '2026-09-01T18:33:35.639027Z',
+      expenditures: '2026-09-01T18:33:35.639027Z',
+      independentExpenditures: '2026-09-01T18:33:35.639027Z',
+    },
   };
 }
 

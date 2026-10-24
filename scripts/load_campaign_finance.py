@@ -370,8 +370,9 @@ def main() -> int:
             when_a_money_download_release_lands(),
             published=report.published,
             dry_run=args.dry_run,
-            recheck=lambda db, log: recheck_stated_figures(
-                db, years=args.recheck_years, log=log
+            requires_recheck=report.requires_recheck,
+            recheck=lambda db, log, datasets=None: recheck_stated_figures(
+                db, years=args.recheck_years, datasets=datasets, log=log
             ),
             log=log,
         )

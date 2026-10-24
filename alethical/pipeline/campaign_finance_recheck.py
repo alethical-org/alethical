@@ -161,12 +161,11 @@ def run_money_in(
         progress=progress,
     )
     if keeper.report.failures:
-        # The Board serves no archive, so a document read and not kept is gone. The
-        # verdicts are already written by this point, so this is reported rather than
-        # raised -- but it is reported, because it is unrecoverable.
-        progress(
-            f"note: {len(keeper.report.failures)} document(s) were read and could not "
-            "be kept; the Board serves no archive, so those bytes are gone."
+        # Keep the valid committed comparisons, but not a claim that all source
+        # evidence was retained. This file stays owed and the command reports failure.
+        raise RuntimeError(
+            f"{len(keeper.report.failures)} source document(s) were read but could not be kept; "
+            "valid comparisons were saved, but this file's evidence remains incomplete"
         )
     return len(run.verdicts), run.counts()
 
@@ -192,6 +191,7 @@ def recheck_stated_figures(
     db: Session,
     *,
     years: Optional[Iterable[int]] = None,
+    datasets: Optional[Iterable[str]] = None,
     store_factory: Callable[[], Any] = raw_file_store_from_env,
     log: Callable[[str], None] = print,
     money_in: Callable[..., tuple[int, dict[str, int]]] = run_money_in,
@@ -226,7 +226,15 @@ def recheck_stated_figures(
     # The reverse order would leave that committee-year reading as not checked until the
     # next one. Still true now both checks read the store first (#1937): what money in
     # adds to the store is exactly the filing neither of them held.
-    for name, runner in ((MONEY_IN, money_in), (MONEY_OUT, money_out)):
+    wanted = (
+        set(datasets) if datasets is not None else {"contributions", "expenditures"}
+    )
+    for name, runner, dataset in (
+        (MONEY_IN, money_in, "contributions"),
+        (MONEY_OUT, money_out, "expenditures"),
+    ):
+        if dataset not in wanted:
+            continue
         if store_error is not None:
             report.outcomes.append(CheckOutcome(name=name, error=store_error))
             continue

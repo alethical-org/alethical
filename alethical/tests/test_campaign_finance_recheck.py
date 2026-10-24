@@ -517,6 +517,7 @@ def test_named_years_are_used_and_deduplicated() -> None:
 
 @dataclass
 class FakeLoadReport:
+    requires_recheck: bool = True
     published: bool = False
     no_change: bool = False
     dry_run: bool = False
@@ -572,7 +573,7 @@ def call_loader(
         def __exit__(self, *args):
             return False
 
-    def fake_recheck(session, *, years, log):
+    def fake_recheck(session, *, years, log, datasets=None):
         calls.append({"session": session, "years": years})
         return recheck_report or FakeRecheckReport()
 
@@ -587,7 +588,9 @@ def call_loader(
     monkeypatch.setattr(loader_script, "load_campaign_finance", fake_load)
     monkeypatch.setattr(loader_script, "recheck_stated_figures", fake_recheck)
 
-    def fake_followup(session, clearing, *, published, dry_run, recheck, log):
+    def fake_followup(
+        session, clearing, *, published, dry_run, requires_recheck, recheck, log
+    ):
         from types import SimpleNamespace
 
         result = recheck(session, log=log) if published and not dry_run else None

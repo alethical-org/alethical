@@ -6,6 +6,8 @@ survives pruning; a refreshed row is never silently substituted for that evidenc
 
 from __future__ import annotations
 
+from alethical.pipeline.campaign_finance_reader import source_copy_date
+
 import json
 import re
 import uuid
@@ -427,7 +429,11 @@ def write_link(
         "record_set_hash": snapshot.record_set_hash,
         "source_url": snapshot.source_url,
         "download_id": snapshot.download_id,
-        "captured_at": snapshot.created_at.isoformat(),
+        "captured_at": (
+            copied.isoformat()
+            if (copied := source_copy_date(db, snapshot.dataset, snapshot.id))
+            else None
+        ),
     }
     record["_fcc_facts"] = facts
     record["_limitations"] = list(_LIMITATIONS)

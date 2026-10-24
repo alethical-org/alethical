@@ -131,8 +131,8 @@ CLEARING_PENDING_KEY = "clearing_pending"
 
 # The one run-wide lease. Its row's ``value`` holds ``owner`` (a token unique to the
 # process that took it), ``purpose`` (what the run is, in words), ``acquired_at`` and
-# ``expires_at``. Six hours exceeds the workflow's 5-hour hard limit, including
-# termination grace. Publication still renews and checks ownership.
+# ``expires_at``. Six hours outlasts the whole-source workflow's 5-hour limit.
+# Bounded checker turns use their elapsed-time budget plus a 120-second margin.
 FULL_RUN_LEASE_KEY = "full_run_lease"
 FULL_RUN_LEASE_TTL = timedelta(hours=6)
 
@@ -538,10 +538,12 @@ class LiveVersions:
     payments_published_at: Optional[datetime] = None
     filings_snapshot_id: Optional[str] = None
     filings_fetched_at: Optional[datetime] = None
+    payment_files: dict[str, Any] = field(default_factory=dict)
 
-    def as_marker(self) -> dict[str, Optional[str]]:
+    def as_marker(self) -> dict[str, Any]:
         return {
             "payments_release_id": self.payments_release_id,
+            "payment_files": self.payment_files,
             "payments_published_at": _iso(self.payments_published_at),
             "filings_snapshot_id": self.filings_snapshot_id,
             "filings_fetched_at": _iso(self.filings_fetched_at),
@@ -560,6 +562,7 @@ def live_versions(db: Session) -> LiveVersions:
     release = live_release(db)
     snapshot = live_filings_snapshot(db)
     return LiveVersions(
+        payment_files=release.file_manifest if release is not None else {},
         payments_release_id=str(release.id) if release is not None else None,
         payments_fetched_at=(
             release.fetch_completed_at if release is not None else None
@@ -576,6 +579,31 @@ def live_versions(db: Session) -> LiveVersions:
     )
 
 
+def owed_payment_files(marker: Mapping[str, Any], live: LiveVersions) -> dict[str, Any]:
+    """Keep each unfinished file unless that file or the totals were rolled back."""
+    marked_totals_at = _from_iso(marker.get("filings_fetched_at"))
+    if (
+        marked_totals_at
+        and live.filings_fetched_at
+        and live.filings_fetched_at < marked_totals_at
+    ):
+        return {}
+    owed = {}
+    for name, marked in marker.get("pending_files", {}).items():
+        current = live.payment_files.get(name)
+        if not current:
+            continue
+        same = all(
+            current.get(key) == marked.get(key)
+            for key in ("snapshot_id", "filing_snapshot_id")
+        )
+        current_at = _from_iso(current.get("fetch_started_at"))
+        marked_at = _from_iso(marked.get("fetch_started_at"))
+        if same or (current_at and marked_at and current_at >= marked_at):
+            owed[name] = current
+    return owed
+
+
 def recheck_still_owed(marker: Mapping[str, Any], live: LiveVersions) -> bool:
     """Whether a pending re-check recorded against ``marker``'s generation is still due.
 
@@ -588,6 +616,8 @@ def recheck_still_owed(marker: Mapping[str, Any], live: LiveVersions) -> bool:
     """
     if live.payments_release_id is None and live.filings_snapshot_id is None:
         return False
+    if "pending_files" in marker and live.payment_files:
+        return bool(owed_payment_files(marker, live))
     pairs = (
         (
             marker.get("payments_release_id"),
@@ -677,6 +707,7 @@ class RefreshReport:
     payments: Optional[LoadReport] = None
     recheck: Optional[RecheckReport] = None
     recheck_attempted: bool = False
+    rechecks_pending: Optional[bool] = None
     published_totals: bool = False
     published_payments: bool = False
     live: Optional[LiveVersions] = None
@@ -713,6 +744,10 @@ class RefreshReport:
                 self.live.payments_fetched_at,
                 self.published_payments,
             ),
+            *[
+                f"      {name}: accepted source copy {entry.get('copied_at', 'unknown')}, paired totals {entry.get('filing_snapshot_id') or 'none'}"
+                for name, entry in self.live.payment_files.items()
+            ],
             describe(
                 "totals and register snapshot",
                 self.live.filings_snapshot_id,
@@ -821,6 +856,7 @@ def refresh_campaign_money(
     *,
     dry_run: bool = False,
     force_totals: bool = False,
+    collect_only: bool = False,
     lease: Optional[FullRunLease] = None,
     http: Optional[requests.Session] = None,
     store: Any = None,
@@ -852,9 +888,10 @@ def refresh_campaign_money(
     # 1. Retry what did not finish last time, cheapest first, before reading anything.
     if not dry_run:
         _retry_pending_clearing(db, report, clear=clear, log=log)
-        _retry_pending_recheck(
-            db, report, recheck=recheck, clear=clear, log=log, read_live=read_live
-        )
+        if not collect_only:
+            _retry_pending_recheck(
+                db, report, recheck=recheck, clear=clear, log=log, read_live=read_live
+            )
 
     # 2. Read the 6 lists and decide about the totals.
     report.readings = read_lists(http, base_url)
@@ -939,17 +976,26 @@ def refresh_campaign_money(
         payments = report.payments
         if payments.refusal:
             report.failures.append(f"payments refresh quarantined: {payments.refusal}")
-        elif payments.published:
+        if payments.published:
             report.published_payments = True
             report.lines.append("payments: published a new release")
-            _after_publish(
-                db,
-                report,
-                when_a_money_download_release_lands(),
-                clear=clear,
-                log=log,
-                read_live=read_live,
-            )
+            if payments.requires_recheck:
+                _after_publish(
+                    db,
+                    report,
+                    when_a_money_download_release_lands(),
+                    clear=clear,
+                    log=log,
+                    read_live=read_live,
+                )
+            else:
+                _clear_and_mark(
+                    db,
+                    report,
+                    when_a_money_download_release_lands(),
+                    clear=clear,
+                    log=log,
+                )
         else:
             report.lines.append(
                 "payments: dry run, nothing written"
@@ -964,10 +1010,23 @@ def refresh_campaign_money(
         state_get(db, RECHECK_PENDING_KEY)
         and not dry_run
         and not report.recheck_attempted
+        and not collect_only
     ):
         _run_rechecks(db, report, recheck=recheck, clear=clear, log=log)
 
+    if collect_only and state_get(db, RECHECK_PENDING_KEY):
+        report.lines.append(
+            "money checks remain pending for bounded check turns; source publication and clearing are separate"
+        )
+
     # Reading what is live is not a write, so a dry run states it too.
+    held = state_get(db, "payment_file_holds") or {}
+    if held:
+        report.failures.append(
+            "payment files still held: "
+            + "; ".join(f"{key}: {entry['reason']}" for key, entry in held.items())
+        )
+    report.rechecks_pending = bool(state_get(db, RECHECK_PENDING_KEY))
     report.live = read_live(db)
     report.finished_at = datetime.now(UTC)
     return report
@@ -1041,35 +1100,79 @@ def _retry_pending_recheck(
             f"{pending.get('filings_snapshot_id')})"
         )
         return
+    if "pending_files" in pending and live.payment_files:
+        pending = {**pending, "pending_files": owed_payment_files(pending, live)}
+        state_set(db, RECHECK_PENDING_KEY, pending)
     log(f"retrying the money re-checks left unfinished on {pending.get('recorded_at')}")
     _run_rechecks(db, report, recheck=recheck, clear=clear, log=log)
 
 
-def stage_publication_followups(
-    db: Session, clearing: Clearing, *, read_live=live_versions
+def record_payment_publication(
+    db: Session,
+    release: Any,
+    accepted: list[str],
+    *,
+    recheck_files: Optional[Iterable[str]] = None,
 ) -> None:
-    """Save retry obligations in the SAME transaction as a changed live pointer.
+    """Keep held files and follow-up work in the live pointer's transaction."""
+    held = dict(state_get(db, "payment_file_holds") or {})
+    for dataset in accepted:
+        held.pop(dataset, None)
+    _stage_state_update(db, set_values={"payment_file_holds": held})
+    stage_publication_followups(
+        db,
+        when_a_money_download_release_lands(),
+        recheck_files=recheck_files,
+    )
 
-    Call after moving the pointer, before committing. Never commits or clears
-    external caches: rollback removes both the pointer change and these markers.
-    """
-    # Live-source readers refresh ORM identities; flush pending source metadata
-    # first so that refresh cannot discard this publication's status/provenance.
+
+def stage_publication_followups(
+    db: Session,
+    clearing: Clearing,
+    *,
+    read_live=live_versions,
+    recheck_files: Optional[Iterable[str]] = None,
+) -> None:
+    """Stage recovery with the source pointer; the caller alone commits."""
     db.flush()
     live = read_live(db)
     pending = state_get(db, CLEARING_PENDING_KEY) or {}
-    events = [event for event in pending.get("events", []) if event != clearing.event]
-    _stage_state_update(
-        db,
-        set_values={
-            CLEARING_PENDING_KEY: _clearing_marker([*events, clearing.event]),
-            RECHECK_PENDING_KEY: {
+    events = list(dict.fromkeys([*pending.get("events", []), clearing.event]))
+    updates = {CLEARING_PENDING_KEY: _clearing_marker(events)}
+    previous = state_get(db, RECHECK_PENDING_KEY) or {}
+    if live.payment_files:
+        # Legacy unfinished work still applies to both checked files. A later date
+        # for identical records never erases an obligation already on the books.
+        owed = dict(previous.get("pending_files") or {})
+        if previous and "pending_files" not in previous:
+            owed.update(
+                {
+                    name: live.payment_files[name]
+                    for name in ("contributions", "expenditures")
+                }
+            )
+        wanted = (
+            ("contributions", "expenditures")
+            if recheck_files is None
+            else recheck_files
+        )
+        for name in wanted:
+            if name in ("contributions", "expenditures"):
+                owed[name] = live.payment_files[name]
+        if owed:
+            updates[RECHECK_PENDING_KEY] = {
                 "recorded_at": datetime.now(UTC).isoformat(),
                 "after": clearing.event,
                 **live.as_marker(),
-            },
-        },
-    )
+                "pending_files": owed,
+            }
+    elif recheck_files is None or list(recheck_files):
+        updates[RECHECK_PENDING_KEY] = {
+            "recorded_at": datetime.now(UTC).isoformat(),
+            "after": clearing.event,
+            **live.as_marker(),
+        }
+    _stage_state_update(db, set_values=updates)
 
 
 def _after_publish(
@@ -1077,7 +1180,15 @@ def _after_publish(
 ) -> None:
     # Low-level publishers already persisted these with the pointer. Restaging
     # also supports callers that supply their own publisher (and keeps owed events).
-    stage_publication_followups(db, clearing, read_live=read_live)
+    pending = state_get(db, RECHECK_PENDING_KEY) or {}
+    live = read_live(db)
+    already_staged = (
+        pending.get("payments_release_id") == live.payments_release_id
+        and pending.get("filings_snapshot_id") == live.filings_snapshot_id
+    )
+    stage_publication_followups(
+        db, clearing, read_live=read_live, recheck_files=[] if already_staged else None
+    )
     db.commit()
     _clear_and_mark(db, report, clearing, clear=clear, log=log)
 
@@ -1089,6 +1200,7 @@ def finish_manual_publication(
     published: bool,
     dry_run: bool = False,
     run_rechecks: bool = True,
+    requires_recheck: bool = True,
     clear=clear_after_publish,
     recheck=recheck_stated_figures,
     read_live=live_versions,
@@ -1104,8 +1216,10 @@ def finish_manual_publication(
     report = RefreshReport(started_at=datetime.now(UTC), dry_run=dry_run)
     if dry_run:
         return report
-    if published:
+    if published and requires_recheck:
         _after_publish(db, report, clearing, clear=clear, log=log, read_live=read_live)
+    elif published:
+        _clear_and_mark(db, report, clearing, clear=clear, log=log)
     else:
         _retry_pending_clearing(db, report, clear=clear, log=log)
     if run_rechecks:
@@ -1114,6 +1228,7 @@ def finish_manual_publication(
         )
     elif state_get(db, RECHECK_PENDING_KEY):
         log("money re-checks are recorded for the next payments load or shared refresh")
+    report.rechecks_pending = bool(state_get(db, RECHECK_PENDING_KEY))
     report.live = read_live(db)
     report.finished_at = datetime.now(UTC)
     for failure in report.failures:
@@ -1123,14 +1238,53 @@ def finish_manual_publication(
 
 def _run_rechecks(db: Session, report: RefreshReport, *, recheck, clear, log) -> None:
     report.recheck_attempted = True
-    outcome = recheck(db, log=log)
+    from alethical.pipeline.campaign_finance_check_identity import (
+        reader_identity,
+        stage_reader_identity,
+    )
+
+    stage_reader_identity(db, reader_identity(), record_verdict=False)
+    db.commit()
+    _retry_pending_clearing(db, report, clear=clear, log=log)
+    marker = state_get(db, RECHECK_PENDING_KEY) or {}
+    slots = marker.get("pending_files")
+    if slots is not None:
+        outcome = recheck(db, log=log, datasets=tuple(slots))
+    else:
+        outcome = recheck(db, log=log)
     report.recheck = outcome
     log(outcome.summary())
-    if outcome.failed:
+    missing_years = sorted(set(recheck_years()) - set(outcome.years))
+    if slots is not None and not missing_years:
+        completed = {"money in": "contributions", "money out": "expenditures"}
+        remaining = dict(slots)
+        for check in outcome.outcomes:
+            if check.ran:
+                remaining.pop(completed.get(check.name), None)
+        if remaining:
+            slots = remaining
+            state_set(db, RECHECK_PENDING_KEY, {**marker, "pending_files": remaining})
+        else:
+            # Removed atomically with the final clearing marker below.
+            slots = {}
+    if outcome.failed or missing_years or (slots is not None and slots):
         report.failures.append(
             "a money re-check did not finish; it is retried on the next run: "
-            + "; ".join(one.error or "" for one in outcome.outcomes if not one.ran)
+            + "; ".join(
+                [one.error or one.name for one in outcome.outcomes if not one.ran]
+                + (
+                    ["supported years " + ", ".join(map(str, missing_years))]
+                    if missing_years
+                    else []
+                )
+            )
         )
+        if any(one.ran for one in outcome.outcomes) or state_get(
+            db, CLEARING_PENDING_KEY
+        ):
+            _clear_and_mark(
+                db, report, when_the_money_checks_finish(), clear=clear, log=log
+            )
         return
     missing_years = sorted(set(recheck_years()) - set(outcome.years))
     if missing_years:

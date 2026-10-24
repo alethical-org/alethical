@@ -95,7 +95,7 @@ describe('the first race response follows the directory or selected-group addres
     expect(snapshot.sections?.flatMap((section) => section.body)).not.toContain(
       RACE_DONOR_EXPLANATION,
     );
-    expect(text).toContain('Payment files copied Sep 1, 2026');
+    expect(text).toContain('Contributions file copied Sep 1, 2026');
   });
 
   it('provides recovery for an unknown shared group, not an unrelated group', () => {

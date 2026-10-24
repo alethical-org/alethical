@@ -2186,3 +2186,28 @@ def test_a_dry_run_edit_prints_the_body_it_would_write():
         "statements: failed after storing 5 statements listed" in w for w in dry.writes
     )
     assert issues.writes.count(("create", issues.open_numbers()[0])) == 1
+
+
+def test_a_published_sibling_and_pending_checks_cannot_close_a_held_file_incident():
+    issues = FakeIssues()
+    held = [
+        stage("payments/contributions", "published"),
+        stage("payments/expenditures", "failed"),
+        stage("payments", "failed"),
+        stage("rechecks", "pending"),
+    ]
+    run_once(FakeRunReader(records=held), issues, switch=None)
+    number = issues.open_numbers()[0]
+    required = cfr.read_state(issues.issues[number]["body"])["required_stages"]
+    assert "payments/expenditures" in required and "rechecks" in required
+    partial = [
+        stage("payments/contributions", "published"),
+        stage("payments/expenditures", "unchanged"),
+        stage("payments", "published"),
+        stage("rechecks", "pending"),
+    ]
+    run_once(FakeRunReader(conclusion="success", records=partial, run_id=103), issues)
+    assert issues.issues[number]["state"] == "open"
+    complete = [*partial[:-1], stage("rechecks", "unchanged")]
+    run_once(FakeRunReader(conclusion="success", records=complete, run_id=104), issues)
+    assert issues.issues[number]["state"] == "closed"

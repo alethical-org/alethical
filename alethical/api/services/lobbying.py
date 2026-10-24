@@ -617,7 +617,7 @@ def _contributions(db: Session, registration_number: str) -> dict:
             "payment_count": None,
             "committee_count": None,
             "release_id": str(release.id),
-            "copied_at": release.fetched_at,
+            "copied_at": release.copied_at(release.contributions.dataset),
             "source_url": release.contributions.source_url,
         }
     if evidence is not None and any(
@@ -632,7 +632,7 @@ def _contributions(db: Session, registration_number: str) -> dict:
             "payment_count": None,
             "committee_count": None,
             "release_id": str(release.id),
-            "copied_at": release.fetched_at,
+            "copied_at": release.copied_at(release.contributions.dataset),
             "source_url": release.contributions.source_url,
             "evidence_id": evidence["id"],
             "evidence_checked_at": evidence["checked_at"],
@@ -683,7 +683,7 @@ def _contributions(db: Session, registration_number: str) -> dict:
                 "payment_count": None,
                 "committee_count": None,
                 "release_id": str(release.id),
-                "copied_at": release.fetched_at,
+                "copied_at": release.copied_at(release.contributions.dataset),
                 "source_url": release.contributions.source_url,
             }
     numbers = sorted(
@@ -747,7 +747,7 @@ def _contributions(db: Session, registration_number: str) -> dict:
         "payment_count": len(rows),
         "committee_count": len(numbers),
         "release_id": str(release.id),
-        "copied_at": release.fetched_at,
+        "copied_at": release.copied_at(release.contributions.dataset),
         "source_url": release.contributions.source_url,
         "years": [
             {

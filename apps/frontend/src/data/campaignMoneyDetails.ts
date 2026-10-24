@@ -222,7 +222,8 @@ export async function getCompleteCampaignMoneyPayments(
   for (const number of first.linkable_registration_numbers ?? []) linkable.add(number);
   for (const [index, data] of later.entries()) {
     const offset = offsets[index];
-    if (data.release_id !== releaseId) throw new MoneyDetailsReadError('release_changed');
+    if (data.release_id !== releaseId || (data.fetched_at ?? null) !== fetchedAt)
+      throw new MoneyDetailsReadError('release_changed');
     if (data.state !== 'reported') throw new MoneyDetailsReadError('state_changed');
     if (pageCount(data, offset) !== expectedCount) throw new MoneyDetailsReadError('count_changed');
     const rows = pageRows(data, expectedCount, offset);

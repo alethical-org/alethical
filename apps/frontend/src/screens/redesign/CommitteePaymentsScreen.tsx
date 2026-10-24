@@ -63,7 +63,7 @@ import {
   VIEW_FILED_REPORTS,
   stampThroughDate,
 } from '../../lib/committeeMoneyShared';
-import { paymentFilesDownloadedLine } from '../../lib/campaignMoneyDetailsPageCopy';
+import { paymentFileCopyLine } from '../../lib/paymentCopyDates';
 import {
   BOARD_RECORD_LINK_LABEL,
   BOARD_VIEWER_INDEX,
@@ -188,8 +188,7 @@ export function CommitteePaymentsScreen({
   const boardUrl = boardRecordUrl(registerKind, registrationNumber ?? '', year);
   const reportEnd = money ? stampThroughDate(money.split, money.moneyOut) : null;
   const period = reportPeriodLine(reportEnd, money?.moneyIn.reportedPeriodStart);
-  const copiedAt = firstPage?.fetchedAt ?? money?.fetchedAt;
-  const checkedOn = copiedAt ? centralDateLabel(copiedAt) : null;
+  const copiedAt = firstPage?.fetchedAt ?? null;
   const reportCopied = money?.filingsCopiedAt ? centralDateLabel(money.filingsCopiedAt) : null;
   const total = firstPage?.totalPayments ?? null;
   const selectYear = (next: number) => navigation.setParams({ year: String(next) });
@@ -258,11 +257,12 @@ export function CommitteePaymentsScreen({
         {boardUrl !== BOARD_VIEWER_INDEX ? (
           <Text style={styles.stampDetail}>{BOARD_RECORD_SENTENCE_TAIL.trim()}</Text>
         ) : null}
-        {checkedOn ? (
+        <Text style={styles.stampDetail}>
+          {paymentFileCopyLine(tab === 'gave' ? 'contributions' : 'expenditures', copiedAt)}
+        </Text>
+        {reportCopied ? (
           <Text style={styles.stampDetail}>
-            {reportCopied
-              ? paymentFilesDownloadedLine(checkedOn, reportCopied)
-              : `Minnesota’s payment files copied ${checkedOn}. This is a copy date, not a reporting period.`}
+            {`Report totals copied ${reportCopied}. This is a copy date, not a reporting period.`}
           </Text>
         ) : null}
       </View>

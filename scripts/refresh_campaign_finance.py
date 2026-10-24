@@ -5,7 +5,7 @@ runs by hand. It reads the Board's 6 small lists, refreshes the official totals 
 every supported year when a list changed or a week has passed, downloads the 3 payment
 files, publishes whatever passes every check, re-checks the published figures against
 the filed reports, and clears the saved pages. Every publication route takes the same
-run-wide lease first (a row in ``cf_refresh_state``, 4-hour expiry), so 2 starts at the
+run-wide lease first (a row in ``cf_refresh_state``, 6-hour expiry), so 2 starts at the
 same minute produce 1 run, and a run whose lease is taken by another before it publishes
 does not publish ([#2344](https://github.com/alethical-org/alethical/issues/2344), D3).
 
@@ -43,6 +43,7 @@ import argparse
 import os
 import sys
 from contextlib import nullcontext
+from datetime import timedelta
 from pathlib import Path
 
 from sqlalchemy import create_engine
@@ -109,7 +110,48 @@ def main() -> int:
         "anything, so the alert issue (with --alert-issue) can be proven once "
         "without a real failure.",
     )
+    parser.add_argument(
+        "--collect-only",
+        action="store_true",
+        help="Publish complete checked sources and clear pages, leaving PDF checks for bounded turns",
+    )
+    parser.add_argument(
+        "--recheck-limit",
+        type=int,
+        default=None,
+        help="Check at most this many exact committee-years for1 owed file, then release the lease; exit75 when more remain",
+    )
+    parser.add_argument(
+        "--recheck-seconds",
+        type=float,
+        default=120,
+        help="Maximum elapsed seconds in a bounded check turn",
+    )
+    parser.add_argument(
+        "--recheck-requests",
+        type=int,
+        default=10,
+        help="Maximum Board document requests, including retries, per bounded check turn",
+    )
     args = parser.parse_args()
+    modes = sum(
+        (args.clear_pending_only, args.collect_only, args.recheck_limit is not None)
+    )
+    if modes > 1:
+        parser.error(
+            "choose only1 of --clear-pending-only, --collect-only or --recheck-limit"
+        )
+    if args.recheck_limit is not None and (
+        args.dry_run
+        or args.force_totals
+        or args.prove_alerting
+        or args.recheck_limit < 1
+        or args.recheck_seconds <= 0
+        or args.recheck_requests < 0
+    ):
+        parser.error(
+            "bounded checks need positive item/time limits, a nonnegative request limit and no collection or dry-run flags"
+        )
     if args.clear_pending_only and (args.force_totals or args.prove_alerting):
         parser.error(
             "--clear-pending-only cannot be combined with --force-totals or --prove-alerting"
@@ -134,6 +176,9 @@ def main() -> int:
         if args.dry_run
         else hold_full_run_lease(
             engine,
+            ttl=timedelta(seconds=args.recheck_seconds + 120)
+            if args.recheck_limit is not None
+            else timedelta(hours=6),
             purpose=(
                 "retrying pending campaign-money saved-page clearing"
                 if args.clear_pending_only
@@ -168,6 +213,33 @@ def main() -> int:
             record_stage("drill", "failed", drill=True, details=[summary])
             return 1
         with Session(engine) as session:
+            if args.recheck_limit is not None:
+                from alethical.pipeline.campaign_finance_recheck_batches import (
+                    run_recheck_batch,
+                )
+
+                batch = run_recheck_batch(
+                    session,
+                    lease=lease,
+                    limit=args.recheck_limit,
+                    max_seconds=args.recheck_seconds,
+                    max_requests=args.recheck_requests,
+                    log=log,
+                )
+                summary = batch.summary()
+                print(summary, flush=True)
+                record_stage(
+                    "rechecks",
+                    "failed"
+                    if not batch.ok
+                    else "pending"
+                    if batch.unfinished
+                    else "unchanged",
+                    details=[summary],
+                )
+                if not batch.ok and args.alert_issue:
+                    file_refresh_alert(summary, run_url)
+                return 1 if not batch.ok else 75 if batch.unfinished else 0
             if args.clear_pending_only:
                 report = retry_pending_campaign_clearing(
                     session, dry_run=args.dry_run, lease=lease, log=log
@@ -177,6 +249,7 @@ def main() -> int:
                     session,
                     dry_run=args.dry_run,
                     force_totals=args.force_totals,
+                    collect_only=args.collect_only,
                     lease=lease,
                     log=log,
                 )

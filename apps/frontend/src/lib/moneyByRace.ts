@@ -282,7 +282,7 @@ export function figuresYearLine(year: number): string {
  * Board's download that the named figures come from. Null with no release held,
  * and the page then prints no date rather than borrowing the register's.
  */
-export const FILES_COPIED_LABEL = 'Payment files copied';
+export const FILES_COPIED_LABEL = 'Contributions file copied';
 
 /** Explain why the list never adds money across committees. */
 export const MONEY_BY_RACE_NOTE =

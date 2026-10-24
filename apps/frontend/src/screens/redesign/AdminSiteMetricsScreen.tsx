@@ -1,3 +1,4 @@
+import { paymentSourceCopyLines } from '../../lib/paymentCopyDates';
 import { useReturnPageName, forgetReturnPageName } from '../../navigation/returnDestination';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -325,12 +326,24 @@ function PrivateMetrics({ accessToken }: { accessToken: string }) {
                 {source.unavailableReason ? (
                   <Text style={styles.note}>{source.unavailableReason}</Text>
                 ) : null}
-                <Text style={styles.body}>
-                  Published data fetch completed:{' '}
-                  {source.currentPublishedFetchCompletedAt
-                    ? leadershipDate(source.currentPublishedFetchCompletedAt)
-                    : 'Unavailable'}
-                </Text>
+                {source.paymentCopiedAt ? (
+                  paymentSourceCopyLines({
+                    contributions: source.paymentCopiedAt.contributions,
+                    expenditures: source.paymentCopiedAt.expenditures,
+                    independentExpenditures: source.paymentCopiedAt.independent_expenditures,
+                  }).map((line) => (
+                    <Text key={line} style={styles.body}>
+                      {line}
+                    </Text>
+                  ))
+                ) : (
+                  <Text style={styles.body}>
+                    Published data fetch completed:{' '}
+                    {source.currentPublishedFetchCompletedAt
+                      ? leadershipDate(source.currentPublishedFetchCompletedAt)
+                      : 'Unavailable'}
+                  </Text>
+                )}
                 <Text style={styles.note}>{source.publishedDataMeaning}</Text>
                 {source.publishedDataUnavailableReason &&
                 source.publishedDataUnavailableReason !== source.publishedDataMeaning ? (

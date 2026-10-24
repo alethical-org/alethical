@@ -129,7 +129,7 @@ import {
   VIEW_FILED_REPORTS,
 } from '../../lib/committeeMoneyShared';
 import { COMMITTEE_PAYMENTS_LINK_LABEL } from '../../lib/committeeMoneyShared';
-import { paymentFilesDownloadedLine } from '../../lib/campaignMoneyDetailsPageCopy';
+import { paymentCopyLines } from '../../lib/paymentCopyDates';
 import {
   campaignMoneyYear,
   campaignMoneyHistoryYears,
@@ -513,7 +513,6 @@ function CommitteeBody({
   const closedChip = closedChipLabel(money.register.terminationDate);
   const formerChip = formerRegisterChipLabel(money.register);
   const state = yearDisplayState(money);
-  const checkedOn = money.fetchedAt ? centralDateLabel(money.fetchedAt) : null;
   const prefetchLegislator = usePrefetchLegislator();
   // Warm the member's profile data AND its screen file on navigation intent,
   // matching the bill and legislator lists (usePrefetchBill /
@@ -718,14 +717,14 @@ function CommitteeBody({
                   ))}
                 </View>
 
-                {checkedOn ? (
-                  <Text style={styles.freshness}>
-                    {paymentFilesDownloadedLine(
-                      checkedOn,
-                      money.filingsCopiedAt ? centralDateLabel(money.filingsCopiedAt) : null,
-                    )}
+                {paymentCopyLines(
+                  money.paymentCopiedAt,
+                  money.filingsCopiedAt ? centralDateLabel(money.filingsCopiedAt) : null,
+                ).map((line) => (
+                  <Text key={line} style={styles.freshness}>
+                    {line}
                   </Text>
-                ) : null}
+                ))}
               </>
             }
           >
