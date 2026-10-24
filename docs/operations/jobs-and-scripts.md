@@ -8,6 +8,10 @@ backups do not call paid AI services. Reader questions and deliberately started
 AI work do. The review of a failed campaign-money collection has a paid AI
 reviewer too, and its switch is off until its limits are approved.
 
+[Public-record updates: coverage and recovery](public-record-refresh-status.md)
+tracks the measured freshness gaps and the completion checks for the existing shared
+update work. A listed timer does not establish that its latest records are live.
+
 ## What starts automatically
 
 | Work | Starts when | What it does | Usage-based cost |

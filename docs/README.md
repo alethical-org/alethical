@@ -141,6 +141,7 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [Proposed article links for review](implementation/reading-links-review-2026-09-27.md) — exact article links awaiting editorial approval
 - [Short posts foundation delivery plan](operations/short-posts-foundation-plan.md) — nonvisual build sequence, checks, and the drawing and publication boundaries for issue 2377
 - [How a legislator is matched to their campaign account](operations/how-a-legislator-is-matched-to-their-campaign-account.md) — the public audit record of the one decision no machine may make: what we claim, the 3 pieces of evidence a person reads, who signs, how a wrong match surfaces, how to challenge one, and where all 200 sitting members stand today
+- [Public-record updates: coverage and recovery](operations/public-record-refresh-status.md) — source freshness gaps, immediate state-money recovery and shared update acceptance
 - [What runs, when, and what it costs](operations/jobs-and-scripts.md) — every GitHub workflow, command-line tool, and job-driven AI cost
 - [Copying the Board's lobbying files](operations/lobbying-source-import.md) — the paired import, contact-field exclusion, link checks and rollback
 - [Offline name-search comparison](operations/name-search-offline-benchmark.md) — how to compare name-search behavior without changing public results
