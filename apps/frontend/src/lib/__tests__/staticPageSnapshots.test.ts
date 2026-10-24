@@ -12,7 +12,6 @@ import {
   ABOUT_CORRECTION_PROMISE,
   ABOUT_DOES_HEADING,
   ABOUT_EMAIL,
-  ABOUT_FEATURE_CONTACT_HREF,
   ABOUT_PAGE_HEADING,
   ABOUT_PAGE_SUBTITLE,
   ABOUT_PLATFORM_ITEMS,
@@ -90,7 +89,7 @@ describe('the static About and Contact snapshots', () => {
     );
   });
 
-  it('serves only unbuilt work on the roadmap, clearly as future, with its feature contact', () => {
+  it('serves only unbuilt work on the roadmap, clearly as future, with no link of its own', () => {
     const roadmap = aboutPageSnapshot().sections?.find(
       (candidate) => candidate.heading === ABOUT_ROADMAP_HEADING,
     );
@@ -99,7 +98,7 @@ describe('the static About and Contact snapshots', () => {
     expect(ABOUT_ROADMAP_ITEMS).toHaveLength(5);
     expect(text).not.toContain('Ask AI');
     expect(text).not.toMatch(/Candidates, campaigns, and money|co-authors/);
-    expect(text).toContain(ABOUT_FEATURE_CONTACT_HREF);
+    expect(text).not.toContain('/about/contact');
   });
 
   it('states each fact once: no founder list or contact before the team', () => {

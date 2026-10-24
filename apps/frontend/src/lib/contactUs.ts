@@ -77,10 +77,6 @@ const PURPOSE_PREFILL: Record<ContactPurpose, Pick<ContactValues, 'subject' | 'm
     subject: 'Possible correction',
     message: 'Where I saw it:\n\nWhat may be wrong:\n',
   },
-  'feature-request': {
-    subject: 'Feature suggestion',
-    message: 'What I’d like Alethical to build first:\n\nWhat’s missing:\n',
-  },
 };
 
 export function contactPrefillValues(article?: string, purpose?: string): ContactValues {

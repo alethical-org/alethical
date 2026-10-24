@@ -632,26 +632,6 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
               <Text style={[styles.roadmapQuestion, isMobile && styles.roadmapQuestionMobile]}>
                 {ABOUT_ROADMAP_INVITATION}
               </Text>
-              <Pressable
-                {...linkProps(routePath.contactUs({ purpose: 'feature-request' }), () =>
-                  navigation.navigate('ContactUs', { purpose: 'feature-request' }),
-                )}
-                style={styles.offerLink}
-              >
-                {(state) => (
-                  <LinkArrowLabel
-                    label={ABOUT_CONTACT_LABEL}
-                    style={[
-                      styles.offerLinkText,
-                      styles.inviteLinkText,
-                      isMobile && styles.inviteLinkTextMobile,
-                      ((canHover && Boolean('hovered' in state && state.hovered)) ||
-                        state.pressed) &&
-                        styles.offerLinkTextHovered,
-                    ]}
-                  />
-                )}
-              </Pressable>
             </View>
           </View>
 
@@ -1058,15 +1038,9 @@ const styles = StyleSheet.create({
   },
   proseLeadTablet: { fontSize: 19, lineHeight: 27.5, marginTop: 4 },
   proseLeadMobile: { fontSize: 15.5, lineHeight: 24, marginTop: 0 },
-  roadmapInvite: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    columnGap: 16,
-    marginTop: 12,
-    paddingLeft: 17,
-  },
-  roadmapInviteMobile: { flexDirection: 'column', alignItems: 'flex-start', marginTop: 14 },
+  // The invitation keeps the drawing's 44px row, so Contact stays where it was drawn.
+  roadmapInvite: { marginTop: 12, paddingLeft: 17, minHeight: 44, justifyContent: 'center' },
+  roadmapInviteMobile: { marginTop: 14, minHeight: 0 },
   roadmapQuestion: {
     color: t.colors.text.secondary,
     fontFamily: t.typography.body,
@@ -1075,8 +1049,6 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web' ? ({ textWrap: 'pretty' } as object) : null),
   },
   roadmapQuestionMobile: { fontSize: 14.5, lineHeight: 22.5 },
-  inviteLinkText: { fontSize: 17 },
-  inviteLinkTextMobile: { fontSize: 16 },
   contactEmail: { marginTop: 12 },
   emailLink: { color: t.colors.text.greenOnLight, fontWeight: t.fontWeights.bold },
   emailLinkHovered: { color: '#11832b', textDecorationLine: 'underline' },

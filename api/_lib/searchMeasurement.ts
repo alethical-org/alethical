@@ -68,6 +68,34 @@ function nonNegative(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
 }
 
+/** Bing reports -1 as the average position of a row with no clicks or impressions. */
+function bingPosition(value: unknown): number | null {
+  if (value === -1) return null;
+  if (!nonNegative(value)) throw new Error("Invalid Bing export row");
+  return value;
+}
+
+const SAFE_FAILURE_REASONS = [
+  "Search export unavailable",
+  "Invalid Bing export",
+  "Invalid Bing export row",
+  "Invalid Bing date",
+  "Duplicate Bing export row",
+] as const;
+
+/**
+ * A fixed label for why a provider export failed, safe to log: it never carries
+ * provider text, search rows, addresses or credentials.
+ */
+export function providerFailureReason(error: unknown): string {
+  if (error instanceof Error) {
+    if (error.name === "TimeoutError" || error.name === "AbortError") return "timeout";
+    const known = SAFE_FAILURE_REASONS.find((reason) => reason === error.message);
+    if (known) return known;
+  }
+  return "other";
+}
+
 function text(value: unknown): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= 8192;
 }
@@ -295,9 +323,7 @@ export async function bingSearchExport(
       !Number.isSafeInteger(row.Clicks) ||
       row.Clicks < 0 ||
       !Number.isSafeInteger(row.Impressions) ||
-      row.Impressions < 0 ||
-      !nonNegative(row.AvgClickPosition) ||
-      !nonNegative(row.AvgImpressionPosition)
+      row.Impressions < 0
     ) {
       throw new Error("Invalid Bing export row");
     }
@@ -311,8 +337,8 @@ export async function bingSearchExport(
       dateUtc: date,
       clicks: row.Clicks as number,
       impressions: row.Impressions as number,
-      averageClickPosition: row.AvgClickPosition as number,
-      averageImpressionPosition: row.AvgImpressionPosition as number,
+      averageClickPosition: bingPosition(row.AvgClickPosition),
+      averageImpressionPosition: bingPosition(row.AvgImpressionPosition),
     };
   });
   return boundedExport({

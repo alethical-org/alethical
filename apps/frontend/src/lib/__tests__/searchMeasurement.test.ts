@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   bingSearchExport,
+  providerFailureReason,
   googleSearchExport,
   searchExportRequest,
   SEARCH_ROW_LIMIT,
@@ -163,6 +164,62 @@ describe('private search exports', () => {
     const requested = new URL(String(fetcher.mock.calls[0][0]));
     expect(requested.pathname).toContain('GetQueryStats');
     expect([...requested.searchParams.keys()]).toEqual(['siteUrl', 'apikey']);
+  });
+  it('keeps Bing rows whose average position is -1, meaning no position', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        response({
+          d: [
+            {
+              Query: 'https://www.alethical.com/bills',
+              Date: '/Date(1792454400000-0700)/',
+              Clicks: 0,
+              Impressions: 4,
+              AvgClickPosition: -1,
+              AvgImpressionPosition: 7,
+            },
+          ],
+        }),
+      ),
+    );
+    const result = await bingSearchExport('site', 'key', { view: 'pages', days: 30 }, now);
+    expect(result.rows[0]).toMatchObject({
+      clicks: 0,
+      impressions: 4,
+      averageClickPosition: null,
+      averageImpressionPosition: 7,
+    });
+  });
+  it('rejects other negative Bing positions', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        response({
+          d: [
+            {
+              Query: 'q',
+              Date: '/Date(1792454400000-0700)/',
+              Clicks: 1,
+              Impressions: 1,
+              AvgClickPosition: -2,
+              AvgImpressionPosition: 1,
+            },
+          ],
+        }),
+      ),
+    );
+    await expect(
+      bingSearchExport('site', 'key', { view: 'queries', days: 30 }, now),
+    ).rejects.toThrow('Invalid Bing export row');
+  });
+  it('labels provider failures with fixed reasons only', () => {
+    const timeout = new Error('private text');
+    timeout.name = 'TimeoutError';
+    expect(providerFailureReason(timeout)).toBe('timeout');
+    expect(providerFailureReason(new Error('Invalid Bing date'))).toBe('Invalid Bing date');
+    expect(providerFailureReason(new Error('private query text'))).toBe('other');
+    expect(providerFailureReason('not an error')).toBe('other');
   });
   it('rejects malformed Bing counts and never makes a query-page fan-out', async () => {
     const fetcher = vi.fn();
