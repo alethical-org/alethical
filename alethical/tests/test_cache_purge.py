@@ -884,3 +884,20 @@ def test_vercel_http_200_with_empty_body_is_its_measured_success_response():
     result = clear(when_a_filings_release_lands(), env=_website_env(), post=post)
     assert result.armed and result.ok
     assert "Vercel accepted" in result.detail
+
+
+@pytest.mark.parametrize("setting", [TOKEN_SETTING, ZONE_SETTING, ENABLE_SETTING])
+def test_required_website_clearing_cannot_complete_with_unarmed_api(setting):
+    values = _website_env()
+    values.pop(setting)
+    sent = []
+    result = clear(when_a_filings_release_lands(), env=values, post=accepting(sent))
+    assert result.armed and result.failed and sent == []
+    assert "API clearing first" in result.detail
+    assert clear_after_publish(
+        when_a_filings_release_lands(),
+        published=True,
+        env=values,
+        post=accepting(sent),
+        log=lambda message: None,
+    )

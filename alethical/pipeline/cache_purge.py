@@ -427,6 +427,13 @@ def clear(
     values = os.environ if env is None else env
     state = arming(values)
     if not state.armed:
+        if (values.get(WEBSITE_ENABLE_SETTING) or "").strip().lower() == ENABLE_VALUE:
+            return ClearingResult(
+                clearing=clearing,
+                armed=True,
+                ok=False,
+                detail=f"Website clearing requires API clearing first: {state.reason}",
+            )
         return ClearingResult(
             clearing=clearing, armed=False, ok=True, detail=state.reason
         )
