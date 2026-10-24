@@ -603,7 +603,7 @@ def finish_job(
     if code == 75:
         row.next_due_at = now
     elif code == 76:
-        row.next_due_at = now + timedelta(minutes=15)
+        row.next_due_at = now + min(claim.job.interval, timedelta(minutes=15))
     elif code == 0 or review_required:
         row.last_checked_at = now
         if code == 0:
@@ -613,7 +613,11 @@ def finish_job(
     else:
         row.failures += 1
         row.next_due_at = now + timedelta(
-            minutes=min(360, 15 * 2 ** min(row.failures - 1, 5))
+            minutes=min(
+                360,
+                max(1, claim.job.interval.total_seconds() / 60),
+                15 * 2 ** min(row.failures - 1, 5),
+            )
         )
     signal_row = db.scalar(
         select(SourceRefreshState)

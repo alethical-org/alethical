@@ -191,7 +191,7 @@ The API wakeup does not guarantee immediate availability of a GitHub runner.
 | Filing dates | Daily | Dates supported by readable official reports; unavailable/scanned sources remain review findings |
 | Large-contribution notices | Every 15 minutes in July, August, October and November; hourly otherwise; retained notice corrections weekly | Official new/corrected notices; unknown election calendars require review |
 | Disclosure statements | Weekly | New catalogues and corrected PDFs; human-reviewed readings stay protected |
-| FCC political files | Hourly enabled-family inventory; at most 100 downloads, 250 mirrors and 100 readings per turn | Existing 3-station collector; source gaps and unfinished bounded work retain their incomplete status |
+| FCC political files | Hourly enabled-family inventory; at most 1,000 downloads, 2,500 mirrors and 1,000 readings per turn | Existing 3-station collector; source gaps and unfinished bounded work retain their incomplete status |
 | Refunds | Every 30 days | Rechecked official summaries using approved account links |
 | Donor evidence | Daily preparation | Private evidence bundle only; no automatic donor-proof approval or publication |
 | Session codes and candidate source changes | Daily | Review findings; unknown session/election mappings are not guessed |

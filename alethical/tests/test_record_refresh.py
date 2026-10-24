@@ -444,3 +444,16 @@ def test_completed_source_clears_an_obsolete_hold_finding(sessions):
         second = runner.claim_job(db, definition, now=NOW + timedelta(minutes=16))
         runner.finish_job(db, second, code=0, now=NOW + timedelta(minutes=16))
         assert db.get(SourceRefreshState, "test").finding is None
+
+
+@pytest.mark.parametrize("code", [1, 76])
+def test_fast_source_retry_and_defer_never_wait_beyond_its_cadence(sessions, code):
+    from dataclasses import replace
+
+    fast = replace(job(), interval=timedelta(minutes=5))
+    with sessions() as db:
+        claim = runner.claim_job(db, fast, now=NOW)
+        runner.finish_job(db, claim, code=code, now=NOW)
+        assert db.get(SourceRefreshState, "test").next_due_at == NOW + timedelta(
+            minutes=5
+        )

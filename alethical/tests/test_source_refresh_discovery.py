@@ -156,3 +156,17 @@ def test_filing_date_pass_for_superseded_snapshot_stays_unfinished(monkeypatch):
     )
     assert report.exit_code == 75
     assert report.finding()["status"] == "continuing"
+
+
+@pytest.mark.parametrize("changed,expected", [(0, False), (1, True)])
+def test_filed_date_count_requires_an_actual_stored_row(changed, expected):
+    from datetime import date
+    from unittest.mock import Mock
+    from scripts import backfill_campaign_finance_filed_dates as dates
+
+    db = Mock()
+    db.execute.return_value.rowcount = changed
+    assert (
+        dates._store(db, "snapshot", SimpleNamespace(row_number=1), date(2026, 10, 24))
+        is expected
+    )

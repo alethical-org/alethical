@@ -84,7 +84,8 @@ can continue immediately; an ambiguous queued request retains duplicate protecti
 FCC delegates to the existing collector and fixed station scope. Numeric sanitized
 reports distinguish backlog, source gaps and processing failures. A late Actions
 report cannot replace a newer run's FCC issue counts or close its unfinished-work
-report. Default-off
+report. Fast-source retries and busy deferrals never exceed their own cadence;
+HTTP busy replies still enforce the shared source cooldown. Default-off
 families retain old clocks until staged activation. Parent acceptance covers current
 schema integration, spending intent, actual settings and measurable public results;
 local tests alone cannot prove those live facts.

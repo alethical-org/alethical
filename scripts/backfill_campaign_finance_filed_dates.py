@@ -223,13 +223,13 @@ def _wanted(db: Session, snapshot_id, year_from: int) -> list[Wanted]:
     return wanted
 
 
-def _store(db: Session, snapshot_id, item: Wanted, filed_date: date) -> None:
+def _store(db: Session, snapshot_id, item: Wanted, filed_date: date) -> bool:
     """Write one date, and only onto the row that is still blank.
 
     The ``IS NULL`` guard is what makes a re-run idempotent rather than merely
     repeatable: 2 passes overlapping cannot move a date that is already stored.
     """
-    db.execute(
+    result = db.execute(
         text(
             "UPDATE cf_filing_report SET filed_date = :filed_date "
             "WHERE snapshot_id = :snapshot_id AND row_number = :row_number "
@@ -241,6 +241,8 @@ def _store(db: Session, snapshot_id, item: Wanted, filed_date: date) -> None:
             "row_number": item.row_number,
         },
     )
+
+    return result.rowcount == 1
 
 
 def describe(db: Session, *, year_from: int, limit: int | None) -> None:
@@ -334,8 +336,7 @@ def backfill(
                     + ("; ".join(errors) if errors else "no received stamp in the text")
                 )
             else:
-                _store(db, snapshot_id, item, filed_date)
-                report.dated += 1
+                report.dated += int(_store(db, snapshot_id, item, filed_date))
         if index % COMMIT_EVERY == 0:
             db.commit()
             progress(
