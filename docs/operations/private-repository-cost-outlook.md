@@ -199,7 +199,6 @@ Changing visibility also has 3 one-way or paid consequences today:
 For this private repo, Team keeps the controls already used today:
 
 - protected `main`, including required tests and a current-branch rule;
-- Code Owner review requests for sensitive files;
 - multiple reviewers and assignees;
 - 3,000 included private-repo Actions minutes instead of 2,000 on Free;
 - standard GitHub support; and
