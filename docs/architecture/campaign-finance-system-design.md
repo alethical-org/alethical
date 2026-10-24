@@ -866,10 +866,39 @@ GitHub issue the run files quotes that summary rather than asserting anything it
 Freshness, wherever stated: payments checked daily; totals refreshed on list change and
 weekly; a run whose lists could not be read is reported as incomplete.
 
-**Related files release together.** Contributions, general expenditures, independent
-expenditures and the reports that cover the same period form one release. Files fetched on
-different days must never be shown together, or a committee's spending will be from a
-different day than its income.
+**Each checked payment file updates independently (approved; implementation pending).**
+Contributions, general expenditures and independent expenditures each replace their
+complete accepted file after that file passes its own checks. A held replacement keeps
+the previous file and its date; it does not block another file that passes. No row merging,
+automatic deduplication or unexplained-loss exception follows from this approval. The
+shipped collector still releases all 3 together until the following contract is built
+and verified; [issue 2504](https://github.com/alethical-org/alethical/issues/2504) owns
+that change.
+
+Each release retains the exact accepted file identity, source-copy receipt and paired
+totals snapshot for each of its 3 slots. A request resolves that release once, preserving
+the consistent-view rule above. Each displayed section uses its own input's copy date;
+a shared date is allowed only when its scope and dates agree. A slot's date means the
+most recent complete, successful, validated read of the expected Board file whose parsed
+`record_set_hash` matches its accepted records. Zero parsing errors and the retained read
+receipt are required. Reordered source bytes do not imply changed records; first creation,
+approval time and a rejected replacement do not renew the carried file's date.
+
+Any comparison or derived figure must identify its exact input versions and prove
+compatible reporting coverage. Otherwise it stays withheld. Pairing with totals,
+verification results, pending rechecks and saved-page clearing follow the relevant file,
+not the newest unrelated slot. An incident remains open while any required file or
+follow-up is unresolved. Replaying a rejected file changes neither its accepted rows nor
+their date. Rollback restores all slot identities, dates and pairings exactly; pruning
+keeps every file still named by the live or rollback release.
+
+Acceptance includes mixed-date and held-file cases across committee and legislator
+pages, races, the money landing page, search groups, outside spending, lobbying evidence,
+large-contribution comparisons, TV-ad links, leadership metrics, register counts,
+homepage facts, exports and source-dependent research notices. Inventory every consumer
+that reads multiple files; test its compatibility check and source dates. A successful
+file publication does not finish recovery until its required checks and public pages
+are current. These conditions must pass before independent publication is enabled.
 
 **The derived comparison is drawn only from a checked pair of generations.** The filed
 totals (`cf_filing_snapshot`, pointed to by `cf_filing_current`) and the payment files

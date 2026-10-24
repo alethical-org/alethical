@@ -78,7 +78,12 @@ The newer totals resolve 3 of the 6 newly failing contribution comparisons. The 
 report documents for the same periods. The 18127/2017 spending loss remains unexplained:
 its catalogue lists original and amended reports, but the document route returned an
 HTML error rather than either PDF. No payment exception or row deduplication was applied.
-The existing rule that all 3 payment files release together remains in force.
+The shipped collector still releases all 3 payment files together. The approved
+replacement lets each complete checked file update independently, with its own dates,
+totals pairing and recovery obligations; incompatible combined calculations remain
+withheld. [The owning release contract](../architecture/campaign-finance-system-design.md#41-the-cycle)
+sets the required checks. Independent publication is not enabled by this review, and
+no payment exception follows from the policy change.
 
 The cited-source archive's October 19 red result
 ([run 39287503123](https://github.com/alethical-org/alethical/actions/runs/39287503123))
