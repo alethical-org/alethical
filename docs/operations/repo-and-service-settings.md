@@ -213,6 +213,11 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 | `ALETHICAL_COMMENT_EMAIL_ENABLED` | Present | Enables durable reader and administrator comment alerts after the release privacy checks; local and test environments keep it false. | Live |
 | `ALETHICAL_PROFILE_CLAIM_EMAIL_ENABLED` | Present; intended accepted-production value `true` | Staged absent/off until the profile-claim release checks pass, then enables saved request and decision notifications through the existing Resend service; local and test environments keep it false. | Live: presence only; value and activation gates are checked during release |
 | `ALETHICAL_CONTACT_RATE_PER_MIN` | Present | Limits repeated Contact us requests. | Live |
+| `ALETHICAL_SOURCE_REFRESH_APP_ID` | Present | Identifies the dedicated `alethical-record-updater` GitHub App, limited to Actions write and metadata read on this repository, that queues due public-record work ([source-refresh-dispatch.md](source-refresh-dispatch.md)). | Live: presence only |
+| `ALETHICAL_SOURCE_REFRESH_INSTALLATION_ID` | Present | Names that App's single-repository installation. | Live: presence only |
+| `ALETHICAL_SOURCE_REFRESH_PRIVATE_KEY` | Present | Signs the App's short-lived installation token requests; never printed or logged. | Live: presence only |
+| `ALETHICAL_SOURCE_REFRESH_DISPATCH_ENABLED` | Present; `true` only after the activation checks in [source-refresh-dispatch.md](source-refresh-dispatch.md) pass | Turns on the API's 60-second wake that queues due source jobs; off, the hourly GitHub schedule is the only clock. | Live: presence only; value is checked during activation |
+| `ALETHICAL_SOURCE_REFRESH_FAMILIES` | Present when dispatch is on, holding the same JSON list as the `SOURCE_REFRESH_FAMILIES` repository variable | Limits the wake to the source families already activated. | Live: presence only |
 | `ALETHICAL_CORS_ORIGINS` | Present | Limits which websites can call the API from a browser. | Live |
 | `ALETHICAL_EMAIL_ENABLED` | Present | Turns production Contact us delivery on. | Live |
 | `ALETHICAL_EMAIL_FROM` | Present | Sets the verified sender address. | Live |
