@@ -56,7 +56,8 @@ on:
         description: "Exit 1 on purpose to prove the alert issue, reading and publishing nothing"
         type: boolean
         default: false
-  # Scheduled starts now use source-record-refresh.yml and saved deadlines.
+  schedule:
+    - cron: "30 15 * * *"
 
 concurrency:
   group: campaign-money-refresh
@@ -64,6 +65,7 @@ concurrency:
 
 jobs:
   refresh:
+    if: ${{ github.event_name != 'schedule' || !contains(fromJSON(vars.SOURCE_REFRESH_FAMILIES || '[]'), 'campaign') }}
     runs-on: ubuntu-latest
     timeout-minutes: 300
     permissions:

@@ -73,6 +73,7 @@ from alethical.pipeline.campaign_finance_filings import (  # noqa: E402
     http_session,
     live_filings_snapshot,
 )
+from alethical.pipeline.request_limits import DatabaseRequestLimiter, RateLimitedSession  # noqa: E402
 from alethical.pipeline.campaign_finance_report_documents import (  # noqa: E402
     DocumentOutcome,
     extract_lines,
@@ -152,9 +153,12 @@ class Report:
     asked: int = 0
     outcomes: Counter = field(default_factory=Counter)
     unreadable: list[str] = field(default_factory=list)
+    snapshot_changed: bool = False
 
     @property
     def exit_code(self) -> int:
+        if self.snapshot_changed:
+            return 75
         known = {outcome.value for outcome in DocumentOutcome} | {
             "served_without_a_readable_date"
         }
@@ -169,13 +173,17 @@ class Report:
 
     def finding(self) -> dict:
         return {
-            "status": {0: "succeeded", 1: "failed", 2: "review_required"}[
-                self.exit_code
-            ],
+            "status": {
+                0: "succeeded",
+                1: "failed",
+                2: "review_required",
+                75: "continuing",
+            }[self.exit_code],
             "carried_forward": self.carried_forward,
             "documents_asked": self.asked,
             "dates_stored": self.dated,
             "outcomes": dict(self.outcomes),
+            "snapshot_changed": self.snapshot_changed,
         }
 
     def summary(self) -> str:
@@ -284,23 +292,25 @@ def backfill(
     limit: int | None,
     carry_forward: bool,
     progress,
+    source_session=None,
 ) -> Report:
     report = Report()
     snapshot = live_filings_snapshot(db)
     if snapshot is None:
         raise SystemExit("refused: no filings snapshot is loaded.")
 
+    snapshot_id = snapshot.id
     if carry_forward:
-        result = db.execute(text(_CARRY_FORWARD_SQL), {"snapshot_id": snapshot.id})
+        result = db.execute(text(_CARRY_FORWARD_SQL), {"snapshot_id": snapshot_id})
         report.carried_forward = result.rowcount or 0
         db.commit()
         progress(f"carried forward {report.carried_forward:,} date(s), free.")
 
-    todo = _wanted(db, snapshot.id, year_from)
+    todo = _wanted(db, snapshot_id, year_from)
     if limit is not None:
         todo = todo[:limit]
     progress(f"{len(todo):,} document(s) to ask for.")
-    http = http_session()
+    http = source_session or http_session()
     for index, item in enumerate(todo, start=1):
         response, outcome, _note = fetch_document(
             http,
@@ -324,7 +334,7 @@ def backfill(
                     + ("; ".join(errors) if errors else "no received stamp in the text")
                 )
             else:
-                _store(db, snapshot.id, item, filed_date)
+                _store(db, snapshot_id, item, filed_date)
                 report.dated += 1
         if index % COMMIT_EVERY == 0:
             db.commit()
@@ -334,6 +344,12 @@ def backfill(
             )
         time.sleep(REQUEST_SPACING_SECONDS)
     db.commit()
+    # Old snapshot rows remain safe, but a completed old pass never dates the
+    # newly published register. Retry current work on the next bounded turn.
+    current = db.execute(
+        text("SELECT snapshot_id FROM cf_filing_current WHERE id = true")
+    ).scalar_one_or_none()
+    report.snapshot_changed = current != snapshot_id
     return report
 
 
@@ -416,6 +432,9 @@ def main() -> int:
             limit=args.limit,
             carry_forward=not args.no_carry_forward,
             progress=lambda message: print(message, file=sys.stderr, flush=True),
+            source_session=RateLimitedSession(
+                http_session(), DatabaseRequestLimiter(engine)
+            ),
         )
     print(json.dumps(report.finding()) if args.json else "\n" + report.summary())
     return report.exit_code

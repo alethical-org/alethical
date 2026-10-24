@@ -12,7 +12,10 @@ minute. Each call attempts at most 3 dispatches. Requests time out after 10
 seconds. Separate `dispatch:<job>` rows hold a 5-minute claim and a 30-minute
 cooldown after acceptance. Failed requests retry after 5 minutes. A worker crash
 can leave an ambiguous dispatch, so collection leases must also reject overlap.
-An active source or shared collection lane is not dispatched again.
+An active source or shared collection lane is not dispatched again. A completed
+collector turn acknowledges its dispatch: when it is due again, its next bounded
+turn can start on the next wake without the queued-request cooldown. An accepted
+request with no collector completion keeps the full cooldown.
 
 Dispatch rows retain only outcome, times and the optional GitHub run ID. They
 never advance source-copy dates, successful collection dates or publication.
@@ -55,6 +58,7 @@ without printing it, placing it in source control or handing it through chat.
 Keep any temporary local key readable only by its owner, then remove that local
 copy after safe delivery. Set:
 
+- `ALETHICAL_SOURCE_REFRESH_FAMILIES` (JSON list matching the repository variable below)
 - `ALETHICAL_SOURCE_REFRESH_DISPATCH_ENABLED=true`
 - `ALETHICAL_SOURCE_REFRESH_APP_ID`
 - `ALETHICAL_SOURCE_REFRESH_INSTALLATION_ID`
@@ -63,9 +67,41 @@ copy after safe delivery. Set:
 The switch is off when absent. A true switch with missing credentials is an
 operational failure, not a working scheduler. Activation follows creation of the
 fixed workflow, deployment of the scheduler tables and successful narrow access
-read-back. Credential creation or activation was not performed in the supporting
-dispatcher build. The existing source privacy, review and publication guards
+read-back. The existing source privacy, review and publication guards
 remain in effect.
+
+## Staged family activation
+
+The repository variable `SOURCE_REFRESH_FAMILIES` and the API secret
+`ALETHICAL_SOURCE_REFRESH_FAMILIES` hold the same JSON list. Supported names are
+`campaign`, `notices`, `legislative`, `lobbying`, `supporting` and `fcc`. Both default
+to `[]`. A disabled family is reported as disabled, not overdue or completed.
+The legacy campaign-money, notice, vote and FCC schedules remain until their
+matching family is enabled. The source worker and old FCC workflow use the same
+Actions queue, and the adapter invokes the existing collector, not a second one.
+
+The release owner completes this sequence for each family:
+
+1. Deploy the schema and code with family lists empty; preserve the legacy clocks.
+2. Verify the exact worker tools and private settings. FCC requires Supabase/R2,
+   poppler and tesseract. Bill work requires the existing embedding path's spending
+   authorization and `SOURCE_REFRESH_BILL_EMBEDDINGS_APPROVED=true`; the presence
+   of a key alone never enables a paid call. Summaries and mail stay off.
+3. Run a named bounded verification turn through the manual workflow with its
+   `verify` input true. This bypasses timing and the family switch, never a lease. Record its
+   actual claim, finish and scope; a workflow receipt is not source completion.
+4. Set the repository family list, which switches the matching legacy scheduled
+   job off and the shared hourly clock on. Set the same API family list and enable
+   the restricted App clock. A lost API wake still has the hourly backup.
+5. Observe an automatic claim and finish, the exact source/publication generation,
+   clearing and public read-back. Measure observation, queue, copy, validation,
+   publication and public-read delays separately. Keep unknown publication times
+   unknown and hold incomplete families out of any completion claim.
+
+Rollback removes the family from the API list, then the repository list. Existing
+legacy clocks resume without changing records. Preserve unfinished source signals,
+leases, exact-input check progress and previous good releases. Other families keep
+running. No migration, credential, switch or source job is activated by these docs.
 
 ## Checks
 

@@ -20,7 +20,7 @@ import tempfile
 import time
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -42,6 +42,7 @@ class RefreshJob:
     capture_json: bool = False
     review_exit: int | None = None
     lane: str | None = None
+    priority: int = 0
 
 
 def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
@@ -61,10 +62,16 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
             "campaign-money",
             timedelta(days=1),
             timedelta(hours=5),
-            ("scripts/refresh_campaign_finance.py", "--target", "{target}"),
+            (
+                "scripts/refresh_campaign_finance.py",
+                "--target",
+                "{target}",
+                "--collect-only",
+            ),
             "https://cfb.mn.gov/",
             "Refresh supported totals and payment files",
             lane="campaign",
+            priority=7,
         ),
         RefreshJob(
             "filing-dates",
@@ -80,7 +87,7 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
             ),
             "https://cfb.mn.gov/",
             "Copy filing dates from official report evidence",
-            lane="campaign",
+            lane="filing-dates",
             review_exit=2,
         ),
         RefreshJob(
@@ -90,7 +97,7 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
             ("scripts/load_refund_summaries.py", "--target", "{target}"),
             "https://cfb.mn.gov/",
             "Recheck refund source bytes and approved account links",
-            lane="campaign",
+            lane="refunds",
         ),
         RefreshJob(
             "notice-amendments",
@@ -105,7 +112,7 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
             ),
             "https://cfb.mn.gov/",
             "Recheck retained notice PDFs for corrections",
-            lane="campaign",
+            lane="notice-discovery",
             review_exit=2,
         ),
         RefreshJob(
@@ -122,9 +129,30 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
             ),
             "https://cfb.mn.gov/",
             "Refresh statement catalogues and corrected PDFs",
-            lane="campaign",
+            lane="statements",
         ),
     ]
+    definitions.append(
+        RefreshJob(
+            "campaign-rechecks",
+            timedelta(minutes=5),
+            timedelta(minutes=5),
+            (
+                "scripts/refresh_campaign_finance.py",
+                "--target",
+                "{target}",
+                "--recheck-limit",
+                "10",
+                "--recheck-seconds",
+                "120",
+                "--recheck-requests",
+                "10",
+            ),
+            "https://cfb.mn.gov/",
+            "Finish at most 10 exact committee-year checks with saved progress",
+            lane="campaign",
+        )
+    )
     definitions.append(
         RefreshJob(
             "donor-proof-preparation",
@@ -133,7 +161,7 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
             ("scripts/prepare_lobbyist_donor_evidence.py", "--target", "{target}"),
             "https://cfb.mn.gov/",
             "Retain exact-generation donor evidence privately for review",
-            lane="campaign",
+            lane="donor-preparation",
             capture_json=True,
             review_exit=2,
         )
@@ -141,7 +169,9 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
     definitions.append(
         RefreshJob(
             "notices",
-            timedelta(days=1),
+            timedelta(minutes=15)
+            if now.month in (7, 8, 10, 11)
+            else timedelta(hours=1),
             timedelta(hours=2),
             (
                 "scripts/collect_campaign_finance_notices.py",
@@ -151,7 +181,8 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
             ),
             "https://cfb.mn.gov/",
             "Collect newly posted notices without a hardcoded election year",
-            lane="campaign",
+            lane="notice-discovery",
+            priority=8,
             review_exit=2,
         )
     )
@@ -189,6 +220,46 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
             int(item[0][-4:]),
         ),
     )
+    definitions.append(
+        RefreshJob(
+            f"bills-discovery-{current_code}",
+            timedelta(minutes=15)
+            if session_refresh_interval(current_code, now.date()) <= timedelta(hours=4)
+            else timedelta(hours=1),
+            timedelta(minutes=30),
+            (
+                "scripts/discover_legislative_records.py",
+                "--target",
+                "{target}",
+                "--session-code",
+                current_code,
+            ),
+            "https://www.revisor.mn.gov/bills/",
+            "Refresh dated actions from both chambers in a finite recent window, up to 25 bills per turn",
+            lane="legislative",
+            priority=5,
+        )
+    )
+    definitions.append(
+        RefreshJob(
+            f"bills-backdated-discovery-{current_code}",
+            timedelta(days=1),
+            timedelta(minutes=30),
+            (
+                "scripts/discover_legislative_records.py",
+                "--target",
+                "{target}",
+                "--session-code",
+                current_code,
+                "--lookback-days",
+                "14",
+            ),
+            "https://www.revisor.mn.gov/bills/status_search.php",
+            "Reconcile a finite 14-day dated-action window for delayed publication",
+            lane="legislative",
+            priority=1,
+        )
+    )
     definitions.extend(
         [
             RefreshJob(
@@ -210,7 +281,10 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
             ),
             RefreshJob(
                 "votes",
-                timedelta(days=1),
+                min(
+                    session_refresh_interval(current_code, now.date()),
+                    timedelta(hours=1),
+                ),
                 timedelta(hours=2),
                 (
                     "scripts/refresh_legislative_records.py",
@@ -224,6 +298,7 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
                 "https://www.leg.mn.gov/",
                 "Collect missing rolls and rotate through saved rolls for corrections",
                 lane="legislative",
+                priority=6,
                 review_exit=2,
             ),
             RefreshJob(
@@ -253,7 +328,69 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
                 review_exit=2,
             )
         )
+    definitions.extend(
+        [
+            RefreshJob(
+                "campaign-discovery",
+                timedelta(minutes=15),
+                timedelta(minutes=5),
+                ("scripts/discover_campaign_records.py", "--target", "{target}"),
+                "https://cfb.mn.gov/",
+                "Detect changes to the 6 official register/report lists",
+                capture_json=True,
+                lane="campaign-discovery",
+                priority=7,
+            ),
+            RefreshJob(
+                "fcc",
+                timedelta(hours=1),
+                timedelta(minutes=90),
+                ("scripts/refresh_fcc_records.py", "--target", "{target}"),
+                "https://publicfiles.fcc.gov/",
+                "Retain KSTP/KARE/KMSP files and resume bounded archive work",
+                capture_json=True,
+                lane="fcc",
+            ),
+        ]
+    )
     return {job.name: job for job in definitions}
+
+
+FAMILIES = {"campaign", "notices", "legislative", "lobbying", "supporting", "fcc"}
+
+
+def job_family(name: str) -> str:
+    if name in {"notices", "notice-amendments", "statement-amendments"}:
+        return "notices"
+    if name.startswith("bills-") or name in {"votes", "roster", "sessions"}:
+        return "legislative"
+    if name in {
+        "campaign-money",
+        "campaign-rechecks",
+        "campaign-discovery",
+        "filing-dates",
+        "refunds",
+        "donor-proof-preparation",
+    }:
+        return "campaign"
+    if name in {"fcc", "lobbying"}:
+        return name
+    return "supporting"
+
+
+def enabled_families() -> set[str]:
+    value = json.loads(os.getenv("ALETHICAL_SOURCE_REFRESH_FAMILIES", "[]"))
+    if not isinstance(value, list) or any(
+        not isinstance(v, str) or v not in FAMILIES for v in value
+    ):
+        raise ValueError(
+            "Source refresh families must be a JSON list of supported names"
+        )
+    return set(value)
+
+
+def enabled_job(name: str) -> bool:
+    return job_family(name) in enabled_families()
 
 
 def _next_due_at(row: SourceRefreshState, job: RefreshJob) -> datetime:
@@ -274,10 +411,22 @@ def _next_due_at(row: SourceRefreshState, job: RefreshJob) -> datetime:
 
 def due_names(db: Session, *, now: datetime | None = None) -> list[str]:
     now = now or datetime.now(UTC)
-    states = {row.name: row for row in db.scalars(select(SourceRefreshState))}
     definitions = jobs(now)
+    active = [name for name in definitions if enabled_job(name)]
+    if active:
+        db.execute(
+            insert(SourceRefreshState)
+            .values(
+                [{"name": name, "next_due_at": now, "failures": 0} for name in active]
+            )
+            .on_conflict_do_nothing(index_elements=["name"])
+        )
+        db.commit()
+    states = {row.name: row for row in db.scalars(select(SourceRefreshState))}
     ready = []
     for name, job in definitions.items():
+        if not enabled_job(name):
+            continue
         row = states.get(name)
         lane = states.get(f"lane:{job.lane}") if job.lane else None
         if row and (
@@ -288,14 +437,17 @@ def due_names(db: Session, *, now: datetime | None = None) -> list[str]:
         if lane and lane.lease_expires_at and lane.lease_expires_at > now:
             continue
         ready.append(name)
-    ready.sort(
-        key=lambda name: (
-            _next_due_at(states[name], definitions[name])
-            if name in states
-            else datetime.min.replace(tzinfo=UTC),
-            name,
-        )
-    )
+
+    def urgency(name):
+        job = definitions[name]
+        row = states.get(name)
+        due = _next_due_at(row, job) if row else now
+        # Lateness grows without a cap, so old reconciliation eventually outranks
+        # fresh discovery. Equal-age jobs retain their durable oldest-first order.
+        age = max(0, (now - due).total_seconds()) / 3600
+        return (-(age + job.priority), due, name)
+
+    ready.sort(key=urgency)
     # Start the oldest work in a shared source lane first. Other due work remains
     # durable, and the next independent wake will dispatch it after this finishes.
     used_lanes = set()
@@ -375,6 +527,24 @@ def claim_job(
     return Claim(job, token, now)
 
 
+def request_refresh(db: Session, name: str, *, now: datetime) -> None:
+    """Durable source change signal, separate from an in-flight collector's progress."""
+    db.execute(
+        insert(SourceRefreshState)
+        .values(name=name, next_due_at=now, failures=0)
+        .on_conflict_do_update(
+            index_elements=["name"],
+            set_={"next_due_at": func.least(SourceRefreshState.next_due_at, now)},
+        )
+    )
+    db.execute(
+        insert(SourceRefreshState)
+        .values(name=f"signal:{name}", next_due_at=now, last_started_at=now, failures=0)
+        .on_conflict_do_update(index_elements=["name"], set_={"last_started_at": now})
+    )
+    # Caller commits this signal together with its observed source fingerprint.
+
+
 def finish_job(
     db: Session,
     claim: Claim,
@@ -396,7 +566,12 @@ def finish_job(
         .where(SourceRefreshState.name == claim.job.name)
         .with_for_update()
     )
-    if row is None or row.token != claim.token:
+    if (
+        row is None
+        or row.token != claim.token
+        or row.lease_expires_at is None
+        or row.lease_expires_at <= now
+    ):
         db.rollback()
         return False
     attempt = db.get(SourceRefreshAttempt, claim.token)
@@ -440,6 +615,19 @@ def finish_job(
         row.next_due_at = now + timedelta(
             minutes=min(360, 15 * 2 ** min(row.failures - 1, 5))
         )
+    signal_row = db.scalar(
+        select(SourceRefreshState)
+        .where(SourceRefreshState.name == f"signal:{claim.job.name}")
+        .with_for_update()
+    )
+    if signal_row is not None:
+        if (
+            code in (0, claim.job.review_exit)
+            and signal_row.last_started_at <= claim.started_at
+        ):
+            db.delete(signal_row)
+        else:
+            row.next_due_at = min(row.next_due_at, now)
     db.commit()
     return True
 
@@ -466,6 +654,18 @@ def _stop_process(process) -> None:
 
 def run_command(claim: Claim, *, target: str) -> CommandResult:
     """Stop our entire owned process group on timeout or runner shutdown."""
+    if (
+        target == "production"
+        and claim.job.name.startswith("bills-")
+        and (
+            os.getenv("ALETHICAL_BILL_EMBEDDINGS_APPROVED") != "true"
+            or not os.getenv("OPENAI_API_KEY")
+        )
+    ):
+        return CommandResult(
+            76,
+            {"status": "held", "reason": "approved existing embedding path required"},
+        )
     env = dict(
         os.environ,
         ALETHICAL_DATABASE_TARGET=target,
@@ -506,9 +706,8 @@ def run_command(claim: Claim, *, target: str) -> CommandResult:
             _stop_process(process)
             signal.signal(signal.SIGTERM, previous)
         finding = None
-        if (claim.job.review_exit or claim.job.capture_json) and code in (
-            0,
-            claim.job.review_exit,
+        if (claim.job.review_exit or claim.job.capture_json) and (
+            code in (0, 75, claim.job.review_exit) or claim.job.capture_json
         ):
             report.seek(0)
             body = report.read(131073)
@@ -531,13 +730,22 @@ def health(db: Session, *, now: datetime | None = None) -> list[dict]:
         last_success = row.last_succeeded_at if row else None
         # A started attempt is not proof of complete source coverage.
         completed = row.last_checked_at if row else None
-        overdue = completed is None or now > completed + job.interval + job.timeout
+        enabled = enabled_job(name)
+        overdue = enabled and (
+            completed is None or now > completed + job.interval + job.timeout
+        )
         result.append(
             dict(
                 name=name,
+                enabled=enabled,
+                family=job_family(name),
                 source=job.source,
                 purpose=job.purpose,
-                status="never_completed" if row is None else row.last_status,
+                status="disabled"
+                if not enabled
+                else "never_completed"
+                if row is None
+                else row.last_status or "never_completed",
                 last_succeeded_at=last_success,
                 last_checked_at=completed,
                 finding=row.finding if row else None,
@@ -559,23 +767,33 @@ def run_due(
     force: bool = False,
     execute=run_command,
     max_seconds: float = 18900,
+    max_turns: int = 1,
 ) -> int:
     available = jobs()
     selected = names if names is not None else list(available)
+    if max_turns < 1:
+        raise ValueError("A refresh turn count must be positive")
     unknown = set(selected) - available.keys()
     if unknown:
         raise ValueError(f"Unknown refresh jobs: {', '.join(sorted(unknown))}")
+    selected = [
+        name for name in selected if (force and names is not None) or enabled_job(name)
+    ]
     failed = False
     deadline = time.monotonic() + max_seconds
     queue = list(selected)
+    turns = {}
+    started = 0
     while queue and time.monotonic() < deadline:
         name = queue.pop(0)
+        turns[name] = turns.get(name, 0) + 1
         if deadline - time.monotonic() < available[name].timeout.total_seconds():
             continue
         with session_factory() as db:
             claim = claim_job(db, available[name], force=force)
         if claim is None:
             continue
+        started += 1
         print(
             json.dumps({"job": name, "run": str(claim.token), "status": "started"}),
             flush=True,
@@ -593,7 +811,7 @@ def run_due(
         with session_factory() as db:
             recorded = finish_job(db, claim, code=outcome.code, finding=outcome.finding)
         failed |= outcome.code not in (0, 75, 76, claim.job.review_exit) or not recorded
-        if outcome.code == 75 and recorded:
+        if outcome.code == 75 and recorded and turns[name] < max_turns:
             queue.append(name)
         print(
             json.dumps(
@@ -608,4 +826,15 @@ def run_due(
         )
         if stopping:
             return 130
+    if names is not None and started == 0:
+        print(
+            json.dumps(
+                {
+                    "status": "not_started",
+                    "reason": "not enabled, not due, leased, or insufficient time",
+                }
+            ),
+            flush=True,
+        )
+        return 76
     return int(failed)

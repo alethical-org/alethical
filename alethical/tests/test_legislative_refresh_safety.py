@@ -397,3 +397,23 @@ def test_votes_command_distinguishes_failure_review_and_success(
     captured = capsys.readouterr()
     assert "source diagnostic" in captured.err
     assert json.loads(captured.out)["missing"][field] == 1
+
+
+def test_cfb_posts_and_notice_gets_share_the_same_host_budget():
+    session = Mock()
+    session.post.return_value = SimpleNamespace(
+        status_code=429, headers={"Retry-After": "30"}
+    )
+    session.get.return_value = SimpleNamespace(status_code=200, headers={})
+    limiter = Mock()
+    source = RateLimitedSession(session, limiter)
+    source.post(
+        "https://cfb.mn.gov/rptViewer/data.php", data={"action": "grid"}, timeout=10
+    )
+    source.get("https://cfb.mn.gov/notices")
+    assert [call.args[0] for call in limiter.wait.call_args_list] == [
+        "https://cfb.mn.gov/rptViewer/data.php",
+        "https://cfb.mn.gov/notices",
+    ]
+    limiter.defer.assert_called_once_with("https://cfb.mn.gov/rptViewer/data.php", 30)
+    assert session.post.call_args.kwargs["allow_redirects"] is False

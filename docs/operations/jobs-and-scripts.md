@@ -2,8 +2,8 @@
 
 <!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py, alethical/api/services/candidate_claim_email.py, alethical/api/main.py, api/search-measurements.ts -->
 
-Net: The repository has 38 GitHub Actions workflows. 29 can start automatically
-and 9 run only when a person starts them. Scheduled checks, releases, and local
+Net: The repository has 38 GitHub Actions workflows. 32 can start automatically
+and 6 run only when a person starts them. Scheduled checks, releases, and local
 backups do not call paid AI services. Reader questions and deliberately started
 AI work do. The review of a failed campaign-money collection has a paid AI
 reviewer too, and its switch is off until its limits are approved.
@@ -30,13 +30,16 @@ update work. A listed timer does not establish that its latest records are live.
 | Bounded website repair (`.github/workflows/website-release-recovery.yml`) | A trusted current-main missing-release alarm fails, or by hand with dry run on by default | Stages and promotes at most 1 proven missed website release per commit, preserving rollback holds and checking live reader actions | No paid AI call; existing GitHub and Vercel build/hosting usage |
 | Project checks (`.github/workflows/ci.yml`) | Pull request code events, merge-queue checks, and pushes to `main` | Runs the code, formatting, security and document checks, including built-app replay startup and recovery with local sample records | No paid AI call; [standard GitHub-hosted runners are free for public repositories](https://docs.github.com/en/actions/concepts/billing-and-usage) |
 | Latest change explanation (`.github/workflows/pr-description.yml`) | Pull request opens, code updates, reopens, ready-for-review events, description edits, and merge-queue checks | Reads the latest `Docs check:` explanation against the current code; does not rerun app or server tests or replace their results | No paid AI call; read-only GitHub requests on a standard free runner |
-| Due public records (`.github/workflows/source-record-refresh.yml`) | Hourly at minute 17; optionally woken by the existing API; also by hand | Runs the oldest due work in each shared source lane, with saved progress, exclusive leases, retries and 1 grouped health issue; see the source table below | Free public GitHub runners and official reads; changed bill search embeddings retain the approval in [issue 1323](https://github.com/alethical-org/alethical/issues/1323) |
+| Due public records (`.github/workflows/source-record-refresh.yml`) | Hourly at minute 17; optionally woken by the existing API; also by hand | Runs enabled families in bounded turns, with saved progress, source-specific lanes, age-aware priority, retries and 1 grouped health issue; see the source table below | Free public GitHub runners and official reads; changed bill search embeddings retain the approval in [issue 1323](https://github.com/alethical-org/alethical/issues/1323) |
+| Campaign notices fallback (`.github/workflows/campaign-money-notices.yml`) | Existing election-window and weekly timers while the notices family is off; manual recovery remains available | Collects notices, catalogues and approved readings with the narrow shared mutation lock | No paid AI call; official sources and existing storage |
+| Campaign money fallback (`.github/workflows/campaign-money-refresh.yml`) | Daily at 15:30 UTC while the campaign family is off; also by hand | Preserves the existing full refresh and failure drill during staged activation | No paid AI call; official sources and existing database |
+| Vote fallback (`.github/workflows/vote-backfill.yml`) | Daily at 09:00 UTC while the legislative family is off; also by hand | Collects missing votes during staged activation | No paid AI call; official sources and existing database |
 | Missing bill sections (`.github/workflows/bill-section-gaps.yml`) | Daily at 11:00 UTC | Opens or updates an issue when stored bill text is incomplete | No paid AI call; reads the database |
 | Committee links still agree (`.github/workflows/committee-link-contradictions.yml`) | Weekly, Mondays at 15:00 UTC | Re-reads every campaign account a person confirmed as a politician's against Minnesota's own records, and opens or updates an issue when one no longer agrees | No paid AI call; 2 free government downloads and one read of the database |
 | Copy of every cited source (`.github/workflows/published-source-archive.yml`) | Weekly, Mondays at 10:00 UTC | Re-reads every outside address our published research and guides cite, keeps our own copy of each version, and opens or updates an issue when one has gone or changed | No paid AI call; free government page reads and storage in a bucket we already pay for |
 | Published piece links still work (`.github/workflows/published-piece-links.yml`) | Weekly, Mondays at 13:00 UTC, and on relevant pull requests | Opens or updates an issue when a link inside a published piece no longer reaches a real page; a pull request only checks the pieces' own links, without reading the network | No paid AI call; free government page reads |
 | Bills missing from search (`.github/workflows/rag-coverage-gaps.yml`) | Daily at 12:00 UTC | Opens or updates an issue when a stored bill has no current search index | No paid AI call; reads the database and does not rebuild the index |
-| FCC political-file archive (`.github/workflows/fcc-political-files.yml`) | Daily at 06:23 UTC, or by hand with dry run on by default | Lists all available political folders and years for KSTP-TV, KARE and KMSP-TV; attempts up to 1,000 new, changed or due downloads, up to 2,500 second copies and up to 1,000 local readings; reports source gaps, operational failures and unfinished work in a run summary and 1 continuing issue | No paid AI call; free FCC downloads, existing GitHub runner usage and private Supabase/R2 storage and transfer allowances |
+| FCC political-file archive (`.github/workflows/fcc-political-files.yml`) | Daily at 06:23 UTC while the FCC family is off, or by hand with dry run on by default | Lists all available political folders and years for KSTP-TV, KARE and KMSP-TV; attempts up to 1,000 new, changed or due downloads, up to 2,500 second copies and up to 1,000 local readings; reports source gaps, operational failures and unfinished work in a run summary and 1 continuing issue | No paid AI call; free FCC downloads, existing GitHub runner usage and private Supabase/R2 storage and transfer allowances |
 | Second copy of source files (`.github/workflows/mirror-raw-files.yml`) | Daily at 13:00 UTC | Checks current files in Supabase and Cloudflare R2, repairs missing second copies, and renews old hash proofs within a 256 MiB combined read budget. Discovers stored-source tables from the database schema, including FCC political-file copies, so a new source joins the backup without a separate table list | No paid AI call; [Cloudflare R2 includes 10 GB of Standard storage and large monthly operation allowances](https://developers.cloudflare.com/r2/pricing/) before charges |
 | Bills with summary gaps (`.github/workflows/bill-summary-coverage.yml`) | Daily at 14:00 UTC | Opens or updates 1 issue when a bill has complete current text but its full summary is missing or was made from older text or instructions | No paid AI call; reads the database and does not create or change a summary |
 | Homepage fact check (`.github/workflows/home-hero-card-facts.yml`) | Daily at 12:00 UTC, and on relevant pull requests | Checks the homepage's 5 bill claims against Minnesota's published record | No paid AI call; reads public government pages |
@@ -67,20 +70,17 @@ accepted-production flag is `true`, staged off until
 [deployment.md § Profile claim email activation](deployment.md#profile-claim-email-activation)
 passes. Its queue wakeup calls no paid API; only eligible queued messages reach Resend.
 
-The 18 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
+The 21 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
 Time and Central Daylight Time, so their local hour changes by 1 during the year.
 
 ## What GitHub runs only by hand
 
-These 9 workflows complete the total of 38:
+These 6 workflows complete the total of 38:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |
 | `.github/workflows/address-copy-capacity.yml` | Read the existing Railway server’s capacity without exposing private logs | No paid AI call; bounded reads on the existing account |
 | `.github/workflows/address-copy-control.yml` | Switch copied address suggestions on after measured capacity and charges review, or restore live suggestions | No paid AI call or new resource; existing Railway deployment and hosting usage |
-| `.github/workflows/campaign-money-notices.yml` | Collect notices and disclosure statements by hand for recovery | No paid AI call; official sources and existing storage |
-| `.github/workflows/campaign-money-refresh.yml` | Run the campaign-money refresh or its failure-report drill by hand | No paid AI call; official sources and existing database |
-| `.github/workflows/vote-backfill.yml` | Collect missing vote records by hand | No paid AI call; official sources and existing database |
 | `.github/workflows/legislator-city-backfill.yml` | Preview or fill missing legislator residence cities | No paid AI call; reads public government sources and the database |
 | `.github/workflows/migrate.yml` | Apply database changes and check for structural drift when the normal Railway release path needs a fallback | No paid AI call; uses GitHub and the existing database service |
 | `.github/workflows/railway-deploy.yml` | Release the API when Railway's Git connection needs a fallback | No paid AI call; build and hosting usage stays on the existing Railway account |
@@ -115,7 +115,7 @@ rechecks remain unfinished.
 
 ## Command-line tools
 
-The `scripts/` folder has 118 runnable files. GitHub jobs call 48 of them
+The `scripts/` folder has 121 runnable files. GitHub jobs call 48 of them
 directly and 3 document checks through `local_checks.py`. The 4 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`, which uses `worktree_inventory.py`
 for the complete folder report; the older shell command
@@ -128,7 +128,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 
 | Purpose | Files |
 | --- | --- |
-| Run and observe saved public-record deadlines | `refresh_public_records.py`, `report_source_refresh_health.py`, `run_scheduled_bill_refresh.py`, `refresh_legislative_records.py`, `refresh_lobbying_records.py` |
+| Run and observe saved public-record deadlines | `refresh_public_records.py`, `report_source_refresh_health.py`, `discover_campaign_records.py`, `discover_legislative_records.py`, `refresh_fcc_records.py`, `run_scheduled_bill_refresh.py`, `refresh_legislative_records.py`, `refresh_lobbying_records.py` |
 | Detect official sources needing a reviewed mapping | `check_legislative_sessions.py`, `check_supporting_sources.py` |
 | Prepare private donor evidence and recover reviewed campaign totals | `prepare_lobbyist_donor_evidence.py`, `rollback_campaign_finance_filings.py` |
 | Import official records or test data | `build_legislative_district_boundaries.py`, `build_zip_state_reference.py`, `load_campaign_finance.py`, `collect_campaign_finance_notices.py`, `collect_campaign_finance_statements.py`, `load_campaign_finance_filings.py`, `refresh_campaign_finance.py` (the daily campaign-money refresh, all steps in order), `load_lobbying.py` (paired current lobbyists and spending), `load_lobbying_expenditures.py` (spending-only compatibility command), `load_minnesota_data.py`, `load_refund_summaries.py`, `load_sample_data.py` |
@@ -184,13 +184,14 @@ The API wakeup does not guarantee immediate availability of a GitHub runner.
 
 | Source | Target interval | What can reach readers automatically |
 | --- | --- | --- |
-| Bills | 4 hours during regular sittings and the 14 days after adjournment; 2 hours during special sittings; weekly otherwise | Complete official inventory in resumable chunks; changed text and search together; summaries remain off |
-| Votes and roster | Daily | Newly available rolls, bounded correction checks, complete rosters, contacts, service and committees; incomplete sources retain held data |
+| Bills | Dated-action discovery every 15 minutes during sittings and hourly otherwise, today plus 2 days; a daily 14-day lookback; up to 25 bills per turn; full reconciliation every 4 hours during regular sittings and the 14 days after adjournment, 2 hours during special sittings, weekly otherwise | Both chamber action views feed finite saved passes; full inventory/status/text reconciliation covers undated actions and older same-address corrections; changed text and search commit together; summaries remain off |
+| Votes and roster | Votes hourly; roster daily | Newly available rolls, bounded correction checks, complete rosters, contacts, service and committees; incomplete sources retain held data |
 | Lobbying | Daily | A checked registration/spending pair, with separate source dates and retryable saved-answer clearing |
-| Campaign money | Payments daily; supported totals on list changes or weekly | Checked source releases and corrected supported years; no 2015–2021 totals expansion |
+| Campaign money | 6-list discovery every 15 minutes; payments daily; supported totals on list changes or weekly; checks in 10 committee-year / 120-second / 10-request turns | Checked source releases and corrected supported years; no 2015–2021 totals expansion |
 | Filing dates | Daily | Dates supported by readable official reports; unavailable/scanned sources remain review findings |
-| Large-contribution notices | Daily; retained notice corrections weekly | Official new/corrected notices; unknown election calendars require review |
+| Large-contribution notices | Every 15 minutes in July, August, October and November; hourly otherwise; retained notice corrections weekly | Official new/corrected notices; unknown election calendars require review |
 | Disclosure statements | Weekly | New catalogues and corrected PDFs; human-reviewed readings stay protected |
+| FCC political files | Hourly enabled-family inventory; at most 100 downloads, 250 mirrors and 100 readings per turn | Existing 3-station collector; source gaps and unfinished bounded work retain their incomplete status |
 | Refunds | Every 30 days | Rechecked official summaries using approved account links |
 | Donor evidence | Daily preparation | Private evidence bundle only; no automatic donor-proof approval or publication |
 | Session codes and candidate source changes | Daily | Review findings; unknown session/election mappings are not guessed |
@@ -198,12 +199,17 @@ The API wakeup does not guarantee immediate availability of a GitHub runner.
 | Cited article sources | Existing weekly archive schedule | Retained source versions; repeated unavailable sources fail visibly |
 
 `source_refresh_state` keeps next due time, ownership, progress and outcome;
-`source_refresh_attempt` keeps run history. Shared campaign and legislative lanes
-prevent overlapping collectors. A continuation is not a complete collection.
+`source_refresh_attempt` keeps run history. Collection and bounded money checks share
+a writer lane; notices and cheap change checks run independently. Legislative
+changes and votes share a lane because they update the same actions. A turn runs
+each selected job once, then releases its lane. A continuation is not a complete collection.
 Failed checks, review findings and copied source dates stay distinct.
 
-The old campaign-money, notices and vote workflows remain manual repair tools.
-Their old timers are removed so saved deadlines govern routine collection.
+The campaign-money, notices, vote and FCC timers stay active while their matching
+family is off. The same GitHub family setting disables a legacy scheduled collector
+and enables its replacement; manual repair paths remain. No family is active by
+default. [Independent public-record wakeups](source-refresh-dispatch.md#staged-family-activation)
+owns the setup, proof and rollback steps.
 The shared health warning closes only when the current source state is clear;
 private evidence and exception text never enter its public issue. Setup failures
 also produce a fixed warning. Existing backup work includes private evidence bundles.

@@ -8,10 +8,8 @@ records each statement listed (never deleting one no longer listed), fetches eac
 statement PDF we do not hold (once, then kept), and notes any notice the catalogue marks
 as revised.
 
-The filings loader already fetches every catalogue at each totals refresh; it can call
-``campaign_finance_notices.record_catalogue_statements`` with the catalogue it holds, at
-no extra request to the Board. This script is the standalone form, for the backfill and
-for a refresh that does not hold the catalogues.
+This standalone collector reads the catalogues for statements and notice amendments.
+It shares a narrow writer lock with notice collection and reviewed statement readings.
 
 Usage::
 
@@ -24,11 +22,10 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from contextlib import nullcontext
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import create_engine, select, text
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,7 +49,12 @@ from alethical.pipeline.cache_purge import (  # noqa: E402
     when_notices_or_statements_are_stored,
 )
 from alethical.pipeline.raw_file_store import raw_file_store_from_env  # noqa: E402
-from alethical.pipeline.campaign_finance_refresh import hold_full_run_lease  # noqa: E402
+from alethical.pipeline.notice_collection_lock import (  # noqa: E402
+    NoticeWriterBusy,
+    NoticeWriterLost,
+)
+from alethical.pipeline.campaign_notice_reference import load_reference  # noqa: E402
+from alethical.pipeline.request_limits import DatabaseRequestLimiter, RateLimitedSession  # noqa: E402
 
 KINDS = {
     "committees": (schema.CampaignFinanceFilerKind.political_committee_or_fund,),
@@ -92,25 +94,16 @@ def main() -> int:
         ),
         connect_args=NO_PREPARED_STATEMENTS,
     )
-    # Share the same writer lease as the totals refresh and manual collectors.
-    # Dry runs do not write and need not wait behind a production copy.
-    guard = (
-        nullcontext(True)
-        if args.dry_run
-        else hold_full_run_lease(engine, purpose="collecting campaign statements")
-    )
-    with guard as held:
-        if not held:
-            record_stage(
-                "statements",
-                "skipped",
-                details=["deferred: another campaign run holds the writer lease"],
-            )
-            print(
-                "deferred: another campaign run holds the writer lease", file=sys.stderr
-            )
-            return 76
+    try:
         return _collect(args, engine)
+    except (NoticeWriterBusy, NoticeWriterLost) as error:
+        print(str(error), file=sys.stderr)
+        record_stage(
+            "statements", "skipped", details=["notice/statement writer unavailable"]
+        )
+        return 76
+    finally:
+        engine.dispose()
 
 
 def _collect(args, engine) -> int:
@@ -123,24 +116,31 @@ def _collect(args, engine) -> int:
                 file=sys.stderr,
             )
             return 1
-        snapshot = filings.live_filings_snapshot(db)
-        if snapshot is None:
+        try:
+            reference = load_reference(engine)
+        except ValueError as error:
+            print(f"refused: {error}", file=sys.stderr)
+            return 1
+        wanted = sorted(
+            [
+                (f.kind, f.registration_number)
+                for f in reference.filers
+                if f.kind in KINDS[args.kinds]
+                and (not args.only or f.registration_number in args.only)
+            ],
+            key=lambda row: row[1],
+        )
+        if not wanted:
             print(
-                "refused: no published register to read filers from.", file=sys.stderr
+                "refused: no requested catalogues in the published register",
+                file=sys.stderr,
             )
             return 1
-        filer = schema.CampaignFinanceFiler
-        query = select(filer.kind, filer.registration_number).where(
-            filer.snapshot_id == snapshot.id, filer.kind.in_(KINDS[args.kinds])
-        )
-        if args.only:
-            query = query.where(filer.registration_number.in_(args.only))
-        wanted = sorted(db.execute(query).all(), key=lambda row: row[1])
         print(f"reading {len(wanted)} catalogues for {args.year}", flush=True)
         store = None if args.dry_run else raw_file_store_from_env()
         report = notices.scan_catalogues_for_statements(
             db,
-            filings.http_session(),
+            RateLimitedSession(filings.http_session(), DatabaseRequestLimiter(engine)),
             store,
             filers=[(kind, number) for kind, number in wanted],
             segment=filings.segment_for_year(args.year),
@@ -148,6 +148,7 @@ def _collect(args, engine) -> int:
             dry_run=args.dry_run,
             cache=notices.PdfCache(args.pdf_cache),
             refresh_existing=args.refresh_existing,
+            completion_check=lambda: reference.still_current(db),
         )
     print(
         f"catalogues read: {report.catalogues_read} of {len(wanted)}; statements listed: "
@@ -158,12 +159,14 @@ def _collect(args, engine) -> int:
         print(f"problem: {line}")
     for line in report.not_served:
         print(f"not served, asked again next run: {line}")
-    catalogue_failed = bool(report.failures or report.catalogues_read < len(wanted))
+    catalogue_failed = bool(
+        report.failures or report.catalogues_read < len(wanted) or report.not_served
+    )
     # A full scan records a new copy date, which the statement cards print (#1979).
     clearing_failed, clearing_note = clear_and_note(
         when_notices_or_statements_are_stored(),
         stored=not args.dry_run
-        and (report.new > 0 or report.catalogues_read == len(wanted)),
+        and (report.new > 0 or report.notice_amendments > 0 or not catalogue_failed),
     )
     failed = catalogue_failed or clearing_failed
     # What this run did, for the failure review (#2350).

@@ -144,5 +144,16 @@ class RateLimitedSession:
             url = destination
         raise requests.TooManyRedirects("Source exceeded 10 redirects")
 
+    def post(self, url: str, **kwargs: Any) -> requests.Response:
+        # CFB's directory and catalogue use POST; reserve the same host budget
+        # as notice GETs and honor its busy response before any other source job.
+        self.limiter.wait(url)
+        response = self.session.post(url, allow_redirects=False, **kwargs)
+        if response.status_code in {429, 503}:
+            self.limiter.defer(
+                url, retry_after_seconds(response.headers.get("Retry-After"))
+            )
+        return response
+
     def close(self) -> None:
         self.session.close()

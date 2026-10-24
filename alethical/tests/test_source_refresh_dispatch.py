@@ -23,6 +23,7 @@ def isolated(monkeypatch, seed_database):
     with get_session_factory()() as db:
         db.execute(delete(SourceRefreshState))
         db.commit()
+    monkeypatch.setenv("ALETHICAL_SOURCE_REFRESH_FAMILIES", '["supporting"]')
     monkeypatch.setenv("ALETHICAL_SOURCE_REFRESH_DISPATCH_ENABLED", "true")
     monkeypatch.setenv("ALETHICAL_SOURCE_REFRESH_APP_ID", "123")
     monkeypatch.setenv("ALETHICAL_SOURCE_REFRESH_INSTALLATION_ID", "456")
@@ -276,3 +277,33 @@ def test_busy_lane_prevents_waking_competing_job(monkeypatch):
         db.commit()
     with client_for([]) as client:
         assert service.dispatch_due(get_session_factory(), now=NOW, client=client) == []
+
+
+def test_finished_bounded_turn_can_resume_before_queued_request_cooldown():
+    requests = []
+    with client_for(requests) as client:
+        assert service.dispatch_due(get_session_factory(), now=NOW, client=client)
+        with get_session_factory()() as db:
+            db.add(
+                SourceRefreshState(
+                    name="maps",
+                    next_due_at=NOW,
+                    last_started_at=NOW + timedelta(seconds=10),
+                    last_finished_at=NOW + timedelta(seconds=20),
+                    last_status="continuing",
+                    failures=0,
+                )
+            )
+            db.commit()
+        assert service.dispatch_due(
+            get_session_factory(), now=NOW + timedelta(minutes=1), client=client
+        )
+        # The second request has not been claimed. Its cooldown still prevents a duplicate.
+        assert (
+            service.dispatch_due(
+                get_session_factory(), now=NOW + timedelta(minutes=2), client=client
+            )
+            == []
+        )
+    with get_session_factory()() as db:
+        assert db.get(SourceRefreshState, "maps").last_checked_at is None

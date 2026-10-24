@@ -23,19 +23,17 @@ import hashlib
 import json
 import os
 import sys
-from contextlib import nullcontext, redirect_stdout
+from contextlib import redirect_stdout
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import create_engine, select, text
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from alethical.api.services.campaign_finance_register import sub_types_for  # noqa: E402
-from alethical.db import models as schema  # noqa: E402
 from alethical.db.session import (  # noqa: E402
     NO_PREPARED_STATEMENTS,
     database_url_for_target,
@@ -43,7 +41,6 @@ from alethical.db.session import (  # noqa: E402
 )
 from alethical.pipeline import campaign_finance_filings as filings  # noqa: E402
 from alethical.pipeline import campaign_finance_notices as notices  # noqa: E402
-from alethical.pipeline.campaign_finance_reader import live_release  # noqa: E402
 from alethical.pipeline.collection_run_summary import (  # noqa: E402
     record_stage,
     run_script,
@@ -53,7 +50,12 @@ from alethical.pipeline.cache_purge import (  # noqa: E402
     when_notices_or_statements_are_stored,
 )
 from alethical.pipeline.raw_file_store import raw_file_store_from_env  # noqa: E402
-from alethical.pipeline.campaign_finance_refresh import hold_full_run_lease  # noqa: E402
+from alethical.pipeline.notice_collection_lock import (  # noqa: E402
+    NoticeWriterBusy,
+    NoticeWriterLost,
+)
+from alethical.pipeline.campaign_notice_reference import load_reference  # noqa: E402
+from alethical.pipeline.request_limits import DatabaseRequestLimiter, RateLimitedSession  # noqa: E402
 
 
 def _ballot(http) -> tuple[list, list, list[str]]:
@@ -110,29 +112,20 @@ def main() -> int:
         ),
         connect_args=NO_PREPARED_STATEMENTS,
     )
-    # Share the same writer lease as the totals refresh and manual collectors.
-    # Dry runs do not write and need not wait behind a production copy.
-    guard = (
-        nullcontext(True)
-        if args.dry_run
-        else hold_full_run_lease(engine, purpose="collecting campaign notices")
-    )
-    with guard as held:
-        if not held:
-            record_stage(
-                "notices",
-                "skipped",
-                details=["deferred: another campaign run holds the writer lease"],
-            )
-            print(
-                "deferred: another campaign run holds the writer lease", file=sys.stderr
-            )
-            return 76
+    try:
         if args.json:
             output = sys.stdout
             with redirect_stdout(sys.stderr):
                 return _collect(args, engine, json_output=output)
         return _collect(args, engine)
+    except (NoticeWriterBusy, NoticeWriterLost) as error:
+        print(str(error), file=sys.stderr)
+        record_stage(
+            "notices", "skipped", details=["notice/statement writer unavailable"]
+        )
+        return 76
+    finally:
+        engine.dispose()
 
 
 def notice_finding(report, *, now_year: int, skip_ballot: bool, failed: bool) -> dict:
@@ -173,7 +166,7 @@ def notice_finding(report, *, now_year: int, skip_ballot: bool, failed: bool) ->
 
 def _collect(args, engine, *, json_output=None) -> int:
     now = datetime.now(UTC)
-    http = filings.http_session()
+    http = RateLimitedSession(filings.http_session(), DatabaseRequestLimiter(engine))
     exit_code = 0
     ballot_failures: list[str] = []
     with Session(engine) as db:
@@ -222,27 +215,26 @@ def _collect(args, engine, *, json_output=None) -> int:
             if failures:
                 exit_code = 1
             else:
-                snapshot = filings.live_filings_snapshot(db)
-                filers = (
-                    db.scalars(
-                        select(schema.CampaignFinanceFiler).where(
-                            schema.CampaignFinanceFiler.snapshot_id == snapshot.id
-                        )
-                    ).all()
-                    if snapshot is not None
-                    else []
-                )
-                release = live_release(db)
-                sub_types = (
-                    sub_types_for(db, release, [f.registration_number for f in filers])
-                    if release is not None
-                    else {}
-                )
+                try:
+                    reference = load_reference(engine, require_payments=True)
+                except ValueError as error:
+                    print(f"ballot reference unavailable: {error}", file=sys.stderr)
+                    return 1
+                if not reference.still_current(db, require_payments=True):
+                    print(
+                        "ballot reference changed; exclusions retained", file=sys.stderr
+                    )
+                    return 76
+                filers = reference.filers
+                sub_types = reference.sub_types
                 decided = notices.record_window_exclusions(
                     db,
                     election_year=now.year,
                     filers=filers,
                     sub_types=sub_types,
+                    completion_check=lambda: reference.still_current(
+                        db, require_payments=True
+                    ),
                     primary=primary,
                     general=general,
                     dry_run=args.dry_run,

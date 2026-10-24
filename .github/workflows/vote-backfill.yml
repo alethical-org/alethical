@@ -9,7 +9,8 @@ name: Backfill roll-call votes
 
 on:
   workflow_dispatch:
-  # Scheduled starts now use source-record-refresh.yml, including safe corrections.
+  schedule:
+    - cron: "0 9 * * *"
 
 permissions:
   contents: read
@@ -20,6 +21,7 @@ concurrency:
 
 jobs:
   backfill:
+    if: ${{ github.event_name != 'schedule' || !contains(fromJSON(vars.SOURCE_REFRESH_FAMILIES || '[]'), 'legislative') }}
     runs-on: ubuntu-latest
     # Build the production URL from the same Supabase inputs the app/migrations
     # use (supabase_database_url), so there is no separate DATABASE_URL copy of

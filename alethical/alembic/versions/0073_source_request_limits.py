@@ -4,7 +4,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "0073_source_request_limits"
-down_revision = "0071_private_search_measurements"
+down_revision = "0072_campaign_payment_manifest"
 branch_labels = None
 depends_on = None
 

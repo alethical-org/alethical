@@ -6,8 +6,8 @@ import re
 import time
 import uuid
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
-from datetime import UTC, datetime
+from dataclasses import dataclass, replace
+from datetime import UTC, date, datetime, timedelta
 from html.parser import HTMLParser
 from typing import Any, Iterable
 from urllib.parse import urljoin, urlsplit
@@ -518,6 +518,14 @@ def discover_bill_range(
         "GET", "https://www.revisor.mn.gov/bills/status_result.php", params=params
     ).prepare()
     xml_text = fetch_text(sess, request.url or "")
+    return parse_bill_search_results(
+        xml_text, chamber=chamber, session_code=session_code
+    )
+
+
+def parse_bill_search_results(
+    xml_text: str, *, chamber: str, session_code: str
+) -> list[BillSearchResult]:
     root = ET.fromstring(xml_text)
     if root.tag != "SEARCH_RESULTS" or root.find("API_INFO") is None:
         raise MinnesotaIngestionError(
@@ -619,6 +627,85 @@ def discover_complete_session_bills(
             else:
                 found.update((item.bill_key, item) for item in rows)
     return sorted(found.values(), key=lambda item: (item.file_type, item.file_number))
+
+
+def discover_recent_action_bills(
+    sess: requests.Session, *, session_code: str, start: date, end: date
+) -> list[BillSearchResult]:
+    """Read both official dated-action searches, splitting capped date windows.
+
+    The source warns that undated actions are omitted. This is a scoped fast path,
+    never a replacement for complete inventory and status/text reconciliation.
+    """
+    definition = session_definition(session_code)
+    if start > end or (end - start).days > 31:
+        raise ValueError("Action discovery requires a bounded date window")
+    found: dict[str, BillSearchResult] = {}
+    for chamber in ("House", "Senate"):
+        pending = [(start, end)]
+        while pending:
+            left, right = pending.pop()
+            params = {
+                "body": chamber,
+                "search": "advanced",
+                "session": session_code,
+                "search_type": "andor",
+                "biennium[]": f"LS{definition.session_number}",
+                "action[]": "",
+                "fromDate": left.strftime("%m/%d/%y"),
+                "toDate": right.strftime("%m/%d/%y"),
+                "submit_advanced": "GO",
+                "format": "xml",
+            }
+            request = requests.Request(
+                "GET",
+                "https://www.revisor.mn.gov/bills/status_result.php",
+                params=params,
+            ).prepare()
+            rows = parse_bill_search_results(
+                fetch_text(sess, request.url or ""),
+                chamber=chamber,
+                session_code=session_code,
+            )
+            if len(rows) >= 500:
+                if left == right:
+                    raise MinnesotaIngestionError(
+                        "Official dated-action search reached its single-day cap; full reconciliation remains due"
+                    )
+                middle = left + timedelta(days=(right - left).days // 2)
+                pending.extend(((left, middle), (middle + timedelta(days=1), right)))
+                continue
+            for item in rows:
+                match = re.fullmatch(
+                    r"https://api\.revisor\.mn\.gov/bills/v1/(\d+)/(\d{4})/(\d+)/(HF|SF)/(\d+)/",
+                    item.status_xml_uri,
+                )
+                if (
+                    match is None
+                    or int(match[1]) != definition.session_number
+                    or match[4] != item.file_type
+                    or int(match[5]) != item.file_number
+                    or not item.latest_text_html_uri.startswith(
+                        "https://www.revisor.mn.gov/bills/"
+                    )
+                ):
+                    raise MinnesotaIngestionError(
+                        "Action discovery returned an invalid official bill identity"
+                    )
+                mapped_code = f"{int(match[3])}{int(match[1]):02d}{match[2]}"
+                session_definition(mapped_code)
+                item = replace(
+                    item,
+                    chamber="House" if item.file_type == "HF" else "Senate",
+                    session_code=mapped_code,
+                )
+                previous = found.get(item.bill_key)
+                if previous is not None and previous != item:
+                    raise MinnesotaIngestionError(
+                        "Chamber action searches disagree on a bill identity"
+                    )
+                found[item.bill_key] = item
+    return sorted(found.values(), key=lambda item: item.bill_key)
 
 
 def parse_bill_xml(xml_text: str) -> dict[str, object]:

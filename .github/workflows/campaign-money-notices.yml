@@ -33,12 +33,18 @@ on:
         options: ["weekly default", "none", "committees", "all"]
         default: "weekly default"
 
+  schedule:
+    - cron: "15 17 20-31 10 *"
+    - cron: "15 17 1-6 11 *"
+    - cron: "15 17 * * 3"
+
 concurrency:
   group: production-campaign-money-notices
   cancel-in-progress: false
 
 jobs:
   collect:
+    if: ${{ github.event_name != 'schedule' || !contains(fromJSON(vars.SOURCE_REFRESH_FAMILIES || '[]'), 'notices') }}
     runs-on: ubuntu-latest
     timeout-minutes: 335
     permissions:

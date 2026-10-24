@@ -12,6 +12,14 @@ from alethical.pipeline import record_refresh as runner
 NOW = datetime(2026, 10, 7, tzinfo=UTC)
 
 
+@pytest.fixture(autouse=True)
+def activated_families(monkeypatch):
+    monkeypatch.setenv(
+        "ALETHICAL_SOURCE_REFRESH_FAMILIES",
+        '["campaign","notices","legislative","lobbying","supporting","fcc"]',
+    )
+
+
 @pytest.fixture
 def sessions(seed_database):
     factory = sessionmaker(bind=get_engine())
@@ -105,7 +113,9 @@ def test_run_due_resumes_chunks_and_returns_review_success(sessions, monkeypatch
     monkeypatch.setattr(runner, "jobs", lambda: {"test": job(review_exit=2)})
     codes = iter([75, 2])
     assert (
-        runner.run_due(sessions, target="local", execute=lambda *a, **k: next(codes))
+        runner.run_due(
+            sessions, target="local", execute=lambda *a, **k: next(codes), max_turns=2
+        )
         == 0
     )
     with sessions() as db:
@@ -313,3 +323,114 @@ def test_roster_uses_numeric_legislature_order_not_source_code_order(monkeypatch
     definitions = runner.jobs(datetime(2037, 2, 1, tzinfo=UTC))
     assert definitions["roster"].arguments[-1] == "01002037"
     assert definitions["votes"].arguments[-1] == "01002037"
+
+
+def test_disabled_families_do_not_start_or_report_overdue(sessions, monkeypatch):
+    monkeypatch.delenv("ALETHICAL_SOURCE_REFRESH_FAMILIES", raising=False)
+    with sessions() as db:
+        assert runner.due_names(db, now=NOW) == []
+        assert not any(row["overdue"] for row in runner.health(db, now=NOW))
+    assert (
+        runner.run_due(
+            sessions,
+            target="local",
+            execute=lambda *a, **k: pytest.fail("disabled job ran"),
+        )
+        == 0
+    )
+
+
+def test_bounded_continuation_yields_its_lane(sessions, monkeypatch):
+    monkeypatch.setattr(runner, "jobs", lambda: {"test": job()})
+    calls = []
+    assert (
+        runner.run_due(
+            sessions, target="local", execute=lambda *a, **k: calls.append(True) or 75
+        )
+        == 0
+    )
+    assert calls == [True]
+    with sessions() as db:
+        assert db.get(SourceRefreshState, "test").last_status == "continuing"
+        assert db.get(SourceRefreshState, "test").last_checked_at is None
+
+
+def test_change_observed_during_collection_survives_late_success(sessions):
+    with sessions() as db:
+        claim = runner.claim_job(db, job(), now=NOW)
+    with sessions() as db:
+        runner.request_refresh(db, "test", now=NOW + timedelta(minutes=1))
+        db.commit()
+    with sessions() as db:
+        runner.finish_job(db, claim, code=0, now=NOW + timedelta(minutes=2))
+        assert db.get(SourceRefreshState, "test").next_due_at == NOW + timedelta(
+            minutes=2
+        )
+        assert db.get(SourceRefreshState, "signal:test") is not None
+
+
+def test_urgent_discovery_is_not_in_the_long_money_lane(sessions):
+    definitions = runner.jobs(NOW)
+    with sessions() as db:
+        assert runner.claim_job(db, definitions["campaign-money"], now=NOW)
+        assert runner.claim_job(db, definitions["campaign-discovery"], now=NOW)
+        assert runner.claim_job(db, definitions["notices"], now=NOW)
+
+
+def test_old_reconciliation_eventually_outranks_new_urgent_work(sessions, monkeypatch):
+    definitions = {
+        "urgent": job("urgent", lane="same", priority=6),
+        "history": job("history", lane="same"),
+    }
+    monkeypatch.setattr(runner, "jobs", lambda *a: definitions)
+    with sessions() as db:
+        db.add(
+            SourceRefreshState(
+                name="history", next_due_at=NOW - timedelta(days=10), failures=0
+            )
+        )
+        db.commit()
+        assert runner.due_names(db, now=NOW)[0] == "history"
+
+
+def test_named_verification_keeps_overlap_and_reports_not_started(
+    sessions, monkeypatch
+):
+    monkeypatch.delenv("ALETHICAL_SOURCE_REFRESH_FAMILIES", raising=False)
+    definition = job()
+    monkeypatch.setattr(runner, "jobs", lambda: {"test": definition})
+    with sessions() as db:
+        runner.claim_job(db, definition)
+    assert (
+        runner.run_due(
+            sessions,
+            target="local",
+            names=["test"],
+            force=True,
+            execute=lambda *a, **k: pytest.fail("lease bypassed"),
+        )
+        == 76
+    )
+
+
+def test_production_bill_collection_requires_approved_existing_embedding_path(
+    monkeypatch,
+):
+    monkeypatch.delenv("ALETHICAL_BILL_EMBEDDINGS_APPROVED", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "unapproved-test-key")
+    monkeypatch.setattr(
+        runner.subprocess,
+        "Popen",
+        lambda *a, **k: pytest.fail("unapproved paid path started"),
+    )
+    result = runner.run_command(
+        runner.Claim(job("bills-test"), uuid.uuid4(), NOW), target="production"
+    )
+    assert result.code == 76 and result.finding["status"] == "held"
+
+
+def test_expired_source_owner_cannot_complete_even_before_a_replacement(sessions):
+    with sessions() as db:
+        claim = runner.claim_job(db, job(), now=NOW)
+        assert not runner.finish_job(db, claim, code=0, now=NOW + timedelta(hours=1))
+        assert db.get(SourceRefreshState, "test").last_checked_at is None

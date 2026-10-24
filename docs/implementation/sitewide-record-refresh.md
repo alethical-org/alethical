@@ -2,10 +2,9 @@
 
 ## Authorization and completion
 
-Eugene requested a comprehensive assessment of routine state-record collection,
-then on 7 October 2026 said: “build everything and report if we should keep
-improving anything further”. The outcome is scheduled, checked updates reaching
-readers, with retained good records after incomplete downloads and recoverable
+Approved scope is routine collection of all existing public records, with prompt
+updates after official publication. Completion means scheduled, checked updates
+reaching readers, retained good records after incomplete downloads and recoverable
 unfinished downstream work. A merged importer alone does not finish this task.
 
 Existing holds remain: no recurring AI summaries or real notification sends;
@@ -17,16 +16,15 @@ New statute and hearing products are outside this build.
 
 ## Current continuation and ownership
 
-The user renewed full implementation on 24 October 2026: “build solutions for all
-fixes needed and proactive updating of all records as quickly as possible after
-they are published by the official source”, followed by “apply your rec on pmt
-file and all going forward without asking me”. Federal expansion remains deferred.
-Existing paid-summary, user-send and evidence-review boundaries remain in force.
+The October 24, 2026 authorization covers full implementation and proactive
+updates to existing records, including separate checked payment files. Federal
+expansion remains deferred. Existing paid-summary, user-send and evidence-review
+boundaries remain in force.
 
 The scheduler owner continues draft 2511 in the managed folder
 `/Users/eug/.codex/worktrees/source-refresh-continuation/Alethical`, local branch
 `codex/source-refresh-continuation`. Draft history at `bd466cdc` is preserved;
-parent recovery `683d1eb1` is being merged. The existing remote branch and pull
+parent recovery `683d1eb1` is preserved in merge `29dbb061`. The existing remote branch and pull
 request will be advanced normally, never force-pushed. The original build folder
 is missing and is not an active worker.
 
@@ -46,19 +44,48 @@ refresh tests with the parent's clearing-only cases.
 
 ## Current completion checks
 
-1. Finish the merge without reverting current address-index lifecycle, either email
-   lifecycle, retained money dates, independent-payment intent, FCC or current reader dependencies.
-2. Preserve `pypdf[fonts]` with current minimum6.21.1/resolved6.21.2. Reader changes
-   need retained-document regressions and later exact affected live comparisons;
-   a prior font warning alone does not prove an incorrect figure.
-3. Introduce source-budgeted change discovery and explicit family activation.
-   Urgent notices, filings and new votes must not wait behind long history or
-   reconciliation work. Keep safe publication and per-host request limits.
-4. Reuse current FCC collection once, including its3stations, prod/dev target,
-   R2 credentials, local text tools, bounds and completion-report semantics.
-5. Complete focused tests, current-schema migration checks and combined acceptance,
-   then commit and advance existing draftPR2511 for parent review. No production
-   setting, job activation or data write is authorized to the scheduler helper.
+1. Preserve the current address-index lifecycle, both email lifecycles, retained
+   source dates, FCC scope and the current reader dependencies when integrating main.
+2. Chain request-limit migration0073 after payment migration0072 and refresh
+   migration0074 after0073; complete local upgrade/downgrade/upgrade checks after
+   the final payment schema arrives. Keep `pypdf[fonts]>=6.21.1`, resolved6.21.2,
+   with fonttools4.66.1 and Pillow13. Reader claims need document regressions.
+3. Verify the cheap 6-list campaign discovery, bounded dated-action discovery,
+   late-change signals, fair turns, independent urgent notices and bounded money
+   checks. A partial turn never advances full source coverage.
+4. Verify the shared short notice/statement mutation lock, distinct collector
+   owners, stale-owner refusal, complete materialized register and pointer checks.
+   Scoped or incomplete statement scans never advance the full-copy marker.
+5. Reuse the existing 3-station FCC collector with its private storage, local
+   reading tools, bounded backlog and continuing issue. Preserve its Actions queue.
+6. Prove disabled-family defaults and legacy schedule continuity; complete setup,
+   automatic collection and measured public read-back with the release owner.
+7. Run combined checks on current main, advance existing draftPR2511 normally and
+   retain this folder for follow-up. Production setup, release and activation stay
+   with the parent chat.
+
+## Shared impact and prevention
+
+New notice and statement collection share notice-amendment rows. Separate collector
+owners prevent duplicate full scans; a short common lock serializes each shared
+mutation. Every write fences its owner under a database row lock, including after
+an expiry or competing replacement. Money collection uses a different lock. A
+repeatable-read reference materializes the complete register and payment subtypes;
+completion locks and verifies current pointers before replacing exclusions or
+recording complete coverage. Retained records survive partial sources.
+
+Urgent discovery has independent lanes, while bill actions and votes retain a
+shared lane. Each selected job gets one bounded turn. Priority favors new records;
+durable first-due times and increasing lateness give old reconciliation a turn.
+A source change observed during collection has a separate durable signal, so a
+late completion cannot erase it. A completed turn acknowledges its dispatch and
+can continue immediately; an ambiguous queued request retains duplicate protection.
+
+FCC delegates to the existing collector and fixed station scope. Numeric sanitized
+reports distinguish backlog, source gaps and processing failures. Default-off
+families retain old clocks until staged activation. Parent acceptance covers current
+schema integration, spending intent, actual settings and measurable public results;
+local tests alone cannot prove those live facts.
 
 ## Source coverage checklist
 

@@ -9,6 +9,7 @@ from alethical.db.session import get_session_factory
 def test_source_health_requires_token_and_reports_disabled_clock(
     client, internal_headers, monkeypatch
 ):
+    monkeypatch.delenv("ALETHICAL_SOURCE_REFRESH_FAMILIES", raising=False)
     monkeypatch.delenv("ALETHICAL_SOURCE_REFRESH_DISPATCH_ENABLED", raising=False)
     with get_session_factory()() as db:
         db.execute(delete(SourceRefreshState))
@@ -27,7 +28,7 @@ def test_source_health_requires_token_and_reports_disabled_clock(
     assert body["dispatches"] == []
     assert body["data"]
     assert all(row["last_succeeded_at"] is None for row in body["data"])
-    assert all(row["status"] == "never_completed" for row in body["data"])
+    assert all(row["status"] == "disabled" for row in body["data"])
 
 
 def test_source_health_distinguishes_missing_app_access(
