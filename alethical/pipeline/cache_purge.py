@@ -5,8 +5,7 @@ on the database. Nothing in this repository ever asked Cloudflare to throw one a
 so a copy expired on a timer and on nothing else. This module decides *which* copies
 an event makes false, and asks Cloudflare to discard exactly those.
 
-**It is built and deliberately not armed.** Two separate things must both be true
-before a single request leaves this process, and neither is true today:
+Two separate things must both be true before a request leaves this process:
 
 * a Cloudflare API token with the **Cache Purge** permission on the ``alethical.com``
   zone, as ``CLOUDFLARE_API_TOKEN``, together with ``CLOUDFLARE_ZONE_ID``;
@@ -29,15 +28,19 @@ Hence ``PREFIXES_PER_REQUEST`` and the chunking below: a review sitting that dec
 50 links produces about 150 prefixes, and sending one request per decision would hit
 that rate limit inside a minute.
 
-WHAT THIS DOES NOT TOUCH. There are 2 stores in front of a money page and Cloudflare
-is only one of them. Vercel holds the page HTML, and since #1966 that HTML carries the
-records it read. Measured 8 Sep 2026: ``www.alethical.com`` answers with ``server:
-Vercel`` and no ``cf-ray`` at all, so the site host is not behind Cloudflare's cache
-and no Cloudflare purge can reach it. Vercel's own window is 300 s plus 300 s of
-background refresh (``api/page.ts``), so its worst case is 10 minutes against
-Cloudflare's 24 hours, which is why this module starts with Cloudflare. Clearing
-Vercel's copies needs ``Cache-Tag`` headers on ``api/page.ts`` first and is its own
-piece of work.
+WEBSITE COPIES. api/page.ts tags cacheable public HTML with
+``alethical-public-records``. When ``ALETHICAL_CLEAR_WEBSITE_PAGES=on``, clearing
+first discards Cloudflare API copies, then deletes that tag in the approved Vercel
+production project. The next page request reads current records in the foreground.
+A failed website clear fails the whole result, preserving the caller's durable retry
+obligation. Private/no-store responses carry no tag. The existing 5-minute windows
+remain the fallback; they are not evidence of completed clearing.
+
+The Vercel request uses the existing VERCEL_TOKEN, VERCEL_PROJECT_ID and VERCEL_ORG_ID
+workflow secrets. Its project/team bindings are checked before sending. This clears
+rebuildable public copies only, never records, private pages or deployment assets.
+See https://vercel.com/docs/rest-api/edge-cache/dangerously-delete-by-tag.
+
 """
 
 from __future__ import annotations
@@ -46,6 +49,7 @@ import os
 import re
 from dataclasses import dataclass
 from typing import Iterable, Mapping, Optional
+from urllib.parse import urlencode
 
 import requests
 
@@ -68,6 +72,12 @@ ENABLE_SETTING = "ALETHICAL_CLEAR_SAVED_ANSWERS"
 ENABLE_VALUE = "on"
 TOKEN_SETTING = "CLOUDFLARE_API_TOKEN"
 ZONE_SETTING = "CLOUDFLARE_ZONE_ID"
+
+WEBSITE_ENABLE_SETTING = "ALETHICAL_CLEAR_WEBSITE_PAGES"
+WEBSITE_TAG = "alethical-public-records"
+WEBSITE_PROJECT_ID = "prj_LjzIKKvanUbEvEaovi7QdZPOFOBv"
+WEBSITE_TEAM_ID = "team_Af32lU5bx6M9rkW47zoCQ1ar"
+WEBSITE_PURGE_URL = "https://api.vercel.com/v1/edge-cache/dangerously-delete-by-tags"
 
 #: Plain names for the 4 events the issue lists, plus the 5th the issue does not: the
 #: 2 money checks a load re-runs against what it just published. Those write the
@@ -405,7 +415,7 @@ def clear(
     post=None,
     timeout: float = 20.0,
 ) -> ClearingResult:
-    """Ask Cloudflare to discard every saved copy under ``clearing``'s prefixes.
+    """Discard API copies, then enabled public website copies, in that order.
 
     Never raises for a Cloudflare failure. A load has already published by the time
     this runs, and an exception here would lose the report of what was published; the
@@ -467,12 +477,70 @@ def clear(
                 clearing=clearing, armed=True, ok=False, detail=failure
             )
         sent += 1
-    return ClearingResult(
-        clearing=clearing,
-        armed=True,
-        ok=True,
-        detail=f"Cloudflare accepted {sent} purge request(s)",
+    detail = f"Cloudflare accepted {sent} purge request(s)"
+    if (values.get(WEBSITE_ENABLE_SETTING) or "").strip().lower() == ENABLE_VALUE:
+        failure = _clear_website(values, send=send, timeout=timeout)
+        if failure is not None:
+            return ClearingResult(
+                clearing=clearing, armed=True, ok=False, detail=f"{detail}; {failure}"
+            )
+        detail += "; Vercel accepted clearing the public website record copies"
+    return ClearingResult(clearing=clearing, armed=True, ok=True, detail=detail)
+
+
+def _clear_website(values: Mapping[str, str], *, send, timeout: float) -> str | None:
+    """Delete only this project's production public-page tag; never echo secrets."""
+    settings = ("VERCEL_TOKEN", "VERCEL_PROJECT_ID", "VERCEL_ORG_ID")
+    missing = [name for name in settings if not values.get(name, "").strip()]
+    if missing:
+        return f"Website clearing failed: {' and '.join(missing)} not set"
+    clean = {name: values[name].strip() for name in settings}
+    for name, value in clean.items():
+        if any(character.isspace() for character in value):
+            return f"Website clearing failed: {name} holds a line break or space"
+    if (
+        clean["VERCEL_PROJECT_ID"] != WEBSITE_PROJECT_ID
+        or clean["VERCEL_ORG_ID"] != WEBSITE_TEAM_ID
+    ):
+        return "Website clearing failed: project or team does not match the approved website"
+    url = (
+        WEBSITE_PURGE_URL
+        + "?"
+        + urlencode({"projectIdOrName": WEBSITE_PROJECT_ID, "teamId": WEBSITE_TEAM_ID})
     )
+    try:
+        response = send(
+            url,
+            headers={
+                "Authorization": f"Bearer {clean['VERCEL_TOKEN']}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "tags": [WEBSITE_TAG],
+                "target": "production",
+                "revalidationDeadlineSeconds": 0,
+            },
+            timeout=timeout,
+        )
+    except requests.RequestException:
+        return "Website clearing failed: Vercel could not be reached"
+    if response.status_code != 200:
+        return f"Website clearing failed: Vercel answered HTTP {response.status_code}"
+    # The documented 200 response is an empty object; the production endpoint also
+    # returns HTTP 200 with Content-Length: 0 (measured against an unused tag).
+    if not response.text.strip():
+        return None
+    try:
+        payload = response.json()
+    except ValueError:
+        return "Website clearing failed: Vercel returned no valid confirmation"
+    if (
+        not isinstance(payload, dict)
+        or payload.get("error")
+        or payload.get("success") is False
+    ):
+        return "Website clearing failed: Vercel returned no valid confirmation"
+    return None
 
 
 def clear_after_publish(
