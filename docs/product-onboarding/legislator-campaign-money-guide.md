@@ -127,8 +127,8 @@ of itemized contributions changed by year** chart and its **Refunds Minnesota pa
 committee's donors** card. The mix chart repeats the donor kinds from **Who gave**
 across years, using only itemized contributions. **Spending by outside groups**
 draws once, below every committee block, because it covers all of a member's confirmed
-committees at once and cannot sit inside any one of them. The tab's source-copy dates
-are the last line on the page.
+committees at once and cannot sit inside any one of them. Shared source-copy dates
+appear at the foot of the tab; differing report-copy dates stay beside their own committees.
 
 A member can hold more than one committee, because Minnesota registers one per office.
 17 sitting members tie to more than one, and 8 have 2 or more live at the same time. So
@@ -1151,7 +1151,9 @@ readable behind it, and the word **filings** was the state's own word for the re
 committee files, which that file is not.
 
 The shared freshness note appears once at the foot of the tab. It dates Minnesota’s
-payment files and the separately copied report totals. The outside-spending card does
+payment files and dates report totals only when every visible committee shares the
+same copy day. Differing or unknown report dates stay beside their own committees.
+The outside-spending card does
 not repeat a download date. Its payment dates still describe its own source rows.
 The complete grouped answer supplies each spender's amount and count. Opening a group
 loads its complete payment list from the same published copy. Existing direction totals
@@ -1333,21 +1335,27 @@ serious warnings keep full punctuation.
    2026". A total whose coverage date falls outside the year on screen is not shown at
    all, because the Board's own service answers a request for a year it has no report
    for with the _previous_ year's figures and nothing in the answer says so.
-3. **Both source-copy dates at the foot of the tab**, shown when the displayed
-   campaign-payment and outside-spending files support the same payment-file date:
+3. **Source-copy dates belong to the records shown.** The shared line at the foot of
+   the tab appears when campaign-payment and outside-spending files support the same
+   payment date and every visible committee's report date agrees in Minnesota time:
 
    > Minnesota’s payment files copied Sep 1, 2026; report totals copied
    > Aug 11, 2026. These are copy dates, not reporting periods.
 
    The payment date is the stored download time for Minnesota's bulk payment files
-   (`fetched_at`). The report date is the end of the published filing source's own
-   stored fetch window (`filings_copied_at`, read from
-   `cf_filing_snapshot.fetch_completed_at` through `cf_filing_current`). Neither a
+   (`fetched_at`). Each committee's report date is its own committee-year's source
+   copy time (`committees[].filings_copied_at`), including `cf_filing.captured_at`
+   for retained totals. A newer overall snapshot cannot date older retained figures.
+   A shared API date is supplied only when all displayed committee dates agree. Neither a
    report's receipt date nor the day Alethical publishes stored records replaces it.
    Both dates print in Minnesota time. The same wording appears on the committee's
    money and payment pages and their text-only versions.
 
-   If the report-copy date is unavailable, the line keeps this exact fallback:
+   When committee report dates differ or any is unknown, the existing filing-period
+   panel beside each committee carries its own date and copy-period explanation, or
+   ‘The report totals’ copy date is unavailable’ without a final period. An older
+   response missing committee dates never borrows its overall snapshot date. The
+   footer keeps this fallback without claiming a shared report date:
 
    > Minnesota’s payment files copied Sep 1, 2026. This is a copy date, not a reporting
    > period. The report totals were copied separately.
@@ -1356,7 +1364,9 @@ serious warnings keep full punctuation.
    15px text and the same grey as the other explanatory notes (`#4f5651`), including
    on a phone. It stays at the foot of the tab, above the site footer. If payment-file
    dates differ or a payment-file date is missing, the tab explains that it cannot
-   state a shared date and lets the reader check the records again.
+   state a shared payment date and lets the reader check the records again. A known
+   shared report date remains visible beside that notice; the payment-date mismatch
+   never hides it. Dates belonging to withheld committee associations stay withheld.
 
 **A fourth kind of time exists and is deliberately not printed here.** Our data service
 also reports when it last confirmed that these committees are still this member's, and
@@ -1599,8 +1609,9 @@ shared-name counts and accessible history interactions for the approved UX20 bui
 
 The outside-spending card keeps its source details inside its border: payment dates,
 then the exact source filename, then the downloads link. The filename and link share
-a close group (2px gap); payment dates sit 14px above that group. The page-wide copy
-dates remain outside the card because they describe both sets of campaign records.
+a close group (2px gap); payment dates sit 14px above that group. Shared copy dates remain outside the card only when their scope applies to every
+displayed record. Differing or unknown report-copy dates stay beside their own
+committee, as specified under Dates above.
 The Who gave explanation uses secondary text (#4f5651); refund and outside-spending
 introductions use balanced word wrapping (`text-wrap: pretty`).
 

@@ -14,6 +14,7 @@ import json
 import subprocess
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Optional
 
@@ -28,6 +29,7 @@ from alethical.pipeline.cache_purge import (
     A_FILINGS_RELEASE,
     A_MONEY_CHECK_VERDICT_SET,
     A_MONEY_DOWNLOAD_RELEASE,
+    ClearingResult,
 )
 
 NOW = datetime(2026, 9, 24, 15, 30, tzinfo=UTC)
@@ -1027,3 +1029,185 @@ def test_the_hand_run_totals_load_takes_the_lease_first_and_refuses_when_it_is_h
     monkeypatch.setattr("sys.argv", ["load_campaign_finance_filings.py", "--dry-run"])
     assert script.main() == 0
     assert events == ["load"]
+
+
+# --- Clearing-only recovery ------------------------------------------------------
+
+
+def test_clearing_only_keeps_failed_unknown_and_unrelated_obligations(db) -> None:
+    events = [A_FILINGS_RELEASE, A_MONEY_DOWNLOAD_RELEASE, "unknown-event"]
+    refresh.state_set(db, refresh.CLEARING_PENDING_KEY, {"events": events})
+    recheck = {"filings_snapshot_id": "current", "required_years": [2023, 2026]}
+    refresh.state_set(db, refresh.RECHECK_PENDING_KEY, recheck)
+    lease = refresh.FullRunLease(db=db, purpose="test clearing recovery")
+    assert lease.acquire()
+    calls = []
+
+    def clear(clearing):
+        calls.append(clearing.event)
+        return ClearingResult(
+            clearing, armed=True, ok=clearing.event == A_FILINGS_RELEASE, detail="test"
+        )
+
+    report = refresh.retry_pending_campaign_clearing(db, lease=lease, clear=clear)
+    assert not report.ok
+    assert calls == [A_FILINGS_RELEASE, A_MONEY_DOWNLOAD_RELEASE]
+    assert set(refresh.state_get(db, refresh.CLEARING_PENDING_KEY)["events"]) == {
+        A_MONEY_DOWNLOAD_RELEASE,
+        "unknown-event",
+    }
+    assert refresh.state_get(db, refresh.RECHECK_PENDING_KEY) == recheck
+    assert report.totals is None and report.payments is None and report.recheck is None
+    assert (
+        not report.readings
+        and not report.published_totals
+        and not report.published_payments
+    )
+    assert any("unknown-event" in failure for failure in report.failures)
+
+
+@pytest.mark.parametrize("armed,ok", [(True, True), (True, False), (False, True)])
+def test_clearing_only_removes_marker_only_after_an_armed_success(
+    db, armed, ok
+) -> None:
+    refresh.state_set(db, refresh.CLEARING_PENDING_KEY, {"events": [A_FILINGS_RELEASE]})
+    lease = refresh.FullRunLease(db=db, purpose="test clearing recovery")
+    assert lease.acquire()
+    report = refresh.retry_pending_campaign_clearing(
+        db,
+        lease=lease,
+        clear=lambda clearing: ClearingResult(
+            clearing, armed=armed, ok=ok, detail="test"
+        ),
+    )
+    succeeded = armed and ok
+    assert report.ok == succeeded
+    assert (refresh.state_get(db, refresh.CLEARING_PENDING_KEY) is None) == succeeded
+
+
+def test_clearing_only_dry_run_never_clears_or_writes_and_no_op_never_calls_cloudflare(
+    db,
+):
+    marker = {"recorded_at": NOW.isoformat(), "events": [A_FILINGS_RELEASE]}
+    refresh.state_set(db, refresh.CLEARING_PENDING_KEY, marker)
+
+    def unexpected(*args, **kwargs):
+        raise AssertionError("no clearing should be attempted")
+
+    report = refresh.retry_pending_campaign_clearing(db, dry_run=True, clear=unexpected)
+    assert report.ok and report.dry_run
+    assert refresh.state_get(db, refresh.CLEARING_PENDING_KEY) == marker
+    assert refresh.state_get(db, refresh.FULL_RUN_LEASE_KEY) is None
+    assert "would retry" in report.summary()
+    refresh.state_delete(db, refresh.CLEARING_PENDING_KEY)
+    lease = refresh.FullRunLease(db=db, purpose="test clearing recovery")
+    assert lease.acquire()
+    report = refresh.retry_pending_campaign_clearing(db, lease=lease, clear=unexpected)
+    assert report.ok
+    assert "no saved-page clearing is pending" in report.summary()
+
+
+def test_clearing_only_requires_a_current_lease_before_changing_pending_work(db):
+    marker = {"events": [A_FILINGS_RELEASE]}
+    refresh.state_set(db, refresh.CLEARING_PENDING_KEY, marker)
+    lease = refresh.FullRunLease(db=db, purpose="test clearing recovery")
+    started = datetime.now(UTC)
+    assert lease.acquire(now=started)
+    other = refresh.FullRunLease(db=db, purpose="another run")
+    assert other.acquire(
+        now=started + refresh.FULL_RUN_LEASE_TTL + timedelta(minutes=1)
+    )
+
+    def unexpected(*args, **kwargs):
+        raise AssertionError("a lost lease must not clear pages")
+
+    for owner in (None, lease):
+        report = refresh.retry_pending_campaign_clearing(
+            db, lease=owner, clear=unexpected
+        )
+        assert not report.ok
+        assert refresh.state_get(db, refresh.CLEARING_PENDING_KEY) == marker
+
+
+def _refresh_script():
+    path = (
+        Path(__file__).resolve().parents[2] / "scripts" / "refresh_campaign_finance.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "refresh_campaign_finance_script", path
+    )
+    assert spec is not None and spec.loader is not None
+    script = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(script)
+    return script
+
+
+@pytest.mark.parametrize("conflict", ["--force-totals", "--prove-alerting"])
+def test_clearing_only_cli_rejects_other_actions_before_connecting(
+    monkeypatch, conflict
+):
+    script = _refresh_script()
+
+    def unexpected(*args, **kwargs):
+        raise AssertionError("invalid options must not open a database")
+
+    monkeypatch.setattr(script, "create_engine", unexpected)
+    monkeypatch.setattr("sys.argv", ["refresh", "--clear-pending-only", conflict])
+    with pytest.raises(SystemExit) as error:
+        script.main()
+    assert error.value.code == 2
+
+
+@pytest.mark.parametrize("busy,dry_run", [(False, False), (True, False), (True, True)])
+def test_clearing_only_cli_isolated_action_and_busy_lease_failure(
+    monkeypatch, busy, dry_run
+):
+    script = _refresh_script()
+    calls = []
+    stages = []
+
+    @contextmanager
+    def hold(*args, **kwargs):
+        calls.append("lease")
+        yield type("Lease", (), {"held": not busy})()
+
+    def unexpected(*args, **kwargs):
+        raise AssertionError(
+            "clearing-only must never run collection or its stage summary"
+        )
+
+    def retry(db, **kwargs):
+        calls.append("clearing")
+        assert kwargs["dry_run"] == dry_run
+        assert (kwargs["lease"] is None) == dry_run
+        return refresh.RefreshReport(started_at=NOW, dry_run=dry_run)
+
+    monkeypatch.setattr(script, "create_engine", lambda *a, **k: "engine")
+    monkeypatch.setattr(script, "Session", lambda engine: FakeSession())
+    monkeypatch.setattr(
+        script, "database_url_for_target", lambda target: "postgresql://fake"
+    )
+    monkeypatch.setattr(script, "normalize_database_url", lambda url: url)
+    monkeypatch.setattr(script, "hold_full_run_lease", hold)
+    monkeypatch.setattr(script, "refresh_campaign_money", unexpected)
+    monkeypatch.setattr(script, "record_refresh_report", unexpected)
+    monkeypatch.setattr(script, "retry_pending_campaign_clearing", retry)
+    monkeypatch.setattr(
+        script,
+        "record_stage",
+        lambda stage, status, **kw: stages.append((stage, status)),
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        ["refresh", "--clear-pending-only"] + (["--dry-run"] if dry_run else []),
+    )
+    assert script.main() == (1 if busy and not dry_run else 0)
+    if busy and not dry_run:
+        assert calls == ["lease"]
+        assert stages == [("clearing saved pages", "failed")]
+    else:
+        assert calls == (["clearing"] if dry_run else ["lease", "clearing"])
+        assert all(
+            (stage, "skipped") in stages
+            for stage in ("lists", "totals", "payments", "rechecks")
+        )

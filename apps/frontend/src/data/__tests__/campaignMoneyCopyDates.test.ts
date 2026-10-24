@@ -39,7 +39,19 @@ describe('source dates survive the API mapping separately', () => {
               release_id: 'fixture-release',
               fetched_at: paymentDate,
               filings_copied_at: copiedAt,
-              committees: [],
+              committees: [
+                {
+                  registration_number: '17868',
+                  committee_name_as_reviewed: 'Fixture committee',
+                  filings_copied_at: copiedAt,
+                  split: { state: 'no_reported_total' },
+                },
+                {
+                  registration_number: '15667',
+                  committee_name_as_reviewed: 'Older response committee',
+                  split: { state: 'no_reported_total' },
+                },
+              ],
             },
           }),
         ),
@@ -47,6 +59,8 @@ describe('source dates survive the API mapping separately', () => {
       const money = await getLegislatorCampaignMoneyFromApi('fixture-member', 2025);
       expect(money.fetchedAt).toBe(paymentDate);
       expect(money.filingsCopiedAt).toBe(copiedAt ?? null);
+      expect(money.committees[0].filingsCopiedAt).toBe(copiedAt ?? null);
+      expect(money.committees[1].filingsCopiedAt).toBeNull();
     },
   );
 });

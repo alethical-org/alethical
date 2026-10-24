@@ -594,6 +594,7 @@ export interface ApiLegislatorCampaignMoneyPayload {
   filings_copied_at?: string | null;
   committees: {
     registration_number: string;
+    filings_copied_at?: string | null;
     committee_name_as_reviewed: string;
     committee_name?: string | null;
     office?: string | null;
@@ -2432,6 +2433,7 @@ export function legislatorCampaignMoneyFromPayload(
     })),
     committees: payload.committees.map((committee) => ({
       registrationNumber: committee.registration_number,
+      filingsCopiedAt: committee.filings_copied_at ?? null,
       committeeNameAsReviewed: committee.committee_name_as_reviewed,
       committeeName: committee.committee_name ?? null,
       office: committee.office ?? null,
