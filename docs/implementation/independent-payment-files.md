@@ -135,3 +135,30 @@ request limiter and migrations 0073/0074 from the scheduler change before activa
 The parent's old-code production check must finish before migration or activation.
 No production source file or configuration was changed here. Delivery preparation is
 complete; working folder and branch are retained for follow-up.
+
+## Operational rollback and deployment order
+
+An isolated schema downgrade test is not a production rollback plan. Keep the additive
+columns during a service rollback. Once a mixed file manifest publishes, an old backend
+would replace its per-file dates with the newest release-wide date and misdate carried
+files.
+
+Keep code that understands file manifests while restoring a retained source release.
+Serving older code requires restoring a compatible earlier atomic payment release first:
+all 3 accepted files came from its original complete run, the shared date still describes
+them, and its legacy totals pairing remains truthful. The original source receipts and
+pairings are never renewed for that rollback. `rollback_release` is the real entry path;
+the caller holds `hold_full_run_lease` and finishes pending saved-page clearing before
+serving older code. It verifies retained rows, receipt evidence and source identities
+before moving the pointer. Pruning preserves the live and immediately retained rollback
+release, including its paired totals. An older atomic release may no longer retain all
+rows; refusal then means keep manifest-aware code, never remove the guard or synthesize
+a date.
+
+Pause publication through the shared writer lease and existing scheduler rollout controls
+while deploying. Apply the additive schema, deploy the exact API and frontend commits,
+confirm their live source-date behavior and clear saved pages, then allow independent
+source publication. No mixed data may be published while old backend readers are still
+serving the rollout. Parent owns this sequence and the production read-back; the local
+rollback regression rehearses the first mixed-to-atomic restoration without production
+access.

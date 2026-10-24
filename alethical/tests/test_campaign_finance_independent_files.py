@@ -514,3 +514,104 @@ def test_omitting_evidence_columns_never_turns_a_current_release_into_legacy(
     assert len(row) == 20
     with pytest.raises(reader.ReleaseNoLongerHeld, match="omitted source evidence"):
         reader.release_from_row(row[:15])
+
+
+def test_rollout_rollback_restores_atomic_source_before_old_shared_date_is_used(
+    db, board, store
+):
+    from alethical.pipeline.cache_purge import ClearingResult
+
+    publish_first(db, board, store)
+    original = live(db)
+    original_manifest = deepcopy(original.file_manifest)
+    original_shared_date = original.fetch_completed_at
+    assert {
+        entry["receipt_ingestion_run_id"] for entry in original_manifest.values()
+    } == {str(original.ingestion_run_id)}
+    board.set_rows(
+        Dataset.contributions,
+        [row.replace("250.0000", "251.0000") for row in CONTRIBUTION_ROWS],
+    )
+    board.set_rows(Dataset.expenditures, EXPENDITURE_ROWS[1:])
+    partial = run(db, board, store)
+    assert partial.published and partial.refusal
+    mixed = live(db)
+    assert (
+        len(
+            {
+                entry["receipt_ingestion_run_id"]
+                for entry in mixed.file_manifest.values()
+            }
+        )
+        > 1
+    )
+    assert mixed.fetch_completed_at > original_shared_date
+    cf.prune(db)
+    with refresh.hold_full_run_lease(
+        db.get_bind(), purpose="local rollout rollback"
+    ) as lease:
+        assert lease.held
+        cf.rollback_release(db, original.id)
+        clearing = refresh.retry_pending_campaign_clearing(
+            db,
+            lease=lease,
+            clear=lambda clearing: ClearingResult(
+                clearing, armed=True, ok=True, detail="local test"
+            ),
+            log=lambda _: None,
+        )
+        assert clearing.ok
+    restored = live(db)
+    assert restored.id == original.id
+    assert restored.file_manifest == original_manifest
+    # This is the date an older backend reads. It must already be restored,
+    # not the new mixed release's date, before that backend can serve requests.
+    assert restored.fetch_completed_at == original_shared_date
+    assert refresh.state_get(db, refresh.CLEARING_PENDING_KEY) is None
+
+
+def test_totals_pruning_keeps_old_pairing_needed_by_a_held_file(db, board, store):
+    from sqlalchemy import select, func
+    from alethical.pipeline import campaign_finance_filings as filings
+    from alethical.api.services.committee_finance import generations_differ
+    from alethical.tests.test_campaign_finance_load import seed_filings_snapshot
+
+    original_totals = seed_filings_snapshot(db, reported={})
+    publish_first(db, board, store)
+    older = seed_filings_snapshot(db, reported={})
+    seed_filings_snapshot(db, reported={})
+    current_totals = seed_filings_snapshot(db, reported={})
+    board.set_rows(
+        Dataset.contributions,
+        [row.replace("250.0000", "251.0000") for row in CONTRIBUTION_ROWS],
+    )
+    board.set_rows(Dataset.expenditures, EXPENDITURE_ROWS[1:])
+    assert run(db, board, store).published
+    mixed = reader.live_release(db)
+    assert mixed.paired_filings(Dataset.expenditures) == original_totals.id
+    assert mixed.paired_filings(Dataset.contributions) == current_totals.id
+    assert mixed.filing_snapshot_id is None
+    assert not generations_differ(db, mixed)
+    filings.prune_filings(db)
+    assert (
+        db.get(
+            models.CampaignFinanceFilingSnapshot,
+            original_totals.id,
+            populate_existing=True,
+        ).status
+        == models.CampaignFinanceSnapshotStatus.loaded
+    )
+    assert (
+        db.get(
+            models.CampaignFinanceFilingSnapshot, older.id, populate_existing=True
+        ).status
+        == models.CampaignFinanceSnapshotStatus.pruned
+    )
+    assert (
+        db.scalar(
+            select(func.count())
+            .select_from(models.CampaignFinanceFiler)
+            .where(models.CampaignFinanceFiler.snapshot_id == original_totals.id)
+        )
+        > 0
+    )
