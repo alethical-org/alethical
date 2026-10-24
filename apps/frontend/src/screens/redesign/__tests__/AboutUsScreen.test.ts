@@ -123,13 +123,12 @@ describe('About us screen contract', () => {
   });
 
   it('opens Contact us with editable words for its known purpose', () => {
-    expect(SCREEN).toContain("routePath.contactUs({ purpose: 'feature-request' })");
     expect(SCREEN).toContain("routePath.contactUs({ purpose: 'correction' })");
     expect(pathForRoute({ name: 'ContactUs', params: { purpose: 'correction' } })).toBe(
       '/about/contact?purpose=correction',
     );
-    expect(targetFromPathname('/about/contact?purpose=feature-request')).toMatchObject({
-      purpose: 'feature-request',
+    expect(targetFromPathname('/about/contact?purpose=correction')).toMatchObject({
+      purpose: 'correction',
     });
     expect(targetFromPathname('/about/contact?purpose=anything-else')).not.toHaveProperty(
       'purpose',
@@ -137,9 +136,11 @@ describe('About us screen contract', () => {
     expect(contactPrefillValues(undefined, 'correction')).toMatchObject({
       subject: 'Possible correction',
     });
-    expect(contactPrefillValues(undefined, 'feature-request')).toMatchObject({
-      subject: 'Feature suggestion',
-    });
+    // The roadmap invitation is plain text; its feature-request purpose is retired.
+    expect(targetFromPathname('/about/contact?purpose=feature-request')).not.toHaveProperty(
+      'purpose',
+    );
+    expect(SCREEN).not.toContain('feature-request');
     // The shared footer link stays generic.
     expect(SCREEN).toContain("onContact={() => navigation.navigate('ContactUs')}");
   });

@@ -27,14 +27,13 @@ purpose, beliefs, team, planned work and correction-first contact in plain langu
   CPTO) after the 6 beliefs, with portraits and complete biographies. Founders appear only
   here.
 - **On the roadmap** follows the team and lists only unbuilt work in 1 grey panel. Shipped
-  capabilities belong in What Alethical does, never on the roadmap. Its invitation to
-  suggest features sits beside a Contact us button that opens the contact form for that
-  purpose (`/about/contact?purpose=feature-request`).
+  capabilities belong in What Alethical does, never on the roadmap. It ends with an
+  invitation to suggest features, as plain text; the Contact section right below holds the
+  page's Contact us button.
 - **Contact** carries the corrections promise, the ask@alethical.com email link (its only
   appearance in the page content) and a Contact us button that opens the form for a
-  correction (`/about/contact?purpose=correction`). That button carries no arrow; the
-  roadmap's Contact us is a green link with the arrow, like the links in What Alethical does.
-  The shared footer's contact link stays generic.
+  correction (`/about/contact?purpose=correction`). That button carries no arrow. The shared
+  footer's contact link stays generic.
 - Contact purposes start the form with editable subject and message words from the
   trusted list in `apps/frontend/src/lib/contactPurposes.ts`; any other purpose in an
   address is ignored, and nothing is sent until the reader sends it.

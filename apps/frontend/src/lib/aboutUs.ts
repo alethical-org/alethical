@@ -187,7 +187,6 @@ export const ABOUT_CORRECTION_PROMISE =
   'Think we got something wrong? Please tell us. Corrections come first.';
 export const ABOUT_CONTACT_LABEL = 'Contact us';
 export const ABOUT_CORRECTION_CONTACT_HREF = '/about/contact?purpose=correction';
-export const ABOUT_FEATURE_CONTACT_HREF = '/about/contact?purpose=feature-request';
 
 /** What the page states Alethical does, as one sentence for the organization data. */
 export const ABOUT_DESCRIPTION =
@@ -249,10 +248,6 @@ export function aboutPageSnapshot(): PageSnapshot {
             items: ABOUT_ROADMAP_ITEMS.map((item) => `${item.title}: ${item.body}`),
           },
           { kind: 'prose', lines: [ABOUT_ROADMAP_INVITATION] },
-          {
-            kind: 'links',
-            items: [{ label: ABOUT_CONTACT_LABEL, href: ABOUT_FEATURE_CONTACT_HREF }],
-          },
         ],
       },
       {
