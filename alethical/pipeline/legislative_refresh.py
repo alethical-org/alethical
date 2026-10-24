@@ -1,7 +1,10 @@
 """Callable refresh operations for the shared due-work runner.
 
 Bill text and search remain one transaction per bill. Changed-text embeddings
-use the approved ingestion budget; this module never starts a summary job.
+use the approved existing embedding path, bounded only by the bill-count caps of
+each turn (100 bills in a full chunk, 25 in a dated-action pass); nothing here
+enforces a money or token cap. This module never starts a summary job. Accepted
+changes owe saved-page clearing in the same transaction as the records.
 """
 
 from __future__ import annotations

@@ -21,26 +21,50 @@ updates to existing records, including separate checked payment files. Federal
 expansion remains deferred. Existing paid-summary, user-send and evidence-review
 boundaries remain in force.
 
-The scheduler owner continues draft 2511 in the managed folder
+Claude Code owns the remaining implementation, integration, release, activation
+and live acceptance in the managed folder
 `/Users/eug/.codex/worktrees/source-refresh-continuation/Alethical`, local branch
-`codex/source-refresh-continuation`. Draft history at `bd466cdc` is preserved;
-parent recovery `683d1eb1` is preserved in merge `29dbb061`. The existing remote branch and pull
-request will be advanced normally, never force-pushed. The original build folder
-is missing and is not an active worker.
+`codex/source-refresh-continuation`, pushed to the existing draft branch of
+[pull request 2511](https://github.com/alethical-org/alethical/pull/2511) without
+rewriting its history. The independent payment-file work (`b7fc79b1`, `2b3895ec`,
+`154b3149`, `eeaa2071` from `codex/independent-payment-files`) ships inside that
+pull request rather than as a second one, so the same commits never merge twice.
+Website page clearing shipped separately in
+[pull request 2716](https://github.com/alethical-org/alethical/pull/2716).
+The Codex parent chat keeps status and final read-only acceptance.
 
-| Work | Owner | Completion proof |
-| --- | --- | --- |
-| Registry, runner, dispatcher, lifecycle, legislative/supporting/lobbying integration, FCC adapter | Scheduler continuation | Current-main integration, bounded discovery, source budgets, overlap/crash/starvation tests and reviewable existing PR2511 |
-| Independent payment files, money publishers/readers, models, migration0072 and incident recovery | Payment builder in `codex/independent-payment-files` | Exact file identity/date/pairing, held-file safety, all consumers, rollback and focused tests |
-| Scheduler migrations0073/0074 | Scheduler continuation | Chain after `0072_campaign_payment_manifest`, full upgrade/downgrade/upgrade proof |
-| Credentials, production recovery, merge/deploy, activation and live measurement | Parent | Actual deployed versions, narrow App access, active clocks, completed source runs and public read-back |
+## Source cadence, lanes and clearing
 
-One writer owns each shared file. Payment owner owns `db/models.py`, `public.py`,
-campaign pipelines/readers/CLIs and `collection_failure_review.py`; scheduler sends
-exact patches for those files. Scheduler owns `api/main.py`, `ask.py`, `internal.py`
-and its independent source wrappers. Payment owner approved retaining the already
-merged additive scheduler models/public freshness changes and unioning the draft
-refresh tests with the parent's clearing-only cases.
+Each job gets 1 bounded turn per dispatch; lanes keep collectors of the same source
+from overlapping, priority favors new records and lateness grows without a cap, so
+old reconciliation still gets its turn. A turn that exits 75 stays due at once; a
+turn refused by a busy lease exits 76 and never advances its success date.
+
+| Family | Job | Every | What a turn does |
+| --- | --- | --- | --- |
+| campaign | `campaign-discovery` | 15 minutes | Reads the 6 official register and report lists; queues collection on a change |
+| campaign | `campaign-money` | 1 day, or sooner on a change | Collects and publishes totals and the 3 payment files without long checks |
+| campaign | `campaign-rechecks` | 5 minutes | Finishes at most 10 owed committee-year checks within 120 seconds and 10 requests |
+| campaign | `filing-dates-recent` | 1 hour | Dates up to 25 current and prior-year reports in 120 seconds, saving its position |
+| campaign | `filing-dates` | 1 day | The same bounded turns across 2022 onward; restarts for a newly published register |
+| campaign | `refunds`, `donor-proof-preparation` | 30 days, 1 day | Recheck refund bytes; prepare donor evidence privately for review |
+| notices | `notices` | 15 minutes in July, August, October and November, else 1 hour | Collects newly posted notices |
+| notices | `notice-amendments`, `statement-amendments` | 7 days | Reread retained notices and statement catalogues for corrections |
+| legislative | `bills-discovery-<session>` | 5 minutes while the session's bill interval is 4 hours or less, else 15 minutes | Rereads up to 25 bills with dated actions from both chambers |
+| legislative | `bills-backdated-discovery-<session>` | 1 day | Rereads a 14-day dated-action window for delayed publication |
+| legislative | `bills-<session>` | The approved phase interval | Full official inventory reconciliation, 100 bills per chunk |
+| legislative | `votes` | 1 hour or the session interval if shorter | Collects missing rolls and rotates through saved rolls for corrections |
+| legislative | `roster-discovery`, `roster` | 15 minutes, 4 hours | Roster PDF validators and hash; full member, contact and committee refresh |
+| lobbying | `lobbying-discovery`, `lobbying` | 15 minutes, 1 hour | Download links from the landing page; full paired file publication |
+| supporting | `maps-discovery`, `maps`, `zip`, `candidates`, `sessions` | 1 hour to 1 day | Detect official changes and queue review; never replace approved data |
+| fcc | `fcc` | 1 hour | Existing 3-station collector with its original download, mirror and reading limits |
+| any active | `source-clearing` | 5 minutes, only while owed | Retries owed saved-page clearing without collecting |
+
+Every family's downloads share 1 per-host request budget in `source_request_limits`,
+including FCC listings, redirects and files; a 429 or 503 reply pauses that host for
+its stated `Retry-After`. Bill, vote and roster writes and newly stored filing dates
+owe saved-page clearing in the same transaction as the records; the route is in
+[api-cdn-setup.md, clearing a saved copy](../operations/api-cdn-setup.md#clearing-a-saved-copy).
 
 ## Current completion checks
 
@@ -204,9 +228,8 @@ collections and changes awaiting source access or human review.
 
 ## Model selection
 
-The lead owns cross-source accuracy, crash recovery, release safety and credential
-scope. The recommended lead pair is gpt-6-astra/high; gpt-6.1-sol/high is suitable
-for bounded collector implementation with focused tests and independent integration
-review. This is a task judgment from the host's supported models and current model
-selection guidance, not a measured speed or quality comparison. API dispatch,
-source collection and publication remain separate permissions and completion facts.
+Claude Opus 5.5 at high effort owns the remaining integration and release, with
+independent fresh-context review for production, security and schema work. This is
+a task judgment from current model guidance, not a measured comparison. API
+dispatch, source collection and publication remain separate permissions and
+completion facts.

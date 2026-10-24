@@ -175,6 +175,21 @@ trying to enumerate query strings or guess every cross-feature dependency. Sourc
 polls that publish nothing do not clear it. Build-generated static files still need
 their own regeneration; clearing never changes a static file's content.
 
+**Which updates clear, and how.** Campaign money, notices and lobbying keep their
+existing publication-specific markers. Bill, action, text, vote and roster writes,
+and newly stored campaign filing dates, commit a `clearing:legislative` or
+`clearing:filing-dates` row in `source_refresh_state` in the same transaction as the
+records (`alethical/pipeline/source_record_clearing.py`). A rolled-back write owes
+nothing. Right after a scheduled turn, the runner sends 1 shared clear for every
+owed family and deletes only the rows it captured; a change committed while that
+clear was in flight keeps its row. A failed clear leaves the row and makes the
+runner's turn fail, while the records stay published. The `source-clearing` job is
+due only while a row exists, retries every 5 minutes without collecting records
+again (`scripts/clear_source_record_pages.py`), and reports late after 10 minutes.
+Discovery polls that find no change, and each bounded money check, owe no clear.
+Maps, ZIP references and candidate source checks only queue review; the FCC archive
+is private, so neither changes a public page.
+
 Acceptance covers API-before-website ordering, production-only tag and project,
 no website request after API refusal, missing/wrong credentials, sanitized failures,
 and absence of tags on private/no-store responses. Live acceptance must establish
