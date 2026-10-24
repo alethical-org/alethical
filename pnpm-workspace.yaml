@@ -38,7 +38,6 @@ overrides:
   "js-yaml@4": 4.3.2 # @expo/xcpretty: bound empty YAML merge sources
   "@xmldom/xmldom@0.8": 0.8.15 # @expo/plist: XML injection and resource limits
   "@xmldom/xmldom@0.9": 0.9.12 # plist: XML injection and resource limits
-  "jsdom>undici": 8.12.2 # test environment only: GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472, GHSA-xjj6-f33q-929c
   # React Navigation's query parser needs a callable CommonJS import. The
   # 1-line query-string patch reads the fixed decoder's default export.
   "query-string@7.1.3>decode-uri-component": 0.5.0
@@ -49,7 +48,7 @@ overrides:
   shell-quote: 1.11.0 # react-devtools-core — reject line breaks after comments (CVE-2026-102422)
   "ws@7": 7.5.11 # metro, react-native dev server
   "ws@8": 8.21.0 # @expo/cli and @supabase/realtime-js (which never imports it)
-  undici: 8.10.2 # jsdom test HTTP client — patched request, cache and WebSocket handling
+  undici: 8.12.2 # jsdom test HTTP client — patched request, cache, WebSocket, EventSource and content-encoding handling (GHSA-xjj6-f33q-929c, GHSA-4qv8-2p9j-2685, GHSA-f72v-6w45-q472)
   uuid: 11.1.1 # Expo telemetry uses compatible v1/v4/validate APIs
   zod: 4.6.7 # Expo CLI dev-tools plugin schemas and Vercel CLI config: memory exhaustion on oversized collections (GHSA-mrhx-c7xc-m3w5); they use only object, string, enum, array, union, literal and safeParse, which zod 4 keeps
   vite: 8.1.6 # Vitest dev server — patched launch-editor command handling
