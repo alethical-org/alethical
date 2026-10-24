@@ -50,6 +50,7 @@ from sqlalchemy import and_, create_engine, or_, select
 from sqlalchemy.orm import Session
 
 from alethical.pipeline.http_text import response_text
+from alethical.pipeline.minnesota import HOUSE_PROFILE_HOSTS
 from alethical.db import models as schema
 from alethical.db.session import (
     NO_PREPARED_STATEMENTS,
@@ -316,10 +317,7 @@ def lrl_id_from_profile_url(profile_url: str) -> str | None:
 
 def parse_bio(html_text: str, profile_url: str, chamber_slug: str) -> ParsedBio:
     cleaned = strip_comments(html_text)
-    if chamber_slug == "house" or urlsplit(profile_url).hostname in {
-        "house.mn.gov",
-        "www.house.mn.gov",
-    }:
+    if chamber_slug == "house" or urlsplit(profile_url).hostname in HOUSE_PROFILE_HOSTS:
         return parse_house_bio(cleaned)
     return parse_senate_bio(cleaned)
 
