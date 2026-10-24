@@ -83,7 +83,7 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
         RefreshJob(
             "filing-dates",
             timedelta(days=1),
-            timedelta(minutes=5),
+            timedelta(minutes=10),
             (
                 "scripts/backfill_campaign_finance_filed_dates.py",
                 "--target",
@@ -147,7 +147,7 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
         RefreshJob(
             "filing-dates-recent",
             timedelta(hours=1),
-            timedelta(minutes=5),
+            timedelta(minutes=10),
             (
                 "scripts/backfill_campaign_finance_filed_dates.py",
                 "--target",
@@ -905,10 +905,15 @@ def health(db: Session, *, now: datetime | None = None) -> list[dict]:
             completed is None or now > completed + job.interval + job.timeout
         )
         if name == CLEARING_JOB:
-            # Owed since the oldest uncleared commit; nothing owed is never late.
-            owed_since = [rows[m].next_due_at for m in MARKERS if m in rows]
+            # Late only when a clear failed and no retry has succeeded since;
+            # an obligation waiting for a long turn to end is not late.
+            failed = [
+                datetime.fromisoformat(rows[m].progress["failed_at"])
+                for m in MARKERS
+                if m in rows and "failed_at" in (rows[m].progress or {})
+            ]
             overdue = enabled and any(
-                now > since + job.interval + job.timeout for since in owed_since
+                now > since + job.interval + job.timeout for since in failed
             )
         result.append(
             dict(

@@ -220,3 +220,30 @@ def test_a_turn_that_lost_its_owner_writes_no_date(
     with pytest.raises(RuntimeError, match="lost its owner"):
         turn(engine, token)
     assert source.stored == []
+
+
+def test_a_report_that_always_times_out_does_not_hold_the_pass(
+    engine, live_snapshot, source, monkeypatch
+):
+    import requests
+
+    live_snapshot()
+    monkeypatch.setattr(
+        dates, "_wanted", lambda db, snapshot, year: [wanted(1), wanted(2)]
+    )
+
+    def fetch(http, *, registration_number, **kwargs):
+        row = int(registration_number) - 10000
+        source.asked.append(row)
+        if row == 1:
+            raise requests.ReadTimeout("the Board did not answer")
+        return SimpleNamespace(body=b"pdf"), DocumentOutcome.served, None
+
+    monkeypatch.setattr(dates, "fetch_document", fetch)
+    token = claim(engine)
+    result = turn(engine, token, limit=25)
+    assert source.asked == [1, 2] and source.stored == [2]
+    # The finished pass marks the gap for review and retries it next pass; it is
+    # not a failure that restarts the whole history straight away.
+    assert result.outcomes["http_error"] == 1
+    assert result.exit_code == 2

@@ -55,6 +55,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
+import requests
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
@@ -155,6 +156,9 @@ class Report:
     unreadable: list[str] = field(default_factory=list)
     snapshot_changed: bool = False
     incomplete: bool = False
+    #: A finished bounded pass treats per-report source errors as gaps to retry on
+    #: the next pass, not a failed pass that restarts the whole history at once.
+    source_gaps_are_review: bool = False
     snapshot_id: str | None = None
     last_key: list | None = None
 
@@ -165,8 +169,9 @@ class Report:
         known = {outcome.value for outcome in DocumentOutcome} | {
             "served_without_a_readable_date"
         }
+        gaps = set() if self.source_gaps_are_review else {"http_error", "empty"}
         if any(
-            count and (name in {"http_error", "empty"} or name not in known)
+            count and (name in gaps or name not in known)
             for name, count in self.outcomes.items()
         ):
             return 1
@@ -353,17 +358,24 @@ def backfill(
         if deadline is not None and time.monotonic() >= deadline:
             report.incomplete = True
             break
-        response, outcome, _note = fetch_document(
-            http,
-            registration_number=item.registration_number,
-            filing_year=item.filing_year,
-            kind=item.kind,
-            report_type=item.report_type,
-            amendment_index=item.amendment_index,
-            special_election=item.special_election,
-        )
+        try:
+            response, outcome, _note = fetch_document(
+                http,
+                registration_number=item.registration_number,
+                filing_year=item.filing_year,
+                kind=item.kind,
+                report_type=item.report_type,
+                amendment_index=item.amendment_index,
+                special_election=item.special_election,
+            )
+        except requests.RequestException:
+            if on_item is None:
+                raise
+            # A bounded turn records the source gap and moves on, so 1 report
+            # that always times out cannot hold the whole pass in place.
+            response, outcome = None, None
         report.asked += 1
-        report.outcomes[outcome.value] += 1
+        report.outcomes["http_error" if outcome is None else outcome.value] += 1
         if outcome is DocumentOutcome.served:
             lines, _pages = extract_lines(response.body)
             filed_date, errors = filed_date_from_lines(lines)
@@ -473,6 +485,7 @@ def run_batch(
             snapshot_id=base["snapshot_id"],
             snapshot_changed=report.snapshot_changed,
             incomplete=report.incomplete,
+            source_gaps_are_review=True,
         )
         if report.snapshot_changed or not report.incomplete:
             saved.pop("filing_date_pass", None)

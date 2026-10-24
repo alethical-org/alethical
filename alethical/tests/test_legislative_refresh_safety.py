@@ -481,3 +481,65 @@ def test_only_an_accepted_bill_change_owes_saved_page_clearing(
     assert result["accepted"] == 1
     # The obligation commits in the same transaction as the bill facts.
     assert order == ([("stage", True, "legislative"), "commit"] if owed else ["commit"])
+
+
+@pytest.mark.parametrize("bio_fails", [False, True], ids=["complete", "bio-fails"])
+def test_roster_owes_clearing_before_its_first_and_after_its_last_commit(
+    monkeypatch, bio_fails
+):
+    """Another job can drain a clear mid-run; later roster commits must still owe one."""
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    from alethical.pipeline import (
+        committee_memberships,
+        legislator_bio_backfill,
+        legislator_service,
+        roster_pdf,
+        roster_rollover,
+    )
+    from alethical.pipeline import legislative_refresh as refresh
+
+    order = []
+    context = Mock()
+    context.__enter__ = Mock(return_value=Mock())
+    context.__exit__ = Mock(return_value=False)
+    monkeypatch.setattr(refresh, "Session", lambda *_: context)
+    monkeypatch.setattr(refresh, "rate_limited_source_session", lambda *a, **k: Mock())
+    monkeypatch.setattr(roster_pdf, "fetch_roster_pdf_text", lambda **k: "pdf")
+    monkeypatch.setattr(roster_pdf, "validate_roster_biennium", lambda *a, **k: None)
+    monkeypatch.setattr(roster_pdf, "parse_roster_pdf", lambda text: ["member"])
+    monkeypatch.setattr(
+        roster_rollover, "roster_session_transition", lambda *a, **k: (None, None)
+    )
+    monkeypatch.setattr(
+        roster_rollover,
+        "promote_roster_session",
+        lambda *a: order.append("roster commit") or False,
+    )
+    pipeline = Mock()
+    pipeline.reconcile_current_members.return_value = SimpleNamespace(
+        missing=[], pdf_total=1, deactivated=[]
+    )
+    monkeypatch.setattr(refresh, "MinnesotaIngestionPipeline", lambda *a, **k: pipeline)
+    monkeypatch.setattr(
+        committee_memberships, "backfill", lambda *a, **k: SimpleNamespace()
+    )
+    monkeypatch.setattr(legislator_service, "backfill", lambda *a, **k: {})
+
+    def bio(*args, **kwargs):
+        order.append("bio commit")
+        if bio_fails:
+            raise RuntimeError("bio source unavailable")
+        return SimpleNamespace()
+
+    monkeypatch.setattr(legislator_bio_backfill, "backfill", bio)
+    monkeypatch.setattr(
+        refresh, "stage_source_clearing", lambda db, family: order.append(family)
+    )
+    if bio_fails:
+        with pytest.raises(RuntimeError):
+            refresh.refresh_roster(Mock(), session_code="0942025", target="production")
+    else:
+        refresh.refresh_roster(Mock(), session_code="0942025", target="production")
+    assert order == ["legislative", "roster commit", "bio commit", "legislative"]

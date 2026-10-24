@@ -75,12 +75,14 @@ def fingerprint(source, http, previous):
                     response.headers.get("ETag"),
                     response.headers.get("Last-Modified"),
                 )
-                if not etag and not modified:
+                if not etag and not modified and not response.headers.get("Location"):
                     raise ValueError(
                         "Map release metadata is unavailable; full byte reconciliation remains due"
                     )
                 result[chamber] = {
                     "url": url,
+                    # A redirect names its destination; a new destination is a release.
+                    "location": response.headers.get("Location"),
                     "etag": etag,
                     "last_modified": modified,
                     "length": response.headers.get("Content-Length"),

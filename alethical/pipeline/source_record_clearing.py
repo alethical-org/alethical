@@ -11,7 +11,12 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from alethical.db.models import SourceRefreshState
-from alethical.pipeline.cache_purge import Clearing, clear
+from alethical.pipeline.cache_purge import (
+    ENABLE_VALUE,
+    WEBSITE_ENABLE_SETTING,
+    Clearing,
+    clear,
+)
 
 PREFIXES = {
     "legislative": (
@@ -63,12 +68,14 @@ def drain_source_clearing(engine, *, target, purge=clear):
         {path for name in captured for path in PREFIXES[name.removeprefix("clearing:")]}
     )
     if target == "production":
+        # Without the website step a clear can never finish, so purge nothing.
+        website = (os.getenv(WEBSITE_ENABLE_SETTING) or "").strip().lower()
+        if website != ENABLE_VALUE:
+            _record_failed_attempt(engine, captured)
+            return False
         result = purge(Clearing("public source records changed", tuple(paths)))
-        if (
-            not result.ok
-            or not result.armed
-            or os.getenv("ALETHICAL_CLEAR_WEBSITE_PAGES") != "on"
-        ):
+        if not result.ok or not result.armed:
+            _record_failed_attempt(engine, captured)
             return False
     with Session(engine) as db:
         for name, token in captured.items():
@@ -85,3 +92,21 @@ def drain_source_clearing(engine, *, target, purge=clear):
             .limit(1)
         )
     return remaining is None
+
+
+def _record_failed_attempt(engine, captured):
+    """Lateness counts from a failed clear, never from a turn still running."""
+    failed_at = datetime.now(UTC).isoformat()
+    with Session(engine) as db:
+        for name, token in captured.items():
+            row = db.scalar(
+                select(SourceRefreshState)
+                .where(
+                    SourceRefreshState.name == name,
+                    SourceRefreshState.progress["token"].astext == token,
+                )
+                .with_for_update()
+            )
+            if row is not None:
+                row.progress = {**row.progress, "failed_at": failed_at}
+        db.commit()

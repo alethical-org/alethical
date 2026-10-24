@@ -208,61 +208,76 @@ def refresh_roster(engine: Any, *, session_code: str, target: str) -> dict[str, 
             roster_text, year_start=definition.year_start, year_end=definition.year_end
         )
         members = parse_roster_pdf(roster_text)
-        with Session(engine) as pending:
-            stage_source_clearing(pending, "legislative")
-            pending.commit()
-        with Session(engine) as db:
-            previous, target_session = roster_session_transition(
-                db, definition, today=date.today()
-            )
-            pipeline = MinnesotaIngestionPipeline(
-                db, sess=source, conditional_bill_text=True
-            )
-            stats = pipeline.ingest_roster(
-                session_code=session_code, validated_session_transition=True
-            )
-            report = pipeline.reconcile_current_members(
-                definition.slug, roster_members=members
-            )
-            if report.missing:
-                raise RuntimeError(
-                    "The HTML roster does not cover every occupied PDF seat; retaining saved roster"
+        # The roster and its follow-on backfills commit separately. Owe clearing
+        # before the first commit, so a crash midway still clears, and again after
+        # the last, so a clear another job drains meanwhile cannot leave later
+        # roster commits uncleared.
+        _owe_roster_clearing(engine)
+        try:
+            with Session(engine) as db:
+                previous, target_session = roster_session_transition(
+                    db, definition, today=date.today()
                 )
-            promoted = promote_roster_session(db, previous, target_session)
-            db.commit()
-        from alethical.pipeline.committee_memberships import backfill
+                pipeline = MinnesotaIngestionPipeline(
+                    db, sess=source, conditional_bill_text=True
+                )
+                stats = pipeline.ingest_roster(
+                    session_code=session_code, validated_session_transition=True
+                )
+                report = pipeline.reconcile_current_members(
+                    definition.slug, roster_members=members
+                )
+                if report.missing:
+                    raise RuntimeError(
+                        "The HTML roster does not cover every occupied PDF seat; retaining saved roster"
+                    )
+                promoted = promote_roster_session(db, previous, target_session)
+                db.commit()
+            from alethical.pipeline.committee_memberships import backfill
 
-        with Session(engine) as db:
-            committees = backfill(
-                db, dry_run=False, cleanup_orphans=False, source_session=source
+            with Session(engine) as db:
+                committees = backfill(
+                    db, dry_run=False, cleanup_orphans=False, source_session=source
+                )
+            from alethical.pipeline.legislator_service import (
+                backfill as service_backfill,
             )
-        from alethical.pipeline.legislator_service import backfill as service_backfill
 
-        with Session(engine) as db:
-            service = service_backfill(
-                db, dry_run=False, only_missing=False, sess=source
+            with Session(engine) as db:
+                service = service_backfill(
+                    db, dry_run=False, only_missing=False, sess=source
+                )
+            from alethical.pipeline.legislator_bio_backfill import (
+                backfill as bio_backfill,
             )
-        from alethical.pipeline.legislator_bio_backfill import backfill as bio_backfill
 
-        with Session(engine) as db:
-            bio = bio_backfill(
-                db,
-                dry_run=False,
-                only_missing=False,
-                limit=None,
-                legislator=None,
-                chamber=None,
-                source_session=source,
-            )
-        return {
-            "promoted_current_session": promoted,
-            "session_slug": definition.slug,
-            "bio": vars(bio),
-            "roster": stats,
-            "members": report.pdf_total,
-            "deactivated": len(report.deactivated),
-            "committees": vars(committees),
-            "service": service,
-        }
+            with Session(engine) as db:
+                bio = bio_backfill(
+                    db,
+                    dry_run=False,
+                    only_missing=False,
+                    limit=None,
+                    legislator=None,
+                    chamber=None,
+                    source_session=source,
+                )
+            return {
+                "promoted_current_session": promoted,
+                "session_slug": definition.slug,
+                "bio": vars(bio),
+                "roster": stats,
+                "members": report.pdf_total,
+                "deactivated": len(report.deactivated),
+                "committees": vars(committees),
+                "service": service,
+            }
+        finally:
+            _owe_roster_clearing(engine)
     finally:
         source.close()
+
+
+def _owe_roster_clearing(engine: Any) -> None:
+    with Session(engine) as pending:
+        stage_source_clearing(pending, "legislative")
+        pending.commit()

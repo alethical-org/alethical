@@ -90,10 +90,13 @@ def test_failed_or_partial_clear_stays_owed(sessions, monkeypatch, ok, website):
     with sessions() as db:
         clearing.stage_source_clearing(db, "legislative")
         db.commit()
+    calls = []
     assert not clearing.drain_source_clearing(
-        get_engine(), target="production", purge=purge_answering(ok, [])
+        get_engine(), target="production", purge=purge_answering(ok, calls)
     )
     assert owed(sessions) == {"clearing:legislative"}
+    # Without the website step no purge is sent at all, so nothing repeats each turn.
+    assert len(calls) == (1 if website else 0)
 
 
 def test_change_committed_during_a_clear_stays_owed(sessions, monkeypatch):
@@ -134,18 +137,31 @@ def test_clearing_job_stays_off_with_every_family_off(sessions, monkeypatch):
         assert runner.due_names(db, now=NOW) == []
 
 
-def test_clearing_is_late_only_when_an_owed_clear_waits(sessions):
+def test_clearing_is_late_only_after_a_clear_failed(sessions, monkeypatch):
     def late(db, now):
         report = {row["name"]: row for row in runner.health(db, now=now)}
         return report[runner.CLEARING_JOB]["overdue"]
 
     with sessions() as db:
-        assert not late(db, NOW)
         clearing.stage_source_clearing(db, "legislative")
         db.commit()
-        staged = db.get(SourceRefreshState, "clearing:legislative").next_due_at
-        assert not late(db, staged + timedelta(minutes=5))
-        assert late(db, staged + timedelta(minutes=11))
+    # Owed while a long turn is still running is not late, however old.
+    with sessions() as db:
+        assert not late(db, datetime.now(UTC) + timedelta(hours=3))
+    monkeypatch.setenv("ALETHICAL_CLEAR_WEBSITE_PAGES", "on")
+    assert not clearing.drain_source_clearing(
+        get_engine(), target="production", purge=purge_answering(False, [])
+    )
+    with sessions() as db:
+        failed_at = datetime.fromisoformat(
+            db.get(SourceRefreshState, "clearing:legislative").progress["failed_at"]
+        )
+        assert not late(db, failed_at + timedelta(minutes=5))
+        assert late(db, failed_at + timedelta(minutes=11))
+        # A newer change replaces the obligation; it is not late until it fails.
+        clearing.stage_source_clearing(db, "legislative")
+        db.commit()
+        assert not late(db, failed_at + timedelta(minutes=11))
 
 
 def test_a_published_turn_with_a_failed_clear_does_not_report_success(
