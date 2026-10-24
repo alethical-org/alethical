@@ -114,14 +114,11 @@ Only `stale-while-revalidate` was lengthened, because it is the directive that
 costs nothing: inside it the edge never makes a reader wait. `max-age`, which
 does delay an update, moved from 60 s to 5 minutes and no further.
 
-**The money window is capped at a day rather than a week because clearing is not
-armed yet.** 5 events can move a money answer: a new campaign-money download
-release, a new filed-totals or registered-filer release, a committee-to-legislator
-link being confirmed or withdrawn, and a notices, statements or readings run storing
-something. Every one of them calls `alethical/pipeline/cache_purge.py`, and none can
-purge until `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ZONE_ID` exist. So the cap is what
-we are willing to be wrong by with no clearing at all, and lengthening it is gated on
-proving automatic clearing live, not on judgement. Tracked on
+**The money window stays capped at a day.** A new payment file, filed totals,
+committee link decision, notice or statement reading can change an answer.
+Their publication paths call `alethical/pipeline/cache_purge.py`; a failed or
+unarmed clear retains the campaign refresh's retry obligation. The timer remains
+a fallback, never proof an update reached readers. Tracked on
 [#1979](https://github.com/alethical-org/alethical/issues/1979).
 
 `stale-if-error` applies only when the origin is failing, where the last good
@@ -130,8 +127,7 @@ copy beats an error page.
 ## Clearing a saved copy
 
 `alethical/pipeline/cache_purge.py` decides which saved copies each of those events
-makes false and asks Cloudflare to discard them. It is **switched off**: a purge
-leaves the process only when a token carrying the **Cache Purge** permission is set
+makes false and asks Cloudflare to discard them. A purge leaves the process only when a token carrying the **Cache Purge** permission is set
 (`CLOUDFLARE_API_TOKEN` plus `CLOUDFLARE_ZONE_ID`) **and**
 `ALETHICAL_CLEAR_SAVED_ANSWERS=on`. Two conditions rather than one, so a token
 turning up for another reason cannot start purging by itself. The required token and the proof recipe once it exists are in
@@ -150,13 +146,40 @@ purge methods are on every plan including Free
 ([Cloudflare changelog, 1 April 2025](https://developers.cloudflare.com/changelog/post/2025-04-01-purge-for-all/));
 the limits that bind are 100 prefixes per request and 5 purge requests a minute.
 
-**A purge can only reach the API host.** The Vercel records are DNS-only, so
-`www.alethical.com` is not behind Cloudflare's cache at all -- measured 8 Sep 2026,
-it answers with `server: Vercel`, no `cf-ray` and no `cf-cache-status`. Vercel holds
-the page HTML in its own store (`x-vercel-cache: HIT`, and it strips `s-maxage` from
-what it sends on, so the window is invisible in the response headers), bounded by
-`api/page.ts` at 300 s plus 300 s. Clearing that store needs `Cache-Tag` headers on
-`api/page.ts` and Vercel's tag invalidation, which is available on all plans.
+**Cloudflare clears the API; Vercel clears website copies separately.** The site
+host is DNS-only and Vercel holds the rendered HTML. Public cacheable responses from
+`api/page.ts`, including absent records and public redirects, carry
+`Vercel-Cache-Tag: alethical-public-records`. Private, address-sensitive and other
+no-store responses carry no tag. The existing 300-second fresh and stale windows
+remain unchanged.
+
+With `ALETHICAL_CLEAR_WEBSITE_PAGES=on`, the shared clearer first clears Cloudflare,
+then asks Vercel to delete this tag in the production `alethical-web` project.
+The next request rebuilds the public response from the cleared API. Deletion has
+zero grace time because serving a known older identity or record after a successful
+update would defeat prompt delivery. This can make the next reader wait for a fresh
+response; the existing API timeout and failure response remain. Immutable assets,
+private pages and database records are unaffected.
+
+The production workflow uses the existing `VERCEL_TOKEN`, `VERCEL_PROJECT_ID` and
+`VERCEL_ORG_ID` secrets. Code checks the exact approved project/team before sending;
+no credentials enter HTML, logs or source. Missing settings, a refused response,
+invalid confirmation or network failure fail the whole clearing result. The durable
+obligation remains for retry, even if Cloudflare already succeeded. A source copy or
+successful job queue never counts as cleared pages.
+
+[Vercel's deletion API](https://vercel.com/docs/rest-api/edge-cache/dangerously-delete-by-tag)
+and [public response tags](https://vercel.com/changelog/tag-based-cache-invalidation-now-available-for-all-responses)
+are available on all plans. The shared tag covers rendered public pages rather than
+trying to enumerate query strings or guess every cross-feature dependency. Source
+polls that publish nothing do not clear it. Build-generated static files still need
+their own regeneration; clearing never changes a static file's content.
+
+Acceptance covers API-before-website ordering, production-only tag and project,
+no website request after API refusal, missing/wrong credentials, sanitized failures,
+and absence of tags on private/no-store responses. Live acceptance must establish
+that an ordinary cached public address becomes a fresh response after a successful
+clear; a unique query string alone is insufficient.
 
 ## Smart Tiered Cache is on for this zone, since 8 Sep 2026 20:49 UTC
 
