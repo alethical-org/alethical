@@ -44,6 +44,9 @@ HEADER = (
     "Telephone",
     "Email Address",
 )
+# The Board publishes this list with or without the street column. Neither is
+# read beyond the safe columns below, so both are the same complete record.
+HEADERS = (HEADER, tuple(column for column in HEADER if column != "Street"))
 # The precise records an operator approves contain no contact data, including
 # suffix: the accepted storage contract names only the three name parts.
 SAFE_COLUMNS = {
@@ -114,7 +117,8 @@ def parse_active_list(
         reader = csv.reader(
             io.StringIO(body.decode("utf-8-sig"), newline=""), strict=True
         )
-        if tuple(next(reader, ())) != HEADER:
+        header = tuple(next(reader, ()))
+        if header not in HEADERS:
             active.errors.append(
                 "The active-list header does not match the expected columns"
             )
@@ -123,14 +127,14 @@ def parse_active_list(
         fingerprints = []
         for number, raw in enumerate(reader, 1):
             active.row_count += 1
-            if len(raw) != len(HEADER):
+            if len(raw) != len(header):
                 active.errors.append(
-                    f"Record {number} has {len(raw)} fields; expected {len(HEADER)}"
+                    f"Record {number} has {len(raw)} fields; expected {len(header)}"
                 )
                 continue
             # Never put the full raw dictionary on a result, in a log or in a file.
             safe = {
-                attribute: raw[HEADER.index(source)] or None
+                attribute: raw[header.index(source)] or None
                 for source, attribute in SAFE_COLUMNS.items()
             }
             reg = safe["registration_number"] or ""
@@ -147,7 +151,7 @@ def parse_active_list(
             ):
                 active.errors.append(f"Record {number} is missing its name")
             active.lobbyists.append(safe)
-            entries = raw[HEADER.index("Associations")].split(";")
+            entries = raw[header.index("Associations")].split(";")
             # The source ends each list with one semicolon; blank middle entries
             # are malformed and must not silently disappear.
             if entries and not entries[-1].strip():

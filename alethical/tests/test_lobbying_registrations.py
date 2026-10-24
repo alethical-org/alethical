@@ -19,16 +19,16 @@ from alethical.tests.test_lobbying_load import MemoryStore, LOBBYING_ROWS, csv_b
 FIXTURE = Path(__file__).parent / "fixtures/lobbying/active-list-safe-2026-09-13.json"
 
 
-def active_body(rows=None):
+def active_body(rows=None, header=lob.HEADER):
     rows = rows if rows is not None else json.loads(FIXTURE.read_text())
     output = io.StringIO(newline="")
-    writer = csv.DictWriter(output, fieldnames=lob.HEADER)
+    writer = csv.DictWriter(output, fieldnames=header, extrasaction="ignore")
     writer.writeheader()
     for row in rows:
         # Deliberately private-looking fixture values must not survive parsing.
         writer.writerow(
             {
-                **{name: "" for name in lob.HEADER},
+                **{name: "" for name in header},
                 **row,
                 "Street": "DO NOT STORE STREET",
                 "City": "DO NOT STORE CITY",
@@ -79,6 +79,20 @@ def test_real_rows_parse_141_and_86_associations_without_contacts():
         "middle_initial",
         "last_name",
     }
+
+
+def test_list_without_the_street_column_is_the_same_safe_record():
+    without_street = tuple(column for column in lob.HEADER if column != "Street")
+    with_street = lob.parse_active_list(active_body())
+    without = lob.parse_active_list(active_body(header=without_street))
+    assert without.errors == [] and without.row_count == with_street.row_count
+    assert without.safe_json()["lobbyists"] == with_street.safe_json()["lobbyists"]
+    assert without.associations == with_street.associations
+    assert without.record_set_hash == with_street.record_set_hash
+    assert "DO NOT STORE" not in json.dumps(without.safe_json())
+    # Any other change to the columns still refuses the list.
+    reordered = (without_street[1], without_street[0], *without_street[2:])
+    assert lob.parse_active_list(active_body(header=reordered)).errors
 
 
 @pytest.mark.parametrize(
