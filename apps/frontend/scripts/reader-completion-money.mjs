@@ -42,6 +42,13 @@ export async function readerMoneyFixtures({ failMoney } = {}) {
       link_state: 'confirmed',
       release_id: payments.data.release_id,
       fetched_at: payments.data.fetched_at,
+      // A release from 1 complete run serves each file with that run's copy time,
+      // exactly as the API does for a release without per-file evidence.
+      payment_copied_at: {
+        contributions: payments.data.fetched_at,
+        expenditures: payments.data.fetched_at,
+        independent_expenditures: payments.data.fetched_at,
+      },
       // The retained snapshot does not establish a report-copy date. Exercise
       // the existing honest fallback rather than manufacture one.
       filings_copied_at: null,
