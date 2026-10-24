@@ -113,6 +113,8 @@ The live check reads names and release targets only. It never asks Vercel for va
 
 | Setting | Intended | Why | Automated check |
 | --- | --- | --- | --- |
+| `CRON_SECRET` | Production | Lets only Vercel's own scheduled call open the private search-measurement route (`api/search-measurements.ts`); shorter than 32 characters refuses every request. | Live |
+| `SEARCH_MEASUREMENT_WRITE_TOKEN` | Production | Lets that route save its measurements through the API's private write endpoint; it must equal the API's own copy. | Live |
 | `EXPO_PUBLIC_API_URL` | Preview, Production | Points each released web app at the production API. | Live |
 | `EXPO_PUBLIC_AUTH_RESEND_WAIT_SECONDS` | Production | Matches Supabase's real email resend wait. | Live |
 | `EXPO_PUBLIC_CHECKLY_STATUS_URL` | Production | Gives every reader the public Checkly availability detail page. | Live |
@@ -227,6 +229,7 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 | `OPENAI_API_KEY` | Present | Powers live question sorting, answers, and search embeddings. | Live |
 | `PYTHON_VERSION` | Present | Pins the Python version Railway uses to build the API. | Live |
 | `RESEND_API_KEY` | Present | Authenticates production Contact us email. | Live |
+| `SEARCH_MEASUREMENT_WRITE_TOKEN` | Present | Accepts saved search measurements from the website's private scheduled route (`alethical/api/routers/search_measurements.py`); shorter than 32 characters refuses every write. | Live: presence only |
 | `SENTRY_DSN` | Present | Sends deliberately limited server failures to Alethical's Sentry project. | Live |
 | `SUPABASE_DB_PASSWORD` | Present | Lets production maintenance commands build a database connection without copying a full address. | Live |
 | `SUPABASE_POOLER_HOST` | Present | Routes production maintenance commands through Supabase's reachable connection pool. | Live |
