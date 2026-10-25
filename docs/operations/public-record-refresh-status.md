@@ -1,117 +1,84 @@
 # Public-record updates: coverage and recovery
 
-This is the operating review of the existing update work, not a claim that the
-unfinished scheduler is live. [What runs, when, and what it costs](jobs-and-scripts.md)
-owns the shipped job inventory. [Issue 2504](https://github.com/alethical-org/alethical/issues/2504)
-and [draft pull request 2511](https://github.com/alethical-org/alethical/pull/2511)
-own completion of the approved shared update system.
+This is the operating review of public-record updates. [What runs, when, and what it
+costs](jobs-and-scripts.md) owns the job inventory and [the build plan](../implementation/sitewide-record-refresh.md#source-cadence-lanes-and-clearing)
+owns each job's cadence. [Issue 2504](https://github.com/alethical-org/alethical/issues/2504)
+tracks the shared update system and [incident 2667](https://github.com/alethical-org/alethical/issues/2667)
+the state-money recovery.
 
-## Release and source evidence
+## Current state
 
-On October 24, 2026, main was `902cd84b`. The shared update pull request remained
-a draft at `bd466cdc`, last updated October 7. Its saved implementation plan reports
-final recovery corrections awaiting combined checks and release. The old build
-folder is missing; the committed branch remains available. An archived ingestion
-chat is not a running owner. Restore committed work in an owned folder and inspect
-current-main changes before resuming implementation; do not start a second scheduler.
+The shared updater is deployed: [pull request 2511](https://github.com/alethical-org/alethical/pull/2511)
+(schema `0074_source_refresh`), website page clearing
+([pull request 2716](https://github.com/alethical-org/alethical/pull/2716)) and the source
+reader corrections that followed ([2719](https://github.com/alethical-org/alethical/pull/2719),
+[2720](https://github.com/alethical-org/alethical/pull/2720),
+[2721](https://github.com/alethical-org/alethical/pull/2721),
+[2722](https://github.com/alethical-org/alethical/pull/2722),
+[2724](https://github.com/alethical-org/alethical/pull/2724)). Every source family has
+completed a named verification turn in production. Automatic turns stay off until the
+`SOURCE_REFRESH_FAMILIES` and `SOURCE_REFRESH_BILL_EMBEDDINGS_APPROVED` repository
+variables are set, then the API's family list and 60-second wake
+([source-refresh-dispatch.md](source-refresh-dispatch.md#staged-family-activation)).
+Until then the older per-source schedules keep running.
 
-The saved GitHub App setup still records a human identity step. That is historical
-setup evidence, not a fresh claim that access is unavailable. The build must inspect
-current installation and runtime settings before requesting human action.
+Verification turns on October 24–25, 2026:
 
-The October 24 campaign collection
-([run 40119861839](https://github.com/alethical-org/alethical/actions/runs/40119861839))
-published neither totals nor payments. Before the scoped recovery below, a separate
-read-only production query confirmed:
+- Published: lobbying release `f96cc067-bdb2-4126-9145-36cec6e3d742` (1,670 lobbyists);
+  roster, contacts, service and committees for all 200 members; payment release
+  `5643b07b-2ce6-4f17-a746-4ec34eb51927`, in which contributions (copied October 24,
+  Minnesota time) and outside spending (copied October 24) each replaced their own
+  slot while general spending kept its October 9 copy.
+- Checked with nothing new: campaign lists, notices, filing dates, candidates, sessions,
+  ZIP references, refunds.
+- Checked and marked for review: maps and donor evidence (expected review results);
+  FCC (9 files the FCC lists but does not serve); votes (20 roll calls whose journal
+  names miss their own tallies, [issue 2723](https://github.com/alethical-org/alethical/issues/2723)).
+- Held: general spending, because the 2017 file for registration 18127 lost 571
+  unmatched rows worth $770,306.14; no waiver exists and its source cause is unknown.
 
-- Official totals and register: snapshot `115fa74f-de67-4317-b734-f7e1ae4397c6`,
-  copied October 7; 1,613 registered filers. An unpublished directory refresh does not
-  update the homepage count independently of this accepted snapshot.
-- Listed payments: release `f09e9ba5-2692-404d-a0b2-9c7de70c2310`, copied October 9.
-  The public committee-finance route returned this same release and copy time.
-- The October 24 totals candidate had 5,329 filer-years against the earlier published
-  snapshot's recorded 5,611. The archive's compressed hash, every response hash and
-  parsed record hash reproduce. All 272 newly missing figure-bearing committee-years
-  are 2026 records; every corresponding source response says
-  "Data not available for 2026". This is observed source unavailability, not a
-  demonstrated parser error. Why the Board's route now answers unavailable is not established.
-- The new payment file also lost 2017 expenditure rows for registration 18127:
-  577 vanished and 17 were added; 571 vanished rows, worth $770,306.14, had no
-  matched replacement. This requires its own evidence, not a totals exception.
+Each change cleared Cloudflare's saved API answers and the website's saved pages.
 
-[Incident 2667](https://github.com/alethical-org/alethical/issues/2667) owns the
-current state-money failure. Retaining the last accepted records prevents deletion;
-it does not make those records current. Never mark the incident resolved merely
-because the timer ran or one stage succeeded.
+### State money recovery
 
-### Scoped totals recovery
+The [totals decision](https://github.com/alethical-org/alethical/issues/2667#issuecomment-6389566384)
+published totals snapshot `397b0667-5235-4624-80ba-afd4f550bf70` (copied October 24,
+5,329 current filer-years plus 272 newly unavailable and 46 former-filer records with
+their own earlier dates). All-year checks for 2022–2026 ran on the pinned PDF reader:
+money in 5,300 agree, 63 disagree, 810 not checked, 296 reader unproven; money out 4,648
+agree, 211 disagree, 1,304 not checked, 800 reader unproven. Saved pages were cleared
+([run 40141114543](https://github.com/alethical-org/alethical/actions/runs/40141114543))
+and the recovery obligation is recorded complete.
 
-The [recorded release decision](https://github.com/alethical-org/alethical/issues/2667#issuecomment-6389566384)
-published totals snapshot `397b0667-5235-4624-80ba-afd4f550bf70`, copied October 24 at
-19:07:49 UTC. The release contains 5,329 current filer-years plus 272 newly unavailable
-and 46 former-filer records retained with their own original dates. All 5,647 loaded
-committee-years were compared against the source and retention plan after publication;
-amounts and provenance matched, and the prior baseline remained available for rollback.
-The exception names the exact source hash and failed checks. It does not waive future
-unexplained losses. Complete private backups and an isolated publication, pruning and
-rollback rehearsal preceded the change.
-
-The public response for registration 19081, year 2025, now returns reported spending
-of $887.55 and an October 24 totals copy date. The payments release remains October 9.
-The retained committee route keeps its October 7 date. Live review found that the
-legislator route still applies the overall October 24 date to those older totals;
-the scoped correction carries each committee-year date and shares a date only
-when all displayed committees agree. Mixed or unknown dates stay beside their
-own committee. Its deployment and live read-back remain part of recovery. The release's existing comparison
-guard withholds derived splits while payment and totals generations differ; running
-checks alone does not change their pairing or restore those splits.
-
-The all-year checks for 2022–2026 are running. Saved-page clearing remains pending:
-the local repair credential cannot purge Cloudflare, while the existing Actions job
-has separately configured credentials previously proven on the live site. This is a
-local recovery-route gap, not proof that scheduled clearing is unconfigured. Recovery
-must use that existing route, prove the accepted clearing, and verify public responses
-before marking the follow-up complete. No credential permissions are widened.
-
-The newer totals resolve 3 of the 6 newly failing contribution comparisons. The other
-3 (40745/2026, 41391/2026 and 80020/2026) still contradict the official totals and
-report documents for the same periods. The 18127/2017 spending loss remains unexplained:
-its catalogue lists original and amended reports, but the document route returned an
-HTML error rather than either PDF. No payment exception or row deduplication was applied.
-The shipped collector still releases all 3 payment files together. The approved
-replacement lets each complete checked file update independently, with its own dates,
-totals pairing and recovery obligations; incompatible combined calculations remain
-withheld. [The owning release contract](../architecture/campaign-finance-system-design.md#41-the-cycle)
-sets the required checks. Independent publication is not enabled by this review, and
-no payment exception follows from the policy change.
-
-The cited-source archive's October 19 red result
-([run 39287503123](https://github.com/alethical-org/alethical/actions/runs/39287503123))
-includes changed source bytes saved beside the earlier copies. A red result alone
-does not establish a broken collector. Distinguish source changes requiring editorial
-review, source access failures, and failed storage or processing before choosing a repair.
+The [contribution decision](https://github.com/alethical-org/alethical/issues/2667#issuecomment-6391976015)
+published the newer contributions file with exactly 3 named exceptions (40745/2026,
+41391/2026, 80020/2026); each difference equals 1 listed row to the cent and the reason
+is unknown. Those 3 committees show both figures and withhold their derived splits.
+After that publication, money in compared 5,282 agree, 81 disagree. General spending
+comparisons stay withheld until its file is accepted again.
 
 ## Coverage by record type
 
-The following describes current main and the existing approved completion work.
-It does not authorize additional datasets or a new public timing promise.
+Each row's updater path runs automatically once its family is switched on; until then
+the older schedule in the middle column applies. This review does not authorize
+additional datasets or a new public timing promise.
 
-| Record / reader feature | Shipped update path | Work required for the existing finish |
+| Record / reader feature | Older schedule (until its family is on) | Shared updater path, verified in production |
 | --- | --- | --- |
-| State campaign payments, totals and directory | Daily payments; totals after changed lists or weekly | Resolve exact failed source checks; finish saved publication follow-up and recovery; verify the public money pages and homepage count |
-| Large-contribution notices | Daily October 20–November 6; weekly otherwise | Preserve election-window handling, detect new records and corrections, keep incomplete readings distinct from approved readings |
-| Disclosure statements, filing dates and refunds | Wednesday statement catalogues; other work remains separate | Complete the draft's source-specific due times and amendment rereads; retain each record's own dates |
-| Bills, actions, text and status | Hand-started collection; daily gap alarms | Activate approved phase-based collection; update search with accepted text and retire stale summaries |
-| Roll-call votes | Daily missing-vote backfill | Recheck existing votes for corrections; discover new vote work from accepted bill actions |
-| Legislator contacts, service and committees | Hand-started full refresh | Complete roster refresh with complete-response checks before removing members or memberships |
-| Lobbyists, clients and spending | Hand-started paired publication | Complete daily paired collection, privacy checks, rollback and retryable page clearing |
-| Candidates and election changes | Live official lookup on search, plus saved profile records | Detect official source changes without retaining visitor addresses; preserve reviewed identities and election boundaries |
-| Address suggestions | Public address copy checked every 5 minutes and replaced after 12 hours | Keep separate from candidate, district and ballot freshness |
-| District maps, ZIP references and session rollover | Reviewed source replacements | Detect new releases and hold promotion until mappings and coverage are verified |
-| FCC advertising files | Daily collection for KSTP, KARE and KMSP | Join shared due-time and overdue reporting without creating a second collector; preserve review and publication boundaries |
-| Article sources, guides and research | Weekly source-copy/change check plus link checks | Recover missed copies; distinguish changed source evidence from collector failure; editorial changes remain deliberate |
-| Search, Ask, summaries and saved public pages | Gap alarms and publication-specific clearing | Make follow-up obligations durable; source-scoped dates; never let fresh unrelated records make old answers appear current |
-| Private site measurements | Separate access checks and collection activation work | Keep operational measurements separate from public-record freshness and their existing access limits |
+| State campaign payments, totals and directory | Daily payments; totals after changed lists or weekly | Lists every 15 minutes; collection on a change or daily; each payment file updates on its own; bounded checks only while a checkable file is owed |
+| Large-contribution notices | Daily October 20–November 6; weekly otherwise | Every 15 minutes in election months, else hourly; weekly correction rereads |
+| Disclosure statements, filing dates and refunds | Wednesday statement catalogues; other work separate | Weekly statement rereads; recent filing dates hourly and all dates daily in bounded turns; refunds monthly |
+| Bills, actions, text and status | Hand-started collection; daily gap alarms | Dated actions every 5 minutes while sitting, 15 in the interim; full inventory at the approved phase interval; changed text updates search |
+| Roll-call votes | Daily missing-vote backfill | Hourly missing votes and correction rereads; journal mismatches go to review |
+| Legislator contacts, service and committees | Hand-started full refresh | Roster PDF checked every 15 minutes; full refresh every 4 hours with complete-response checks |
+| Lobbyists, clients and spending | Hand-started paired publication | Download links every 15 minutes; full paired file publication hourly |
+| Candidates and election changes | Live official lookup plus saved profile records | Hourly source-contract check for review; no visitor address kept |
+| Address suggestions | Copy checked every 5 minutes, replaced after 12 hours | Unchanged; separate from candidate, district and ballot freshness |
+| District maps, ZIP references and session rollover | Reviewed source replacements | Map releases checked hourly, ZIP and sessions daily; replacements stay reviewed |
+| FCC advertising files | Daily collection for KSTP, KARE and KMSP | Hourly turns of the same 3-station collector; unserved files go to review |
+| Article sources, guides and research | Weekly source-copy/change check plus link checks | Unchanged |
+| Search, Ask, summaries and saved public pages | Publication-specific clearing | Every accepted change clears Cloudflare and the website's saved pages; a failed clear stays owed and is retried |
+| Private site measurements | Separate access checks | Unchanged; kept apart from public-record freshness |
 
 The approved bill intervals remain 4 hours during regular sessions, 2 hours during
 special sessions, 4 hours for 14 days after adjournment, and weekly in the interim.
