@@ -41,9 +41,16 @@ def test_bounded_fcc_backlog_is_continuation_not_source_success():
 
 
 @pytest.mark.parametrize(
-    "change", ["source_gaps", "reading_gaps", "reading_operational_failures", "phase"]
+    "change, expected",
+    [
+        ("source_gaps", 2),
+        ("reading_gaps", 2),
+        ("reading_operational_failures", 1),
+        ("phase", 1),
+    ],
 )
-def test_fcc_gaps_or_failed_phases_cannot_be_hidden_by_backlog(change):
+def test_fcc_gaps_or_failed_phases_cannot_be_hidden_by_backlog(change, expected):
+    """FCC-side gaps ask for review; our own failures fail. Neither claims progress."""
     report = deepcopy(BASE)
     report["backlog"]["downloads"] = 10
     report["needs_attention"] = True
@@ -51,7 +58,16 @@ def test_fcc_gaps_or_failed_phases_cannot_be_hidden_by_backlog(change):
         report["errors"] = {"mirror": "ExceptionName"}
     else:
         report[change] = 1
-    assert outcome(report, 1)[0] == 1
+    assert outcome(report, 1)[0] == expected
+
+
+def test_fcc_files_the_source_does_not_serve_are_reviewed_not_failed():
+    report = deepcopy(BASE)
+    report["collection"].update(status="incomplete", files_unavailable=9)
+    report["source_gaps"] = 9
+    report["needs_attention"] = True
+    code, finding = outcome(report, 1)
+    assert code == 2 and finding["status"] == "review_required"
 
 
 def test_workflow_rollout_preserves_fallback_clocks_and_one_fcc_queue():

@@ -543,3 +543,57 @@ def test_roster_owes_clearing_before_its_first_and_after_its_last_commit(
     else:
         refresh.refresh_roster(Mock(), session_code="0942025", target="production")
     assert order == ["legislative", "roster commit", "bio commit", "legislative"]
+
+
+SPEAKER_PAGE = (
+    '<h5 class="mt-0">Rep. Lisa Demuth <span>(R) District: 13A</span></h5>'
+    "<p>Speaker of the House</p><h4>Biographical Information:</h4>"
+)
+
+
+@pytest.mark.parametrize(
+    "pages, refused",
+    [
+        ([SPEAKER_PAGE], False),
+        ([SPEAKER_PAGE] * 3, True),
+        (
+            [
+                SPEAKER_PAGE.replace(
+                    "<p>", "<h4>Committee Assignments:</h4><ul></ul><p>"
+                )
+            ],
+            True,
+        ),
+    ],
+    ids=["speaker-lists-none", "too-many-without", "empty-committee-section"],
+)
+def test_only_a_complete_page_without_a_committee_section_lists_none(
+    monkeypatch, pages, refused
+):
+    db = Mock()
+    db.scalar.return_value = SimpleNamespace(id="session")
+    chamber = SimpleNamespace(slug="house")
+    rows = [
+        (
+            SimpleNamespace(id=f"member-{n}"),
+            chamber,
+            f"https://www.house.mn.gov/members/profile/{n}",
+        )
+        for n in range(len(pages))
+    ]
+    monkeypatch.setattr(
+        committee_memberships, "current_legislator_rows", lambda *_: rows
+    )
+    served = iter(pages)
+    monkeypatch.setattr(committee_memberships, "fetch_text", lambda *_: next(served))
+    clear = Mock()
+    monkeypatch.setattr(committee_memberships, "clear_current_memberships", clear)
+    monkeypatch.setattr(committee_memberships, "refresh_committee_stats", Mock())
+    if refused:
+        with pytest.raises(RuntimeError, match="retaining all saved"):
+            committee_memberships.backfill(db, dry_run=False, cleanup_orphans=False)
+        clear.assert_not_called()
+    else:
+        stats = committee_memberships.backfill(db, dry_run=False, cleanup_orphans=False)
+        assert stats.profiles_without_assignments == 1
+        clear.assert_called_once()
