@@ -36,6 +36,8 @@ from alethical.pipeline.source_record_clearing import MARKERS, drain_source_clea
 ROOT = Path(__file__).resolve().parents[2]
 #: Runs only while a committed source change still owes saved-page clearing.
 CLEARING_JOB = "source-clearing"
+#: Runs only while a money check it can perform, or money page clearing, is owed.
+CHECK_JOB = "campaign-rechecks"
 
 
 @dataclass(frozen=True)
@@ -197,7 +199,7 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
         )
     definitions.append(
         RefreshJob(
-            "campaign-rechecks",
+            CHECK_JOB,
             timedelta(minutes=5),
             timedelta(minutes=5),
             (
@@ -360,6 +362,9 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
                 ),
                 "https://www.leg.mn.gov/",
                 "Collect missing rolls and rotate through saved rolls for corrections",
+                # Its code-owned summary is kept on failure too, so a failed turn
+                # says which counts failed.
+                capture_json=True,
                 lane="legislative",
                 priority=6,
                 review_exit=2,
@@ -484,6 +489,12 @@ def enabled_job(name: str) -> bool:
     return job_family(name) in enabled_families()
 
 
+def _money_checks_owed(db: Session) -> bool:
+    from alethical.pipeline.campaign_finance_recheck_batches import work_owed
+
+    return work_owed(db)
+
+
 def _clearing_owed(db: Session) -> bool:
     return (
         db.scalar(
@@ -581,9 +592,12 @@ def due_names(db: Session, *, now: datetime | None = None) -> list[str]:
             db.commit()
     states = {row.name: row for row in db.scalars(select(SourceRefreshState))}
     owed = any(name in states for name in MARKERS)
+    idle = set() if owed else {CLEARING_JOB}
+    if CHECK_JOB in active and not _money_checks_owed(db):
+        idle.add(CHECK_JOB)
     ready = []
     for name, job in definitions.items():
-        if not enabled_job(name) or (name == CLEARING_JOB and not owed):
+        if not enabled_job(name) or name in idle:
             continue
         row = states.get(name)
         lane = states.get(f"lane:{job.lane}") if job.lane else None
@@ -905,6 +919,8 @@ def health(db: Session, *, now: datetime | None = None) -> list[dict]:
         overdue = enabled and (
             completed is None or now > completed + job.interval + job.timeout
         )
+        if name == CHECK_JOB and enabled and not _money_checks_owed(db):
+            overdue = False
         if name == CLEARING_JOB:
             # Late only when a clear failed and no retry has succeeded since;
             # an obligation waiting for a long turn to end is not late.

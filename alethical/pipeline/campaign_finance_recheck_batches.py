@@ -43,6 +43,36 @@ class BatchBudgetExhausted(BaseException):
     """An unfinished target is left for the next bounded turn."""
 
 
+def work_owed(db: Session) -> bool:
+    """Whether a bounded turn has anything it can do now.
+
+    Owed page clearing, or an owed check on a file paired with the live totals. A
+    held file waiting for a complete accepted source read is not checkable, so it
+    alone owes no turn; its obligation stays recorded either way.
+    """
+    if refresh.state_get(db, refresh.CLEARING_PENDING_KEY):
+        return True
+    marker = refresh.state_get(db, refresh.RECHECK_PENDING_KEY)
+    if not marker:
+        return False
+    live = refresh.live_versions(db)
+    if not refresh.recheck_still_owed(marker, live):
+        return True  # the turn removes the rolled-back obligation
+    slots = (
+        refresh.owed_payment_files(marker, live)
+        if "pending_files" in marker
+        else {"contributions": {}, "expenditures": {}}
+    )
+    if not slots:
+        return True  # the turn removes the finished obligation
+    release = reader.live_release(db)
+    return any(
+        str(release.paired_filings(reader.Dataset(name)) or "")
+        == live.filings_snapshot_id
+        for name in slots
+    )
+
+
 @dataclass
 class BatchReport:
     dataset: str | None = None

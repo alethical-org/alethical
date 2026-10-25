@@ -44,7 +44,7 @@ turn refused by a busy lease exits 76 and never advances its success date.
 | --- | --- | --- | --- |
 | campaign | `campaign-discovery` | 15 minutes | Reads the 6 official register and report lists; queues collection on a change |
 | campaign | `campaign-money` | 1 day, or sooner on a change | Collects and publishes totals and the 3 payment files without long checks |
-| campaign | `campaign-rechecks` | 5 minutes | Finishes at most 10 owed committee-year checks within 120 seconds and 10 requests |
+| campaign | `campaign-rechecks` | 5 minutes, only while a checkable file or money page clearing is owed | Finishes at most 10 owed committee-year checks within 120 seconds and 10 requests; a held file waiting for a complete source read owes no turn |
 | campaign | `filing-dates-recent` | 1 hour | Dates up to 25 current and prior-year reports in 120 seconds, saving its position |
 | campaign | `filing-dates` | 1 day | The same bounded turns across 2022 onward; restarts for a newly published register |
 | campaign | `refunds`, `donor-proof-preparation` | 30 days, 1 day | Recheck refund bytes; prepare donor evidence privately for review |

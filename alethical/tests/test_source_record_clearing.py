@@ -220,3 +220,29 @@ def test_a_turn_with_nothing_owed_never_asks_to_clear(sessions, monkeypatch):
         lambda *a, **k: pytest.fail("cleared without an owed change"),
     )
     assert runner.run_due(sessions, target="production", execute=lambda *a, **k: 0) == 0
+
+
+def test_money_checks_are_due_only_while_work_is_owed(sessions, monkeypatch):
+    from alethical.pipeline import campaign_finance_refresh as refresh
+
+    monkeypatch.setenv("ALETHICAL_SOURCE_REFRESH_FAMILIES", '["campaign"]')
+    with sessions() as db:
+        refresh.state_update(
+            db, delete_keys=[refresh.CLEARING_PENDING_KEY, refresh.RECHECK_PENDING_KEY]
+        )
+        db.commit()
+        assert runner.CHECK_JOB not in runner.due_names(db, now=NOW)
+        report = {row["name"]: row for row in runner.health(db, now=NOW)}
+        assert not report[runner.CHECK_JOB]["overdue"]
+        # The daily collector shares the lane; take it out of the way.
+        db.get(SourceRefreshState, "campaign-money").next_due_at = NOW + timedelta(
+            days=1
+        )
+        db.commit()
+        assert runner.CHECK_JOB not in runner.due_names(db, now=NOW)
+        # Owed money page clearing is retried by a bounded turn.
+        refresh.state_set(db, refresh.CLEARING_PENDING_KEY, {"events": ["test"]})
+        db.commit()
+        assert runner.CHECK_JOB in runner.due_names(db, now=NOW)
+        refresh.state_update(db, delete_keys=[refresh.CLEARING_PENDING_KEY])
+        db.commit()
