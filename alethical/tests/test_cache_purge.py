@@ -806,13 +806,9 @@ def test_website_copies_clear_after_api_with_production_only_tag():
     assert len(sent) == 2
     assert sent[0]["url"].startswith("https://api.cloudflare.com/")
     assert sent[1]["url"].startswith(
-        "https://api.vercel.com/v1/edge-cache/dangerously-delete-by-tags?"
+        "https://api.vercel.com/v1/edge-cache/invalidate-by-tags?"
     )
-    assert sent[1]["body"] == {
-        "tags": [WEBSITE_TAG],
-        "target": "production",
-        "revalidationDeadlineSeconds": 0,
-    }
+    assert sent[1]["body"] == {"tags": [WEBSITE_TAG], "target": "production"}
     assert sent[1]["headers"]["Authorization"] == "Bearer website-token"
     assert "Vercel accepted" in result.report()
 

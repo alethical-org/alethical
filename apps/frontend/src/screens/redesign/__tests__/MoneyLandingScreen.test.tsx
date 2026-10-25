@@ -493,6 +493,10 @@ describe('the money landing makes the reporting periods and destinations explici
     expect(host.textContent).toContain(
       'Committee register and report totals last copied: Sep 23, 2026',
     );
+    // A retained committee keeps its own older totals date; the newest copy never covers it.
+    expect(host.textContent).toContain(
+      'A committee page shows the copy date of its own report totals, which can be earlier.',
+    );
     expect(host.textContent).toContain('Lobbying files last copied: Sep 15, 2026');
     expect(host.textContent).not.toContain('Sep 1, 2026');
     expect(host.textContent).not.toContain('Sep 13, 2026');

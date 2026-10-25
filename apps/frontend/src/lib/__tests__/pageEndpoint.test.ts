@@ -3278,6 +3278,9 @@ describe('the records a money page hands to the app', () => {
     expect(body).toContain('1,665 REGISTERED LOBBYISTS');
     expect(body).toContain('Campaign payment files last copied: Sep 1, 2026');
     expect(body).toContain('Committee register and report totals last copied: Aug 12, 2026');
+    expect(body).toContain(
+      'A committee page shows the copy date of its own report totals, which can be earlier.',
+    );
     expect(body).toContain('Lobbying files last copied: Sep 13, 2026');
     expect(body).toContain('<details><summary>View source links</summary>');
   });

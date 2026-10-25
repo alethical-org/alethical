@@ -154,12 +154,15 @@ no-store responses carry no tag. The existing 300-second fresh and stale windows
 remain unchanged.
 
 With `ALETHICAL_CLEAR_WEBSITE_PAGES=on`, the shared clearer first clears Cloudflare,
-then asks Vercel to delete this tag in the production `alethical-web` project.
-The next request rebuilds the public response from the cleared API. Deletion has
-zero grace time because serving a known older identity or record after a successful
-update would defeat prompt delivery. This can make the next reader wait for a fresh
-response; the existing API timeout and failure response remain. Immutable assets,
-private pages and database records are unaffected.
+then asks Vercel to mark this tag stale in the production `alethical-web` project.
+The tag is marked stale, not deleted: the next request for a page gets its previous
+copy, with that copy's own dates, while Vercel rebuilds it from the cleared API in the
+background, and every request after that gets the rebuilt page. Deleting instead
+forced a cold rebuild for the first reader; on October 25, 2026 the first uncached read
+of the lobbyist list's data took 9.0 seconds, past the page's 5-second limit, and a
+reader got "This page is temporarily unavailable." A failed rebuild answers `no-store`,
+so it is never saved over the previous copy. Immutable assets, private pages and
+database records are unaffected.
 
 The production workflow uses the existing `VERCEL_TOKEN`, `VERCEL_PROJECT_ID` and
 `VERCEL_ORG_ID` secrets. Code checks the exact approved project/team before sending;
@@ -168,7 +171,7 @@ invalid confirmation or network failure fail the whole clearing result. The dura
 obligation remains for retry, even if Cloudflare already succeeded. A source copy or
 successful job queue never counts as cleared pages.
 
-[Vercel's deletion API](https://vercel.com/docs/rest-api/edge-cache/dangerously-delete-by-tag)
+[Vercel's invalidation API](https://vercel.com/docs/rest-api/edge-cache/invalidate-by-tag)
 and [public response tags](https://vercel.com/changelog/tag-based-cache-invalidation-now-available-for-all-responses)
 are available on all plans. The shared tag covers rendered public pages rather than
 trying to enumerate query strings or guess every cross-feature dependency. Source

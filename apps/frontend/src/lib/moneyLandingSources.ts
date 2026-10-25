@@ -5,6 +5,9 @@ export const MONEY_SOURCES_HEADING = 'Sources and copy dates';
 export const MONEY_SOURCES_ATTRIBUTION =
   'Records from the Minnesota Campaign Finance and Public Disclosure Board';
 export const MONEY_SOURCES_PERIOD_NOTE = `${FILE_COPY_MEANING} ${MONEY_SOURCE_COVERAGE}`;
+/** The register date is the newest copy; a retained committee keeps its own older date. */
+export const REPORT_TOTALS_OWN_DATE_NOTE =
+  'A committee page shows the copy date of its own report totals, which can be earlier.';
 
 type SourcePart = { text: string; href?: string };
 export const MONEY_SOURCE_GROUPS: { title: string; paragraphs: SourcePart[][] }[] = [

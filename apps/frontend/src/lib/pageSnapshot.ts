@@ -52,6 +52,7 @@ import {
   MONEY_SOURCES_HEADING,
   MONEY_SOURCES_ATTRIBUTION,
   MONEY_SOURCES_PERIOD_NOTE,
+  REPORT_TOTALS_OWN_DATE_NOTE,
   MONEY_SOURCE_GROUPS,
 } from './moneyLandingSources';
 import { BACK_TO_MONEY_SECTION, MONEY_SECTION_NAME } from './moneySectionName';
@@ -1532,6 +1533,7 @@ export function moneyLandingPageSnapshot(
           ...(source.registerLastCopiedAt
             ? [
                 `Committee register and report totals last copied: ${centralDateLabel(source.registerLastCopiedAt)}`,
+                REPORT_TOTALS_OWN_DATE_NOTE,
               ]
             : []),
           ...(source.lobbyingFilesLastCopiedAt
