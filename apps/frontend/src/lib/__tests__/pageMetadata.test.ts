@@ -196,7 +196,7 @@ describe('page metadata', () => {
     const metadata = STATIC_PAGE_METADATA['/services'];
     expect(metadata.title).toBe('Political intelligence and campaign services | Alethical');
     expect(metadata.description).toBe(
-      'Campaign-finance research, websites, marketing, and custom software development shaped around your team’s needs.',
+      'Campaign-finance research, websites, marketing, events, and custom software development shaped around your team’s needs',
     );
     expect(metadata.canonicalPath).toBe('/services');
     expect(metadata.noindex).toBe(false);
