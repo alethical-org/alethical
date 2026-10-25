@@ -21,17 +21,16 @@ updates to existing records, including separate checked payment files. Federal
 expansion remains deferred. Existing paid-summary, user-send and evidence-review
 boundaries remain in force.
 
-Claude Code owns the remaining implementation, integration, release, activation
-and live acceptance in the managed folder
-`/Users/eug/.codex/worktrees/source-refresh-continuation/Alethical`, local branch
-`codex/source-refresh-continuation`, pushed to the existing draft branch of
-[pull request 2511](https://github.com/alethical-org/alethical/pull/2511) without
-rewriting its history. The independent payment-file work (`b7fc79b1`, `2b3895ec`,
-`154b3149`, `eeaa2071` from `codex/independent-payment-files`) ships inside that
-pull request rather than as a second one, so the same commits never merge twice.
-Website page clearing shipped separately in
+Implementation and independent payment-file publication shipped in
+[pull request 2511](https://github.com/alethical-org/alethical/pull/2511).
+Website page clearing shipped in
 [pull request 2716](https://github.com/alethical-org/alethical/pull/2716).
-The Codex parent chat keeps status and final read-only acceptance.
+Activation and per-family automatic-run acceptance completed October 25.
+Follow-up remains in Codex chat `01a1731c-352c-7213-8435-65f7a90017a4`, working folder
+`/Users/eug/.codex/worktrees/bb22/Alethical`, branch
+`codex/finish-record-refresh-activation`. The earlier implementation folders remain
+retained. [Coverage and recovery](../operations/public-record-refresh-status.md)
+owns the live settings, source holds and completed-run evidence.
 
 ## Source cadence, lanes and clearing
 
@@ -66,7 +65,7 @@ its stated `Retry-After`. Bill, vote and roster writes and newly stored filing d
 owe saved-page clearing in the same transaction as the records; the route is in
 [api-cdn-setup.md, clearing a saved copy](../operations/api-cdn-setup.md#clearing-a-saved-copy).
 
-## Current completion checks
+## Build acceptance criteria
 
 1. Preserve the current address-index lifecycle, both email lifecycles, retained
    source dates, FCC scope and the current reader dependencies when integrating main.
@@ -84,9 +83,10 @@ owe saved-page clearing in the same transaction as the records; the route is in
    reading tools, bounded backlog and continuing issue. Preserve its Actions queue.
 6. Prove disabled-family defaults and legacy schedule continuity; complete setup,
    automatic collection and measured public read-back with the release owner.
-7. Run combined checks on current main, advance existing draftPR2511 normally and
-   retain this folder for follow-up. Production setup, release and activation stay
-   with the parent chat.
+7. Preserve the combined-check and release evidence on
+   [pull request 2511](https://github.com/alethical-org/alethical/pull/2511), and
+   retain the working folders for follow-up. The activation owner above retains
+   the final live acceptance record.
 
 ## Shared impact and prevention
 
@@ -114,30 +114,32 @@ families retain old clocks until staged activation. Parent acceptance covers cur
 schema integration, spending intent, actual settings and measurable public results;
 local tests alone cannot prove those live facts.
 
-## Local continuation evidence
+## Implementation evidence
 
-The current-main integration preserves merge `29dbb061` and main `4c99ecf9` through
-merge `75296eb6`. The source implementation checkpoint is `f25a0587`. Normal
-commit hooks passed. The combined source, notice, legislative, supporting, lobbying
-and Minnesota-ingestion selection passed 277 tests; the existing FCC report passed
-8 Node tests. The current additive source schema round-trip passed with RLS on its
-3 operational tables. The final payment migration revision and combined money
-integration still require their own current-head checks.
+[Pull request 2511](https://github.com/alethical-org/alethical/pull/2511) completed
+the source and independent-payment integration. Production runs schema
+`0074_source_refresh`, after migrations `0072` and `0073`. The merged release and
+follow-up pull requests retain their current-head checks and independent reviews;
+[coverage and recovery](../operations/public-record-refresh-status.md#current-state)
+records the deployed source outcomes.
 
 Source-only October 24 measurements distinguish the full inventory from dated-action
 discovery and actual bill rereads; [bill refresh cadence](../architecture/bill-refresh-cadence-decisions.md#fast-dated-action-discovery)
-owns the parameters, counts, timing, phase choice and coverage limits. None of those
-measurements wrote records, embedded text, sent mail or changed production settings.
-The release owner still owns activation, public read-back and final acceptance.
+owns the parameters, counts, timing, phase choice and coverage limits. Those source
+measurements did not write records, embed text or change production settings.
 
 ## Source coverage checklist
 
 A checked item has completed a named verification turn in production on current
-code. Bills stay unchecked until the approved changed-text search update is switched
-on, because bill turns refuse to run without it.
+code. Bill discovery completed on October 25 in
+[run 40195099730](https://github.com/alethical-org/alethical/actions/runs/40195099730)
+with the existing changed-text search approval enabled. A quiet discovery turn does
+not prove a full inventory or a changed-text embedding occurred.
 
-- [ ] Bills: reviewed sitting intervals, new-session catch-up, source fingerprint
-  first, bounded shared request rate, official discovery coverage, atomic search
+- [x] Bill recent-action discovery: both chamber date lists and a saved successful
+  check in run 40195099730
+- [ ] Full bill inventory and changed-text search publication in the automatic cycle;
+  recent-action discovery alone does not establish either result
 - [x] Votes: newly available rolls and bounded corrections, unmatched-source evidence
 - [x] Roster: full coverage before departures; contacts, photos, service and committees
 - [x] Lobbying: daily paired source copy, privacy, retained releases, saved-page clearing
@@ -151,7 +153,8 @@ on, because bill turns refuse to run without it.
 - [ ] Cited article sources: retries, repeated-unavailable evidence, no silent rewrite
 - [x] Calendar rollovers: discover changes and hold unknown mappings for review
 - [x] Health: completed source coverage, overdue work, separate checked/copy dates
-- [ ] All affected documentation, tests and live read paths
+- [x] Activation settings, automatic checks for all 6 families, clearing recovery,
+  affected docs and live read paths; historical catch-up remains separate
 
 ## Impact and prevention record
 
@@ -175,7 +178,10 @@ Scheduled GitHub jobs use the existing public repository's free standard runners
 The final report must distinguish installed code, active schedules, successful
 collections and changes awaiting source access or human review.
 
-## Progress
+## Earlier implementation checkpoints
+
+These checkpoints describe work before the merged release and October 25 activation
+above; their pending states are historical.
 
 - 7 October: fresh isolated parent branch and 3 independent build branches started.
 - 7 October: confirmed October 6 campaign refresh still fails the same source guards;
@@ -232,8 +238,7 @@ collections and changes awaiting source access or human review.
 
 ## Model selection
 
-Claude Opus 5.5 at high effort owns the remaining integration and release, with
-independent fresh-context review for production, security and schema work. This is
-a task judgment from current model guidance, not a measured comparison. API
-dispatch, source collection and publication remain separate permissions and
-completion facts.
+The implementation used Claude Opus 5.5 at high effort with independent review.
+The October 25 activation continuation keeps configuration and final acceptance in
+its owning Codex chat, with a separate read-only reviewer. API dispatch, source
+collection and publication remain separate permissions and completion facts.
