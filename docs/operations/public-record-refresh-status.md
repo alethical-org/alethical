@@ -32,11 +32,49 @@ with a saved source attempt from 12:54:02 to 12:54:05 UTC. This quiet recent-act
 check does not claim a full historical inventory refresh or an embedding call.
 Railway deployment `165ccb8a-a3a6-40a7-88bf-8e6a9df4564a` succeeded; the first
 independent automatic dispatch was recorded at 13:00:07 UTC. A dispatch is not a
-completed collection. Notices, campaign-list discovery, roster-source discovery,
-lobbying-source discovery and map-source discovery have completed automatic checks.
-The first automatic FCC turn is still running; activation acceptance remains open
-on [issue 2504](https://github.com/alethical-org/alethical/issues/2504) until its
-source outcome and remaining clearing obligations are evidenced.
+completed collection. All 6 families have now completed automatic source checks.
+The following runs were started by `alethical-record-updater[bot]`, with their
+claim and finish recorded in `source_refresh_attempt` on October 25 (UTC):
+
+| Family | Automatic source check | Finished | Outcome |
+| --- | --- | --- | --- |
+| Campaign | [Campaign-list discovery](https://github.com/alethical-org/alethical/actions/runs/40195619055) | 13:02:38 | Source check succeeded; its pending page clearing recovered separately below |
+| Notices | [Large-contribution notices](https://github.com/alethical-org/alethical/actions/runs/40195617243) | 13:02:04 | Succeeded |
+| Legislative | [Roster-source discovery](https://github.com/alethical-org/alethical/actions/runs/40195711169) | 13:02:24 | Succeeded; the full roster also completed at 13:22:56 |
+| Lobbying | [Paired lobbying update](https://github.com/alethical-org/alethical/actions/runs/40195875694) | 13:05:15 | Succeeded |
+| Supporting | [Map-release discovery](https://github.com/alethical-org/alethical/actions/runs/40195791350) | 13:03:59 | Succeeded; no reviewed map replacement |
+| FCC | [Existing 3-station collection](https://github.com/alethical-org/alethical/actions/runs/40195795007) | 13:36:33 | Completed with source/reading gaps retained for review |
+
+FCC observed 639 folders and 4,996 listed files: 534 saved, 4,453 unchanged and
+9 unavailable from the source. The completed turn has no download, second-copy or
+reading backlog, no reading operational failures, and 4 reading gaps. Existing
+administrator access and review gates remain; this activation does not publish
+unapproved extracted amounts or open the TV-ad surfaces to other readers.
+
+Campaign discovery's first workflow failed after its source check because saved-page
+clearing remained pending. The automatic
+[clearing-only run 40196189651](https://github.com/alethical-org/alethical/actions/runs/40196189651)
+finished at 13:08:37 without collecting again. A final database read after FCC
+completion found no `clearing:*` obligations. Public API/HTML reads and a browser
+check of the money page retained the distinct file-copy dates and usable official
+source links; the October 9 spending file remains unchanged.
+
+Recent filing-date turns completed their pass with 63 supported dates stored;
+4 unserved reports and 69 reports without a readable date remain review findings.
+Automatic bill discovery also completed in
+[run 40197354253](https://github.com/alethical-org/alethical/actions/runs/40197354253).
+Long bill inventories, older filing dates and other bounded catch-up work continue
+on the active clock. A completed family check is not a claim that every historical
+record is current. Official publication time was not supplied for these observations,
+so these run times do not establish publication-to-reader delay or instant updates.
+
+The first API wake at 13:00:07 produced the first GitHub run at 13:00:09; source
+claims followed runner setup. Source collection, partial progress, review, publication
+and page clearing remain separate outcomes. The 10-minute active-service sample
+averaged 0.049 vCPU and 741 MB, within the existing service limits. Railway's current
+usage forecast remained about $4.03 for its October 22–November 22 billing period;
+this short observation does not isolate the clock's cost or predict a full month.
+No new service, plan or recurring AI-summary spending was enabled.
 
 Verification turns on October 24–25, 2026:
 

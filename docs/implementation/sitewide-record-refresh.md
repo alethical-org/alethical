@@ -25,8 +25,8 @@ Implementation and independent payment-file publication shipped in
 [pull request 2511](https://github.com/alethical-org/alethical/pull/2511).
 Website page clearing shipped in
 [pull request 2716](https://github.com/alethical-org/alethical/pull/2716).
-The October 25 continuation owns activation, automatic-run evidence and final
-acceptance in Codex chat `01a1731c-352c-7213-8435-65f7a90017a4`, working folder
+Activation and per-family automatic-run acceptance completed October 25.
+Follow-up remains in Codex chat `01a1731c-352c-7213-8435-65f7a90017a4`, working folder
 `/Users/eug/.codex/worktrees/bb22/Alethical`, branch
 `codex/finish-record-refresh-activation`. The earlier implementation folders remain
 retained. [Coverage and recovery](../operations/public-record-refresh-status.md)
@@ -85,8 +85,8 @@ owe saved-page clearing in the same transaction as the records; the route is in
    automatic collection and measured public read-back with the release owner.
 7. Preserve the combined-check and release evidence on
    [pull request 2511](https://github.com/alethical-org/alethical/pull/2511), and
-   retain the working folders for follow-up. The activation owner above holds
-   final live acceptance.
+   retain the working folders for follow-up. The activation owner above retains
+   the final live acceptance record.
 
 ## Shared impact and prevention
 
@@ -153,7 +153,8 @@ not prove a full inventory or a changed-text embedding occurred.
 - [ ] Cited article sources: retries, repeated-unavailable evidence, no silent rewrite
 - [x] Calendar rollovers: discover changes and hold unknown mappings for review
 - [x] Health: completed source coverage, overdue work, separate checked/copy dates
-- [ ] All affected documentation, tests and live read paths
+- [x] Activation settings, automatic checks for all 6 families, clearing recovery,
+  affected docs and live read paths; historical catch-up remains separate
 
 ## Impact and prevention record
 
