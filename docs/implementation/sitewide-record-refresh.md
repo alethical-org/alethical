@@ -132,21 +132,25 @@ The release owner still owns activation, public read-back and final acceptance.
 
 ## Source coverage checklist
 
+A checked item has completed a named verification turn in production on current
+code. Bills stay unchecked until the approved changed-text search update is switched
+on, because bill turns refuse to run without it.
+
 - [ ] Bills: reviewed sitting intervals, new-session catch-up, source fingerprint
   first, bounded shared request rate, official discovery coverage, atomic search
-- [ ] Votes: newly available rolls and bounded corrections, unmatched-source evidence
-- [ ] Roster: full coverage before departures; contacts, photos, service and committees
-- [ ] Lobbying: daily paired source copy, privacy, retained releases, saved-page clearing
-- [ ] Campaign money: daily payments, changed lists and weekly supported totals,
+- [x] Votes: newly available rolls and bounded corrections, unmatched-source evidence
+- [x] Roster: full coverage before departures; contacts, photos, service and committees
+- [x] Lobbying: daily paired source copy, privacy, retained releases, saved-page clearing
+- [x] Campaign money: daily payments, changed lists and weekly supported totals,
   historical rechecks, exact per-stage publication evidence and reviewed recovery
 - [ ] Filed dates, refunds, notices and statement amendments: source-specific checks
-- [ ] Donor proofs: exact-generation preparation and review queue, never autoapprove
-- [ ] Candidates: public source-contract and election-change checks without retaining
+- [x] Donor proofs: exact-generation preparation and review queue, never autoapprove
+- [x] Candidates: public source-contract and election-change checks without retaining
   visitor addresses; no invented address-free feed or automatic identity matching
-- [ ] Maps and ZIP: official release detection and reviewed replacement
+- [x] Maps and ZIP: official release detection and reviewed replacement
 - [ ] Cited article sources: retries, repeated-unavailable evidence, no silent rewrite
-- [ ] Calendar rollovers: discover changes and hold unknown mappings for review
-- [ ] Health: completed source coverage, overdue work, separate checked/copy dates
+- [x] Calendar rollovers: discover changes and hold unknown mappings for review
+- [x] Health: completed source coverage, overdue work, separate checked/copy dates
 - [ ] All affected documentation, tests and live read paths
 
 ## Impact and prevention record
