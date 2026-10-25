@@ -72,13 +72,16 @@ def main(argv: list[str] | None = None) -> int:
                     sweep_limit=args.sweep_limit,
                 )
             failed = bool(
-                report["corrections"]["rejected"]
-                or report["corrections"]["failed"]
+                report["corrections"]["failed"]
                 or report["missing"]["write_errors"]
                 or report["missing"]["source_errors"]
             )
+            # A rejected correction is an official roll call whose names do not
+            # match its own tally, or that matches no saved vote uniquely. The
+            # saved vote is kept; the source inconsistency needs a person.
             review_required = bool(
-                report["missing"]["no_source_match"]
+                report["corrections"]["rejected"]
+                or report["missing"]["no_source_match"]
                 or report["missing"]["ambiguous_or_missing_names"]
             )
             report = {
