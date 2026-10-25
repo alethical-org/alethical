@@ -30,8 +30,10 @@ that rate limit inside a minute.
 
 WEBSITE COPIES. api/page.ts tags cacheable public HTML with
 ``alethical-public-records``. When ``ALETHICAL_CLEAR_WEBSITE_PAGES=on``, clearing
-first discards Cloudflare API copies, then deletes that tag in the approved Vercel
-production project. The next page request reads current records in the foreground.
+first discards Cloudflare API copies, then marks that tag stale in the approved
+Vercel production project. The next request for a page gets its previous copy, with
+that copy's own dates, while Vercel rebuilds it from current records in the
+background. A failed rebuild answers no-store, so it never replaces that copy.
 A failed website clear fails the whole result, preserving the caller's durable retry
 obligation. Private/no-store responses carry no tag. The existing 5-minute windows
 remain the fallback; they are not evidence of completed clearing.
@@ -39,7 +41,7 @@ remain the fallback; they are not evidence of completed clearing.
 The Vercel request uses the existing VERCEL_TOKEN, VERCEL_PROJECT_ID and VERCEL_ORG_ID
 workflow secrets. Its project/team bindings are checked before sending. This clears
 rebuildable public copies only, never records, private pages or deployment assets.
-See https://vercel.com/docs/rest-api/edge-cache/dangerously-delete-by-tag.
+See https://vercel.com/docs/rest-api/edge-cache/invalidate-by-tag.
 
 """
 
@@ -77,7 +79,7 @@ WEBSITE_ENABLE_SETTING = "ALETHICAL_CLEAR_WEBSITE_PAGES"
 WEBSITE_TAG = "alethical-public-records"
 WEBSITE_PROJECT_ID = "prj_LjzIKKvanUbEvEaovi7QdZPOFOBv"
 WEBSITE_TEAM_ID = "team_Af32lU5bx6M9rkW47zoCQ1ar"
-WEBSITE_PURGE_URL = "https://api.vercel.com/v1/edge-cache/dangerously-delete-by-tags"
+WEBSITE_PURGE_URL = "https://api.vercel.com/v1/edge-cache/invalidate-by-tags"
 
 #: Plain names for the 4 events the issue lists, plus the 5th the issue does not: the
 #: 2 money checks a load re-runs against what it just published. Those write the
@@ -522,11 +524,7 @@ def _clear_website(values: Mapping[str, str], *, send, timeout: float) -> str | 
                 "Authorization": f"Bearer {clean['VERCEL_TOKEN']}",
                 "Content-Type": "application/json",
             },
-            json={
-                "tags": [WEBSITE_TAG],
-                "target": "production",
-                "revalidationDeadlineSeconds": 0,
-            },
+            json={"tags": [WEBSITE_TAG], "target": "production"},
             timeout=timeout,
         )
     except requests.RequestException:

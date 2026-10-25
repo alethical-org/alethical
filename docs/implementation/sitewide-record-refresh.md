@@ -49,7 +49,7 @@ turn refused by a busy lease exits 76 and never advances its success date.
 | campaign | `filing-dates` | 1 day | The same bounded turns across 2022 onward; restarts for a newly published register |
 | campaign | `refunds`, `donor-proof-preparation` | 30 days, 1 day | Recheck refund bytes; prepare donor evidence privately for review |
 | notices | `notices` | 15 minutes in July, August, October and November, else 1 hour | Collects newly posted notices |
-| notices | `notice-amendments`, `statement-amendments` | 7 days | Reread retained notices and statement catalogues for corrections |
+| notices | `notice-amendments`, `statement-amendments` | 7 days | Reread retained notices and statement catalogues for corrections; statement PDFs the Board does not hold mark the turn for review and are asked for again |
 | legislative | `bills-discovery-<session>` | 5 minutes while the session's bill interval is 4 hours or less, else 15 minutes | Rereads up to 25 bills with dated actions from both chambers |
 | legislative | `bills-backdated-discovery-<session>` | 1 day | Rereads a 14-day dated-action window for delayed publication |
 | legislative | `bills-<session>` | The approved phase interval | Full official inventory reconciliation, 100 bills per chunk |

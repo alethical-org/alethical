@@ -20,8 +20,10 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
+from contextlib import redirect_stdout
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -86,6 +88,9 @@ def main() -> int:
     )
     parser.add_argument("--only", nargs="*", default=None, help="Registration numbers.")
     parser.add_argument("--year", type=int, default=datetime.now(UTC).year)
+    parser.add_argument(
+        "--json", action="store_true", help="Print a safe source-check summary as JSON."
+    )
     args = parser.parse_args()
 
     engine = create_engine(
@@ -95,6 +100,12 @@ def main() -> int:
         connect_args=NO_PREPARED_STATEMENTS,
     )
     try:
+        if args.json:
+            summary: dict = {}
+            with redirect_stdout(sys.stderr):
+                code = _collect(args, engine, summary=summary)
+            print(json.dumps({"exit_code": code, **summary}, sort_keys=True))
+            return code
         return _collect(args, engine)
     except (NoticeWriterBusy, NoticeWriterLost) as error:
         print(str(error), file=sys.stderr)
@@ -106,7 +117,7 @@ def main() -> int:
         engine.dispose()
 
 
-def _collect(args, engine) -> int:
+def _collect(args, engine, summary: dict | None = None) -> int:
     with Session(engine) as db:
         if not db.execute(
             text("SELECT to_regclass('cf_disclosure_statement')")
@@ -192,7 +203,27 @@ def _collect(args, engine) -> int:
             "PDFs not served": len(report.not_served),
         },
     )
-    return 1 if failed else 0
+    # PDFs the Board says it does not hold are source gaps, asked for again next
+    # run: a review result (2), not a failed collector, so a scheduled weekly scan is
+    # not retried every few hours. Any other problem still fails.
+    only_source_gaps = bool(
+        report.not_served
+        and not report.failures
+        and report.catalogues_read == len(wanted)
+        and not clearing_failed
+    )
+    code = 2 if only_source_gaps else 1 if failed else 0
+    if summary is not None:
+        summary.update(
+            status={0: "complete", 1: "failed", 2: "review"}[code],
+            catalogues_read=report.catalogues_read,
+            catalogues_wanted=len(wanted),
+            statements_new=report.new,
+            pdfs_kept=report.pdfs_fetched,
+            pdfs_not_served=len(report.not_served),
+            problems=len(report.failures),
+        )
+    return code
 
 
 if __name__ == "__main__":

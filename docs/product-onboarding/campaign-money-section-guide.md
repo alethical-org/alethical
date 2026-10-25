@@ -186,11 +186,16 @@ including dates and counts; a drawing’s dotted or slashed zero never overrides
 ### Sources and copy dates
 
 The attribution reads “Records from the Minnesota Campaign Finance and Public
-Disclosure Board”. Three copy dates follow, each from its own source, each on its own
-line: “Campaign payment files last copied:” (the Board's 3 payment downloads),
-“Committee register and report totals last copied:” (the register of filers, the
-report catalogue and the official totals, which are copied separately and on a
-different day), and “Lobbying files last copied:”. A missing date never borrows
+Disclosure Board”. Copy dates follow, each from its own source, each on its own line.
+The Board's 3 payment downloads share 1 line, “Campaign payment files last copied:”,
+only when all 3 were copied on the same Minnesota day; otherwise each has its own
+line (“Contributions file copied”, “Spending file copied”, “Outside-spending file
+copied”), because each file updates on its own. Then “Committee register and report
+totals last copied:” (the register of filers, the report catalogue and the official
+totals, which are copied separately and on a different day), followed by “A committee
+page shows the copy date of its own report totals, which can be earlier.” because a
+committee whose newest figures were unavailable keeps its earlier copy and date. Last
+comes “Lobbying files last copied:”. A missing date never borrows
 another source’s date or a reporting-period date; while loading it reads “Loading…”
 and when the source is not served it reads “Copy date unavailable”. Timestamps print
 as their Minnesota (Central time) day. The note beneath reads “The copy date is when

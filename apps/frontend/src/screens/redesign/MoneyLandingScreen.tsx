@@ -53,6 +53,7 @@ import {
   MONEY_SOURCES_HEADING,
   MONEY_SOURCES_ATTRIBUTION,
   MONEY_SOURCES_PERIOD_NOTE,
+  REPORT_TOTALS_OWN_DATE_NOTE,
 } from '../../lib/moneyLandingSources';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
@@ -520,6 +521,9 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                         : 'Copy date unavailable'}
                   </Text>
                 </Text>
+                {registerLastCopied ? (
+                  <Text style={styles.infoBody}>{REPORT_TOTALS_OWN_DATE_NOTE}</Text>
+                ) : null}
                 <Text style={styles.infoBody}>
                   Lobbying files last copied:{' '}
                   <Text style={styles.freshnessDate}>

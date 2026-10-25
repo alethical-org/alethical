@@ -139,10 +139,12 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
                 "--kinds",
                 "all",
                 "--refresh-existing",
+                "--json",
             ),
             "https://cfb.mn.gov/",
             "Refresh statement catalogues and corrected PDFs",
             lane="statements",
+            review_exit=2,
         ),
     ]
     definitions.append(
