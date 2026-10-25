@@ -25,7 +25,7 @@ the tie-breaker when a tactic and an intent disagree.
   conventions, where decisions get recorded, the checks a change must clear, the git
   commands that destroy other agents' work (rule 10), and how to write a change with
   discipline (rule 14).
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — setup, the commands, and the CI reference.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — setup, the commands, the CI reference and what makes a test count.
 - [`docs/design/design-principles.md`](docs/design/design-principles.md) governs UI work
   and every Design handoff, including the **Type** rule: use Libre Franklin with equal-width
   digits for numbers even when a drawing specifies dotted or slashed zeros, without another approval.

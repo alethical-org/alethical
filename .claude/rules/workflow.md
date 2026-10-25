@@ -337,6 +337,12 @@ updates and independently inspect the live behaviour before reporting completion
 
     **How to verify a merge, in order:**
 
+    - **Work that delivers an issue's or brief's acceptance criteria carries a
+      requirement coverage record** for the reviewed head commit, following
+      `.claude/skills/requirement-coverage/SKILL.md`. The independent reviewer already
+      working on the change writes it; otherwise 1 helper does. Revisit affected rows
+      after any later commit.
+
     - **Every PR must include current `main` before merging.** The merge queue is
       off. Keep strict up-to-date branch protection, admin enforcement and the 4
       required GitHub Actions checks: `changes`, `backend`, `frontend` and
@@ -553,6 +559,10 @@ updates and independently inspect the live behaviour before reporting completion
     in the body. A reader who reads only the Net line still comes away knowing the point
     and the ask.
 
+    A PR body also states its recovery route: how to undo the change, what code, data
+    and users it affects, and anything undoing the code will not reverse. "Revert this
+    pull request; nothing else to undo" is a full answer when true.
+
     **Two levels, not one.** Beyond the overview Net at the top, **every
     acceptance-criteria or checklist item carries its own inline `— Net:` gloss**: the
     plain-language what-this-means and why-it-is-checked for that item, in a short clause,
@@ -643,7 +653,8 @@ updates and independently inspect the live behaviour before reporting completion
       gets tests of its intended result and realistic failures, bad input included,
       especially parsing, money, permissions and data writes. Existing tests count when
       they would catch the break; add the missing cases, not a test per branch or loop;
-      trivial changes need none.
+      trivial changes need none. When a test counts as evidence:
+      [CONTRIBUTING.md, What makes a test count](../../CONTRIBUTING.md#what-makes-a-test-count).
     - **Record shared impact and prevention.** Apply the shared
       [PERSONAL_RULES.md guidance on considering the whole system while keeping execution scoped](https://github.com/euglopi/tool-settings/blob/main/shared/PERSONAL_RULES.md#decisions-act-on-my-recommendation-report-after)
       to all substantive work. Keep its concise impact-and-prevention record in the
