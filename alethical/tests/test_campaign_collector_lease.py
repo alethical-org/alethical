@@ -94,3 +94,67 @@ def test_new_calendar_does_not_reuse_old_ballot_file(monkeypatch):
         )["status"]
         == "failed"
     )
+
+
+@pytest.mark.parametrize(
+    "not_served, failures, expected, status",
+    [
+        (["https://cfb.mn.gov/statement.pdf"], [], 2, "review"),
+        (["https://cfb.mn.gov/statement.pdf"], ["catalogue unreadable"], 1, "failed"),
+        ([], [], 0, "complete"),
+    ],
+    ids=["board-holds-no-file", "real-problem", "clean"],
+)
+def test_statement_pdfs_the_board_does_not_hold_ask_for_review(
+    monkeypatch, capsys, not_served, failures, expected, status
+):
+    import json
+    from scripts import collect_campaign_finance_statements as command
+
+    @contextmanager
+    def session(engine):
+        yield SimpleNamespace(execute=lambda *a: SimpleNamespace(scalar=lambda: True))
+
+    kind = command.schema.CampaignFinanceFilerKind.political_committee_or_fund
+    reference = SimpleNamespace(
+        filers=[SimpleNamespace(kind=kind, registration_number="20003")],
+        still_current=lambda db: True,
+    )
+    report = SimpleNamespace(
+        catalogues_read=1,
+        listed=1,
+        new=0,
+        pdfs_fetched=0,
+        notice_amendments=0,
+        failures=failures,
+        not_served=not_served,
+    )
+    monkeypatch.setattr(command, "Session", session)
+    monkeypatch.setattr(command, "load_reference", lambda engine: reference)
+    monkeypatch.setattr(command, "raw_file_store_from_env", lambda: None)
+    monkeypatch.setattr(command, "DatabaseRequestLimiter", lambda engine: None)
+    monkeypatch.setattr(command, "RateLimitedSession", lambda *a: None)
+    monkeypatch.setattr(command.filings, "http_session", lambda: None)
+    monkeypatch.setattr(
+        command.notices, "scan_catalogues_for_statements", lambda *a, **k: report
+    )
+    monkeypatch.setattr(command, "clear_and_note", lambda *a, **k: (False, "cleared"))
+    monkeypatch.setattr(command, "record_stage", lambda *a, **k: None)
+    monkeypatch.setattr(
+        command, "create_engine", lambda *a, **k: SimpleNamespace(dispose=lambda: 0)
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "collector",
+            "--database-url",
+            "postgresql://unused",
+            "--kinds",
+            "committees",
+            "--json",
+        ],
+    )
+    assert command.main() == expected
+    summary = json.loads(capsys.readouterr().out)
+    assert summary["status"] == status
+    assert summary["pdfs_not_served"] == len(not_served)
