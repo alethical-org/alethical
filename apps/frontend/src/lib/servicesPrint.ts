@@ -9,6 +9,7 @@ import {
   SERVICES_EARLY_HEADING,
   SERVICES_EARLY_INTRO,
   SERVICES_GROUPS,
+  SERVICES_EVENT,
   SERVICES_PARTNER_GROUPS,
   SERVICES_PARTNER_INTRO,
   SERVICES_PRICING,
@@ -25,7 +26,7 @@ const number = (value: string) => `<div class="sp-number">${value}</div>`;
 const list = (items: readonly string[]) =>
   `<ul>${items.map((item) => `<li>${e(item)}</li>`).join('')}</ul>`;
 const sheet = (content: string, page: number) =>
-  `<section class="services-print-sheet" aria-label="Page ${page}"><div class="services-print-content">${content}</div><div class="services-print-folio"><span>alethical.com/services</span><span>${page} / 4</span></div></section>`;
+  `<section class="services-print-sheet" aria-label="Page ${page}"><div class="services-print-content">${content}</div><div class="services-print-folio"><span>alethical.com/services</span><span>${page} / 5</span></div></section>`;
 
 export function servicesPrintHtml(): string {
   const names = SERVICES_CANDIDATE_NAMES.map(
@@ -45,10 +46,15 @@ export function servicesPrintHtml(): string {
     sheet(
       `<div>${number('01')}<h2>From research to practical support.</h2>
       <div class="sp-services">${SERVICES_GROUPS.map((group) => `<div class="sp-service"><h3>${e(group.title === 'Websites and campaign tools' ? 'Websites and tools' : group.title)}</h3><p>${e(group.line)}</p>${list(group.examples)}</div>`).join('')}</div></div>
-      <div class="sp-tools-section">${number('02')}<div class="sp-development"><div class="sp-pill">In development</div>
+      <div class="sp-event"><div><h3>${e(SERVICES_EVENT.title)}</h3><p>${e(SERVICES_EVENT.line)}</p></div>
+      <div><a href="${e(SERVICES_EVENT.replayUrl)}">${e(SERVICES_EVENT.replayLabel)}</a><p class="sp-replay-address">${e(SERVICES_EVENT.replayUrl.replace('https://www.', ''))}</p></div></div>`,
+      2,
+    ),
+    sheet(
+      `<div class="sp-tools-section">${number('02')}<div class="sp-development"><div class="sp-pill">In development</div>
       <h2>Tools built around the way your team works.</h2><p>${e(SERVICES_TOOL_INTRO)}</p>
       <div class="sp-tools">${SERVICES_TOOLS.map((tool) => `<div class="sp-tool"><h3>${e(tool.title)}</h3><p>${e(tool.text)}</p></div>`).join('')}</div></div></div>`,
-      2,
+      3,
     ),
     sheet(
       `<div>${number('03')}<h2>Specialist support, connected to your campaign.</h2>
@@ -57,13 +63,13 @@ export function servicesPrintHtml(): string {
       <div class="sp-early"><div>${number('04')}<h2>${e(SERVICES_EARLY_HEADING)}</h2><p>${e(SERVICES_EARLY_INTRO)}</p></div>
       <div><p class="sp-statement">We’ve supported <a href="${e(SERVICES_COALITION_URL)}">Minnesota Forward Coalition</a> candidates including ${names}</p>
       <a class="sp-coalition" href="${e(SERVICES_COALITION_URL)}" aria-label="Minnesota Forward Coalition candidates"><img src="/services-coalition.webp" width="150" alt="" /><span>forwardcoalition.com/candidates</span></a></div></div>`,
-      3,
+      4,
     ),
     sheet(
       `<div class="sp-pricing">${number('05')}<h2>Delivery and pricing</h2><p class="sp-delivery">${e(SERVICES_DELIVERY_INTRO)}</p>
       <p class="sp-price-line">${e(SERVICES_PRICING)}</p><div class="sp-contact"><div class="sp-label">Contact</div><a href="${e(SERVICES_CONTACT_HREF)}">${e(SERVICES_CONTACT_EMAIL)}</a></div></div>
       <div class="sp-closing"><p>We hold these truths to be self-evident.<br /><span>Alethical makes them accessible.</span></p><img src="/services-print-mark.png" width="200" alt="" /></div>`,
-      4,
+      5,
     ),
   ].join('');
 }
@@ -121,7 +127,13 @@ export const SERVICES_PRINT_CSS = `
   .sp-service ul{margin-top:16px;display:flex;flex-direction:column;gap:10px}
   .sp-service li{line-height:1.4;display:flex;gap:12px;align-items:baseline}
   .sp-service li:before{content:'';flex-shrink:0;width:6px;height:6px;background:#2ed47e;transform:translateY(-3px)}
-  .sp-tools-section{margin-top:44px}
+  .sp-event{margin-top:24px;border-top:2px solid #2ed47e;padding-top:17px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 24px}
+  .sp-event>div{min-width:0}
+  .sp-event h3{font-size:19px;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+  .sp-event p{margin-top:8px;line-height:1.5}
+  .sp-event a{font-size:16px;font-weight:600;line-height:1.4;text-decoration:none}
+  .sp-event .sp-replay-address{margin-top:4px;font-size:15px;line-height:1.45;overflow-wrap:anywhere}
+  .sp-tools-section{margin-top:0}
   .sp-development{border:1px dashed rgba(17,21,15,.3);border-radius:20px;background:#f7f8fa;padding:24px 28px 18px}
   .sp-pill{display:inline-flex;align-items:center;gap:9px;background:#e4f8ee;border-radius:999px;padding:6px 13px;white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#0f7a45;align-self:flex-start}
   .sp-pill:before{content:'';width:7px;height:7px;border-radius:50%;background:#2ed47e}

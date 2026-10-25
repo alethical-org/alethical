@@ -34,6 +34,61 @@ for (const width of [320, 375, 768, 924, 1100, 1280]) {
       );
     }
     await page.screenshot({ path: test.info().outputPath(`services-header-${width}.png`) });
+    for (const [section, name] of [
+      ['audiences', 'Support for an organization. A starting point for a campaign.'],
+      ['services', 'From research to practical support.'],
+      ['tools', 'Tools built around the way your team works.'],
+      ['partners', 'Specialist support, connected to your campaign.'],
+      ['early-work', 'Already helping campaigns get started.'],
+    ]) {
+      await page.getByRole('heading', { name, exact: true }).scrollIntoViewIfNeeded();
+      await page.screenshot({ path: test.info().outputPath(`services-${section}-${width}.png`) });
+    }
+
+    const partners = page.locator('#partners');
+    const partnerHeadings = partners.getByRole('heading', { level: 3 });
+    const partnerPositions = await partnerHeadings.evaluateAll((elements) =>
+      elements.map((element) => Math.round(element.getBoundingClientRect().top)),
+    );
+    expect(new Set(partnerPositions).size).toBe(width < 768 ? 4 : 2);
+    await expect(partnerHeadings.first()).toHaveCSS('font-size', '19px');
+    await expect(partnerHeadings.first().locator('..')).toHaveCSS(
+      'border-top-color',
+      'rgb(53, 196, 107)',
+    );
+    await expect(partners.getByRole('listitem').first()).toHaveCSS('border-top-width', '1px');
+    if ([375, 768, 1280].includes(width)) {
+      const scroll = page.locator('#services-page');
+      const dimensions = await scroll.evaluate((element) => ({
+        total: element.scrollHeight,
+        visible: element.clientHeight,
+      }));
+      for (let offset = 0; offset < dimensions.total; offset += dimensions.visible - 150) {
+        await scroll.evaluate((element, top) => {
+          element.scrollTop = top;
+        }, offset);
+        await page.screenshot({
+          path: test.info().outputPath(`services-whole-${width}-${offset}.png`),
+        });
+      }
+    }
+
+    const event = page.locator('#services-events');
+    await expect(
+      event.getByRole('heading', { name: 'Debate hosting and event production' }),
+    ).toBeVisible();
+    await expect(event).toContainText('Bring candidates and communities together');
+    await expect(event.getByRole('link', { name: 'Host a debate', exact: true })).toHaveCount(0);
+    const replay = event.getByRole('link', { name: 'Watch The Forward Debate', exact: true });
+    await expect(replay).toHaveAttribute(
+      'href',
+      'https://www.alethical.com/blog/events/forward-debate-2026',
+    );
+    await expect(replay).not.toHaveAttribute('target', '_blank');
+    await replay.scrollIntoViewIfNeeded();
+    expect((await replay.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await page.screenshot({ path: test.info().outputPath(`services-event-${width}.png`) });
+
     const delivery = page.getByRole('heading', { name: 'Delivery and pricing', exact: true });
     await delivery.scrollIntoViewIfNeeded();
     const layout = await delivery.evaluate((element) => {
@@ -106,6 +161,7 @@ for (const width of [375, 1280]) {
     const close = dialog.getByRole('button', { name: 'Close', exact: true });
     const draft = dialog.getByRole('link', { name: 'Open email draft', exact: true });
     await expect(heading).toBeFocused();
+    await page.screenshot({ path: test.info().outputPath(`services-contact-${width}.png`) });
     await expect(draft).toHaveAttribute('href', 'mailto:angel@alethical.com?cc=ask@alethical.com');
     await heading.press('Shift+Tab');
     await expect(draft).toBeFocused();
@@ -160,8 +216,12 @@ for (const width of [390, 1280]) {
   }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/services');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+      'Political intelligence. Practical campaign support.',
+    );
     await page.getByRole('link', { name: 'Alethical home', exact: true }).click();
-    await page.getByRole('link', { name: /^Campaign services Get political/ }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await page.getByTestId('home-services').click();
     await page.setViewportSize({ width, height: 844 });
     for (const [link, heading] of [
       ['Partners', 'Specialist support, connected to your campaign.'],
@@ -186,7 +246,7 @@ for (const width of [375, 1280]) {
   }) => {
     await page.setViewportSize({ width, height: 800 });
     await page.goto('/');
-    const card = page.getByRole('link', { name: /^Campaign services Get political/ });
+    const card = page.getByTestId('home-services');
     await expect(card).toHaveAttribute('href', '/services');
     await card.click();
     await expect(page).toHaveURL(/\/services$/);
@@ -272,5 +332,35 @@ for (const width of [320, 768, 1100]) {
     await footer.getByRole('link', { name: 'Contact Us', exact: true }).click();
     await expect(page).toHaveURL(/\/about\/contact$/);
     await expect(page.getByRole('heading', { name: 'Contact us', exact: true })).toBeVisible();
+  });
+}
+
+for (const width of [375, 900, 1280]) {
+  test(`replay link keeps its visible focus and pointer feedback at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto('/services');
+    const replay = page
+      .locator('#services-events')
+      .getByRole('link', { name: 'Watch The Forward Debate' });
+    const label = replay.locator('div');
+    await replay.scrollIntoViewIfNeeded();
+    await expect(label).toHaveCSS('color', 'rgb(236, 236, 236)');
+    await replay.hover();
+    await expect(label).toHaveCSS(
+      'color',
+      width < 768 ? 'rgb(236, 236, 236)' : 'rgb(53, 196, 107)',
+    );
+    await page.mouse.down();
+    await expect(label).toHaveCSS('color', 'rgb(90, 214, 138)');
+    await page.mouse.move(1, 500);
+    await page.mouse.up();
+    await replay.press('Tab');
+    await page.keyboard.press('Shift+Tab');
+    await expect(replay).toBeFocused();
+    await expect(replay).toHaveCSS('outline-color', 'rgb(124, 92, 255)');
+    await expect(replay).toHaveCSS('outline-width', '2px');
+    await page.screenshot({ path: test.info().outputPath(`services-event-focus-${width}.png`) });
   });
 }

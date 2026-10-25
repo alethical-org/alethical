@@ -46,6 +46,12 @@ export const SERVICES_GROUPS = [
     ],
   },
 ] as const;
+export const SERVICES_EVENT = {
+  title: 'Debate hosting and event production',
+  line: 'Bring candidates and communities together',
+  replayLabel: 'Watch The Forward Debate',
+  replayUrl: 'https://www.alethical.com/blog/events/forward-debate-2026',
+} as const;
 export const SERVICES_TOOL_INTRO =
   'Early customers will help set priorities and test new features, so development stays focused on the work campaigns need to get done.';
 export const SERVICES_TOOLS = [
@@ -108,7 +114,7 @@ export const SERVICES_CANDIDATE_NAMES = [
 ] as const;
 export const SERVICES_COALITION_URL = 'https://forwardcoalition.com/candidates';
 export const SERVICES_DELIVERY_INTRO =
-  'Tell us what your organization or campaign needs. We’ll help you choose the right mix of research, software, creative work, and specialist services.';
+  'Tell us what your organization or campaign needs. We’ll help you choose the right mix of research, software, creative work, events, and specialist services.';
 export const SERVICES_PRICING = 'Pricing is tailored to your needs';
 export const SERVICES_CONTACT_EMAIL = 'angel@alethical.com';
 export const SERVICES_CONTACT_HREF = 'mailto:angel@alethical.com?cc=ask@alethical.com';

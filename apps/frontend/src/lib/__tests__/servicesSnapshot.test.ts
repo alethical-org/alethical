@@ -32,6 +32,16 @@ describe('services before the interactive app starts', () => {
         'footer a[href="https://www.instagram.com/alethicaltruth"]',
       ),
     ).not.toBeNull();
+    const event = Array.from(dom.window.document.querySelectorAll('section')).find(
+      (section) =>
+        section.querySelector('h2')?.textContent === 'Debate hosting and event production',
+    );
+    expect(event?.textContent).toContain('Bring candidates and communities together');
+    expect(event?.querySelector('a')?.textContent).toBe('Watch The Forward Debate');
+    expect(event?.querySelector('a')?.getAttribute('href')).toBe(
+      'https://www.alethical.com/blog/events/forward-debate-2026',
+    );
+    expect(event?.textContent).not.toContain('Host a debate');
     expect(color('h2', 'color')).toBe('rgb(236, 236, 236)');
     expect(color('.ps-prose', 'color')).toBe('rgb(179, 179, 179)');
     expect(color('.ps-card', 'backgroundColor')).toBe('rgba(0, 0, 0, 0)');

@@ -36,7 +36,7 @@ The header contact panel and footer general-contact destination remain distinct.
 ## The presentation
 
 The opener says “Political intelligence. Practical campaign support.” It presents
-campaign-finance research, websites, marketing and custom software development,
+campaign-finance research, websites, marketing, events and custom software development,
 plus partner services. Its audience label is “FOR ORGANIZATIONS AND CAMPAIGNS”.
 
 The audience introduction is unnumbered. For organizations is selected initially.
@@ -47,7 +47,7 @@ associated examples announce their relationship to readers using assistive tools
 
 The 5 numbered sections stay in this order:
 
-1. Services: political intelligence, websites and campaign tools, content and marketing.
+1. Services: political intelligence, websites and campaign tools, content and marketing, debate hosting and event production.
 2. Software and tools: an IN DEVELOPMENT label, customer testing and prioritization,
    candidate profiles, campaign checklists, questionnaire drafting and the marketplace.
 3. Partner services: planning and professional support, communications and creative,
@@ -66,6 +66,14 @@ response do not publish different offers. Exact visual measurements remain in th
 implementation. The accepted black design uses Libre Franklin, approved Alethical
 and coalition assets, responsive stacked sections, and the dashed software panel.
 The 768 and 1100 responsive switch points follow the website's existing rules.
+
+The debate service says “Bring candidates and communities together” and links
+“Watch The Forward Debate” to `https://www.alethical.com/blog/events/forward-debate-2026`
+in the same tab. The link stays left-aligned, beside the description from 768px
+and below it on phones, with a 44px minimum target. It is underlined light text,
+green on hover from 768px and light green while pressed. The row is static and
+has no separate inquiry button. Debate and event inquiries use the existing
+Contact Us paths. Print keeps the replay label and full address beside the service.
 
 ## Contact Us
 
@@ -87,7 +95,7 @@ feedback. Reduced-motion settings avoid smooth section scrolling.
 
 ## Printing
 
-Use the browser's Print command at `/services`, including Save as PDF. The screen stays dark; paper uses the approved white Alethical branding. Both audience choices and their examples appear together without clicking. The 4 portrait sheets contain opener and audiences; services and developing tools; partners and early work; delivery/pricing and the closing brand message. Letter and A4 are supported at normal scale. The browser print dialog controls paper, scale and any additional printer margins.
+Use the browser's Print command at `/services`, including Save as PDF. The screen stays dark; paper uses the approved white Alethical branding. Both audience choices and their examples appear together without clicking. The 5 portrait sheets contain opener and audiences; services including debate hosting and event production; developing tools; partners and early work; delivery/pricing and the closing brand message. Letter and A4 are supported at normal scale. The browser print dialog controls paper, scale and any additional printer margins.
 
 The print presentation uses the same saved service content as the screen. Its sole wording exception is “Websites and tools”, approved because “Give your campaign a useful digital foundation.” already names the campaign. There is no separately maintained PDF or Download as PDF button. The coalition name, coalition logo/address and email remain linked in a saved PDF; email retains `ask@alethical.com` in cc.
 
@@ -95,7 +103,7 @@ Sticky headers, section links, audience controls, the contact panel and the foot
 
 Sheets use a physical Letter width and height minimum. Safari's automatic print width otherwise enlarges the content and pushes footers onto extra sheets; its print window height also differs from paper height. The fixed composition fits Letter and A4, with extra white space below the A4 baseline. Print heading colors explicitly replace the dark first-response colors. Fractional letter widths prevent Linux's rounded font measurements from adding lines and extra sheets. Required frontend CI runs print checks, including the real first-response generator in a static-server fixture, and retains Letter/A4 PDFs. Local and live acceptance exercise the server’s own first response.
 
-Approved print reference: `Alethical Services.pdf`, downloaded 7 October 2026 at 10:49:59 Eastern; matching source `Alethical UX (57).zip`. Accepted colors, type, spacing and sheet content are recorded in [campaign-services-presentation.md (approved browser printing)](../plans/campaign-services-presentation.md#approved-browser-printing-7-october-2026).
+Prior print reference: `Alethical Services.pdf`, downloaded 7 October 2026 at 10:49:59 Eastern; matching source `Alethical UX (57).zip`. Accepted colors, type, spacing and sheet content are recorded in [campaign-services-presentation.md (approved browser printing)](../plans/campaign-services-presentation.md#approved-browser-printing-7-october-2026).
 
 ## Scope and follow-up
 
