@@ -185,17 +185,17 @@ The API wakeup does not guarantee immediate availability of a GitHub runner.
 | Source | Target interval | What can reach readers automatically |
 | --- | --- | --- |
 | Bills | Dated-action discovery every 5 minutes during sittings and every 15 minutes otherwise, today plus 2 days; a daily 14-day lookback; up to 25 bills per turn; full reconciliation every 4 hours during regular sittings and the 14 days after adjournment, 2 hours during special sittings, weekly otherwise | Both chamber action views feed finite saved passes; full inventory/status/text reconciliation covers undated actions and older same-address corrections; changed text and search commit together; summaries remain off |
-| Votes and roster | Votes hourly; roster daily | Newly available rolls, bounded correction checks, complete rosters, contacts, service and committees; incomplete sources retain held data |
-| Lobbying | Daily | A checked registration/spending pair, with separate source dates and retryable saved-answer clearing |
+| Votes and roster | Votes hourly; roster source discovery every 15 minutes and full refresh every 4 hours | Newly available rolls, bounded correction checks, complete rosters, contacts, service and committees; incomplete sources retain held data |
+| Lobbying | Source discovery every 15 minutes; paired publication hourly | A checked registration/spending pair, with separate source dates and retryable saved-answer clearing |
 | Campaign money | 6-list discovery every 15 minutes; payments daily; supported totals on list changes or weekly; checks in 10 committee-year / 120-second / 10-request turns | Checked source releases and corrected supported years; no 2015–2021 totals expansion |
-| Filing dates | Daily | Dates supported by readable official reports; unavailable/scanned sources remain review findings |
+| Filing dates | Recent dates hourly; full supported history daily in bounded turns | Dates supported by readable official reports; unavailable/scanned sources remain review findings |
 | Large-contribution notices | Every 15 minutes in July, August, October and November; hourly otherwise; retained notice corrections weekly | Official new/corrected notices; unknown election calendars require review |
 | Disclosure statements | Weekly | New catalogues and corrected PDFs; human-reviewed readings stay protected |
 | FCC political files | Hourly enabled-family inventory; at most 1,000 downloads, 2,500 mirrors and 1,000 readings per turn | Existing 3-station collector; source gaps and unfinished bounded work retain their incomplete status |
 | Refunds | Every 30 days | Rechecked official summaries using approved account links |
 | Donor evidence | Daily preparation | Private evidence bundle only; no automatic donor-proof approval or publication |
-| Session codes and candidate source changes | Daily | Review findings; unknown session/election mappings are not guessed |
-| District map and HUD ZIP source changes | Weekly | Review findings; approved geometry and ZIP references remain until reviewed replacement |
+| Session codes and candidate source changes | Session codes daily; candidate sources hourly | Review findings; unknown session/election mappings are not guessed |
+| District map and HUD ZIP source changes | Map release discovery hourly; map contents and ZIP references daily | Review findings; approved geometry and ZIP references remain until reviewed replacement |
 | Cited article sources | Existing weekly archive schedule | Retained source versions; repeated unavailable sources fail visibly |
 
 `source_refresh_state` keeps next due time, ownership, progress and outcome;
@@ -210,6 +210,8 @@ family is off. The same GitHub family setting disables a legacy scheduled collec
 and enables its replacement; manual repair paths remain. No family is active by
 default. [Independent public-record wakeups](source-refresh-dispatch.md#staged-family-activation)
 owns the setup, proof and rollback steps.
+[Coverage and recovery](public-record-refresh-status.md#current-state) records the
+6 enabled families and their automatic-run evidence.
 The shared health warning closes only when the current source state is clear;
 private evidence and exception text never enter its public issue. Setup failures
 also produce a fixed warning. Existing backup work includes private evidence bundles.

@@ -15,12 +15,28 @@ reader corrections that followed ([2719](https://github.com/alethical-org/alethi
 [2720](https://github.com/alethical-org/alethical/pull/2720),
 [2721](https://github.com/alethical-org/alethical/pull/2721),
 [2722](https://github.com/alethical-org/alethical/pull/2722),
-[2724](https://github.com/alethical-org/alethical/pull/2724)). Every source family has
-completed a named verification turn in production. Automatic turns stay off until the
-`SOURCE_REFRESH_FAMILIES` and `SOURCE_REFRESH_BILL_EMBEDDINGS_APPROVED` repository
-variables are set, then the API's family list and 60-second wake
-([source-refresh-dispatch.md](source-refresh-dispatch.md#staged-family-activation)).
-Until then the older per-source schedules keep running.
+[2724](https://github.com/alethical-org/alethical/pull/2724)). The shared updater was activated on October 25, 2026. GitHub
+`SOURCE_REFRESH_FAMILIES` and Railway `ALETHICAL_SOURCE_REFRESH_FAMILIES` both hold
+`["campaign","notices","legislative","lobbying","supporting","fcc"]`.
+`SOURCE_REFRESH_BILL_EMBEDDINGS_APPROVED=true` retains the existing changed-text
+search approval; recurring summaries and user emails remain disabled in the worker.
+Railway `ALETHICAL_SOURCE_REFRESH_DISPATCH_ENABLED=true` enables the existing API's
+60-second wake, with the hourly GitHub clock as backup. The matching legacy
+scheduled collectors are disabled by the same family list; manual repairs remain
+available. [The activation and rollback procedure](source-refresh-dispatch.md#staged-family-activation)
+keeps these settings paired.
+
+Bill discovery completed in
+[run 40195099730](https://github.com/alethical-org/alethical/actions/runs/40195099730),
+with a saved source attempt from 12:54:02 to 12:54:05 UTC. This quiet recent-action
+check does not claim a full historical inventory refresh or an embedding call.
+Railway deployment `165ccb8a-a3a6-40a7-88bf-8e6a9df4564a` succeeded; the first
+independent automatic dispatch was recorded at 13:00:07 UTC. A dispatch is not a
+completed collection. Notices, campaign-list discovery, roster-source discovery,
+lobbying-source discovery and map-source discovery have completed automatic checks.
+The first automatic FCC turn is still running; activation acceptance remains open
+on [issue 2504](https://github.com/alethical-org/alethical/issues/2504) until its
+source outcome and remaining clearing obligations are evidenced.
 
 Verification turns on October 24–25, 2026:
 
@@ -59,8 +75,8 @@ comparisons stay withheld until its file is accepted again.
 
 ## Coverage by record type
 
-Each row's updater path runs automatically once its family is switched on; until then
-the older schedule in the middle column applies. This review does not authorize
+All 6 families are enabled. The middle column records the prior schedule, which
+resumes if its family is disabled. This review does not authorize
 additional datasets or a new public timing promise.
 
 | Record / reader feature | Older schedule (until its family is on) | Shared updater path, verified in production |
@@ -93,7 +109,7 @@ The missing-vote job configured for 09:00 was created at 13:03; the FCC job conf
 for 06:23 was created at 11:16; notices configured for 17:15 were created at 19:27.
 These are workflow creation times, not proven worker start or publication times.
 
-The existing draft uses an independent wake-up on the API and GitHub as a backup
+The deployed updater uses an independent wake-up on the API and GitHub as a backup
 clock. Dispatching to GitHub still depends on runner availability. A queued request
 must never advance a successful-check date or count as a completed update.
 
@@ -104,8 +120,8 @@ the full publication delay. Keep that unknown visible in measurements.
 
 ## Scope that remains separate
 
-Federal Election Commission filings are not imported by current main or the draft
-shared scheduler. The [approved money scope](../product-onboarding/product-scope.md)
+Federal Election Commission filings are not imported by the deployed shared
+scheduler. The [approved money scope](../product-onboarding/product-scope.md)
 limits money record pages to Minnesota Campaign Finance Board filings. Signed
 research may cite other bodies under its existing source rules.
 

@@ -21,17 +21,16 @@ updates to existing records, including separate checked payment files. Federal
 expansion remains deferred. Existing paid-summary, user-send and evidence-review
 boundaries remain in force.
 
-Claude Code owns the remaining implementation, integration, release, activation
-and live acceptance in the managed folder
-`/Users/eug/.codex/worktrees/source-refresh-continuation/Alethical`, local branch
-`codex/source-refresh-continuation`, pushed to the existing draft branch of
-[pull request 2511](https://github.com/alethical-org/alethical/pull/2511) without
-rewriting its history. The independent payment-file work (`b7fc79b1`, `2b3895ec`,
-`154b3149`, `eeaa2071` from `codex/independent-payment-files`) ships inside that
-pull request rather than as a second one, so the same commits never merge twice.
-Website page clearing shipped separately in
+Implementation and independent payment-file publication shipped in
+[pull request 2511](https://github.com/alethical-org/alethical/pull/2511).
+Website page clearing shipped in
 [pull request 2716](https://github.com/alethical-org/alethical/pull/2716).
-The Codex parent chat keeps status and final read-only acceptance.
+The October 25 continuation owns activation, automatic-run evidence and final
+acceptance in Codex chat `01a1731c-352c-7213-8435-65f7a90017a4`, working folder
+`/Users/eug/.codex/worktrees/bb22/Alethical`, branch
+`codex/finish-record-refresh-activation`. The earlier implementation folders remain
+retained. [Coverage and recovery](../operations/public-record-refresh-status.md)
+owns the live settings, source holds and completed-run evidence.
 
 ## Source cadence, lanes and clearing
 
@@ -133,11 +132,15 @@ The release owner still owns activation, public read-back and final acceptance.
 ## Source coverage checklist
 
 A checked item has completed a named verification turn in production on current
-code. Bills stay unchecked until the approved changed-text search update is switched
-on, because bill turns refuse to run without it.
+code. Bill discovery completed on October 25 in
+[run 40195099730](https://github.com/alethical-org/alethical/actions/runs/40195099730)
+with the existing changed-text search approval enabled. A quiet discovery turn does
+not prove a full inventory or a changed-text embedding occurred.
 
-- [ ] Bills: reviewed sitting intervals, new-session catch-up, source fingerprint
-  first, bounded shared request rate, official discovery coverage, atomic search
+- [x] Bill recent-action discovery: both chamber date lists and a saved successful
+  check in run 40195099730
+- [ ] Full bill inventory and changed-text search publication in the automatic cycle;
+  recent-action discovery alone does not establish either result
 - [x] Votes: newly available rolls and bounded corrections, unmatched-source evidence
 - [x] Roster: full coverage before departures; contacts, photos, service and committees
 - [x] Lobbying: daily paired source copy, privacy, retained releases, saved-page clearing
@@ -232,8 +235,7 @@ collections and changes awaiting source access or human review.
 
 ## Model selection
 
-Claude Opus 5.5 at high effort owns the remaining integration and release, with
-independent fresh-context review for production, security and schema work. This is
-a task judgment from current model guidance, not a measured comparison. API
-dispatch, source collection and publication remain separate permissions and
-completion facts.
+The implementation used Claude Opus 5.5 at high effort with independent review.
+The October 25 activation continuation keeps configuration and final acceptance in
+its owning Codex chat, with a separate read-only reviewer. API dispatch, source
+collection and publication remain separate permissions and completion facts.
