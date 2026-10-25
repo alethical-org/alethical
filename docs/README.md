@@ -57,6 +57,11 @@ things work in practice and are the place to start if you're new.
 
 ## Design
 
+- [Documents for outside readers](design/document-presentation.md) — Alethical presentation treatment
+- [Standalone reports](design/report-layout.md) — report branding, page size and table checks
+- [Brand identity and assets](design/brand-identity.md) — approved supplied images and identity constraints
+- [Rendered web interface review](design/web-interface-audit.md) — project adaptation of the shared audit
+
 - [Design principles](design/design-principles.md) — green system's design intent + visual/interaction/accessibility rules; brief for Claude Design
 - [UI copy guide](design/ui-copy-guide.md) — voice and tone
 - [Committee money wording](design/committee-money-refinements-copy.md) — approved labels and source-copy refinements
@@ -106,6 +111,8 @@ The words of every published reader-facing piece, one file each. Alethical calls
 - [Research](research/) — retrieval-strategy and persona findings, what the retired Base44 campaign-finance build got wrong and why the replacement is designed differently, [what the 2 measurement services on every page already report](research/real-visitor-page-speed-sources.md) about how fast real visits are (dated 4 Sep 2026), and the [Google indexing findings and search repairs](research/seo-indexing-audit-2026-09-07.md) (dated 7 Sep 2026)
 
 ## Operations
+
+- [Production ingestion refresh](operations/production-ingestion-refresh.md) — current entry routes and historical full-biennium recovery record
 
 - [Security policy](../SECURITY.md) — supported clients and private vulnerability reporting
 
