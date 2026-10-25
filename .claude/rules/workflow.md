@@ -623,6 +623,14 @@ updates and independently inspect the live behaviour before reporting completion
       beyond what was asked, no abstractions for single-use code, no speculative
       flexibility, no error handling for impossible cases. If 200 lines could be 50,
       rewrite it. The test: would a senior engineer call this overcomplicated?
+      Before adding code, look for an existing project solution, then a built-in
+      language or platform feature, then an installed library; use the first that meets
+      the full approved need and matches the project's conventions, keeping required
+      behaviour, accessibility, safety and screen states. Fewer lines alone never decide.
+      Where outside data enters, such as a reader's search text, an uploaded file, a
+      Minnesota Legislature or Campaign Finance Board download, or a reply from another
+      service, handle realistic bad input and failures even when the request does not
+      list them, based on the actual data and its use.
     - **Surgical changes.** Touch only what the task requires. Do not improve adjacent
       code, refactor what is not broken or restyle to taste; match the surrounding code
       even where you would do it differently. Remove only what your own change orphaned;
@@ -631,7 +639,11 @@ updates and independently inspect the live behaviour before reporting completion
     - **Goal-driven execution.** Turn the task into a verifiable goal before starting:
       "fix the bug" becomes "write a failing test that reproduces it, then make it pass";
       "refactor X" becomes "tests pass before and after". For multi-step work, state a
-      brief plan with a verification check per step.
+      brief plan with a verification check per step. New or changed meaningful logic
+      gets tests of its intended result and realistic failures, bad input included,
+      especially parsing, money, permissions and data writes. Existing tests count when
+      they would catch the break; add the missing cases, not a test per branch or loop;
+      trivial changes need none.
     - **Record shared impact and prevention.** Apply the shared
       [PERSONAL_RULES.md guidance on considering the whole system while keeping execution scoped](https://github.com/euglopi/tool-settings/blob/main/shared/PERSONAL_RULES.md#decisions-act-on-my-recommendation-report-after)
       to all substantive work. Keep its concise impact-and-prevention record in the
