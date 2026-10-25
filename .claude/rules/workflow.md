@@ -651,7 +651,7 @@ updates and independently inspect the live behaviour before reporting completion
       "refactor X" becomes "tests pass before and after". For multi-step work, state a
       brief plan with a verification check per step. New or changed meaningful logic
       gets tests of its intended result and realistic failures, bad input included,
-      especially parsing, money, permissions and data writes. Existing tests count when
+      especially parsing, money, permissions and data writes. Unchanged tests count when
       they would catch the break; add the missing cases, not a test per branch or loop;
       trivial changes need none. When a test counts as evidence:
       [CONTRIBUTING.md, What makes a test count](../../CONTRIBUTING.md#what-makes-a-test-count).
