@@ -57,7 +57,7 @@ turn refused by a busy lease exits 76 and never advances its success date.
 | legislative | `roster-discovery`, `roster` | 15 minutes, 4 hours | Roster PDF validators and hash; full member, contact and committee refresh |
 | lobbying | `lobbying-discovery`, `lobbying` | 15 minutes, 1 hour | Download links from the landing page; full paired file publication |
 | supporting | `maps-discovery`, `maps`, `zip`, `candidates`, `sessions` | 1 hour to 1 day | Detect official changes and queue review; never replace approved data |
-| fcc | `fcc` | 1 hour | Existing 3-station collector with its original download, mirror and reading limits |
+| fcc | `fcc` | 1 hour | Existing 3-station collector with its original download, mirror and reading limits; files the FCC lists but does not serve mark the turn for review and stay in the gap report |
 | any active | `source-clearing` | 5 minutes, only while owed | Retries owed saved-page clearing without collecting |
 
 Every family's downloads share 1 per-host request budget in `source_request_limits`,

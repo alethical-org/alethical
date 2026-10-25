@@ -416,6 +416,7 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
                 "https://publicfiles.fcc.gov/",
                 "Retain KSTP/KARE/KMSP files and resume bounded archive work",
                 capture_json=True,
+                review_exit=2,
                 lane="fcc",
             ),
         ]

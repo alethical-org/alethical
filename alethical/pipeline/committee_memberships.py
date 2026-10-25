@@ -98,6 +98,22 @@ def assignment_block(html_text: str) -> str:
     return match.group(1) if match else ""
 
 
+#: A complete official profile can list no committees: the Speaker of the House
+#: serves on none and the page has no committee section. More than this many in
+#: 1 run looks like a changed page layout, so the whole refresh still refuses.
+MAX_PROFILES_WITHOUT_COMMITTEES = 2
+
+
+def lists_no_committees(html_text: str, profile_url: str) -> bool:
+    """A complete member page with no committee section at all, not a thin read."""
+    from alethical.pipeline.minnesota import parse_member_profile
+
+    if re.search(r"committee\s+assignments", html_text, flags=re.I):
+        return False
+    profile = parse_member_profile(html_text, profile_url)
+    return bool(profile.get("name") and profile.get("district"))
+
+
 def parse_committee_assignments(
     html_text: str, source_url: str, chamber_slug: str
 ) -> list[CommitteeAssignment]:
@@ -305,8 +321,9 @@ def backfill(
     if current_session is None:
         raise RuntimeError("No current legislative session found")
 
-    # Gather every profile before removing any saved assignment. Missing sections
-    # and empty responses are failed source reads, never evidence of no committees.
+    # Gather every profile before removing any saved assignment. Empty responses
+    # and pages missing their member details are failed source reads, never
+    # evidence of no committees; see lists_no_committees for the 1 exception.
     stats = BackfillStats()
     collected: list[tuple[Any, Any, list[CommitteeAssignment]]] = []
     sess = source_session or requests.Session()
@@ -325,10 +342,13 @@ def backfill(
         assignments = parse_committee_assignments(html_text, profile_url, chamber.slug)
         if not assignments:
             stats.profiles_without_assignments += 1
-            raise RuntimeError(
-                f"No readable committee assignments at {profile_url}; "
-                "retaining all saved memberships for source review"
-            )
+            if not lists_no_committees(html_text, profile_url) or (
+                stats.profiles_without_assignments > MAX_PROFILES_WITHOUT_COMMITTEES
+            ):
+                raise RuntimeError(
+                    f"No readable committee assignments at {profile_url}; "
+                    "retaining all saved memberships for source review"
+                )
         collected.append((legislator, chamber, assignments))
     if cleanup_orphans:
         stats.orphan_legislators_deleted = cleanup_orphan_legislators(db)
