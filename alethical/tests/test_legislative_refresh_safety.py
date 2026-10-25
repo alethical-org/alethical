@@ -601,3 +601,36 @@ def test_only_a_complete_page_without_a_committee_section_lists_none(
         stats = committee_memberships.backfill(db, dry_run=False, cleanup_orphans=False)
         assert stats.profiles_without_assignments == len(pages)
         clear.assert_called_once()
+
+
+@pytest.mark.parametrize("bucket, expected", [("rejected", 2), ("failed", 1)])
+def test_rejected_vote_correction_asks_for_review_and_failed_one_fails(
+    monkeypatch, capsys, bucket, expected
+):
+    """A roll call whose names miss its own tally keeps the saved vote for review."""
+    import json
+    from scripts import refresh_legislative_records as command
+    from alethical.pipeline.votes import BackfillStats
+
+    monkeypatch.setattr(command, "database_url_for_target", lambda *_: "local")
+    monkeypatch.setattr(command, "_validated_database_target", lambda *_: None)
+    monkeypatch.setattr(command, "create_engine", lambda *_a, **_kw: Mock())
+    corrections = {"failed": [], "rejected": [], "updated": [], "unchanged": []}
+    corrections[bucket] = [
+        {"reason": "affirmative member list does not equal the official tally"}
+    ]
+    monkeypatch.setattr(
+        command,
+        "refresh_votes",
+        lambda *_a, **_kw: {
+            "missing": vars(BackfillStats()),
+            "corrections": corrections,
+        },
+    )
+    assert (
+        command.main(
+            ["--kind", "votes", "--target", "local", "--session-code", "0942026"]
+        )
+        == expected
+    )
+    assert json.loads(capsys.readouterr().out)["corrections"][bucket] == 1
