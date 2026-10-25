@@ -16,6 +16,9 @@ Each run resolves 2 links from the Board's
 
 Download numbers are observations, not saved routing constants. Changed labels,
 an unexpected filename or a changed header stop publication rather than guessing.
+The active list is accepted with or without its Street column, the 1 column the
+Board has dropped while keeping every other column in order; no other header
+change is accepted.
 
 The active-list CSV is read in memory. Parsing immediately selects registration
 number, filed name, formatted name, first/middle/last name parts and associations.

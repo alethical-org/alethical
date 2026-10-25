@@ -47,6 +47,8 @@ def test_bill_number_keeps_leading_zero_support(query):
     [
         ("https://house.mn.gov/members/profile/1", True),
         ("https://WWW.HOUSE.MN.GOV/members/profile/1", True),
+        ("https://www.house.leg.state.mn.us/members/members.asp?id=15513", True),
+        ("https://house.leg.state.mn.us.example.org/members/members.asp?id=1", False),
         ("https://house.mn.gov.example.org/members/profile/1", False),
         ("https://example.org/?source=house.mn.gov", False),
         ("https://house.mn.gov@example.org/members/profile/1", False),
