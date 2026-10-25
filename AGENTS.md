@@ -36,6 +36,16 @@ the tie-breaker when a tactic and an intent disagree.
   — how to write replies to the maintainer and how work is delegated and approved. Read
   it first. The file lives in the private `tool-settings` repository; an agent that cannot
   open it says so in its first reply, and a cloud brief pastes the rules it needs.
+- For outside-reader documents, load the shared `document-presentation` skill and
+  [`docs/design/document-presentation.md`](docs/design/document-presentation.md); reports also
+  load `report-layout` and [`docs/design/report-layout.md`](docs/design/report-layout.md).
+  [Brand assets and identity](docs/design/brand-identity.md) live here, not in global skills.
+  UI audits use [`docs/design/web-interface-audit.md`](docs/design/web-interface-audit.md)
+  with the shared `design-audit` skill. Production refresh work uses
+  [`docs/operations/production-ingestion-refresh.md`](docs/operations/production-ingestion-refresh.md)
+  with the shared `production-data-refresh` skill; that guide distinguishes historical recovery
+  examples from current operating instructions. Keep shared methods project-neutral and save
+  Alethical choices in their owning guide here; link rather than duplicate.
 - [`docs/README.md`](docs/README.md) — index of every spec. Specs describe intent;
   **GitHub issues and the Roadmap board carry sequencing**, so never read a milestone
   in prose as a reason work is off-limits.
