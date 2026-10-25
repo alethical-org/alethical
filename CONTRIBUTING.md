@@ -251,6 +251,54 @@ diff is not proof that every edit belongs: check the installed version, settings
 and actual changes before accepting it. Preserve other tasks' edits and separate
 unrelated formatting repairs from the feature change.
 
+## What makes a test count
+
+These apply to app and server tests alike. `.claude/rules/workflow.md` rule 14 says which
+tests to write; this section says when a test is evidence.
+
+- **New or changed checks are seen failing for the intended reason.** Watch the check
+  fail on the behaviour it protects before the fix or new code exists. When it was
+  written after the code, introduce 1 plausible, realistic fault for that behaviour
+  (remove the guard, flip the comparison, drop the filter) and watch it fail. A failure
+  from setup, a missing import, an unrelated error or a wrong expected value does not
+  count. A new check that passes before the change means the behaviour already existed
+  or the check misses it; find out which before counting it. 1 fault per protected
+  behaviour, not per assertion. A check edited only to rename or reformat it needs
+  nothing new.
+- **Unchanged checks** used as evidence for changed behaviour count when their
+  assertion, and the path from the changed code to it, show the change's likely mistake
+  would be caught. Record that reasoning. When it cannot show that (the expected value
+  comes from a shared helper, or a second safeguard could mask the mistake), demonstrate
+  the failure. Unrelated tests need nothing.
+- **Make faults without risking real work.** Fault a file in place only when this task
+  alone writes to the folder, nothing running reads the faulted file, and you know every
+  file the test run writes apart from logs and caches it always writes. Before the
+  fault, save exact copies (`mktemp`) of every existing file the fault or the run can
+  change, and list files with `git status --porcelain -uall --ignored` so new ones show.
+  Inject the fault, run the check, restore each saved file and confirm it matches its
+  copy (`cmp`), and remove only files the run newly created. Status and staged-change
+  records are extra signals, not proof: they miss new content in files already modified
+  or untracked, and in ignored outputs. Restore only changes you know you made; report
+  any unexplained change and leave it in place. Stop your own preview for the run only
+  when you own it and nothing else relies on it. In every other case, including when you
+  cannot cheaply tell what the run writes, make the fault in a disposable copy of the
+  current state, uncommitted files included. Undo faults from the saved copies only,
+  never with `git checkout`, `git restore`, `git reset` or `git stash`. Rerun the focused
+  checks after restoring.
+- **Expected answers come from outside the code:** a worked example, an approved
+  requirement or a trusted record such as a real fixture or official filing. Do not
+  derive the expected answer by repeating the implementation; the same mistake can
+  appear on both sides.
+- **Test through the caller's contract.** Call what the screen or endpoint calls and
+  assert what the reader or caller gets. When stored data is the contract (an importer,
+  a migration, a backfill), checking the stored rows is the caller's view.
+- **Use real local dependencies.** Backend tests keep the temporary Postgres. Stand in
+  only for paid services, network failures, the clock and anything that cannot run in
+  the test environment, and say what the stand-in leaves untested.
+- **Record it.** In the pull request's verification notes, list each protected behaviour
+  with its test references and the method used: failed before the change, failed
+  against a fault, or assertion reading. Leave unrelated tests out.
+
 ## Branch & PR workflow
 
 **Never commit directly to `main`.** Pushing to `main` triggers a production

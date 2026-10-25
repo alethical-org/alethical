@@ -17,7 +17,7 @@ Safe, reversible front-end production changes are auto-eligible — **not only p
 
 **Qualifies only when** the change is self-contained to its screen/component and touches **no** data-fetching/API/backend contract, auth, persisted or shared state, or schema, and makes **no** new user-facing claim or capability.
 
-**Verify before shipping:** `tsc --noEmit`, `prettier --check .`, and the production build pass; **manually verified on the dev server across the affected viewports and states** (no front-end test runner yet — [#173](https://github.com/alethical-org/alethical/issues/173) — so manual QA is the gate); a clean `git revert` fully undoes it. Say in the PR what you verified.
+**Verify before shipping:** `tsc --noEmit`, `prettier --check .`, and the production build pass; **manually verified on the dev server across the affected viewports and states** (Vitest covers logic and rendered components, not real-browser interaction or layout); a clean `git revert` fully undoes it. Say in the PR what you verified.
 
 **Accessibility fixes verify by their standard, not by eye, and are not held for approval:** file the issue at discovery, fix, then gate on `tsc`/`prettier`/CI/build green **plus** a WCAG check (screen-reader name/heading, reduced-motion toggle, a measured contrast ratio). For an already-shipped public surface, live confirmation may follow the merge. When an AA fix darkens a shared token or carries another visual tradeoff, still merge, but name the tradeoff in the after-report so it can be eyeballed and reverted if disliked.
 

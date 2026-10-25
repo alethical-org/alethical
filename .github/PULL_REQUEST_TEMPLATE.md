@@ -13,3 +13,9 @@ Closes #
 ## How I verified it
 
 <!-- Tests run, screens clicked, curl output — how do we know it works? -->
+
+## Recovery
+
+<!-- How to undo this change; what code, data and users it affects; anything undoing the
+     code will not reverse (deleted records, sent messages, outside settings).
+     "Revert this pull request; nothing else to undo" is a full answer when true. -->
