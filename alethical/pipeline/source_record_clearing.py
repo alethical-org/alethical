@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 import os
+import sys
 import uuid
 
 from sqlalchemy import delete, select
@@ -75,6 +76,8 @@ def drain_source_clearing(engine, *, target, purge=clear):
             return False
         result = purge(Clearing("public source records changed", tuple(paths)))
         if not result.ok or not result.armed:
+            # The report names the refusing service and never a credential.
+            print(result.report(), file=sys.stderr, flush=True)
             _record_failed_attempt(engine, captured)
             return False
     with Session(engine) as db:
