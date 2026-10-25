@@ -205,6 +205,7 @@ lasting decisions and release evidence have their permanent homes.
 - [Committee empty-year refinements](plans/committee-empty-year-refinements.md) — missing figures, contribution terms and filed-report navigation
 - [Committee record delivery](plans/committee-record-redesign.md) — committee layout, filing lists and release checks
 - [Campaign services presentation](plans/campaign-services-presentation.md) — approved public offering, delivery checkpoint and deferred client arrangements
+- [Debate hosting service](plans/services-debate-design-review.md) — accepted service addition, screen and print comparison, and release checks
 - [Money races delivery](design/money-races-build-plan.md) — accepted race-page scope and completion checks
 - [Payments by year release evidence](operations/2141-payments-by-year-checkpoint.md) — real-row checks and remaining wording boundaries
 - [Refund-card release evidence](operations/2147-refund-card-checkpoint.md) — source corrections, metadata recovery evidence and the separate historical-data hold

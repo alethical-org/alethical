@@ -26,6 +26,7 @@ import {
   SERVICES_EARLY_HEADING,
   SERVICES_EARLY_INTRO,
   SERVICES_GROUPS,
+  SERVICES_EVENT,
   SERVICES_PARTNER_GROUPS,
   SERVICES_PARTNER_INTRO,
   SERVICES_PRICING,
@@ -239,6 +240,7 @@ export function ServicesScreen({ navigation }: RootScreenProps<'Services'>) {
   const [dialog, setDialog] = useState(false);
   const closeDialog = useRef(() => setDialog(false)).current;
   const [coalitionHovered, setCoalitionHovered] = useState(false);
+  const [replayHovered, setReplayHovered] = useState(false);
   const [logoHovered, setLogoHovered] = useState(false);
   const [hoveredSection, setHoveredSection] = useState<string | null>(null);
   const sections = useRef<Record<string, View | null>>({});
@@ -552,6 +554,48 @@ export function ServicesScreen({ navigation }: RootScreenProps<'Services'>) {
                     </View>
                   </View>
                 ))}
+                <View
+                  nativeID="services-events"
+                  style={[
+                    styles.serviceRow,
+                    { flexDirection: isMobile ? 'column' : 'row', rowGap: 22 },
+                  ]}
+                >
+                  <View style={{ flex: isMobile ? undefined : 1 }}>
+                    <Heading level={3} style={styles.serviceTitle}>
+                      {SERVICES_EVENT.title}
+                    </Heading>
+                    <Text style={[styles.body, { marginTop: 10, lineHeight: 25.5 }]}>
+                      {SERVICES_EVENT.line}
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      flex: isMobile ? undefined : 1,
+                      paddingTop: 6,
+                      alignItems: 'flex-start',
+                    }}
+                  >
+                    <Pressable
+                      {...linkProps(SERVICES_EVENT.replayUrl)}
+                      onHoverIn={() => setReplayHovered(true)}
+                      onHoverOut={() => setReplayHovered(false)}
+                      style={{ minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' }}
+                    >
+                      {({ pressed }) => (
+                        <Text
+                          style={[
+                            styles.replayLink,
+                            !isMobile && replayHovered && { color: '#35C46B' },
+                            pressed && { color: '#5ad68a' },
+                          ]}
+                        >
+                          {SERVICES_EVENT.replayLabel}
+                        </Text>
+                      )}
+                    </Pressable>
+                  </View>
+                </View>
               </View>
             </View>
           </View>
@@ -640,14 +684,24 @@ export function ServicesScreen({ navigation }: RootScreenProps<'Services'>) {
                   </Text>
                 </View>
               </View>
-              <View style={[contentsWidth, styles.bottomRule]}>
+              <View style={[contentsWidth, styles.partnerGroups]}>
                 {SERVICES_PARTNER_GROUPS.map((group) => (
-                  <View key={group.name} style={styles.partnerRow}>
-                    <Heading level={3} style={styles.serviceTitle}>
+                  <View
+                    key={group.name}
+                    style={[
+                      styles.partnerGroup,
+                      { width: isMobile ? inner : (Number(contentsWidth.width) - 40) / 2 },
+                    ]}
+                  >
+                    <Heading level={3} style={styles.partnerTitle}>
                       {group.name}
                     </Heading>
-                    <View style={{ marginTop: 20 }}>
-                      <Bullets items={group.items} />
+                    <View accessibilityRole="list" style={{ marginTop: 14 }}>
+                      {group.items.map((item) => (
+                        <Text key={item} role="listitem" style={styles.partnerItem}>
+                          {item}
+                        </Text>
+                      ))}
                     </View>
                   </View>
                 ))}
@@ -937,7 +991,18 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   toolTitle: { fontSize: 19, fontWeight: '700', letterSpacing: -0.19 },
-  partnerRow: { borderTopWidth: 1, borderColor: '#262626', paddingTop: 32, paddingBottom: 34 },
+  partnerGroups: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 44, columnGap: 40 },
+  partnerGroup: { borderTopWidth: 1, borderColor: '#35C46B', paddingTop: 20, minWidth: 0 },
+  partnerTitle: { fontSize: 19, fontWeight: '700', letterSpacing: -0.19, lineHeight: 24.7 },
+  partnerItem: {
+    fontFamily: t.typography.body,
+    color: '#d4d4d4',
+    borderTopWidth: 1,
+    borderColor: '#222222',
+    paddingVertical: 12,
+    fontSize: 16,
+    lineHeight: 23.2,
+  },
   work: {
     borderTopWidth: 1,
     borderBottomWidth: 1,
@@ -951,6 +1016,14 @@ const styles = StyleSheet.create({
     maxWidth: 550,
     fontWeight: '400',
     letterSpacing: -0.45,
+  },
+  replayLink: {
+    fontFamily: t.typography.ui,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ECECEC',
+    textDecorationLine: 'underline',
+    ...webStyle({ textDecorationThickness: '1px', textUnderlineOffset: '.22em' }),
   },
   coalitionLink: {
     color: '#ECECEC',

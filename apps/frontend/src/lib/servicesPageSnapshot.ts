@@ -9,6 +9,7 @@ import {
   SERVICES_EARLY_HEADING,
   SERVICES_EARLY_INTRO,
   SERVICES_GROUPS,
+  SERVICES_EVENT,
   SERVICES_HEADLINE,
   SERVICES_PARTNER_GROUPS,
   SERVICES_PARTNER_INTRO,
@@ -46,6 +47,16 @@ export function servicesPageSnapshot(): PageSnapshot {
           { kind: 'bullets' as const, items: [...group.examples] },
         ],
       })),
+      {
+        heading: SERVICES_EVENT.title,
+        blocks: [
+          { kind: 'prose', lines: [SERVICES_EVENT.line] },
+          {
+            kind: 'links',
+            items: [{ label: SERVICES_EVENT.replayLabel, href: SERVICES_EVENT.replayUrl }],
+          },
+        ],
+      },
       {
         heading: 'Tools built around the way your team works.',
         body: ['IN DEVELOPMENT', SERVICES_TOOL_INTRO],

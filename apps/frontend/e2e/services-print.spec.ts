@@ -8,6 +8,7 @@ import {
   SERVICES_COALITION_URL,
   SERVICES_CONTACT_HREF,
   SERVICES_GROUPS,
+  SERVICES_EVENT,
   SERVICES_PARTNER_GROUPS,
   SERVICES_TOOLS,
 } from '../src/lib/services';
@@ -36,7 +37,7 @@ async function expectCompletePrint(print: Locator) {
   for (const heading of await print.locator('h1, h2, h3').all()) {
     await expect(heading).toHaveCSS('color', 'rgb(17, 21, 15)');
   }
-  await expect(print.locator('.services-print-sheet')).toHaveCount(4);
+  await expect(print.locator('.services-print-sheet')).toHaveCount(5);
   for (const audience of SERVICES_AUDIENCES) {
     await expect(print).toContainText(audience.title);
     await expect(print).toContainText(audience.text);
@@ -49,6 +50,15 @@ async function expectCompletePrint(print: Locator) {
     await expect(print).toContainText(group.line);
     for (const example of group.examples) await expect(print).toContainText(example);
   }
+  const event = print.locator('.services-print-sheet').nth(1).locator('.sp-event');
+  await expect(event).toContainText(SERVICES_EVENT.title);
+  await expect(event).toContainText(SERVICES_EVENT.line);
+  await expect(event.getByRole('link', { name: SERVICES_EVENT.replayLabel })).toHaveAttribute(
+    'href',
+    SERVICES_EVENT.replayUrl,
+  );
+  await expect(event).toContainText('alethical.com/blog/events/forward-debate-2026');
+  await expect(print.locator('.services-print-sheet').nth(2)).toContainText('In development');
   for (const tool of SERVICES_TOOLS) {
     await expect(print).toContainText(tool.title);
     await expect(print).toContainText(tool.text);
@@ -161,7 +171,7 @@ for (const paper of [
   { name: 'Letter', width: 816, height: 1056 },
   { name: 'A4', width: 794, height: 1123 },
 ] as const) {
-  test(`browser printing produces 4 complete portrait ${paper.name} sheets`, async ({
+  test(`browser printing produces 5 complete portrait ${paper.name} sheets`, async ({
     page,
     browserName,
   }, testInfo) => {
@@ -187,7 +197,7 @@ for (const paper of [
     });
     // Chromium writes each page dictionary as an uncompressed PDF object.
     // The word boundary excludes the parent /Pages tree from this count.
-    expect(pdf.toString('latin1').match(/\/Type\s*\/Page\b/g)).toHaveLength(4);
+    expect(pdf.toString('latin1').match(/\/Type\s*\/Page\b/g)).toHaveLength(5);
     await testInfo.attach(`services-${paper.name}`, {
       path: pdfPath,
       contentType: 'application/pdf',
@@ -227,7 +237,7 @@ test('the first response also prints all services when JavaScript is unavailable
     if (browserName === 'chromium') {
       const pdfPath = testInfo.outputPath('services-no-javascript.pdf');
       const pdf = await page.pdf({ path: pdfPath, format: 'Letter', printBackground: true });
-      expect(pdf.toString('latin1').match(/\/Type\s*\/Page\b/g)).toHaveLength(4);
+      expect(pdf.toString('latin1').match(/\/Type\s*\/Page\b/g)).toHaveLength(5);
       await testInfo.attach('services-no-javascript', {
         path: pdfPath,
         contentType: 'application/pdf',
