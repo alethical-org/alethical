@@ -1,6 +1,6 @@
 # Debate hosting and event production on services
 
-Status: implemented; independent acceptance and release in progress. Tracking: [issue 2731](https://github.com/alethical-org/alethical/issues/2731).
+Pre-release implementation and acceptance record. Final delivery evidence and current release status: [issue 2731](https://github.com/alethical-org/alethical/issues/2731).
 
 ## Scope and accepted design
 
@@ -78,3 +78,5 @@ Design export itself has incomplete interaction checks, so it does not establish
 - Design-audit pinned rendered-output rubric applied; no new form, overlay, stateful result or shared-control behavior added. Existing contact behavior stays unchanged and is exercised in the browser.
 
 Hold: retain this task and working folder for follow-up.
+
+The first full frontend CI run passed 4,911 checks and exposed 1 obsolete metadata expectation. The corrected literal now asserts the accepted events wording and punctuation; the whole-string sweep found no other copy of the obsolete description. This is a test correction, with no product change.
