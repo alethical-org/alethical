@@ -554,8 +554,12 @@ SPEAKER_PAGE = (
 @pytest.mark.parametrize(
     "pages, refused",
     [
-        ([SPEAKER_PAGE], False),
-        ([SPEAKER_PAGE] * 3, True),
+        ([SPEAKER_PAGE] * 4, False),
+        (
+            [SPEAKER_PAGE]
+            * (committee_memberships.MAX_PROFILES_WITHOUT_COMMITTEES + 1),
+            True,
+        ),
         (
             [
                 SPEAKER_PAGE.replace(
@@ -595,5 +599,5 @@ def test_only_a_complete_page_without_a_committee_section_lists_none(
         clear.assert_not_called()
     else:
         stats = committee_memberships.backfill(db, dry_run=False, cleanup_orphans=False)
-        assert stats.profiles_without_assignments == 1
+        assert stats.profiles_without_assignments == len(pages)
         clear.assert_called_once()

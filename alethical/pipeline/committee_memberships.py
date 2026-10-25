@@ -99,9 +99,10 @@ def assignment_block(html_text: str) -> str:
 
 
 #: A complete official profile can list no committees: the Speaker of the House
-#: serves on none and the page has no committee section. More than this many in
-#: 1 run looks like a changed page layout, so the whole refresh still refuses.
-MAX_PROFILES_WITHOUT_COMMITTEES = 2
+#: serves on none, and 4 of 136 House pages had no committee section when this
+#: was measured. A changed page layout would empty most of about 200 profiles,
+#: so more than this many in 1 run still refuses the whole refresh.
+MAX_PROFILES_WITHOUT_COMMITTEES = 10
 
 
 def lists_no_committees(html_text: str, profile_url: str) -> bool:
