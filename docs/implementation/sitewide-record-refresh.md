@@ -65,7 +65,7 @@ its stated `Retry-After`. Bill, vote and roster writes and newly stored filing d
 owe saved-page clearing in the same transaction as the records; the route is in
 [api-cdn-setup.md, clearing a saved copy](../operations/api-cdn-setup.md#clearing-a-saved-copy).
 
-## Current completion checks
+## Build acceptance criteria
 
 1. Preserve the current address-index lifecycle, both email lifecycles, retained
    source dates, FCC scope and the current reader dependencies when integrating main.
@@ -83,9 +83,10 @@ owe saved-page clearing in the same transaction as the records; the route is in
    reading tools, bounded backlog and continuing issue. Preserve its Actions queue.
 6. Prove disabled-family defaults and legacy schedule continuity; complete setup,
    automatic collection and measured public read-back with the release owner.
-7. Run combined checks on current main, advance existing draftPR2511 normally and
-   retain this folder for follow-up. Production setup, release and activation stay
-   with the parent chat.
+7. Preserve the combined-check and release evidence on
+   [pull request 2511](https://github.com/alethical-org/alethical/pull/2511), and
+   retain the working folders for follow-up. The activation owner above holds
+   final live acceptance.
 
 ## Shared impact and prevention
 
@@ -113,21 +114,19 @@ families retain old clocks until staged activation. Parent acceptance covers cur
 schema integration, spending intent, actual settings and measurable public results;
 local tests alone cannot prove those live facts.
 
-## Local continuation evidence
+## Implementation evidence
 
-The current-main integration preserves merge `29dbb061` and main `4c99ecf9` through
-merge `75296eb6`. The source implementation checkpoint is `f25a0587`. Normal
-commit hooks passed. The combined source, notice, legislative, supporting, lobbying
-and Minnesota-ingestion selection passed 277 tests; the existing FCC report passed
-8 Node tests. The current additive source schema round-trip passed with RLS on its
-3 operational tables. The final payment migration revision and combined money
-integration still require their own current-head checks.
+[Pull request 2511](https://github.com/alethical-org/alethical/pull/2511) completed
+the source and independent-payment integration. Production runs schema
+`0074_source_refresh`, after migrations `0072` and `0073`. The merged release and
+follow-up pull requests retain their current-head checks and independent reviews;
+[coverage and recovery](../operations/public-record-refresh-status.md#current-state)
+records the deployed source outcomes.
 
 Source-only October 24 measurements distinguish the full inventory from dated-action
 discovery and actual bill rereads; [bill refresh cadence](../architecture/bill-refresh-cadence-decisions.md#fast-dated-action-discovery)
-owns the parameters, counts, timing, phase choice and coverage limits. None of those
-measurements wrote records, embedded text, sent mail or changed production settings.
-The release owner still owns activation, public read-back and final acceptance.
+owns the parameters, counts, timing, phase choice and coverage limits. Those source
+measurements did not write records, embed text or change production settings.
 
 ## Source coverage checklist
 
@@ -178,7 +177,10 @@ Scheduled GitHub jobs use the existing public repository's free standard runners
 The final report must distinguish installed code, active schedules, successful
 collections and changes awaiting source access or human review.
 
-## Progress
+## Earlier implementation checkpoints
+
+These checkpoints describe work before the merged release and October 25 activation
+above; their pending states are historical.
 
 - 7 October: fresh isolated parent branch and 3 independent build branches started.
 - 7 October: confirmed October 6 campaign refresh still fails the same source guards;
