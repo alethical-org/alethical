@@ -901,7 +901,8 @@ def test_a_held_back_recurrence_is_announced_once_the_quiet_period_ends(monkeypa
     day_old = json.dumps({key: (datetime.now(UTC) - timedelta(hours=25)).isoformat()})
     before, _, after = held.partition(report.MENTIONED_MARKER)
     later = f"{before}{report.MENTIONED_MARKER}{day_old} -->{after.split(' -->', 1)[1]}"
-    later = later.replace(f"{report.MARKER}", f"{report.MARKER}stale-")
+    # Nothing else changed: the body's fingerprint is the current one.
+    assert report.packet(rows)[1] in later
     calls = fake_environment(
         monkeypatch, rows, [{"number": 7, "body": later, "state": "OPEN"}]
     )

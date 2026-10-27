@@ -336,16 +336,25 @@ def main():
             )
         )
         ours = next((issue for issue in issues if MARKER in issue["body"]), None)
+        now = datetime.now(UTC)
+        previous = ours["body"] if ours else None
+        # An unchanged issue still needs this run when a held-back problem's quiet
+        # day has ended; otherwise the announcement would wait for an unrelated change.
+        deferred_due = bool(
+            previous
+            and to_announce(
+                deferred_problems(previous), recent_mentions(previous, now), now
+            )
+        )
         if (
             ours
             and f"{MARKER}{fingerprint} -->" in ours["body"]
             and (ours["state"] == "OPEN") == open_needed
+            and not deferred_due
         ):
             return 0
         if not ours and not open_needed:
             return 0
-        now = datetime.now(UTC)
-        previous = ours["body"] if ours else None
         mentioned = recent_mentions(previous, now)
         current = problem_keys_in(body) if open_needed else []
         # New since the last body, plus anything the quiet period held back that is
