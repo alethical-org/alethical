@@ -1,4 +1,4 @@
-<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py scripts/check_pillow_advisory.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs apps/frontend/scripts/check-braces-security.mjs apps/frontend/scripts/check-source-map-security.mjs apps/frontend/scripts/test-source-map-security.mjs apps/frontend/scripts/test-compression-security.mjs patches/metro@0.84.4.patch patches/node-forge@1.4.0.patch patches/braces@3.0.3.patch pnpm-lock.yaml uv.lock alethical/tests/test_multidict_security.py -->
+<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py scripts/check_pillow_advisory.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs apps/frontend/scripts/check-braces-security.mjs apps/frontend/scripts/check-deepmerge-security.mjs apps/frontend/scripts/check-source-map-security.mjs apps/frontend/scripts/test-source-map-security.mjs apps/frontend/scripts/test-compression-security.mjs patches/metro@0.84.4.patch patches/node-forge@1.4.0.patch patches/braces@3.0.3.patch patches/deepmerge@4.3.1.patch pnpm-lock.yaml uv.lock alethical/tests/test_multidict_security.py -->
 <!-- last-major-tool-review: 2026-08-15 -->
 
 # Keeping every tool supported and useful
@@ -261,6 +261,20 @@ not call braces, so the check also tests that real file matching still works.
 The raw audit warning stays visible. A changed dependency path, version,
 advisory, or repair stops release until reviewed. A fixed upstream version
 should replace the local repair after compatibility checks pass.
+
+Expo's app-config merging (`@expo/config`) uses deepmerge 4.3.1. Its
+[prototype-poisoning advisory](https://github.com/advisories/GHSA-gcqx-w48m-w2h4)
+has no fixed release. The flaw lets a merge copy a `__proto__` key and so
+replace the returned object's prototype; it never changes the shared object
+prototype. A local repair skips the `__proto__` key in both merge loops of every
+shipped copy, the same treatment deepmerge gives a source `__proto__` key when
+the target is a plain `{}` object. The required security check reads the exact
+saved patch, lockfile, and installed code, then tests the copy `@expo/config`
+loads: both poisoning cases leave the result's prototype alone, and ordinary deep
+merging, list joining, and copying still work. The raw audit warning stays
+visible. A changed dependency path, version, advisory, or repair stops release
+until reviewed. A fixed upstream version should replace the local repair after
+compatibility checks pass.
 
 The jsdom CSS parser and PostCSS use source-map-js 1.2.2, the published fix for
 its [section-offset advisory](https://github.com/advisories/GHSA-68fv-2mgg-jv7q).
