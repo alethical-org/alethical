@@ -38,6 +38,9 @@ patchedDependencies:
   braces@3.0.3:
     hash: ea29e28e84b25bb03e32f352eed8fc0dce67ad38b6cad073da15faf3e5ddcba2
     path: patches/braces@3.0.3.patch
+  deepmerge@4.3.1:
+    hash: 88b0436747f9b7041c39bdf27baadee2fc9632348fa0615b0f69b78ecc7210a8
+    path: patches/deepmerge@4.3.1.patch
   metro@0.84.4:
     hash: 745d9cbaf87fa685fc820225527a92c32acebfd00dd1b6ea3f876b07db75e3b8
     path: patches/metro@0.84.4.patch
@@ -3928,7 +3931,7 @@ snapshots:
       '@expo/config-types': 57.0.2
       '@expo/json-file': 11.0.1
       '@expo/require-utils': 57.0.4(typescript@6.0.3)
-      deepmerge: 4.3.1
+      deepmerge: 4.3.1(patch_hash=88b0436747f9b7041c39bdf27baadee2fc9632348fa0615b0f69b78ecc7210a8)
       getenv: 2.0.0
       glob: 13.0.6
       resolve-workspace-root: 2.0.1
@@ -5061,7 +5064,7 @@ snapshots:
 
   decode-uri-component@0.5.0: {}
 
-  deepmerge@4.3.1: {}
+  deepmerge@4.3.1(patch_hash=88b0436747f9b7041c39bdf27baadee2fc9632348fa0615b0f69b78ecc7210a8): {}
 
   defaults@1.0.4:
     dependencies:

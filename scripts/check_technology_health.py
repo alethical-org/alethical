@@ -37,6 +37,8 @@ BRACES_ADVISORY = "GHSA-vfj7-8cjw-p6xm"
 BRACES_BUILD_PATH = (
     "apps__frontend>expo>@expo/cli>@expo/metro-file-map>micromatch>braces"
 )
+DEEPMERGE_ADVISORY = "GHSA-gcqx-w48m-w2h4"
+DEEPMERGE_BUILD_PATH = "apps__frontend>expo>@expo/config>deepmerge"
 
 
 class VersionSource(NamedTuple):
@@ -428,6 +430,7 @@ def javascript_audit_problems(
     today: date | None = None,
     forge_repaired: bool = False,
     braces_repaired: bool = False,
+    deepmerge_repaired: bool = False,
 ) -> list[str]:
     today = today or date.today()
     if not isinstance(payload, dict) or "error" in payload:
@@ -471,6 +474,16 @@ def javascript_audit_problems(
             and advisory.get("vulnerable_versions") == "<=3.0.3"
             and advisory.get("patched_versions") == "<0.0.0"
             and findings == [{"version": "3.0.3", "paths": [BRACES_BUILD_PATH]}]
+        ):
+            continue
+        if (
+            deepmerge_repaired
+            and advisory_id == DEEPMERGE_ADVISORY
+            and advisory.get("module_name") == "deepmerge"
+            and advisory.get("severity") == "low"
+            and advisory.get("vulnerable_versions") == ">=4.2.0 <=4.3.1"
+            and advisory.get("patched_versions") == "<0.0.0"
+            and findings == [{"version": "4.3.1", "paths": [DEEPMERGE_BUILD_PATH]}]
         ):
             continue
         if (
@@ -563,6 +576,7 @@ def security_audit_problems(
     pillow_exception_verified: bool = False,
     forge_repaired: bool = False,
     braces_repaired: bool = False,
+    deepmerge_repaired: bool = False,
 ) -> list[str]:
     try:
         payload = json.loads(audited.stdout)
@@ -584,6 +598,7 @@ def security_audit_problems(
                 payload,
                 forge_repaired=forge_repaired,
                 braces_repaired=braces_repaired,
+                deepmerge_repaired=deepmerge_repaired,
             )
             has_findings = bool(payload["advisories"])
     except (ValueError, TypeError):
@@ -888,6 +903,7 @@ def run_security_audits(root: Path) -> list[str]:
     repaired = {
         FORGE_ADVISORY: False,
         BRACES_ADVISORY: False,
+        DEEPMERGE_ADVISORY: False,
     }
     if installed.returncode:
         problems.append("The JavaScript security repair installation failed")
@@ -895,6 +911,7 @@ def run_security_audits(root: Path) -> list[str]:
         for advisory, script in (
             (FORGE_ADVISORY, "check-node-forge-security.mjs"),
             (BRACES_ADVISORY, "check-braces-security.mjs"),
+            (DEEPMERGE_ADVISORY, "check-deepmerge-security.mjs"),
         ):
             repair = _run(["node", f"apps/frontend/scripts/{script}"], root)
             repaired[advisory] = repair.returncode == 0
@@ -917,6 +934,7 @@ def run_security_audits(root: Path) -> list[str]:
             "JavaScript",
             forge_repaired=repaired[FORGE_ADVISORY],
             braces_repaired=repaired[BRACES_ADVISORY],
+            deepmerge_repaired=repaired[DEEPMERGE_ADVISORY],
         )
     )
     return problems
@@ -1082,6 +1100,11 @@ def main() -> int:
             "exact patch/lock/installed-code fingerprints, braces API checks in both "
             "Expo dependency trees, and real file-scanner matching checks. Any changed "
             "finding or failed repair check blocks release.\n"
+            "\nLocal security repair: deepmerge 4.3.1 retains the raw "
+            "GHSA-gcqx-w48m-w2h4 warning. It passes only after frozen installation, "
+            "exact patch/lock/installed-code fingerprints, and prototype, deep-merge, "
+            "array and clone checks through the copy Expo's app config loads. Any "
+            "changed finding or failed repair check blocks release.\n"
             "\nRecorded exception policy: only image-size 1.2.1 in Expo's Metro "
             "build tool may retain "
             + ", ".join(sorted(KNOWN_JAVASCRIPT_EXCEPTIONS))
