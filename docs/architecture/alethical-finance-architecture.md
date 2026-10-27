@@ -48,7 +48,10 @@ preview address.
   email would name the client.
 - **Each entry records whether the account belongs to Alethical's own team.** Finance never
   shows or uses this; it decides only what alethical.com may print (§5).
-- **Sign-in is Google, or a 6-digit code emailed to the address.** Finance has no passwords.
+- **Sign-in is Google, or a code emailed to the address.** Finance has no passwords. The code
+  length is the shared sign-in service's setting, 8 digits for both sites
+  ([repo-and-service-settings.md](../operations/repo-and-service-settings.md), Supabase
+  sign-in); Finance accepts whatever length arrives.
   An account that signs in but is not on the list sees the no-access state. Sign-in returns
   to the page's own address, so Supabase's list of allowed return addresses needs the
   preview address now and alethicalfinance.com at launch.
