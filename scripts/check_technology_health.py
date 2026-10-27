@@ -37,6 +37,12 @@ BRACES_ADVISORY = "GHSA-vfj7-8cjw-p6xm"
 BRACES_BUILD_PATH = (
     "apps__frontend>expo>@expo/cli>@expo/metro-file-map>micromatch>braces"
 )
+# deepmerge has no fixed release. Expo's config reader calls it only when Expo's
+# command-line tool writes the project's own app.json, and it is absent from the
+# website's source maps. A new consumer, version, path, fix or overdue review ends it.
+DEEPMERGE_ADVISORY = "GHSA-gcqx-w48m-w2h4"
+DEEPMERGE_BUILD_PATH = "apps__frontend>expo>@expo/config>deepmerge"
+DEEPMERGE_REVIEW_EXPIRES = date(2026, 11, 26)
 
 
 class VersionSource(NamedTuple):
@@ -428,6 +434,7 @@ def javascript_audit_problems(
     today: date | None = None,
     forge_repaired: bool = False,
     braces_repaired: bool = False,
+    deepmerge_reviewed: bool = False,
 ) -> list[str]:
     today = today or date.today()
     if not isinstance(payload, dict) or "error" in payload:
@@ -471,6 +478,17 @@ def javascript_audit_problems(
             and advisory.get("vulnerable_versions") == "<=3.0.3"
             and advisory.get("patched_versions") == "<0.0.0"
             and findings == [{"version": "3.0.3", "paths": [BRACES_BUILD_PATH]}]
+        ):
+            continue
+        if (
+            deepmerge_reviewed
+            and today < DEEPMERGE_REVIEW_EXPIRES
+            and advisory_id == DEEPMERGE_ADVISORY
+            and advisory.get("module_name") == "deepmerge"
+            and advisory.get("severity") == "low"
+            and advisory.get("vulnerable_versions") == ">=4.2.0 <=4.3.1"
+            and advisory.get("patched_versions") == "<0.0.0"
+            and findings == [{"version": "4.3.1", "paths": [DEEPMERGE_BUILD_PATH]}]
         ):
             continue
         if (
@@ -563,6 +581,7 @@ def security_audit_problems(
     pillow_exception_verified: bool = False,
     forge_repaired: bool = False,
     braces_repaired: bool = False,
+    deepmerge_reviewed: bool = False,
 ) -> list[str]:
     try:
         payload = json.loads(audited.stdout)
@@ -584,6 +603,7 @@ def security_audit_problems(
                 payload,
                 forge_repaired=forge_repaired,
                 braces_repaired=braces_repaired,
+                deepmerge_reviewed=deepmerge_reviewed,
             )
             has_findings = bool(payload["advisories"])
     except (ValueError, TypeError):
@@ -628,6 +648,32 @@ def locked_python_packages(root: Path) -> list[tuple[str, str]]:
     if not packages:
         raise ValueError("Python's lock contains no registry packages")
     return sorted(packages)
+
+
+def deepmerge_only_in_expo_config(root: Path) -> bool:
+    """Whether the pnpm lock holds deepmerge 4.3.1 alone, used only by Expo's config reader.
+
+    The JavaScript audit names 1 dependency path even when several packages use
+    the same copy, so every consumer is read from the lock. Unreadable reads as no.
+    """
+    try:
+        lines = (root / "pnpm-lock.yaml").read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeError):
+        return False
+    versions: set[str] = set()
+    consumers: set[str] = set()
+    entry = ""
+    for line in lines:
+        key = re.fullmatch(r"  (?:'([^']+)'|([^\s':]+)):(?: \{\})?", line)
+        if not line.startswith(" "):
+            entry = ""
+        elif key:
+            entry = key.group(1) or key.group(2)
+            if entry.startswith("deepmerge@"):
+                versions.add(entry)
+        elif re.match(r"\s{4,}deepmerge:(\s|$)", line):
+            consumers.add(re.sub(r"@[^@(]+(\(.*)?$", "", entry))
+    return versions == {"deepmerge@4.3.1"} and consumers == {"@expo/config"}
 
 
 def tracked_security_paths(root: Path) -> list[str]:
@@ -909,6 +955,13 @@ def run_security_audits(root: Path) -> list[str]:
             problems.append("The installed source-map-js security checks did not pass")
         else:
             print(source_map.stdout.strip())
+    deepmerge_reviewed = deepmerge_only_in_expo_config(root)
+    print(
+        "pnpm-lock.yaml: deepmerge 4.3.1 is used only by Expo's config reader."
+        if deepmerge_reviewed
+        else "pnpm-lock.yaml does not limit deepmerge to 4.3.1 in Expo's config "
+        "reader; its recorded exception cannot apply."
+    )
     print("Raw JavaScript audit report:")
     print(audited.stdout)
     problems.extend(
@@ -917,6 +970,7 @@ def run_security_audits(root: Path) -> list[str]:
             "JavaScript",
             forge_repaired=repaired[FORGE_ADVISORY],
             braces_repaired=repaired[BRACES_ADVISORY],
+            deepmerge_reviewed=deepmerge_reviewed,
         )
     )
     return problems
@@ -1082,12 +1136,12 @@ def main() -> int:
             "exact patch/lock/installed-code fingerprints, braces API checks in both "
             "Expo dependency trees, and real file-scanner matching checks. Any changed "
             "finding or failed repair check blocks release.\n"
-            "\nRecorded exception policy: only image-size 1.2.1 in Expo's Metro "
-            "build tool may retain "
-            + ", ".join(sorted(KNOWN_JAVASCRIPT_EXCEPTIONS))
-            + f" until {IMAGE_SIZE_REVIEW_EXPIRES.isoformat()}, while no patched "
-            "release is reported. A changed version or dependency path also "
-            "ends the exception.\n"
+            "\nRecorded exception policy: only deepmerge 4.3.1 in Expo's config "
+            f"reader may retain {DEEPMERGE_ADVISORY} until "
+            f"{DEEPMERGE_REVIEW_EXPIRES.isoformat()}, while no patched release is "
+            "reported and pnpm-lock.yaml shows no other consumer. A changed "
+            "version, dependency path, severity or affected range also ends the "
+            "exception.\n"
         )
     print(report)
     if args.report:

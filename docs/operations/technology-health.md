@@ -168,6 +168,38 @@ running them. All other tracked Python files remain in the source scan.
 
 ## Recorded security exceptions
 
+### deepmerge: Expo's config reader, absent from the website
+
+[GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4)
+(CVE-2026-93753, low) covers deepmerge 4.2.0 through 4.3.1 and names no fixed
+release. Merging a `__proto__` key into a null-prototype target or a `null`
+placeholder sets the prototype of the returned object, so a property it lacks can
+read a value the source chose. The [upstream issue](https://github.com/TehShrike/deepmerge/issues/273)
+is closed without a fix. 4.3.1 is the newest release, and releases before 4.2.0
+lack the prototype guard entirely, so no released version is safer.
+
+Alethical installs deepmerge 4.3.1 only through Expo's config reader
+(`expo > @expo/config > deepmerge`). The reader calls it only when Expo's
+command-line tool writes the project's own `app.json`: adding a config plugin
+during `expo install`, or paused native build commands. Its inputs are the
+project's own configuration, never reader or network data. The website does not
+contain it: on 27 October 2026, at commit `46021c4b`, the web export's 62 source
+maps listed 1,101 compiled files from 53 packages, none from deepmerge or
+`@expo/config`.
+
+`scripts/check_technology_health.py --security-only` excuses the finding only
+when all of these hold: the exact advisory, package, low severity, affected range
+and empty fixed release; a single 4.3.1 finding on that 1 dependency path;
+`pnpm-lock.yaml` holding deepmerge 4.3.1 alone, used by `@expo/config` and nothing
+else; and a date before 26 November 2026. The lock is read because the audit
+names only 1 path even when several packages share a copy. A fixed release, any
+other consumer or version, a local patch or that date ends the exception and
+blocks release. The raw audit report stays in the security log. The Monday
+security run catches a newly published fix the same way.
+[Issue 2748](https://github.com/alethical-org/alethical/issues/2748) holds the
+review: a fixed release replaces the exception through an override; without one,
+renewing it requires a fresh source-map check.
+
 ### Pillow: reviewed production path outside the Arrow flaw
 
 [GHSA-654x-cwwv-5j9c](https://github.com/python-pillow/Pillow/security/advisories/GHSA-654x-cwwv-5j9c)

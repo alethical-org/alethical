@@ -6,7 +6,7 @@ import importlib.util
 import json
 import subprocess
 import sys
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -437,6 +437,182 @@ def test_image_size_exception_cannot_hide_changed_risk(change: str) -> None:
     )
 
 
+def deepmerge_advisory() -> dict:
+    return {
+        "github_advisory_id": "GHSA-gcqx-w48m-w2h4",
+        "module_name": "deepmerge",
+        "severity": "low",
+        "vulnerable_versions": ">=4.2.0 <=4.3.1",
+        "patched_versions": "<0.0.0",
+        "findings": [
+            {
+                "version": "4.3.1",
+                "paths": ["apps__frontend>expo>@expo/config>deepmerge"],
+            }
+        ],
+    }
+
+
+def test_deepmerge_exception_needs_the_reviewed_lock_and_keeps_other_findings() -> None:
+    report = javascript_report({"1243505": deepmerge_advisory()})
+    today = date(2026, 10, 27)
+    assert check_technology_health.javascript_audit_problems(report, today=today) == [
+        "GHSA-gcqx-w48m-w2h4 (low)"
+    ]
+    assert (
+        check_technology_health.javascript_audit_problems(
+            report, today=today, deepmerge_reviewed=True
+        )
+        == []
+    )
+    report["advisories"]["other"] = {"severity": "low"}
+    assert check_technology_health.javascript_audit_problems(
+        report, today=today, deepmerge_reviewed=True
+    ) == ["other (low)"]
+
+
+@pytest.mark.parametrize(
+    "change",
+    ["id", "module", "version", "path", "fixed", "range", "severity", "expired"],
+)
+def test_deepmerge_exception_cannot_hide_changed_risk(change: str) -> None:
+    advisory = deepmerge_advisory()
+    today = date(2026, 10, 27)
+    if change == "id":
+        advisory["github_advisory_id"] = "GHSA-other"
+    elif change == "module":
+        advisory["module_name"] = "deepmerge-ts"
+    elif change == "version":
+        advisory["findings"][0]["version"] = "4.2.2"
+    elif change == "path":
+        advisory["findings"][0]["paths"].append("apps__frontend>deepmerge")
+    elif change == "fixed":
+        advisory["patched_versions"] = ">=4.3.2"
+    elif change == "range":
+        advisory["vulnerable_versions"] = ">=4.2.0 <=4.3.2"
+    elif change == "severity":
+        advisory["severity"] = "moderate"
+    else:
+        today = date(2026, 11, 26)
+    assert check_technology_health.javascript_audit_problems(
+        javascript_report({"1243505": advisory}),
+        today=today,
+        deepmerge_reviewed=True,
+    )
+
+
+def test_current_lock_uses_deepmerge_only_in_expo_config() -> None:
+    assert check_technology_health.deepmerge_only_in_expo_config(ROOT)
+
+
+EXPO_CONFIG_LOCK = """lockfileVersion: '9.0'
+
+importers:
+
+  apps/frontend:
+    dependencies:
+      expo:
+        specifier: 57.0.11
+        version: 57.0.11
+
+packages:
+
+  deepmerge@4.3.1:
+    resolution: {integrity: sha512-example}
+
+snapshots:
+
+  '@expo/config@57.0.7(typescript@6.0.3)':
+    dependencies:
+      deepmerge: 4.3.1
+      getenv: 2.0.0
+
+  deepmerge@4.3.1: {}
+"""
+
+
+@pytest.mark.parametrize(
+    ("change", "reviewed"),
+    [
+        ("none", True),
+        ("newer expo config", True),
+        ("browser consumer", False),
+        ("direct dependency", False),
+        ("second version", False),
+        ("local patch", False),
+        ("absent", False),
+        ("missing lock", False),
+    ],
+)
+def test_deepmerge_lock_check_rejects_any_other_consumer_or_version(
+    tmp_path, change: str, reviewed: bool
+) -> None:
+    lock = EXPO_CONFIG_LOCK
+    if change == "newer expo config":
+        lock = lock.replace("@expo/config@57.0.7", "@expo/config@57.0.10")
+    elif change == "browser consumer":
+        lock += (
+            "\n  react-native-web@0.21.2:\n    dependencies:\n      deepmerge: 4.3.1\n"
+        )
+    elif change == "direct dependency":
+        lock = lock.replace(
+            "      expo:\n",
+            "      deepmerge:\n        specifier: 4.3.1\n        version: 4.3.1\n      expo:\n",
+        )
+    elif change == "second version":
+        lock += "\n  deepmerge@4.2.2: {}\n"
+    elif change == "local patch":
+        lock = lock.replace(
+            "  deepmerge@4.3.1: {}", "  deepmerge@4.3.1(patch_hash=abc): {}"
+        )
+    elif change == "absent":
+        lock = lock.replace("      deepmerge: 4.3.1\n", "").replace(
+            "deepmerge@4.3.1", "getenv@2.0.0"
+        )
+    if change != "missing lock":
+        (tmp_path / "pnpm-lock.yaml").write_text(lock, encoding="utf-8")
+    assert check_technology_health.deepmerge_only_in_expo_config(tmp_path) is reviewed
+
+
+@pytest.mark.parametrize("lock_reviewed", [True, False])
+def test_security_scan_applies_deepmerge_exception_only_after_lock_review(
+    monkeypatch, lock_reviewed: bool
+) -> None:
+    def run(command, root):
+        if command == ["pnpm", "audit", "--json"]:
+            return subprocess.CompletedProcess(
+                command,
+                1,
+                json.dumps(javascript_report({"1243505": deepmerge_advisory()})),
+                "",
+            )
+        if command[0] == "uvx":
+            requirements = Path(command[command.index("--requirement") + 1]).read_text()
+            report = {
+                "dependencies": [
+                    {"name": name, "version": version, "vulns": []}
+                    for name, version in (
+                        line.split("==") for line in requirements.splitlines()
+                    )
+                ]
+            }
+            return subprocess.CompletedProcess(command, 0, json.dumps(report), "")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(check_technology_health, "_run", run)
+    monkeypatch.setattr(
+        check_technology_health,
+        "DEEPMERGE_REVIEW_EXPIRES",
+        date.today() + timedelta(days=1),
+    )
+    if not lock_reviewed:
+        monkeypatch.setattr(
+            check_technology_health, "deepmerge_only_in_expo_config", lambda root: False
+        )
+    problems = check_technology_health.run_security_audits(ROOT)
+    assert ("GHSA-gcqx-w48m-w2h4 (low)" in problems) is not lock_reviewed
+
+
 @pytest.mark.parametrize(
     "payload",
     [
@@ -646,9 +822,8 @@ def test_security_only_does_not_run_unrelated_maintenance(monkeypatch, capsys) -
     monkeypatch.setattr(check_technology_health, "check_registry_versions", unexpected)
     assert check_technology_health.main() == 0
     report = capsys.readouterr().out
-    assert "GHSA-w3rx-r6r6-pgpr" in report
-    assert "GHSA-5p2g-fcmc-qvqq" in report
-    assert "2026-10-18" in report
+    assert "GHSA-gcqx-w48m-w2h4" in report
+    assert "2026-11-26" in report
 
 
 @pytest.mark.parametrize("language", ["Python", "JavaScript"])
