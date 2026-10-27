@@ -201,7 +201,8 @@ and when the source is not served it reads “Copy date unavailable”. Timestam
 as their Minnesota (Central time) day. The note beneath reads “The copy date is when
 Alethical obtained the source, not the end date of every filing.” followed by the
 coverage sentence. Behind the dates: the payment files are checked daily and the
-register and report totals are refreshed when one of the Board's lists changes and
+register and report totals are refreshed when one of the Board's lists changes, when
+an hourly check finds the Board's summary newer than ours (at most every 6 hours), and
 weekly regardless, by the daily job described in
 [data-ingestion-onboarding.md §H](data-ingestion-onboarding.md); a run whose lists
 could not be read is reported as incomplete, and the dates stay those of the last set

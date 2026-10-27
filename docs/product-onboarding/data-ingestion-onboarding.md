@@ -483,8 +483,9 @@ the bytes and the reasons, exits non-zero, prints which payments release and whi
 totals snapshot are live and whether this run published each, and opens or updates a
 GitHub issue quoting that summary. A dry run writes nothing anywhere: no lease, no
 database or file-store write, no issue. Stated honestly: payments are checked daily;
-totals are refreshed on list change and weekly; a run whose lists could not be read is
-reported as incomplete.
+totals are refreshed on list change, when the hourly completion check finds the Board's
+summary ahead of ours (at most every 6 hours), and weekly; a run whose lists could not
+be read is reported as incomplete.
 
 **Publishing over a failed comparison names exactly what was reviewed.** Both loaders quarantine a
 set that trips a comparison guard, and both publish it only when the operator names the exact

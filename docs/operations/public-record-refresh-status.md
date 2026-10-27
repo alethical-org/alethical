@@ -119,7 +119,7 @@ additional datasets or a new public timing promise.
 
 | Record / reader feature | Older schedule (until its family is on) | Shared updater path, verified in production |
 | --- | --- | --- |
-| State campaign payments, totals and directory | Daily payments; totals after changed lists or weekly | Lists every 15 minutes; collection on a change or daily; each payment file updates on its own; bounded checks only while a checkable file is owed |
+| State campaign payments, totals and directory | Daily payments; totals after changed lists or weekly | Lists every 15 minutes; collection on a change or daily; each payment file updates on its own; bounded checks only while a checkable file is owed; an hourly completion check asks the Board about filers whose newest report is past their published totals and requests totals when the Board is ahead, at most every 6 hours |
 | Large-contribution notices | Daily October 20–November 6; weekly otherwise | Every 15 minutes in election months, else hourly; weekly correction rereads |
 | Disclosure statements, filing dates and refunds | Wednesday statement catalogues; other work separate | Weekly statement rereads; recent filing dates hourly and all dates daily in bounded turns; refunds monthly |
 | Bills, actions, text and status | Hand-started collection; daily gap alarms | Dated actions every 5 minutes while sitting, 15 in the interim; full inventory at the approved phase interval; changed text updates search |
@@ -227,7 +227,10 @@ path is measured and its replacement recorded in the owning cadence decision.
    held release and a missed clock need distinct states, an active response owner
    and a same-day response target during election windows. A saved owner name does
    not mean a session is running. No recurring paid AI or new user emails are
-   authorized by this plan.
+   authorized by this plan. The grouped health issue names each failed stage, its
+   checks and the committees and years affected, and a new job or reason mentions
+   the maintainer; [filed reports stay owed until pages catch up](../implementation/sitewide-record-refresh.md#filed-reports-stay-owed-until-pages-catch-up)
+   owns the rule.
 9. Keep research wording deliberate. Detect newer official records relevant to an
    article's sources and reporting period, then flag the article for review. A
    new copy time alone is not evidence that its claims changed. An amendment to an

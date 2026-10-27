@@ -42,7 +42,8 @@ turn refused by a busy lease exits 76 and never advances its success date.
 | Family | Job | Every | What a turn does |
 | --- | --- | --- | --- |
 | campaign | `campaign-discovery` | 15 minutes | Reads the 6 official register and report lists; queues collection on a change |
-| campaign | `campaign-money` | 1 day, or sooner on a change | Collects and publishes totals and the 3 payment files without long checks |
+| campaign | `campaign-money` | 1 day, or sooner on a change or a Board catch-up | Collects and publishes totals and the 3 payment files without long checks |
+| campaign | `campaign-completion` | 1 hour | Finds filed reports newer than the published totals and filings hidden by a confirmed account's reviewed years; asks the Board about up to 25 lagging filers, members first; asks for totals when the Board is ahead (see [Filed reports stay owed until pages catch up](#filed-reports-stay-owed-until-pages-catch-up)) |
 | campaign | `campaign-rechecks` | 5 minutes, only while a checkable file or money page clearing is owed | Finishes at most 10 owed committee-year checks within 120 seconds and 10 requests; a held file waiting for a complete source read owes no turn |
 | campaign | `filing-dates-recent` | 1 hour | Dates up to 25 current and prior-year reports in 120 seconds, saving its position |
 | campaign | `filing-dates` | 1 day | The same bounded turns across 2022 onward; restarts for a newly published register |
@@ -64,6 +65,64 @@ including FCC listings, redirects and files; a 429 or 503 reply pauses that host
 its stated `Retry-After`. Bill, vote and roster writes and newly stored filing dates
 owe saved-page clearing in the same transaction as the records; the route is in
 [api-cdn-setup.md, clearing a saved copy](../operations/api-cdn-setup.md#clearing-a-saved-copy).
+
+## Filed reports stay owed until pages catch up
+
+A new report on the Minnesota Campaign Finance Board's lists is not finished when its
+list change is handled. The Board updates a filer's summary figures days after the
+report appears, and a valid copy of the older figures used to consume the change.
+`campaign-completion` (`alethical/pipeline/campaign_money_completion.py`) recomputes
+what is owed from the published data every hour, so no run can mark it done:
+
+- **Behind**: a regular report in the live snapshot ends later than the period its
+  filer-year's stored summary covers. A report's period ends on the earliest of its
+  cut-off, its filed date and the committee's termination date, because a termination
+  report is listed with December 31.
+- **Board ahead**: up to 20 sitting legislators' committees and 5 others are asked
+  for their summary each turn, least recently asked first, through the shared request
+  budget. Each answer is kept per filer and year, so a filer's 2 election segments
+  never overwrite each other. When the Board covers a later period than ours,
+  `totals_catch_up` is saved in `cf_refresh_state` and `campaign-money` is requested,
+  only when 6 hours have passed since both the last full totals run and the last
+  request, and never while a campaign run holds its lease; a quarantined run waiting
+  for a person is therefore not repeated hourly. The totals planner treats the record
+  as a reason to fetch totals and removes it after a successful totals run that
+  started after every row was seen; the check removes it once our published period
+  reaches what the Board showed.
+- **Hidden by reviewed years**: a confirmed legislative account has a filing in a
+  year outside the years recorded at review, so the profile leaves it out. The check
+  never widens a reviewed range; it reports the case for a person.
+
+The turn exits 2 (review) when filings are hidden in last year or this year, the years
+a page opens on, or the Board has been ahead for over 14 hours; older hidden years are
+listed without holding the job in review. It exits 1 when every Board request failed.
+Its finding is shown on the grouped health issue. The late alarm is keyed by when the
+oldest unresolved case began and a failed stage by its stage and checks, so hourly
+changes in which filers or committees are named do not mention the owner again.
+
+**Failures carry their reasons and reach the owner.** The shared runner gives each
+collector its own stage-record file (`collection_run_summary.py`), keeps a failed
+collection's stage names, check names, committee numbers and years as its finding,
+and appends the records to the workflow's artifact, also when the run is cancelled; a
+continuing or deferred turn keeps no failure finding. Free-text details are never
+kept, because the finding is shown on a public issue. The health reporter prints
+those facts and mentions the maintainer in a comment when a job or reason is new;
+the same reason repeating stays quiet. Editing an issue body notifies nobody, so the
+mention is what reaches a person. The old per-workflow failure review
+(`.github/workflows/collection-failure-review.yml`) still covers hand runs of the
+retired campaign and notice workflows only.
+
+**Declined parts of the October 27, 2026 completion proposal**, with the condition
+that would reopen each:
+
+| Proposed | Why not now | Reopen when |
+| --- | --- | --- |
+| A sitewide ledger of owed work for every source version | The demonstrated misses were in campaign money; other families already keep saved progress, failed-record queues and clearing obligations. A second scheduler-like store would duplicate them | A family shows an owed change consumed without reaching its page |
+| Publishing verified parts of a held payment file | Needs proofs of complete partitions, per-part dates and exact restoration; the whole-file hold is the safe default | The 2017 general-spending loss stays unexplained past the next filing deadline |
+| Reading report PDFs to replace lagging Board summaries | A new PDF is evidence, not permission to replace summary totals; no reader is proven for that field | A pinned reader is proven on report totals against the Board's own summaries |
+| An event-triggered paid repair agent | Needs spending approval and an execution route; the existing paid review in the failure workflow is also off | Spending is approved with per-case and monthly limits |
+| A continuously running collection worker | No measured queue or setup delay yet shows the hourly and 60-second wakes miss a target | Measured delay from Board catch-up to page exceeds the 6-hour spacing |
+| Shorter totals publication locks | The 11-minute totals transaction delayed another collector; no reader-facing blockage was shown | A publication lock delays a reader-facing update |
 
 ## Build acceptance criteria
 
