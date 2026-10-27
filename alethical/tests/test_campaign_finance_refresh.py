@@ -590,6 +590,50 @@ def test_an_unchanged_day_is_a_no_op(db, monkeypatch) -> None:
     assert not report.plan.totals_due
 
 
+def test_a_board_catch_up_fetches_totals_and_only_an_earlier_one_is_settled(
+    db, monkeypatch
+) -> None:
+    """The lists stopped changing, but the Board's summary caught up: fetch the totals."""
+    board = Board({})
+    monkeypatch.setattr(refresh, "read_lists", lambda http, base_url: board.readings())
+    _handled(db, board)
+    seen_before = {
+        "detected_at": (NOW - timedelta(hours=1)).isoformat(),
+        "filer_years": ["18272:2026"],
+    }
+    refresh.state_set(db, refresh.TOTALS_CATCH_UP_KEY, seen_before)
+
+    report, calls = _run(
+        db, totals=FakeTotals(published=True), payments=FakePayments(no_change=True)
+    )
+    assert report.ok, report.summary()
+    assert len(calls["totals"]) == 1
+    assert "Board's summary now covers a later period" in report.plan.reasons[0]
+    assert refresh.state_get(db, refresh.TOTALS_CATCH_UP_KEY) is None
+
+    # A catch-up first seen after the run started may concern figures the run missed.
+    seen_after = {
+        "detected_at": (NOW + timedelta(minutes=5)).isoformat(),
+        "filer_years": ["18272:2026"],
+    }
+    refresh.state_set(db, refresh.TOTALS_CATCH_UP_KEY, seen_after)
+    report, calls = _run(
+        db, totals=FakeTotals(published=True), payments=FakePayments(no_change=True)
+    )
+    assert report.ok and len(calls["totals"]) == 1
+    assert refresh.state_get(db, refresh.TOTALS_CATCH_UP_KEY) == seen_after
+
+    # A quarantined totals run settles nothing.
+    report, calls = _run(
+        db,
+        totals=FakeTotals(blocked=[Check("filer_count_within_band", "1 against 2")]),
+        payments=FakePayments(no_change=True),
+    )
+    assert not report.ok
+    assert refresh.state_get(db, refresh.TOTALS_CATCH_UP_KEY) == seen_after
+    refresh.state_delete(db, refresh.TOTALS_CATCH_UP_KEY)
+
+
 def test_a_changed_report_list_triggers_the_totals_and_a_payments_publish_rechecks(
     db, monkeypatch
 ) -> None:

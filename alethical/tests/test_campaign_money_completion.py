@@ -326,6 +326,23 @@ def test_hidden_filings_in_older_years_are_listed_without_an_alarm():
     assert result.finding["hidden_filings"][0]["needs_review"] is False
 
 
+def test_the_request_time_is_saved_and_carried_until_the_next_request():
+    ahead = dict(probe=lambda *a: tab(y2026=date(2026, 10, 19)))
+    asked = run([lag("1")], last_full=NOW - timedelta(days=1), **ahead)
+    marker = completion.catch_up_marker(None, asked, NOW)
+    assert marker["requested_at"] == NOW.isoformat()
+
+    waited = run(
+        [lag("1")],
+        last_full=NOW - timedelta(days=1),
+        last_requested_at=NOW - timedelta(hours=1),
+        **ahead,
+    )
+    later = completion.catch_up_marker(marker, waited, NOW + timedelta(hours=1))
+    assert not waited.request_totals
+    assert later["requested_at"] == marker["requested_at"]
+
+
 # --- The planner -----------------------------------------------------------------------
 
 
@@ -684,6 +701,20 @@ def test_a_new_reason_is_new_and_the_same_reason_repeating_is_not():
     assert "finding_key" not in body and '"a"' not in body
 
 
+def test_recovery_closes_the_issue_without_a_mention(monkeypatch):
+    from alethical.tests.test_source_refresh_health_report import fake_environment
+
+    problem, _, _ = report.packet([health_row("campaign-money", {"finding_key": "a"})])
+    calls = fake_environment(
+        monkeypatch,
+        [health_row("campaign-money", None, status="succeeded")],
+        [{"number": 7, "body": problem, "state": "OPEN"}],
+    )
+    assert report.main() == 0
+    assert any(args[:3] == ("issue", "close", "7") for args, _ in calls)
+    assert not any(args[:2] == ("issue", "comment") for args, _ in calls)
+
+
 def test_a_new_problem_mentions_the_owner_and_a_repeat_does_not(monkeypatch):
     from alethical.tests.test_source_refresh_health_report import fake_environment
 
@@ -742,7 +773,7 @@ def test_the_script_records_a_catch_up_and_requests_totals(database, monkeypatch
         db.execute(delete(models.SourceRefreshState))
         db.commit()
 
-    answers = iter([date(2026, 10, 19), date(2026, 10, 19)])
+    answers = iter([date(2026, 10, 19)] * 3)
     monkeypatch.setattr(
         filings,
         "fetch_figures",
@@ -752,6 +783,30 @@ def test_the_script_records_a_catch_up_and_requests_totals(database, monkeypatch
         ),
     )
     engine = get_engine()
+    with database() as db:
+        # A campaign run in progress: the catch-up is recorded but not requested.
+        db.add(
+            models.SourceRefreshState(
+                name="campaign-money",
+                next_due_at=NOW,
+                failures=0,
+                token=uuid.uuid4(),
+                lease_expires_at=NOW + timedelta(hours=1),
+            )
+        )
+        db.commit()
+    running = script.check(engine, now=NOW, today=NOW.date())
+    assert not running.request_totals
+    with database() as db:
+        db.execute(delete(models.SourceRefreshState))
+        db.execute(
+            delete(models.CampaignFinanceRefreshState).where(
+                models.CampaignFinanceRefreshState.key.in_(
+                    [completion.CATCH_UP_KEY, completion.PROBES_KEY]
+                )
+            )
+        )
+        db.commit()
     result = script.check(engine, now=NOW, today=NOW.date())
     assert result.request_totals and result.code == 0
 
