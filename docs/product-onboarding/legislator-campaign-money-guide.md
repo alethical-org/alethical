@@ -263,9 +263,10 @@ legislature.
 Early in a year the newest option can be genuinely empty, and it says so rather than
 showing a zero.
 
-**Which years list a committee.** A confirmed committee is listed for every year it
-filed a report with the state, and for every year the person who confirmed it saw
-donations in. In any other year it appears under **No figures to show for {year}**, or
+**Which years list a committee.** A confirmed committee is listed for every year our
+copy of the state's report list holds a report for it, and for every year the person who
+confirmed it saw donations in (every year, when that person recorded no years). In any
+other year it appears under **No figures to show for {year}**, or
 **This committee has closed** when the state's register gives a closing date.
 
 **An empty year states what our records contain.** A confirmed committee can have

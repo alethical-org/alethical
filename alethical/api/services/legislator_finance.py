@@ -428,7 +428,7 @@ def link_state(
     """Whether anyone has confirmed which committees are this legislator's.
 
     Asked without a year, deliberately. Whether a *confirmed* link covers the year on
-    screen is a question about the years that link filed in and was reviewed for, and
+    screen is a question about the years that link filed in or was reviewed for, and
     is answered per committee; whether anyone has looked at all is a question about the legislator and
     does not change when a reader switches years. Collapsing the two would make a
     member with a confirmed 2024-only committee read as unreviewed in 2026, which is

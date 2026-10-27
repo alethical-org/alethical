@@ -1,8 +1,7 @@
 """A filed report stays owed until its totals and its legislator's page catch up.
 
 The failures these reproduce were found on October 27, 2026: the Board's summary lagged
-its own report lists, a successful copy of old figures consumed the change signal, and
-a confirmed account's reviewed years hid 2026 filings from Mary Franson's page.
+its own report lists, and a successful copy of old figures consumed the change signal.
 """
 
 from __future__ import annotations

@@ -293,8 +293,10 @@ def confirmed_committees(
     and a proposal is a question — only an answer is a link.
 
     A link covers a year it filed a report in or a year its reviewer saw donations in;
-    ``_period_covers`` says why both. ``filed`` is ``filed_years`` for ``year`` when the
-    caller already holds it.
+    ``_period_covers`` says why both. A reviewed period with no first or last year is
+    open at that end: the reviewer saw the committee and did not bound it, which is
+    weaker evidence than a bound but is not evidence against. ``filed`` is
+    ``filed_years`` for ``year`` when the caller already holds it.
 
     **A committee for another race is confirmed and still excluded here**, which is the
     one part of this that reads like a contradiction and is not. A reviewer confirming
@@ -327,9 +329,10 @@ def committees_outside_the_year(
     *which* of its member's committees it left out and why (rule 12's missing-versus-zero).
 
     Read the period test in ``_period_covers`` before wording anything from this. A
-    committee landing here has no report in the Board's catalogue for the year and its
-    reviewer saw no donations in it, which says we hold nothing for that year and never
-    that the registration ended. Whether it is still registered is a separate question
+    committee landing here has no report in our copy of the Board's report list for the
+    year and its reviewer saw no donations in it. That never says the registration
+    ended. On 27 Oct 2026 no confirmed legislative committee had an official total or a
+    contribution row in a year that leaves it here. Whether it is still registered is a separate question
     the Board's own filer record answers, and only that record may be used to say a
     registration ended.
     """

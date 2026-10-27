@@ -5091,8 +5091,9 @@ def legislator_campaign_finance(
             # reader who knows their member ran for Attorney General should be told the
             # money exists and is not this, instead of concluding we missed it.
             "other_office_committees": finance.other_office_committees,
-            # Confirmed committees this page leaves out because they reported no money
-            # in this year, each with its closing date if the Board's filer record
+            # Confirmed committees this page leaves out because our copy of the Board's
+            # report list holds no report for them in this year and their reviewers saw
+            # no donations in it, each with its closing date if the Board's filer record
             # carries one. Served so the empty year can say which of 2 different things
             # is true: the registration ended, or nothing was reported. A page that
             # asserts the first when only the second is known has told a reader

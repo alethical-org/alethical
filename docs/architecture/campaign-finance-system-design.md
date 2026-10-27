@@ -1505,9 +1505,11 @@ nothing is blank in practice.
 
 **The reviewed years add years to a profile and never take a filed year away.** They record the
 years the reviewer saw donations in the download, never the year a committee stopped being the
-member's. A legislator's money tab lists a confirmed committee for every year the Board's report
-catalogue holds a report for it, a special-election report included, and for every year its
-reviewer saw donations in (`_period_covers` in `alethical/api/services/independent_spending.py`).
+member's. A legislator's money tab lists a confirmed committee for every year our copy of the
+Board's report catalogue holds a report for it, a special-election report included, and for every
+year its reviewer saw donations in; a blank first or last reviewed year leaves that end open
+(`_period_covers` in `alethical/api/services/independent_spending.py`). On 27 Oct 2026 no confirmed
+legislative committee had an official total or a contribution row in a year this leaves out.
 Both are needed: read as the whole test, the reviewed years hid filed reports on 16 confirmed
 links on 27 Oct 2026, Mary Franson's 2026 among them, and the catalogue holds no report for 28
 confirmed links in years their reviewers saw donations in
@@ -1978,7 +1980,7 @@ preference:
 
 Whose committee it is does not move with the filing year on screen, for the same reason
 ``link_state`` is asked without one and the CLOSED chip is drawn on every year: the
-years a committee filed in and was reviewed for decide which *money* belongs on a profile
+years a committee filed in or was reviewed for decide which *money* belongs on a profile
 (§5.1), not whose committee this is. A confirmation that disappeared when a reader switched from 2025 to
 2026 would read as the link having been withdrawn.
 

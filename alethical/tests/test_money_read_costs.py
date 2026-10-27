@@ -602,6 +602,46 @@ def test_a_legislator_year_reads_each_shared_record_once(db, published) -> None:
     assert len(sent.sent) == 15, sent.sent
 
 
+def test_a_year_that_lists_no_committee_reads_the_report_catalogue_once(
+    db, published
+) -> None:
+    """A year every confirmed committee is left out of still asks the catalogue, once.
+
+    Which years a committee is listed for depends on whether the Board's report list
+    holds a report for it (``filed_years``), so a year with nothing listed now asks that
+    1 question where it asked nothing before (#2736). It must stay 1 statement for every
+    committee, never 1 per committee or per helper.
+    """
+    legislator_id = db.execute(text("SELECT id FROM legislator LIMIT 1")).scalar_one()
+    db.add(
+        models.LegislatorCampaignCommittee(
+            legislator_id=legislator_id,
+            registration_number=SENATE_COMMITTEE,
+            decision=models.CommitteeLinkReviewDecision.confirmed,
+            committee_name_as_reviewed="Port, Lindsey Senate Committee",
+            office_as_reviewed="Senate",
+            first_year_as_reviewed="2015",
+            last_year_as_reviewed="2016",
+            reviewed_by="a person",
+        )
+    )
+    db.commit()
+    committee_service.pin_to_one_view(db)
+    release = committee_service.current_release(db)
+    with Statements() as sent:
+        finance = legislator_service.legislator_finance(
+            db, release, legislator_id=legislator_id, year=2019
+        )
+    assert finance.committees == ()
+    assert [
+        entry.registration_number for entry in finance.committees_outside_this_year
+    ] == [SENATE_COMMITTEE]
+    catalogue = [s for s in sent.sent if s.startswith("SELECT cf_filing_report.")]
+    assert len(catalogue) == 1, catalogue
+    # The links, the snapshot pointer, the catalogue and the register row.
+    assert len(sent.sent) == 4, sent.sent
+
+
 def test_a_span_of_years_reads_each_dataset_once(db, published) -> None:
     """The year buttons' request reads every dataset once for the whole span.
 
