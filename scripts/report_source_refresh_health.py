@@ -2,6 +2,7 @@
 """Keep one quiet, grouped source-update issue; no AI calls or source writes."""
 
 from __future__ import annotations
+from datetime import UTC, datetime, timedelta
 import hashlib
 import json
 import os
@@ -19,6 +20,13 @@ TITLE = "Public-record updates need attention"
 MARKER = "<!-- source-refresh-health:"
 #: The problems the issue body last described, so a new one can be told apart.
 PROBLEMS_MARKER = "<!-- source-refresh-problems:"
+#: When each problem last mentioned the owner, so a problem that clears and returns
+#: between hourly runs is not announced again every time.
+MENTIONED_MARKER = "<!-- source-refresh-mentioned:"
+MENTION_QUIET = timedelta(hours=24)
+#: A failed workflow step always comes with the failed job's own row, so it is shown
+#: but never announced on its own.
+UNANNOUNCED = ("workflow-collect:",)
 #: Who is told when a new problem appears. An edited issue body notifies nobody.
 OWNER = "euglopi"
 _SLUG = re.compile(r"[a-z0-9][a-z0-9-]{0,80}")
@@ -138,6 +146,39 @@ def problem_keys(problems: list[dict]) -> list[str]:
         reason = hashlib.sha256("|".join(reasons).encode()).hexdigest()[:12]
         keys.append(f"{row['name']}:{row['status']}:{reason}")
     return sorted(set(keys))
+
+
+def recent_mentions(body: str | None, now: datetime) -> dict[str, str]:
+    """Problem keys the owner was told about within the last week, with when."""
+    try:
+        saved = json.loads(body.split(MENTIONED_MARKER, 1)[1].split(" -->", 1)[0])
+    except (AttributeError, ValueError, IndexError):
+        return {}
+    if not isinstance(saved, dict):
+        return {}
+    kept = {}
+    for key, when in saved.items():
+        try:
+            if now - datetime.fromisoformat(when) < timedelta(days=7):
+                kept[str(key)] = when
+        except (TypeError, ValueError):
+            continue
+    return kept
+
+
+def to_announce(
+    added: list[str], mentioned: dict[str, str], now: datetime
+) -> list[str]:
+    """New problems worth a mention: not a workflow step, not announced in 24 hours."""
+    return [
+        key
+        for key in added
+        if not key.startswith(UNANNOUNCED)
+        and not (
+            key in mentioned
+            and now - datetime.fromisoformat(mentioned[key]) < MENTION_QUIET
+        )
+    ]
 
 
 def new_problems(body: str | None, keys: list[str]) -> list[str]:
@@ -292,7 +333,16 @@ def main():
             return 0
         if not ours and not open_needed:
             return 0
-        added = new_problems(ours["body"] if ours else None, problem_keys_in(body))
+        now = datetime.now(UTC)
+        previous = ours["body"] if ours else None
+        mentioned = recent_mentions(previous, now)
+        added = to_announce(
+            new_problems(previous, problem_keys_in(body)) if open_needed else [],
+            mentioned,
+            now,
+        )
+        mentioned.update({key: now.isoformat() for key in added})
+        body += f"\n{MENTIONED_MARKER}{json.dumps(mentioned, sort_keys=True)} -->"
         with tempfile.TemporaryDirectory() as directory:
             file = Path(directory) / "health.md"
             file.write_text(body)
@@ -326,7 +376,7 @@ def main():
                     str(file),
                 ).strip()
                 ours = {"number": url.rsplit("/", 1)[-1]}
-            if open_needed and added:
+            if added:
                 # A mention is what reaches a person; the body edit above does not.
                 names = sorted({key.split(":", 1)[0] for key in added})
                 note = Path(directory) / "new.md"

@@ -215,8 +215,8 @@ owns the setup, proof and rollback steps.
 The shared health warning closes only when the current source state is clear;
 private evidence and exception text never enter its public issue. A failed
 collection's stage, check names, committee numbers and years do appear there, and a
-new job or reason adds a comment mentioning the maintainer; the same reason repeating
-adds nothing. Setup failures also produce a fixed warning. Existing backup work
+new job or reason adds a comment mentioning the maintainer, at most once a day for
+the same problem; a repeat or a failed workflow step adds nothing. Setup failures also produce a fixed warning. Existing backup work
 includes private evidence bundles.
 
 [Independent public-record wakeups](source-refresh-dispatch.md) owns App scope and

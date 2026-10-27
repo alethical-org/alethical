@@ -106,8 +106,10 @@ collection's stage names, check names, committee numbers and years as its findin
 and appends the records to the workflow's artifact, also when the run is cancelled; a
 continuing or deferred turn keeps no failure finding. Free-text details are never
 kept, because the finding is shown on a public issue. The health reporter prints
-those facts and mentions the maintainer in a comment when a job or reason is new;
-the same reason repeating stays quiet. Editing an issue body notifies nobody, so the
+those facts and mentions the maintainer in a comment when a job or reason is new,
+at most once a day for the same problem, so one that clears and returns between
+hourly runs is not announced each time. A failed workflow step is shown but never
+announced, because the failed job's own row already is. Editing an issue body notifies nobody, so the
 mention is what reaches a person. The old per-workflow failure review
 (`.github/workflows/collection-failure-review.yml`) still covers hand runs of the
 retired campaign and notice workflows only.

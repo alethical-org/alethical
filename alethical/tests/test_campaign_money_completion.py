@@ -836,3 +836,47 @@ def test_the_script_records_a_catch_up_and_requests_totals(database, monkeypatch
             )
         )
         db.commit()
+
+
+def _body_with_mention(rows, key, when):
+    body, _, _ = report.packet(rows)
+    return (
+        body + f"\n{report.MENTIONED_MARKER}{json.dumps({key: when.isoformat()})} -->"
+    )
+
+
+def test_a_problem_that_returns_within_a_day_is_not_announced_again(monkeypatch):
+    from alethical.tests.test_source_refresh_health_report import fake_environment
+
+    rows = [health_row("lobbying-discovery", {"finding_key": "a"})]
+    key = report.problem_keys(rows)[0]
+    # It cleared on the last run (body lists nothing) but was announced 2 hours ago.
+    cleared = _body_with_mention([], key, datetime.now(UTC) - timedelta(hours=2))
+    calls = fake_environment(
+        monkeypatch, rows, [{"number": 7, "body": cleared, "state": "CLOSED"}]
+    )
+    assert report.main() == 0
+    assert not any(args[:2] == ("issue", "comment") for args, _ in calls)
+    edited = next(body for args, body in calls if args[:2] == ("issue", "edit"))
+    assert key in edited  # the earlier announcement is still remembered
+
+    stale = _body_with_mention([], key, datetime.now(UTC) - timedelta(hours=25))
+    calls = fake_environment(
+        monkeypatch, rows, [{"number": 7, "body": stale, "state": "CLOSED"}]
+    )
+    assert report.main() == 0
+    assert any(args[:2] == ("issue", "comment") for args, _ in calls)
+
+
+def test_a_failed_workflow_step_is_shown_but_never_announced(monkeypatch):
+    from alethical.tests.test_source_refresh_health_report import fake_environment
+
+    monkeypatch.setenv("SOURCE_REFRESH_COLLECT_RESULT", "failure")
+    old_body, _, _ = report.packet([])
+    calls = fake_environment(
+        monkeypatch, [], [{"number": 7, "body": old_body, "state": "CLOSED"}]
+    )
+    assert report.main() == 0
+    edited = next(body for args, body in calls if args[:2] == ("issue", "edit"))
+    assert "workflow-collect" in edited
+    assert not any(args[:2] == ("issue", "comment") for args, _ in calls)
