@@ -56,8 +56,10 @@ says exactly which payments release and which totals snapshot are live when it e
 whether this run published each, so a failure after a successful publish is never
 reported as "the previous set is still live". With ``--alert-issue`` the script files or
 updates one GitHub issue quoting that summary. Freshness, stated honestly wherever it is
-stated: payments are checked daily; totals are refreshed when a list changes and weekly;
-a run whose lists could not be read is reported as incomplete.
+stated: payments are checked daily; totals are refreshed when a list changes, when the
+hourly completion check finds the Board's summary ahead of ours
+(``campaign_money_completion.py``), and weekly; a run whose lists could not be read is
+reported as incomplete.
 """
 
 from __future__ import annotations
@@ -126,6 +128,10 @@ LIST_ACTIONS: tuple[str, ...] = (
 FULL_REFRESH_EVERY = timedelta(days=7)
 
 LAST_FULL_REFRESH_KEY = "totals_last_full_refresh_at"
+#: Written by the completion check when the Board is ahead of our totals; the same key
+#: as ``campaign_money_completion.CATCH_UP_KEY``, kept here so the planner imports
+#: nothing that reaches the network.
+TOTALS_CATCH_UP_KEY = "totals_catch_up"
 RECHECK_PENDING_KEY = "recheck_pending"
 CLEARING_PENDING_KEY = "clearing_pending"
 
@@ -658,8 +664,15 @@ def plan_totals_refresh(
     *,
     now: datetime,
     force: bool = False,
+    catch_up: Optional[Mapping[str, Any]] = None,
 ) -> Plan:
     """Whether the official totals are refreshed today, and why.
+
+    ``catch_up`` is the completion check's record that the Board's own summary now
+    covers a later period than ours for some filers
+    (``alethical/pipeline/campaign_money_completion.py``). The Board often updates a
+    summary days after the report itself appears on the lists, so by then the lists
+    have stopped changing; without this a newer total waited for the weekly rule.
 
     Pure, so the rule is testable without a Board or a database. A list that could not
     be read is neither a change nor a no-change: it is named in ``unreadable_lists``,
@@ -688,10 +701,25 @@ def plan_totals_refresh(
             f"last full totals refresh was {last_full_refresh_at.date().isoformat()}, "
             f"{(now - last_full_refresh_at).days} days ago (weekly regardless)"
         )
+    if catch_up:
+        plan.totals_due = True
+        plan.reasons.append(
+            "the Board's summary now covers a later period for "
+            f"{len(catch_up.get('filer_years') or [])} committee-year(s) "
+            f"(seen {catch_up.get('detected_at', 'at an unknown time')})"
+        )
     if force:
         plan.totals_due = True
         plan.reasons.append("a full totals refresh was asked for")
     return plan
+
+
+def catch_up_settled(marker: Optional[Mapping[str, Any]], started: datetime) -> bool:
+    """Whether a successful totals run that began at ``started`` settles ``marker``."""
+    if not marker:
+        return False
+    seen = _from_iso(marker.get("detected_at"))
+    return seen is None or seen <= started
 
 
 # --- The run ------------------------------------------------------------------------
@@ -906,8 +934,14 @@ def refresh_campaign_money(
     handled = {action: state_get(db, f"list:{action}") for action in LIST_ACTIONS}
     last_full = state_get(db, LAST_FULL_REFRESH_KEY)
     last_full_at = datetime.fromisoformat(last_full) if last_full else None
+    catch_up = state_get(db, TOTALS_CATCH_UP_KEY)
     report.plan = plan_totals_refresh(
-        report.readings, handled, last_full_at, now=started, force=force_totals
+        report.readings,
+        handled,
+        last_full_at,
+        now=started,
+        force=force_totals,
+        catch_up=catch_up,
     )
     log("\n".join(report.summary().splitlines()[1:]))
     if report.plan.unreadable_lists:
@@ -961,7 +995,16 @@ def refresh_campaign_money(
                         if reading.error is None and reading.content_hash
                     }
                     handled_now[LAST_FULL_REFRESH_KEY] = started.isoformat()
-                    state_update(db, set_values=handled_now)
+                    # A catch-up seen after this run started is about figures this
+                    # run may not hold, so only an earlier one is settled here.
+                    settled = catch_up_settled(
+                        state_get(db, TOTALS_CATCH_UP_KEY), started
+                    )
+                    state_update(
+                        db,
+                        set_values=handled_now,
+                        delete_keys=[TOTALS_CATCH_UP_KEY] if settled else [],
+                    )
                     report.lines.append(
                         "totals: published a new snapshot"
                         if run.published

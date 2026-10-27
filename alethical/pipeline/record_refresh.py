@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -38,6 +39,8 @@ ROOT = Path(__file__).resolve().parents[2]
 CLEARING_JOB = "source-clearing"
 #: Runs only while a money check it can perform, or money page clearing, is owed.
 CHECK_JOB = "campaign-rechecks"
+#: Where a collector writes its own stage records (``collection_run_summary.py``).
+SUMMARY_ENV = "COLLECTION_RUN_SUMMARY"
 
 
 @dataclass(frozen=True)
@@ -81,6 +84,18 @@ def jobs(now: datetime | None = None) -> dict[str, RefreshJob]:
             "Refresh supported totals and payment files",
             lane="campaign",
             priority=7,
+        ),
+        RefreshJob(
+            "campaign-completion",
+            timedelta(hours=1),
+            timedelta(minutes=15),
+            ("scripts/check_campaign_money_completion.py", "--target", "{target}"),
+            "https://cfb.mn.gov/",
+            "Keep filed reports owed until totals and legislators' pages catch up",
+            capture_json=True,
+            review_exit=2,
+            lane="campaign-completion",
+            priority=6,
         ),
         RefreshJob(
             "filing-dates",
@@ -461,6 +476,7 @@ def job_family(name: str) -> str:
         "campaign-money",
         "campaign-rechecks",
         "campaign-discovery",
+        "campaign-completion",
         "filing-dates",
         "filing-dates-recent",
         "refunds",
@@ -867,6 +883,66 @@ def run_command(claim: Claim, *, target: str) -> CommandResult:
         sys.executable,
         *(arg.format(target=target) for arg in claim.job.arguments),
     ]
+    # Each command writes its stage records to a file of its own, so the stages read
+    # back below are this command's and no other job's. They are then appended to the
+    # workflow's file, which is what the run uploads.
+    workflow_summary = os.environ.get(SUMMARY_ENV)
+    own_summary = tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False)
+    own_summary.close()
+    env[SUMMARY_ENV] = own_summary.name
+    try:
+        result = _run_with_report(claim, command, env)
+        recorded = Path(own_summary.name).read_bytes()
+    finally:
+        Path(own_summary.name).unlink(missing_ok=True)
+    if workflow_summary and recorded:
+        try:
+            with open(workflow_summary, "ab") as handle:
+                handle.write(recorded)
+        except OSError:
+            pass
+    if result.finding is None and result.code != 0:
+        stages = failed_stage_finding(recorded)
+        if stages is not None:
+            return CommandResult(result.code, stages)
+    return result
+
+
+def failed_stage_finding(recorded: bytes) -> dict | None:
+    """What a failed collection said about itself, reduced to code-owned facts.
+
+    Only stage names, check names, committee registration numbers and years: the
+    collector's free-text details can quote source bodies and are never retained here,
+    because this finding is shown on a public issue. ``finding_key`` changes when the
+    reason changes, so a new problem is distinguishable from the same one repeating.
+    """
+    from alethical.pipeline.collection_failure_review import parse_summary
+
+    records = parse_summary(recorded) if recorded else None
+    failed = [r for r in records or [] if r["status"] in ("failed", "pending")]
+    if not failed:
+        return None
+    stages = [
+        {
+            "stage": record["stage"],
+            "failed_checks": record["failed_checks"][:12],
+            "affected_committees": record["affected_committees"][:20],
+            "affected_years": record["affected_years"][:20],
+        }
+        for record in failed[:8]
+    ]
+    key = json.dumps(
+        [(s["stage"], s["failed_checks"], s["affected_committees"]) for s in stages],
+        sort_keys=True,
+    )
+    return {
+        "status": "failed",
+        "stages": stages,
+        "finding_key": hashlib.sha256(key.encode()).hexdigest()[:16],
+    }
+
+
+def _run_with_report(claim: Claim, command: list[str], env: dict) -> CommandResult:
     # Only code-owned review commands emit a retained JSON report. Never retain
     # arbitrary collector logs, source bodies, environment values or credentials.
     with tempfile.TemporaryFile() as report:
