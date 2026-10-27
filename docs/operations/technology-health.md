@@ -119,6 +119,11 @@ so it does not share GitHub's unauthenticated rate limit; it refuses redirects, 
 the signature never reaches another address. It runs independently of registry scan failures and timeouts. A published fix, changed advisory identity or affected range, missing fix
 field, unreadable response or failed request fails the recheck. This upstream
 check grants no runtime exception and does not suppress any scanner finding.
+The one resolved state is a warning that names a single fixed release which the
+Pillow version in `uv.lock` already reaches. Then the recheck passes, the release
+check stops requiring the runtime proof below, and any scanner finding for Pillow
+blocks release like any other. An unreadable or unclear answer keeps the proof
+required.
 
 The separate `pillow-runtime.yml` workflow reads production through a dedicated
 `pillow-security-runtime` GitHub environment restricted to the `main` branch.
@@ -166,9 +171,12 @@ running them. All other tracked Python files remain in the source scan.
 ### Pillow: reviewed production path outside the Arrow flaw
 
 [GHSA-654x-cwwv-5j9c](https://github.com/python-pillow/Pillow/security/advisories/GHSA-654x-cwwv-5j9c)
-(CVE-2026-114501) covers Pillow 11.2.1 through 13.0.0. Upstream reports no
-fixed release. [Issue 2643](https://github.com/alethical-org/alethical/issues/2643)
-holds the review, owned by Eugene. The exception covers only Pillow **13.0.0** on
+(CVE-2026-114501) covers Pillow from 11.2.1 up to, but not including, 13.0.0:
+upstream names 13.0.0 as the fixed release, and `uv.lock` holds 13.0.0. The
+exception therefore no longer applies and the release check no longer asks for its
+proof; the record below stays as the reviewed history of the production path.
+[Issue 2643](https://github.com/alethical-org/alethical/issues/2643)
+held the review, owned by Eugene. The exception covered only Pillow **13.0.0** on
 the direct `alethical -> pillow` path in `uv.lock`, with the existing
 `pillow>=13.0.0` requirement. It changes no Pillow code or package metadata.
 
