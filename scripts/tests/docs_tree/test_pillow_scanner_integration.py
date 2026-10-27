@@ -37,6 +37,8 @@ def clean_scanners(monkeypatch):
     """Mock scanner/provider I/O, never the exception verification by default."""
     findings = []
     commands = []
+    # The warning names no fix unless a test says otherwise; no network read.
+    monkeypatch.setattr(scanner, "upstream_fix_installed", lambda _: False)
     monkeypatch.setattr(scanner, "extra_security_inventory", lambda _: ([], set(), []))
     monkeypatch.setattr(
         scanner, "locked_python_packages", lambda _: [("pillow", "13.0.0")]
@@ -260,3 +262,28 @@ def test_pillow_proof_cannot_exempt_javascript_finding():
     assert scanner.security_audit_problems(
         result(payload), "JavaScript", pillow_exception_verified=True
     ) == [f"{GHSA} (high)"]
+
+
+def test_a_published_fix_the_lock_reaches_needs_no_exception_proof(
+    monkeypatch, clean_scanners
+):
+    calls = []
+    monkeypatch.setattr(scanner, "upstream_fix_installed", lambda _: True)
+    monkeypatch.setattr(
+        scanner, "verify_pillow_exception", lambda root: calls.append(root) or False
+    )
+    assert scanner.run_security_audits(ROOT) == []
+    assert calls == []
+
+
+def test_after_a_published_fix_a_pillow_finding_is_never_excused(
+    monkeypatch, clean_scanners
+):
+    clean_scanners[0].append(exact_finding())
+    monkeypatch.setattr(scanner, "upstream_fix_installed", lambda _: True)
+    monkeypatch.setattr(scanner, "verify_pillow_exception", lambda _: True)
+    assert f"pillow 13.0.0: {GHSA}" in scanner.run_security_audits(ROOT)
+
+
+def test_an_unloadable_advisory_check_keeps_the_proof_required(tmp_path):
+    assert scanner.upstream_fix_installed(tmp_path) is False

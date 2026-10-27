@@ -24,6 +24,9 @@ def verified_runtime_for_scanner_unit_tests(monkeypatch):
     monkeypatch.setattr(
         check_technology_health, "verify_pillow_exception", lambda root: True
     )
+    monkeypatch.setattr(
+        check_technology_health, "upstream_fix_installed", lambda root: False
+    )
 
 
 def test_current_repository_has_consistent_versions_and_update_coverage() -> None:

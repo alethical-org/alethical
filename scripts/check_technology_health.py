@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import re
 import subprocess
@@ -754,13 +755,44 @@ def verify_pillow_exception(root: Path) -> bool:
     return result.returncode == 0
 
 
+def upstream_fix_installed(root: Path) -> bool:
+    """Whether upstream names a fixed Pillow release that ``uv.lock`` already reaches.
+
+    Any failure to read or load reads as no, which keeps the recorded exception and
+    its proof required: only a clear upstream fix ends them.
+    """
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "check_pillow_advisory", root / "scripts" / "check_pillow_advisory.py"
+        )
+        if spec is None or spec.loader is None:
+            return False
+        advisory = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(advisory)
+        return advisory.fix_installed(
+            advisory.fetch(), advisory.locked_pillow_version(root / "uv.lock")
+        )
+    except Exception:  # noqa: BLE001 - an unreadable answer is never a fix
+        return False
+
+
 def run_security_audits(root: Path) -> list[str]:
     problems = []
-    pillow_exception_verified = verify_pillow_exception(root)
-    if not pillow_exception_verified:
-        problems.append(
-            "The recorded Pillow exception could not verify its source, upstream warning and current production conditions"
+    # While the warning named no fix, the proof was required on every run. Once
+    # upstream names a fixed release the locked Pillow reaches, no exception applies,
+    # so the proof is not asked for and any Pillow finding counts like any other.
+    pillow_exception_verified = False
+    if upstream_fix_installed(root):
+        print(
+            "Upstream names a fixed Pillow release that uv.lock already holds; the "
+            "recorded Pillow exception no longer applies."
         )
+    else:
+        pillow_exception_verified = verify_pillow_exception(root)
+        if not pillow_exception_verified:
+            problems.append(
+                "The recorded Pillow exception could not verify its source, upstream warning and current production conditions"
+            )
     research_packages: set[tuple[str, str]] = set()
     try:
         inventory_problems, research_packages, manual_sources = (
