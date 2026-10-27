@@ -6,7 +6,8 @@ alethical.com; only its screens are separate. Every account Alethical lets in ha
 access, nothing in Finance links back to alethical.com, and every research tool lives in
 Finance.
 
-Alethical Finance is not alethicalfinance.com, an unrelated earlier site.
+Finance's address is alethicalfinance.com, connected at launch. Until then it runs at a
+preview address.
 
 ## 1. Built once, used by both sites
 
@@ -48,7 +49,9 @@ Alethical Finance is not alethicalfinance.com, an unrelated earlier site.
 - **Each entry records whether the account belongs to Alethical's own team.** Finance never
   shows or uses this; it decides only what alethical.com may print (§5).
 - **Sign-in is Google, or a 6-digit code emailed to the address.** Finance has no passwords.
-  An account that signs in but is not on the list sees the no-access state.
+  An account that signs in but is not on the list sees the no-access state. Sign-in returns
+  to the page's own address, so Supabase's list of allowed return addresses needs the
+  preview address now and alethicalfinance.com at launch.
 - **The server checks the list on every Finance request.** A request carrying an
   Authorization header is never marked cacheable (`default_public_cache` in
   `alethical/api/main.py`), so 1 account's response never reaches another.
