@@ -382,8 +382,7 @@ describe('the unconfirmed state, which is every profile today', () => {
 
   it('tells "nobody has looked" apart from "checked, but not this year"', () => {
     // An earlier version collapsed the two, so a member whose committee IS checked and
-    // whose reviewed years simply do not reach the year on screen was told nobody had
-    // looked at them. That blames our unfinished work for something that is finished.
+    // simply has nothing for the year on screen was told nobody had looked at them. That blames our unfinished work for something that is finished.
     expect(emptyStateFor('unconfirmed', 0)).toBe('unconfirmed');
     expect(emptyStateFor('reviewed_none_confirmed', 0)).toBe('unconfirmed');
     expect(emptyStateFor('confirmed', 0)).toBe('confirmed-elsewhere');

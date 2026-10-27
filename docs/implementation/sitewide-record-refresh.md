@@ -43,7 +43,7 @@ turn refused by a busy lease exits 76 and never advances its success date.
 | --- | --- | --- | --- |
 | campaign | `campaign-discovery` | 15 minutes | Reads the 6 official register and report lists; queues collection on a change |
 | campaign | `campaign-money` | 1 day, or sooner on a change or a Board catch-up | Collects and publishes totals and the 3 payment files without long checks |
-| campaign | `campaign-completion` | 1 hour | Finds filed reports newer than the published totals and filings hidden by a confirmed account's reviewed years; asks the Board about up to 25 lagging filers, members first; asks for totals when the Board is ahead (see [Filed reports stay owed until pages catch up](#filed-reports-stay-owed-until-pages-catch-up)) |
+| campaign | `campaign-completion` | 1 hour | Finds filed reports newer than the published totals; asks the Board about up to 25 lagging filers, members first; asks for totals when the Board is ahead (see [Filed reports stay owed until pages catch up](#filed-reports-stay-owed-until-pages-catch-up)) |
 | campaign | `campaign-rechecks` | 5 minutes, only while a checkable file or money page clearing is owed | Finishes at most 10 owed committee-year checks within 120 seconds and 10 requests; a held file waiting for a complete source read owes no turn |
 | campaign | `filing-dates-recent` | 1 hour | Dates up to 25 current and prior-year reports in 120 seconds, saving its position |
 | campaign | `filing-dates` | 1 day | The same bounded turns across 2022 onward; restarts for a newly published register |
@@ -89,13 +89,13 @@ what is owed from the published data every hour, so no run can mark it done:
   as a reason to fetch totals and removes it after a successful totals run that
   started after every row was seen; the check removes it once our published period
   reaches what the Board showed.
-- **Hidden by reviewed years**: a confirmed legislative account has a filing in a
-  year outside the years recorded at review, so the profile leaves it out. The check
-  never widens a reviewed range; it reports the case for a person.
 
-The turn exits 2 (review) when filings are hidden in last year or this year, the years
-a page opens on, or the Board has been ahead for over 14 hours; older hidden years are
-listed without holding the job in review. It exits 1 when every Board request failed.
+A filed report needs no check to reach its legislator's page: the money tab lists a
+confirmed account for every year the Board's catalogue holds a report for it
+([`docs/architecture/campaign-finance-system-design.md` §5.1 (What counts as a confirmed match)](../architecture/campaign-finance-system-design.md#51-what-counts-as-a-confirmed-match)).
+
+The turn exits 2 (review) when the Board has been ahead for over 14 hours. It exits 1
+when every Board request failed.
 Its finding is shown on the grouped health issue. The late alarm is keyed by when the
 oldest unresolved case began and a failed stage by its stage and checks, so hourly
 changes in which filers or committees are named do not mention the owner again.

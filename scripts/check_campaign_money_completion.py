@@ -49,7 +49,7 @@ def check(engine, *, now: datetime, today: date) -> completion.CompletionResult:
 
     try:
         with Session(engine) as db:
-            lagging, hidden = completion.read_state(db, completion.checked_years(today))
+            lagging = completion.read_state(db, completion.checked_years(today))
             probes = state_get(db, completion.PROBES_KEY) or {}
             last_full = state_get(db, LAST_FULL_REFRESH_KEY)
             requested = (state_get(db, completion.CATCH_UP_KEY) or {}).get(
@@ -63,7 +63,6 @@ def check(engine, *, now: datetime, today: date) -> completion.CompletionResult:
         with redirect_stdout(sys.stderr):
             result = completion.evaluate(
                 lagging,
-                hidden,
                 probes,
                 probe=probe,
                 now=now,
@@ -74,7 +73,6 @@ def check(engine, *, now: datetime, today: date) -> completion.CompletionResult:
                 if requested
                 else None,
                 totals_running=running,
-                alarm_years=completion.checked_years(today),
             )
     finally:
         http.close()

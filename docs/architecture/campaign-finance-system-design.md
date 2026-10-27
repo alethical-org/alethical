@@ -1503,6 +1503,18 @@ decision written before they landed genuinely has no stored basis and a backfill
 what a person saw would be worse than an honest blank; 0 rows existed when they shipped, so
 nothing is blank in practice.
 
+**The reviewed years add years to a profile and never take a filed year away.** They record the
+years the reviewer saw donations in the download, never the year a committee stopped being the
+member's. A legislator's money tab lists a confirmed committee for every year the Board's report
+catalogue holds a report for it, a special-election report included, and for every year its
+reviewer saw donations in (`_period_covers` in `alethical/api/services/independent_spending.py`).
+Both are needed: read as the whole test, the reviewed years hid filed reports on 16 confirmed
+links on 27 Oct 2026, Mary Franson's 2026 among them, and the catalogue holds no report for 28
+confirmed links in years their reviewers saw donations in
+([#2736](https://github.com/alethical-org/alethical/issues/2736)). No year answers whether a
+committee is still the member's; the weekly re-check against the Board's register
+(`.github/workflows/committee-link-contradictions.yml`) does.
+
 **Party money has 4 recorded states, and 2 of them are not disagreements.** `party_agrees` is
 False only when party money exists and names the other party. It is None both when no party unit
 has ever paid the committee and when we hold no party for the legislator, and those are facts
@@ -1966,8 +1978,8 @@ preference:
 
 Whose committee it is does not move with the filing year on screen, for the same reason
 ``link_state`` is asked without one and the CLOSED chip is drawn on every year: the
-reviewed first and last years bound which *money* belongs on a profile, not whose
-committee this is. A confirmation that disappeared when a reader switched from 2025 to
+years a committee filed in and was reviewed for decide which *money* belongs on a profile
+(§5.1), not whose committee this is. A confirmation that disappeared when a reader switched from 2025 to
 2026 would read as the link having been withdrawn.
 
 **What shipped for the period stamp is richer than the rule above, and the rule is the floor.** The

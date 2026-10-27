@@ -401,8 +401,8 @@ export function isAmountAboveZero(value: string | number | null | undefined): bo
  * Which empty state the tab is in, when it has no committee to draw.
  *
  * `'unconfirmed'` and `'confirmed-elsewhere'` are different facts and an earlier version
- * collapsed them, so a member whose committee is checked and whose reviewed period simply
- * does not reach the year on screen was told nobody had looked at them. That is the
+ * collapsed them, so a member whose committee is checked and simply has nothing for the
+ * year on screen was told nobody had looked at them. That is the
  * missing-versus-zero failure moved into the navigation: it blames our unfinished work
  * for something that is finished.
  *

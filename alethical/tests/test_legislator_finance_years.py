@@ -9,7 +9,7 @@ coloured from a different rule would send a reader to a year that then reads dif
 
 So the test here is equality against the per-year route itself, year by year, over a
 fixture built to reach as many of the split's states as one member can: a committee held
-in every year, one whose reviewed period covers only 2 of them, one the release holds no
+in every year, one whose reviewed period and filed reports cover only 2 of them, one the release holds no
 record of, and one for a race that never belongs on a legislative profile. Years the
 downloads do not reach, a year whose filing covers a different year, a year whose payments
 run past its own report, a year with a filing and no named row, and a year whose filing
@@ -370,6 +370,59 @@ def test_every_year_of_the_span_says_what_the_per_year_route_says(client, member
         "periods_differ",
         "named_payments_not_in_our_copy",
     }
+
+
+def test_a_report_filed_outside_the_reviewed_years_puts_the_committee_on_that_year(
+    client, db, member
+):
+    """A report the Board lists for a year outside the reviewed years shows on that year.
+
+    The reviewed years record when a person read the contributions download, never when
+    the committee stopped being the member's, so a later report fell off the page: on 27
+    Oct 2026 that hid filed reports on 16 confirmed links (#2736). The bounded committee
+    here was reviewed for 2025 and 2026, and the Board's catalogue lists a 2024 report
+    for it. 2023 has neither, so there the committee is still left out and explained.
+    Both routes agree on both years.
+    """
+    filings_id = db.execute(
+        text("SELECT snapshot_id FROM cf_filing_current")
+    ).scalar_one()
+    db.add(
+        models.CampaignFinanceFilingReport(
+            snapshot_id=filings_id,
+            row_number=900,
+            registration_number=HOUSE,
+            filing_year=2024,
+            report_type="YE",
+            report_name="2024 Year-End Report",
+            cut_off_date=date(2024, 12, 31),
+            special_election=False,
+        )
+    )
+    db.commit()
+
+    span = client.get(
+        f"/api/v1/legislators/{member}/campaign-finance/years",
+        params={"from": 2023, "to": 2024},
+    )
+    assert span.status_code == 200, span.text
+    by_year = {entry["year"]: entry for entry in span.json()["data"]["years"]}
+    for year, listed in ((2023, False), (2024, True)):
+        single = client.get(
+            f"/api/v1/legislators/{member}/campaign-finance", params={"year": year}
+        )
+        assert single.status_code == 200, (year, single.text)
+        data = single.json()["data"]
+        numbers = {entry["registration_number"] for entry in data["committees"]}
+        outside = {
+            entry["registration_number"]
+            for entry in data["committees_outside_this_year"]
+        }
+        assert (HOUSE in numbers) is listed, year
+        assert (HOUSE in outside) is not listed, year
+        assert {
+            entry["registration_number"] for entry in by_year[year]["committees"]
+        } == numbers, year
 
 
 def test_the_span_answer_is_a_current_claim_and_says_when_it_checked(client, member):

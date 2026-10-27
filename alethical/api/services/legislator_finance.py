@@ -132,6 +132,7 @@ from alethical.api.services.independent_spending import (
     committees_outside_the_year,
     confirmed_committees,
     every_link,
+    filed_years,
 )
 from alethical.db.schema import load_schema
 from alethical.pipeline import campaign_finance_filings as filings
@@ -427,8 +428,8 @@ def link_state(
     """Whether anyone has confirmed which committees are this legislator's.
 
     Asked without a year, deliberately. Whether a *confirmed* link covers the year on
-    screen is a question about that link's reviewed period and is answered per
-    committee; whether anyone has looked at all is a question about the legislator and
+    screen is a question about the years that link filed in and was reviewed for, and
+    is answered per committee; whether anyone has looked at all is a question about the legislator and
     does not change when a reader switches years. Collapsing the two would make a
     member with a confirmed 2024-only committee read as unreviewed in 2026, which is
     the opposite of true.
@@ -532,9 +533,9 @@ def confirmed_member_for_committee(
     out for several legislators -- and none of them reaches here.
 
     **Asked without a year, deliberately**, exactly as ``link_state`` is. Whose
-    committee this is does not change when a reader switches filing year; the reviewed
-    period bounds which *money* belongs on a profile, and that question is answered on
-    the profile by ``confirmed_committees``.
+    committee this is does not change when a reader switches filing year; which
+    years' *money* belongs on a profile is answered on the profile by
+    ``confirmed_committees``.
     """
     row = db.execute(
         select(
@@ -1075,7 +1076,12 @@ def legislator_finance(
     # ``_committees_outside_this_year``) read the same few rows, so they are read once.
     decisions = every_link(db, legislator_id)
     state = link_state(db, legislator_id, decisions)
-    confirmed = confirmed_committees(db, legislator_id, year=year, links=decisions)
+    # Which years each confirmed committee filed in, read once for both halves of the
+    # year test; the filing schedule below reads the same catalogue rows from memory.
+    filed = filed_years(db, decisions, [year])
+    confirmed = confirmed_committees(
+        db, legislator_id, year=year, links=decisions, filed=filed
+    )
     # §7's office boundary, applied here rather than trusted to the reviewer. A person
     # confirms that a committee is *this member's*, which is a different question from
     # whether it is their *legislative* committee, and a run for Attorney General is
@@ -1086,7 +1092,9 @@ def legislator_finance(
     other_office = len(confirmed) - len(links)
     withheld = withheld_filer_years_for(db, release)
     committees: list[LegislatorCommitteeMoney] = []
-    outside = committees_outside_the_year(db, legislator_id, year=year, links=decisions)
+    outside = committees_outside_the_year(
+        db, legislator_id, year=year, links=decisions, filed=filed
+    )
     # One read of the register for every committee this page names, the ones it lists
     # and the ones it explains leaving out. Inside the pinned request the filing
     # schedule, the refunds block and the closing dates then read from it rather than
@@ -1227,11 +1235,14 @@ def legislator_year_states(
     """
     decisions = every_link(db, legislator_id)
     state = link_state(db, legislator_id, decisions)
+    # The whole span's catalogue in 1 statement; the correction count reads it again
+    # from memory.
+    filed = filed_years(db, decisions, years)
     listed: dict[int, list[str]] = {
         year: sorted(
             row.registration_number
             for row in confirmed_committees(
-                db, legislator_id, year=year, links=decisions
+                db, legislator_id, year=year, links=decisions, filed=filed
             )
             if is_for_a_legislative_office(row.office_as_reviewed)
         )

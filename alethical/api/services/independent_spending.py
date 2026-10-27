@@ -56,12 +56,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Iterable, Mapping
 from uuid import UUID
 
 from sqlalchemy import func, select, true
 from sqlalchemy.orm import Session
 
 from alethical.db.schema import load_schema
+from alethical.pipeline.campaign_finance_filings import catalogued_reports_for
 from alethical.pipeline.legislator_committee_match import is_for_a_legislative_office
 
 schema = load_schema()
@@ -283,15 +285,16 @@ def confirmed_committees(
     *,
     year: int,
     links: list[LegislatorCampaignCommittee] | None = None,
+    filed: Mapping[str, frozenset[int]] | None = None,
 ) -> list[LegislatorCampaignCommittee]:
     """This legislator's confirmed **legislative** committees covering ``year``.
 
     Only ``confirmed`` counts. A rejection is stored rather than discarded (§5.1),
     and a proposal is a question — only an answer is a link.
 
-    A reviewed period with no first or last year is treated as open at that end:
-    the reviewer saw the committee and did not bound it, which is weaker evidence
-    than a bound but is not evidence against.
+    A link covers a year it filed a report in or a year its reviewer saw donations in;
+    ``_period_covers`` says why both. ``filed`` is ``filed_years`` for ``year`` when the
+    caller already holds it.
 
     **A committee for another race is confirmed and still excluded here**, which is the
     one part of this that reads like a contradiction and is not. A reviewer confirming
@@ -302,7 +305,7 @@ def confirmed_committees(
     measurements and the 2 traps: never filter on the member's own chamber, and keep a
     committee whose office is blank.
     """
-    rows = _confirmed_links(db, legislator_id, year=year, links=links)
+    rows = _confirmed_links(db, legislator_id, year=year, links=links, filed=filed)
     return [
         link for link in rows if is_for_a_legislative_office(link.office_as_reviewed)
     ]
@@ -314,6 +317,7 @@ def committees_outside_the_year(
     *,
     year: int,
     links: list[LegislatorCampaignCommittee] | None = None,
+    filed: Mapping[str, frozenset[int]] | None = None,
 ) -> list[LegislatorCampaignCommittee]:
     """This legislator's confirmed **legislative** committees that do not cover ``year``.
 
@@ -322,19 +326,51 @@ def committees_outside_the_year(
     identical to a reader, so a page that shows nothing for a year has to be able to say
     *which* of its member's committees it left out and why (rule 12's missing-versus-zero).
 
-    Read the period test in ``_period_covers`` before wording anything from this. The years
-    on a link are what the reviewer saw in the contributions download, which is the last
-    year money was **reported**, not the last year the registration ran. So a committee
-    landing here has reported nothing for that year; whether it is still registered is a
-    separate question the Board's own filer record answers, and only that record may be
-    used to say a registration ended.
+    Read the period test in ``_period_covers`` before wording anything from this. A
+    committee landing here has no report in the Board's catalogue for the year and its
+    reviewer saw no donations in it, which says we hold nothing for that year and never
+    that the registration ended. Whether it is still registered is a separate question
+    the Board's own filer record answers, and only that record may be used to say a
+    registration ended.
     """
+    rows = _every_confirmed_link(db, legislator_id, links=links)
+    if filed is None:
+        filed = filed_years(db, rows, [year])
     return [
         link
-        for link in _every_confirmed_link(db, legislator_id, links=links)
+        for link in rows
         if is_for_a_legislative_office(link.office_as_reviewed)
-        and not _period_covers(link, year)
+        and not _period_covers(link, year, filed)
     ]
+
+
+def filed_years(
+    db: Session, links: Iterable[LegislatorCampaignCommittee], years: Iterable[int]
+) -> dict[str, frozenset[int]]:
+    """Which of ``years`` each confirmed link in ``links`` has a report in.
+
+    Read from the Board's report catalogue in the live filings snapshot, every report
+    counted, a special-election one included: a member first elected in a special
+    election files that series in the year before their reviewed years begin. One
+    statement for every committee and year, and inside a pinned read it is the same read
+    the filing calendar and the split's correction count make afterwards, so a page pays
+    no extra trip for it. ``{}`` when no filings snapshot is published, which leaves the
+    reviewed years as the whole test.
+    """
+    reports = catalogued_reports_for(
+        db,
+        [
+            link.registration_number
+            for link in links
+            if link.decision == CommitteeLinkReviewDecision.confirmed
+        ],
+        years,
+    )
+    found: dict[str, set[int]] = {}
+    for (number, year), listed in reports.items():
+        if listed:
+            found.setdefault(number, set()).add(year)
+    return {number: frozenset(held) for number, held in found.items()}
 
 
 def committees_for_independent_spending(
@@ -399,13 +435,13 @@ def _confirmed_links(
     *,
     year: int,
     links: list[LegislatorCampaignCommittee] | None = None,
+    filed: Mapping[str, frozenset[int]] | None = None,
 ) -> list[LegislatorCampaignCommittee]:
     """Every confirmed link covering ``year``, whatever office it is for."""
-    return [
-        link
-        for link in _every_confirmed_link(db, legislator_id, links=links)
-        if _period_covers(link, year)
-    ]
+    rows = _every_confirmed_link(db, legislator_id, links=links)
+    if filed is None:
+        filed = filed_years(db, rows, [year])
+    return [link for link in rows if _period_covers(link, year, filed)]
 
 
 def _every_confirmed_link(
@@ -432,7 +468,29 @@ def _every_confirmed_link(
     )
 
 
-def _period_covers(link: LegislatorCampaignCommittee, year: int) -> bool:
+def _period_covers(
+    link: LegislatorCampaignCommittee,
+    year: int,
+    filed: Mapping[str, frozenset[int]],
+) -> bool:
+    """Whether ``year`` belongs to this confirmed link on a legislator's money tab.
+
+    2 kinds of evidence, and either is enough. A report in the Board's catalogue for the
+    year (``filed``) is the committee filing that year. The reviewed years are what the
+    reviewer saw in the contributions download when the link was confirmed, which
+    records when a person looked and never when the committee stopped being the
+    member's. They used to be the whole test, so every report filed after the review
+    fell off the page: on 27 Oct 2026 that hid filed reports on 16 confirmed links,
+    Mary Franson's 2026 among them, 8 of them in 2025 or 2026 ([#2736]).
+
+    Neither replaces the other. The catalogue holds no report for 28 confirmed links in
+    years their reviewers saw donations in, so dropping the reviewed years would take
+    figures off pages that show them today. Whether a committee is still this member's
+    is the confirmation's question, re-checked against the Board's register every week
+    (``.github/workflows/committee-link-contradictions.yml``), and no year answers it.
+    """
+    if year in filed.get(link.registration_number, ()):
+        return True
     first = _as_year(link.first_year_as_reviewed)
     last = _as_year(link.last_year_as_reviewed)
     if first is not None and year < first:
