@@ -649,6 +649,12 @@ def test_the_issue_names_the_failed_stage_and_the_hidden_filings():
                             "years": [2026],
                         },
                         {
+                            "registration_number": "11880",
+                            "member": "john-marty",
+                            "years": [2015],
+                            "needs_review": False,
+                        },
+                        {
                             "registration_number": "1; drop",
                             "member": "<script>",
                             "years": [2026],
@@ -666,6 +672,7 @@ def test_the_issue_names_the_failed_stage_and_the_hidden_filings():
     )
     assert "mary-franson?tab=money), account 16986: filed years 2026" in body
     assert "<script>" not in body and "drop" not in body
+    assert "john-marty" not in body
 
 
 def test_a_new_reason_is_new_and_the_same_reason_repeating_is_not():

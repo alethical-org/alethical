@@ -105,6 +105,9 @@ def finding_lines(finding: dict) -> list[str]:
             line += f"; years {years}"
         lines.append(line + ".")
     for hidden in finding.get("hidden_filings", [])[:20]:
+        # Older years are listed in the stored finding, not on the public issue.
+        if hidden.get("needs_review") is False:
+            continue
         member = str(hidden.get("member", ""))
         registration = str(hidden.get("registration_number", ""))
         if _SLUG.fullmatch(member) and _REGISTRATION.fullmatch(registration):
