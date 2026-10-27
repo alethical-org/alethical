@@ -69,6 +69,43 @@ def test_changed_package_range_or_fix_fails(key, value):
     assert CHECK.problems(payload)
 
 
+def fixed_advisory(patched="13.0.0"):
+    payload = advisory()
+    payload["vulnerabilities"][0].update(
+        vulnerable_version_range=">= 11.2.1, < 13.0.0", patched_versions=patched
+    )
+    return payload
+
+
+def test_a_fix_the_locked_release_reaches_resolves_the_warning():
+    assert CHECK.fix_installed(fixed_advisory(), "13.0.0")
+    assert CHECK.problems(fixed_advisory(), "13.0.0") == []
+    assert CHECK.fix_installed(fixed_advisory(), "13.1.0")
+
+
+@pytest.mark.parametrize(
+    "patched,locked",
+    [
+        ("13.0.1", "13.0.0"),
+        ("13.0.0", None),
+        ("13.0.0", "13.0.0rc1"),
+        (">= 13.0.0", "13.0.0"),
+        ("13.0.0, 12.2.1", "13.0.0"),
+        ("", "13.0.0"),
+    ],
+)
+def test_an_unclear_or_unreached_fix_is_not_resolved(patched, locked):
+    assert not CHECK.fix_installed(fixed_advisory(patched), locked)
+    assert CHECK.problems(fixed_advisory(patched), locked)
+
+
+def test_the_locked_version_is_read_from_the_lock_file(tmp_path):
+    lock = tmp_path / "uv.lock"
+    lock.write_text('[[package]]\nname = "pillow"\nversion = "13.0.0"\nsource = {}\n')
+    assert CHECK.locked_pillow_version(lock) == "13.0.0"
+    assert CHECK.locked_pillow_version(tmp_path / "missing.lock") is None
+
+
 def test_missing_fix_field_is_not_no_fix():
     payload = advisory()
     del payload["vulnerabilities"][0]["patched_versions"]
