@@ -115,7 +115,7 @@ rechecks remain unfinished.
 
 ## Command-line tools
 
-The `scripts/` folder has 123 runnable files. GitHub jobs call 48 of them
+The `scripts/` folder has 124 runnable files. GitHub jobs call 48 of them
 directly and 3 document checks through `local_checks.py`. The 4 Mac helpers above
 call `worktree_backup.py` and `worktree_cleanup.py`, which uses `worktree_inventory.py`
 for the complete folder report; the older shell command
