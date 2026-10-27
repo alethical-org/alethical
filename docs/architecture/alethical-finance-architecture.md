@@ -92,13 +92,21 @@ Every record and tool opens inside Finance. Contact actions use email addresses.
 
 ## 8. Minnesota's commercial-use rule
 
-[Minnesota Statutes 10A.35](https://www.revisor.mn.gov/statutes/cite/10A.35) prohibits
-commercial use of the Campaign Finance Board's data. The Board's advisory opinions read
-"use" as using names and addresses to contact the people in the data:
-[AO418](https://cfb.mn.gov/pdf/advisory_opinions/AO418.pdf) permits a for-profit to filter,
-improve or implement Board data for a fee, and
+[Minnesota Statutes 10A.35](https://www.revisor.mn.gov/statutes/cite/10A.35): information
+copied from reports and statements filed with the Campaign Finance Board, other than those
+filed by lobbyists and lobbyist principals, "may not be sold or used by an individual or
+association for a commercial purpose", and "purposes related to elections, political
+activities, or law enforcement are not commercial purposes."
+
+The Board's advisory opinions read "use" as using names and addresses to contact the people
+in the data: [AO418](https://cfb.mn.gov/pdf/advisory_opinions/AO418.pdf) permits a
+for-profit to filter, improve or implement Board data for a fee, and
 [AO244](https://cfb.mn.gov/pdf/advisory_opinions/AO244.pdf) permitted a paid information
-site that carried a notice of the prohibition. Lobbyist and principal reports are exempt.
+site that carried a notice of the prohibition. An advisory opinion binds the Board only for
+the person who requested it ([10A.02](https://www.revisor.mn.gov/statutes/cite/10A.02)
+subdivisions 12 and 12a), so these opinions show the Board's reading and do not protect
+Alethical directly. Alethical does not request an opinion of its own.
+
 No Finance feature uses Board names or addresses to contact the people in them.
 
 ## 9. Landing-page counts
