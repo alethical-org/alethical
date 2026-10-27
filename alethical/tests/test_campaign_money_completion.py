@@ -880,3 +880,31 @@ def test_a_failed_workflow_step_is_shown_but_never_announced(monkeypatch):
     edited = next(body for args, body in calls if args[:2] == ("issue", "edit"))
     assert "workflow-collect" in edited
     assert not any(args[:2] == ("issue", "comment") for args, _ in calls)
+
+
+def test_a_held_back_recurrence_is_announced_once_the_quiet_period_ends(monkeypatch):
+    from alethical.tests.test_source_refresh_health_report import fake_environment
+
+    rows = [health_row("lobbying-discovery", {"finding_key": "a"})]
+    key = report.problem_keys(rows)[0]
+    # Fixed after its mention 2 hours ago, then back: held back, and remembered.
+    cleared = _body_with_mention([], key, datetime.now(UTC) - timedelta(hours=2))
+    calls = fake_environment(
+        monkeypatch, rows, [{"number": 7, "body": cleared, "state": "CLOSED"}]
+    )
+    assert report.main() == 0
+    assert not any(args[:2] == ("issue", "comment") for args, _ in calls)
+    held = next(body for args, body in calls if args[:2] == ("issue", "edit"))
+    assert report.deferred_problems(held) == [key]
+
+    # Still open a day later and no longer new to the body: announced now.
+    day_old = json.dumps({key: (datetime.now(UTC) - timedelta(hours=25)).isoformat()})
+    before, _, after = held.partition(report.MENTIONED_MARKER)
+    later = f"{before}{report.MENTIONED_MARKER}{day_old} -->{after.split(' -->', 1)[1]}"
+    # Nothing else changed: the body's fingerprint is the current one.
+    assert report.packet(rows)[1] in later
+    calls = fake_environment(
+        monkeypatch, rows, [{"number": 7, "body": later, "state": "OPEN"}]
+    )
+    assert report.main() == 0
+    assert any(args[:2] == ("issue", "comment") for args, _ in calls)

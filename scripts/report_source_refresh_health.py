@@ -24,6 +24,8 @@ PROBLEMS_MARKER = "<!-- source-refresh-problems:"
 #: between hourly runs is not announced again every time.
 MENTIONED_MARKER = "<!-- source-refresh-mentioned:"
 MENTION_QUIET = timedelta(hours=24)
+#: Problems held back by that quiet period, announced once it passes if still open.
+DEFERRED_MARKER = "<!-- source-refresh-deferred:"
 #: A failed workflow step always comes with the failed job's own row, so it is shown
 #: but never announced on its own.
 UNANNOUNCED = ("workflow-collect:",)
@@ -181,6 +183,15 @@ def to_announce(
     ]
 
 
+def deferred_problems(body: str | None) -> list[str]:
+    """Problems a quiet period held back on an earlier run."""
+    try:
+        saved = json.loads(body.split(DEFERRED_MARKER, 1)[1].split(" -->", 1)[0])
+    except (AttributeError, ValueError, IndexError):
+        return []
+    return [str(key) for key in saved] if isinstance(saved, list) else []
+
+
 def new_problems(body: str | None, keys: list[str]) -> list[str]:
     """Keys absent from the issue's last body; all of them when the issue is new."""
     previous: list[str] = []
@@ -325,24 +336,42 @@ def main():
             )
         )
         ours = next((issue for issue in issues if MARKER in issue["body"]), None)
+        now = datetime.now(UTC)
+        previous = ours["body"] if ours else None
+        # An unchanged issue still needs this run when a held-back problem's quiet
+        # day has ended; otherwise the announcement would wait for an unrelated change.
+        deferred_due = bool(
+            previous
+            and to_announce(
+                deferred_problems(previous), recent_mentions(previous, now), now
+            )
+        )
         if (
             ours
             and f"{MARKER}{fingerprint} -->" in ours["body"]
             and (ours["state"] == "OPEN") == open_needed
+            and not deferred_due
         ):
             return 0
         if not ours and not open_needed:
             return 0
-        now = datetime.now(UTC)
-        previous = ours["body"] if ours else None
         mentioned = recent_mentions(previous, now)
-        added = to_announce(
-            new_problems(previous, problem_keys_in(body)) if open_needed else [],
-            mentioned,
-            now,
+        current = problem_keys_in(body) if open_needed else []
+        # New since the last body, plus anything the quiet period held back that is
+        # still open: a real recurrence inside the 24 hours is announced once they end.
+        candidates = sorted(
+            set(new_problems(previous, current))
+            | (set(deferred_problems(previous)) & set(current))
         )
+        added = to_announce(candidates, mentioned, now)
+        held = [
+            key
+            for key in candidates
+            if key not in added and not key.startswith(UNANNOUNCED)
+        ]
         mentioned.update({key: now.isoformat() for key in added})
         body += f"\n{MENTIONED_MARKER}{json.dumps(mentioned, sort_keys=True)} -->"
+        body += f"\n{DEFERRED_MARKER}{json.dumps(held)} -->"
         with tempfile.TemporaryDirectory() as directory:
             file = Path(directory) / "health.md"
             file.write_text(body)
