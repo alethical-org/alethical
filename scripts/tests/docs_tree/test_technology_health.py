@@ -345,6 +345,103 @@ def test_braces_repair_cannot_accept_changed_findings(change: str) -> None:
     )
 
 
+def deepmerge_advisory() -> dict:
+    return {
+        "github_advisory_id": check_technology_health.DEEPMERGE_ADVISORY,
+        "module_name": "deepmerge",
+        "severity": "low",
+        "vulnerable_versions": ">=4.2.0 <=4.3.1",
+        "patched_versions": "<0.0.0",
+        "findings": [
+            {
+                "version": "4.3.1",
+                "paths": [check_technology_health.DEEPMERGE_BUILD_PATH],
+            }
+        ],
+    }
+
+
+def test_deepmerge_finding_requires_the_exact_installed_repair() -> None:
+    report = javascript_report({"deepmerge": deepmerge_advisory()})
+    assert check_technology_health.javascript_audit_problems(report) == [
+        "GHSA-gcqx-w48m-w2h4 (low)"
+    ]
+    assert check_technology_health.javascript_audit_problems(
+        report, forge_repaired=True, braces_repaired=True
+    ) == ["GHSA-gcqx-w48m-w2h4 (low)"]
+    assert (
+        check_technology_health.javascript_audit_problems(
+            report, deepmerge_repaired=True
+        )
+        == []
+    )
+    report["advisories"]["other"] = {"severity": "low"}
+    assert check_technology_health.javascript_audit_problems(
+        report, deepmerge_repaired=True
+    ) == ["other (low)"]
+
+
+@pytest.mark.parametrize(
+    "change", ["id", "module", "version", "path", "fixed", "range", "severity"]
+)
+def test_deepmerge_repair_cannot_accept_changed_findings(change: str) -> None:
+    advisory = deepmerge_advisory()
+    if change == "id":
+        advisory["github_advisory_id"] = "GHSA-other"
+    elif change == "module":
+        advisory["module_name"] = "other"
+    elif change == "version":
+        advisory["findings"][0]["version"] = "4.3.0"
+    elif change == "path":
+        advisory["findings"][0]["paths"].append("apps__frontend>deepmerge")
+    elif change == "fixed":
+        advisory["patched_versions"] = ">=4.3.2"
+    elif change == "range":
+        advisory["vulnerable_versions"] = ">=4.2.0 <=4.3.2"
+    else:
+        advisory["severity"] = "moderate"
+    assert check_technology_health.javascript_audit_problems(
+        javascript_report({"deepmerge": advisory}), deepmerge_repaired=True
+    )
+
+
+@pytest.mark.parametrize("repair_passes", [True, False])
+def test_deepmerge_repair_check_decides_whether_its_finding_blocks_release(
+    monkeypatch, repair_passes: bool
+) -> None:
+    def run(command, root):
+        if command == ["pnpm", "audit", "--json"]:
+            report = javascript_report({"deepmerge": deepmerge_advisory()})
+            return subprocess.CompletedProcess(command, 1, json.dumps(report), "")
+        if command[0] == "uvx":
+            requirements = Path(command[command.index("--requirement") + 1]).read_text()
+            report = {
+                "dependencies": [
+                    {"name": name, "version": version, "vulns": []}
+                    for name, version in (
+                        line.split("==") for line in requirements.splitlines()
+                    )
+                ]
+            }
+            return subprocess.CompletedProcess(command, 0, json.dumps(report), "")
+        failed = not repair_passes and command == [
+            "node",
+            "apps/frontend/scripts/check-deepmerge-security.mjs",
+        ]
+        return subprocess.CompletedProcess(command, int(failed), "", "")
+
+    monkeypatch.setattr(check_technology_health, "_run", run)
+    problems = check_technology_health.run_security_audits(ROOT)
+    blocked = {
+        "The installed GHSA-gcqx-w48m-w2h4 repair did not pass",
+        "GHSA-gcqx-w48m-w2h4 (low)",
+    }
+    if repair_passes:
+        assert not blocked & set(problems)
+    else:
+        assert blocked <= set(problems)
+
+
 def test_forge_finding_requires_installed_repair_and_keeps_other_findings() -> None:
     report = javascript_report({"forge": forge_advisory()})
     assert check_technology_health.javascript_audit_problems(report) == [
