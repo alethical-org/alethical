@@ -63,3 +63,5 @@ patchedDependencies:
   # No upstream repair exists for GHSA-vfj7-8cjw-p6xm. Limit pattern nesting
   # before braces' recursive walkers can exhaust the Node.js call stack.
   braces@3.0.3: patches/braces@3.0.3.patch
+  # No upstream repair exists for GHSA-gcqx-w48m-w2h4. Skip "__proto__" keys when merging objects.
+  deepmerge@4.3.1: patches/deepmerge@4.3.1.patch
