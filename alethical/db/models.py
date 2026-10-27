@@ -125,6 +125,38 @@ class SourceRefreshAttempt(Base):
     finding: Mapped[Optional[dict]] = mapped_column(JSONB)
 
 
+class FinanceAccessEntry(Base):
+    """1 address Alethical lets into Alethical Finance; never committed anywhere.
+
+    Every active entry has the same Finance access. ``is_alethical_team`` grants
+    nothing in Finance; it decides only which checks alethical.com may print
+    (Finance access decisions, issue 2741).
+    """
+
+    __tablename__ = "finance_access_entry"
+    __table_args__ = (
+        CheckConstraint(
+            "email = lower(btrim(email)) AND email LIKE '_%@_%'",
+            name="email_normalized",
+        ),
+        CheckConstraint(
+            "revoked_at IS NULL OR revoked_at >= granted_at",
+            name="revoked_after_granted",
+        ),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    email: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    is_alethical_team: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
+    granted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

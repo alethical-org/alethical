@@ -1,6 +1,6 @@
 # Backend stack
 
-<!-- describes: pyproject.toml, Dockerfile.backend, docker-compose.yml, railway.json, oban.toml, alethical/api/main.py, alethical/db/session.py, alethical/api/rate_limit.py, railpack.json, alethical/pipeline/tv_ad_redaction.py, alethical/assets/fonts/* -->
+<!-- describes: pyproject.toml, Dockerfile.backend, docker-compose.yml, railway.json, oban.toml, alethical/api/main.py, alethical/api/finance_access.py, alethical/api/services/finance_access.py, alethical/db/session.py, alethical/api/rate_limit.py, railpack.json, alethical/pipeline/tv_ad_redaction.py, alethical/assets/fonts/* -->
 
 **Net:** The backend is one Python web service that answers requests, one Postgres database
 that stores everything, and a set of jobs that pull the Minnesota legislative record in.
@@ -114,6 +114,17 @@ signed-in route carries that token, and the backend asks Supabase whether it is 
 trusting it (`alethical/api/auth.py`, `alethical/api/services/auth.py`). An address only
 counts as the reader's identity once Supabase says it was confirmed, which is what stops one
 person claiming another person's account by typing their address.
+
+Alethical Finance, the sign-in-only research product, admits only addresses on its access
+list, the `finance_access_entry` table. Every route under `/api/v1/finance/` depends on 1
+check (`require_finance_access` in `alethical/api/finance_access.py`), which reads the
+account's current confirmed address from Supabase's own account records on every request,
+so a revocation applies to the next one. Signed-out requests get 401; an unlisted, revoked,
+unconfirmed, banned, deleted or locked account gets the same 403, which never names the
+reason. Every listed account has the same access. The list is kept only in the database,
+because a client's address names the client and this repository is public: addresses are
+added and revoked with `scripts/finance_access.py`, which reads the address from its
+arguments.
 
 ## 5. Background jobs
 
