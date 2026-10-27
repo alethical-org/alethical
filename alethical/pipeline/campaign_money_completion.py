@@ -14,13 +14,15 @@ by a run that copied old figures:
 
 1. **Lagging filer-years**: a regular report in the live snapshot ends later than the
    period its stored summary covers. A termination report is listed with a December 31
-   cut-off, so a report's period is taken to end on the earlier of its cut-off and its
-   filed date.
+   cut-off, so a report's period is taken to end on the earliest of its cut-off, its
+   filed date and the committee's termination date.
 2. **A small, bounded probe** of those filers' own summaries on the Board, sitting
    legislators' committees first. When the Board now covers a newer period than ours,
    the catch-up is recorded in ``cf_refresh_state`` and a full totals refresh is asked
-   for, at most once per ``CATCH_UP_SPACING``. The refresh's planner treats the record
-   as a reason to fetch totals and removes it only after a successful totals run.
+   for, at most once per ``CATCH_UP_SPACING`` since the last full run or request, and
+   never while a campaign run holds its lease. The refresh's planner treats the record
+   as a reason to fetch totals and removes it after a successful totals run; this check
+   removes it once our published totals reach what the Board showed.
 3. **Filings a confirmed link's reviewed years leave off a legislator's page.** A link
    records the years its reviewer saw donations; a later filing outside them is hidden
    from the profile. That is never widened here: the case is reported for a person to
@@ -28,8 +30,9 @@ by a run that copied old figures:
    (`docs/architecture/campaign-finance-system-design.md` §5, Identity).
 
 The JSON finding it prints is stored by the shared runner and shown on the grouped
-health issue. Exit 2 means a person is needed (hidden filings, or the Board has been
-ahead of us for longer than ``BOARD_AHEAD_BUDGET``); exit 1 means every probe failed.
+health issue. Exit 2 means a person is needed (filings hidden in the years a page opens
+on, or the Board has been ahead of us for longer than ``BOARD_AHEAD_BUDGET``); exit 1
+means every probe failed. Hidden filings in older years are listed without exit 2.
 """
 
 from __future__ import annotations
@@ -101,8 +104,11 @@ _LAGGING_SQL = text("""
 WITH live AS (SELECT snapshot_id FROM cf_filing_current),
 reports AS (
     SELECT r.registration_number, r.filing_year,
-           LEAST(r.cut_off_date, r.filed_date) AS period_end, r.report_name
+           LEAST(r.cut_off_date, r.filed_date, t.termination_date) AS period_end,
+           r.report_name
     FROM cf_filing_report r JOIN live ON live.snapshot_id = r.snapshot_id
+    LEFT JOIN cf_filer t ON t.snapshot_id = r.snapshot_id
+                        AND t.registration_number = r.registration_number
     WHERE NOT r.special_election AND r.cut_off_date IS NOT NULL
       AND r.filing_year = ANY(:years)
 ),
@@ -281,6 +287,20 @@ def board_ahead(
     return ahead
 
 
+def still_ahead(row: Mapping[str, Any], item: Optional[LaggingFilerYear]) -> bool:
+    """Whether a saved Board-ahead row still describes our published totals.
+
+    Not when the filer-year left the lagging set, and not when our period now reaches
+    what the Board showed: a filer can stay lagging after a totals run because the
+    Board's summary is itself behind its newest listed report.
+    """
+    if item is None:
+        return False
+    if item.our_through is None:
+        return True
+    return date.fromisoformat(row["board_through"]) > item.our_through
+
+
 Probe = Callable[[str, filings.FilerKind, tuple[int, int]], filings.FinancialTab]
 
 
@@ -292,6 +312,10 @@ class CompletionResult:
     state: dict[str, Any]
 
 
+def _ahead_rows(state: Mapping[str, Mapping[str, Any]]) -> list[dict[str, Any]]:
+    return [row for entry in state.values() for row in entry.get("ahead", [])]
+
+
 def evaluate(
     lagging: Sequence[LaggingFilerYear],
     hidden: Sequence[HiddenFilings],
@@ -300,20 +324,38 @@ def evaluate(
     probe: Probe,
     now: datetime,
     last_full_refresh_at: Optional[datetime],
+    last_requested_at: Optional[datetime] = None,
+    totals_running: bool = False,
+    alarm_years: Iterable[int] = (),
 ) -> CompletionResult:
     """One turn's decision, with the Board reached only through ``probe``.
 
     Pure apart from ``probe``, so the whole rule is testable without a network or a
     database. Returns the finding to print, whether to ask for a totals refresh, and
-    the probe state to save.
+    the probe state to save. A totals refresh is asked for only while no campaign run
+    holds its lease and ``CATCH_UP_SPACING`` has passed since both the last full totals
+    run and the last request, so a quarantined run waiting for a person is not
+    repeated every hour. Hidden filings need a person only in ``alarm_years``, the
+    years a page opens on; older ones are listed without holding the job in review.
     """
-    lagging_registrations = {item.registration_number for item in lagging}
-    # Forget filers that caught up; keep the rest, including when the Board went ahead.
-    state = {
-        registration: dict(entry)
-        for registration, entry in probes_state.items()
-        if registration in lagging_registrations
-    }
+    current = {(item.registration_number, item.filing_year): item for item in lagging}
+    registrations = {registration for registration, _year in current}
+    state: dict[str, dict[str, Any]] = {}
+    for registration, entry in probes_state.items():
+        if registration not in registrations:
+            continue
+        kept = dict(entry)
+        rows = [
+            row
+            for row in entry.get("ahead", [])
+            if still_ahead(row, current.get((registration, row["year"])))
+        ]
+        if rows:
+            kept["ahead"] = rows
+        else:
+            kept.pop("ahead", None)
+        state[registration] = kept
+
     errors = 0
     asked = 0
     for registration, kind, segment, items in choose_probes(lagging, state):
@@ -331,63 +373,68 @@ def evaluate(
             entry["error"] = "unreadable"
             continue
         entry.pop("error", None)
-        found = board_ahead(items, tab)
-        if found:
-            entry["ahead"] = found
-            entry.setdefault("ahead_since", now.isoformat())
+        # 1 answer covers 1 election segment; rows for the filer's other segment stay.
+        years = {item.filing_year for item in items}
+        earlier = {row["year"]: row for row in entry.get("ahead", [])}
+        rows = [row for row in entry.get("ahead", []) if row["year"] not in years]
+        for row in board_ahead(items, tab):
+            row["since"] = earlier.get(row["year"], {}).get("since", now.isoformat())
+            rows.append(row)
+        if rows:
+            entry["ahead"] = rows
         else:
             entry.pop("ahead", None)
-            entry.pop("ahead_since", None)
 
-    ahead = [row for entry in state.values() for row in entry.get("ahead", [])]
-    since = [
-        datetime.fromisoformat(entry["ahead_since"])
-        for entry in state.values()
-        if entry.get("ahead") and entry.get("ahead_since")
-    ]
+    ahead = _ahead_rows(state)
+    since = [datetime.fromisoformat(row["since"]) for row in ahead if row.get("since")]
     ahead_since = min(since) if since else None
-    request_totals = bool(ahead) and (
-        last_full_refresh_at is None or now - last_full_refresh_at >= CATCH_UP_SPACING
+    recent = [moment for moment in (last_full_refresh_at, last_requested_at) if moment]
+    request_totals = (
+        bool(ahead)
+        and not totals_running
+        and (not recent or now - max(recent) >= CATCH_UP_SPACING)
     )
     late = ahead_since is not None and now - ahead_since > BOARD_AHEAD_BUDGET
+    alarm = set(alarm_years)
+    hidden_now = [h for h in hidden if alarm & set(h.years)]
+    unavailable = bool(asked) and errors == asked
 
     members = sorted({item.member for item in lagging if item.member})
     results = []
     if late:
+        # Keyed by when the oldest unresolved case began, so the hourly churn of which
+        # filers were asked does not read as a new problem and mention the owner again.
         results.append(
             {
                 "source": "campaign-totals-catch-up",
                 "status": "review_required",
-                "finding_key": _key(
-                    sorted((r["registration_number"], r["year"]) for r in ahead)
-                ),
+                "finding_key": _key(["late", ahead_since.isoformat()]),
             }
         )
-    if hidden:
+    if hidden_now:
         results.append(
             {
                 "source": "campaign-reviewed-years",
                 "status": "review_required",
                 "finding_key": _key(
-                    [(h.registration_number, list(h.years)) for h in hidden]
+                    [(h.registration_number, list(h.years)) for h in hidden_now]
                 ),
             }
         )
-    if asked and errors == asked:
+    if unavailable:
         results.append({"source": "campaign-totals-catch-up", "status": "unavailable"})
 
+    oldest = min((item.expected_through for item in lagging), default=None)
     finding = {
         "status": "review_required"
-        if late or hidden
+        if late or hidden_now
         else "unavailable"
-        if asked and errors == asked
+        if unavailable
         else "complete",
         "results": results,
         "lagging_filer_years": len(lagging),
         "lagging_members": len(members),
-        "oldest_report_period_end": min(
-            (item.expected_through for item in lagging), default=None
-        ),
+        "oldest_report_period_end": oldest.isoformat() if oldest else None,
         "probed": asked,
         "probe_errors": errors,
         "board_ahead": sorted(
@@ -402,15 +449,12 @@ def evaluate(
                 "member": h.member,
                 "reviewed_years": [h.first_year_as_reviewed, h.last_year_as_reviewed],
                 "years": list(h.years),
+                "needs_review": h in hidden_now,
             }
             for h in hidden
         ],
     }
-    if finding["oldest_report_period_end"] is not None:
-        finding["oldest_report_period_end"] = finding[
-            "oldest_report_period_end"
-        ].isoformat()
-    code = REVIEW_EXIT if late or hidden else 1 if asked and errors == asked else 0
+    code = REVIEW_EXIT if late or hidden_now else 1 if unavailable else 0
     return CompletionResult(code, finding, request_totals, state)
 
 
@@ -423,18 +467,24 @@ def catch_up_marker(
 ) -> Optional[dict[str, Any]]:
     """The planner's reason to fetch totals, or None when nothing is owed any more.
 
-    None removes the record. The probe state keeps every filer last seen ahead until it
-    leaves the lagging set or a later answer shows it is not ahead, so an empty set
-    means our published totals caught up and a leftover record would only cost another
-    full Board read.
+    None removes the record: an empty set of Board-ahead rows means our published totals
+    reach what the Board showed, and a leftover record would only cost another full
+    Board read. ``detected_at`` is the newest row's first sighting, so a totals run that
+    started after every row was seen settles the record, and a row first seen during
+    the run keeps it.
     """
-    ahead = [row for entry in result.state.values() for row in entry.get("ahead", [])]
+    ahead = _ahead_rows(result.state)
     if not ahead:
         return None
+    seen = sorted(row["since"] for row in ahead if row.get("since")) or [
+        now.astimezone(UTC).isoformat()
+    ]
     return {
-        "detected_at": now.astimezone(UTC).isoformat(),
-        "first_detected_at": (existing or {}).get("first_detected_at")
-        or now.astimezone(UTC).isoformat(),
+        "detected_at": seen[-1],
+        "first_detected_at": seen[0],
+        "requested_at": now.astimezone(UTC).isoformat()
+        if result.request_totals
+        else (existing or {}).get("requested_at"),
         "filer_years": sorted(
             f"{row['registration_number']}:{row['year']}" for row in ahead
         )[:50],

@@ -75,26 +75,36 @@ report appears, and a valid copy of the older figures used to consume the change
 what is owed from the published data every hour, so no run can mark it done:
 
 - **Behind**: a regular report in the live snapshot ends later than the period its
-  filer-year's stored summary covers. A report's period ends on the earlier of its
-  cut-off and filed dates, because a termination report is listed with December 31.
+  filer-year's stored summary covers. A report's period ends on the earliest of its
+  cut-off, its filed date and the committee's termination date, because a termination
+  report is listed with December 31.
 - **Board ahead**: up to 20 sitting legislators' committees and 5 others are asked
   for their summary each turn, least recently asked first, through the shared request
-  budget. When the Board covers a later period than ours, `totals_catch_up` is saved
-  in `cf_refresh_state` and `campaign-money` is requested, at most once every 6 hours.
-  The totals planner treats the record as a reason to fetch totals and removes it
-  only after a successful totals run that started after it was seen.
+  budget. Each answer is kept per filer and year, so a filer's 2 election segments
+  never overwrite each other. When the Board covers a later period than ours,
+  `totals_catch_up` is saved in `cf_refresh_state` and `campaign-money` is requested,
+  only when 6 hours have passed since both the last full totals run and the last
+  request, and never while a campaign run holds its lease; a quarantined run waiting
+  for a person is therefore not repeated hourly. The totals planner treats the record
+  as a reason to fetch totals and removes it after a successful totals run that
+  started after every row was seen; the check removes it once our published period
+  reaches what the Board showed.
 - **Hidden by reviewed years**: a confirmed legislative account has a filing in a
   year outside the years recorded at review, so the profile leaves it out. The check
   never widens a reviewed range; it reports the case for a person.
 
-The turn exits 2 (review) when filings are hidden or the Board has been ahead for over
-14 hours, and 1 when every Board request failed. Its finding is shown on the grouped
-health issue.
+The turn exits 2 (review) when filings are hidden in last year or this year, the years
+a page opens on, or the Board has been ahead for over 14 hours; older hidden years are
+listed without holding the job in review. It exits 1 when every Board request failed.
+Its finding is shown on the grouped health issue. The late alarm is keyed by when the
+oldest unresolved case began and a failed stage by its stage and checks, so hourly
+changes in which filers or committees are named do not mention the owner again.
 
 **Failures carry their reasons and reach the owner.** The shared runner gives each
 collector its own stage-record file (`collection_run_summary.py`), keeps a failed
 collection's stage names, check names, committee numbers and years as its finding,
-and appends the records to the workflow's artifact. Free-text details are never
+and appends the records to the workflow's artifact, also when the run is cancelled; a
+continuing or deferred turn keeps no failure finding. Free-text details are never
 kept, because the finding is shown on a public issue. The health reporter prints
 those facts and mentions the maintainer in a comment when a job or reason is new;
 the same reason repeating stays quiet. Editing an issue body notifies nobody, so the

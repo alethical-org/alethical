@@ -126,7 +126,7 @@ def test_one_request_covers_both_years_of_a_segment():
 # --- One turn's decision --------------------------------------------------------------
 
 
-def run(lagging, *, probe, state=None, last_full=None, hidden=()):
+def run(lagging, *, probe, state=None, last_full=None, hidden=(), **options):
     return completion.evaluate(
         lagging,
         list(hidden),
@@ -134,6 +134,8 @@ def run(lagging, *, probe, state=None, last_full=None, hidden=()):
         probe=probe,
         now=NOW,
         last_full_refresh_at=last_full,
+        alarm_years=[2025, 2026],
+        **options,
     )
 
 
@@ -178,7 +180,19 @@ def test_the_board_ahead_past_the_budget_needs_a_person():
     result = run(
         [lag("18272", member="patty-acomb")],
         probe=lambda *a: tab(y2026=date(2026, 10, 19)),
-        state={"18272": {"ahead_since": since}},
+        state={
+            "18272": {
+                "ahead": [
+                    {
+                        "registration_number": "18272",
+                        "year": 2026,
+                        "board_through": "2026-10-19",
+                        "our_through": "2026-07-20",
+                        "since": since,
+                    }
+                ]
+            }
+        },
     )
     assert result.code == completion.REVIEW_EXIT
     assert result.finding["results"][0]["source"] == "campaign-totals-catch-up"
@@ -210,6 +224,106 @@ def test_hidden_filings_need_a_person():
     result = run([], probe=lambda *a: tab(), hidden=hidden)
     assert result.code == completion.REVIEW_EXIT
     assert result.finding["hidden_filings"][0]["member"] == "mary-franson"
+
+
+def ahead_row(registration, year, board, since=NOW):
+    return {
+        "registration_number": registration,
+        "year": year,
+        "board_through": board,
+        "our_through": "2026-07-20",
+        "since": since.isoformat(),
+    }
+
+
+def test_a_saved_ahead_row_goes_once_our_totals_reach_the_board():
+    # Our totals now reach October 19, the Board's summary still lags the newest
+    # report, and this filer was not asked again this turn.
+    caught_up = completion.LaggingFilerYear(
+        "18272", KIND, 2026, date(2026, 10, 19), date(2026, 10, 30), "r", "patty-acomb"
+    )
+
+    def answer(registration, *_args):
+        if registration == "18272":
+            raise ConnectionError("not asked successfully this turn")
+        return tab(y2026=date(2026, 7, 20))
+
+    old = NOW - completion.BOARD_AHEAD_BUDGET - timedelta(hours=1)
+    result = run(
+        [caught_up, lag("9")],
+        probe=answer,
+        state={"18272": {"ahead": [ahead_row("18272", 2026, "2026-10-19", old)]}},
+        last_full=NOW - timedelta(days=1),
+    )
+    assert result.finding["board_ahead"] == []
+    assert not result.request_totals and result.code == 0
+
+
+def test_both_election_segments_of_a_filer_keep_their_own_answer():
+    def answer(_registration, _kind, segment):
+        if segment == (2024, 2025):
+            return tab(y2024=date(2024, 12, 31), y2025=date(2025, 12, 31))
+        return tab(y2026=date(2026, 7, 20), y2027=None)
+
+    result = run(
+        [lag("5", year=2025, our=date(2025, 6, 30)), lag("5", year=2026)],
+        probe=answer,
+        last_full=NOW - timedelta(days=1),
+    )
+    assert [(r["year"], r["board_through"]) for r in result.finding["board_ahead"]] == [
+        (2025, "2025-12-31")
+    ]
+    assert result.request_totals
+
+
+def test_a_recent_request_or_a_running_refresh_is_not_asked_again():
+    ahead = dict(
+        probe=lambda *a: tab(y2026=date(2026, 10, 19)),
+        last_full=NOW - timedelta(days=2),
+    )
+    assert not run(
+        [lag("1")], last_requested_at=NOW - timedelta(hours=1), **ahead
+    ).request_totals
+    assert not run([lag("1")], totals_running=True, **ahead).request_totals
+    assert run(
+        [lag("1")], last_requested_at=NOW - timedelta(hours=7), **ahead
+    ).request_totals
+
+
+def test_the_late_alarm_keeps_its_key_while_the_asked_filers_change():
+    old = NOW - completion.BOARD_AHEAD_BUDGET - timedelta(hours=1)
+    state = {"1": {"ahead": [ahead_row("1", 2026, "2026-10-19", old)]}}
+
+    def answers(second_filer_board):
+        def answer(registration, *_args):
+            if registration == "1":
+                raise OSError("not reached this turn")
+            return tab(y2026=second_filer_board)
+
+        return answer
+
+    def late_key(result):
+        return next(
+            r["finding_key"]
+            for r in result.finding["results"]
+            if r["source"] == "campaign-totals-catch-up"
+        )
+
+    # The second turn adds filer 2 to the ahead set; the oldest case is unchanged.
+    keys = [
+        late_key(run([lag("1"), lag("2")], probe=answers(board), state=state))
+        for board in (date(2026, 7, 20), date(2026, 10, 19))
+    ]
+    assert keys[0] == keys[1]
+
+
+def test_hidden_filings_in_older_years_are_listed_without_an_alarm():
+    hidden = completion.hidden_filings(
+        [link("11880", "2016", "2026", slug="john-marty")], {"11880": {2015}}
+    )
+    result = run([], probe=lambda *a: tab(), hidden=hidden)
+    assert result.code == 0
+    assert result.finding["hidden_filings"][0]["needs_review"] is False
 
 
 # --- The planner -----------------------------------------------------------------------
@@ -284,6 +398,7 @@ def test_lagging_and_hidden_filings_are_read_from_the_live_snapshot(database):
                     registration_number=number,
                     kind=KIND,
                     name=f"Committee {number}",
+                    termination_date=date(2026, 7, 28) if number == "90003" else None,
                 )
             )
         reports = [
@@ -302,7 +417,8 @@ def test_lagging_and_hidden_filings_are_read_from_the_live_snapshot(database):
                 date(2026, 10, 21),
             ),
             # A termination report is listed with December 31 but ended when filed.
-            ("90003", "2026 Year-End Report", date(2026, 12, 31), date(2026, 7, 28)),
+            # Without a filed date, the committee's termination date ends the period.
+            ("90003", "2026 Year-End Report", date(2026, 12, 31), None),
         ]
         for row_number, (number, name, cut_off, filed) in enumerate(reports, start=10):
             db.add(
@@ -382,6 +498,20 @@ def test_a_failed_stage_keeps_its_checks_and_committees_and_never_free_text():
     assert other["finding_key"] != finding["finding_key"]
 
 
+def test_the_same_failure_on_other_committees_keeps_its_key():
+    one = runner.failed_stage_finding(
+        summary_line(
+            "payments", "failed", failed_checks=["x"], affected_committees=["1"]
+        ).encode()
+    )
+    two = runner.failed_stage_finding(
+        summary_line(
+            "payments", "failed", failed_checks=["x"], affected_committees=["2"]
+        ).encode()
+    )
+    assert one["finding_key"] == two["finding_key"]
+
+
 def test_a_finished_collection_has_no_stage_finding():
     assert (
         runner.failed_stage_finding(summary_line("payments", "unchanged").encode())
@@ -417,6 +547,53 @@ def test_a_failed_command_returns_its_own_stages_and_keeps_the_workflow_file(
     assert result.code == 1
     assert result.finding["stages"][0]["failed_checks"] == ["amount_sum_within_band"]
     assert workflow_file.read_text() == line
+
+
+def fake_process(line, *, code=1, interrupt=False):
+    class Process:
+        pid = 1
+
+        def __init__(self, *_args, env, **_kwargs):
+            Path(env["COLLECTION_RUN_SUMMARY"]).write_text(line)
+
+        def wait(self, timeout=None):
+            if interrupt:
+                raise KeyboardInterrupt
+            return code
+
+        def poll(self):
+            return code
+
+    return Process
+
+
+def money_job():
+    return runner.RefreshJob(
+        "campaign-money", timedelta(days=1), timedelta(seconds=5), ("x",), "s", "p"
+    )
+
+
+def test_stages_written_before_a_shutdown_still_reach_the_artifact(
+    monkeypatch, tmp_path
+):
+    workflow_file = tmp_path / "collection-run-summary.jsonl"
+    monkeypatch.setenv("COLLECTION_RUN_SUMMARY", str(workflow_file))
+    line = summary_line("lists", "unchanged")
+    monkeypatch.setattr(runner.subprocess, "Popen", fake_process(line, interrupt=True))
+    monkeypatch.setattr(runner.os, "killpg", lambda *_: None)
+    with pytest.raises(KeyboardInterrupt):
+        runner.run_command(runner.Claim(money_job(), uuid.uuid4(), NOW), target="local")
+    assert workflow_file.read_text() == line
+
+
+def test_a_continuing_turn_is_not_recorded_as_a_failure(monkeypatch, tmp_path):
+    monkeypatch.setenv("COLLECTION_RUN_SUMMARY", str(tmp_path / "summary.jsonl"))
+    line = summary_line("rechecks", "pending")
+    monkeypatch.setattr(runner.subprocess, "Popen", fake_process(line, code=75))
+    result = runner.run_command(
+        runner.Claim(money_job(), uuid.uuid4(), NOW), target="local"
+    )
+    assert result.code == 75 and result.finding is None
 
 
 def test_the_completion_job_is_a_campaign_job_with_a_review_exit():

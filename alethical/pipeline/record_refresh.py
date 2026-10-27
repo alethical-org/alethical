@@ -890,18 +890,23 @@ def run_command(claim: Claim, *, target: str) -> CommandResult:
     own_summary = tempfile.NamedTemporaryFile(suffix=".jsonl", delete=False)
     own_summary.close()
     env[SUMMARY_ENV] = own_summary.name
+    recorded = b""
     try:
         result = _run_with_report(claim, command, env)
-        recorded = Path(own_summary.name).read_bytes()
     finally:
-        Path(own_summary.name).unlink(missing_ok=True)
-    if workflow_summary and recorded:
+        # Also on cancellation or shutdown: stages already written still reach the
+        # uploaded artifact before the private file goes.
+        own = Path(own_summary.name)
         try:
-            with open(workflow_summary, "ab") as handle:
-                handle.write(recorded)
+            recorded = own.read_bytes()
+            if workflow_summary and recorded:
+                with open(workflow_summary, "ab") as handle:
+                    handle.write(recorded)
         except OSError:
             pass
-    if result.finding is None and result.code != 0:
+        own.unlink(missing_ok=True)
+    # A continuation (75) or a busy deferral (76) is not a failure to explain.
+    if result.finding is None and result.code not in (0, 75, 76):
         stages = failed_stage_finding(recorded)
         if stages is not None:
             return CommandResult(result.code, stages)
@@ -914,7 +919,8 @@ def failed_stage_finding(recorded: bytes) -> dict | None:
     Only stage names, check names, committee registration numbers and years: the
     collector's free-text details can quote source bodies and are never retained here,
     because this finding is shown on a public issue. ``finding_key`` changes when the
-    reason changes, so a new problem is distinguishable from the same one repeating.
+    failed stage or check changes, so a new problem is distinguishable from the same one
+    repeating; the committees named can vary between retries and are left out of it.
     """
     from alethical.pipeline.collection_failure_review import parse_summary
 
@@ -931,10 +937,7 @@ def failed_stage_finding(recorded: bytes) -> dict | None:
         }
         for record in failed[:8]
     ]
-    key = json.dumps(
-        [(s["stage"], s["failed_checks"], s["affected_committees"]) for s in stages],
-        sort_keys=True,
-    )
+    key = json.dumps([(s["stage"], s["failed_checks"]) for s in stages], sort_keys=True)
     return {
         "status": "failed",
         "stages": stages,

@@ -24,6 +24,7 @@ sys.path.insert(0, str(ROOT))
 from sqlalchemy import create_engine  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
+from alethical.db.models import SourceRefreshState  # noqa: E402
 from alethical.db.session import NO_PREPARED_STATEMENTS, database_url_for_target  # noqa: E402
 from alethical.pipeline import campaign_finance_filings as filings  # noqa: E402
 from alethical.pipeline import campaign_money_completion as completion  # noqa: E402
@@ -51,6 +52,13 @@ def check(engine, *, now: datetime, today: date) -> completion.CompletionResult:
             lagging, hidden = completion.read_state(db, completion.checked_years(today))
             probes = state_get(db, completion.PROBES_KEY) or {}
             last_full = state_get(db, LAST_FULL_REFRESH_KEY)
+            requested = (state_get(db, completion.CATCH_UP_KEY) or {}).get(
+                "requested_at"
+            )
+            money = db.get(SourceRefreshState, "campaign-money")
+            running = bool(
+                money and money.lease_expires_at and money.lease_expires_at > now
+            )
             db.rollback()
         with redirect_stdout(sys.stderr):
             result = completion.evaluate(
@@ -62,6 +70,11 @@ def check(engine, *, now: datetime, today: date) -> completion.CompletionResult:
                 last_full_refresh_at=datetime.fromisoformat(last_full)
                 if last_full
                 else None,
+                last_requested_at=datetime.fromisoformat(requested)
+                if requested
+                else None,
+                totals_running=running,
+                alarm_years=completion.checked_years(today),
             )
     finally:
         http.close()
