@@ -879,7 +879,8 @@ export interface LegislatorCampaignMoney {
    *  legislative seat. Counted rather than dropped in silence, so a reader who knows
    *  their member ran for something else is told the money exists and is not this. */
   otherOfficeCommittees: number;
-  /** Confirmed committees left out because they reported no money in this year.
+  /** Confirmed committees left out because our copy of the state's report list holds
+   *  no report for them in this year and their reviewers saw no donations in it.
    *  `closedOn` is the Board's own closing date for the registration, and the only
    *  thing that licenses saying a registration ended. `null` covers 2 cases we cannot
    *  tell apart, still open and absent from the filer list we hold, so both get the

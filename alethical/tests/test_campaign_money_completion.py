@@ -1,8 +1,7 @@
 """A filed report stays owed until its totals and its legislator's page catch up.
 
 The failures these reproduce were found on October 27, 2026: the Board's summary lagged
-its own report lists, a successful copy of old figures consumed the change signal, and
-a confirmed account's reviewed years hid 2026 filings from Mary Franson's page.
+its own report lists, and a successful copy of old figures consumed the change signal.
 """
 
 from __future__ import annotations
@@ -60,47 +59,6 @@ def tab(**through):
     return result
 
 
-# --- Filings a reviewed year range leaves off a page ---------------------------------
-
-
-def link(registration, first, last, office="House", slug="mary-franson"):
-    return {
-        "registration_number": registration,
-        "slug": slug,
-        "office_as_reviewed": office,
-        "first_year_as_reviewed": first,
-        "last_year_as_reviewed": last,
-    }
-
-
-def test_a_filing_after_the_reviewed_years_is_a_case_for_a_person():
-    found = completion.hidden_filings(
-        [link("16986", "2015", "2025")], {"16986": {2024, 2025, 2026}}
-    )
-    assert [(h.registration_number, h.years) for h in found] == [("16986", (2026,))]
-
-
-def test_a_filing_before_the_reviewed_years_is_a_case_too():
-    found = completion.hidden_filings(
-        [link("19196", "2025", "2026", slug="doron-clark")], {"19196": {2024, 2025}}
-    )
-    assert found[0].years == (2024,)
-
-
-def test_another_office_and_covered_years_are_not_cases():
-    links = [
-        link("19340", "2026", "2026", office="Gov", slug="peggy-bennett"),
-        link("17686", "2015", "2026", slug="peggy-bennett"),
-    ]
-    assert (
-        completion.hidden_filings(links, {"19340": {2025}, "17686": {2025, 2026}}) == []
-    )
-
-
-def test_an_unreadable_reviewed_year_bounds_nothing_as_the_page_reads_it():
-    assert completion.hidden_filings([link("1", "", "n/a")], {"1": {2026}}) == []
-
-
 # --- Which filers are asked about -----------------------------------------------------
 
 
@@ -126,15 +84,13 @@ def test_one_request_covers_both_years_of_a_segment():
 # --- One turn's decision --------------------------------------------------------------
 
 
-def run(lagging, *, probe, state=None, last_full=None, hidden=(), **options):
+def run(lagging, *, probe, state=None, last_full=None, **options):
     return completion.evaluate(
         lagging,
-        list(hidden),
         state or {},
         probe=probe,
         now=NOW,
         last_full_refresh_at=last_full,
-        alarm_years=[2025, 2026],
         **options,
     )
 
@@ -215,15 +171,6 @@ def test_an_unreadable_answer_is_never_read_as_caught_up():
 def test_a_filer_that_caught_up_leaves_the_probe_state():
     result = run([], probe=lambda *a: tab(), state={"7": {"ahead_since": "x"}})
     assert result.state == {}
-
-
-def test_hidden_filings_need_a_person():
-    hidden = completion.hidden_filings(
-        [link("16986", "2015", "2025")], {"16986": {2026}}
-    )
-    result = run([], probe=lambda *a: tab(), hidden=hidden)
-    assert result.code == completion.REVIEW_EXIT
-    assert result.finding["hidden_filings"][0]["member"] == "mary-franson"
 
 
 def ahead_row(registration, year, board, since=NOW):
@@ -317,15 +264,6 @@ def test_the_late_alarm_keeps_its_key_while_the_asked_filers_change():
     assert keys[0] == keys[1]
 
 
-def test_hidden_filings_in_older_years_are_listed_without_an_alarm():
-    hidden = completion.hidden_filings(
-        [link("11880", "2016", "2026", slug="john-marty")], {"11880": {2015}}
-    )
-    result = run([], probe=lambda *a: tab(), hidden=hidden)
-    assert result.code == 0
-    assert result.finding["hidden_filings"][0]["needs_review"] is False
-
-
 def test_the_request_time_is_saved_and_carried_until_the_next_request():
     ahead = dict(probe=lambda *a: tab(y2026=date(2026, 10, 19)))
     asked = run([lag("1")], last_full=NOW - timedelta(days=1), **ahead)
@@ -398,7 +336,7 @@ def database(seed_database):
         db.commit()
 
 
-def test_lagging_and_hidden_filings_are_read_from_the_live_snapshot(database):
+def test_lagging_filer_years_are_read_from_the_live_snapshot(database):
     with database() as db:
         snapshot = publish_filings_snapshot(
             db,
@@ -462,20 +400,17 @@ def test_lagging_and_hidden_filings_are_read_from_the_live_snapshot(database):
                 decision=models.CommitteeLinkReviewDecision.confirmed,
                 committee_name_as_reviewed="Committee 90001",
                 office_as_reviewed="House",
-                first_year_as_reviewed="2015",
-                last_year_as_reviewed="2025",
                 reviewed_by="test",
             )
         )
         db.commit()
 
-        lagging, hidden = completion.read_state(db, [2025, 2026])
+        lagging = completion.read_state(db, [2025, 2026])
 
     assert [(item.registration_number, item.member) for item in lagging] == [
         ("90001", slug)
     ]
     assert lagging[0].expected_through == date(2026, 10, 19)
-    assert [(h.registration_number, h.years) for h in hidden] == [("90001", (2026,))]
 
 
 # --- The shared runner keeps a failed collection's reasons ------------------------------
@@ -634,7 +569,7 @@ def health_row(name, finding, status="failed"):
     }
 
 
-def test_the_issue_names_the_failed_stage_and_the_hidden_filings():
+def test_the_issue_names_the_failed_stage_and_the_late_catch_up():
     body, _, attention = report.packet(
         [
             health_row(
@@ -644,7 +579,7 @@ def test_the_issue_names_the_failed_stage_and_the_hidden_filings():
                         "payments",
                         "failed",
                         failed_checks=["no_published_year_lost_rows"],
-                        affected_committees=["18127"],
+                        affected_committees=["18127", "1; drop"],
                         affected_years=[2017],
                     ).encode()
                 ),
@@ -654,29 +589,12 @@ def test_the_issue_names_the_failed_stage_and_the_hidden_filings():
                 {
                     "results": [
                         {
-                            "source": "campaign-reviewed-years",
+                            "source": "campaign-totals-catch-up",
                             "status": "review_required",
                             "finding_key": "k",
                         }
                     ],
-                    "hidden_filings": [
-                        {
-                            "registration_number": "16986",
-                            "member": "mary-franson",
-                            "years": [2026],
-                        },
-                        {
-                            "registration_number": "11880",
-                            "member": "john-marty",
-                            "years": [2015],
-                            "needs_review": False,
-                        },
-                        {
-                            "registration_number": "1; drop",
-                            "member": "<script>",
-                            "years": [2026],
-                        },
-                    ],
+                    "board_ahead_count": 3,
                 },
                 status="review_required",
             ),
@@ -687,9 +605,9 @@ def test_the_issue_names_the_failed_stage_and_the_hidden_filings():
         "Stage **payments** did not finish: `no_published_year_lost_rows`; committees 18127; years 2017."
         in body
     )
-    assert "mary-franson?tab=money), account 16986: filed years 2026" in body
-    assert "<script>" not in body and "drop" not in body
-    assert "john-marty" not in body
+    assert "longer than the catch-up budget" in body
+    assert "The Board is ahead of our totals for 3 committee-year(s)" in body
+    assert "drop" not in body
 
 
 def test_a_new_reason_is_new_and_the_same_reason_repeating_is_not():
