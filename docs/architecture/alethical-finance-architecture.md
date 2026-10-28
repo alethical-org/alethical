@@ -40,6 +40,17 @@ of Finance.
 - **1 guide per data feature**, with a short section for each site's differences, rather
   than a second guide per site ([workflow.md](../../.claude/rules/workflow.md) rule 6).
 
+Finance's reads about legislators are records, never money
+(`alethical/api/services/finance_records.py`). `GET /api/v1/finance/legislative-committees`
+lists the sitting Legislature's committees; `/legislative-committees/{id}/members` lists a
+committee's members, and `/bills/{bill_id}/authors` repeats the bill page's own author list.
+Each legislator carries `link_state` (confirmed, reviewed with none confirmed, or unconfirmed)
+and the committees confirmed as theirs. Each account's figures for a year come from
+`/legislators/{legislator_id}/campaign-finance`, 1 member at a time, so no figure is combined
+across members; reading 27 members' figures in 1 request took 15 seconds. Donors by
+employer, exactly as printed, is alethical.com's own
+`/campaign-finance/payments-under-name?role=employer`, which never adds across donors.
+
 ## 3. Access
 
 - **1 access level.** Every account on Finance's access list has the same access. Finance
