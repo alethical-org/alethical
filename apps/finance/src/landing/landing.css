@@ -475,7 +475,7 @@
 .lp-sources-inner {
   max-width: 1240px;
   margin: 0 auto;
-  padding: 28px var(--inset) 36px;
+  padding: 28px 48px 36px;
   box-sizing: border-box;
   display: grid;
   gap: 16px;
@@ -489,11 +489,12 @@
   color: #c9d7de;
 }
 .lp-sources dl {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  display: flex;
+  justify-content: space-between;
   gap: 10px 32px;
 }
 .lp-sources dl > div {
+  flex: 0 1 auto;
   display: grid;
   gap: 2px;
   align-content: start;
@@ -510,6 +511,10 @@
 @media (max-width: 1099px) {
   .lp {
     --inset: 20px;
+  }
+  .lp-sources-inner {
+    padding-left: 20px;
+    padding-right: 20px;
   }
   .lp-hero-copy {
     padding: 96px 0 112px;
@@ -549,6 +554,13 @@
 @media (max-width: 767px) {
   .lp {
     --inset: 16px;
+  }
+  .lp-sources-inner {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .lp-sources dl {
+    flex-direction: column;
   }
   .lp-lockup--hero svg {
     width: 20px;
