@@ -528,16 +528,19 @@ The project's Root Directory setting is `apps/finance`, so Vercel builds that fo
 its own `vercel.json`, which installs from the repository root. The project is not connected
 to GitHub yet: Vercel requires the account's own GitHub login connection first. Until it is,
 deploy from the repository root of a clean checkout of `main`, linked to the project with
-`vercel link --project alethical-finance --scope alethical`:
+`vercel link --project alethical-finance --scope alethical`, and let Vercel build it:
 
 ```bash
-vercel pull --yes --environment=production --scope alethical
-vercel build --prod --scope alethical
-vercel deploy --prebuilt --prod --scope alethical
+vercel deploy --prod --scope alethical
 ```
 
-`vercel pull` brings the 6 build settings; a build without them still succeeds and serves
-"Alethical Finance is not configured". The API must accept the site's requests before the
+Never deploy a local build (`vercel build` then `vercel deploy --prebuilt`). The production
+build settings are stored encrypted, so `vercel pull` brings placeholders instead of their
+values; a local build then carries a placeholder Supabase address, and the page stops with
+"Invalid supabaseUrl" and renders blank. Only Vercel's own build reads the real values.
+`vercel link` also adds `.env*` to `.gitignore`; revert that line before committing.
+
+The API must accept the site's requests before the
 landing page can show its counts: `https://finance.alethical.com` is in
 `ALETHICAL_CORS_ORIGINS` (until it is, the page shows no count tiles). Then confirm
 `https://finance.alethical.com/` shows the landing page with its counts, `/sign-in` shows
