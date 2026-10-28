@@ -243,6 +243,25 @@ def test_the_counts_route_is_public_and_shared_cacheable(client, db):  # noqa: F
     assert cache.startswith("public") and "no-store" not in cache
 
 
+def test_every_site_may_read_the_counts_whoever_asks(client, db):  # noqa: F811
+    # The landing page reads the counts at every address it is served from, so
+    # the answer is the same whatever site, or none, asked for it.
+    for origin in ("https://finance.alethical.com", "https://elsewhere.example", None):
+        headers = {"Origin": origin} if origin else {}
+        response = client.get(COUNTS, headers=headers)
+        assert response.status_code == 200
+        assert response.headers["access-control-allow-origin"] == "*"
+        assert "access-control-allow-credentials" not in response.headers
+
+
+def test_signed_in_finance_answers_still_name_the_asking_site(client):
+    response = client.get(
+        "/api/v1/finance/access", headers={"Origin": "http://localhost:5174"}
+    )
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5174"
+    assert response.headers["access-control-allow-credentials"] == "true"
+
+
 def test_other_finance_routes_stay_private(client):
     response = client.get("/api/v1/finance/access")
     assert "no-store" in response.headers["cache-control"]

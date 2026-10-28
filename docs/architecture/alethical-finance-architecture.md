@@ -138,7 +138,10 @@ rule 12).
 `GET /api/v1/finance/landing/counts` (`alethical/api/services/finance_landing.py`) serves
 the 4 counts without sign-in, the same answer for everyone, cached for the short public
 window like any anonymous `/api/v1` read; it is the only `/api/v1/finance/` address that is
-not private (`PUBLIC_EXCEPTIONS` in `alethical/api/problems.py`). The counts: campaign
+not private (`PUBLIC_EXCEPTIONS` in `alethical/api/problems.py`). Any site's browser may read
+it (`Access-Control-Allow-Origin: *`, no credentials), so the landing page shows its counts
+at every address it is served from, and no cached copy depends on whether that address was
+in the API's `ALETHICAL_CORS_ORIGINS` when the copy was made. The counts: campaign
 money records (the 3 Campaign Finance Board payment files of the published release, copy
 date the oldest of the 3), lobbying spending reports with the number of organizations that
 filed them, every bill held for the current Legislature (whether or not its plain-language

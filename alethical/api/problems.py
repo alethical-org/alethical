@@ -151,7 +151,10 @@ PRIVATE_API_PREFIXES = (
 
 # Public answers inside a private prefix. Finance's landing page is public, so its
 # record counts are an anonymous read like any /api/v1 page read, cached for the
-# same short window (docs/architecture/alethical-finance-architecture.md §9).
+# same short window (docs/architecture/alethical-finance-architecture.md §9). Any
+# site's browser may read them too (`Access-Control-Allow-Origin: *`, no
+# credentials, `alethical/api/main.py`), so an entry here is never fetched with
+# credentials.
 PUBLIC_EXCEPTIONS = ("/api/v1/finance/landing/counts",)
 
 
