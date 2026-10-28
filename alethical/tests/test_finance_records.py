@@ -1,5 +1,7 @@
 """Finance's committee-member and bill-author reads: records, never money."""
 
+# ruff: noqa: F811 -- pytest fixtures arrive as parameters named after the imports
+
 from __future__ import annotations
 
 import uuid
@@ -13,13 +15,14 @@ from alethical.tests.finance_fixtures import finance_api, finance_db  # noqa: F4
 COMMITTEES = "/api/v1/finance/legislative-committees"
 
 
-def _link(db, legislator, number, decision, name="Example Committee"):
+def _link(db, legislator, number, decision, name="Example Committee", office=None):
     db.add(
         m.LegislatorCampaignCommittee(
             legislator_id=legislator.id,
             registration_number=number,
             decision=decision,
             committee_name_as_reviewed=name,
+            office_as_reviewed=office,
             reviewed_by="test-reviewer",
             reviewed_at=datetime(2026, 9, 1, tzinfo=UTC),
             **(
@@ -103,7 +106,12 @@ def test_each_member_carries_their_own_accounts_and_no_money(finance_api, financ
     assert accounts[str(confirmed.id)] == {
         "link_state": "confirmed",
         "confirmed": [
-            {"registration_number": "18001", "committee_name": "Example Committee"}
+            {
+                "registration_number": "18001",
+                "committee_name": "Example Committee",
+                "office": None,
+                "for_legislative_office": True,
+            }
         ],
     }
     assert accounts[str(reviewed.id)] == {
@@ -117,6 +125,47 @@ def test_each_member_carries_their_own_accounts_and_no_money(finance_api, financ
     assert not any(
         key in str(data).lower() for key in ("amount", "total", "contribution")
     )
+
+
+def test_confirmed_committees_come_a_to_z_and_say_their_office(finance_api, finance_db):
+    committee, _ = _committee(finance_db)
+    member = _legislators(finance_db, 1)[0]
+    finance_db.add(
+        m.CommitteeMembership(
+            committee_id=committee.id,
+            legislator_id=member.id,
+            role="Vice Chair",
+            is_current=True,
+        )
+    )
+    _link(
+        finance_db,
+        member,
+        "18021",
+        m.CommitteeLinkReviewDecision.confirmed,
+        "Zeta Committee",
+        "House",
+    )
+    _link(
+        finance_db,
+        member,
+        "18022",
+        m.CommitteeLinkReviewDecision.confirmed,
+        "Alpha Committee",
+        "Governor",
+    )
+    finance_db.flush()
+    [row] = finance_api.get(f"{COMMITTEES}/{committee.id}/members").json()["data"][
+        "members"
+    ]
+    assert row["role"] == "Vice Chair"
+    assert [
+        (c["committee_name"], c["office"], c["for_legislative_office"])
+        for c in row["campaign_accounts"]["confirmed"]
+    ] == [
+        ("Alpha Committee", "Governor", False),
+        ("Zeta Committee", "House", True),
+    ]
 
 
 def test_an_older_committee_lists_everyone_it_names(finance_api, finance_db):  # noqa: F811
@@ -134,9 +183,13 @@ def test_an_older_committee_lists_everyone_it_names(finance_api, finance_db):  #
 
 
 def test_the_sitting_legislatures_committees_are_listed(finance_api, finance_db):  # noqa: F811
-    committee, _ = _committee(finance_db)
-    names = [row["name"] for row in finance_api.get(COMMITTEES).json()["data"]]
-    assert committee.name in names
+    sitting, _ = _committee(finance_db)
+    older, _ = _committee(finance_db, current=False)
+    rows = finance_api.get(COMMITTEES).json()["data"]
+    names = [row["name"] for row in rows]
+    assert sitting.name in names and older.name not in names
+    assert all(row["chamber"] for row in rows)
+    assert rows == sorted(rows, key=lambda row: (row["chamber"], row["name"]))
 
 
 def test_an_unknown_committee_is_not_found(finance_api):  # noqa: F811
@@ -148,6 +201,22 @@ def test_bill_authors_are_the_bill_pages_own_list_with_accounts(
     finance_api,  # noqa: F811
     finance_db,  # noqa: F811
 ):
+    bill = finance_db.scalar(select(m.Bill).where(m.Bill.bill_key == "94-2025-SF1832"))
+    author_ids = {s.legislator_id for s in bill.sponsorships}
+    co_author = finance_db.scalar(
+        select(m.Legislator).where(m.Legislator.id.not_in(author_ids)).limit(1)
+    )
+    finance_db.add(
+        m.Sponsorship(
+            bill_id=bill.id,
+            legislator_id=co_author.id,
+            role=m.SponsorshipRole.co_author,
+            source_order=99,
+            source_chamber="senate",
+        )
+    )
+    finance_db.flush()
+    finance_db.expire(bill)
     page = finance_api.get(
         "/api/v1/bills/94-2025-SF1832", params={"include": "all_sponsors"}
     ).json()["data"]
@@ -160,6 +229,9 @@ def test_bill_authors_are_the_bill_pages_own_list_with_accounts(
         "data"
     ]
     assert data["bill"]["id"] == "94-2025-SF1832"
+    assert data["bill"]["file_type"] == "SF"
+    assert set(data["bill"]) == {"id", "short_title", "file_type", "companion"}
+    assert "co_author" in {row["role"] for row in data["authors"]}
     assert [
         {k: v for k, v in row.items() if k != "campaign_accounts"}
         for row in data["authors"]

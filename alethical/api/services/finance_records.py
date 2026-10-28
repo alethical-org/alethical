@@ -23,6 +23,7 @@ from alethical.api.services.legislator_finance import (
     LINK_CONFIRMED,
     LINK_REVIEWED_NONE_CONFIRMED,
     LINK_UNCONFIRMED,
+    is_for_a_legislative_office,
 )
 from alethical.db import models as m
 
@@ -40,12 +41,13 @@ def campaign_accounts(db: Session, legislator_ids: list[UUID]) -> dict[str, dict
     confirmed: dict[str, list[dict]] = defaultdict(list)
     if legislator_ids:
         link = m.LegislatorCampaignCommittee
-        for legislator_id, decision, number, name in db.execute(
+        for legislator_id, decision, number, name, office in db.execute(
             select(
                 link.legislator_id,
                 link.decision,
                 link.registration_number,
                 link.committee_name_as_reviewed,
+                link.office_as_reviewed,
             )
             .where(link.legislator_id.in_(legislator_ids))
             .order_by(link.committee_name_as_reviewed, link.registration_number)
@@ -53,7 +55,14 @@ def campaign_accounts(db: Session, legislator_ids: list[UUID]) -> dict[str, dict
             decisions[str(legislator_id)].add(decision)
             if decision == m.CommitteeLinkReviewDecision.confirmed:
                 confirmed[str(legislator_id)].append(
-                    {"registration_number": number, "committee_name": name}
+                    {
+                        "registration_number": number,
+                        "committee_name": name,
+                        "office": office,
+                        # The figures route leaves out a race for another office
+                        # (§7 of the campaign-finance design); say so here too.
+                        "for_legislative_office": is_for_a_legislative_office(office),
+                    }
                 )
     result = {}
     for legislator_id in map(str, legislator_ids):

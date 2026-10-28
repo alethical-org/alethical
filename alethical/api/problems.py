@@ -149,6 +149,15 @@ PRIVATE_API_PREFIXES = (
     "/api/v1/candidates/suggest",
 )
 
+# Public answers inside a private prefix. Finance's landing page is public, so its
+# record counts are an anonymous read like any /api/v1 page read, cached for the
+# same short window (docs/architecture/alethical-finance-architecture.md §9).
+PUBLIC_EXCEPTIONS = ("/api/v1/finance/landing/counts",)
+
+
+def is_private_api_path(path: str) -> bool:
+    return path.startswith(PRIVATE_API_PREFIXES) and path not in PUBLIC_EXCEPTIONS
+
 
 async def unexpected_exception_handler(request: Request, exc: Exception):
     _report_server_error(request, exc, 500)
@@ -168,7 +177,7 @@ async def unexpected_exception_handler(request: Request, exc: Exception):
             "X-Robots-Tag": "noindex, nofollow",
             "Referrer-Policy": "no-referrer",
         }
-        if request.url.path.startswith(PRIVATE_API_PREFIXES)
+        if is_private_api_path(request.url.path)
         else None
     )
     return JSONResponse(status_code=500, content=payload, headers=headers)

@@ -9,12 +9,16 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from alethical.api.finance_access import require_finance_access
+from alethical.api.routers.public import campaign_finance_search
+from alethical.api.services.campaign_finance_search import MIN_QUERY_LENGTH
+from alethical.api.routers.public import get_bill_by_key, same_legislature_session_ids
+from alethical.api.routers.public import search as legislature_search
 from alethical.api.problems import problem_exception
-from alethical.api.routers.public import bill_detail
+from alethical.api.serializers import companion_payload, sponsor_payloads
 from alethical.api.services import finance_records
 from alethical.db.session import get_db
 
@@ -25,6 +29,36 @@ router = APIRouter(prefix="/finance", dependencies=[Depends(require_finance_acce
 def access() -> dict:
     """200 for a listed account; the access check answers 401 or 403 otherwise."""
     return {"data": {"allowed": True}}
+
+
+@router.get("/suggestions")
+def suggestions(
+    q: str = Query(min_length=1, max_length=200),
+    request_id: str = Query(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$"),
+    limit: int = Query(default=3, ge=1, le=10),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Grouped suggestions for 1 typed query, in 1 request.
+
+    The groups are alethical.com's own answers, not a copy: the money search
+    (``/campaign-finance/search``: legislators, committees, the 3 printed-name
+    groups, lobbyists and principals, exactly as typed and from 3 characters) and
+    the bill search (``/search``). ``request_id`` comes back unchanged, so the app
+    drops a reply that arrives after a newer one.
+    """
+    typed = q.strip()
+    money = campaign_finance_search(q=typed, limit=limit, db=db).data
+    # The bill search answers even an empty query with whatever it holds, so
+    # Finance asks it only from the money search's own minimum length: a stray
+    # space never suggests unrelated bills.
+    bills = (
+        legislature_search(
+            q=typed, types="bills", session=None, limit=limit, db=db
+        ).data["bills"]
+        if len(typed) >= MIN_QUERY_LENGTH
+        else []
+    )
+    return {"data": {"request_id": request_id, "q": q, "money": money, "bills": bills}}
 
 
 @router.get("/legislative-committees")
@@ -49,21 +83,32 @@ def committee_members(committee_id: UUID, db: Session = Depends(get_db)) -> dict
 
 @router.get("/bills/{bill_id}/authors")
 def bill_authors(bill_id: str, db: Session = Depends(get_db)) -> dict:
-    """The bill page's own author list, each author with their campaign accounts.
+    """A bill's authors as its page lists them, each with their campaign accounts.
 
-    Records only: who authored the bill and which committees are confirmed as
-    theirs, never money and never a claim that one caused the other.
+    The rows come from the bill page's own formatter (``sponsor_payloads``), so
+    each carries ``source_chamber``: a companion bill's authors stay marked as
+    the other chamber's. Records only: who authored the bill and which committees
+    are confirmed as theirs, never money and never a claim that one caused the
+    other.
     """
-    page = bill_detail(
-        bill_id=bill_id,
-        include="all_sponsors",
-        db=db,
-        current_user=None,
-        response=Response(),
-    ).data
+    bill = get_bill_by_key(db, bill_id)
+    authors = [
+        item.model_dump()
+        for item in sponsor_payloads(
+            bill.sponsorships,
+            session_id=bill.session_id,
+            biennium_session_ids=same_legislature_session_ids(db, bill.session_id),
+        )
+    ]
+    companion = companion_payload(bill)
     return {
         "data": {
-            "bill": {"id": page["id"], "title": page["title"]},
-            "authors": finance_records.bill_authors(page["all_sponsors"], db),
+            "bill": {
+                "id": bill.bill_key,
+                "short_title": bill.short_title,
+                "file_type": bill.file_type,
+                "companion": companion.model_dump() if companion else None,
+            },
+            "authors": finance_records.bill_authors(authors, db),
         }
     }

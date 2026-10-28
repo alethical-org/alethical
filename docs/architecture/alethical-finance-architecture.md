@@ -25,6 +25,16 @@ Finance is for finding connections between money, people and policy. Ask (cited 
 about bills), tracking with update emails, and Alethical's research and guides are not part
 of Finance.
 
+Finance's own routes sit under `/api/v1/finance/`. Every route except the public landing
+counts (§9) needs the access check, and its answers are
+private and never cached. Behind the access check (`alethical/api/routers/finance.py`):
+`GET /access`, and `GET /suggestions?q=&request_id=`, which answers 1 typed query with
+alethical.com's own money search (`/campaign-finance/search`) and, from 3 characters, its
+bill search (`/search`) in 1 request, and returns `request_id` unchanged, so the app drops a
+reply that arrives after a newer one. The access check reads the list through its own short
+database session, so the money search still reads its whole answer from 1 instant of the
+database.
+
 ## 2. Built separately
 
 - **Finance's screens.** Finance has its own look and shows more than alethical.com
@@ -43,12 +53,15 @@ of Finance.
 Finance's reads about legislators are records, never money
 (`alethical/api/services/finance_records.py`). `GET /api/v1/finance/legislative-committees`
 lists the sitting Legislature's committees; `/legislative-committees/{id}/members` lists a
-committee's members, and `/bills/{bill_id}/authors` repeats the bill page's own author list.
-Each legislator carries `link_state` (confirmed, reviewed with none confirmed, or unconfirmed)
-and the committees confirmed as theirs. Each account's figures for a year come from
-`/legislators/{legislator_id}/campaign-finance`, 1 member at a time, so no figure is combined
-across members; reading 27 members' figures in 1 request took 15 seconds. Donors by
-employer, exactly as printed, is alethical.com's own
+committee's members with their roles; `/bills/{bill_id}/authors` lists a bill's authors with
+the bill page's own formatter, each row marked with the chamber whose file named it, so a
+companion bill's authors stay distinguishable, and names the bill by its plain-language
+title. Each legislator carries `link_state` (confirmed, reviewed with none confirmed, or
+unconfirmed) and the committees confirmed as theirs, each with the office it registered for
+and whether that is a Legislature seat. Each account's figures for a year come from
+`/legislators/{legislator_id}/campaign-finance`, 1 member at a time, which leaves out a race
+for another office; no figure is combined across members, and reading 27 members' figures
+in 1 request took 15 seconds. Donors by employer, exactly as printed, is alethical.com's own
 `/campaign-finance/payments-under-name?role=employer`, which never adds across donors.
 
 ## 3. Access
@@ -134,3 +147,18 @@ Every count on Finance's public landing page is read live from the current relea
 hidden, never shown as 0, when it cannot be read. Counts are of records, never money; each
 names its period and source ([grounded-answers.md](../../.claude/rules/grounded-answers.md)
 rule 12).
+
+`GET /api/v1/finance/landing/counts` (`alethical/api/services/finance_landing.py`) serves
+the 4 counts without sign-in, the same answer for everyone, cached for the short public
+window like any anonymous `/api/v1` read; it is the only `/api/v1/finance/` address that is
+not private (`PUBLIC_EXCEPTIONS` in `alethical/api/problems.py`). The counts: campaign
+money records (the 3 Campaign Finance Board payment files of the published release, copy
+date the oldest of the 3), lobbying spending reports with the number of organizations that
+filed them, every bill held for the current Legislature (whether or not its plain-language
+summary exists yet, with the copy date every held bill supports, as on alethical.com), and
+TV station files held, with the oldest of each station's newest copy (no date while a
+station has no file held). Each answers `reported` with its count, years, source and copy
+date, or `unavailable` with a reason and no count: `nothing_published`, `empty` or
+`unreadable` for any count, and `rows_replaced` for campaign money only (lobbying answers
+`nothing_published` when its published rows no longer match, because `published_pair`
+does not say which). 1 unreadable source never hides another.
