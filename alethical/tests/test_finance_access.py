@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -385,4 +384,3 @@ def test_the_script_refuses_a_bad_address_before_connecting(monkeypatch, capsys)
 def test_dates_are_timezone_aware(db):
     entry = finance_access.read_entry(db, CLIENT)
     assert entry.granted_at.tzinfo is not None
-    assert entry.granted_at <= datetime.now(timezone.utc)

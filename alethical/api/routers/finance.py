@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from alethical.api.finance_access import require_finance_access
 from alethical.api.routers.public import campaign_finance_search
+from alethical.api.services.campaign_finance_search import MIN_QUERY_LENGTH
 from alethical.api.routers.public import search as legislature_search
 from alethical.db.session import get_db
 
@@ -39,8 +40,16 @@ def suggestions(
     the bill search (``/search``). ``request_id`` comes back unchanged, so the app
     drops a reply that arrives after a newer one.
     """
-    money = campaign_finance_search(q=q, limit=limit, db=db).data
-    bills = legislature_search(
-        q=q, types="bills", session=None, limit=limit, db=db
-    ).data["bills"]
+    typed = q.strip()
+    money = campaign_finance_search(q=typed, limit=limit, db=db).data
+    # The bill search answers even an empty query with whatever it holds, so
+    # Finance asks it only from the money search's own minimum length: a stray
+    # space never suggests unrelated bills.
+    bills = (
+        legislature_search(
+            q=typed, types="bills", session=None, limit=limit, db=db
+        ).data["bills"]
+        if len(typed) >= MIN_QUERY_LENGTH
+        else []
+    )
     return {"data": {"request_id": request_id, "q": q, "money": money, "bills": bills}}
