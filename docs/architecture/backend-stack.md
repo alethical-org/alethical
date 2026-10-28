@@ -1,6 +1,6 @@
 # Backend stack
 
-<!-- describes: pyproject.toml, Dockerfile.backend, docker-compose.yml, railway.json, oban.toml, alethical/api/main.py, alethical/api/finance_access.py, alethical/api/services/finance_access.py, alethical/db/session.py, alethical/api/rate_limit.py, railpack.json, alethical/pipeline/tv_ad_redaction.py, alethical/assets/fonts/* -->
+<!-- describes: pyproject.toml, Dockerfile.backend, docker-compose.yml, railway.json, oban.toml, alethical/api/main.py, alethical/api/finance_access.py, alethical/api/routers/finance.py, alethical/api/services/finance_access.py, alethical/db/session.py, alethical/api/rate_limit.py, railpack.json, alethical/pipeline/tv_ad_redaction.py, alethical/assets/fonts/* -->
 
 **Net:** The backend is one Python web service that answers requests, one Postgres database
 that stores everything, and a set of jobs that pull the Minnesota legislative record in.

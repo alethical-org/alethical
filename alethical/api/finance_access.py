@@ -10,10 +10,11 @@ from __future__ import annotations
 
 import os
 
+import httpx
 from fastapi import Depends, Header, Request
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
-from supabase_auth.errors import AuthApiError, AuthInvalidJwtError
+from supabase_auth.errors import AuthApiError, AuthRetryableError
 
 from alethical.api.auth import get_auth_service
 from alethical.api.problems import problem_exception
@@ -64,16 +65,16 @@ def require_finance_access(
         raise _unavailable(request)
     try:
         principal = auth_service.authenticate(token)
-    except RuntimeError:
+    except (RuntimeError, AuthRetryableError, httpx.HTTPError):
         raise _unavailable(request) from None
-    except (ValueError, AuthInvalidJwtError):
-        raise _signed_out("Sign in again to continue.") from None
     except AuthApiError as exc:
         if int(exc.status) >= 500:
             raise _unavailable(request) from None
         raise _signed_out("Sign in again to continue.") from None
     except Exception:
-        raise _unavailable(request) from None
+        # Anything else is a token the provider could not read, including a
+        # forged one missing claims: the caller signs in again, as on /me.
+        raise _signed_out("Sign in again to continue.") from None
 
     try:
         if principal.provider == "supabase":

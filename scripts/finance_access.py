@@ -14,7 +14,7 @@ Usage:
 
     # Add a client, or restore a revoked one.
     ALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run \
-        python scripts/finance_access.py grant person@example.com
+        python scripts/finance_access.py grant person@example.com --client
 
     # Add an Alethical team account.
     ALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run \
@@ -24,8 +24,8 @@ Usage:
     ALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run \
         python scripts/finance_access.py revoke person@example.com
 
-Each command prints the entry as it stands after the change. Undo a grant with
-``revoke`` and a revoke with ``grant``.
+Each command first prints which database it reads, then the entry as it stands after
+the change. Undo a grant with ``revoke`` and a revoke with ``grant``.
 """
 
 from __future__ import annotations
@@ -36,6 +36,7 @@ import sys
 from pathlib import Path
 
 from sqlalchemy import create_engine
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -93,11 +94,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     show.add_argument("email")
     grant = commands.add_parser("grant", help="Add or restore an address")
     grant.add_argument("email")
-    grant.add_argument(
+    # Required both ways, so a routine re-grant cannot silently flip what
+    # alethical.com prints from this person's later checks.
+    kind = grant.add_mutually_exclusive_group(required=True)
+    kind.add_argument(
         "--team",
         action="store_true",
-        help="Mark an Alethical team account (decides only what alethical.com prints)",
+        help="An Alethical team account (decides only what alethical.com prints)",
     )
+    kind.add_argument("--client", action="store_true", help="Any other account")
     revoke = commands.add_parser("revoke", help="Revoke an address")
     revoke.add_argument("email")
     return parser.parse_args(argv)
@@ -110,7 +115,9 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError:
         print("Not an email address.", file=sys.stderr)
         return 2
-    url = database_url_for_target(os.environ.get("ALETHICAL_DATABASE_TARGET"))
+    target = os.environ.get("ALETHICAL_DATABASE_TARGET") or "local"
+    url = make_url(database_url_for_target(target))
+    print(f"Database: {target} ({url.host}/{url.database})")
     engine = create_engine(url, connect_args=NO_PREPARED_STATEMENTS)
     try:
         with Session(engine) as session:

@@ -131,6 +131,25 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return JSONResponse(status_code=422, content=payload)
 
 
+# Responses under these addresses are private to 1 account: never cached for
+# reuse, never indexed. ``default_public_cache`` in ``alethical/api/main.py``
+# stamps them on normal answers and the handler below on unexpected failures.
+PRIVATE_API_PREFIXES = (
+    "/api/v1/admin/",
+    "/api/v1/ads/",
+    "/api/v1/finance/",
+    "/api/v1/email-subscriptions/",
+    "/api/v1/me/email-",
+    "/api/v1/comments/",
+    "/api/v1/me/comments/",
+    "/api/v1/candidate-claims",
+    "/api/v1/candidate-statements/",
+    "/api/v1/candidates/lookup",
+    "/api/v1/candidates/locate",
+    "/api/v1/candidates/suggest",
+)
+
+
 async def unexpected_exception_handler(request: Request, exc: Exception):
     _report_server_error(request, exc, 500)
     payload = problem_payload(
@@ -149,20 +168,7 @@ async def unexpected_exception_handler(request: Request, exc: Exception):
             "X-Robots-Tag": "noindex, nofollow",
             "Referrer-Policy": "no-referrer",
         }
-        if request.url.path.startswith(
-            (
-                "/api/v1/admin/",
-                "/api/v1/email-subscriptions/",
-                "/api/v1/me/email-",
-                "/api/v1/comments/",
-                "/api/v1/me/comments/",
-                "/api/v1/candidate-claims",
-                "/api/v1/candidate-statements/",
-                "/api/v1/candidates/lookup",
-                "/api/v1/candidates/locate",
-                "/api/v1/candidates/suggest",
-            )
-        )
+        if request.url.path.startswith(PRIVATE_API_PREFIXES)
         else None
     )
     return JSONResponse(status_code=500, content=payload, headers=headers)

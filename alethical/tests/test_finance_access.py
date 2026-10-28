@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import argparse
 import uuid
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
@@ -121,16 +121,56 @@ def test_an_invalid_token_is_asked_to_sign_in_again(api):
     assert response.json()["detail"] == "Sign in again to continue."
 
 
+@pytest.mark.parametrize("error", [KeyError("exp"), TypeError("claims")])
+def test_a_token_the_provider_cannot_read_is_asked_to_sign_in_again(api, error):
+    def unreadable(token):
+        raise error
+
+    api.app.dependency_overrides[get_auth_service] = lambda: SimpleNamespace(
+        authenticate=unreadable
+    )
+    response = api.get(ACCESS, headers=bearer("client"))
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Sign in again to continue."
+
+
+def test_a_sign_in_service_outage_is_unavailable(api):
+    def down(token):
+        raise RuntimeError("Supabase unreachable")
+
+    api.app.dependency_overrides[get_auth_service] = lambda: SimpleNamespace(
+        authenticate=down
+    )
+    response = api.get(ACCESS, headers=bearer("client"))
+    assert response.status_code == 503
+    assert_private(response)
+
+
+def test_an_unexpected_failure_stays_private(api, monkeypatch):
+    def broken(*args):
+        raise TypeError("unexpected")
+
+    monkeypatch.setattr(dependency, "supabase_account_access", broken)
+    response = TestClient(api.app, raise_server_exceptions=False).get(
+        ACCESS, headers=bearer("client")
+    )
+    assert response.status_code == 500
+    assert_private(response)
+    assert response.headers["x-robots-tag"] == "noindex, nofollow"
+
+
 def test_an_unlisted_account_gets_the_no_access_answer(api):
     assert_no_access(api.get(ACCESS, headers=bearer("unlisted")))
 
 
-def test_revocation_applies_on_the_next_request(api, db):
-    assert api.get(ACCESS, headers=bearer("client")).status_code == 200
-    finance_access.revoke(db, CLIENT)
-    assert_no_access(api.get(ACCESS, headers=bearer("client")))
-    finance_access.grant(db, CLIENT, team=False)
-    assert api.get(ACCESS, headers=bearer("client")).status_code == 200
+@pytest.mark.parametrize("account", ["client", "team"])
+def test_revocation_applies_on_the_next_request(api, db, account):
+    _, email = ACCOUNTS[account]
+    assert api.get(ACCESS, headers=bearer(account)).status_code == 200
+    finance_access.revoke(db, email)
+    assert_no_access(api.get(ACCESS, headers=bearer(account)))
+    finance_access.grant(db, email, team=account == "team")
+    assert api.get(ACCESS, headers=bearer(account)).status_code == 200
 
 
 @pytest.mark.parametrize(
@@ -141,15 +181,18 @@ def test_revocation_applies_on_the_next_request(api, db):
         "UPDATE auth.users SET banned_until = CURRENT_TIMESTAMP + interval '1 day'"
         " WHERE id = :id",
         "UPDATE auth.users SET is_anonymous = true WHERE id = :id",
-        "UPDATE auth.users SET email = 'client-reader+alias@example.test'"
-        " WHERE id = :id",
+        "UPDATE auth.users SET email = replace(email, '@', '+alias@') WHERE id = :id",
         "UPDATE auth.users SET email = 'someone-else@example.test' WHERE id = :id",
         "DELETE FROM auth.users WHERE id = :id",
     ],
 )
-def test_an_account_supabase_no_longer_vouches_for_is_refused(api, db, mutation):
-    db.execute(text(mutation), {"id": ACCOUNTS["client"][0]})
-    assert_no_access(api.get(ACCESS, headers=bearer("client")))
+@pytest.mark.parametrize("account", ["client", "team"])
+def test_an_account_supabase_no_longer_vouches_for_is_refused(
+    api, db, mutation, account
+):
+    # The team flag decides only what alethical.com prints, never a way in.
+    db.execute(text(mutation), {"id": ACCOUNTS[account][0]})
+    assert_no_access(api.get(ACCESS, headers=bearer(account)))
 
 
 def test_a_locked_alethical_account_is_refused(api, db):
@@ -281,19 +324,62 @@ def test_the_script_reads_the_address_from_its_arguments_and_reads_back(db):
     )
 
 
+def test_the_script_reads_back_only_after_committing(db, monkeypatch):
+    steps = []
+    commit, read = db.commit, finance_access.read_entry
+    monkeypatch.setattr(db, "commit", lambda: (steps.append("commit"), commit())[1])
+    monkeypatch.setattr(
+        finance_access,
+        "read_entry",
+        lambda *args: (steps.append("read"), read(*args))[1],
+    )
+    script.run(db, script.parse_args(["grant", "order@example.test", "--client"]))
+    assert steps == ["commit", "read"]
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["grant", "a@b.co"],
+        ["grant", "a@b.co", "--team", "--client"],
+        ["grant", "--file", "list.txt"],
+    ],
+)
+def test_a_grant_names_team_or_client_and_takes_no_file(argv):
+    with pytest.raises(SystemExit):
+        script.parse_args(argv)
+
+
+def test_the_script_names_the_database_it_reads(db, monkeypatch, capsys):
+    class Engine:
+        def dispose(self):
+            pass
+
+    monkeypatch.setattr(script, "create_engine", lambda *args, **kwargs: Engine())
+    monkeypatch.setattr(script, "Session", lambda engine: _Reuse(db))
+    monkeypatch.delenv("ALETHICAL_DATABASE_TARGET", raising=False)
+    assert script.main(["show", CLIENT]) == 0
+    assert capsys.readouterr().out.startswith("Database: local (")
+
+
+class _Reuse:
+    def __init__(self, session):
+        self.session = session
+
+    def __enter__(self):
+        return self.session
+
+    def __exit__(self, *exc):
+        return False
+
+
 def test_the_script_refuses_a_bad_address_before_connecting(monkeypatch, capsys):
     def no_connection(*args, **kwargs):
         raise AssertionError("connected")
 
     monkeypatch.setattr(script, "create_engine", no_connection)
-    assert script.main(["grant", "not-an-address"]) == 2
+    assert script.main(["grant", "not-an-address", "--client"]) == 2
     assert "Not an email address." in capsys.readouterr().err
-
-
-def test_the_parser_takes_no_file_argument():
-    with pytest.raises(SystemExit):
-        script.parse_args(["grant", "--file", "list.txt"])
-    assert isinstance(script.parse_args(["show", "a@b.co"]), argparse.Namespace)
 
 
 def test_dates_are_timezone_aware(db):

@@ -10,10 +10,10 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from alethical.db.models import FinanceAccessEntry
@@ -60,20 +60,25 @@ def _snapshot(entry: FinanceAccessEntry, change: str) -> EntryChange:
 
 
 def grant(db: Session, raw_email: str, *, team: bool) -> EntryChange:
-    """Add an address, or restore a revoked one, with the given team flag."""
+    """Add an address, or restore a revoked one, with the given team flag.
+
+    Dates come from the database clock, so entries written from different
+    machines stay in order.
+    """
     email = normalize_email(raw_email)
-    now = datetime.now(timezone.utc)
     entry = db.scalar(
         select(FinanceAccessEntry)
         .where(FinanceAccessEntry.email == email)
         .with_for_update()
     )
     if entry is None:
-        entry = FinanceAccessEntry(email=email, is_alethical_team=team, granted_at=now)
+        entry = FinanceAccessEntry(
+            email=email, is_alethical_team=team, granted_at=func.now()
+        )
         db.add(entry)
         change = "granted"
     elif entry.revoked_at is not None:
-        entry.granted_at = now
+        entry.granted_at = func.now()
         entry.revoked_at = None
         entry.is_alethical_team = team
         change = "restored"
@@ -83,6 +88,7 @@ def grant(db: Session, raw_email: str, *, team: bool) -> EntryChange:
     else:
         change = "unchanged"
     db.flush()
+    db.refresh(entry)
     return _snapshot(entry, change)
 
 
@@ -98,8 +104,9 @@ def revoke(db: Session, raw_email: str) -> EntryChange | None:
         return None
     if entry.revoked_at is not None:
         return _snapshot(entry, "already revoked")
-    entry.revoked_at = datetime.now(timezone.utc)
+    entry.revoked_at = func.now()
     db.flush()
+    db.refresh(entry)
     return _snapshot(entry, "revoked")
 
 
