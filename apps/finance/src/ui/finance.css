@@ -400,6 +400,12 @@
 }
 
 /* ---------- Record-type marks and codes ---------- */
+.f-marked {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  column-gap: 10px;
+  align-items: start;
+}
 .f-mark {
   flex: none;
   width: 26px;
@@ -1131,6 +1137,7 @@
   transform: rotate(180deg);
 }
 .f-dropdown-list {
+  animation: f-lift 0.16s var(--ease) both;
   position: absolute;
   z-index: 1;
   top: calc(100% + 4px);

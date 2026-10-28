@@ -14,6 +14,7 @@ import { apiGet } from '../api/read';
 import { useFinanceSession } from '../auth/session';
 import { navigate } from '../router';
 import { withFrom } from '../returnContext';
+import { RecordMark, type RecordKind } from '../ui/marks';
 import { Arrow } from '../ui/parts';
 import {
   MIN_SUGGEST_LENGTH,
@@ -260,61 +261,16 @@ export function useSuggestionBox(id: string, from: string | null) {
   return { rootRef, inputProps, panel, submit, query };
 }
 
+const MARKS: Record<Exclude<SuggestionKind, 'bills'>, RecordKind> = {
+  people: 'person',
+  orgs: 'organization',
+  committees: 'committee',
+  printed: 'printed',
+};
+
 function Mark({ kind, code }: { kind: SuggestionKind; code?: string }) {
   if (code) return <span className="f-code">{code}</span>;
-  if (kind === 'people') {
-    return (
-      <span className="f-mark f-mark-person" aria-hidden="true">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="8" r="4" stroke="#0B5C72" strokeWidth="2" />
-          <path
-            d="M4 21 C4 16 8 14 12 14 C16 14 20 16 20 21"
-            stroke="#0B5C72"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-        </svg>
-      </span>
-    );
-  }
-  if (kind === 'orgs') {
-    return (
-      <span className="f-mark" aria-hidden="true">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-          <rect x="5" y="3" width="14" height="18" rx="1.5" stroke="#0B5C72" strokeWidth="2" />
-          <path
-            d="M9 8 H10 M14 8 H15 M9 12 H10 M14 12 H15 M10 21 V17 H14 V21"
-            stroke="#0B5C72"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-        </svg>
-      </span>
-    );
-  }
-  if (kind === 'committees') {
-    return (
-      <span className="f-mark f-mark-committee" aria-hidden="true">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M4 10 H20 V20 H4 Z M8 10 V6 H16 V10 M9 14 H15"
-            stroke="#0B5C72"
-            strokeWidth="2"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
-        </svg>
-      </span>
-    );
-  }
-  if (kind === 'printed') {
-    return (
-      <span className="f-mark f-mark-printed" aria-hidden="true">
-        Aa
-      </span>
-    );
-  }
-  return null;
+  return kind === 'bills' ? null : <RecordMark kind={MARKS[kind]} />;
 }
 
 function SuggestionRow(props: {
