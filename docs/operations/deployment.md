@@ -541,7 +541,8 @@ values; a local build then carries a placeholder Supabase address, and the page 
 `vercel link` also adds `.env*` to `.gitignore`; revert that line before committing.
 
 Any site's browser may read the landing page's counts, so they need no API setting;
-signed-in requests need `https://finance.alethical.com` in `ALETHICAL_CORS_ORIGINS` (below).
+signed-in requests need `https://finance.alethical.com` in `ALETHICAL_CORS_ORIGINS` (step 1
+below).
 Then confirm
 `https://finance.alethical.com/` shows the landing page with its counts, `/sign-in` shows
 "Sign in to Alethical Finance", `/money` says the page cannot be found, and every answer
@@ -550,7 +551,7 @@ alethical` or by deploying the previous `main` commit the same way.
 
 Before anyone can sign in at that address:
 
-1. `https://finance.alethical.com` is in the API's `ALETHICAL_CORS_ORIGINS` (above).
+1. `https://finance.alethical.com` is in the API's `ALETHICAL_CORS_ORIGINS`.
 2. `https://finance.alethical.com/**` is added to Supabase's return addresses, by a
    person in Supabase's dashboard, and recorded in
    [repo-and-service-settings.md § Supabase sign-in](repo-and-service-settings.md#supabase-sign-in).

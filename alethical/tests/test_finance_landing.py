@@ -243,9 +243,9 @@ def test_the_counts_route_is_public_and_shared_cacheable(client, db):  # noqa: F
     assert cache.startswith("public") and "no-store" not in cache
 
 
-def test_every_site_may_read_the_counts_whoever_filled_the_cache(client, db):  # noqa: F811
-    # The shared cache keeps 1 copy per address, so each copy must work for the
-    # landing page whatever site, or none, the request that made it named.
+def test_every_site_may_read_the_counts_whoever_asks(client, db):  # noqa: F811
+    # The landing page reads the counts at every address it is served from, so
+    # the answer is the same whatever site, or none, asked for it.
     for origin in ("https://finance.alethical.com", "https://elsewhere.example", None):
         headers = {"Origin": origin} if origin else {}
         response = client.get(COUNTS, headers=headers)

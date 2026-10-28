@@ -139,9 +139,9 @@ rule 12).
 the 4 counts without sign-in, the same answer for everyone, cached for the short public
 window like any anonymous `/api/v1` read; it is the only `/api/v1/finance/` address that is
 not private (`PUBLIC_EXCEPTIONS` in `alethical/api/problems.py`). Any site's browser may read
-it (`Access-Control-Allow-Origin: *`, no credentials): Cloudflare keeps 1 copy per address,
-and a copy that named only the site whose request filled it would hide the counts from every
-other visitor until it expired. The counts: campaign
+it (`Access-Control-Allow-Origin: *`, no credentials), so the landing page shows its counts
+at every address it is served from, and no cached copy depends on whether that address was
+in the API's `ALETHICAL_CORS_ORIGINS` when the copy was made. The counts: campaign
 money records (the 3 Campaign Finance Board payment files of the published release, copy
 date the oldest of the 3), lobbying spending reports with the number of organizations that
 filed them, every bill held for the current Legislature (whether or not its plain-language
