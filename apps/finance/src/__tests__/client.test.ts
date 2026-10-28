@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { accessFromStatus, checkAccess, requestSignInCode } from '../api/client';
+import { accessFromStatus, checkAccess, proveSignInCode, requestSignInCode } from '../api/client';
 
 describe('access answers', () => {
   it.each([
@@ -45,7 +45,53 @@ describe('code requests', () => {
     expect(await requestSignInCode('https://api.example.test', 'a@b.co', fetcher)).toBe(result);
     expect(fetcher).toHaveBeenCalledWith(
       'https://api.example.test/api/v1/finance/sign-in/code',
-      expect.objectContaining({ method: 'POST', body: JSON.stringify({ email: 'a@b.co' }) }),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ email: 'a@b.co' }),
+      }),
     );
+  });
+});
+
+describe('code proofs', () => {
+  const prove = (fetcher: typeof fetch) =>
+    proveSignInCode('https://api.example.test', 'a@b.co', '12345678', fetcher);
+
+  it('returns the 1-time token from a proved code', async () => {
+    const fetcher = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ data: { token_hash: 'tok', type: 'magiclink' } }), {
+          status: 200,
+        }),
+    );
+    expect(await prove(fetcher)).toEqual({
+      kind: 'token',
+      tokenHash: 'tok',
+      type: 'magiclink',
+    });
+    expect(fetcher).toHaveBeenCalledWith(
+      'https://api.example.test/api/v1/finance/sign-in/verify',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ email: 'a@b.co', code: '12345678' }),
+      }),
+    );
+  });
+
+  it.each([
+    [400, 'refused'],
+    [429, 'rate-limited'],
+    [503, 'unavailable'],
+  ] as const)('reads HTTP %i as %s', async (status, kind) => {
+    expect(await prove(vi.fn(async () => new Response(null, { status })))).toEqual({ kind });
+  });
+
+  it('treats a 200 without a token, or no answer, as unavailable', async () => {
+    const empty = vi.fn(async () => new Response(JSON.stringify({ data: {} }), { status: 200 }));
+    expect(await prove(empty)).toEqual({ kind: 'unavailable' });
+    const offline = vi.fn(async () => {
+      throw new TypeError('offline');
+    });
+    expect(await prove(offline)).toEqual({ kind: 'unavailable' });
   });
 });

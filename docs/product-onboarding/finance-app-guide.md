@@ -55,7 +55,7 @@ of this guide, and `/` is Finance home.
 - **`/sign-in`.** Google, or a code emailed to the address. There is no password and no way
   to create an account. Each way is shown only once it works: Google once Supabase accepts
   Finance's return address (`VITE_GOOGLE_SIGN_IN`), because Google would otherwise hand the
-  visitor back to alethical.com, and email once the server's code route ships
+  visitor back to alethical.com, and email once Alethical's code sending is switched on
   (`VITE_EMAIL_SIGN_IN`). With neither on, the page says "Sign-in to Alethical Finance is
   not open yet."
 - **`/auth/return`.** Where Google, and a first-time address's emailed confirmation link,
@@ -71,14 +71,14 @@ of this guide, and `/` is Finance home.
 1. **Email:** the visitor types an address and presses Continue. An empty or malformed
    address shows "Enter an email address".
 2. The app asks the server for a code (`POST /api/v1/finance/sign-in/code`). The server
-   answers every address the same way and emails a code only to a listed one, so the next
-   screen says "If {address} has access to Alethical Finance, a code is on its way to it",
-   never that a code was sent. That route is not live yet: its release waits on a decision
-   about how codes are sent ([#2755](https://github.com/alethical-org/alethical/pull/2755)),
-   so until then the code screen cannot be reached.
-3. **Code:** the visitor pastes the code; the app accepts any length the email carries.
-   A wrong or expired code shows "That code is wrong or expired. Enter the newest code or send
-   a new one." Send a new code waits 60 seconds between requests and shows the seconds left.
+   answers every address the same way and Alethical emails an 8-digit code, with no link,
+   only to a listed one, so the next screen says "If {address} has access to Alethical
+   Finance, a code is on its way to it", never that a code was sent.
+3. **Code:** the visitor pastes the code. The app sends it to the server
+   (`POST /api/v1/finance/sign-in/verify`), which returns a 1-time sign-in token that the
+   app hands to Supabase. A wrong, expired or used code shows "That code is wrong or expired.
+   Enter the newest code or send a new one."; if the server cannot check it, "We couldn’t
+   check the code. Try again." Send a new code waits 60 seconds between requests and shows the seconds left.
    Use another email goes back with the address kept. After a correct code, Continue stays
    busy until the access answer arrives; if access cannot be checked, the page offers Try
    again.

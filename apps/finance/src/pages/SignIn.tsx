@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
-import { requestSignInCode } from '../api/client';
+import { proveSignInCode, requestSignInCode } from '../api/client';
 import { rememberReturnPath } from '../auth/returnPath';
 import { useFinanceSession } from '../auth/session';
 import { navigate, useLocation } from '../router';
@@ -72,7 +72,9 @@ export function SignIn() {
     rememberReturnPath(next);
     const { error: failure } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/return?source=google` },
+      options: {
+        redirectTo: `${window.location.origin}/auth/return?source=google`,
+      },
     });
     if (failure) {
       setBusy(null);
@@ -101,8 +103,6 @@ export function SignIn() {
       return;
     }
     if (step === 'code') setResent(true);
-    // A first-time address's emailed link opens a new tab; it returns here.
-    rememberReturnPath(next);
     setCode('');
     goTo('code');
     setWaitUntil(Date.now() + RESEND_WAIT_SECONDS * 1000);
@@ -117,13 +117,19 @@ export function SignIn() {
     }
     setBusy('verify');
     setError(null);
+    // Alethical checks the code; Supabase turns the 1-time token into a session.
+    const proof = await proveSignInCode(apiBaseUrl, email.trim(), code.trim());
+    if (proof.kind !== 'token') {
+      setBusy(null);
+      setError(proof.kind === 'refused' ? 'code' : 'check');
+      return;
+    }
     const { error: failure } = await supabase.auth.verifyOtp({
-      email: email.trim(),
-      token: code.trim(),
-      type: 'email',
+      token_hash: proof.tokenHash,
+      type: proof.type,
     });
     setBusy(null);
-    if (failure) setError('code');
+    if (failure) setError('finish');
     else setVerified(true);
   }
 
@@ -231,6 +237,11 @@ export function SignIn() {
           {error === 'send' && (
             <p id="code-error" role="alert" className="error">
               We couldn’t send a code. Try again.
+            </p>
+          )}
+          {error === 'check' && (
+            <p id="code-error" role="alert" className="error">
+              We couldn’t check the code. Try again.
             </p>
           )}
           {error === 'finish' && (

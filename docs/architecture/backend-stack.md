@@ -124,7 +124,8 @@ unconfirmed, banned, deleted or locked account gets the same 403, which never na
 reason. Every listed account has the same access. The list is kept only in the database,
 because a client's address names the client and this repository is public: addresses are
 added and revoked with `scripts/finance_access.py`, which reads the address from its
-arguments. Finance's signed-out code request is the 1 Finance route without that check
+arguments. Finance's 2 signed-out sign-in routes, asking for a code and proving it, are the
+only Finance routes without that check
 ([sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in)).
 
 ## 5. Background jobs

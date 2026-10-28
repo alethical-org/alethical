@@ -157,6 +157,40 @@ class FinanceAccessEntry(Base):
     revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
+class FinanceSignInCode(Base):
+    """1 emailed Alethical Finance sign-in code, kept only as a salted hash.
+
+    Sent only to an active access-list address; it expires, allows a few wrong
+    tries and works once (docs/architecture/alethical-finance-architecture.md §3).
+    """
+
+    __tablename__ = "finance_sign_in_code"
+    __table_args__ = (
+        CheckConstraint(
+            "email = lower(btrim(email)) AND email LIKE '_%@_%'",
+            name="email_normalized",
+        ),
+        CheckConstraint("expires_at > created_at", name="expires_after_created"),
+        CheckConstraint("wrong_tries >= 0", name="wrong_tries_counted"),
+        Index("ix_finance_sign_in_code_email_created", "email", "created_at"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    code_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    wrong_tries: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
+    used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

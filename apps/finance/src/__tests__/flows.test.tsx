@@ -13,7 +13,10 @@ import { STORAGE_KEY } from '../auth/supabase';
 const API = 'https://api.example.test';
 
 function session(token: string, userId = 'user-1', email = 'reader@example.test') {
-  return { access_token: token, user: { id: userId, email } } as unknown as Session;
+  return {
+    access_token: token,
+    user: { id: userId, email },
+  } as unknown as Session;
 }
 
 type AuthListener = (event: string, next: Session | null) => void;
@@ -64,7 +67,10 @@ beforeEach(() => {
   // gets a fresh one.
   const storage = new MemoryStorage();
   vi.stubGlobal('localStorage', storage);
-  Object.defineProperty(window, 'localStorage', { value: storage, configurable: true });
+  Object.defineProperty(window, 'localStorage', {
+    value: storage,
+    configurable: true,
+  });
 });
 
 afterEach(() => {
@@ -89,7 +95,10 @@ async function render(path: string, client: SupabaseClient, fetcher: typeof fetc
 function answering(...statuses: number[]) {
   let call = 0;
   return vi.fn(
-    async () => new Response(null, { status: statuses[Math.min(call++, statuses.length - 1)] }),
+    async () =>
+      new Response(null, {
+        status: statuses[Math.min(call++, statuses.length - 1)],
+      }),
   );
 }
 
@@ -211,14 +220,16 @@ describe('sign-in steps', () => {
     });
   };
 
-  it('moves focus to each step’s field and saves the page asked for', async () => {
+  it('moves focus to each step’s field and keeps the page asked for', async () => {
     await render('/sign-in?next=%2Flobbying', fakeSupabase(null).client, answering(202));
     await act(async () => button('Sign in with email').click());
     expect(document.activeElement?.id).toBe('email');
     await type('#email', 'reader@example.test');
     await act(async () => button('Continue').click());
     expect(document.activeElement?.id).toBe('code');
-    expect(takeReturnPath()).toBe('/lobbying');
+    // A code finishes on this page, which still holds where to go next; nothing is saved.
+    expect(new URLSearchParams(window.location.search).get('next')).toBe('/lobbying');
+    expect(takeReturnPath()).toBe('/');
   });
 
   it('stays busy after a correct code until access is known', async () => {
@@ -227,7 +238,16 @@ describe('sign-in steps', () => {
     const fetcher = vi.fn((url: string) =>
       url.endsWith('/sign-in/code')
         ? Promise.resolve(new Response(null, { status: 202 }))
-        : new Promise<Response>((resolve) => (answer = resolve)),
+        : url.endsWith('/sign-in/verify')
+          ? Promise.resolve(
+              new Response(
+                JSON.stringify({
+                  data: { token_hash: 'one-time-token', type: 'magiclink' },
+                }),
+                { status: 200 },
+              ),
+            )
+          : new Promise<Response>((resolve) => (answer = resolve)),
     );
     supabase.auth.verifyOtp.mockImplementationOnce(async () => {
       supabase.emit('SIGNED_IN', session('token-7'));
@@ -254,6 +274,13 @@ describe('sign-in steps', () => {
     let calls = 0;
     const fetcher = vi.fn(async (url: string) => {
       if (url.endsWith('/sign-in/code')) return new Response(null, { status: 202 });
+      if (url.endsWith('/sign-in/verify'))
+        return new Response(
+          JSON.stringify({
+            data: { token_hash: 'one-time-token', type: 'magiclink' },
+          }),
+          { status: 200 },
+        );
       calls += 1;
       supabase.emit('SIGNED_OUT', null);
       return new Response(null, { status: 401 });
@@ -267,6 +294,28 @@ describe('sign-in steps', () => {
     await act(async () => {});
     expect(calls).toBeGreaterThan(0);
     expect(text()).toContain('We couldn’t finish signing in.');
+  });
+
+  it.each([
+    [400, 'That code is wrong or expired.'],
+    [503, 'We couldn’t check the code. Try again.'],
+  ])('a code the server answers with %i never reaches Supabase', async (status, message) => {
+    const supabase = fakeSupabase(null);
+    const fetcher = vi.fn(async (url: string) =>
+      url.endsWith('/sign-in/code')
+        ? new Response(null, { status: 202 })
+        : new Response(null, {
+            status: url.endsWith('/sign-in/verify') ? status : 401,
+          }),
+    );
+    await render('/sign-in', supabase.client, fetcher as unknown as typeof fetch);
+    await act(async () => button('Sign in with email').click());
+    await type('#email', 'reader@example.test');
+    await act(async () => button('Continue').click());
+    await type('#code', '12345678');
+    await act(async () => button('Continue').click());
+    expect(supabase.auth.verifyOtp).not.toHaveBeenCalled();
+    expect(text()).toContain(message);
   });
 
   it('re-enables Google when Back restores the page from the browser cache', async () => {
@@ -318,14 +367,18 @@ describe('Google and sign-out', () => {
     await act(async () => google.click());
     expect(supabase.auth.signInWithOAuth).toHaveBeenCalledWith({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/return?source=google` },
+      options: {
+        redirectTo: `${window.location.origin}/auth/return?source=google`,
+      },
     });
     expect(takeReturnPath()).toBe('/money/committees/7');
   });
 
   it('signs out this browser only, and clears the saved session if Supabase cannot', async () => {
     const supabase = fakeSupabase(session('token-1'));
-    supabase.auth.signOut.mockResolvedValueOnce({ error: new Error('offline') });
+    supabase.auth.signOut.mockResolvedValueOnce({
+      error: new Error('offline'),
+    });
     window.localStorage.setItem(STORAGE_KEY, '{"access_token":"token-1"}');
     await render('/money', supabase.client, answering(200));
     const account = [...container.querySelectorAll('button')].find(
@@ -380,13 +433,19 @@ describe('the return page', () => {
       (b) => b.textContent === 'Continue',
     )!;
     await act(async () => proceed.click());
-    expect(supabase.auth.verifyOtp).toHaveBeenCalledWith({ token_hash: 'hash-1', type: 'email' });
+    expect(supabase.auth.verifyOtp).toHaveBeenCalledWith({
+      token_hash: 'hash-1',
+      type: 'email',
+    });
     expect(window.location.pathname).toBe('/lobbying');
   });
 
   it('says a used or expired link did not work', async () => {
     const supabase = fakeSupabase(null);
-    supabase.auth.verifyOtp.mockResolvedValueOnce({ data: {}, error: new Error('expired') });
+    supabase.auth.verifyOtp.mockResolvedValueOnce({
+      data: {},
+      error: new Error('expired'),
+    });
     await render('/auth/return#token_hash=hash-2&type=email', supabase.client, answering(401));
     const proceed = [...container.querySelectorAll('button')].find(
       (b) => b.textContent === 'Continue',

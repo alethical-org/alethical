@@ -256,24 +256,31 @@ Sign out ends only the ordinary session on this browser or device.
 ## Alethical Finance sign-in
 
 Alethical Finance, the sign-in-only research product, uses the same Supabase accounts. It
-has 2 ways in, Google or a code emailed to the address, and no password or sign-up.
+has 2 ways in, Google or a code emailed to the address, and no password or sign-up. Whether
+an address is on Finance's access list names a client, so no answer shows it.
 
-- **The code request goes through the API** (`POST /api/v1/finance/sign-in/code`), never
-  straight to Supabase. The API asks Supabase for a code only when the address is an active
-  entry on Finance's access list, and answers 202 with the same body for every address. It
-  sends after its answer has gone, so a listed address does not answer slower than another.
-- **A listed address with no account yet gets one when its first code is sent.** The access
-  list provisions it; nobody can create a Finance account by typing an address.
-- **A repeat inside 60 seconds sends nothing more**, and each internet address may ask 10
-  times a minute (`ALETHICAL_FINANCE_SIGN_IN_RATE_PER_MIN`). A refused or failed Supabase
-  request is logged and never reported to the caller, because only a listed address can
-  reach it.
-- **The code is the same email and length alethical.com sends** (Live settings and email
-  sender, below). A first-time address gets the confirmation email, whose link returns to
-  `ALETHICAL_FINANCE_SIGN_IN_RETURN_URL`. Until that https address is set, and allowed in
-  Supabase's return addresses, the API sends no codes to anyone: the link would otherwise
-  fall back to alethical.com, and Finance never links there.
-- The browser proves the code to Supabase, and every Finance request checks the list again
+- **Alethical sends the codes, not Supabase.** `POST /api/v1/finance/sign-in/code` checks
+  only that the value is an address and answers 202 with the same body, at once, for every
+  address. After that answer has gone, the API checks the access list and, for an active
+  entry only, makes an 8-digit code and emails it through Alethical's own sender (Resend,
+  from `ALETHICAL_EMAIL_FROM`). The email carries the code and no link.
+- **Only a salted hash of the code is kept** (`finance_sign_in_code`, scrypt), with a
+  10-minute expiry. A code works once, 5 wrong tries use it up, a new code replaces every
+  earlier one for that address, and a repeat inside 60 seconds sends nothing more.
+- **Proving the code goes through the API too** (`POST /api/v1/finance/sign-in/verify`).
+  A wrong, expired, used, used-up or never-sent code, or an address revoked since, all get
+  the same 400 answer after the same minimum time. A proved code is the only point where
+  the Supabase account is created or found, with the server's secret key
+  (`SUPABASE_SECRET_KEY`); the API then returns a 1-time Supabase sign-in token, which the
+  browser turns into its session. If Supabase cannot finish, the code stays valid for
+  another try.
+- **Nothing is sent or proved until it is switched on**: both routes answer 503 for every
+  address until `ALETHICAL_FINANCE_SIGN_IN_CODE_ENABLED`, `SUPABASE_SECRET_KEY` and the
+  email sender's settings are all set. `ALETHICAL_EMAIL_ALLOWLIST`, when set, holds back
+  every other address's email. Each internet address may ask 10 times a minute across both
+  routes (`ALETHICAL_FINANCE_SIGN_IN_RATE_PER_MIN`); a failed email is logged and never
+  reported to the caller.
+- Every Finance request checks the list again
   ([backend-stack.md § 4. Sign-in](../architecture/backend-stack.md#4-sign-in)).
 
 ## Live settings and email sender
