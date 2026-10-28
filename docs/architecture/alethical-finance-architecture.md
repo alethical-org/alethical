@@ -40,9 +40,9 @@ database.
 - **Finance's screens.** Finance has its own look and shows more than alethical.com
   (original station files, unconfirmed printed names, evidence panels), so a page that
   exists on both sites is drawn, built and tested twice. Nothing else is.
-- **Finance's front end is its own React web app**, not a themed mode of the alethical.com
-  app. A shared mode would tie every release of 1 site to the other and hold Finance to the
-  public app's phone-first framework (React Native for web).
+- **Finance's front end is its own React web app** (`apps/finance`), not a themed mode of
+  the alethical.com app. A shared mode would tie every release of 1 site to the other and
+  hold Finance to the public app's phone-first framework (React Native for web).
 - **The code that decides wording and figures is shared.** The display modules under
   `apps/frontend/src/lib`, `apps/frontend/src/hooks` and the API client move into a
   package both front ends import, so a wording or display rule changes in 1 place. 10 of

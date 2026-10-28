@@ -1,4 +1,4 @@
-<!-- describes: alethical/api/services/candidate_claim_email.py, alethical/alembic/versions/0068_profile_claim_review.py, alethical/release.py, alethical/api/main.py, apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, api/page.ts, alethical/api/routers/me.py, alethical/api/main.py, alethical/api/request_admission.py, alethical/api/services/ask_router.py, alethical/pipeline/rag_ingest.py, alethical/logging.py, alethical/monitoring.py, railway.json, vercel.json, apps/frontend/metro.config.js, patches/@expo__metro-config@57.0.7.patch, pnpm-workspace.yaml, pnpm-lock.yaml, railpack.json, Dockerfile.backend, alethical/pipeline/tv_ad_redaction.py, alethical/assets/fonts/* -->
+<!-- describes: apps/finance/vercel.json, alethical/api/services/candidate_claim_email.py, alethical/alembic/versions/0068_profile_claim_review.py, alethical/release.py, alethical/api/main.py, apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, api/page.ts, alethical/api/routers/me.py, alethical/api/main.py, alethical/api/request_admission.py, alethical/api/services/ask_router.py, alethical/pipeline/rag_ingest.py, alethical/logging.py, alethical/monitoring.py, railway.json, vercel.json, apps/frontend/metro.config.js, patches/@expo__metro-config@57.0.7.patch, pnpm-workspace.yaml, pnpm-lock.yaml, railpack.json, Dockerfile.backend, alethical/pipeline/tv_ad_redaction.py, alethical/assets/fonts/* -->
 
 # Production setup and recovery
 
@@ -21,6 +21,7 @@ own source:
 | Part                                   | Lives in                                                        | Public address                                                                                                   | Normal release                                          |
 | -------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
 | Web app                                | Vercel project `alethical-web`                                  | `https://www.alethical.com`                                                                                      | Vercel watches `main`                                   |
+| Alethical Finance web app              | Vercel project `alethical-finance`, folder `apps/finance`       | `https://alethical-finance.vercel.app` until the final domain is chosen                                          | A person deploys from `main` ([§ Alethical Finance](#alethical-finance)) |
 | API                                    | Railway service `alethical-api`, `production` environment       | `https://api.alethical.com` through Cloudflare; Railway origin `https://alethical-api-production.up.railway.app` | Railway watches `main`, and sometimes misses a push      |
 | Database, sign-in, stored source files | Supabase project `naakzorbkqqgbsreulqi`                         | Supabase project URL                                                                                             | Settings and migrations, not a code release             |
 | Ingestion                              | GitHub's vote refresh plus commands run from a trusted computer | Writes to Supabase                                                                                               | Automatic vote refresh or deliberate production command |
@@ -508,6 +509,48 @@ a deployment replaces all of them, and a tab left open across one still holds th
 page. That is the failure [#1110](https://github.com/alethical-org/alethical/issues/1110)
 recorded, and it is what these 2 reloads exist for. No service worker is involved; the
 retired one is removed on start (`apps/frontend/src/lib/serviceWorkerCleanup.ts`).
+
+## Alethical Finance
+
+Alethical Finance's web app is the `alethical-finance` Vercel project in the `alethical`
+team, built from `apps/finance` with that folder's `vercel.json`. Its address is
+`https://alethical-finance.vercel.app` until the final domain is chosen. The 5 build
+settings are public values: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`,
+`VITE_API_BASE_URL` (`https://api.alethical.com`), `VITE_GOOGLE_SIGN_IN` and
+`VITE_EMAIL_SIGN_IN`.
+
+The project's Root Directory setting is `apps/finance`, so Vercel builds that folder with
+its own `vercel.json`, which installs from the repository root. The project is not connected
+to GitHub yet: Vercel requires the account's own GitHub login connection first. Until it is,
+deploy from the repository root of a clean checkout of `main`, linked to the project with
+`vercel link --project alethical-finance --scope alethical`:
+
+```bash
+vercel pull --yes --environment=production --scope alethical
+vercel build --prod --scope alethical
+vercel deploy --prebuilt --prod --scope alethical
+```
+
+`vercel pull` brings the 5 build settings; a build without them still succeeds and serves
+"Alethical Finance is not configured". Then confirm
+`https://alethical-finance.vercel.app/sign-in` shows "Sign in to Alethical Finance" and
+`/robots.txt` disallows everything. Roll back with `vercel rollback --scope alethical` or by deploying the previous
+`main` commit the same way.
+
+Before anyone can sign in at that address:
+
+1. `https://alethical-finance.vercel.app` is added to the API's `ALETHICAL_CORS_ORIGINS`.
+2. `https://alethical-finance.vercel.app/**` is added to Supabase's return addresses, by a
+   person in Supabase's dashboard, and recorded in
+   [repo-and-service-settings.md § Supabase sign-in](repo-and-service-settings.md#supabase-sign-in).
+3. `VITE_GOOGLE_SIGN_IN` is set to `on` and the app deployed again.
+4. Code sign-in, once its route ships, needs `VITE_EMAIL_SIGN_IN` set to `on` and
+   `ALETHICAL_FINANCE_SIGN_IN_RETURN_URL` set to
+   `https://alethical-finance.vercel.app/auth/return#source=email`. The `#` keeps the
+   emailed token out of every server's logs, and Supabase's email template adds the token
+   after it with `&`.
+
+At launch the same steps repeat for alethicalfinance.com.
 
 ## Supabase sign-in callbacks
 
