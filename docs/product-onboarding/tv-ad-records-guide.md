@@ -1,6 +1,6 @@
 # TV ad records guide
 
-<!-- describes: alethical/api/routers/tv_ads.py, alethical/api/services/tv_ads.py, alethical/api/services/tv_ad_review.py, alethical/pipeline/tv_ad_redaction.py, apps/frontend/src/components/tvAds/**, apps/frontend/src/components/tvAdReview/**, apps/frontend/src/screens/redesign/TVAdRecordsScreen.tsx, apps/frontend/src/screens/redesign/AdminPoliticalAdsScreen.tsx -->
+<!-- describes: alethical/api/services/finance_media_buys.py, alethical/api/routers/finance_media_buys.py, alethical/api/routers/tv_ads.py, alethical/api/services/tv_ads.py, alethical/api/services/tv_ad_review.py, alethical/pipeline/tv_ad_redaction.py, apps/frontend/src/components/tvAds/**, apps/frontend/src/components/tvAdReview/**, apps/frontend/src/screens/redesign/TVAdRecordsScreen.tsx, apps/frontend/src/screens/redesign/AdminPoliticalAdsScreen.tsx -->
 
 TV ad records collect station files from KSTP-TV, KARE and KMSP-TV. They help readers distinguish what was ordered, billed, credited or reported in campaign records. A title alone does not prove an ad aired or a bill was paid. The first reader release is for signed-in administrators. Public access is not approved.
 
@@ -61,6 +61,17 @@ Facts require a supported field, value, source page and exact quote. The fields 
 On an approved copy, suggestions sit beside the fact and connection forms, each in a dashed card marked “Not checked” with its evidence: machine-read facts with their value, page and quoted line; registered committees whose name has the same spelling as the printed advertiser or payer (case and extra spaces ignored, nothing else); and reported campaign expenses with the same printed name and the same amount or date, from the existing expense matcher. “Use suggestion” only copies the values into the form and clears every check; the reviewer still inspects the target, quotes the safe text, writes evidence and ticks each attestation before saving. A machine-read line missing from the safe page text is flagged for editing. “Dismiss” hides a suggestion for this review session only; it saves nothing, and “Show dismissed” brings it back. Nothing suggested is saved, checked or shown to readers. Connections require an inspected target and exact evidence. Correctness and publication permission are separate decisions. Candidate connections require the election stage and named/advertiser/payer role. A race needs its exact contest; adding a campaign-money office and district requires a separate association check. Review cannot promote a folder relationship to its files.
 
 Source or target changes clear earlier review attestations. Saving and retry controls keep their positions and prevent repeat submissions. Failed operations report the failure and allow correction. Withdrawal takes effect on later reader and image requests; old links do not restore approval. Review actions remain in private audit history. Account or sign-in identity deletion removes the reviewer’s account identifier while retaining the source evidence and decisions, including older campaign-payment review history; [user-data-retention-policy.md §6](user-data-retention-policy.md#6-what-deletion-should-mean) owns that policy.
+
+## In Alethical Finance (Media buys)
+
+Every Finance account reads the same station files under Media buys
+(`/api/v1/finance/media-buys/...`, `alethical/api/services/finance_media_buys.py`), through
+the readers above, with 2 differences. Every file opens as its original: the station's own
+pages and machine-read text, with no copy ids, copy statuses or approved copies, because the
+public-copy steps belong to alethical.com. Every check made on any copy of that version is
+listed, published or not, and no check names who made it. No Finance answer carries a link:
+the Finance app builds its own from each record's kind and key. Original page images come
+from `/files/{key}/pages/{page}?version=` and are never cached.
 
 ## Sources, privacy and limits
 
