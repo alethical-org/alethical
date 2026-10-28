@@ -32,7 +32,11 @@ export function App() {
 
   // When the screen changes after the first one, focus its heading so keyboard
   // and screen-reader users start at the new content.
-  const screen = `${location.pathname}|${pageVisible && status === 'granted' ? 'page' : status}`;
+  const signInShowsUnavailable =
+    match?.route.name === 'sign-in' && accessToken !== null && status === 'unavailable';
+  const screen = signedOutRoute
+    ? `${location.pathname}|${signInShowsUnavailable ? 'unavailable' : 'page'}`
+    : `${location.pathname}|${status === 'granted' ? 'page' : status}`;
   const first = useRef(true);
   useEffect(() => {
     if (first.current) {

@@ -144,7 +144,9 @@ export function SignIn() {
         <div className="stack">
           {error === 'google' && (
             <p role="alert" className="error">
-              Google didn’t finish. Try again, or use email.
+              {emailSignIn
+                ? 'Google didn’t finish. Try again, or use email.'
+                : 'Google didn’t finish. Try again.'}
             </p>
           )}
           {googleSignIn && (

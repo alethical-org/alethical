@@ -514,7 +514,7 @@ retired one is removed on start (`apps/frontend/src/lib/serviceWorkerCleanup.ts`
 
 Alethical Finance's web app is the `alethical-finance` Vercel project in the `alethical`
 team, built from `apps/finance` with that folder's `vercel.json`. Its address is
-`https://alethical-finance.vercel.app` until the final domain is chosen. The 4 build
+`https://alethical-finance.vercel.app` until the final domain is chosen. The 5 build
 settings are public values: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`,
 `VITE_API_BASE_URL` (`https://api.alethical.com`), `VITE_GOOGLE_SIGN_IN` and
 `VITE_EMAIL_SIGN_IN`.
@@ -531,7 +531,7 @@ vercel build --prod --scope alethical
 vercel deploy --prebuilt --prod --scope alethical
 ```
 
-`vercel pull` brings the 4 build settings; a build without them still succeeds and serves
+`vercel pull` brings the 5 build settings; a build without them still succeeds and serves
 "Alethical Finance is not configured". Then confirm
 `https://alethical-finance.vercel.app/sign-in` shows "Sign in to Alethical Finance" and
 `/robots.txt` disallows everything. Roll back with `vercel rollback --scope alethical` or by deploying the previous

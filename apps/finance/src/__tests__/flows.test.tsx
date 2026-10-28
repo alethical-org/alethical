@@ -168,10 +168,28 @@ describe('the access answer', () => {
     const busy = [...container.querySelectorAll('button')].find(
       (b) => b.textContent === 'Trying again…',
     )!;
-    expect(busy.disabled).toBe(true);
+    expect(busy.getAttribute('aria-disabled')).toBe('true');
     await act(async () => answer(new Response(null, { status: 200 })));
     await act(async () => {});
     expect(container.querySelector('nav')).not.toBeNull();
+  });
+
+  it('says so when Try again is still unavailable, keeping focus on the button', async () => {
+    await render('/money', fakeSupabase(session('token-1')).client, answering(503, 503));
+    const tryAgain = () =>
+      [...container.querySelectorAll('button')].find((b) =>
+        (b.textContent ?? '').startsWith('Try'),
+      )!;
+    tryAgain().focus();
+    await act(async () => tryAgain().click());
+    await act(async () => {});
+    expect(text()).toContain('Still unavailable. Try again in a moment.');
+    expect(document.activeElement).toBe(tryAgain());
+  });
+
+  it('moves focus to the unavailable heading on the sign-in page', async () => {
+    await render('/sign-in', fakeSupabase(session('token-1')).client, answering(503));
+    expect(container.querySelector('h1')?.textContent).toBe('We couldn’t check your access');
   });
 
   it('offers Try again on the sign-in page when a new sign-in cannot be checked', async () => {

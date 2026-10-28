@@ -90,7 +90,7 @@ export function AuthReturn() {
         </div>
       )}
       {state === 'finishing' && (
-        <h1 ref={heading} tabIndex={-1} role="status">
+        <h1 ref={heading} tabIndex={-1}>
           Signing in…
         </h1>
       )}
