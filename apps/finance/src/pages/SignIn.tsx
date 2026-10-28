@@ -16,9 +16,9 @@ export const RESEND_WAIT_SECONDS = 60;
  * every address alike, so this screen never says whether one is listed.
  */
 export function SignIn() {
-  const { supabase, apiBaseUrl, googleSignIn, emailSignIn, status } = useFinanceSession();
+  const { supabase, apiBaseUrl, googleSignIn, emailSignIn, screens, status } = useFinanceSession();
   const location = useLocation();
-  const next = safeReturnPath(location.searchParams.get('next'));
+  const next = safeReturnPath(location.searchParams.get('next'), screens);
   const googleCancelled = location.searchParams.get('google') === 'cancelled';
   const [step, setStep] = useState<Step>('options');
   const [email, setEmail] = useState('');
@@ -69,7 +69,7 @@ export function SignIn() {
   async function continueWithGoogle() {
     setBusy('google');
     setError(null);
-    rememberReturnPath(next);
+    rememberReturnPath(next, screens);
     const { error: failure } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/return?source=google` },
@@ -102,7 +102,7 @@ export function SignIn() {
     }
     if (step === 'code') setResent(true);
     // A first-time address's emailed link opens a new tab; it returns here.
-    rememberReturnPath(next);
+    rememberReturnPath(next, screens);
     setCode('');
     goTo('code');
     setWaitUntil(Date.now() + RESEND_WAIT_SECONDS * 1000);

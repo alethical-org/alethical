@@ -32,7 +32,7 @@ function readArrival() {
  * would otherwise use the 1-use token before the person does.
  */
 export function AuthReturn() {
-  const { supabase } = useFinanceSession();
+  const { supabase, screens } = useFinanceSession();
   const [arrival] = useState(readArrival);
   const [state, setState] = useState<'confirm' | 'finishing' | 'failed'>(
     arrival.tokenHash ? 'confirm' : 'finishing',
@@ -51,7 +51,7 @@ export function AuthReturn() {
         const { data } = await supabase.auth.getSession();
         if (!active) return;
         if (data.session) {
-          navigate(takeReturnPath(), { replace: true });
+          navigate(takeReturnPath(screens), { replace: true });
           return;
         }
       }
@@ -62,7 +62,7 @@ export function AuthReturn() {
     return () => {
       active = false;
     };
-  }, [arrival, supabase]);
+  }, [arrival, screens, supabase]);
 
   async function confirm() {
     setState('finishing');
@@ -71,7 +71,7 @@ export function AuthReturn() {
       type: 'email',
     });
     if (error) setState('failed');
-    else navigate(takeReturnPath(), { replace: true });
+    else navigate(takeReturnPath(screens), { replace: true });
   }
 
   return (
