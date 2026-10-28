@@ -86,7 +86,8 @@ export function linePaths(measured: Measured): string[] {
     // Stacked panes (phone) put the target below, not beside: no line.
     if (!text || !start || !end || !pane || end.left < pane.right) return [];
     const x1 = text.right - frame.left + 8;
-    const gutter = pane.right - frame.left + 6;
+    // A record wrapped to the full column ends past the gutter; start there.
+    const gutter = Math.max(pane.right - frame.left + 6, x1);
     const x2 = end.left - frame.left - 5;
     const y1 = start.top + start.height / 2 - frame.top;
     const y2 = end.top + end.height / 2 - frame.top;

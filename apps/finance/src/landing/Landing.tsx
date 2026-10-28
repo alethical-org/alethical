@@ -208,23 +208,23 @@ export function Landing() {
           Sign in
         </Link>
       </div>
-      <div className="lp-hero" ref={hero} onMouseMove={point}>
-        <canvas className="lp-silk" ref={canvas} aria-hidden="true" />
-        <div className="lp-wrap">
-          <header className="lp-top">
-            <Lockup className="lp-lockup--hero" />
-            <Link to="/sign-in" className="lp-signin">
-              Sign in
-            </Link>
-          </header>
-          <div className="lp-hero-copy">
-            <h1>Turn policy priorities into a focused giving strategy</h1>
-            <p>Political intelligence for law firms and PACs</p>
-            <DemoLink />
+      <main id="main">
+        <div className="lp-hero" ref={hero} onMouseMove={point}>
+          <canvas className="lp-silk" ref={canvas} aria-hidden="true" />
+          <div className="lp-wrap">
+            <header className="lp-top">
+              <Lockup className="lp-lockup--hero" />
+              <Link to="/sign-in" className="lp-signin">
+                Sign in
+              </Link>
+            </header>
+            <div className="lp-hero-copy">
+              <h1 tabIndex={-1}>Turn policy priorities into a focused giving strategy</h1>
+              <p>Political intelligence for law firms and PACs</p>
+              <DemoLink />
+            </div>
           </div>
         </div>
-      </div>
-      <main id="main">
         <div className="lp-light">
           <h2>Connect money, people and policy</h2>
           <Diagram />
@@ -242,7 +242,7 @@ export function Landing() {
           <div className="lp-glow lp-glow--two" aria-hidden="true" />
           {figures.length > 0 && (
             <div className="lp-figures">
-              <div className="lp-eyebrow">BUILT ON MINNESOTA PUBLIC RECORDS</div>
+              <h2 className="lp-eyebrow">BUILT ON MINNESOTA PUBLIC RECORDS</h2>
               <div className="lp-figure-grid">
                 {figures.map((figure) => (
                   <div key={figure.key} className="lp-figure">
@@ -257,7 +257,7 @@ export function Landing() {
             </div>
           )}
           <div className="lp-benefits">
-            <div className="lp-eyebrow">WHAT IT DOES</div>
+            <h2 className="lp-eyebrow">WHAT IT DOES</h2>
             {BENEFITS.map((benefit) => (
               <div key={benefit.n} className="lp-benefit">
                 <span className="lp-benefit-line" aria-hidden="true" />

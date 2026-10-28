@@ -8,7 +8,7 @@ import { screensApproved } from '../config';
 import { CONNECTIONS, linePaths, type Measured } from '../landing/connections';
 import { copyDate, fetchCounts, figuresFrom, type ServedCounts } from '../landing/counts';
 import { DEMO_MAIL } from '../landing/Landing';
-import { PublicSite } from '../landing/PublicSite';
+import { FinanceSite, PublicSite } from '../landing/PublicSite';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -46,10 +46,10 @@ const SERVED: ServedCounts = {
   },
 };
 
-function fakeSupabase() {
+function fakeSupabase(session: { access_token: string; user: { email: string } } | null = null) {
   return {
     auth: {
-      getSession: vi.fn(async () => ({ data: { session: null } })),
+      getSession: vi.fn(async () => ({ data: { session } })),
       onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe() {} } } })),
       signOut: vi.fn(async () => ({ error: null })),
     },
@@ -71,14 +71,27 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-async function renderAt(path: string, counts: unknown = { data: SERVED }, status = 200) {
+async function renderAt(
+  path: string,
+  counts: unknown = { data: SERVED },
+  status = 200,
+  {
+    session = null as Parameters<typeof fakeSupabase>[0],
+    screens = false,
+    accessStatus = 200,
+  } = {},
+) {
   window.history.replaceState(null, '', path);
-  const fetcher = vi.fn(async () => new Response(JSON.stringify(counts), { status }));
+  const fetcher = vi.fn(async (url: string) =>
+    url.endsWith('/landing/counts')
+      ? new Response(JSON.stringify(counts), { status })
+      : new Response(null, { status: accessStatus }),
+  );
   vi.stubGlobal('fetch', fetcher);
   await act(async () => {
     root.render(
-      <SessionProvider supabase={fakeSupabase()} apiBaseUrl={API}>
-        <PublicSite />
+      <SessionProvider supabase={fakeSupabase(session)} apiBaseUrl={API}>
+        {screens ? <FinanceSite screens /> : <PublicSite />}
       </SessionProvider>,
     );
   });
@@ -87,7 +100,7 @@ async function renderAt(path: string, counts: unknown = { data: SERVED }, status
 }
 
 describe('the public Finance site', () => {
-  it('prints the landing drawing’s words', async () => {
+  it('prints the hero, every heading and a line from each section', async () => {
     await renderAt('/');
     const text = container.textContent ?? '';
     for (const words of [
@@ -102,6 +115,8 @@ describe('the public Finance site', () => {
       'WHAT IT DOES',
       'Decide where to give, with evidence',
       'Sources and updates',
+      'Minnesota Campaign Finance and Public Disclosure Board',
+      'KSTP-TV, KARE and KMSP-TV, from the FCC’s public files',
     ]) {
       expect(text).toContain(words);
     }
@@ -127,6 +142,7 @@ describe('the public Finance site', () => {
   it('reads the counts live and hides one the server could not read', async () => {
     const fetcher = await renderAt('/');
     expect(fetcher).toHaveBeenCalledWith(`${API}/api/v1/finance/landing/counts`);
+    expect(fetcher).toHaveBeenCalledTimes(1);
     const text = container.textContent ?? '';
     expect(text).toContain('1,084,277');
     expect(text).toContain('From 3,184 organizations, 2014 to 2025');
@@ -156,7 +172,36 @@ describe('the public Finance site', () => {
     },
   );
 
-  it('keeps the screens off unless the setting is exactly on', () => {
+  it.each(['/sign-in', '/auth/return'])('answers %s, not with not-found', async (path) => {
+    await renderAt(path);
+    expect(container.textContent).not.toContain('We couldn’t find that page');
+    expect(container.querySelector('main h1')).not.toBeNull();
+  });
+
+  it('offers Try again on sign-in when a signed-in account’s access cannot be checked', async () => {
+    await renderAt('/sign-in', undefined, 200, {
+      session: { access_token: 't', user: { email: 'reader@example.test' } },
+      accessStatus: 503,
+    });
+    expect(container.textContent).toContain('We couldn’t check your access');
+    expect(container.textContent).toContain('Try again');
+  });
+
+  it('tells a signed-in account that is not on the list, at the landing address', async () => {
+    await renderAt('/', undefined, 200, {
+      session: { access_token: 't', user: { email: 'reader@example.test' } },
+      accessStatus: 403,
+    });
+    expect(container.textContent).toContain('This account doesn’t have access');
+  });
+
+  it('serves the full app only when the screens are approved', async () => {
+    await renderAt('/money', undefined, 200, { screens: true });
+    expect(window.location.pathname).toBe('/sign-in');
+    expect(container.textContent).not.toContain('We couldn’t find that page');
+  });
+
+  it('keeps the screens off unless the setting is on', () => {
     expect(screensApproved({})).toBe(false);
     expect(screensApproved({ VITE_FINANCE_SCREENS: 'off' })).toBe(false);
     expect(screensApproved({ VITE_FINANCE_SCREENS: 'yes' })).toBe(false);
@@ -242,6 +287,16 @@ describe('the connections diagram', () => {
     const paths = linePaths(measured);
     expect(paths).toHaveLength(24);
     expect(paths[0]).toBe('M228 3.5 H306 C350.5 3.5 350.5 103.5 395 103.5');
+  });
+
+  it('starts a wrapped record’s line where its text ends, never running backwards', () => {
+    const wrapped: Measured = {
+      frame: box(0, 0, 1000, 600),
+      text: () => box(20, 0, 290, 20),
+      dot: (id) => (id[0] === 'p' || id[0] === 'q' ? box(400, 100, 7, 7) : box(0, 0, 7, 7)),
+      pane: () => box(0, 0, 300, 500),
+    };
+    expect(linePaths(wrapped)[0]).toMatch(/^M318 3\.5 H318 /);
   });
 
   it('draws no line when the panes are stacked', () => {

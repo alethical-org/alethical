@@ -85,9 +85,13 @@ export function startSilk(canvas: HTMLCanvasElement): Silk | null {
   const resume = () => {
     if (!frame && !still && visible && !document.hidden) frame = requestAnimationFrame(draw);
   };
+  // The still frame is redrawn whenever the hero changes size (a window resize,
+  // or text reflowing once the fonts arrive), so it is never stretched.
   const onResize = () => {
     if (still) draw();
   };
+  const sized = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(onResize);
+  sized?.observe(canvas);
   document.addEventListener('visibilitychange', resume);
   window.addEventListener('resize', onResize);
   draw();
@@ -104,6 +108,7 @@ export function startSilk(canvas: HTMLCanvasElement): Silk | null {
     stop() {
       stopped = true;
       if (frame) cancelAnimationFrame(frame);
+      sized?.disconnect();
       document.removeEventListener('visibilitychange', resume);
       window.removeEventListener('resize', onResize);
     },
