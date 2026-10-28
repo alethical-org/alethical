@@ -26,6 +26,7 @@ things work in practice and are the place to start if you're new.
 - [Grounded Ask build spec](product-onboarding/grounded-ask-spec.md) — the Ask surface: answer paths, the cite-or-refuse contract, answer-page states
 - [Bill search screen spec](product-onboarding/bill-search-screen-spec.md) — the bill search screen (`/bills`)
 - [Bill tracking interaction spec](product-onboarding/bill-tracking-spec.md) — how Track behaves on every page, through sign-in, and inside full-card links
+- [Alethical Finance app guide](product-onboarding/finance-app-guide.md) — the sign-in-only research site's sign-in, access states, navigation and page addresses
 - [How sign-in works](product-onboarding/sign-in-guide.md) — Google and password sign-in, email codes, account matching, password rules, and release settings
 - [How private account visibility works](product-onboarding/admin-users-guide.md) — the approved administrator accounts, private account search, confirmation dates, exclusions, and access protection
 - [How Site Metrics works](product-onboarding/traffic-guide.md) — public traffic, sign-ups, Money use, source health, and the private aggregate leadership report
