@@ -12,6 +12,9 @@ def test_source_tables_upgrade_downgrade_upgrade(seed_database):
     config = Config("alembic.ini")
     with engine.connect() as connection:
         config.attributes["connection"] = connection
+        # Measure from this build's own head, so a later migration's tables are
+        # not mistaken for ones these revisions should have removed.
+        command.downgrade(config, "0074_source_refresh")
         before = set(inspect(connection).get_table_names())
         command.downgrade(config, "0072_campaign_payment_manifest")
         assert set(inspect(connection).get_table_names()) == before - {
