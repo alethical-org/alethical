@@ -95,7 +95,9 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestAdmissionMiddleware, max_in_flight=MAX_IN_FLIGHT_REQUESTS)
     cors_origins = os.environ.get(
         "ALETHICAL_CORS_ORIGINS",
-        "http://localhost:19006,http://127.0.0.1:19006,http://localhost:8081,http://127.0.0.1:8081",
+        "http://localhost:19006,http://127.0.0.1:19006,http://localhost:8081,http://127.0.0.1:8081,"
+        # Alethical Finance's development server (apps/finance).
+        "http://localhost:5174,http://127.0.0.1:5174",
     )
     allowed_origins = [
         origin.strip() for origin in cors_origins.split(",") if origin.strip()

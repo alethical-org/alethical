@@ -11,7 +11,7 @@ export function NoAccess() {
       <p className="lockup">
         Alethical <span>Finance</span>
       </p>
-      <h1>This account doesn’t have access to Alethical Finance</h1>
+      <h1 tabIndex={-1}>This account doesn’t have access to Alethical Finance</h1>
       {email && <p>Signed in as {email}</p>}
       <div className="stack">
         <button

@@ -444,6 +444,7 @@ jobs:
       - name: Check the Alethical Finance app
         working-directory: ${{ github.workspace }}
         run: |
+          node_modules/.bin/prettier --config apps/frontend/.prettierrc.json --check "apps/finance/src/**/*.{ts,tsx,css}" "apps/finance/*.{ts,json,html}"
           pnpm --dir apps/finance run typecheck
           pnpm --dir apps/finance test
           pnpm --dir apps/finance run build

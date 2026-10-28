@@ -13,7 +13,7 @@ export function Unavailable() {
   const { retry } = useFinanceSession();
   return (
     <main id="main" className="access">
-      <h1>We couldn’t check your access</h1>
+      <h1 tabIndex={-1}>We couldn’t check your access</h1>
       <p>This is a problem on our side. Try again in a moment.</p>
       <button type="button" onClick={retry}>
         Try again
@@ -25,8 +25,10 @@ export function Unavailable() {
 export function NotFound() {
   return (
     <main id="main" className="page">
-      <h1>We couldn’t find that page</h1>
-      <Link to="/">Go to Finance home</Link>
+      <h1 tabIndex={-1}>We couldn’t find that page</h1>
+      <Link to="/" className="text-link">
+        Go to Finance home
+      </Link>
     </main>
   );
 }

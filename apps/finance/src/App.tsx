@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { useFinanceSession } from './auth/session';
 import { AuthReturn } from './pages/AuthReturn';
@@ -12,7 +12,7 @@ import { AppShell } from './shell/AppShell';
 
 export function App() {
   const location = useLocation();
-  const { status } = useFinanceSession();
+  const { status, accessToken } = useFinanceSession();
   const match = matchRoute(location.pathname);
   const signedOutRoute = match?.route.signedOut === true;
 
@@ -30,7 +30,22 @@ export function App() {
     }
   }, [location, signedOutRoute, status]);
 
-  if (match?.route.name === 'sign-in') return <SignIn />;
+  // When the screen changes after the first one, focus its heading so keyboard
+  // and screen-reader users start at the new content.
+  const screen = `${location.pathname}|${pageVisible ? 'page' : status}`;
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    document.querySelector<HTMLElement>('main h1')?.focus();
+  }, [screen]);
+
+  if (match?.route.name === 'sign-in') {
+    // Signed in by code but access could not be checked: offer Try again here.
+    return accessToken && status === 'unavailable' ? <Unavailable /> : <SignIn />;
+  }
   if (match?.route.name === 'auth-return') return <AuthReturn />;
   if (status === 'loading' || status === 'checking' || status === 'signed-out') return <Checking />;
   if (status === 'no-access') return <NoAccess />;

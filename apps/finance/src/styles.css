@@ -34,15 +34,27 @@ a {
 .skip:focus {
   left: 16px;
   top: 8px;
-  background: var(--surface);
-  padding: 8px 12px;
   z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  background: var(--surface);
 }
 .lockup {
   font-weight: 700;
   color: var(--ink);
   text-decoration: none;
   margin: 0;
+}
+a.lockup,
+.text-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+a.lockup:hover {
+  text-decoration: underline;
 }
 .lockup span {
   font-weight: 400;
@@ -66,8 +78,9 @@ a {
   padding: 0;
 }
 .shell nav a {
-  display: inline-block;
-  padding: 10px 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   color: var(--ink);
   text-decoration: none;
 }
@@ -153,12 +166,20 @@ button:disabled {
   background: var(--surface);
   color: var(--accent);
 }
+.secondary:hover:not(:disabled) {
+  background: #e7eff1;
+  filter: none;
+}
 .link {
   background: none;
   border: none;
   color: var(--accent);
   text-decoration: underline;
   padding: 10px 0;
+}
+.link:hover:not(:disabled) {
+  text-decoration-thickness: 2px;
+  filter: none;
 }
 .error {
   color: var(--error);

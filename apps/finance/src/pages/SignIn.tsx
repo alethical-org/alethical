@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { requestSignInCode } from '../api/client';
 import { rememberReturnPath } from '../auth/returnPath';
@@ -28,10 +28,37 @@ export function SignIn() {
   const [resent, setResent] = useState(false);
   const [waitUntil, setWaitUntil] = useState(0);
   const [now, setNow] = useState(() => Date.now());
+  const [verified, setVerified] = useState(false);
+  const moved = useRef(false);
 
   useEffect(() => {
     if (status === 'granted' || status === 'no-access') navigate(next, { replace: true });
-  }, [next, status]);
+    if (verified && status === 'signed-out') {
+      setVerified(false);
+      setError('finish');
+    }
+  }, [next, status, verified]);
+
+  // Each step change puts keyboard focus where the next action is.
+  useEffect(() => {
+    if (!moved.current) return;
+    const target = step === 'options' ? '#sign-in-heading' : step === 'email' ? '#email' : '#code';
+    document.querySelector<HTMLElement>(target)?.focus();
+  }, [step]);
+
+  // Back from Google can restore this page from the browser's cache mid-press.
+  useEffect(() => {
+    function restored(event: PageTransitionEvent) {
+      if (event.persisted) setBusy(null);
+    }
+    window.addEventListener('pageshow', restored);
+    return () => window.removeEventListener('pageshow', restored);
+  }, []);
+
+  function goTo(nextStep: Step) {
+    moved.current = true;
+    setStep(nextStep);
+  }
 
   useEffect(() => {
     if (waitUntil <= now) return;
@@ -66,7 +93,7 @@ export function SignIn() {
     const result = await requestSignInCode(apiBaseUrl, address);
     setBusy(null);
     if (result === 'invalid-email') {
-      setError('email');
+      setError(step === 'code' ? 'send' : 'email');
       return;
     }
     if (result !== 'accepted') {
@@ -74,8 +101,10 @@ export function SignIn() {
       return;
     }
     if (step === 'code') setResent(true);
+    // A first-time address's emailed link opens a new tab; it returns here.
+    rememberReturnPath(next);
     setCode('');
-    setStep('code');
+    goTo('code');
     setWaitUntil(Date.now() + RESEND_WAIT_SECONDS * 1000);
     setNow(Date.now());
   }
@@ -95,16 +124,21 @@ export function SignIn() {
     });
     setBusy(null);
     if (failure) setError('code');
+    else setVerified(true);
   }
 
   const waitSeconds = Math.max(0, Math.ceil((waitUntil - now) / 1000));
+  // Busy from the code check until the access answer arrives.
+  const finishing = verified && (status === 'loading' || status === 'checking');
 
   return (
     <main className="access" id="main">
       <p className="lockup">
         Alethical <span>Finance</span>
       </p>
-      <h1>Sign in to Alethical Finance</h1>
+      <h1 id="sign-in-heading" tabIndex={-1}>
+        Sign in to Alethical Finance
+      </h1>
 
       {step === 'options' && (
         <div className="stack">
@@ -123,7 +157,7 @@ export function SignIn() {
             className={googleSignIn ? 'secondary' : undefined}
             onClick={() => {
               setError(null);
-              setStep('email');
+              goTo('email');
             }}
           >
             Sign in with email
@@ -161,7 +195,7 @@ export function SignIn() {
             className="link"
             onClick={() => {
               setError(null);
-              setStep('options');
+              goTo('options');
             }}
           >
             Back to sign-in options
@@ -194,8 +228,13 @@ export function SignIn() {
               We couldn’t send a code. Try again.
             </p>
           )}
-          <button type="submit" disabled={busy !== null}>
-            {busy === 'verify' ? 'Signing in…' : 'Continue'}
+          {error === 'finish' && (
+            <p id="code-error" role="alert" className="error">
+              We couldn’t finish signing in. Send a new code and try again.
+            </p>
+          )}
+          <button type="submit" disabled={busy !== null || finishing}>
+            {busy === 'verify' || finishing ? 'Signing in…' : 'Continue'}
           </button>
           <button
             type="button"
@@ -214,7 +253,7 @@ export function SignIn() {
             onClick={() => {
               setError(null);
               setCode('');
-              setStep('email');
+              goTo('email');
             }}
           >
             Use another email

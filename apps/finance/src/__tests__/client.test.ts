@@ -16,10 +16,14 @@ describe('access answers', () => {
   it('asks with the bearer token and never from a cache', async () => {
     const fetcher = vi.fn(async () => new Response(null, { status: 200 }));
     expect(await checkAccess('https://api.example.test', 'token-1', fetcher)).toBe('granted');
-    expect(fetcher).toHaveBeenCalledWith('https://api.example.test/api/v1/finance/access', {
-      headers: { Authorization: 'Bearer token-1' },
-      cache: 'no-store',
-    });
+    expect(fetcher).toHaveBeenCalledWith(
+      'https://api.example.test/api/v1/finance/access',
+      expect.objectContaining({
+        headers: { Authorization: 'Bearer token-1' },
+        cache: 'no-store',
+        signal: expect.any(AbortSignal),
+      }),
+    );
   });
 
   it('reads a network failure as unavailable, never as no access', async () => {

@@ -22,27 +22,37 @@ app is its own React web app in `apps/finance`, not a mode of alethical.com's ap
   hidden (`VITE_GOOGLE_SIGN_IN` is `off`), because Google would otherwise hand the visitor
   back to alethical.com.
 - **`/auth/return`.** Where Google, and a first-time address's emailed confirmation link,
-  bring the visitor back. A failed Google sign-in returns to `/sign-in` with "Google didn’t
-  finish. Try again, or use email."; a used or expired link says so and offers sign-in again.
+  bring the visitor back, to the Finance page they asked for. A failed Google sign-in returns
+  to `/sign-in` with "Google didn’t finish. Try again, or use email." An emailed link carries
+  its 1-use token after `#`, so it never reaches a web server; the page removes it from the
+  address bar at once and uses it only when the visitor presses Continue under "Finish
+  signing in", because mail filters that open links would otherwise use it up first. A used
+  or expired link says so and offers sign-in again.
 
 ## Sign-in by emailed code
 
 1. **Email:** the visitor types an address and presses Continue. An empty or malformed
    address shows "Enter an email address".
-2. The app asks the server for a code
-   ([sign-in-guide.md § Alethical Finance sign-in](sign-in-guide.md#alethical-finance-sign-in)).
-   The server answers every address the same way and emails a code only to a listed one, so
-   the next screen says "If {address} has access to Alethical Finance, a code is on its way to
-   it", never that a code was sent.
+2. The app asks the server for a code (`POST /api/v1/finance/sign-in/code`). The server
+   answers every address the same way and emails a code only to a listed one, so the next
+   screen says "If {address} has access to Alethical Finance, a code is on its way to it",
+   never that a code was sent. That route is not live yet: its release waits on a decision
+   about how codes are sent ([#2755](https://github.com/alethical-org/alethical/pull/2755)),
+   so until then the code screen cannot be reached.
 3. **Code:** the visitor pastes the code; the app accepts any length the email carries.
    A wrong or expired code shows "That code is wrong or expired. Enter the newest code or send
    a new one." Send a new code waits 60 seconds between requests and shows the seconds left.
-   Use another email goes back with the address kept.
+   Use another email goes back with the address kept. After a correct code, Continue stays
+   busy until the access answer arrives; if access cannot be checked, the page offers Try
+   again.
 
 ## After sign-in
 
 - **Checking access…** shows while the server checks the list. Every Finance request checks
-  it again, so a revoked account is refused on its next request.
+  it again, so a revoked account is refused on its next request. Returning to the tab, or the
+  hourly sign-in refresh, re-checks quietly and keeps the page; a failed re-check keeps the
+  last answer, and a refusal replaces the page at once. Every request gives up after 10
+  seconds and offers Try again.
 - **Listed account:** the navigation (Campaign money, Lobbying, People, Legislation, Media
   buys) and the Account menu, which shows the signed-in address and Sign out. The current
   section is marked in the navigation. Escape or a press outside closes the menu.
@@ -52,6 +62,8 @@ app is its own React web app in `apps/finance`, not a mode of alethical.com's ap
 - **Access cannot be checked:** "We couldn’t check your access" with Try again. A failed
   check never shows the no-access state.
 - **Unknown address:** "We couldn’t find that page" inside the navigation.
+- When the screen changes, keyboard focus moves to its heading; each sign-in step moves focus
+  to its field.
 
 ## Addresses
 
@@ -73,6 +85,10 @@ product landing page has no address yet, because the final domain is not chosen.
 - Every page is marked not to be indexed (`noindex`), `robots.txt` disallows everything, and
   the server marks every Finance answer private and uncached.
 - The sign-in session is kept in this browser under its own name, separate from
-  alethical.com's. Sign out ends it in this browser only.
+  alethical.com's. Sign out ends it in this browser only, and removes the saved session even
+  when Supabase cannot be reached.
+- Finance accounts are Supabase accounts in alethical.com's sign-in project, so a Finance
+  sign-in, and anyone who presses Google there, appears among alethical.com's accounts and
+  sign-up figures.
 - The site runs at a Vercel preview address in the `alethical-finance` project until the
   final domain is chosen ([deployment.md § Alethical Finance](../operations/deployment.md#alethical-finance)).

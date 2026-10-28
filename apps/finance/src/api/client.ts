@@ -5,6 +5,15 @@ export type AccessState = 'granted' | 'no-access' | 'signed-out' | 'unavailable'
 
 type Fetch = typeof fetch;
 
+/** A hung connection becomes "unavailable" with Try again, never an endless wait. */
+export const REQUEST_TIMEOUT_MS = 10_000;
+
+function timeout(): AbortSignal | undefined {
+  return typeof AbortSignal.timeout === 'function'
+    ? AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+    : undefined;
+}
+
 export function accessFromStatus(status: number): AccessState {
   if (status === 200) return 'granted';
   if (status === 401) return 'signed-out';
@@ -21,6 +30,7 @@ export async function checkAccess(
     const response = await fetcher(`${apiBaseUrl}/api/v1/finance/access`, {
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: 'no-store',
+      signal: timeout(),
     });
     return accessFromStatus(response.status);
   } catch {
@@ -43,6 +53,7 @@ export async function requestSignInCode(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
       cache: 'no-store',
+      signal: timeout(),
     });
     if (response.status === 202) return 'accepted';
     if (response.status === 422) return 'invalid-email';
