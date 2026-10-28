@@ -132,6 +132,7 @@ describe('the Finance shell', () => {
     ]);
     expect(nav.querySelector('[aria-current="page"]')?.textContent).toBe('Media buys');
     expect(container.querySelector('h1')?.textContent).toBe('Media buys');
+    expect(document.title).toBe('Media buys · Alethical Finance');
   });
 
   it('shows the no-access state, naming the account but no reason', async () => {
@@ -141,6 +142,7 @@ describe('the Finance shell', () => {
     );
     expect(container.textContent).toContain('Signed in as reader@example.test');
     expect(container.querySelector('nav')).toBeNull();
+    expect(document.title).toBe('Alethical Finance');
   });
 
   it('offers a retry when access cannot be checked, never the no-access state', async () => {

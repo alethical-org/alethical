@@ -16,9 +16,12 @@ export function App() {
   const match = matchRoute(location.pathname);
   const signedOutRoute = match?.route.signedOut === true;
 
+  // A page's own title only once the reader can see that page.
+  const pageVisible = signedOutRoute || status === 'granted';
   useEffect(() => {
-    document.title = match ? `${match.route.title} · Alethical Finance` : 'Alethical Finance';
-  }, [match]);
+    document.title =
+      match && pageVisible ? `${match.route.title} · Alethical Finance` : 'Alethical Finance';
+  }, [match, pageVisible]);
 
   useEffect(() => {
     if (!signedOutRoute && status === 'signed-out') {
