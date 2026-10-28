@@ -157,17 +157,22 @@ class FinanceAccessEntry(Base):
     revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
-IDENTITY_RECORD_KINDS = (
+# A printed name is confirmed record by record; a registration number, a principal
+# id or a held record's id is an identifier, confirmed whole and for all time.
+IDENTITY_PRINTED_NAME_KINDS = (
     "donor_name",
     "employer_name",
     "payee_name",
     "independent_payee_name",
+)
+IDENTITY_IDENTIFIER_KINDS = (
     "committee",
     "lobbyist",
     "principal",
     "legislator",
     "public_person",
 )
+IDENTITY_RECORD_KINDS = IDENTITY_PRINTED_NAME_KINDS + IDENTITY_IDENTIFIER_KINDS
 IDENTITY_EVIDENCE_SOURCES = (
     "cf_contribution_row",
     "cf_expenditure_row",
@@ -186,10 +191,11 @@ def _sql_list(values: tuple[str, ...]) -> str:
 class IdentityEntity(Base):
     """A person or organization Alethical Finance has confirmed across records.
 
-    It ties records together only through ``IdentityLink`` rows that name their
-    evidence. ``merged`` keeps the id as a redirect to ``merged_into_id``;
-    ``split`` keeps it as a list of what replaced it (Finance decisions D23, D24).
-    ``made_by_alethical_team`` decides only what alethical.com may print.
+    It ties records together only through ``IdentityConfirmation`` rows that name
+    their evidence. ``merged`` keeps the id and its confirmations, redirecting to
+    ``merged_into_id``; ``split`` keeps it as a list of what replaced it (Finance
+    decisions D23, D24). ``made_by_alethical_team`` decides only what alethical.com
+    may print.
     """
 
     __tablename__ = "identity_entity"
@@ -219,40 +225,56 @@ class IdentityEntity(Base):
     )
 
 
-class IdentityLink(Base):
-    """1 record confirmed as belonging to an identity, with its evidence.
+class IdentityConfirmation(Base):
+    """1 decision that a record belongs to an identity, with its evidence.
 
-    ``record_key`` is exact: a printed spelling exactly as filed, or an official
-    number. At most 1 standing confirmation exists per record.
+    Append-only: the 1 change ever made is its withdrawal, which sets ``active``
+    false with a date and reason. ``record_key`` is the name exactly as printed,
+    or the registration number, principal id or held id. A printed name's
+    confirmation covers only the records it lists in ``IdentityConfirmedRecord``;
+    an identifier's covers the identifier, and at most 1 is active per identifier.
+    ``basis`` and ``withdrawal_reason`` are readable by every Finance account.
     """
 
-    __tablename__ = "identity_link"
+    __tablename__ = "identity_confirmation"
     __table_args__ = (
         CheckConstraint(
             f"record_kind IN ({_sql_list(IDENTITY_RECORD_KINDS)})",
-            name="link_record_kind",
+            name="confirmation_record_kind",
         ),
         CheckConstraint(
             f"evidence_source IN ({_sql_list(IDENTITY_EVIDENCE_SOURCES)})",
-            name="link_evidence_source",
+            name="confirmation_evidence_source",
         ),
-        CheckConstraint("status IN ('confirmed','withdrawn')", name="link_status"),
+        CheckConstraint("active = (withdrawn_at IS NULL)", name="confirmation_active"),
         CheckConstraint(
-            "(status = 'withdrawn') = (withdrawn_at IS NOT NULL"
-            " AND withdrawal_reason IS NOT NULL)",
-            name="link_withdrawal",
+            "(withdrawn_at IS NULL) = (withdrawal_reason IS NULL)",
+            name="confirmation_withdrawal",
         ),
         CheckConstraint(
             "(evidence_source = 'official_page') = (evidence_url IS NOT NULL)",
-            name="link_evidence_url",
+            name="confirmation_evidence_url",
         ),
+        CheckConstraint("replaces_id <> id", name="confirmation_not_self"),
+        # The target of each confirmed record's foreign key, so a record is active
+        # exactly when its confirmation is.
+        UniqueConstraint("id", "record_kind", "active"),
         Index(
-            "uq_identity_link_confirmed_record",
+            "uq_identity_confirmation_identifier",
             "record_kind",
             "record_key",
             unique=True,
-            postgresql_where=text("status = 'confirmed'"),
+            postgresql_where=text(
+                f"active AND record_kind IN ({_sql_list(IDENTITY_IDENTIFIER_KINDS)})"
+            ),
         ),
+        Index(
+            "uq_identity_confirmation_replaces",
+            "replaces_id",
+            unique=True,
+            postgresql_where=text("replaces_id IS NOT NULL"),
+        ),
+        Index("ix_identity_confirmation_record", "record_kind", "record_key"),
     )
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -271,8 +293,11 @@ class IdentityLink(Base):
     evidence_url: Mapped[Optional[str]] = mapped_column(Text)
     evidence_quote: Mapped[str] = mapped_column(Text, nullable=False)
     basis: Mapped[str] = mapped_column(Text, nullable=False)
-    status: Mapped[str] = mapped_column(
-        Text, nullable=False, server_default="confirmed", default="confirmed"
+    replaces_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("identity_confirmation.id")
+    )
+    active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("true"), default=True
     )
     checked_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -282,13 +307,58 @@ class IdentityLink(Base):
     made_by_alethical_team: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
 
+class IdentityConfirmedRecord(Base):
+    """1 record a printed name's confirmation covers, by its content fingerprint.
+
+    The fingerprint hashes the record's printed fields (``fields`` keeps them), so
+    it matches the same record in every later copy of the Board's file and every
+    identical repeat of it, and never a different record. At most 1 active
+    confirmation holds a fingerprint; ``active`` follows the confirmation's through
+    the foreign key.
+    """
+
+    __tablename__ = "identity_confirmed_record"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["confirmation_id", "record_kind", "active"],
+            [
+                "identity_confirmation.id",
+                "identity_confirmation.record_kind",
+                "identity_confirmation.active",
+            ],
+            onupdate="CASCADE",
+            name="fk_identity_confirmed_record_confirmation",
+        ),
+        CheckConstraint(
+            f"record_kind IN ({_sql_list(IDENTITY_PRINTED_NAME_KINDS)})",
+            name="record_printed_name",
+        ),
+        CheckConstraint("fingerprint ~ '^[0-9a-f]{64}$'", name="record_fingerprint"),
+        Index(
+            "uq_identity_confirmed_record_active",
+            "fingerprint",
+            unique=True,
+            postgresql_where=text("active"),
+        ),
+    )
+    confirmation_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True
+    )
+    fingerprint: Mapped[str] = mapped_column(Text, primary_key=True)
+    record_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("true"), default=True
+    )
+    fields: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
 class IdentityEvent(Base):
-    """Append-only history of an identity: created, linked, withdrawn, merged, split."""
+    """Append-only history of an identity: created, confirmed, withdrawn, merged, split."""
 
     __tablename__ = "identity_event"
     __table_args__ = (
         CheckConstraint(
-            "action IN ('created','linked','withdrawn','merged','split')",
+            "action IN ('created','confirmed','withdrawn','merged','split')",
             name="event_action",
         ),
     )

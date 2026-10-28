@@ -9,6 +9,12 @@ from sqlalchemy import inspect, text
 from scripts.check_schema_drift import ScratchDatabase, _local_base_url
 
 ROOT = Path(__file__).resolve().parents[2]
+TABLES = (
+    "identity_entity",
+    "identity_confirmation",
+    "identity_confirmed_record",
+    "identity_event",
+)
 
 
 def test_identity_confirmations_upgrade_downgrade_upgrade():
@@ -46,14 +52,12 @@ def test_identity_confirmations_upgrade_downgrade_upgrade():
                 secured = db.execute(
                     text(
                         "SELECT relname, relrowsecurity FROM pg_class WHERE relname IN"
-                        " ('identity_entity','identity_link','identity_event')"
+                        f" ({','.join(repr(table) for table in TABLES)})"
                     )
                 ).all()
-            assert len(secured) == 3 and all(row.relrowsecurity for row in secured)
+            assert len(secured) == 4 and all(row.relrowsecurity for row in secured)
             migrate("downgrade", "0075_finance_access_list")
-            assert not {"identity_entity", "identity_link", "identity_event"} & set(
-                inspect(engine).get_table_names()
-            )
+            assert not set(TABLES) & set(inspect(engine).get_table_names())
             migrate("upgrade", "0076_identity_confirmations")
             with engine.connect() as db:
                 assert (

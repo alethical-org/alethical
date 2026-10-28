@@ -1,8 +1,9 @@
-"""Alethical Finance's identity confirmations: read, confirm, withdraw, merge, split.
+"""Alethical Finance's identity confirmations: read, list, confirm, withdraw, merge, split.
 
 Every route depends on the Finance access check, and every account has the same
 tools. A change records whether a team account made it, which only decides what
-alethical.com may print; no answer names who made a change.
+alethical.com may print; no answer names who made a change. Every word a person
+types here (names, relations, bases, reasons) is readable by every Finance account.
 """
 
 from __future__ import annotations
@@ -10,6 +11,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -22,6 +24,83 @@ from alethical.db.session import get_db
 router = APIRouter(
     prefix="/finance/identities", dependencies=[Depends(require_finance_access)]
 )
+
+SHARED = "Every Finance account can read this, so never write anything confidential."
+
+
+class _Request(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class ConfirmationRequest(_Request):
+    record_kind: str = Field(
+        description="A printed name: donor_name, employer_name, payee_name or"
+        " independent_payee_name. An identifier: committee, lobbyist, principal,"
+        " legislator or public_person."
+    )
+    record_key: str = Field(
+        description="The name exactly as printed, or the registration number,"
+        " principal id or held id exactly as held."
+    )
+    relation: str = Field(description=f"What the record is to the identity. {SHARED}")
+    evidence_source: str = Field(
+        description="cf_contribution_row, cf_expenditure_row,"
+        " cf_independent_expenditure_row, cf_filer, lobbyist_row,"
+        " lobbying_expenditure_row or official_page."
+    )
+    evidence_snapshot_id: str | None = Field(
+        None, description="The saved source copy holding the evidence row."
+    )
+    evidence_locator: StrictInt | None = Field(
+        None, description="The evidence row's number in that copy, for a row source."
+    )
+    evidence_url: str | None = Field(
+        None,
+        description="For a legislator or public person: an https page on an"
+        " official Minnesota site.",
+    )
+    evidence_quote: str = Field(
+        description="Words copied from 1 printed value of the evidence, at least 3"
+        " characters."
+    )
+    basis: str = Field(
+        description="Why the evidence shows the record belongs to this identity."
+        f" {SHARED}"
+    )
+    fingerprints: list[str] | None = Field(
+        None,
+        description="For a printed name only: the records confirmed, by the"
+        " fingerprints the records listing serves, at most 5,000. 'All records' and"
+        " '{year} records' choose from that listing; nothing about the choice is"
+        " stored, and a record added later is never covered.",
+    )
+
+
+class CreateRequest(_Request):
+    kind: str = Field(description="person or organization.")
+    name: str = Field(description=f"The identity's name. {SHARED}")
+    confirmation: ConfirmationRequest
+
+
+class WithdrawRequest(_Request):
+    reason: str = Field(description=f"Why it is withdrawn. {SHARED}")
+
+
+class MergeRequest(_Request):
+    into: str = Field(description="The identity this one joins.")
+    reason: str = Field(description=f"Why they are 1 identity. {SHARED}")
+
+
+class SplitPart(_Request):
+    name: str = Field(description=f"The new identity's name. {SHARED}")
+    confirmations: list[str] = Field(
+        description="The active confirmations this part takes, by id."
+    )
+
+
+class SplitRequest(_Request):
+    reason: str = Field(description=f"Why it is more than 1 identity. {SHARED}")
+    parts: list[SplitPart] = Field(description="At least 2 parts.")
 
 
 def _answer(db: Session, work):
@@ -44,7 +123,7 @@ def _answer(db: Session, work):
             "Conflict",
             "This record was confirmed for an identity a moment ago. Reload and check.",
         ) from None
-    except SQLAlchemyError:
+    except (identities.Unavailable, SQLAlchemyError):
         db.rollback()
         raise problem_exception(
             503,
@@ -60,8 +139,20 @@ def lookup(
     record_key: str = Query(max_length=500),
     db: Session = Depends(get_db),
 ) -> dict:
-    """The identity a record is confirmed for, or null: never an inferred match."""
+    """The identity a registration number or held id stands for today, or null."""
     return {"data": _answer(db, lambda: identities.lookup(db, record_kind, record_key))}
+
+
+@router.get("/records")
+def records(
+    record_kind: str = Query(max_length=40),
+    record_key: str = Query(max_length=500),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Every record in the Board's current file printing a name, with its claim."""
+    return {
+        "data": _answer(db, lambda: identities.records(db, record_kind, record_key))
+    }
 
 
 @router.get("/{entity_id}")
@@ -71,47 +162,49 @@ def read(entity_id: UUID, db: Session = Depends(get_db)) -> dict:
 
 @router.post("", status_code=201)
 def create(
-    payload: dict,
+    payload: CreateRequest,
     account: FinanceAccount = Depends(require_finance_access),
     db: Session = Depends(get_db),
 ) -> dict:
     team = account.is_alethical_team
 
     def work():
-        entity = identities.create(db, payload, team=team)
+        entity = identities.create(db, payload.model_dump(), team=team)
         return identities.read(db, entity.id)
 
     return {"data": _answer(db, work)}
 
 
-@router.post("/{entity_id}/links", status_code=201)
-def add_link(
+@router.post("/{entity_id}/confirmations", status_code=201)
+def add_confirmation(
     entity_id: UUID,
-    payload: dict,
+    payload: ConfirmationRequest,
     account: FinanceAccount = Depends(require_finance_access),
     db: Session = Depends(get_db),
 ) -> dict:
     team = account.is_alethical_team
 
     def work():
-        identities.add_link(db, entity_id, payload, team=team)
+        identities.add_confirmation(db, entity_id, payload.model_dump(), team=team)
         return identities.read(db, entity_id)
 
     return {"data": _answer(db, work)}
 
 
-@router.post("/links/{link_id}/withdraw")
-def withdraw_link(
-    link_id: UUID,
-    payload: dict,
+@router.post("/confirmations/{confirmation_id}/withdraw")
+def withdraw(
+    confirmation_id: UUID,
+    payload: WithdrawRequest,
     account: FinanceAccount = Depends(require_finance_access),
     db: Session = Depends(get_db),
 ) -> dict:
     team = account.is_alethical_team
 
     def work():
-        link = identities.withdraw_link(db, link_id, payload, team=team)
-        return identities.read(db, link.entity_id)
+        confirmation = identities.withdraw(
+            db, confirmation_id, payload.model_dump(), team=team
+        )
+        return identities.read(db, confirmation.entity_id)
 
     return {"data": _answer(db, work)}
 
@@ -119,14 +212,14 @@ def withdraw_link(
 @router.post("/{entity_id}/merge")
 def merge(
     entity_id: UUID,
-    payload: dict,
+    payload: MergeRequest,
     account: FinanceAccount = Depends(require_finance_access),
     db: Session = Depends(get_db),
 ) -> dict:
     team = account.is_alethical_team
 
     def work():
-        target = identities.merge(db, entity_id, payload, team=team)
+        target = identities.merge(db, entity_id, payload.model_dump(), team=team)
         return identities.read(db, target.id)
 
     return {"data": _answer(db, work)}
@@ -135,14 +228,14 @@ def merge(
 @router.post("/{entity_id}/split")
 def split(
     entity_id: UUID,
-    payload: dict,
+    payload: SplitRequest,
     account: FinanceAccount = Depends(require_finance_access),
     db: Session = Depends(get_db),
 ) -> dict:
     team = account.is_alethical_team
 
     def work():
-        identities.split(db, entity_id, payload, team=team)
+        identities.split(db, entity_id, payload.model_dump(), team=team)
         return identities.read(db, entity_id)
 
     return {"data": _answer(db, work)}
