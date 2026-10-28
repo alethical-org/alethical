@@ -11,8 +11,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import JSONResponse
 
 from alethical.api.problems import (
-    PRIVATE_API_PREFIXES,
     http_exception_handler,
+    is_private_api_path,
     unexpected_exception_handler,
     validation_exception_handler,
 )
@@ -27,6 +27,7 @@ from alethical.api.rate_limit import (
 from alethical.api.routers.tv_ads import router as tv_ads_router
 from alethical.api.routers.admin import router as admin_router
 from alethical.api.routers.finance import router as finance_router
+from alethical.api.routers.finance_landing import router as finance_landing_router
 from alethical.api.routers.ask import router as ask_router
 from alethical.api.routers.contact import router as contact_router
 from alethical.api.routers.candidates import router as candidates_router
@@ -161,7 +162,7 @@ def create_app() -> FastAPI:
         about who holds office right now all live in
         alethical/api/routers/public.py."""
         response = await call_next(request)
-        if request.url.path.startswith(PRIVATE_API_PREFIXES):
+        if is_private_api_path(request.url.path):
             response.headers["Cache-Control"] = "private, no-store"
             response.headers["Vary"] = ", ".join(
                 filter(None, [response.headers.get("Vary"), "Authorization"])
@@ -297,6 +298,7 @@ def create_app() -> FastAPI:
     app.include_router(tv_ads_router, prefix="/api/v1")
     app.include_router(admin_router, prefix="/api/v1", tags=["admin"])
     app.include_router(finance_router, prefix="/api/v1", tags=["finance"])
+    app.include_router(finance_landing_router, prefix="/api/v1", tags=["finance"])
     app.include_router(public_router, prefix="/api/v1", tags=["public"])
     app.include_router(lobbying_router, prefix="/api/v1", tags=["lobbying"])
     app.include_router(site_metrics_router, prefix="/api/v1", tags=["site-metrics"])
