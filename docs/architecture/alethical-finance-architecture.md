@@ -32,7 +32,12 @@ private and never cached. Behind the access check (`alethical/api/routers/financ
 `GET /access`, and `GET /suggestions?q=&request_id=`, which answers 1 typed query with
 alethical.com's own money search (`/campaign-finance/search`) and, from 3 characters, its
 bill search (`/search`) in 1 request, and returns `request_id` unchanged, so the app drops a
-reply that arrives after a newer one. The access check reads the list through its own short
+reply that arrives after a newer one. Media buys (§6) answers under `/media-buys/`
+(`alethical/api/routers/finance_media_buys.py`): `counts`, `sources`, `recent`, `browse`,
+`connections`, `files/{key}` with its original page images at `files/{key}/pages/{page}`,
+`folders/{key}`, `agencies/{key}` and `stations/{key}`
+([tv-ad-records-guide.md](../product-onboarding/tv-ad-records-guide.md), In Alethical
+Finance). The access check reads the list through its own short
 database session, so the money search still reads its whole answer from 1 instant of the
 database.
 
