@@ -6,8 +6,9 @@ alethical.com; only its screens are separate. Every account Alethical lets in ha
 access, nothing in Finance links back to alethical.com, and every research tool lives in
 Finance.
 
-Finance's address is alethicalfinance.com, connected at launch. Until then it runs at a
-preview address.
+Finance's address is alethicalfinance.com, connected at launch. Until then it runs at
+finance.alethical.com, which serves only the public landing page and sign-in until the
+signed-in screens are approved.
 
 ## 1. Built once, used by both sites
 
@@ -40,9 +41,9 @@ database.
 - **Finance's screens.** Finance has its own look and shows more than alethical.com
   (original station files, unconfirmed printed names, evidence panels), so a page that
   exists on both sites is drawn, built and tested twice. Nothing else is.
-- **Finance's front end is its own React web app**, not a themed mode of the alethical.com
-  app. A shared mode would tie every release of 1 site to the other and hold Finance to the
-  public app's phone-first framework (React Native for web).
+- **Finance's front end is its own React web app** (`apps/finance`), not a themed mode of
+  the alethical.com app. A shared mode would tie every release of 1 site to the other and
+  hold Finance to the public app's phone-first framework (React Native for web).
 - **The code that decides wording and figures is shared.** The display modules under
   `apps/frontend/src/lib`, `apps/frontend/src/hooks` and the API client move into a
   package both front ends import, so a wording or display rule changes in 1 place. 10 of
@@ -65,8 +66,8 @@ database.
   ([repo-and-service-settings.md](../operations/repo-and-service-settings.md), Supabase
   sign-in); Finance accepts whatever length arrives.
   An account that signs in but is not on the list sees the no-access state. Sign-in returns
-  to the page's own address, so Supabase's list of allowed return addresses needs the
-  preview address now and alethicalfinance.com at launch.
+  to the page's own address, so Supabase's list of allowed return addresses needs
+  finance.alethical.com now and alethicalfinance.com at launch.
 - **The server checks the list on every Finance request.** A request carrying an
   Authorization header is never marked cacheable (`default_public_cache` in
   `alethical/api/main.py`), so 1 account's response never reaches another.
