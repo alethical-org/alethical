@@ -1,10 +1,10 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
-import { App } from './App';
 import { createFinanceSupabase } from './auth/supabase';
 import { SessionProvider } from './auth/session';
-import { readConfig } from './config';
+import { readConfig, screensApproved } from './config';
+import { FinanceSite } from './landing/PublicSite';
 import { NotConfigured } from './pages/Status';
 import './styles.css';
 
@@ -22,7 +22,7 @@ if (!config) {
         googleSignIn={config.googleSignIn}
         emailSignIn={config.emailSignIn}
       >
-        <App />
+        <FinanceSite screens={screensApproved(import.meta.env)} />
       </SessionProvider>
     </StrictMode>,
   );
