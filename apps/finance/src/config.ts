@@ -1,0 +1,22 @@
+/** Publishable settings, read once at build time. Missing values stop the app. */
+export interface FinanceConfig {
+  supabaseUrl: string;
+  supabasePublishableKey: string;
+  apiBaseUrl: string;
+  /** On only once Supabase accepts Finance's return address; otherwise Google
+   * would hand the reader back to the project's default site. */
+  googleSignIn: boolean;
+}
+
+export function readConfig(env: Record<string, string | undefined>): FinanceConfig | null {
+  const supabaseUrl = env.VITE_SUPABASE_URL?.trim();
+  const supabasePublishableKey = env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
+  const apiBaseUrl = env.VITE_API_BASE_URL?.trim().replace(/\/+$/, '');
+  if (!supabaseUrl || !supabasePublishableKey || !apiBaseUrl) return null;
+  return {
+    supabaseUrl,
+    supabasePublishableKey,
+    apiBaseUrl,
+    googleSignIn: env.VITE_GOOGLE_SIGN_IN?.trim() === 'on',
+  };
+}

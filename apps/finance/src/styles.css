@@ -1,0 +1,170 @@
+/* Shell styling only. Final screens take their look from Design's drawings. */
+:root {
+  --ink: #1d262e;
+  --muted: #4a5661;
+  --line: #d6dbe0;
+  --surface: #ffffff;
+  --page: #f5f6f7;
+  --accent: #0f5465;
+  --error: #a3262a;
+  color: var(--ink);
+  background: var(--page);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+body {
+  margin: 0;
+}
+a {
+  color: var(--accent);
+}
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+.skip {
+  position: absolute;
+  left: -9999px;
+}
+.skip:focus {
+  left: 16px;
+  top: 8px;
+  background: var(--surface);
+  padding: 8px 12px;
+  z-index: 10;
+}
+.lockup {
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+  margin: 0;
+}
+.lockup span {
+  font-weight: 400;
+  color: var(--muted);
+}
+.shell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.shell nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.shell nav a {
+  display: inline-block;
+  padding: 10px 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+.shell nav a:hover {
+  text-decoration: underline;
+}
+.shell nav a[aria-current='page'] {
+  font-weight: 700;
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.account {
+  position: relative;
+  margin-left: auto;
+}
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  min-width: 220px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+}
+.menu-email {
+  margin: 4px 8px 8px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.menu button {
+  width: 100%;
+}
+.page,
+.access {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 16px;
+}
+.access {
+  max-width: 440px;
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+label {
+  font-weight: 600;
+}
+input {
+  font: inherit;
+  padding: 10px 12px;
+  min-height: 44px;
+  box-sizing: border-box;
+  border: 1px solid var(--muted);
+  border-radius: 6px;
+  background: var(--surface);
+}
+button,
+.button {
+  font: inherit;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  text-align: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+button:hover:not(:disabled),
+.button:hover {
+  filter: brightness(1.1);
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.secondary {
+  background: var(--surface);
+  color: var(--accent);
+}
+.link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  text-decoration: underline;
+  padding: 10px 0;
+}
+.error {
+  color: var(--error);
+  margin: 0;
+}
+.note {
+  color: var(--muted);
+  margin: 0;
+}
