@@ -6,8 +6,9 @@ alethical.com; only its screens are separate. Every account Alethical lets in ha
 access, nothing in Finance links back to alethical.com, and every research tool lives in
 Finance.
 
-Finance's address is alethicalfinance.com, connected at launch. Until then it runs at a
-preview address.
+Finance's address is alethicalfinance.com, connected at launch. Until then it runs at
+finance.alethical.com, which serves only the public landing page and sign-in until the
+signed-in screens are approved.
 
 ## 1. Built once, used by both sites
 
@@ -65,8 +66,8 @@ database.
   ([repo-and-service-settings.md](../operations/repo-and-service-settings.md), Supabase
   sign-in); Finance accepts whatever length arrives.
   An account that signs in but is not on the list sees the no-access state. Sign-in returns
-  to the page's own address, so Supabase's list of allowed return addresses needs the
-  preview address now and alethicalfinance.com at launch.
+  to the page's own address, so Supabase's list of allowed return addresses needs
+  finance.alethical.com now and alethicalfinance.com at launch.
 - **The server checks the list on every Finance request.** A request carrying an
   Authorization header is never marked cacheable (`default_public_cache` in
   `alethical/api/main.py`), so 1 account's response never reaches another.
@@ -156,7 +157,10 @@ rule 12).
 `GET /api/v1/finance/landing/counts` (`alethical/api/services/finance_landing.py`) serves
 the 4 counts without sign-in, the same answer for everyone, cached for the short public
 window like any anonymous `/api/v1` read; it is the only `/api/v1/finance/` address that is
-not private (`PUBLIC_EXCEPTIONS` in `alethical/api/problems.py`). The counts: campaign
+not private (`PUBLIC_EXCEPTIONS` in `alethical/api/problems.py`). Any site's browser may read
+it (`Access-Control-Allow-Origin: *`, no credentials), so the landing page shows its counts
+at every address it is served from, and no cached copy depends on whether that address was
+in the API's `ALETHICAL_CORS_ORIGINS` when the copy was made. The counts: campaign
 money records (the 3 Campaign Finance Board payment files of the published release, copy
 date the oldest of the 3), lobbying spending reports with the number of organizations that
 filed them, every bill held for the current Legislature (whether or not its plain-language

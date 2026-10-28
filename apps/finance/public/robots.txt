@@ -1,2 +1,5 @@
+# Every page answers noindex, in a response header and a meta tag. Crawling stays
+# allowed so search engines can read that; blocking it here would hide the noindex
+# and let a linked address be listed without its content.
 User-agent: *
-Disallow: /
+Allow: /

@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import JSONResponse
 
 from alethical.api.problems import (
+    PUBLIC_EXCEPTIONS,
     http_exception_handler,
     is_private_api_path,
     unexpected_exception_handler,
@@ -121,6 +122,23 @@ def create_app() -> FastAPI:
         # request admission reports that this service is temporarily full.
         expose_headers=["Age", "Retry-After"],
     )
+
+    @app.middleware("http")
+    async def let_any_site_read_the_public_finance_counts(request: Request, call_next):
+        """Let every site's browser read Finance's public landing counts.
+
+        The counts are public and the landing page asks for them without
+        credentials, so 1 answer that any site may read serves the page at every
+        address it is served from, and no cached copy depends on whether that
+        address was on this service's list of allowed sites when the copy was
+        made. Signed-in answers keep naming the asking site.
+        """
+        response = await call_next(request)
+        if request.url.path in PUBLIC_EXCEPTIONS:
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            if "access-control-allow-credentials" in response.headers:
+                del response.headers["Access-Control-Allow-Credentials"]
+        return response
 
     @app.middleware("http")
     async def let_our_own_pages_read_their_request_timings(request: Request, call_next):
