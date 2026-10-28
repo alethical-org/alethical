@@ -35,13 +35,18 @@ FAKE_AUTH_USERS: dict[str, dict[str, str]] = {
 
 
 def _run(command: list[str]) -> subprocess.CompletedProcess:
+    # pytest names the running test in PYTEST_CURRENT_TEST, parameters included,
+    # and this setup runs inside whichever test comes first on a worker. A 1 MB
+    # parameter made that name too long to start a process, so every test on
+    # the worker errored ("Argument list too long"). The child never needs it.
+    env = {k: v for k, v in os.environ.items() if k != "PYTEST_CURRENT_TEST"}
     return subprocess.run(
         command,
         cwd=ROOT,
         check=False,
         capture_output=True,
         text=True,
-        env={**os.environ, "DATABASE_URL": DATABASE_URL},
+        env={**env, "DATABASE_URL": DATABASE_URL},
     )
 
 

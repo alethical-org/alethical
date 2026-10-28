@@ -308,6 +308,7 @@ def test_corrupt_state_hook_does_not_leak_or_block(tmp_path: Path, monkeypatch, 
         b"[]",
         b'{"hook_event_name": ["private"]}',
     ],
+    ids=["over-the-limit", "unclosed", "array", "list-event-name"],
 )
 def test_invalid_bounded_input_never_prints_payload(
     tmp_path: Path, monkeypatch, capsys, data: bytes
