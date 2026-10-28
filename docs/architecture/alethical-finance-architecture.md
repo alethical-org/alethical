@@ -109,9 +109,9 @@ activities, or law enforcement are not commercial purposes."
 
 The Board's advisory opinions read "use" as using names and addresses to contact the people
 in the data: [AO418](https://cfb.mn.gov/pdf/advisory_opinions/AO418.pdf) permits a
-for-profit to filter, improve or implement Board data for a fee, and
-[AO244](https://cfb.mn.gov/pdf/advisory_opinions/AO244.pdf) permitted a paid information
-site that carried a notice of the prohibition. An advisory opinion binds the Board only for
+for-profit to filter, improve or implement Board data for a fee and recommends telling end
+users about the prohibition, and [AO244](https://cfb.mn.gov/pdf/advisory_opinions/AO244.pdf)
+permitted a free, advertising-supported information site that carried a notice of it. An advisory opinion binds the Board only for
 the person who requested it ([10A.02](https://www.revisor.mn.gov/statutes/cite/10A.02)
 subdivisions 12 and 12a), so these opinions show the Board's reading and do not protect
 Alethical directly. Alethical does not request an opinion of its own.
@@ -124,3 +124,18 @@ Every count on Finance's public landing page is read live from the current relea
 hidden, never shown as 0, when it cannot be read. Counts are of records, never money; each
 names its period and source ([grounded-answers.md](../../.claude/rules/grounded-answers.md)
 rule 12).
+
+`GET /api/v1/finance/landing/counts` (`alethical/api/services/finance_landing.py`) serves
+the 4 counts without sign-in, the same answer for everyone, cached for the short public
+window like any anonymous `/api/v1` read; it is the only `/api/v1/finance/` address that is
+not private (`PUBLIC_EXCEPTIONS` in `alethical/api/problems.py`). The counts: campaign
+money records (the 3 Campaign Finance Board payment files of the published release, copy
+date the oldest of the 3), lobbying spending reports with the number of organizations that
+filed them, every bill held for the current Legislature (whether or not its plain-language
+summary exists yet, with the copy date every held bill supports, as on alethical.com), and
+TV station files held, with the oldest of each station's newest copy (no date while a
+station has no file held). Each answers `reported` with its count, years, source and copy
+date, or `unavailable` with a reason and no count: `nothing_published`, `empty` or
+`unreadable` for any count, and `rows_replaced` for campaign money only (lobbying answers
+`nothing_published` when its published rows no longer match, because `published_pair`
+does not say which). 1 unreadable source never hides another.
