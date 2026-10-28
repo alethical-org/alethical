@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import JSONResponse
 
 from alethical.api.problems import (
+    PUBLIC_EXCEPTIONS,
     http_exception_handler,
     is_private_api_path,
     unexpected_exception_handler,
@@ -120,6 +121,25 @@ def create_app() -> FastAPI:
         # request admission reports that this service is temporarily full.
         expose_headers=["Age", "Retry-After"],
     )
+
+    @app.middleware("http")
+    async def let_any_site_read_the_public_finance_counts(request: Request, call_next):
+        """Let every site's browser read Finance's public landing counts.
+
+        That answer is cached by Cloudflare under its address alone, so the copy a
+        visitor gets was made for whichever request filled the cache. Named for 1
+        site, or for none, it carries no permission for finance.alethical.com, and
+        the browser hides the landing page's counts until the copy expires. The
+        counts are public and the page asks without credentials, so 1 answer that
+        any site may read serves every visitor; signed-in answers keep naming the
+        asking site.
+        """
+        response = await call_next(request)
+        if request.url.path in PUBLIC_EXCEPTIONS:
+            response.headers["Access-Control-Allow-Origin"] = "*"
+            if "access-control-allow-credentials" in response.headers:
+                del response.headers["Access-Control-Allow-Credentials"]
+        return response
 
     @app.middleware("http")
     async def let_our_own_pages_read_their_request_timings(request: Request, call_next):

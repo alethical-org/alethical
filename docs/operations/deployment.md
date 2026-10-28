@@ -540,9 +540,9 @@ values; a local build then carries a placeholder Supabase address, and the page 
 "Invalid supabaseUrl" and renders blank. Only Vercel's own build reads the real values.
 `vercel link` also adds `.env*` to `.gitignore`; revert that line before committing.
 
-The API must accept the site's requests before the
-landing page can show its counts: `https://finance.alethical.com` is in
-`ALETHICAL_CORS_ORIGINS` (until it is, the page shows no count tiles). Then confirm
+Any site's browser may read the landing page's counts, so they need no API setting;
+signed-in requests need `https://finance.alethical.com` in `ALETHICAL_CORS_ORIGINS` (below).
+Then confirm
 `https://finance.alethical.com/` shows the landing page with its counts, `/sign-in` shows
 "Sign in to Alethical Finance", `/money` says the page cannot be found, and every answer
 carries `X-Robots-Tag: noindex, nofollow`. Roll back with `vercel rollback --scope
