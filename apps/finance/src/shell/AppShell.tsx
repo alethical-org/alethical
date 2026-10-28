@@ -9,21 +9,19 @@ import { useBand } from '../ui/band';
 
 /** The record families, in the drawing's order and words (Finance Nav). A family
  * whose page is not built yet is left out, never linked to a missing page. */
-const FAMILIES: ReadonlyArray<{
-  section: NavSection;
-  label: string;
-  to: string;
-  route: RouteName;
-}> = [
-  { section: 'money', label: 'Money', to: '/money', route: 'campaign-money' },
-  { section: 'lobbying', label: 'Lobbying', to: '/lobbying', route: 'lobbying' },
-  { section: 'people', label: 'People', to: '/people', route: 'people' },
-  { section: 'legislation', label: 'Legislation', to: '/bills', route: 'legislation' },
-  { section: 'media-buys', label: 'Media buys', to: '/media-buys', route: 'media-buys' },
+const FAMILIES: ReadonlyArray<{ section: NavSection; label: string; route: RouteName }> = [
+  { section: 'money', label: 'Money', route: 'campaign-money' },
+  { section: 'lobbying', label: 'Lobbying', route: 'lobbying' },
+  { section: 'people', label: 'People', route: 'people' },
+  { section: 'legislation', label: 'Legislation', route: 'legislation' },
+  { section: 'media-buys', label: 'Media buys', route: 'media-buys' },
 ];
 
 export function navItems() {
-  return FAMILIES.filter((item) => isBuilt(item.route));
+  return FAMILIES.filter((item) => isBuilt(item.route)).map((item) => ({
+    ...item,
+    to: hrefFor(item.route),
+  }));
 }
 
 function Lockup() {

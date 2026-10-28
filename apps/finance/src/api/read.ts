@@ -5,11 +5,21 @@ import { REQUEST_TIMEOUT_MS } from './client';
 
 /** What a read answered: its data, a record the server does not hold, or a
  * failure the reader can retry. A failure is never shown as an empty result. */
-export type ReadAnswer<T> = { state: 'ok'; data: T } | { state: 'not-found' } | { state: 'failed' };
+/** A collection's paging, as the server serves it beside `data`. */
+export interface PageInfo {
+  total?: number | null;
+  limit?: number | null;
+  offset?: number | null;
+}
+
+export type ReadAnswer<T> =
+  { state: 'ok'; data: T; page?: PageInfo | null } | { state: 'not-found' } | { state: 'failed' };
 
 type Fetch = typeof fetch;
 
-/** 1 GET to the shared Alethical API with this account's token. Every answer that
+/** 1 GET to the shared Alethical API with this account's token. `path` is the
+ * API route after `/api/v1/`, written without its leading slash (`people/12`),
+ * so a read path is never mistaken for a page link by the build's link check. Every answer that
  * carries a token is private, so nothing here is shared between accounts. */
 export async function apiGet<T>(
   apiBaseUrl: string,
@@ -17,12 +27,13 @@ export async function apiGet<T>(
   accessToken: string | null,
   fetcher: Fetch = fetch,
   signal?: AbortSignal,
+  unwrapped = false,
 ): Promise<ReadAnswer<T>> {
   const timeout =
     typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(REQUEST_TIMEOUT_MS) : undefined;
   const signals = [signal, timeout].filter(Boolean) as AbortSignal[];
   try {
-    const response = await fetcher(`${apiBaseUrl}/api/v1${path}`, {
+    const response = await fetcher(`${apiBaseUrl}/api/v1/${path.replace(/^\/+/, '')}`, {
       headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
       signal:
         signals.length > 1 && typeof AbortSignal.any === 'function'
@@ -31,9 +42,11 @@ export async function apiGet<T>(
     });
     if (response.status === 404) return { state: 'not-found' };
     if (!response.ok) return { state: 'failed' };
-    const body = (await response.json()) as { data?: T };
-    if (body === null || typeof body !== 'object' || !('data' in body)) return { state: 'failed' };
-    return { state: 'ok', data: body.data as T };
+    const body = (await response.json()) as { data?: T; page?: PageInfo | null };
+    if (body === null || typeof body !== 'object') return { state: 'failed' };
+    if (unwrapped) return { state: 'ok', data: body as T };
+    if (!('data' in body)) return { state: 'failed' };
+    return { state: 'ok', data: body.data as T, page: body.page ?? null };
   } catch {
     return { state: 'failed' };
   }
@@ -52,6 +65,8 @@ export interface Read<T> {
   notFound: boolean;
   /** A request is in flight, including a retry. */
   pending: boolean;
+  /** The server's paging for the data shown, when it serves one. */
+  page: PageInfo | null;
   retry: () => void;
 }
 
@@ -70,14 +85,25 @@ export function clearReadCache() {
  * at once. A record page never shows another record while its own loads; a
  * result view (`keepPrevious`) keeps its last results visible instead.
  */
-export function useRead<T>(path: string | null, { keepPrevious = false } = {}): Read<T> {
+export function useRead<T>(
+  path: string | null,
+  {
+    keepPrevious = false,
+    unwrapped = false,
+  }: {
+    keepPrevious?: boolean;
+    /** A few routes (`/candidates/{id}`, `/people/{id}`) answer with the record
+     * itself rather than `{ data: … }`. */
+    unwrapped?: boolean;
+  } = {},
+): Read<T> {
   const { apiBaseUrl, accessToken } = useFinanceSession();
   const key = path ? `${accessToken}|${path}` : null;
   const [answer, setAnswer] = useState<{ key: string; answer: ReadAnswer<T> } | null>(() => {
     const held = key ? cache.get(key) : undefined;
     return held && key ? { key, answer: held.answer as ReadAnswer<T> } : null;
   });
-  const [lastData, setLastData] = useState<T | null>(null);
+  const [lastData, setLastData] = useState<{ data: T; page: PageInfo | null } | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [pending, setPending] = useState(false);
   const latest = useRef(0);
@@ -87,31 +113,36 @@ export function useRead<T>(path: string | null, { keepPrevious = false } = {}): 
     const held = cache.get(key);
     if (held && Date.now() - held.at < CACHE_MS && attempt === 0) {
       setAnswer({ key, answer: held.answer as ReadAnswer<T> });
-      if (held.answer.state === 'ok') setLastData(held.answer.data as T);
+      if (held.answer.state === 'ok') {
+        setLastData({ data: held.answer.data as T, page: held.answer.page ?? null });
+      }
       return;
     }
     const request = ++latest.current;
     const controller = new AbortController();
     setPending(true);
-    void apiGet<T>(apiBaseUrl, path, accessToken, fetch, controller.signal).then((next) => {
-      if (request !== latest.current) return;
-      setPending(false);
-      if (next.state !== 'failed') cache.set(key, { at: Date.now(), answer: next });
-      setAnswer({ key, answer: next });
-      if (next.state === 'ok') setLastData(next.data);
-    });
+    void apiGet<T>(apiBaseUrl, path, accessToken, fetch, controller.signal, unwrapped).then(
+      (next) => {
+        if (request !== latest.current) return;
+        setPending(false);
+        if (next.state !== 'failed') cache.set(key, { at: Date.now(), answer: next });
+        setAnswer({ key, answer: next });
+        if (next.state === 'ok') setLastData({ data: next.data, page: next.page ?? null });
+      },
+    );
     return () => controller.abort();
-  }, [apiBaseUrl, accessToken, key, path, attempt]);
+  }, [apiBaseUrl, accessToken, key, path, attempt, unwrapped]);
 
   // A new address starts over: a retry count belongs to the view it was made on.
   useEffect(() => setAttempt(0), [key]);
 
   const retry = useCallback(() => setAttempt((value) => value + 1), []);
   const current = answer && answer.key === key ? answer.answer : null;
-  const own = current?.state === 'ok' ? current.data : null;
+  const own = current?.state === 'ok' ? { data: current.data, page: current.page ?? null } : null;
   const shown = own ?? (keepPrevious ? lastData : null);
   return {
-    data: shown,
+    data: shown?.data ?? null,
+    page: shown?.page ?? null,
     loading: shown === null && (current === null || pending),
     updating: keepPrevious && own === null && lastData !== null && (current === null || pending),
     failed: current?.state === 'failed' && !pending,

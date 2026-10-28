@@ -84,7 +84,7 @@ export function useSuggestionBox(id: string, from: string | null) {
       timer.current = setTimeout(() => {
         const requestId = `sg${++requestCounter}`;
         latest.current = requestId;
-        const path = `/finance/suggestions?q=${encodeURIComponent(typed)}&request_id=${requestId}`;
+        const path = `finance/suggestions?q=${encodeURIComponent(typed)}&request_id=${requestId}`;
         void apiGet<SuggestionsAnswer>(apiBaseUrl, path, accessToken).then((answer) => {
           if (latest.current !== requestId) return;
           if (answer.state === 'ok' && answer.data.request_id === requestId) {

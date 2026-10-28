@@ -33,6 +33,9 @@ describe('matchRoute', () => {
 describe('safeReturnPath', () => {
   it('keeps a built Finance address with its query', () => {
     expect(safeReturnPath('/home?q=hortman', true)).toBe('/home?q=hortman');
+    expect(safeReturnPath('/money/committees/12?year=2026', true)).toBe(
+      '/money/committees/12?year=2026',
+    );
   });
 
   it('returns to the landing page while the signed-in screens are off', () => {
@@ -49,7 +52,7 @@ describe('safeReturnPath', () => {
     '/auth/return?source=google',
     '/not-a-page',
     '/',
-    '/money/committees/12',
+    '/media-buys',
   ])('sends %s to Finance Home instead', (value) => {
     expect(safeReturnPath(value, true)).toBe('/home');
   });

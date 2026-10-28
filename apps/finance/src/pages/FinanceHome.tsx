@@ -26,7 +26,7 @@ const ENTRANCES: ReadonlyArray<{
   query?: Record<string, string>;
 }> = [
   { label: 'Legislators', route: 'people', query: { type: 'legislators', service: 'current' } },
-  { label: 'Candidates', route: 'people', query: { type: 'candidates' } },
+  // Candidates: shown once a candidate list route exists; /people lists sitting legislators only.
   { label: 'Lobbyists', route: 'lobbying', query: { tab: 'lobbyists' } },
   { label: 'Committees and funds', route: 'campaign-money', query: { tab: 'committees' } },
   { label: 'Party units', route: 'campaign-money', query: { tab: 'party' } },
@@ -104,7 +104,7 @@ export function FinanceHome() {
   const band = useBand();
   const isPhone = band === 'phone';
   const box = useSuggestionBox('home-sg', HOME);
-  const counts = useRead<ServedCounts>('/finance/landing/counts');
+  const counts = useRead<ServedCounts>('finance/landing/counts');
   const dates = copyDates(counts.data);
 
   const actions = ACTIONS.filter((action) => isBuilt(action.route));

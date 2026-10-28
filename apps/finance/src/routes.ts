@@ -159,6 +159,16 @@ export const BUILT: ReadonlySet<RouteName> = new Set<RouteName>([
   'home',
   'sign-in',
   'auth-return',
+  'search',
+  'people',
+  'candidate',
+  'legislator',
+  'campaign-money',
+  'committee',
+  'committee-members',
+  'legislation',
+  'bill',
+  'roll-call',
 ]);
 
 export function isBuilt(name: RouteName): boolean {

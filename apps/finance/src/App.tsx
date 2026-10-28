@@ -5,6 +5,16 @@ import { Landing } from './landing/Landing';
 import './landing/fonts.css';
 import { AuthReturn } from './pages/AuthReturn';
 import { FinanceHome } from './pages/FinanceHome';
+import { SearchResults } from './pages/Search';
+import { People } from './pages/People';
+import { CandidateProfile } from './pages/Candidate';
+import { LegislatorProfile } from './pages/Legislator';
+import { CampaignMoney } from './pages/CampaignMoney';
+import { Committee } from './pages/Committee';
+import { CommitteeMembers } from './pages/CommitteeMembers';
+import { Legislation } from './pages/Legislation';
+import { Bill } from './pages/Bill';
+import { RollCall } from './pages/RollCall';
 import { NoAccess } from './pages/NoAccess';
 import { SignIn } from './pages/SignIn';
 import { Checking, NotFound, Unavailable } from './pages/Status';
@@ -16,6 +26,16 @@ import './ui/finance.css';
 /** Each built signed-in screen. A route missing here answers "not found". */
 const SCREENS: Partial<Record<RouteName, (match: RouteMatch) => ReactNode>> = {
   home: () => <FinanceHome />,
+  search: (match) => <SearchResults match={match} />,
+  people: (match) => <People match={match} />,
+  candidate: (match) => <CandidateProfile match={match} />,
+  legislator: (match) => <LegislatorProfile match={match} />,
+  'campaign-money': (match) => <CampaignMoney match={match} />,
+  committee: (match) => <Committee match={match} />,
+  'committee-members': (match) => <CommitteeMembers match={match} />,
+  legislation: (match) => <Legislation match={match} />,
+  bill: (match) => <Bill match={match} />,
+  'roll-call': (match) => <RollCall match={match} />,
 };
 
 /** The whole Finance site while its signed-in screens are on. */

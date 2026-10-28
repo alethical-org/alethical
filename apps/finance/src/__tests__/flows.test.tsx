@@ -149,7 +149,7 @@ describe('the access answer', () => {
 
   it('sends a refused account on from the sign-in page to its own answer', async () => {
     await render('/sign-in?next=%2Fmoney', fakeSupabase(session('token-1')).client, answering(403));
-    expect(window.location.pathname).toBe('/home');
+    expect(window.location.pathname).toBe('/money');
     expect(text()).toContain('doesn’t have access');
   });
 

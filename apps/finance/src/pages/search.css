@@ -1,0 +1,191 @@
+/* Search results (Finance Search drawing). Page-only classes, prefix sr-. */
+.sr-head {
+  margin-top: 0;
+}
+.f-back + .sr-head {
+  margin-top: 8px;
+}
+.sr-form {
+  margin-top: 16px;
+  display: flex;
+  gap: 10px;
+  max-width: 760px;
+}
+.sr-field {
+  flex: 1 1 auto;
+  height: 48px;
+  padding: 0 14px;
+}
+.sr-submit {
+  height: 48px;
+  padding: 0 20px;
+  border-radius: 8px;
+  flex: none;
+}
+.sr-status {
+  margin: 10px 0 0;
+  font-size: 14px;
+  color: var(--secondary);
+}
+.sr-updating {
+  margin-top: 16px;
+  max-width: 760px;
+}
+.sr-all-empty {
+  margin-top: 24px;
+  padding: 24px 20px;
+  max-width: 760px;
+  font-size: 16px;
+}
+.sr-all-empty .f-empty-next {
+  font-size: 14px;
+}
+.sr-families {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.sr-family {
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.sr-family-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--hairline);
+}
+.sr-family-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.sr-count {
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--secondary);
+}
+.sr-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+/* The family card already draws the frame the 3 grey rows normally carry. */
+.sr-family .f-skeleton {
+  border: 0;
+  border-radius: 0;
+}
+.sr-failed {
+  margin: 12px;
+}
+.sr-empty {
+  padding: 16px 20px;
+  font-size: 14px;
+  color: var(--secondary);
+}
+.sr-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sr-list li {
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+}
+.sr-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 20px;
+  box-sizing: border-box;
+  color: var(--ink);
+  text-decoration: none;
+}
+.f-app .sr-link {
+  color: var(--ink);
+  text-decoration: none;
+}
+.f-app .sr-row:focus-visible {
+  outline-offset: -2px;
+}
+.sr-row:focus:not(:focus-visible) {
+  outline: none;
+}
+.sr-text {
+  min-width: 0;
+  display: grid;
+  align-items: center;
+}
+.sr-text .f-mark {
+  grid-row: span 2;
+  align-self: center;
+}
+.sr-name {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.sr-note {
+  display: block;
+  font-size: 13px;
+  color: var(--secondary);
+  font-variant-numeric: tabular-nums;
+}
+.f-marked.sr-text .sr-note {
+  grid-column: 2;
+}
+.sr-family-note {
+  margin: 0;
+  padding: 10px 20px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.sr-link:active {
+  background: var(--tint);
+}
+@media (hover: hover) and (min-width: 768px) {
+  .sr-link:hover {
+    background: var(--row-hover);
+  }
+  .sr-more:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+@media (max-width: 767px) {
+  .sr-form {
+    flex-direction: column;
+  }
+  .sr-families {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sr-more {
+    min-height: 44px;
+  }
+}
