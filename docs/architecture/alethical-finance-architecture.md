@@ -123,3 +123,12 @@ Every count on Finance's public landing page is read live from the current relea
 hidden, never shown as 0, when it cannot be read. Counts are of records, never money; each
 names its period and source ([grounded-answers.md](../../.claude/rules/grounded-answers.md)
 rule 12).
+
+`GET /api/v1/finance/landing/counts` (`alethical/api/services/finance_landing.py`) serves
+the 4 counts without sign-in: campaign money records (the 3 Campaign Finance Board payment
+files of the published release), lobbying spending reports, bills in the current
+Legislature (the list `/bills` shows) and TV station files held. Each answers `reported`
+with its count, years, source and copy date, or `unavailable` with a reason
+(`nothing_published`, `rows_replaced`, `empty`, `unreadable`) and no count. 1 unreadable
+source never hides another. The copy date of campaign money records is the oldest of its
+3 files' dates.
