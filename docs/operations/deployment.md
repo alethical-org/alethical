@@ -523,16 +523,17 @@ The project's Root Directory setting is `apps/finance`, so Vercel builds that fo
 its own `vercel.json`, which installs from the repository root. The project is not connected
 to GitHub yet: Vercel requires the account's own GitHub login connection first. Until it is,
 deploy from the repository root of a clean checkout of `main`, linked to the project with
-`vercel link --project alethical-finance --scope alethical`:
+`vercel link --yes --project alethical-finance --scope alethical`, and let Vercel build it:
 
 ```bash
-vercel pull --yes --environment=production --scope alethical
-vercel build --prod --scope alethical
-vercel deploy --prebuilt --prod --scope alethical
+vercel deploy --prod --yes --scope alethical
 ```
 
-`vercel pull` brings the 5 build settings; a build without them still succeeds and serves
-"Alethical Finance is not configured". Then confirm
+The 5 build settings are saved in Vercel as sensitive values, which Vercel's own builds
+read and `vercel pull` returns only as the placeholder `[SENSITIVE]`. So never build
+locally and deploy with `--prebuilt`: that build would carry the placeholders instead of
+the settings. `vercel link` adds `.env.local` to `.gitignore` and creates it; restore
+`.gitignore` and delete `.env.local` before deploying. Then confirm
 `https://alethical-finance.vercel.app/sign-in` shows "Sign in to Alethical Finance" and
 `/robots.txt` disallows everything. Roll back with `vercel rollback --scope alethical` or by deploying the previous
 `main` commit the same way.
