@@ -517,10 +517,11 @@ team, built from `apps/finance` with that folder's `vercel.json`. Its address is
 `https://finance.alethical.com` until alethicalfinance.com launches: a `CNAME` named
 `finance` in alethical.com's Cloudflare zone, DNS only (grey cloud), pointing at the target
 Vercel gives for the domain. Vercel also answers at `https://alethical-finance.vercel.app`.
-The 5 build settings are public values: `VITE_SUPABASE_URL`,
+The 6 build settings are public values: `VITE_SUPABASE_URL`,
 `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_API_BASE_URL` (`https://api.alethical.com`),
-`VITE_GOOGLE_SIGN_IN`, and `VITE_FINANCE_SCREENS`, which stays unset (off) until the
-signed-in screens are approved, so the site serves only the landing page and sign-in
+`VITE_GOOGLE_SIGN_IN`, `VITE_EMAIL_SIGN_IN`, and `VITE_FINANCE_SCREENS`, which stays unset
+(off) until the signed-in screens are approved, so the site serves only the landing page and
+sign-in
 ([finance-app-guide.md § The public site](../product-onboarding/finance-app-guide.md#the-public-site)).
 
 The project's Root Directory setting is `apps/finance`, so Vercel builds that folder with
@@ -530,14 +531,17 @@ deploy from the repository root of a clean checkout of `main`, linked to the pro
 `vercel link --project alethical-finance --scope alethical`:
 
 ```bash
+vercel pull --yes --environment=production --scope alethical
 vercel build --prod --scope alethical
 vercel deploy --prebuilt --prod --scope alethical
 ```
 
-The API must accept the site's requests before the landing page can show its counts:
-`https://finance.alethical.com` is in `ALETHICAL_CORS_ORIGINS` (until it is, the page shows
-no count tiles). Then confirm `https://finance.alethical.com/` shows the landing page with
-its counts, `/sign-in` loads, `/money` says the page cannot be found, and every answer
+`vercel pull` brings the 6 build settings; a build without them still succeeds and serves
+"Alethical Finance is not configured". The API must accept the site's requests before the
+landing page can show its counts: `https://finance.alethical.com` is in
+`ALETHICAL_CORS_ORIGINS` (until it is, the page shows no count tiles). Then confirm
+`https://finance.alethical.com/` shows the landing page with its counts, `/sign-in` shows
+"Sign in to Alethical Finance", `/money` says the page cannot be found, and every answer
 carries `X-Robots-Tag: noindex, nofollow`. Roll back with `vercel rollback --scope
 alethical` or by deploying the previous `main` commit the same way.
 
@@ -548,7 +552,8 @@ Before anyone can sign in at that address:
    person in Supabase's dashboard, and recorded in
    [repo-and-service-settings.md § Supabase sign-in](repo-and-service-settings.md#supabase-sign-in).
 3. `VITE_GOOGLE_SIGN_IN` is set to `on` and the app deployed again.
-4. Code sign-in, once its route ships, needs `ALETHICAL_FINANCE_SIGN_IN_RETURN_URL` set to
+4. Code sign-in, once its route ships, needs `VITE_EMAIL_SIGN_IN` set to `on` and
+   `ALETHICAL_FINANCE_SIGN_IN_RETURN_URL` set to
    `https://finance.alethical.com/auth/return#source=email`. The `#` keeps the
    emailed token out of every server's logs, and Supabase's email template adds the token
    after it with `&`.

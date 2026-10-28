@@ -158,6 +158,7 @@ button:hover:not(:disabled),
 .button:hover {
   filter: brightness(1.1);
 }
+button[aria-disabled='true'],
 button:disabled {
   cursor: not-allowed;
   opacity: 0.6;

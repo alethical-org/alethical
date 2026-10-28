@@ -16,7 +16,7 @@ export const RESEND_WAIT_SECONDS = 60;
  * every address alike, so this screen never says whether one is listed.
  */
 export function SignIn() {
-  const { supabase, apiBaseUrl, googleSignIn, status } = useFinanceSession();
+  const { supabase, apiBaseUrl, googleSignIn, emailSignIn, status } = useFinanceSession();
   const location = useLocation();
   const next = safeReturnPath(location.searchParams.get('next'));
   const googleCancelled = location.searchParams.get('google') === 'cancelled';
@@ -144,7 +144,9 @@ export function SignIn() {
         <div className="stack">
           {error === 'google' && (
             <p role="alert" className="error">
-              Google didn’t finish. Try again, or use email.
+              {emailSignIn
+                ? 'Google didn’t finish. Try again, or use email.'
+                : 'Google didn’t finish. Try again.'}
             </p>
           )}
           {googleSignIn && (
@@ -152,16 +154,19 @@ export function SignIn() {
               {busy === 'google' ? 'Continuing with Google…' : 'Continue with Google'}
             </button>
           )}
-          <button
-            type="button"
-            className={googleSignIn ? 'secondary' : undefined}
-            onClick={() => {
-              setError(null);
-              goTo('email');
-            }}
-          >
-            Sign in with email
-          </button>
+          {emailSignIn && (
+            <button
+              type="button"
+              className={googleSignIn ? 'secondary' : undefined}
+              onClick={() => {
+                setError(null);
+                goTo('email');
+              }}
+            >
+              Sign in with email
+            </button>
+          )}
+          {!googleSignIn && !emailSignIn && <p>Sign-in to Alethical Finance is not open yet.</p>}
         </div>
       )}
 

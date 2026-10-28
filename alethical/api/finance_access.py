@@ -76,21 +76,27 @@ def require_finance_access(
         # forged one missing claims: the caller signs in again, as on /me.
         raise _signed_out("Sign in again to continue.") from None
 
+    # The list is read through its own short session on the same database, so
+    # the endpoint's session starts untouched: a money read pins its whole
+    # request to 1 instant of the database (``pin_to_one_view`` in
+    # alethical/api/services/committee_finance.py), and that pin is silently
+    # ignored on a session that has already read something.
     try:
-        if principal.provider == "supabase":
-            account = supabase_account_access(db, principal.provider_subject)
-        elif (
-            principal.email_verified
-            and principal.email
-            and os.environ.get("ALETHICAL_DATABASE_TARGET", "").strip() != "production"
-        ):
-            account = confirmed_address_access(
-                db, principal.provider_subject, principal.email
-            )
-        else:
-            account = None
+        with Session(bind=db.get_bind()) as access_db:
+            if principal.provider == "supabase":
+                account = supabase_account_access(access_db, principal.provider_subject)
+            elif (
+                principal.email_verified
+                and principal.email
+                and os.environ.get("ALETHICAL_DATABASE_TARGET", "").strip()
+                != "production"
+            ):
+                account = confirmed_address_access(
+                    access_db, principal.provider_subject, principal.email
+                )
+            else:
+                account = None
     except SQLAlchemyError:
-        db.rollback()
         raise _unavailable(request) from None
     if account is None:
         raise no_access()

@@ -90,7 +90,7 @@ export function AuthReturn() {
         </div>
       )}
       {state === 'finishing' && (
-        <h1 ref={heading} tabIndex={-1} role="status">
+        <h1 ref={heading} tabIndex={-1}>
           Signing in…
         </h1>
       )}
@@ -99,7 +99,10 @@ export function AuthReturn() {
           <h1 ref={heading} tabIndex={-1}>
             That sign-in link didn’t work
           </h1>
-          <p>It may have been used already or expired. Ask for a new code.</p>
+          <p>
+            It may have been used already, expired, or lost when this page was reloaded. Ask for a
+            new code.
+          </p>
           <Link to="/sign-in" className="text-link">
             Back to sign-in options
           </Link>
