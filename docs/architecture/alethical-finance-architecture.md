@@ -25,6 +25,12 @@ Finance is for finding connections between money, people and policy. Ask (cited 
 about bills), tracking with update emails, and Alethical's research and guides are not part
 of Finance.
 
+Finance's own routes sit under `/api/v1/finance/`, and every answer there is private and
+never cached. Behind the access check (`alethical/api/routers/finance.py`): `GET /access`,
+and `GET /suggestions?q=&request_id=`, which answers 1 typed query with alethical.com's own
+money search (`/campaign-finance/search`) and bill search (`/search`) in 1 request and
+returns `request_id` unchanged, so the app drops a reply that arrives after a newer one.
+
 ## 2. Built separately
 
 - **Finance's screens.** Finance has its own look and shows more than alethical.com
