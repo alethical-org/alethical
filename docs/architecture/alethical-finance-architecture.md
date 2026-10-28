@@ -74,6 +74,20 @@ of Finance.
 - The public-copy steps (a copy with personal details blanked, publication approval) belong
   to alethical.com's public site; Finance has no public pages and does not use them.
 
+### Identity confirmations
+
+A confirmed person or organization (`identity_entity`) ties records together only through
+links (`identity_link`) that name their evidence: the saved source row, the words it prints
+and the reviewer's basis. The evidence row must print the exact spelling or number the link
+claims; equal names or numbers are never enough on their own. Each record belongs to at
+most 1 identity at a time. A withdrawn link stays with its date and reason; a merged
+identity redirects through every later merge to the one standing today; a split identity
+lists what replaced it, and every record goes to exactly 1 part. Every change is kept in
+`identity_event`. Each change records whether a team account made it, which Finance never
+shows. The routes sit under `/api/v1/finance/identities`
+(`alethical/api/services/identity_confirmations.py`); confirming a held legislator or
+public person needs an official page as evidence.
+
 ## 5. What alethical.com prints from work done in Finance
 
 - A check or confirmation made in Finance appears on alethical.com only when an account of

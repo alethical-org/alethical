@@ -157,6 +157,154 @@ class FinanceAccessEntry(Base):
     revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
 
+IDENTITY_RECORD_KINDS = (
+    "donor_name",
+    "employer_name",
+    "payee_name",
+    "independent_payee_name",
+    "committee",
+    "lobbyist",
+    "principal",
+    "legislator",
+    "public_person",
+)
+IDENTITY_EVIDENCE_SOURCES = (
+    "cf_contribution_row",
+    "cf_expenditure_row",
+    "cf_independent_expenditure_row",
+    "cf_filer",
+    "lobbyist_row",
+    "lobbying_expenditure_row",
+    "official_page",
+)
+
+
+def _sql_list(values: tuple[str, ...]) -> str:
+    return ",".join(f"'{value}'" for value in values)
+
+
+class IdentityEntity(Base):
+    """A person or organization Alethical Finance has confirmed across records.
+
+    It ties records together only through ``IdentityLink`` rows that name their
+    evidence. ``merged`` keeps the id as a redirect to ``merged_into_id``;
+    ``split`` keeps it as a list of what replaced it (Finance decisions D23, D24).
+    ``made_by_alethical_team`` decides only what alethical.com may print.
+    """
+
+    __tablename__ = "identity_entity"
+    __table_args__ = (
+        CheckConstraint("kind IN ('person','organization')", name="entity_kind"),
+        CheckConstraint("status IN ('active','merged','split')", name="entity_status"),
+        CheckConstraint(
+            "(status = 'merged') = (merged_into_id IS NOT NULL)", name="entity_merge"
+        ),
+        CheckConstraint("length(btrim(name)) > 0", name="entity_name"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default="active", default="active"
+    )
+    merged_into_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("identity_entity.id")
+    )
+    made_by_alethical_team: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class IdentityLink(Base):
+    """1 record confirmed as belonging to an identity, with its evidence.
+
+    ``record_key`` is exact: a printed spelling exactly as filed, or an official
+    number. At most 1 standing confirmation exists per record.
+    """
+
+    __tablename__ = "identity_link"
+    __table_args__ = (
+        CheckConstraint(
+            f"record_kind IN ({_sql_list(IDENTITY_RECORD_KINDS)})",
+            name="link_record_kind",
+        ),
+        CheckConstraint(
+            f"evidence_source IN ({_sql_list(IDENTITY_EVIDENCE_SOURCES)})",
+            name="link_evidence_source",
+        ),
+        CheckConstraint("status IN ('confirmed','withdrawn')", name="link_status"),
+        CheckConstraint(
+            "(status = 'withdrawn') = (withdrawn_at IS NOT NULL"
+            " AND withdrawal_reason IS NOT NULL)",
+            name="link_withdrawal",
+        ),
+        CheckConstraint(
+            "(evidence_source = 'official_page') = (evidence_url IS NOT NULL)",
+            name="link_evidence_url",
+        ),
+        Index(
+            "uq_identity_link_confirmed_record",
+            "record_kind",
+            "record_key",
+            unique=True,
+            postgresql_where=text("status = 'confirmed'"),
+        ),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("identity_entity.id"), nullable=False, index=True
+    )
+    record_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    record_key: Mapped[str] = mapped_column(Text, nullable=False)
+    relation: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence_source: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence_snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True)
+    )
+    evidence_locator: Mapped[Optional[str]] = mapped_column(Text)
+    evidence_url: Mapped[Optional[str]] = mapped_column(Text)
+    evidence_quote: Mapped[str] = mapped_column(Text, nullable=False)
+    basis: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default="confirmed", default="confirmed"
+    )
+    checked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    withdrawn_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    withdrawal_reason: Mapped[Optional[str]] = mapped_column(Text)
+    made_by_alethical_team: Mapped[bool] = mapped_column(Boolean, nullable=False)
+
+
+class IdentityEvent(Base):
+    """Append-only history of an identity: created, linked, withdrawn, merged, split."""
+
+    __tablename__ = "identity_event"
+    __table_args__ = (
+        CheckConstraint(
+            "action IN ('created','linked','withdrawn','merged','split')",
+            name="event_action",
+        ),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    entity_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("identity_entity.id"), nullable=False, index=True
+    )
+    action: Mapped[str] = mapped_column(Text, nullable=False)
+    detail: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    made_by_alethical_team: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
