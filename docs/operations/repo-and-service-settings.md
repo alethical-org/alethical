@@ -321,7 +321,7 @@ investigation and correction to the original failure description.
 | Setting | Intended | Why | Automated check |
 | --- | --- | --- | --- |
 | Site URL | `https://www.alethical.com` | Sends production sign-in links to the public site. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
-| Additional redirect URLs | `https://www.alethical.com/**`, `http://localhost:8081/**`, `http://127.0.0.1:8081/**`, `http://localhost:19006/**`, `http://127.0.0.1:19006/**`, `alethical://auth/callback` | Allows the production site, local web work, and the future phone app to finish sign-in. Preview addresses are added one at a time only while testing. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Additional redirect URLs | `https://www.alethical.com/**`, `https://finance.alethical.com/**`, `http://localhost:8081/**`, `http://127.0.0.1:8081/**`, `http://localhost:19006/**`, `http://127.0.0.1:19006/**`, `alethical://auth/callback` | Allows the production site, Alethical Finance's Google sign-in, local web work, and the future phone app to finish sign-in. Preview addresses are added one at a time only while testing. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
 | Email provider | **On** | Supports the live email and password option. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
 | Google provider | **On** | Keeps Google sign-in available. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
 | Confirm email | **On** | A password account cannot claim an address before proving it. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
