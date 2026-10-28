@@ -6,8 +6,9 @@ alethical.com; only its screens are separate. Every account Alethical lets in ha
 access, nothing in Finance links back to alethical.com, and every research tool lives in
 Finance.
 
-Finance's address is alethicalfinance.com, connected at launch. Until then it runs at a
-preview address.
+Finance's address is alethicalfinance.com, connected at launch. Until then it runs at
+finance.alethical.com, which serves only the public landing page and sign-in until the
+signed-in screens are approved.
 
 ## 1. Built once, used by both sites
 
@@ -25,14 +26,24 @@ Finance is for finding connections between money, people and policy. Ask (cited 
 about bills), tracking with update emails, and Alethical's research and guides are not part
 of Finance.
 
+Finance's own routes sit under `/api/v1/finance/`. Every route except the public landing
+counts (§9) needs the access check, and its answers are
+private and never cached. Behind the access check (`alethical/api/routers/finance.py`):
+`GET /access`, and `GET /suggestions?q=&request_id=`, which answers 1 typed query with
+alethical.com's own money search (`/campaign-finance/search`) and, from 3 characters, its
+bill search (`/search`) in 1 request, and returns `request_id` unchanged, so the app drops a
+reply that arrives after a newer one. The access check reads the list through its own short
+database session, so the money search still reads its whole answer from 1 instant of the
+database.
+
 ## 2. Built separately
 
 - **Finance's screens.** Finance has its own look and shows more than alethical.com
   (original station files, unconfirmed printed names, evidence panels), so a page that
   exists on both sites is drawn, built and tested twice. Nothing else is.
-- **Finance's front end is its own React web app**, not a themed mode of the alethical.com
-  app. A shared mode would tie every release of 1 site to the other and hold Finance to the
-  public app's phone-first framework (React Native for web).
+- **Finance's front end is its own React web app** (`apps/finance`), not a themed mode of
+  the alethical.com app. A shared mode would tie every release of 1 site to the other and
+  hold Finance to the public app's phone-first framework (React Native for web).
 - **The code that decides wording and figures is shared.** The display modules under
   `apps/frontend/src/lib`, `apps/frontend/src/hooks` and the API client move into a
   package both front ends import, so a wording or display rule changes in 1 place. 10 of
@@ -55,8 +66,8 @@ of Finance.
   ([repo-and-service-settings.md](../operations/repo-and-service-settings.md), Supabase
   sign-in); Finance accepts whatever length arrives.
   An account that signs in but is not on the list sees the no-access state. Sign-in returns
-  to the page's own address, so Supabase's list of allowed return addresses needs the
-  preview address now and alethicalfinance.com at launch.
+  to the page's own address, so Supabase's list of allowed return addresses needs
+  finance.alethical.com now and alethicalfinance.com at launch.
 - **The server checks the list on every Finance request.** A request carrying an
   Authorization header is never marked cacheable (`default_public_cache` in
   `alethical/api/main.py`), so 1 account's response never reaches another.
@@ -108,9 +119,9 @@ activities, or law enforcement are not commercial purposes."
 
 The Board's advisory opinions read "use" as using names and addresses to contact the people
 in the data: [AO418](https://cfb.mn.gov/pdf/advisory_opinions/AO418.pdf) permits a
-for-profit to filter, improve or implement Board data for a fee, and
-[AO244](https://cfb.mn.gov/pdf/advisory_opinions/AO244.pdf) permitted a paid information
-site that carried a notice of the prohibition. An advisory opinion binds the Board only for
+for-profit to filter, improve or implement Board data for a fee and recommends telling end
+users about the prohibition, and [AO244](https://cfb.mn.gov/pdf/advisory_opinions/AO244.pdf)
+permitted a free, advertising-supported information site that carried a notice of it. An advisory opinion binds the Board only for
 the person who requested it ([10A.02](https://www.revisor.mn.gov/statutes/cite/10A.02)
 subdivisions 12 and 12a), so these opinions show the Board's reading and do not protect
 Alethical directly. Alethical does not request an opinion of its own.
@@ -123,3 +134,18 @@ Every count on Finance's public landing page is read live from the current relea
 hidden, never shown as 0, when it cannot be read. Counts are of records, never money; each
 names its period and source ([grounded-answers.md](../../.claude/rules/grounded-answers.md)
 rule 12).
+
+`GET /api/v1/finance/landing/counts` (`alethical/api/services/finance_landing.py`) serves
+the 4 counts without sign-in, the same answer for everyone, cached for the short public
+window like any anonymous `/api/v1` read; it is the only `/api/v1/finance/` address that is
+not private (`PUBLIC_EXCEPTIONS` in `alethical/api/problems.py`). The counts: campaign
+money records (the 3 Campaign Finance Board payment files of the published release, copy
+date the oldest of the 3), lobbying spending reports with the number of organizations that
+filed them, every bill held for the current Legislature (whether or not its plain-language
+summary exists yet, with the copy date every held bill supports, as on alethical.com), and
+TV station files held, with the oldest of each station's newest copy (no date while a
+station has no file held). Each answers `reported` with its count, years, source and copy
+date, or `unavailable` with a reason and no count: `nothing_published`, `empty` or
+`unreadable` for any count, and `rows_replaced` for campaign money only (lobbying answers
+`nothing_published` when its published rows no longer match, because `published_pair`
+does not say which). 1 unreadable source never hides another.
