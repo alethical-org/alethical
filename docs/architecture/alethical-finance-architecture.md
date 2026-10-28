@@ -32,7 +32,13 @@ private and never cached. Behind the access check (`alethical/api/routers/financ
 `GET /access`, and `GET /suggestions?q=&request_id=`, which answers 1 typed query with
 alethical.com's own money search (`/campaign-finance/search`) and, from 3 characters, its
 bill search (`/search`) in 1 request, and returns `request_id` unchanged, so the app drops a
-reply that arrives after a newer one. The access check reads the list through its own short
+reply that arrives after a newer one. Media buys (§6) answers under `/media-buys/`
+(`alethical/api/routers/finance_media_buys.py`): `counts`, `sources`, `recent`, `browse`,
+`connections`, `files/{key}` with its original page images at `files/{key}/pages/{page}`,
+`folders/{key}`, `agencies/{key}` and `stations/{key}`
+([tv-ad-records-guide.md](../product-onboarding/tv-ad-records-guide.md), In Alethical
+Finance). Identity confirmations (§4) answer under `/identities/`
+(`alethical/api/routers/finance_identities.py`). The access check reads the list through its own short
 database session, so the money search still reads its whole answer from 1 instant of the
 database.
 
@@ -50,6 +56,22 @@ database.
   those 415 files import React Native; the rest move unchanged.
 - **1 guide per data feature**, with a short section for each site's differences, rather
   than a second guide per site ([workflow.md](../../.claude/rules/workflow.md) rule 6).
+
+Finance's reads about legislators are records, never money
+(`alethical/api/services/finance_records.py`). `GET /api/v1/finance/legislative-committees`
+lists the sitting Legislature's committees; `/legislative-committees/{id}/members` lists a
+committee's members with their roles; `/bills/{bill_id}/authors` lists a bill's authors with
+the bill page's own formatter, each row marked with the chamber whose file named it, so a
+companion bill's authors stay distinguishable. It names the bill as the bill page does:
+by its plain-language title, or by its number when it has none, never by its legal title;
+its status is served beside them. The read takes the same few database trips however many
+authors a bill has. Each legislator carries `link_state` (confirmed, reviewed with none confirmed, or
+unconfirmed) and the committees confirmed as theirs, each with the office it registered for
+and whether that is a Legislature seat. Each account's figures for a year come from
+`/legislators/{legislator_id}/campaign-finance`, 1 member at a time, which leaves out a race
+for another office; no figure is combined across members, and reading 27 members' figures
+in 1 request took 15 seconds. Donors by employer, exactly as printed, is alethical.com's own
+`/campaign-finance/payments-under-name?role=employer`, which never adds across donors.
 
 ## 3. Access
 

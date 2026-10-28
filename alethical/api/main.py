@@ -29,6 +29,7 @@ from alethical.api.routers.tv_ads import router as tv_ads_router
 from alethical.api.routers.admin import router as admin_router
 from alethical.api.routers.finance import router as finance_router
 from alethical.api.routers.finance_identities import router as finance_identities_router
+from alethical.api.routers.finance_media_buys import router as finance_media_router
 from alethical.api.routers.finance_landing import router as finance_landing_router
 from alethical.api.routers.ask import router as ask_router
 from alethical.api.routers.contact import router as contact_router
@@ -318,6 +319,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_router, prefix="/api/v1", tags=["admin"])
     app.include_router(finance_router, prefix="/api/v1", tags=["finance"])
     app.include_router(finance_identities_router, prefix="/api/v1", tags=["finance"])
+    app.include_router(finance_media_router, prefix="/api/v1", tags=["finance"])
     app.include_router(finance_landing_router, prefix="/api/v1", tags=["finance"])
     app.include_router(public_router, prefix="/api/v1", tags=["public"])
     app.include_router(lobbying_router, prefix="/api/v1", tags=["lobbying"])
