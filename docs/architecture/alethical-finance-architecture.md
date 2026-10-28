@@ -108,9 +108,9 @@ activities, or law enforcement are not commercial purposes."
 
 The Board's advisory opinions read "use" as using names and addresses to contact the people
 in the data: [AO418](https://cfb.mn.gov/pdf/advisory_opinions/AO418.pdf) permits a
-for-profit to filter, improve or implement Board data for a fee, and
-[AO244](https://cfb.mn.gov/pdf/advisory_opinions/AO244.pdf) permitted a paid information
-site that carried a notice of the prohibition. An advisory opinion binds the Board only for
+for-profit to filter, improve or implement Board data for a fee and recommends telling end
+users about the prohibition, and [AO244](https://cfb.mn.gov/pdf/advisory_opinions/AO244.pdf)
+permitted a free, advertising-supported information site that carried a notice of it. An advisory opinion binds the Board only for
 the person who requested it ([10A.02](https://www.revisor.mn.gov/statutes/cite/10A.02)
 subdivisions 12 and 12a), so these opinions show the Board's reading and do not protect
 Alethical directly. Alethical does not request an opinion of its own.
