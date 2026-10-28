@@ -51,6 +51,22 @@ database.
 - **1 guide per data feature**, with a short section for each site's differences, rather
   than a second guide per site ([workflow.md](../../.claude/rules/workflow.md) rule 6).
 
+Finance's reads about legislators are records, never money
+(`alethical/api/services/finance_records.py`). `GET /api/v1/finance/legislative-committees`
+lists the sitting Legislature's committees; `/legislative-committees/{id}/members` lists a
+committee's members with their roles; `/bills/{bill_id}/authors` lists a bill's authors with
+the bill page's own formatter, each row marked with the chamber whose file named it, so a
+companion bill's authors stay distinguishable. It names the bill as the bill page does:
+by its plain-language title, or by its number when it has none, never by its legal title;
+its status is served beside them. The read takes the same few database trips however many
+authors a bill has. Each legislator carries `link_state` (confirmed, reviewed with none confirmed, or
+unconfirmed) and the committees confirmed as theirs, each with the office it registered for
+and whether that is a Legislature seat. Each account's figures for a year come from
+`/legislators/{legislator_id}/campaign-finance`, 1 member at a time, which leaves out a race
+for another office; no figure is combined across members, and reading 27 members' figures
+in 1 request took 15 seconds. Donors by employer, exactly as printed, is alethical.com's own
+`/campaign-finance/payments-under-name?role=employer`, which never adds across donors.
+
 ## 3. Access
 
 - **1 access level.** Every account on Finance's access list has the same access. Finance
@@ -139,7 +155,10 @@ rule 12).
 `GET /api/v1/finance/landing/counts` (`alethical/api/services/finance_landing.py`) serves
 the 4 counts without sign-in, the same answer for everyone, cached for the short public
 window like any anonymous `/api/v1` read; it is the only `/api/v1/finance/` address that is
-not private (`PUBLIC_EXCEPTIONS` in `alethical/api/problems.py`). The counts: campaign
+not private (`PUBLIC_EXCEPTIONS` in `alethical/api/problems.py`). Any site's browser may read
+it (`Access-Control-Allow-Origin: *`, no credentials), so the landing page shows its counts
+at every address it is served from, and no cached copy depends on whether that address was
+in the API's `ALETHICAL_CORS_ORIGINS` when the copy was made. The counts: campaign
 money records (the 3 Campaign Finance Board payment files of the published release, copy
 date the oldest of the 3), lobbying spending reports with the number of organizations that
 filed them, every bill held for the current Legislature (whether or not its plain-language
