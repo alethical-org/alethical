@@ -9,17 +9,19 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
 from alethical.api.finance_access import require_finance_access
 from alethical.api.routers.public import campaign_finance_search
 from alethical.api.services.campaign_finance_search import MIN_QUERY_LENGTH
-from alethical.api.routers.public import get_bill_by_key, same_legislature_session_ids
+from alethical.api.routers.public import same_legislature_session_ids
 from alethical.api.routers.public import search as legislature_search
 from alethical.api.problems import problem_exception
 from alethical.api.serializers import companion_payload, sponsor_payloads
 from alethical.api.services import finance_records
+from alethical.db.models import Bill, Legislator, LegislatorServicePeriod, Sponsorship
 from alethical.db.session import get_db
 
 router = APIRouter(prefix="/finance", dependencies=[Depends(require_finance_access)])
@@ -81,6 +83,28 @@ def committee_members(committee_id: UUID, db: Session = Depends(get_db)) -> dict
         raise problem_exception(404, "Not Found", "Not found.") from None
 
 
+def _bill_with_authors(db: Session, bill_key: str) -> Bill:
+    """The bill with its authors' service and its companion loaded together, so
+    the read takes the same few database trips however many authors it has."""
+    service = (
+        selectinload(Bill.sponsorships)
+        .selectinload(Sponsorship.legislator)
+        .selectinload(Legislator.service_periods)
+    )
+    bill = db.scalar(
+        select(Bill)
+        .where(Bill.bill_key == bill_key)
+        .options(
+            service.selectinload(LegislatorServicePeriod.chamber),
+            service.selectinload(LegislatorServicePeriod.district),
+            selectinload(Bill.companion_bill),
+        )
+    )
+    if bill is None:
+        raise HTTPException(status_code=404, detail="bill not found")
+    return bill
+
+
 @router.get("/bills/{bill_id}/authors")
 def bill_authors(bill_id: str, db: Session = Depends(get_db)) -> dict:
     """A bill's authors as its page lists them, each with their campaign accounts.
@@ -91,7 +115,7 @@ def bill_authors(bill_id: str, db: Session = Depends(get_db)) -> dict:
     are confirmed as theirs, never money and never a claim that one caused the
     other.
     """
-    bill = get_bill_by_key(db, bill_id)
+    bill = _bill_with_authors(db, bill_id)
     authors = [
         item.model_dump()
         for item in sponsor_payloads(
@@ -105,8 +129,13 @@ def bill_authors(bill_id: str, db: Session = Depends(get_db)) -> dict:
         "data": {
             "bill": {
                 "id": bill.bill_key,
+                # With no plain-language title the bill page heads the bill with
+                # its number, never its legal title; these are its inputs.
                 "short_title": bill.short_title,
                 "file_type": bill.file_type,
+                "file_number": bill.file_number,
+                "current_status": bill.current_status,
+                "status_key": bill.status_key,
                 "companion": companion.model_dump() if companion else None,
             },
             "authors": finance_records.bill_authors(authors, db),

@@ -7,7 +7,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import event, select
 
 from alethical.db import models as m
 from alethical.tests.finance_fixtures import finance_api, finance_db  # noqa: F401
@@ -230,7 +230,19 @@ def test_bill_authors_are_the_bill_pages_own_list_with_accounts(
     ]
     assert data["bill"]["id"] == "94-2025-SF1832"
     assert data["bill"]["file_type"] == "SF"
-    assert set(data["bill"]) == {"id", "short_title", "file_type", "companion"}
+    assert set(data["bill"]) == {
+        "id",
+        "short_title",
+        "file_type",
+        "file_number",
+        "current_status",
+        "status_key",
+        "companion",
+    }
+    assert (data["bill"]["file_number"], data["bill"]["status_key"]) == (
+        bill.file_number,
+        bill.status_key,
+    )
     assert "co_author" in {row["role"] for row in data["authors"]}
     assert [
         {k: v for k, v in row.items() if k != "campaign_accounts"}
@@ -241,6 +253,97 @@ def test_bill_authors_are_the_bill_pages_own_list_with_accounts(
     assert by_id[first["legislator_id"]]["confirmed"][0]["registration_number"] == (
         "18010"
     )
+
+
+def _trips(db, call) -> int:
+    """How many statements the database receives while ``call`` runs."""
+    statements = []
+
+    def count(*_):
+        statements.append(1)
+
+    connection = db.connection()
+    event.listen(connection, "before_cursor_execute", count)
+    try:
+        call()
+    finally:
+        event.remove(connection, "before_cursor_execute", count)
+    return len(statements)
+
+
+def test_more_authors_cost_no_more_database_trips(finance_api, finance_db):  # noqa: F811
+    path = "/api/v1/finance/bills/94-2025-SF1832/authors"
+    bill = finance_db.scalar(select(m.Bill).where(m.Bill.bill_key == "94-2025-SF1832"))
+    bill_id = bill.id
+    author_ids = {s.legislator_id for s in bill.sponsorships}
+
+    def read():
+        # Each request starts from an empty session, as a real one does, so no
+        # record loaded earlier hides a trip.
+        finance_db.expunge_all()
+        assert finance_api.get(path).status_code == 200
+
+    read()
+    before = _trips(finance_db, read)
+    authors = len(finance_api.get(path).json()["data"]["authors"])
+    for order, legislator_id in enumerate(
+        finance_db.scalars(
+            select(m.Legislator.id).where(m.Legislator.id.not_in(author_ids)).limit(6)
+        ),
+        start=100,
+    ):
+        finance_db.add(
+            m.Sponsorship(
+                bill_id=bill_id,
+                legislator_id=legislator_id,
+                role=m.SponsorshipRole.co_author,
+                source_order=order,
+                source_chamber="senate",
+            )
+        )
+    finance_db.flush()
+    finance_db.expunge_all()
+    assert len(finance_api.get(path).json()["data"]["authors"]) > authors + 3
+    assert _trips(finance_db, read) == before
+
+
+def test_the_bill_block_is_the_pages_own_title_and_companion(finance_api, finance_db):  # noqa: F811
+    bill = finance_db.scalar(select(m.Bill).where(m.Bill.bill_key == "94-2025-SF1832"))
+    other = finance_db.scalar(
+        select(m.Bill).where(m.Bill.id != bill.id, m.Bill.file_type == "HF").limit(1)
+    )
+    bill.companion_bill_id = other.id
+    bill.short_title = "Plain words about this bill"
+    finance_db.flush()
+    finance_db.expire_all()
+    page = finance_api.get("/api/v1/bills/94-2025-SF1832").json()["data"]
+    block = finance_api.get("/api/v1/finance/bills/94-2025-SF1832/authors").json()[
+        "data"
+    ]["bill"]
+    assert block["short_title"] == "Plain words about this bill" != bill.title
+    assert block["companion"] == page["companion"]
+    assert block["companion"]["id"] == other.bill_key
+
+
+def test_members_and_committees_come_in_name_order(finance_api, finance_db):  # noqa: F811
+    committee, _ = _committee(finance_db)
+    _committee(finance_db)
+    people = _legislators(finance_db, 3)
+    for person in people:
+        finance_db.add(
+            m.CommitteeMembership(
+                committee_id=committee.id, legislator_id=person.id, is_current=True
+            )
+        )
+    finance_db.flush()
+    data = finance_api.get(f"{COMMITTEES}/{committee.id}/members").json()["data"]
+    assert data["committee"]["chamber"] == committee.chamber.name
+    names = [(row["name"], row["id"]) for row in data["members"]]
+    expected = sorted(people, key=lambda p: (p.full_name, p.slug))
+    assert [row[1] for row in names] == [str(p.id) for p in expected]
+    rows = finance_api.get(COMMITTEES).json()["data"]
+    same_chamber = [r["name"] for r in rows if r["chamber"] == committee.chamber.name]
+    assert len(same_chamber) >= 2 and same_chamber == sorted(same_chamber)
 
 
 def test_an_unknown_bill_is_not_found(finance_api):  # noqa: F811

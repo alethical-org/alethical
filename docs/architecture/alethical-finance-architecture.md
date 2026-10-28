@@ -55,8 +55,10 @@ Finance's reads about legislators are records, never money
 lists the sitting Legislature's committees; `/legislative-committees/{id}/members` lists a
 committee's members with their roles; `/bills/{bill_id}/authors` lists a bill's authors with
 the bill page's own formatter, each row marked with the chamber whose file named it, so a
-companion bill's authors stay distinguishable, and names the bill by its plain-language
-title. Each legislator carries `link_state` (confirmed, reviewed with none confirmed, or
+companion bill's authors stay distinguishable. It names the bill as the bill page does:
+by its plain-language title, or by its number when it has none, never by its legal title;
+its status is served beside them. The read takes the same few database trips however many
+authors a bill has. Each legislator carries `link_state` (confirmed, reviewed with none confirmed, or
 unconfirmed) and the committees confirmed as theirs, each with the office it registered for
 and whether that is a Legislature seat. Each account's figures for a year come from
 `/legislators/{legislator_id}/campaign-finance`, 1 member at a time, which leaves out a race
