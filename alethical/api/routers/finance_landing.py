@@ -1,7 +1,9 @@
 """Alethical Finance's public landing-page counts. No sign-in: the page is public.
 
-Under ``/api/v1/finance/`` like every Finance route, so answers are never cached
-for reuse; each count is read live (``alethical/api/services/finance_landing.py``).
+Under ``/api/v1/finance/`` like every Finance route, but the 1 public exception to
+its private, uncached answers (``PUBLIC_EXCEPTIONS`` in ``alethical/api/problems.py``):
+anonymous and the same for everyone, so it takes the short public cache window. Each
+count is read live (``alethical/api/services/finance_landing.py``).
 """
 
 from __future__ import annotations

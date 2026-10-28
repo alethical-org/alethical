@@ -125,10 +125,13 @@ names its period and source ([grounded-answers.md](../../.claude/rules/grounded-
 rule 12).
 
 `GET /api/v1/finance/landing/counts` (`alethical/api/services/finance_landing.py`) serves
-the 4 counts without sign-in: campaign money records (the 3 Campaign Finance Board payment
-files of the published release), lobbying spending reports, bills in the current
-Legislature (the list `/bills` shows) and TV station files held. Each answers `reported`
-with its count, years, source and copy date, or `unavailable` with a reason
-(`nothing_published`, `rows_replaced`, `empty`, `unreadable`) and no count. 1 unreadable
-source never hides another. The copy date of campaign money records is the oldest of its
-3 files' dates.
+the 4 counts without sign-in, the same answer for everyone, cached for the short public
+window like any anonymous `/api/v1` read; it is the only `/api/v1/finance/` address that is
+not private (`PUBLIC_EXCEPTIONS` in `alethical/api/problems.py`). The counts: campaign
+money records (the 3 Campaign Finance Board payment files of the published release, copy
+date the oldest of the 3), lobbying spending reports with the number of organizations that
+filed them, every bill held for the current Legislature (whether or not its plain-language
+summary exists yet, with the copy date every held bill supports, as on alethical.com), and
+TV station files held. Each answers `reported` with its count, years, source and copy date,
+or `unavailable` with a reason (`nothing_published`, `rows_replaced`, `empty`,
+`unreadable`) and no count. 1 unreadable source never hides another.

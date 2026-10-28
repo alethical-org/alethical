@@ -10,11 +10,13 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from alethical.api.services import finance_landing
+from alethical.api.services.legislative_sessions import current_legislature_scope
 from alethical.db import models
 from alethical.tests.test_campaign_finance_landing_reads import (
     _published_release,
     db,  # noqa: F401 -- the shared fixture that clears and restores campaign money
 )
+from alethical.tests.test_lobbying_api import FIXTURE, _clear_lobbying, _pair
 
 COUNTS = "/api/v1/finance/landing/counts"
 FETCHED = datetime(2026, 9, 1, 11, 30, tzinfo=UTC)
@@ -66,6 +68,7 @@ def test_the_published_rows_are_counted_with_their_years_and_copy_date(db):  # n
         "first_year": 2025,
         "last_year": 2026,
         "copied_at": FETCHED.isoformat(),
+        "organizations": None,
         "reason": None,
     }
 
@@ -130,10 +133,64 @@ def test_an_empty_source_is_unavailable(db, key):  # noqa: F811
         assert result["count"] is None and result["reason"]
 
 
-def test_the_counts_route_is_public_and_never_cached(client, db):  # noqa: F811
+def test_lobbying_reports_name_how_many_organizations_filed_them(db):  # noqa: F811
+    _clear_lobbying(db)
+    try:
+        _pair(db)
+        result = finance_landing.landing_counts(db)["lobbying_spending_reports"]
+    finally:
+        _clear_lobbying(db)
+    assert result["count"] == len(FIXTURE["spending"])
+    assert result["organizations"] == len(
+        {row["entity_id"] for row in FIXTURE["spending"]}
+    )
+    assert result["organizations"] < result["count"]
+
+
+def test_every_held_bill_counts_with_or_without_its_summary(db):  # noqa: F811
+    scope = current_legislature_scope(db)
+    before = finance_landing.landing_counts(db)["current_legislature_bills"]["count"]
+    seeded = db.get(models.LegislativeSession, scope.primary.id)
+    chamber_id = db.scalar(
+        text("SELECT chamber_id FROM bill WHERE session_id = :s LIMIT 1"),
+        {"s": seeded.id},
+    )
+    bill = models.Bill(
+        session_id=seeded.id,
+        chamber_id=chamber_id,
+        bill_key="94-2025-SF919191",
+        file_type="SF",
+        file_number=919191,
+        title="A held bill with no plain-language summary yet",
+        current_status="Introduced",
+        has_current_summary=False,
+    )
+    db.add(bill)
+    db.commit()
+    try:
+        after = finance_landing.landing_counts(db)["current_legislature_bills"]
+    finally:
+        db.delete(bill)
+        db.commit()
+    assert after["count"] == before + 1
+    # The new bill has no finished copy behind it, so no date can speak for all.
+    assert after["copied_at"] is None
+
+
+def test_the_counts_route_is_public_and_shared_cacheable(client, db):  # noqa: F811
     response = client.get(COUNTS)
     assert response.status_code == 200
+    cache = response.headers["cache-control"]
+    assert cache.startswith("public") and "no-store" not in cache
+
+
+def test_other_finance_routes_stay_private(client):
+    response = client.get("/api/v1/finance/access")
     assert "no-store" in response.headers["cache-control"]
+
+
+def test_the_counts_route_answers_every_count(client, db):  # noqa: F811
+    response = client.get(COUNTS)
     assert set(response.json()["data"]) == {
         "campaign_money_records",
         "lobbying_spending_reports",

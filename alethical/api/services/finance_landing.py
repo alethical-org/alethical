@@ -23,6 +23,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from alethical.api.services.legislative_freshness import legislative_copy_date
 from alethical.api.services.legislative_sessions import current_legislature_scope
 from alethical.api.services.lobbying import published_pair
 from alethical.db import models as m
@@ -56,6 +57,8 @@ class LandingCount:
     first_year: int | None = None
     last_year: int | None = None
     copied_at: str | None = None
+    # Lobbying only: the organizations whose spending the reports record.
+    organizations: int | None = None
     reason: str | None = None
 
 
@@ -110,9 +113,12 @@ def _lobbying(db: Session) -> LandingCount:
         # match its recorded count, so a replaced set is never counted.
         return _unavailable(unit, source, NOTHING_PUBLISHED)
     row = m.LobbyingExpenditureRow
-    count, first_year, last_year = db.execute(
+    count, organizations, first_year, last_year = db.execute(
         select(
-            func.count(), func.min(row.report_year), func.max(row.report_year)
+            func.count(),
+            func.count(row.entity_id.distinct()),
+            func.min(row.report_year),
+            func.max(row.report_year),
         ).where(row.snapshot_id == pair.expenditure_snapshot_id)
     ).one()
     if not count:
@@ -125,18 +131,18 @@ def _lobbying(db: Session) -> LandingCount:
         first_year=first_year,
         last_year=last_year,
         copied_at=_iso(pair.copied_at),
+        organizations=organizations or None,
     )
 
 
 def _bills(db: Session) -> LandingCount:
     unit, source = "bills in the current Legislature", "Minnesota Legislature"
     scope = current_legislature_scope(db)
-    # The same list /bills shows: bills of every session of the sitting
-    # Legislature that carry a current plain-language summary.
+    # Every bill held for every session of the sitting Legislature, a count of
+    # what we hold. Not the /bills list, which leaves out a bill until its
+    # plain-language summary exists.
     count = db.scalar(
-        select(func.count()).select_from(
-            m.bill_list_stmt(scope.ids).order_by(None).subquery()
-        )
+        select(func.count()).select_from(m.Bill).where(m.Bill.session_id.in_(scope.ids))
     )
     if not count:
         return _unavailable(unit, source, EMPTY)
@@ -149,6 +155,8 @@ def _bills(db: Session) -> LandingCount:
         source,
         first_year=min(starts, default=None),
         last_year=max(ends, default=None),
+        # The date every held bill's copy supports, or none (alethical.com's rule).
+        copied_at=_iso(legislative_copy_date(db, scope.ids)),
     )
 
 

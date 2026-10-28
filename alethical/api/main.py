@@ -11,8 +11,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import JSONResponse
 
 from alethical.api.problems import (
-    PRIVATE_API_PREFIXES,
     http_exception_handler,
+    is_private_api_path,
     unexpected_exception_handler,
     validation_exception_handler,
 )
@@ -160,7 +160,7 @@ def create_app() -> FastAPI:
         about who holds office right now all live in
         alethical/api/routers/public.py."""
         response = await call_next(request)
-        if request.url.path.startswith(PRIVATE_API_PREFIXES):
+        if is_private_api_path(request.url.path):
             response.headers["Cache-Control"] = "private, no-store"
             response.headers["Vary"] = ", ".join(
                 filter(None, [response.headers.get("Vary"), "Authorization"])
