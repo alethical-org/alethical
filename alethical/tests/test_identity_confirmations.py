@@ -458,6 +458,19 @@ def test_a_record_of_another_name_is_not_selectable(finance_api, board):  # noqa
     assert "not in the Board's current file" in response.json()["detail"]
 
 
+def test_a_record_only_in_an_older_copy_is_refused(finance_api, finance_db, board):  # noqa: F811
+    rows = prints(finance_api)
+    # The next copy holds rows 31 and 33 again; row 32 is only in the older one.
+    refresh(finance_db, (5, {}), (6, {}))
+    response = post(
+        finance_api,
+        "",
+        {"kind": "person", "name": "X", "confirmation": donor(board, [rows[32]])},
+    )
+    assert response.status_code == 422
+    assert "not in the Board's current file" in response.json()["detail"]
+
+
 def test_listings_and_selections_are_bounded(finance_api, board, monkeypatch):  # noqa: F811
     rows = prints(finance_api)
     monkeypatch.setattr(identities, "MAX_RECORDS", 1)
@@ -551,6 +564,31 @@ def test_an_identifier_is_confirmed_for_1_identity_at_a_time(
     # The 2nd request read before the 1st saved; the database still refuses it.
     monkeypatch.setattr(identities, "_standing", lambda *_: None)
     assert post(finance_api, "", body).status_code == 409
+
+
+def test_a_withdrawn_identifier_is_free_to_confirm_again(finance_api, registered):  # noqa: F811
+    first = create(
+        finance_api, "organization", "Example for Senate", committee(registered)
+    )
+    withdrawn = post(
+        finance_api,
+        f"/confirmations/{first['confirmations'][0]['id']}/withdraw",
+        {"reason": "The register names another committee."},
+    )
+    assert withdrawn.status_code == 200
+
+    def lookup():
+        response = finance_api.get(
+            f"{BASE}/lookup", params={"record_kind": "committee", "record_key": "18135"}
+        )
+        assert response.status_code == 200, response.text
+        return response.json()["data"]
+
+    assert lookup() is None
+    again = create(
+        finance_api, "organization", "Example Senate Committee", committee(registered)
+    )
+    assert lookup()["identity"]["id"] == again["id"]
 
 
 @pytest.mark.parametrize(
@@ -962,8 +1000,15 @@ def test_a_split_replaces_each_confirmation_on_its_part(finance_api, board):  # 
     [replacement] = jordan_a["confirmations"]
     assert replacement["replaces"] == first
     assert old[first]["replaced_by"] == replacement["id"]
-    for field in ("record_kind", "record_key", "relation", "basis", "evidence"):
-        assert replacement[field] == old[first][field]
+    for field in (
+        "record_kind",
+        "record_key",
+        "relation",
+        "basis",
+        "evidence",
+        "checked_at",
+    ):
+        assert replacement[field] == old[first][field], field
     assert [r["fingerprint"] for r in replacement["records"]] == [
         r["fingerprint"] for r in old[first]["records"]
     ]
@@ -1018,6 +1063,69 @@ def test_a_split_gives_every_active_confirmation_to_exactly_1_part(
     )
     assert response.status_code == 422
     assert get(finance_api, person["id"])["status"] == "active"
+
+
+def test_a_split_refuses_to_leave_out_an_active_confirmation(finance_api, board):  # noqa: F811
+    person, first, second, _ = two_confirmations(finance_api, board)
+    [vendor] = prints(finance_api, "payee_name", VENDOR).values()
+    added(finance_api, person, payee(board, [vendor]))
+    response = post(
+        finance_api,
+        f"/{person['id']}/split",
+        {
+            "reason": "2 people.",
+            "parts": [
+                {"name": "A", "confirmations": [first]},
+                {"name": "B", "confirmations": [second]},
+            ],
+        },
+    )
+    assert response.status_code == 422
+    assert "exactly 1 part" in response.json()["detail"]
+    assert get(finance_api, person["id"])["status"] == "active"
+
+
+def test_a_split_needs_at_least_2_parts(finance_api, board):  # noqa: F811
+    person, first, second, _ = two_confirmations(finance_api, board)
+    response = post(
+        finance_api,
+        f"/{person['id']}/split",
+        {"reason": "x", "parts": [{"name": "A", "confirmations": [first, second]}]},
+    )
+    assert response.status_code == 422
+    assert "at least 2 parts" in response.json()["detail"]
+
+
+def test_a_confirmation_is_replaced_at_most_once(finance_api, finance_db, board):  # noqa: F811
+    person, first, second, _ = two_confirmations(finance_api, board)
+    done = post(
+        finance_api,
+        f"/{person['id']}/split",
+        {
+            "reason": "2 people.",
+            "parts": [
+                {"name": "A", "confirmations": [first]},
+                {"name": "B", "confirmations": [second]},
+            ],
+        },
+    )
+    assert done.status_code == 200
+    original = finance_db.get(m.IdentityConfirmation, uuid.UUID(first))
+    with pytest.raises(IntegrityError), finance_db.begin_nested():
+        finance_db.add(
+            m.IdentityConfirmation(
+                entity_id=original.entity_id,
+                record_kind=original.record_kind,
+                record_key=original.record_key,
+                relation=original.relation,
+                evidence_source=original.evidence_source,
+                evidence_quote=original.evidence_quote,
+                basis=original.basis,
+                replaces_id=original.id,
+                made_by_alethical_team=False,
+            )
+        )
+        finance_db.flush()
 
 
 def test_a_split_takes_the_confirmations_of_identities_merged_into_it(

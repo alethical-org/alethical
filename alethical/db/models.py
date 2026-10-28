@@ -216,8 +216,9 @@ class IdentityEntity(Base):
     status: Mapped[str] = mapped_column(
         Text, nullable=False, server_default="active", default="active"
     )
+    # Indexed: every read and split looks up what was merged into an identity.
     merged_into_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("identity_entity.id")
+        ForeignKey("identity_entity.id"), index=True
     )
     made_by_alethical_team: Mapped[bool] = mapped_column(Boolean, nullable=False)
     created_at: Mapped[datetime] = mapped_column(

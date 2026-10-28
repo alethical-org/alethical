@@ -69,6 +69,10 @@ def upgrade() -> None:
         sa.CheckConstraint("merged_into_id <> id", name="entity_not_self"),
         sa.CheckConstraint("length(btrim(name)) > 0", name="entity_name"),
     )
+    # Every read and split looks up what was merged into an identity.
+    op.create_index(
+        "ix_identity_entity_merged_into_id", "identity_entity", ["merged_into_id"]
+    )
     op.create_table(
         "identity_confirmation",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),

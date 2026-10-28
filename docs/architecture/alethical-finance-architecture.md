@@ -149,9 +149,9 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
   the redirect to the identity standing today. A split gives every active confirmation
   standing for the identity, including those of identities merged into it, to exactly 1
   part, each part at least 1; each is withdrawn and replaced on its part with the same
-  evidence and records and a pointer to the one it replaces. Withdrawn confirmations stay
-  behind as history. A replacement counts as team-made only when the original and the split
-  both were (§5).
+  evidence, check date and records and a pointer to the one it replaces. Withdrawn
+  confirmations stay behind as history. A replacement counts as team-made only when the
+  original and the split both were (§5).
 - **Every account sees everything.** Every change is kept in `identity_event`, and every
   identity, confirmation and event records whether a team account made it, which Finance
   never shows; no answer names who made a change. Every Finance account reads every
@@ -162,6 +162,12 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
 
 - A check or confirmation made in Finance appears on alethical.com only when an account of
   Alethical's own team made it. alethical.com stands behind every confirmation it prints.
+- Any Finance account can withdraw any confirmation, and merge or split any identity, and
+  every Finance account sees the result. alethical.com changes only on decisions a team
+  account made: when it reads identities, it follows only merges and splits a team account
+  made, so another account's merge never redirects a team-made confirmation there, and it
+  keeps printing a team-made confirmation until a team account withdraws it. Every
+  withdrawal, merge and split records in `identity_event` whether a team account made it.
 - Inside Finance every account sees every check. No check names the account that made it.
 
 ## 6. Media buys

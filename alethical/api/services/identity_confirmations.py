@@ -576,7 +576,7 @@ def merge(db: Session, entity_id: UUID, data: dict, *, team: bool) -> Entity:
 
 
 def _replace(db: Session, old: Confirmation, entity: Entity, *, team: bool):
-    """The same evidence and records on another identity, pointing at what it replaces.
+    """The same evidence, check date and records on another identity, pointing back.
 
     alethical.com prints only team-made confirmations, so the replacement counts as
     team-made only when the original and the split both were.
@@ -594,7 +594,8 @@ def _replace(db: Session, old: Confirmation, entity: Entity, *, team: bool):
         basis=old.basis,
         replaces_id=old.id,
         made_by_alethical_team=old.made_by_alethical_team and team,
-        checked_at=func.clock_timestamp(),
+        # The evidence was checked when the original was, not on the split day.
+        checked_at=old.checked_at,
     )
     db.add(new)
     db.flush()
