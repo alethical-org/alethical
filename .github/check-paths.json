@@ -22,6 +22,7 @@
     ".github/check-paths.json",
     ".githooks/**",
     "apps/frontend/**",
+    "apps/finance/**",
     "api/**",
     "justfile",
     "lint-staged.config.mjs",

@@ -25,14 +25,24 @@ Finance is for finding connections between money, people and policy. Ask (cited 
 about bills), tracking with update emails, and Alethical's research and guides are not part
 of Finance.
 
+Finance's own routes sit under `/api/v1/finance/`. Every route except the public landing
+counts (§9) needs the access check, and its answers are
+private and never cached. Behind the access check (`alethical/api/routers/finance.py`):
+`GET /access`, and `GET /suggestions?q=&request_id=`, which answers 1 typed query with
+alethical.com's own money search (`/campaign-finance/search`) and, from 3 characters, its
+bill search (`/search`) in 1 request, and returns `request_id` unchanged, so the app drops a
+reply that arrives after a newer one. The access check reads the list through its own short
+database session, so the money search still reads its whole answer from 1 instant of the
+database.
+
 ## 2. Built separately
 
 - **Finance's screens.** Finance has its own look and shows more than alethical.com
   (original station files, unconfirmed printed names, evidence panels), so a page that
   exists on both sites is drawn, built and tested twice. Nothing else is.
-- **Finance's front end is its own React web app**, not a themed mode of the alethical.com
-  app. A shared mode would tie every release of 1 site to the other and hold Finance to the
-  public app's phone-first framework (React Native for web).
+- **Finance's front end is its own React web app** (`apps/finance`), not a themed mode of
+  the alethical.com app. A shared mode would tie every release of 1 site to the other and
+  hold Finance to the public app's phone-first framework (React Native for web).
 - **The code that decides wording and figures is shared.** The display modules under
   `apps/frontend/src/lib`, `apps/frontend/src/hooks` and the API client move into a
   package both front ends import, so a wording or display rule changes in 1 place. 10 of
