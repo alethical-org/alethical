@@ -31,7 +31,6 @@ DEFERRED_MARKER = "<!-- source-refresh-deferred:"
 UNANNOUNCED = ("workflow-collect:",)
 #: Who is told when a new problem appears. An edited issue body notifies nobody.
 OWNER = "euglopi"
-_SLUG = re.compile(r"[a-z0-9][a-z0-9-]{0,80}")
 _REGISTRATION = re.compile(r"[0-9]{3,8}")
 _CHECK = re.compile(r"[A-Za-z0-9_ ./:-]{1,80}")
 
@@ -73,11 +72,6 @@ def public_detail(result: dict) -> str | None:
             "totals for longer than the catch-up budget; the automatic totals "
             "refresh has not caught up."
         )
-    if source == "campaign-reviewed-years":
-        return (
-            "Filed reports fall outside a confirmed account's reviewed years, so the "
-            "legislator's page leaves them out until a person confirms the years."
-        )
     if source in ("district-map-house", "district-map-senate"):
         return "Official map bytes changed; compare geometry before importing."
     if source == "candidate-ballot":
@@ -114,18 +108,6 @@ def finding_lines(finding: dict) -> list[str]:
         if years := _years(stage.get("affected_years", [])):
             line += f"; years {years}"
         lines.append(line + ".")
-    for hidden in finding.get("hidden_filings", [])[:20]:
-        # Older years are listed in the stored finding, not on the public issue.
-        if hidden.get("needs_review") is False:
-            continue
-        member = str(hidden.get("member", ""))
-        registration = str(hidden.get("registration_number", ""))
-        if _SLUG.fullmatch(member) and _REGISTRATION.fullmatch(registration):
-            lines.append(
-                f"  - [{member}](https://alethical.com/legislators/{member}?tab=money), "
-                f"account {registration}: filed years {_years(hidden.get('years', []))} "
-                "are outside its reviewed years."
-            )
     if finding.get("board_ahead_count"):
         lines.append(
             f"  - The Board is ahead of our totals for {int(finding['board_ahead_count'])} "

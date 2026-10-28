@@ -18,10 +18,12 @@ preview address.
 | Checks and confirmations: committee matches, station-file facts and connections, identity links | `legislator_campaign_committee`, `tv_ad_fact`, `tv_ad_connection` |
 | Calculations: totals, reconciliations, record counts | `alethical/api/services/` |
 | Product rules: cite or refuse, no money chains, missing never zero | [`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) |
-| Cited answers about bills (Ask) | `alethical/api/routers/ask.py` |
-| Tracking and update emails | `tracked_bill`, [tracked-bill-notifications-spec.md](../product-onboarding/tracked-bill-notifications-spec.md) |
 | Sign-in | Supabase Auth ([backend-stack.md](backend-stack.md) §4) |
 | Server endpoints | 1 set. Finance-only data is served only to accounts on Finance's access list; there is no Finance copy of a public endpoint. |
+
+Finance is for finding connections between money, people and policy. Ask (cited answers
+about bills), tracking with update emails, and Alethical's research and guides are not part
+of Finance.
 
 ## 2. Built separately
 
