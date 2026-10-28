@@ -102,6 +102,13 @@ function answering(...statuses: number[]) {
   );
 }
 
+/** The code request's answer: accepted, with the challenge the proof must carry. */
+function accepted(challenge = 'challenge-1') {
+  return new Response(JSON.stringify({ data: { status: 'accepted', challenge } }), {
+    status: 202,
+  });
+}
+
 const text = () => container.textContent ?? '';
 
 describe('the access answer', () => {
@@ -221,7 +228,11 @@ describe('sign-in steps', () => {
   };
 
   it('moves focus to each step’s field and keeps the page asked for', async () => {
-    await render('/sign-in?next=%2Flobbying', fakeSupabase(null).client, answering(202));
+    await render(
+      '/sign-in?next=%2Flobbying',
+      fakeSupabase(null).client,
+      vi.fn(async () => accepted()),
+    );
     await act(async () => button('Sign in with email').click());
     expect(document.activeElement?.id).toBe('email');
     await type('#email', 'reader@example.test');
@@ -237,12 +248,12 @@ describe('sign-in steps', () => {
     let answer: (response: Response) => void = () => {};
     const fetcher = vi.fn((url: string) =>
       url.endsWith('/sign-in/code')
-        ? Promise.resolve(new Response(null, { status: 202 }))
+        ? Promise.resolve(accepted())
         : url.endsWith('/sign-in/verify')
           ? Promise.resolve(
               new Response(
                 JSON.stringify({
-                  data: { token_hash: 'one-time-token', type: 'magiclink' },
+                  data: { token_hash: 'one-time-token', type: 'email' },
                 }),
                 { status: 200 },
               ),
@@ -273,11 +284,11 @@ describe('sign-in steps', () => {
     });
     let calls = 0;
     const fetcher = vi.fn(async (url: string) => {
-      if (url.endsWith('/sign-in/code')) return new Response(null, { status: 202 });
+      if (url.endsWith('/sign-in/code')) return accepted();
       if (url.endsWith('/sign-in/verify'))
         return new Response(
           JSON.stringify({
-            data: { token_hash: 'one-time-token', type: 'magiclink' },
+            data: { token_hash: 'one-time-token', type: 'email' },
           }),
           { status: 200 },
         );
@@ -303,7 +314,7 @@ describe('sign-in steps', () => {
     const supabase = fakeSupabase(null);
     const fetcher = vi.fn(async (url: string) =>
       url.endsWith('/sign-in/code')
-        ? new Response(null, { status: 202 })
+        ? accepted()
         : new Response(null, {
             status: url.endsWith('/sign-in/verify') ? status : 401,
           }),
@@ -316,6 +327,32 @@ describe('sign-in steps', () => {
     await act(async () => button('Continue').click());
     expect(supabase.auth.verifyOtp).not.toHaveBeenCalled();
     expect(text()).toContain(message);
+  });
+
+  it('proves the code with the challenge from the newest code request', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    try {
+      let requests = 0;
+      const fetcher = vi.fn(async (url: string, _init?: RequestInit) => {
+        if (url.endsWith('/sign-in/code')) return accepted(`challenge-${++requests}`);
+        return new Response(null, { status: url.endsWith('/sign-in/verify') ? 400 : 401 });
+      });
+      await render('/sign-in', fakeSupabase(null).client, fetcher as unknown as typeof fetch);
+      await act(async () => button('Sign in with email').click());
+      await type('#email', 'reader@example.test');
+      await act(async () => button('Continue').click());
+      for (let second = 0; second <= 60; second++) {
+        await act(async () => vi.advanceTimersByTime(1000));
+      }
+      await act(async () => button('Send a new code').click());
+      expect(text()).toContain('New code requested');
+      await type('#code', '12345678');
+      await act(async () => button('Continue').click());
+      const [, proof] = fetcher.mock.calls.find(([url]) => url.endsWith('/sign-in/verify'))!;
+      expect(JSON.parse(String(proof?.body)).challenge).toBe('challenge-2');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('re-enables Google when Back restores the page from the browser cache', async () => {

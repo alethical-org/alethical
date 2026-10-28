@@ -260,26 +260,44 @@ has 2 ways in, Google or a code emailed to the address, and no password or sign-
 an address is on Finance's access list names a client, so no answer shows it.
 
 - **Alethical sends the codes, not Supabase.** `POST /api/v1/finance/sign-in/code` checks
-  only that the value is an address and answers 202 with the same body, at once, for every
-  address. After that answer has gone, the API checks the access list and, for an active
-  entry only, makes an 8-digit code and emails it through Alethical's own sender (Resend,
-  from `ALETHICAL_EMAIL_FROM`). The email carries the code and no link.
-- **Only a salted hash of the code is kept** (`finance_sign_in_code`, scrypt), with a
-  10-minute expiry. A code works once, 5 wrong tries use it up, a new code replaces every
-  earlier one for that address, and a repeat inside 60 seconds sends nothing more.
-- **Proving the code goes through the API too** (`POST /api/v1/finance/sign-in/verify`).
-  A wrong, expired, used, used-up or never-sent code, or an address revoked since, all get
-  the same 400 answer after the same minimum time. A proved code is the only point where
-  the Supabase account is created or found, with the server's secret key
-  (`SUPABASE_SECRET_KEY`); the API then returns a 1-time Supabase sign-in token, which the
-  browser turns into its session. If Supabase cannot finish, the code stays valid for
+  only that the value is an address and answers 202 at once, for every address, with the
+  same body: a new random challenge. After that answer has gone, 1 of the API process's 2
+  sending threads checks the access list and, for an active entry within the sending caps
+  only, makes an 8-digit code and emails it through Alethical's own sender (Resend, from
+  `ALETHICAL_EMAIL_FROM`). The email carries the code and no link. The delivery holds no
+  request slot.
+- **Sending caps** keep Finance's codes to 40 of the 100 emails a day that Resend's free
+  plan allows, which Contact us, comment alerts and alethical.com's sign-in emails share.
+  An address gets at most 1 code a minute, 5 an hour and 10 a day, and Finance sends at most
+  40 codes a day in total (constants in `alethical/api/services/finance_sign_in.py`). A
+  request held back by a cap gets the same answer as any other, and no email.
+- **Only hashes are kept** (`finance_sign_in_code`): the code's salted scrypt hash and a
+  SHA-256 of its challenge, with a 10-minute expiry. Each request makes its own code and
+  challenge, and a code is proved only with the challenge its own request was answered
+  with, so a stranger's requests and wrong tries can never use up someone else's code. A
+  code works once, and 5 wrong tries with its challenge use it up. Rows stay 2 days so the
+  caps can count them, and older rows are removed when a code is made.
+- **Proving the code goes through the API too** (`POST /api/v1/finance/sign-in/verify`,
+  with the address, the code and the challenge). A wrong, expired, used or used-up code, a
+  wrong or missing challenge, a never-sent code, an address revoked since, and a code
+  another proof is checking at that moment all get the same 400 answer. Every answer except
+  a sign-in token, including a 503 from a database or Supabase failure, is sent after the
+  same minimum time (0.5 seconds), waited out without holding a worker thread. Each API
+  process checks at most 3 proofs at once; a proof that finds them all busy is answered 429,
+  the same way for every address.
+- **A proved code is the only point where the Supabase account is created or found**, with
+  the server's secret key (`SUPABASE_SECRET_KEY`). The API then returns a 1-time Supabase
+  sign-in token of type `email`, which Supabase checks against both a sign-in token and a
+  new account's sign-up token, and the browser turns it into its session. The 2 Supabase
+  calls each wait at most 1.5 seconds to connect and 3 seconds to answer, so they finish
+  inside the browser's 10-second limit. If Supabase cannot finish, the code stays valid for
   another try.
 - **Nothing is sent or proved until it is switched on**: both routes answer 503 for every
   address until `ALETHICAL_FINANCE_SIGN_IN_CODE_ENABLED`, `SUPABASE_SECRET_KEY` and the
   email sender's settings are all set. `ALETHICAL_EMAIL_ALLOWLIST`, when set, holds back
-  every other address's email. Each internet address may ask 10 times a minute across both
-  routes (`ALETHICAL_FINANCE_SIGN_IN_RATE_PER_MIN`); a failed email is logged and never
-  reported to the caller.
+  every other address's email. Each internet address may make 10 requests a minute,
+  counted across both routes together (`ALETHICAL_FINANCE_SIGN_IN_RATE_PER_MIN`); a failed
+  email is logged and never reported to the caller.
 - Every Finance request checks the list again
   ([backend-stack.md § 4. Sign-in](../architecture/backend-stack.md#4-sign-in)).
 

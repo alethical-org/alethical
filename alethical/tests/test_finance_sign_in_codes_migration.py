@@ -47,6 +47,13 @@ def test_finance_sign_in_codes_upgrade_downgrade_upgrade():
                 for column in inspect(engine).get_columns("finance_sign_in_code")
             }
             assert not columns["code_hash"]["nullable"]
+            assert not columns["challenge_hash"]["nullable"]
+            assert [
+                constraint["column_names"]
+                for constraint in inspect(engine).get_unique_constraints(
+                    "finance_sign_in_code"
+                )
+            ] == [["challenge_hash"]]
             assert not columns["expires_at"]["nullable"]
             assert columns["used_at"]["nullable"]
             with engine.connect() as db:

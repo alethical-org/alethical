@@ -23,6 +23,8 @@ export function SignIn() {
   const [step, setStep] = useState<Step>('options');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
+  // From this page's own newest code request; the code is proved with it.
+  const [challenge, setChallenge] = useState('');
   const [busy, setBusy] = useState<'google' | 'send' | 'verify' | 'resend' | null>(null);
   const [error, setError] = useState<string | null>(googleCancelled ? 'google' : null);
   const [resent, setResent] = useState(false);
@@ -94,14 +96,15 @@ export function SignIn() {
     setResent(false);
     const result = await requestSignInCode(apiBaseUrl, address);
     setBusy(null);
-    if (result === 'invalid-email') {
+    if (result.kind === 'invalid-email') {
       setError(step === 'code' ? 'send' : 'email');
       return;
     }
-    if (result !== 'accepted') {
+    if (result.kind !== 'accepted') {
       setError('send');
       return;
     }
+    setChallenge(result.challenge);
     if (step === 'code') setResent(true);
     setCode('');
     goTo('code');
@@ -118,7 +121,7 @@ export function SignIn() {
     setBusy('verify');
     setError(null);
     // Alethical checks the code; Supabase turns the 1-time token into a session.
-    const proof = await proveSignInCode(apiBaseUrl, email.trim(), code.trim());
+    const proof = await proveSignInCode(apiBaseUrl, email.trim(), code.trim(), challenge);
     if (proof.kind !== 'token') {
       setBusy(null);
       setError(proof.kind === 'refused' ? 'code' : 'check');

@@ -222,7 +222,7 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 | `ALETHICAL_SOURCE_REFRESH_FAMILIES` | Present when dispatch is on, holding the same JSON list as the `SOURCE_REFRESH_FAMILIES` repository variable | Limits the wake to the source families already activated. | Live: presence only |
 | `ALETHICAL_FINANCE_SIGN_IN_CODE_ENABLED` | Absent until `SUPABASE_SECRET_KEY` is set | Switches on Alethical Finance's emailed sign-in codes; while absent, both code routes answer 503 for every address ([sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in)). | Live |
 | `SUPABASE_SECRET_KEY` | Absent until a person adds it | A Supabase secret key (`sb_secret_…`), server only: creates or finds a Finance account and issues its 1-time sign-in token after a proved code. Never in a browser build. | Live |
-| `ALETHICAL_FINANCE_SIGN_IN_RATE_PER_MIN` | Absent | The default of 10 code requests per minute from 1 internet address applies. | Live |
+| `ALETHICAL_FINANCE_SIGN_IN_RATE_PER_MIN` | Absent | The default applies: 10 requests a minute from 1 internet address, code requests and code proofs counted together. | Live |
 | `ALETHICAL_CORS_ORIGINS` | Present | Limits which websites can call the API from a browser. | Live |
 | `ALETHICAL_EMAIL_ENABLED` | Present | Turns production Contact us delivery on. | Live |
 | `ALETHICAL_EMAIL_FROM` | Present | Sets the verified sender address. | Live |

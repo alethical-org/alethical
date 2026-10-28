@@ -53,13 +53,15 @@ async function renderAt(
     url.endsWith('/sign-in/verify')
       ? new Response(
           JSON.stringify({
-            data: { token_hash: 'one-time-token', type: 'magiclink' },
+            data: { token_hash: 'one-time-token', type: 'email' },
           }),
           { status: 200 },
         )
-      : new Response(null, {
-          status: url.endsWith('/sign-in/code') ? 202 : accessStatus,
-        }),
+      : url.endsWith('/sign-in/code')
+        ? new Response(JSON.stringify({ data: { status: 'accepted', challenge: 'challenge-1' } }), {
+            status: 202,
+          })
+        : new Response(null, { status: accessStatus }),
   );
   vi.stubGlobal('fetch', fetcher);
   await act(async () => {
@@ -152,12 +154,13 @@ describe('the Finance shell', () => {
         body: JSON.stringify({
           email: 'reader@example.test',
           code: '12345678',
+          challenge: 'challenge-1',
         }),
       }),
     );
     expect(supabase.auth.verifyOtp).toHaveBeenCalledWith({
       token_hash: 'one-time-token',
-      type: 'magiclink',
+      type: 'email',
     });
   });
 

@@ -160,8 +160,10 @@ class FinanceAccessEntry(Base):
 class FinanceSignInCode(Base):
     """1 emailed Alethical Finance sign-in code, kept only as a salted hash.
 
-    Sent only to an active access-list address; it expires, allows a few wrong
-    tries and works once (docs/architecture/alethical-finance-architecture.md §3).
+    Sent only to an active access-list address, and proved only with the
+    challenge its request was answered with (kept as a SHA-256); it expires,
+    allows a few wrong tries and works once
+    (docs/architecture/alethical-finance-architecture.md §3).
     """
 
     __tablename__ = "finance_sign_in_code"
@@ -179,6 +181,7 @@ class FinanceSignInCode(Base):
     )
     email: Mapped[str] = mapped_column(Text, nullable=False)
     code_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    challenge_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

@@ -3,7 +3,9 @@
 Alethical sends its own codes, and only to an address on the access list, so
 answering a request never reveals whether an address is a Finance client
 (docs/architecture/alethical-finance-architecture.md §3). A code is never stored,
-only its hash, with an expiry and a count of wrong tries.
+only its hash, with a SHA-256 of the challenge its request was answered with, an
+expiry and a count of wrong tries. Rows stay for 2 days so the sending caps can
+count them.
 """
 
 from alembic import op
@@ -22,6 +24,7 @@ def upgrade() -> None:
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("email", sa.Text(), nullable=False),
         sa.Column("code_hash", sa.Text(), nullable=False),
+        sa.Column("challenge_hash", sa.Text(), nullable=False),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -37,6 +40,9 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint("expires_at > created_at", name="expires_after_created"),
         sa.CheckConstraint("wrong_tries >= 0", name="wrong_tries_counted"),
+        sa.UniqueConstraint(
+            "challenge_hash", name="uq_finance_sign_in_code_challenge_hash"
+        ),
     )
     op.create_index(
         "ix_finance_sign_in_code_email_created",
