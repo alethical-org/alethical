@@ -59,7 +59,9 @@ of this guide, and `/` is Finance home.
   (`VITE_EMAIL_SIGN_IN`). With neither on, the page says "Sign-in to Alethical Finance is
   not open yet."
 - **`/auth/return`.** Where Google brings the visitor back, to the Finance page they asked
-  for. Finance's emails carry no link, so email sign-in never comes here. A failed Google
+  for. Finance's emails carry no link, so email sign-in never comes here. A sign-in token in
+  the address, from any link, is never used: the page takes it out of the address bar at
+  once, so a crafted link cannot sign a visitor into someone else's account. A failed Google
   sign-in returns to `/sign-in` with "Google didn’t finish. Try again, or use email." Opened
   any other way without a finished sign-in, the page says "That sign-in link didn’t work"
   and links back to sign-in.
@@ -73,14 +75,17 @@ of this guide, and `/` is Finance home.
    emails an 8-digit code, with no link, only to a listed one, so the next screen says "If
    {address} has access to Alethical Finance, a code is on its way to it", never that a code
    was sent.
-3. **Code:** the visitor pastes the code. The app sends it with the challenge from its
-   newest request (`POST /api/v1/finance/sign-in/verify`), so only the newest code works
-   here; the server returns a 1-time sign-in token that the app hands to Supabase. A wrong,
-   expired or used code shows "That code is wrong or expired. Enter the newest code or send
-   a new one."; if the server cannot check it, "We couldn’t check the code. Try again." Send
-   a new code waits 60 seconds between requests and shows the seconds left. Use another
-   email goes back with the address kept. After a correct code, Continue stays busy until
-   the access answer arrives; if access cannot be checked, the page offers Try again.
+3. **Code:** the visitor pastes the code. The app sends it with the challenge from this
+   tab's newest request (`POST /api/v1/finance/sign-in/verify`); the server returns a 1-time
+   sign-in token that the app hands to Supabase. A request made again within 50 seconds, for
+   example after a reload or Use another email, sends no new email, and the code already
+   sent still works. Reloaded within the code's 10 minutes, the page opens at this step for
+   the same address. A wrong, expired or used code shows "That code is wrong or expired.
+   Enter the newest code or send a new one."; if the server cannot check it, "We couldn’t
+   check the code. Try again." Send a new code waits 60 seconds between requests and shows
+   the seconds left. Use another email goes back with the address kept. After a correct
+   code, Continue stays busy until the access answer arrives; if access cannot be checked,
+   the page offers Try again.
 
 ## After sign-in
 

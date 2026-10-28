@@ -188,8 +188,8 @@ Alethical Finance's sign-in codes use the same transport and provider key, behin
 separate `ALETHICAL_FINANCE_SIGN_IN_CODE_ENABLED` switch. Resend's free plan allows 100
 emails a day and 3,000 a month, shared by Contact us, comment alerts, alethical.com's
 sign-in emails (Supabase sends them through Resend) and Finance's codes. Finance takes at
-most 40 a day, and so at most about 1,200 a month: 1 code a minute, 5 an hour and 10 a day
-per address, and 40 a day in total
+most 40 a day, and so at most about 1,200 a month: codes at least 50 seconds apart, 5 an
+hour and 10 a day per address, and 40 a day in total
 ([sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in)).
 Codes are sent by 2 threads of their own in the API process, never inside a request.
 

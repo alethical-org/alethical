@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import logging
 import re
 import secrets
 import threading
@@ -17,10 +18,16 @@ from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
+from fastapi import HTTPException
+
 from alethical.api.routers import finance_sign_in as route
 from alethical.api.services import finance_access
 from alethical.api.services import finance_sign_in
-from alethical.db.models import FinanceAccessEntry, FinanceSignInCode
+from alethical.db.models import (
+    FinanceAccessEntry,
+    FinanceSignInChallenge,
+    FinanceSignInCode,
+)
 from alethical.db.session import get_db, get_engine, get_session_factory
 
 CODE = "/api/v1/finance/sign-in/code"
@@ -170,18 +177,45 @@ def made_earlier(db, age):
 
 
 def history(db, rows):
-    """Earlier code rows, each as (address, how long ago it was made)."""
+    """Earlier codes, each as (address, how long ago it was made), with 1 challenge."""
     for email, age in rows:
+        row = FinanceSignInCode(
+            email=email,
+            code_hash=finance_sign_in._DECOY,
+            created_at=func.now() - age,
+            expires_at=func.now() - age + finance_sign_in.CODE_LIFETIME,
+        )
+        db.add(row)
+        db.flush()
         db.add(
-            FinanceSignInCode(
-                email=email,
-                code_hash=finance_sign_in._DECOY,
-                challenge_hash=secrets.token_hex(32),
-                created_at=func.now() - age,
-                expires_at=func.now() - age + finance_sign_in.CODE_LIFETIME,
-            )
+            FinanceSignInChallenge(code_id=row.id, challenge_hash=secrets.token_hex(32))
         )
     db.commit()
+
+
+def challenge_row(db, challenge):
+    return db.scalar(
+        select(FinanceSignInChallenge).where(
+            FinanceSignInChallenge.challenge_hash
+            == hashlib.sha256(challenge.encode()).hexdigest()
+        )
+    )
+
+
+class _Full:
+    """A proof semaphore with no place left that fails, never hangs, if waited on."""
+
+    def locked(self):
+        return True
+
+    async def acquire(self):
+        raise AssertionError("a busy proof waited for a place")
+
+    async def __aenter__(self):
+        await self.acquire()
+
+    async def __aexit__(self, *exc):
+        return False
 
 
 def test_every_address_gets_1_answer_and_only_a_listed_one_an_email(api, db, services):
@@ -199,8 +233,10 @@ def test_every_address_gets_1_answer_and_only_a_listed_one_an_email(api, db, ser
     [code] = services.codes()
     [held] = db.scalars(select(FinanceSignInCode)).all()
     assert held.email == LISTED and code not in held.code_hash
-    # Only a hash of the challenge is kept.
-    assert held.challenge_hash == hashlib.sha256(challenges[0].encode()).hexdigest()
+    # Only a hash of the challenge is kept, bound to the code; the others bind nothing.
+    [bound] = db.scalars(select(FinanceSignInChallenge)).all()
+    assert bound.code_id == held.id
+    assert bound.challenge_hash == hashlib.sha256(challenges[0].encode()).hexdigest()
     assert services.supabase == []
 
 
@@ -264,7 +300,7 @@ def test_every_refusal_is_the_same_answer(api, db, services):
 
 
 @pytest.mark.parametrize(
-    "case", ["refused", "malformed", "supabase down", "database error", "busy"]
+    "case", ["refused", "malformed", "supabase down", "database error"]
 )
 def test_every_answer_but_a_token_waits_out_the_same_floor(
     api, services, monkeypatch, case
@@ -278,32 +314,85 @@ def test_every_answer_but_a_token_waits_out_the_same_floor(
         email, status = "not-an-address", 422
     elif case == "supabase down":
         services.token_status = 500
-    elif case == "database error":
+    else:
 
         def broken(*args):
             raise OperationalError("SELECT 1", {}, Exception("connection lost"))
 
         monkeypatch.setattr(finance_sign_in, "prove_code", broken)
-    else:
-        monkeypatch.setattr(route, "_proofs", asyncio.Semaphore(0))
-        status = 429
     monkeypatch.setattr(route, "REFUSAL_SECONDS", 0.3)
     started = time.monotonic()
     assert prove(api, email, code, challenge).status_code == status
     assert time.monotonic() - started >= 0.3
 
 
-def test_a_full_process_answers_every_address_alike(api, services, monkeypatch):
+def test_a_full_process_answers_busy_at_once_and_alike(api, services, monkeypatch):
     challenge = challenge_for(api, LISTED)
     [code] = services.codes()
-    monkeypatch.setattr(route, "_proofs", asyncio.Semaphore(0))
+    monkeypatch.setattr(route, "_proofs", _Full())
+    monkeypatch.setattr(route, "REFUSAL_SECONDS", 0.3)
+    started = time.monotonic()
     listed = prove(api, LISTED, code, challenge)
     unlisted = prove(api, UNLISTED, code, challenge)
+    assert time.monotonic() - started < 0.3
     assert listed.status_code == unlisted.status_code == 429
     assert same_answer(listed, unlisted)
     assert services.supabase == []
     monkeypatch.setattr(route, "_proofs", asyncio.Semaphore(1))
+    monkeypatch.setattr(route, "REFUSAL_SECONDS", 0.0)
     assert prove(api, LISTED, code, challenge).status_code == 200
+
+
+def _refused(*args):
+    raise finance_sign_in.CodeNotAccepted
+
+
+def test_a_proof_keeps_its_place_through_its_minimum_wait(db, monkeypatch):
+    monkeypatch.setattr(finance_sign_in, "prove_code", _refused)
+    monkeypatch.setattr(route, "_proofs", asyncio.Semaphore(1))
+    monkeypatch.setattr(route, "REFUSAL_SECONDS", 0.3)
+    payload = route.CodeProof(email=LISTED, code="12345678", challenge="c")
+
+    async def two_proofs():
+        first = asyncio.create_task(route.verify_code(payload, db))
+        await asyncio.sleep(0.1)
+        with pytest.raises(HTTPException) as second:
+            await route.verify_code(payload, db)
+        with pytest.raises(HTTPException) as waited:
+            await first
+        return second.value.status_code, waited.value.status_code
+
+    assert asyncio.run(two_proofs()) == (429, 400)
+
+
+def test_a_proof_never_blocks_the_event_loop(db, monkeypatch):
+    def slow_refusal(*args):
+        time.sleep(0.3)
+        raise finance_sign_in.CodeNotAccepted
+
+    monkeypatch.setattr(finance_sign_in, "prove_code", slow_refusal)
+    monkeypatch.setattr(route, "_proofs", asyncio.Semaphore(1))
+    monkeypatch.setattr(route, "REFUSAL_SECONDS", 0.6)
+    payload = route.CodeProof(email=LISTED, code="12345678", challenge="c")
+
+    async def proof_beside_a_ticker():
+        ticks = [time.monotonic()]
+
+        async def ticker():
+            while True:
+                await asyncio.sleep(0.01)
+                ticks.append(time.monotonic())
+
+        ticking = asyncio.create_task(ticker())
+        with pytest.raises(HTTPException):
+            await route.verify_code(payload, db)
+        ticks.append(time.monotonic())
+        ticking.cancel()
+        return max(later - earlier for earlier, later in zip(ticks, ticks[1:]))
+
+    # The 0.3-second check and the rest of the 0.6-second wait both run beside
+    # other requests; either one on the event loop would stall it that long.
+    assert asyncio.run(proof_beside_a_ticker()) < 0.15
 
 
 def test_5_wrong_tries_use_up_the_code(api, services):
@@ -338,14 +427,49 @@ def test_a_strangers_requests_and_wrong_tries_never_use_up_your_code(api, db, se
     assert prove(api, LISTED, your_code, None).status_code == 400
     # Their 5 wrong tries used up their own code, never yours.
     assert prove(api, LISTED, their_code, theirs).status_code == 400
-    yours_row = db.scalar(
-        select(FinanceSignInCode).where(
-            FinanceSignInCode.challenge_hash
-            == hashlib.sha256(yours.encode()).hexdigest()
-        )
-    )
-    assert yours_row.wrong_tries == 0
+    assert challenge_row(db, yours).wrong_tries == 0
     assert prove(api, LISTED, your_code, yours).status_code == 200
+
+
+def test_a_request_inside_the_spacing_proves_the_code_already_sent(api, services):
+    # A reload, a dropped tab or "Use another email" asks again within seconds.
+    first = challenge_for(api, LISTED)
+    [inbox_code] = services.codes()
+    again = challenge_for(api, LISTED)
+    assert len(services.emails) == 1
+    assert prove(api, LISTED, inbox_code, again).status_code == 200
+    assert prove(api, LISTED, inbox_code, first).status_code == 400
+
+
+def test_a_strangers_held_back_request_has_its_own_wrong_tries(api, db, services):
+    yours = challenge_for(api, LISTED)
+    [code] = services.codes()
+    # Inside the spacing: no new email, and their challenge proves your code.
+    theirs = challenge_for(api, LISTED)
+    for _ in range(finance_sign_in.MAX_WRONG_TRIES):
+        assert prove(api, LISTED, wrong(code), theirs).status_code == 400
+    assert prove(api, LISTED, code, theirs).status_code == 400
+    assert challenge_row(db, theirs).wrong_tries == finance_sign_in.MAX_WRONG_TRIES
+    assert challenge_row(db, yours).wrong_tries == 0
+    assert prove(api, LISTED, code, yours).status_code == 200
+
+
+def test_a_code_takes_a_limited_number_of_challenges(api, db, services):
+    challenge_for(api, LISTED)
+    [code] = services.codes()
+    [sent] = db.scalars(select(FinanceSignInCode)).all()
+    for _ in range(finance_sign_in.MAX_CHALLENGES_PER_CODE - 2):
+        db.add(
+            FinanceSignInChallenge(
+                code_id=sent.id, challenge_hash=secrets.token_hex(32)
+            )
+        )
+    db.commit()
+    last_bound = challenge_for(api, LISTED)
+    not_bound = challenge_for(api, LISTED)
+    assert challenge_row(db, not_bound) is None
+    assert prove(api, LISTED, code, not_bound).status_code == 400
+    assert prove(api, LISTED, code, last_bound).status_code == 200
 
 
 def test_a_repeat_inside_the_wait_sends_nothing_more(api, services):
@@ -359,8 +483,8 @@ def test_a_repeat_inside_the_wait_sends_nothing_more(api, services):
 @pytest.mark.parametrize(
     ("earlier", "sent"),
     [
-        pytest.param([(LISTED, timedelta(seconds=30))], False, id="1 a minute"),
-        pytest.param([(LISTED, timedelta(seconds=61))], True, id="after a minute"),
+        pytest.param([(LISTED, timedelta(seconds=49))], False, id="50-second spacing"),
+        pytest.param([(LISTED, timedelta(seconds=51))], True, id="after 50 seconds"),
         pytest.param(
             [
                 (LISTED, timedelta(minutes=2 + n))
@@ -441,6 +565,49 @@ def test_old_rows_go_only_when_a_code_is_made(api, db, services):
         )
     ).all()
     assert len(ages) == 2 and ages[0] == timedelta(days=1.5)
+    # The removed code's challenge went with it.
+    assert len(db.scalars(select(FinanceSignInChallenge)).all()) == 2
+
+
+@pytest.mark.parametrize(
+    ("earlier", "cap"),
+    [
+        ([(LISTED, timedelta(seconds=10))], "50-second spacing"),
+        ([(LISTED, timedelta(minutes=2 + n)) for n in range(5)], "hourly per-address"),
+        ([(LISTED, timedelta(hours=2 + n)) for n in range(10)], "daily per-address"),
+        (
+            [(f"reader-{n}@example.test", timedelta(hours=2)) for n in range(40)],
+            "Finance-wide daily",
+        ),
+    ],
+)
+def test_a_held_back_code_logs_its_cap_and_only_the_daily_total_alerts(
+    api, db, services, monkeypatch, caplog, earlier, cap
+):
+    reports = []
+    monkeypatch.setattr(
+        finance_sign_in,
+        "capture_operational_error",
+        lambda error, **labels: reports.append((error, labels)),
+    )
+    monkeypatch.setattr(finance_sign_in, "_daily_cap_reported_at", None)
+    caplog.set_level(logging.INFO, logger=finance_sign_in.__name__)
+    history(db, earlier)
+    ask(api, LISTED)
+    ask(api, LISTED)
+    assert services.emails == []
+    held = [r for r in caplog.records if "held back" in r.getMessage()]
+    assert len(held) == 2 and all(cap in r.getMessage() for r in held)
+    assert all(LISTED not in r.getMessage() for r in caplog.records)
+    if cap == "Finance-wide daily":
+        assert {r.levelno for r in held} == {logging.WARNING}
+        # Reported once, not once a request, and without the address.
+        [(error, labels)] = reports
+        assert isinstance(error, finance_sign_in.FinanceDailyCodeCapReached)
+        assert labels == {"area": "finance_sign_in", "operation": "daily_code_cap"}
+        assert LISTED not in str(error)
+    else:
+        assert {r.levelno for r in held} == {logging.INFO} and reports == []
 
 
 def test_the_answer_never_waits_for_the_email(api, services, monkeypatch):
@@ -497,6 +664,13 @@ def test_simultaneous_requests_for_1_address_make_1_email(
     for thread in threads:
         thread.join(10)
     assert len(services.emails) == 1
+    with get_session_factory()() as check:
+        bound = check.scalars(
+            select(FinanceSignInChallenge.code_id)
+            .join(FinanceSignInCode)
+            .where(FinanceSignInCode.email == committed)
+        ).all()
+    assert len(bound) == 2 and len(set(bound)) == 1
 
 
 def test_a_code_another_proof_is_checking_is_refused_at_once(committed, services):
@@ -506,7 +680,8 @@ def test_a_code_another_proof_is_checking_is_refused_at_once(committed, services
     factory = get_session_factory()
     with factory() as holder, factory() as prover:
         holder.execute(
-            select(FinanceSignInCode.id)
+            select(FinanceSignInChallenge.id, FinanceSignInCode.id)
+            .join(FinanceSignInCode)
             .where(FinanceSignInCode.email == committed)
             .with_for_update()
         )

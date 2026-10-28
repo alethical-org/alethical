@@ -268,23 +268,37 @@ an address is on Finance's access list names a client, so no answer shows it.
   request slot.
 - **Sending caps** keep Finance's codes to 40 of the 100 emails a day that Resend's free
   plan allows, which Contact us, comment alerts and alethical.com's sign-in emails share.
-  An address gets at most 1 code a minute, 5 an hour and 10 a day, and Finance sends at most
-  40 codes a day in total (constants in `alethical/api/services/finance_sign_in.py`). A
-  request held back by a cap gets the same answer as any other, and no email.
-- **Only hashes are kept** (`finance_sign_in_code`): the code's salted scrypt hash and a
-  SHA-256 of its challenge, with a 10-minute expiry. Each request makes its own code and
-  challenge, and a code is proved only with the challenge its own request was answered
-  with, so a stranger's requests and wrong tries can never use up someone else's code. A
-  code works once, and 5 wrong tries with its challenge use it up. Rows stay 2 days so the
-  caps can count them, and older rows are removed when a code is made.
+  An address's codes are at least 50 seconds apart, under the sign-in page's 60-second
+  resend wait, with at most 5 an hour and 10 a day, and Finance sends at most 40 codes a day
+  in total (constants in `alethical/api/services/finance_sign_in.py`). A request held back
+  by a cap gets the same answer as any other, and no email. The log names the cap; the
+  Finance-wide daily cap is logged as a warning and reported to Sentry at most once an hour
+  per API process, without the address.
+- **A held-back request still proves the code already sent.** When a cap holds back a
+  request for an address with a live code, its challenge is bound to that address's newest
+  live code, up to 10 challenges a code. A reload, a dropped tab or Use another email
+  therefore never strands the code in the inbox.
+- **Only hashes are kept**: each code's salted scrypt hash, with a 10-minute expiry
+  (`finance_sign_in_code`), and a SHA-256 of each bound challenge
+  (`finance_sign_in_challenge`). Each challenge has its own count of wrong tries, and 5
+  wrong tries use up that challenge only, so a stranger's requests and wrong tries can never
+  use up someone else's. A code works once, and allows at most 50 wrong tries across its
+  challenges. Rows stay 2 days so the caps can count them, and older rows are removed when a
+  code is made.
 - **Proving the code goes through the API too** (`POST /api/v1/finance/sign-in/verify`,
   with the address, the code and the challenge). A wrong, expired, used or used-up code, a
-  wrong or missing challenge, a never-sent code, an address revoked since, and a code
-  another proof is checking at that moment all get the same 400 answer. Every answer except
-  a sign-in token, including a 503 from a database or Supabase failure, is sent after the
-  same minimum time (0.5 seconds), waited out without holding a worker thread. Each API
-  process checks at most 3 proofs at once; a proof that finds them all busy is answered 429,
-  the same way for every address.
+  wrong, missing or used-up challenge, a never-sent code, an address revoked since, and a
+  code another proof is checking at that moment all get the same 400 answer. Every answer
+  except a sign-in token or "busy", including a 503 from a database or Supabase failure, is
+  sent after the same minimum time (0.5 seconds), waited out without holding a worker
+  thread. Each API process checks at most 3 proofs at once, each keeping its place through
+  that wait; a proof that finds every place taken is answered 429 at once, the same way for
+  every address.
+- **The Finance sign-in page keeps this tab's newest code request** (the address, its
+  challenge and when it was made) in the browser's sessionStorage, and proves the code with
+  that challenge. Reloaded within the code's 10 minutes, the page opens at the code step for
+  the same address. Where the browser refuses storage, the page keeps the request only
+  until it reloads.
 - **A proved code is the only point where the Supabase account is created or found**, with
   the server's secret key (`SUPABASE_SECRET_KEY`). The API then returns a 1-time Supabase
   sign-in token of type `email`, which Supabase checks against both a sign-in token and a

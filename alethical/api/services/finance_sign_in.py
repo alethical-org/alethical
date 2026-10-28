@@ -6,11 +6,13 @@ request route checks only the address's form and answers every address the same
 way, with a new random challenge. After that answer has gone, Finance's own 2
 sending threads check the list and the sending caps, make the code and send the
 email. Codes go only to active list entries, through Alethical's own email
-sender, and are kept only as salted hashes beside a SHA-256 of their challenge,
-with an expiry and a limit on wrong tries.
+sender, and are kept only as salted hashes with an expiry.
 
-A code is proved together with the challenge its request was answered with, so
-nobody else's requests or wrong tries can use it up. A proved code is exchanged
+A code is proved together with a challenge bound to it, kept only as a SHA-256:
+the challenge of the request that made it, or of a later request a cap held
+back, which proves the address's newest live code instead. Each challenge has
+its own count of wrong tries, so nobody else's requests or wrong tries can use
+up a visitor's code. A proved code is exchanged
 for a 1-time Supabase sign-in token: the Supabase account is created or found
 only then, with the server's secret key, and the browser turns the token into
 its session. Every Finance request checks the list again
@@ -24,6 +26,8 @@ import hmac
 import logging
 import os
 import secrets
+import threading
+import time
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
@@ -35,8 +39,13 @@ from sqlalchemy.orm import Session
 
 from alethical.api.services.contact import DEFAULT_FROM, _allowlist, _enabled
 from alethical.api.services.finance_access import normalize_email
-from alethical.db.models import FinanceAccessEntry, FinanceSignInCode
+from alethical.db.models import (
+    FinanceAccessEntry,
+    FinanceSignInChallenge,
+    FinanceSignInCode,
+)
 from alethical.db.session import get_session_factory
+from alethical.monitoring import capture_operational_error
 
 logger = logging.getLogger(__name__)
 
@@ -49,10 +58,17 @@ RESEND_URL = "https://api.resend.com/emails"
 # Contact us, comment alerts and alethical.com's sign-in emails, so Finance takes
 # at most 40 of them. Each cap is checked after the answer has gone, so a code
 # held back by a cap is answered like any other request.
-CODES_PER_ADDRESS_PER_MINUTE = 1  # the sign-in screen's 60-second resend wait
+# Shorter than the sign-in screen's 60-second resend wait, so a resend the
+# screen allows is never held back.
+MIN_TIME_BETWEEN_CODES = timedelta(seconds=50)
 CODES_PER_ADDRESS_PER_HOUR = 5
 CODES_PER_ADDRESS_PER_DAY = 10
 FINANCE_CODES_PER_DAY = 40
+# A request a cap holds back proves the address's newest live code instead, up
+# to this many challenges a code, so 1 code allows at most 50 wrong tries.
+MAX_CHALLENGES_PER_CODE = 10
+# The Finance-wide cap is reported to Sentry at most this often per process.
+DAILY_CAP_REPORT_EVERY_SECONDS = 3600.0
 # Code rows stay this long so the caps can count them, then go.
 KEEP_CODE_ROWS = timedelta(days=2)
 # Delivery runs here, never in a request: it holds no request slot or worker.
@@ -80,6 +96,14 @@ class SignInCodeUnavailable(RuntimeError):
 
 class CodeNotAccepted(ValueError):
     """The 1 answer for a wrong, expired, used, exhausted or never-sent code."""
+
+
+class FinanceDailyCodeCapReached(RuntimeError):
+    """Finance sent its daily allowance of codes; more wait for the next day."""
+
+
+_daily_cap_reported_at: float | None = None
+_daily_cap_report_lock = threading.Lock()
 
 
 @dataclass(frozen=True)
@@ -185,23 +209,73 @@ def deliver_code(email: str, challenge_hash: str) -> None:
         logger.warning("Finance sign-in code not delivered: %s", type(exc).__name__)
 
 
-def _over_a_cap(db: Session, email: str) -> bool:
+def _cap_reached(db: Session, email: str) -> str | None:
+    """The name of the first sending cap that holds back a code, or None."""
     made = FinanceSignInCode.created_at
     mine = FinanceSignInCode.email == email
-    minute, hour, day, everyone = db.execute(
+    recent, hour, day, everyone = db.execute(
         select(
-            func.count().filter(mine, made > func.now() - timedelta(minutes=1)),
+            func.count().filter(mine, made > func.now() - MIN_TIME_BETWEEN_CODES),
             func.count().filter(mine, made > func.now() - timedelta(hours=1)),
             func.count().filter(mine),
             func.count(),
         ).where(made > func.now() - timedelta(days=1))
     ).one()
-    return (
-        minute >= CODES_PER_ADDRESS_PER_MINUTE
-        or hour >= CODES_PER_ADDRESS_PER_HOUR
-        or day >= CODES_PER_ADDRESS_PER_DAY
-        or everyone >= FINANCE_CODES_PER_DAY
+    if everyone >= FINANCE_CODES_PER_DAY:
+        return "Finance-wide daily"
+    if recent:
+        return "50-second spacing"
+    if hour >= CODES_PER_ADDRESS_PER_HOUR:
+        return "hourly per-address"
+    if day >= CODES_PER_ADDRESS_PER_DAY:
+        return "daily per-address"
+    return None
+
+
+def _report_cap(cap: str) -> None:
+    """Log which cap held a code back; the Finance-wide one also goes to Sentry."""
+    global _daily_cap_reported_at
+    if cap != "Finance-wide daily":
+        logger.info("Finance sign-in code held back by the %s cap", cap)
+        return
+    logger.warning(
+        "Finance sign-in code held back by the Finance-wide daily cap of %s codes",
+        FINANCE_CODES_PER_DAY,
     )
+    with _daily_cap_report_lock:
+        now = time.monotonic()
+        if (
+            _daily_cap_reported_at is not None
+            and now - _daily_cap_reported_at < DAILY_CAP_REPORT_EVERY_SECONDS
+        ):
+            return
+        _daily_cap_reported_at = now
+    capture_operational_error(
+        FinanceDailyCodeCapReached(), area="finance_sign_in", operation="daily_code_cap"
+    )
+
+
+def _bind_to_newest_code(db: Session, email: str, challenge_hash: str) -> None:
+    """Let a held-back request's challenge prove the code already in the inbox."""
+    newest = db.scalar(
+        select(FinanceSignInCode.id)
+        .where(
+            FinanceSignInCode.email == email,
+            FinanceSignInCode.used_at.is_(None),
+            FinanceSignInCode.expires_at > func.now(),
+        )
+        .order_by(FinanceSignInCode.created_at.desc())
+        .limit(1)
+    )
+    if newest is None:
+        return
+    bound = db.scalar(
+        select(func.count()).where(FinanceSignInChallenge.code_id == newest)
+    )
+    if bound >= MAX_CHALLENGES_PER_CODE:
+        logger.info("Finance sign-in challenge not bound: its code has enough")
+        return
+    db.add(FinanceSignInChallenge(code_id=newest, challenge_hash=challenge_hash))
 
 
 def _new_code(db: Session, email: str, challenge_hash: str) -> tuple[str, str] | None:
@@ -214,11 +288,14 @@ def _new_code(db: Session, email: str, challenge_hash: str) -> tuple[str, str] |
     if listed is None:
         db.rollback()
         return None
-    if _over_a_cap(db, email):
-        db.rollback()
-        logger.info("Finance sign-in code held back by a sending cap")
+    cap = _cap_reached(db, email)
+    if cap is not None:
+        _report_cap(cap)
+        _bind_to_newest_code(db, email, challenge_hash)
+        db.commit()
         return None
-    # Earlier codes stay valid for their own challenges; only old rows go.
+    # Earlier codes stay valid for their own challenges; only old rows go, and
+    # their challenges with them.
     db.execute(
         delete(FinanceSignInCode).where(
             FinanceSignInCode.created_at < func.now() - KEEP_CODE_ROWS
@@ -228,10 +305,11 @@ def _new_code(db: Session, email: str, challenge_hash: str) -> tuple[str, str] |
     row = FinanceSignInCode(
         email=email,
         code_hash=_hash(code, secrets.token_bytes(16)),
-        challenge_hash=challenge_hash,
         expires_at=func.now() + CODE_LIFETIME,
     )
     db.add(row)
+    db.flush()
+    db.add(FinanceSignInChallenge(code_id=row.id, challenge_hash=challenge_hash))
     db.commit()
     return str(row.id), code
 
@@ -274,37 +352,50 @@ def prove_code(db: Session, raw_email: str, raw_code: str, raw_challenge: str) -
     """A 1-time Supabase sign-in token for a proved code.
 
     Raises CodeNotAccepted the same way for an unlisted address, a wrong,
-    expired or used code, a wrong or missing challenge, one with too many wrong
-    tries, and one another proof is checking at this moment; ValueError for a
-    malformed address; SignInCodeUnavailable when this server or Supabase cannot
-    finish. The code is used up only once Supabase has issued the token.
+    expired or used code, a wrong or missing challenge, a challenge with too
+    many wrong tries, and one another proof is checking at this moment;
+    ValueError for a malformed address; SignInCodeUnavailable when this server
+    or Supabase cannot finish. The code is used up only once Supabase has issued
+    the token.
     """
     email = normalize_email(raw_email)
     settings = _settings()
     code = raw_code.strip() if isinstance(raw_code, str) else ""
     challenge = raw_challenge if isinstance(raw_challenge, str) else ""
-    # A row another proof holds is skipped, never waited for, so simultaneous
-    # tries cannot queue behind a held code and show that one exists.
-    held = db.scalar(
-        select(FinanceSignInCode)
+    # A challenge another proof holds is skipped, never waited for, so
+    # simultaneous tries cannot queue behind a held code and show that one exists.
+    found = db.execute(
+        select(FinanceSignInChallenge, FinanceSignInCode)
+        .join(FinanceSignInCode, FinanceSignInChallenge.code_id == FinanceSignInCode.id)
         .where(
-            FinanceSignInCode.challenge_hash == _challenge_hash(challenge),
+            FinanceSignInChallenge.challenge_hash == _challenge_hash(challenge),
+            FinanceSignInChallenge.wrong_tries < MAX_WRONG_TRIES,
             FinanceSignInCode.email == email,
             FinanceSignInCode.used_at.is_(None),
             FinanceSignInCode.expires_at > func.now(),
-            FinanceSignInCode.wrong_tries < MAX_WRONG_TRIES,
         )
-        .with_for_update(skip_locked=True)
-    )
+        .with_for_update(of=FinanceSignInChallenge, skip_locked=True)
+    ).first()
+    held, sent = found if found is not None else (None, None)
     # The slow check runs on every path, so its time never shows whether a code
     # is held; the route also answers every refusal after the same minimum time.
-    matched = _matches(code, held.code_hash if held is not None else _DECOY)
-    if held is None:
+    matched = _matches(code, sent.code_hash if sent is not None else _DECOY)
+    if held is None or sent is None:
         db.rollback()
         raise CodeNotAccepted
     if not (matched and code.isdigit() and len(code) == CODE_DIGITS):
         held.wrong_tries += 1
         db.commit()
+        raise CodeNotAccepted
+    # Only the right code reaches here. Taking the code row, never waiting for
+    # it, makes it work once even when 2 of its challenges prove it together.
+    claimed = db.scalar(
+        select(FinanceSignInCode.id)
+        .where(FinanceSignInCode.id == sent.id, FinanceSignInCode.used_at.is_(None))
+        .with_for_update(skip_locked=True)
+    )
+    if claimed is None:
+        db.rollback()
         raise CodeNotAccepted
     listed = db.scalar(
         select(FinanceAccessEntry.id).where(
@@ -312,11 +403,11 @@ def prove_code(db: Session, raw_email: str, raw_code: str, raw_challenge: str) -
         )
     )
     if listed is None:
-        held.used_at = func.now()
+        sent.used_at = func.now()
         db.commit()
         raise CodeNotAccepted
     token = _supabase_token(settings, email)
-    held.used_at = func.now()
+    sent.used_at = func.now()
     db.commit()
     return token
 

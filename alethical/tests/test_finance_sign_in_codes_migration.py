@@ -47,24 +47,34 @@ def test_finance_sign_in_codes_upgrade_downgrade_upgrade():
                 for column in inspect(engine).get_columns("finance_sign_in_code")
             }
             assert not columns["code_hash"]["nullable"]
-            assert not columns["challenge_hash"]["nullable"]
+            challenges = {
+                column["name"]: column
+                for column in inspect(engine).get_columns("finance_sign_in_challenge")
+            }
+            assert not challenges["challenge_hash"]["nullable"]
+            assert not challenges["code_id"]["nullable"]
             assert [
                 constraint["column_names"]
                 for constraint in inspect(engine).get_unique_constraints(
-                    "finance_sign_in_code"
+                    "finance_sign_in_challenge"
                 )
             ] == [["challenge_hash"]]
+            [code_link] = inspect(engine).get_foreign_keys("finance_sign_in_challenge")
+            assert code_link["referred_table"] == "finance_sign_in_code"
+            assert code_link["options"]["ondelete"] == "CASCADE"
             assert not columns["expires_at"]["nullable"]
             assert columns["used_at"]["nullable"]
             with engine.connect() as db:
-                assert db.scalar(
+                assert db.scalars(
                     text(
-                        "SELECT relrowsecurity FROM pg_class"
-                        " WHERE relname = 'finance_sign_in_code'"
+                        "SELECT relrowsecurity FROM pg_class WHERE relname IN"
+                        " ('finance_sign_in_code', 'finance_sign_in_challenge')"
                     )
-                )
+                ).all() == [True, True]
             migrate("downgrade", "0075_finance_access_list")
-            assert "finance_sign_in_code" not in inspect(engine).get_table_names()
+            tables = inspect(engine).get_table_names()
+            assert "finance_sign_in_code" not in tables
+            assert "finance_sign_in_challenge" not in tables
             migrate("upgrade", "0076_finance_sign_in_codes")
             with engine.connect() as db:
                 assert (

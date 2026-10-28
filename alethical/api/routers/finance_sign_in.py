@@ -36,12 +36,13 @@ router = APIRouter(
     ],
 )
 
-# Every answer to a proof except a sign-in token is sent after at least this
-# long, so no difference in the work behind it shows whether an address is
-# listed or has a code waiting.
+# Every answer to a proof except a sign-in token or "busy" is sent after at
+# least this long, so no difference in the work behind it shows whether an
+# address is listed or has a code waiting.
 REFUSAL_SECONDS = 0.5
-# Proofs checked at once in this API process. A proof that finds them all busy
-# does not wait: it is answered 429, the same way for every address.
+# Proofs checked at once in this API process, each holding its place through its
+# minimum wait. A proof that finds every place taken is answered 429 at once:
+# busy says nothing about the address.
 MAX_PROOFS_AT_ONCE = 3
 _proofs = asyncio.Semaphore(MAX_PROOFS_AT_ONCE)
 
@@ -105,31 +106,32 @@ def _prove(db: Session, payload: CodeProof) -> dict:
 @router.post("/verify")
 async def verify_code(payload: CodeProof, db: Session = Depends(get_db)) -> dict:
     """A 1-time Supabase sign-in token for a proved code; 1 refusal for all else."""
-    started = time.monotonic()
     if _proofs.locked():
-        failure = problem_exception(
+        raise problem_exception(
             429,
             "Too Many Requests",
             "Too many sign-in codes are being checked. Try again in a moment.",
             type_slug="rate-limited",
             headers={"Retry-After": "1"},
         )
-    else:
-        # No await between checking and taking a place, so none is waited for.
-        async with _proofs:
-            try:
-                return {"data": await run_in_threadpool(_prove, db, payload)}
-            except CodeNotAccepted:
-                failure = problem_exception(
-                    400,
-                    "Bad Request",
-                    "That code is not right or has expired. Ask for a new code.",
-                    type_slug="finance-code-not-accepted",
-                )
-            except ValueError:
-                failure = _not_an_address()
-            except SignInCodeUnavailable:
-                failure = _unavailable()
-    # The wait holds no worker thread and no database connection.
-    await anyio.sleep(max(0.0, REFUSAL_SECONDS - (time.monotonic() - started)))
+    # No await between checking and taking a place, so none is waited for.
+    async with _proofs:
+        started = time.monotonic()
+        try:
+            token = await run_in_threadpool(_prove, db, payload)
+        except CodeNotAccepted:
+            failure = problem_exception(
+                400,
+                "Bad Request",
+                "That code is not right or has expired. Ask for a new code.",
+                type_slug="finance-code-not-accepted",
+            )
+        except ValueError:
+            failure = _not_an_address()
+        except SignInCodeUnavailable:
+            failure = _unavailable()
+        else:
+            return {"data": token}
+        # The wait holds no worker thread and no database connection.
+        await anyio.sleep(max(0.0, REFUSAL_SECONDS - (time.monotonic() - started)))
     raise failure

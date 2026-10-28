@@ -4,6 +4,7 @@ import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../App';
+import { readCodeRequest } from '../auth/codeRequest';
 import { rememberReturnPath, takeReturnPath } from '../auth/returnPath';
 import { SessionProvider } from '../auth/session';
 import { STORAGE_KEY } from '../auth/supabase';
@@ -71,7 +72,18 @@ beforeEach(() => {
     value: storage,
     configurable: true,
   });
+  Object.defineProperty(window, 'sessionStorage', {
+    value: new MemoryStorage(),
+    configurable: true,
+  });
 });
+
+/** A reload: the page starts again in the same tab, with its sessionStorage. */
+async function reload(path: string, client: SupabaseClient, fetcher: typeof fetch) {
+  act(() => root.unmount());
+  root = createRoot(container);
+  await render(path, client, fetcher);
+}
 
 afterEach(() => {
   act(() => root.unmount());
@@ -274,6 +286,7 @@ describe('sign-in steps', () => {
     await act(async () => answer(new Response(null, { status: 200 })));
     await act(async () => {});
     expect(window.location.pathname).toBe('/');
+    expect(readCodeRequest()).toBeNull();
   });
 
   it('says sign-in could not finish when the new session is refused as signed out', async () => {
@@ -353,6 +366,80 @@ describe('sign-in steps', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  /** Answers each code request with the next challenge and refuses every proof. */
+  function codeServer() {
+    let requests = 0;
+    const fetcher = vi.fn(async (url: string, _init?: RequestInit) => {
+      if (url.endsWith('/sign-in/code')) return accepted(`challenge-${++requests}`);
+      return new Response(null, { status: url.endsWith('/sign-in/verify') ? 400 : 401 });
+    });
+    const provedWith = () => {
+      const [, proof] = fetcher.mock.calls.find(([url]) => url.endsWith('/sign-in/verify'))!;
+      return JSON.parse(String(proof?.body)) as { email: string; challenge: string };
+    };
+    return { fetcher: fetcher as unknown as typeof fetch, provedWith };
+  }
+
+  async function askForACode(address = 'reader@example.test') {
+    await act(async () => button('Sign in with email').click());
+    await type('#email', address);
+    await act(async () => button('Continue').click());
+  }
+
+  async function proveACode() {
+    await type('#code', '12345678');
+    await act(async () => button('Continue').click());
+  }
+
+  it('returns to the code step after a reload and proves with the kept challenge', async () => {
+    const server = codeServer();
+    const supabase = fakeSupabase(null);
+    await render('/sign-in', supabase.client, server.fetcher);
+    await askForACode();
+    await reload('/sign-in', supabase.client, server.fetcher);
+    expect(text()).toContain(
+      'If reader@example.test has access to Alethical Finance, a code is on its way to it.',
+    );
+    expect(button('Send a new code').disabled).toBe(true);
+    await proveACode();
+    expect(server.provedWith()).toMatchObject({
+      email: 'reader@example.test',
+      challenge: 'challenge-1',
+    });
+  });
+
+  it('proves with a second request’s challenge when it was made inside the minute', async () => {
+    const server = codeServer();
+    const supabase = fakeSupabase(null);
+    // This tab cannot keep anything, so the reload starts over and asks again.
+    Object.defineProperty(window, 'sessionStorage', {
+      get() {
+        throw new DOMException('blocked', 'SecurityError');
+      },
+      configurable: true,
+    });
+    await render('/sign-in', supabase.client, server.fetcher);
+    await askForACode();
+    await reload('/sign-in', supabase.client, server.fetcher);
+    expect(text()).toContain('Sign in with email');
+    await askForACode();
+    await proveACode();
+    expect(server.provedWith().challenge).toBe('challenge-2');
+  });
+
+  it('proves with the newest challenge after Use another email and the same address', async () => {
+    const server = codeServer();
+    const supabase = fakeSupabase(null);
+    await render('/sign-in', supabase.client, server.fetcher);
+    await askForACode();
+    await act(async () => button('Use another email').click());
+    expect(container.querySelector<HTMLInputElement>('#email')!.value).toBe('reader@example.test');
+    await act(async () => button('Continue').click());
+    await reload('/sign-in', supabase.client, server.fetcher);
+    await proveACode();
+    expect(server.provedWith().challenge).toBe('challenge-2');
   });
 
   it('re-enables Google when Back restores the page from the browser cache', async () => {
@@ -452,43 +539,22 @@ describe('Google and sign-out', () => {
 });
 
 describe('the return page', () => {
-  it('takes the emailed token out of the address and uses it only after Continue', async () => {
+  it.each([
+    '/auth/return#source=email&token_hash=hash-1&type=email',
+    '/auth/return?token_hash=hash-1&type=email',
+  ])('never uses a sign-in token from a link: %s', async (path) => {
     const supabase = fakeSupabase(null);
-    supabase.auth.verifyOtp.mockImplementationOnce(async () => {
-      supabase.emit('SIGNED_IN', session('token-5'));
-      return { data: {}, error: null };
-    });
     rememberReturnPath('/lobbying');
-    await render(
-      '/auth/return#source=email&token_hash=hash-1&type=email',
-      supabase.client,
-      answering(200),
-    );
+    await render(path, supabase.client, answering(401));
     expect(window.location.href).not.toContain('hash-1');
     expect(supabase.auth.verifyOtp).not.toHaveBeenCalled();
-    const proceed = [...container.querySelectorAll('button')].find(
-      (b) => b.textContent === 'Continue',
-    )!;
-    await act(async () => proceed.click());
-    expect(supabase.auth.verifyOtp).toHaveBeenCalledWith({
-      token_hash: 'hash-1',
-      type: 'email',
-    });
-    expect(window.location.pathname).toBe('/lobbying');
-  });
-
-  it('says a used or expired link did not work', async () => {
-    const supabase = fakeSupabase(null);
-    supabase.auth.verifyOtp.mockResolvedValueOnce({
-      data: {},
-      error: new Error('expired'),
-    });
-    await render('/auth/return#token_hash=hash-2&type=email', supabase.client, answering(401));
-    const proceed = [...container.querySelectorAll('button')].find(
-      (b) => b.textContent === 'Continue',
-    )!;
-    await act(async () => proceed.click());
+    expect(container.querySelector('button')).toBeNull();
     expect(text()).toContain('That sign-in link didn’t work');
+    expect(text()).toContain(
+      'It may have been used already, expired, or lost when this page was reloaded. Ask for a new code.',
+    );
+    expect(text()).toContain('Back to sign-in options');
+    expect(window.location.pathname).toBe('/auth/return');
   });
 
   it('returns a cancelled Google sign-in to the options with a message', async () => {

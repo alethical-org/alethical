@@ -39,6 +39,8 @@ afterEach(() => {
   act(() => root.unmount());
   container.remove();
   vi.unstubAllGlobals();
+  // A code request is kept for the tab; each test starts a new one.
+  window.sessionStorage.clear();
 });
 
 async function renderAt(
