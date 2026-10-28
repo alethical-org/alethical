@@ -23,6 +23,7 @@
     ".githooks/**",
     "apps/frontend/**",
     "apps/finance/**",
+    "packages/**",
     "api/**",
     "justfile",
     "lint-staged.config.mjs",

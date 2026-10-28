@@ -440,11 +440,15 @@ jobs:
         run: pnpm run test
 
       # Alethical Finance is its own React web app (apps/finance), so it is
-      # type checked, tested and built on its own.
+      # type checked, tested and built on its own. It takes alethical.com's display
+      # modules only through packages/shared, whose test fails if anything it
+      # re-exports reaches React Native or alethical.com's app-only code.
       - name: Check the Alethical Finance app
         working-directory: ${{ github.workspace }}
         run: |
-          node_modules/.bin/prettier --config apps/frontend/.prettierrc.json --check "apps/finance/src/**/*.{ts,tsx,css}" "apps/finance/*.{ts,json,html}"
+          node_modules/.bin/prettier --config apps/frontend/.prettierrc.json --check "apps/finance/src/**/*.{ts,tsx,css}" "apps/finance/*.{ts,json,html}" "packages/shared/**/*.{ts,mjs,json}"
+          pnpm --dir packages/shared run typecheck
+          pnpm --dir packages/shared test
           pnpm --dir apps/finance run typecheck
           pnpm --dir apps/finance test
           pnpm --dir apps/finance run build

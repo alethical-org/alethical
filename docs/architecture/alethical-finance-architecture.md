@@ -44,10 +44,21 @@ database.
 - **Finance's front end is its own React web app** (`apps/finance`), not a themed mode of
   the alethical.com app. A shared mode would tie every release of 1 site to the other and
   hold Finance to the public app's phone-first framework (React Native for web).
-- **The code that decides wording and figures is shared.** The display modules under
-  `apps/frontend/src/lib`, `apps/frontend/src/hooks` and the API client move into a
-  package both front ends import, so a wording or display rule changes in 1 place. 10 of
-  those 415 files import React Native; the rest move unchanged.
+- **The code that decides wording and figures is shared.** The workspace package
+  `@alethical/shared` (`packages/shared`) is the single import point for alethical.com's
+  display and wording modules, so a wording or display rule changes in 1 place. Finance
+  imports them only from it, 1 subpath per module (`@alethical/shared/moneyFormat`). The
+  files stay where they are, under `apps/frontend/src/lib`, `apps/frontend/src/hooks` and
+  `apps/frontend/src/data`, and the package re-exports them; alethical.com keeps importing
+  them directly and switches to the package file by file as each file moves into it.
+- **The package offers a module only when Finance's own build can use it.** Nothing it
+  imports, directly or through its own imports, may reach React Native, Expo, React
+  Navigation or alethical.com's navigation, providers, screens or components; read Expo's
+  build-time `process.env` or `__DEV__`; or have a platform-specific twin such as
+  `supabase.web.ts`. `packages/shared/test/importGraph.test.mjs` fails otherwise, and the
+  package type-checks under Finance's compiler settings. The API client
+  (`apps/frontend/src/data/api.ts`) imports React Native, so the package offers only its
+  response types (`@alethical/shared/data/types`).
 - **1 guide per data feature**, with a short section for each site's differences, rather
   than a second guide per site ([workflow.md](../../.claude/rules/workflow.md) rule 6).
 
