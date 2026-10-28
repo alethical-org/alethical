@@ -4,7 +4,8 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { createFinanceSupabase } from './auth/supabase';
 import { SessionProvider } from './auth/session';
-import { readConfig } from './config';
+import { readConfig, screensApproved } from './config';
+import { PublicSite } from './landing/PublicSite';
 import { NotConfigured } from './pages/Status';
 import './styles.css';
 
@@ -21,7 +22,7 @@ if (!config) {
         apiBaseUrl={config.apiBaseUrl}
         googleSignIn={config.googleSignIn}
       >
-        <App />
+        {screensApproved(import.meta.env) ? <App /> : <PublicSite />}
       </SessionProvider>
     </StrictMode>,
   );

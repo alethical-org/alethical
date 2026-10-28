@@ -20,3 +20,9 @@ export function readConfig(env: Record<string, string | undefined>): FinanceConf
     googleSignIn: env.VITE_GOOGLE_SIGN_IN?.trim() === 'on',
   };
 }
+
+/** On only once Finance's signed-in screens are approved for the public address;
+ * until then the app serves the landing page and sign-in alone. */
+export function screensApproved(env: Record<string, string | undefined>): boolean {
+  return env.VITE_FINANCE_SCREENS?.trim() === 'on';
+}
