@@ -308,6 +308,7 @@ def held(listed, source):
         "document": document,
         "key": key,
         "second": reader.file_key(second.facility_id, second.file_id),
+        "second_version": second.content_hash,
         "folder": reader.file_key("28010", "folder-1"),
     }
 
@@ -470,7 +471,12 @@ def test_connections_carry_a_target_finance_can_open_or_none(finance_api, held):
     by_kind = {c["kind"]: c for c in detail["connections"]}
     assert by_kind["committee"]["target"] == {"kind": "committee", "id": "19002"}
     related = by_kind["related_document"]
-    assert related["target"] == {"kind": "file", "id": held["second"]}
+    # The exact version the check named, never the related file's newest.
+    assert related["target"] == {
+        "kind": "file",
+        "id": held["second"],
+        "version": held["second_version"],
+    }
     assert related["label"] == "Second private title"
     # Nothing in Finance opens a reported expense row or printed issue text; the
     # expense's amount and source row stay on the connection.
