@@ -1,8 +1,8 @@
 """Hold the email addresses Alethical lets into Alethical Finance.
 
 The list lives only in the database because a client's address names the client
-and this repository is public (Finance access decisions, issue 2741). Entries
-are added and revoked with ``scripts/finance_access.py``.
+and this repository is public (docs/architecture/alethical-finance-architecture.md
+§3). Entries are added and revoked with ``scripts/finance_access.py``.
 """
 
 from alembic import op

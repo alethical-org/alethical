@@ -2,7 +2,7 @@
 
 Finance has 1 access level: an account is in when its current confirmed address
 is an active entry on the access list, and out otherwise
-(Finance access decisions, issue 2741). The list is read on
+(docs/architecture/alethical-finance-architecture.md §3). The list is read on
 every request, so a revocation applies to the next one.
 """
 

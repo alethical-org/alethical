@@ -3,7 +3,7 @@
 
 The address comes from the command's arguments only, never from a file in this
 repository: a client's address names the client, and the repository is public
-(Finance access decisions, issue 2741). Every listed account
+(docs/architecture/alethical-finance-architecture.md §3). Every listed account
 gets the same Finance access; ``--team`` marks an Alethical team account, which
 decides only what alethical.com may print.
 

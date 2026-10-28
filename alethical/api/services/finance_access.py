@@ -2,7 +2,7 @@
 
 Every active entry has the same access. The list lives only in the database,
 because a client's address names the client and the repository is public
-(Finance access decisions, issue 2741). Addresses reach it
+(docs/architecture/alethical-finance-architecture.md §3). Addresses reach it
 through ``scripts/finance_access.py``, never through a committed file.
 """
 

@@ -130,7 +130,7 @@ class FinanceAccessEntry(Base):
 
     Every active entry has the same Finance access. ``is_alethical_team`` grants
     nothing in Finance; it decides only which checks alethical.com may print
-    (Finance access decisions, issue 2741).
+    (docs/architecture/alethical-finance-architecture.md §3 and §5).
     """
 
     __tablename__ = "finance_access_entry"
