@@ -27,6 +27,7 @@ from alethical.api.rate_limit import (
 from alethical.api.routers.tv_ads import router as tv_ads_router
 from alethical.api.routers.admin import router as admin_router
 from alethical.api.routers.finance import router as finance_router
+from alethical.api.routers.finance_sign_in import router as finance_sign_in_router
 from alethical.api.routers.ask import router as ask_router
 from alethical.api.routers.contact import router as contact_router
 from alethical.api.routers.candidates import router as candidates_router
@@ -212,6 +213,9 @@ def create_app() -> FastAPI:
     app.state.contact_limiter = limiter_from_env(
         "ALETHICAL_CONTACT_RATE_PER_MIN", DEFAULT_CONTACT_PER_MINUTE
     )
+    app.state.finance_sign_in_limiter = limiter_from_env(
+        "ALETHICAL_FINANCE_SIGN_IN_RATE_PER_MIN", 10
+    )
     app.state.comment_limiter = limiter_from_env("ALETHICAL_COMMENT_RATE_PER_MIN", 60)
     app.state.pending_action_limiter = limiter_from_env(
         "ALETHICAL_PENDING_ACTION_RATE_PER_MIN",
@@ -232,6 +236,7 @@ def create_app() -> FastAPI:
                 "/api/v1/admin/political-ads",
                 "/api/v1/admin/candidate-claims",
                 "/api/v1/admin/candidate-statement-reports",
+                "/api/v1/finance/",
             )
         ):
             body = bytearray()
@@ -295,6 +300,7 @@ def create_app() -> FastAPI:
     app.include_router(tv_ads_router, prefix="/api/v1")
     app.include_router(admin_router, prefix="/api/v1", tags=["admin"])
     app.include_router(finance_router, prefix="/api/v1", tags=["finance"])
+    app.include_router(finance_sign_in_router, prefix="/api/v1", tags=["finance"])
     app.include_router(public_router, prefix="/api/v1", tags=["public"])
     app.include_router(lobbying_router, prefix="/api/v1", tags=["lobbying"])
     app.include_router(site_metrics_router, prefix="/api/v1", tags=["site-metrics"])

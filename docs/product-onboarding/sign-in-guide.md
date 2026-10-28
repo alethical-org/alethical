@@ -1,4 +1,4 @@
-<!-- describes: api/page.ts, apps/frontend/App.tsx, apps/frontend/src/components/auth/*.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/lib/auth/*.ts, apps/frontend/src/lib/signIn.ts, apps/frontend/src/lib/trackIntent.ts, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/screens/auth/EmailLinkPage.tsx, alethical/api/routers/pending_actions.py, alethical/api/services/auth.py, alethical/api/services/pending_actions.py, alethical/db/models.py -->
+<!-- describes: alethical/api/routers/finance_sign_in.py, alethical/api/services/finance_sign_in.py, api/page.ts, apps/frontend/App.tsx, apps/frontend/src/components/auth/*.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/lib/auth/*.ts, apps/frontend/src/lib/signIn.ts, apps/frontend/src/lib/trackIntent.ts, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/screens/auth/EmailLinkPage.tsx, alethical/api/routers/pending_actions.py, alethical/api/services/auth.py, alethical/api/services/pending_actions.py, alethical/db/models.py -->
 
 # How sign-in works
 
@@ -252,6 +252,29 @@ Exclusion from traffic counts is a separate decision and grants no private acces
 [How Site Metrics works](traffic-guide.md).
 
 Sign out ends only the ordinary session on this browser or device.
+
+## Alethical Finance sign-in
+
+Alethical Finance, the sign-in-only research product, uses the same Supabase accounts. It
+has 2 ways in, Google or a code emailed to the address, and no password or sign-up.
+
+- **The code request goes through the API** (`POST /api/v1/finance/sign-in/code`), never
+  straight to Supabase. The API asks Supabase for a code only when the address is an active
+  entry on Finance's access list, and answers 202 with the same body for every address. It
+  sends after its answer has gone, so a listed address does not answer slower than another.
+- **A listed address with no account yet gets one when its first code is sent.** The access
+  list provisions it; nobody can create a Finance account by typing an address.
+- **A repeat inside 60 seconds sends nothing more**, and each internet address may ask 10
+  times a minute (`ALETHICAL_FINANCE_SIGN_IN_RATE_PER_MIN`). A refused or failed Supabase
+  request is logged and never reported to the caller, because only a listed address can
+  reach it.
+- **The code is the same email and length alethical.com sends** (Live settings and email
+  sender, below). A first-time address gets the confirmation email, whose link returns to
+  `ALETHICAL_FINANCE_SIGN_IN_RETURN_URL`. Until that https address is set, and allowed in
+  Supabase's return addresses, the API sends no codes to anyone: the link would otherwise
+  fall back to alethical.com, and Finance never links there.
+- The browser proves the code to Supabase, and every Finance request checks the list again
+  ([backend-stack.md § 4. Sign-in](../architecture/backend-stack.md#4-sign-in)).
 
 ## Live settings and email sender
 
