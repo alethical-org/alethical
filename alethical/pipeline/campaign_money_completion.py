@@ -23,16 +23,15 @@ by a run that copied old figures:
    never while a campaign run holds its lease. The refresh's planner treats the record
    as a reason to fetch totals and removes it after a successful totals run; this check
    removes it once our published totals reach what the Board showed.
-3. **Filings a confirmed link's reviewed years leave off a legislator's page.** A link
-   records the years its reviewer saw donations; a later filing outside them is hidden
-   from the profile. That is never widened here: the case is reported for a person to
-   confirm, because which committee belongs to which member is a person's decision
-   (`docs/architecture/campaign-finance-system-design.md` §5, Identity).
+
+A filed report never waits on a person to reach its legislator's page: the money tab
+lists a confirmed committee for every year the Board's catalogue holds a report for it
+(``_period_covers`` in ``alethical/api/services/independent_spending.py``), so a new
+report's year needs no check here.
 
 The JSON finding it prints is stored by the shared runner and shown on the grouped
-health issue. Exit 2 means a person is needed (filings hidden in the years a page opens
-on, or the Board has been ahead of us for longer than ``BOARD_AHEAD_BUDGET``); exit 1
-means every probe failed. Hidden filings in older years are listed without exit 2.
+health issue. Exit 2 means a person is needed (the Board has been ahead of us for longer
+than ``BOARD_AHEAD_BUDGET``); exit 1 means every probe failed.
 """
 
 from __future__ import annotations
@@ -41,7 +40,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
-from typing import Any, Callable, Iterable, Mapping, Optional, Sequence
+from typing import Any, Callable, Mapping, Optional, Sequence
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -65,10 +64,6 @@ CATCH_UP_SPACING = timedelta(hours=6)
 BOARD_AHEAD_BUDGET = timedelta(hours=14)
 #: Codes the shared runner reads: 2 is its review exit for this job.
 REVIEW_EXIT = 2
-#: The first year a legislator's money tab offers (``from`` accepts 2015 on
-#: ``GET /legislators/{legislator_id}/campaign-finance/years``), so the first year a
-#: filing hidden by reviewed years can cost a reader.
-PROFILE_FIRST_YEAR = 2015
 
 
 @dataclass(frozen=True)
@@ -82,17 +77,6 @@ class LaggingFilerYear:
     expected_through: date
     newest_report: Optional[str]
     member: Optional[str]
-
-
-@dataclass(frozen=True)
-class HiddenFilings:
-    """Filing years of a confirmed legislative link that its reviewed years leave out."""
-
-    registration_number: str
-    member: str
-    first_year_as_reviewed: Optional[str]
-    last_year_as_reviewed: Optional[str]
-    years: tuple[int, ...]
 
 
 def checked_years(today: date) -> list[int]:
@@ -132,69 +116,15 @@ ORDER BY n.registration_number, n.filing_year
 """)
 
 _CONFIRMED_SQL = text("""
-SELECT l.registration_number, lg.slug, l.office_as_reviewed,
-       l.first_year_as_reviewed, l.last_year_as_reviewed
+SELECT l.registration_number, lg.slug, l.office_as_reviewed
 FROM legislator_campaign_committee l
 JOIN legislator lg ON lg.id = l.legislator_id
 WHERE l.decision = 'confirmed' AND l.withdrawn_at IS NULL
 """)
 
-_FILED_YEARS_SQL = text("""
-SELECT DISTINCT r.registration_number, r.filing_year
-FROM cf_filing_report r JOIN cf_filing_current c ON c.snapshot_id = r.snapshot_id
-WHERE NOT r.special_election AND r.filing_year = ANY(:years)
-  AND r.registration_number = ANY(:registrations)
-""")
-
-
-def _year(value: Optional[str]) -> Optional[int]:
-    """A reviewed year, read the way the profile reads it: unparseable is unbounded."""
-    try:
-        return int(value) if value else None
-    except ValueError:
-        return None
-
-
-def hidden_filings(
-    links: Iterable[Mapping[str, Any]],
-    filed_years: Mapping[str, set[int]],
-) -> list[HiddenFilings]:
-    """Confirmed legislative links with filed years outside their reviewed years.
-
-    The same period test as the profile (``_period_covers`` in
-    ``alethical/api/services/independent_spending.py``), so a case here is exactly a
-    year the page leaves out. A committee for another office is left out on purpose by
-    the page and is not a case.
-    """
-    found = []
-    for link in links:
-        if not is_for_a_legislative_office(link["office_as_reviewed"]):
-            continue
-        first = _year(link["first_year_as_reviewed"])
-        last = _year(link["last_year_as_reviewed"])
-        outside = tuple(
-            sorted(
-                year
-                for year in filed_years.get(link["registration_number"], ())
-                if (first is not None and year < first)
-                or (last is not None and year > last)
-            )
-        )
-        if outside:
-            found.append(
-                HiddenFilings(
-                    registration_number=link["registration_number"],
-                    member=link["slug"],
-                    first_year_as_reviewed=link["first_year_as_reviewed"],
-                    last_year_as_reviewed=link["last_year_as_reviewed"],
-                    years=outside,
-                )
-            )
-    return sorted(found, key=lambda item: (item.member, item.registration_number))
-
 
 def read_state(db: Session, years: Sequence[int]):
-    """Lagging filer-years and hidden filings, from the live snapshot and links."""
+    """Lagging filer-years from the live snapshot, each named by its confirmed member."""
     links = [dict(row) for row in db.execute(_CONFIRMED_SQL).mappings()]
     members = {
         link["registration_number"]: link["slug"]
@@ -215,16 +145,7 @@ def read_state(db: Session, years: Sequence[int]):
         )
         for row in db.execute(_LAGGING_SQL, {"years": list(years)}).mappings()
     ]
-    filed: dict[str, set[int]] = {}
-    for row in db.execute(
-        _FILED_YEARS_SQL,
-        {
-            "years": list(range(PROFILE_FIRST_YEAR, max(years) + 1)),
-            "registrations": sorted({link["registration_number"] for link in links}),
-        },
-    ).mappings():
-        filed.setdefault(row["registration_number"], set()).add(int(row["filing_year"]))
-    return lagging, hidden_filings(links, filed)
+    return lagging
 
 
 def choose_probes(
@@ -318,7 +239,6 @@ def _ahead_rows(state: Mapping[str, Mapping[str, Any]]) -> list[dict[str, Any]]:
 
 def evaluate(
     lagging: Sequence[LaggingFilerYear],
-    hidden: Sequence[HiddenFilings],
     probes_state: Mapping[str, Mapping[str, Any]],
     *,
     probe: Probe,
@@ -326,7 +246,6 @@ def evaluate(
     last_full_refresh_at: Optional[datetime],
     last_requested_at: Optional[datetime] = None,
     totals_running: bool = False,
-    alarm_years: Iterable[int] = (),
 ) -> CompletionResult:
     """One turn's decision, with the Board reached only through ``probe``.
 
@@ -335,8 +254,7 @@ def evaluate(
     the probe state to save. A totals refresh is asked for only while no campaign run
     holds its lease and ``CATCH_UP_SPACING`` has passed since both the last full totals
     run and the last request, so a quarantined run waiting for a person is not
-    repeated every hour. Hidden filings need a person only in ``alarm_years``, the
-    years a page opens on; older ones are listed without holding the job in review.
+    repeated every hour.
     """
     current = {(item.registration_number, item.filing_year): item for item in lagging}
     registrations = {registration for registration, _year in current}
@@ -395,8 +313,6 @@ def evaluate(
         and (not recent or now - max(recent) >= CATCH_UP_SPACING)
     )
     late = ahead_since is not None and now - ahead_since > BOARD_AHEAD_BUDGET
-    alarm = set(alarm_years)
-    hidden_now = [h for h in hidden if alarm & set(h.years)]
     unavailable = bool(asked) and errors == asked
 
     members = sorted({item.member for item in lagging if item.member})
@@ -411,23 +327,13 @@ def evaluate(
                 "finding_key": _key(["late", ahead_since.isoformat()]),
             }
         )
-    if hidden_now:
-        results.append(
-            {
-                "source": "campaign-reviewed-years",
-                "status": "review_required",
-                "finding_key": _key(
-                    [(h.registration_number, list(h.years)) for h in hidden_now]
-                ),
-            }
-        )
     if unavailable:
         results.append({"source": "campaign-totals-catch-up", "status": "unavailable"})
 
     oldest = min((item.expected_through for item in lagging), default=None)
     finding = {
         "status": "review_required"
-        if late or hidden_now
+        if late
         else "unavailable"
         if unavailable
         else "complete",
@@ -443,18 +349,8 @@ def evaluate(
         "board_ahead_count": len(ahead),
         "board_ahead_since": ahead_since.isoformat() if ahead_since else None,
         "catch_up_requested": request_totals,
-        "hidden_filings": [
-            {
-                "registration_number": h.registration_number,
-                "member": h.member,
-                "reviewed_years": [h.first_year_as_reviewed, h.last_year_as_reviewed],
-                "years": list(h.years),
-                "needs_review": h in hidden_now,
-            }
-            for h in hidden
-        ],
     }
-    code = REVIEW_EXIT if late or hidden_now else 1 if unavailable else 0
+    code = REVIEW_EXIT if late else 1 if unavailable else 0
     return CompletionResult(code, finding, request_totals, state)
 
 

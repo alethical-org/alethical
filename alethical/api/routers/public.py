@@ -4937,10 +4937,11 @@ def legislator_campaign_finance(
       registered-filer directory, so on a sitting member's profile this means their
       committee exists and we failed to surface it, never that none is registered
       (§7).
-    * ``confirmed`` -- at least one committee is confirmed as theirs. A committee whose
-      reviewed period does not cover ``year`` is still correctly absent from
-      ``committees``, which is how a race for an office they no longer hold stays off
-      the page.
+    * ``confirmed`` -- at least one committee is confirmed as theirs. A confirmed
+      legislative committee is listed in ``committees`` for every year it filed a
+      report in and every year its reviewer saw donations in, and in
+      ``committees_outside_this_year`` for any other year. A committee for another
+      office appears in neither list, whatever the year.
 
     Every committee carries a ``split``: how much of the year's money reached this
     committee with a donor's name attached and how much did not. **Read
@@ -5090,8 +5091,9 @@ def legislator_campaign_finance(
             # reader who knows their member ran for Attorney General should be told the
             # money exists and is not this, instead of concluding we missed it.
             "other_office_committees": finance.other_office_committees,
-            # Confirmed committees this page leaves out because they reported no money
-            # in this year, each with its closing date if the Board's filer record
+            # Confirmed committees this page leaves out because our copy of the Board's
+            # report list holds no report for them in this year and their reviewers saw
+            # no donations in it, each with its closing date if the Board's filer record
             # carries one. Served so the empty year can say which of 2 different things
             # is true: the registration ended, or nothing was reported. A page that
             # asserts the first when only the second is known has told a reader
@@ -5345,9 +5347,9 @@ def legislator_campaign_finance_years(
     what ``GET /legislators/{legislator_id}/campaign-finance?year=Y`` serves for that
     year.** Same folds, same rules, same withheld states, from rows read once;
     ``alethical/tests/test_legislator_finance_years.py`` pins the equality across
-    years the reviewed period does and does not cover and years with no filings. A
-    year outside a committee's reviewed period lists no committee, as the per-year
-    route lists none. Read ``link_state`` before reading any year, for the reasons
+    years a committee's filed reports and reviewed period do and do not cover and
+    years with no filings. A year a committee neither filed in nor was reviewed for
+    lists no committee, as the per-year route lists none. Read ``link_state`` before reading any year, for the reasons
     the per-year route gives: an empty year is never on its own a statement about
     this person.
 
