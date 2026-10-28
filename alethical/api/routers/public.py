@@ -59,6 +59,7 @@ from alethical.api.services.campaign_finance_payments import (
 from alethical.api.services.campaign_finance_register import (
     MAX_COMMITTEES,
     MAX_FILINGS,
+    CommitteeSort,
     committee_filings,
     committees as register_committees,
     committees_worth_indexing,
@@ -4520,16 +4521,28 @@ def campaign_finance_committees(
     q: str | None = Query(default=None, min_length=1, max_length=200),
     limit: int = Query(default=25, ge=1, le=MAX_COMMITTEES),
     offset: int = Query(default=0, ge=0),
+    sort: CommitteeSort = Query(default="name"),
     db: Session = Depends(get_db),
 ):
     """Everyone registered to raise or spend money in Minnesota state politics.
 
-    The whole register, ordered by the name as filed, A to Z. **No row carries an amount
-    and no parameter sorts by one, ever.** These filers file to different calendars, so 2
-    dollar figures side by side would set one period against another rather than compare
-    money (``.claude/rules/grounded-answers.md`` rule 12, and
+    The whole register, ordered by the name as filed, A to Z, unless ``sort`` asks for
+    the other order. **No row carries an amount and no parameter sorts by one, ever.**
+    These filers file to different calendars, so 2 dollar figures side by side would set
+    one period against another rather than compare money
+    (``.claude/rules/grounded-answers.md`` rule 12, and
     ``docs/architecture/campaign-finance-system-design.md`` §7). Money lives on each
     committee's own page, where the period it belongs to is stated.
+
+    **``sort`` offers only name and registration number, and nothing else.** ``name`` is
+    the default, so an address with no ``sort`` answers exactly as it always has.
+    ``registration`` is the Board's registration number, ascending in numeric order (the
+    column is text, so 9999 comes before 10000 here although not as text). Both orders
+    are total, so ``limit`` and ``offset`` page through either without repeating or
+    skipping a filer, and ``q``, ``kind`` and every total behave the same under both. An
+    unknown value is refused with 422 rather than ignored, and ``ordered_by`` names the
+    order a page came back in (``name`` or ``registration_number``). The value is part
+    of the address, so the shared cache keeps one answer per order.
 
     **``kind`` offers 3 values because the register holds 3, and that is the Board's own
     shape rather than something our loader threw away.** The directory is 3 separate
@@ -4607,7 +4620,13 @@ def campaign_finance_committees(
         # gap in one source as an absence in the other.
         release = None
     page = register_committees(
-        db, limit=limit, offset=offset, kind=kind, query=q, release=release
+        db,
+        limit=limit,
+        offset=offset,
+        kind=kind,
+        query=q,
+        release=release,
+        sort=sort,
     )
     return DetailResponse(
         data={

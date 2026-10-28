@@ -805,6 +805,268 @@ def test_the_committees_limit_is_capped_so_one_request_cannot_pull_the_register(
     assert client.get(COMMITTEES_URL, params={"limit": 500}).status_code == 422
 
 
+# --- The committees list's optional sort -------------------------------------
+
+# Chosen so that no 2 of the 3 orders agree: by name, by registration number as a
+# number, and by registration number as text ("9999" sorts after "10000" as text).
+SORT_FILERS = (
+    ("9999", "Zeta Fund", FilerKind.political_committee_or_fund),
+    ("10000", "Alpha Fund", FilerKind.political_committee_or_fund),
+    (CANDIDATE, "Port, Lindsey Senate Committee", FilerKind.candidate_committee),
+    ("18467", "Another Senate Committee", FilerKind.candidate_committee),
+    (PARTY_UNIT, "HRCC", FilerKind.party_unit),
+    ("20011", "DFL Senate Caucus", FilerKind.party_unit),
+    (FUND, "100 Percent Future Fund", FilerKind.political_committee_or_fund),
+)
+
+
+def _sortable_register(db, filers=SORT_FILERS):
+    snapshot = _register(db, filer_count=len(filers))
+    for registration, name, kind in filers:
+        _filer(db, snapshot, registration, name=name, kind=kind)
+    return snapshot
+
+
+def _numbers(data) -> list[str]:
+    return [row["registration_number"] for row in data["committees"]]
+
+
+def test_no_sort_and_sort_name_both_answer_in_the_name_order_exactly(
+    client, db
+) -> None:
+    """The default is untouched: an address without ``sort`` is the name order, A to Z.
+
+    The fixture's name order and registration order disagree on every row, so a
+    default that drifted to the registration order could not pass. ``sort=name`` is the
+    same answer byte for byte, and both carry the same cache headers, so writing the
+    default out never changes what a reader or a shared cache is given.
+    """
+    _sortable_register(db)
+
+    omitted = client.get(COMMITTEES_URL)
+    written = client.get(COMMITTEES_URL, params={"sort": "name"})
+    data = omitted.json()["data"]
+
+    assert data["ordered_by"] == "name"
+    assert [row["name"] for row in data["committees"]] == [
+        "100 Percent Future Fund",
+        "Alpha Fund",
+        "Another Senate Committee",
+        "DFL Senate Caucus",
+        "HRCC",
+        "Port, Lindsey Senate Committee",
+        "Zeta Fund",
+    ]
+    assert written.content == omitted.content
+    assert written.headers["Cache-Control"] == omitted.headers["Cache-Control"]
+    # The answer gained no key: ``ordered_by`` already says which order it is in.
+    assert set(data) == {
+        "state",
+        "ordered_by",
+        "kind",
+        "q",
+        "committees",
+        "page",
+        "register_total",
+        "by_kind",
+        "as_of",
+        "snapshot_id",
+        "release_id",
+        "reason",
+    }
+
+
+def test_the_registration_sort_is_numeric_not_alphabetical(client, db) -> None:
+    """9999 comes before 10000, which the text column's own order would reverse."""
+    _sortable_register(db)
+
+    registration = client.get(COMMITTEES_URL, params={"sort": "registration"})
+    data = registration.json()["data"]
+
+    assert data["state"] == REPORTED
+    assert data["ordered_by"] == "registration_number"
+    assert _numbers(data) == [
+        "9999",
+        "10000",
+        CANDIDATE,
+        "18467",
+        PARTY_UNIT,
+        "20011",
+        FUND,
+    ]
+    # The text order the column would give on its own is a different list.
+    assert _numbers(data) != sorted(_numbers(data))
+    # A different order is a different answer at a different address, and the shared
+    # cache keys on the whole address, so the 2 are never confused.
+    assert registration.content != client.get(COMMITTEES_URL).content
+    assert (
+        registration.headers["Cache-Control"]
+        == client.get(COMMITTEES_URL).headers["Cache-Control"]
+    )
+
+
+def test_the_registration_sort_never_trusts_a_number_that_is_not_all_digits(
+    client, db
+) -> None:
+    """The loader keeps whatever the Board printed, so the cast must never see a letter.
+
+    A number with a non-digit in it goes after every numeric one (and is not an error
+    that takes the list down), and numbers equal as numbers fall back to their text so
+    the order stays total.
+    """
+    _sortable_register(
+        db,
+        (
+            ("20X", "Letters Fund", FilerKind.political_committee_or_fund),
+            ("8", "Eight Fund", FilerKind.political_committee_or_fund),
+            ("7", "Seven Fund", FilerKind.political_committee_or_fund),
+            ("007", "Zero Zero Seven Fund", FilerKind.political_committee_or_fund),
+            ("12345678901234567890", "Twenty Digit Fund", FilerKind.party_unit),
+            ("A1", "Letter First Fund", FilerKind.political_committee_or_fund),
+        ),
+    )
+
+    response = client.get(COMMITTEES_URL, params={"sort": "registration"})
+
+    assert response.status_code == 200
+    assert _numbers(response.json()["data"]) == [
+        "007",
+        "7",
+        "8",
+        "12345678901234567890",
+        "20X",
+        "A1",
+    ]
+
+
+def test_the_registration_sort_pages_through_every_filer_once(client, db) -> None:
+    """Paging a total order never repeats or skips a filer, and the total never moves."""
+    _sortable_register(db)
+    everything = _numbers(
+        client.get(COMMITTEES_URL, params={"sort": "registration"}).json()["data"]
+    )
+
+    pages = [
+        client.get(
+            COMMITTEES_URL,
+            params={"sort": "registration", "limit": 3, "offset": offset},
+        ).json()["data"]
+        for offset in (0, 3, 6)
+    ]
+
+    assert [_numbers(page) for page in pages] == [
+        everything[0:3],
+        everything[3:6],
+        everything[6:7],
+    ]
+    assert [page["page"]["has_more"] for page in pages] == [True, True, False]
+    assert {page["page"]["total"] for page in pages} == {7}
+    assert {page["ordered_by"] for page in pages} == {"registration_number"}
+
+
+def test_the_registration_sort_combines_with_kind_and_the_name_box(client, db) -> None:
+    """Each filter narrows the list, the order stays numeric, and the totals keep their meaning."""
+    _sortable_register(db)
+
+    by_kind = client.get(
+        COMMITTEES_URL,
+        params={"sort": "registration", "kind": "political_committee_or_fund"},
+    ).json()["data"]
+    by_name = client.get(
+        COMMITTEES_URL, params={"sort": "registration", "q": "Senate"}
+    ).json()["data"]
+    both = client.get(
+        COMMITTEES_URL,
+        params={"sort": "registration", "kind": "candidate_committee", "q": "Senate"},
+    ).json()["data"]
+    paged = client.get(
+        COMMITTEES_URL,
+        params={
+            "sort": "registration",
+            "kind": "political_committee_or_fund",
+            "limit": 2,
+            "offset": 1,
+        },
+    ).json()["data"]
+
+    assert _numbers(by_kind) == ["9999", "10000", FUND]
+    assert by_kind["page"]["total"] == 3
+    assert _numbers(by_name) == [CANDIDATE, "18467", "20011"]
+    assert by_name["page"]["total"] == 3
+    assert _numbers(both) == [CANDIDATE, "18467"]
+    assert both["page"]["total"] == 2
+    assert _numbers(paged) == ["10000", FUND]
+    assert paged["page"] == {"limit": 2, "offset": 1, "has_more": False, "total": 3}
+    # The register's own size and the per-kind counts ignore the filter and the order.
+    for data in (by_kind, by_name, both, paged):
+        assert data["register_total"] == 7
+        assert data["by_kind"] == {
+            "candidate_committee": 2,
+            "party_unit": 2,
+            "political_committee_or_fund": 3,
+        }
+
+
+def test_the_total_count_is_the_same_under_both_orders(client, db) -> None:
+    """Changing the order moves rows, never the count a reader is told."""
+    _sortable_register(db)
+
+    for params in ({}, {"kind": "party_unit"}, {"q": "fund"}):
+        by_name = client.get(COMMITTEES_URL, params={**params, "sort": "name"}).json()[
+            "data"
+        ]
+        by_number = client.get(
+            COMMITTEES_URL, params={**params, "sort": "registration"}
+        ).json()["data"]
+
+        assert by_name["page"]["total"] == by_number["page"]["total"], params
+        assert sorted(_numbers(by_name)) == sorted(_numbers(by_number)), params
+        assert by_name["register_total"] == by_number["register_total"] == 7
+
+
+def test_the_sort_says_which_order_even_when_the_register_is_unavailable(
+    client, db
+) -> None:
+    """No register loaded still names the order that was asked for, with no rows."""
+    data = client.get(COMMITTEES_URL, params={"sort": "registration"}).json()["data"]
+
+    assert data["state"] == UNAVAILABLE
+    assert data["ordered_by"] == "registration_number"
+    assert data["committees"] == []
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "amount",
+        "total",
+        "raised",
+        "-name",
+        "registration_number",
+        "Name",
+        "REGISTRATION",
+        "",
+        "name,registration",
+    ],
+)
+def test_an_unknown_sort_is_refused_and_no_value_sorts_by_money(
+    client, db, value
+) -> None:
+    """422, never a quiet fall-back to the name order that would hide a typo."""
+    _sortable_register(db)
+
+    assert client.get(COMMITTEES_URL, params={"sort": value}).status_code == 422
+
+
+def test_the_sort_offers_exactly_the_2_orders_the_directory_draws(client) -> None:
+    """The published schema lists ``name`` and ``registration``, and nothing that is money."""
+    parameters = client.app.openapi()["paths"][COMMITTEES_URL]["get"]["parameters"]
+    sort = next(parameter for parameter in parameters if parameter["name"] == "sort")
+
+    assert sort["schema"]["enum"] == ["name", "registration"]
+    assert sort["schema"]["default"] == "name"
+
+
 # --- The name search ---------------------------------------------------------
 
 

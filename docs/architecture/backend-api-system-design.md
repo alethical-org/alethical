@@ -1775,17 +1775,30 @@ Shipped Aug 19 2026. Screen A of the money section's lists: the whole register.
 Purpose:
 
 - every filer registered to raise or spend money in Minnesota state politics — 1,603 on the
-  live register — ordered by the name as filed, A to Z
+  live register — ordered by the name as filed, A to Z, unless `sort` asks for the other order
 
 `kind` (one of `candidate_committee`, `party_unit`, `political_committee_or_fund`), `q`,
-`limit` (default 25, max 100) and `offset`. **No row carries an amount and there is no sort
-parameter**, in either direction: these filers file to different calendars, so 2 dollar figures
-side by side would set one period against another rather than compare money
-(`.claude/rules/grounded-answers.md` rule 12, and
+`sort` (one of `name`, the default, or `registration`), `limit` (default 25, max 100) and
+`offset`. **No row carries an amount and no parameter sorts by one, ever**: these filers file to
+different calendars, so 2 dollar figures side by side would set one period against another rather
+than compare money (`.claude/rules/grounded-answers.md` rule 12, and
 `docs/architecture/campaign-finance-system-design.md` §7). Money lives on each committee's own
-page, where the period it belongs to is stated. Name is also the only order that is stable while
-a reader pages, since names are unique within a snapshot — 0 duplicates in the live register's
-1,603 rows — so no second sort key is needed.
+page, where the period it belongs to is stated.
+
+**`sort` offers only name and registration number.** `name` is the filed name, A to Z, and is what
+an address with no `sort` gets, so nothing that does not ask is changed. `registration` is the
+Board's registration number, ascending **in numeric order**: the column is text, so 9999 comes
+before 10000 here although the text would put it after. A value that is not all digits reads as no
+number and goes after every numeric one, and 2 spellings of one number (`007`, `7`) fall back to
+their text. Each order is a total order: names are unique within a snapshot (0 duplicates in the
+live register's 1,603 rows) and a registration number is the table's key, so `limit` and `offset`
+page through either without repeating or skipping a filer. `q`, `kind` and all 3 totals behave
+the same under both. Any other value, including a value that would sort by money, answers 422
+rather than falling back to the name order. The answer adds no key: `ordered_by` is `name` or
+`registration_number`, whichever order the page came back in, on every state including
+`unavailable`. `sort` is part of the address, so the shared cache keeps one copy per order
+(`docs/operations/api-cdn-setup.md`, the default key carries the query string verbatim); an
+address that writes `sort=name` out is a second copy of the same bytes as one that omits it.
 
 **`kind` offers 3 values because the register holds 3.** That is the Board's own shape, not
 something our loader dropped: the directory is 3 separate lists, and independent-expenditure
