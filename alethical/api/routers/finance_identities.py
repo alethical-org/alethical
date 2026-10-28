@@ -29,7 +29,7 @@ def _answer(db: Session, work):
         result = work()
         db.commit()
         return result
-    except LookupError:
+    except identities.NotFound:
         db.rollback()
         raise problem_exception(404, "Not Found", "Not found.") from None
     except identities.IdentityError as exc:
@@ -76,8 +76,12 @@ def create(
     db: Session = Depends(get_db),
 ) -> dict:
     team = account.is_alethical_team
-    entity = _answer(db, lambda: identities.create(db, payload, team=team))
-    return {"data": identities.read(db, entity.id)}
+
+    def work():
+        entity = identities.create(db, payload, team=team)
+        return identities.read(db, entity.id)
+
+    return {"data": _answer(db, work)}
 
 
 @router.post("/{entity_id}/links", status_code=201)
@@ -88,8 +92,12 @@ def add_link(
     db: Session = Depends(get_db),
 ) -> dict:
     team = account.is_alethical_team
-    _answer(db, lambda: identities.add_link(db, entity_id, payload, team=team))
-    return {"data": identities.read(db, entity_id)}
+
+    def work():
+        identities.add_link(db, entity_id, payload, team=team)
+        return identities.read(db, entity_id)
+
+    return {"data": _answer(db, work)}
 
 
 @router.post("/links/{link_id}/withdraw")
@@ -100,10 +108,12 @@ def withdraw_link(
     db: Session = Depends(get_db),
 ) -> dict:
     team = account.is_alethical_team
-    link = _answer(
-        db, lambda: identities.withdraw_link(db, link_id, payload, team=team)
-    )
-    return {"data": identities.read(db, link.entity_id)}
+
+    def work():
+        link = identities.withdraw_link(db, link_id, payload, team=team)
+        return identities.read(db, link.entity_id)
+
+    return {"data": _answer(db, work)}
 
 
 @router.post("/{entity_id}/merge")
@@ -114,8 +124,12 @@ def merge(
     db: Session = Depends(get_db),
 ) -> dict:
     team = account.is_alethical_team
-    target = _answer(db, lambda: identities.merge(db, entity_id, payload, team=team))
-    return {"data": identities.read(db, target.id)}
+
+    def work():
+        target = identities.merge(db, entity_id, payload, team=team)
+        return identities.read(db, target.id)
+
+    return {"data": _answer(db, work)}
 
 
 @router.post("/{entity_id}/split")
@@ -126,5 +140,9 @@ def split(
     db: Session = Depends(get_db),
 ) -> dict:
     team = account.is_alethical_team
-    _answer(db, lambda: identities.split(db, entity_id, payload, team=team))
-    return {"data": identities.read(db, entity_id)}
+
+    def work():
+        identities.split(db, entity_id, payload, team=team)
+        return identities.read(db, entity_id)
+
+    return {"data": _answer(db, work)}

@@ -53,6 +53,7 @@ def upgrade() -> None:
         sa.CheckConstraint(
             "(status = 'merged') = (merged_into_id IS NOT NULL)", name="entity_merge"
         ),
+        sa.CheckConstraint("merged_into_id <> id", name="entity_not_self"),
         sa.CheckConstraint("length(btrim(name)) > 0", name="entity_name"),
     )
     op.create_table(

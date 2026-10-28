@@ -89,14 +89,19 @@ database.
 A confirmed person or organization (`identity_entity`) ties records together only through
 links (`identity_link`) that name their evidence: the saved source row, the words it prints
 and the reviewer's basis. The evidence row must print the exact spelling or number the link
-claims; equal names or numbers are never enough on their own. Each record belongs to at
-most 1 identity at a time. A withdrawn link stays with its date and reason; a merged
-identity redirects through every later merge to the one standing today; a split identity
-lists what replaced it, and every record goes to exactly 1 part. Every change is kept in
+claims, and the quotation (at least 3 characters) must stand inside 1 printed value of that
+row; equal names or numbers are never enough on their own. Each record belongs to at most
+1 identity at a time. A withdrawn link stays with its date and reason. A merged identity
+redirects through every later merge to the one standing today, or to a split identity that
+lists what replaced it; its confirmed records move, and its withdrawn ones stay with it as
+history. A split gives every confirmed record to exactly 1 part, each part at least 1, and
+its history records which part took which record. Every change is kept in
 `identity_event`. Each change records whether a team account made it, which Finance never
 shows. The routes sit under `/api/v1/finance/identities`
-(`alethical/api/services/identity_confirmations.py`); confirming a held legislator or
-public person needs an official page as evidence.
+(`alethical/api/services/identity_confirmations.py`). Confirming a held legislator or
+public person names it by its id exactly as held and needs an official page as evidence:
+an https page on Minnesota's own sites (`mn.gov` and its offices, `senate.mn`,
+`state.mn.us`) or the legislator's profile page on record.
 
 ## 5. What alethical.com prints from work done in Finance
 

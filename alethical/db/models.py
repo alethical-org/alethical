@@ -199,6 +199,7 @@ class IdentityEntity(Base):
         CheckConstraint(
             "(status = 'merged') = (merged_into_id IS NOT NULL)", name="entity_merge"
         ),
+        CheckConstraint("merged_into_id <> id", name="entity_not_self"),
         CheckConstraint("length(btrim(name)) > 0", name="entity_name"),
     )
     id: Mapped[uuid.UUID] = mapped_column(
