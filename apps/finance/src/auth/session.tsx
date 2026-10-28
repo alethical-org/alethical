@@ -27,6 +27,9 @@ export interface FinanceSession {
   supabase: SupabaseClient;
   apiBaseUrl: string;
   googleSignIn: boolean;
+  emailSignIn: boolean;
+  /** True while Try again re-asks; the last answer stays on screen meanwhile. */
+  retrying: boolean;
   retry: () => void;
   signOut: () => Promise<void>;
 }
@@ -48,16 +51,19 @@ export function SessionProvider({
   supabase,
   apiBaseUrl,
   googleSignIn = false,
+  emailSignIn = false,
   children,
 }: {
   supabase: SupabaseClient;
   apiBaseUrl: string;
   googleSignIn?: boolean;
+  emailSignIn?: boolean;
   children: ReactNode;
 }) {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [retrying, setRetrying] = useState(false);
   const latest = useRef(0);
 
   useEffect(() => {
@@ -81,10 +87,17 @@ export function SessionProvider({
   // Supabase hands over a fresh copy of the same session when a hidden tab
   // returns, and a new token every hour; only a new token or account re-asks.
   useEffect(() => {
-    if (!loaded || !token) return;
+    if (!loaded) return;
+    if (!token) {
+      // A later sign-in, even by the same account, is checked from scratch.
+      latest.current += 1;
+      setAnswer(null);
+      return;
+    }
     const request = ++latest.current;
     checkAccess(apiBaseUrl, token).then((result) => {
       if (request !== latest.current) return;
+      setRetrying(false);
       setAnswer((previous) =>
         // A failed re-check for the same account keeps its last answer: the
         // server refuses every request it should, whatever this page shows.
@@ -106,7 +119,7 @@ export function SessionProvider({
         : 'checking';
 
   const retry = useCallback(() => {
-    setAnswer((previous) => (previous ? { ...previous, status: 'checking' } : previous));
+    setRetrying(true);
     setAttempt((value) => value + 1);
   }, []);
   const signOut = useCallback(async () => {
@@ -131,10 +144,23 @@ export function SessionProvider({
       supabase,
       apiBaseUrl,
       googleSignIn,
+      emailSignIn,
+      retrying,
       retry,
       signOut,
     }),
-    [apiBaseUrl, googleSignIn, retry, session, signOut, status, supabase, token],
+    [
+      apiBaseUrl,
+      emailSignIn,
+      googleSignIn,
+      retry,
+      retrying,
+      session,
+      signOut,
+      status,
+      supabase,
+      token,
+    ],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

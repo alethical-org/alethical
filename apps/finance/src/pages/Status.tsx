@@ -4,19 +4,21 @@ import { Link } from '../router';
 export function Checking() {
   return (
     <main id="main" className="access">
-      <p role="status">Checking access…</p>
+      <h1 tabIndex={-1} role="status">
+        Checking access…
+      </h1>
     </main>
   );
 }
 
 export function Unavailable() {
-  const { retry } = useFinanceSession();
+  const { retry, retrying } = useFinanceSession();
   return (
     <main id="main" className="access">
       <h1 tabIndex={-1}>We couldn’t check your access</h1>
       <p>This is a problem on our side. Try again in a moment.</p>
-      <button type="button" onClick={retry}>
-        Try again
+      <button type="button" onClick={retry} disabled={retrying}>
+        {retrying ? 'Trying again…' : 'Try again'}
       </button>
     </main>
   );

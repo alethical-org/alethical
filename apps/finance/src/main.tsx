@@ -20,6 +20,7 @@ if (!config) {
         supabase={createFinanceSupabase(config)}
         apiBaseUrl={config.apiBaseUrl}
         googleSignIn={config.googleSignIn}
+        emailSignIn={config.emailSignIn}
       >
         <App />
       </SessionProvider>

@@ -32,7 +32,7 @@ export function App() {
 
   // When the screen changes after the first one, focus its heading so keyboard
   // and screen-reader users start at the new content.
-  const screen = `${location.pathname}|${pageVisible ? 'page' : status}`;
+  const screen = `${location.pathname}|${pageVisible && status === 'granted' ? 'page' : status}`;
   const first = useRef(true);
   useEffect(() => {
     if (first.current) {

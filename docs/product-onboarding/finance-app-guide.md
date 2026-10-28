@@ -18,9 +18,11 @@ app is its own React web app in `apps/finance`, not a mode of alethical.com's ap
   address so sign-in returns there. A return address is kept only when it is a Finance page;
   anything else, another site included, returns to Finance home.
 - **`/sign-in`.** Google, or a code emailed to the address. There is no password and no way
-  to create an account. Until Supabase accepts Finance's return address, the Google button is
-  hidden (`VITE_GOOGLE_SIGN_IN` is `off`), because Google would otherwise hand the visitor
-  back to alethical.com.
+  to create an account. Each way is shown only once it works: Google once Supabase accepts
+  Finance's return address (`VITE_GOOGLE_SIGN_IN`), because Google would otherwise hand the
+  visitor back to alethical.com, and email once the server's code route ships
+  (`VITE_EMAIL_SIGN_IN`). With neither on, the page says "Sign-in to Alethical Finance is
+  not open yet."
 - **`/auth/return`.** Where Google, and a first-time address's emailed confirmation link,
   bring the visitor back, to the Finance page they asked for. A failed Google sign-in returns
   to `/sign-in` with "Google didn’t finish. Try again, or use email." An emailed link carries

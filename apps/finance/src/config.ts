@@ -6,6 +6,9 @@ export interface FinanceConfig {
   /** On only once Supabase accepts Finance's return address; otherwise Google
    * would hand the reader back to the project's default site. */
   googleSignIn: boolean;
+  /** On only once the server's code route ships; otherwise every code request
+   * would fail. */
+  emailSignIn: boolean;
 }
 
 export function readConfig(env: Record<string, string | undefined>): FinanceConfig | null {
@@ -18,5 +21,6 @@ export function readConfig(env: Record<string, string | undefined>): FinanceConf
     supabasePublishableKey,
     apiBaseUrl,
     googleSignIn: env.VITE_GOOGLE_SIGN_IN?.trim() === 'on',
+    emailSignIn: env.VITE_EMAIL_SIGN_IN?.trim() === 'on',
   };
 }

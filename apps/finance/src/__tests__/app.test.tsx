@@ -42,6 +42,7 @@ async function renderAt(
   supabase: SupabaseClient,
   accessStatus = 200,
   googleSignIn = true,
+  emailSignIn = true,
 ) {
   window.history.replaceState(null, '', path);
   const fetcher = vi.fn(
@@ -51,7 +52,12 @@ async function renderAt(
   vi.stubGlobal('fetch', fetcher);
   await act(async () => {
     root.render(
-      <SessionProvider supabase={supabase} apiBaseUrl={API} googleSignIn={googleSignIn}>
+      <SessionProvider
+        supabase={supabase}
+        apiBaseUrl={API}
+        googleSignIn={googleSignIn}
+        emailSignIn={emailSignIn}
+      >
         <App />
       </SessionProvider>,
     );
@@ -85,6 +91,18 @@ describe('the Finance shell', () => {
     await renderAt('/sign-in', fakeSupabase(null), 200, false);
     expect(container.textContent).not.toContain('Google');
     expect(container.textContent).toContain('Sign in with email');
+  });
+
+  it('offers no email sign-in until its server route ships', async () => {
+    await renderAt('/sign-in', fakeSupabase(null), 200, true, false);
+    expect(container.textContent).toContain('Continue with Google');
+    expect(container.textContent).not.toContain('Sign in with email');
+  });
+
+  it('says sign-in is not open when neither way is on', async () => {
+    await renderAt('/sign-in', fakeSupabase(null), 200, false, false);
+    expect(container.textContent).toContain('Sign-in to Alethical Finance is not open yet.');
+    expect(container.querySelectorAll('button')).toHaveLength(0);
   });
 
   it('asks the server for a code, then proves it to Supabase', async () => {

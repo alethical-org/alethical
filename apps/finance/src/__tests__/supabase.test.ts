@@ -11,6 +11,7 @@ describe('the Finance sign-in client', () => {
       supabasePublishableKey: 'sb_publishable_test',
       apiBaseUrl: 'https://api.example.test',
       googleSignIn: false,
+      emailSignIn: false,
     });
     expect(createClient).toHaveBeenCalledWith(
       'https://project.example.test',

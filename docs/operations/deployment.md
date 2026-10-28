@@ -516,7 +516,8 @@ Alethical Finance's web app is the `alethical-finance` Vercel project in the `al
 team, built from `apps/finance` with that folder's `vercel.json`. Its address is
 `https://alethical-finance.vercel.app` until the final domain is chosen. The 4 build
 settings are public values: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`,
-`VITE_API_BASE_URL` (`https://api.alethical.com`) and `VITE_GOOGLE_SIGN_IN`.
+`VITE_API_BASE_URL` (`https://api.alethical.com`), `VITE_GOOGLE_SIGN_IN` and
+`VITE_EMAIL_SIGN_IN`.
 
 The project's Root Directory setting is `apps/finance`, so Vercel builds that folder with
 its own `vercel.json`, which installs from the repository root. The project is not connected
@@ -525,12 +526,15 @@ deploy from the repository root of a clean checkout of `main`, linked to the pro
 `vercel link --project alethical-finance --scope alethical`:
 
 ```bash
+vercel pull --yes --environment=production --scope alethical
 vercel build --prod --scope alethical
 vercel deploy --prebuilt --prod --scope alethical
 ```
 
-Then confirm `https://alethical-finance.vercel.app/sign-in` loads and `/robots.txt` disallows
-everything. Roll back with `vercel rollback --scope alethical` or by deploying the previous
+`vercel pull` brings the 4 build settings; a build without them still succeeds and serves
+"Alethical Finance is not configured". Then confirm
+`https://alethical-finance.vercel.app/sign-in` shows "Sign in to Alethical Finance" and
+`/robots.txt` disallows everything. Roll back with `vercel rollback --scope alethical` or by deploying the previous
 `main` commit the same way.
 
 Before anyone can sign in at that address:
@@ -540,7 +544,8 @@ Before anyone can sign in at that address:
    person in Supabase's dashboard, and recorded in
    [repo-and-service-settings.md § Supabase sign-in](repo-and-service-settings.md#supabase-sign-in).
 3. `VITE_GOOGLE_SIGN_IN` is set to `on` and the app deployed again.
-4. Code sign-in, once its route ships, needs `ALETHICAL_FINANCE_SIGN_IN_RETURN_URL` set to
+4. Code sign-in, once its route ships, needs `VITE_EMAIL_SIGN_IN` set to `on` and
+   `ALETHICAL_FINANCE_SIGN_IN_RETURN_URL` set to
    `https://alethical-finance.vercel.app/auth/return#source=email`. The `#` keeps the
    emailed token out of every server's logs, and Supabase's email template adds the token
    after it with `&`.
