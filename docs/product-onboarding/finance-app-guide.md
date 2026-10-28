@@ -117,8 +117,10 @@ screens are off, only `/`, `/sign-in` and `/auth/return` answer (§ The public s
 ## Limits and privacy
 
 - Finance never links to alethical.com; a CI test fails if any app file names an
-  alethical.com page. Contact actions use email addresses, and data comes from
-  `api.alethical.com`.
+  alethical.com page, and a check of the production build (`pnpm run check:built-links`)
+  fails if anything Finance ships, code from `@alethical/shared` included, names the
+  alethical.com domain or the path of an alethical.com page that is not also a Finance
+  address. Contact actions use email addresses, and data comes from `api.alethical.com`.
 - Every page is marked not to be indexed (`noindex`) in a response header and a meta tag.
   `robots.txt` allows crawling on purpose: a crawler that may not fetch a page never reads
   its `noindex`, and can list a linked address without its content. The server marks every
