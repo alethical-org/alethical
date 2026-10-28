@@ -659,8 +659,8 @@ def test_a_confirmation_keeps_its_evidence_and_never_names_who_made_it(
         ({"record_key": " Example, Jordan A"}, "exactly as printed"),
         ({"evidence_quote": "SOMEONE ELSE"}, "must appear in the evidence row"),
         ({"evidence_quote": "Jo"}, "at least 3 characters"),
-        # The contributor ends, then the employer begins: 2 values, not 1.
-        ({"evidence_quote": "Jordan A Example Health"}, "must appear in the evidence"),
+        # The contributor ends, then the receipt type begins: 2 values, not 1.
+        ({"evidence_quote": "Jordan A Contribution"}, "must appear in the evidence"),
         ({"evidence_locator": 999}, "No such row"),
         ({"evidence_locator": 2**40}, "Name the row"),
         ({"evidence_snapshot_id": "x"}, "Name the saved source copy"),
@@ -711,10 +711,19 @@ SURROGATE = "\ud800"
 
 
 @pytest.mark.parametrize(
-    "field",
-    ["name", "relation", "basis", "evidence_quote", "record_key", "evidence_url"],
+    ("field", "message"),
+    [
+        ("name", "Name contains a character that cannot be saved"),
+        ("relation", "Relation contains a character that cannot be saved"),
+        ("basis", "Basis contains a character that cannot be saved"),
+        ("evidence_quote", "evidence contains a character that cannot be saved"),
+        ("record_key", "Record contains a character that cannot be saved"),
+        ("evidence_url", "https address"),
+    ],
 )
-def test_a_lone_surrogate_is_refused_not_failed(finance_api, finance_db, board, field):  # noqa: F811
+def test_a_lone_surrogate_is_refused_not_failed(
+    finance_api, finance_db, board, field, message
+):  # noqa: F811
     rows = prints(finance_api)
     legislator = finance_db.scalar(select(m.Legislator))
     confirmation = (
@@ -729,44 +738,47 @@ def test_a_lone_surrogate_is_refused_not_failed(finance_api, finance_db, board, 
         BASE, content=json.dumps(body), headers={"Content-Type": "application/json"}
     )
     assert response.status_code == 422, response.text
+    assert message in response.json()["detail"]
 
 
 def test_a_lone_surrogate_in_a_reason_or_part_is_refused(finance_api, board):  # noqa: F811
-    rows = prints(finance_api)
-    a = create(finance_api, "person", DONOR, donor(board, [rows[31]]))
-    b = create(finance_api, "person", "B", donor(board, [rows[32]]))
-    [confirmation] = a["confirmations"]
+    person, first, second, _ = two_confirmations(finance_api, board)
+    rows = prints(finance_api, "payee_name", VENDOR)
+    other = create(finance_api, "person", "B", payee(board, list(rows.values())))
 
     def send(path, body):
-        return finance_api.post(
+        response = finance_api.post(
             f"{BASE}{path}",
             content=json.dumps(body),
             headers={"Content-Type": "application/json"},
-        ).status_code
+        )
+        assert response.status_code == 422, response.text
+        return response.json()["detail"]
 
-    assert (
-        send(f"/confirmations/{confirmation['id']}/withdraw", {"reason": SURROGATE})
-        == 422
-    )
-    assert send(f"/{a['id']}/merge", {"into": b["id"], "reason": SURROGATE}) == 422
-    assert send(f"/{a['id']}/merge", {"into": SURROGATE, "reason": "x"}) == 422
+    withdraw = f"/confirmations/{first}/withdraw"
+    assert "cannot be saved" in send(withdraw, {"reason": SURROGATE})
+    merge = f"/{person['id']}/merge"
+    assert "cannot be saved" in send(merge, {"into": other["id"], "reason": SURROGATE})
+    assert "Name the identity" in send(merge, {"into": SURROGATE, "reason": "x"})
     parts = [
-        {"name": f"A{SURROGATE}", "confirmations": [confirmation["id"]]},
-        {"name": "B", "confirmations": [confirmation["id"]]},
+        {"name": f"A{SURROGATE}", "confirmations": [first]},
+        {"name": "B", "confirmations": [second]},
     ]
-    assert send(f"/{a['id']}/split", {"reason": "x", "parts": parts}) == 422
+    split = f"/{person['id']}/split"
+    assert "cannot be saved" in send(split, {"reason": "x", "parts": parts})
+    assert get(finance_api, person["id"])["status"] == "active"
 
 
 def test_evidence_notes_are_documented_as_readable_by_every_account(client):
     schemas = client.app.openapi()["components"]["schemas"]
     for model, field in [
-        ("ConfirmationRequest", "basis"),
-        ("ConfirmationRequest", "relation"),
-        ("CreateRequest", "name"),
-        ("WithdrawRequest", "reason"),
-        ("MergeRequest", "reason"),
-        ("SplitRequest", "reason"),
-        ("SplitPart", "name"),
+        ("IdentityConfirmationRequest", "basis"),
+        ("IdentityConfirmationRequest", "relation"),
+        ("IdentityCreateRequest", "name"),
+        ("IdentityWithdrawRequest", "reason"),
+        ("IdentityMergeRequest", "reason"),
+        ("IdentitySplitRequest", "reason"),
+        ("IdentitySplitPart", "name"),
     ]:
         description = schemas[model]["properties"][field]["description"]
         assert "Every Finance account can read this" in description, (model, field)
@@ -787,10 +799,13 @@ def test_a_withdrawal_is_once_and_frees_the_record_everywhere(
         {"reason": "The address belongs to a different person."},
     ).json()["data"]
     [taken_back] = withdrawn["confirmations"]
-    assert taken_back["status"] == "withdrawn"
+    assert taken_back["status"] == "withdrawn" and taken_back["withdrawn_at"]
     assert taken_back["withdrawal_reason"].startswith("The address")
-    # Kept exactly as it was confirmed: its evidence and records stay.
-    assert len(taken_back["records"]) == 2 and taken_back["basis"]
+    # Everything else stays exactly as it was confirmed.
+    changed = {"status", "withdrawn_at", "withdrawal_reason"}
+    assert {k: v for k, v in taken_back.items() if k not in changed} == {
+        k: v for k, v in first["confirmations"][0].items() if k not in changed
+    }
     assert withdrawn["printed_names"] == []
     assert all(r["confirmation"] is None for r in listing(finance_api)["fingerprints"])
     held = finance_db.scalars(

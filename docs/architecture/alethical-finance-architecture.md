@@ -16,7 +16,7 @@ signed-in screens are approved.
 |---|---|
 | Collection of every source (Campaign Finance Board, lobbying, Legislature, Secretary of State, FCC station files) | `alethical/pipeline/`, the scheduled jobs in [jobs-and-scripts.md](../operations/jobs-and-scripts.md) |
 | 1 database | `alethical/db/models.py`; [db-schema-system-design.md](db-schema-system-design.md) |
-| Checks and confirmations: committee matches, station-file facts and connections, identity links | `legislator_campaign_committee`, `tv_ad_fact`, `tv_ad_connection` |
+| Checks and confirmations: committee matches, station-file facts and connections, identity confirmations | `legislator_campaign_committee`, `tv_ad_fact`, `tv_ad_connection`, `identity_confirmation` |
 | Calculations: totals, reconciliations, record counts | `alethical/api/services/` |
 | Product rules: cite or refuse, no money chains, missing never zero | [`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) |
 | Sign-in | Supabase Auth ([backend-stack.md](backend-stack.md) §4) |
@@ -88,21 +88,53 @@ database.
 ### Identity confirmations
 
 A confirmed person or organization (`identity_entity`) ties records together only through
-links (`identity_link`) that name their evidence: the saved source row, the words it prints
-and the reviewer's basis. The evidence row must print the exact spelling or number the link
-claims, and the quotation (at least 3 characters) must stand inside 1 printed value of that
-row; equal names or numbers are never enough on their own. Each record belongs to at most
-1 identity at a time. A withdrawn link stays with its date and reason. A merged identity
-redirects through every later merge to the one standing today, or to a split identity that
-lists what replaced it; its confirmed records move, and its withdrawn ones stay with it as
-history. A split gives every confirmed record to exactly 1 part, each part at least 1, and
-its history records which part took which record. Every change is kept in
-`identity_event`. Each change records whether a team account made it, which Finance never
-shows. The routes sit under `/api/v1/finance/identities`
-(`alethical/api/services/identity_confirmations.py`). Confirming a held legislator or
-public person names it by its id exactly as held and needs an official page as evidence:
-an https page on Minnesota's own sites (`mn.gov` and its offices, `senate.mn`,
-`state.mn.us`) or the legislator's profile page on record.
+confirmations (`identity_confirmation`) that name their evidence: a saved source row or an
+official page, words quoted from it and the reviewer's basis. The evidence must print the
+exact name or number confirmed, and the quotation (at least 3 characters) must stand inside
+1 printed value; equal names or numbers are never enough on their own. The routes sit under
+`/api/v1/finance/identities` (`alethical/api/services/identity_confirmations.py`).
+
+- **A printed name is confirmed record by record.** A donor, employer, payee or
+  independent-expenditure payee name covers only the records a person selects. Each record
+  is kept (`identity_confirmed_record`) as a fingerprint: the sha256 of its record kind, its
+  file and the printed fields below, which are stored beside it. The expenditure files print
+  no employer, so their records have 5 fields.
+
+  | Record kind | File | Printed fields fingerprinted |
+  |---|---|---|
+  | Donor name, employer name | Contributions | contributor, employer, recipient registration number, receipt date, amount, ZIP code |
+  | Payee name | Expenditures | payee, paying committee's registration number, date, amount, ZIP code |
+  | Independent-expenditure payee name | Independent expenditures | payee, spender's registration number, date, amount, ZIP code |
+
+  Every read matches the fingerprints against the Board's current file, never by copy or row
+  number, so each refresh re-matches them. Identical repeated rows print the same facts and
+  share 1 claim. A fingerprint that matches no current row stays and shows as no longer in
+  the Board's file. A record added later is never covered until someone confirms it. The
+  database lets each fingerprint belong to only 1 active confirmation. `GET /records` lists
+  the current records printing a name (at most 5,000), each with the confirmation and
+  identity standing for it; the "All records" and "{year} records" choices select
+  fingerprints from that listing when confirming, and nothing about the choice is stored.
+  An identity's `printed_names` gives "Confirmed for {k} of {n} records" for each name.
+- **An identifier is confirmed whole, for all time.** A committee's or lobbyist's
+  registration number, a principal's id, or the id of a held legislator or public person
+  is itself an identifier; at most 1 active confirmation holds each, and `GET /lookup`
+  answers for identifiers only. A held legislator or public person, named by its id exactly
+  as held, needs an https page on Minnesota's own sites (`mn.gov` and its offices,
+  `senate.mn`, `state.mn.us`) whose address is printable ASCII with no backslash.
+- **Decisions are append-only.** A confirmation is never edited; its 1-time withdrawal
+  records a date and reason and takes its claim off every record at once. A merge moves
+  nothing: the merged identity keeps its id and its confirmations, and every lookup follows
+  the redirect to the identity standing today. A split gives every active confirmation
+  standing for the identity, including those of identities merged into it, to exactly 1
+  part, each part at least 1; each is withdrawn and replaced on its part with the same
+  evidence and records and a pointer to the one it replaces. Withdrawn confirmations stay
+  behind as history. A replacement counts as team-made only when the original and the split
+  both were (§5).
+- **Every account sees everything.** Every change is kept in `identity_event`, and every
+  identity, confirmation and event records whether a team account made it, which Finance
+  never shows; no answer names who made a change. Every Finance account reads every
+  confirmation, so the names, relations, bases and reasons typed into them must never hold
+  anything confidential; the API's field descriptions say so.
 
 ## 5. What alethical.com prints from work done in Finance
 

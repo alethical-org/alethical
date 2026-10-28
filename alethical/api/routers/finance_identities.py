@@ -32,7 +32,7 @@ class _Request(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class ConfirmationRequest(_Request):
+class IdentityConfirmationRequest(_Request):
     record_kind: str = Field(
         description="A printed name: donor_name, employer_name, payee_name or"
         " independent_payee_name. An identifier: committee, lobbyist, principal,"
@@ -76,31 +76,31 @@ class ConfirmationRequest(_Request):
     )
 
 
-class CreateRequest(_Request):
+class IdentityCreateRequest(_Request):
     kind: str = Field(description="person or organization.")
     name: str = Field(description=f"The identity's name. {SHARED}")
-    confirmation: ConfirmationRequest
+    confirmation: IdentityConfirmationRequest
 
 
-class WithdrawRequest(_Request):
+class IdentityWithdrawRequest(_Request):
     reason: str = Field(description=f"Why it is withdrawn. {SHARED}")
 
 
-class MergeRequest(_Request):
+class IdentityMergeRequest(_Request):
     into: str = Field(description="The identity this one joins.")
     reason: str = Field(description=f"Why they are 1 identity. {SHARED}")
 
 
-class SplitPart(_Request):
+class IdentitySplitPart(_Request):
     name: str = Field(description=f"The new identity's name. {SHARED}")
     confirmations: list[str] = Field(
         description="The active confirmations this part takes, by id."
     )
 
 
-class SplitRequest(_Request):
+class IdentitySplitRequest(_Request):
     reason: str = Field(description=f"Why it is more than 1 identity. {SHARED}")
-    parts: list[SplitPart] = Field(description="At least 2 parts.")
+    parts: list[IdentitySplitPart] = Field(description="At least 2 parts.")
 
 
 def _answer(db: Session, work):
@@ -162,7 +162,7 @@ def read(entity_id: UUID, db: Session = Depends(get_db)) -> dict:
 
 @router.post("", status_code=201)
 def create(
-    payload: CreateRequest,
+    payload: IdentityCreateRequest,
     account: FinanceAccount = Depends(require_finance_access),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -178,7 +178,7 @@ def create(
 @router.post("/{entity_id}/confirmations", status_code=201)
 def add_confirmation(
     entity_id: UUID,
-    payload: ConfirmationRequest,
+    payload: IdentityConfirmationRequest,
     account: FinanceAccount = Depends(require_finance_access),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -194,7 +194,7 @@ def add_confirmation(
 @router.post("/confirmations/{confirmation_id}/withdraw")
 def withdraw(
     confirmation_id: UUID,
-    payload: WithdrawRequest,
+    payload: IdentityWithdrawRequest,
     account: FinanceAccount = Depends(require_finance_access),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -212,7 +212,7 @@ def withdraw(
 @router.post("/{entity_id}/merge")
 def merge(
     entity_id: UUID,
-    payload: MergeRequest,
+    payload: IdentityMergeRequest,
     account: FinanceAccount = Depends(require_finance_access),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -228,7 +228,7 @@ def merge(
 @router.post("/{entity_id}/split")
 def split(
     entity_id: UUID,
-    payload: SplitRequest,
+    payload: IdentitySplitRequest,
     account: FinanceAccount = Depends(require_finance_access),
     db: Session = Depends(get_db),
 ) -> dict:
