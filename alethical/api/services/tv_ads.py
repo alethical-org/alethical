@@ -38,6 +38,9 @@ def projection(function=None, *, scope=None):
     @wraps(function)
     def read(db, *args, **kwargs):
         include_archive = kwargs.pop("include_archive", False)
+        # Alethical Finance's reading (finance_media_buys.py): every current file
+        # as its original, with every check on that exact version. Off by default.
+        originals = kwargs.pop("originals", False)
         previous = db.info.get("tv_projection")
         if previous is not None:
             return function(db, *args, **kwargs)
@@ -105,7 +108,8 @@ def projection(function=None, *, scope=None):
             "versions": versions,
             "current": current,
             "facts": facts,
-            "include_archive": include_archive,
+            "include_archive": include_archive or originals,
+            "originals": originals,
             "document_query": document_query,
             "scoped": bool(scope),
         }
@@ -140,8 +144,13 @@ def _documents(db, facility_id=None):
     return query
 
 
-def counts(db: Session, facility_id: str | None = None) -> dict:
-    """Different denominators deliberately remain separate; never sum these."""
+def counts(
+    db: Session, facility_id: str | None = None, *, originals: bool = False
+) -> dict:
+    """Different denominators deliberately remain separate; never sum these.
+
+    ``originals`` is Finance's reading: a file counts as connected when any
+    non-draft copy of it holds a standing connection, published or not."""
     params = {"station": facility_id, "reader": EXTRACTOR_VERSION}
     row = (
         db.execute(
@@ -175,7 +184,24 @@ def counts(db: Session, facility_id: str | None = None) -> dict:
     approved = _approved(db, facility_id)
     ids = [p.id for p in approved]
     checked = set()
-    if ids:
+    if originals:
+        query = (
+            select(m.TVAdPublication.facility_id, m.TVAdPublication.file_id)
+            .join(
+                m.TVAdConnection,
+                m.TVAdConnection.publication_id == m.TVAdPublication.id,
+            )
+            .where(
+                m.TVAdPublication.status != "draft",
+                m.TVAdPublication.facility_id.in_(STATIONS),
+                m.TVAdConnection.scope == "file",
+                m.TVAdConnection.status == "checked",
+            )
+        )
+        if facility_id:
+            query = query.where(m.TVAdPublication.facility_id == facility_id)
+        checked = {tuple(row) for row in db.execute(query)}
+    elif ids:
         by_id = {p.id: (p.facility_id, p.file_id) for p in approved}
         for c in db.scalars(
             select(m.TVAdConnection).where(
@@ -217,8 +243,58 @@ def _document(db, p):
     )
 
 
+def _originals(db):
+    return db.info.get("tv_projection", {}).get("originals", False)
+
+
+def _shown(db, check):
+    """A standing check this reading shows: a published one, or, reading
+    originals, every one."""
+    return check.status == "checked" and (check.publication_approved or _originals(db))
+
+
+def _original_checks(db):
+    """Facts and file connections from every non-draft copy, keyed by the exact
+    version they were checked on: a check of a copy is a check of its original."""
+    cache = db.info["tv_projection"]
+    if "original_checks" not in cache:
+        copies = (
+            m.TVAdPublication.status != "draft",
+            m.TVAdPublication.facility_id.in_(STATIONS),
+        )
+        version = (
+            m.TVAdPublication.facility_id,
+            m.TVAdPublication.file_id,
+            m.TVAdPublication.content_hash,
+        )
+        facts, connections = defaultdict(list), defaultdict(list)
+        for fact, *identity_ in db.execute(
+            select(m.TVAdFact, *version)
+            .join(m.TVAdPublication, m.TVAdFact.publication_id == m.TVAdPublication.id)
+            .where(*copies)
+            .order_by(m.TVAdFact.checked_at, m.TVAdFact.id)
+        ):
+            facts[tuple(identity_)].append(fact)
+        for connection, *identity_ in db.execute(
+            select(m.TVAdConnection, *version)
+            .join(
+                m.TVAdPublication,
+                m.TVAdConnection.publication_id == m.TVAdPublication.id,
+            )
+            .where(*copies, m.TVAdConnection.scope == "file")
+            .order_by(m.TVAdConnection.checked_at, m.TVAdConnection.id)
+        ):
+            connections[tuple(identity_)].append(connection)
+        cache["original_checks"] = {"facts": facts, "connections": connections}
+    return cache["original_checks"]
+
+
 def _facts(db, publication_id):
     if not isinstance(publication_id, UUID):
+        # A held original (its id is its exact version) has checks only in
+        # Finance's reading.
+        if _originals(db):
+            return _original_checks(db)["facts"].get(publication_id, [])
         return []
     cache = db.info.get("tv_projection")
     if cache is not None:
@@ -266,15 +342,9 @@ def _fact_payload(db, fact, version_id):
 
 def _row(db, p):
     doc = _document(db, p)
-    facts = _facts(db, p.id) if p.status == "approved" else []
+    facts = _facts(db, p.id) if p.status == "approved" or _originals(db) else []
     kind = next(
-        (
-            f.value
-            for f in facts
-            if f.field == "document_kind"
-            and f.status == "checked"
-            and f.publication_approved
-        ),
+        (f.value for f in facts if f.field == "document_kind" and _shown(db, f)),
         None,
     )
     current = (
@@ -307,11 +377,7 @@ def _row(db, p):
         "version_id": p.content_hash,
         "copy_id": None if p.status == "archive" else str(p.id),
         "airing_periods": [
-            f.value
-            for f in facts
-            if f.status == "checked"
-            and f.publication_approved
-            and f.field == "scheduled_airing"
+            f.value for f in facts if _shown(db, f) and f.field == "scheduled_airing"
         ],
         "version_count": db.info["tv_projection"]["versions"][
             (p.facility_id, p.file_id)
@@ -331,6 +397,17 @@ def _row(db, p):
 
 def _latest_copies(db, facility_id=None, *, metadata=True):
     """Most recently downloaded source, then newest approved derivative of that body."""
+    cache = db.info.get("tv_projection", {})
+    if cache.get("originals"):
+        # Finance: every current file as the station filed it, never a copy.
+        return sorted(
+            (
+                _archive_copy(doc)
+                for doc in cache["current"].values()
+                if not facility_id or doc.facility_id == facility_id
+            ),
+            key=lambda p: (p.safe_title.casefold(), file_key(p.facility_id, p.file_id)),
+        )
     query = select(m.TVAdPublication).where(
         m.TVAdPublication.facility_id.in_(STATIONS),
         m.TVAdPublication.status != "withdrawn",
@@ -342,7 +419,6 @@ def _latest_copies(db, facility_id=None, *, metadata=True):
     )
     if facility_id:
         query = query.where(m.TVAdPublication.facility_id == facility_id)
-    cache = db.info.get("tv_projection", {})
     if cache.get("scoped"):
         # The scope query includes complete file histories, never just one body.
         scope_docs = cache["document_query"].subquery()
@@ -443,7 +519,7 @@ def _agency_names(db, copy):
     checked = {
         f.value
         for f in _facts(db, copy.id)
-        if f.field == "agency_name" and f.status == "checked" and f.publication_approved
+        if f.field == "agency_name" and _shown(db, f)
     }
     result = {name: False for name in checked}
     if _archive_access(db):
@@ -641,11 +717,7 @@ def browse(
                     break
             if match is None:
                 for fact in _facts(db, p.id):
-                    if (
-                        fact.status == "checked"
-                        and fact.publication_approved
-                        and query in fact.value.casefold()
-                    ):
+                    if _shown(db, fact) and query in fact.value.casefold():
                         match = (
                             "Matched a checked fact",
                             f"{_fact_kind(fact.field)}: {fact.value}",
@@ -1158,6 +1230,10 @@ def approved_media(db, key, version, copy_id):
 
 
 def _folders(db, facility_id=None):
+    if _originals(db):
+        # A folder approval is alethical.com's public-copy step; Finance names
+        # each folder as its files' station folder does.
+        return []
     query = select(m.TVAdFolderApproval).where(
         m.TVAdFolderApproval.status == "approved",
         m.TVAdFolderApproval.facility_id.in_(STATIONS),
@@ -1211,6 +1287,18 @@ def folder_detail(db, key):
             .order_by(m.TVAdConnection.checked_at.desc())
             .limit(1)
         )
+    elif _originals(db):
+        relationship = db.scalar(
+            select(m.TVAdConnection)
+            .where(
+                m.TVAdConnection.facility_id == facility,
+                m.TVAdConnection.folder_id == folder_id,
+                m.TVAdConnection.scope == "folder",
+                m.TVAdConnection.status == "checked",
+            )
+            .order_by(m.TVAdConnection.checked_at.desc(), m.TVAdConnection.id)
+            .limit(1)
+        )
     source = (
         sorted(
             _folder_observations(db, facility, folder_id, folder.content_hash),
@@ -1244,11 +1332,7 @@ def agency_detail(db, key):
     addresses = {}
     unchecked = False
     for p in _latest_copies(db):
-        facts = [
-            f
-            for f in _facts(db, p.id)
-            if f.status == "checked" and f.publication_approved
-        ]
+        facts = [f for f in _facts(db, p.id) if _shown(db, f)]
         candidates = _agency_names(db, p)
         candidate = next((name for name in candidates if agency_key(name) == key), None)
         if candidate is None:
@@ -1343,7 +1427,7 @@ def station_detail(db, key):
     dates = sources(db, station.call_sign)["stations"][0]
     return {
         **dates,
-        "counts": counts(db, station.facility_id),
+        "counts": counts(db, station.facility_id, originals=_originals(db)),
         # Folders holding saved records, the same unit as the Stations tab and this
         # page's year table; FCC folder pages we listed (including empty, year and
         # office folders) only feed "Folders we couldn't list".
@@ -1448,13 +1532,21 @@ def connected(db, kind, target):
         groups[("committee", registration_number)]
     named = "Station files that name this candidate"
     for p in _latest_copies(db, metadata=False):
-        checked = list(
-            db.scalars(
-                select(m.TVAdConnection).where(
-                    m.TVAdConnection.publication_id == p.id,
-                    m.TVAdConnection.scope == "file",
-                    m.TVAdConnection.status == "checked",
-                    m.TVAdConnection.publication_approved.is_(True),
+        checked = (
+            [
+                c
+                for c in _original_checks(db)["connections"].get(p.id, [])
+                if c.status == "checked"
+            ]
+            if _originals(db)
+            else list(
+                db.scalars(
+                    select(m.TVAdConnection).where(
+                        m.TVAdConnection.publication_id == p.id,
+                        m.TVAdConnection.scope == "file",
+                        m.TVAdConnection.status == "checked",
+                        m.TVAdConnection.publication_approved.is_(True),
+                    )
                 )
             )
         )
@@ -1462,10 +1554,7 @@ def connected(db, kind, target):
             matches = [
                 f
                 for f in _facts(db, p.id)
-                if f.field == "agency_name"
-                and f.value == target
-                and f.status == "checked"
-                and f.publication_approved
+                if f.field == "agency_name" and f.value == target and _shown(db, f)
             ]
         elif kind == "race":
             matches = [
@@ -1713,7 +1802,7 @@ def _fact_history(db, fact):
         if (
             old is None
             or old.publication_id != fact.publication_id
-            or not old.history_publication_approved
+            or not (old.history_publication_approved or _originals(db))
         ):
             break
         result.append(

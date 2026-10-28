@@ -1,54 +1,71 @@
 """Alethical Finance's view of the TV station files it calls Media buys.
 
 The same readers alethical.com's administrators use (``alethical/api/services/
-tv_ads.py``), with 2 differences required by
-docs/architecture/alethical-finance-architecture.md:
+tv_ads.py``), in their Finance reading (``originals=True``), as
+docs/architecture/alethical-finance-architecture.md requires:
 
-- **Every file opens as its original.** Finance has no public pages, so it never
-  shows alethical.com's public-copy steps: no copy ids, copy statuses or approved
-  copies, only the station's own file, its pages and machine-read text (§4, §6).
-- **No answer carries a link.** alethical.com's readers build addresses of
-  alethical.com pages; Finance never links there (§7), so every ``href`` is
-  removed and the Finance app builds its own from each record's kind and key.
-
-Every check on a version is shown, and no check names who made it (§5).
+- **Every file, list row and search result is the station's original** (§4, §6):
+  its own title, folder, category, pages and machine-read text, never an approved
+  public copy's. Finance has no public pages, so it never uses the public-copy
+  steps.
+- **Every check made on that exact version is shown**, from any non-draft copy of
+  it, published or not, and no check names who made it (§5).
+- **No answer links to alethical.com** (§7). Each connection carries
+  ``target: {kind, id}`` when Finance can open its other side, and the Finance app
+  builds its own link. Which fields reach Finance at all is the allow list in
+  ``alethical/api/finance_media_buys_schemas.py``.
 """
 
 from __future__ import annotations
 
-from typing import Any
 from urllib.parse import quote
+from uuid import UUID
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from alethical.api.services import tv_ads as reader
 from alethical.db import models as m
 
-# Fields that describe alethical.com's public copies or link to its pages.
-_DROPPED = frozenset(
-    {
-        "copy_id",
-        "copy_status",
-        "newest_approved_version",
-        "files_with_approved_copy",
-        "href",
-        "image_path",
-    }
-)
+DATES = {"Invoice date", "Scheduled airing", "Start date", "End date"}
+
+# Connection kinds Finance opens itself, through /connections?kind=&target=.
+OPENS = frozenset({"committee", "candidate", "principal", "election"})
 
 
-def finance_view(value: Any) -> Any:
-    """The payload with every public-copy field and every link removed."""
-    if isinstance(value, dict):
+def target(c: m.TVAdConnection) -> dict | None:
+    """Where Finance opens a connection's other side: a station file, or the
+    files connected to the same record. None when nothing in Finance opens it: a
+    withdrawn check, printed issue text (not a record) or a reported expense,
+    whose id is a private review record; its amount, date and source row are
+    already on the connection."""
+    if c.status != "checked":
+        return None
+    if c.kind in OPENS:
+        return {"kind": c.kind, "id": c.target_id}
+    snapshot = c.target_snapshot or {}
+    if (
+        c.kind == "related_document"
+        and snapshot.get("facility_id") in reader.STATIONS
+        and snapshot.get("file_id")
+    ):
         return {
-            key: finance_view(item)
-            for key, item in value.items()
-            if key not in _DROPPED
+            "kind": "file",
+            "id": reader.file_key(snapshot["facility_id"], snapshot["file_id"]),
         }
-    if isinstance(value, list):
-        return [finance_view(item) for item in value]
-    return value
+    return None
+
+
+def _connection(db: Session, c: m.TVAdConnection, version: str, key: str) -> dict:
+    item = {**reader._connection_payload(db, c, version, key), "target": target(c)}
+    snapshot = c.target_snapshot or {}
+    if c.kind == "related_document" and c.status == "checked":
+        # The related file by its original's own name, never its copy's title.
+        identity = tuple(
+            snapshot.get(field) for field in ("facility_id", "file_id", "content_hash")
+        )
+        document = db.get(m.FCCDocument, identity) if all(identity) else None
+        item["label"] = document.name if document else None
+    return item
 
 
 def page_image_path(key: str, version: str, page: int) -> str:
@@ -67,64 +84,28 @@ def _original(db: Session, key: str, version: str | None = None) -> dict:
     )
     if not docs:
         raise LookupError("Not found")
-    newest = sorted(
-        docs,
-        key=lambda d: (d.last_downloaded_at, d.last_seen_at, d.content_hash),
-        reverse=True,
+    newest = max(
+        docs, key=lambda d: (d.last_downloaded_at, d.last_seen_at, d.content_hash)
     )
     requested = (
         next((d for d in docs if d.content_hash == version), None)
         if version
-        else newest[0]
+        else newest
     )
     if requested is None:
         raise LookupError("Not found")
-    pubs = list(
-        db.scalars(
-            select(m.TVAdPublication).where(
-                m.TVAdPublication.facility_id == facility,
-                m.TVAdPublication.file_id == file_id,
-            )
-        )
-    )
-    detail = reader._archive_detail(db, key, requested, docs, newest[0], pubs)
-    # Checks made on alethical.com's copies of this exact version are checks of
-    # this file too; Finance shows every one, published or not.
-    copies = [
-        p.id
-        for p in pubs
-        if p.content_hash == requested.content_hash and p.status != "draft"
-    ]
+    detail = reader._archive_detail(db, key, requested, docs, newest, [])
+    checks = reader._original_checks(db)
+    exact = (facility, file_id, requested.content_hash)
     facts = [
         reader._fact_payload(db, fact, requested.content_hash)
-        for fact in db.scalars(
-            select(m.TVAdFact)
-            .where(m.TVAdFact.publication_id.in_(copies))
-            .order_by(m.TVAdFact.checked_at, m.TVAdFact.id)
-        )
+        for fact in checks["facts"].get(exact, [])
     ]
-    connections = [
-        {
-            **reader._connection_payload(db, c, requested.content_hash, key),
-            "target": {"kind": c.kind, "id": c.target_id},
-        }
-        for c in db.scalars(
-            select(m.TVAdConnection)
-            .where(
-                m.TVAdConnection.publication_id.in_(copies),
-                m.TVAdConnection.scope == "file",
-                m.TVAdConnection.kind != "related_document",
-            )
-            .order_by(m.TVAdConnection.checked_at, m.TVAdConnection.id)
-        )
-    ]
-    dates = {"Invoice date", "Scheduled airing", "Start date", "End date"}
-    detail["facts"] = [f for f in facts if f["kind"] not in dates]
-    detail["dates"] = [f for f in facts if f["kind"] in dates]
-    detail["connections"] = connections
-    detail["versions"] = [
-        {key_: value for key_, value in v.items() if key_ != "status"}
-        for v in detail["versions"]
+    detail["facts"] = [f for f in facts if f["kind"] not in DATES]
+    detail["dates"] = [f for f in facts if f["kind"] in DATES]
+    detail["connections"] = [
+        _connection(db, c, requested.content_hash, key)
+        for c in checks["connections"].get(exact, [])
     ]
     for page in detail["pages"]:
         page["image"] = page_image_path(key, requested.content_hash, page["number"])
@@ -132,36 +113,40 @@ def _original(db: Session, key: str, version: str | None = None) -> dict:
 
 
 def file_detail(db: Session, key: str, version: str | None = None) -> dict:
-    return finance_view(_original(db, key, version, include_archive=True))
+    return _original(db, key, version, originals=True)
 
 
 def counts(db: Session) -> dict:
-    return finance_view(reader.counts(db))
+    return reader.counts(db, originals=True)
 
 
 def sources(db: Session) -> dict:
-    return finance_view(reader.sources(db))
+    return reader.sources(db)
 
 
 def recent(db: Session) -> dict:
-    return finance_view(reader.recent(db, include_archive=True))
+    return reader.recent(db, originals=True)
 
 
 def browse(db: Session, **filters) -> dict:
-    return finance_view(reader.browse(db, include_archive=True, **filters))
+    return reader.browse(db, originals=True, **filters)
 
 
 def folder(db: Session, key: str) -> dict:
-    return finance_view(reader.folder_detail(db, key, include_archive=True))
+    detail = reader.folder_detail(db, key, originals=True)
+    if detail["relationship"]:
+        row = db.get(m.TVAdConnection, UUID(detail["relationship"]["id"]))
+        detail["relationship"]["target"] = target(row) if row else None
+    return detail
 
 
 def agency(db: Session, key: str) -> dict:
-    return finance_view(reader.agency_detail(db, key, include_archive=True))
+    return reader.agency_detail(db, key, originals=True)
 
 
 def station(db: Session, key: str) -> dict:
-    return finance_view(reader.station_detail(db, key, include_archive=True))
+    return reader.station_detail(db, key, originals=True)
 
 
-def connected(db: Session, kind: str, target: str) -> dict:
-    return finance_view(reader.connected(db, kind, target, include_archive=True))
+def connected(db: Session, kind: str, record: str) -> dict:
+    return reader.connected(db, kind, record, originals=True)

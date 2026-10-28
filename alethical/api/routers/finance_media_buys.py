@@ -1,8 +1,11 @@
 """Alethical Finance's Media buys: TV station files, read by every Finance account.
 
 Behind the Finance access check, through the same readers alethical.com's
-administrators use (``alethical/api/services/finance_media_buys.py``). Finance
-answers never carry alethical.com's public-copy steps or links.
+administrators use, in their Finance reading
+(``alethical/api/services/finance_media_buys.py``). Each answer passes through its
+response model in ``alethical/api/finance_media_buys_schemas.py``, so only the
+fields named there reach Finance: never alethical.com's public-copy steps, links
+or account identifiers.
 """
 
 from __future__ import annotations
@@ -11,6 +14,7 @@ from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from alethical.api import finance_media_buys_schemas as schema
 from alethical.api.finance_access import require_finance_access
 from alethical.api.problems import problem_exception
 from alethical.api.services import finance_media_buys as media
@@ -46,22 +50,30 @@ def records(db: Session = Depends(get_db)):
         ) from None
 
 
-@router.get("/counts")
+def answer(model):
+    """The route's answer, with only the fields its model names."""
+    return {
+        "response_model": schema.FinanceAnswer[model],
+        "response_model_exclude_unset": True,
+    }
+
+
+@router.get("/counts", **answer(schema.FinanceCounts))
 def counts(db: Session = Depends(records)) -> dict:
     return {"data": media.counts(db)}
 
 
-@router.get("/sources")
+@router.get("/sources", **answer(schema.FinanceSources))
 def sources(db: Session = Depends(records)) -> dict:
     return {"data": media.sources(db)}
 
 
-@router.get("/recent")
+@router.get("/recent", **answer(schema.FinanceRecent))
 def recent(db: Session = Depends(records)) -> dict:
     return {"data": media.recent(db)}
 
 
-@router.get("/browse")
+@router.get("/browse", **answer(schema.FinanceBrowse))
 def browse(
     tab: str = "folders",
     q: str = Query("", max_length=200),
@@ -86,7 +98,7 @@ def browse(
     }
 
 
-@router.get("/connections")
+@router.get("/connections", **answer(schema.FinanceConnected))
 def connections(
     kind: str, target: str = Query(max_length=200), db: Session = Depends(records)
 ) -> dict:
@@ -95,7 +107,7 @@ def connections(
     return {"data": media.connected(db, kind, target)}
 
 
-@router.get("/files/{key}")
+@router.get("/files/{key}", **answer(schema.FinanceFileDetail))
 def file_detail(
     key: str,
     version: str | None = Query(None, pattern=r"^[a-f0-9]{64}$"),
@@ -120,16 +132,16 @@ def page_image(
     )
 
 
-@router.get("/folders/{key}")
+@router.get("/folders/{key}", **answer(schema.FinanceFolder))
 def folder(key: str, db: Session = Depends(records)) -> dict:
     return {"data": media.folder(db, key)}
 
 
-@router.get("/agencies/{key}")
+@router.get("/agencies/{key}", **answer(schema.FinanceAgency))
 def agency(key: str, db: Session = Depends(records)) -> dict:
     return {"data": media.agency(db, key)}
 
 
-@router.get("/stations/{key}")
+@router.get("/stations/{key}", **answer(schema.FinanceStation))
 def station(key: str, db: Session = Depends(records)) -> dict:
     return {"data": media.station(db, key)}

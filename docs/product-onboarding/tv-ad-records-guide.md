@@ -1,6 +1,6 @@
 # TV ad records guide
 
-<!-- describes: alethical/api/services/finance_media_buys.py, alethical/api/routers/finance_media_buys.py, alethical/api/routers/tv_ads.py, alethical/api/services/tv_ads.py, alethical/api/services/tv_ad_review.py, alethical/pipeline/tv_ad_redaction.py, apps/frontend/src/components/tvAds/**, apps/frontend/src/components/tvAdReview/**, apps/frontend/src/screens/redesign/TVAdRecordsScreen.tsx, apps/frontend/src/screens/redesign/AdminPoliticalAdsScreen.tsx -->
+<!-- describes: alethical/api/services/finance_media_buys.py, alethical/api/routers/finance_media_buys.py, alethical/api/finance_media_buys_schemas.py, alethical/api/routers/tv_ads.py, alethical/api/services/tv_ads.py, alethical/api/services/tv_ad_review.py, alethical/pipeline/tv_ad_redaction.py, apps/frontend/src/components/tvAds/**, apps/frontend/src/components/tvAdReview/**, apps/frontend/src/screens/redesign/TVAdRecordsScreen.tsx, apps/frontend/src/screens/redesign/AdminPoliticalAdsScreen.tsx -->
 
 TV ad records collect station files from KSTP-TV, KARE and KMSP-TV. They help readers distinguish what was ordered, billed, credited or reported in campaign records. A title alone does not prove an ad aired or a bill was paid. The first reader release is for signed-in administrators. Public access is not approved.
 
@@ -66,12 +66,31 @@ Source or target changes clear earlier review attestations. Saving and retry con
 
 Every Finance account reads the same station files under Media buys
 (`/api/v1/finance/media-buys/...`, `alethical/api/services/finance_media_buys.py`), through
-the readers above, with 2 differences. Every file opens as its original: the station's own
-pages and machine-read text, with no copy ids, copy statuses or approved copies, because the
-public-copy steps belong to alethical.com. Every check made on any copy of that version is
-listed, published or not, and no check names who made it. No Finance answer carries a link:
-the Finance app builds its own from each record's kind and key. Original page images come
-from `/files/{key}/pages/{page}?version=` and are never cached.
+the readers above in their Finance reading (`originals=True`, off for alethical.com).
+
+- **Every file is the station's original.** The file page, every list row (recent files,
+  folders, agencies, stations, years, connections) and every search result gives the file's
+  own title, folder, category, pages and machine-read text. Search reads the original's
+  machine-read text. Finance never uses the public-copy steps: no copy ids or statuses, no
+  approved copy's title, folder, category or blanked text, and no approved folder label, so a
+  folder is listed once Finance holds a file in it.
+- **Every check on that exact version is shown, published or not**: facts, dates, agency
+  names, connections and a corrected fact's earlier value, from every copy of the version
+  except drafts. They fill the file page and every list, count and connection view, so an
+  agency name checked on a file is never marked unchecked on that file. A folder shows its newest checked committee
+  relationship. No check names who made it, and no answer carries an account identifier.
+- **No answer carries a link or an alethical.com address**, including the campaign-payments
+  links on agency pages. Each connection carries `target: {kind, id}`, a record a Finance
+  route answers, for the Finance app to build its own link: a related document is
+  `{kind: "file", id: <file key>}` (`/files/{key}`); a committee, candidate, lobbying
+  principal or election opens the files connected to it (`/connections?kind=&target=`). A
+  printed issue and a reported campaign expense carry no target, because no Finance route
+  opens either; an expense keeps its reported amount, date and source row on the connection.
+- **A field reaches Finance only when its response model names it**
+  (`alethical/api/finance_media_buys_schemas.py`), so a field added to the shared readers
+  stays out of Finance until a model adds it.
+
+Original page images come from `/files/{key}/pages/{page}?version=` and are never cached.
 
 ## Sources, privacy and limits
 
