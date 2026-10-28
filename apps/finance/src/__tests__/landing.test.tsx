@@ -172,6 +172,22 @@ describe('the public Finance site', () => {
     },
   );
 
+  it('focuses nothing on arrival, though the sign-in state settles after the first draw', async () => {
+    await renderAt('/');
+    expect(container.querySelector('.lp')).not.toBeNull();
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('moves focus to the new heading after Sign in is followed', async () => {
+    await renderAt('/');
+    const signIn = container.querySelector<HTMLAnchorElement>('.lp-top a[href="/sign-in"]')!;
+    await act(async () => {
+      signIn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
+    });
+    expect(window.location.pathname).toBe('/sign-in');
+    expect(document.activeElement?.tagName).toBe('H1');
+  });
+
   it.each(['/sign-in', '/auth/return'])('answers %s, not with not-found', async (path) => {
     await renderAt(path);
     expect(container.textContent).not.toContain('We couldn’t find that page');
