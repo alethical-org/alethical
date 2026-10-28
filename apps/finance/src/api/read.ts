@@ -5,14 +5,11 @@ import { REQUEST_TIMEOUT_MS } from './client';
 
 /** What a read answered: its data, a record the server does not hold, or a
  * failure the reader can retry. A failure is never shown as an empty result. */
-export type ReadAnswer<T> =
-  | { state: 'ok'; data: T }
-  | { state: 'not-found' }
-  | { state: 'failed' };
+export type ReadAnswer<T> = { state: 'ok'; data: T } | { state: 'not-found' } | { state: 'failed' };
 
 type Fetch = typeof fetch;
 
-/** 1 GET to alethical.com's API with this account's token. Every answer that
+/** 1 GET to the shared Alethical API with this account's token. Every answer that
  * carries a token is private, so nothing here is shared between accounts. */
 export async function apiGet<T>(
   apiBaseUrl: string,

@@ -481,6 +481,9 @@
   text-decoration: none;
   flex: none;
 }
+.f-app .f-nav-lockup {
+  color: #fff;
+}
 .f-app .f-nav-lockup:focus-visible,
 .f-app .f-nav-link:focus-visible {
   outline-offset: -4px;

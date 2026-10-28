@@ -129,7 +129,8 @@ export function useSuggestionBox(id: string, from: string | null) {
       const element = document.getElementById(optionId(index));
       const list = element?.closest<HTMLElement>('[data-sg-list]');
       if (!element || !list) return;
-      if (element.offsetTop < list.scrollTop + 8) list.scrollTop = Math.max(0, element.offsetTop - 30);
+      if (element.offsetTop < list.scrollTop + 8)
+        list.scrollTop = Math.max(0, element.offsetTop - 30);
       else if (element.offsetTop + element.offsetHeight > list.scrollTop + list.clientHeight - 50) {
         list.scrollTop = element.offsetTop + element.offsetHeight - list.clientHeight + 50;
       }
@@ -220,7 +221,12 @@ export function useSuggestionBox(id: string, from: string | null) {
       onPick={close}
     >
       {groups.map((group) => (
-        <div key={group.id} role="group" aria-labelledby={`${id}-h-${group.id}`} className="f-sg-group">
+        <div
+          key={group.id}
+          role="group"
+          aria-labelledby={`${id}-h-${group.id}`}
+          className="f-sg-group"
+        >
           <div id={`${id}-h-${group.id}`} className="f-sg-group-title">
             {group.title}
           </div>
@@ -261,7 +267,12 @@ function Mark({ kind, code }: { kind: SuggestionKind; code?: string }) {
       <span className="f-mark f-mark-person" aria-hidden="true">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
           <circle cx="12" cy="8" r="4" stroke="#0B5C72" strokeWidth="2" />
-          <path d="M4 21 C4 16 8 14 12 14 C16 14 20 16 20 21" stroke="#0B5C72" strokeWidth="2" strokeLinecap="round" />
+          <path
+            d="M4 21 C4 16 8 14 12 14 C16 14 20 16 20 21"
+            stroke="#0B5C72"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
         </svg>
       </span>
     );
@@ -271,7 +282,12 @@ function Mark({ kind, code }: { kind: SuggestionKind; code?: string }) {
       <span className="f-mark" aria-hidden="true">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
           <rect x="5" y="3" width="14" height="18" rx="1.5" stroke="#0B5C72" strokeWidth="2" />
-          <path d="M9 8 H10 M14 8 H15 M9 12 H10 M14 12 H15 M10 21 V17 H14 V21" stroke="#0B5C72" strokeWidth="2" strokeLinecap="round" />
+          <path
+            d="M9 8 H10 M14 8 H15 M9 12 H10 M14 12 H15 M10 21 V17 H14 V21"
+            stroke="#0B5C72"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
         </svg>
       </span>
     );
@@ -280,7 +296,13 @@ function Mark({ kind, code }: { kind: SuggestionKind; code?: string }) {
     return (
       <span className="f-mark f-mark-committee" aria-hidden="true">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-          <path d="M4 10 H20 V20 H4 Z M8 10 V6 H16 V10 M9 14 H15" stroke="#0B5C72" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+          <path
+            d="M4 10 H20 V20 H4 Z M8 10 V6 H16 V10 M9 14 H15"
+            stroke="#0B5C72"
+            strokeWidth="2"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
         </svg>
       </span>
     );
@@ -315,7 +337,8 @@ function SuggestionRow(props: {
       className="f-sg-row"
       data-active={props.selected || undefined}
       onClick={(event) => {
-        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0)
+          return;
         event.preventDefault();
         props.onPick();
         navigate(props.href);
@@ -367,12 +390,23 @@ function SuggestionPanel(props: {
         <div className="f-sg-note">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle cx="12" cy="12" r="9" stroke="#5F6B76" strokeWidth="2" />
-            <path d="M12 7.5 V13 M12 16 V16.5" stroke="#5F6B76" strokeWidth="2.2" strokeLinecap="round" />
+            <path
+              d="M12 7.5 V13 M12 16 V16.5"
+              stroke="#5F6B76"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+            />
           </svg>
           Suggestions couldn’t load
         </div>
       )}
-      <div id={props.listId} role="listbox" aria-label="Suggestions" data-sg-list="1" className="f-sg-list">
+      <div
+        id={props.listId}
+        role="listbox"
+        aria-label="Suggestions"
+        data-sg-list="1"
+        className="f-sg-list"
+      >
         {props.status === 'ready' && props.children}
         <a
           id={props.allId}
@@ -383,7 +417,14 @@ function SuggestionPanel(props: {
           className="f-sg-all"
           data-active={props.allActive || undefined}
           onClick={(event) => {
-            if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+            if (
+              event.metaKey ||
+              event.ctrlKey ||
+              event.shiftKey ||
+              event.altKey ||
+              event.button !== 0
+            )
+              return;
             event.preventDefault();
             props.onPick();
             navigate(props.allHref);

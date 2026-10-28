@@ -31,8 +31,12 @@ describe('matchRoute', () => {
 });
 
 describe('safeReturnPath', () => {
-  it('keeps a Finance address with its query', () => {
-    expect(safeReturnPath('/money/committees/12?year=2026')).toBe('/money/committees/12?year=2026');
+  it('keeps a built Finance address with its query', () => {
+    expect(safeReturnPath('/home?q=hortman', true)).toBe('/home?q=hortman');
+  });
+
+  it('returns to the landing page while the signed-in screens are off', () => {
+    expect(safeReturnPath('/home?q=hortman', false)).toBe('/');
   });
 
   it.each([
@@ -44,7 +48,9 @@ describe('safeReturnPath', () => {
     '/sign-in',
     '/auth/return?source=google',
     '/not-a-page',
-  ])('sends %s home instead', (value) => {
-    expect(safeReturnPath(value)).toBe('/');
+    '/',
+    '/money/committees/12',
+  ])('sends %s to Finance Home instead', (value) => {
+    expect(safeReturnPath(value, true)).toBe('/home');
   });
 });

@@ -4,37 +4,40 @@ import { useRead } from '../api/read';
 import type { CountKey, ServedCounts } from '../landing/counts';
 import { Link } from '../router';
 import { withFrom } from '../returnContext';
-import { isBuilt, type RouteName } from '../routes';
+import { hrefFor, isBuilt, type RouteName } from '../routes';
 import { useSuggestionBox } from '../search/SuggestionBox';
 import { useBand } from '../ui/band';
 import { Arrow, SourcesAndUpdates, type SourceGroup } from '../ui/parts';
 
 const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
-const HOME = '/home';
+const HOME = hrefFor('home');
 
 /** The 3 primary entrances beside the "Browse records" heading. */
-const ACTIONS: ReadonlyArray<{ label: string; to: string; route: RouteName }> = [
-  { label: 'Explore money connections', to: '/money/connections', route: 'money-connections' },
-  { label: 'Confirm identities', to: '/money/identities', route: 'identities' },
-  { label: 'Donors by employer, as printed', to: '/money/employers', route: 'employers' },
+const ACTIONS: ReadonlyArray<{ label: string; route: RouteName }> = [
+  { label: 'Explore money connections', route: 'money-connections' },
+  { label: 'Confirm identities', route: 'identities' },
+  { label: 'Donors by employer, as printed', route: 'employers' },
 ];
 
 /** Entrances only: each opens an existing directory with its filter chosen. */
-const ENTRANCES: ReadonlyArray<{ label: string; to: string; route: RouteName }> = [
-  { label: 'Legislators', to: '/people?type=legislators&service=current', route: 'people' },
-  { label: 'Candidates', to: '/people?type=candidates', route: 'people' },
-  { label: 'Lobbyists', to: '/lobbying?tab=lobbyists', route: 'lobbying' },
-  { label: 'Committees and funds', to: '/money?tab=committees', route: 'campaign-money' },
-  { label: 'Party units', to: '/money?tab=party', route: 'campaign-money' },
-  { label: 'Vendors and payees', to: '/money/recipients', route: 'recipients' },
-  { label: 'Lobbying organizations', to: '/lobbying?tab=principals', route: 'lobbying' },
+const ENTRANCES: ReadonlyArray<{
+  label: string;
+  route: RouteName;
+  query?: Record<string, string>;
+}> = [
+  { label: 'Legislators', route: 'people', query: { type: 'legislators', service: 'current' } },
+  { label: 'Candidates', route: 'people', query: { type: 'candidates' } },
+  { label: 'Lobbyists', route: 'lobbying', query: { tab: 'lobbyists' } },
+  { label: 'Committees and funds', route: 'campaign-money', query: { tab: 'committees' } },
+  { label: 'Party units', route: 'campaign-money', query: { tab: 'party' } },
+  { label: 'Vendors and payees', route: 'recipients' },
+  { label: 'Lobbying organizations', route: 'lobbying', query: { tab: 'principals' } },
 ];
 
 type Dates = Partial<Record<CountKey, string | null>>;
 
 interface Family {
   title: string;
-  to: string;
   route: RouteName;
   body: string;
   source: string;
@@ -48,7 +51,6 @@ function dated(what: string, verb: string, iso: string | null | undefined): stri
 const FAMILIES: readonly Family[] = [
   {
     title: 'Campaign money',
-    to: '/money',
     route: 'campaign-money',
     body: 'Registered committees, funds and party units; their official report figures and itemized payments',
     source: BOARD,
@@ -56,7 +58,6 @@ const FAMILIES: readonly Family[] = [
   },
   {
     title: 'Lobbying',
-    to: '/lobbying',
     route: 'lobbying',
     body: 'Who is registered to lobby, who they represent, and what is reported spent',
     source: BOARD,
@@ -66,7 +67,6 @@ const FAMILIES: readonly Family[] = [
   },
   {
     title: 'People',
-    to: '/people',
     route: 'people',
     body: 'Candidate profiles, legislative service and links to related records',
     source: 'Minnesota Secretary of State',
@@ -74,7 +74,6 @@ const FAMILIES: readonly Family[] = [
   },
   {
     title: 'Legislation',
-    to: '/bills',
     route: 'legislation',
     body: 'Bills, versions, actions, authors, committees and recorded roll calls',
     source: 'Minnesota Legislature',
@@ -82,7 +81,6 @@ const FAMILIES: readonly Family[] = [
   },
   {
     title: 'Media buys',
-    to: '/media-buys',
     route: 'media-buys',
     body: 'TV station files for political ad time: folders, agency names, stations and years',
     source: 'KSTP-TV, KARE and KMSP-TV',
@@ -137,7 +135,9 @@ export function FinanceHome() {
                 {...box.inputProps}
                 id="home-search"
                 className="f-field f-home-field"
-                placeholder={isPhone ? 'Name or bill number' : 'Find a person, organization, committee or bill'}
+                placeholder={
+                  isPhone ? 'Name or bill number' : 'Find a person, organization, committee or bill'
+                }
               />
               {box.panel && <div className="f-home-sg">{box.panel}</div>}
             </div>
@@ -155,7 +155,11 @@ export function FinanceHome() {
               {actions.length > 0 && (
                 <div className="f-home-actions">
                   {actions.map((action) => (
-                    <Link key={action.to} to={withFrom(action.to, HOME)} className="f-btn f-action">
+                    <Link
+                      key={action.route}
+                      to={withFrom(hrefFor(action.route), HOME)}
+                      className="f-btn f-action"
+                    >
                       <span>{action.label}</span>
                       <Arrow stroke="#FFFFFF" />
                     </Link>
@@ -167,7 +171,10 @@ export function FinanceHome() {
               <ul aria-labelledby="browse-h" className="f-home-entrances">
                 {entrances.map((entrance) => (
                   <li key={entrance.label}>
-                    <Link to={withFrom(entrance.to, HOME)} className="f-home-entrance">
+                    <Link
+                      to={withFrom(hrefFor(entrance.route, {}, entrance.query), HOME)}
+                      className="f-home-entrance"
+                    >
                       <span>{entrance.label}</span>
                       <Arrow />
                     </Link>
@@ -180,7 +187,7 @@ export function FinanceHome() {
         {families.length > 0 && (
           <section aria-label="Record families" className="f-home-families">
             {families.map((family) => (
-              <Link key={family.title} to={family.to} className="f-home-family">
+              <Link key={family.title} to={hrefFor(family.route)} className="f-home-family">
                 <span className="f-home-family-title">{family.title}</span>
                 <p>{family.body}</p>
                 <span className="f-home-family-arrow">

@@ -3,9 +3,22 @@ import type { ReactNode } from 'react';
 import { Link } from '../router';
 
 /** The one arrow (RULE Design system §05): a 19px path, never a typed arrow. */
-export function Arrow({ stroke = '#0B5C72', className = 'f-arrow' }: { stroke?: string; className?: string }) {
+export function Arrow({
+  stroke = '#0B5C72',
+  className = 'f-arrow',
+}: {
+  stroke?: string;
+  className?: string;
+}) {
   return (
-    <svg className={className} width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      className={className}
+      width="19"
+      height="19"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d="M5 12 H19 M14 7 L19 12 L14 17"
         stroke={stroke}

@@ -3,13 +3,18 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { clearReadCache } from '../api/read';
 import { useFinanceSession } from '../auth/session';
 import { clearSavedScroll, Link, navigate, useLocation } from '../router';
-import { isBuilt, type NavSection, type RouteName } from '../routes';
+import { hrefFor, isBuilt, type NavSection, type RouteName } from '../routes';
 import { useSuggestionBox } from '../search/SuggestionBox';
 import { useBand } from '../ui/band';
 
 /** The record families, in the drawing's order and words (Finance Nav). A family
  * whose page is not built yet is left out, never linked to a missing page. */
-const FAMILIES: ReadonlyArray<{ section: NavSection; label: string; to: string; route: RouteName }> = [
+const FAMILIES: ReadonlyArray<{
+  section: NavSection;
+  label: string;
+  to: string;
+  route: RouteName;
+}> = [
   { section: 'money', label: 'Money', to: '/money', route: 'campaign-money' },
   { section: 'lobbying', label: 'Lobbying', to: '/lobbying', route: 'lobbying' },
   { section: 'people', label: 'People', to: '/people', route: 'people' },
@@ -23,7 +28,7 @@ export function navItems() {
 
 function Lockup() {
   return (
-    <Link to="/home" aria-label="Alethical Finance home" className="f-nav-lockup">
+    <Link to={hrefFor('home')} aria-label="Alethical Finance home" className="f-nav-lockup">
       <svg width="20" height="20" viewBox="8 9 84 84" aria-hidden="true">
         <path d="M8,92 L46,10 L46,92 Z" fill="#5CC2DC" />
         <path d="M92,92 L54,10 L54,92 Z" fill="#5CC2DC" />
@@ -178,7 +183,13 @@ export function AppShell({ section, children }: { section?: NavSection; children
               >
                 Account
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M6 9 L12 15 L18 9" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M6 9 L12 15 L18 9"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </button>
               {accountOpen && (
@@ -214,7 +225,12 @@ export function AppShell({ section, children }: { section?: NavSection; children
               }}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M4 7 H20 M4 12 H20 M4 17 H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path
+                  d="M4 7 H20 M4 12 H20 M4 17 H20"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
               </svg>
             </button>
           )}
@@ -237,7 +253,11 @@ export function AppShell({ section, children }: { section?: NavSection; children
               <div className="f-label">SIGNED IN AS</div>
               <div className="f-nav-phone-email">{email}</div>
             </div>
-            <button type="button" className="f-nav-phone-link f-nav-phone-signout" onClick={() => void signOutTo(signOut)}>
+            <button
+              type="button"
+              className="f-nav-phone-link f-nav-phone-signout"
+              onClick={() => void signOutTo(signOut)}
+            >
               Sign out
             </button>
           </nav>

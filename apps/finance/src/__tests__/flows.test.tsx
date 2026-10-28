@@ -7,6 +7,7 @@ import { App } from '../App';
 import { rememberReturnPath, takeReturnPath } from '../auth/returnPath';
 import { SessionProvider } from '../auth/session';
 import { STORAGE_KEY } from '../auth/supabase';
+import { navigate } from '../router';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -78,7 +79,7 @@ async function render(path: string, client: SupabaseClient, fetcher: typeof fetc
   vi.stubGlobal('fetch', fetcher);
   await act(async () => {
     root.render(
-      <SessionProvider supabase={client} apiBaseUrl={API} googleSignIn emailSignIn>
+      <SessionProvider supabase={client} apiBaseUrl={API} googleSignIn emailSignIn screens>
         <App />
       </SessionProvider>,
     );
@@ -95,31 +96,35 @@ function answering(...statuses: number[]) {
 
 const text = () => container.textContent ?? '';
 
+/** How many times the access check was asked; pages make their own reads too. */
+const accessChecks = (fetcher: ReturnType<typeof vi.fn>) =>
+  fetcher.mock.calls.filter(([url]) => String(url).endsWith('/finance/access')).length;
+
 describe('the access answer', () => {
   it('keeps the page when a returning tab hands over the same session again', async () => {
     const supabase = fakeSupabase(session('token-1'));
     const fetcher = answering(200);
-    await render('/money', supabase.client, fetcher);
+    await render('/home', supabase.client, fetcher);
     const heading = container.querySelector('h1');
     await act(async () => supabase.emit('SIGNED_IN', session('token-1')));
     expect(container.querySelector('h1')).toBe(heading);
-    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(accessChecks(fetcher)).toBe(1);
   });
 
   it('re-checks a refreshed token quietly and keeps the page if that check fails', async () => {
     const supabase = fakeSupabase(session('token-1'));
     const fetcher = answering(200, 503);
-    await render('/money', supabase.client, fetcher);
+    await render('/home', supabase.client, fetcher);
     await act(async () => supabase.emit('TOKEN_REFRESHED', session('token-2')));
     await act(async () => {});
-    expect(fetcher).toHaveBeenCalledTimes(2);
-    expect(text()).toContain('This page is waiting for its final design.');
+    expect(accessChecks(fetcher)).toBe(2);
+    expect(text()).toContain('Research public records');
     expect(text()).not.toContain('Checking access');
   });
 
   it('shows a revocation found on a refresh', async () => {
     const supabase = fakeSupabase(session('token-1'));
-    await render('/money', supabase.client, answering(200, 403));
+    await render('/home', supabase.client, answering(200, 403));
     await act(async () => supabase.emit('TOKEN_REFRESHED', session('token-2')));
     await act(async () => {});
     expect(text()).toContain('doesn’t have access');
@@ -134,7 +139,7 @@ describe('the access answer', () => {
         ? new Promise<Response>((resolve) => (releaseFirst = resolve))
         : Promise.resolve(new Response(null, { status: 403 }));
     });
-    await render('/money', supabase.client, fetcher as unknown as typeof fetch);
+    await render('/home', supabase.client, fetcher as unknown as typeof fetch);
     await act(async () => supabase.emit('SIGNED_IN', session('token-9', 'user-2')));
     await act(async () => releaseFirst(new Response(null, { status: 200 })));
     await act(async () => {});
@@ -144,7 +149,7 @@ describe('the access answer', () => {
 
   it('sends a refused account on from the sign-in page to its own answer', async () => {
     await render('/sign-in?next=%2Fmoney', fakeSupabase(session('token-1')).client, answering(403));
-    expect(window.location.pathname).toBe('/money');
+    expect(window.location.pathname).toBe('/home');
     expect(text()).toContain('doesn’t have access');
   });
 
@@ -157,7 +162,7 @@ describe('the access answer', () => {
         : new Promise<Response>((resolve) => (answer = resolve)),
     );
     await render(
-      '/money',
+      '/home',
       fakeSupabase(session('token-1')).client,
       fetcher as unknown as typeof fetch,
     );
@@ -175,7 +180,7 @@ describe('the access answer', () => {
   });
 
   it('says so when Try again is still unavailable, keeping focus on the button', async () => {
-    await render('/money', fakeSupabase(session('token-1')).client, answering(503, 503));
+    await render('/home', fakeSupabase(session('token-1')).client, answering(503, 503));
     const tryAgain = () =>
       [...container.querySelectorAll('button')].find((b) =>
         (b.textContent ?? '').startsWith('Try'),
@@ -212,13 +217,13 @@ describe('sign-in steps', () => {
   };
 
   it('moves focus to each step’s field and saves the page asked for', async () => {
-    await render('/sign-in?next=%2Flobbying', fakeSupabase(null).client, answering(202));
+    await render('/sign-in?next=%2Fhome%3Fq%3Dlobbying', fakeSupabase(null).client, answering(202));
     await act(async () => button('Sign in with email').click());
     expect(document.activeElement?.id).toBe('email');
     await type('#email', 'reader@example.test');
     await act(async () => button('Continue').click());
     expect(document.activeElement?.id).toBe('code');
-    expect(takeReturnPath()).toBe('/lobbying');
+    expect(takeReturnPath(true)).toBe('/home?q=lobbying');
   });
 
   it('stays busy after a correct code until access is known', async () => {
@@ -242,7 +247,7 @@ describe('sign-in steps', () => {
     expect(button('Signing in…').disabled).toBe(true);
     await act(async () => answer(new Response(null, { status: 200 })));
     await act(async () => {});
-    expect(window.location.pathname).toBe('/');
+    expect(window.location.pathname).toBe('/home');
   });
 
   it('says sign-in could not finish when the new session is refused as signed out', async () => {
@@ -288,7 +293,7 @@ describe('sign-in steps', () => {
         ? Promise.resolve(new Response(null, { status: 200 }))
         : new Promise<Response>((resolve) => (answer = resolve)),
     );
-    await render('/money', supabase.client, fetcher as unknown as typeof fetch);
+    await render('/home', supabase.client, fetcher as unknown as typeof fetch);
     expect(container.querySelector('nav')).not.toBeNull();
     await act(async () => supabase.emit('SIGNED_OUT', null));
     await act(async () => supabase.emit('SIGNED_IN', session('token-2')));
@@ -298,12 +303,9 @@ describe('sign-in steps', () => {
   });
 
   it('moves focus to the new screen’s heading', async () => {
-    await render('/money', fakeSupabase(session('token-1')).client, answering(200));
-    const lobbying = [...container.querySelectorAll('a')].find(
-      (a) => a.textContent === 'Lobbying',
-    )!;
-    await act(async () => lobbying.click());
-    expect(document.activeElement?.textContent).toBe('Lobbying');
+    await render('/home', fakeSupabase(session('token-1')).client, answering(200));
+    await act(async () => navigate('/no-such-page'));
+    expect(document.activeElement?.textContent).toBe('We couldn’t find that page');
     expect(document.activeElement?.tagName).toBe('H1');
   });
 });
@@ -311,7 +313,7 @@ describe('sign-in steps', () => {
 describe('Google and sign-out', () => {
   it('sends Google back to this site’s own return page and remembers the page asked for', async () => {
     const supabase = fakeSupabase(null);
-    await render('/sign-in?next=%2Fmoney%2Fcommittees%2F7', supabase.client, answering(401));
+    await render('/sign-in?next=%2Fhome%3Fq%3D7', supabase.client, answering(401));
     const google = [...container.querySelectorAll('button')].find(
       (button) => button.textContent === 'Continue with Google',
     )!;
@@ -320,14 +322,14 @@ describe('Google and sign-out', () => {
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/return?source=google` },
     });
-    expect(takeReturnPath()).toBe('/money/committees/7');
+    expect(takeReturnPath(true)).toBe('/home?q=7');
   });
 
   it('signs out this browser only, and clears the saved session if Supabase cannot', async () => {
     const supabase = fakeSupabase(session('token-1'));
     supabase.auth.signOut.mockResolvedValueOnce({ error: new Error('offline') });
     window.localStorage.setItem(STORAGE_KEY, '{"access_token":"token-1"}');
-    await render('/money', supabase.client, answering(200));
+    await render('/home', supabase.client, answering(200));
     const account = [...container.querySelectorAll('button')].find(
       (b) => b.textContent === 'Account',
     )!;
@@ -343,7 +345,7 @@ describe('Google and sign-out', () => {
   });
 
   it('closes the Account menu on Escape and on a press outside it', async () => {
-    await render('/money', fakeSupabase(session('token-1')).client, answering(200));
+    await render('/home', fakeSupabase(session('token-1')).client, answering(200));
     const account = () =>
       [...container.querySelectorAll('button')].find((b) => b.textContent === 'Account')!;
     await act(async () => account().click());
@@ -368,7 +370,7 @@ describe('the return page', () => {
       supabase.emit('SIGNED_IN', session('token-5'));
       return { data: {}, error: null };
     });
-    rememberReturnPath('/lobbying');
+    rememberReturnPath('/home?q=lobbying', true);
     await render(
       '/auth/return#source=email&token_hash=hash-1&type=email',
       supabase.client,
@@ -381,7 +383,7 @@ describe('the return page', () => {
     )!;
     await act(async () => proceed.click());
     expect(supabase.auth.verifyOtp).toHaveBeenCalledWith({ token_hash: 'hash-1', type: 'email' });
-    expect(window.location.pathname).toBe('/lobbying');
+    expect(window.location.pathname + window.location.search).toBe('/home?q=lobbying');
   });
 
   it('says a used or expired link did not work', async () => {
@@ -405,17 +407,17 @@ describe('the return page', () => {
   });
 
   it('finishes Google at the page that was asked for', async () => {
-    rememberReturnPath('/bills/94-2025-SF1832');
+    rememberReturnPath('/home?q=SF1832', true);
     await render(
       '/auth/return?source=google',
       fakeSupabase(session('token-1')).client,
       answering(200),
     );
-    expect(window.location.pathname).toBe('/bills/94-2025-SF1832');
+    expect(window.location.pathname + window.location.search).toBe('/home?q=SF1832');
   });
 
   it('never returns to another site, even if storage was changed', () => {
     window.localStorage.setItem('alethical-finance-return-path', '//example.com/money');
-    expect(takeReturnPath()).toBe('/');
+    expect(takeReturnPath(true)).toBe('/home');
   });
 });

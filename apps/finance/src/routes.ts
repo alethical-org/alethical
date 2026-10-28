@@ -171,6 +171,31 @@ export function homePath(screens: boolean): string {
   return screens ? '/home' : '/';
 }
 
+/**
+ * A Finance address built from its route's own pattern, so no link is written by
+ * hand (the build's link check, scripts/check-built-links.mjs, tells a hand-written
+ * `/bills/${id}` apart from a link to the public site). Each parameter is encoded.
+ */
+export function hrefFor(
+  name: RouteName,
+  params: Record<string, string> = {},
+  query: Record<string, string | null | undefined> = {},
+): string {
+  const route = ROUTES.find((item) => item.name === name);
+  if (!route) throw new Error(`No Finance route named ${name}`);
+  const path = route.pattern.replace(/:([a-z]+)/gi, (_, key: string) => {
+    const value = params[key];
+    if (value === undefined) throw new Error(`${name} needs ${key}`);
+    return encodeURIComponent(value);
+  });
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== null && value !== undefined && value !== '') search.set(key, value);
+  }
+  const rest = search.toString();
+  return rest ? `${path}?${rest}` : path;
+}
+
 export interface RouteMatch {
   route: RouteDefinition;
   params: Record<string, string>;

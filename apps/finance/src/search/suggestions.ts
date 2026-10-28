@@ -1,6 +1,6 @@
 import { registerKindLabel } from '@alethical/shared/committeeMoneyShared';
 
-import { isBuilt, type RouteName } from '../routes';
+import { hrefFor, isBuilt, type RouteName } from '../routes';
 
 /** 1 row in the suggestion panel (Search Suggestions drawing). */
 export interface Suggestion {
@@ -91,8 +91,12 @@ export function billSession(id: string): string | null {
 
 const CHAMBERS: Record<string, string> = { HF: 'House', SF: 'Senate' };
 
-function linked(route: RouteName, href: string): string | null {
-  return isBuilt(route) ? href : null;
+function linked(
+  route: RouteName,
+  params: Record<string, string>,
+  query: Record<string, string> = {},
+): string | null {
+  return isBuilt(route) ? hrefFor(route, params, query) : null;
 }
 
 /**
@@ -122,19 +126,19 @@ export function suggestionGroups(answer: SuggestionsAnswer): SuggestionGroup[] {
             name: result.full_name ?? '',
             context: join('Legislator', seat(result.chamber, result.district_code)),
           },
-          linked('legislator', `/legislators/${encodeURIComponent(result.id)}`),
+          linked('legislator', { id: result.id }),
         );
       } else if (result.kind === 'lobbyist' && reg) {
         add(
           'people',
           { name: result.name ?? '', context: `Lobbyist · Registration ${reg}` },
-          linked('lobbyist', `/lobbying/lobbyists/${encodeURIComponent(reg)}`),
+          linked('lobbyist', { id: reg }),
         );
       } else if (result.kind === 'principal' && result.entity_id != null) {
         add(
           'orgs',
           { name: result.name ?? '', context: join('Principal', reg && `Registration ${reg}`) },
-          linked('principal', `/lobbying/principals/${encodeURIComponent(String(result.entity_id))}`),
+          linked('principal', { id: String(result.entity_id) }),
         );
       } else if (result.kind === 'committee' && reg) {
         add(
@@ -143,7 +147,7 @@ export function suggestionGroups(answer: SuggestionsAnswer): SuggestionGroup[] {
             name: result.name ?? '',
             context: join(registerKindLabel(result.filer_kind), `Registration ${reg}`),
           },
-          linked('committee', `/money/committees/${encodeURIComponent(reg)}`),
+          linked('committee', { id: reg }),
         );
       } else if (result.kind === 'payment_name' && result.name && result.role) {
         const role = ROLE_PARAM[result.role];
@@ -151,16 +155,16 @@ export function suggestionGroups(answer: SuggestionsAnswer): SuggestionGroup[] {
         add(
           'printed',
           { name: result.name, context: ROLE_CONTEXT[result.role] },
-          linked(
-            'payments-under-name',
-            `/money/names/${encodeURIComponent(result.name)}?role=${role}`,
-          ),
+          linked('payments-under-name', { query: result.name }, { role }),
         );
       }
     }
   }
   for (const bill of answer.bills ?? []) {
-    const code = bill.file_type && bill.file_number != null ? `${bill.file_type} ${bill.file_number}` : undefined;
+    const code =
+      bill.file_type && bill.file_number != null
+        ? `${bill.file_type} ${bill.file_number}`
+        : undefined;
     add(
       'bills',
       {
@@ -168,7 +172,7 @@ export function suggestionGroups(answer: SuggestionsAnswer): SuggestionGroup[] {
         context: join(billSession(bill.id), bill.file_type ? CHAMBERS[bill.file_type] : null),
         code,
       },
-      linked('bill', `/bills/${encodeURIComponent(bill.id)}`),
+      linked('bill', { id: bill.id }),
     );
   }
   // 1 printed spelling can be filed as both donor and payee; keep each once per role.
@@ -190,6 +194,5 @@ export function suggestionGroups(answer: SuggestionsAnswer): SuggestionGroup[] {
 export const MIN_SUGGEST_LENGTH = 2;
 
 export function searchHref(query: string): string {
-  const q = query.trim();
-  return q ? `/search?q=${encodeURIComponent(q)}` : '/search';
+  return hrefFor('search', {}, { q: query.trim() });
 }
