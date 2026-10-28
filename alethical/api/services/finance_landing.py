@@ -20,7 +20,6 @@ from datetime import datetime
 from typing import Callable
 
 from sqlalchemy import func, select, text
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from alethical.api.services.legislative_freshness import legislative_copy_date
@@ -166,16 +165,21 @@ def _station_files(db: Session) -> LandingCount:
     # "Station files held" in alethical/api/services/tv_ads.py ``counts``: each
     # station and FCC file ID once, when its original contents were saved.
     # The years are the station folders' own years, as the station filed them.
-    count, first_year, last_year, newest_copy = db.execute(
+    # The copy date speaks for all 3 stations, so it is the oldest of each
+    # station's newest copy, and none while any station has no file held.
+    count, first_year, last_year, stations_held, copied = db.execute(
         text("""
-        SELECT count(DISTINCT (facility_id, file_id)), min(year), max(year),
-               max(last_downloaded_at)
-          FROM fcc_document WHERE facility_id = ANY(:stations)
+        SELECT sum(files)::bigint, min(first_year), max(last_year), count(*), min(newest)
+          FROM (SELECT count(DISTINCT file_id) AS files, min(year) AS first_year,
+                       max(year) AS last_year, max(last_downloaded_at) AS newest
+                  FROM fcc_document WHERE facility_id = ANY(:stations)
+                 GROUP BY facility_id) AS per_station
         """),
         {"stations": [station.facility_id for station in DEFAULT_STATIONS]},
     ).one()
     if not count:
         return _unavailable(unit, source, EMPTY)
+    newest_copy = copied if stations_held == len(DEFAULT_STATIONS) else None
     return LandingCount(
         REPORTED,
         count,
@@ -208,7 +212,7 @@ def landing_counts(db: Session) -> dict[str, dict]:
             count = read(db)
         except ReleaseNoLongerHeld:
             count = _unavailable(unit, source, ROWS_REPLACED)
-        except (SQLAlchemyError, RuntimeError, LookupError) as exc:
+        except Exception as exc:  # noqa: BLE001 -- 1 failure never hides another count
             db.rollback()
             logger.warning(
                 "Finance landing count %s unreadable: %s", key, type(exc).__name__
