@@ -56,6 +56,21 @@ function inside(file, folder) {
   return file === folder || file.startsWith(folder + sep);
 }
 
+const GLOBAL_OBJECTS = new Set(['globalThis', 'global', 'window']);
+const EXPO_GLOBALS = new Set(['__DEV__', 'process']);
+
+/** A read of `globalThis.__DEV__`, `window['process']` and the like, as text. */
+function globalObjectRead(node) {
+  if (!ts.isPropertyAccessExpression(node) && !ts.isElementAccessExpression(node)) return null;
+  if (!ts.isIdentifier(node.expression) || !GLOBAL_OBJECTS.has(node.expression.text)) return null;
+  const name = ts.isPropertyAccessExpression(node)
+    ? node.name.text
+    : ts.isStringLiteralLike(node.argumentExpression)
+      ? node.argumentExpression.text
+      : null;
+  return name && EXPO_GLOBALS.has(name) ? `${node.expression.text}.${name}` : null;
+}
+
 /** Every module specifier a file names, type-only and dynamic imports included. */
 function readFile(file) {
   const text = readFileSync(file, 'utf8');
@@ -63,7 +78,9 @@ function readFile(file) {
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, kind);
   const specifiers = [];
   const globals = new Set();
+  const runtimeImports = new Set();
   const visit = (node) => {
+    const globalRead = globalObjectRead(node);
     if (
       (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
       node.moduleSpecifier &&
@@ -77,12 +94,17 @@ function readFile(file) {
       }
     } else if (
       ts.isCallExpression(node) &&
-      node.arguments.length > 0 &&
-      ts.isStringLiteralLike(node.arguments[0]) &&
       (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
         (ts.isIdentifier(node.expression) && node.expression.text === 'require'))
     ) {
-      specifiers.push(node.arguments[0].text);
+      // A name built at run time cannot be followed, so it cannot be cleared.
+      if (node.arguments.length > 0 && ts.isStringLiteralLike(node.arguments[0])) {
+        specifiers.push(node.arguments[0].text);
+      } else {
+        runtimeImports.add(node.getText(source));
+      }
+    } else if (globalRead) {
+      globals.add(globalRead);
     } else if (
       ts.isImportTypeNode(node) &&
       ts.isLiteralTypeNode(node.argument) &&
@@ -106,7 +128,7 @@ function readFile(file) {
     ts.forEachChild(node, visit);
   };
   visit(source);
-  return { specifiers, globals };
+  return { specifiers, globals, runtimeImports };
 }
 
 /** Each problem names the rule and the import chain from the entry to the file. */
@@ -137,9 +159,12 @@ function importGraphProblems(entry, { appOnlyFolders = APP_ONLY_FOLDERS } = {}) 
         "has a platform-specific twin, so alethical.com's build reads a different file than Finance's",
       );
     }
-    const { specifiers, globals } = readFile(file);
+    const { specifiers, globals, runtimeImports } = readFile(file);
     for (const name of globals) {
       report(file, `reads ${name}, which only alethical.com's Expo build defines`);
+    }
+    for (const call of runtimeImports) {
+      report(file, `imports a module named only at run time, ${call}`);
     }
     for (const specifier of specifiers) {
       if (specifier.startsWith('.') || specifier.startsWith('/')) {
@@ -205,6 +230,11 @@ test('the walk catches every rule, however deep or type-only the import', () => 
     /^reaches alethical\.com's app-only code: .*screens\/Screen\.ts$/,
     /^has a platform-specific twin.*platform\.ts$/,
     /^imports left-pad, which packages\/shared\/package\.json does not declare: .*entry\.ts$/,
+    /^reads globalThis\.__DEV__, .*runtimeLookups\.ts$/,
+    /^reads window\.process, .*runtimeLookups\.ts$/,
+    /^reads global\.__DEV__, .*runtimeLookups\.ts$/,
+    /^imports a module named only at run time, import\(name\): .*runtimeLookups\.ts$/,
+    /^imports a module named only at run time, require\(`\.\/\$\{name\}`\): .*runtimeLookups\.ts$/,
   ];
   for (const rule of rules) {
     assert.ok(

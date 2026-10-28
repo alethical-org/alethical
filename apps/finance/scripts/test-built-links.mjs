@@ -1,5 +1,5 @@
 // Proves each rule in check-built-links.mjs fires, and stays quiet on what Finance may
-// ship: its own addresses, email contacts, the data service and server paths.
+// ship: its own addresses, email contacts, the data service and Supabase's server paths.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
@@ -13,7 +13,7 @@ const options = { segments: alethicalRouteSegments(), patterns: financePatterns(
 const check = (name, text) => builtLinkProblems([{ name, text }], options);
 
 test("reads alethical.com's page routes and Finance's own addresses from their code", () => {
-  for (const segment of ['money', 'bills', 'legislators', 'blog']) {
+  for (const segment of ['money', 'bills', 'legislators', 'blog', 'read', 'reading']) {
     assert.ok(options.segments.has(segment), segment);
   }
   assert.ok(options.patterns.includes('/money/committees/:id'));
@@ -40,11 +40,23 @@ test('fails on a path-only link to an alethical.com page', () => {
   assert.equal(check('dist/index.html', '<a href="/blog/guides">Guides</a>').length, 1);
 });
 
-test("passes Finance's own addresses, contacts, the data service and server paths", () => {
+test('fails on an alethical.com page path whose start is only known at run time', () => {
+  const problems = check(
+    'dist/a.js',
+    "const a=`https://${host}/legislators/${id}`, b='/read/research/'+id, c=`${host}/admin/operations`;",
+  );
+  assert.deepEqual(
+    problems.map((problem) => problem.split(': ').pop()),
+    ['/legislators/', '/read/research/', '/admin/operations'],
+  );
+});
+
+test("passes Finance's own addresses, contacts, the data service and Supabase's server", () => {
   const text = [
     'const r=[{pattern:"/money/committees/:id"},{pattern:"/bills"},{pattern:"/sign-in"}];',
     'const m="mailto:ask@alethical.com", api=`https://api.alethical.com/api/v1/x`;',
-    'const s=`${authUrl}/admin/users`, t=`${base}/bills/${id}`, f=`/auth/return?x=${y}`;',
+    'const s=`${authUrl}/admin/users`, u=`${authUrl}/admin/oauth/clients/${id}`;',
+    'const f=`/auth/return?x=${y}`;',
   ].join('\n');
   assert.deepEqual(check('dist/a.js', text), []);
   assert.deepEqual(check('dist/a.js.map', '"https://www.alethical.com"'), []);

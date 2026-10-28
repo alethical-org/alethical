@@ -9,10 +9,11 @@
 //   allowances the source test makes;
 // - a path-only link to an alethical.com page: a string in the shipped code naming a
 //   path whose first segment is one of alethical.com's page routes (/money/, /bills/,
-//   /legislators/, /blog/ ...) unless it is exactly 1 of Finance's own addresses in
-//   src/routes.ts. Finance builds its own links from those patterns, because a
-//   hand-written `/bills/${id}` cannot be told apart from alethical.com's. A path
-//   written straight after a `${...}` is left to the domain rule.
+//   /legislators/, /blog/, /read/ ...) unless it is exactly 1 of Finance's own addresses
+//   in src/routes.ts. Finance builds its own links from those patterns, because a
+//   hand-written `/bills/${id}` cannot be told apart from alethical.com's. The 4
+//   Supabase sign-in server paths below are the only exception, and only straight
+//   after a `${...}`, where Supabase writes them after its own server's address.
 // Source maps are skipped: they carry the original files, comments included, for
 // debugging, and no reader follows them.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -26,6 +27,14 @@ const REPO = join(APP, '..', '..');
 const ALETHICAL_ROUTE_FILES = ['webRoutes.ts', 'links.ts'].map((name) =>
   join(REPO, 'apps', 'frontend', 'src', 'navigation', name),
 );
+const ALETHICAL_VERCEL_CONFIG = join(REPO, 'vercel.json');
+// Supabase's sign-in library calls these on its own server, as `${url}/admin/users`.
+const SUPABASE_SERVER_PATHS = new Set([
+  '/admin/users',
+  '/admin/generate_link',
+  '/admin/oauth/clients',
+  '/admin/custom-providers',
+]);
 const FINANCE_ROUTES = join(APP, 'src', 'routes.ts');
 const TEXT_EXTENSIONS = new Set([
   '.js',
@@ -61,19 +70,26 @@ function stringsIn(source) {
 }
 
 /**
- * alethical.com's page routes, read from its own route code: the first segment of every
- * path it writes, and every name it compares a first segment against.
+ * alethical.com's page routes, read from its own route code and its Vercel redirects: the
+ * first segment of every path the code writes, matches with a regular expression, or
+ * compares a first segment against, and of every redirect's source address.
  */
-export function alethicalRouteSegments(files = ALETHICAL_ROUTE_FILES) {
+export function alethicalRouteSegments(
+  files = ALETHICAL_ROUTE_FILES,
+  vercelConfig = ALETHICAL_VERCEL_CONFIG,
+) {
   const segments = new Set();
+  const add = (text, start) => {
+    const match = start.exec(text);
+    if (match) segments.add(match[1].toLowerCase());
+  };
   for (const file of files) {
     const source = parse(file, readFileSync(file, 'utf8'));
-    for (const { text } of stringsIn(source)) {
-      const match = /^\/([a-z0-9][a-z0-9-]*)/i.exec(text);
-      if (match) segments.add(match[1].toLowerCase());
-    }
+    for (const { text } of stringsIn(source)) add(text, /^\/([a-z0-9][a-z0-9-]*)/i);
     const visit = (node) => {
-      if (
+      if (node.kind === ts.SyntaxKind.RegularExpressionLiteral) {
+        add(node.text, /^\/\^\\\/([a-z0-9][a-z0-9-]*)/i);
+      } else if (
         ts.isBinaryExpression(node) &&
         node.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken
       ) {
@@ -90,7 +106,10 @@ export function alethicalRouteSegments(files = ALETHICAL_ROUTE_FILES) {
     };
     visit(source);
   }
-  for (const known of ['money', 'bills', 'legislators', 'blog']) {
+  for (const { source } of JSON.parse(readFileSync(vercelConfig, 'utf8')).redirects ?? []) {
+    add(source, /^\/([a-z0-9][a-z0-9-]*)/i);
+  }
+  for (const known of ['money', 'bills', 'legislators', 'blog', 'read']) {
     if (!segments.has(known)) {
       throw new Error(
         `alethical.com's route code no longer shows /${known}; update alethicalRouteSegments.`,
@@ -154,9 +173,13 @@ export function builtLinkProblems(files, { segments, patterns }) {
         : [{ text, afterSubstitution: false }];
     for (const { text: value, afterSubstitution } of strings) {
       for (const match of value.matchAll(PATH)) {
-        // A path straight after `${base}` belongs to whatever address `base` holds,
-        // often a server's (`${authUrl}/admin/users`), so only the domain rule judges it.
-        if (afterSubstitution && match.index === 0) continue;
+        if (
+          afterSubstitution &&
+          match.index === 0 &&
+          SUPABASE_SERVER_PATHS.has(match[0].replace(/\/$/, ''))
+        ) {
+          continue;
+        }
         if (segments.has(match[1].toLowerCase()) && !isFinanceAddress(match[0], patterns)) {
           problems.push(`${name}: names an alethical.com page path: ${match[0]}`);
         }
