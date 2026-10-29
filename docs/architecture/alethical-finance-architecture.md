@@ -1,5 +1,7 @@
 # Alethical Finance — architecture and access decisions
 
+<!-- describes: alethical/api/routers/finance_identities.py, alethical/api/services/identity_confirmations.py, alethical/api/services/finance_identity_directory.py, alethical/api/services/finance_station_checks.py -->
+
 **Net:** Alethical Finance is a sign-in-only research product for law firms and their
 political committees. It runs on the same records, database, server and product rules as
 alethical.com; only its screens are separate. Every account Alethical lets in has the same
@@ -159,6 +161,20 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
   stored; a record added later is never covered. Explicit selections have a 16 MiB
   request limit, with a refusal naming Alethical's limit and the quick-selection route.
   An identity's `printed_names` gives "Confirmed for {k} of {n} records" for each name.
+- **The confirmation queue groups exact spellings, never inferred identities.**
+  `GET /queue` accepts `record_type` (`all`, `donor`, `payee`), `status`
+  (`unconfirmed`, `confirmed`, `all`), `q`, `page` and `page_size` (50 by default,
+  at most 100). Contributions, expenditures and independent expenditures stay
+  separate, even when they print the same name. Each row gives current record and
+  confirmation counts, actual years and dates, missing-amount count, source copy,
+  source URL and copy date. Any missing amount withholds the figure, following
+  `campaign_finance_reader.Bucket.rows_missing_an_amount` and
+  [grounded-answers.md](../../.claude/rules/grounded-answers.md) rule 12; complete
+  figures sort highest first and withheld figures follow them. A record lacking both
+  its year and date also withholds the amount, with `undated_records` naming the gap. A partly confirmed
+  name remains in the unconfirmed queue. `GET /identities` finds saved active
+  identities by `q` and optional `kind`, with the same paging bounds; it returns
+  only id, kind and name, without a suggested match or any account details.
 - **An identifier is confirmed whole, for all time.** A committee's or lobbyist's
   registration number, a principal's id, or the id of a held legislator or public person
   is itself an identifier; at most 1 active confirmation holds each, and `GET /lookup`
