@@ -17,6 +17,7 @@ import {
   pageCount,
   pageFromParam,
   principalsNote,
+  principalSpending,
   tabFromParam,
 } from '../pages/Lobbying';
 import { Lobbyist, paymentKind, registrationStatus, revealed } from '../pages/Lobbyist';
@@ -417,11 +418,51 @@ describe('Lobbying directory', () => {
     expect(text()).toContain('AMP Robotics Corporation');
     expect(text()).toContain('Entity ID 8887');
     expect(text()).toContain('No spending page available');
-    // The drawn "Reported spending {year}" waits for its route; no stand-in column.
+    expect(text()).toContain('REPORTED SPENDING');
     expect(text()).not.toContain('LATEST SPENDING YEAR');
     expect(container.querySelector('.lb-list-note')?.textContent).toBe(
       'This directory includes organisations from different reporting years and the lobbyist list copied Oct 29, 2026. Some organisations have no spending page because the Board’s spending file has no rows for them through 2025.',
     );
+  });
+
+  it('uses server year and spending order, preserving unknown totals and the period on links', async () => {
+    const base = principalsPage();
+    const rows = [
+      {
+        ...base.principals[0],
+        spending_year: 2024,
+        total_spent: '50000000',
+        spending_state: 'reported' as const,
+      },
+      {
+        ...base.principals[1],
+        linkable: true,
+        spending_year: 2024,
+        total_spent: null,
+        spending_state: 'not_reported' as const,
+      },
+    ];
+    await render(
+      '/lobbying?tab=principals&year=2024&sort=spending_desc',
+      (match) => <Lobbying match={match} />,
+      directoryAnswer(
+        () => json(lobbyistsPage()),
+        () => json({ ...base, year: 2024, years: [2025, 2024], principals: rows }),
+      ),
+    );
+    const request = requests.find((url) => url.includes('/principals?sort=spending_desc'))!;
+    expect(new URL(request).searchParams.get('year')).toBe('2024');
+    expect(text()).toContain('REPORTED SPENDING 2024');
+    expect(text()).toContain('$50,000,000');
+    expect(text()).toContain('Not reported for this year');
+    expect(container.querySelector('a[href^="/lobbying/principals/8450?year=2024"]')).toBeTruthy();
+    expect(principalSpending({ ...rows[0], total_spent: null, spending_state: 'ambiguous' })).toBe(
+      'Amount unavailable: more than one report',
+    );
+    expect(principalSpending({ ...rows[0], total_spent: '0' })).toBe('$0');
+    await act(async () => button('Clear all')!.click());
+    await settle();
+    expect(new URL(requests.at(-1)!).searchParams.get('year')).toBeNull();
   });
 
   it('searches the open tab on the server and says when nothing matches', async () => {

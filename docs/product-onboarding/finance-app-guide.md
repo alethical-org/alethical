@@ -235,8 +235,10 @@ figure is ever added across committees or members.
   spender, never added across committees. The address names the contest (`house-34b`,
   `senate-41`, `governor`).
 - **Lobbying (`/lobbying`)**: registered lobbyists and principals, searched and paged on the
-  server, names A to Z. The drawing's principal spending column and year menu wait for their
-  server route.
+  server. Lobbyists use name order. Principals add year and name or reported-spending
+  order, with one filed total per organization for that year. Missing figures and
+  multiple filed reports stay explicit, never zero or an added total. Links keep the
+  selected year, and old rows retain their own year while a new selection loads.
 - **Lobbyist (`/lobbying/lobbyists/:id`)** and **Principal (`/lobbying/principals/:id`)**: a
   lobbyist's registration, the organizations it represented on the copy date (5 at a time with
   "Show more") and its matched campaign contribution records; a principal's spending by year
@@ -269,6 +271,14 @@ Finance's own routes (`/api/v1/finance/…`) carry the account's token; public r
 none.
 
 ## Limits and privacy
+
+The read sections for Check station files and Confirm identities are implemented as
+independent components in `apps/finance/src/pages/checking/`. They read paged queues,
+exact source versions, machine suggestions and pinned identity record pages. Preparing
+or dismissing a suggestion is local only. Their product routes remain unavailable until
+the required write forms are drawn, reviewed and built; neither queue makes a check or
+confirmation. Filer names and links use explicit display metadata; absent metadata shows
+the printed registration without assuming that a committee page exists.
 
 - Finance never links to alethical.com; a CI test fails if any app file names an
   alethical.com page. A check of the production build (`pnpm run check:built-links`) reads
