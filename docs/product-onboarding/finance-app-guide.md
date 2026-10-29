@@ -3,11 +3,10 @@
 <!-- describes: apps/finance/** -->
 
 **Net:** Alethical Finance is the sign-in-only research site for law firms and their
-political committees. Today its public address, https://finance.alethical.com, serves only
-the landing page and sign-in; every other address says the page cannot be found. Behind a
-build setting, the same app checks a signed-in account against Finance's access list and
-shows Finance Home and every signed-in page built so far from Design's approved drawings; a
-page not built yet answers exactly like an unknown address.
+political committees. With its signed-in screens on, a listed account researches bills,
+legislators, committees and their money from Finance Home; a page not built yet answers
+exactly like an unknown address. With them off, https://finance.alethical.com serves only
+the landing page and sign-in.
 
 The settled decisions are in
 [alethical-finance-architecture.md](../architecture/alethical-finance-architecture.md). The
@@ -109,7 +108,7 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
   to screen readers. Arrow keys move through the rows and View all results, Enter opens the
   chosen row, Escape closes the panel; pressing Search opens `/search` with the typed words.
 - **Finance Home (`/home`)**: "Research public records" with the search field; under
-  "Browse records", entrances into each built directory (Legislators, Candidates, Lobbyists,
+  "Browse records", entrances into each built directory (Legislators, Lobbyists,
   Committees and funds, Party units, Vendors and payees, Lobbying organizations) and the
   actions Explore money connections, Confirm identities and Donors by employer, as printed,
   each shown once its page is built; a card per built record family; and "Sources and
@@ -140,11 +139,64 @@ Media buys: `/` (landing), `/home`, `/search`, `/organizations/:id`, `/money`,
 `/lobbying/principals/:id`, `/media-buys`, `/media-buys/folders/:id`, `/media-buys/files/:key`,
 `/media-buys/agencies/:name`, `/media-buys/stations/:id`, `/media-buys/check`, `/people`,
 `/people/:id`, `/candidates/:id`, `/legislators/:id`, `/bills`, `/bills/:id`, `/votes/:id`.
-Built so far: `/`, `/home`, `/sign-in` and `/auth/return`; every other address answers "We
+Built: `/`, `/home`, `/sign-in`, `/auth/return`, `/search`, `/people`, `/candidates/:id`,
+`/legislators/:id`, `/money`, `/money/committees/:id`, `/legislature/committees/:id/members`,
+`/bills`, `/bills/:id` and `/votes/:id` (§ Research pages). Every other address answers "We
 couldn’t find that page" until its screen is built (`BUILT` in `apps/finance/src/routes.ts`).
 Every link is built from these patterns (`hrefFor`), is a real link that opens in a new tab and
 copies, and works with Back and Forward. While the screens are off, only `/`, `/sign-in` and
 `/auth/return` answer (§ The public site).
+
+## Research pages
+
+Each page is built from its approved Design drawing and reads alethical.com's own records
+through the shared API (`api.alethical.com`). Every page has a loading state, a failure with
+Try again that never reads as an empty result, and a "no longer available" state for a record
+the server does not hold. A page reached from another carries "Back to {page}" to exactly the
+earlier view. Routine sources and copy dates sit in "Sources and updates" at the foot of the
+page, below the first screen. Money figures follow
+[grounded-answers.md rule 12](../../.claude/rules/grounded-answers.md): a missing figure reads
+"Not reported", never $0; an official report total and a sum of listed payments are separate
+figures; no figure is ever added across committees or members.
+
+- **Search results (`/search?q=`)**: People (sitting legislators and lobbyists), Organizations
+  (lobbying principals), Committees, Bills and Payments under a name, each family loaded,
+  counted and failed on its own ("At least {n}" when the server's count is capped). A name
+  search runs from 3 characters. View all opens the rest of a family in place.
+- **People (`/people`)**: sitting legislators, searchable by name, sorted by surname, 10 a
+  page. The server holds no list of candidates or of former legislators, so People shows
+  neither, and Finance Home has no Candidates entrance.
+- **Legislator profile (`/legislators/:id`)**: current or former service (a former legislator
+  carries no current title, party, district or committees), each confirmed campaign account
+  with its own year and figures, spending by outside groups by contest, committees (each
+  opening its members' accounts), and chief-authored bills, 20 a page.
+- **Candidate profile (`/candidates/:id`)**: the held candidacy facts and confirmed links. No
+  route links a candidacy to a committee, so its money section says none is confirmed.
+- **Campaign money (`/money`)**: the committee register by kind (Candidate committees,
+  Committees and funds, Party units), searched and paged on the server, names A to Z.
+- **Committee (`/money/committees/:id`)**: the official report figures for the chosen report
+  (contributions and expenditures as filed), itemized contributions in 5 tabs by donor kind and
+  itemized expenditures, each name grouped with its own records and a sum only when every
+  amount is present, disclosure statements inside payment rows, large-contribution notices,
+  statements not linked to a payment, independent expenditures, related records and source
+  evidence for each payment. Money received that is not a contribution is not shown yet; it
+  waits for its own drawing.
+- **Committee members' campaign accounts (`/legislature/committees/:id/members`)**: each
+  member of a sitting legislative committee with their own confirmed accounts and that
+  year's report figures, read 1 member at a time and never combined.
+- **Legislation (`/bills`)**: bills searched by words or number, with Session, Chamber and
+  Status menus, 20 a page.
+- **Bill (`/bills/:id`)**: the plain-language title, Summary (with passages from the bill
+  text), Actions, Votes, Bill Text and Versions, chief author and co-authors, companion bill,
+  official page, and each author's confirmed campaign accounts.
+- **Roll call (`/votes/:id?bill=`)**: the exact motion, date, recorded result and each member's
+  recorded vote, filtered and searched in place. The address names its bill because no route
+  reads a roll call by its own id.
+
+Reads queue so that at most 4 run at once, because the shared API serves only 12 requests at
+a time across both sites; a "busy" answer is retried after the server's suggested wait. Only
+Finance's own routes (`/api/v1/finance/…`) carry the account's token; public reads carry
+none.
 
 ## Limits and privacy
 
