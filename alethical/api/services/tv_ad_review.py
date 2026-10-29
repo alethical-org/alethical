@@ -396,13 +396,19 @@ def _decision(data):
     return published
 
 
-def add_fact(db: Session, id, actor: str, data: dict) -> m.TVAdFact:
-    publication = _publication(db, id, approved=True, lock=True)
+def fact_field(data):
+    """A checked fact's field and value: the first 2 rules every checked fact
+    obeys, in alethical.com's review and in Alethical Finance's checks alike."""
     field = data.get("field")
     if field not in FACT_FIELDS:
         raise ValueError("Unsupported checked field")
-    value = _required(data.get("value"), "Value", limit=2000)
-    quote = _quote(publication, data.get("page"), data.get("quote"))
+    return field, _required(data.get("value"), "Value", limit=2000)
+
+
+def fact_support(field, value, quote, data):
+    """Every rule tying a checked fact to its exact quotation, shared by
+    alethical.com's review and Alethical Finance's checks: what the quotation
+    must print, and the printed role, qualifier and organization a value keeps."""
     # Amount formatting may be normalized, but its numeric value must still be
     # literally supported by the source quote, never inferred from another field.
     if field in MONEY_FIELDS | {"commission_rate"}:
@@ -441,6 +447,22 @@ def add_fact(db: Session, id, actor: str, data: dict) -> m.TVAdFact:
     agency_address = data.get("agency_address_reviewed", False)
     if not isinstance(agency_address, bool):
         raise ValueError("Agency address association requires an explicit review")
+    return {
+        "role": role,
+        "qualifier": qualifier,
+        "organization_name": organization_name,
+        "agency_address_reviewed": agency_address,
+    }
+
+
+def add_fact(db: Session, id, actor: str, data: dict) -> m.TVAdFact:
+    publication = _publication(db, id, approved=True, lock=True)
+    field, value = fact_field(data)
+    quote = _quote(publication, data.get("page"), data.get("quote"))
+    support = fact_support(field, value, quote, data)
+    role, qualifier = support["role"], support["qualifier"]
+    organization_name = support["organization_name"]
+    agency_address = support["agency_address_reviewed"]
     if agency_address:
         matching_agency = db.scalar(
             select(m.TVAdFact.id)
@@ -697,6 +719,19 @@ def target_preview(
     return result
 
 
+PRINTED_ISSUE = "Issue must be the exact printed text, not an inferred identity or URL"
+
+
+def printed_issue(target, quote):
+    """A printed issue is the exact text its quotation prints, never an inferred
+    identity or a URL; shared by alethical.com's review and Finance's checks."""
+    if target.casefold() not in quote.casefold() or re.search(
+        r"https?://|www\.", target, re.I
+    ):
+        raise ValueError(PRINTED_ISSUE)
+    return {"label": target, "role": "Printed issue"}
+
+
 def _target(db, kind, target, data, publication):
     target = _required(target, "Target", limit=2000)
     printed_role = None
@@ -852,15 +887,9 @@ def _target(db, kind, target, data, publication):
             "lobbyist_snapshot_id": str(pair.lobbyist_snapshot_id),
         }
     if kind == "issue":
-        if (
-            publication is None
-            or target.casefold() not in data["quote"].casefold()
-            or re.search(r"https?://|www\.", target, re.I)
-        ):
-            raise ValueError(
-                "Issue must be the exact printed text, not an inferred identity or URL"
-            )
-        return {"label": target, "role": "Printed issue"}
+        if publication is None:
+            raise ValueError(PRINTED_ISSUE)
+        return printed_issue(target, data["quote"])
     if kind == "expense":
         link = db.get(m.FCCExpenseLink, _id(target), populate_existing=True)
         if (

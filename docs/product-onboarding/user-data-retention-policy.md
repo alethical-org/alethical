@@ -536,6 +536,7 @@ here when an account row is deleted.
 | Profile claim deliveries to the deleted account | Deleted | No recipient remains (§2.10) |
 | Profile claims reviewed by a deleted administrator | Retain the decision with no actor reference; clear copied reviewer identity from prepared administrator messages immediately | Preserve the applicant's history without keeping the deleted reviewer's identity in queued mail (§2.10) |
 | TV ad copies, facts, connections, folder decisions and review events | Retain evidence and decisions; replace the deleted administrator’s account identifier with the shared `deleted-account` marker | Preserve source history without retaining the reviewer’s identity |
+| Alethical Finance station-file checks (`finance_tv_fact`, `finance_tv_connection`) | Retained unchanged | They keep no account identity, only whether a team account made them, so nothing in them names the deleted person |
 | Official candidate, election, person, service and research records | Retained independently | These public records do not belong to the deleted campaign account |
 
 **TV review identity.** Review writes first establish the administrator's local account
