@@ -8,10 +8,10 @@ const ok = () => new Response(JSON.stringify({ data: { fine: true } }), { status
 
 describe('apiGet', () => {
   it('sends the account token only to Finance routes', async () => {
-    const fetcher = vi.fn(async () => ok());
+    const fetcher = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ok());
     await apiGet('https://api.test', 'finance/access', 'token-1', fetcher);
     await apiGet('https://api.test', 'bills/1', 'token-1', fetcher);
-    const headers = fetcher.mock.calls.map(([, init]) => (init as RequestInit).headers);
+    const headers = fetcher.mock.calls.map(([, init]) => init?.headers);
     expect(headers[0]).toEqual({ Authorization: 'Bearer token-1' });
     expect(headers[1]).toEqual({});
   });
