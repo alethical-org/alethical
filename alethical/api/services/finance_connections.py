@@ -55,7 +55,15 @@ def _identity_maps(db):
         for c in confirmations
         if str(c.entity_id) in entities and c.record_kind not in identities._PRINTED
     }
-    return entities, identifiers
+    printed_entities = {
+        kind: {
+            str(c.entity_id): entities[str(c.entity_id)]
+            for c in confirmations
+            if c.record_kind == kind and str(c.entity_id) in entities
+        }
+        for kind in identities._PRINTED
+    }
+    return printed_entities, identifiers
 
 
 def _target(kind, record_id, role=None, version=None):
@@ -107,6 +115,9 @@ def _edge(
     first=None,
     last=None,
     undated=0,
+    first_year=None,
+    last_year=None,
+    period_basis="not_applicable",
 ):
     return {
         "id": relation + ":" + str(key),
@@ -119,6 +130,9 @@ def _edge(
         "first_date": first,
         "last_date": last,
         "undated_count": undated,
+        "first_year": first_year,
+        "last_year": last_year,
+        "period_basis": period_basis,
         "source": source,
         "_nodes": [start, end],
     }
@@ -268,14 +282,28 @@ def _money(db, release, kind, *, entities, identifiers, query, year, focus, take
         )
     if focus:
         where.append(or_(rows.c.from_key == focus, rows.c.to_key == focus))
+    all_amounts = func.count(rows.c.amount) == func.count()
+    all_dates = func.count(rows.c.date) == func.count()
+    all_years = func.count(rows.c.year) == func.count()
+    whole_period = all_dates | all_years
     grouped = (
         select(
             *(rows.c[name] for name in names),
             func.count().label("count"),
             case(
-                (func.count(rows.c.amount) == func.count(), func.sum(rows.c.amount)),
+                (all_amounts & whole_period, func.sum(rows.c.amount)),
                 else_=None,
             ).label("amount"),
+            case(
+                (~all_amounts, "incomplete"),
+                (whole_period, "reported"),
+                else_="incomplete_period",
+            ).label("amount_state"),
+            case((all_dates, "dates"), (all_years, "years"), else_="unknown").label(
+                "period_basis"
+            ),
+            func.min(rows.c.year).label("first_year"),
+            func.max(rows.c.year).label("last_year"),
             func.min(rows.c.date).label("first"),
             func.max(rows.c.date).label("last"),
             (func.count() - func.count(rows.c.date)).label("undated"),
@@ -328,10 +356,13 @@ def _money(db, release, kind, *, entities, identifiers, query, year, focus, take
                 key=key,
                 count=data["count"],
                 amount=data["amount"],
-                amount_state="reported" if data["amount"] is not None else "incomplete",
+                amount_state=data["amount_state"],
                 first=data["first"],
                 last=data["last"],
                 undated=data["undated"],
+                first_year=data["first_year"],
+                last_year=data["last_year"],
+                period_basis=data["period_basis"],
             )
         )
     years = db.scalars(
@@ -538,7 +569,7 @@ def connections(
                         db,
                         release,
                         kind,
-                        entities=entities,
+                        entities=entities[kind],
                         identifiers=identifiers,
                         query=query,
                         year=year,

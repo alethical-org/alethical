@@ -61,6 +61,8 @@ def test_graph_keeps_sources_signs_missing_amounts_and_direct_edges(
         e for e in data["edges"] if e["source"]["dataset"] == "expenditures"
     )
     assert expenditure["record_count"] == 2 and expenditure["undated_count"] == 1
+    assert expenditure["period_basis"] == "years"
+    assert expenditure["first_year"] == expenditure["last_year"] == 2026
     assert expenditure["source"]["url"] and expenditure["source"]["snapshot_id"]
     assert get(finance_api, focus=expenditure["to"])["total"] == 1
     assert get(finance_api, q="%")["total"] == 0
@@ -189,3 +191,23 @@ def test_non_money_relations_do_not_invent_amounts_or_historical_periods(
         get(finance_api, relationship="lobbying_representation", year=2001)["total"]
         == 0
     )
+
+
+def test_graph_withholds_sum_without_complete_period_and_rejects_nul(
+    finance_api, finance_db, board
+):
+    finance_db.add(
+        m.CampaignFinanceExpenditureRow(
+            snapshot_id=board.expenditures_snapshot_id,
+            row_number=99,
+            committee_reg_num="18135",
+            vendor_name="No period",
+            amount=Decimal("30"),
+        )
+    )
+    finance_db.commit()
+    edge = get(finance_api, q="No period")["edges"][0]
+    assert edge["amount"] is None and edge["amount_state"] == "incomplete_period"
+    assert edge["period_basis"] == "unknown"
+    for field in ("q", "focus"):
+        assert finance_api.get(BASE, params={field: "bad\x00input"}).status_code == 422

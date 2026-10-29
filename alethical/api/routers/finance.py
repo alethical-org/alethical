@@ -30,10 +30,10 @@ router = APIRouter(prefix="/finance", dependencies=[Depends(require_finance_acce
 
 @router.get("/connections")
 def money_connections(
-    q: str = Query("", max_length=200),
+    q: str = Query("", max_length=200, pattern=r"^[^\x00]*$"),
     year: int | None = Query(None, ge=1900, le=2200),
     relationship: finance_connections.Relationship = "all",
-    focus: str | None = Query(None, max_length=2000),
+    focus: str | None = Query(None, max_length=2000, pattern=r"^[^\x00]*$"),
     limit: int = Query(100, ge=1, le=200),
     offset: int = Query(0, ge=0, le=10000),
     db: Session = Depends(get_db),
