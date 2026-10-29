@@ -16,7 +16,7 @@ signed-in screens are approved.
 |---|---|
 | Collection of every source (Campaign Finance Board, lobbying, Legislature, Secretary of State, FCC station files) | `alethical/pipeline/`, the scheduled jobs in [jobs-and-scripts.md](../operations/jobs-and-scripts.md) |
 | 1 database | `alethical/db/models.py`; [db-schema-system-design.md](db-schema-system-design.md) |
-| Checks and confirmations: committee matches, station-file facts and connections, identity links | `legislator_campaign_committee`; station files: `tv_ad_fact` and `tv_ad_connection` on alethical.com's public copies, `finance_tv_fact` and `finance_tv_connection` on originals, checked in Finance |
+| Checks and confirmations: committee matches, station-file facts and connections, identity confirmations | `legislator_campaign_committee`, `identity_confirmation`; station files: `tv_ad_fact` and `tv_ad_connection` on alethical.com's public copies, `finance_tv_fact` and `finance_tv_connection` on originals, checked in Finance |
 | Calculations: totals, reconciliations, record counts | `alethical/api/services/` |
 | Product rules: cite or refuse, no money chains, missing never zero | [`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) |
 | Sign-in | Supabase Auth ([backend-stack.md](backend-stack.md) §4) |
@@ -39,7 +39,8 @@ reply that arrives after a newer one. Media buys (§6) answers under `/media-buy
 version at `files/{key}/versions/{content hash}/` (`target-preview`, `facts`,
 `connections`) and withdraws them at `facts/{id}/withdraw` and `connections/{id}/withdraw`
 ([tv-ad-records-guide.md](../product-onboarding/tv-ad-records-guide.md), In Alethical
-Finance). The access check reads the list through its own short
+Finance). Identity confirmations (§4) answer under `/identities/`
+(`alethical/api/routers/finance_identities.py`). The access check reads the list through its own short
 database session, so the money search still reads its whole answer from 1 instant of the
 database.
 
@@ -119,10 +120,67 @@ in 1 request took 15 seconds. Donors by employer, exactly as printed, is alethic
 - The public-copy steps (a copy with personal details blanked, publication approval) belong
   to alethical.com's public site; Finance has no public pages and does not use them.
 
+### Identity confirmations
+
+A confirmed person or organization (`identity_entity`) ties records together only through
+confirmations (`identity_confirmation`) that name their evidence: a saved source row or an
+official page, words quoted from it and the reviewer's basis. The evidence must print the
+exact name or number confirmed, and the quotation (at least 3 characters) must stand inside
+1 printed value; equal names or numbers are never enough on their own. The routes sit under
+`/api/v1/finance/identities` (`alethical/api/services/identity_confirmations.py`).
+
+- **A printed name is confirmed record by record.** A donor, employer, payee or
+  independent-expenditure payee name covers only the records a person selects. Each record
+  is kept (`identity_confirmed_record`) as a fingerprint: the sha256 of its record kind, its
+  file and the printed fields below, which are stored beside it. The expenditure files print
+  no employer, so their records have 5 fields.
+
+  | Record kind | File | Printed fields fingerprinted |
+  |---|---|---|
+  | Donor name, employer name | Contributions | contributor, employer, recipient registration number, receipt date, amount, ZIP code |
+  | Payee name | Expenditures | payee, paying committee's registration number, date, amount, ZIP code |
+  | Independent-expenditure payee name | Independent expenditures | payee, spender's registration number, date, amount, ZIP code |
+
+  Every read matches the fingerprints against the Board's current file, never by copy or row
+  number, so each refresh re-matches them. Identical repeated rows print the same facts and
+  share 1 claim. A fingerprint that matches no current row stays and shows as no longer in
+  the Board's file. A record added later is never covered until someone confirms it. The
+  database lets each fingerprint belong to only 1 active confirmation. `GET /records` lists
+  the current records printing a name (at most 5,000), each with the confirmation and
+  identity standing for it; the "All records" and "{year} records" choices select
+  fingerprints from that listing when confirming, and nothing about the choice is stored.
+  An identity's `printed_names` gives "Confirmed for {k} of {n} records" for each name.
+- **An identifier is confirmed whole, for all time.** A committee's or lobbyist's
+  registration number, a principal's id, or the id of a held legislator or public person
+  is itself an identifier; at most 1 active confirmation holds each, and `GET /lookup`
+  answers for identifiers only. A held legislator or public person, named by its id exactly
+  as held, needs an https page on Minnesota's own sites (`mn.gov` and its offices,
+  `senate.mn`, `state.mn.us`) whose address is printable ASCII with no backslash.
+- **Decisions are append-only.** A confirmation is never edited; its 1-time withdrawal
+  records a date and reason and takes its claim off every record at once. A merge moves
+  nothing: the merged identity keeps its id and its confirmations, and every lookup follows
+  the redirect to the identity standing today. A split gives every active confirmation
+  standing for the identity, including those of identities merged into it, to exactly 1
+  part, each part at least 1; each is withdrawn and replaced on its part with the same
+  evidence, check date and records and a pointer to the one it replaces. Withdrawn
+  confirmations stay behind as history. A replacement counts as team-made only when the
+  original and the split both were (§5).
+- **Every account sees everything.** Every change is kept in `identity_event`, and every
+  identity, confirmation and event records whether a team account made it, which Finance
+  never shows; no answer names who made a change. Every Finance account reads every
+  confirmation, so the names, relations, bases and reasons typed into them must never hold
+  anything confidential; the API's field descriptions say so.
+
 ## 5. What alethical.com prints from work done in Finance
 
 - A check or confirmation made in Finance appears on alethical.com only when an account of
   Alethical's own team made it. alethical.com stands behind every confirmation it prints.
+- Any Finance account can withdraw any confirmation, and merge or split any identity, and
+  every Finance account sees the result. alethical.com changes only on decisions a team
+  account made: when it reads identities, it follows only merges and splits a team account
+  made, so another account's merge never redirects a team-made confirmation there, and it
+  keeps printing a team-made confirmation until a team account withdraws it. Every
+  withdrawal, merge and split records in `identity_event` whether a team account made it.
 - A Finance check on a station file also passes alethical.com's own rules for everything
   it serves before alethical.com prints it: the exact version has an approved,
   privacy-checked public copy, and the check's quotation appears exactly in that copy's
@@ -130,8 +188,9 @@ in 1 request took 15 seconds. Donors by employer, exactly as printed, is alethic
   correction history, search, connections and page images. A Finance check rests on the
   original's own text, which carries personal details the public copy blanks, so passing
   in Finance never qualifies it alone.
-- alethical.com prints no Finance check: its readers read only checks on its own public
-  copies (`tv_ad_fact`, `tv_ad_connection`), and a Finance check never changes them.
+- alethical.com prints no Finance station-file check: its station-file readers read only
+  checks on its own public copies (`tv_ad_fact`, `tv_ad_connection`), and a Finance check
+  never changes them.
 - Inside Finance every account sees every check. No check names the account that made it
   or says whether a team account did; a Finance check keeps no account identity, only
   that flag (`made_by_alethical_team`), which no Finance answer serves.
