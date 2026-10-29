@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from decimal import Decimal
+import re
 from collections import defaultdict
 from uuid import UUID
 
@@ -804,6 +806,27 @@ def report_figures(db: Session, *, registration: str, year: int):
         and item.cut_off_date == filing.reported_through
     ]
     amounts = {line.line_key: line.amount for line in filing.figures} if filing else {}
+    labels = (
+        {line.line_key: line.label_as_served for line in filing.figures}
+        if filing
+        else {}
+    )
+    contribution_keys = (
+        filings.CONTRIBUTION_LINE_KEYS.get(filing.filer_kind, ()) if filing else ()
+    )
+    contributions = (
+        sum((amounts[key] for key in contribution_keys), Decimal("0"))
+        if (contribution_keys and all(key in amounts for key in contribution_keys))
+        else None
+    )
+
+    def balance_date(key):
+        # Balance labels carry their own date, which need not be the flow period's start.
+        dates = re.findall(r"\b\d{1,2}/\d{1,2}/\d{4}\b", labels.get(key, ""))
+        return filings.parse_us_date(dates[0]) if len(dates) == 1 else None
+
+    beginning_as_of = balance_date("beginning_cash_balance")
+    ending_as_of = balance_date("ending_cash_balance")
     rows = []
     for item in catalogued:
         matched = len(matches) == 1 and matches[0].row_number == item.row_number
@@ -822,6 +845,17 @@ def report_figures(db: Session, *, registration: str, year: int):
                 "effective_amendment_index": item.effective_amendment_index,
                 "special_election": item.special_election,
                 "period_start": start,
+                "beginning_cash_balance": amounts.get("beginning_cash_balance")
+                if matched and beginning_as_of
+                else None,
+                "beginning_balance_as_of": beginning_as_of if matched else None,
+                "ending_balance_as_of": ending_as_of if matched else None,
+                "contributions": contributions if matched and start else None,
+                "total_expenditures": amounts.get("total_expenditures")
+                if matched and start
+                else None,
+                # The held source names expenditures, not a total of all disbursements.
+                "total_disbursements": None,
                 "total_receipts": amounts.get("total_receipts")
                 if matched and start
                 else None,

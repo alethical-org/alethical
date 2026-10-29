@@ -99,9 +99,11 @@ held produce an unavailable state, never a zero. A requested release that change
 - `/committees/{number}/report-figures?year=Y` lists the held catalogue's filed report names
   and effective amendments. A catalogue entry without an amendment marker is not proof
   of filing. The latest held cumulative figures attach only to a unique regular report
-  whose period end matches; older or ambiguous reports keep null figures. Total receipts
-  require the official calendar's period start; an ending balance is dated as of the
-  report's end. Filing dates never come from period ends. Retained figures keep their
+  whose period end matches; older or ambiguous reports keep null figures. Total receipts,
+  complete contribution lines and total expenditures require the official calendar's
+  period start. Beginning and ending balance dates come from their own printed labels;
+  an undated beginning balance is withheld. Expenditures are never relabelled as all
+  disbursements. Filing dates never come from period ends. Retained figures keep their
   own copy date.
 - `/committees/{number}/payment-groups` pages exact named groups for one filing year and
   direction, with whole-filter group/payment counts and itemized amount before paging.

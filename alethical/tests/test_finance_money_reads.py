@@ -350,7 +350,7 @@ def test_report_figures_match_only_unique_filed_regular_report(
     finance_api, finance_db, board
 ):
     from datetime import UTC, datetime
-    from sqlalchemy import select
+    from sqlalchemy import select, delete
     from alethical.db import models as m
     from alethical.tests.test_campaign_finance_landing_reads import (
         _filings_snapshot,
@@ -384,12 +384,25 @@ def test_report_figures_match_only_unique_filed_regular_report(
         )
     )
     filing.captured_at = datetime(2026, 7, 23, tzinfo=UTC)
-    for key, value in [("total_receipts", "2345.67"), ("ending_cash_balance", "0")]:
+    for key, value in [
+        ("total_receipts", "2345.67"),
+        ("ending_cash_balance", "0"),
+        ("beginning_cash_balance", "123"),
+        ("total_expenditures", "999"),
+        ("individuals_contributions", "1"),
+        ("lobbyist_contributions", "2"),
+        ("committee_fund_contributions", "3"),
+        ("party_unit_contributions", "4"),
+        ("other_contributions", "5"),
+    ]:
         finance_db.add(
             m.CampaignFinanceFilingFigure(
                 filing_id=filing.id,
                 line_key=key,
-                label_as_served=key,
+                label_as_served={
+                    "beginning_cash_balance": "Beginning cash balance as of 12/31/2025",
+                    "ending_cash_balance": "Ending cash balance as of 7/20/2026",
+                }.get(key, key),
                 amount=Decimal(value),
             )
         )
@@ -400,11 +413,38 @@ def test_report_figures_match_only_unique_filed_regular_report(
     assert latest["report_name"] == "2026 Pre-Primary Report"
     assert Decimal(latest["total_receipts"]) == Decimal("2345.67")
     assert Decimal(latest["ending_cash_balance"]) == 0
+    assert Decimal(latest["beginning_cash_balance"]) == 123
+    assert Decimal(latest["contributions"]) == 15
+    assert latest["total_disbursements"] is None
+    assert Decimal(latest["total_expenditures"]) == 999
+    assert latest["beginning_balance_as_of"] == "2025-12-31"
+    assert latest["ending_balance_as_of"] == "2026-07-20"
     assert latest["filed_date"] is None
     assert latest["period_start"] == "2026-01-01"
     assert latest["figures_copied_at"].startswith("2026-07-23")
     assert older["total_receipts"] is None and older["ending_cash_balance"] is None
     assert older["figures_state"] == "unavailable"
+    finance_db.execute(
+        delete(m.CampaignFinanceFilingFigure).where(
+            m.CampaignFinanceFilingFigure.filing_id == filing.id,
+            m.CampaignFinanceFilingFigure.line_key == "other_contributions",
+        )
+    )
+    beginning = finance_db.get(
+        m.CampaignFinanceFilingFigure, (filing.id, "beginning_cash_balance")
+    )
+    beginning.label_as_served = "Beginning cash balance as of 13/32/2025"
+    finance_db.commit()
+    finance_db.expire_all()
+    incomplete = get(finance_api, "/committees/18135/report-figures", year=2026)[
+        "reports"
+    ][0]
+    assert incomplete["contributions"] is None
+    assert (
+        incomplete["beginning_cash_balance"] is None
+        and incomplete["beginning_balance_as_of"] is None
+    )
+    assert Decimal(incomplete["total_receipts"]) == Decimal("2345.67")
     # Another regular report at the same cutoff cannot borrow an ambiguous total.
     _report(finance_db, snapshot, "18135", report_type="E", cut_off=date(2026, 7, 20))
     ambiguous = get(finance_api, "/committees/18135/report-figures", year=2026)
