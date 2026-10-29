@@ -41,11 +41,13 @@ def principals(
     limit: int = Query(default=50, ge=1, le=lobbying.MAX_LIST_ROWS),
     offset: int = Query(default=0, ge=0),
     q: str = Query(default="", max_length=200),
+    year: int | None = Query(default=None, ge=2009, le=2100),
+    sort: Literal["name", "spending_desc", "spending_asc"] = "name",
     db: Session = Depends(get_db),
 ):
     return DetailResponse(
         data=lobbying.principals_page(
-            db, _pair(db), limit=limit, offset=offset, query=q
+            db, _pair(db), limit=limit, offset=offset, query=q, year=year, sort=sort
         )
     )
 

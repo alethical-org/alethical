@@ -326,6 +326,9 @@ def test_principal_list_preserves_distinct_registered_names_by_number(client, db
         "state": "reported",
         "linkable": True,
         "latest_reported_year": 2025,
+        "spending_year": 2025,
+        "spending_state": "reported",
+        "total_spent": "35000.0000",
     }
     # Registered spellings explain a result but do not change name matching.
     assert _get(client, "principals?q=Express%20Co.")["principals"] == []
@@ -627,3 +630,56 @@ def test_sitemap_without_a_published_pair_is_empty_rather_than_an_error(client, 
     data = _get(client, "sitemap")
     assert data["state"] == "unavailable"
     assert data["principals"] == [] and data["lobbyists"] == []
+
+
+def test_principals_directory_returns_only_the_selected_year_reported_total(client, db):
+    _, spending, _ = _pair(db)
+    data = _get(client, "principals?year=2024&sort=spending_desc")
+    row = next(row for row in data["principals"] if row["entity_id"] == 2263)
+    source = next(row for row in FIXTURE["spending"] if row["report_year"] == 2024)
+    assert data["year"] == 2024
+    assert row["spending_year"] == 2024
+    assert Decimal(row["total_spent"]) == Decimal(str(source["total_spent"]))
+    assert row["spending_state"] == "reported"
+    missing = _get(client, "principals?year=2100")
+    absent = next(row for row in missing["principals"] if row["entity_id"] == 2263)
+    assert absent["total_spent"] is None
+    assert absent["spending_state"] == "not_reported"
+    # The directory must not turn 2 source rows into a fabricated reported total.
+    db.add(
+        models.LobbyingExpenditureRow(
+            snapshot_id=spending.id,
+            row_number=999,
+            principal="American Express",
+            entity_id="2263",
+            report_year=2024,
+            total_spent=Decimal("1"),
+        )
+    )
+    spending.row_count += 1
+    db.commit()
+    repeated = _get(client, "principals?year=2024")
+    row = next(row for row in repeated["principals"] if row["entity_id"] == 2263)
+    assert row["total_spent"] is None
+    assert row["spending_state"] == "ambiguous"
+
+
+def test_principals_directory_sorts_zero_before_missing_and_keeps_years(client, db):
+    _, spending, _ = _pair(db)
+    db.add(
+        models.LobbyingExpenditureRow(
+            snapshot_id=spending.id,
+            row_number=998,
+            principal="Zero",
+            entity_id="100001",
+            report_year=2024,
+            total_spent=Decimal("0"),
+        )
+    )
+    spending.row_count += 1
+    db.commit()
+    data = _get(client, "principals?year=2024&sort=spending_asc")
+    assert data["principals"][0]["name"] == "Zero"
+    assert data["principals"][0]["total_spent"] == "0.0000"
+    assert 2024 in data["years"]
+    assert _get(client, "principals?year=2024&offset=10000")["year"] == 2024
