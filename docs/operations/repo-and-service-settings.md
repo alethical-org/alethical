@@ -220,6 +220,9 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 | `ALETHICAL_SOURCE_REFRESH_PRIVATE_KEY` | Present | Signs the App's short-lived installation token requests; never printed or logged. | Live: presence only |
 | `ALETHICAL_SOURCE_REFRESH_DISPATCH_ENABLED` | Present; `true` only after the activation checks in [source-refresh-dispatch.md](source-refresh-dispatch.md) pass | Turns on the API's 60-second wake that queues due source jobs; off, the hourly GitHub schedule is the only clock. | Live: presence only; value is checked during activation |
 | `ALETHICAL_SOURCE_REFRESH_FAMILIES` | Present when dispatch is on, holding the same JSON list as the `SOURCE_REFRESH_FAMILIES` repository variable | Limits the wake to the source families already activated. | Live: presence only |
+| `ALETHICAL_FINANCE_SIGN_IN_CODE_ENABLED` | Absent until `SUPABASE_SECRET_KEY` is set | Switches on Alethical Finance's emailed sign-in codes; while absent, both code routes answer 503 for every address ([sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in)). | Live |
+| `SUPABASE_SECRET_KEY` | Absent until a person adds it | A Supabase secret key (`sb_secret_…`), server only: creates or finds a Finance account and issues its 1-time sign-in token after a proved code. Never in a browser build. | Live |
+| `ALETHICAL_FINANCE_SIGN_IN_RATE_PER_MIN` | Absent | The default applies: 10 requests a minute from 1 internet address, code requests and code proofs counted together. | Live |
 | `ALETHICAL_CORS_ORIGINS` | Present | Limits which websites can call the API from a browser. | Live |
 | `ALETHICAL_EMAIL_ENABLED` | Present | Turns production Contact us delivery on. | Live |
 | `ALETHICAL_EMAIL_FROM` | Present | Sets the verified sender address. | Live |
@@ -318,7 +321,7 @@ investigation and correction to the original failure description.
 | Setting | Intended | Why | Automated check |
 | --- | --- | --- | --- |
 | Site URL | `https://www.alethical.com` | Sends production sign-in links to the public site. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
-| Additional redirect URLs | `https://www.alethical.com/**`, `http://localhost:8081/**`, `http://127.0.0.1:8081/**`, `http://localhost:19006/**`, `http://127.0.0.1:19006/**`, `alethical://auth/callback` | Allows the production site, local web work, and the future phone app to finish sign-in. Preview addresses are added one at a time only while testing. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Additional redirect URLs | `https://www.alethical.com/**`, `https://finance.alethical.com/**`, `http://localhost:8081/**`, `http://127.0.0.1:8081/**`, `http://localhost:19006/**`, `http://127.0.0.1:19006/**`, `alethical://auth/callback` | Allows the production site, Alethical Finance's Google sign-in, local web work, and the future phone app to finish sign-in. Preview addresses are added one at a time only while testing. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
 | Email provider | **On** | Supports the live email and password option. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
 | Google provider | **On** | Keeps Google sign-in available. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
 | Confirm email | **On** | A password account cannot claim an address before proving it. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |

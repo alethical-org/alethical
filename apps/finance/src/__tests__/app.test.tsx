@@ -14,12 +14,16 @@ function fakeSupabase(session: { access_token: string; user: { email: string } }
   return {
     auth: {
       getSession: vi.fn(async () => ({ data: { session } })),
-      onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe() {} } } })),
+      onAuthStateChange: vi.fn(() => ({
+        data: { subscription: { unsubscribe() {} } },
+      })),
       signOut: vi.fn(async () => ({ error: null })),
       signInWithOAuth: vi.fn(async () => ({ error: null })),
       verifyOtp: vi.fn(async () => ({ data: {}, error: null })),
     },
-  } as unknown as SupabaseClient & { auth: Record<string, ReturnType<typeof vi.fn>> };
+  } as unknown as SupabaseClient & {
+    auth: Record<string, ReturnType<typeof vi.fn>>;
+  };
 }
 
 let container: HTMLDivElement;
@@ -35,6 +39,8 @@ afterEach(() => {
   act(() => root.unmount());
   container.remove();
   vi.unstubAllGlobals();
+  // A code request is kept for the tab; each test starts a new one.
+  window.sessionStorage.clear();
 });
 
 async function renderAt(
@@ -45,9 +51,19 @@ async function renderAt(
   emailSignIn = true,
 ) {
   window.history.replaceState(null, '', path);
-  const fetcher = vi.fn(
-    async (url: string) =>
-      new Response(null, { status: url.endsWith('/sign-in/code') ? 202 : accessStatus }),
+  const fetcher = vi.fn(async (url: string) =>
+    url.endsWith('/sign-in/verify')
+      ? new Response(
+          JSON.stringify({
+            data: { token_hash: 'one-time-token', type: 'email' },
+          }),
+          { status: 200 },
+        )
+      : url.endsWith('/sign-in/code')
+        ? new Response(JSON.stringify({ data: { status: 'accepted', challenge: 'challenge-1' } }), {
+            status: 202,
+          })
+        : new Response(null, { status: accessStatus }),
   );
   vi.stubGlobal('fetch', fetcher);
   await act(async () => {
@@ -67,7 +83,10 @@ async function renderAt(
   return fetcher;
 }
 
-const SIGNED_IN = { access_token: 'token-1', user: { email: 'reader@example.test' } };
+const SIGNED_IN = {
+  access_token: 'token-1',
+  user: { email: 'reader@example.test' },
+};
 
 describe('the Finance shell', () => {
   it('sends a signed-out reader to sign-in and keeps where they were going', async () => {
@@ -132,9 +151,18 @@ describe('the Finance shell', () => {
     );
     await type('#code', ' 12345678 ');
     await click('Continue');
+    expect(fetcher).toHaveBeenCalledWith(
+      `${API}/api/v1/finance/sign-in/verify`,
+      expect.objectContaining({
+        body: JSON.stringify({
+          email: 'reader@example.test',
+          code: '12345678',
+          challenge: 'challenge-1',
+        }),
+      }),
+    );
     expect(supabase.auth.verifyOtp).toHaveBeenCalledWith({
-      email: 'reader@example.test',
-      token: '12345678',
+      token_hash: 'one-time-token',
       type: 'email',
     });
   });

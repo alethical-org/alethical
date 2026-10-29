@@ -557,11 +557,10 @@ Before anyone can sign in at that address:
    person in Supabase's dashboard, and recorded in
    [repo-and-service-settings.md § Supabase sign-in](repo-and-service-settings.md#supabase-sign-in).
 3. `VITE_GOOGLE_SIGN_IN` is set to `on` and the app deployed again.
-4. Code sign-in, once its route ships, needs `VITE_EMAIL_SIGN_IN` set to `on` and
-   `ALETHICAL_FINANCE_SIGN_IN_RETURN_URL` set to
-   `https://finance.alethical.com/auth/return#source=email`. The `#` keeps the
-   emailed token out of every server's logs, and Supabase's email template adds the token
-   after it with `&`.
+4. Code sign-in needs the API's `SUPABASE_SECRET_KEY` (a Supabase secret key, added by a
+   person) and `ALETHICAL_FINANCE_SIGN_IN_CODE_ENABLED` set to `1`, with the email sender's
+   settings already live, then `VITE_EMAIL_SIGN_IN` set to `on` and the app deployed again
+   ([sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in)).
 
 At launch the same steps repeat for alethicalfinance.com.
 
