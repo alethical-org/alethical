@@ -26,7 +26,14 @@ import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
 import { LoadingRows, Refused } from '../ui/controls';
-import { Arrow, BackLink, LoadingLine, SourcesAndUpdates, type SourceGroup } from '../ui/parts';
+import {
+  Arrow,
+  BackLink,
+  LoadingLine,
+  SourcesAndUpdates,
+  WithArrow,
+  type SourceGroup,
+} from '../ui/parts';
 import './people.css';
 
 const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
@@ -174,11 +181,7 @@ function Committees({ record, from }: { record: LegislatorRecord; from: string }
                       aria-label={`Members’ campaign accounts, ${committee.name}`}
                       className="f-dest lg2-committee-link"
                     >
-                      <span className="f-dest-words">Members’ campaign </span>
-                      <span className="f-nowrap">
-                        <span>accounts</span>
-                        <Arrow className="f-arrow f-arrow-after" />
-                      </span>
+                      <WithArrow>Members’ campaign accounts</WithArrow>
                     </Link>
                   )}
                 </li>

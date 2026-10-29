@@ -126,7 +126,7 @@ describe('Candidate profile', () => {
     // The person profile is not built: the name, as plain text.
     expect(container.querySelector('.lg2-related-plain')?.textContent).toBe('Patty Acomb');
     const official = [...container.querySelectorAll('a')].find((a) =>
-      a.textContent?.includes('Official source website'),
+      a.textContent?.replace(/\u00a0/g, ' ').includes('Official source website'),
     );
     expect(official?.getAttribute('href')).toBe(UPCOMING.source.url);
     expect(official?.getAttribute('target')).toBe('_blank');

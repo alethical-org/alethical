@@ -52,6 +52,26 @@ const RECORD_TYPES = [
  * address. the shared Alethical API serves no list of candidate or person records, so
  * those rows and their filters are not offered (grounded-answers rule 2).
  */
+const SUFFIX = /^(jr|sr|ii|iii|iv|v)\.?$/i;
+
+/** A served name's surname: its last word, past any Jr., Sr. or numeral. */
+export function surname(fullName: string): string {
+  const words = fullName.trim().split(/\s+/);
+  while (words.length > 1 && SUFFIX.test(words[words.length - 1])) words.pop();
+  return words[words.length - 1] ?? '';
+}
+
+/** "Name A–Z" by surname, then by the whole name. The server's own order is
+ * not alphabetical, and the menu promises A to Z. */
+export function sortByName<T extends { full_name: string }>(rows: readonly T[]): T[] {
+  const collator = new Intl.Collator('en', { sensitivity: 'base' });
+  return [...rows].sort(
+    (a, b) =>
+      collator.compare(surname(a.full_name), surname(b.full_name)) ||
+      collator.compare(a.full_name, b.full_name),
+  );
+}
+
 export function People(_props: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
@@ -72,7 +92,7 @@ export function People(_props: { match: RouteMatch }) {
   const counts = useRead<ServedCounts>('finance/landing/counts');
   const updated = counts.data ? copyDate(counts.data, 'current_legislature_bills') : null;
 
-  const all = read.data ?? [];
+  const all = sortByName(read.data ?? []);
   const total = read.data ? all.length : null;
   const pages = Math.max(1, Math.ceil(all.length / PAGE_SIZE));
   const page = Math.min(Math.max(1, Number(state.page) || 1), pages);

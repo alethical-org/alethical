@@ -534,7 +534,9 @@ describe('Bill', () => {
     const card = container.querySelector('.bl-accounts')!;
     expect(card.textContent).toContain('Authors’ campaign accounts');
     const account = card.querySelector<HTMLAnchorElement>('.bl-account-link');
-    expect(account?.textContent).toBe('Wiklund, Melissa Halvorson Senate Committee');
+    expect(account?.textContent?.replace(/\u00a0/g, ' ')).toBe(
+      'Wiklund, Melissa Halvorson Senate Committee',
+    );
     expect(account?.getAttribute('href')).toBe(
       '/money/committees/17393?from=%2Fbills%2F94-2025-SF334',
     );

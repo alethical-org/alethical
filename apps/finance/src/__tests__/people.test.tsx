@@ -190,3 +190,19 @@ describe('People wording', () => {
     );
   });
 });
+
+describe('People name order', () => {
+  it('sorts by surname past a suffix, then by whole name', async () => {
+    const { sortByName } = await import('../pages/People');
+    const rows = ['Alice Mann', 'Esther Agbaje', 'John Smith Jr.', 'Ann Smith', 'Patty Acomb'].map(
+      (full_name) => ({ full_name }),
+    );
+    expect(sortByName(rows).map((row) => row.full_name)).toEqual([
+      'Patty Acomb',
+      'Esther Agbaje',
+      'Alice Mann',
+      'Ann Smith',
+      'John Smith Jr.',
+    ]);
+  });
+});

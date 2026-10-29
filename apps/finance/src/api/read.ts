@@ -37,10 +37,45 @@ export function apiPath(
   return rest ? `${path}?${rest}` : path;
 }
 
-/** 1 GET to the shared Alethical API with this account's token. `path` is the
- * API route after `/api/v1/`, written without its leading slash (`people/12`),
- * so a read path is never mistaken for a page link by the build's link check. Every answer that
- * carries a token is private, so nothing here is shared between accounts. */
+/**
+ * The shared API lets only 12 requests run at once for every reader of both
+ * sites (alethical/api/request_admission.py), and answers the rest "busy"
+ * (503). Finance runs at most 4 of its reads at a time and queues the rest, so
+ * 1 page never crowds out other readers or its own later reads.
+ */
+export const MAX_CONCURRENT_READS = 4;
+/** A "busy" answer is retried after the server's suggested wait, this many times. */
+export const BUSY_RETRIES = 2;
+
+let running = 0;
+const waiting: Array<() => void> = [];
+
+async function slot<T>(work: () => Promise<T>): Promise<T> {
+  if (running >= MAX_CONCURRENT_READS) await new Promise<void>((go) => waiting.push(go));
+  running += 1;
+  try {
+    return await work();
+  } finally {
+    running -= 1;
+    waiting.shift()?.();
+  }
+}
+
+function pause(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((done) => {
+    const timer = setTimeout(done, ms);
+    signal?.addEventListener('abort', () => {
+      clearTimeout(timer);
+      done();
+    });
+  });
+}
+
+/** 1 GET to the shared Alethical API, with this account's token on Finance's
+ * own routes. `path` is the API route after `/api/v1/`, written without its
+ * leading slash (`people/12`), so a read path is never mistaken for a page link
+ * by the build's link check. Every answer that carries a token is private, so
+ * nothing here is shared between accounts. */
 export async function apiGet<T>(
   apiBaseUrl: string,
   path: string,
@@ -49,26 +84,52 @@ export async function apiGet<T>(
   signal?: AbortSignal,
   unwrapped = false,
 ): Promise<ReadAnswer<T>> {
-  const timeout =
-    typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(REQUEST_TIMEOUT_MS) : undefined;
-  const signals = [signal, timeout].filter(Boolean) as AbortSignal[];
-  try {
-    const response = await fetcher(`${apiBaseUrl}/api/v1/${path.replace(/^\/+/, '')}`, {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-      signal:
-        signals.length > 1 && typeof AbortSignal.any === 'function'
-          ? AbortSignal.any(signals)
-          : signals[0],
+  const route = path.replace(/^\/+/, '');
+  for (let attempt = 0; ; attempt += 1) {
+    if (signal?.aborted) return { state: 'failed' };
+    const response = await slot(async () => {
+      const timeout =
+        typeof AbortSignal.timeout === 'function'
+          ? AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+          : undefined;
+      const signals = [signal, timeout].filter(Boolean) as AbortSignal[];
+      try {
+        return await fetcher(`${apiBaseUrl}/api/v1/${route}`, {
+          // Only Finance's own routes need the account; a public read carries no
+          // token, so it stays cacheable and never depends on sign-in.
+          headers:
+            accessToken && route.startsWith('finance/')
+              ? { Authorization: `Bearer ${accessToken}` }
+              : {},
+          signal:
+            signals.length > 1 && typeof AbortSignal.any === 'function'
+              ? AbortSignal.any(signals)
+              : signals[0],
+        });
+      } catch {
+        return null;
+      }
     });
+    if (response === null) return { state: 'failed' };
+    // Only the server's own "busy" answer says when to come back; any other
+    // failure is shown at once with Try again.
+    const retryAfter = response.headers.get('Retry-After');
+    if (response.status === 503 && retryAfter !== null && attempt < BUSY_RETRIES) {
+      const seconds = Number(retryAfter);
+      await pause((Number.isFinite(seconds) && seconds > 0 ? seconds : 1) * 1000, signal);
+      continue;
+    }
     if (response.status === 404) return { state: 'not-found' };
     if (!response.ok) return { state: 'failed' };
-    const body = (await response.json()) as { data?: T; page?: PageInfo | null };
-    if (body === null || typeof body !== 'object') return { state: 'failed' };
-    if (unwrapped) return { state: 'ok', data: body as T };
-    if (!('data' in body)) return { state: 'failed' };
-    return { state: 'ok', data: body.data as T, page: body.page ?? null };
-  } catch {
-    return { state: 'failed' };
+    try {
+      const body = (await response.json()) as { data?: T; page?: PageInfo | null };
+      if (body === null || typeof body !== 'object') return { state: 'failed' };
+      if (unwrapped) return { state: 'ok', data: body as T };
+      if (!('data' in body)) return { state: 'failed' };
+      return { state: 'ok', data: body.data as T, page: body.page ?? null };
+    } catch {
+      return { state: 'failed' };
+    }
   }
 }
 

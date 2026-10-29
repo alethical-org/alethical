@@ -53,7 +53,9 @@ export function WithArrow({ children, stroke }: { children: string; stroke?: str
   const last = words.pop() ?? '';
   return (
     <>
-      {words.length > 0 && <span className="f-dest-words">{words.join(' ')} </span>}
+      {/* A no-break space: an ordinary trailing space is dropped when the link lays
+          its parts out as a flex row, and this also keeps the last 2 words together. */}
+      {words.length > 0 && <span className="f-dest-words">{`${words.join(' ')}\u00a0`}</span>}
       <span className="f-nowrap">
         <span>{last}</span>
         <Arrow stroke={stroke} className="f-arrow f-arrow-after" />

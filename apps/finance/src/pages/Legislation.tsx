@@ -106,7 +106,7 @@ async function readList(
     typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(REQUEST_TIMEOUT_MS) : undefined;
   try {
     const response = await fetch(`${apiBaseUrl}/api/v1${path}`, {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      // A public read: no account token, so it stays cacheable (src/api/read.ts).
       signal:
         timeout && typeof AbortSignal.any === 'function'
           ? AbortSignal.any([signal, timeout])
