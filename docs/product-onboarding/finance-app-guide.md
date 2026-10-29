@@ -173,9 +173,15 @@ figure is ever added across committees or members.
   (lobbying principals), Committees, Bills and Payments under a name, each family loaded,
   counted and failed on its own ("At least {n}" when the server's count is capped). A name
   search runs from 3 characters. View all opens the rest of a family in place.
-- **People (`/people`)**: sitting legislators, searchable by name, sorted by surname, 10 a
-  page. The server holds no list of candidates or of former legislators, so People shows
-  neither, and Finance Home has no Candidates entrance.
+- **People (`/people`)**: people, candidacies and legislative service stay separate,
+  searched and paged on the server, 10 a page. Candidate scope, election year and
+  current or former service filters remain in the address. Former service requires
+  a held service end; missing current membership never establishes it.
+- **Person profile (`/people/:id`)**: elections and service over time, confirmed
+  related records, and each confirmed campaign account's own figures. Political
+  giving and payments received remain separate, with every payment and its source.
+  Confirmation fingerprints page through the same pinned source copy; a changed
+  file refuses the money read rather than showing part of it.
 - **Legislator profile (`/legislators/:id`)**: current or former service (a former legislator
   carries no current title, party, district or committees), each confirmed campaign account
   with its own year and figures, spending by outside groups by contest, committees (each
@@ -220,8 +226,15 @@ figure is ever added across committees or members.
   political giving and payments received, read only for the exact spellings and records its
   confirmations cover. A merged record's address opens the surviving record; a split record's
   address lists the records it became.
-- **Not built yet:** Vendors and payees (`/money/recipients`) answers "not found" until the
-  server serves its drawn payee list and confirmed vendors.
+- **Vendors and payees (`/money/recipients`)**: the complete server-paged directory,
+  with All recipients, Confirmed vendors and Printed names, year and payment-type
+  filters, and name, itemized amount or record-count order. Confirmed vendors are
+  organizations; a confirmed person appears separately under All recipients. A
+  confirmed row covers only its confirmed fingerprints. Campaign and outside
+  spending stay separate rows even with the same spelling or identity. Missing
+  amounts withhold a row total and refunds keep their sign. Every amount has a
+  complete date or filed-year span; an incomplete period withholds the amount.
+  Undated rows are counted beside the filed-year span when every year is known. Printed names open the matching payment section.
 - **Legislation (`/bills`)**: bills searched by words or number, with Session, Chamber and
   Status menus, 20 a page.
 - **Bill (`/bills/:id`)**: the plain-language title, Summary (with passages from the bill

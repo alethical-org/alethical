@@ -327,14 +327,27 @@ function Related({ record, from }: { record: LegislatorRecord; from: string }) {
     ? record.current_service?.profile_url
     : null;
   const candidacies = isBuilt('candidate') ? (detail.data?.elections ?? []) : [];
-  const plainPerson = person.data && !isBuilt('person') ? person.data : null;
+  const connectedPerson = person.data;
   // Nothing held to relate: no card rather than an empty one.
-  if (!plainPerson && candidacies.length === 0 && !official) return null;
+  if (!connectedPerson && candidacies.length === 0 && !official) return null;
   return (
     <section className="f-card lg2-related">
       <h2 className="f-card-title">Related records</h2>
       <ul className="lg2-related-list">
-        {plainPerson && <li className="lg2-related-plain">{plainPerson.name}</li>}
+        {connectedPerson && (
+          <li>
+            <Link
+              to={withFrom(hrefFor('person', { id: connectedPerson.id }), from)}
+              className="lg2-related-link"
+            >
+              <span>
+                <span className="lg2-related-label">View person profile</span>
+                <span className="lg2-related-note">{connectedPerson.name}</span>
+              </span>
+              <Arrow />
+            </Link>
+          </li>
+        )}
         {candidacies.map((item) => (
           <li key={item.candidateId}>
             <Link

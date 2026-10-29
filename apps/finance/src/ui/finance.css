@@ -1104,6 +1104,8 @@
 /* ---------- Dropdown ---------- */
 .f-dropdown {
   position: relative;
+}
+.f-dropdown[data-open] {
   z-index: 40;
 }
 .f-dropdown-button {

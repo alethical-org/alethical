@@ -134,7 +134,7 @@ export function Dropdown<T extends string>({
   }
 
   return (
-    <div className="f-dropdown" ref={wrapper}>
+    <div className="f-dropdown" data-open={open || undefined} ref={wrapper}>
       <button
         ref={button}
         type="button"

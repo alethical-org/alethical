@@ -123,8 +123,7 @@ describe('Candidate profile', () => {
     expect(legislator?.textContent).toContain(
       'Currently serving as State Representative, District 45B',
     );
-    // The person profile is not built: the name, as plain text.
-    expect(container.querySelector('.lg2-related-plain')?.textContent).toBe('Patty Acomb');
+    expect(container.querySelector('a[href^="/people/p1"]')?.textContent).toContain('Patty Acomb');
     const official = [...container.querySelectorAll('a')].find((a) =>
       a.textContent?.replace(/\u00a0/g, ' ').includes('Official source website'),
     );

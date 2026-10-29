@@ -254,12 +254,20 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
                           </Link>
                         </li>
                       )}
-                      {!isBuilt('person') &&
-                        people.map((person) => (
-                          <li key={person.id} className="lg2-related-plain">
-                            {person.name}
-                          </li>
-                        ))}
+                      {people.map((person) => (
+                        <li key={person.id}>
+                          <Link
+                            to={withFrom(hrefFor('person', { id: person.id }), here)}
+                            className="lg2-related-link"
+                          >
+                            <span>
+                              <span className="lg2-related-label">View person profile</span>
+                              <span className="lg2-related-note">{person.name}</span>
+                            </span>
+                            <Arrow />
+                          </Link>
+                        </li>
+                      ))}
                     </ul>
                   ) : (
                     <p className="lg2-muted">

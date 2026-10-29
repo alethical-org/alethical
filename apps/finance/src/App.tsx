@@ -18,6 +18,7 @@ import { MediaBuys } from './pages/MediaBuys';
 import { StationFile } from './pages/StationFile';
 import { StationFolder, TVStation, PrintedAgency } from './pages/StationRecords';
 import { People } from './pages/People';
+import { Person } from './pages/Person';
 import { CandidateProfile } from './pages/Candidate';
 import { LegislatorProfile } from './pages/Legislator';
 import { CampaignMoney } from './pages/CampaignMoney';
@@ -53,6 +54,7 @@ const SCREENS: Partial<Record<RouteName, (match: RouteMatch) => ReactNode>> = {
   employer: (match) => <DonorsByEmployer match={match} />,
   search: (match) => <SearchResults match={match} />,
   people: (match) => <People match={match} />,
+  person: (match) => <Person match={match} />,
   candidate: (match) => <CandidateProfile match={match} />,
   legislator: (match) => <LegislatorProfile match={match} />,
   'campaign-money': (match) => <CampaignMoney match={match} />,
