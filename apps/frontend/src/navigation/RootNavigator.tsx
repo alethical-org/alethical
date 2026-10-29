@@ -536,7 +536,7 @@ export function RootNavigator() {
               <Stack.Screen
                 name="Events"
                 component={EventScreen}
-                options={{ headerShown: false, title: 'Events' }}
+                options={{ headerShown: false, title: 'Debates and recordings' }}
               />
               <Stack.Screen
                 name="Event"
