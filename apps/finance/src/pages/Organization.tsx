@@ -44,10 +44,7 @@ function NotFound() {
       <h1 tabIndex={-1} className="org-gone-title">
         This record is no longer available
       </h1>
-      <p>
-        No organization with this reference is in the current copy. Open Vendors and payees to
-        search the held records.
-      </p>
+      <p>No organization with this reference is in the current copy.</p>
     </section>
   );
 }
@@ -454,7 +451,10 @@ export function Organization({ match }: { match: RouteMatch }) {
       navigate(withFrom(hrefFor('organization', { id: redirect }), from), { replace: true });
   }, [redirect, from]);
 
-  const notFound = !valid || read.notFound || (identity !== null && organization === null);
+  // A merged record with no other surviving record to open is not available either.
+  const deadMerge = organization?.status === 'merged' && redirect === null;
+  const notFound =
+    !valid || read.notFound || (identity !== null && organization === null) || deadMerge;
   let content: ReactNode = null;
   if (notFound) content = <NotFound />;
   else if (organization?.status === 'split')

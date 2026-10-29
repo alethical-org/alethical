@@ -205,8 +205,11 @@ export function Lobbying(_props: { match: RouteMatch }) {
     : isPrincipals(reported)
       ? reported.principals.length
       : 0;
+  // The page the rows on screen belong to: while the next page loads, the
+  // earlier rows keep their own numbers rather than the new page's.
+  const shownPage = reported ? Math.floor((reported.offset ?? 0) / PAGE_SIZE) + 1 : page;
   const showing =
-    reported && total !== null ? lobbyingShowingLine(tab, page, rowCount, total) : null;
+    reported && total !== null ? lobbyingShowingLine(tab, shownPage, rowCount, total) : null;
 
   return (
     <main id="main" className="f-page">
@@ -394,7 +397,7 @@ export function Lobbying(_props: { match: RouteMatch }) {
                             Previous
                           </button>
                           <span aria-live="polite" className="lb-page-line f-num">
-                            Page {COUNT(Math.min(page, pages))} of {COUNT(pages)}
+                            Page {COUNT(Math.min(shownPage, pages))} of {COUNT(pages)}
                           </span>
                           <button
                             type="button"

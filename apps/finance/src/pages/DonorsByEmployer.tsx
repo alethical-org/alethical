@@ -17,6 +17,7 @@ import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useBand } from '../ui/band';
 import { Refused, Updating } from '../ui/controls';
 import { BackLink, SourcesAndUpdates, WithArrow } from '../ui/parts';
+import { useRevealFocus } from '../ui/revealFocus';
 import { tabOfKind } from './committee/data';
 import {
   namePaymentsQuery,
@@ -167,6 +168,7 @@ export function DonorsByEmployer({ match }: { match: RouteMatch }) {
   // Back and Forward restore the earlier spelling into the field.
   useEffect(() => setDraft(spelling), [spelling]);
 
+  const reveal = useRevealFocus<HTMLElement>();
   const read = useNamePayments<ReceivedRow>(
     spelling ? namePaymentsQuery(spelling, 'employer', null) : null,
   );
@@ -188,7 +190,12 @@ export function DonorsByEmployer({ match }: { match: RouteMatch }) {
       ? groupDonors(data.payments, shownSpelling, data.linkable, here)
       : [];
   const more = data?.hasMore ?? false;
-  const confirmation = employerConfirmation(identity.data, identity.failed || identity.notFound);
+  // The confirmation is read for the address's spelling; while the donors shown
+  // still belong to an earlier spelling, no confirmation is paired with them.
+  const confirmation: Confirmation =
+    shownSpelling === spelling
+      ? employerConfirmation(identity.data, identity.failed || identity.notFound)
+      : { state: 'loading' };
   const copied = data?.fetchedAt ? centralDateLabel(data.fetchedAt) : null;
 
   return (
@@ -228,7 +235,7 @@ export function DonorsByEmployer({ match }: { match: RouteMatch }) {
         {read.loading && (
           <div role="status" aria-busy="true" className="pn-loading pn-narrow">
             <span className="f-spinner" aria-hidden="true" />
-            Loading employer spellings…
+            Loading…
           </div>
         )}
         {read.failed && !data && (
@@ -253,7 +260,7 @@ export function DonorsByEmployer({ match }: { match: RouteMatch }) {
         )}
 
         {donors.length > 0 && (
-          <section aria-labelledby="de-employer-h" className="de-results">
+          <section aria-labelledby="de-employer-h" className="de-results" ref={reveal.list}>
             <div className="de-card">
               <span className="f-label de-label">EMPLOYER AS PRINTED</span>
               <h2 id="de-employer-h" className="de-spelling">
@@ -335,7 +342,11 @@ export function DonorsByEmployer({ match }: { match: RouteMatch }) {
                   type="button"
                   className="f-btn f-btn-secondary pn-more-btn"
                   aria-disabled={read.loadingMore || undefined}
-                  onClick={() => !read.loadingMore && read.more()}
+                  onClick={() => {
+                    if (read.loadingMore) return;
+                    reveal.mark();
+                    read.more();
+                  }}
                 >
                   {read.loadingMore && <span className="f-spinner" aria-hidden="true" />}
                   {CAP_NEXT_LABEL}

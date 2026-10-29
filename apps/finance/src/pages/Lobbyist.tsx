@@ -29,6 +29,7 @@ import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { EvidencePanel, Refused, type Evidence } from '../ui/controls';
 import { BackLink, LoadingLine, SourcesAndUpdates } from '../ui/parts';
+import { useRevealFocus } from '../ui/revealFocus';
 import {
   IdentityBox,
   OfficialLink,
@@ -152,6 +153,7 @@ function Donations({
 }) {
   const contributions = record.contributions;
   const [shown, setShown] = useState(LOBBYING_RECORD_REVEAL_STEP);
+  const reveal = useRevealFocus<HTMLDivElement>();
   const [evidence, setEvidence] = useState<Evidence | null>(null);
   const closeEvidence = useCallback(() => setEvidence(null), []);
   useEffect(
@@ -192,7 +194,7 @@ function Donations({
               <p>{review.body}</p>
             </div>
           )}
-          <div className="lbl-years">
+          <div className="lbl-years" ref={reveal.list}>
             {visible.map(({ year, committees: groups }, yearIndex) => {
               const label = year.year != null ? String(year.year) : 'Filing year not reported';
               return (
@@ -303,7 +305,10 @@ function Donations({
               <button
                 type="button"
                 className="f-btn f-btn-secondary lbl-more-btn"
-                onClick={() => setShown((value) => value + LOBBYING_RECORD_REVEAL_STEP)}
+                onClick={() => {
+                  reveal.mark();
+                  setShown((value) => value + LOBBYING_RECORD_REVEAL_STEP);
+                }}
               >
                 {lobbyingRevealLabel(total - visibleCount, 'payment record', 'payment records')}
               </button>
@@ -347,6 +352,7 @@ export function Lobbyist({ match }: { match: RouteMatch }) {
   const [orgsShown, setOrgsShown] = useState(LOBBYING_RECORD_REVEAL_STEP);
   useEffect(() => setOrgsShown(LOBBYING_RECORD_REVEAL_STEP), [reg]);
   const visibleOrgs = orgs.slice(0, orgsShown);
+  const orgsReveal = useRevealFocus<HTMLUListElement>();
   const contributionsCopied =
     shown &&
     shown.contributions.state === 'reported' &&
@@ -394,7 +400,7 @@ export function Lobbyist({ match }: { match: RouteMatch }) {
                 {orgs.length === 0 ? (
                   <div className="f-empty-box lbl-box">{COPY.noPrincipals}</div>
                 ) : (
-                  <ul className="lb-list">
+                  <ul className="lb-list" ref={orgsReveal.list}>
                     {visibleOrgs.map((row) => {
                       const shownName = row.spending_name ?? row.name;
                       const note = [
@@ -427,7 +433,10 @@ export function Lobbyist({ match }: { match: RouteMatch }) {
                     <button
                       type="button"
                       className="f-btn f-btn-secondary lbl-more-btn"
-                      onClick={() => setOrgsShown((value) => value + LOBBYING_RECORD_REVEAL_STEP)}
+                      onClick={() => {
+                        orgsReveal.mark();
+                        setOrgsShown((value) => value + LOBBYING_RECORD_REVEAL_STEP);
+                      }}
                     >
                       {lobbyingRevealLabel(orgs.length - visibleOrgs.length, 'client', 'clients')}
                     </button>

@@ -1,3 +1,4 @@
+import { RACE_COMPARISON_NOTE, RACE_DONOR_EXPLANATION } from '@alethical/shared/moneyByRace';
 import {
   useCallback,
   useEffect,
@@ -780,6 +781,9 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
                     contributions are the donations with named givers in our contribution records.
                     Totals are not added across committees.
                   </p>
+                  {/* Rule 12: why the 2 figures differ, in the shared wording. */}
+                  <p className="mr-note">{RACE_DONOR_EXPLANATION}</p>
+                  <p className="mr-note">{RACE_COMPARISON_NOTE}</p>
                 </>
               )}
             </section>

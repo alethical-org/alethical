@@ -208,6 +208,31 @@ describe('Donors by employer', () => {
     );
   });
 
+  it('never pairs a new spelling’s confirmation with the earlier spelling’s donors', async () => {
+    await render(PATH, answer(page(GIFTS)));
+    expect(container.textContent).toContain('Example Health Association');
+    // The next spelling's confirmation answers at once; its donors are still loading.
+    const next = '/money/employers/Target';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string, init?: RequestInit) => {
+        const url = new URL(input);
+        if (url.pathname.endsWith('/finance/identities/records')) {
+          return json(
+            records([{ id: 'org-9', kind: 'organization', name: 'Target', confirmed: 4 }]),
+          );
+        }
+        return hang(url, init);
+      }),
+    );
+    window.history.replaceState(null, '', next);
+    await act(async () => {
+      root.render(<DonorsByEmployer match={matchRoute(next)!} />);
+    });
+    await settle();
+    expect(container.textContent).not.toContain('organization record confirms this spelling');
+  });
+
   it('names the organization only where its record confirms this spelling', async () => {
     await render(
       PATH,
@@ -272,9 +297,7 @@ describe('Donors by employer', () => {
 
   it('shows the loading line while the donors load', async () => {
     await render(PATH, hang);
-    expect(container.querySelector('[role="status"]')?.textContent).toBe(
-      'Loading employer spellings…',
-    );
+    expect(container.querySelector('[role="status"]')?.textContent).toBe('Loading…');
   });
 
   it('fails without a claim about the employer, and tries again', async () => {

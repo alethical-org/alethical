@@ -521,3 +521,14 @@
     font-size: 13px;
   }
 }
+
+/* Standalone links keep a 44px target on phone. */
+@media (max-width: 767px) {
+  .de-donor-name,
+  .de-recipient-link,
+  .pn-committee-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}

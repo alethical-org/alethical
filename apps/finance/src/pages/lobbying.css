@@ -766,3 +766,12 @@ a.lbl-committee-name {
     height: 44px;
   }
 }
+
+/* Standalone links keep a 44px target on phone. */
+@media (max-width: 767px) {
+  a.lbl-committee-name {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}

@@ -22,6 +22,7 @@ import { useAddressState } from '../ui/addressState';
 import { useBand } from '../ui/band';
 import { Dropdown, EvidencePanel, Refused, Updating, type Evidence } from '../ui/controls';
 import { BackLink, SourcesAndUpdates, WithArrow } from '../ui/parts';
+import { useRevealFocus } from '../ui/revealFocus';
 import { tabOfKind } from './committee/data';
 import {
   namePaymentsQuery,
@@ -606,8 +607,9 @@ function Section({
   const data = read.data;
   const rows = data && data.state === 'reported' ? rowsFor(data, here) : [];
   const headingId = `pn-${spec.id}`;
+  const reveal = useRevealFocus<HTMLElement>();
   return (
-    <section aria-labelledby={headingId} className="pn-section">
+    <section aria-labelledby={headingId} className="pn-section" ref={reveal.list}>
       <div className="pn-section-head">
         <h2 id={headingId} className="f-section-title">
           {spec.title}
@@ -716,7 +718,11 @@ function Section({
                 type="button"
                 className="f-btn f-btn-secondary pn-more-btn"
                 aria-disabled={read.loadingMore || undefined}
-                onClick={() => !read.loadingMore && read.more()}
+                onClick={() => {
+                  if (read.loadingMore) return;
+                  reveal.mark();
+                  read.more();
+                }}
               >
                 {read.loadingMore && <span className="f-spinner" aria-hidden="true" />}
                 {CAP_NEXT_LABEL}
