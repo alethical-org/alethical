@@ -70,7 +70,7 @@ export const eventCss = `
 .event-list>li.event-replay-preview{padding:32px 36px}
 .event-replay-card{display:flex;align-items:stretch;gap:32px;color:#11150f;text-decoration:none}
 .event-replay-card:hover,.event-replay-card:visited{color:#11150f}.event-replay-card::after{content:'';position:absolute;inset:0;border-radius:16px}
-.event-replay-card:focus-visible{outline:none!important}
+.event-list>li .event-replay-card:focus-visible{outline:none!important}
 .event-preview-copy{display:flex;flex-direction:column;flex:1;min-width:0}
 .event-preview-title{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px 12px}
 .event-list .event-preview-title h2,.event-list .event-preview-title h3{font-size:32px;line-height:1.2;margin:0;font-weight:800}
