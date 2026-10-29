@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { useFinanceSession } from '../auth/session';
 import { Link } from '../router';
+import { WithArrow } from '../ui/parts';
 
 export function Checking() {
   return (
@@ -40,6 +41,21 @@ export function Unavailable() {
 }
 
 export function NotFound() {
+  const { screens } = useFinanceSession();
+  if (screens) {
+    return (
+      <main id="main" className="f-page">
+        <h1 tabIndex={-1} className="f-page-title">
+          We couldn’t find that page
+        </h1>
+        <p>
+          <Link to="/home" className="f-dest">
+            <WithArrow>Go to Finance Home</WithArrow>
+          </Link>
+        </p>
+      </main>
+    );
+  }
   return (
     <main id="main" className="page">
       <h1 tabIndex={-1}>We couldn’t find that page</h1>

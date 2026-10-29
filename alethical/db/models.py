@@ -5908,6 +5908,87 @@ class TVAdConnection(UUIDPrimaryKeyMixin, Base):
     )
 
 
+class _FinanceTVCheck(UUIDPrimaryKeyMixin):
+    """What every check an Alethical Finance account makes on an original station
+    file carries: the exact version it quotes, its evidence, whether a team account
+    made it, and its 1 withdrawal (docs/architecture/alethical-finance-architecture.md
+    §5). No account identity is kept, and no Finance answer serves
+    ``made_by_alethical_team``: it decides only what alethical.com may print.
+
+    Append-only: the database refuses every change but the 1 withdrawal, and every
+    delete (migration ``0078_finance_station_checks``)."""
+
+    facility_id: Mapped[str] = mapped_column(String(20), nullable=False)
+    file_id: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    page: Mapped[int] = mapped_column(Integer, nullable=False)
+    quote: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence: Mapped[str] = mapped_column(Text, nullable=False)
+    made_by_alethical_team: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    checked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    withdrawn_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    withdrawal_reason: Mapped[Optional[str]] = mapped_column(Text)
+
+
+def _finance_check_args(table: str, kind: str) -> tuple:
+    return (
+        ForeignKeyConstraint(
+            ["facility_id", "file_id", "content_hash"],
+            [
+                "fcc_document.facility_id",
+                "fcc_document.file_id",
+                "fcc_document.content_hash",
+            ],
+        ),
+        CheckConstraint("page > 0", name=f"finance_{kind}_page"),
+        CheckConstraint(
+            "(withdrawn_at IS NULL) = (withdrawal_reason IS NULL)",
+            name=f"finance_{kind}_withdrawal",
+        ),
+        Index(f"ix_{table}_version", "facility_id", "file_id", "content_hash"),
+    )
+
+
+class FinanceTVFact(_FinanceTVCheck, Base):
+    """A fact or date a Finance account checked on an exact original version,
+    quoted from that version's machine-read text. A correction is a new row naming
+    the 1 it replaces in ``supersedes_id``."""
+
+    __tablename__ = "finance_tv_fact"
+    field: Mapped[str] = mapped_column(String(40), nullable=False)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    organization_name: Mapped[Optional[str]] = mapped_column(Text)
+    agency_address_reviewed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    qualifier: Mapped[Optional[str]] = mapped_column(Text)
+    role: Mapped[Optional[str]] = mapped_column(Text)
+    supersedes_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("finance_tv_fact.id"), unique=True
+    )
+    __table_args__ = _finance_check_args("finance_tv_fact", "fact")
+
+
+class FinanceTVConnection(_FinanceTVCheck, Base):
+    """A connection a Finance account checked on an exact original version."""
+
+    __tablename__ = "finance_tv_connection"
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    target_id: Mapped[str] = mapped_column(Text, nullable=False)
+    target_snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    __table_args__ = (
+        *_finance_check_args("finance_tv_connection", "connection"),
+        CheckConstraint(
+            "kind IN ('committee','candidate','election','expense','principal',"
+            "'related_document','issue')",
+            name="finance_connection_kind",
+        ),
+        Index("ix_finance_tv_connection_target", "kind", "target_id"),
+    )
+
+
 class TVAdReviewEvent(UUIDPrimaryKeyMixin, Base):
     """Append-only actor, decision, exact revision and evidence history."""
 

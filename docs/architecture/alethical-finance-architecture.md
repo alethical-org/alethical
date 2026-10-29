@@ -16,7 +16,7 @@ signed-in screens are approved.
 |---|---|
 | Collection of every source (Campaign Finance Board, lobbying, Legislature, Secretary of State, FCC station files) | `alethical/pipeline/`, the scheduled jobs in [jobs-and-scripts.md](../operations/jobs-and-scripts.md) |
 | 1 database | `alethical/db/models.py`; [db-schema-system-design.md](db-schema-system-design.md) |
-| Checks and confirmations: committee matches, station-file facts and connections, identity confirmations | `legislator_campaign_committee`, `tv_ad_fact`, `tv_ad_connection`, `identity_confirmation` |
+| Checks and confirmations: committee matches, station-file facts and connections, identity confirmations | `legislator_campaign_committee`, `identity_confirmation`; station files: `tv_ad_fact` and `tv_ad_connection` on alethical.com's public copies, `finance_tv_fact` and `finance_tv_connection` on originals, checked in Finance |
 | Calculations: totals, reconciliations, record counts | `alethical/api/services/` |
 | Product rules: cite or refuse, no money chains, missing never zero | [`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) |
 | Sign-in | Supabase Auth ([backend-stack.md](backend-stack.md) §4) |
@@ -35,7 +35,9 @@ bill search (`/search`) in 1 request, and returns `request_id` unchanged, so the
 reply that arrives after a newer one. Media buys (§6) answers under `/media-buys/`
 (`alethical/api/routers/finance_media_buys.py`): `counts`, `sources`, `recent`, `browse`,
 `connections`, `files/{key}` with its original page images at `files/{key}/pages/{page}`,
-`folders/{key}`, `agencies/{key}` and `stations/{key}`
+`folders/{key}`, `agencies/{key}` and `stations/{key}`, and records checks on an original
+version at `files/{key}/versions/{content hash}/` (`target-preview`, `facts`,
+`connections`) and withdraws them at `facts/{id}/withdraw` and `connections/{id}/withdraw`
 ([tv-ad-records-guide.md](../product-onboarding/tv-ad-records-guide.md), In Alethical
 Finance). Identity confirmations (§4) answer under `/identities/`
 (`alethical/api/routers/finance_identities.py`). The access check reads the list through its own short
@@ -180,7 +182,19 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
   made, so another account's merge never redirects a team-made confirmation there, and it
   keeps printing a team-made confirmation until a team account withdraws it. Every
   withdrawal, merge and split records in `identity_event` whether a team account made it.
-- Inside Finance every account sees every check. No check names the account that made it.
+- A Finance check on a station file also passes alethical.com's own rules for everything
+  it serves before alethical.com prints it: the exact version has an approved,
+  privacy-checked public copy, and the check's quotation appears exactly in that copy's
+  safe text. The same 2 conditions hold wherever the check would reach a reader: facts,
+  correction history, search, connections and page images. A Finance check rests on the
+  original's own text, which carries personal details the public copy blanks, so passing
+  in Finance never qualifies it alone.
+- alethical.com prints no Finance station-file check: its station-file readers read only
+  checks on its own public copies (`tv_ad_fact`, `tv_ad_connection`), and a Finance check
+  never changes them.
+- Inside Finance every account sees every check. No check names the account that made it
+  or says whether a team account did; a Finance check keeps no account identity, only
+  that flag (`made_by_alethical_team`), which no Finance answer serves.
 
 ## 6. Media buys
 

@@ -1,0 +1,305 @@
+/* Campaign money (Campaign Money drawing). Shared parts live in src/ui/finance.css. */
+
+.cm-back {
+  margin: -8px 0 12px;
+}
+.cm-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px 24px;
+}
+.cm-intro {
+  min-width: 0;
+  flex: 1 1 420px;
+}
+.cm-dek {
+  margin: 8px 0 0;
+  max-width: 760px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--secondary);
+}
+.cm-connections {
+  flex: none;
+}
+
+/* ---------- Name search ---------- */
+.cm-search {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+  max-width: 760px;
+}
+.cm-field {
+  flex: 1 1 auto;
+  height: 48px;
+  padding: 0 14px;
+}
+.cm-submit {
+  flex: none;
+  height: 48px;
+  padding: 0 20px;
+}
+.cm-name-search {
+  margin-top: 14px;
+  max-width: 760px;
+  display: grid;
+  gap: 10px;
+}
+.cm-name-search p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--secondary);
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Cards (payments, side entrances, limits) ---------- */
+.cm-card {
+  display: block;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  color: var(--ink);
+  text-decoration: none;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+a.cm-card:active {
+  border-color: var(--fill);
+  background: var(--tint);
+}
+@media (hover: hover) and (min-width: 768px) {
+  a.cm-card:hover {
+    border-color: var(--fill);
+    box-shadow: 0 14px 34px rgba(11, 31, 42, 0.1);
+    color: var(--ink);
+  }
+}
+.cm-card-title {
+  font-size: 17px;
+  font-weight: 700;
+}
+.cm-payments {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+}
+.cm-payments-text {
+  min-width: 0;
+}
+.cm-payments .cm-card-title {
+  display: block;
+  font-size: 16px;
+}
+.cm-payments-note {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--secondary);
+  overflow-wrap: anywhere;
+}
+.cm-side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.cm-side-body {
+  display: block;
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--secondary);
+}
+.cm-limits h2 {
+  margin: 0;
+  letter-spacing: 0.08em;
+}
+.cm-limits ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--secondary);
+}
+
+/* ---------- Layout: directory beside the side column at computer ---------- */
+.cm-layout {
+  margin-top: 28px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (min-width: 1100px) {
+  .cm-layout {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+}
+.cm-directory,
+.cm-aside {
+  min-width: 0;
+}
+.cm-aside {
+  display: grid;
+  gap: 14px;
+}
+
+/* The tabs scroll sideways rather than wrap, down to 320px. */
+.cm-tabs .f-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.cm-tabs .f-tab {
+  font-size: 14px;
+  padding: 0 14px;
+}
+
+.cm-list {
+  margin-top: 14px;
+  outline: none;
+}
+.cm-notice {
+  margin-bottom: 10px;
+}
+.cm-count {
+  padding: 0 0 10px 2px;
+  font-size: 14px;
+  color: var(--secondary);
+}
+.cm-count:empty {
+  display: none;
+}
+
+/* ---------- Directory table ---------- */
+.cm-table {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.cm-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) 150px;
+  gap: 12px;
+  align-items: center;
+  min-height: 48px;
+  padding: 6px 20px;
+  box-sizing: border-box;
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+}
+.cm-row:last-child {
+  border-bottom: 0;
+}
+.cm-head {
+  min-height: 0;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--hairline);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.cm-name {
+  min-width: 0;
+  align-items: center;
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.cm-name-link {
+  text-decoration: none;
+  border-radius: 3px;
+}
+.cm-kind {
+  font-size: 14px;
+  color: var(--secondary);
+}
+.cm-reg {
+  text-align: right;
+  white-space: nowrap;
+}
+.cm-row:not(.cm-head) .cm-reg {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--secondary);
+}
+.cm-reg-word {
+  display: none;
+}
+@media (hover: hover) and (min-width: 768px) {
+  .cm-row:not(.cm-head):hover {
+    background: var(--row-hover);
+  }
+  .cm-name-link:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+/* ---------- Pages ---------- */
+.cm-pager {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cm-page-btn {
+  font-size: 14px;
+  font-weight: 600;
+  gap: 6px;
+}
+.cm-page-btn:first-child {
+  padding: 0 16px 0 13px;
+}
+.cm-page-btn:last-child {
+  padding: 0 13px 0 16px;
+}
+.cm-page-line {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--secondary);
+}
+
+/* ---------- Phone ---------- */
+@media (max-width: 767px) {
+  .cm-search {
+    flex-direction: column;
+  }
+  .cm-head {
+    display: none;
+  }
+  .cm-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+    padding: 10px 16px;
+  }
+  .cm-kind,
+  .cm-row:not(.cm-head) .cm-reg {
+    padding-left: 36px;
+  }
+  .cm-reg {
+    text-align: left;
+  }
+  .cm-reg-word {
+    display: inline;
+  }
+  .cm-name-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
