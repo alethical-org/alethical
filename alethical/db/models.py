@@ -188,6 +188,64 @@ def _sql_list(values: tuple[str, ...]) -> str:
     return ",".join(f"'{value}'" for value in values)
 
 
+class FinanceSignInCode(Base):
+    """1 emailed Alethical Finance sign-in code, kept only as a salted hash.
+
+    Sent only to an active access-list address; it expires and works once
+    (docs/architecture/alethical-finance-architecture.md §3). It is proved only
+    with a challenge bound to it (FinanceSignInChallenge).
+    """
+
+    __tablename__ = "finance_sign_in_code"
+    __table_args__ = (
+        CheckConstraint(
+            "email = lower(btrim(email)) AND email LIKE '_%@_%'",
+            name="email_normalized",
+        ),
+        CheckConstraint("expires_at > created_at", name="expires_after_created"),
+        Index("ix_finance_sign_in_code_email_created", "email", "created_at"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    code_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class FinanceSignInChallenge(Base):
+    """1 code request's challenge, kept only as a SHA-256, bound to the code it proves.
+
+    Each challenge has its own count of wrong tries, so tries made with one
+    request's challenge never use up another's.
+    """
+
+    __tablename__ = "finance_sign_in_challenge"
+    __table_args__ = (CheckConstraint("wrong_tries >= 0", name="wrong_tries_counted"),)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    code_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("finance_sign_in_code.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    challenge_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    wrong_tries: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class IdentityEntity(Base):
     """A person or organization Alethical Finance has confirmed across records.
 

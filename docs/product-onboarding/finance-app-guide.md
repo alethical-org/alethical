@@ -34,8 +34,8 @@ stays off (anything other than `on`), and the app serves 3 addresses:
   none can be read, the counts block is left out. "Sources and updates" names each source
   with the date its records were copied (bills: updated), in Minnesota time; a date the server
   cannot support is left out and the source stays named.
-- **Request a demo** (in the hero and again near the end) opens a draft email to
-  angel@alethical.com, copied to ask@alethical.com, with the subject "Alethical Finance demo".
+- **Request access** (in the hero and again near the end) opens a draft email to
+  angel@alethical.com, copied to ask@alethical.com, with the subject "Alethical Finance access".
   Nothing is sent until the reader sends it.
 - **Sign in** opens `/sign-in`. After signing in, an account not on the access list sees the
   not-listed state at `/`; a listed account sees the landing page, because no signed-in screen
@@ -55,33 +55,37 @@ of this guide, and `/` is Finance home.
 - **`/sign-in`.** Google, or a code emailed to the address. There is no password and no way
   to create an account. Each way is shown only once it works: Google once Supabase accepts
   Finance's return address (`VITE_GOOGLE_SIGN_IN`), because Google would otherwise hand the
-  visitor back to alethical.com, and email once the server's code route ships
+  visitor back to alethical.com, and email once Alethical's code sending is switched on
   (`VITE_EMAIL_SIGN_IN`). With neither on, the page says "Sign-in to Alethical Finance is
   not open yet."
-- **`/auth/return`.** Where Google, and a first-time address's emailed confirmation link,
-  bring the visitor back, to the Finance page they asked for. A failed Google sign-in returns
-  to `/sign-in` with "Google didn’t finish. Try again, or use email." An emailed link carries
-  its 1-use token after `#`, so it never reaches a web server; the page removes it from the
-  address bar at once and uses it only when the visitor presses Continue under "Finish
-  signing in", because mail filters that open links would otherwise use it up first. A used
-  or expired link says so and offers sign-in again.
+- **`/auth/return`.** Where Google brings the visitor back, to the Finance page they asked
+  for. Finance's emails carry no link, so email sign-in never comes here. A sign-in token in
+  the address, from any link, is never used: the page takes it out of the address bar at
+  once, so a crafted link cannot sign a visitor into someone else's account. A failed Google
+  sign-in returns to `/sign-in` with "Google didn’t finish. Try again, or use email." Opened
+  any other way without a finished sign-in, the page says "That sign-in link didn’t work"
+  and links back to sign-in.
 
 ## Sign-in by emailed code
 
 1. **Email:** the visitor types an address and presses Continue. An empty or malformed
    address shows "Enter an email address".
 2. The app asks the server for a code (`POST /api/v1/finance/sign-in/code`). The server
-   answers every address the same way and emails a code only to a listed one, so the next
-   screen says "If {address} has access to Alethical Finance, a code is on its way to it",
-   never that a code was sent. That route is not live yet: its release waits on a decision
-   about how codes are sent ([#2755](https://github.com/alethical-org/alethical/pull/2755)),
-   so until then the code screen cannot be reached.
-3. **Code:** the visitor pastes the code; the app accepts any length the email carries.
-   A wrong or expired code shows "That code is wrong or expired. Enter the newest code or send
-   a new one." Send a new code waits 60 seconds between requests and shows the seconds left.
-   Use another email goes back with the address kept. After a correct code, Continue stays
-   busy until the access answer arrives; if access cannot be checked, the page offers Try
-   again.
+   answers every address the same way, with a new challenge the app keeps, and Alethical
+   emails an 8-digit code, with no link, only to a listed one, so the next screen says "If
+   {address} has access to Alethical Finance, a code is on its way to it", never that a code
+   was sent.
+3. **Code:** the visitor pastes the code. The app sends it with the challenge from this
+   tab's newest request (`POST /api/v1/finance/sign-in/verify`); the server returns a 1-time
+   sign-in token that the app hands to Supabase. A request made again within 50 seconds, for
+   example after a reload or Use another email, sends no new email, and the code already
+   sent still works. Reloaded within the code's 10 minutes, the page opens at this step for
+   the same address. A wrong, expired or used code shows "That code is wrong or expired.
+   Enter the newest code or send a new one."; if the server cannot check it, "We couldn’t
+   check the code. Try again." Send a new code waits 60 seconds between requests and shows
+   the seconds left. Use another email goes back with the address kept. After a correct
+   code, Continue stays busy until the access answer arrives; if access cannot be checked,
+   the page offers Try again.
 
 ## After sign-in
 
