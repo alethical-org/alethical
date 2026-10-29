@@ -7,6 +7,8 @@ Finance's reads, no trace of who made one, and alethical.com left untouched."""
 from __future__ import annotations
 
 import json
+import threading
+import time
 import uuid
 from datetime import timedelta
 from types import SimpleNamespace
@@ -25,7 +27,7 @@ from alethical.api.services import tv_ad_review as review
 from alethical.api.services import tv_ads as reader
 from alethical.api.services.finance_access import FinanceAccount
 from alethical.db import models as m
-from alethical.db.session import get_db
+from alethical.db.session import get_db, get_session_factory
 from alethical.pipeline import fcc_archive
 from alethical.pipeline.fcc_document_text import EXTRACTOR_VERSION
 from alethical.tests.finance_fixtures import (  # noqa: F401
@@ -907,7 +909,7 @@ def test_alethical_com_answers_are_identical_with_and_without_finance_checks(
     assert db.scalar(select(func.count()).select_from(m.FinanceTVConnection)) == 3
 
 
-def test_checking_needs_finance_access_and_answers_without_detail(
+def test_checking_needs_finance_access_and_names_the_broken_rule(
     client, finance_api, original
 ):
     url = f"{BASE}/files/{original.key}/versions/{original.version}"
@@ -915,12 +917,201 @@ def test_checking_needs_finance_access_and_answers_without_detail(
     assert signed_out.post(f"{url}/facts", json=_fact()).status_code == 401
     refused = finance_api.post(f"{url}/facts", json=_fact(page=2))
     assert refused.status_code == 422
-    assert "machine-read" not in refused.text
+    # The rule's own sentence, so a person can fix the check.
+    assert refused.json()["detail"] == (
+        "Quotation must appear in this original's machine-read text on that page"
+    )
     saved = finance_api.post(f"{url}/facts", json=_fact()).json()["data"]
     withdraw = f"{BASE}/facts/{saved['id']}/withdraw"
     assert finance_api.post(withdraw, json={"why": "x"}).status_code == 422
     done = finance_api.post(withdraw, json={"reason": "Wrong file"})
     assert done.json()["data"] == {"id": saved["id"], "status": "withdrawn"}
-    assert finance_api.post(withdraw, json={"reason": "Again"}).status_code == 422
+    again = finance_api.post(withdraw, json={"reason": "Again"})
+    assert (again.status_code, again.json()["detail"]) == (
+        422,
+        "This check is already withdrawn",
+    )
     missing = f"{BASE}/connections/{uuid.uuid4()}/withdraw"
     assert finance_api.post(missing, json={"reason": "x"}).status_code == 404
+
+
+EXPENSE_TOO_FAR = f"expenditures:{uuid.uuid4()}:" + "9" * 40
+
+
+@pytest.mark.parametrize(
+    ("path", "body", "detail"),
+    [
+        # A field of the wrong type is refused by name, never a server error.
+        ("facts", _fact(field=["agency_name"]), "field must be text"),
+        ("facts", _fact(field={"name": "agency_name"}), "field must be text"),
+        (
+            "facts",
+            _fact(correctness_reviewed="yes"),
+            "correctness_reviewed must be true or false",
+        ),
+        ("connections", {"kind": ["committee"]}, "kind must be text"),
+        (
+            "connections",
+            {"kind": "candidate", "role": ["advertiser"]},
+            "role must be text",
+        ),
+        # Values the database cannot hold are refused before it is asked.
+        ("facts", _fact(page=10**30), "Choose an exact source page"),
+        ("facts", _fact(page=101), "Choose an exact source page"),
+        (
+            "facts",
+            _fact(evidence="Read\x00on page 1"),
+            "evidence must not contain a NUL character",
+        ),
+        (
+            "facts",
+            _fact(field="document_kind", value="Invoice\x00"),
+            "value must not contain a NUL character",
+        ),
+        (
+            "connections",
+            {
+                "kind": "expense",
+                "target_id": EXPENSE_TOO_FAR,
+                "page": 1,
+                "quote": "Gross amount: $1,250.",
+                "evidence": "Read",
+                "correctness_reviewed": True,
+                "file_identity_reviewed": True,
+            },
+            "Expense row number is beyond any held row",
+        ),
+    ],
+)
+def test_mistyped_or_unstorable_input_is_refused_by_rule(
+    finance_api, original, path, body, detail
+):
+    url = f"{BASE}/files/{original.key}/versions/{original.version}/{path}"
+    response = finance_api.post(url, json=body)
+    assert (response.status_code, response.json()["detail"]) == (422, detail)
+
+
+@pytest.mark.parametrize(
+    ("params", "detail"),
+    [
+        (
+            {"kind": "expense", "target_id": EXPENSE_TOO_FAR},
+            "Expense row number is beyond any held row",
+        ),
+        (
+            {"kind": "committee", "target_id": "190\x0002"},
+            "target_id must not contain a NUL character",
+        ),
+    ],
+)
+def test_a_preview_refuses_unstorable_input_by_rule(
+    finance_api, original, params, detail
+):
+    url = f"{BASE}/files/{original.key}/versions/{original.version}/target-preview"
+    response = finance_api.get(url, params=params)
+    assert (response.status_code, response.json()["detail"]) == (422, detail)
+
+
+def test_a_withdrawal_reason_with_a_nul_is_refused_by_rule(finance_api, original):
+    url = f"{BASE}/files/{original.key}/versions/{original.version}/facts"
+    saved = finance_api.post(url, json=_fact()).json()["data"]
+    response = finance_api.post(
+        f"{BASE}/facts/{saved['id']}/withdraw", json={"reason": "Wrong\x00file"}
+    )
+    assert (response.status_code, response.json()["detail"]) == (
+        422,
+        "reason must not contain a NUL character",
+    )
+
+
+def test_a_correction_that_loses_a_race_answers_409(finance_api, original, monkeypatch):
+    def lost(*args, **kwargs):
+        raise checks.CorrectionRace
+
+    monkeypatch.setattr(checks, "add_fact", lost)
+    url = f"{BASE}/files/{original.key}/versions/{original.version}/facts"
+    response = finance_api.post(url, json=_fact())
+    assert (response.status_code, response.json()["detail"]) == (
+        409,
+        "This fact was corrected a moment ago. Reload and check.",
+    )
+
+
+def test_2_simultaneous_corrections_keep_the_first_and_refuse_the_second():
+    """2 real database sessions correct 1 fact at once: the second waits on the
+    first's lock, then finds the first correction already saved."""
+    factory = get_session_factory()
+    store = MemoryStore()
+    setup = factory()
+    digest = fcc_archive.archive_body(setup, store, pdf() + b"\n% race")
+    document = m.FCCDocument(
+        facility_id="28010",
+        file_id=str(uuid.uuid4()),
+        content_hash=digest,
+        call_sign="KSTP-TV",
+        folder_id="folder-race",
+        folder_path="political-files/2026/folder-race",
+        name="Race original",
+        url="https://files.fcc.gov/race.pdf",
+    )
+    setup.add(document)
+    setup.flush()
+    _read(setup, document, {1: PAGE_1})
+    key = _key(document)
+    old = checks.add_fact(setup, CLIENT, key, digest, _fact())
+    setup.commit()
+    first, second = factory(), factory()
+    try:
+        checks.add_fact(first, CLIENT, key, digest, _fact(supersedes_id=str(old.id)))
+        pid = second.scalar(text("SELECT pg_backend_pid()"))
+        outcome = {}
+
+        def correct():
+            try:
+                checks.add_fact(
+                    second, TEAM, key, digest, _fact(supersedes_id=str(old.id))
+                )
+            except Exception as error:  # noqa: BLE001 -- the outcome under test
+                outcome["error"] = error
+
+        racer = threading.Thread(target=correct)
+        racer.start()
+        with factory() as watcher:
+            for _ in range(200):
+                waiting = watcher.scalar(
+                    text(
+                        "SELECT wait_event_type FROM pg_stat_activity WHERE pid = :pid"
+                    ),
+                    {"pid": pid},
+                )
+                if waiting == "Lock":
+                    break
+                time.sleep(0.05)
+        assert waiting == "Lock"
+        first.commit()
+        racer.join(10)
+        assert isinstance(outcome.get("error"), checks.CorrectionRace)
+        second.rollback()
+        with factory() as check:
+            assert (
+                check.scalar(
+                    select(func.count())
+                    .select_from(m.FinanceTVFact)
+                    .where(m.FinanceTVFact.supersedes_id == old.id)
+                )
+                == 1
+            )
+    finally:
+        first.rollback()
+        second.rollback()
+        first.close()
+        second.close()
+        # Rows committed here are this test's own; nothing else holds them.
+        setup.rollback()
+        setup.execute(text("TRUNCATE finance_tv_fact, finance_tv_connection"))
+        for model in (m.FCCPage, m.FCCExtraction, m.FCCDocument, m.FCCSourceBody):
+            setup.execute(
+                model.__table__.delete().where(model.__table__.c.content_hash == digest)
+            )
+        setup.commit()
+        setup.close()

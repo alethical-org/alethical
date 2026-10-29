@@ -12,6 +12,10 @@ Append-only: a correction is a new row naming the 1 it replaces, and a withdrawa
 sets its date and reason once; the database refuses any other change. Each row
 records whether a team account made it, and nothing else about the account; no
 Finance answer serves that flag. Functions flush but never commit.
+
+Every refusal is a ``ValueError`` whose message is a fixed sentence naming the
+rule a check broke, never a record's contents, so the route serves it as the
+answer's detail.
 """
 
 from __future__ import annotations
@@ -20,13 +24,14 @@ from types import SimpleNamespace
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
 from alethical.api.services import tv_ad_review as review
 from alethical.api.services import tv_ads as reader
 from alethical.api.services.finance_access import FinanceAccount
 from alethical.db import models as m
-from alethical.pipeline import fcc_expense_links
+from alethical.pipeline import fcc_expense_links, tv_ad_redaction
 from alethical.pipeline.campaign_finance_reader import source_copy_date
 from alethical.pipeline.fcc_document_text import EXTRACTOR_VERSION
 
@@ -66,20 +71,58 @@ CONNECTION_KEYS = frozenset(
         "file_identity_reviewed",
     }
 )
+PREVIEW_KEYS = frozenset(
+    {"kind", "target_id", "election_stage", "money_office", "money_district", "role"}
+)
+# Confirmations a person ticks; every other field but the page is text.
+FLAGS = frozenset(
+    {
+        "correctness_reviewed",
+        "agency_address_reviewed",
+        "money_context_reviewed",
+        "file_identity_reviewed",
+    }
+)
 # Records alethical.com's review validates without a public copy.
 RECORD_KINDS = frozenset({"committee", "candidate", "election", "principal"})
 KINDS = RECORD_KINDS | {"issue", "related_document", "expense"}
+# The largest row number Postgres's integer column holds; a larger one names no row.
+LAST_ROW = 2**31 - 1
+
+
+class CorrectionRace(Exception):
+    """Another correction of the same fact was saved first."""
+
+
+def _text(name, value):
+    if not isinstance(value, str):
+        raise ValueError(f"{name} must be text")
+    if "\x00" in value:
+        raise ValueError(f"{name} must not contain a NUL character")
+    return value
 
 
 def _only(data, allowed):
+    """Only the request's own fields, each of its own type, so a mistyped value
+    is refused by name instead of failing somewhere deeper."""
     if not isinstance(data, dict):
         raise ValueError("A check is a set of named fields")
     if set(data) - allowed:
         raise ValueError("Finance checks take only their own fields")
+    for name, value in data.items():
+        if value is None or name == "page":
+            continue
+        if name in FLAGS:
+            if not isinstance(value, bool):
+                raise ValueError(f"{name} must be true or false")
+        else:
+            _text(name, value)
 
 
 def version(db: Session, key: str, content_hash: str) -> m.FCCDocument:
     """The exact held original a check is made on."""
+    if "\x00" in key or "\x00" in content_hash:
+        raise LookupError("Not found")
     facility_id, file_id = reader.identity(key)
     document = db.get(m.FCCDocument, (facility_id, file_id, content_hash))
     if document is None:
@@ -95,7 +138,11 @@ def _quote(db, document, page, quote):
     """The quotation, exactly as it appears in the original's machine-read text
     on the named page: the evidence alethical.com takes from an approved copy's
     safe text, Finance takes from the original itself."""
-    if isinstance(page, bool) or not isinstance(page, int) or page < 1:
+    if (
+        isinstance(page, bool)
+        or not isinstance(page, int)
+        or not 1 <= page <= tv_ad_redaction.MAX_PAGES
+    ):
         raise ValueError("Choose an exact source page")
     quote = review._required(quote, "Source quotation")
     text = db.scalar(
@@ -184,7 +231,14 @@ def add_fact(
         checked_at=review.now(),
     )
     db.add(row)
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError as error:
+        # 2 corrections of 1 fact at once: the database keeps the first.
+        constraint = getattr(getattr(error.orig, "diag", None), "constraint_name", "")
+        if old is not None and constraint == "uq_finance_tv_fact_supersedes_id":
+            raise CorrectionRace from None
+        raise
     return row
 
 
@@ -223,6 +277,9 @@ def _target(db, kind, target_id, data, document, *, quote=None):
         }
     # An expense is the exact retained Campaign Finance Board row, never a value
     # the browser supplies; it is copied whole so the check keeps what it read.
+    number = target_id.rsplit(":", 1)[-1]
+    if number.isdecimal() and (len(number) > 10 or int(number) > LAST_ROW):
+        raise ValueError("Expense row number is beyond any held row")
     dataset, snapshot, row = review._expense_target(db, target_id)
     return {
         "label": "Reported campaign expense",
@@ -274,6 +331,17 @@ def target_preview(
 ) -> dict:
     """The exact record a connection would name, with the fingerprint its save
     must repeat, so a target that changes after it is read is never saved."""
+    _only(
+        {
+            "kind": kind,
+            "target_id": target_id,
+            "election_stage": election_stage,
+            "money_office": money_office,
+            "money_district": money_district,
+            "role": role,
+        },
+        PREVIEW_KEYS,
+    )
     document = version(db, key, content_hash)
     content = _target(
         db,
@@ -382,12 +450,13 @@ def add_connection(
 def withdraw(db: Session, model, check_id: UUID, reason: str):
     """Withdraw a Finance check once, with its reason. A corrected fact may be
     withdrawn too, which removes its value from its correction's history."""
+    reason = review._required(_text("reason", reason), "Withdrawal reason", limit=2000)
     row = db.scalar(select(model).where(model.id == check_id).with_for_update())
     if row is None:
         raise LookupError("Not found")
     if row.withdrawn_at is not None:
         raise ValueError("This check is already withdrawn")
-    row.withdrawal_reason = review._required(reason, "Withdrawal reason", limit=2000)
+    row.withdrawal_reason = reason
     row.withdrawn_at = review.now()
     db.flush()
     return row

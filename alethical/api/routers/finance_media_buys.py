@@ -59,20 +59,23 @@ def records(db: Session = Depends(get_db)):
 
 
 def checking(db: Session = Depends(get_db)):
-    """A check's database session: a check that breaks a rule is refused whole."""
+    """A check's database session: a check that breaks a rule is refused whole,
+    with that rule's fixed sentence as the detail, so a person can fix it."""
     try:
         yield db
     except LookupError:
         db.rollback()
         raise problem_exception(404, "Not Found", "Not found.") from None
-    except ValueError:
+    except checks.CorrectionRace:
         db.rollback()
         raise problem_exception(
-            422,
-            "Check not saved",
-            "The check could not be saved. Check the quotation, page and evidence,"
-            " then try again.",
+            409,
+            "Conflict",
+            "This fact was corrected a moment ago. Reload and check.",
         ) from None
+    except ValueError as refusal:
+        db.rollback()
+        raise problem_exception(422, "Check not saved", str(refusal)) from None
     except SQLAlchemyError:
         db.rollback()
         raise problem_exception(

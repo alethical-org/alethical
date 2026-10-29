@@ -137,7 +137,12 @@ only its `id` and `status`.
   (`made_by_alethical_team`) and when, and no Finance answer serves that flag; it decides
   only what alethical.com may print
   ([alethical-finance-architecture.md §5](../architecture/alethical-finance-architecture.md#5-what-alethicalcom-prints-from-work-done-in-finance)).
-- A refused check answers 422 with no detail about which rule it broke.
+- A refused check answers 422 with the rule it broke as 1 fixed sentence in `detail`,
+  such as "Quotation must appear in this original's machine-read text on that page", so a
+  person can fix it; the sentence names the rule, never a record's contents. A field of the
+  wrong type or holding a NUL character is refused by name, and a page beyond 100 is no
+  page. When 2 people correct the same fact at once, the second answers 409 "This fact was
+  corrected a moment ago. Reload and check."
 - **A field reaches Finance only when its response model names it**
   (`alethical/api/finance_media_buys_schemas.py`), so a field added to the shared readers
   stays out of Finance until a model adds it.
