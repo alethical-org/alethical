@@ -860,7 +860,7 @@ def report_figures(db: Session, *, registration: str, year: int):
                 if matched and start
                 else None,
                 "ending_cash_balance": amounts.get("ending_cash_balance")
-                if matched
+                if matched and ending_as_of
                 else None,
                 "figures_state": "reported" if matched else "unavailable",
                 "figures_copied_at": (filing.captured_at or snapshot.fetch_completed_at)

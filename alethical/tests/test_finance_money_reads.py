@@ -434,12 +434,20 @@ def test_report_figures_match_only_unique_filed_regular_report(
         m.CampaignFinanceFilingFigure, (filing.id, "beginning_cash_balance")
     )
     beginning.label_as_served = "Beginning cash balance as of 13/32/2025"
+    ending = finance_db.get(
+        m.CampaignFinanceFilingFigure, (filing.id, "ending_cash_balance")
+    )
+    ending.label_as_served = "Ending cash balance as of unknown"
     finance_db.commit()
     finance_db.expire_all()
     incomplete = get(finance_api, "/committees/18135/report-figures", year=2026)[
         "reports"
     ][0]
     assert incomplete["contributions"] is None
+    assert (
+        incomplete["ending_cash_balance"] is None
+        and incomplete["ending_balance_as_of"] is None
+    )
     assert (
         incomplete["beginning_cash_balance"] is None
         and incomplete["beginning_balance_as_of"] is None

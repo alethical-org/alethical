@@ -102,7 +102,7 @@ held produce an unavailable state, never a zero. A requested release that change
   whose period end matches; older or ambiguous reports keep null figures. Total receipts,
   complete contribution lines and total expenditures require the official calendar's
   period start. Beginning and ending balance dates come from their own printed labels;
-  an undated beginning balance is withheld. Expenditures are never relabelled as all
+  an undated balance is withheld. Expenditures are never relabelled as all
   disbursements. Filing dates never come from period ends. Retained figures keep their
   own copy date.
 - `/committees/{number}/payment-groups` pages exact named groups for one filing year and
