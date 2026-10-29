@@ -417,7 +417,8 @@ describe('Lobbying directory', () => {
     expect(text()).toContain('AMP Robotics Corporation');
     expect(text()).toContain('Entity ID 8887');
     expect(text()).toContain('No spending page available');
-    expect(text()).toContain('LATEST SPENDING YEAR');
+    // The drawn "Reported spending {year}" waits for its route; no stand-in column.
+    expect(text()).not.toContain('LATEST SPENDING YEAR');
     expect(container.querySelector('.lb-list-note')?.textContent).toBe(
       'This directory includes organisations from different reporting years and the lobbyist list copied Oct 29, 2026. Some organisations have no spending page because the Board’s spending file has no rows for them through 2025.',
     );

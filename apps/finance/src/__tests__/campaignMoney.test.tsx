@@ -141,13 +141,9 @@ describe('Campaign money directory', () => {
       'Limits of the campaign records',
     );
     expect(text).toContain('Campaign payment records before 2015 are not included');
-    // Money connections is not built yet; Vendors and payees is.
+    // Money connections and Vendors and payees are not built yet: no entrance to either.
     expect(text).not.toContain('Explore money connections');
-    expect(
-      [...container.querySelectorAll('a')].some((a) =>
-        a.getAttribute('href')?.startsWith('/money/recipients'),
-      ),
-    ).toBe(true);
+    expect(text).not.toContain('Vendors and payees');
     expect(text).not.toMatch(/illustrative|example|sample|fixture|demo/i);
   });
 

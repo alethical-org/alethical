@@ -1,3 +1,4 @@
+import { LOBBYING_NO_SPENDING_PAGE } from '@alethical/shared/lobbyingRecordCopy';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import {
@@ -307,16 +308,20 @@ export function Lobbying(_props: { match: RouteMatch }) {
                       <div
                         role="table"
                         aria-label={tab === 'lobbyists' ? 'Lobbyists' : 'Principals'}
-                        className="lb-table"
+                        className={tab === 'lobbyists' ? 'lb-table' : 'lb-table lb-table-two'}
                       >
                         <div role="row" className="lb-tr lb-head">
                           <span role="columnheader">NAME</span>
                           <span role="columnheader">
                             {tab === 'lobbyists' ? 'REGISTRATION' : 'ENTITY ID'}
                           </span>
-                          <span role="columnheader" className="lb-third">
-                            {tab === 'lobbyists' ? 'CLIENTS LISTED' : 'LATEST SPENDING YEAR'}
-                          </span>
+                          {/* The principals' drawn "Reported spending {year}" column waits for
+                              its server route (#2783); no stand-in figure is shown. */}
+                          {tab === 'lobbyists' && (
+                            <span role="columnheader" className="lb-third">
+                              CLIENTS LISTED
+                            </span>
+                          )}
                         </div>
                         {isLobbyists(reported) &&
                           reported.lobbyists.map((row) => (
@@ -368,25 +373,8 @@ export function Lobbying(_props: { match: RouteMatch }) {
                                 </span>
                                 <span role="cell" className="lb-second f-num">
                                   Entity ID {row.entity_id}
+                                  {!row.linkable && ` · ${LOBBYING_NO_SPENDING_PAGE}`}
                                 </span>
-                                {row.linkable ? (
-                                  <span role="cell" className="lb-third lb-strong f-num">
-                                    {row.latest_reported_year != null ? (
-                                      <>
-                                        <span className="lb-phone-only">
-                                          Latest spending year in these records:{' '}
-                                        </span>
-                                        {row.latest_reported_year}
-                                      </>
-                                    ) : (
-                                      <span className="lb-missing">Not reported</span>
-                                    )}
-                                  </span>
-                                ) : (
-                                  <span role="cell" className="lb-third lb-missing">
-                                    No spending page available
-                                  </span>
-                                )}
                               </div>
                             );
                           })}

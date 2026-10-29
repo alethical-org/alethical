@@ -144,8 +144,11 @@ Media buys: `/` (landing), `/home`, `/search`, `/organizations/:id`, `/money`,
 `/media-buys/agencies/:name`, `/media-buys/stations/:id`, `/media-buys/check`, `/people`,
 `/people/:id`, `/candidates/:id`, `/legislators/:id`, `/bills`, `/bills/:id`, `/votes/:id`.
 Built: `/`, `/home`, `/sign-in`, `/auth/return`, `/search`, `/people`, `/candidates/:id`,
-`/legislators/:id`, `/money`, `/money/committees/:id`, `/legislature/committees/:id/members`,
-`/bills`, `/bills/:id` and `/votes/:id` (§ Research pages). Every other address answers "We
+`/legislators/:id`, `/money`, `/money/committees/:id`, `/money/names/:query`,
+`/money/races/:id`, `/money/employers`, `/money/employers/:name`,
+`/legislature/committees/:id/members`, `/lobbying`, `/lobbying/lobbyists/:id`,
+`/lobbying/principals/:id`, `/organizations/:id`, `/bills`, `/bills/:id` and `/votes/:id`
+(§ Research pages). Every other address answers "We
 couldn’t find that page" until its screen is built (`BUILT` in `apps/finance/src/routes.ts`).
 Every link is built from these patterns (`hrefFor`), is a real link that opens in a new tab and
 copies, and works with Back and Forward. While the screens are off, only `/`, `/sign-in` and
@@ -191,6 +194,33 @@ figure is ever added across committees or members.
 - **Committee members' campaign accounts (`/legislature/committees/:id/members`)**: each
   member of a sitting legislative committee with their own confirmed accounts and that
   year's report figures, read 1 member at a time and never combined.
+- **Payments under this name (`/money/names/:query?role=`)**: every payment record filed under
+  1 exact printed spelling, as a payee (campaign spending and outside spending listed
+  separately, never added together), a donor or an employer, with each record's date, amount,
+  committee and source evidence ("{payer} to {recipient}"). A confirmed identity box appears
+  only when a confirmation covers that exact spelling.
+- **Donors by employer (`/money/employers`, `/money/employers/:name`)**: the donors who printed
+  1 exact employer spelling, each donor's payments listed apart with "Employer name as printed"
+  on every row; no total is ever added across donors, and a donor's payments are never the
+  employer's money. No server list of employer spellings exists yet, so `/money/employers`
+  offers a search box that opens 1 exact spelling.
+- **Money by race (`/money/races/:id?year=`)**: 1 contest's candidate committees, each with its
+  own reported total and itemized contributions and their periods, and outside spending by
+  spender, never added across committees. The address names the contest (`house-34b`,
+  `senate-41`, `governor`).
+- **Lobbying (`/lobbying`)**: registered lobbyists and principals, searched and paged on the
+  server, names A to Z. The drawing's principal spending column and year menu wait for their
+  server route.
+- **Lobbyist (`/lobbying/lobbyists/:id`)** and **Principal (`/lobbying/principals/:id`)**: a
+  lobbyist's registration, the organizations it represented on the copy date (5 at a time with
+  "Show more") and its matched campaign contribution records; a principal's spending by year
+  and category and the lobbyists listed for it.
+- **Organization profile (`/organizations/:id`)**: 1 confirmed organization's lobbying,
+  political giving and payments received, read only for the exact spellings and records its
+  confirmations cover. A merged record's address opens the surviving record; a split record's
+  address lists the records it became.
+- **Not built yet:** Vendors and payees (`/money/recipients`) answers "not found" until the
+  server serves its drawn payee list and confirmed vendors.
 - **Legislation (`/bills`)**: bills searched by words or number, with Session, Chamber and
   Status menus, 20 a page.
 - **Bill (`/bills/:id`)**: the plain-language title, Summary (with passages from the bill

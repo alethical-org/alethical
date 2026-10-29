@@ -343,6 +343,10 @@ export function Lobbyist({ match }: { match: RouteMatch }) {
     ? (shown.name ?? shown.formatted_name ?? `Registration ${shown.registration_number}`)
     : '';
   const orgs = shown?.principals.rows ?? [];
+  // 5 at a time with "Show more", the approved reveal for a lobbyist's clients.
+  const [orgsShown, setOrgsShown] = useState(LOBBYING_RECORD_REVEAL_STEP);
+  useEffect(() => setOrgsShown(LOBBYING_RECORD_REVEAL_STEP), [reg]);
+  const visibleOrgs = orgs.slice(0, orgsShown);
   const contributionsCopied =
     shown &&
     shown.contributions.state === 'reported' &&
@@ -391,7 +395,7 @@ export function Lobbyist({ match }: { match: RouteMatch }) {
                   <div className="f-empty-box lbl-box">{COPY.noPrincipals}</div>
                 ) : (
                   <ul className="lb-list">
-                    {orgs.map((row) => {
+                    {visibleOrgs.map((row) => {
                       const shownName = row.spending_name ?? row.name;
                       const note = [
                         `Entity ID ${row.entity_id}`,
@@ -417,6 +421,17 @@ export function Lobbyist({ match }: { match: RouteMatch }) {
                       );
                     })}
                   </ul>
+                )}
+                {orgs.length > visibleOrgs.length && (
+                  <div className="lbl-more">
+                    <button
+                      type="button"
+                      className="f-btn f-btn-secondary lbl-more-btn"
+                      onClick={() => setOrgsShown((value) => value + LOBBYING_RECORD_REVEAL_STEP)}
+                    >
+                      {lobbyingRevealLabel(orgs.length - visibleOrgs.length, 'client', 'clients')}
+                    </button>
+                  </div>
                 )}
               </section>
               <Donations record={shown} from={here} onRetry={read.retry} retrying={read.pending} />

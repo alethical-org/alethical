@@ -545,13 +545,13 @@ describe('Organization profile', () => {
   it('opens the surviving record for a merged reference, keeping the return context', async () => {
     const merged: Identity = { ...EMPTY, status: 'merged', redirect_to: SURVIVOR };
     await render(
-      `/organizations/${ORG}?from=%2Fmoney%2Frecipients`,
+      `/organizations/${ORG}?from=%2Fmoney`,
       answering(merged, {
         [`/finance/identities/${SURVIVOR}`]: json({ ...EMPTY, id: SURVIVOR }),
       }),
     );
     expect(window.location.pathname).toBe(`/organizations/${SURVIVOR}`);
-    expect(window.location.search).toBe('?from=%2Fmoney%2Frecipients');
+    expect(window.location.search).toBe('?from=%2Fmoney');
   });
 
   it('opens a correction page listing every record a split reference became', async () => {
@@ -575,8 +575,8 @@ describe('Organization profile', () => {
   });
 
   it('shows a back link only when reached with one', async () => {
-    await render(`/organizations/${ORG}?from=%2Fmoney%2Frecipients`, answering(EMPTY));
-    expect(text()).toContain('Back to Vendors and payees');
+    await render(`/organizations/${ORG}?from=%2Fmoney`, answering(EMPTY));
+    expect(text()).toContain('Back to Campaign money');
     act(() => root.unmount());
     root = createRoot(container);
     await render(`/organizations/${ORG}`, answering(EMPTY));
