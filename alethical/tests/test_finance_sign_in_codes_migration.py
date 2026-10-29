@@ -41,7 +41,7 @@ def test_finance_sign_in_codes_upgrade_downgrade_upgrade():
                 )
                 assert result.returncode == 0, result.stdout + result.stderr
 
-            migrate("upgrade", "0076_finance_sign_in_codes")
+            migrate("upgrade", "0077_finance_sign_in_codes")
             columns = {
                 column["name"]: column
                 for column in inspect(engine).get_columns("finance_sign_in_code")
@@ -71,15 +71,15 @@ def test_finance_sign_in_codes_upgrade_downgrade_upgrade():
                         " ('finance_sign_in_code', 'finance_sign_in_challenge')"
                     )
                 ).all() == [True, True]
-            migrate("downgrade", "0075_finance_access_list")
+            migrate("downgrade", "0076_identity_confirmations")
             tables = inspect(engine).get_table_names()
             assert "finance_sign_in_code" not in tables
             assert "finance_sign_in_challenge" not in tables
-            migrate("upgrade", "0076_finance_sign_in_codes")
+            migrate("upgrade", "0077_finance_sign_in_codes")
             with engine.connect() as db:
                 assert (
                     db.scalar(text("SELECT version_num FROM alembic_version"))
-                    == "0076_finance_sign_in_codes"
+                    == "0077_finance_sign_in_codes"
                 )
         finally:
             engine.dispose()

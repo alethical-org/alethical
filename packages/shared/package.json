@@ -1,0 +1,26 @@
+{
+  "name": "@alethical/shared",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The single import point for alethical.com's display, wording and API-type modules that work outside React Native. Each subpath re-exports 1 file that still lives in apps/frontend/src.",
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/auth-js": "2.112.2",
+    "@tanstack/react-query": "5.101.4"
+  },
+  "peerDependencies": {
+    "react": "19.2.3"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.18",
+    "react": "19.2.3",
+    "typescript": "6.0.3"
+  }
+}

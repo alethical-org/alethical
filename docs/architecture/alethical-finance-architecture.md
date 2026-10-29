@@ -16,7 +16,7 @@ signed-in screens are approved.
 |---|---|
 | Collection of every source (Campaign Finance Board, lobbying, Legislature, Secretary of State, FCC station files) | `alethical/pipeline/`, the scheduled jobs in [jobs-and-scripts.md](../operations/jobs-and-scripts.md) |
 | 1 database | `alethical/db/models.py`; [db-schema-system-design.md](db-schema-system-design.md) |
-| Checks and confirmations: committee matches, station-file facts and connections, identity links | `legislator_campaign_committee`, `tv_ad_fact`, `tv_ad_connection` |
+| Checks and confirmations: committee matches, station-file facts and connections, identity confirmations | `legislator_campaign_committee`, `tv_ad_fact`, `tv_ad_connection`, `identity_confirmation` |
 | Calculations: totals, reconciliations, record counts | `alethical/api/services/` |
 | Product rules: cite or refuse, no money chains, missing never zero | [`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) |
 | Sign-in | Supabase Auth ([backend-stack.md](backend-stack.md) §4) |
@@ -37,7 +37,8 @@ reply that arrives after a newer one. Media buys (§6) answers under `/media-buy
 `connections`, `files/{key}` with its original page images at `files/{key}/pages/{page}`,
 `folders/{key}`, `agencies/{key}` and `stations/{key}`
 ([tv-ad-records-guide.md](../product-onboarding/tv-ad-records-guide.md), In Alethical
-Finance). The access check reads the list through its own short
+Finance). Identity confirmations (§4) answer under `/identities/`
+(`alethical/api/routers/finance_identities.py`). The access check reads the list through its own short
 database session, so the money search still reads its whole answer from 1 instant of the
 database.
 
@@ -49,10 +50,21 @@ database.
 - **Finance's front end is its own React web app** (`apps/finance`), not a themed mode of
   the alethical.com app. A shared mode would tie every release of 1 site to the other and
   hold Finance to the public app's phone-first framework (React Native for web).
-- **The code that decides wording and figures is shared.** The display modules under
-  `apps/frontend/src/lib`, `apps/frontend/src/hooks` and the API client move into a
-  package both front ends import, so a wording or display rule changes in 1 place. 10 of
-  those 415 files import React Native; the rest move unchanged.
+- **The code that decides wording and figures is shared.** The workspace package
+  `@alethical/shared` (`packages/shared`) is the single import point for alethical.com's
+  display and wording modules, so a wording or display rule changes in 1 place. Finance
+  imports them only from it, 1 subpath per module (`@alethical/shared/moneyFormat`). The
+  files stay where they are, under `apps/frontend/src/lib`, `apps/frontend/src/hooks` and
+  `apps/frontend/src/data`, and the package re-exports them; alethical.com keeps importing
+  them directly and switches to the package file by file as each file moves into it.
+- **The package offers a module only when Finance's own build can use it.** Nothing it
+  imports, directly or through its own imports, may reach React Native, Expo, React
+  Navigation or alethical.com's navigation, providers, screens or components; read Expo's
+  build-time `process.env` or `__DEV__`; or have a platform-specific twin such as
+  `supabase.web.ts`. `packages/shared/test/importGraph.test.mjs` fails otherwise, and the
+  package type-checks under Finance's compiler settings. The API client
+  (`apps/frontend/src/data/api.ts`) imports React Native, so the package offers only its
+  response types (`@alethical/shared/data/types`).
 - **1 guide per data feature**, with a short section for each site's differences, rather
   than a second guide per site ([workflow.md](../../.claude/rules/workflow.md) rule 6).
 
@@ -107,10 +119,67 @@ in 1 request took 15 seconds. Donors by employer, exactly as printed, is alethic
 - The public-copy steps (a copy with personal details blanked, publication approval) belong
   to alethical.com's public site; Finance has no public pages and does not use them.
 
+### Identity confirmations
+
+A confirmed person or organization (`identity_entity`) ties records together only through
+confirmations (`identity_confirmation`) that name their evidence: a saved source row or an
+official page, words quoted from it and the reviewer's basis. The evidence must print the
+exact name or number confirmed, and the quotation (at least 3 characters) must stand inside
+1 printed value; equal names or numbers are never enough on their own. The routes sit under
+`/api/v1/finance/identities` (`alethical/api/services/identity_confirmations.py`).
+
+- **A printed name is confirmed record by record.** A donor, employer, payee or
+  independent-expenditure payee name covers only the records a person selects. Each record
+  is kept (`identity_confirmed_record`) as a fingerprint: the sha256 of its record kind, its
+  file and the printed fields below, which are stored beside it. The expenditure files print
+  no employer, so their records have 5 fields.
+
+  | Record kind | File | Printed fields fingerprinted |
+  |---|---|---|
+  | Donor name, employer name | Contributions | contributor, employer, recipient registration number, receipt date, amount, ZIP code |
+  | Payee name | Expenditures | payee, paying committee's registration number, date, amount, ZIP code |
+  | Independent-expenditure payee name | Independent expenditures | payee, spender's registration number, date, amount, ZIP code |
+
+  Every read matches the fingerprints against the Board's current file, never by copy or row
+  number, so each refresh re-matches them. Identical repeated rows print the same facts and
+  share 1 claim. A fingerprint that matches no current row stays and shows as no longer in
+  the Board's file. A record added later is never covered until someone confirms it. The
+  database lets each fingerprint belong to only 1 active confirmation. `GET /records` lists
+  the current records printing a name (at most 5,000), each with the confirmation and
+  identity standing for it; the "All records" and "{year} records" choices select
+  fingerprints from that listing when confirming, and nothing about the choice is stored.
+  An identity's `printed_names` gives "Confirmed for {k} of {n} records" for each name.
+- **An identifier is confirmed whole, for all time.** A committee's or lobbyist's
+  registration number, a principal's id, or the id of a held legislator or public person
+  is itself an identifier; at most 1 active confirmation holds each, and `GET /lookup`
+  answers for identifiers only. A held legislator or public person, named by its id exactly
+  as held, needs an https page on Minnesota's own sites (`mn.gov` and its offices,
+  `senate.mn`, `state.mn.us`) whose address is printable ASCII with no backslash.
+- **Decisions are append-only.** A confirmation is never edited; its 1-time withdrawal
+  records a date and reason and takes its claim off every record at once. A merge moves
+  nothing: the merged identity keeps its id and its confirmations, and every lookup follows
+  the redirect to the identity standing today. A split gives every active confirmation
+  standing for the identity, including those of identities merged into it, to exactly 1
+  part, each part at least 1; each is withdrawn and replaced on its part with the same
+  evidence, check date and records and a pointer to the one it replaces. Withdrawn
+  confirmations stay behind as history. A replacement counts as team-made only when the
+  original and the split both were (§5).
+- **Every account sees everything.** Every change is kept in `identity_event`, and every
+  identity, confirmation and event records whether a team account made it, which Finance
+  never shows; no answer names who made a change. Every Finance account reads every
+  confirmation, so the names, relations, bases and reasons typed into them must never hold
+  anything confidential; the API's field descriptions say so.
+
 ## 5. What alethical.com prints from work done in Finance
 
 - A check or confirmation made in Finance appears on alethical.com only when an account of
   Alethical's own team made it. alethical.com stands behind every confirmation it prints.
+- Any Finance account can withdraw any confirmation, and merge or split any identity, and
+  every Finance account sees the result. alethical.com changes only on decisions a team
+  account made: when it reads identities, it follows only merges and splits a team account
+  made, so another account's merge never redirects a team-made confirmation there, and it
+  keeps printing a team-made confirmation until a team account withdraws it. Every
+  withdrawal, merge and split records in `identity_event` whether a team account made it.
 - Inside Finance every account sees every check. No check names the account that made it.
 
 ## 6. Media buys

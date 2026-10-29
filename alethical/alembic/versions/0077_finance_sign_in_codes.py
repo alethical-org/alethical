@@ -12,8 +12,8 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = "0076_finance_sign_in_codes"
-down_revision = "0075_finance_access_list"
+revision = "0077_finance_sign_in_codes"
+down_revision = "0076_identity_confirmations"
 branch_labels = None
 depends_on = None
 
