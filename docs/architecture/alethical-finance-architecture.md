@@ -104,7 +104,11 @@ held produce an unavailable state, never a zero. A requested release that change
   report's end. Filing dates never come from period ends. Retained figures keep their
   own copy date.
 - `/committees/{number}/payment-groups` pages exact named groups for one filing year and
-  direction, with whole-filter group and payment counts. Contribution categories stay
+  direction, with whole-filter group/payment counts and itemized amount before paging.
+  The same missing-amount and complete-period rules apply to that whole-filter total.
+  An optional exact source `record_number` locates its complete group and exact row
+  offset for a notice link, even beyond its first preview page.
+  Contribution categories stay
   separate; outgoing transfers retain the receiving committee's filed number. Unnamed
   records stay individual. A sum is withheld if any amount is missing; every shown sum
   has a complete date span or the held filing-year span, never a substituted transaction

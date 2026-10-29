@@ -489,6 +489,7 @@ def committee_groups(
     limit: int,
     offset: int,
     release_id: UUID | None = None,
+    record_number: int | None = None,
 ):
     scope = {
         "registration_number": registration,
@@ -497,6 +498,15 @@ def committee_groups(
         "tab": tab,
         "q": q,
         "sort": sort,
+        "record_number": record_number,
+        "located_record": None,
+        "amount": None,
+        "missing_amounts": None,
+        "period_basis": None,
+        "first_date": None,
+        "last_date": None,
+        "first_year": None,
+        "last_year": None,
     }
     try:
         release = _committee_release(db, registration, year, direction, release_id)
@@ -546,11 +556,63 @@ def committee_groups(
             where.append(grouped.c.tab == tab)
         if q:
             where.append(grouped.c.name.icontains(q, autoescape=True))
-        total, count = db.execute(
-            select(func.count(), func.coalesce(func.sum(grouped.c.payment_count), 0))
-            .where(*where)
-            .select_from(grouped)
-        ).one()
+        if record_number is not None:
+            # Locate the whole group, not just the notice-matched row inside it.
+            where.append(
+                grouped.c.key
+                == select(base.c.group_key)
+                .where(base.c.row_number == record_number)
+                .scalar_subquery()
+            )
+        total, count, raw_amount, missing_amounts, first_date, last_date, all_dated = (
+            db.execute(
+                select(
+                    func.count(),
+                    func.coalesce(func.sum(grouped.c.payment_count), 0),
+                    func.sum(grouped.c.amount),
+                    func.coalesce(func.sum(grouped.c.missing_amounts), 0),
+                    func.min(grouped.c.first_date),
+                    func.max(grouped.c.last_date),
+                    func.bool_and(grouped.c.period_basis == "dates"),
+                )
+                .where(*where)
+                .select_from(grouped)
+            ).one()
+        )
+        located_record = None
+        if record_number is not None and total:
+            ranked = (
+                select(
+                    base.c.row_number,
+                    base.c.group_key,
+                    (
+                        func.row_number().over(
+                            order_by=(
+                                base.c.group_date.desc().nulls_last(),
+                                base.c.row_number.desc(),
+                            )
+                        )
+                        - 1
+                    ).label("offset"),
+                )
+                .where(
+                    base.c.group_key
+                    == select(base.c.group_key)
+                    .where(base.c.row_number == record_number)
+                    .scalar_subquery()
+                )
+                .subquery()
+            )
+            located = db.execute(
+                select(ranked.c.group_key, ranked.c.offset).where(
+                    ranked.c.row_number == record_number
+                )
+            ).one()
+            located_record = {
+                "record_number": record_number,
+                "group_key": located.group_key,
+                "offset": located.offset,
+            }
         order = {
             "name": (),
             "total": (grouped.c.amount.desc().nulls_last(),),
@@ -578,8 +640,18 @@ def committee_groups(
         return {
             **scope,
             "state": state,
+            "located_record": located_record,
             "total": total if state != "unavailable" else None,
             "total_payments": int(count) if state != "unavailable" else None,
+            "amount": str(raw_amount)
+            if raw_amount is not None and not missing_amounts
+            else None,
+            "missing_amounts": int(missing_amounts) if state != "unavailable" else None,
+            "period_basis": ("dates" if all_dated else "years") if count else None,
+            "first_date": first_date,
+            "last_date": last_date,
+            "first_year": year if count else None,
+            "last_year": year if count else None,
             "tab_counts": {key: int(value) for key, value in tab_counts.items()},
             "rows": [
                 {

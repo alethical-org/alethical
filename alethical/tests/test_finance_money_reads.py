@@ -587,3 +587,77 @@ def test_report_source_no_longer_held_is_unavailable(finance_api, finance_db):
     _filings_snapshot(finance_db, report_count=1)
     data = get(finance_api, "/committees/18135/report-figures", year=2026)
     assert data["state"] == "unavailable" and data["reports"] == []
+
+
+def test_committee_group_summary_covers_whole_filter_and_locates_notice_row(
+    finance_api, finance_db, board
+):
+    path = "/committees/18135/payment-groups"
+    data = get(finance_api, path, year=2026, limit=1)
+    assert data["total"] == 2 and len(data["rows"]) == 1
+    assert Decimal(data["amount"]) == Decimal("750")
+    assert data["missing_amounts"] == 0 and data["period_basis"] == "dates"
+    assert data["first_date"] == data["last_date"] == "2026-03-02"
+    assert data["first_year"] == data["last_year"] == 2026
+    located = get(finance_api, path, year=2026, record_number=31)
+    assert located["total"] == 1 and located["total_payments"] == 2
+    assert located["rows"][0]["name"] == DONOR
+    assert {row["record_number"] for row in located["rows"][0]["payments"]} == {31, 33}
+    assert Decimal(located["amount"]) == 500
+    finance_db.add(
+        gift(board.contributions_snapshot_id, 71, amount=None, receipt_date=None)
+    )
+    finance_db.commit()
+    withheld = get(finance_api, path, year=2026, limit=1)
+    assert withheld["amount"] is None and withheld["missing_amounts"] == 1
+    assert withheld["period_basis"] == "years"
+    assert withheld["total_payments"] == 4
+    filtered = get(finance_api, path, year=2026, q="Morgan")
+    assert Decimal(filtered["amount"]) == 250 and filtered["missing_amounts"] == 0
+    assert filtered["period_basis"] == "dates"
+
+
+def test_notice_locator_reports_offset_beyond_preview_and_zero_year_sum(
+    finance_api, finance_db, board
+):
+    from sqlalchemy import text
+
+    for number in range(71, 131):
+        finance_db.add(
+            gift(board.contributions_snapshot_id, number, receipt_date=date(2026, 4, 1))
+        )
+    finance_db.commit()
+    data = get(
+        finance_api, "/committees/18135/payment-groups", year=2026, record_number=31
+    )
+    located = data["located_record"]
+    assert located == {
+        "record_number": 31,
+        "group_key": data["rows"][0]["key"],
+        "offset": 61,
+    }
+    assert all(row["record_number"] != 31 for row in data["rows"][0]["payments"])
+    row_page = get(
+        finance_api,
+        "/committees/18135/group-payments",
+        year=2026,
+        key=located["group_key"],
+        offset=located["offset"],
+        limit=1,
+        release_id=data["release_id"],
+    )
+    assert row_page["payments"][0]["record_number"] == 31
+    finance_db.execute(
+        text(
+            "UPDATE cf_contribution_row SET receipt_date=NULL, amount=CASE WHEN row_number=31 THEN -15500 ELSE 250 END WHERE snapshot_id=:id AND year=2026"
+        ),
+        {"id": board.contributions_snapshot_id},
+    )
+    finance_db.commit()
+    summary = get(finance_api, "/committees/18135/payment-groups", year=2026, limit=1)
+    assert Decimal(summary["amount"]) == 0
+    assert (
+        summary["period_basis"] == "years"
+        and summary["first_year"] == summary["last_year"] == 2026
+    )
+    assert summary["first_date"] is None and summary["last_date"] is None

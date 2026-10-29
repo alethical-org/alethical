@@ -74,6 +74,7 @@ def committee_groups(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0, le=2147483647),
     release_id: UUID | None = None,
+    record_number: int | None = Query(None, ge=1, le=2147483647),
     db: Session = Depends(get_db),
 ):
     return DetailResponse(
@@ -88,6 +89,7 @@ def committee_groups(
             limit=limit,
             offset=offset,
             release_id=release_id,
+            record_number=record_number,
         )
     )
 
