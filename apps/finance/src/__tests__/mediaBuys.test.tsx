@@ -219,7 +219,7 @@ describe('Media buys reads', () => {
     const link = container.querySelector('a[href*="/files/"]')?.getAttribute('href');
     expect(link).toContain(`version=${OLD}`);
     expect(link).toContain('page=4');
-    expect(container.querySelector('a[href*="role=vendor"]')).toBeTruthy();
-    expect(container.querySelector('a[href*="role=independent_vendor"]')).toBeTruthy();
+    expect(container.querySelector('a[href*="section=campaign-payments"]')).toBeTruthy();
+    expect(container.querySelector('a[href*="section=outside-payments"]')).toBeTruthy();
   });
 });

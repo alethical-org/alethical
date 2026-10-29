@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 
 import { campaignMoneyHistoryYears } from '@alethical/shared/campaignMoneyYears';
 import { UNNAMED_PAYMENT_PARTY } from '@alethical/shared/committeeMoneyShared';
@@ -15,7 +15,7 @@ import {
   UNKNOWN_FILING_YEAR,
 } from '@alethical/shared/paymentsUnderName';
 
-import { Link, navigate, useLocation } from '../router';
+import { cameByHistory, Link, navigate, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
@@ -438,6 +438,19 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
   const allLoading = reads.every((read) => read.loading);
   const allFailed = reads.every((read) => read.failed && !read.data);
   const updating = reads.some((read) => read.updating);
+  const requestedSection = location.searchParams.get('section');
+  const focusedSection = useRef<string | null>(null);
+  useEffect(() => {
+    const target = `${name}|${role}|${requestedSection}`;
+    if (allLoading || allFailed || focusedSection.current === target || cameByHistory()) return;
+    if (!sectionsFor(role).some((spec) => spec.id === requestedSection)) return;
+    const heading = document.getElementById(`pn-${requestedSection}`);
+    if (!heading) return;
+    focusedSection.current = target;
+    heading.focus({ preventScroll: true });
+    heading.scrollIntoView?.({ block: 'start' });
+  }, [name, role, requestedSection, allLoading, allFailed]);
+
   const loaded = sections.map((spec, index) => ({ spec, data: reads[index].data }));
   const copies = copyLines(
     loaded
@@ -611,7 +624,7 @@ function Section({
   return (
     <section aria-labelledby={headingId} className="pn-section" ref={reveal.list}>
       <div className="pn-section-head">
-        <h2 id={headingId} className="f-section-title">
+        <h2 id={headingId} tabIndex={-1} className="f-section-title">
           {spec.title}
         </h2>
         {data && data.state !== 'unavailable' && (

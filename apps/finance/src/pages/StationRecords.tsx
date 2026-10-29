@@ -229,7 +229,11 @@ export function PrintedAgency({ match }: { match: RouteMatch }) {
             <p>
               <Link
                 to={withFrom(
-                  hrefFor('payments-under-name', { query: data.name }, { role: 'vendor' }),
+                  hrefFor(
+                    'payments-under-name',
+                    { query: data.name },
+                    { role: 'payee', section: 'campaign-payments' },
+                  ),
                   here,
                 )}
               >
@@ -242,7 +246,7 @@ export function PrintedAgency({ match }: { match: RouteMatch }) {
                   hrefFor(
                     'payments-under-name',
                     { query: data.name },
-                    { role: 'independent_vendor' },
+                    { role: 'payee', section: 'outside-payments' },
                   ),
                   here,
                 )}
