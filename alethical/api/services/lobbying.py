@@ -12,7 +12,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import String, and_, cast, func, or_, select, text, union_all
+from sqlalchemy import String, and_, case, cast, func, or_, select, text, union_all
 from sqlalchemy.orm import Session
 
 from alethical.api.services.campaign_finance_register import name_contains
@@ -207,7 +207,14 @@ def _principal_names(pair: PublishedPair):
 
 
 def principals_page(
-    db: Session, pair: PublishedPair | None, *, limit: int, offset: int, query: str = ""
+    db: Session,
+    pair: PublishedPair | None,
+    *,
+    limit: int,
+    offset: int,
+    query: str = "",
+    year: int | None = None,
+    sort: str = "name",
 ) -> dict:
     base = {
         **_stamp(pair),
@@ -215,6 +222,9 @@ def principals_page(
         "offset": offset,
         "q": query,
         "matched_on": "substring_of_the_filed_name",
+        "year": year,
+        "sort": sort,
+        "years": [],
     }
     if pair is None:
         return {
@@ -226,12 +236,53 @@ def principals_page(
             "latest_reported_year": None,
         }
     names = _principal_names(pair)
+    spending = schema.LobbyingExpenditureRow
+    years = list(
+        db.scalars(
+            select(spending.report_year)
+            .where(
+                spending.snapshot_id == pair.expenditure_snapshot_id,
+                spending.report_year.is_not(None),
+            )
+            .distinct()
+            .order_by(spending.report_year.desc())
+        )
+    )
+    selected_year = year if year is not None else _latest_year(db, pair)
+    base.update(year=selected_year, years=years)
+    # A reported total is one filed row, never a sum of rows or categories.
+    figures = (
+        select(
+            spending.entity_id,
+            func.count().label("rows"),
+            func.max(spending.total_spent).label("total_spent"),
+        )
+        .where(
+            spending.snapshot_id == pair.expenditure_snapshot_id,
+            spending.report_year == selected_year,
+        )
+        .group_by(spending.entity_id)
+        .subquery()
+    )
+    reported_total = case((figures.c.rows == 1, figures.c.total_spent), else_=None)
+    order = (
+        (reported_total.desc().nulls_last(),)
+        if sort == "spending_desc"
+        else (reported_total.asc().nulls_last(),)
+        if sort == "spending_asc"
+        else ()
+    )
     where = (name_contains(names.c.name, query.strip()),) if query.strip() else ()
     total = db.scalar(select(func.count()).select_from(names).where(*where))
     rows = db.execute(
-        select(names)
+        select(
+            names,
+            figures.c.rows.label("spending_rows"),
+            reported_total.label("total_spent"),
+        )
+        .outerjoin(figures, figures.c.entity_id == names.c.entity_id)
         .where(*where)
-        .order_by(names.c.name, names.c.entity_id)
+        .order_by(*order, names.c.name, names.c.entity_id)
         .limit(limit)
         .offset(offset)
     ).all()
@@ -265,6 +316,17 @@ def principals_page(
                 "state": REPORTED if row.source == "0" else "no_spending_rows",
                 "linkable": row.source == "0",
                 "latest_reported_year": row.latest_reported_year,
+                "spending_year": selected_year,
+                "total_spent": str(row.total_spent)
+                if row.total_spent is not None
+                else None,
+                "spending_state": (
+                    "ambiguous"
+                    if row.spending_rows and row.spending_rows > 1
+                    else REPORTED
+                    if row.total_spent is not None
+                    else NOT_REPORTED
+                ),
             }
             for row in rows
         ],

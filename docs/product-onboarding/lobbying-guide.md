@@ -121,6 +121,19 @@ the directory and search, with "No spending rows in the Board's file through {la
 so no page to open". A link requires spending rows under the same entity ID. The displayed
 record name comes from the spending file where that file holds the principal.
 
+## Finance principal spending directory
+
+`GET /api/v1/lobbying/principals` accepts `year` and `sort` (`name`,
+`spending_desc`, `spending_asc`). It defaults to the newest year with a reported
+amount. Each row keeps its registration and latest reported year, and adds the
+selected `spending_year`, the source's `total_spent`, and `spending_state`.
+A missing total stays null; 2 source rows for the same principal and year return
+`ambiguous` with no total. Categories and years are never added together.
+Missing amounts sort after reported amounts in either direction. The response
+lists held `years` and names the source copy; source-copy dates never stand in
+for the spending year. These added fields support Finance's approved directory
+without changing the public site's display.
+
 ## Annual donation order in the lobbyist directory
 
 `/money/lobbying/lobbyists` adds Year and Sort by controls. The page opens on
