@@ -211,3 +211,25 @@ def test_graph_withholds_sum_without_complete_period_and_rejects_nul(
     assert edge["period_basis"] == "unknown"
     for field in ("q", "focus"):
         assert finance_api.get(BASE, params={field: "bad\x00input"}).status_code == 422
+
+
+def test_donor_number_without_held_filer_stays_a_printed_name(
+    finance_api, finance_db, board
+):
+    finance_db.add(
+        gift(
+            board.contributions_snapshot_id,
+            99,
+            contributor="Unresolved numbered donor",
+            contrib_reg_num="90001",
+            contrib_type="Lobbyist",
+        )
+    )
+    finance_db.commit()
+    data = get(finance_api, q="Unresolved numbered")
+    node = next(n for n in data["nodes"] if n["label"] == "Unresolved numbered donor")
+    assert node["kind"] == "printed_name" and node["role"] == "donor"
+    assert node["target"]["kind"] == "printed_name"
+    outgoing = get(finance_api, relationship="payments")
+    standalone = next(n for n in outgoing["nodes"] if n["record_id"] == "40100")
+    assert standalone["target"] is None

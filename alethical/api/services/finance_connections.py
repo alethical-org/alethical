@@ -14,6 +14,7 @@ from alethical.api.services import (
 )
 from alethical.api.services import lobbying, tv_ads as station_reader
 from alethical.api.services.campaign_finance_search import name_contains
+from alethical.api.services.campaign_finance_payments import linkable_committees
 from alethical.db import models as m
 from alethical.pipeline import campaign_finance_reader as reader
 
@@ -217,6 +218,18 @@ def _money(db, release, kind, *, entities, identifiers, query, year, focus, take
     ]
     printed = _column_node("printed_name", name, name, role, identifiers)
     if is_gift:
+        held_filers = linkable_committees(
+            db,
+            release,
+            db.scalars(
+                select(model.contrib_reg_num)
+                .where(
+                    model.snapshot_id == source.snapshot_id,
+                    model.contrib_reg_num.is_not(None),
+                )
+                .distinct()
+            ).all(),
+        )
         registered = _column_node(
             "committee",
             model.contrib_reg_num,
@@ -225,7 +238,7 @@ def _money(db, release, kind, *, entities, identifiers, query, year, focus, take
             identifiers,
         )
         printed = [
-            case((model.contrib_reg_num.is_not(None), a), else_=b)
+            case((model.contrib_reg_num.in_(held_filers), a), else_=b)
             for a, b in zip(registered, printed)
         ]
     confirmation, record = m.IdentityConfirmation, m.IdentityConfirmedRecord
@@ -546,6 +559,7 @@ def connections(
     committee_finance.pin_to_one_view(db)
     entities, identifiers = _identity_maps(db)
     edges, total, years, unavailable = [], 0, set(), []
+    release = None
     take = offset + limit
     if relationship in {"all", "contributions", "payments"}:
         try:
@@ -615,6 +629,20 @@ def connections(
     )
     selected = edges[offset : offset + limit]
     nodes = {n["key"]: n for e in selected for n in e["_nodes"]}
+    if release is not None:
+        money_nodes = {
+            n["key"]: n
+            for e in selected
+            if e["relationship"] in {"contributions", "payments"}
+            for n in e["_nodes"]
+            if n["kind"] == "committee"
+        }
+        linkable = linkable_committees(
+            db, release, [n["record_id"] for n in money_nodes.values()]
+        )
+        for key, node in money_nodes.items():
+            if node["record_id"] not in linkable:
+                nodes[key]["target"] = None
     return {
         "state": "partial"
         if unavailable and total
