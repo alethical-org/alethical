@@ -3384,3 +3384,15 @@ or reported expense). This document does not repeat their rules. 3 documents own
   separation between administrator access to held originals and approved publication
   copies.
 
+
+### Finance payee directory
+
+`GET /api/v1/finance/payees` lists exact printed payee names and the organizations
+confirmed for selected payment records. Year, payment type, name, record kind and
+sort filters run before paging; counts cover the full matching set. Each row
+carries its source file, copy date and payment-date range. Missing dates remain
+missing, and a missing amount withholds the whole row's itemized sum. Refunds
+keep their filed sign. Expenditure and independent-expenditure files remain
+separate rows and amounts because a payment can appear in both. A confirmed
+organization covers only active matching fingerprints, follows identity merges,
+and loses withdrawn claims; new records under the same spelling stay unconfirmed.

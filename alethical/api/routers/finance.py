@@ -20,7 +20,7 @@ from alethical.api.routers.public import same_legislature_session_ids
 from alethical.api.routers.public import search as legislature_search
 from alethical.api.problems import problem_exception
 from alethical.api.serializers import companion_payload, sponsor_payloads
-from alethical.api.services import finance_records
+from alethical.api.services import finance_records, finance_payees
 from alethical.db.models import Bill, Legislator, LegislatorServicePeriod, Sponsorship
 from alethical.db.session import get_db
 
@@ -140,4 +140,30 @@ def bill_authors(bill_id: str, db: Session = Depends(get_db)) -> dict:
             },
             "authors": finance_records.bill_authors(authors, db),
         }
+    }
+
+
+@router.get("/payees")
+def payees(
+    q: str = Query(default="", max_length=200),
+    year: int | None = Query(default=None, ge=2015, le=2100),
+    payment_type: str | None = Query(default=None, max_length=200),
+    tab: finance_payees.PayeeTab = "all",
+    sort: finance_payees.PayeeSort = "name",
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Itemized payee rows, keeping source files and confirmation coverage separate."""
+    return {
+        "data": finance_payees.directory(
+            db,
+            query=q,
+            year=year,
+            payment_type=payment_type,
+            tab=tab,
+            sort=sort,
+            limit=limit,
+            offset=offset,
+        )
     }
