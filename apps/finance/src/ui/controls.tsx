@@ -115,7 +115,18 @@ export function Dropdown<T extends string>({
   // Opening puts focus on the chosen option, so arrow keys start from it.
   useLayoutEffect(() => {
     if (!open) return;
+    function placeMenu() {
+      if (!list.current || !wrapper.current) return;
+      const left = wrapper.current.getBoundingClientRect().left;
+      const width = list.current.getBoundingClientRect().width;
+      const edge = document.documentElement.clientWidth - 16;
+      list.current.style.left = `${Math.max(16 - left, Math.min(0, edge - left - width))}px`;
+    }
+    // A width cap alone does not keep a menu near the right edge on screen.
+    placeMenu();
     list.current?.querySelector<HTMLButtonElement>('[aria-selected="true"] button')?.focus();
+    window.addEventListener('resize', placeMenu);
+    return () => window.removeEventListener('resize', placeMenu);
   }, [open]);
 
   function onListKey(event: KeyboardEvent<HTMLUListElement>) {

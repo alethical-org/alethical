@@ -14,13 +14,14 @@ import type {
   LobbyingSummary,
 } from '@alethical/shared/lobbyingTypes';
 import { centralDateLabel } from '@alethical/shared/moneyLanding';
+import { formatMoney } from '@alethical/shared/moneyFormat';
 
 import { apiPath, useRead } from '../api/read';
 import { Link, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
-import { Dropdown, Empty, LoadingRows, Refused, Tabs, Updating } from '../ui/controls';
+import { ClearAll, Dropdown, Empty, LoadingRows, Refused, Tabs, Updating } from '../ui/controls';
 import { RecordMark } from '../ui/marks';
 import { BackLink, SourcesAndUpdates } from '../ui/parts';
 import { OfficialLink } from './lobbying/parts';
@@ -44,13 +45,20 @@ export function pageFromParam(raw: string): number {
 
 /**
  * One directory page, paged and searched on the server. The lobbyist list opens on
- * annual donation order unless asked; this directory offers Name A–Z only, as drawn,
- * so it always asks for `sort=name`.
+ * annual donation order unless asked, so it always asks for `sort=name`.
+ * Principals can also be sorted by the selected year's reported spending.
  */
-export function listPath(tab: DirectoryTab, query: string, page: number): string {
+export function listPath(
+  tab: DirectoryTab,
+  query: string,
+  page: number,
+  year = '',
+  sort = 'name',
+): string {
   return apiPath(['lobbying', tab], {
     q: query || null,
-    sort: tab === 'lobbyists' ? 'name' : null,
+    sort: tab === 'lobbyists' ? 'name' : sort === 'name' ? null : sort,
+    year: tab === 'principals' ? year || null : null,
     limit: PAGE_SIZE,
     offset: (page - 1) * PAGE_SIZE,
   });
@@ -75,12 +83,30 @@ export function principalsNote(copiedAt: string | null, latestYear: number | nul
   return `This directory includes organizations from different reporting years${list}. Some organizations have no spending page because the Board’s spending file has no rows for them${through}.`;
 }
 
-type Page = LobbyingLobbyistsPage | LobbyingPrincipalsPage;
+export type PrincipalDirectoryRow = LobbyingPrincipalsPage['principals'][number] & {
+  spending_year?: number | null;
+  total_spent?: string | null;
+  spending_state?: 'reported' | 'not_reported' | 'ambiguous';
+};
+type PrincipalsPage = Omit<LobbyingPrincipalsPage, 'principals'> & {
+  year?: number | null;
+  years?: number[];
+  principals: PrincipalDirectoryRow[];
+};
+type Page = LobbyingLobbyistsPage | PrincipalsPage;
+export function principalSpending(row: PrincipalDirectoryRow) {
+  if (row.spending_state === 'ambiguous') return 'Amount unavailable: more than one report';
+  if (row.spending_state === 'reported')
+    return formatMoney(row.total_spent ?? null) ?? 'Amount not given';
+  if (row.spending_state === 'not_reported')
+    return row.linkable ? 'Not reported for this year' : LOBBYING_NO_SPENDING_PAGE;
+  return row.linkable ? 'Amount unavailable' : LOBBYING_NO_SPENDING_PAGE;
+}
 
 function isLobbyists(page: Page | null): page is LobbyingLobbyistsPage {
   return page !== null && 'lobbyists' in page;
 }
-function isPrincipals(page: Page | null): page is LobbyingPrincipalsPage {
+function isPrincipals(page: Page | null): page is PrincipalsPage {
   return page !== null && 'principals' in page;
 }
 
@@ -120,16 +146,30 @@ export function Lobbying(_props: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
   const back = returnTarget(location.search);
-  const [address, setAddress] = useAddressState({ tab: 'lobbyists', q: '', page: '1' });
+  const [address, setAddress] = useAddressState({
+    tab: 'lobbyists',
+    q: '',
+    page: '1',
+    year: '',
+    sort: 'name',
+  });
   const tab = tabFromParam(address.tab);
   const query = address.q.trim().slice(0, MAX_QUERY);
   const page = pageFromParam(address.page);
+  const year = /^(19|20)\d{2}$|^2100$/.test(address.year) ? address.year : '';
+  const sort =
+    tab === 'principals' && ['spending_desc', 'spending_asc'].includes(address.sort)
+      ? address.sort
+      : 'name';
 
   const [typed, setTyped] = useState(query);
   // Back, Forward or a new link changes the address: the field follows it.
   useEffect(() => setTyped(query), [query]);
 
-  const read = useRead<Page>(listPath(tab, query, page), { keepPrevious: true });
+  const read = useRead<Page>(listPath(tab, query, page, year, sort), {
+    keepPrevious: true,
+    acceptData: (data) => data.state !== 'unavailable',
+  });
   // The tab counts are each whole directory; the open tab's own read already holds
   // its count when nothing is searched.
   const lobbyistCount = useRead<LobbyingLobbyistsPage>(
@@ -199,6 +239,13 @@ export function Lobbying(_props: { match: RouteMatch }) {
     (isPrincipals(reported) ? reported.latest_reported_year : null) ??
     summary.data?.latest_reported_year ??
     null;
+  const spendingYear = isPrincipals(reported) ? (reported.year ?? null) : null;
+  const selectedYear = year || (spendingYear === null ? '' : String(spendingYear));
+  const yearOptions = isPrincipals(reported)
+    ? [
+        ...new Set([...(selectedYear ? [Number(selectedYear)] : []), ...(reported.years ?? [])]),
+      ].sort((a, b) => b - a)
+    : [];
   const heldYears = lobbyingHeldYearsNote(summary.data?.first_year ?? null);
   const rowCount = isLobbyists(reported)
     ? reported.lobbyists.length
@@ -256,19 +303,42 @@ export function Lobbying(_props: { match: RouteMatch }) {
                   { value: 'lobbyists', label: 'Lobbyists', count: wholeCount('lobbyists') },
                   { value: 'principals', label: 'Principals', count: wholeCount('principals') },
                 ]}
-                onChange={(next) => setAddress({ tab: next, page: '1' })}
+                onChange={(next) => setAddress({ tab: next, page: '1', sort: 'name' })}
               />
             </div>
             <p className="lb-lane">
               {tab === 'lobbyists' ? COPY.lobbyists.intro : COPY.principals.intro}
             </p>
             <div className="lb-controls">
+              {tab === 'principals' && (
+                <Dropdown
+                  name="Year"
+                  value={selectedYear}
+                  options={
+                    yearOptions.length
+                      ? yearOptions.map((year) => ({ value: String(year), label: String(year) }))
+                      : [{ value: '', label: 'Latest reported year' }]
+                  }
+                  onChange={(year) => setAddress({ year, page: '1' })}
+                />
+              )}
               <Dropdown
                 name="Sort by"
-                value="name"
-                options={[{ value: 'name', label: 'Name A–Z' }]}
-                onChange={() => {}}
+                value={sort}
+                options={
+                  tab === 'principals'
+                    ? [
+                        { value: 'spending_desc', label: 'Recorded amount: highest first' },
+                        { value: 'spending_asc', label: 'Recorded amount: lowest first' },
+                        { value: 'name', label: 'Name A–Z' },
+                      ]
+                    : [{ value: 'name', label: 'Name A–Z' }]
+                }
+                onChange={(sort) => setAddress({ sort, page: '1' })}
               />
+              {tab === 'principals' && (year || sort !== 'name') && (
+                <ClearAll onClick={() => setAddress({ year: '', sort: 'name', page: '1' })} />
+              )}
             </div>
 
             <div ref={list} tabIndex={-1} className="lb-list">
@@ -311,20 +381,20 @@ export function Lobbying(_props: { match: RouteMatch }) {
                       <div
                         role="table"
                         aria-label={tab === 'lobbyists' ? 'Lobbyists' : 'Principals'}
-                        className={tab === 'lobbyists' ? 'lb-table' : 'lb-table lb-table-two'}
+                        className="lb-table"
                       >
                         <div role="row" className="lb-tr lb-head">
                           <span role="columnheader">NAME</span>
                           <span role="columnheader">
                             {tab === 'lobbyists' ? 'REGISTRATION' : 'ENTITY ID'}
                           </span>
-                          {/* The principals' drawn "Reported spending {year}" column waits for
-                              its server route (#2783); no stand-in figure is shown. */}
-                          {tab === 'lobbyists' && (
-                            <span role="columnheader" className="lb-third">
-                              CLIENTS LISTED
-                            </span>
-                          )}
+                          <span role="columnheader" className="lb-third">
+                            {tab === 'lobbyists' ? (
+                              'CLIENTS LISTED'
+                            ) : (
+                              <>REPORTED SPENDING {spendingYear}</>
+                            )}
+                          </span>
                         </div>
                         {isLobbyists(reported) &&
                           reported.lobbyists.map((row) => (
@@ -358,7 +428,13 @@ export function Lobbying(_props: { match: RouteMatch }) {
                             const href =
                               row.linkable && isBuilt('principal')
                                 ? withFrom(
-                                    hrefFor('principal', { id: String(row.entity_id) }),
+                                    hrefFor(
+                                      'principal',
+                                      { id: String(row.entity_id) },
+                                      {
+                                        year: row.spending_year ? String(row.spending_year) : null,
+                                      },
+                                    ),
                                     here,
                                   )
                                 : null;
@@ -376,7 +452,17 @@ export function Lobbying(_props: { match: RouteMatch }) {
                                 </span>
                                 <span role="cell" className="lb-second f-num">
                                   Entity ID {row.entity_id}
-                                  {!row.linkable && ` · ${LOBBYING_NO_SPENDING_PAGE}`}
+                                </span>
+                                <span
+                                  role="cell"
+                                  className={`lb-third lb-spending ${row.spending_state === 'reported' ? 'lb-strong' : 'lb-missing'} f-num`}
+                                >
+                                  <span className="lb-phone-only">
+                                    Reported spending {row.spending_year ?? spendingYear}:{' '}
+                                  </span>
+                                  <span className="lb-spending-value">
+                                    {principalSpending(row)}
+                                  </span>
                                 </span>
                               </div>
                             );
