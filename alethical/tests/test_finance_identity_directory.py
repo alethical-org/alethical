@@ -214,3 +214,10 @@ def test_a_complete_amount_without_any_record_period_is_withheld(
 def test_identity_directory_reads_require_finance_access(client):
     assert client.get(BASE).status_code == 401
     assert client.get(BASE + "/queue").status_code == 401
+
+
+def test_directory_search_refuses_text_the_database_cannot_store(finance_api, board):
+    for path in (BASE, BASE + "/queue"):
+        response = finance_api.get(path, params={"q": "Name\x00"})
+        assert response.status_code == 422
+        assert "cannot be saved" in response.json()["detail"]
