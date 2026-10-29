@@ -1,16 +1,21 @@
-"""Alethical Finance's Media buys: TV station files, read by every Finance account.
+"""Alethical Finance's Media buys: TV station files, read and checked by every
+Finance account.
 
 Behind the Finance access check, through the same readers alethical.com's
 administrators use, in their Finance reading
-(``alethical/api/services/finance_media_buys.py``). Each answer passes through its
-response model in ``alethical/api/finance_media_buys_schemas.py``, so only the
-fields named there reach Finance: never alethical.com's public-copy steps, links
-or account identifiers.
+(``alethical/api/services/finance_media_buys.py``), and Finance's own checks on
+original versions (``alethical/api/services/finance_station_checks.py``). Each
+answer passes through its response model in
+``alethical/api/finance_media_buys_schemas.py``, so only the fields named there
+reach Finance: never alethical.com's public-copy steps, links or account
+identifiers, nor whether a team account made a check.
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query, Response
+from uuid import UUID
+
+from fastapi import APIRouter, Body, Depends, Path, Query, Response
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -18,8 +23,11 @@ from alethical.api import finance_media_buys_schemas as schema
 from alethical.api.finance_access import require_finance_access
 from alethical.api.problems import problem_exception
 from alethical.api.services import finance_media_buys as media
+from alethical.api.services import finance_station_checks as checks
 from alethical.api.services import tv_ad_review as review
 from alethical.api.services import tv_ads as reader
+from alethical.api.services.finance_access import FinanceAccount
+from alethical.db import models as m
 from alethical.db.session import get_db
 
 router = APIRouter(
@@ -48,6 +56,46 @@ def records(db: Session = Depends(get_db)):
             "Records are temporarily unavailable. Try again.",
             type_slug="service-unavailable",
         ) from None
+
+
+def checking(db: Session = Depends(get_db)):
+    """A check's database session: a check that breaks a rule is refused whole,
+    with that rule's fixed sentence as the detail, so a person can fix it."""
+    try:
+        yield db
+    except LookupError:
+        db.rollback()
+        raise problem_exception(404, "Not Found", "Not found.") from None
+    except checks.CorrectionRace:
+        db.rollback()
+        raise problem_exception(
+            409,
+            "Conflict",
+            "This fact was corrected a moment ago. Reload and check.",
+        ) from None
+    except ValueError as refusal:
+        db.rollback()
+        raise problem_exception(422, "Check not saved", str(refusal)) from None
+    except SQLAlchemyError:
+        db.rollback()
+        raise problem_exception(
+            503,
+            "Records unavailable",
+            "Records are temporarily unavailable. Try again.",
+            type_slug="service-unavailable",
+        ) from None
+
+
+VERSION = Path(pattern=r"^[a-f0-9]{64}$")
+
+
+def saved(row) -> dict:
+    return {
+        "data": {
+            "id": str(row.id),
+            "status": "withdrawn" if row.withdrawn_at else "checked",
+        }
+    }
 
 
 def answer(model):
@@ -145,3 +193,89 @@ def agency(key: str, db: Session = Depends(records)) -> dict:
 @router.get("/stations/{key}", **answer(schema.FinanceStation))
 def station(key: str, db: Session = Depends(records)) -> dict:
     return {"data": media.station(db, key)}
+
+
+@router.get(
+    "/files/{key}/versions/{version}/target-preview",
+    **answer(schema.FinanceTargetPreview),
+)
+def target_preview(
+    key: str,
+    version: str = VERSION,
+    kind: str = Query(max_length=40),
+    target_id: str = Query(max_length=2000),
+    election_stage: str | None = Query(None, max_length=40),
+    money_office: str | None = Query(None, max_length=60),
+    money_district: str | None = Query(None, max_length=60),
+    role: str | None = Query(None, max_length=500),
+    db: Session = Depends(checking),
+) -> dict:
+    return {
+        "data": checks.target_preview(
+            db,
+            key,
+            version,
+            kind,
+            target_id,
+            election_stage=election_stage,
+            money_office=money_office,
+            money_district=money_district,
+            role=role,
+        )
+    }
+
+
+@router.post(
+    "/files/{key}/versions/{version}/facts",
+    status_code=201,
+    **answer(schema.FinanceCheckSaved),
+)
+def add_fact(
+    key: str,
+    version: str = VERSION,
+    payload: dict = Body(),
+    account: FinanceAccount = Depends(require_finance_access),
+    db: Session = Depends(checking),
+) -> dict:
+    row = checks.add_fact(db, account, key, version, payload)
+    db.commit()
+    return saved(row)
+
+
+@router.post(
+    "/files/{key}/versions/{version}/connections",
+    status_code=201,
+    **answer(schema.FinanceCheckSaved),
+)
+def add_connection(
+    key: str,
+    version: str = VERSION,
+    payload: dict = Body(),
+    account: FinanceAccount = Depends(require_finance_access),
+    db: Session = Depends(checking),
+) -> dict:
+    row = checks.add_connection(db, account, key, version, payload)
+    db.commit()
+    return saved(row)
+
+
+def _withdraw(db, model, check_id, payload):
+    if not isinstance(payload, dict) or set(payload) != {"reason"}:
+        raise ValueError("A withdrawal takes its reason and nothing else")
+    row = checks.withdraw(db, model, check_id, payload["reason"])
+    db.commit()
+    return saved(row)
+
+
+@router.post("/facts/{check_id}/withdraw", **answer(schema.FinanceCheckSaved))
+def withdraw_fact(
+    check_id: UUID, payload: dict = Body(), db: Session = Depends(checking)
+) -> dict:
+    return _withdraw(db, m.FinanceTVFact, check_id, payload)
+
+
+@router.post("/connections/{check_id}/withdraw", **answer(schema.FinanceCheckSaved))
+def withdraw_connection(
+    check_id: UUID, payload: dict = Body(), db: Session = Depends(checking)
+) -> dict:
+    return _withdraw(db, m.FinanceTVConnection, check_id, payload)

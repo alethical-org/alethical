@@ -15,7 +15,7 @@ from uuid import UUID
 from types import SimpleNamespace
 from urllib.parse import quote
 
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select, text, tuple_
 from sqlalchemy.orm import Session
 
 from alethical.db import models as m
@@ -150,7 +150,8 @@ def counts(
     """Different denominators deliberately remain separate; never sum these.
 
     ``originals`` is Finance's reading: a file counts as connected when any
-    non-draft copy of it holds a standing connection, published or not."""
+    version of it holds a standing connection, from a non-draft copy of it,
+    published or not, or from Finance's own checks."""
     params = {"station": facility_id, "reader": EXTRACTOR_VERSION}
     row = (
         db.execute(
@@ -198,9 +199,16 @@ def counts(
                 m.TVAdConnection.status == "checked",
             )
         )
+        finance = select(
+            m.FinanceTVConnection.facility_id, m.FinanceTVConnection.file_id
+        ).where(
+            m.FinanceTVConnection.facility_id.in_(STATIONS),
+            m.FinanceTVConnection.withdrawn_at.is_(None),
+        )
         if facility_id:
             query = query.where(m.TVAdPublication.facility_id == facility_id)
-        checked = {tuple(row) for row in db.execute(query)}
+            finance = finance.where(m.FinanceTVConnection.facility_id == facility_id)
+        checked = {tuple(row) for row in db.execute(query.union(finance))}
     elif ids:
         by_id = {p.id: (p.facility_id, p.file_id) for p in approved}
         for c in db.scalars(
@@ -253,40 +261,151 @@ def _shown(db, check):
     return check.status == "checked" and (check.publication_approved or _originals(db))
 
 
-def _original_checks(db):
-    """Facts and file connections from every non-draft copy, keyed by the exact
-    version they were checked on: a check of a copy is a check of its original."""
+def _original_checks(db, files=None):
+    """Facts and file connections on each exact version, in Finance's reading:
+    from every non-draft copy of it (a check of a copy is a check of its
+    original) and Finance's own checks, in the order they were made.
+
+    Read only for the files this projection covers, or for ``files`` ((station,
+    FCC file id) pairs) when the first caller to read checks names them: a read
+    that shows a few files reads only those files' checks."""
     cache = db.info["tv_projection"]
-    if "original_checks" not in cache:
-        copies = (
-            m.TVAdPublication.status != "draft",
-            m.TVAdPublication.facility_id.in_(STATIONS),
-        )
-        version = (
-            m.TVAdPublication.facility_id,
-            m.TVAdPublication.file_id,
-            m.TVAdPublication.content_hash,
-        )
-        facts, connections = defaultdict(list), defaultdict(list)
-        for fact, *identity_ in db.execute(
-            select(m.TVAdFact, *version)
-            .join(m.TVAdPublication, m.TVAdFact.publication_id == m.TVAdPublication.id)
-            .where(*copies)
-            .order_by(m.TVAdFact.checked_at, m.TVAdFact.id)
-        ):
-            facts[tuple(identity_)].append(fact)
-        for connection, *identity_ in db.execute(
-            select(m.TVAdConnection, *version)
-            .join(
-                m.TVAdPublication,
-                m.TVAdConnection.publication_id == m.TVAdPublication.id,
+    if "original_checks" in cache:
+        return cache["original_checks"]
+    facts, connections = defaultdict(list), defaultdict(list)
+    cache["original_checks"] = {"facts": facts, "connections": connections}
+    if files is not None and not files:
+        return cache["original_checks"]
+
+    def held(model):
+        """Rows of these stations, for the files this read covers."""
+        pair = tuple_(model.facility_id, model.file_id)
+        conditions = [model.facility_id.in_(STATIONS)]
+        if files is not None:
+            conditions.append(pair.in_(sorted(files)))
+        elif cache["scoped"]:
+            conditions.append(
+                pair.in_(
+                    cache["document_query"].with_only_columns(
+                        m.FCCDocument.facility_id, m.FCCDocument.file_id
+                    )
+                )
             )
-            .where(*copies, m.TVAdConnection.scope == "file")
-            .order_by(m.TVAdConnection.checked_at, m.TVAdConnection.id)
-        ):
-            connections[tuple(identity_)].append(connection)
-        cache["original_checks"] = {"facts": facts, "connections": connections}
+        return conditions
+
+    version = (
+        m.TVAdPublication.facility_id,
+        m.TVAdPublication.file_id,
+        m.TVAdPublication.content_hash,
+    )
+    copies = (m.TVAdPublication.status != "draft", *held(m.TVAdPublication))
+    for fact, *identity_ in db.execute(
+        select(m.TVAdFact, *version)
+        .join(m.TVAdPublication, m.TVAdFact.publication_id == m.TVAdPublication.id)
+        .where(*copies)
+    ):
+        facts[tuple(identity_)].append(fact)
+    for connection, *identity_ in db.execute(
+        select(m.TVAdConnection, *version)
+        .join(
+            m.TVAdPublication,
+            m.TVAdConnection.publication_id == m.TVAdPublication.id,
+        )
+        .where(*copies, m.TVAdConnection.scope == "file")
+    ):
+        connections[tuple(identity_)].append(connection)
+    for fact in _finance_facts(
+        db.scalars(select(m.FinanceTVFact).where(*held(m.FinanceTVFact)))
+    ):
+        facts[fact.version].append(fact)
+    for connection in db.scalars(
+        select(m.FinanceTVConnection).where(*held(m.FinanceTVConnection))
+    ):
+        view = _finance_connection(connection)
+        connections[view.version].append(view)
+    for checks in (*facts.values(), *connections.values()):
+        checks.sort(key=lambda check: (check.checked_at, check.id))
     return cache["original_checks"]
+
+
+def _finance_facts(rows):
+    """Finance's own facts as the readers see any check. Rows never change, so
+    a corrected fact reads as withdrawn when its correction was made, and each
+    fact carries its earlier values, ending at 1 that was itself withdrawn."""
+    rows = list(rows)
+    by_id = {row.id: row for row in rows}
+    successor = {row.supersedes_id: row for row in rows if row.supersedes_id}
+    views = []
+    for row in rows:
+        history, current, seen = [], row, set()
+        while current.supersedes_id in by_id and current.supersedes_id not in seen:
+            seen.add(current.supersedes_id)
+            old = by_id[current.supersedes_id]
+            if old.withdrawn_at is not None:
+                break
+            history.append(
+                {
+                    "value": _money(old.value)
+                    if old.field.endswith("_amount")
+                    else old.value,
+                    "corrected_at": iso(current.checked_at),
+                }
+            )
+            current = old
+        replaced = successor.get(row.id)
+        views.append(
+            SimpleNamespace(
+                **{
+                    column: getattr(row, column)
+                    for column in (
+                        "id",
+                        "field",
+                        "value",
+                        "organization_name",
+                        "agency_address_reviewed",
+                        "qualifier",
+                        "role",
+                        "page",
+                        "quote",
+                        "checked_at",
+                        "supersedes_id",
+                    )
+                },
+                version=(row.facility_id, row.file_id, row.content_hash),
+                status="withdrawn" if replaced or row.withdrawn_at else "checked",
+                withdrawn_at=replaced.checked_at if replaced else row.withdrawn_at,
+                publication_approved=False,
+                history_publication_approved=False,
+                history=history,
+                finance=True,
+            )
+        )
+    return views
+
+
+def _finance_connection(row):
+    """A Finance connection as the readers see any file connection."""
+    return SimpleNamespace(
+        **{
+            column: getattr(row, column)
+            for column in (
+                "id",
+                "kind",
+                "target_id",
+                "target_snapshot",
+                "page",
+                "quote",
+                "checked_at",
+                "withdrawn_at",
+            )
+        },
+        version=(row.facility_id, row.file_id, row.content_hash),
+        status="withdrawn" if row.withdrawn_at else "checked",
+        scope="file",
+        publication_id=None,
+        publication_approved=False,
+        finance=True,
+    )
 
 
 def _facts(db, publication_id):
@@ -336,7 +455,10 @@ def _fact_payload(db, fact, version_id):
         "version_id": version_id,
         "checked_at": iso(fact.checked_at),
         "status": "checked",
-        "history": _fact_history(db, fact),
+        # A Finance fact carries its own history; a copy's fact walks its rows.
+        "history": fact.history
+        if getattr(fact, "finance", False)
+        else _fact_history(db, fact),
     }
 
 
@@ -544,6 +666,55 @@ def _agency_names(db, copy):
     return result
 
 
+def _file_versions(db, copy):
+    """The copy a list shows for a file, then, in Finance's reading, each older
+    version of the same file that holds a check, newest first: a check on an
+    earlier version stays in Finance's lists, under that version's own row."""
+    if not _originals(db):
+        return [copy]
+    cache = db.info["tv_projection"]
+    if "file_versions" not in cache:
+        index = defaultdict(list)
+        for d in cache["documents"].values():
+            index[(d.facility_id, d.file_id)].append(d)
+        for docs in index.values():
+            docs.sort(
+                key=lambda d: (d.last_downloaded_at, d.last_seen_at, d.content_hash),
+                reverse=True,
+            )
+        cache["file_versions"] = index
+    checks = _original_checks(db)
+    return [
+        copy,
+        *(
+            _archive_copy(d)
+            for d in cache["file_versions"].get((copy.facility_id, copy.file_id), [])
+            if d.content_hash != copy.content_hash
+            and (
+                (d.facility_id, d.file_id, d.content_hash) in checks["facts"]
+                or (d.facility_id, d.file_id, d.content_hash) in checks["connections"]
+            )
+        ),
+    ]
+
+
+def _names_by_version(db, copy):
+    """Each agency name a file prints, with the version a list shows it under and
+    whether it is unchecked there: the shown copy's checked and machine-read
+    names, then, in Finance's reading, a name the shown copy leaves unchecked or
+    lacks but an older version checked, under that version."""
+    names = {name: (copy, pending) for name, pending in _agency_names(db, copy).items()}
+    for older in _file_versions(db, copy)[1:]:
+        for f in _facts(db, older.id):
+            if (
+                f.field == "agency_name"
+                and _shown(db, f)
+                and names.get(f.value, (None, True))[1]
+            ):
+                names[f.value] = (older, False)
+    return names
+
+
 def _upload_date(raw):
     for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%m/%d/%Y %I:%M %p"):
         try:
@@ -604,7 +775,7 @@ def sources(db: Session, station: str | None = None):
 @projection
 def recent(db):
     copies = _latest_copies(db)
-    groups = []
+    shown = {}
     for station in DEFAULT_STATIONS:
         group = [p for p in copies if p.facility_id == station.facility_id]
         group.sort(
@@ -614,10 +785,18 @@ def recent(db):
             ),
             reverse=True,
         )
-        groups.append(
-            {"call_sign": station.call_sign, "files": [_row(db, p) for p in group[:3]]}
+        shown[station.call_sign] = group[:3]
+    if _originals(db):
+        # Only the files shown need their checks read.
+        _original_checks(
+            db, {(p.facility_id, p.file_id) for group in shown.values() for p in group}
         )
-    return {"stations": groups}
+    return {
+        "stations": [
+            {"call_sign": call_sign, "files": [_row(db, p) for p in group]}
+            for call_sign, group in shown.items()
+        ]
+    }
 
 
 def agency_key(name):
@@ -744,6 +923,25 @@ def browse(
                             True,
                         )
                         break
+            if match is None:
+                # Finance: a checked fact on an older version, under its own row.
+                for older in _file_versions(db, p)[1:]:
+                    fact = next(
+                        (
+                            f
+                            for f in _facts(db, older.id)
+                            if _shown(db, f) and query in f.value.casefold()
+                        ),
+                        None,
+                    )
+                    if fact is not None:
+                        row = _row(db, older)
+                        match = (
+                            "Matched a checked fact",
+                            f"{_fact_kind(fact.field)}: {fact.value}",
+                            False,
+                        )
+                        break
             if match:
                 rows.append(
                     {
@@ -794,7 +992,7 @@ def browse(
         groups = defaultdict(set)
         unchecked = defaultdict(bool)
         for p in selected:
-            for name, pending in _agency_names(db, p).items():
+            for name, (_, pending) in _names_by_version(db, p).items():
                 groups[name].add((p.facility_id, p.file_id))
                 unchecked[name] |= pending
         rows = [
@@ -1331,14 +1529,14 @@ def agency_detail(db, key):
     # One entry per identical printed address, listing every file that prints it.
     addresses = {}
     unchecked = False
-    for p in _latest_copies(db):
-        facts = [f for f in _facts(db, p.id) if _shown(db, f)]
-        candidates = _agency_names(db, p)
+    for current in _latest_copies(db):
+        candidates = _names_by_version(db, current)
         candidate = next((name for name in candidates if agency_key(name) == key), None)
         if candidate is None:
             continue
         name = candidate
-        pending = candidates[name]
+        p, pending = candidates[name]
+        facts = [f for f in _facts(db, p.id) if _shown(db, f)]
         unchecked |= pending
         row = {**_row(db, p), "agency_unchecked": pending}
         groups[(row["station"], row["year"])].append(row)
@@ -1500,6 +1698,109 @@ def _committee_identity(db, registration_number):
     return {"name": filer.name, "office": filer.office, "district": filer.district}
 
 
+def _lookup_checks(db, p, kind, target, race_context, committees):
+    """1 version's standing file connections, those a connection lookup names,
+    and those naming each of a candidate's confirmed committees."""
+    checked = (
+        [
+            c
+            for c in _original_checks(db)["connections"].get(p.id, [])
+            if c.status == "checked"
+        ]
+        if _originals(db)
+        else list(
+            db.scalars(
+                select(m.TVAdConnection).where(
+                    m.TVAdConnection.publication_id == p.id,
+                    m.TVAdConnection.scope == "file",
+                    m.TVAdConnection.status == "checked",
+                    m.TVAdConnection.publication_approved.is_(True),
+                )
+            )
+        )
+    )
+    if kind == "name":
+        matches = [
+            f
+            for f in _facts(db, p.id)
+            if f.field == "agency_name" and f.value == target and _shown(db, f)
+        ]
+    elif kind == "race":
+        matches = [
+            c
+            for c in checked
+            if c.kind == "election"
+            and (c.target_snapshot or {}).get("money_context") == race_context
+        ]
+    else:
+        matches = [c for c in checked if c.kind == kind and c.target_id == target]
+    hits = {
+        registration_number: [
+            c
+            for c in checked
+            if c.kind == "committee" and c.target_id == registration_number
+        ]
+        for registration_number, _ in committees
+    }
+    return checked, matches, hits
+
+
+def _connected_files(db, kind, target, registrations):
+    """Every file (station, FCC file id) holding a check, on any version, that a
+    connection lookup could match: from copies and Finance's own checks alike."""
+    copy = m.TVAdPublication
+    copies = (copy.status != "draft", copy.facility_id.in_(STATIONS))
+    if kind == "name":
+        query = (
+            select(copy.facility_id, copy.file_id)
+            .join(m.TVAdFact, m.TVAdFact.publication_id == copy.id)
+            .where(
+                *copies,
+                m.TVAdFact.field == "agency_name",
+                m.TVAdFact.value == target,
+            )
+            .union(
+                select(m.FinanceTVFact.facility_id, m.FinanceTVFact.file_id).where(
+                    m.FinanceTVFact.facility_id.in_(STATIONS),
+                    m.FinanceTVFact.field == "agency_name",
+                    m.FinanceTVFact.value == target,
+                )
+            )
+        )
+    else:
+
+        def names(model):
+            condition = (
+                model.kind == "election"
+                if kind == "race"
+                else (model.kind == kind) & (model.target_id == target)
+            )
+            if registrations:
+                condition |= (model.kind == "committee") & model.target_id.in_(
+                    registrations
+                )
+            return condition
+
+        query = (
+            select(copy.facility_id, copy.file_id)
+            .join(m.TVAdConnection, m.TVAdConnection.publication_id == copy.id)
+            .where(
+                *copies,
+                m.TVAdConnection.scope == "file",
+                names(m.TVAdConnection),
+            )
+            .union(
+                select(
+                    m.FinanceTVConnection.facility_id, m.FinanceTVConnection.file_id
+                ).where(
+                    m.FinanceTVConnection.facility_id.in_(STATIONS),
+                    names(m.FinanceTVConnection),
+                )
+            )
+        )
+    return {tuple(row) for row in db.execute(query)}
+
+
 @projection
 def connected(db, kind, target):
     rows = []
@@ -1531,55 +1832,30 @@ def connected(db, kind, target):
         )
         groups[("committee", registration_number)]
     named = "Station files that name this candidate"
-    for p in _latest_copies(db, metadata=False):
-        checked = (
-            [
-                c
-                for c in _original_checks(db)["connections"].get(p.id, [])
-                if c.status == "checked"
-            ]
-            if _originals(db)
-            else list(
-                db.scalars(
-                    select(m.TVAdConnection).where(
-                        m.TVAdConnection.publication_id == p.id,
-                        m.TVAdConnection.scope == "file",
-                        m.TVAdConnection.status == "checked",
-                        m.TVAdConnection.publication_approved.is_(True),
-                    )
-                )
-            )
+    if _originals(db):
+        # Read checks only for the files holding 1 this lookup could match.
+        _original_checks(
+            db, _connected_files(db, kind, target, [r for r, _ in committees])
         )
-        if kind == "name":
-            matches = [
-                f
-                for f in _facts(db, p.id)
-                if f.field == "agency_name" and f.value == target and _shown(db, f)
-            ]
-        elif kind == "race":
-            matches = [
-                c
-                for c in checked
-                if c.kind == "election"
-                and (c.target_snapshot or {}).get("money_context") == race_context
-            ]
-        else:
-            matches = [c for c in checked if c.kind == kind and c.target_id == target]
+    for current in _latest_copies(db, metadata=False):
+        # In Finance's reading a file matches on any version, under the row of
+        # the newest version holding a check this lookup names.
+        for p in _file_versions(db, current):
+            checked, matches, hits = _lookup_checks(
+                db, p, kind, target, race_context, committees
+            )
+            if matches or any(hits.values()):
+                break
         row = None
         for registration_number, name in committees:
-            hits = [
-                c
-                for c in checked
-                if c.kind == "committee" and c.target_id == registration_number
-            ]
-            if hits:
+            if hits[registration_number]:
                 row = row or _row(db, p)
                 groups[("committee", registration_number)].append(
                     {
                         **row,
                         "role": _joined(
                             _printed_role((c.target_snapshot or {}).get("role"))
-                            for c in hits
+                            for c in hits[registration_number]
                         ),
                     }
                 )

@@ -126,11 +126,12 @@ class FinanceFact(Model):
 
 class FinanceTarget(Model):
     """The record a connection names, for the Finance app to open itself: a
-    station file at ``/files/{id}``, anything else at
-    ``/connections?kind={kind}&target={id}``."""
+    station file at ``/files/{id}?version={version}``, the exact version the check
+    named, anything else at ``/connections?kind={kind}&target={id}``."""
 
     kind: Literal["committee", "candidate", "principal", "election", "file"]
     id: str
+    version: str | None = None
 
 
 class FinanceConnection(Model):
@@ -267,3 +268,32 @@ class FinanceConnected(Model):
     files: list[FinanceFileRow]
     total: int
     groups: list[FinanceConnectionGroup]
+
+
+class FinanceCheckSaved(Model):
+    """A Finance check just recorded or withdrawn: its id and standing, nothing
+    about the account that made it."""
+
+    id: str
+    status: Literal["checked", "withdrawn"]
+
+
+class FinancePreviewField(Model):
+    label: str
+    value: str
+
+
+class FinanceTargetPreview(Model):
+    """The exact record a connection would name, and the fingerprint its save
+    repeats. Never an alethical.com address."""
+
+    kind: str
+    target_id: str
+    label: str
+    target_fingerprint: str
+    fields: list[FinancePreviewField]
+    source_dataset: str | None = None
+    source_snapshot_id: str | None = None
+    source_content_hash: str | None = None
+    source_row_number: int | None = None
+    source_date: str | None = None
