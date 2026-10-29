@@ -2,7 +2,11 @@ import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { ChevronDown } from '../icons';
-import { GreenLinkArrow, linkArrowRow } from '../LinkArrow';
+import { LinkArrow, linkArrowRow } from '../LinkArrow';
+import {
+  READING_DESTINATION_LINK_COLOR,
+  readingDestinationLinkStates,
+} from './readingDestinationLinks';
 import { articleHrefWithReturn } from '../../lib/articleReturn';
 import { TOPICS, topicPath, type TopicSlug } from '../../lib/researchIndex';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
@@ -150,7 +154,7 @@ export function SetBox({
 
   return (
     <View style={[styles.box, isMobile && styles.boxMobile]}>
-      <style>{`[data-set-topic-link]:focus-visible,[data-set-page-link]:focus-visible{outline:2px solid #7c5cff;outline-offset:2px;border-radius:8px}@media(hover:hover){[data-set-topic-link]:hover>*{background:#f1f3f2;border-color:rgba(17,21,15,.3)}[data-set-page-link]:hover [data-set-page-words]{color:#11832b;text-decoration:underline}}[data-set-topic-link]:active>*{background:#e6e9e7}`}</style>
+      <style>{`[data-set-topic-link]:focus-visible,[data-set-page-link]:focus-visible{outline:2px solid #7c5cff;outline-offset:2px;border-radius:8px}@media(hover:hover){[data-set-topic-link]:hover>*{background:#f1f3f2;border-color:rgba(17,21,15,.3)}}[data-set-topic-link]:active>*{background:#e6e9e7}${readingDestinationLinkStates}`}</style>
       {/* The count comes before the set name, matching the cards and rows. */}
       <Text style={[styles.meta, isMobile && styles.metaMobile]}>{setMetaLine(group)}</Text>
       {/* The button sits INSIDE the heading, never the other way round: a heading
@@ -250,7 +254,7 @@ export function SetBox({
           <Text style={styles.pageLinkText} {...({ dataSet: { setPageWords: '' } } as object)}>
             Open group page
           </Text>
-          <GreenLinkArrow />
+          <LinkArrow color="currentColor" />
         </Pressable>
       )}
     </View>
@@ -285,7 +289,7 @@ const styles = StyleSheet.create({
   },
   pageLink: { ...linkArrowRow, minHeight: 44, marginTop: 8 },
   pageLinkText: {
-    color: '#0f7a45',
+    color: READING_DESTINATION_LINK_COLOR,
     fontFamily: t.typography.ui,
     fontSize: 17,
     fontWeight: t.fontWeights.semibold,

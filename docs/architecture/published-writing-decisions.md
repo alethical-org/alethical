@@ -78,6 +78,16 @@ calendar date, district, host and Watch the debate action. Sources, disclosures,
 article sharing and the distinction between published work and campaign services
 remain intact. Presentation does not confer press credentials.
 
+Supporting destination links use a neutral palette so the green section headings
+lead: All articles, All reports, All debates and recordings, All guides, and Open
+group page. Labels and their existing arrows are `#4b524b` at rest and after a
+visit. Pointer hover at 768px and wider uses `#11150f` and underlines the whole
+label, leaving its arrow undecorated; press uses that treatment at every width.
+Keyboard focus retains the purple 2px outline and 2px offset. The 17px/600 type,
+shared 19px arrow, 6px arrow gap, 44px targets and existing placement stay intact.
+Open group page uses this treatment on both the index and Guides collection;
+other links, green icons, headings and interaction colors keep their own treatment.
+
 The homepage intro and a new Latest articles preview are **held for review**;
 only shared-menu changes belong to this release. The pending proposal is retained
 on [homepage review 410](https://github.com/alethical-org/alethical/issues/410).
