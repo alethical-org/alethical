@@ -599,9 +599,9 @@ describe('Lobbyist record', () => {
     const box = container.querySelector('[aria-label="Confirmed identity"]');
     expect(box?.textContent).toContain('CONFIRMED IDENTITY');
     expect(box?.textContent).toContain('Andrew Kozak');
-    // Person profiles are not built yet: no link and no profile claim.
-    expect(box?.querySelector('a')).toBeNull();
-    expect(box?.textContent).not.toContain('Person profile');
+    expect(box?.querySelector('a')?.getAttribute('href')).toBe(
+      '/people/p-1?from=%2Flobbying%2Flobbyists%2F141',
+    );
   });
 
   it('keeps a failed contribution file apart from no records', async () => {

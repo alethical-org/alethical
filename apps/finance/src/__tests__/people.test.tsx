@@ -3,7 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { clearReadCache } from '../api/read';
-import { countLine, People, rowNote } from '../pages/People';
+import { countLine, People, rowNote, type PersonDirectoryRow } from '../pages/People';
 import { matchRoute } from '../routes';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -17,8 +17,20 @@ function legislator(index: number) {
   return {
     id: `id-${n}`,
     slug: `member-${n}`,
-    full_name: `Member ${n}`,
-    current_service: { chamber: index % 2 ? 'senate' : 'house', district: { code: `${index}A` } },
+    kind: 'legislator' as const,
+    name: `Member ${n}`,
+    service_status: 'current' as const,
+    periods: [
+      {
+        chamber: index % 2 ? 'senate' : 'house',
+        district: `${index}A`,
+        party: null,
+        start_date: null,
+        end_date: null,
+        session: null,
+        source_url: null,
+      },
+    ],
   };
 }
 
@@ -73,19 +85,22 @@ async function render(path: string, answer: (url: string) => Response | Promise<
 }
 
 const loaded = (url: string) => {
-  if (url.includes('/finance/landing/counts')) {
-    return json({
-      current_legislature_bills: {
-        state: 'reported',
-        count: 1,
-        first_year: 2025,
-        last_year: 2026,
-        copied_at: '2026-10-20T15:00:00Z',
-      },
-    });
-  }
-  const q = new URL(url).searchParams.get('q');
-  return json(q ? ROWS.filter((row) => row.full_name.includes(q)) : ROWS);
+  const params = new URL(url).searchParams;
+  const q = params.get('q') ?? '';
+  const offset = Number(params.get('offset') ?? 0);
+  const filtered = ROWS.filter((row) => row.name.includes(q));
+  return json({
+    state: 'reported',
+    rows: filtered.slice(offset, offset + 10),
+    total: filtered.length,
+    counts: { person: 0, candidate: 0, legislator: filtered.length },
+    years: [2026, 2024],
+    limit: 10,
+    offset,
+    has_more: offset + 10 < filtered.length,
+    type: params.get('type'),
+    q,
+  });
 };
 
 const text = () => container.textContent ?? '';
@@ -95,7 +110,14 @@ const button = (label: string) =>
 describe('People', () => {
   it('lists service records 10 a page, each with its mark, kind and return context', async () => {
     await render('/people?type=legislators&service=current', loaded);
-    expect(requests.some((url) => url.endsWith('/legislators?limit=250'))).toBe(true);
+    expect(
+      requests.some(
+        (url) =>
+          url.includes('/finance/people?') &&
+          url.includes('service=current') &&
+          url.includes('limit=10'),
+      ),
+    ).toBe(true);
     expect(text()).toContain('23 service records');
     const rows = container.querySelectorAll('.pp-row');
     expect(rows).toHaveLength(10);
@@ -110,7 +132,6 @@ describe('People', () => {
     expect(button('Legislators').getAttribute('aria-pressed')).toBe('true');
     expect(button('Current').getAttribute('aria-pressed')).toBe('true');
     expect(text()).toContain('Page 1 of 3');
-    expect(text()).toContain('Service records · updated Oct 20, 2026');
   });
 
   it('pages through the address', async () => {
@@ -139,7 +160,7 @@ describe('People', () => {
     await settle();
     expect(window.location.search).toBe('?q=Nobody');
     expect(requests.some((url) => url.includes('q=Nobody'))).toBe(true);
-    expect(text()).toContain('0 service records matching “Nobody”');
+    expect(text()).toContain('0 people · 0 candidacies · 0 service records matching “Nobody”');
     expect(text()).toContain('No matching records');
   });
 
@@ -157,18 +178,46 @@ describe('People', () => {
 
   it('shows a failure with Try again, never an empty result', async () => {
     await render('/people', (url) =>
-      url.includes('/legislators') ? new Response(null, { status: 500 }) : json({}),
+      url.includes('/finance/people') ? new Response(null, { status: 500 }) : json({}),
     );
     expect(text()).toContain('We couldn’t load these results. This is a problem on our side.');
     expect(text()).not.toContain('No matching records');
     expect(button('Try again')).toBeDefined();
   });
 
-  it('offers no candidate or former-service filter it cannot answer', async () => {
-    await render('/people?type=candidates', loaded);
-    expect(button('Candidates')).toBeUndefined();
-    expect(button('Former')).toBeUndefined();
-    expect(button('All records').getAttribute('aria-pressed')).toBe('true');
+  it('sends candidate scope, year and sort to the whole directory', async () => {
+    await render('/people?type=candidates&scope=past&year=2024&sort=election_year', loaded);
+    const params = new URL(requests[0]).searchParams;
+    expect(params.get('type')).toBe('candidates');
+    expect(params.get('scope')).toBe('past');
+    expect(params.get('year')).toBe('2024');
+    expect(params.get('sort')).toBe('election_year');
+    expect(button('Candidates').getAttribute('aria-pressed')).toBe('true');
+    expect(button('Past candidates').getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('keeps person and candidacy records separate even for the same name', async () => {
+    const rows: PersonDirectoryRow[] = [
+      { kind: 'person', id: 'person-a', name: 'Same Name' },
+      { kind: 'candidate', id: 'candidacy-a', name: 'Same Name', year: 2026, office: 'Senate' },
+    ];
+    await render('/people', () =>
+      json({
+        state: 'reported',
+        rows,
+        total: 2,
+        counts: { person: 1, candidate: 1, legislator: 0 },
+        years: [2026],
+        limit: 10,
+        offset: 0,
+        has_more: false,
+        type: 'all',
+      }),
+    );
+    expect(container.querySelectorAll('.pp-row')).toHaveLength(2);
+    expect(container.querySelector('a[href^="/people/person-a"]')).toBeTruthy();
+    expect(container.querySelector('a[href^="/candidates/candidacy-a"]')).toBeTruthy();
+    expect(text()).toContain('1 person · 1 candidacy · 0 service records');
   });
 
   it('Clear all returns to every record', async () => {
@@ -185,24 +234,11 @@ describe('People wording', () => {
   });
 
   it('never prints a seat the record does not name', () => {
-    expect(rowNote({ id: 'x', slug: 'x', full_name: 'X', current_service: null })).toBe(
-      'Currently serving',
+    expect(rowNote({ kind: 'legislator', id: 'x', name: 'X', service_status: 'unknown' })).toBe(
+      'Current service not confirmed',
     );
-  });
-});
-
-describe('People name order', () => {
-  it('sorts by surname past a suffix, then by whole name', async () => {
-    const { sortByName } = await import('../pages/People');
-    const rows = ['Alice Mann', 'Esther Agbaje', 'John Smith Jr.', 'Ann Smith', 'Patty Acomb'].map(
-      (full_name) => ({ full_name }),
+    expect(rowNote({ kind: 'legislator', id: 'x', name: 'X', service_status: 'former' })).toBe(
+      'Formerly served',
     );
-    expect(sortByName(rows).map((row) => row.full_name)).toEqual([
-      'Patty Acomb',
-      'Esther Agbaje',
-      'Alice Mann',
-      'Ann Smith',
-      'John Smith Jr.',
-    ]);
   });
 });
