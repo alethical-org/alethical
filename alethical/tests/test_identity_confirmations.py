@@ -1528,3 +1528,16 @@ def test_only_identity_selection_requests_get_the_larger_transport_limit(finance
     assert response.status_code == 413
     assert "Alethical's request limit" in response.json()["detail"]
     assert response.headers["cache-control"] == "private, no-store"
+
+
+@pytest.mark.parametrize("path", ["", "/queue", "/records"])
+def test_identity_paging_rejects_database_offset_overflow(finance_api, board, path):
+    response = finance_api.get(
+        BASE + path,
+        params={
+            "page": 10**21,
+            "record_kind": "donor_name",
+            "record_key": DONOR,
+        },
+    )
+    assert response.status_code == 422
