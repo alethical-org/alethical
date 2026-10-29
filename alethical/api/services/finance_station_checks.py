@@ -31,7 +31,7 @@ from alethical.api.services import tv_ad_review as review
 from alethical.api.services import tv_ads as reader
 from alethical.api.services.finance_access import FinanceAccount
 from alethical.db import models as m
-from alethical.pipeline import fcc_expense_links, tv_ad_redaction
+from alethical.pipeline import fcc_expense_links
 from alethical.pipeline.campaign_finance_reader import source_copy_date
 from alethical.pipeline.fcc_document_text import EXTRACTOR_VERSION
 
@@ -88,6 +88,11 @@ RECORD_KINDS = frozenset({"committee", "candidate", "election", "principal"})
 KINDS = RECORD_KINDS | {"issue", "related_document", "expense"}
 # The largest row number Postgres's integer column holds; a larger one names no row.
 LAST_ROW = 2**31 - 1
+# A held original has at most 100 pages: the page renderer's own limit
+# (``MAX_PAGES`` in alethical/pipeline/tv_ad_redaction.py). Stated here rather than
+# imported, because that module sits behind the reviewed image-library boundary
+# that scripts/pillow_source_guard.py pins to its existing callers.
+LAST_PAGE = 100
 
 
 class CorrectionRace(Exception):
@@ -141,7 +146,7 @@ def _quote(db, document, page, quote):
     if (
         isinstance(page, bool)
         or not isinstance(page, int)
-        or not 1 <= page <= tv_ad_redaction.MAX_PAGES
+        or not 1 <= page <= LAST_PAGE
     ):
         raise ValueError("Choose an exact source page")
     quote = review._required(quote, "Source quotation")
