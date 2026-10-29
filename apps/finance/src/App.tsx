@@ -19,6 +19,7 @@ import { StationFile } from './pages/StationFile';
 import { StationFolder, TVStation, PrintedAgency } from './pages/StationRecords';
 import { People } from './pages/People';
 import { Person } from './pages/Person';
+import { MoneyConnections } from './pages/MoneyConnections';
 import { CandidateProfile } from './pages/Candidate';
 import { LegislatorProfile } from './pages/Legislator';
 import { CampaignMoney } from './pages/CampaignMoney';
@@ -55,6 +56,7 @@ const SCREENS: Partial<Record<RouteName, (match: RouteMatch) => ReactNode>> = {
   search: (match) => <SearchResults match={match} />,
   people: (match) => <People match={match} />,
   person: (match) => <Person match={match} />,
+  'money-connections': () => <MoneyConnections />,
   candidate: (match) => <CandidateProfile match={match} />,
   legislator: (match) => <LegislatorProfile match={match} />,
   'campaign-money': (match) => <CampaignMoney match={match} />,

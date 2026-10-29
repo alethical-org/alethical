@@ -163,6 +163,7 @@ export const BUILT: ReadonlySet<RouteName> = new Set<RouteName>([
   'people',
   'person',
   'recipients',
+  'money-connections',
   'candidate',
   'legislator',
   'campaign-money',
