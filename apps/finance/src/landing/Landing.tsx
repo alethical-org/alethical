@@ -14,8 +14,8 @@ import './landing.css';
  * counts and source dates are read live (./counts.ts).
  */
 
-export const DEMO_MAIL =
-  'mailto:angel@alethical.com?cc=ask@alethical.com&subject=Alethical%20Finance%20demo';
+export const ACCESS_MAIL =
+  'mailto:angel@alethical.com?cc=ask@alethical.com&subject=Alethical%20Finance%20access';
 
 const CONNECTIONS_WE_MAKE = [
   'People and organizations are linked to their records by registration number or a checked confirmation with its evidence, never by a matching name alone',
@@ -126,10 +126,10 @@ function Diagram() {
   );
 }
 
-function DemoLink() {
+function AccessLink() {
   return (
-    <a className="lp-demo" href={DEMO_MAIL}>
-      Request a demo
+    <a className="lp-demo" href={ACCESS_MAIL}>
+      Request access
     </a>
   );
 }
@@ -221,7 +221,7 @@ export function Landing() {
             <div className="lp-hero-copy">
               <h1 tabIndex={-1}>Turn policy priorities into a focused giving strategy</h1>
               <p>Political intelligence for law firms and PACs</p>
-              <DemoLink />
+              <AccessLink />
             </div>
           </div>
         </div>
@@ -269,7 +269,7 @@ export function Landing() {
           </div>
         </div>
         <div className="lp-close">
-          <DemoLink />
+          <AccessLink />
         </div>
       </main>
       <section className="lp-sources" aria-labelledby="land-src-h">
