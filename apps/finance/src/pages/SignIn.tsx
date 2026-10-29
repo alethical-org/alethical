@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
-import { requestSignInCode } from '../api/client';
+import { proveSignInCode, requestSignInCode } from '../api/client';
+import { forgetCodeRequest, readCodeRequest, rememberCodeRequest } from '../auth/codeRequest';
 import { rememberReturnPath } from '../auth/returnPath';
 import { useFinanceSession } from '../auth/session';
 import { navigate, useLocation } from '../router';
@@ -13,20 +14,25 @@ export const RESEND_WAIT_SECONDS = 60;
 /**
  * Google, or a code emailed to the address. No password and no sign-up: the
  * server sends a code only to an address on Finance's access list, and answers
- * every address alike, so this screen never says whether one is listed.
+ * every address alike, so this screen never says whether one is listed. A
+ * reload within a code's lifetime returns to the code step for the same request.
  */
 export function SignIn() {
   const { supabase, apiBaseUrl, googleSignIn, emailSignIn, screens, status } = useFinanceSession();
   const location = useLocation();
   const next = safeReturnPath(location.searchParams.get('next'), screens);
   const googleCancelled = location.searchParams.get('google') === 'cancelled';
-  const [step, setStep] = useState<Step>('options');
-  const [email, setEmail] = useState('');
+  // This tab's newest code request; the code is proved with its challenge.
+  const [request, setRequest] = useState(readCodeRequest);
+  const [step, setStep] = useState<Step>(request ? 'code' : 'options');
+  const [email, setEmail] = useState(request?.email ?? '');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState<'google' | 'send' | 'verify' | 'resend' | null>(null);
   const [error, setError] = useState<string | null>(googleCancelled ? 'google' : null);
   const [resent, setResent] = useState(false);
-  const [waitUntil, setWaitUntil] = useState(0);
+  const [waitUntil, setWaitUntil] = useState(
+    request ? request.requestedAt + RESEND_WAIT_SECONDS * 1000 : 0,
+  );
   const [now, setNow] = useState(() => Date.now());
   const [verified, setVerified] = useState(false);
   const moved = useRef(false);
@@ -69,10 +75,13 @@ export function SignIn() {
   async function continueWithGoogle() {
     setBusy('google');
     setError(null);
+    forgetCodeRequest();
     rememberReturnPath(next, screens);
     const { error: failure } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/return?source=google` },
+      options: {
+        redirectTo: `${window.location.origin}/auth/return?source=google`,
+      },
     });
     if (failure) {
       setBusy(null);
@@ -92,20 +101,20 @@ export function SignIn() {
     setResent(false);
     const result = await requestSignInCode(apiBaseUrl, address);
     setBusy(null);
-    if (result === 'invalid-email') {
+    if (result.kind === 'invalid-email') {
       setError(step === 'code' ? 'send' : 'email');
       return;
     }
-    if (result !== 'accepted') {
+    if (result.kind !== 'accepted') {
       setError('send');
       return;
     }
+    const kept = rememberCodeRequest(address, result.challenge);
+    setRequest(kept);
     if (step === 'code') setResent(true);
-    // A first-time address's emailed link opens a new tab; it returns here.
-    rememberReturnPath(next, screens);
     setCode('');
     goTo('code');
-    setWaitUntil(Date.now() + RESEND_WAIT_SECONDS * 1000);
+    setWaitUntil(kept.requestedAt + RESEND_WAIT_SECONDS * 1000);
     setNow(Date.now());
   }
 
@@ -117,14 +126,29 @@ export function SignIn() {
     }
     setBusy('verify');
     setError(null);
+    // Alethical checks the code; Supabase turns the 1-time token into a session.
+    const proof = await proveSignInCode(
+      apiBaseUrl,
+      email.trim(),
+      code.trim(),
+      request?.challenge ?? '',
+    );
+    if (proof.kind !== 'token') {
+      setBusy(null);
+      setError(proof.kind === 'refused' ? 'code' : 'check');
+      return;
+    }
     const { error: failure } = await supabase.auth.verifyOtp({
-      email: email.trim(),
-      token: code.trim(),
-      type: 'email',
+      token_hash: proof.tokenHash,
+      type: proof.type,
     });
     setBusy(null);
-    if (failure) setError('code');
-    else setVerified(true);
+    if (failure) {
+      setError('finish');
+      return;
+    }
+    forgetCodeRequest();
+    setVerified(true);
   }
 
   const waitSeconds = Math.max(0, Math.ceil((waitUntil - now) / 1000));
@@ -231,6 +255,11 @@ export function SignIn() {
           {error === 'send' && (
             <p id="code-error" role="alert" className="error">
               We couldn’t send a code. Try again.
+            </p>
+          )}
+          {error === 'check' && (
+            <p id="code-error" role="alert" className="error">
+              We couldn’t check the code. Try again.
             </p>
           )}
           {error === 'finish' && (
