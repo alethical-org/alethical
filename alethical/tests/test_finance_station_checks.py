@@ -467,11 +467,11 @@ def test_a_correction_is_a_new_row_and_a_withdrawal_is_set_once(original):
         checks.withdraw(db, m.FinanceTVFact, old.id, "Again")
     with pytest.raises(LookupError):
         checks.withdraw(db, m.FinanceTVFact, uuid.uuid4(), "Missing")
-    # A public copy's check is alethical.com's record; Finance cannot touch it.
+    # A public copy check withdraws only in Finance; its source row stays checked.
     copy = approved(db, (original.document, original.store))
     copy_fact = review.add_fact(db, copy.id, ACTOR, fact())
-    with pytest.raises(LookupError):
-        checks.withdraw(db, m.FinanceTVFact, copy_fact.id, "Not Finance's")
+    checks.withdraw(db, m.FinanceTVFact, copy_fact.id, "Wrong value")
+    assert copy_fact.status == "checked" and copy_fact.withdrawn_at is None
     # The database refuses every other change and every delete.
     for statement in (
         "UPDATE finance_tv_fact SET value = 'Changed'",
@@ -902,6 +902,14 @@ def test_alethical_com_answers_are_identical_with_and_without_finance_checks(
         quote="Agency: Example Media.",
     )
     checks.withdraw(db, m.FinanceTVConnection, withdrawn.id, "Not related")
+    # Every kind of public-copy check can also be withdrawn in Finance, without
+    # changing any public route, including copy review and suggestions.
+    for copied in db.scalars(select(m.TVAdFact).where(m.TVAdFact.status == "checked")):
+        checks.withdraw(db, m.FinanceTVFact, copied.id, "Finance-only correction")
+    for copied in db.scalars(
+        select(m.TVAdConnection).where(m.TVAdConnection.status == "checked")
+    ):
+        checks.withdraw(db, m.FinanceTVConnection, copied.id, "Finance-only correction")
     db.commit()
     assert answers() == before
     # The checks were present for the whole second reading.
@@ -1115,3 +1123,119 @@ def test_2_simultaneous_corrections_keep_the_first_and_refuse_the_second():
             )
         setup.commit()
         setup.close()
+
+
+def test_copy_checks_can_be_withdrawn_in_finance_without_changing_public_answers(
+    finance_api, listed, held
+):
+    key = held["key"]
+    db = listed
+    source_facts = [
+        (row.id, row.status, row.withdrawn_at) for row in db.scalars(select(m.TVAdFact))
+    ]
+    source_connections = [
+        (row.id, row.status, row.withdrawn_at)
+        for row in db.scalars(select(m.TVAdConnection))
+    ]
+    detail = finance_api.get(f"{BASE}/files/{key}").json()["data"]
+    ids = {
+        "facts": [item["id"] for item in detail["facts"] + detail["dates"]],
+        "connections": [item["id"] for item in detail["connections"]],
+    }
+    for kind, check_ids in ids.items():
+        for check_id in check_ids:
+            response = finance_api.post(
+                f"{BASE}/{kind}/{check_id}/withdraw",
+                json={"reason": "Wrong file, checked against the original"},
+            )
+            assert response.status_code == 200, response.text
+            assert response.json()["data"] == {"id": check_id, "status": "withdrawn"}
+            again = finance_api.post(
+                f"{BASE}/{kind}/{check_id}/withdraw", json={"reason": "Again"}
+            )
+            assert again.status_code == 422
+    after = finance_api.get(f"{BASE}/files/{key}").json()["data"]
+    assert all(
+        item["status"] == "withdrawn"
+        for item in after["facts"] + after["dates"] + after["connections"]
+    )
+    assert not any(
+        item.get("value") or item.get("target")
+        for item in after["facts"] + after["dates"] + after["connections"]
+    )
+    assert (
+        finance_api.get(f"{BASE}/counts").json()["data"]["checked_connection_files"]
+        == 0
+    )
+    assert (
+        finance_api.get(
+            f"{BASE}/connections", params={"kind": "committee", "target": "19002"}
+        ).json()["data"]["files"]
+        == []
+    )
+    assert [
+        (row.id, row.status, row.withdrawn_at) for row in db.scalars(select(m.TVAdFact))
+    ] == source_facts
+    assert [
+        (row.id, row.status, row.withdrawn_at)
+        for row in db.scalars(select(m.TVAdConnection))
+    ] == source_connections
+    for statement in (
+        "UPDATE finance_tv_copy_withdrawal SET withdrawal_reason = 'Changed'",
+        "DELETE FROM finance_tv_copy_withdrawal",
+    ):
+        with pytest.raises(DBAPIError, match="immutable"):
+            with db.begin_nested():
+                db.execute(text(statement))
+
+
+def test_folder_checks_withdraw_only_in_finance_and_draft_facts_are_refused(
+    finance_api, listed, held
+):
+    db = listed
+    detail = finance_api.get(f"{BASE}/folders/{held['folder']}").json()["data"]
+    check_id = detail["relationship"]["id"]
+    original = db.get(m.TVAdConnection, uuid.UUID(check_id))
+    assert original.scope == "folder" and original.status == "checked"
+    response = finance_api.post(
+        f"{BASE}/connections/{check_id}/withdraw", json={"reason": "Wrong folder"}
+    )
+    assert response.status_code == 200, response.text
+    assert (
+        finance_api.get(f"{BASE}/folders/{held['folder']}").json()["data"][
+            "relationship"
+        ]
+        is None
+    )
+    assert original.status == "checked" and original.withdrawn_at is None
+    copy = db.scalar(
+        select(m.TVAdPublication).where(
+            m.TVAdPublication.file_id == held["document"].file_id
+        )
+    )
+    copied = db.scalar(select(m.TVAdFact).where(m.TVAdFact.publication_id == copy.id))
+    copy.status = "draft"
+    db.flush()
+    with pytest.raises(LookupError):
+        checks.withdraw(db, m.FinanceTVFact, copied.id, "Not a shown check")
+
+
+def test_finance_withdrawal_removes_a_copy_facts_history_only_in_finance(original):
+    db, key = original.db, original.key
+    copy = approved(db, (original.document, original.store))
+    old = review.add_fact(db, copy.id, ACTOR, fact())
+    new = review.add_fact(
+        db,
+        copy.id,
+        ACTOR,
+        {**fact(), "supersedes_id": str(old.id), "qualifier": "Agency as printed"},
+    )
+    # Corrected values can be withdrawn from Finance history independently.
+    checks.withdraw(db, m.FinanceTVFact, old.id, "Wrong value")
+    standing = next(
+        item
+        for item in media.file_detail(db, key)["facts"]
+        if item["id"] == str(new.id)
+    )
+    assert standing["history"] == []
+    assert db.get(m.TVAdFact, old.id).value == "Example Media"

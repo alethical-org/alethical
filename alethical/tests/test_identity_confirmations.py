@@ -471,25 +471,100 @@ def test_a_record_only_in_an_older_copy_is_refused(finance_api, finance_db, boar
     assert "not in the Board's current file" in response.json()["detail"]
 
 
-def test_listings_and_selections_are_bounded(finance_api, board, monkeypatch):  # noqa: F811
+def test_listing_pages_keep_whole_fingerprints_and_counts(finance_api, board):
     rows = prints(finance_api)
-    monkeypatch.setattr(identities, "MAX_RECORDS", 1)
-    too_many = finance_api.get(
-        f"{BASE}/records", params={"record_kind": "donor_name", "record_key": DONOR}
+    person = create(finance_api, "person", DONOR, donor(board, [rows[32]]))
+    params = {"record_kind": "donor_name", "record_key": DONOR, "page_size": 1}
+    first = finance_api.get(f"{BASE}/records", params=params).json()["data"]
+    second = finance_api.get(
+        f"{BASE}/records",
+        params={**params, "page": 2, "snapshot_id": first["snapshot_id"]},
+    ).json()["data"]
+    assert (
+        first["records"],
+        first["confirmed"],
+        first["total_fingerprints"],
+        first["pages"],
+    ) == (3, 1, 2, 2)
+    assert first["years"] == [2026, 2025]
+    assert [r["row_number"] for r in first["fingerprints"][0]["rows"]] == [31, 33]
+    assert second["fingerprints"][0]["confirmation"]["identity"]["id"] == person["id"]
+    assert second["no_longer_in_board_file"] == first["no_longer_in_board_file"] == []
+    assert second["confirmed"] == 1
+    assert len(second["fingerprints"]) == 1
+    selected = [first["fingerprints"][0]["fingerprint"]]
+    create(finance_api, "person", "Other person", donor(board, selected))
+
+
+@pytest.mark.parametrize("pick", ["explicit", "all", "year"])
+def test_over_5000_records_can_be_reviewed_and_confirmed(
+    finance_api, finance_db, board, pick
+):
+    finance_db.add_all(
+        [
+            gift(board.contributions_snapshot_id, 100 + i, amount=Decimal(i + 1000))
+            for i in range(5001)
+        ]
     )
-    assert too_many.status_code == 422
-    assert "3 records" in too_many.json()["detail"]
+    finance_db.commit()
+    params = {"record_kind": "donor_name", "record_key": DONOR, "page_size": 500}
+    first = finance_api.get(f"{BASE}/records", params=params).json()["data"]
+    assert (first["records"], first["total_fingerprints"]) == (5004, 5003)
+    if pick == "explicit":
+        selected = [item["fingerprint"] for item in first["fingerprints"]]
+        for page in range(2, first["pages"] + 1):
+            result = finance_api.get(
+                f"{BASE}/records",
+                params={**params, "page": page, "snapshot_id": first["snapshot_id"]},
+            )
+            assert result.status_code == 200
+            selected.extend(
+                item["fingerprint"] for item in result.json()["data"]["fingerprints"]
+            )
+        assert len(selected) == len(set(selected)) == 5003
+        confirmation = donor(board, selected)
+    else:
+        selection = {"snapshot_id": first["snapshot_id"]}
+        if pick == "year":
+            selection["year"] = 2026
+        confirmation = {**donor(board, None), "record_selection": selection}
+    person = create(finance_api, "person", DONOR, confirmation)
+    coverage = person["printed_names"][0]
+    assert coverage["confirmed"] == (5003 if pick == "year" else 5004)
+    assert coverage["records"] == 5004
+
+
+def test_quick_selection_skips_claims_and_refuses_changed_files(
+    finance_api, finance_db, board
+):
+    rows = prints(finance_api)
+    create(finance_api, "person", DONOR, donor(board, [rows[32]]))
+    selection = {"snapshot_id": str(board.contributions_snapshot_id)}
+    person = create(
+        finance_api,
+        "person",
+        "Other person",
+        {**donor(board, None), "record_selection": selection},
+    )
+    assert person["printed_names"][0]["confirmed"] == 2
+    refresh(finance_db, (5, {}), (6, {}))
     response = post(
         finance_api,
         "",
         {
             "kind": "person",
-            "name": "X",
-            "confirmation": donor(board, [rows[31], rows[32]]),
+            "name": "Changed",
+            "confirmation": {**donor(board, None), "record_selection": selection},
         },
     )
     assert response.status_code == 422
-    assert "at most 1 records" in response.json()["detail"]
+    assert "file changed" in response.json()["detail"]
+    response = finance_api.get(
+        f"{BASE}/records",
+        params={"record_kind": "donor_name", "record_key": DONOR, **selection},
+    )
+    assert response.status_code == 422
+    assert "file changed" in response.json()["detail"]
 
 
 def test_without_the_boards_file_nothing_is_called_gone(finance_api, finance_db, board):  # noqa: F811
@@ -1331,3 +1406,97 @@ def test_identities_need_finance_access(client):
     assert client.get(f"{BASE}/{uuid.uuid4()}").status_code == 401
     assert client.get(f"{BASE}/records").status_code == 401
     assert client.post(BASE, json={}).status_code == 401
+
+
+@pytest.mark.parametrize("kind", sorted(FINGERPRINTED))
+def test_quick_picks_match_each_printed_record_kind(finance_api, board, kind):
+    key = {"employer_name": EMPLOYER}.get(kind, VENDOR if "payee" in kind else DONOR)
+    first = listing(finance_api, kind, key)
+    confirmation = (
+        donor(board, None)
+        if kind == "donor_name"
+        else employer(board, None)
+        if kind == "employer_name"
+        else payee(board, None)
+    )
+    if kind == "independent_payee_name":
+        confirmation.update(
+            record_kind=kind,
+            evidence_source="cf_independent_expenditure_row",
+            evidence_snapshot_id=str(board.independent_expenditures_snapshot_id),
+            evidence_locator=7,
+        )
+    confirmation["record_selection"] = {"snapshot_id": first["snapshot_id"]}
+    person = create(finance_api, "organization", "Confirmed example", confirmation)
+    assert person["printed_names"][0]["confirmed"] == first["records"]
+    again = post(
+        finance_api,
+        "",
+        {"kind": "organization", "name": "Nobody else", "confirmation": confirmation},
+    )
+    assert again.status_code == 422
+    assert "at least 1 unconfirmed record" in again.json()["detail"]
+
+
+def test_quick_picks_refuse_mixed_selection_and_invalid_scope(finance_api, board):
+    rows = prints(finance_api)
+    first = listing(finance_api)
+    for change in (
+        {
+            "fingerprints": [rows[31]],
+            "record_selection": {"snapshot_id": first["snapshot_id"]},
+        },
+        {
+            "fingerprints": None,
+            "record_selection": {"snapshot_id": first["snapshot_id"], "year": True},
+        },
+        {
+            "fingerprints": None,
+            "record_selection": {
+                "snapshot_id": first["snapshot_id"],
+                "all_names": True,
+            },
+        },
+    ):
+        response = post(
+            finance_api,
+            "",
+            {
+                "kind": "person",
+                "name": "Example",
+                "confirmation": {**donor(board, None), **change},
+            },
+        )
+        assert response.status_code == 422
+    selected_year = finance_api.get(
+        f"{BASE}/records",
+        params={
+            "record_kind": "donor_name",
+            "record_key": DONOR,
+            "year": 2025,
+            "page_size": 1,
+        },
+    ).json()["data"]
+    assert selected_year["records"] == selected_year["total_fingerprints"] == 1
+    assert selected_year["fingerprints"][0]["fingerprint"] == rows[32]
+    assert selected_year["years"] == [2026, 2025]
+    for params in ({"page": 0}, {"page_size": 501}, {"page_size": 0}):
+        assert (
+            finance_api.get(
+                f"{BASE}/records",
+                params={"record_kind": "donor_name", "record_key": DONOR, **params},
+            ).status_code
+            == 422
+        )
+
+
+def test_only_identity_selection_requests_get_the_larger_transport_limit(finance_api):
+    response = finance_api.post(
+        f"{BASE}/confirmations/{uuid.uuid4()}/withdraw", content=b"x" * 65_537
+    )
+    assert response.status_code == 413
+    assert response.json()["detail"] == "The request is too large"
+    response = finance_api.post(BASE, content=b"x" * (16 * 1024 * 1024 + 1))
+    assert response.status_code == 413
+    assert "Alethical's request limit" in response.json()["detail"]
+    assert response.headers["cache-control"] == "private, no-store"

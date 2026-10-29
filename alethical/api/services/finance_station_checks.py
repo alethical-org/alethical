@@ -453,18 +453,53 @@ def add_connection(
 
 
 def withdraw(db: Session, model, check_id: UUID, reason: str):
-    """Withdraw a Finance check once, with its reason. A corrected fact may be
-    withdrawn too, which removes its value from its correction's history."""
+    """Withdraw any shown check once; public-copy checks change only in Finance.
+
+    Lock the original check to serialize competing withdrawals, then append a
+    separate record for a copy check. Never mutate a public-site row.
+    """
     reason = review._required(_text("reason", reason), "Withdrawal reason", limit=2000)
     row = db.scalar(select(model).where(model.id == check_id).with_for_update())
     if row is None:
-        raise LookupError("Not found")
+        return _withdraw_copy(db, model, check_id, reason)
     if row.withdrawn_at is not None:
         raise ValueError("This check is already withdrawn")
     row.withdrawal_reason = reason
     row.withdrawn_at = review.now()
     db.flush()
     return row
+
+
+def _withdraw_copy(db, model, check_id, reason):
+    copied, column = (
+        (m.TVAdFact, m.FinanceTVCopyWithdrawal.fact_id)
+        if model is m.FinanceTVFact
+        else (m.TVAdConnection, m.FinanceTVCopyWithdrawal.connection_id)
+    )
+    row = db.scalar(select(copied).where(copied.id == check_id).with_for_update())
+    if row is None:
+        raise LookupError("Not found")
+    if row.publication_id:
+        publication = db.get(m.TVAdPublication, row.publication_id)
+        if (
+            publication.status == "draft"
+            or publication.facility_id not in reader.STATIONS
+        ):
+            raise LookupError("Not found")
+    elif (
+        copied is not m.TVAdConnection
+        or row.scope != "folder"
+        or row.facility_id not in reader.STATIONS
+    ):
+        raise LookupError("Not found")
+    if db.scalar(select(m.FinanceTVCopyWithdrawal.id).where(column == check_id)):
+        raise ValueError("This check is already withdrawn")
+    withdrawal = m.FinanceTVCopyWithdrawal(
+        **{column.key: check_id}, withdrawal_reason=reason, withdrawn_at=review.now()
+    )
+    db.add(withdrawal)
+    db.flush()
+    return SimpleNamespace(id=check_id, withdrawn_at=withdrawal.withdrawn_at)
 
 
 def expense_current(db: Session, snapshot: dict) -> bool:
