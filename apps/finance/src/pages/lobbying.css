@@ -1,0 +1,760 @@
+/* Lobbying (lb-), Lobbyist (lbl-) and Principal (lbp-), from Design's Lobbying,
+ * Lobbyist and Principal drawings. Shared f-* classes live in src/ui/finance.css.
+ * Bands: phone below 768, tablet 768 to 1099, computer 1100 and up. */
+
+/* ---------- Lobbying directory ---------- */
+.lb-back {
+  margin: -8px 0 12px;
+}
+.lb-lead {
+  margin: 8px 0 0;
+  max-width: 760px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--secondary);
+}
+.lb-search {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+  max-width: 760px;
+}
+.lb-field {
+  flex: 1 1 auto;
+  height: 48px;
+  padding: 0 14px;
+}
+.lb-submit {
+  flex: none;
+  height: 48px;
+  padding: 0 20px;
+}
+.lb-helper {
+  margin: 8px 0 0;
+  padding-left: 2px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.lb-layout {
+  margin-top: 28px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+@media (min-width: 1100px) {
+  .lb-layout {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+}
+.lb-dir,
+.lb-aside {
+  min-width: 0;
+}
+.lb-aside {
+  display: grid;
+  gap: 14px;
+}
+/* The tabs scroll sideways rather than wrap, down to 320px. */
+.lb-tabs .f-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.lb-tabs .f-tab {
+  font-size: 14px;
+  padding: 0 14px;
+}
+.lb-lane {
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--secondary);
+}
+.lb-controls {
+  position: relative;
+  z-index: 40;
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.lb-list {
+  margin-top: 14px;
+  outline: none;
+}
+.lb-notice {
+  margin-bottom: 10px;
+}
+.lb-count {
+  padding: 0 0 10px 2px;
+  font-size: 14px;
+  color: var(--secondary);
+}
+.lb-count:empty {
+  display: none;
+}
+.lb-table {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.lb-tr {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) 200px;
+  gap: 12px;
+  align-items: center;
+  min-height: 48px;
+  padding: 6px 20px;
+  box-sizing: border-box;
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+}
+.lb-tr:last-child {
+  border-bottom: 0;
+}
+.lb-head {
+  min-height: 0;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--hairline);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.lb-name {
+  min-width: 0;
+  align-items: center;
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.lb-name-link {
+  text-decoration: none;
+  border-radius: 3px;
+}
+.lb-second {
+  font-size: 14px;
+  color: var(--secondary);
+}
+.lb-third {
+  text-align: right;
+  font-size: 14px;
+  color: var(--secondary);
+}
+.lb-strong {
+  font-weight: 700;
+}
+.lb-missing {
+  font-weight: 400;
+  color: var(--muted);
+}
+.lb-phone-only {
+  display: none;
+}
+.lb-list-note {
+  margin: 10px 0 0;
+  padding-left: 17px;
+  max-width: 760px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.lb-pager {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.lb-page-btn {
+  font-size: 14px;
+  font-weight: 600;
+  gap: 6px;
+}
+.lb-page-btn:first-child {
+  padding: 0 16px 0 13px;
+}
+.lb-page-btn:last-child {
+  padding: 0 13px 0 16px;
+}
+.lb-page-btn[aria-disabled='true'] {
+  color: #6e7983;
+  cursor: default;
+}
+.lb-page-line {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--secondary);
+}
+.lb-about {
+  padding: 18px 20px;
+}
+.lb-about h2 {
+  margin: 0;
+  letter-spacing: 0.08em;
+}
+.lb-about ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--secondary);
+}
+.lb-sources-gap {
+  margin-top: 6px;
+}
+@media (hover: hover) and (min-width: 768px) {
+  .lb-tr:not(.lb-head):hover {
+    background: var(--row-hover);
+  }
+  .lb-name-link:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+/* ---------- Record pages (Lobbyist and Principal) ---------- */
+.lb-state {
+  margin-top: 12px;
+  max-width: 760px;
+}
+.lb-header {
+  margin-top: 8px;
+}
+.lb-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.lb-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border-radius: 5px;
+  background: var(--tint);
+  border: 1px solid var(--fill);
+  color: var(--link);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.lb-reg {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--secondary);
+  white-space: nowrap;
+}
+.lb-status {
+  font-size: 14px;
+  color: var(--secondary);
+}
+.lb-title {
+  margin-top: 8px;
+  font-size: 28px;
+  overflow-wrap: anywhere;
+}
+.lb-gloss {
+  margin: 6px 0 0;
+  max-width: 760px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--secondary);
+}
+.lb-identity {
+  margin-top: 16px;
+  max-width: 760px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 14px 17px;
+  box-sizing: border-box;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+}
+.lb-identity-text {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.lb-identity-label {
+  letter-spacing: 0.08em;
+}
+.lb-identity-name {
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.lb-identity-note {
+  font-size: 13px;
+  color: var(--secondary);
+}
+.lb-identity-open {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  font-size: 14px;
+}
+.lb-main {
+  margin-top: 24px;
+  min-width: 0;
+  display: grid;
+  gap: 28px;
+}
+.lbl-section {
+  min-width: 0;
+}
+.lb-intro {
+  margin: 8px 0 0;
+  max-width: 760px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--secondary);
+}
+.lbl-box {
+  margin-top: 12px;
+  max-width: 760px;
+}
+.f-empty-box.lbl-box {
+  max-width: none;
+  padding: 20px;
+}
+.lb-note {
+  margin: 12px 0 0;
+  padding-left: 17px;
+  max-width: 760px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.lb-list + .lb-note {
+  margin-top: 10px;
+}
+.lb-list {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.lb-list > li {
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+}
+.lb-list > li:last-child {
+  border-bottom: 0;
+}
+.lb-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 20px;
+  box-sizing: border-box;
+  color: var(--ink);
+  text-decoration: none;
+}
+.f-app .lb-row-link {
+  color: var(--ink);
+}
+.f-app .lb-row-link:focus-visible {
+  outline-offset: -2px;
+}
+.lb-row-link .f-arrow {
+  flex: none;
+}
+.lb-row-text {
+  min-width: 0;
+}
+.lb-row-name {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.lb-row-note {
+  display: block;
+  font-size: 13px;
+  color: var(--secondary);
+}
+.lb-row-end {
+  flex: none;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: right;
+}
+.lb-row-link:active {
+  background: var(--tint);
+}
+.lb-sources-links {
+  display: grid;
+  justify-items: start;
+  margin: 2px 0 4px;
+}
+@media (hover: hover) and (min-width: 768px) {
+  .lb-row-link:hover {
+    background: var(--row-hover);
+  }
+}
+
+/* ---------- Lobbyist: matched contribution records ---------- */
+.lbl-count {
+  margin-top: 12px;
+  padding-left: 2px;
+  font-size: 14px;
+  color: var(--secondary);
+}
+.lbl-review {
+  margin-top: 10px;
+  max-width: 760px;
+  padding: 12px 15px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.lbl-review p {
+  margin: 4px 0 0;
+  color: var(--secondary);
+}
+.lbl-years {
+  margin-top: 8px;
+  display: grid;
+  gap: 12px;
+}
+.lbl-year {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.lbl-year-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--hairline);
+}
+.lbl-year-label {
+  font-size: 17px;
+  font-weight: 700;
+}
+.lbl-year-sum {
+  font-size: 13px;
+  color: var(--secondary);
+}
+.lbl-committee {
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+}
+.lbl-committee:last-child {
+  border-bottom: 0;
+}
+.lbl-committee-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  min-height: 48px;
+  padding: 6px 20px;
+  box-sizing: border-box;
+  background: var(--row-hover);
+}
+.lbl-committee-name {
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+a.lbl-committee-name {
+  color: var(--link);
+  text-decoration: none;
+  border-radius: 3px;
+}
+.lbl-committee-count {
+  font-size: 13px;
+  color: var(--muted);
+}
+.lbl-pay {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr) 120px 110px;
+  gap: 12px;
+  align-items: center;
+  min-height: 40px;
+  padding: 4px 20px 4px 37px;
+  box-sizing: border-box;
+  border-top: 1px solid rgba(20, 27, 34, 0.06);
+  font-size: 14px;
+}
+.lbl-pay-date {
+  font-weight: 700;
+  color: var(--secondary);
+}
+.lbl-pay-kind {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  color: var(--secondary);
+}
+.lbl-pay-note {
+  font-size: 12px;
+  color: var(--secondary);
+  overflow-wrap: anywhere;
+}
+.lbl-confirmed {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.lbl-confirmed svg {
+  flex: none;
+}
+.lbl-pay-amount {
+  text-align: right;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.lbl-pay-amount[data-missing] {
+  font-weight: 600;
+  color: var(--muted);
+  white-space: normal;
+}
+.lbl-view {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--link);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.lbl-view:active {
+  color: var(--link-hover);
+  background: var(--tint);
+}
+.lbl-more {
+  margin-top: 12px;
+  padding-left: 17px;
+}
+.lbl-more-btn {
+  font-size: 14px;
+  font-weight: 600;
+}
+@media (hover: hover) and (min-width: 768px) {
+  a.lbl-committee-name:hover,
+  .lbl-view:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+/* ---------- Principal: spending by year ---------- */
+.lbp-spending {
+  margin-top: 12px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.lbp-scroll {
+  overflow-x: auto;
+}
+.lbp-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.lbp-table thead tr {
+  border-bottom: 1px solid var(--hairline);
+}
+.lbp-table thead th {
+  padding: 10px 12px;
+  text-align: right;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.lbp-table tbody tr {
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+}
+.lbp-table tbody tr:last-child {
+  border-bottom: 0;
+}
+.lbp-table td {
+  padding: 12px;
+  text-align: right;
+  white-space: nowrap;
+}
+.lbp-table tbody th {
+  padding: 12px 20px;
+  font-weight: 700;
+}
+.lbp-table .lbp-year-col {
+  text-align: left;
+  padding-left: 20px;
+}
+.lbp-table tr > :last-child {
+  padding-right: 20px;
+}
+.lbp-total {
+  font-weight: 700;
+}
+.lbp-spending [data-missing] {
+  font-weight: 400;
+  color: var(--muted);
+}
+.lbp-cards {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lbp-card {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+}
+.lbp-card:last-child {
+  border-bottom: 0;
+}
+.lbp-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.lbp-card-year {
+  font-size: 17px;
+  font-weight: 700;
+}
+.lbp-card-head .lbp-total {
+  font-size: 15px;
+}
+.lbp-card-figures {
+  margin: 8px 0 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  font-size: 14px;
+}
+.lbp-card-figures > div {
+  display: contents;
+}
+.lbp-card-figures dt {
+  color: var(--secondary);
+}
+.lbp-card-figures dd {
+  margin: 0;
+  text-align: right;
+}
+.lbp-notes {
+  margin: 12px 0 0;
+  padding-left: 35px;
+  max-width: 780px;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+@media (hover: hover) and (min-width: 768px) {
+  .lbp-table tbody tr:hover {
+    background: var(--row-hover);
+  }
+}
+
+/* ---------- Phone ---------- */
+@media (max-width: 767px) {
+  .lb-search {
+    flex-direction: column;
+  }
+  .lb-head {
+    display: none;
+  }
+  .lb-tr {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+    padding: 10px 16px;
+  }
+  .lb-second,
+  .lb-third {
+    padding-left: 36px;
+    text-align: left;
+  }
+  .lb-phone-only {
+    display: inline;
+  }
+  .lb-name-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .lb-page-btn {
+    height: 44px;
+  }
+  .lb-title {
+    font-size: 24px;
+  }
+  .lb-back .f-back,
+  .lb-identity-open {
+    min-height: 44px;
+  }
+  .lb-row {
+    padding: 8px 16px;
+  }
+  .lbl-year-head,
+  .lbl-committee-head {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .lbl-pay {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'date amount'
+      'kind view';
+    gap: 4px 12px;
+    padding: 8px 16px;
+  }
+  .lbl-pay-date {
+    grid-area: date;
+  }
+  .lbl-pay-amount {
+    grid-area: amount;
+  }
+  .lbl-pay-kind {
+    grid-area: kind;
+  }
+  .lbl-view {
+    grid-area: view;
+    min-height: 44px;
+  }
+  .lbl-more-btn {
+    height: 44px;
+  }
+}

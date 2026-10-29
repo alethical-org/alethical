@@ -1,0 +1,523 @@
+/* Payments under this name (pn-) and Donors by employer (de-), from the Payments
+ * Under Name and Donors By Employer drawings. Bands: phone below 768, tablet 768
+ * to 1099, computer 1100 and up; hover only at tablet and computer. */
+
+/* ---------- Shared ---------- */
+.pn-gap {
+  margin-top: 24px;
+}
+.pn-narrow {
+  max-width: 760px;
+}
+.pn-loading {
+  margin-top: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--secondary);
+}
+.pn-loading-section {
+  margin-top: 12px;
+}
+.pn-source-line {
+  margin: 8px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+.pn-source-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 4px;
+  font-size: 14px;
+}
+
+/* ---------- Payments under this name ---------- */
+.pn-header {
+  margin-top: 8px;
+}
+.pn-form {
+  position: relative;
+  z-index: 40;
+  margin-top: 14px;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  display: grid;
+  gap: 12px;
+}
+.pn-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 12px;
+  align-items: end;
+}
+.pn-label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.pn-label-text {
+  font-size: 13px;
+  font-weight: 600;
+}
+.pn-field {
+  width: 100%;
+  height: 44px;
+  font-size: 15px;
+}
+.pn-fields .f-dropdown-button {
+  min-height: 44px;
+  width: 100%;
+  justify-content: space-between;
+  font-variant-numeric: tabular-nums;
+}
+.pn-submit {
+  height: 44px;
+  padding: 0 18px;
+  font-size: 14px;
+}
+.pn-notice {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--secondary);
+}
+.pn-identity {
+  margin-top: 12px;
+  max-width: 760px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 14px 17px;
+  box-sizing: border-box;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+}
+.pn-identity-text {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.pn-identity-label {
+  letter-spacing: 0.08em;
+}
+.pn-identity-name {
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.pn-identity-note {
+  font-size: 13px;
+  color: var(--secondary);
+}
+.pn-identity-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  font-size: 14px;
+}
+
+.pn-section {
+  margin-top: 28px;
+}
+.pn-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 16px;
+}
+.pn-count {
+  font-size: 14px;
+  color: var(--secondary);
+}
+.pn-empty {
+  margin-top: 12px;
+}
+.pn-table {
+  margin-top: 12px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.pn-row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) 150px 220px 110px;
+  gap: 12px;
+  align-items: center;
+  min-height: 48px;
+  padding: 6px 20px;
+  box-sizing: border-box;
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+  font-size: 14px;
+}
+.pn-row:last-child {
+  border-bottom: 0;
+}
+.pn-head {
+  min-height: 0;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--hairline);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.pn-date {
+  font-weight: 700;
+  color: var(--secondary);
+}
+.pn-date[data-missing],
+.pn-amount[data-missing] {
+  color: var(--muted);
+}
+.pn-committee {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.pn-committee-link {
+  font-weight: 600;
+  text-decoration: none;
+}
+.pn-committee-text {
+  font-weight: 600;
+}
+.pn-note {
+  color: var(--muted);
+}
+.pn-amount {
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.pn-kind {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--secondary);
+}
+.pn-view-cell {
+  justify-self: end;
+}
+.pn-view {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--link);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pn-view:active {
+  color: var(--link-hover);
+}
+.pn-section-note {
+  margin: 10px 0 0;
+  padding-left: 17px;
+  max-width: 760px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.pn-more {
+  margin-top: 12px;
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+.pn-more-note,
+.pn-more-error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--secondary);
+}
+.pn-more-error {
+  color: var(--refused);
+}
+.pn-more-btn {
+  min-height: 44px;
+}
+
+.pn-phone-row {
+  display: grid;
+  gap: 4px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+}
+.pn-phone-row:last-child {
+  border-bottom: 0;
+}
+.pn-phone-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 15px;
+}
+.pn-phone-top .pn-amount {
+  white-space: nowrap;
+}
+.pn-phone-meta {
+  font-size: 13px;
+  color: var(--secondary);
+}
+.pn-phone-row .pn-view {
+  min-height: 44px;
+  padding: 0;
+  width: max-content;
+}
+
+@media (hover: hover) and (min-width: 768px) {
+  .pn-row:not(.pn-head):hover {
+    background: var(--row-hover);
+  }
+  .pn-committee-link:hover,
+  .pn-view:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .pn-identity-link:hover {
+    color: var(--link-hover);
+  }
+}
+
+@media (max-width: 1099px) {
+  .pn-row {
+    grid-template-columns: 100px minmax(0, 1fr) 120px 170px 100px;
+  }
+}
+@media (max-width: 767px) {
+  .pn-form {
+    padding: 16px;
+  }
+  .pn-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pn-identity-link {
+    min-height: 44px;
+  }
+}
+
+/* ---------- Donors by employer ---------- */
+.de-header {
+  margin-top: 8px;
+  max-width: 760px;
+}
+.de-lead {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--secondary);
+}
+.de-form {
+  margin-top: 16px;
+  max-width: 760px;
+  padding: 20px;
+  box-sizing: border-box;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+.de-results {
+  margin-top: 24px;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.de-card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  padding: 17px 20px;
+  display: grid;
+  gap: 8px;
+}
+.de-label {
+  letter-spacing: 0.08em;
+}
+.de-spelling {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.de-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 16px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.de-confirm-text {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  color: var(--secondary);
+}
+.de-confirm-text svg {
+  flex: none;
+  margin-top: 3px;
+}
+.de-confirm-words {
+  display: grid;
+  gap: 2px;
+}
+.de-confirm-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+}
+.de-donors-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.de-donors-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+.de-count {
+  font-size: 13px;
+  color: var(--secondary);
+}
+.de-donor {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.de-donor-head {
+  padding: 12px 17px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  border-bottom: 1px solid var(--hairline);
+}
+.de-donor-name {
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.de-donor-plain {
+  color: var(--ink);
+}
+.de-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 120px 120px;
+  gap: 4px 12px;
+  align-items: center;
+  min-height: 44px;
+  padding: 6px 17px;
+  box-sizing: border-box;
+  border-top: 1px solid rgba(20, 27, 34, 0.08);
+  font-size: 14px;
+}
+.de-head {
+  min-height: 0;
+  padding: 8px 17px;
+  border-top: 0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.de-recipient {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.de-recipient-link {
+  font-weight: 600;
+  text-decoration: none;
+}
+.de-recipient-text {
+  font-weight: 600;
+}
+.de-employer {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--secondary);
+}
+.de-date {
+  font-weight: 700;
+  color: var(--secondary);
+}
+.de-amount {
+  text-align: right;
+  font-weight: 700;
+  color: var(--ink);
+}
+.de-date[data-missing],
+.de-amount[data-missing] {
+  color: var(--muted);
+}
+
+@media (hover: hover) and (min-width: 768px) {
+  .de-donor-name:hover,
+  .de-recipient-link:hover,
+  .de-confirm-link:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+@media (max-width: 1099px) {
+  .de-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 104px 96px;
+  }
+}
+@media (max-width: 767px) {
+  .de-form {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 16px;
+  }
+  .de-card {
+    padding: 16px;
+  }
+  .de-spelling {
+    font-size: 20px;
+  }
+  .de-confirm-link {
+    min-height: 44px;
+  }
+  /* Recipient, date and amount on 1 line; the employer as printed below them. */
+  .de-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-auto-flow: row dense;
+  }
+  .de-employer {
+    grid-column: 1 / -1;
+    font-size: 13px;
+  }
+}
