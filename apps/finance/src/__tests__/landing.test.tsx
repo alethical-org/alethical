@@ -7,7 +7,7 @@ import { SessionProvider } from '../auth/session';
 import { screensApproved } from '../config';
 import { CONNECTIONS, linePaths, type Measured } from '../landing/connections';
 import { copyDate, fetchCounts, figuresFrom, type ServedCounts } from '../landing/counts';
-import { DEMO_MAIL } from '../landing/Landing';
+import { ACCESS_MAIL } from '../landing/Landing';
 import { FinanceSite, PublicSite } from '../landing/PublicSite';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -123,17 +123,17 @@ describe('the public Finance site', () => {
     expect(document.title).toBe('Alethical Finance');
   });
 
-  it('opens a demo request draft and links Sign in to the sign-in page', async () => {
+  it('opens an access request draft and links Sign in to the sign-in page', async () => {
     await renderAt('/');
     const demos = [...container.querySelectorAll('a')].filter(
-      (a) => a.textContent === 'Request a demo',
+      (a) => a.textContent === 'Request access',
     );
     expect(demos).toHaveLength(2);
-    for (const demo of demos) expect(demo.getAttribute('href')).toBe(DEMO_MAIL);
-    const mail = new URL(DEMO_MAIL);
+    for (const demo of demos) expect(demo.getAttribute('href')).toBe(ACCESS_MAIL);
+    const mail = new URL(ACCESS_MAIL);
     expect(mail.pathname).toBe('angel@alethical.com');
     expect(mail.searchParams.get('cc')).toBe('ask@alethical.com');
-    expect(mail.searchParams.get('subject')).toBe('Alethical Finance demo');
+    expect(mail.searchParams.get('subject')).toBe('Alethical Finance access');
     const signIns = [...container.querySelectorAll('a')].filter((a) => a.textContent === 'Sign in');
     expect(signIns.length).toBeGreaterThan(0);
     for (const link of signIns) expect(link.getAttribute('href')).toBe('/sign-in');
