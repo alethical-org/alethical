@@ -124,7 +124,9 @@ unconfirmed, banned, deleted or locked account gets the same 403, which never na
 reason. Every listed account has the same access. The list is kept only in the database,
 because a client's address names the client and this repository is public: addresses are
 added and revoked with `scripts/finance_access.py`, which reads the address from its
-arguments.
+arguments. Finance's 2 signed-out sign-in routes, asking for a code and proving it, are the
+only Finance routes without that check
+([sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in)).
 
 ## 5. Background jobs
 
@@ -181,6 +183,15 @@ transport is set to Resend rather than the printing-to-the-log default
 startup which of those is missing, so a misconfigured key shows up in the log instead of as
 silently lost mail. The free plan's daily and monthly caps are read back from Resend's own
 response headers rather than assumed.
+
+Alethical Finance's sign-in codes use the same transport and provider key, behind the
+separate `ALETHICAL_FINANCE_SIGN_IN_CODE_ENABLED` switch. Resend's free plan allows 100
+emails a day and 3,000 a month, shared by Contact us, comment alerts, alethical.com's
+sign-in emails (Supabase sends them through Resend) and Finance's codes. Finance takes at
+most 40 a day, and so at most about 1,200 a month: codes at least 50 seconds apart, 5 an
+hour and 10 a day per address, and 40 a day in total
+([sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in)).
+Codes are sent by 2 threads of their own in the API process, never inside a request.
 
 Comment alerts use the same transport and provider key, plus the separate
 `ALETHICAL_COMMENT_EMAIL_ENABLED` switch. Each comment or edit saves its pending

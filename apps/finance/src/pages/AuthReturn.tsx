@@ -5,38 +5,30 @@ import { useFinanceSession } from '../auth/session';
 import { Link, navigate } from '../router';
 
 /**
- * What the address carried when the page opened, read once and then removed.
- * An emailed link carries its 1-use token after `#`, where it never reaches a
- * web server; the query string is read too, for Google's own parameters.
+ * What the address carried when the page opened, read once. Finance's emails
+ * carry no link, so a sign-in token in the address is never used: it is taken
+ * out of the address bar at once, and a crafted link cannot sign a visitor into
+ * someone else's account. The query string carries Google's own parameters.
  */
 function readArrival() {
   const query = new URLSearchParams(window.location.search);
   const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-  const read = (name: string) => fragment.get(name) ?? query.get(name);
-  const arrival = {
-    source: read('source'),
-    tokenHash: read('token_hash'),
-    providerError: read('error'),
-  };
-  if (arrival.tokenHash) {
-    // The 1-use token leaves the address bar before anything else runs.
+  if (query.has('token_hash') || fragment.has('token_hash')) {
     window.history.replaceState(null, '', '/auth/return');
+    return { source: null, providerError: null };
   }
-  return arrival;
+  const read = (name: string) => fragment.get(name) ?? query.get(name);
+  return { source: read('source'), providerError: read('error') };
 }
 
 /**
- * Where Google, and a first-time address's emailed confirmation link, return.
- * Google's code is exchanged by the Supabase client as the page loads. An
- * emailed link waits for a visible Continue: mail filters that open links
- * would otherwise use the 1-use token before the person does.
+ * Where Google returns. Google's code is exchanged by the Supabase client as
+ * the page loads; without a session the page says sign-in didn't work.
  */
 export function AuthReturn() {
   const { supabase } = useFinanceSession();
   const [arrival] = useState(readArrival);
-  const [state, setState] = useState<'confirm' | 'finishing' | 'failed'>(
-    arrival.tokenHash ? 'confirm' : 'finishing',
-  );
+  const [state, setState] = useState<'finishing' | 'failed'>('finishing');
   const heading = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -44,7 +36,6 @@ export function AuthReturn() {
   }, [state]);
 
   useEffect(() => {
-    if (arrival.tokenHash) return;
     let active = true;
     async function finish() {
       if (!arrival.providerError) {
@@ -64,31 +55,11 @@ export function AuthReturn() {
     };
   }, [arrival, supabase]);
 
-  async function confirm() {
-    setState('finishing');
-    const { error } = await supabase.auth.verifyOtp({
-      token_hash: arrival.tokenHash!,
-      type: 'email',
-    });
-    if (error) setState('failed');
-    else navigate(takeReturnPath(), { replace: true });
-  }
-
   return (
     <main className="access" id="main">
       <p className="lockup">
         Alethical <span>Finance</span>
       </p>
-      {state === 'confirm' && (
-        <div className="stack">
-          <h1 ref={heading} tabIndex={-1}>
-            Finish signing in
-          </h1>
-          <button type="button" onClick={confirm}>
-            Continue
-          </button>
-        </div>
-      )}
       {state === 'finishing' && (
         <h1 ref={heading} tabIndex={-1}>
           Signing in…
