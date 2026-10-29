@@ -14,6 +14,9 @@ import { Principal } from './pages/Principal';
 import { Organization } from './pages/Organization';
 import { DonorsByEmployer } from './pages/DonorsByEmployer';
 import { SearchResults } from './pages/Search';
+import { MediaBuys } from './pages/MediaBuys';
+import { StationFile } from './pages/StationFile';
+import { StationFolder, TVStation, PrintedAgency } from './pages/StationRecords';
 import { People } from './pages/People';
 import { CandidateProfile } from './pages/Candidate';
 import { LegislatorProfile } from './pages/Legislator';
@@ -34,6 +37,11 @@ import './ui/finance.css';
 /** Each built signed-in screen. A route missing here answers "not found". */
 const SCREENS: Partial<Record<RouteName, (match: RouteMatch) => ReactNode>> = {
   home: () => <FinanceHome />,
+  'media-buys': () => <MediaBuys />,
+  'station-file': (match) => <StationFile match={match} />,
+  'station-folder': (match) => <StationFolder match={match} />,
+  station: (match) => <TVStation match={match} />,
+  'printed-agency-name': (match) => <PrintedAgency match={match} />,
   'payments-under-name': (match) => <PaymentsUnderName match={match} />,
   'money-by-race': (match) => <MoneyByRace match={match} />,
   recipients: (match) => <Recipients match={match} />,
