@@ -66,13 +66,13 @@ class InstallSafetyTest(unittest.TestCase):
         seen = []
 
         @contextmanager
-        def lock_after_install(state, wait=False):
+        def lock_after_install(state, wait=False, timeout=0):
             # The caller has parsed its command, but an installer finishes before
             # this cleanup process gets the lock. It must use that newer decision.
             saved = json.loads((state / "installation.json").read_text())
             saved["protected_paths"] = [str(self.tree)]
             self.cleanup.write_json(state / "installation.json", saved)
-            with original_locked(state, wait=wait):
+            with original_locked(state, wait=wait, timeout=timeout):
                 yield
 
         def sweep(repo, state, apply):
