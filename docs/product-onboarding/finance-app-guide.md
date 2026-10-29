@@ -33,8 +33,8 @@ stays off (anything other than `on`), and the app serves 3 addresses:
   none can be read, the counts block is left out. "Sources and updates" names each source
   with the date its records were copied (bills: updated), in Minnesota time; a date the server
   cannot support is left out and the source stays named.
-- **Request a demo** (in the hero and again near the end) opens a draft email to
-  angel@alethical.com, copied to ask@alethical.com, with the subject "Alethical Finance demo".
+- **Request access** (in the hero and again near the end) opens a draft email to
+  angel@alethical.com, copied to ask@alethical.com, with the subject "Alethical Finance access".
   Nothing is sent until the reader sends it.
 - **Sign in** opens `/sign-in`. After signing in, an account not on the access list sees the
   not-listed state at `/`; a listed account sees the landing page, because no signed-in screen
