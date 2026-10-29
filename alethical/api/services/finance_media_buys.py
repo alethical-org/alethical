@@ -8,8 +8,11 @@ docs/architecture/alethical-finance-architecture.md requires:
   its own title, folder, category, pages and machine-read text, never an approved
   public copy's. Finance has no public pages, so it never uses the public-copy
   steps.
-- **Every check made on that exact version is shown**, from any non-draft copy of
-  it, published or not, and no check names who made it (§5).
+- **Every check made on that exact version is shown**: Finance's own checks
+  (``finance_station_checks.py``) and those from any non-draft copy of it,
+  published or not. No check names who made it or whether a team account did
+  (§5). A list matches a check on any version of a file, under that version's
+  row.
 - **No answer links to alethical.com** (§7). Each connection carries
   ``target: {kind, id}`` when Finance can open its other side, and the Finance app
   builds its own link. Which fields reach Finance at all is the allow list in
@@ -23,6 +26,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from alethical.api.services import finance_station_checks as checks
 from alethical.api.services import tv_ads as reader
 from alethical.db import models as m
 
@@ -33,11 +37,11 @@ OPENS = frozenset({"committee", "candidate", "principal", "election"})
 
 
 def target(c: m.TVAdConnection) -> dict | None:
-    """Where Finance opens a connection's other side: a station file, or the
-    files connected to the same record. None when nothing in Finance opens it: a
-    withdrawn check, printed issue text (not a record) or a reported expense,
-    whose id is a private review record; its amount, date and source row are
-    already on the connection."""
+    """Where Finance opens a connection's other side: the exact station file
+    version the check named, or the files connected to the same record. None when
+    nothing in Finance opens it: a withdrawn check, printed issue text (not a
+    record) or a reported expense, whose id is a private review record; its
+    amount, date and source row are already on the connection."""
     if c.status != "checked":
         return None
     if c.kind in OPENS:
@@ -51,6 +55,7 @@ def target(c: m.TVAdConnection) -> dict | None:
         return {
             "kind": "file",
             "id": reader.file_key(snapshot["facility_id"], snapshot["file_id"]),
+            "version": snapshot.get("content_hash"),
         }
     return None
 
@@ -65,6 +70,9 @@ def _connection(db: Session, c: m.TVAdConnection, version: str, key: str) -> dic
         )
         document = db.get(m.FCCDocument, identity) if all(identity) else None
         item["label"] = document.name if document else None
+    if getattr(c, "finance", False) and c.kind == "expense" and c.status == "checked":
+        # A Finance check copied the expense row itself, with no review link.
+        item["source_changed"] = not checks.expense_current(db, snapshot)
     return item
 
 

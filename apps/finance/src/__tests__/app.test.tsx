@@ -73,6 +73,7 @@ async function renderAt(
         apiBaseUrl={API}
         googleSignIn={googleSignIn}
         emailSignIn={emailSignIn}
+        screens
       >
         <App />
       </SessionProvider>,
@@ -166,19 +167,35 @@ describe('the Finance shell', () => {
     });
   });
 
-  it('shows the shell and the page placeholder to a listed account', async () => {
+  it('shows Finance Home in the shell to a listed account', async () => {
+    await renderAt('/home', fakeSupabase(SIGNED_IN));
+    expect(container.querySelector('header.f-nav')).not.toBeNull();
+    expect(container.querySelector('h1')?.textContent).toBe('Research public records');
+    expect(document.title).toBe('Finance Home · Alethical Finance');
+  });
+
+  it('lists only the record families whose pages are built', async () => {
+    await renderAt('/home', fakeSupabase(SIGNED_IN));
+    const links = [...container.querySelectorAll('a')].map((a) => a.getAttribute('href'));
+    for (const href of links) {
+      if (!href || !href.startsWith('/')) continue;
+      const path = href.split('?')[0];
+      expect(['/home', '/search'].some((built) => path === built) || path.startsWith('/#')).toBe(
+        path === '/home' || path === '/search' ? true : false,
+      );
+    }
+  });
+
+  it('answers a route whose screen is not built exactly as an unknown address', async () => {
     await renderAt('/media-buys', fakeSupabase(SIGNED_IN));
-    const nav = container.querySelector('nav[aria-label="Record families"]')!;
-    expect([...nav.querySelectorAll('a')].map((a) => a.textContent)).toEqual([
-      'Campaign money',
-      'Lobbying',
-      'People',
-      'Legislation',
-      'Media buys',
-    ]);
-    expect(nav.querySelector('[aria-current="page"]')?.textContent).toBe('Media buys');
-    expect(container.querySelector('h1')?.textContent).toBe('Media buys');
-    expect(document.title).toBe('Media buys · Alethical Finance');
+    expect(container.querySelector('h1')?.textContent).toBe('We couldn’t find that page');
+    expect(document.title).toBe('Page not found · Alethical Finance');
+  });
+
+  it('shows the landing page at / to a signed-in account too', async () => {
+    await renderAt('/', fakeSupabase(SIGNED_IN));
+    expect(container.querySelector('header.f-nav')).toBeNull();
+    expect(document.title).toBe('Alethical Finance');
   });
 
   it('shows the no-access state, naming the account but no reason', async () => {

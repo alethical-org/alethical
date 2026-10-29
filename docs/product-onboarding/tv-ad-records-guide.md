@@ -1,6 +1,6 @@
 # TV ad records guide
 
-<!-- describes: alethical/api/services/finance_media_buys.py, alethical/api/routers/finance_media_buys.py, alethical/api/finance_media_buys_schemas.py, alethical/api/routers/tv_ads.py, alethical/api/services/tv_ads.py, alethical/api/services/tv_ad_review.py, alethical/pipeline/tv_ad_redaction.py, apps/frontend/src/components/tvAds/**, apps/frontend/src/components/tvAdReview/**, apps/frontend/src/screens/redesign/TVAdRecordsScreen.tsx, apps/frontend/src/screens/redesign/AdminPoliticalAdsScreen.tsx -->
+<!-- describes: alethical/api/services/finance_media_buys.py, alethical/api/services/finance_station_checks.py, alethical/api/routers/finance_media_buys.py, alethical/api/finance_media_buys_schemas.py, alethical/api/routers/tv_ads.py, alethical/api/services/tv_ads.py, alethical/api/services/tv_ad_review.py, alethical/pipeline/tv_ad_redaction.py, apps/frontend/src/components/tvAds/**, apps/frontend/src/components/tvAdReview/**, apps/frontend/src/screens/redesign/TVAdRecordsScreen.tsx, apps/frontend/src/screens/redesign/AdminPoliticalAdsScreen.tsx -->
 
 TV ad records collect station files from KSTP-TV, KARE and KMSP-TV. They help readers distinguish what was ordered, billed, credited or reported in campaign records. A title alone does not prove an ad aired or a bill was paid. The first reader release is for signed-in administrators. Public access is not approved.
 
@@ -66,7 +66,8 @@ Source or target changes clear earlier review attestations. Saving and retry con
 
 Every Finance account reads the same station files under Media buys
 (`/api/v1/finance/media-buys/...`, `alethical/api/services/finance_media_buys.py`), through
-the readers above in their Finance reading (`originals=True`, off for alethical.com).
+the readers above in their Finance reading (`originals=True`, off for alethical.com), and
+checks them (`alethical/api/services/finance_station_checks.py`).
 
 - **Every file is the station's original.** The file page, every list row (recent files,
   folders, agencies, stations, years, connections) and every search result gives the file's
@@ -74,18 +75,74 @@ the readers above in their Finance reading (`originals=True`, off for alethical.
   machine-read text. Finance never uses the public-copy steps: no copy ids or statuses, no
   approved copy's title, folder, category or blanked text, and no approved folder label, so a
   folder is listed once Finance holds a file in it.
-- **Every check on that exact version is shown, published or not**: facts, dates, agency
-  names, connections and a corrected fact's earlier value, from every copy of the version
-  except drafts. They fill the file page and every list, count and connection view, so an
-  agency name checked on a file is never marked unchecked on that file. A folder shows its newest checked committee
-  relationship. No check names who made it, and no answer carries an account identifier.
+- **Every check on that exact version is shown, published or not**: Finance's own checks
+  and those from every copy of the version except drafts, as facts, dates, agency names,
+  connections and a corrected fact's earlier value. They fill the file page and every
+  list, count and connection view, so an agency name checked on a file is never marked
+  unchecked on that file. A folder shows its newest checked committee relationship. No
+  check names who made it or whether a team account did, and no answer carries an account
+  identifier or a check's evidence note.
+- **A list matches a check on any version of a file.** Connection lookups, agency names
+  and pages, search by checked fact and the count of files with a checked connection read
+  every saved version of a file. When the check sits on an earlier version, the row is that
+  version's own (`version_id`, with `source_changed: true` because the station has filed
+  newer contents), so a refiled file keeps its checks without moving them to contents
+  nobody checked. Other rows and the file page describe the version they show. Each read
+  fetches checks only for the files it shows: a file page, folder or station its own files,
+  recent files the 9 it lists, a connection lookup the files holding a matching check.
 - **No answer carries a link or an alethical.com address**, including the campaign-payments
   links on agency pages. Each connection carries `target: {kind, id}`, a record a Finance
   route answers, for the Finance app to build its own link: a related document is
-  `{kind: "file", id: <file key>}` (`/files/{key}`); a committee, candidate, lobbying
-  principal or election opens the files connected to it (`/connections?kind=&target=`). A
-  printed issue and a reported campaign expense carry no target, because no Finance route
-  opens either; an expense keeps its reported amount, date and source row on the connection.
+  `{kind: "file", id: <file key>, version: <content hash>}` (`/files/{key}?version=`), the
+  exact version the check named; a committee, candidate, lobbying principal or election
+  opens the files connected to it (`/connections?kind=&target=`). A printed issue and a
+  reported campaign expense carry no target, because no Finance route opens either; an
+  expense keeps its reported amount, date and source row on the connection.
+
+### Checking an original in Finance
+
+Every Finance account records facts, dates and file connections on an exact original
+version, under `/files/{key}/versions/{content hash}/`: `target-preview?kind=&target_id=`
+(with `election_stage`, `money_office`, `money_district` and `role` where a target needs
+them), then `POST facts` or `POST connections`. `POST /facts/{id}/withdraw` and
+`POST /connections/{id}/withdraw` take `{"reason": ...}`. A saved or withdrawn check answers
+only its `id` and `status`.
+
+- **The review's rules, with the original as evidence.** A check obeys the rules the
+  review above applies to the same field or connection kind, from the same code: the
+  supported fields, an amount or value printed in the quotation, a printed role,
+  qualifier and organization, an inspected target whose fingerprint has not changed since
+  its preview, the exact election stage, a printed issue, and a reviewed file identity
+  and exact retained expense row. The quotation must appear exactly in the original's
+  machine-read text on the page it names, never in a public copy's safe text. An agency
+  address needs the same agency name checked in Finance on the same version; a public
+  copy's check never stands in for it.
+- **Finance's own differences.** A request carries no publication or privacy approval,
+  because Finance has no public pages; one that names either is refused. A related
+  document is another held original version, named `<file key>@<content hash>`. An expense
+  is the exact Campaign Finance Board row (`dataset:snapshot-id:row-number`), copied whole
+  into the check; Finance writes no review link, so alethical.com's expense suggestions
+  never change, and the connection says when the current release no longer holds that
+  row. Folder relationships stay with alethical.com's review.
+- **Keyed by exact version, never by a copy** (`finance_tv_fact`,
+  `finance_tv_connection`). Withdrawing or changing an alethical.com public copy never
+  changes a Finance check, and a Finance account cannot withdraw or correct a check made on
+  a public copy: that check is alethical.com's record.
+- **Append-only.** A correction is a new fact naming the standing fact it replaces, 1
+  correction per fact; the earlier value appears in its history. A withdrawal sets its time
+  and reason once; withdrawing a corrected fact removes its value from the history. Nothing
+  else changes and nothing is deleted: the database refuses every other update and every
+  delete.
+- **No account identity is kept.** Each check records whether a team account made it
+  (`made_by_alethical_team`) and when, and no Finance answer serves that flag; it decides
+  only what alethical.com may print
+  ([alethical-finance-architecture.md §5](../architecture/alethical-finance-architecture.md#5-what-alethicalcom-prints-from-work-done-in-finance)).
+- A refused check answers 422 with the rule it broke as 1 fixed sentence in `detail`,
+  such as "Quotation must appear in this original's machine-read text on that page", so a
+  person can fix it; the sentence names the rule, never a record's contents. A field of the
+  wrong type or holding a NUL character is refused by name, and a page beyond 100 is no
+  page. When 2 people correct the same fact at once, the second answers 409 "This fact was
+  corrected a moment ago. Reload and check."
 - **A field reaches Finance only when its response model names it**
   (`alethical/api/finance_media_buys_schemas.py`), so a field added to the shared readers
   stays out of Finance until a model adds it.

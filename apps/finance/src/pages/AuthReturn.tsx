@@ -26,7 +26,7 @@ function readArrival() {
  * the page loads; without a session the page says sign-in didn't work.
  */
 export function AuthReturn() {
-  const { supabase } = useFinanceSession();
+  const { supabase, screens } = useFinanceSession();
   const [arrival] = useState(readArrival);
   const [state, setState] = useState<'finishing' | 'failed'>('finishing');
   const heading = useRef<HTMLHeadingElement>(null);
@@ -42,7 +42,7 @@ export function AuthReturn() {
         const { data } = await supabase.auth.getSession();
         if (!active) return;
         if (data.session) {
-          navigate(takeReturnPath(), { replace: true });
+          navigate(takeReturnPath(screens), { replace: true });
           return;
         }
       }
@@ -53,7 +53,7 @@ export function AuthReturn() {
     return () => {
       active = false;
     };
-  }, [arrival, supabase]);
+  }, [arrival, screens, supabase]);
 
   return (
     <main className="access" id="main">

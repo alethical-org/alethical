@@ -28,6 +28,9 @@ export interface FinanceSession {
   apiBaseUrl: string;
   googleSignIn: boolean;
   emailSignIn: boolean;
+  /** Whether the signed-in screens are on (`VITE_FINANCE_SCREENS`); without
+   * them a listed account returns to the landing page instead of Finance Home. */
+  screens: boolean;
   /** True while Try again re-asks; the last answer stays on screen meanwhile. */
   retrying: boolean;
   retry: () => void;
@@ -52,12 +55,14 @@ export function SessionProvider({
   apiBaseUrl,
   googleSignIn = false,
   emailSignIn = false,
+  screens = false,
   children,
 }: {
   supabase: SupabaseClient;
   apiBaseUrl: string;
   googleSignIn?: boolean;
   emailSignIn?: boolean;
+  screens?: boolean;
   children: ReactNode;
 }) {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
@@ -145,6 +150,7 @@ export function SessionProvider({
       apiBaseUrl,
       googleSignIn,
       emailSignIn,
+      screens,
       retrying,
       retry,
       signOut,
@@ -155,6 +161,7 @@ export function SessionProvider({
       googleSignIn,
       retry,
       retrying,
+      screens,
       session,
       signOut,
       status,

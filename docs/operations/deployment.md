@@ -519,9 +519,9 @@ team, built from `apps/finance` with that folder's `vercel.json`. Its address is
 Vercel gives for the domain. Vercel also answers at `https://alethical-finance.vercel.app`.
 The 6 build settings are public values: `VITE_SUPABASE_URL`,
 `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_API_BASE_URL` (`https://api.alethical.com`),
-`VITE_GOOGLE_SIGN_IN`, `VITE_EMAIL_SIGN_IN`, and `VITE_FINANCE_SCREENS`, which stays unset
-(off) until the signed-in screens are approved, so the site serves only the landing page and
-sign-in
+`VITE_GOOGLE_SIGN_IN`, `VITE_EMAIL_SIGN_IN`, and `VITE_FINANCE_SCREENS`, which is `on`
+so a listed account reaches the signed-in screens built so far; unset, the site serves only
+the landing page and sign-in
 ([finance-app-guide.md § The public site](../product-onboarding/finance-app-guide.md#the-public-site)).
 
 The project's Root Directory setting is `apps/finance`, so Vercel builds that folder with
@@ -545,8 +545,9 @@ signed-in requests need `https://finance.alethical.com` in `ALETHICAL_CORS_ORIGI
 below).
 Then confirm
 `https://finance.alethical.com/` shows the landing page with its counts, `/sign-in` shows
-"Sign in to Alethical Finance", `/money` says the page cannot be found, and every answer
-carries `X-Robots-Tag: noindex, nofollow`. Roll back with `vercel rollback --scope
+"Sign in to Alethical Finance", a built page such as `/money` sends a signed-out visitor to
+sign-in, an unbuilt one such as `/media-buys` says the page cannot be found once signed in,
+and every answer carries `X-Robots-Tag: noindex, nofollow`. Roll back with `vercel rollback --scope
 alethical` or by deploying the previous `main` commit the same way.
 
 Before anyone can sign in at that address:

@@ -1,0 +1,735 @@
+/* People (pp-), Candidate (cd-), Legislator (lg2-) and the shared Campaign
+ * finance section (cf-), from Design's People, Candidate, Legislator and
+ * Campaign Finance drawings. Shared f-* classes live in src/ui/finance.css. */
+
+/* ---------- People directory ---------- */
+.pp-lead {
+  margin: 8px 0 0;
+  max-width: 760px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--secondary);
+}
+.pp-search {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+  max-width: 760px;
+}
+.pp-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 48px;
+}
+.pp-submit {
+  height: 48px;
+  flex: none;
+}
+.pp-controls {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+.pp-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.pp-row-label {
+  min-width: 96px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--secondary);
+}
+.pp-control-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.pp-layout {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 24px;
+  align-items: start;
+}
+.pp-results {
+  min-width: 0;
+  scroll-margin-top: 70px;
+}
+.pp-count {
+  padding: 0 0 10px 2px;
+  font-size: 14px;
+  color: var(--secondary);
+}
+.pp-list,
+.lg2-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.pp-list > li,
+.lg2-list > li {
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+}
+.pp-list > li:last-child,
+.lg2-list > li:last-child {
+  border-bottom: 0;
+}
+.pp-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) 130px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-height: 56px;
+  padding: 8px 20px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.f-app .pp-row {
+  color: var(--ink);
+}
+.f-app .pp-row:focus-visible,
+.f-app .lg2-bill:focus-visible {
+  outline-offset: -2px;
+}
+.pp-who {
+  min-width: 0;
+  align-items: center;
+}
+.pp-who .f-mark {
+  grid-row: span 2;
+}
+.pp-name {
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.pp-note {
+  grid-column: 2;
+  font-size: 13px;
+  color: var(--secondary);
+}
+.pp-kind {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  height: 26px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border-radius: 5px;
+  background: var(--tint);
+  border: 1px solid var(--fill);
+  color: var(--link);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.pp-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--secondary);
+}
+.pp-pages {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pp-page-btn {
+  min-height: 40px;
+  font-size: 14px;
+}
+.pp-page-btn[aria-disabled='true'] {
+  color: #6e7983;
+}
+.pp-page-line {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--secondary);
+}
+.pp-aside {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.pp-types {
+  padding: 18px 20px;
+}
+.pp-types h2 {
+  margin: 0;
+}
+.pp-types dl {
+  margin: 10px 0 0;
+  display: grid;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.pp-types dt {
+  font-weight: 700;
+}
+.pp-types dd {
+  margin: 0;
+  color: var(--secondary);
+}
+@media (hover: hover) and (min-width: 768px) {
+  .pp-row:hover,
+  .lg2-bill:hover {
+    background: var(--row-hover);
+  }
+  .lg2-related-link:hover .lg2-related-label,
+  .lg2-committee-link:hover span,
+  .cf-spender a:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+.pp-row:active,
+.lg2-bill:active {
+  background: var(--tint);
+}
+
+/* ---------- Profiles (Candidate and Legislator) ---------- */
+.lg2-gone {
+  margin-top: 12px;
+  max-width: 640px;
+}
+.lg2-gone-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+.lg2-gone p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--secondary);
+}
+.lg2-header {
+  margin-top: 8px;
+}
+.lg2-title {
+  margin-top: 8px;
+  font-size: 28px;
+}
+.lg2-line {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--secondary);
+}
+.lg2-layout {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 24px;
+  align-items: start;
+}
+.lg2-main {
+  min-width: 0;
+  display: grid;
+  gap: 28px;
+}
+.lg2-aside {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.lg2-section > .f-section-title + * {
+  margin-top: 12px;
+}
+.lg2-strong {
+  display: block;
+  font-weight: 600;
+}
+.lg2-muted {
+  display: block;
+  font-size: 13px;
+  color: var(--secondary);
+}
+.lg2-note {
+  margin: 10px 0 0;
+  padding-left: 17px;
+  max-width: 760px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.lg2-service {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 16px;
+  padding: 12px 20px;
+  font-size: 14px;
+}
+.lg2-service-dates {
+  font-weight: 700;
+  color: var(--secondary);
+}
+.lg2-committee {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px 20px;
+  font-size: 14px;
+}
+.lg2-committee-text {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.lg2-committee-link {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 14px;
+}
+.lg2-bills-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 16px;
+}
+.lg2-bills-head + div {
+  margin-top: 12px;
+}
+.lg2-bill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 20px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.f-app .lg2-bill {
+  color: var(--ink);
+}
+.lg2-bill-text {
+  min-width: 0;
+  flex: 1;
+}
+.lg2-bill-title {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.lg2-related {
+  padding: 18px 20px;
+}
+.lg2-related-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+}
+.lg2-related-plain {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.lg2-related-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.lg2-related-label {
+  display: block;
+}
+.lg2-related-note {
+  display: block;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--secondary);
+}
+.lg2-related .lg2-muted {
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+
+/* ---------- Candidate ---------- */
+.cd-facts h2 {
+  margin: 0;
+}
+.cd-fact-grid {
+  margin: 12px 0 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.cd-fact {
+  min-width: 0;
+  padding: 12px 14px;
+  background: var(--ground);
+  border-radius: 8px;
+}
+.cd-fact dt {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--secondary);
+}
+.cd-fact dd {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.cd-fact dd[data-missing] {
+  color: var(--muted);
+}
+.cd-stamp {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.cd-election {
+  display: grid;
+  gap: 8px;
+}
+.cd-result-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+.cd-result-row .f-dest {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  font-size: 14px;
+}
+.cd-result {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--secondary);
+}
+.cd-result[data-final] {
+  color: var(--ink);
+}
+
+/* ---------- Campaign finance (shared) ---------- */
+.cf {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.cf-block {
+  display: grid;
+  gap: 10px;
+}
+.cf-sub {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+.cf-account {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+}
+.cf-account-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.cf-account-id {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.cf-account-name {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.cf-account-kind,
+.cf-account-basis {
+  font-size: 13px;
+  color: var(--secondary);
+}
+.cf-account-open {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  font-size: 14px;
+}
+.cf-years {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.cf-years-label {
+  margin-right: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--secondary);
+}
+.cf-year {
+  font-weight: 700;
+}
+.cf-figs {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--hairline);
+}
+.cf-fig {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  align-content: start;
+  padding: 12px 14px 12px 0;
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+}
+.cf-fig dt {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--secondary);
+}
+.cf-fig dd {
+  margin: 0;
+}
+.cf-fig-value {
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.cf-fig-value[data-missing] {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: normal;
+}
+.cf-fig-basis {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.cf-notes p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.cf-notes p + p {
+  margin-top: 6px;
+}
+.cf-key {
+  margin-top: 14px;
+  max-width: 760px;
+}
+.cf-key-grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--hairline);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.cf-key-grid .cf-fig {
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 0;
+}
+.cf-key-grid dt {
+  font-size: 12px;
+  font-weight: 400;
+}
+.cf-key-grid .cf-fig-value {
+  font-size: 18px;
+  font-weight: 700;
+}
+.cf-key-grid .cf-fig-value[data-missing] {
+  font-size: 13px;
+  font-weight: 600;
+}
+.cf-key-grid .cf-fig-basis {
+  display: none;
+}
+.cf-key-note {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--secondary);
+}
+.cf-contest {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+}
+.cf-contest-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 16px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--hairline);
+}
+.cf-contest-label {
+  font-size: 15px;
+  font-weight: 700;
+}
+.cf-contest-dates {
+  font-size: 13px;
+  color: var(--secondary);
+}
+.cf-outside {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cf-outside li {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) 90px 130px minmax(0, 1fr);
+  gap: 6px 14px;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+  font-size: 14px;
+}
+.cf-outside li:last-child {
+  border-bottom: 0;
+}
+.cf-spender {
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.cf-spender a {
+  text-decoration: none;
+}
+.cf-position {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 5px;
+  background: #fff;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 700;
+}
+.cf-amount {
+  font-weight: 800;
+  text-align: right;
+  white-space: nowrap;
+}
+.cf-amount[data-missing] {
+  font-weight: 600;
+  color: var(--muted);
+  white-space: normal;
+}
+.cf-count {
+  font-size: 13px;
+  color: var(--secondary);
+  text-align: right;
+}
+
+/* ---------- Bands ---------- */
+@media (max-width: 1099px) {
+  .pp-layout,
+  .lg2-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 767px) {
+  .pp-search {
+    flex-direction: column;
+  }
+  .pp-row-label {
+    min-width: 100%;
+  }
+  .pp-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    padding: 12px 16px;
+  }
+  .pp-end {
+    justify-content: space-between;
+  }
+  .pp-page-btn {
+    min-height: 44px;
+  }
+  .lg2-title {
+    font-size: 24px;
+  }
+  .lg2-service {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .lg2-committee,
+  .lg2-bill,
+  .lg2-service {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .cd-fact-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cd-result-row .f-dest,
+  .cf-account-open {
+    min-height: 44px;
+  }
+  .cf-account {
+    padding: 16px;
+  }
+  .cf-figs,
+  .cf-key-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cf-fig {
+    padding-right: 0;
+  }
+  .cf-year {
+    min-width: 64px;
+  }
+  .cf-outside li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .cf-amount,
+  .cf-count {
+    text-align: left;
+  }
+}

@@ -1,0 +1,222 @@
+/* Committee members' campaign accounts (Committee Members Accounts drawing).
+ * Page-only classes, prefix cmm-. */
+.cmm-head {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+}
+.cmm-head .f-label {
+  letter-spacing: 0.08em;
+}
+.cmm-title {
+  font-size: 28px;
+}
+.cmm-meta {
+  font-size: 14px;
+  color: var(--secondary);
+  font-variant-numeric: tabular-nums;
+}
+.cmm-gone {
+  margin-top: 8px;
+}
+.cmm-section {
+  margin-top: 24px;
+}
+.cmm-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+.cmm-years {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.cmm-years-label {
+  margin-right: 4px;
+  font-size: 13px;
+  color: var(--secondary);
+}
+.cmm-years .f-chips {
+  gap: 6px;
+}
+.cmm-years .f-chip {
+  padding: 0 12px;
+  font-weight: 500;
+}
+.cmm-years .f-chip[aria-pressed='true'] {
+  font-weight: 700;
+  cursor: default;
+}
+.cmm-years .f-chip:active[aria-pressed='false'] {
+  background: var(--tint-selected);
+}
+.cmm-lead {
+  margin: 8px 0 0;
+  max-width: 760px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--secondary);
+}
+.cmm-box {
+  margin-top: 16px;
+  max-width: 760px;
+  padding: 0 20px;
+  box-sizing: border-box;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+}
+.cmm-state {
+  margin-top: 16px;
+  max-width: 760px;
+}
+.cmm-grid {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.cmm-card {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 17px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+}
+.cmm-who {
+  display: grid;
+  gap: 2px;
+}
+.cmm-name {
+  justify-self: start;
+  font-size: 16px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.cmm-account-name {
+  justify-self: start;
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.f-app a.cmm-name,
+.f-app a.cmm-account-name {
+  color: var(--link);
+  text-decoration: none;
+  border-radius: 3px;
+}
+.cmm-sub {
+  font-size: 13px;
+  color: var(--secondary);
+  font-variant-numeric: tabular-nums;
+}
+.cmm-rule {
+  padding-top: 10px;
+  border-top: 1px solid rgba(20, 27, 34, 0.08);
+}
+.cmm-line {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--secondary);
+}
+p.cmm-rule {
+  margin: 0;
+}
+.cmm-accounts {
+  display: grid;
+  gap: 10px;
+}
+.cmm-accounts .f-label {
+  letter-spacing: 0.08em;
+}
+.cmm-accounts .f-status {
+  min-height: 0;
+}
+.cmm-account {
+  display: grid;
+  gap: 8px;
+}
+.cmm-account + .cmm-account {
+  padding-top: 10px;
+  border-top: 1px solid rgba(20, 27, 34, 0.08);
+}
+.cmm-figures {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+.cmm-figure {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 12px;
+  row-gap: 2px;
+  align-items: baseline;
+  font-size: 14px;
+}
+.cmm-figure dt {
+  color: var(--secondary);
+}
+.cmm-figure dd {
+  margin: 0;
+}
+.cmm-value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  text-align: right;
+}
+.cmm-value[data-missing] {
+  color: var(--muted);
+}
+.cmm-figure-period {
+  grid-column: 1 / -1;
+}
+.cmm-report {
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.f-app a.cmm-name:active,
+.f-app a.cmm-account-name:active {
+  color: var(--link-hover);
+}
+@media (hover: hover) and (min-width: 768px) {
+  .f-app a.cmm-name:hover,
+  .f-app a.cmm-account-name:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+@media (max-width: 1099px) {
+  .cmm-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 767px) {
+  .cmm-title {
+    font-size: 24px;
+  }
+  .cmm-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cmm-card {
+    padding: 16px;
+  }
+  .cmm-name,
+  .cmm-account-name {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
