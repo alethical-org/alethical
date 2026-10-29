@@ -203,8 +203,11 @@ describe('Search results', () => {
     );
     expect(legislator?.textContent).toContain('Legislator · House District 06A');
     expect(people.querySelector('.f-mark-person')).not.toBeNull();
-    // The lobbyist page is not built, so a lobbyist is plain text.
-    expect(people.querySelectorAll('a')).toHaveLength(1);
+    // Lobbyists link to their own built page.
+    const lobbyistLinks = [...people.querySelectorAll('a')].filter((a) =>
+      a.getAttribute('href')?.startsWith('/lobbying/lobbyists/'),
+    );
+    expect(lobbyistLinks.length).toBeGreaterThan(0);
 
     const committees = family('Committees');
     expect(committees.querySelector('a')?.getAttribute('href')).toBe(
@@ -230,7 +233,10 @@ describe('Search results', () => {
     // in 1 file's complete list, so the other file adds no new name.
     expect(printed.querySelector('h2')?.textContent).toBe('Payments under a name194');
     expect(printed.textContent).toContain('A printed name is not a confirmed person or business');
-    expect(printed.querySelectorAll('a')).toHaveLength(0);
+    // Each spelling opens Payments under this name, never a merged record.
+    const spellings = [...printed.querySelectorAll('a')].map((a) => a.getAttribute('href'));
+    expect(spellings.length).toBeGreaterThan(0);
+    expect(spellings.every((href) => href?.startsWith('/money/names/'))).toBe(true);
     expect(printed.querySelector('.f-mark-printed')).not.toBeNull();
   });
 

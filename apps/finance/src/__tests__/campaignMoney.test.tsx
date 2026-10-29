@@ -141,7 +141,7 @@ describe('Campaign money directory', () => {
       'Limits of the campaign records',
     );
     expect(text).toContain('Campaign payment records before 2015 are not included');
-    // Not built yet: no entrance to Money connections or a payments search.
+    // Money connections and Vendors and payees are not built yet: no entrance to either.
     expect(text).not.toContain('Explore money connections');
     expect(text).not.toContain('Vendors and payees');
     expect(text).not.toMatch(/illustrative|example|sample|fixture|demo/i);
@@ -165,7 +165,7 @@ describe('Campaign money directory', () => {
     await render('/money?q=caucus', () => json(register()));
     expect(registerRequests()[0]).toContain('q=caucus');
     expect(container.textContent).toContain('Registered names matching “caucus” are listed below.');
-    expect(container.textContent).not.toContain('Payments under a name');
+    expect(container.textContent).toContain('Payments under a name');
   });
 
   it('pages on the server and writes the page to the address', async () => {
