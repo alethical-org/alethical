@@ -13,23 +13,27 @@
     <link rel="manifest" href="/manifest.json?brand=twin-peaks" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png?brand=twin-peaks" />
     <meta name="theme-color" content="#111111" />
+    <!-- prettier-ignore -->
     <style id="alethical-focus-visible">
       a:not([data-arrow-focus]):focus-visible,
       button:not([data-arrow-focus]):focus-visible,
-      [role='button']:not([data-arrow-focus]):focus-visible,
-      [role='link']:not([data-arrow-focus]):focus-visible,
-      [tabindex]:not(input):not(textarea):not(select):not([role='heading']):not(h1):not(h2):not(
-          h3
-        ):not(h4):not(h5):not(h6):not([data-arrow-focus]):focus-visible {
+      [role="button"]:not([data-arrow-focus]):focus-visible,
+      [role="link"]:not([data-arrow-focus]):focus-visible,
+      [tabindex]:not(input):not(textarea):not(select):not([role="heading"]):not(
+          h1
+        ):not(h2):not(h3):not(h4):not(h5):not(h6):not(
+          [data-arrow-focus]
+        ):focus-visible {
         outline: 2px solid #7c5cff !important;
         outline-offset: 2px !important;
       }
     </style>
+    <!-- prettier-ignore -->
     <style id="alethical-browser-fill">
-      :is(input, textarea)[data-alethical-browser-fill='true']:autofill,
-      :is(input, textarea)[data-alethical-browser-fill='true']:autofill:hover,
-      :is(input, textarea)[data-alethical-browser-fill='true']:autofill:focus,
-      :is(input, textarea)[data-alethical-browser-fill='true']:autofill:active {
+      :is(input, textarea)[data-alethical-browser-fill="true"]:autofill,
+      :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:hover,
+      :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:focus,
+      :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:active {
         background-color: #ffffff !important;
         -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
         box-shadow: 0 0 0 1000px #ffffff inset !important;
@@ -37,10 +41,10 @@
         color: #11150f !important;
         caret-color: #11150f !important;
       }
-      :is(input, textarea)[data-alethical-browser-fill='true']:-webkit-autofill,
-      :is(input, textarea)[data-alethical-browser-fill='true']:-webkit-autofill:hover,
-      :is(input, textarea)[data-alethical-browser-fill='true']:-webkit-autofill:focus,
-      :is(input, textarea)[data-alethical-browser-fill='true']:-webkit-autofill:active {
+      :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill,
+      :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:hover,
+      :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:focus,
+      :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:active {
         background-color: #ffffff !important;
         -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
         box-shadow: 0 0 0 1000px #ffffff inset !important;
@@ -49,10 +53,10 @@
         caret-color: #11150f !important;
       }
       @media (forced-colors: active) {
-        :is(input, textarea)[data-alethical-browser-fill='true']:autofill,
-        :is(input, textarea)[data-alethical-browser-fill='true']:autofill:hover,
-        :is(input, textarea)[data-alethical-browser-fill='true']:autofill:focus,
-        :is(input, textarea)[data-alethical-browser-fill='true']:autofill:active {
+        :is(input, textarea)[data-alethical-browser-fill="true"]:autofill,
+        :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:hover,
+        :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:focus,
+        :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:active {
           background-color: Canvas !important;
           -webkit-box-shadow: none !important;
           box-shadow: none !important;
@@ -60,10 +64,10 @@
           color: CanvasText !important;
           caret-color: CanvasText !important;
         }
-        :is(input, textarea)[data-alethical-browser-fill='true']:-webkit-autofill,
-        :is(input, textarea)[data-alethical-browser-fill='true']:-webkit-autofill:hover,
-        :is(input, textarea)[data-alethical-browser-fill='true']:-webkit-autofill:focus,
-        :is(input, textarea)[data-alethical-browser-fill='true']:-webkit-autofill:active {
+        :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill,
+        :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:hover,
+        :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:focus,
+        :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:active {
           background-color: Canvas !important;
           -webkit-box-shadow: none !important;
           box-shadow: none !important;
@@ -1815,6 +1819,7 @@
       parsed, so the beacon never sees it and no record opens. Nothing is added to the
       page: the same call is made once either way, only earlier.
     -->
+    <!-- prettier-ignore -->
     <script id="alethical-history-entry">
       (function () {
         try {
@@ -1822,29 +1827,22 @@
             // A Google return must not paint the article top while the program
             // and account load. Cancellation clears pendingSignIn; an abandoned
             // comment target alone must never conceal a normal visit.
-            var commentReturn = JSON.parse(
-              window.sessionStorage.getItem('alethical.comments.signInTarget') || 'null',
-            );
-            var signInReturn = JSON.parse(
-              window.sessionStorage.getItem('alethical.pendingSignIn') || 'null',
-            );
-            if (
-              commentReturn &&
-              signInReturn &&
-              signInReturn.intent === 'nav' &&
-              commentReturn.path === window.location.pathname &&
-              signInReturn.returnTo === commentReturn.path &&
-              typeof commentReturn.articleId === 'string' &&
-              typeof commentReturn.createdAt === 'number' &&
-              commentReturn.createdAt <= Date.now() &&
-              Date.now() - commentReturn.createdAt < 30 * 60 * 1000
-            ) {
+            var commentReturn = JSON.parse(window.sessionStorage.getItem('alethical.comments.signInTarget') || 'null');
+            var signInReturn = JSON.parse(window.sessionStorage.getItem('alethical.pendingSignIn') || 'null');
+            if (commentReturn && signInReturn && signInReturn.intent === 'nav' &&
+                commentReturn.path === window.location.pathname &&
+                signInReturn.returnTo === commentReturn.path &&
+                typeof commentReturn.articleId === 'string' &&
+                typeof commentReturn.createdAt === 'number' &&
+                commentReturn.createdAt <= Date.now() &&
+                Date.now() - commentReturn.createdAt < 30 * 60 * 1000) {
               document.documentElement.setAttribute('data-comment-return', '');
               // A missing program or failed route must never leave the article hidden.
               window.setTimeout(function () {
                 document.documentElement.removeAttribute('data-comment-return');
               }, 10000);
             }
+
           } catch (error) {
             // A stale or blocked return record must not affect ordinary history.
           }
@@ -1892,6 +1890,7 @@
     </script>
     <!-- Startup files can recover once before a screen draws. Later download
          failures must never reload a working page and discard private input. -->
+    <!-- prettier-ignore -->
     <script id="alethical-release-recovery">
       (function () {
         var reloadKey = 'alethical.release-program-reload';
@@ -1967,6 +1966,7 @@
       counts visitors either way, and still reports page speed, because it sends
       that report on the page's load event rather than on its own position.
     -->
+    <!-- prettier-ignore -->
     <script
       async
       type="module"

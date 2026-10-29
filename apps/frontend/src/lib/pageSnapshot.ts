@@ -1371,6 +1371,10 @@ export function readPageSnapshot(
     .flatMap((item) => (item.kind === 'group' ? item.members : [item.piece]))
     .map((entry) => bySlug.get(entry.slug))
     .filter((piece): piece is ResearchPiece => Boolean(piece));
+  const articles = groups.shortPosts
+    .slice(0, 3)
+    .map((entry) => bySlug.get(entry.slug))
+    .filter((piece): piece is ResearchPiece => Boolean(piece));
   const writingRecord = (piece: ResearchPiece) => ({
     label: piece.title,
     detail: [pieceCardMetaLine(piece), pieceCardSecondaryLine(piece)].filter(Boolean).join(' · '),
@@ -1390,7 +1394,7 @@ export function readPageSnapshot(
     bodyIsList: false,
     facts: [],
     records: [
-      ...groups.shortPosts.slice(0, 3).map(writingRecord),
+      ...articles.map(writingRecord),
       ...reports.map(writingRecord),
       ...events.slice(0, 3).map((event) => ({
         label: event.name,
