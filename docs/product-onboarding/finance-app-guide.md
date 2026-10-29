@@ -143,11 +143,13 @@ Media buys: `/` (landing), `/home`, `/search`, `/organizations/:id`, `/money`,
 `/lobbying/principals/:id`, `/media-buys`, `/media-buys/folders/:id`, `/media-buys/files/:key`,
 `/media-buys/agencies/:name`, `/media-buys/stations/:id`, `/media-buys/check`, `/people`,
 `/people/:id`, `/candidates/:id`, `/legislators/:id`, `/bills`, `/bills/:id`, `/votes/:id`.
-Built: `/`, `/home`, `/sign-in`, `/auth/return`, `/search`, `/people`, `/candidates/:id`,
+Built: `/`, `/home`, `/sign-in`, `/auth/return`, `/search`, `/people`, `/people/:id`, `/candidates/:id`,
 `/legislators/:id`, `/money`, `/money/committees/:id`, `/money/names/:query`,
 `/money/races/:id`, `/money/employers`, `/money/employers/:name`,
 `/legislature/committees/:id/members`, `/lobbying`, `/lobbying/lobbyists/:id`,
-`/lobbying/principals/:id`, `/organizations/:id`, `/bills`, `/bills/:id` and `/votes/:id`
+`/lobbying/principals/:id`, `/organizations/:id`, `/bills`, `/bills/:id`, `/votes/:id`,
+`/money/recipients`, `/money/connections`, `/media-buys`, `/media-buys/files/:key`,
+`/media-buys/folders/:id`, `/media-buys/stations/:id` and `/media-buys/agencies/:name`
 (§ Research pages). Every other address answers "We
 couldn’t find that page" until its screen is built (`BUILT` in `apps/finance/src/routes.ts`).
 Every link is built from these patterns (`hrefFor`), is a real link that opens in a new tab and
@@ -155,6 +157,23 @@ copies, and works with Back and Forward. While the screens are off, only `/`, `/
 `/auth/return` answer (§ The public site).
 
 ## Research pages
+
+Money connections (`/money/connections`) reads direct recorded relationships from
+`GET /api/v1/finance/connections`. Search, year, relationship and the focused record are
+server filters. Each page holds up to 50 relationships and shows the whole selection's
+count with Previous and Next. Map starts on tablet/computer; Table starts on phone. An
+explicit view choice stays in the address across resizing and return visits. Nodes and
+lines are keyboard selectable; the table carries every relationship too. Full labels wrap
+inside map nodes, with the columns stacked when their container is narrow.
+
+Each relationship keeps its own source, record count and complete date or year period.
+A missing amount or incomplete period withholds the figure. Sources are never added
+together and a connected path never claims that one payment funded another. Printed names
+stay separate from confirmed people/organizations; a committee registration is an official
+record, not an identity check. Only explicit link targets supplied by the server open a
+profile. A station-file source opens the cited version and page. Partial source availability
+is named, and failed updates keep the last results with a retry. These reads do not write
+checks or confirmations.
 
 Each page is built from its approved Design drawing and reads alethical.com's own records
 through the shared API (`api.alethical.com`). Every page has a loading state, a failure with
