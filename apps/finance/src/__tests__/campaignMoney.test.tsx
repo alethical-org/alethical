@@ -116,6 +116,22 @@ function registerRequests() {
 }
 
 describe('Campaign money directory', () => {
+  it('sorts the full register on the server and resets paging when the order changes', async () => {
+    await render('/money?page=3', () => json(register()));
+    const menu = [...container.querySelectorAll('button')].find((b) =>
+      b.textContent?.includes('Sort by:'),
+    )!;
+    await act(async () => menu.click());
+    const registration = [...container.querySelectorAll('[role="option"] button')].find(
+      (b) => b.textContent === 'Registration',
+    )!;
+    await act(async () => (registration as HTMLButtonElement).click());
+    await settle();
+    expect(registerRequests().at(-1)).toContain('sort=registration');
+    expect(registerRequests().at(-1)).toContain('offset=0');
+    expect(window.location.search).toContain('sort=registration');
+    expect(window.location.search).not.toContain('page=3');
+  });
   it('lists the register with counts, a committee link, a mark and its sources', async () => {
     await render('/money', () => json(register()));
     const text = container.textContent ?? '';

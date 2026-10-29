@@ -183,7 +183,8 @@ figure is ever added across committees or members.
 - **Candidate profile (`/candidates/:id`)**: the held candidacy facts and confirmed links. No
   route links a candidacy to a committee, so its money section says none is confirmed.
 - **Campaign money (`/money`)**: the committee register by kind (Candidate committees,
-  Committees and funds, Party units), searched and paged on the server, names A to Z.
+  Committees and funds, Party units), searched and paged on the server. Sort by chooses
+  names A to Z or numeric registration-number order.
 - **Committee (`/money/committees/:id`)**: the official report figures for the chosen report
   (contributions and expenditures as filed), itemized contributions in 5 tabs by donor kind and
   itemized expenditures, each name grouped with its own records and a sum only when every
@@ -265,3 +266,26 @@ none.
   sign-up figures.
 - The site runs at https://finance.alethical.com, the `alethical-finance` Vercel project,
   until alethicalfinance.com launches ([deployment.md § Alethical Finance](../operations/deployment.md#alethical-finance)).
+
+## Media buys
+
+The read pages at `/media-buys`, `/media-buys/folders/:id`,
+`/media-buys/files/:key`, `/media-buys/agencies/:name` and
+`/media-buys/stations/:id` use Finance's private original-file routes. The directory
+browses station folders, exact agency spellings, stations and years. Its filters
+and pages stay in the address. A capped count says “At least”; a failed refresh
+keeps the earlier rows and offers another try.
+
+A file shows the selected saved version, its original page images, checked facts
+and connections, evidence, and machine-read text marked Not checked. Images carry
+the signed-in account's access header, never a token in an address; changing the
+account or version removes the earlier image. Check evidence opens the exact
+version and page. Withdrawn checks remain distinct from standing connections.
+Station counts are files and saved contents, never ads or money. Campaign and
+outside-spending searches under an agency name stay separate.
+
+Check station files stays unavailable until its forms and queue are complete.
+This read-only release saves no checks and makes no data changes.
+
+Campaign money's Sort by control reads the whole register in name order or numeric
+registration-number order; a choice resets the page and remains in the address.
