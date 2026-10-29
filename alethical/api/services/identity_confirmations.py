@@ -311,14 +311,19 @@ def _evidence(db: Session, kind: str, key: str, data: dict) -> _Evidence:
     return _Evidence(source, snapshot_id, str(locator), None, quote)
 
 
-def _current_snapshot(db: Session, dataset: Dataset) -> UUID | None:
-    """The Board's file as published now, or None when no usable copy is held."""
+def _available_release(db: Session, dataset: Dataset):
+    """The published release, only when the requested source copy is still held."""
     try:
         release = reader.live_release(db)
         if release is not None:
             reader._refuse_if_rows_are_gone(db, release, dataset)
     except reader.ReleaseNoLongerHeld:
         return None
+    return release
+
+
+def _current_snapshot(db: Session, dataset: Dataset) -> UUID | None:
+    release = _available_release(db, dataset)
     return None if release is None else release.file_for(dataset).snapshot_id
 
 
@@ -939,9 +944,10 @@ def records(
     if year is not None and (type(year) is not int or not 1900 <= year <= 2100):
         raise IdentityError("Select a valid record year")
     key = _key(kind, record_key)
-    snapshot = _current_snapshot(db, printed.dataset)
-    if snapshot is None:
+    release = _available_release(db, printed.dataset)
+    if release is None:
         raise Unavailable("The Board's current file is not loaded. Try again later.")
+    snapshot = release.file_for(printed.dataset).snapshot_id
     _same_snapshot(snapshot, snapshot_id)
     model = printed.model
     where = [model.snapshot_id == snapshot, printed.name == key]
@@ -1003,6 +1009,47 @@ def records(
             .limit(page_size)
         )
     }
+    # Display metadata never participates in the stable identity fingerprint.
+    # Repeated identical fingerprints can print different filer names or types.
+    from alethical.api.services.campaign_finance_payments import linkable_committees
+
+    filer_name, filer_number, record_type = {
+        "donor_name": (_Gave.recipient, _Gave.recipient_reg_num, _Gave.receipt_type),
+        "employer_name": (_Gave.recipient, _Gave.recipient_reg_num, _Gave.receipt_type),
+        "payee_name": (_Paid.committee_name, _Paid.committee_reg_num, _Paid.type),
+        "independent_payee_name": (
+            _Independent.spender,
+            _Independent.spender_reg_num,
+            _Independent.type,
+        ),
+    }[kind]
+    displays = (
+        db.execute(
+            select(
+                fingerprint.label("fingerprint"),
+                func.array_agg(filer_name.distinct()).label("names"),
+                func.min(filer_number).label("number"),
+                func.array_agg(record_type.distinct()).label("types"),
+            )
+            .where(*where, _fingerprints_in(fingerprint, listed))
+            .group_by(fingerprint)
+        ).all()
+        if listed
+        else []
+    )
+    held = linkable_committees(
+        db, release, [item.number for item in displays if item.number]
+    )
+    for item in displays:
+        names = sorted(name for name in item.names if name)
+        types = sorted(value for value in item.types if value)
+        listed[item.fingerprint]["display"] = {
+            "filer_name": names[0] if len(names) == 1 else None,
+            "filer_registration_number": item.number,
+            "filer_is_held": item.number in held,
+            "record_type": types[0] if len(types) == 1 else None,
+            "record_types": types,
+        }
     filtered_matches = (
         all_matches
         if year is None
@@ -1049,6 +1096,8 @@ def records(
         "record_kind": kind,
         "record_key": key,
         "file": printed.dataset.value,
+        "source_url": release.file_for(printed.dataset).source_url,
+        "copied_at": _iso(release.copied_at(printed.dataset)),
         "snapshot_id": str(snapshot),
         "records": int(total),
         "confirmed": sum(covered.values()),

@@ -15,7 +15,7 @@ from __future__ import annotations
 from collections import defaultdict
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from alethical.api.services.legislative_sessions import current_legislature_scope
@@ -89,6 +89,52 @@ def _person(legislator: m.Legislator) -> dict:
     }
 
 
+def _member_districts(db, committee, memberships):
+    """Use this committee's Legislature/chamber, never a member's later seat."""
+    districts = defaultdict(set)
+    period = m.LegislatorServicePeriod
+    query = (
+        select(period.legislator_id, m.District.code)
+        .join(m.District, m.District.id == period.district_id)
+        .join(m.LegislativeSession, m.LegislativeSession.id == period.session_id)
+        .where(
+            period.legislator_id.in_([row.legislator_id for row in memberships]),
+            period.chamber_id == committee.chamber_id,
+            m.LegislativeSession.session_number == committee.session.session_number,
+            m.LegislativeSession.jurisdiction_id == committee.session.jurisdiction_id,
+        )
+    )
+    if committee.session.is_current:
+        query = query.where(period.is_current)
+    for legislator_id, code in db.execute(query):
+        districts[legislator_id].add(code)
+    return {
+        key: next(iter(values)) if len(values) == 1 else None
+        for key, values in districts.items()
+    }
+
+
+def _roster_copy_date(db, session):
+    """Only a completed full roster copy dates roster facts, never row updates."""
+    run = m.IngestionRun
+    return db.scalar(
+        select(func.max(run.finished_at)).where(
+            run.adapter == "minnesota_live",
+            run.target_type == "legislator_roster",
+            run.target_key.in_(
+                select(m.LegislativeSession.slug).where(
+                    m.LegislativeSession.session_number == session.session_number,
+                    m.LegislativeSession.jurisdiction_id == session.jurisdiction_id,
+                )
+            ),
+            run.status == m.IngestionStatus.succeeded,
+            run.stats["members_seen"].as_integer() > 0,
+            run.stats["members_seen"].as_integer()
+            == run.stats["members_ingested"].as_integer(),
+        )
+    )
+
+
 def legislative_committees(db: Session) -> list[dict]:
     """Every committee of the sitting Legislature, A to Z within each chamber."""
     scope = current_legislature_scope(db)
@@ -140,7 +186,9 @@ def committee_members(db: Session, committee_id: UUID) -> dict:
     ]
     memberships.sort(key=lambda row: (row.legislator.full_name, row.legislator.slug))
     accounts = campaign_accounts(db, [row.legislator.id for row in memberships])
+    districts = _member_districts(db, committee, memberships)
     return {
+        "roster_copied_at": _roster_copy_date(db, committee.session),
         "committee": {
             "id": str(committee.id),
             "name": committee.name,
@@ -152,6 +200,7 @@ def committee_members(db: Session, committee_id: UUID) -> dict:
             {
                 **_person(row.legislator),
                 "role": row.role,
+                "district": districts.get(row.legislator_id),
                 "campaign_accounts": accounts[str(row.legislator.id)],
             }
             for row in memberships

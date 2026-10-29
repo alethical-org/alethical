@@ -72,21 +72,59 @@ database.
 - **1 guide per data feature**, with a short section for each site's differences, rather
   than a second guide per site ([workflow.md](../../.claude/rules/workflow.md) rule 6).
 
-Finance's reads about legislators are records, never money
-(`alethical/api/services/finance_records.py`). `GET /api/v1/finance/legislative-committees`
-lists the sitting Legislature's committees; `/legislative-committees/{id}/members` lists a
-committee's members with their roles; `/bills/{bill_id}/authors` lists a bill's authors with
-the bill page's own formatter, each row marked with the chamber whose file named it, so a
-companion bill's authors stay distinguishable. It names the bill as the bill page does:
-by its plain-language title, or by its number when it has none, never by its legal title;
-its status is served beside them. The read takes the same few database trips however many
-authors a bill has. Each legislator carries `link_state` (confirmed, reviewed with none confirmed, or
-unconfirmed) and the committees confirmed as theirs, each with the office it registered for
-and whether that is a Legislature seat. Each account's figures for a year come from
-`/legislators/{legislator_id}/campaign-finance`, 1 member at a time, which leaves out a race
-for another office; no figure is combined across members, and reading 27 members' figures
-in 1 request took 15 seconds. Donors by employer, exactly as printed, is alethical.com's own
-`/campaign-finance/payments-under-name?role=employer`, which never adds across donors.
+Finance's legislative reads (`alethical/api/services/finance_records.py`) list the sitting
+Legislature's committees and each committee's members and roles. Member districts come
+from service in that committee's session and chamber; ambiguous districts stay unknown.
+`roster_copied_at` dates the latest complete successful roster copy for that session,
+not a later page request or a partial collection. Bill authors use the bill page's own
+formatter and keep the chamber whose file named each author. Bills use their plain-language
+title, or their number when none is held, and carry their status. Each legislator carries
+`link_state` and reviewed accounts, including the office each account registered for.
+Money remains per account and year; it is never added across members.
+
+### Money reads and exact printed names
+
+`alethical/api/services/finance_money_reads.py` supplies read-only routes under Finance's
+existing access boundary. All reads preserve missing amounts and source dates under
+[grounded-answers.md rule 12](../../.claude/rules/grounded-answers.md). Source files no longer
+held produce an unavailable state, never a zero. A requested release that changed returns
+409 so a caller reloads rather than joining pages from different copies.
+
+- `/candidates/{id}/campaign-finance` and `/campaign-finance/years` reuse the account/year
+  readers after checking a reviewed candidacy-to-person link, a confirmed account covering
+  the election year, and the Board's held office and district against that candidacy.
+  Only that account set can appear in its historical years, each still subject to the
+  existing reviewed or filed year coverage. Missing seat or identity evidence means
+  unconfirmed; names alone never create a link.
+- `/committees/{number}/report-figures?year=Y` lists the held catalogue's filed report names
+  and effective amendments. A catalogue entry without an amendment marker is not proof
+  of filing. The latest held cumulative figures attach only to a unique regular report
+  whose period end matches; older or ambiguous reports keep null figures. Total receipts
+  require the official calendar's period start; an ending balance is dated as of the
+  report's end. Filing dates never come from period ends. Retained figures keep their
+  own copy date.
+- `/committees/{number}/payment-groups` pages exact named groups for one filing year and
+  direction, with whole-filter group and payment counts. Contribution categories stay
+  separate; outgoing transfers retain the receiving committee's filed number. Unnamed
+  records stay individual. A sum is withheld if any amount is missing; every shown sum
+  has a complete date span or the held filing-year span, never a substituted transaction
+  year. Each group includes its first 50 rows; `/group-payments` reads the remaining rows
+  by its opaque key and release pin. Matching filer links use the existing own-money
+  availability check. Statement evidence stays attached to the contribution rows.
+- `/employers?q=...` searches exact printed employer spellings with at least 3 characters,
+  with donor-name and record counts, plus current organization-confirmed record coverage.
+  `/employers/donors?name=...` pages donors under one exact employer spelling; unnamed
+  records stay individual. `/employers/donor-payments` pages each group's source rows.
+  Loans remain loans, missing amounts remain null, and nothing is summed as employer money.
+- The existing payments-under-name readers return a whole-filter `total_payments` for
+  contributor, vendor, independent vendor and employer roles, including past-last pages.
+  Their source files and meanings stay separate; the count does not turn a printed name
+  into an identity or its rows into a money total.
+
+Identity record pages also carry source address/copy date and display-only filer name,
+number, link availability and printed transaction types. These fields never change a
+fingerprint. Conflicting names or types on repeated fingerprints remain distinguishable;
+no unresolved filer number becomes a link.
 
 ## 3. Access
 

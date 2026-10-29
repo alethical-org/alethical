@@ -356,3 +356,58 @@ def test_an_unknown_bill_is_not_found(finance_api):  # noqa: F811
 def test_these_reads_need_finance_access(client):
     assert client.get(COMMITTEES).status_code == 401
     assert client.get("/api/v1/finance/bills/94-2025-SF1832/authors").status_code == 401
+
+
+def test_member_district_and_roster_date_use_the_committee_scope(
+    finance_api, finance_db
+):
+    committee, session = _committee(finance_db)
+    period = finance_db.scalar(
+        select(m.LegislatorServicePeriod).where(
+            m.LegislatorServicePeriod.session_id == session.id,
+            m.LegislatorServicePeriod.chamber_id == committee.chamber_id,
+            m.LegislatorServicePeriod.is_current,
+        )
+    )
+    finance_db.add(
+        m.CommitteeMembership(
+            committee_id=committee.id,
+            legislator_id=period.legislator_id,
+            is_current=True,
+        )
+    )
+    copied = datetime(2026, 10, 1, tzinfo=UTC)
+    for finished, status, stats in [
+        (
+            copied,
+            m.IngestionStatus.succeeded,
+            {"members_seen": 201, "members_ingested": 201},
+        ),
+        (
+            datetime(2026, 10, 2, tzinfo=UTC),
+            m.IngestionStatus.succeeded,
+            {"members_seen": 201, "members_ingested": 1},
+        ),
+        (
+            datetime(2026, 10, 3, tzinfo=UTC),
+            m.IngestionStatus.failed,
+            {"members_seen": 201, "members_ingested": 201},
+        ),
+    ]:
+        finance_db.add(
+            m.IngestionRun(
+                adapter="minnesota_live",
+                target_type="legislator_roster",
+                target_key=session.slug,
+                status=status,
+                finished_at=finished,
+                stats=stats,
+            )
+        )
+    finance_db.flush()
+    data = finance_api.get(f"{COMMITTEES}/{committee.id}/members").json()["data"]
+    assert data["members"][0]["district"] == period.district.code
+    assert (
+        datetime.fromisoformat(data["roster_copied_at"].replace("Z", "+00:00"))
+        == copied
+    )
