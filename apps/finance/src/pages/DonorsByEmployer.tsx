@@ -383,6 +383,16 @@ function ConfirmedIcon() {
   );
 }
 
+/** A check that could not run, never the "not confirmed" mark: the answer is unknown. */
+function CheckFailedIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="#5F6B76" strokeWidth="2" />
+      <path d="M12 7.5 V13 M12 16 V16.5" stroke="#5F6B76" strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function UnconfirmedIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -451,7 +461,7 @@ function ConfirmationLine({
   return (
     <div className="de-confirm">
       <span className="de-confirm-text">
-        <UnconfirmedIcon />
+        <CheckFailedIcon />
         <span>We couldn’t check whether an organization record confirms this spelling</span>
       </span>
     </div>

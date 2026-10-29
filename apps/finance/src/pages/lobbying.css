@@ -145,6 +145,11 @@
   font-size: 14px;
   color: var(--secondary);
 }
+/* The header cell keeps the header row's own label size. */
+.lb-head .lb-third {
+  font-size: inherit;
+  color: inherit;
+}
 .lb-strong {
   font-weight: 700;
 }
