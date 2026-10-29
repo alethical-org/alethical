@@ -3889,7 +3889,13 @@ def committee_notices_for_year(
         and answer.state != "unavailable"
     ):
         response.headers["Cache-Control"] = MONEY_RECORDS_CACHE_CONTROL
-    return DetailResponse(data=asdict(answer))
+    return DetailResponse(
+        data={
+            **asdict(answer),
+            "release_id": str(release.id),
+            "contributions_snapshot_id": str(release.contributions.snapshot_id),
+        }
+    )
 
 
 @router.get(

@@ -537,10 +537,12 @@ def test_notice_status_matches_ignoring_case_and_says_so_when_it_cannot(
     db, monkeypatch, client
 ):
     _collect(db, monkeypatch, RESTORE_TEXTS)
-    _restore_sanity_money(db)
+    published = _restore_sanity_money(db)
     body = client.get(f"/api/v1/committees/{RESTORE_SANITY}/notices?year=2026").json()[
         "data"
     ]
+    assert body["release_id"] == str(published.release.id)
+    assert body["contributions_snapshot_id"] == str(published.contributions.id)
     assert body["state"] == "listed"
     assert body["threshold"] == service.THRESHOLD_COMMITTEE
     assert body["copied_on"] == "2026-09-23"

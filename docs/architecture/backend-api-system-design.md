@@ -1528,6 +1528,13 @@ the search served it, uses no `year`, and never prints a total across the rows �
 `total_payments` staying `null` here costs it nothing: it says how many rows it is showing and
 that more are filed, never "of N".
 
+#### `GET /api/v1/committees/{registration_number}/notices?year=…`
+
+The detail response pins `release_id` and `contributions_snapshot_id` to the exact
+contributions copy used to match notices. A matched payment’s `record_number` belongs
+only to that copy. Clients must verify both pins before locating it in a later payment
+response; a reused row number from another release is not evidence of a match.
+
 #### `GET /api/v1/campaign-finance/outside-spending`
 
 Shipped Sep 2026 ([#1945](https://github.com/alethical-org/alethical/issues/1945)). The
