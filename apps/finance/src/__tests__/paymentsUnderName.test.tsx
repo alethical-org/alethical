@@ -217,7 +217,7 @@ describe('Payments under this name', () => {
     expect(container.textContent).not.toMatch(/\$2,150/);
 
     expect(container.textContent).toContain(
-      'Minnesota’s payment files copied Oct 29, 2026. This is a copy date, not a reporting period. The report totals were copied separately.',
+      'Minnesota’s payment files copied Oct 29, 2026. This is a copy date, not a reporting period.',
     );
     expect(container.textContent).toContain(
       'Different spellings appear separately, and a matching name alone does not establish identity.',

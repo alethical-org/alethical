@@ -324,7 +324,7 @@ function Donations({
 
 /**
  * Lobbyist (Lobbyist drawing): 1 registration on the Board's copied lobbyist list,
- * the organisations it represented on the copy date, and campaign contribution
+ * the organizations it represented on the copy date, and campaign contribution
  * records matched to its registration number or confirmed in an official report.
  * Keyed on the registration number. Amounts are never added up here.
  */

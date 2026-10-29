@@ -72,7 +72,7 @@ export function principalsNote(copiedAt: string | null, latestYear: number | nul
     ? ` and the lobbyist list copied ${centralDateLabel(copiedAt)}`
     : ' and the lobbyist list';
   const through = latestYear == null ? '' : ` through ${latestYear}`;
-  return `This directory includes organisations from different reporting years${list}. Some organisations have no spending page because the Board’s spending file has no rows for them${through}.`;
+  return `This directory includes organizations from different reporting years${list}. Some organizations have no spending page because the Board’s spending file has no rows for them${through}.`;
 }
 
 type Page = LobbyingLobbyistsPage | LobbyingPrincipalsPage;

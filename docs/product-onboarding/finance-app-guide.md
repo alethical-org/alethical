@@ -252,6 +252,9 @@ none.
   its `noindex`, and can list a linked address without its content. The server marks every
   Finance answer private and uncached, except the landing counts, which are the same for
   everyone.
+- Finance prints US spelling ("organization"), including in the wording it imports from
+  alethical.com's shared modules, which stay as alethical.com writes them: Finance's build
+  rewrites only its own copy (`apps/finance/scripts/usSpelling.mjs`).
 - The fonts (Inter, IBM Plex Mono, Space Grotesk) are served from Finance's own address,
   because the site's security policy loads nothing from font services.
 - The sign-in session is kept in this browser under its own name, separate from

@@ -293,7 +293,7 @@ export function copyLines(files: Array<{ file: SectionSpec['file']; fetchedAt: s
   if (days.length === 0) return [];
   if (days[0] && days.every((day) => day === days[0])) {
     return [
-      `Minnesota’s payment files copied ${days[0]}. This is a copy date, not a reporting period. The report totals were copied separately.`,
+      `Minnesota’s payment files copied ${days[0]}. This is a copy date, not a reporting period.`,
     ];
   }
   return files.map((item) => paymentFileCopyLine(item.file, item.fetchedAt));
@@ -487,7 +487,7 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
             </div>
             <p className="pn-notice">
               {role === 'employer'
-                ? 'This is the employer name written in contribution records, not the organisation’s giving'
+                ? 'This is the employer name written in contribution records, not the organization’s giving'
                 : 'Records are grouped by the name printed in the source'}
             </p>
           </form>
