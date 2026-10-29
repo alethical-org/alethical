@@ -8,6 +8,7 @@ types here (names, relations, bases, reasons) is readable by every Finance accou
 
 from __future__ import annotations
 
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -18,6 +19,7 @@ from sqlalchemy.orm import Session
 from alethical.api.finance_access import require_finance_access
 from alethical.api.problems import problem_exception
 from alethical.api.services import identity_confirmations as identities
+from alethical.api.services import finance_identity_directory as directory
 from alethical.api.services.finance_access import FinanceAccount
 from alethical.db.session import get_db
 
@@ -141,6 +143,50 @@ def _answer(db: Session, work):
             "Identities are temporarily unavailable. Try again.",
             type_slug="service-unavailable",
         ) from None
+
+
+@router.get("")
+def list_entities(
+    q: str = Query("", max_length=500),
+    kind: Literal["person", "organization"] | None = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Find an existing active identity; no name-based identity inference."""
+    return {
+        "data": _answer(
+            db,
+            lambda: directory.entities(
+                db, q=q.strip(), kind=kind, page=page, page_size=page_size
+            ),
+        )
+    }
+
+
+@router.get("/queue")
+def queue(
+    record_type: Literal["all", "donor", "payee"] = Query("all"),
+    status: Literal["unconfirmed", "confirmed", "all"] = Query("unconfirmed"),
+    q: str = Query("", max_length=500),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Exact printed names by recorded amount; each payment file stays separate."""
+    return {
+        "data": _answer(
+            db,
+            lambda: directory.queue(
+                db,
+                record_type=record_type,
+                status=status,
+                q=q.strip(),
+                page=page,
+                page_size=page_size,
+            ),
+        )
+    }
 
 
 @router.get("/lookup")
