@@ -78,7 +78,7 @@ calendar date, district, host and Watch the debate action. Sources, disclosures,
 article sharing and the distinction between published work and campaign services
 remain intact. Presentation does not confer press credentials.
 
-The homepage intro and a new Latest articles preview are **held for Eugene review**;
+The homepage intro and a new Latest articles preview are **held for review**;
 only shared-menu changes belong to this release. The pending proposal is retained
 on [homepage review 410](https://github.com/alethical-org/alethical/issues/410).
 

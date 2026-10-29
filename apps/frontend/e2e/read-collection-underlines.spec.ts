@@ -68,8 +68,8 @@ test('reading return links underline the complete label but not the chevron', as
 
   await page.goto('/blog/sets/how-the-money-works');
   await expectReturnUnderline(
-    page.getByRole('link', { name: 'All guides', exact: true }),
-    'All guides',
+    page.getByRole('link', { name: 'Back to Guides', exact: true }),
+    'Back to Guides',
   );
 
   for (const path of [
