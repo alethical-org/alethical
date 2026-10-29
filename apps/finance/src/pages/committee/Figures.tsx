@@ -1,4 +1,8 @@
-import { MONEY_OUT_ZERO_NOTE } from '@alethical/shared/committeeMoneyShared';
+import { EMPTY_YEAR_VALUE } from '@alethical/shared/committeeMoney';
+import {
+  MONEY_OUT_OFFICIAL_MISSING,
+  MONEY_OUT_ZERO_NOTE,
+} from '@alethical/shared/committeeMoneyShared';
 import { reportPeriodLine } from '@alethical/shared/committeePaymentsPage';
 import { formatDay, formatMoney } from '@alethical/shared/moneyFormat';
 
@@ -23,8 +27,9 @@ function periodLine(end: string, start: string | null): string | null {
 
 /**
  * Official report figures (Committee drawing): the filer's own totals, as filed in
- * the selected report. Only the figures the server holds for that report print; a
- * figure we do not hold is left out, never shown as $0.
+ * the selected report. A figure we do not hold for that report reads as missing
+ * ("Report total unavailable", or the line saying we hold no official spending
+ * total), never as $0.
  */
 export function Figures({
   finance,
@@ -50,20 +55,27 @@ export function Figures({
   );
   const chosen = options.find((option) => option.value === report) ?? options[0] ?? null;
   const figures: Figure[] = [];
-  if (chosen && moneyIn.reported_through === chosen.periodEnd) {
-    const value = formatMoney(moneyIn.reported_total);
-    if (value) figures.push({ label: 'Contributions', value, note: null });
-  }
-  if (chosen && moneyOut.reported_through === chosen.periodEnd) {
-    const value = formatMoney(moneyOut.reported_total);
-    if (value) {
+  const inValue =
+    chosen && moneyIn.reported_through === chosen.periodEnd
+      ? formatMoney(moneyIn.reported_total)
+      : null;
+  const outValue =
+    chosen && moneyOut.reported_through === chosen.periodEnd
+      ? formatMoney(moneyOut.reported_total)
+      : null;
+  // Rule 12 (.claude/rules/grounded-answers.md): a figure the selected report
+  // does not give us is said to be missing, never left out or shown as $0.
+  if (inValue || outValue) {
+    figures.push({ label: 'Contributions', value: inValue ?? EMPTY_YEAR_VALUE, note: null });
+    if (outValue) {
       figures.push({
         label: 'Expenditures',
-        value,
-        note: value === '$0' ? MONEY_OUT_ZERO_NOTE : null,
+        value: outValue,
+        note: outValue === '$0' ? MONEY_OUT_ZERO_NOTE : null,
       });
     }
   }
+  const spendingMissing = Boolean(inValue) && !outValue;
   const start =
     chosen && moneyIn.reported_through === chosen.periodEnd
       ? (moneyIn.reported_period_start ?? chosen.filing?.period_start ?? null)
@@ -98,6 +110,7 @@ export function Figures({
               </div>
             ))}
           </dl>
+          {spendingMissing && <p className="cmt-note">{MONEY_OUT_OFFICIAL_MISSING}</p>}
           <p className="cmt-note">
             {period ? `${period}. ` : ''}Figures are as filed in the selected report. Itemized rows
             below follow the year, not the report.

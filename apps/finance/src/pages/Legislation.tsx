@@ -160,6 +160,7 @@ function useBillList(path: string) {
     if (held && Date.now() - held.at < LIST_CACHE_MS && attempt === 0) {
       setAnswer({ key, outcome: { state: 'ok', answer: held.answer } });
       setLast(held.answer);
+      setPending(false);
       return;
     }
     const request = ++latest.current;
@@ -174,7 +175,12 @@ function useBillList(path: string) {
       }
       setAnswer({ key, outcome });
     });
-    return () => controller.abort();
+    return () => {
+      // A superseded or abandoned read must never write its answer, including
+      // the failure its own abort produces.
+      latest.current += 1;
+      controller.abort();
+    };
   }, [apiBaseUrl, accessToken, key, path, attempt]);
 
   useEffect(() => setAttempt(0), [key]);

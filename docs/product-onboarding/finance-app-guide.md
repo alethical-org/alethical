@@ -155,9 +155,12 @@ Try again that never reads as an empty result, and a "no longer available" state
 the server does not hold. A page reached from another carries "Back to {page}" to exactly the
 earlier view. Routine sources and copy dates sit in "Sources and updates" at the foot of the
 page, below the first screen. Money figures follow
-[grounded-answers.md rule 12](../../.claude/rules/grounded-answers.md): a missing figure reads
-"Not reported", never $0; an official report total and a sum of listed payments are separate
-figures; no figure is ever added across committees or members.
+[grounded-answers.md rule 12](../../.claude/rules/grounded-answers.md): a missing figure is
+never $0 (a missing itemized figure reads "Not reported", a missing official report total
+"Report total unavailable", a missing official spending total "We do not hold an official
+spending total for this committee for this year", and a year an account holds no records for
+"Not held"); an official report total and a sum of listed payments are separate figures; no
+figure is ever added across committees or members.
 
 - **Search results (`/search?q=`)**: People (sitting legislators and lobbyists), Organizations
   (lobbying principals), Committees, Bills and Payments under a name, each family loaded,
@@ -193,7 +196,7 @@ figures; no figure is ever added across committees or members.
   recorded vote, filtered and searched in place. The address names its bill because no route
   reads a roll call by its own id.
 
-Reads queue so that at most 4 run at once, because the shared API serves only 12 requests at
+Reads queue so that at most 4 run at once (a finished read hands its place to the next), because the shared API serves only 12 requests at
 a time across both sites; a "busy" answer is retried after the server's suggested wait. Only
 Finance's own routes (`/api/v1/finance/…`) carry the account's token; public reads carry
 none.

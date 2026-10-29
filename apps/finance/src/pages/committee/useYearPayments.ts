@@ -104,6 +104,7 @@ export function useYearPayments<T>(path: string | null): YearPaymentsRead<T> {
     const held = cache.get(key);
     if (held && Date.now() - held.at < CACHE_MS && attempt === 0) {
       setAnswer({ key, value: held.value as YearPayments<T>, failed: false });
+      setPending(false);
       return;
     }
     const request = ++latest.current;
@@ -120,7 +121,12 @@ export function useYearPayments<T>(path: string | null): YearPaymentsRead<T> {
         setAnswer({ key, value: (earlier?.value as YearPayments<T>) ?? null, failed: true });
       }
     });
-    return () => controller.abort();
+    return () => {
+      // A superseded or abandoned read must never write its answer, including
+      // the failure its own abort produces.
+      latest.current += 1;
+      controller.abort();
+    };
   }, [apiBaseUrl, accessToken, key, path, attempt]);
 
   useEffect(() => setAttempt(0), [key]);

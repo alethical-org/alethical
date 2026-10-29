@@ -51,13 +51,16 @@ let running = 0;
 const waiting: Array<() => void> = [];
 
 async function slot<T>(work: () => Promise<T>): Promise<T> {
+  // A finished read hands its slot straight to the next waiting one, so a new
+  // read can never slip in between and make 5.
   if (running >= MAX_CONCURRENT_READS) await new Promise<void>((go) => waiting.push(go));
-  running += 1;
+  else running += 1;
   try {
     return await work();
   } finally {
-    running -= 1;
-    waiting.shift()?.();
+    const next = waiting.shift();
+    if (next) next();
+    else running -= 1;
   }
 }
 
@@ -197,6 +200,7 @@ export function useRead<T>(
       if (held.answer.state === 'ok') {
         setLastData({ data: held.answer.data as T, page: held.answer.page ?? null });
       }
+      setPending(false);
       return;
     }
     const request = ++latest.current;
@@ -211,7 +215,12 @@ export function useRead<T>(
         if (next.state === 'ok') setLastData({ data: next.data, page: next.page ?? null });
       },
     );
-    return () => controller.abort();
+    return () => {
+      // A superseded or abandoned read must never write its answer, including
+      // the failure its own abort produces.
+      latest.current += 1;
+      controller.abort();
+    };
   }, [apiBaseUrl, accessToken, key, path, attempt, unwrapped]);
 
   // A new address starts over: a retry count belongs to the view it was made on.

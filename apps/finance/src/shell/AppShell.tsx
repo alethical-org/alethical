@@ -170,7 +170,6 @@ export function AppShell({ section, children }: { section?: NavSection; children
               <button
                 ref={accountButton}
                 type="button"
-                aria-haspopup="menu"
                 aria-expanded={accountOpen}
                 aria-controls="account-menu"
                 className="f-nav-account-button"
@@ -191,7 +190,7 @@ export function AppShell({ section, children }: { section?: NavSection; children
                 </svg>
               </button>
               {accountOpen && (
-                <div id="account-menu" role="menu" className="f-nav-account-menu">
+                <div id="account-menu" className="f-nav-account-menu">
                   <div className="f-nav-account-who">
                     <div className="f-label">SIGNED IN AS</div>
                     <div className="f-nav-account-email">{email}</div>
@@ -199,7 +198,6 @@ export function AppShell({ section, children }: { section?: NavSection; children
                   <div className="f-nav-rule" />
                   <button
                     type="button"
-                    role="menuitem"
                     className="f-nav-menuitem"
                     onClick={() => void signOutTo(signOut)}
                   >

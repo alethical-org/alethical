@@ -299,6 +299,31 @@ const button = (words: string) =>
   [...container.querySelectorAll('button')].find((item) => item.textContent?.trim() === words);
 
 describe('Committee page', () => {
+  it('says a missing official spending total in words, never as $0', async () => {
+    await render(
+      '/money/committees/90001',
+      loadedAnswers({
+        '/committees/90001/finance': {
+          status: 200,
+          body: {
+            ...FINANCE,
+            money_out: {
+              ...FINANCE.money_out,
+              state: 'not_reported',
+              reported_total: null,
+              reported_through: null,
+            },
+          },
+        },
+      }),
+    );
+    expect(text()).toContain('Contributions$438,900');
+    expect(text()).toContain(
+      'We do not hold an official spending total for this committee for this year',
+    );
+    expect(text()).not.toContain('Expenditures$');
+  });
+
   it('shows the official figures, the 6 tabs with counts, and grouped names', async () => {
     await render('/money/committees/90001', loadedAnswers());
     expect(container.querySelector('h1')?.textContent).toBe('Example Candidate Committee');
