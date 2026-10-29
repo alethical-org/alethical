@@ -102,6 +102,11 @@ def _names(kind, snapshot_id, q):
             func.count()
             .filter(and_(model.year.is_(None), date.is_(None)))
             .label("undated_records"),
+            case(
+                (func.count(date) == func.count(), "dates"),
+                (func.count(model.year) == func.count(), "years"),
+                else_=None,
+            ).label("period_basis"),
             func.min(model.year).label("first_year"),
             func.max(model.year).label("last_year"),
             func.min(date).label("first_date"),
@@ -178,7 +183,8 @@ def queue(
                     case(
                         (
                             and_(
-                                rows.c.missing_amounts == 0, rows.c.undated_records == 0
+                                rows.c.missing_amounts == 0,
+                                rows.c.period_basis.is_not(None),
                             ),
                             rows.c.amount,
                         ),
@@ -218,8 +224,14 @@ def queue(
                 "amount": str(row.amount)
                 if row.amount is not None
                 and not row.missing_amounts
-                and not row.undated_records
+                and row.period_basis is not None
                 else None,
+                "amount_state": "incomplete_amount"
+                if row.missing_amounts
+                else "incomplete_period"
+                if row.period_basis is None
+                else "reported",
+                "period_basis": row.period_basis,
                 "missing_amounts": row.missing_amounts,
                 "undated_records": row.undated_records,
                 "first_year": row.first_year,

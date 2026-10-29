@@ -2,6 +2,7 @@
 
 # ruff: noqa: F811 -- pytest fixtures arrive as parameters named after the imports
 
+from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import text
@@ -221,3 +222,55 @@ def test_directory_search_refuses_text_the_database_cannot_store(finance_api, bo
         response = finance_api.get(path, params={"q": "Name\x00"})
         assert response.status_code == 422
         assert "cannot be saved" in response.json()["detail"]
+
+
+def test_queue_requires_one_complete_period_basis(finance_api, finance_db, board):
+    examples = [
+        ("Mixed sparse", 2025, None),
+        ("Mixed sparse", None, date(2026, 4, 1)),
+        ("Year span", 2025, None),
+        ("Year span", 2026, date(2026, 4, 1)),
+        ("Date span", None, date(2025, 4, 1)),
+        ("Date span", 2026, date(2026, 4, 1)),
+        ("Conflicting years", 2025, date(2026, 4, 1)),
+        ("Conflicting years", 2024, None),
+    ]
+    for row_number, (name, year, receipt_date) in enumerate(examples, start=200):
+        finance_db.add(
+            gift(
+                board.contributions_snapshot_id,
+                row_number,
+                contributor=name,
+                amount=Decimal("10"),
+                year=year,
+                receipt_date=receipt_date,
+            )
+        )
+    finance_db.commit()
+    sparse = queue(finance_api, q="Mixed sparse")["rows"][0]
+    assert sparse["amount"] is None
+    assert sparse["amount_state"] == "incomplete_period"
+    assert sparse["period_basis"] is None
+    assert sparse["undated_records"] == 0
+    years = queue(finance_api, q="Year span")["rows"][0]
+    assert Decimal(years["amount"]) == Decimal("20")
+    assert (
+        years["amount_state"],
+        years["period_basis"],
+        years["first_year"],
+        years["last_year"],
+    ) == ("reported", "years", 2025, 2026)
+    dates = queue(finance_api, q="Date span")["rows"][0]
+    assert Decimal(dates["amount"]) == Decimal("20")
+    assert (dates["period_basis"], dates["first_date"], dates["last_date"]) == (
+        "dates",
+        "2025-04-01",
+        "2026-04-01",
+    )
+    conflicting = queue(finance_api, q="Conflicting years")["rows"][0]
+    assert (
+        conflicting["period_basis"],
+        conflicting["first_year"],
+        conflicting["last_year"],
+    ) == ("years", 2024, 2025)
+    assert conflicting["first_date"] == "2026-04-01"
