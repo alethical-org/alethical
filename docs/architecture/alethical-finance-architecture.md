@@ -147,9 +147,17 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
   share 1 claim. A fingerprint that matches no current row stays and shows as no longer in
   the Board's file. A record added later is never covered until someone confirms it. The
   database lets each fingerprint belong to only 1 active confirmation. `GET /records` lists
-  the current records printing a name (at most 5,000), each with the confirmation and
-  identity standing for it; the "All records" and "{year} records" choices select
-  fingerprints from that listing when confirming, and nothing about the choice is stored.
+  the current records printing a name in stable pages of whole fingerprints, each with
+  the confirmation and identity standing for it. Pages include the full matching row
+  and fingerprint counts; identical repeated rows stay together. The listing accepts
+  `page`, `page_size` (100 by default, at most 500), `year` and a `snapshot_id` pin;
+  a changed source copy refuses a pinned page and asks the reader to reload. Selections
+  across pages send their fingerprints. The "All records" and "{year} records" choices
+  send `record_selection` with the displayed `snapshot_id` and optional `year`; the
+  server selects every matching unconfirmed fingerprint, including names over 5,000
+  records, and refuses a changed source copy. Only the resulting fingerprints are
+  stored; a record added later is never covered. Explicit selections have a 16 MiB
+  request limit, with a refusal naming Alethical's limit and the quick-selection route.
   An identity's `printed_names` gives "Confirmed for {k} of {n} records" for each name.
 - **An identifier is confirmed whole, for all time.** A committee's or lobbyist's
   registration number, a principal's id, or the id of a held legislator or public person
@@ -192,6 +200,12 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
 - alethical.com prints no Finance station-file check: its station-file readers read only
   checks on its own public copies (`tv_ad_fact`, `tv_ad_connection`), and a Finance check
   never changes them.
+- Every Finance account can withdraw any station-file fact, date or connection,
+  including a public-copy check or folder connection. The withdrawal needs a reason
+  and is recorded once. A public-copy check is withdrawn **only inside Finance**:
+  an immutable `finance_tv_copy_withdrawal` row records the decision, while the
+  public check and every public-site answer remain unchanged. Finance's file views,
+  correction history, lists, connections and counts honor the withdrawal.
 - Inside Finance every account sees every check. No check names the account that made it
   or says whether a team account did; a Finance check keeps no account identity, only
   that flag (`made_by_alethical_team`), which no Finance answer serves.

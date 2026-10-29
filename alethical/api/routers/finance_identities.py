@@ -32,6 +32,15 @@ class _Request(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class RecordSelectionRequest(_Request):
+    snapshot_id: str = Field(
+        description="The source copy shown by the records listing."
+    )
+    year: StrictInt | None = Field(
+        None, ge=1900, le=2100, description="Omit to select all years."
+    )
+
+
 class IdentityConfirmationRequest(_Request):
     record_kind: str = Field(
         description="A printed name: donor_name, employer_name, payee_name or"
@@ -69,10 +78,11 @@ class IdentityConfirmationRequest(_Request):
     )
     fingerprints: list[str] | None = Field(
         None,
-        description="For a printed name only: the records confirmed, by the"
-        " fingerprints the records listing serves, at most 5,000. 'All records' and"
-        " '{year} records' choose from that listing; nothing about the choice is"
-        " stored, and a record added later is never covered.",
+        description="For a printed name: exact fingerprints selected across listing pages. A later record is never covered.",
+    )
+    record_selection: RecordSelectionRequest | None = Field(
+        None,
+        description="Alternative to fingerprints: all unconfirmed records under this name in the pinned source copy, optionally for 1 year. Only the resulting fingerprints are saved.",
     )
 
 
@@ -147,11 +157,26 @@ def lookup(
 def records(
     record_kind: str = Query(max_length=40),
     record_key: str = Query(max_length=500),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=identities.MAX_PAGE_SIZE),
+    year: int | None = Query(None, ge=1900, le=2100),
+    snapshot_id: UUID | None = Query(None),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Every record in the Board's current file printing a name, with its claim."""
+    """A page of a printed name's records, with totals and their standing claims."""
     return {
-        "data": _answer(db, lambda: identities.records(db, record_kind, record_key))
+        "data": _answer(
+            db,
+            lambda: identities.records(
+                db,
+                record_kind,
+                record_key,
+                page=page,
+                page_size=page_size,
+                year=year,
+                snapshot_id=snapshot_id,
+            ),
+        )
     }
 
 
