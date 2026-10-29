@@ -1,0 +1,18 @@
+{
+  // Alethical Finance's compiler settings (apps/finance/tsconfig.json) without its
+  // Vite client types, so every subpath here type-checks the way Finance's build
+  // will check it, and nothing passes only because Vite declares a global.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["src"]
+}
