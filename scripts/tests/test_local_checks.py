@@ -43,6 +43,7 @@ class LocalChecksTest(unittest.TestCase):
         root = SCRIPT.parents[1]
         for filename, expected in [
             ("apps/frontend/src/lib/example.ts", {"frontend"}),
+            ("packages/shared/src/example.ts", {"frontend"}),
             ("api/page.ts", {"frontend"}),
             ("patches/query-string@7.1.3.patch", {"frontend"}),
             ("alethical/api/main.py", {"backend"}),

@@ -117,8 +117,15 @@ screens are off, only `/`, `/sign-in` and `/auth/return` answer (§ The public s
 ## Limits and privacy
 
 - Finance never links to alethical.com; a CI test fails if any app file names an
-  alethical.com page. Contact actions use email addresses, and data comes from
-  `api.alethical.com`.
+  alethical.com page. A check of the production build (`pnpm run check:built-links`) reads
+  every text file Finance ships except source maps, code from `@alethical/shared` included.
+  It fails on the alethical.com domain anywhere except an email address or
+  `https://api.alethical.com`, and on a path that starts like an alethical.com page or
+  redirect (`/money/`, `/bills/`, `/read/` ...) unless it is exactly 1 of Finance's own
+  addresses. The only other path it allows is 1 of the 4 that Supabase's sign-in library
+  writes after its own server's address (`/admin/users`, `/admin/generate_link`,
+  `/admin/oauth/clients`, `/admin/custom-providers`). Contact actions use email addresses,
+  and data comes from `api.alethical.com`.
 - Every page is marked not to be indexed (`noindex`) in a response header and a meta tag.
   `robots.txt` allows crawling on purpose: a crawler that may not fetch a page never reads
   its `noindex`, and can list a linked address without its content. The server marks every
