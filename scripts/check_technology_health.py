@@ -37,6 +37,8 @@ BRACES_ADVISORY = "GHSA-vfj7-8cjw-p6xm"
 BRACES_BUILD_PATH = (
     "apps__frontend>expo>@expo/cli>@expo/metro-file-map>micromatch>braces"
 )
+DECODE_URI_ADVISORY = "GHSA-qr28-fpjm-wq7f"
+DECODE_URI_PATH = "apps__frontend>@react-navigation/native>@react-navigation/core>query-string>decode-uri-component"
 DEEPMERGE_ADVISORY = "GHSA-gcqx-w48m-w2h4"
 DEEPMERGE_BUILD_PATH = "apps__frontend>expo>@expo/config>deepmerge"
 
@@ -431,6 +433,7 @@ def javascript_audit_problems(
     forge_repaired: bool = False,
     braces_repaired: bool = False,
     deepmerge_repaired: bool = False,
+    decode_uri_repaired: bool = False,
 ) -> list[str]:
     today = today or date.today()
     if not isinstance(payload, dict) or "error" in payload:
@@ -484,6 +487,16 @@ def javascript_audit_problems(
             and advisory.get("vulnerable_versions") == ">=4.2.0 <=4.3.1"
             and advisory.get("patched_versions") == "<0.0.0"
             and findings == [{"version": "4.3.1", "paths": [DEEPMERGE_BUILD_PATH]}]
+        ):
+            continue
+        if (
+            decode_uri_repaired
+            and advisory_id == DECODE_URI_ADVISORY
+            and advisory.get("module_name") == "decode-uri-component"
+            and advisory.get("severity") == "high"
+            and advisory.get("vulnerable_versions") == "<=0.5.0"
+            and advisory.get("patched_versions") == ">=0.5.1"
+            and findings == [{"version": "0.5.0", "paths": [DECODE_URI_PATH]}]
         ):
             continue
         if (
@@ -577,6 +590,7 @@ def security_audit_problems(
     forge_repaired: bool = False,
     braces_repaired: bool = False,
     deepmerge_repaired: bool = False,
+    decode_uri_repaired: bool = False,
 ) -> list[str]:
     try:
         payload = json.loads(audited.stdout)
@@ -599,6 +613,7 @@ def security_audit_problems(
                 forge_repaired=forge_repaired,
                 braces_repaired=braces_repaired,
                 deepmerge_repaired=deepmerge_repaired,
+                decode_uri_repaired=decode_uri_repaired,
             )
             has_findings = bool(payload["advisories"])
     except (ValueError, TypeError):
@@ -904,6 +919,7 @@ def run_security_audits(root: Path) -> list[str]:
         FORGE_ADVISORY: False,
         BRACES_ADVISORY: False,
         DEEPMERGE_ADVISORY: False,
+        DECODE_URI_ADVISORY: False,
     }
     if installed.returncode:
         problems.append("The JavaScript security repair installation failed")
@@ -912,6 +928,7 @@ def run_security_audits(root: Path) -> list[str]:
             (FORGE_ADVISORY, "check-node-forge-security.mjs"),
             (BRACES_ADVISORY, "check-braces-security.mjs"),
             (DEEPMERGE_ADVISORY, "check-deepmerge-security.mjs"),
+            (DECODE_URI_ADVISORY, "check-decode-uri-security.mjs"),
         ):
             repair = _run(["node", f"apps/frontend/scripts/{script}"], root)
             repaired[advisory] = repair.returncode == 0
@@ -935,6 +952,7 @@ def run_security_audits(root: Path) -> list[str]:
             forge_repaired=repaired[FORGE_ADVISORY],
             braces_repaired=repaired[BRACES_ADVISORY],
             deepmerge_repaired=repaired[DEEPMERGE_ADVISORY],
+            decode_uri_repaired=repaired[DECODE_URI_ADVISORY],
         )
     )
     return problems
@@ -1105,6 +1123,11 @@ def main() -> int:
             "exact patch/lock/installed-code fingerprints, and prototype, deep-merge, "
             "array and clone checks through the copy Expo's app config loads. Any "
             "changed finding or failed repair check blocks release.\n"
+            "\nLocal security repair: decode-uri-component 0.5.0 retains the raw "
+            "GHSA-qr28-fpjm-wq7f warning. It passes only after frozen installation, "
+            "exact upstream-backport patch/lock/installed-code fingerprints, bounded "
+            "single-pass scan checks and valid/malformed React Navigation query-string "
+            "checks. Any changed finding or failed repair check blocks release.\n"
             "\nRecorded exception policy: only image-size 1.2.1 in Expo's Metro "
             "build tool may retain "
             + ", ".join(sorted(KNOWN_JAVASCRIPT_EXCEPTIONS))

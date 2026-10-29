@@ -38,6 +38,9 @@ patchedDependencies:
   braces@3.0.3:
     hash: ea29e28e84b25bb03e32f352eed8fc0dce67ad38b6cad073da15faf3e5ddcba2
     path: patches/braces@3.0.3.patch
+  decode-uri-component@0.5.0:
+    hash: 13e7459eede8a8978ea018e1708a8703f84a0a06b897b607d5da8fa60c38ecee
+    path: patches/decode-uri-component@0.5.0.patch
   deepmerge@4.3.1:
     hash: 88b0436747f9b7041c39bdf27baadee2fc9632348fa0615b0f69b78ecc7210a8
     path: patches/deepmerge@4.3.1.patch
@@ -5115,7 +5118,7 @@ snapshots:
 
   decimal.js@10.6.0: {}
 
-  decode-uri-component@0.5.0: {}
+  decode-uri-component@0.5.0(patch_hash=13e7459eede8a8978ea018e1708a8703f84a0a06b897b607d5da8fa60c38ecee): {}
 
   deepmerge@4.3.1(patch_hash=88b0436747f9b7041c39bdf27baadee2fc9632348fa0615b0f69b78ecc7210a8): {}
 
@@ -6165,7 +6168,7 @@ snapshots:
 
   query-string@7.1.3(patch_hash=32fabd661c87a64d8e92d6fb323ef8ca9b61812de3a3cba21215ac3373e9b641):
     dependencies:
-      decode-uri-component: 0.5.0
+      decode-uri-component: 0.5.0(patch_hash=13e7459eede8a8978ea018e1708a8703f84a0a06b897b607d5da8fa60c38ecee)
       filter-obj: 1.1.0
       split-on-first: 1.1.0
       strict-uri-encode: 2.0.0

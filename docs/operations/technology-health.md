@@ -1,4 +1,4 @@
-<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py scripts/check_pillow_advisory.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs apps/frontend/scripts/check-braces-security.mjs apps/frontend/scripts/check-deepmerge-security.mjs apps/frontend/scripts/check-source-map-security.mjs apps/frontend/scripts/test-source-map-security.mjs apps/frontend/scripts/test-compression-security.mjs patches/metro@0.84.4.patch patches/node-forge@1.4.0.patch patches/braces@3.0.3.patch patches/deepmerge@4.3.1.patch pnpm-lock.yaml uv.lock alethical/tests/test_multidict_security.py -->
+<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py scripts/check_pillow_advisory.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs apps/frontend/scripts/check-braces-security.mjs apps/frontend/scripts/check-deepmerge-security.mjs apps/frontend/scripts/check-decode-uri-security.mjs apps/frontend/scripts/test-decode-uri-security.mjs apps/frontend/scripts/check-source-map-security.mjs apps/frontend/scripts/test-source-map-security.mjs apps/frontend/scripts/test-compression-security.mjs patches/metro@0.84.4.patch patches/node-forge@1.4.0.patch patches/braces@3.0.3.patch patches/deepmerge@4.3.1.patch patches/decode-uri-component@0.5.0.patch pnpm-lock.yaml uv.lock alethical/tests/test_multidict_security.py -->
 <!-- last-major-tool-review: 2026-08-15 -->
 
 # Keeping every tool supported and useful
@@ -89,11 +89,11 @@ The monthly job reports newer major versions as candidates. It fails only when t
 
 ## Current support baseline
 
-| Part | Alethical line | Supported through | Official source |
-| --- | --- | --- | --- |
-| Node.js | 22 | 2027-04-30 | [Node.js releases](https://nodejs.org/en/about/previous-releases) |
-| Python | 3.12 | 2028-10-31 | [Python versions](https://devguide.python.org/versions/) |
-| PostgreSQL | 17 | 2029-11-08 | [PostgreSQL policy](https://www.postgresql.org/support/versioning/) |
+| Part       | Alethical line | Supported through | Official source                                                     |
+| ---------- | -------------- | ----------------- | ------------------------------------------------------------------- |
+| Node.js    | 22             | 2027-04-30        | [Node.js releases](https://nodejs.org/en/about/previous-releases)   |
+| Python     | 3.12           | 2028-10-31        | [Python versions](https://devguide.python.org/versions/)            |
+| PostgreSQL | 17             | 2029-11-08        | [PostgreSQL policy](https://www.postgresql.org/support/versioning/) |
 
 The monthly check starts failing 180 days before one of these dates. That leaves time
 to test and release a replacement before support ends.
@@ -198,13 +198,13 @@ a saved successful check cannot clear a later request.
 
 The checked fingerprints are:
 
-| Boundary | SHA-256 |
-| --- | --- |
-| Canonical complete Pillow lock entry, including distribution hashes | `2694a2f9055a37e8285bf6e1af4ff7fb575e01a541ca13be29d2b1a7bac45f59` |
-| `alethical/pipeline/tv_ad_redaction.py` | `33a2f50db0ddd2bda981a131a8e6d4d2c27e9b0ebfcd04f03d10201b32533e92` |
-| `alethical/tests/test_tv_ad_review.py` | `ef3c6e5e90db7e86289d32ddb82551fe097b681a51d5f315aa643d55e2734f44` |
+| Boundary                                                                       | SHA-256                                                            |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| Canonical complete Pillow lock entry, including distribution hashes            | `2694a2f9055a37e8285bf6e1af4ff7fb575e01a541ca13be29d2b1a7bac45f59` |
+| `alethical/pipeline/tv_ad_redaction.py`                                        | `33a2f50db0ddd2bda981a131a8e6d4d2c27e9b0ebfcd04f03d10201b32533e92` |
+| `alethical/tests/test_tv_ad_review.py`                                         | `ef3c6e5e90db7e86289d32ddb82551fe097b681a51d5f315aa643d55e2734f44` |
 | Canonical syntax of `prepare_copy` in `alethical/api/services/tv_ad_review.py` | `f8c331b1f9f341588fe4425f70e2ef8cbaed1a741931476fb45f1ae0248fc991` |
-| Canonical syntax of `render_original_page` in that service | `5d96d518905a7c362c369b58086ded8afcee8f3b0ca8e271c4c049c3b89a7790` |
+| Canonical syntax of `render_original_page` in that service                     | `5d96d518905a7c362c369b58086ded8afcee8f3b0ca8e271c4c049c3b89a7790` |
 
 All tracked Python files, including root-level and documentation tools, remain
 subject to the source scan. This finite source guard detects ordinary imports,
@@ -275,6 +275,26 @@ merging, list joining, and copying still work. The raw audit warning stays
 visible. A changed dependency path, version, advisory, or repair stops release
 until reviewed. A fixed upstream version should replace the local repair after
 compatibility checks pass.
+
+React Navigation's `query-string` uses decode-uri-component 0.5.0. Its
+[repeated-scan advisory](https://github.com/advisories/GHSA-qr28-fpjm-wq7f)
+is repaired by the exact `index.js` change from
+[upstream commit fad01d6](https://github.com/SamVerschueren/decode-uri-component/commit/fad01d65b93bd3f2f0dc32dfd8d57a38b57bc608).
+The fixed 0.5.1 package was published on 23 October 2026 at 12:48:46.830 UTC;
+the unchanged 7-day guard permits it starting 30 October at that time. Until
+that reviewed upgrade, the pinned 0.5.0 backport decodes each percent-encoded
+run once and never scans decoded output again. The original algorithm made
+4,099 full-input scans for a bounded 28,675-byte example; the repair makes 1.
+
+Both the build-tool and always-required security checks verify the exact patch,
+lock binding and installed source fingerprint, then exercise Unicode, malformed,
+repeated, empty and valueless queries through React Navigation's actual
+`query-string` copy. A child process counts full-input scans and bounds runtime
+at 5 seconds. The raw audit warning remains visible; only the exact advisory,
+package, version, range and reported dependency path can be classified as repaired
+after these checks pass. Changed evidence, a new finding or failed installation
+blocks release. Replace this temporary backport with 0.5.1 once its package age
+and compatibility checks pass; never bypass the waiting period.
 
 The jsdom CSS parser and PostCSS use source-map-js 1.2.2, the published fix for
 its [section-offset advisory](https://github.com/advisories/GHSA-68fv-2mgg-jv7q).

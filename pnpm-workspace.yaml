@@ -67,3 +67,5 @@ patchedDependencies:
   braces@3.0.3: patches/braces@3.0.3.patch
   # No upstream repair exists for GHSA-gcqx-w48m-w2h4. Skip "__proto__" keys when merging objects.
   deepmerge@4.3.1: patches/deepmerge@4.3.1.patch
+  # Backport upstream fad01d6 while 0.5.1 is younger than the 7-day package gate.
+  decode-uri-component@0.5.0: patches/decode-uri-component@0.5.0.patch
