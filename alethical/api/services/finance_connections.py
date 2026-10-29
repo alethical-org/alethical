@@ -388,7 +388,7 @@ def _money(db, release, kind, *, entities, identifiers, query, year, focus, take
 
 def _accounts(db, identifiers, year):
     link = m.LegislatorCampaignCommittee
-    edges = []
+    edges, years = [], set()
     for row, person in db.execute(
         select(link, m.Legislator)
         .join(m.Legislator, m.Legislator.id == link.legislator_id)
@@ -398,13 +398,18 @@ def _accounts(db, identifiers, year):
         )
     ):
         first, last = row.first_year_as_reviewed, row.last_year_as_reviewed
-        if year is not None and not (
+        interval = range(0)
+        if (
             first
             and last
-            and first.isdigit()
-            and last.isdigit()
-            and int(first) <= year <= int(last)
+            and len(first) == len(last) == 4
+            and first.isdecimal()
+            and last.isdecimal()
+            and 1900 <= int(first) <= int(last) <= 2200
         ):
+            interval = range(int(first), int(last) + 1)
+        years.update(interval)
+        if year is not None and year not in interval:
             continue
         edges.append(
             _edge(
@@ -429,7 +434,7 @@ def _accounts(db, identifiers, year):
                 key=row.id,
             )
         )
-    return edges
+    return edges, years
 
 
 def _lobbying(db, identifiers, year):
@@ -597,7 +602,9 @@ def connections(
             unavailable.append("campaign_finance")
     other = []
     if relationship in {"all", "campaign_account"}:
-        other.extend(_accounts(db, identifiers, year))
+        found, held_years = _accounts(db, identifiers, year)
+        other.extend(found)
+        years.update(held_years)
     if relationship in {"all", "lobbying_representation"}:
         found, available = _lobbying(db, identifiers, year)
         other.extend(found)

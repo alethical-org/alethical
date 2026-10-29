@@ -233,3 +233,25 @@ def test_donor_number_without_held_filer_stays_a_printed_name(
     outgoing = get(finance_api, relationship="payments")
     standalone = next(n for n in outgoing["nodes"] if n["record_id"] == "40100")
     assert standalone["target"] is None
+
+
+def test_campaign_account_year_choices_cover_only_reviewed_intervals(
+    finance_api, finance_db
+):
+    member = finance_db.scalar(select(m.Legislator))
+    _link(finance_db, member, "18001", m.CommitteeLinkReviewDecision.confirmed)
+    _link(finance_db, member, "18002", m.CommitteeLinkReviewDecision.withdrawn)
+    finance_db.flush()
+    for row in finance_db.scalars(select(m.LegislatorCampaignCommittee)):
+        row.first_year_as_reviewed = (
+            "2018" if row.registration_number == "18001" else "2026"
+        )
+        row.last_year_as_reviewed = (
+            "2020" if row.registration_number == "18001" else "2026"
+        )
+    finance_db.commit()
+    data = get(finance_api, relationship="campaign_account")
+    assert data["years"] == [2020, 2019, 2018]
+    filtered = get(finance_api, relationship="campaign_account", year=2019)
+    assert filtered["years"] == data["years"] and filtered["total"] == 1
+    assert get(finance_api, relationship="campaign_account", year=2026)["total"] == 0
