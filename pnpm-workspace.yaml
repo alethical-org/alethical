@@ -1,6 +1,7 @@
 packages:
   - apps/frontend
   - apps/finance
+  - packages/*
 
 minimumReleaseAge: 10080
 minimumReleaseAgeStrict: true

@@ -6,11 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "check:built-links": "node --test scripts/test-built-links.mjs && node scripts/check-built-links.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@alethical/shared": "workspace:*",
     "@supabase/supabase-js": "2.112.2",
     "react": "19.2.3",
     "react-dom": "19.2.3"
