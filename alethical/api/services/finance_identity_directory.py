@@ -57,6 +57,7 @@ def entities(
     page: int = 1,
     page_size: int = 50,
 ) -> dict:
+    q = identities._text(q, "Search", identities.MAX_KEY) if q else ""
     entity = m.IdentityEntity
     query = select(entity.id, entity.kind, entity.name).where(entity.status == "active")
     if q:
@@ -151,6 +152,7 @@ def queue(
     page: int = 1,
     page_size: int = 50,
 ) -> dict:
+    q = identities._text(q, "Search", identities.MAX_KEY) if q else ""
     try:
         release = reader.live_release(db)
         if release is None:
