@@ -170,8 +170,13 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
   source URL and copy date. Any missing amount withholds the figure, following
   `campaign_finance_reader.Bucket.rows_missing_an_amount` and
   [grounded-answers.md](../../.claude/rules/grounded-answers.md) rule 12; complete
-  figures sort highest first and withheld figures follow them. A record lacking both
-  its year and date also withholds the amount, with `undated_records` naming the gap. A partly confirmed
+  figures sort highest first and withheld figures follow them. `period_basis` is
+  `dates` when every record has a date, otherwise `years` when every record has its
+  held filing year, otherwise null and the amount is withheld. Filing year and
+  payment-date year can disagree, so a missing filing year is never derived from
+  a date. `amount_state` distinguishes `reported`, `incomplete_amount` and
+  `incomplete_period`; `undated_records` counts records lacking both year and date.
+  A partly confirmed
   name remains in the unconfirmed queue. `GET /identities` finds saved active
   identities by `q` and optional `kind`, with the same paging bounds; it returns
   only id, kind and name, without a suggested match or any account details.
