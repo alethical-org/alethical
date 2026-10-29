@@ -5858,7 +5858,7 @@ class _FinanceTVCheck(UUIDPrimaryKeyMixin):
     ``made_by_alethical_team``: it decides only what alethical.com may print.
 
     Append-only: the database refuses every change but the 1 withdrawal, and every
-    delete (migration ``0077_finance_station_checks``)."""
+    delete (migration ``0078_finance_station_checks``)."""
 
     facility_id: Mapped[str] = mapped_column(String(20), nullable=False)
     file_id: Mapped[str] = mapped_column(Text, nullable=False)

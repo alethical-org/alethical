@@ -13,7 +13,7 @@ from sqlalchemy.exc import DBAPIError
 from scripts.check_schema_drift import ScratchDatabase, _local_base_url
 
 ROOT = Path(__file__).resolve().parents[2]
-HEAD = "0077_finance_station_checks"
+HEAD = "0078_finance_station_checks"
 TABLES = ("finance_tv_fact", "finance_tv_connection")
 
 
@@ -53,7 +53,7 @@ def test_finance_station_checks_upgrade_downgrade_upgrade():
                         {"t": table},
                     )
             _append_only(engine)
-            migrate("downgrade", "0076_identity_confirmations")
+            migrate("downgrade", "0077_finance_sign_in_codes")
             names = set(inspect(engine).get_table_names())
             assert not names & set(TABLES)
             with engine.connect() as db:
