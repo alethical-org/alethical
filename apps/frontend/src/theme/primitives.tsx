@@ -1389,11 +1389,11 @@ const styles = StyleSheet.create({
   },
   navBarDesktop: { columnGap: 56 },
   navLinks: { flexDirection: 'row', alignItems: 'center', gap: 30 },
-  navTriggerGroup: { flexDirection: 'row', alignItems: 'center', gap: 32 },
+  navTriggerGroup: { flexDirection: 'row', alignItems: 'center', gap: 40 },
   navMobileRight: { flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 'auto' },
   // v2 dropdown triggers + panels
   navTriggerWrap: { position: 'relative', zIndex: 60 },
-  navTrigger: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+  navTrigger: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 4 },
   navTriggerText: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.subhead,

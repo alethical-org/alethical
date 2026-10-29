@@ -319,7 +319,7 @@ export function ShortPostArticle({
       <style>{articleCss}</style>
       <a className="sp-back" href={returnLink?.href ?? '/blog'} onClick={onReturn}>
         <ChevronLeft size={18} strokeWidth={2.2} aria-hidden />
-        <span>{returnLink?.label ?? 'Back to Blog'}</span>
+        <span>{returnLink?.label ?? 'Back to Media'}</span>
       </a>
       {notices
         .filter((event) => event.kind === 'newer-records')

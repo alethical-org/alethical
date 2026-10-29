@@ -21,7 +21,7 @@ import { IA } from '../navigation/ia';
  * Read off the bar's own item because that is Design's whole reason for hiding
  * the title: 2 copies of the word could disagree, and this one cannot.
  */
-export const READ_PAGE_NAME = IA.find((item) => item.id === 'read')?.label ?? 'Blog';
+export const READ_PAGE_NAME = IA.find((item) => item.id === 'read')?.label ?? 'Media';
 
 /**
  * The page's descriptive title, for the 2 places its name has to survive out of
@@ -30,7 +30,7 @@ export const READ_PAGE_NAME = IA.find((item) => item.id === 'read')?.label ?? 'B
  * `READ_PAGE_NAME`, because "Blog" alone tells a person nothing about what they
  * would be opening.
  */
-export const READ_PAGE_HEADING = 'Research, guides and events';
+export const READ_PAGE_HEADING = 'Articles, research, debates and guides';
 
 /**
  * The note under the hidden title. A note rather than a heading, in regular
@@ -45,4 +45,4 @@ export const READ_PAGE_HEADING = 'Research, guides and events';
  * standfirst, drawn on its card, keeps the period its author wrote.
  */
 export const READ_PAGE_INTRO =
-  'Research, guides and events that help you understand Minnesota government';
+  'Articles, research, debates and guides that help you understand Minnesota government';

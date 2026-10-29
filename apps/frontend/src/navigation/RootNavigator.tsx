@@ -556,7 +556,7 @@ export function RootNavigator() {
               <Stack.Screen
                 name="ShortPosts"
                 component={ShortPostsScreen}
-                options={{ headerShown: false, title: 'Short posts' }}
+                options={{ headerShown: false, title: 'Articles' }}
               />
               <Stack.Screen
                 name="ReadTopic"

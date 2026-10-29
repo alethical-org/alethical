@@ -817,14 +817,14 @@ describe('shared top navigation', () => {
   // these same 3 entries.
   it('offers Money, Search, Blog and About without an active Ask entry', () => {
     expect(NAV_BAR.map((entry) => (entry.kind === 'menu' ? entry.key : entry.item.id))).toEqual([
+      'read',
       'search-campaign-money',
       'search',
-      'read',
       'about',
     ]);
     expect(
       NAV_BAR.map((entry) => (entry.kind === 'menu' ? entry.label : entry.item.label)),
-    ).toEqual(['Money', 'Search', 'Blog', 'About']);
+    ).toEqual(['Media', 'Money', 'Search', 'About']);
   });
 
   it('keeps no Yours group in the bar', () => {
@@ -844,7 +844,7 @@ describe('the bar\u2019s Read item', () => {
     expect(read).toBeDefined();
     if (read?.kind !== 'link') throw new Error('Read is not a link entry');
     expect(read.item.id).toBe('read');
-    expect(read.item.label).toBe('Blog');
+    expect(read.item.label).toBe('Media');
     expect(read.item.path).toBe('/blog');
     expect(read.item.menu).toBeNull();
     expect(read.item.isNew).toBeUndefined();

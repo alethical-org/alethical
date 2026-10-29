@@ -43,7 +43,7 @@ import { theme as t } from '../../theme/tokens';
  * name; `READ_PAGE_NAME` reads it off the bar's own label so the 2 cannot
  * disagree.
  *
- * The page groups EVENTS, RESEARCH REPORTS, SHORT POSTS, then GUIDES in source order. Short
+ * The page groups ARTICLES, RESEARCH REPORTS, DEBATES AND RECORDINGS, then GUIDES in source order. Short
  * posts appear once, outside longer pieces and reading sets.
  * Source order rather than a CSS reordering, because reordering in the styling
  * alone separates what a person sees from what a screen reader reads and what the
@@ -90,6 +90,7 @@ type PieceGroup = {
     { kind: 'group'; group: PieceSetGroup } | { kind: 'piece'; piece: ResearchPiece }
   >;
   shortPosts?: boolean;
+  events?: boolean;
 };
 
 export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
@@ -124,10 +125,16 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
         : { kind: 'piece' as const, piece: bySlug.get(item.piece.slug) },
     )
     .filter((item) => item.kind === 'group' || Boolean(item.piece));
-  // Events render first, followed by Research reports, Short posts, Guides. An empty group is dropped here rather than
+  // Articles, reports, debates and guides share source and visual order. An empty group is dropped here rather than
   // hidden in the markup, so the group that renders first is genuinely first for
   // a screen reader and for the keyboard as well as in ink.
   const groups: PieceGroup[] = [
+    {
+      heading: 'ARTICLES',
+      sets: [],
+      pieces: newestShortPosts(publishedResearch()).slice(0, 3) as ResearchPiece[],
+      shortPosts: true,
+    },
     {
       heading: READ_RESEARCH_GROUP_HEADING,
       sets: [],
@@ -136,10 +143,10 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
         .slice(0, 3),
     },
     {
-      heading: 'SHORT POSTS',
+      heading: 'DEBATES AND RECORDINGS',
       sets: [],
-      pieces: newestShortPosts(publishedResearch()).slice(0, 3) as ResearchPiece[],
-      shortPosts: true,
+      pieces: [],
+      events: true,
     },
     {
       heading: READ_GUIDES_GROUP_HEADING,
@@ -149,7 +156,10 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
     },
   ].filter(
     (group) =>
-      group.sets.length > 0 || group.pieces.length > 0 || (group.guideItems?.length ?? 0) > 0,
+      group.sets.length > 0 ||
+      group.pieces.length > 0 ||
+      (group.guideItems?.length ?? 0) > 0 ||
+      (group.events && PUBLISHED_EVENT_INDEX.length > 0),
   );
 
   return (
@@ -168,26 +178,6 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
 
             <View style={[styles.rule, isMobile && styles.ruleMobile]} />
 
-            {PUBLISHED_EVENT_INDEX.length > 0 && (
-              <>
-                <Text
-                  accessibilityRole="header"
-                  aria-level={2}
-                  style={[
-                    styles.groupHeading,
-                    isMobile && styles.groupHeadingMobile,
-                    isMobile ? styles.groupHeadingFirstMobile : styles.groupHeadingFirst,
-                  ]}
-                >
-                  EVENTS
-                </Text>
-                <div dangerouslySetInnerHTML={{ __html: renderEventList(Date.now(), true) }} />
-                <a className="read-collection-link" href="/blog/events">
-                  <span className="read-collection-link-label">All events</span>
-                  <GreenLinkArrow />
-                </a>
-              </>
-            )}
             {groups.length === 0 ? (
               <View style={styles.emptyCard}>
                 <Text style={styles.emptyTitle}>{READ_PAGE_EMPTY_TITLE}</Text>
@@ -206,7 +196,7 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
                       styles.groupHeading,
                       isMobile && styles.groupHeadingMobile,
                       // The spacing is the slot's, not the group's.
-                      index === 0 && PUBLISHED_EVENT_INDEX.length === 0
+                      index === 0
                         ? isMobile
                           ? styles.groupHeadingFirstMobile
                           : styles.groupHeadingFirst
@@ -217,7 +207,9 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
                   >
                     {group.heading}
                   </Text>
-                  {group.shortPosts ? (
+                  {group.events ? (
+                    <div dangerouslySetInnerHTML={{ __html: renderEventList(Date.now(), true) }} />
+                  ) : group.shortPosts ? (
                     <ShortPostsPreview
                       pieces={group.pieces}
                       onOpen={openPiece}
@@ -270,19 +262,21 @@ export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
                   <a
                     className="read-collection-link"
                     href={
-                      group.shortPosts
-                        ? '/blog/short-posts'
-                        : group.heading === READ_RESEARCH_GROUP_HEADING
-                          ? '/blog/research'
-                          : '/blog/guides'
+                      group.events
+                        ? '/blog/events'
+                        : group.shortPosts
+                          ? '/blog/short-posts'
+                          : group.heading === READ_RESEARCH_GROUP_HEADING
+                            ? '/blog/research'
+                            : '/blog/guides'
                     }
                   >
                     <span className="read-collection-link-label">
                       All{' '}
-                      {group.shortPosts ? (
-                        <>
-                          <span className="read-sr">short </span>posts
-                        </>
+                      {group.events ? (
+                        'debates and recordings'
+                      ) : group.shortPosts ? (
+                        'articles'
                       ) : group.heading === READ_RESEARCH_GROUP_HEADING ? (
                         <>
                           <span className="read-sr">research </span>reports

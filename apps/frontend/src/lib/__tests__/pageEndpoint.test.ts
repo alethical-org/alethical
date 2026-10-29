@@ -142,7 +142,7 @@ async function serve(query: Record<string, string>) {
 
 it.each([
   ['/blog/research', '1', 'Back to Research reports'],
-  ['/blog/short-posts', '1', 'Back to Short posts'],
+  ['/blog/short-posts', '1', 'Back to Articles'],
   ['/blog/guides', '1', 'Back to Guides'],
   ['/blog/sets/how-the-money-works', '1', 'Back to How the Money Works'],
   ['/blog/topics/campaign-finance', '2', 'Back to Campaign finance'],
@@ -1492,7 +1492,7 @@ describe('first-response page tags', () => {
     expect(status).toBe(200);
     expect(body).toContain(`<h1>${READ_PAGE_NAME}</h1>`);
     expect(body).toContain(
-      'Research, guides and events that help you understand Minnesota government',
+      'Articles, research, debates and guides that help you understand Minnesota government',
     );
     expect(publishedResearch().length).toBeGreaterThan(1);
     const newest = new Set(newestShortPosts().map((piece) => piece.slug));
@@ -1515,7 +1515,7 @@ describe('first-response page tags', () => {
     stubNetwork(() => ({ status: 500 }));
     const archive = await serve({ path: '/blog/short-posts' });
     expect(archive.status).toBe(200);
-    expect(archive.body).toContain('<h1>Short posts</h1>');
+    expect(archive.body).toContain('<h1>Articles</h1>');
     expect(archive.body).toContain('2 records do not always mean 2 donations');
     expect(archive.body).not.toContain('noindex');
 

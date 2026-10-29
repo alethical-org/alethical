@@ -42,7 +42,7 @@ export const STATIC_PAGE_SUBJECTS: Record<string, string> = {
   '/money': 'Money in politics in Minnesota',
   '/money/committees': 'Committees — Minnesota campaign money',
   '/money/races': 'Money by race: Minnesota candidates by office and district',
-  '/blog': 'Blog',
+  '/blog': 'Media',
   '/email-preferences': 'Email preferences',
   '/unsubscribe': 'Unsubscribe',
   '/comment-emails': 'Comment emails',
@@ -101,13 +101,13 @@ function titleWithoutRecord(route: TitledRoute): string | null {
       return piece ? titleFor(piece.title) : null;
     }
     case 'Events':
-      return titleFor('Events');
+      return titleFor('Debates and recordings');
     // EventScreen supplies its title when its on-demand content loads.
     case 'Event':
       return null;
     case 'ShortPosts': {
       const page = Number(route.params?.page ?? 1);
-      return titleFor(page > 1 ? `Short posts, page ${page}` : 'Short posts');
+      return titleFor(page > 1 ? `Articles, page ${page}` : 'Articles');
     }
     case 'ReadResearch':
     case 'ReadGuides': {

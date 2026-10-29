@@ -8,6 +8,17 @@ const event = EVENTS[0];
 const before = Date.parse('2026-10-07T18:00:00-05:00');
 
 describe('event search and share metadata', () => {
+  it('names the retained event collection for its replay and event-details purpose', () => {
+    const metadata = eventsPageMetadata();
+    expect(metadata.title).toBe('Debates and recordings | Alethical');
+    expect(metadata.description).toBe(
+      'Debates and recordings hosted by Alethical. Watch published replays and find event details.',
+    );
+    expect(renderPageHead(metadata)).toContain(
+      '<link rel="canonical" href="https://www.alethical.com/blog/events"',
+    );
+  });
+
   it('identifies the announcement with its own canonical address and original flyer dimensions', () => {
     const head = renderPageHead(eventPageMetadata(event, before));
     expect(head).toContain(

@@ -81,7 +81,7 @@ const MONEY_ITEM: IaItem = {
  */
 const READ_ITEM: IaItem = {
   id: 'read',
-  label: 'Blog',
+  label: 'Media',
   path: '/blog',
   menu: null,
   availability: 'mvp',
@@ -311,9 +311,9 @@ export type NavBarEntry =
   { kind: 'menu'; key: MenuKey; label: string } | { kind: 'link'; item: IaItem };
 
 export const NAV_BAR: NavBarEntry[] = [
+  { kind: 'link', item: READ_ITEM },
   { kind: 'link', item: MONEY_ITEM },
   { kind: 'menu', key: 'search', label: 'Search' },
-  { kind: 'link', item: READ_ITEM },
   { kind: 'menu', key: 'about', label: 'About' },
 ];
 

@@ -67,6 +67,20 @@ export const eventCss = `
 .event-list p{font-size:16px;margin:0 0 8px}.event-list .event-list-meta{font-size:13px;font-weight:600;color:#5f655b}
 .event-collection{max-width:1000px;margin:auto;padding:40px 24px 80px}
 @media(max-width:767px){.event-content .event-back{font-size:15px}.event-collection .event-return{margin-bottom:10px}.event-article,.event-collection{padding:24px 20px 56px}.event-content h1{font-size:28px}.event-content p,.event-content li{font-size:17px}.event-content .event-list{margin-top:14px;gap:16px}.event-list>li{padding:30px 20px 28px}.event-list h3,.event-list h2{font-size:18px}}
+.event-list>li.event-replay-preview{padding:32px 36px}
+.event-replay-card{display:flex;align-items:stretch;gap:32px;color:#11150f;text-decoration:none}
+.event-replay-card:hover,.event-replay-card:visited{color:#11150f}.event-replay-card::after{content:'';position:absolute;inset:0;border-radius:16px}
+.event-replay-card:focus-visible{outline:none!important}
+.event-preview-copy{display:flex;flex-direction:column;flex:1;min-width:0}
+.event-preview-title{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px 12px}
+.event-list .event-preview-title h2,.event-list .event-preview-title h3{font-size:32px;line-height:1.2;margin:0;font-weight:800}
+.event-preview-title>span{font-size:15px;font-weight:600;color:#5f655b}
+.event-list .event-replay-preview .event-list-meta{font-size:18px;font-weight:400;line-height:1.5;margin:14px 0 24px;color:#5f655b}
+.event-preview-photo-frame{display:block;position:relative;overflow:hidden;width:40%;max-width:380px;aspect-ratio:1.467;border-radius:12px;align-self:center}.event-preview-photo{display:block;position:absolute;left:-41.38%;top:0;width:182.9%;max-width:none;height:auto}
+.event-watch-action{display:inline-flex;align-items:center;justify-content:center;gap:10px;align-self:flex-start;min-height:52px;box-sizing:border-box;margin-top:auto;padding:10px 20px;border:1px solid #d4d8d3;border-radius:10px;font-size:16px;line-height:1.5;font-weight:700}
+@media(hover:hover) and (pointer:fine){.event-replay-preview:hover .event-watch-action{border-color:#0f7a45;background:#f0faf4}}
+@media(max-width:767px){.event-list>li.event-replay-preview{padding:20px}.event-replay-card{flex-direction:column;gap:20px}.event-preview-photo-frame{order:-1;width:100%;max-width:none}.event-list .event-preview-title h2,.event-list .event-preview-title h3{font-size:25px}.event-list .event-replay-preview .event-list-meta{font-size:17px}.event-watch-action{width:100%}}
+
 `;
 
 /** Initial HTML for the shared control mounted without replacing the article. */
@@ -100,21 +114,27 @@ function renderSignupAction(href: string): string {
   return `<a class="event-action" href="${e(href)}"><span><strong>RSVP for free on Luma</strong></span><svg width="${LINK_ARROW_SIZE}" height="${LINK_ARROW_SIZE}" viewBox="${LINK_ARROW_VIEW_BOX}" fill="none" aria-hidden="true" focusable="false"><path d="${LINK_ARROW_PATH}" stroke="#0f7a45" stroke-width="${LINK_ARROW_STROKE_WIDTH}" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>`;
 }
 
+/** The existing public replay is one card link; the watch treatment is decorative. */
+function renderReplayPreview(event: PublishedEvent, heading: 'h2' | 'h3'): string {
+  return `<li class="event-replay-preview"><a class="event-replay-card" href="${e(eventPath(event))}"><div class="event-preview-copy"><div class="event-preview-title"><${heading}>${e(event.name)}</${heading}><span>Hosted by Alethical</span></div><p class="event-list-meta">${e(event.district)} · ${e(eventSummaryDate(event))}</p><span class="event-watch-action"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" fill="#0f7a45"/></svg>Watch the debate</span></div><span class="event-preview-photo-frame"><img class="event-preview-photo" src="${e(event.homePhotos.desktop)}" alt="" loading="lazy"></span></a></li>`;
+}
+
 export function renderEventList(now = Date.now(), preview = false): string {
   const heading = preview ? 'h3' : 'h2';
   return `<style>${eventCss}</style><div class="event-content"><ul class="event-list">${orderedEvents(
     now,
   )
     .slice(0, preview ? 3 : undefined)
-    .map(
-      (event) =>
-        `<li><p class="event-list-meta">${e(eventSummaryDate(event))}</p><${heading}><a href="${e(eventPath(event))}">${e(event.name)}</a></${heading}><p>${e(event.tagline)}</p>${eventSummaryShowsLogistics(event, now) ? `<p>${keepTogether(event.locationName)} · ${keepTogether(event.city)} · ${keepTogether('Free admission')}</p>` : ''}</li>`,
+    .map((event) =>
+      event.slug === 'forward-debate-2026' && eventHasEnded(event, now)
+        ? renderReplayPreview(event, heading)
+        : `<li><p class="event-list-meta">${e(eventSummaryDate(event))}</p><${heading}><a href="${e(eventPath(event))}">${e(event.name)}</a></${heading}><p>${e(event.tagline)}</p>${eventSummaryShowsLogistics(event, now) ? `<p>${keepTogether(event.locationName)} · ${keepTogether(event.city)} · ${keepTogether('Free admission')}</p>` : ''}</li>`,
     )
     .join('')}</ul></div>`;
 }
 
 export function renderEventsCollection(now = Date.now()): string {
-  return `<section class="event-content event-collection"><style>${eventCss}</style>${renderEventReturn('/blog', 'Back to Blog')}<h1>Events</h1>${renderEventList(now)}</section>`;
+  return `<section class="event-content event-collection"><style>${eventCss}</style>${renderEventReturn('/blog', 'Back to Media')}<h1>Debates and recordings</h1>${renderEventList(now)}</section>`;
 }
 
 export function renderEventArticle(event: PublishedEvent, now = Date.now()): string {
@@ -128,7 +148,7 @@ export function renderEventArticle(event: PublishedEvent, now = Date.now()): str
   const publishedLabel = dateFormatter.format(new Date(`${event.publishedOn}T12:00:00Z`));
   const updatedLabel = dateFormatter.format(new Date(`${event.updatedOn}T12:00:00Z`));
   return `<article class="event-content event-article"><style>${eventCss}</style>
-${renderEventReturn(EVENTS_PATH, 'Back to Events')}
+${renderEventReturn(EVENTS_PATH, 'Back to Debates and recordings')}
 <a href="${e(event.image)}" aria-label="Open the full-size ${e(event.name)} flyer"><img class="event-flyer" src="${e(event.image)}" width="${event.imageWidth}" height="${event.imageHeight}" alt="${e(event.imageAlt)}" fetchpriority="high" decoding="async"></a>
 <p class="event-image-link"><a href="${e(event.image)}">Open full-size flyer to zoom in</a></p>
 ${renderForwardCoalitionBrand()}

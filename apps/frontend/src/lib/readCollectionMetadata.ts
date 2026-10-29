@@ -8,11 +8,11 @@ export function readCollectionPagePath(base: string, page: number): string {
 }
 
 export function shortPostsPageMetadata(page = 1, hasPosts = true): PageMetadata {
-  const subject = page > 1 ? `Short posts, page ${page}` : 'Short posts';
+  const subject = page > 1 ? `Articles, page ${page}` : 'Articles';
   return pageMetadata({
     title: titleFor(subject),
     socialTitle: subject,
-    description: `Short posts about Minnesota public records, newest first.${page > 1 ? ` Page ${page}.` : ''}`,
+    description: `Articles about Minnesota public records, newest first.${page > 1 ? ` Page ${page}.` : ''}`,
     canonicalPath: hasPosts ? readCollectionPagePath('/blog/short-posts', page) : '',
     noindex: !hasPosts,
   });

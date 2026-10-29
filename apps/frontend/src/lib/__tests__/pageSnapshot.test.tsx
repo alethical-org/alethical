@@ -991,7 +991,7 @@ describe('the piece snapshot serves the piece’s own writing, unchanged', () =>
   });
 
   it('links back to the list, out to each source, and nowhere the site cannot honour', () => {
-    expect(snapshot.links).toEqual([{ label: 'Back to Blog', href: '/blog' }]);
+    expect(snapshot.links).toEqual([{ label: 'Back to Media', href: '/blog' }]);
     // The 3 approved links in existing report sentences and 2 Related reading
     // links join the return and source links in the first response.
     expect(sourceAddresses.length).toBeGreaterThan(0);
@@ -1134,7 +1134,7 @@ describe('the guide snapshot serves the guide\u2019s own writing, unchanged', ()
     // existing forward links below the site's top bar.
     const pageBody = html.slice(html.indexOf('<main'));
     expect(pageBody.match(/href="/g)).toHaveLength(2 + hrefs.length + internal.length + 2);
-    expect(snapshot.links).toEqual([{ label: 'Back to Blog', href: '/blog' }]);
+    expect(snapshot.links).toEqual([{ label: 'Back to Media', href: '/blog' }]);
   });
 
   it('prints no piece number anywhere in the served page', () => {
@@ -1178,13 +1178,32 @@ describe('the /blog page snapshot links to its visible groups and Short posts ar
   const snapshot = readPageSnapshot(pieces);
   const html = renderPageSnapshot(snapshot);
 
-  it('puts event introductions first with date-only summary text', () => {
-    expect(snapshot.records?.[0].href).toBe('/blog/events/forward-debate-2026');
-    expect(snapshot.records?.[0].detail).toMatch(/^October 15, 2026 · /);
-    expect(snapshot.records?.[0].detail).not.toMatch(
+  it('puts articles before reports, debates and guides without duplicating a piece', () => {
+    const records = snapshot.records ?? [];
+    const articlePaths = newestShortPosts(pieces).slice(0, 3).map(piecePath);
+    expect(records.slice(0, 3).map((record) => record.href)).toEqual(articlePaths);
+    const reportIndex = records.findIndex(
+      (record) => record.href === '/blog/research/the-money-only-goes-one-way',
+    );
+    const debateIndex = records.findIndex(
+      (record) => record.href === '/blog/events/forward-debate-2026',
+    );
+    const guideIndex = records.findIndex((record) => record.href.startsWith('/blog/guides/'));
+    expect(reportIndex).toBe(3);
+    expect(debateIndex).toBeGreaterThan(reportIndex);
+    expect(guideIndex).toBeGreaterThan(debateIndex);
+    expect(new Set(records.map((record) => record.href)).size).toBe(records.length);
+    const debate = records[debateIndex];
+    expect(debate.detail).toContain('October 15, 2026');
+    expect(debate.detail).not.toMatch(
       /Past event|Thursday|6–8 PM CDT|Riverside Terrace|Free admission/,
     );
-    expect(snapshot.links?.[0]).toEqual({ label: 'All events', href: '/blog/events' });
+    expect(snapshot.links?.slice(0, 4)).toEqual([
+      { label: 'All articles', href: '/blog/short-posts' },
+      { label: 'All research reports', href: '/blog/research' },
+      { label: 'All debates and recordings', href: '/blog/events' },
+      { label: 'All guides', href: '/blog/guides' },
+    ]);
   });
 
   it('names the page the way the loaded page names it, then its note', () => {

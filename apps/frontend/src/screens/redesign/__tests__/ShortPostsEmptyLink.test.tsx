@@ -45,7 +45,7 @@ it('gives an empty collection one underlinable label and a separate shared arrow
   expect(link?.children).toHaveLength(2);
   expect(link?.children[0].tagName).toBe('svg');
   expect(link?.children[0].getAttribute('aria-hidden')).toBe('true');
-  expect(link?.children[1].textContent).toBe('Back to Blog');
+  expect(link?.children[1].textContent).toBe('Back to Media');
   expect(host.querySelector('style')?.textContent).toContain(
     '.sp-collection-empty a:hover span{text-decoration:underline}',
   );

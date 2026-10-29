@@ -24,20 +24,20 @@ Research and Guide are 2 traits, not 2 mutually exclusive kinds. §2.7 explains 
 - **Research.** We add up the campaign-finance records we hold and publish what we found, signed
   and dated, with the arithmetic reproducible by a reader from the linked records. Rule 13 is the
   exception that permits this and the only place in the product where it is permitted. The
-  long-form Research piece is *The Money Only Goes One Way*. The published Short post
-  *2 records do not always mean 2 donations* also carries Research and Guide traits.
-  *Political donors appearing in both parties’ Minnesota caucus records* and
-  *What Minnesota’s records show about lobbyist contributions, 2015–2026* are
+  long-form Research piece is _The Money Only Goes One Way_. The published Short post
+  _2 records do not always mean 2 donations_ also carries Research and Guide traits.
+  _Political donors appearing in both parties’ Minnesota caucus records_ and
+  _What Minnesota’s records show about lobbyist contributions, 2015–2026_ are
   Short posts carrying the Research trait.
 - **A guide.** One term explained in plain language. A guide concludes nothing, adds nothing up
   across members, and defines no classifications, so it sits under rules 1 to 12 like every other
   surface and needs no part of rule 13's exception. 5 long-form Guides are live, all posted 27 Aug
-  2026 and all in the set "How the Money Works", in its reading order: *Who has to report their
-  money* at `/blog/guides/who-has-to-report-their-money`, *What the records name, and what they
-  leave out* at `/blog/guides/what-the-records-name`, *Why 2 official numbers can both be right*
-  at `/blog/guides/why-2-official-numbers-can-both-be-right`, *Money spent without a campaign's
-  say* at `/blog/guides/money-spent-without-a-campaigns-say`, and *Why nobody can follow a
-  dollar* at `/blog/guides/why-nobody-can-follow-a-dollar`. That
+  2026 and all in the set "How the Money Works", in its reading order: _Who has to report their
+  money_ at `/blog/guides/who-has-to-report-their-money`, _What the records name, and what they
+  leave out_ at `/blog/guides/what-the-records-name`, _Why 2 official numbers can both be right_
+  at `/blog/guides/why-2-official-numbers-can-both-be-right`, _Money spent without a campaign's
+  say_ at `/blog/guides/money-spent-without-a-campaigns-say`, and _Why nobody can follow a
+  dollar_ at `/blog/guides/why-nobody-can-follow-a-dollar`. That
   completes the 5 pieces [issue 1752](https://github.com/alethical-org/alethical/issues/1752)
   fixed for the set "How the Money Works", and closes what
   [issue 1771](https://github.com/alethical-org/alethical/issues/1771) raised: the set no longer
@@ -51,6 +51,7 @@ Research and Guide are 2 traits, not 2 mutually exclusive kinds. §2.7 explains 
   writing and the registration land together: a piece's words, its entry in `PUBLISHED_RESEARCH`,
   its slug in the word-for-word check, its forward link paid if its own text promised one, and
   the page opened in a browser.
+
 - **Both.** A piece may carry both traits. See §2.7, which is where the reader-facing label for
   that case is decided, and §2.8, which is why this is not hypothetical.
 
@@ -58,14 +59,37 @@ Research and Guide are 2 traits, not 2 mutually exclusive kinds. §2.7 explains 
 
 Approved on 27 Aug 2026, except where a different date is given.
 
+### Media first release
+
+The public section is named **Media**. Its stable index remains `/blog`; existing
+article, topic, guide, report, event and collection addresses stay valid. The shared
+menu order is Media, Money, Search, About, then the account action.
+
+The index presents **Articles, Research reports, Debates and recordings, Guides** in
+that order, in both visible and accessible reading order. Articles replaces the
+reader-facing Short posts name, including collection titles, metadata, empty states
+and return links; the internal `short-post` format and `/blog/short-posts` address
+stay compatible. Contextual returns still name the actual originating collection.
+Each article appears once in the index. Existing preview limits and guide-group
+behavior remain: up to 3 items per collection, first guide group open.
+
+The debate preview leads to the existing Forward Debate replay, showing its real
+calendar date, district, host and Watch the debate action. Sources, disclosures,
+article sharing and the distinction between published work and campaign services
+remain intact. Presentation does not confer press credentials.
+
+The homepage intro and a new Latest articles preview are **held for Eugene review**;
+only shared-menu changes belong to this release. The pending proposal is retained
+on [homepage review 410](https://github.com/alethical-org/alethical/issues/410).
+
 ### 2.1 Addresses carry the trait, and the `/blog` page lists everything
 
-| address | what it is |
-| --- | --- |
-| `/blog` | the `/blog` page: everything we publish, one combined listing |
+| address                 | what it is                                                                 |
+| ----------------------- | -------------------------------------------------------------------------- |
+| `/blog`                 | the `/blog` page: everything we publish, one combined listing              |
 | `/blog/research/<name>` | one piece carrying the research trait, including a piece that also teaches |
-| `/blog/guides/<name>` | one piece carrying only the guide trait |
-| `/blog/sets/<name>` | one set of pieces meant to be read together |
+| `/blog/guides/<name>`   | one piece carrying only the guide trait                                    |
+| `/blog/sets/<name>`     | one set of pieces meant to be read together                                |
 
 **A piece carrying both traits is addressed under `research`**, because rule 13 binds it in full and
 the address then states which promises apply to the page. See §2.7.
@@ -150,7 +174,7 @@ stripped at 1 piece.
 
 **Why, and this is the part that matters.** Starting a box is a statement that more is coming
 shortly. So the box is not a container asserting pieces a reader cannot see; it is a declaration of
-intent, and we only open one when that intent is real. Read this beside §2.3: the box never *names*
+intent, and we only open one when that intent is real. Read this beside §2.3: the box never _names_
 an unwritten piece, so nothing is promised that a reader could try to open. What its existence says
 is that the set is live and growing.
 
@@ -238,7 +262,7 @@ The peer coding consultant proposed classifying every planned piece with 2 quest
 conclusions, and does it teach 1 concept. Run against the 13 pieces in
 [issue 1752](https://github.com/alethical-org/alethical/issues/1752) on 27 Aug 2026:
 
-- The 1 live piece, *The Money Only Goes One Way*, is research only.
+- The 1 live piece, _The Money Only Goes One Way_, is research only.
 - 11 of the 12 planned guides are guides only.
 - **Planned guide 2, "The money with no donor named", carries both.** Its outline states the
   unnamed money "was 36.5% of the money in 2024 and 41.3% in 2025 across sitting legislators'
@@ -249,7 +273,7 @@ conclusions, and does it teach 1 concept. Run against the 13 pieces in
   rather than across members. Classified when it is written, not now.
 
 **That one is now written, classified guide only, and its outline claim turned out to be false as
-worded.** It became the independent-spending half of *Money spent without a campaign's say*
+worded.** It became the independent-spending half of _Money spent without a campaign's say_
 ([`docs/published-writing/money-spent-without-a-campaigns-say.md`](../published-writing/money-spent-without-a-campaigns-say.md)).
 Measured on the Board's own "Itemized independent expenditures of over $200 - All" download,
 counted as served on 27 Aug 2026: **31,718 of the 41,130 rows are marked For and 9,412 are marked
@@ -259,7 +283,7 @@ opposite ways, and the outline named neither measure.
 
 **So the classification splits along the same line.** A **count of rows in a published download**
 is a fact about the download, names nobody and sums no member's money, which is the ground §2.6's
-sibling pieces already ship on: *What the records name, and what they leave out* prints 583,152 and
+sibling pieces already ship on: _What the records name, and what they leave out_ prints 583,152 and
 337,888 as a guide. A **sum of dollars across every spender and every affected committee in the
 file** is rule 13's first special permission. The guide therefore prints the row counts, prints no
 dollar total, and tells the reader in its own words that a count of payments is not a count of
@@ -453,6 +477,8 @@ any change to a posted piece with the Alethical team.
 
 ### 2.15 The section is Blog and its permanent addresses start with `/blog`
 
+The section name in this historical decision is superseded by [Media first release](#media-first-release). Its permanent `/blog` addresses remain in force.
+
 Approved on 30 Sep 2026: Blog is the permanent section name in navigation,
 addresses and all related references, replacing Read.
 
@@ -553,7 +579,6 @@ Video search details and the video sitemap require actual publication time, thum
 and duration. Search appearance is not guaranteed. Real media playback, caption,
 seeking and responsive checks remain necessary when assets arrive.
 
-
 **Republication approved, 15 October 2026:** Candidate approval is confirmed for
 `Phone promo v2.png`; publication of the revised first-debate article is authorized.
 This clears the 7 October hold. Keep the original publication date and show the
@@ -626,7 +651,6 @@ their own timestamps. Opening and closing Share must preserve the existing playe
 Its always-visible original-video link says “On YouTube”, followed by the duration,
 with the existing 16px gap below the player. This wording is case-specific.
 The event-card title consultation is separate and does not change its treatment.
-
 
 Search and sharing behavior is owned by
 [page-metadata-for-search-and-sharing-decisions.md §30](page-metadata-for-search-and-sharing-decisions.md#30-event-announcements-are-discoverable-from-their-first-response).
@@ -805,7 +829,7 @@ and undated context stays explicit beside the relevant claims.
 
 Related reading names a few relevant pieces already published, never the current piece or an invented destination. Reader-facing article text and quantitative graphics draw from the same approved numeric inputs, including units, periods, denominators, and any remainder category. An overlap diagram must not imply unsupported area proportions. Its labels and any needed explanation follow [ui-copy-guide.md §Remove implied information from text and visuals](../design/ui-copy-guide.md#remove-implied-information-from-text-and-visuals); omit the generic overlap sentence in the approved organizations draft. A dated newer-record notice points to newer activity without silently recalculating a dated article. An amended source earns a dated explanation and revised finding; Alethical's own error is corrected in text and chart with a dated correction, leaving no wrong figure readable with a line through it. The original publication date follows Minnesota's calendar and stays fixed; a later correction has its own full-content review and release instruction. Records-through is the newest covered reporting-period end among cited records Alethical holds, not extraction day. A piece using only official sources names that outside-source coverage and uses their newest covered end; it never presents that date as coverage of records Alethical loaded. A purely explanatory Guide names source dates when known and never invents a numeric reporting period or date for an undated source. Different sources' coverage stays explicit.
 
-New or revised posts use 1 closing note. Event promotions omit the standard AI notice under the 7 October 2026 decision. The standard reader-facing wording is: “AI helped prepare this article and can make mistakes. We report what the cited public sources support and identify known gaps and uncertainty. Contact us to report a possible error so we can review it and make corrections.” Link “Contact us” to `/about/contact`. Omit the first sentence when AI did not help prepare the article. The note applies beyond social-derived writing and may appear in private drafts because it does not claim completed review. All 5 published guides and *The Money Only Goes One Way* carry `aiAssisted: true` in the writing index: the 5 guide manuscript commits explicitly credit Claude ([825a2357](https://github.com/alethical-org/alethical/commit/825a2357), [66bc1d77](https://github.com/alethical-org/alethical/commit/66bc1d77), [3de50d25](https://github.com/alethical-org/alethical/commit/3de50d25), [9a3d4838](https://github.com/alethical-org/alethical/commit/9a3d4838), [f505376a](https://github.com/alethical-org/alethical/commit/f505376a)); the research report's reader-facing methodology was prepared with Claude assistance ([8a862399](https://github.com/alethical-org/alethical/commit/8a862399)). This flag selects the closing sentence, not a claim that all source checking was delegated. [ui-copy-guide.md](../design/ui-copy-guide.md#standard-closing-note-for-every-post-type) owns the wording. Publication still requires all source checks, human review and a separate publication instruction. Each known material gap belongs beside the affected claim. No complete-accuracy guarantee is made. Under the 26 September drafting update, the generic contribution/motive/influence/wrongdoing note is not mandatory for new drafts. Use precise, supported wording and specific limitations instead of automatic boilerplate. [ui-copy-guide.md](../design/ui-copy-guide.md#keep-meaningful-uncertainty-remove-obvious-caveats) owns this rule; already published articles are outside this change.
+New or revised posts use 1 closing note. Event promotions omit the standard AI notice under the 7 October 2026 decision. The standard reader-facing wording is: “AI helped prepare this article and can make mistakes. We report what the cited public sources support and identify known gaps and uncertainty. Contact us to report a possible error so we can review it and make corrections.” Link “Contact us” to `/about/contact`. Omit the first sentence when AI did not help prepare the article. The note applies beyond social-derived writing and may appear in private drafts because it does not claim completed review. All 5 published guides and _The Money Only Goes One Way_ carry `aiAssisted: true` in the writing index: the 5 guide manuscript commits explicitly credit Claude ([825a2357](https://github.com/alethical-org/alethical/commit/825a2357), [66bc1d77](https://github.com/alethical-org/alethical/commit/66bc1d77), [3de50d25](https://github.com/alethical-org/alethical/commit/3de50d25), [9a3d4838](https://github.com/alethical-org/alethical/commit/9a3d4838), [f505376a](https://github.com/alethical-org/alethical/commit/f505376a)); the research report's reader-facing methodology was prepared with Claude assistance ([8a862399](https://github.com/alethical-org/alethical/commit/8a862399)). This flag selects the closing sentence, not a claim that all source checking was delegated. [ui-copy-guide.md](../design/ui-copy-guide.md#standard-closing-note-for-every-post-type) owns the wording. Publication still requires all source checks, human review and a separate publication instruction. Each known material gap belongs beside the affected claim. No complete-accuracy guarantee is made. Under the 26 September drafting update, the generic contribution/motive/influence/wrongdoing note is not mandatory for new drafts. Use precise, supported wording and specific limitations instead of automatic boilerplate. [ui-copy-guide.md](../design/ui-copy-guide.md#keep-meaningful-uncertainty-remove-obvious-caveats) owns this rule; already published articles are outside this change.
 
 **26 September 2026 drafting update:** The generic contribution note is omitted
 from “2 records do not always mean 2 donations” because it states the obvious.
@@ -813,7 +837,6 @@ Keep the specific limits on what the cited filings establish. This change does
 not remove the AI disclosure or authorize publication.
 
 The original social poster is temporary working material and never appears in the article. After publication, its temporary processing copy may be removed; the extracted claims, evidence and source copies, calculations, finished charts, and correction history remain. The original Downloads files remain untouched. Quantitative charts are built from checked values, never generated artwork. Every individual published editorial piece now falls within the approved comments scope, including Research, Guides and Short posts. Comments attach to its stable article identity by default, without a per-piece switch. Listing and factual data pages remain comment-free. The 26 September 2026 decision and complete behavior are recorded in [Reader comments](../product-onboarding/editorial-comments-guide.md); implementation and release are tracked in [issue 2399](https://github.com/alethical-org/alethical/issues/2399).
-
 
 Branding clarification approved on 26 Sep 2026: posts and recreated graphics
 viewed within Alethical use the approved symbol without the “ALETHICAL” wordmark,
@@ -1007,7 +1030,6 @@ direction and new Design requests retain their separate approval requirements.
 owns the delivery and review checks. Each post gets its own browser tab and direct
 preview link; existing review addresses and another task's publishing preview
 remain intact.
-
 
 ### 26 September 2026: accepted first post authorized for publication
 

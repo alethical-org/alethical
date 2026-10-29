@@ -19,9 +19,9 @@ export type ArticleReturnContext = {
 export function articleReturnDestination(href: string): { href: string; label: string } | null {
   const path = safeArticleReturnPath(href);
   if (!path) return null;
-  if (path === '/blog') return { href, label: 'Back to Blog' };
+  if (path === '/blog') return { href, label: 'Back to Media' };
   if (path === '/blog/research') return { href, label: 'Back to Research reports' };
-  if (path === '/blog/short-posts') return { href, label: 'Back to Short posts' };
+  if (path === '/blog/short-posts') return { href, label: 'Back to Articles' };
   if (path === '/blog/guides') return { href, label: 'Back to Guides' };
   const set = path.startsWith('/blog/sets/')
     ? guideSetBySlug(path.slice('/blog/sets/'.length))
@@ -50,7 +50,7 @@ export function captureArticleReturn(href: string): ArticleReturnContext | undef
 }
 
 export function articleReturnLink(context: ArticleReturnContext | undefined) {
-  return articleReturnDestination(context?.href ?? '') ?? { href: '/blog', label: 'Back to Blog' };
+  return articleReturnDestination(context?.href ?? '') ?? { href: '/blog', label: 'Back to Media' };
 }
 
 /** The source travels in the actual link, so opening a new tab keeps its return link. */

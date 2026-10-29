@@ -51,8 +51,8 @@ describe('accessible event announcement', () => {
   });
   it('keeps named return destinations separate from decorative chevrons', () => {
     for (const [markup, href, label] of [
-      [renderEventArticle(event), '/blog/events', 'Back to Events'],
-      [renderEventsCollection(), '/blog', 'Back to Blog'],
+      [renderEventArticle(event), '/blog/events', 'Back to Debates and recordings'],
+      [renderEventsCollection(), '/blog', 'Back to Media'],
     ]) {
       const document = new JSDOM(markup).window.document;
       const link = document.querySelector('.event-back')!;
@@ -89,12 +89,22 @@ describe('accessible event announcement', () => {
     );
     expect(document.body.textContent).toContain('6–8 PM CDT');
   });
-  it('shows only the date on introductory cards before and after the event', () => {
+  it('shows the calendar date without spent logistics on replay cards', () => {
     for (const now of [Date.parse('2026-10-07'), Date.parse('2026-10-20')]) {
       for (const preview of [true, false]) {
         const document = new JSDOM(renderEventList(now, preview)).window.document;
-        expect(document.querySelector('.event-list-meta')?.textContent).toBe('October 15, 2026');
+        expect(document.querySelector('.event-list-meta')?.textContent).toBe(
+          now < Date.parse(event.endDate)
+            ? 'October 15, 2026'
+            : 'Minnesota Senate District 13 · October 15, 2026',
+        );
         expect(document.querySelectorAll('.event-list li a')).toHaveLength(1);
+        if (now >= Date.parse(event.endDate)) {
+          expect(document.querySelector('.event-watch-action')?.textContent).toBe(
+            'Watch the debate',
+          );
+          expect(document.querySelector('img')?.getAttribute('src')).toBe(event.homePhotos.desktop);
+        }
         expect(document.body.textContent).not.toMatch(/Past event|Thursday|6–8 PM CDT/);
         expect(document.body.textContent?.includes('Riverside Terrace')).toBe(
           now < Date.parse(event.endDate),

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="%LANG_ISO_CODE%">
   <head>
     <meta charset="utf-8" />
@@ -16,22 +16,20 @@
     <style id="alethical-focus-visible">
       a:not([data-arrow-focus]):focus-visible,
       button:not([data-arrow-focus]):focus-visible,
-      [role="button"]:not([data-arrow-focus]):focus-visible,
-      [role="link"]:not([data-arrow-focus]):focus-visible,
-      [tabindex]:not(input):not(textarea):not(select):not([role="heading"]):not(
-          h1
-        ):not(h2):not(h3):not(h4):not(h5):not(h6):not(
-          [data-arrow-focus]
-        ):focus-visible {
+      [role='button']:not([data-arrow-focus]):focus-visible,
+      [role='link']:not([data-arrow-focus]):focus-visible,
+      [tabindex]:not(input):not(textarea):not(select):not([role='heading']):not(h1):not(h2):not(
+          h3
+        ):not(h4):not(h5):not(h6):not([data-arrow-focus]):focus-visible {
         outline: 2px solid #7c5cff !important;
         outline-offset: 2px !important;
       }
     </style>
     <style id="alethical-browser-fill">
-      :is(input, textarea)[data-alethical-browser-fill="true"]:autofill,
-      :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:hover,
-      :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:focus,
-      :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:active {
+      :is(input, textarea)[data-alethical-browser-fill='true']:autofill,
+      :is(input, textarea)[data-alethical-browser-fill='true']:autofill:hover,
+      :is(input, textarea)[data-alethical-browser-fill='true']:autofill:focus,
+      :is(input, textarea)[data-alethical-browser-fill='true']:autofill:active {
         background-color: #ffffff !important;
         -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
         box-shadow: 0 0 0 1000px #ffffff inset !important;
@@ -39,10 +37,10 @@
         color: #11150f !important;
         caret-color: #11150f !important;
       }
-      :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill,
-      :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:hover,
-      :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:focus,
-      :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:active {
+      :is(input, textarea)[data-alethical-browser-fill='true']:-webkit-autofill,
+      :is(input, textarea)[data-alethical-browser-fill='true']:-webkit-autofill:hover,
+      :is(input, textarea)[data-alethical-browser-fill='true']:-webkit-autofill:focus,
+      :is(input, textarea)[data-alethical-browser-fill='true']:-webkit-autofill:active {
         background-color: #ffffff !important;
         -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
         box-shadow: 0 0 0 1000px #ffffff inset !important;
@@ -51,10 +49,10 @@
         caret-color: #11150f !important;
       }
       @media (forced-colors: active) {
-        :is(input, textarea)[data-alethical-browser-fill="true"]:autofill,
-        :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:hover,
-        :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:focus,
-        :is(input, textarea)[data-alethical-browser-fill="true"]:autofill:active {
+        :is(input, textarea)[data-alethical-browser-fill='true']:autofill,
+        :is(input, textarea)[data-alethical-browser-fill='true']:autofill:hover,
+        :is(input, textarea)[data-alethical-browser-fill='true']:autofill:focus,
+        :is(input, textarea)[data-alethical-browser-fill='true']:autofill:active {
           background-color: Canvas !important;
           -webkit-box-shadow: none !important;
           box-shadow: none !important;
@@ -62,10 +60,10 @@
           color: CanvasText !important;
           caret-color: CanvasText !important;
         }
-        :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill,
-        :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:hover,
-        :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:focus,
-        :is(input, textarea)[data-alethical-browser-fill="true"]:-webkit-autofill:active {
+        :is(input, textarea)[data-alethical-browser-fill='true']:-webkit-autofill,
+        :is(input, textarea)[data-alethical-browser-fill='true']:-webkit-autofill:hover,
+        :is(input, textarea)[data-alethical-browser-fill='true']:-webkit-autofill:focus,
+        :is(input, textarea)[data-alethical-browser-fill='true']:-webkit-autofill:active {
           background-color: Canvas !important;
           -webkit-box-shadow: none !important;
           box-shadow: none !important;
@@ -124,50 +122,50 @@
       content="Alethical: Minnesota’s legislative record in plain language, with links to official sources."
     />
     <script type="application/ld+json">
-{
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "Alethical",
-      "url": "https://www.alethical.com/",
-      "publisher": {
-            "@id": "https://www.alethical.com/#organization"
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Alethical",
+        "url": "https://www.alethical.com/",
+        "publisher": {
+          "@id": "https://www.alethical.com/#organization"
+        }
       }
-}
     </script>
     <script type="application/ld+json">
-{
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "Alethical",
-      "url": "https://www.alethical.com/",
-      "description": "Alethical makes Minnesota’s public records easier to understand and check, publishes research and guides, hosts candidate debates, and offers political intelligence and campaign strategy.",
-      "email": "ask@alethical.com",
-      "logo": "https://www.alethical.com/icon-512.png",
-      "sameAs": [
-            "https://www.youtube.com/@Alethical",
-            "https://www.linkedin.com/company/alethical",
-            "https://www.facebook.com/people/Alethical/61588261592240/",
-            "https://x.com/alethical",
-            "https://bsky.app/profile/alethical.com",
-            "https://www.instagram.com/alethicaltruth",
-            "https://www.tiktok.com/@alethicaltruth"
-      ],
-      "@id": "https://www.alethical.com/#organization",
-      "founder": [
-            {
-                  "@type": "Person",
-                  "name": "Angel Zierden"
-            },
-            {
-                  "@type": "Person",
-                  "name": "Eugene Lopin"
-            }
-      ],
-      "contactPoint": {
-            "@type": "ContactPoint",
-            "url": "https://www.alethical.com/about/contact"
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Alethical",
+        "url": "https://www.alethical.com/",
+        "description": "Alethical makes Minnesota’s public records easier to understand and check, publishes research and guides, hosts candidate debates, and offers political intelligence and campaign strategy.",
+        "email": "ask@alethical.com",
+        "logo": "https://www.alethical.com/icon-512.png",
+        "sameAs": [
+          "https://www.youtube.com/@Alethical",
+          "https://www.linkedin.com/company/alethical",
+          "https://www.facebook.com/people/Alethical/61588261592240/",
+          "https://x.com/alethical",
+          "https://bsky.app/profile/alethical.com",
+          "https://www.instagram.com/alethicaltruth",
+          "https://www.tiktok.com/@alethicaltruth"
+        ],
+        "@id": "https://www.alethical.com/#organization",
+        "founder": [
+          {
+            "@type": "Person",
+            "name": "Angel Zierden"
+          },
+          {
+            "@type": "Person",
+            "name": "Eugene Lopin"
+          }
+        ],
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "url": "https://www.alethical.com/about/contact"
+        }
       }
-}
     </script>
     <!--/alethical:page-head-->
     <link rel="preconnect" href="https://api.alethical.com" crossorigin />
@@ -207,7 +205,10 @@
         font-weight: 300 800;
         font-display: swap;
         src: url(/fonts/libre-franklin-latin-ext.woff2) format('woff2');
-        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+        unicode-range:
+          U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+          U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+          U+2C60-2C7F, U+A720-A7FF;
       }
       @font-face {
         font-family: 'Libre Franklin';
@@ -215,7 +216,9 @@
         font-weight: 300 800;
         font-display: swap;
         src: url(/fonts/libre-franklin-latin.woff2) format('woff2');
-        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+        unicode-range:
+          U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308,
+          U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
       }
       /*
         Libre Franklin's stand-in while its file loads: Arial (or Helvetica, or
@@ -229,56 +232,119 @@
         font-family: 'Libre Franklin Fallback';
         font-style: normal;
         font-weight: 300 450;
-        src: local('Arial'), local('ArialMT'), local('Helvetica'), local('Liberation Sans'), local('LiberationSans'), local('Arimo');
+        src:
+          local('Arial'), local('ArialMT'), local('Helvetica'), local('Liberation Sans'),
+          local('LiberationSans'), local('Arimo');
         size-adjust: 103.8%;
         ascent-override: 93.06%;
-        descent-override: 23.70%;
+        descent-override: 23.7%;
         line-gap-override: 0%;
-        unicode-range: U+0020-007E, U+00A0-00AC, U+00AE-017E, U+018F, U+0192, U+01A0-01A1, U+01AF-01B0, U+01C4-01CC, U+01E6-01E7, U+01EA-01EB, U+01F1-01F5, U+01FA-021B, U+022A-022D, U+0230-0233, U+0237, U+0259, U+02B9-02BC, U+02BE-02BF, U+02C6-02CC, U+02DA, U+02DC-02DD, U+0304, U+0308, U+1E08-1E09, U+1E0C-1E0F, U+1E14-1E17, U+1E1C-1E1D, U+1E20-1E21, U+1E24-1E25, U+1E2A-1E2B, U+1E2E-1E2F, U+1E36-1E37, U+1E3A-1E3B, U+1E42-1E49, U+1E4C-1E53, U+1E5A-1E5B, U+1E5E-1E69, U+1E6C-1E6F, U+1E78-1E7B, U+1E80-1E85, U+1E8E-1E8F, U+1E92-1E93, U+1E97, U+1E9E, U+1EF2-1EF9, U+2009, U+200B, U+2013-2014, U+2018-201A, U+201C-201E, U+2020, U+2022, U+2026, U+2032-2033, U+2039-203A, U+2044, U+20A1, U+20A3-20A4, U+20A6-20A7, U+20A9, U+20AB-20AE, U+20B1-20B2, U+20B4-20B5, U+20B8-20BA, U+20BC-20BD, U+2113, U+2122, U+2212, U+2215;
+        unicode-range:
+          U+0020-007E, U+00A0-00AC, U+00AE-017E, U+018F, U+0192, U+01A0-01A1, U+01AF-01B0,
+          U+01C4-01CC, U+01E6-01E7, U+01EA-01EB, U+01F1-01F5, U+01FA-021B, U+022A-022D, U+0230-0233,
+          U+0237, U+0259, U+02B9-02BC, U+02BE-02BF, U+02C6-02CC, U+02DA, U+02DC-02DD, U+0304,
+          U+0308, U+1E08-1E09, U+1E0C-1E0F, U+1E14-1E17, U+1E1C-1E1D, U+1E20-1E21, U+1E24-1E25,
+          U+1E2A-1E2B, U+1E2E-1E2F, U+1E36-1E37, U+1E3A-1E3B, U+1E42-1E49, U+1E4C-1E53, U+1E5A-1E5B,
+          U+1E5E-1E69, U+1E6C-1E6F, U+1E78-1E7B, U+1E80-1E85, U+1E8E-1E8F, U+1E92-1E93, U+1E97,
+          U+1E9E, U+1EF2-1EF9, U+2009, U+200B, U+2013-2014, U+2018-201A, U+201C-201E, U+2020,
+          U+2022, U+2026, U+2032-2033, U+2039-203A, U+2044, U+20A1, U+20A3-20A4, U+20A6-20A7,
+          U+20A9, U+20AB-20AE, U+20B1-20B2, U+20B4-20B5, U+20B8-20BA, U+20BC-20BD, U+2113, U+2122,
+          U+2212, U+2215;
       }
       @font-face {
         font-family: 'Libre Franklin Fallback';
         font-style: normal;
         font-weight: 451 550;
-        src: local('Arial'), local('ArialMT'), local('Helvetica'), local('Liberation Sans'), local('LiberationSans'), local('Arimo');
+        src:
+          local('Arial'), local('ArialMT'), local('Helvetica'), local('Liberation Sans'),
+          local('LiberationSans'), local('Arimo');
         size-adjust: 104.66%;
-        ascent-override: 92.30%;
-        descent-override: 23.50%;
+        ascent-override: 92.3%;
+        descent-override: 23.5%;
         line-gap-override: 0%;
-        unicode-range: U+0020-007E, U+00A0-00AC, U+00AE-017E, U+018F, U+0192, U+01A0-01A1, U+01AF-01B0, U+01C4-01CC, U+01E6-01E7, U+01EA-01EB, U+01F1-01F5, U+01FA-021B, U+022A-022D, U+0230-0233, U+0237, U+0259, U+02B9-02BC, U+02BE-02BF, U+02C6-02CC, U+02DA, U+02DC-02DD, U+0304, U+0308, U+1E08-1E09, U+1E0C-1E0F, U+1E14-1E17, U+1E1C-1E1D, U+1E20-1E21, U+1E24-1E25, U+1E2A-1E2B, U+1E2E-1E2F, U+1E36-1E37, U+1E3A-1E3B, U+1E42-1E49, U+1E4C-1E53, U+1E5A-1E5B, U+1E5E-1E69, U+1E6C-1E6F, U+1E78-1E7B, U+1E80-1E85, U+1E8E-1E8F, U+1E92-1E93, U+1E97, U+1E9E, U+1EF2-1EF9, U+2009, U+200B, U+2013-2014, U+2018-201A, U+201C-201E, U+2020, U+2022, U+2026, U+2032-2033, U+2039-203A, U+2044, U+20A1, U+20A3-20A4, U+20A6-20A7, U+20A9, U+20AB-20AE, U+20B1-20B2, U+20B4-20B5, U+20B8-20BA, U+20BC-20BD, U+2113, U+2122, U+2212, U+2215;
+        unicode-range:
+          U+0020-007E, U+00A0-00AC, U+00AE-017E, U+018F, U+0192, U+01A0-01A1, U+01AF-01B0,
+          U+01C4-01CC, U+01E6-01E7, U+01EA-01EB, U+01F1-01F5, U+01FA-021B, U+022A-022D, U+0230-0233,
+          U+0237, U+0259, U+02B9-02BC, U+02BE-02BF, U+02C6-02CC, U+02DA, U+02DC-02DD, U+0304,
+          U+0308, U+1E08-1E09, U+1E0C-1E0F, U+1E14-1E17, U+1E1C-1E1D, U+1E20-1E21, U+1E24-1E25,
+          U+1E2A-1E2B, U+1E2E-1E2F, U+1E36-1E37, U+1E3A-1E3B, U+1E42-1E49, U+1E4C-1E53, U+1E5A-1E5B,
+          U+1E5E-1E69, U+1E6C-1E6F, U+1E78-1E7B, U+1E80-1E85, U+1E8E-1E8F, U+1E92-1E93, U+1E97,
+          U+1E9E, U+1EF2-1EF9, U+2009, U+200B, U+2013-2014, U+2018-201A, U+201C-201E, U+2020,
+          U+2022, U+2026, U+2032-2033, U+2039-203A, U+2044, U+20A1, U+20A3-20A4, U+20A6-20A7,
+          U+20A9, U+20AB-20AE, U+20B1-20B2, U+20B4-20B5, U+20B8-20BA, U+20BC-20BD, U+2113, U+2122,
+          U+2212, U+2215;
       }
       @font-face {
         font-family: 'Libre Franklin Fallback';
         font-style: normal;
         font-weight: 551 650;
-        src: local('Arial Bold'), local('Arial-BoldMT'), local('Helvetica Bold'), local('Helvetica-Bold'), local('Liberation Sans Bold'), local('LiberationSans-Bold'), local('Arimo Bold');
+        src:
+          local('Arial Bold'), local('Arial-BoldMT'), local('Helvetica Bold'),
+          local('Helvetica-Bold'), local('Liberation Sans Bold'), local('LiberationSans-Bold'),
+          local('Arimo Bold');
         size-adjust: 98.16%;
         ascent-override: 98.41%;
         descent-override: 25.06%;
         line-gap-override: 0%;
-        unicode-range: U+0020-007E, U+00A0-00AC, U+00AE-017E, U+018F, U+0192, U+01A0-01A1, U+01AF-01B0, U+01C4-01CC, U+01E6-01E7, U+01EA-01EB, U+01F1-01F5, U+01FA-021B, U+022A-022D, U+0230-0233, U+0237, U+0259, U+02B9-02BC, U+02BE-02BF, U+02C6-02CC, U+02DA, U+02DC-02DD, U+0304, U+0308, U+1E08-1E09, U+1E0C-1E0F, U+1E14-1E17, U+1E1C-1E1D, U+1E20-1E21, U+1E24-1E25, U+1E2A-1E2B, U+1E2E-1E2F, U+1E36-1E37, U+1E3A-1E3B, U+1E42-1E49, U+1E4C-1E53, U+1E5A-1E5B, U+1E5E-1E69, U+1E6C-1E6F, U+1E78-1E7B, U+1E80-1E85, U+1E8E-1E8F, U+1E92-1E93, U+1E97, U+1E9E, U+1EF2-1EF9, U+2009, U+200B, U+2013-2014, U+2018-201A, U+201C-201E, U+2020, U+2022, U+2026, U+2032-2033, U+2039-203A, U+2044, U+20A1, U+20A3-20A4, U+20A6-20A7, U+20A9, U+20AB-20AE, U+20B1-20B2, U+20B4-20B5, U+20B8-20BA, U+20BC-20BD, U+2113, U+2122, U+2212, U+2215;
+        unicode-range:
+          U+0020-007E, U+00A0-00AC, U+00AE-017E, U+018F, U+0192, U+01A0-01A1, U+01AF-01B0,
+          U+01C4-01CC, U+01E6-01E7, U+01EA-01EB, U+01F1-01F5, U+01FA-021B, U+022A-022D, U+0230-0233,
+          U+0237, U+0259, U+02B9-02BC, U+02BE-02BF, U+02C6-02CC, U+02DA, U+02DC-02DD, U+0304,
+          U+0308, U+1E08-1E09, U+1E0C-1E0F, U+1E14-1E17, U+1E1C-1E1D, U+1E20-1E21, U+1E24-1E25,
+          U+1E2A-1E2B, U+1E2E-1E2F, U+1E36-1E37, U+1E3A-1E3B, U+1E42-1E49, U+1E4C-1E53, U+1E5A-1E5B,
+          U+1E5E-1E69, U+1E6C-1E6F, U+1E78-1E7B, U+1E80-1E85, U+1E8E-1E8F, U+1E92-1E93, U+1E97,
+          U+1E9E, U+1EF2-1EF9, U+2009, U+200B, U+2013-2014, U+2018-201A, U+201C-201E, U+2020,
+          U+2022, U+2026, U+2032-2033, U+2039-203A, U+2044, U+20A1, U+20A3-20A4, U+20A6-20A7,
+          U+20A9, U+20AB-20AE, U+20B1-20B2, U+20B4-20B5, U+20B8-20BA, U+20BC-20BD, U+2113, U+2122,
+          U+2212, U+2215;
       }
       @font-face {
         font-family: 'Libre Franklin Fallback';
         font-style: normal;
         font-weight: 651 750;
-        src: local('Arial Bold'), local('Arial-BoldMT'), local('Helvetica Bold'), local('Helvetica-Bold'), local('Liberation Sans Bold'), local('LiberationSans-Bold'), local('Arimo Bold');
+        src:
+          local('Arial Bold'), local('Arial-BoldMT'), local('Helvetica Bold'),
+          local('Helvetica-Bold'), local('Liberation Sans Bold'), local('LiberationSans-Bold'),
+          local('Arimo Bold');
         size-adjust: 99.21%;
         ascent-override: 97.37%;
-        descent-override: 24.80%;
+        descent-override: 24.8%;
         line-gap-override: 0%;
-        unicode-range: U+0020-007E, U+00A0-00AC, U+00AE-017E, U+018F, U+0192, U+01A0-01A1, U+01AF-01B0, U+01C4-01CC, U+01E6-01E7, U+01EA-01EB, U+01F1-01F5, U+01FA-021B, U+022A-022D, U+0230-0233, U+0237, U+0259, U+02B9-02BC, U+02BE-02BF, U+02C6-02CC, U+02DA, U+02DC-02DD, U+0304, U+0308, U+1E08-1E09, U+1E0C-1E0F, U+1E14-1E17, U+1E1C-1E1D, U+1E20-1E21, U+1E24-1E25, U+1E2A-1E2B, U+1E2E-1E2F, U+1E36-1E37, U+1E3A-1E3B, U+1E42-1E49, U+1E4C-1E53, U+1E5A-1E5B, U+1E5E-1E69, U+1E6C-1E6F, U+1E78-1E7B, U+1E80-1E85, U+1E8E-1E8F, U+1E92-1E93, U+1E97, U+1E9E, U+1EF2-1EF9, U+2009, U+200B, U+2013-2014, U+2018-201A, U+201C-201E, U+2020, U+2022, U+2026, U+2032-2033, U+2039-203A, U+2044, U+20A1, U+20A3-20A4, U+20A6-20A7, U+20A9, U+20AB-20AE, U+20B1-20B2, U+20B4-20B5, U+20B8-20BA, U+20BC-20BD, U+2113, U+2122, U+2212, U+2215;
+        unicode-range:
+          U+0020-007E, U+00A0-00AC, U+00AE-017E, U+018F, U+0192, U+01A0-01A1, U+01AF-01B0,
+          U+01C4-01CC, U+01E6-01E7, U+01EA-01EB, U+01F1-01F5, U+01FA-021B, U+022A-022D, U+0230-0233,
+          U+0237, U+0259, U+02B9-02BC, U+02BE-02BF, U+02C6-02CC, U+02DA, U+02DC-02DD, U+0304,
+          U+0308, U+1E08-1E09, U+1E0C-1E0F, U+1E14-1E17, U+1E1C-1E1D, U+1E20-1E21, U+1E24-1E25,
+          U+1E2A-1E2B, U+1E2E-1E2F, U+1E36-1E37, U+1E3A-1E3B, U+1E42-1E49, U+1E4C-1E53, U+1E5A-1E5B,
+          U+1E5E-1E69, U+1E6C-1E6F, U+1E78-1E7B, U+1E80-1E85, U+1E8E-1E8F, U+1E92-1E93, U+1E97,
+          U+1E9E, U+1EF2-1EF9, U+2009, U+200B, U+2013-2014, U+2018-201A, U+201C-201E, U+2020,
+          U+2022, U+2026, U+2032-2033, U+2039-203A, U+2044, U+20A1, U+20A3-20A4, U+20A6-20A7,
+          U+20A9, U+20AB-20AE, U+20B1-20B2, U+20B4-20B5, U+20B8-20BA, U+20BC-20BD, U+2113, U+2122,
+          U+2212, U+2215;
       }
       @font-face {
         font-family: 'Libre Franklin Fallback';
         font-style: normal;
         font-weight: 751 900;
-        src: local('Arial Bold'), local('Arial-BoldMT'), local('Helvetica Bold'), local('Helvetica-Bold'), local('Liberation Sans Bold'), local('LiberationSans-Bold'), local('Arimo Bold');
+        src:
+          local('Arial Bold'), local('Arial-BoldMT'), local('Helvetica Bold'),
+          local('Helvetica-Bold'), local('Liberation Sans Bold'), local('LiberationSans-Bold'),
+          local('Arimo Bold');
         size-adjust: 99.5%;
         ascent-override: 97.09%;
         descent-override: 24.72%;
         line-gap-override: 0%;
-        unicode-range: U+0020-007E, U+00A0-00AC, U+00AE-017E, U+018F, U+0192, U+01A0-01A1, U+01AF-01B0, U+01C4-01CC, U+01E6-01E7, U+01EA-01EB, U+01F1-01F5, U+01FA-021B, U+022A-022D, U+0230-0233, U+0237, U+0259, U+02B9-02BC, U+02BE-02BF, U+02C6-02CC, U+02DA, U+02DC-02DD, U+0304, U+0308, U+1E08-1E09, U+1E0C-1E0F, U+1E14-1E17, U+1E1C-1E1D, U+1E20-1E21, U+1E24-1E25, U+1E2A-1E2B, U+1E2E-1E2F, U+1E36-1E37, U+1E3A-1E3B, U+1E42-1E49, U+1E4C-1E53, U+1E5A-1E5B, U+1E5E-1E69, U+1E6C-1E6F, U+1E78-1E7B, U+1E80-1E85, U+1E8E-1E8F, U+1E92-1E93, U+1E97, U+1E9E, U+1EF2-1EF9, U+2009, U+200B, U+2013-2014, U+2018-201A, U+201C-201E, U+2020, U+2022, U+2026, U+2032-2033, U+2039-203A, U+2044, U+20A1, U+20A3-20A4, U+20A6-20A7, U+20A9, U+20AB-20AE, U+20B1-20B2, U+20B4-20B5, U+20B8-20BA, U+20BC-20BD, U+2113, U+2122, U+2212, U+2215;
+        unicode-range:
+          U+0020-007E, U+00A0-00AC, U+00AE-017E, U+018F, U+0192, U+01A0-01A1, U+01AF-01B0,
+          U+01C4-01CC, U+01E6-01E7, U+01EA-01EB, U+01F1-01F5, U+01FA-021B, U+022A-022D, U+0230-0233,
+          U+0237, U+0259, U+02B9-02BC, U+02BE-02BF, U+02C6-02CC, U+02DA, U+02DC-02DD, U+0304,
+          U+0308, U+1E08-1E09, U+1E0C-1E0F, U+1E14-1E17, U+1E1C-1E1D, U+1E20-1E21, U+1E24-1E25,
+          U+1E2A-1E2B, U+1E2E-1E2F, U+1E36-1E37, U+1E3A-1E3B, U+1E42-1E49, U+1E4C-1E53, U+1E5A-1E5B,
+          U+1E5E-1E69, U+1E6C-1E6F, U+1E78-1E7B, U+1E80-1E85, U+1E8E-1E8F, U+1E92-1E93, U+1E97,
+          U+1E9E, U+1EF2-1EF9, U+2009, U+200B, U+2013-2014, U+2018-201A, U+201C-201E, U+2020,
+          U+2022, U+2026, U+2032-2033, U+2039-203A, U+2044, U+20A1, U+20A3-20A4, U+20A6-20A7,
+          U+20A9, U+20AB-20AE, U+20B1-20B2, U+20B4-20B5, U+20B8-20BA, U+20BC-20BD, U+2113, U+2122,
+          U+2212, U+2215;
       }
       @font-face {
         font-family: 'JetBrains Mono';
@@ -286,7 +352,10 @@
         font-weight: 400 700;
         font-display: swap;
         src: url(/fonts/jetbrains-mono-latin-ext.woff2) format('woff2');
-        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+        unicode-range:
+          U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+          U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+          U+2C60-2C7F, U+A720-A7FF;
       }
       @font-face {
         font-family: 'JetBrains Mono';
@@ -294,7 +363,9 @@
         font-weight: 400 700;
         font-display: swap;
         src: url(/fonts/jetbrains-mono-latin.woff2) format('woff2');
-        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+        unicode-range:
+          U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308,
+          U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
       }
       @font-face {
         font-family: 'Space Grotesk';
@@ -302,7 +373,10 @@
         font-weight: 500;
         font-display: swap;
         src: url(/fonts/space-grotesk-latin-ext.woff2) format('woff2');
-        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+        unicode-range:
+          U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+          U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113,
+          U+2C60-2C7F, U+A720-A7FF;
       }
       @font-face {
         font-family: 'Space Grotesk';
@@ -310,7 +384,9 @@
         font-weight: 500;
         font-display: swap;
         src: url(/fonts/space-grotesk-latin.woff2) format('woff2');
-        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+        unicode-range:
+          U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308,
+          U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
       }
     </style>
     <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
@@ -343,9 +419,13 @@
       }
     </style>
     <style id="alethical-comment-return">
-      .comment-return-loading { display: none; }
+      .comment-return-loading {
+        display: none;
+      }
       html[data-comment-return] #root,
-      html[data-comment-return] #stable-event-document { visibility: hidden; }
+      html[data-comment-return] #stable-event-document {
+        visibility: hidden;
+      }
       html[data-comment-return] .comment-return-loading {
         display: block;
         position: fixed;
@@ -354,7 +434,12 @@
         padding: 32px;
         background: #fff;
         color: #11150f;
-        font: 16px 'Libre Franklin', 'Libre Franklin Fallback', Helvetica, Arial, sans-serif;
+        font:
+          16px 'Libre Franklin',
+          'Libre Franklin Fallback',
+          Helvetica,
+          Arial,
+          sans-serif;
       }
     </style>
     <!--
@@ -383,10 +468,18 @@
         height: 100%;
         overflow-y: auto;
         background: #f7f8fa;
-        background-image: linear-gradient(180deg,#f4f5f7 0%,#f7f8fa 60%,#fdfdfe 92%,#ffffff 100%);
+        background-image: linear-gradient(
+          180deg,
+          #f4f5f7 0%,
+          #f7f8fa 60%,
+          #fdfdfe 92%,
+          #ffffff 100%
+        );
       }
-      @media(max-width:767.98px) {
-        #stable-event-document { background-image: none; }
+      @media (max-width: 767.98px) {
+        #stable-event-document {
+          background-image: none;
+        }
       }
       body[data-stable-event-document] #root {
         position: fixed;
@@ -395,10 +488,14 @@
         visibility: hidden;
         pointer-events: none;
       }
-      html:not([data-comment-return]) body[data-stable-event-document] [data-event-global-feedback="true"] {
+      html:not([data-comment-return])
+        body[data-stable-event-document]
+        [data-event-global-feedback='true'] {
         visibility: visible;
       }
-      html:not([data-comment-return]) body[data-stable-event-document] [data-event-global-feedback="dialog"] {
+      html:not([data-comment-return])
+        body[data-stable-event-document]
+        [data-event-global-feedback='dialog'] {
         visibility: visible;
         pointer-events: auto;
       }
@@ -461,13 +558,13 @@
       .page-snapshot .ps-nav-links {
         display: flex;
         align-items: center;
-        gap: 32px;
+        gap: 40px;
       }
       .page-snapshot .ps-nav-links a,
       .page-snapshot .ps-nav-links > span {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 5px;
         padding: 4px 0;
         color: #4b524b;
         text-decoration: none;
@@ -863,7 +960,13 @@
       .page-snapshot-home .ph-hero {
         position: relative;
         background: #ffffff;
-        background-image: linear-gradient(180deg, #f4f5f7 0%, #f7f8fa 55%, #fdfdfe 90%, #ffffff 100%);
+        background-image: linear-gradient(
+          180deg,
+          #f4f5f7 0%,
+          #f7f8fa 55%,
+          #fdfdfe 90%,
+          #ffffff 100%
+        );
       }
       .page-snapshot-home .ph-dots {
         position: absolute;
@@ -871,8 +974,20 @@
         pointer-events: none;
         background-image: radial-gradient(rgba(17, 21, 15, 0.07) 1.4px, transparent 1.5px);
         background-size: 30px 30px;
-        -webkit-mask-image: linear-gradient(to bottom, transparent 110px, #000 230px, #000 calc(100% - 180px), transparent 100%);
-        mask-image: linear-gradient(to bottom, transparent 110px, #000 230px, #000 calc(100% - 180px), transparent 100%);
+        -webkit-mask-image: linear-gradient(
+          to bottom,
+          transparent 110px,
+          #000 230px,
+          #000 calc(100% - 180px),
+          transparent 100%
+        );
+        mask-image: linear-gradient(
+          to bottom,
+          transparent 110px,
+          #000 230px,
+          #000 calc(100% - 180px),
+          transparent 100%
+        );
       }
       .page-snapshot-home > .ps-nav {
         position: relative;
@@ -1210,7 +1325,13 @@
           gap: 24px;
           padding: 40px 20px 56px;
           background-color: #eaf6ef;
-          background-image: linear-gradient(180deg, #eaf6ef 0%, #f1f9f4 18%, #f8fbf9 60%, #ffffff 100%);
+          background-image: linear-gradient(
+            180deg,
+            #eaf6ef 0%,
+            #f1f9f4 18%,
+            #f8fbf9 60%,
+            #ffffff 100%
+          );
         }
         .page-snapshot-home .ph-band > .ph-inner {
           padding: 0;
@@ -1369,79 +1490,301 @@
           padding: 20px 22px;
         }
       }
-      .page-snapshot-dark .ps-inner { max-width: 1240px; padding-left: clamp(16px, 4vw, 48px); padding-right: clamp(16px, 4vw, 48px); }
-      .ps-services-nav { border-bottom: 1px solid #1c1c1c; }
-      .ps-services-row { display: flex; align-items: center; gap: 36px; min-height: 76px; }
-      .ps-services-row img { display: block; width: 183px; height: auto; }
-      .ps-services-row nav { display: flex; flex: 1; justify-content: flex-end; gap: 30px; }
-      .ps-services-row a { color: #c4c4c4; text-decoration: none; }
-      .ps-services-row .ps-services-contact { color: #06231a; background: #35c46b; padding: 14px 18px; border-radius: 8px; font-weight: 700; }
-      .ps-services-footer { background: #0a0e0c; padding: 56px 0 44px; border-top: 1px solid #1f1f1f; }
-      .ps-services-footer nav { display: flex; flex-wrap: wrap; gap: 24px; margin: 24px 0; }
-      .ps-services-footer a { color: #cfd6d2; }
-      .ps-services-footer span { color: #35c46b; }
-      @media (max-width: 767.98px) {
-        .ps-services-row { flex-wrap: wrap; gap: 0; justify-content: space-between; padding-top: 8px; }
-        .ps-services-row img { width: 140px; }
-        .ps-services-row nav { order: 3; flex-basis: 100%; justify-content: flex-start; gap: 24px; border-top: 1px solid #1c1c1c; margin: 0 calc(-1 * clamp(16px, 4vw, 48px)); padding: 0 16px; }
-        .ps-services-row nav a { line-height: 44px; }
-        .ps-services-footer { padding: 34px 0 40px; }
+      .page-snapshot-dark .ps-inner {
+        max-width: 1240px;
+        padding-left: clamp(16px, 4vw, 48px);
+        padding-right: clamp(16px, 4vw, 48px);
       }
-      @media (max-width: 359px) { .ps-services-row img { width: 124px; } .ps-services-row .ps-services-contact { padding-left: 14px; padding-right: 14px; } }
+      .ps-services-nav {
+        border-bottom: 1px solid #1c1c1c;
+      }
+      .ps-services-row {
+        display: flex;
+        align-items: center;
+        gap: 36px;
+        min-height: 76px;
+      }
+      .ps-services-row img {
+        display: block;
+        width: 183px;
+        height: auto;
+      }
+      .ps-services-row nav {
+        display: flex;
+        flex: 1;
+        justify-content: flex-end;
+        gap: 30px;
+      }
+      .ps-services-row a {
+        color: #c4c4c4;
+        text-decoration: none;
+      }
+      .ps-services-row .ps-services-contact {
+        color: #06231a;
+        background: #35c46b;
+        padding: 14px 18px;
+        border-radius: 8px;
+        font-weight: 700;
+      }
+      .ps-services-footer {
+        background: #0a0e0c;
+        padding: 56px 0 44px;
+        border-top: 1px solid #1f1f1f;
+      }
+      .ps-services-footer nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 24px;
+        margin: 24px 0;
+      }
+      .ps-services-footer a {
+        color: #cfd6d2;
+      }
+      .ps-services-footer span {
+        color: #35c46b;
+      }
+      @media (max-width: 767.98px) {
+        .ps-services-row {
+          flex-wrap: wrap;
+          gap: 0;
+          justify-content: space-between;
+          padding-top: 8px;
+        }
+        .ps-services-row img {
+          width: 140px;
+        }
+        .ps-services-row nav {
+          order: 3;
+          flex-basis: 100%;
+          justify-content: flex-start;
+          gap: 24px;
+          border-top: 1px solid #1c1c1c;
+          margin: 0 calc(-1 * clamp(16px, 4vw, 48px));
+          padding: 0 16px;
+        }
+        .ps-services-row nav a {
+          line-height: 44px;
+        }
+        .ps-services-footer {
+          padding: 34px 0 40px;
+        }
+      }
+      @media (max-width: 359px) {
+        .ps-services-row img {
+          width: 124px;
+        }
+        .ps-services-row .ps-services-contact {
+          padding-left: 14px;
+          padding-right: 14px;
+        }
+      }
 
       /* Homepage card grid, shared with HomeFeatureCards. */
-      .page-snapshot-home .ph-money-heading { margin-top:0; }
-      .page-snapshot-home .ph-invites {display:grid; grid-template-columns:minmax(0,48fr) minmax(0,52fr); gap:24px;}
-      .page-snapshot-home .ph-features-tablet,.page-snapshot-home .ph-features-phone {display:none;}
-      .ph-legislature {grid-column:1;grid-row:1;}
-      .ph-services {grid-column:1;grid-row:2;}
-      .ph-debate {grid-column:2;grid-row:1 / span 2;}
-      .ph-bill-actions {display:flex;flex-wrap:wrap;gap:12px 16px;margin-top:auto;padding-top:28px;}
-      .page-snapshot-home .ph-button {gap:10px;text-decoration:none;}
-      .ph-debate-title {display:flex;flex-wrap:wrap;align-items:baseline;column-gap:14px;row-gap:6px;}
-      .ph-debate-title h2 {white-space:nowrap;}
-      .ph-host {font-size:16px;line-height:24px;font-weight:600;color:#4f5651;}
-      .ph-photo {display:block;position:relative;overflow:hidden;border-radius:12px;background:#dfe3e0;min-width:0;}
-      .ph-crop {position:absolute;left:0;bottom:0;width:100%;height:0;min-height:100%;padding-top:68.15%;box-sizing:border-box;}
-      .ph-photo img {position:absolute;left:-41.38%;top:0;width:182.9%;max-width:none;height:auto;}
-      .ph-debate-details {display:block;margin-top:16px;font-size:18px;line-height:28px;color:#4f5651;font-variant-numeric:tabular-nums;}
-      .ph-date {display:inline-block;max-width:100%;}
-      .ph-features-desktop .ph-photo {margin-top:20px;flex:1;min-height:281px;}
-      .ph-features-desktop .ph-debate-words .ph-invite-action {display:none;}
-      .ph-features-tablet .ph-invites {grid-template-columns:repeat(auto-fit,minmax(300px,1fr));}
-      @media (min-width:768px) and (max-width:1099px) {
-        .page-snapshot-home .ph-features-desktop {display:none;}
-        .page-snapshot-home .ph-features-tablet {display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));}
-        .ph-legislature,.ph-services {grid-column:auto;grid-row:auto;}
-        .page-snapshot-home .ph-debate {grid-column:1 / -1;grid-row:auto;flex-direction:row;gap:28px;}
-        .ph-debate-words {display:flex;flex-direction:column;flex:48;min-width:0;}
-        .ph-debate .ph-photo {flex:52;aspect-ratio:16/9;align-self:stretch;}
+      .page-snapshot-home .ph-money-heading {
+        margin-top: 0;
       }
-      @media (max-width:767px) {
-        .page-snapshot-home .ph-features-desktop {display:none;}
-        .page-snapshot-home .ph-features-phone {display:flex;flex-direction:column;}
-        .ph-debate-title h2 {white-space:normal;}
-        .ph-features-phone .ph-debate {display:flex;}
-        .ph-features-phone .ph-debate-words {display:contents;}
-        .ph-features-phone .ph-debate-title {order:0;}
-        .ph-features-phone .ph-photo {order:1;aspect-ratio:3/2;margin-top:20px;}
-        .ph-features-phone .ph-debate-details {order:2;font-size:21px;line-height:31.5px;}
-        .ph-features-phone .ph-invite-action {order:3;padding-top:24px;}
-        .ph-bill-actions {flex-direction:column;align-items:stretch;padding-top:24px;}
+      .page-snapshot-home .ph-invites {
+        display: grid;
+        grid-template-columns: minmax(0, 48fr) minmax(0, 52fr);
+        gap: 24px;
       }
-      @media (max-width:1099px) {
-        .ph-crop {top:0;bottom:0;height:100%;padding:0;}
-        .ph-photo img {top:50%;margin-top:-48.28%;}
+      .page-snapshot-home .ph-features-tablet,
+      .page-snapshot-home .ph-features-phone {
+        display: none;
       }
-      .page-snapshot-home .ph-invite-body {text-wrap:pretty;}
-      @media (max-width:767px) {
-        .ph-bill-actions .ph-button {width:100%;align-self:stretch;}
-        
+      .ph-legislature {
+        grid-column: 1;
+        grid-row: 1;
       }
-      @media (max-width:767px) {
-        .ph-debate .ph-button {padding-left:9px;padding-right:12px;}
-        .ph-services .ph-button {padding-left:6px;padding-right:6px;}
-        .ph-bill-actions .ph-button {padding-left:16px;padding-right:13px;}
+      .ph-services {
+        grid-column: 1;
+        grid-row: 2;
+      }
+      .ph-debate {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+      }
+      .ph-bill-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 16px;
+        margin-top: auto;
+        padding-top: 28px;
+      }
+      .page-snapshot-home .ph-button {
+        gap: 10px;
+        text-decoration: none;
+      }
+      .ph-debate-title {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        column-gap: 14px;
+        row-gap: 6px;
+      }
+      .ph-debate-title h2 {
+        white-space: nowrap;
+      }
+      .ph-host {
+        font-size: 16px;
+        line-height: 24px;
+        font-weight: 600;
+        color: #4f5651;
+      }
+      .ph-photo {
+        display: block;
+        position: relative;
+        overflow: hidden;
+        border-radius: 12px;
+        background: #dfe3e0;
+        min-width: 0;
+      }
+      .ph-crop {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        height: 0;
+        min-height: 100%;
+        padding-top: 68.15%;
+        box-sizing: border-box;
+      }
+      .ph-photo img {
+        position: absolute;
+        left: -41.38%;
+        top: 0;
+        width: 182.9%;
+        max-width: none;
+        height: auto;
+      }
+      .ph-debate-details {
+        display: block;
+        margin-top: 16px;
+        font-size: 18px;
+        line-height: 28px;
+        color: #4f5651;
+        font-variant-numeric: tabular-nums;
+      }
+      .ph-date {
+        display: inline-block;
+        max-width: 100%;
+      }
+      .ph-features-desktop .ph-photo {
+        margin-top: 20px;
+        flex: 1;
+        min-height: 281px;
+      }
+      .ph-features-desktop .ph-debate-words .ph-invite-action {
+        display: none;
+      }
+      .ph-features-tablet .ph-invites {
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      }
+      @media (min-width: 768px) and (max-width: 1099px) {
+        .page-snapshot-home .ph-features-desktop {
+          display: none;
+        }
+        .page-snapshot-home .ph-features-tablet {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+        .ph-legislature,
+        .ph-services {
+          grid-column: auto;
+          grid-row: auto;
+        }
+        .page-snapshot-home .ph-debate {
+          grid-column: 1 / -1;
+          grid-row: auto;
+          flex-direction: row;
+          gap: 28px;
+        }
+        .ph-debate-words {
+          display: flex;
+          flex-direction: column;
+          flex: 48;
+          min-width: 0;
+        }
+        .ph-debate .ph-photo {
+          flex: 52;
+          aspect-ratio: 16/9;
+          align-self: stretch;
+        }
+      }
+      @media (max-width: 767px) {
+        .page-snapshot-home .ph-features-desktop {
+          display: none;
+        }
+        .page-snapshot-home .ph-features-phone {
+          display: flex;
+          flex-direction: column;
+        }
+        .ph-debate-title h2 {
+          white-space: normal;
+        }
+        .ph-features-phone .ph-debate {
+          display: flex;
+        }
+        .ph-features-phone .ph-debate-words {
+          display: contents;
+        }
+        .ph-features-phone .ph-debate-title {
+          order: 0;
+        }
+        .ph-features-phone .ph-photo {
+          order: 1;
+          aspect-ratio: 3/2;
+          margin-top: 20px;
+        }
+        .ph-features-phone .ph-debate-details {
+          order: 2;
+          font-size: 21px;
+          line-height: 31.5px;
+        }
+        .ph-features-phone .ph-invite-action {
+          order: 3;
+          padding-top: 24px;
+        }
+        .ph-bill-actions {
+          flex-direction: column;
+          align-items: stretch;
+          padding-top: 24px;
+        }
+      }
+      @media (max-width: 1099px) {
+        .ph-crop {
+          top: 0;
+          bottom: 0;
+          height: 100%;
+          padding: 0;
+        }
+        .ph-photo img {
+          top: 50%;
+          margin-top: -48.28%;
+        }
+      }
+      .page-snapshot-home .ph-invite-body {
+        text-wrap: pretty;
+      }
+      @media (max-width: 767px) {
+        .ph-bill-actions .ph-button {
+          width: 100%;
+          align-self: stretch;
+        }
+      }
+      @media (max-width: 767px) {
+        .ph-debate .ph-button {
+          padding-left: 9px;
+          padding-right: 12px;
+        }
+        .ph-services .ph-button {
+          padding-left: 6px;
+          padding-right: 6px;
+        }
+        .ph-bill-actions .ph-button {
+          padding-left: 16px;
+          padding-right: 13px;
+        }
       }
     </style>
   </head>
@@ -1479,22 +1822,29 @@
             // A Google return must not paint the article top while the program
             // and account load. Cancellation clears pendingSignIn; an abandoned
             // comment target alone must never conceal a normal visit.
-            var commentReturn = JSON.parse(window.sessionStorage.getItem('alethical.comments.signInTarget') || 'null');
-            var signInReturn = JSON.parse(window.sessionStorage.getItem('alethical.pendingSignIn') || 'null');
-            if (commentReturn && signInReturn && signInReturn.intent === 'nav' &&
-                commentReturn.path === window.location.pathname &&
-                signInReturn.returnTo === commentReturn.path &&
-                typeof commentReturn.articleId === 'string' &&
-                typeof commentReturn.createdAt === 'number' &&
-                commentReturn.createdAt <= Date.now() &&
-                Date.now() - commentReturn.createdAt < 30 * 60 * 1000) {
+            var commentReturn = JSON.parse(
+              window.sessionStorage.getItem('alethical.comments.signInTarget') || 'null',
+            );
+            var signInReturn = JSON.parse(
+              window.sessionStorage.getItem('alethical.pendingSignIn') || 'null',
+            );
+            if (
+              commentReturn &&
+              signInReturn &&
+              signInReturn.intent === 'nav' &&
+              commentReturn.path === window.location.pathname &&
+              signInReturn.returnTo === commentReturn.path &&
+              typeof commentReturn.articleId === 'string' &&
+              typeof commentReturn.createdAt === 'number' &&
+              commentReturn.createdAt <= Date.now() &&
+              Date.now() - commentReturn.createdAt < 30 * 60 * 1000
+            ) {
               document.documentElement.setAttribute('data-comment-return', '');
               // A missing program or failed route must never leave the article hidden.
               window.setTimeout(function () {
                 document.documentElement.removeAttribute('data-comment-return');
               }, 10000);
             }
-
           } catch (error) {
             // A stale or blocked return record must not affect ordinary history.
           }
@@ -1584,9 +1934,7 @@
         );
       })();
     </script>
-    <noscript>
-      You need to enable JavaScript to run this app.
-    </noscript>
+    <noscript> You need to enable JavaScript to run this app. </noscript>
     <!--
       The snapshot goes inside the app's own mount point on purpose (issue #1325):
       React clears this element's children on its first render, so the app
@@ -1595,8 +1943,329 @@
       page is served straight off the filesystem and never reaches api/page.ts.
     -->
     <div class="comment-return-loading" role="status">Loading comments…</div>
-    <div id="root"><!--alethical:page-snapshot--><div class="page-snapshot page-snapshot-home"><header class="ps-nav"><div class="ps-inner ps-nav-row"><a class="ps-logo" href="/" aria-label="Alethical home"><svg class="ps-mark" viewBox="0 0 84 82" fill="none" aria-hidden="true"><path d="M0 82 L38 0 L38 82 Z M84 82 L46 0 L46 82 Z" fill="currentColor"></path></svg><span class="ps-wordmark">ALETHICAL</span></a><div class="ps-nav-right"><nav class="ps-nav-links" aria-label="Site"><a href="/money">Money</a><a href="/bills">Search<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></a><a href="/blog">Blog</a><a href="/about">About<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></a></nav><span class="ps-signin">Sign in</span><span class="ps-menu" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#11150f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg></span></div></div></header><main><div class="ph-hero"><div class="ph-dots"></div><div class="ph-inner ph-hero-inner"><div class="ph-hero-row"><div class="ph-copy"><p class="ph-eyebrow">TRUTH, UNCONCEALED</p><h1 class="ph-heading">Grounded answers
-<span class="ph-green">on Minnesota politics</span></h1><p class="ph-intro">We turn scattered public records into clear information you can use. Understand what’s happening, check the evidence, and get practical support to act on what you learn.</p><div class="ph-social"></div></div><div class="ph-money-column"><a class="ph-money ph-money-hero" href="/money"><h2 class="ph-money-heading">Follow the money</h2><span class="ph-money-body">Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.</span><span class="ph-count" aria-hidden="true"><span class="ph-count-reserve"><span></span> registered campaigns, parties, and funds</span><span class="ph-count-bar"></span></span><span class="ph-money-cta"><span>Search the money records</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12 H19 M14 7 L19 12 L14 17" stroke="#06231a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></a></div></div></div></div><div class="ph-band"><a class="ph-money ph-money-phone" href="/money"><h2 class="ph-money-heading">Follow the money</h2><span class="ph-money-body">Explore records of campaign donations, political spending, and lobbying. Browse campaign money by legislator, committee, or race.</span><span class="ph-count" aria-hidden="true"><span class="ph-count-reserve"><span></span> registered campaigns, parties, and funds</span><span class="ph-count-bar"></span></span><span class="ph-money-cta"><span>Search the money records</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12 H19 M14 7 L19 12 L14 17" stroke="#06231a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></a><div class="ph-inner"><div class="ph-invites ph-features-desktop"><div class="ph-invite ph-legislature"><h2>Legislature</h2><span class="ph-invite-body">Bill summaries and progress, legislator profiles and votes</span><div class="ph-bill-actions"><a class="ph-button" href="/bills">Search bills<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#0f7a45" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></a><a class="ph-button" href="/legislators">Search legislators<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#0f7a45" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></a></div></div><a class="ph-invite ph-debate" href="/blog/events/forward-debate-2026"><div class="ph-debate-words"><div class="ph-debate-title"><h2>The Forward Debate</h2><span class="ph-host">Hosted by Alethical</span></div><span class="ph-invite-action"><span class="ph-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" fill="#0f7a45"></path></svg>Watch the debate</span></span></div><span class="ph-photo"><span class="ph-crop"><img src="/events/forward-debate-2026-home-desktop.jpg" alt="" /></span></span><span class="ph-debate-details"><span class="ph-date">Minnesota Senate District 13 ·</span> <span class="ph-date">October 15, 2026</span></span><span class="ph-invite-action"><span class="ph-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" fill="#0f7a45"></path></svg>Watch the debate</span></span></a><a class="ph-invite ph-services" href="/services"><h2>Campaign services</h2><span class="ph-invite-body">Political intelligence and practical support for candidates and organizations, including campaign-finance research, websites, content, tools and hosted debates</span><span class="ph-invite-action"><span class="ph-button ph-button-paid"><span>Explore our services</span><span aria-hidden="true">→</span></span></span></a></div><div class="ph-invites ph-features-tablet"><a class="ph-invite ph-debate" href="/blog/events/forward-debate-2026"><div class="ph-debate-words"><div class="ph-debate-title"><h2>The Forward Debate</h2></div><span class="ph-debate-details">Minnesota Senate District 13<br/><span class="ph-date">Hosted by Alethical ·</span> <span class="ph-date">October 15, 2026</span></span><span class="ph-invite-action"><span class="ph-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" fill="#0f7a45"></path></svg>Watch the debate</span></span></div><span class="ph-photo"><span class="ph-crop"><img src="/events/forward-debate-2026-home.jpg" alt="" /></span></span></a><div class="ph-invite ph-legislature"><h2>Legislature</h2><span class="ph-invite-body">Bill summaries and progress, legislator profiles and votes</span><div class="ph-bill-actions"><a class="ph-button" href="/bills">Search bills<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#0f7a45" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></a><a class="ph-button" href="/legislators">Search legislators<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#0f7a45" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></a></div></div><a class="ph-invite ph-services" href="/services"><h2>Campaign services</h2><span class="ph-invite-body">Political intelligence and practical support for candidates and organizations, including campaign-finance research, websites, content, tools and hosted debates</span><span class="ph-invite-action"><span class="ph-button ph-button-paid"><span>Explore our services</span><span aria-hidden="true">→</span></span></span></a></div><div class="ph-invites ph-features-phone"><a class="ph-invite ph-debate" href="/blog/events/forward-debate-2026"><div class="ph-debate-words"><div class="ph-debate-title"><h2>The Forward Debate</h2></div><span class="ph-debate-details">Minnesota Senate District 13<br/><span class="ph-date">Hosted by Alethical ·</span> <span class="ph-date">October 15, 2026</span></span><span class="ph-invite-action"><span class="ph-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" fill="#0f7a45"></path></svg>Watch the debate</span></span></div><span class="ph-photo"><span class="ph-crop"><img src="/events/forward-debate-2026-home.jpg" alt="" /></span></span></a><a class="ph-invite ph-services" href="/services"><h2>Campaign services</h2><span class="ph-invite-body">Political intelligence and practical support for candidates and organizations, including campaign-finance research, websites, content, tools and hosted debates</span><span class="ph-invite-action"><span class="ph-button ph-button-paid"><span>Explore our services</span><span aria-hidden="true">→</span></span></span></a><div class="ph-invite ph-legislature"><h2>Legislature</h2><span class="ph-invite-body">Bill summaries and progress, legislator profiles and votes</span><div class="ph-bill-actions"><a class="ph-button" href="/bills">Search bills<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#0f7a45" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></a><a class="ph-button" href="/legislators">Search legislators<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18" stroke="#0f7a45" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg></a></div></div></div></div></div><section class="ph-inner ph-candidates"><h2>Who’s running where you live?</h2><p>Explore the candidates in your Minnesota races, with links to official records</p><a href="/candidates">Find my candidates</a></section></main></div><!--/alethical:page-snapshot--></div>
+    <div id="root">
+      <!--alethical:page-snapshot-->
+      <div class="page-snapshot page-snapshot-home">
+        <header class="ps-nav">
+          <div class="ps-inner ps-nav-row">
+            <a class="ps-logo" href="/" aria-label="Alethical home"
+              ><svg class="ps-mark" viewBox="0 0 84 82" fill="none" aria-hidden="true">
+                <path
+                  d="M0 82 L38 0 L38 82 Z M84 82 L46 0 L46 82 Z"
+                  fill="currentColor"
+                ></path></svg
+              ><span class="ps-wordmark">ALETHICAL</span></a
+            >
+            <div class="ps-nav-right">
+              <nav class="ps-nav-links" aria-label="Site">
+                <a href="/blog">Media</a><a href="/money">Money</a
+                ><a href="/bills"
+                  >Search<svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="m6 9 6 6 6-6"></path></svg></a
+                ><a href="/about"
+                  >About<svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="m6 9 6 6 6-6"></path></svg
+                ></a>
+              </nav>
+              <span class="ps-signin">Sign in</span
+              ><span class="ps-menu" aria-hidden="true"
+                ><svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#11150f"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M4 5h16"></path>
+                  <path d="M4 12h16"></path>
+                  <path d="M4 19h16"></path></svg
+              ></span>
+            </div>
+          </div>
+        </header>
+        <main>
+          <div class="ph-hero">
+            <div class="ph-dots"></div>
+            <div class="ph-inner ph-hero-inner">
+              <div class="ph-hero-row">
+                <div class="ph-copy">
+                  <p class="ph-eyebrow">TRUTH, UNCONCEALED</p>
+                  <h1 class="ph-heading">
+                    Grounded answers <span class="ph-green">on Minnesota politics</span>
+                  </h1>
+                  <p class="ph-intro">
+                    We turn scattered public records into clear information you can use. Understand
+                    what’s happening, check the evidence, and get practical support to act on what
+                    you learn.
+                  </p>
+                  <div class="ph-social"></div>
+                </div>
+                <div class="ph-money-column">
+                  <a class="ph-money ph-money-hero" href="/money"
+                    ><h2 class="ph-money-heading">Follow the money</h2>
+                    <span class="ph-money-body"
+                      >Explore records of campaign donations, political spending, and lobbying.
+                      Browse campaign money by legislator, committee, or race.</span
+                    ><span class="ph-count" aria-hidden="true"
+                      ><span class="ph-count-reserve"
+                        ><span></span> registered campaigns, parties, and funds</span
+                      ><span class="ph-count-bar"></span></span
+                    ><span class="ph-money-cta"
+                      ><span>Search the money records</span
+                      ><svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                          d="M4 12 H19 M14 7 L19 12 L14 17"
+                          stroke="#06231a"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        ></path></svg></span
+                  ></a>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="ph-band">
+            <a class="ph-money ph-money-phone" href="/money"
+              ><h2 class="ph-money-heading">Follow the money</h2>
+              <span class="ph-money-body"
+                >Explore records of campaign donations, political spending, and lobbying. Browse
+                campaign money by legislator, committee, or race.</span
+              ><span class="ph-count" aria-hidden="true"
+                ><span class="ph-count-reserve"
+                  ><span></span> registered campaigns, parties, and funds</span
+                ><span class="ph-count-bar"></span></span
+              ><span class="ph-money-cta"
+                ><span>Search the money records</span
+                ><svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M4 12 H19 M14 7 L19 12 L14 17"
+                    stroke="#06231a"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  ></path></svg></span
+            ></a>
+            <div class="ph-inner">
+              <div class="ph-invites ph-features-desktop">
+                <div class="ph-invite ph-legislature">
+                  <h2>Legislature</h2>
+                  <span class="ph-invite-body"
+                    >Bill summaries and progress, legislator profiles and votes</span
+                  >
+                  <div class="ph-bill-actions">
+                    <a class="ph-button" href="/bills"
+                      >Search bills<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                          d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18"
+                          stroke="#0f7a45"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        ></path></svg></a
+                    ><a class="ph-button" href="/legislators"
+                      >Search legislators<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                          d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18"
+                          stroke="#0f7a45"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        ></path></svg
+                    ></a>
+                  </div>
+                </div>
+                <a class="ph-invite ph-debate" href="/blog/events/forward-debate-2026"
+                  ><div class="ph-debate-words">
+                    <div class="ph-debate-title">
+                      <h2>The Forward Debate</h2>
+                      <span class="ph-host">Hosted by Alethical</span>
+                    </div>
+                    <span class="ph-invite-action"
+                      ><span class="ph-button"
+                        ><svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M7 4.5v15l12.5-7.5z" fill="#0f7a45"></path></svg
+                        >Watch the debate</span
+                      ></span
+                    >
+                  </div>
+                  <span class="ph-photo"
+                    ><span class="ph-crop"
+                      ><img
+                        src="/events/forward-debate-2026-home-desktop.jpg"
+                        alt="" /></span></span
+                  ><span class="ph-debate-details"
+                    ><span class="ph-date">Minnesota Senate District 13 ·</span>
+                    <span class="ph-date">October 15, 2026</span></span
+                  ><span class="ph-invite-action"
+                    ><span class="ph-button"
+                      ><svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M7 4.5v15l12.5-7.5z" fill="#0f7a45"></path></svg
+                      >Watch the debate</span
+                    ></span
+                  ></a
+                ><a class="ph-invite ph-services" href="/services"
+                  ><h2>Campaign services</h2>
+                  <span class="ph-invite-body"
+                    >Political intelligence and practical support for candidates and organizations,
+                    including campaign-finance research, websites, content, tools and hosted
+                    debates</span
+                  ><span class="ph-invite-action"
+                    ><span class="ph-button ph-button-paid"
+                      ><span>Explore our services</span><span aria-hidden="true">→</span></span
+                    ></span
+                  ></a
+                >
+              </div>
+              <div class="ph-invites ph-features-tablet">
+                <a class="ph-invite ph-debate" href="/blog/events/forward-debate-2026"
+                  ><div class="ph-debate-words">
+                    <div class="ph-debate-title"><h2>The Forward Debate</h2></div>
+                    <span class="ph-debate-details"
+                      >Minnesota Senate District 13<br /><span class="ph-date"
+                        >Hosted by Alethical ·</span
+                      >
+                      <span class="ph-date">October 15, 2026</span></span
+                    ><span class="ph-invite-action"
+                      ><span class="ph-button"
+                        ><svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M7 4.5v15l12.5-7.5z" fill="#0f7a45"></path></svg
+                        >Watch the debate</span
+                      ></span
+                    >
+                  </div>
+                  <span class="ph-photo"
+                    ><span class="ph-crop"
+                      ><img src="/events/forward-debate-2026-home.jpg" alt="" /></span></span
+                ></a>
+                <div class="ph-invite ph-legislature">
+                  <h2>Legislature</h2>
+                  <span class="ph-invite-body"
+                    >Bill summaries and progress, legislator profiles and votes</span
+                  >
+                  <div class="ph-bill-actions">
+                    <a class="ph-button" href="/bills"
+                      >Search bills<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                          d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18"
+                          stroke="#0f7a45"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        ></path></svg></a
+                    ><a class="ph-button" href="/legislators"
+                      >Search legislators<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                          d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18"
+                          stroke="#0f7a45"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        ></path></svg
+                    ></a>
+                  </div>
+                </div>
+                <a class="ph-invite ph-services" href="/services"
+                  ><h2>Campaign services</h2>
+                  <span class="ph-invite-body"
+                    >Political intelligence and practical support for candidates and organizations,
+                    including campaign-finance research, websites, content, tools and hosted
+                    debates</span
+                  ><span class="ph-invite-action"
+                    ><span class="ph-button ph-button-paid"
+                      ><span>Explore our services</span><span aria-hidden="true">→</span></span
+                    ></span
+                  ></a
+                >
+              </div>
+              <div class="ph-invites ph-features-phone">
+                <a class="ph-invite ph-debate" href="/blog/events/forward-debate-2026"
+                  ><div class="ph-debate-words">
+                    <div class="ph-debate-title"><h2>The Forward Debate</h2></div>
+                    <span class="ph-debate-details"
+                      >Minnesota Senate District 13<br /><span class="ph-date"
+                        >Hosted by Alethical ·</span
+                      >
+                      <span class="ph-date">October 15, 2026</span></span
+                    ><span class="ph-invite-action"
+                      ><span class="ph-button"
+                        ><svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M7 4.5v15l12.5-7.5z" fill="#0f7a45"></path></svg
+                        >Watch the debate</span
+                      ></span
+                    >
+                  </div>
+                  <span class="ph-photo"
+                    ><span class="ph-crop"
+                      ><img src="/events/forward-debate-2026-home.jpg" alt="" /></span></span></a
+                ><a class="ph-invite ph-services" href="/services"
+                  ><h2>Campaign services</h2>
+                  <span class="ph-invite-body"
+                    >Political intelligence and practical support for candidates and organizations,
+                    including campaign-finance research, websites, content, tools and hosted
+                    debates</span
+                  ><span class="ph-invite-action"
+                    ><span class="ph-button ph-button-paid"
+                      ><span>Explore our services</span><span aria-hidden="true">→</span></span
+                    ></span
+                  ></a
+                >
+                <div class="ph-invite ph-legislature">
+                  <h2>Legislature</h2>
+                  <span class="ph-invite-body"
+                    >Bill summaries and progress, legislator profiles and votes</span
+                  >
+                  <div class="ph-bill-actions">
+                    <a class="ph-button" href="/bills"
+                      >Search bills<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                          d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18"
+                          stroke="#0f7a45"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        ></path></svg></a
+                    ><a class="ph-button" href="/legislators"
+                      >Search legislators<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path
+                          d="M3.5 12 H19.5 M13 6 L19.5 12 L13 18"
+                          stroke="#0f7a45"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        ></path></svg
+                    ></a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <section class="ph-inner ph-candidates">
+            <h2>Who’s running where you live?</h2>
+            <p>Explore the candidates in your Minnesota races, with links to official records</p>
+            <a href="/candidates">Find my candidates</a>
+          </section>
+        </main>
+      </div>
+      <!--/alethical:page-snapshot-->
+    </div>
     <!--
       The records api/page.ts already read for this address, handed to the app in
       the same response so it draws them without asking the data service for the

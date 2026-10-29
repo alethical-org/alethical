@@ -1145,7 +1145,7 @@ export function researchPageSnapshot(piece: ResearchPiece, from?: string): PageS
     bodyIsList: false,
     facts: [],
     sections,
-    links: [articleReturnDestination(from ?? '') ?? { label: 'Back to Blog', href: '/blog' }],
+    links: [articleReturnDestination(from ?? '') ?? { label: 'Back to Media', href: '/blog' }],
   };
 }
 
@@ -1228,7 +1228,7 @@ export function shortPostPageSnapshot(piece: ResearchPiece, from?: string): Page
     bodyIsList: false,
     facts: [],
     sections,
-    links: [articleReturnDestination(from ?? '') ?? { label: 'Back to Blog', href: '/blog' }],
+    links: [articleReturnDestination(from ?? '') ?? { label: 'Back to Media', href: '/blog' }],
   };
 }
 
@@ -1244,7 +1244,7 @@ function collectionRecord(piece: ResearchPiece, from?: string): SnapshotRecordLi
 
 export function shortPostsPageSnapshot(page: number): PageSnapshot {
   const selection = shortPostsPage(page, publishedResearch());
-  const links: SnapshotLink[] = [{ label: 'Back to Blog', href: '/blog' }];
+  const links: SnapshotLink[] = [{ label: 'Back to Media', href: '/blog' }];
   for (const topic of TOPICS) {
     if (selection.items.some((piece) => piece.topics?.includes(topic.slug))) {
       links.push({ label: topic.label, href: topicPath(topic.slug) });
@@ -1258,10 +1258,10 @@ export function shortPostsPageSnapshot(page: number): PageSnapshot {
   if (page < selection.pageCount)
     links.push({ label: 'Next page', href: `/blog/short-posts?page=${page + 1}` });
   return {
-    heading: 'Short posts',
+    heading: 'Articles',
     subheading: '',
     bodyHeading: '',
-    body: selection.total === 0 ? ['No short posts yet.'] : [],
+    body: selection.total === 0 ? ['No articles yet.'] : [],
     bodyIsList: false,
     facts: [],
     records: (selection.items as ResearchPiece[]).map((piece) =>
@@ -1275,7 +1275,7 @@ export function readTopicPageSnapshot(topic: TopicSlug, page: number): PageSnaps
   const selection = topicPage(topic, page, publishedResearch());
   const label = TOPICS.find((entry) => entry.slug === topic)?.label ?? topic;
   const base = `/blog/topics/${topic}`;
-  const links: SnapshotLink[] = [{ label: 'Back to Blog', href: '/blog' }];
+  const links: SnapshotLink[] = [{ label: 'Back to Media', href: '/blog' }];
   if (page > 1)
     links.push({ label: 'Previous page', href: page === 2 ? base : `${base}?page=${page - 1}` });
   if (page < selection.pageCount)
@@ -1325,7 +1325,7 @@ export function readCollectionPageSnapshot(
   const pages = kind === 'research' ? research.pageCount : collectionPage(guides, page).pageCount;
   const links: SnapshotLink[] = [
     {
-      label: kind === 'set' ? 'Back to Guides' : 'Back to Blog',
+      label: kind === 'set' ? 'Back to Guides' : 'Back to Media',
       href: kind === 'set' ? '/blog/guides' : '/blog',
     },
   ];
@@ -1364,14 +1364,18 @@ export function readPageSnapshot(
   const bySlug = new Map(pieces.map((piece) => [piece.slug, piece]));
   const reports = researchReportItems()
     .slice(0, 3)
-    .map((entry) => bySlug.get(entry.slug));
+    .map((entry) => bySlug.get(entry.slug))
+    .filter((piece): piece is ResearchPiece => Boolean(piece));
   const guides = guideCollectionItems()
     .slice(0, 3)
     .flatMap((item) => (item.kind === 'group' ? item.members : [item.piece]))
-    .map((entry) => bySlug.get(entry.slug));
-  const visible = [...reports, ...groups.shortPosts.slice(0, 3), ...guides].filter(
-    (piece): piece is ResearchPiece => Boolean(piece),
-  );
+    .map((entry) => bySlug.get(entry.slug))
+    .filter((piece): piece is ResearchPiece => Boolean(piece));
+  const writingRecord = (piece: ResearchPiece) => ({
+    label: piece.title,
+    detail: [pieceCardMetaLine(piece), pieceCardSecondaryLine(piece)].filter(Boolean).join(' · '),
+    href: piecePath(piece),
+  });
   return {
     // The page's own name, the same word the visually hidden `h1` carries, so the
     // served document and the loaded page name the page identically. What the page
@@ -1386,29 +1390,23 @@ export function readPageSnapshot(
     bodyIsList: false,
     facts: [],
     records: [
+      ...groups.shortPosts.slice(0, 3).map(writingRecord),
+      ...reports.map(writingRecord),
       ...events.slice(0, 3).map((event) => ({
         label: event.name,
-        detail: `${eventSummaryDate(event)} · ${event.tagline}${eventSummaryShowsLogistics(event, now) ? ` · ${event.locationName} · ${event.city} · Free admission` : ''}`,
+        detail:
+          event.slug === 'forward-debate-2026' && !eventSummaryShowsLogistics(event, now)
+            ? `Hosted by Alethical · ${event.district} · ${eventSummaryDate(event)} · Watch the debate`
+            : `${eventSummaryDate(event)} · ${event.tagline}${eventSummaryShowsLogistics(event, now) ? ` · ${event.locationName} · ${event.city} · Free admission` : ''}`,
         href: eventPath(event),
       })),
-      ...visible.map((piece) => ({
-        label: piece.title,
-        // The same lines the card draws: its minutes and date, then its standfirst
-        // or the set it belongs to.
-        detail: [pieceCardMetaLine(piece), pieceCardSecondaryLine(piece)]
-          .filter(Boolean)
-          .join(' · '),
-        // Each piece's own address, from the one function that decides the folder.
-        href: piecePath(piece),
-      })),
+      ...guides.map(writingRecord),
     ],
     // The page's own back link, to the section the nav calls "Money in politics".
     links: [
-      ...(events.length ? [{ label: 'All events', href: EVENTS_PATH }] : []),
+      ...(groups.shortPosts.length ? [{ label: 'All articles', href: '/blog/short-posts' }] : []),
       ...(reports.length ? [{ label: 'All research reports', href: '/blog/research' }] : []),
-      ...(groups.shortPosts.length
-        ? [{ label: 'All short posts', href: '/blog/short-posts' }]
-        : []),
+      ...(events.length ? [{ label: 'All debates and recordings', href: EVENTS_PATH }] : []),
       ...(guides.length ? [{ label: 'All guides', href: '/blog/guides' }] : []),
       { label: MONEY_SECTION_NAME, href: '/money' },
     ],

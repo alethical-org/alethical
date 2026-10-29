@@ -78,7 +78,7 @@ export function renderEventReplay(
     ? `<span class="event-keep">Published <time datetime="${e(r.publishedOn)}">${date(r.publishedOn)}</time></span>${event.updatedOn > r.publishedOn ? ` · <span class="event-keep">Updated <time datetime="${e(event.updatedOn)}">${date(event.updatedOn)}</time></span>` : ''}`
     : `<span class="event-keep">Debate held <time datetime="${e(event.startDate)}">${e(date(event.startDate.slice(0, 10)))}</time> ·</span> <span class="event-keep">Updated <time datetime="${event.updatedOn}">${date(event.updatedOn)}</time></span>`;
   return `<article class="event-content event-article replay-content${invitation ? ' replay-with-invitation' : ''}" ${r.video ? `data-replay-duration="${r.duration}"` : ''}><style>${eventCss}${replayCss}</style>
-<div class="event-return"><a class="event-back" href="${publicPageUrl('/blog/events')}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 5 L8 12 L15 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>Back to Events</span></a></div>
+<div class="event-return"><a class="event-back" href="${publicPageUrl('/blog/events')}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 5 L8 12 L15 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg><span>Back to Debates and recordings</span></a></div>
 ${options.example ? '<p><strong>Example content for testing</strong></p><p>This uses YouTube’s player demonstration and sample text. It is not the debate recording or transcript.</p>' : ''}
 ${renderForwardCoalitionBrand()}
 <h1>${e(r.title)}</h1>
