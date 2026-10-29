@@ -68,6 +68,9 @@ importers:
 
   apps/finance:
     dependencies:
+      '@alethical/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@supabase/supabase-js':
         specifier: 2.112.2
         version: 2.112.2
@@ -211,6 +214,25 @@ importers:
       vitest:
         specifier: 4.1.12
         version: 4.1.12(@types/node@26.1.2)(jsdom@30.0.1)(vite@8.1.6(@types/node@26.1.2)(terser@5.46.2)(yaml@2.9.1))
+
+  packages/shared:
+    dependencies:
+      '@supabase/auth-js':
+        specifier: 2.112.2
+        version: 2.112.2
+      '@tanstack/react-query':
+        specifier: 5.101.4
+        version: 5.101.4(react@19.2.3)
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.18
+        version: 19.2.18
+      react:
+        specifier: 19.2.3
+        version: 19.2.3
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
 
 packages:
 
