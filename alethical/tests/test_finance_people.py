@@ -65,3 +65,12 @@ def test_people_directory_never_calls_missing_current_service_former(
 def test_people_directory_requires_finance_access(finance_api):
     finance_api.headers.pop("Authorization")
     assert finance_api.get(BASE).status_code == 401
+
+
+def test_people_search_rejects_nul(finance_api):
+    assert (
+        finance_api.get(
+            "/api/v1/finance/people", params={"q": "bad\x00input"}
+        ).status_code
+        == 422
+    )

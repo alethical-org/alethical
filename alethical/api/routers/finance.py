@@ -173,7 +173,7 @@ def payees(
 
 @router.get("/people")
 def people(
-    q: str = Query(default="", max_length=200),
+    q: str = Query(default="", max_length=200, pattern=r"^[^\x00]*$"),
     type: finance_people.PeopleType = "all",
     scope: finance_people.PeopleScope = "all",
     year: int | None = Query(default=None, ge=1900, le=2200),
