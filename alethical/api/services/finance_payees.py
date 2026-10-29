@@ -200,9 +200,11 @@ def directory(
         where.append(rows.c.year == year)
     if payment_type is not None:
         where.append(rows.c.payment_type == payment_type)
-    amount = case(
-        (func.count(rows.c.amount) == func.count(), func.sum(rows.c.amount)), else_=None
-    )
+    all_amounts = func.count(rows.c.amount) == func.count()
+    all_dates = func.count(rows.c.paid_on) == func.count()
+    all_years = func.count(rows.c.year) == func.count()
+    whole_period = all_dates | all_years
+    amount = case((all_amounts & whole_period, func.sum(rows.c.amount)), else_=None)
     grouped = (
         select(
             rows.c.dataset,
@@ -212,6 +214,16 @@ def directory(
             rows.c.name,
             func.count().label("payment_count"),
             amount.label("amount"),
+            case(
+                (~all_amounts, "incomplete"),
+                (whole_period, "reported"),
+                else_="incomplete_period",
+            ).label("amount_state"),
+            case((all_dates, "dates"), (all_years, "years"), else_="unknown").label(
+                "period_basis"
+            ),
+            func.min(rows.c.year).label("first_year"),
+            func.max(rows.c.year).label("last_year"),
             func.min(rows.c.paid_on).label("first_payment_on"),
             func.max(rows.c.paid_on).label("last_payment_on"),
             (func.count() - func.count(rows.c.paid_on)).label("undated_payment_count"),
@@ -278,7 +290,6 @@ def directory(
                 if row.identity_id
                 else None,
                 "amount": str(row.amount) if row.amount is not None else None,
-                "amount_state": "reported" if row.amount is not None else "incomplete",
                 "snapshot_id": str(source.snapshot_id),
                 "source_url": source.source_url,
                 "fetched_at": release.copied_at(source.dataset),

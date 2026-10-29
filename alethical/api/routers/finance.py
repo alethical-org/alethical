@@ -145,9 +145,11 @@ def bill_authors(bill_id: str, db: Session = Depends(get_db)) -> dict:
 
 @router.get("/payees")
 def payees(
-    q: str = Query(default="", max_length=200),
+    q: str = Query(default="", max_length=200, pattern=r"^[^\x00]*$"),
     year: int | None = Query(default=None, ge=2015, le=2100),
-    payment_type: str | None = Query(default=None, max_length=200),
+    payment_type: str | None = Query(
+        default=None, max_length=200, pattern=r"^[^\x00]*$"
+    ),
     tab: finance_payees.PayeeTab = "all",
     sort: finance_payees.PayeeSort = "name",
     limit: int = Query(default=50, ge=1, le=100),

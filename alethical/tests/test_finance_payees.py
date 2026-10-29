@@ -4,6 +4,8 @@
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from alethical.db import models as m
 from alethical.db.session import get_db
 from alethical.tests.finance_fixtures import finance_api, finance_db  # noqa: F401
@@ -188,3 +190,44 @@ def test_confirmed_people_are_people_in_all_recipients_never_vendors(
     printed = get(finance_api, tab="printed")
     assert printed["total"] == 1
     assert printed["counts"] == data["counts"]
+
+
+@pytest.mark.parametrize("field", ["q", "payment_type"])
+def test_payee_filters_reject_nul_before_database(finance_api, board, field):
+    assert finance_api.get(BASE, params={field: "bad\x00input"}).status_code == 422
+
+
+def test_payee_sum_period_covers_every_row(finance_api, finance_db, board):
+    for number, name, amount, paid_on, year in [
+        (61, "Mixed period", "10", date(2026, 4, 1), 2026),
+        (62, "Mixed period", "20", None, 2025),
+        (63, "No period", "30", None, None),
+        (64, "Partial years", "10", date(2026, 4, 1), None),
+        (65, "Partial years", "20", None, 2025),
+    ]:
+        finance_db.add(
+            m.CampaignFinanceExpenditureRow(
+                snapshot_id=board.expenditures_snapshot_id,
+                row_number=number,
+                committee_reg_num="18135",
+                vendor_name=name,
+                amount=Decimal(amount),
+                transaction_date=paid_on,
+                year=year,
+            )
+        )
+    finance_db.commit()
+    rows = {
+        r["name"]: r for r in get(finance_api)["rows"] if r["dataset"] == "expenditures"
+    }
+    assert rows["Mixed period"]["amount"] == "30.0000"
+    assert rows["Mixed period"]["period_basis"] == "years"
+    assert (rows["Mixed period"]["first_year"], rows["Mixed period"]["last_year"]) == (
+        2025,
+        2026,
+    )
+    assert rows[VENDOR]["period_basis"] == "dates"
+    for name in ("No period", "Partial years"):
+        assert rows[name]["amount"] is None
+        assert rows[name]["amount_state"] == "incomplete_period"
+        assert rows[name]["period_basis"] == "unknown"

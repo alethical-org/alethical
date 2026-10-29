@@ -3394,8 +3394,12 @@ organizations only, and the printed-name tab contains only unconfirmed rows.
 Year, payment type, name, record kind and sort filters run before paging; counts
 cover the full matching set. Tab counts apply the name, year and payment-type
 filters before choosing a tab. Each row
-carries its source file, copy date and payment-date range. Missing dates remain
-missing, and a missing amount withholds the whole row's itemized sum. Refunds
+carries its source file and copy date. Its sum uses a payment-date range only when
+every record has a date; otherwise it uses the filed year span when every record
+has a year. If neither covers every record, the sum is withheld as
+`incomplete_period`. The API states the period basis and first/last year without
+deriving a filed year from a payment date. Missing dates remain missing, and a
+missing amount withholds the whole row's itemized sum as `incomplete`. Refunds
 keep their filed sign. Expenditure and independent-expenditure files remain
 separate rows and amounts because a payment can appear in both. A confirmed
 person or organization covers only active matching fingerprints, follows identity merges,
