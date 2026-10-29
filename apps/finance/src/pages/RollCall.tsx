@@ -6,7 +6,7 @@ import { Link, useLocation } from '../router';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
 import { Chips, Refused, type Option } from '../ui/controls';
-import { BackLink, LoadingLine, WithArrow } from '../ui/parts';
+import { BackLink, LoadingLine, SourcesAndUpdates, WithArrow } from '../ui/parts';
 import {
   billCode,
   billPath,
@@ -151,7 +151,7 @@ export function RollCall({ match }: { match: RouteMatch }) {
   const host = sourceHost(vote.official_url);
   const updatedDay = dayLabel(bill.data?.last_pulled_at);
   const sourceLine = [
-    'Source: Minnesota Legislature',
+    'Minnesota Legislature',
     host ?? 'revisor.mn.gov',
     updatedDay ? `Updated ${updatedDay}` : null,
   ]
@@ -159,12 +159,35 @@ export function RollCall({ match }: { match: RouteMatch }) {
     .join(' · ');
   const journal =
     chamber && date && /journal/i.test(vote.official_url ?? '')
-      ? ` Journal of the ${chamber}, ${date}.`
+      ? `. Journal of the ${chamber}, ${date}`
       : '';
   const billHref = isBuilt('bill') ? withFrom(hrefFor('bill', { id: billId }), here) : null;
 
   return (
-    <Frame back={back}>
+    <Frame
+      back={back}
+      sources={
+        <SourcesAndUpdates>
+          <p className="f-sources-line">
+            {sourceLine}
+            {journal}
+          </p>
+          {vote.official_url && (
+            <a
+              href={vote.official_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="f-dest f-sources-link"
+            >
+              <span>
+                <WithArrow>Official source website</WithArrow>
+              </span>
+              <span className="f-visually-hidden"> (opens in a new tab)</span>
+            </a>
+          )}
+        </SourcesAndUpdates>
+      }
+    >
       <header className="bl-header">
         <div className="bl-tags">
           <span className="rc-tag">ROLL CALL</span>
@@ -252,28 +275,6 @@ export function RollCall({ match }: { match: RouteMatch }) {
             </>
           )}
         </section>
-
-        <aside className="bl-aside">
-          <section className="f-card">
-            <h2 className="f-card-title">Source</h2>
-            <p className="rc-source">
-              {sourceLine}.{journal}
-            </p>
-            {vote.official_url && (
-              <a
-                href={vote.official_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="f-dest bl-official"
-              >
-                <span>
-                  <WithArrow>Official source website</WithArrow>
-                </span>
-                <span className="f-visually-hidden"> (opens in a new tab)</span>
-              </a>
-            )}
-          </section>
-        </aside>
       </div>
     </Frame>
   );
@@ -308,9 +309,12 @@ function MemberRow({ member, here }: { member: VoteRecord; here: string }) {
 
 function Frame({
   back,
+  sources,
   children,
 }: {
   back: { to: string; name: string } | null;
+  /** "Sources and updates", only once the record is shown. */
+  sources?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -319,6 +323,7 @@ function Frame({
         {back && <BackLink to={back.to} name={back.name} />}
         {children}
       </div>
+      {sources}
     </main>
   );
 }

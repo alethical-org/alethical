@@ -91,23 +91,33 @@ export interface SourceGroup {
  * (Design rule eug-135). A shared source is named once; each dataset keeps its
  * own copied or updated wording.
  */
-export function SourcesAndUpdates({ groups }: { groups: SourceGroup[] }) {
-  if (groups.length === 0) return null;
+export function SourcesAndUpdates({
+  groups = [],
+  children,
+}: {
+  groups?: SourceGroup[];
+  /** Free content instead of grouped lines: a source sentence and its official link. */
+  children?: ReactNode;
+}) {
+  if (groups.length === 0 && !children) return null;
   return (
     <section className="f-sources" aria-labelledby="sources-heading">
       <h2 id="sources-heading">Sources and updates</h2>
-      <dl>
-        {groups.map((group) => (
-          <div key={group.source} className="f-sources-row">
-            <dt>{group.source}</dt>
-            <dd>
-              {group.items.map((item, index) => (
-                <span key={index}>{item}</span>
-              ))}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      {children}
+      {groups.length > 0 && (
+        <dl>
+          {groups.map((group) => (
+            <div key={group.source} className="f-sources-row">
+              <dt>{group.source}</dt>
+              <dd>
+                {group.items.map((item, index) => (
+                  <span key={index}>{item}</span>
+                ))}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
     </section>
   );
 }

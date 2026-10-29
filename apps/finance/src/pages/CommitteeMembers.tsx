@@ -11,7 +11,7 @@ import { otherOfficeNote, reportedThroughLabel } from '@alethical/shared/legisla
 import { formatMoney } from '@alethical/shared/moneyFormat';
 import { centralDateLabel } from '@alethical/shared/moneyLanding';
 
-import { useRead } from '../api/read';
+import { apiPath, useRead } from '../api/read';
 import { Link, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
@@ -163,7 +163,7 @@ export function CommitteeMembers({ match }: { match: RouteMatch }) {
   const [choice, setChoice] = useAddressState({ year: years[0] });
   const year = years.includes(choice.year) ? choice.year : years[0];
   const read = useRead<MembersAnswer>(
-    `finance/legislative-committees/${encodeURIComponent(match.params.id)}/members`,
+    apiPath(['finance', 'legislative-committees', match.params.id, 'members']),
   );
   const answer = read.data;
   // Each member's own read reports the date its report totals were copied, so
@@ -296,9 +296,7 @@ function MemberCard({
   const otherOffice = confirmed.length - accounts.length;
   // 1 member's own read, never a request for the whole committee.
   const figures = useRead<FiguresAnswer>(
-    accounts.length > 0
-      ? `legislators/${encodeURIComponent(member.id)}/campaign-finance?year=${year}`
-      : null,
+    accounts.length > 0 ? apiPath(['legislators', member.id, 'campaign-finance'], { year }) : null,
   );
   const date = figures.data?.year === Number(year) ? figures.data.filings_copied_at : null;
   useEffect(() => {

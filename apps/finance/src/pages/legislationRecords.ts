@@ -221,9 +221,11 @@ export function sessionShortLabel(session: ServedSession): string {
 }
 
 /** The source line every bill surface closes with (the public site's SourceLine). */
+/** The Legislature's source line for "Sources and updates" (Design copy 22,
+ * Round 23): the source and site, then the date the bill records were updated. */
 export function legislatureSource(updatedIso: string | null | undefined): string {
   const day = dayLabel(updatedIso);
-  return `Source: Minnesota Legislature · revisor.mn.gov${day ? ` · Updated ${day}` : ''}`;
+  return `Minnesota Legislature · revisor.mn.gov${day ? ` · Updated ${day}` : ''}`;
 }
 
 /** The bill's status page on revisor.mn.gov: `official_url` names a text version,

@@ -406,9 +406,7 @@ describe('Legislation', () => {
     );
     expect(requests).toContain(`${API}/api/v1/bills?limit=20&offset=0`);
     expect(container.querySelector('h1')?.textContent).toBe('Legislation');
-    expect(text()).toContain(
-      'Source: Minnesota Legislature · revisor.mn.gov · Updated Jul 14, 2026',
-    );
+    expect(text()).toContain('Minnesota Legislature · revisor.mn.gov · Updated Jul 14, 2026');
     expect(text()).toContain('4,012 bills · 2025–26 session');
     const rows = [...container.querySelectorAll<HTMLAnchorElement>('.lg-row')];
     expect(rows[0].getAttribute('href')).toBe('/bills/94-2025-SF334?from=%2Fbills');
@@ -512,9 +510,7 @@ describe('Bill', () => {
     // The shared cleaner drops the bill-number lead.
     expect(text()).toContain('Establishes an advisory council of state, county, and Tribal');
     expect(text()).not.toContain('The bill SF 334');
-    expect(text()).toContain(
-      'Alethical summary · Source: Minnesota Legislature · revisor.mn.gov · Updated Oct 26, 2026',
-    );
+    expect(text()).toContain('Minnesota Legislature · revisor.mn.gov · Updated Oct 26, 2026');
     expect(text()).toContain('Sec. 2 · Human services systems modernization advisory council');
     expect(text()).toContain('3rd engrossment version');
     const tabs = [...container.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent);
@@ -664,11 +660,11 @@ describe('Roll call', () => {
     expect(rows[0].querySelector('a')?.getAttribute('href')).toBe(
       '/legislators/leg-jim?from=%2Fvotes%2Fvote-1%3Fbill%3D94-2025-SF334',
     );
-    expect(container.querySelector<HTMLAnchorElement>('.bl-official')?.getAttribute('href')).toBe(
-      VOTE.official_url,
-    );
+    expect(
+      container.querySelector<HTMLAnchorElement>('.f-sources-link')?.getAttribute('href'),
+    ).toBe(VOTE.official_url);
     expect(text()).toContain('www.senate.mn');
-    expect(text()).toContain('Journal of the Senate, Feb 10, 2025.');
+    expect(text()).toContain('· Updated Oct 26, 2026. Journal of the Senate, Feb 10, 2025');
   });
 
   it('filters members by search', async () => {

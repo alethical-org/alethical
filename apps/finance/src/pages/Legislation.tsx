@@ -21,7 +21,7 @@ import {
   Updating,
   type Option,
 } from '../ui/controls';
-import { Arrow, BackLink, Chevron } from '../ui/parts';
+import { Arrow, BackLink, Chevron, SourcesAndUpdates, WithArrow } from '../ui/parts';
 import {
   billCode,
   billHeading,
@@ -292,8 +292,7 @@ export function Legislation(_props: { match: RouteMatch }) {
           </h1>
           <p className="lg-intro">
             Minnesota bills with their versions, actions, authors, committees and recorded roll
-            calls. Source: Minnesota Legislature · revisor.mn.gov
-            {updated ? ` · Updated ${updated}` : ''}
+            calls.
           </p>
         </header>
         <form role="search" onSubmit={submit} className="lg-search">
@@ -404,6 +403,22 @@ export function Legislation(_props: { match: RouteMatch }) {
           )}
         </div>
       </div>
+      <SourcesAndUpdates>
+        <p className="f-sources-line">
+          Minnesota Legislature · revisor.mn.gov{updated ? ` · Updated ${updated}` : ''}
+        </p>
+        <a
+          href="https://www.revisor.mn.gov/bills/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="f-dest f-sources-link"
+        >
+          <span>
+            <WithArrow>Official source website</WithArrow>
+          </span>
+          <span className="f-visually-hidden"> (opens in a new tab)</span>
+        </a>
+      </SourcesAndUpdates>
     </main>
   );
 }

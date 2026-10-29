@@ -17,6 +17,26 @@ export type ReadAnswer<T> =
 
 type Fetch = typeof fetch;
 
+/**
+ * An API read path from its parts, each encoded, with the query values given:
+ * `apiPath(['committees', id, 'payments'], { year })` is
+ * `committees/12/payments?year=2026`. Written as parts, no path text ships in the
+ * build that the link check (scripts/check-built-links.mjs) could mistake for a
+ * page on the public site.
+ */
+export function apiPath(
+  parts: ReadonlyArray<string | number>,
+  query: Record<string, string | number | boolean | null | undefined> = {},
+): string {
+  const path = parts.map((part) => encodeURIComponent(String(part))).join('/');
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== null && value !== undefined && value !== '') search.set(key, String(value));
+  }
+  const rest = search.toString();
+  return rest ? `${path}?${rest}` : path;
+}
+
 /** 1 GET to the shared Alethical API with this account's token. `path` is the
  * API route after `/api/v1/`, written without its leading slash (`people/12`),
  * so a read path is never mistaken for a page link by the build's link check. Every answer that

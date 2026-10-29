@@ -25,7 +25,7 @@ import { centralDateLabel } from '@alethical/shared/moneyLanding';
 import { formatDay, formatMoney } from '@alethical/shared/moneyFormat';
 import { PAYMENT_FILE_LABELS, paymentCopyLines } from '@alethical/shared/paymentCopyDates';
 
-import { useRead } from '../api/read';
+import { apiPath, useRead } from '../api/read';
 import { useLocation } from '../router';
 import { returnTarget } from '../returnContext';
 import type { RouteMatch } from '../routes';
@@ -135,29 +135,41 @@ export function Committee({ match }: { match: RouteMatch }) {
 
   // --- Reads -------------------------------------------------------------------------
   const finance = useRead<CommitteeFinance>(
-    `committees/${id}/finance?year=${year}&include_confirmation=false`,
+    apiPath(['committees', id, 'finance'], { year, include_confirmation: 'false' }),
     { keepPrevious: true },
   );
   const record =
     finance.data && finance.data.registration_number === registration ? finance.data : null;
   const current = record && record.year === year && !finance.updating ? record : null;
-  const filings = useRead<Filings>(`committees/${id}/filings`);
-  const confirmation = useRead<CommitteeConfirmationAnswer>(`committees/${id}/confirmation`);
-  const notices = useRead<unknown>(`committees/${id}/notices?year=${year}`);
-  const unlinked = useRead<unknown>(`committees/${id}/disclosure-statements?year=${year}`, {
-    keepPrevious: true,
-  });
+  const filings = useRead<Filings>(apiPath(['committees', id, 'filings']));
+  const confirmation = useRead<CommitteeConfirmationAnswer>(
+    apiPath(['committees', id, 'confirmation']),
+  );
+  const notices = useRead<unknown>(apiPath(['committees', id, 'notices'], { year }));
+  const unlinked = useRead<unknown>(
+    apiPath(['committees', id, 'disclosure-statements'], { year }),
+    {
+      keepPrevious: true,
+    },
+  );
   const received = useYearPayments<ReceivedPayment>(
-    `committees/${id}/payments?direction=received&year=${year}&sort=date`,
+    apiPath(['committees', id, 'payments'], { direction: 'received', year, sort: 'date' }),
   );
   const made = useYearPayments<MadePayment>(
-    isExp ? `committees/${id}/payments?direction=made&year=${year}&sort=date` : null,
+    isExp
+      ? apiPath(['committees', id, 'payments'], { direction: 'made', year, sort: 'date' })
+      : null,
   );
   const independent = useRead<PaymentPage<IndependentPayment>>(
-    `committees/${id}/payments?direction=independent_by&year=${year}&sort=date&limit=250`,
+    apiPath(['committees', id, 'payments'], {
+      direction: 'independent_by',
+      year,
+      sort: 'date',
+      limit: 250,
+    }),
   );
   const independentEver = useRead<PaymentPage<IndependentPayment>>(
-    `committees/${id}/payments?direction=independent_by&limit=1`,
+    apiPath(['committees', id, 'payments'], { direction: 'independent_by', limit: 1 }),
   );
 
   // --- In-page state ------------------------------------------------------------------
@@ -638,7 +650,9 @@ export function Committee({ match }: { match: RouteMatch }) {
                 onView={(payment) =>
                   setEvidence(
                     evidenceFor(
-                      `${name} · ${formatMoney(payment.amount) ?? AMOUNT_MISSING}`,
+                      // "{payer} to {recipient}" (Design copy 22, Round 23); the
+                      // amount stays in the row it opened from.
+                      payment.vendor_name ? `${name} to ${payment.vendor_name}` : name,
                       PAYMENT_FILE_LABELS.independentExpenditures,
                       independent.data?.fetched_at ?? null,
                       payment.record_number,

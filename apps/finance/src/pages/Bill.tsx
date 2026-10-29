@@ -10,14 +10,14 @@ import {
   type SectionAnchor,
 } from '@alethical/shared/billText';
 
-import { useRead, type Read } from '../api/read';
+import { apiPath, useRead, type Read } from '../api/read';
 import { returnTarget, withFrom } from '../returnContext';
 import { Link, useLocation } from '../router';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { billSession } from '../search/suggestions';
 import { useAddressState } from '../ui/addressState';
 import { Empty, LoadingRows, Refused, Tabs, type Tab } from '../ui/controls';
-import { Arrow, BackLink, LoadingLine, WithArrow } from '../ui/parts';
+import { Arrow, BackLink, LoadingLine, SourcesAndUpdates, WithArrow } from '../ui/parts';
 import {
   actionRow,
   billCode,
@@ -91,7 +91,7 @@ export function Bill({ match }: { match: RouteMatch }) {
   const tab = tabFromParam(address.tab);
   const record = useRead<BillDetail>(billPath(id));
   const votes = useRead<ServedVote[]>(votesPath(id));
-  const authors = useRead<AuthorsAnswer>(`finance/bills/${encodeURIComponent(id)}/authors`);
+  const authors = useRead<AuthorsAnswer>(apiPath(['finance', 'bills', id, 'authors']));
   const [target, setTarget] = useState<SectionAnchor | null>(null);
 
   const bill = record.data;
@@ -187,7 +187,14 @@ export function Bill({ match }: { match: RouteMatch }) {
   ];
 
   return (
-    <Frame back={back}>
+    <Frame
+      back={back}
+      sources={
+        <SourcesAndUpdates>
+          <p className="f-sources-line">{source}</p>
+        </SourcesAndUpdates>
+      }
+    >
       <header className="bl-header">
         <div className="bl-tags">
           {code && <span className="f-code bl-code">{code}</span>}
@@ -220,7 +227,7 @@ export function Bill({ match }: { match: RouteMatch }) {
                   <div className="f-card">
                     <h2 className="f-card-title">Summary</h2>
                     <p className="bl-summary-text">{summary}</p>
-                    <p className="bl-meta">Alethical summary · {source}</p>
+                    <p className="bl-meta">Alethical summary</p>
                   </div>
                   {citations.length > 0 && (
                     <div>
@@ -500,7 +507,6 @@ export function Bill({ match }: { match: RouteMatch }) {
                 <span className="f-visually-hidden"> (opens in a new tab)</span>
               </a>
             )}
-            <p className="bl-meta bl-facts-source">{source}</p>
           </section>
           <AuthorsAccounts
             read={authors}
@@ -516,9 +522,12 @@ export function Bill({ match }: { match: RouteMatch }) {
 
 function Frame({
   back,
+  sources,
   children,
 }: {
   back: { to: string; name: string } | null;
+  /** "Sources and updates", only once the record is shown. */
+  sources?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -527,6 +536,7 @@ function Frame({
         {back && <BackLink to={back.to} name={back.name} />}
         {children}
       </div>
+      {sources}
     </main>
   );
 }

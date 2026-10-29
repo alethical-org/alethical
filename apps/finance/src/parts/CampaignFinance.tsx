@@ -11,7 +11,7 @@ import {
 import { RECORD_DOES_NOT_COVER } from '@alethical/shared/moneyLanding';
 import { formatDay, formatMoney } from '@alethical/shared/moneyFormat';
 
-import { useRead, type Read } from '../api/read';
+import { apiPath, useRead, type Read } from '../api/read';
 import { Link } from '../router';
 import { withFrom } from '../returnContext';
 import { hrefFor, isBuilt } from '../routes';
@@ -120,7 +120,10 @@ export function useFinanceYears(legislatorId: string | null): Read<FinanceYears>
   const to = new Date().getFullYear();
   return useRead<FinanceYears>(
     legislatorId
-      ? `legislators/${encodeURIComponent(legislatorId)}/campaign-finance/years?from=${FIRST_MONEY_YEAR}&to=${to}`
+      ? apiPath(['legislators', legislatorId, 'campaign-finance', 'years'], {
+          from: FIRST_MONEY_YEAR,
+          to,
+        })
       : null,
   );
 }
@@ -252,7 +255,7 @@ export function useAccountYear(
 ): { committee: CommitteeYear | null; read: Read<FinanceYear> } {
   const read = useRead<FinanceYear>(
     legislatorId && registrationNumber && year
-      ? `legislators/${encodeURIComponent(legislatorId)}/campaign-finance?year=${year}`
+      ? apiPath(['legislators', legislatorId, 'campaign-finance'], { year })
       : null,
   );
   const committee =

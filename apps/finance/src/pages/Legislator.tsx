@@ -12,7 +12,7 @@ import { formatDay } from '@alethical/shared/moneyFormat';
 import { centralDateLabel } from '@alethical/shared/moneyLanding';
 import { formatLegislativeYearRange } from '@alethical/shared/sessionLabel';
 
-import { useRead } from '../api/read';
+import { apiPath, useRead } from '../api/read';
 import { copyDate, type ServedCounts } from '../landing/counts';
 import {
   CampaignFinance,
@@ -199,7 +199,11 @@ function Bills({ record, from }: { record: LegislatorRecord; from: string }) {
   const pages = total ? Math.max(1, Math.ceil(total / BILLS_PER_PAGE)) : 1;
   const page = Math.min(Math.max(1, Number(address.bills) || 1), pages);
   const read = useRead<BillRow[]>(
-    `legislators/${encodeURIComponent(record.slug)}/bills?role=chief_author&limit=${BILLS_PER_PAGE}&offset=${(page - 1) * BILLS_PER_PAGE}`,
+    apiPath(['legislators', record.slug, 'bills'], {
+      role: 'chief_author',
+      limit: BILLS_PER_PAGE,
+      offset: (page - 1) * BILLS_PER_PAGE,
+    }),
     { keepPrevious: true },
   );
   const list = useRef<HTMLDivElement>(null);
