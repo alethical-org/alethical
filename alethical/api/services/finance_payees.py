@@ -40,10 +40,10 @@ def _rows(db: Session, release: reader.Release):
     standing = {
         str(entity_id): identities._today(db, entity_id) for entity_id in entity_ids
     }
-    organizations = {
+    entities = {
         old: entity
         for old, entity in standing.items()
-        if entity.kind == "organization" and entity.status == "active"
+        if entity.kind in {"person", "organization"} and entity.status == "active"
     }
     parts = []
     for kind, role in KINDS:
@@ -52,20 +52,29 @@ def _rows(db: Session, release: reader.Release):
         key = cast(confirmation.entity_id, String)
         identity_id = (
             case(
-                {old: str(entity.id) for old, entity in organizations.items()},
+                {old: str(entity.id) for old, entity in entities.items()},
                 value=key,
                 else_=None,
             )
-            if organizations
+            if entities
             else literal(None, String)
         )
         identity_name = (
             case(
-                {old: entity.name for old, entity in organizations.items()},
+                {old: entity.name for old, entity in entities.items()},
                 value=key,
                 else_=None,
             )
-            if organizations
+            if entities
+            else literal(None, String)
+        )
+        identity_kind = (
+            case(
+                {old: entity.kind for old, entity in entities.items()},
+                value=key,
+                else_=None,
+            )
+            if entities
             else literal(None, String)
         )
         statement = (
@@ -74,6 +83,7 @@ def _rows(db: Session, release: reader.Release):
                 literal(role).label("role"),
                 model.vendor_name.label("printed_name"),
                 identity_id.label("identity_id"),
+                identity_kind.label("identity_kind"),
                 func.coalesce(identity_name, model.vendor_name).label("name"),
                 model.amount,
                 model.transaction_date.label("paid_on"),
@@ -86,7 +96,7 @@ def _rows(db: Session, release: reader.Release):
                 model.vendor_name.is_not(None),
             )
         )
-        if organizations:
+        if entities:
             statement = statement.outerjoin(
                 record,
                 (record.fingerprint == printed.fingerprint(kind)) & record.active,
@@ -117,6 +127,7 @@ def directory(
         "state": "unavailable",
         "rows": [],
         "total": None,
+        "counts": {"all": None, "confirmed": None, "printed": None},
         "payment_count": None,
         "has_more": False,
         "limit": limit,
@@ -189,12 +200,6 @@ def directory(
         where.append(rows.c.year == year)
     if payment_type is not None:
         where.append(rows.c.payment_type == payment_type)
-    if tab != "all":
-        where.append(
-            rows.c.identity_id.is_not(None)
-            if tab == "confirmed"
-            else rows.c.identity_id.is_(None)
-        )
     amount = case(
         (func.count(rows.c.amount) == func.count(), func.sum(rows.c.amount)), else_=None
     )
@@ -203,6 +208,7 @@ def directory(
             rows.c.dataset,
             rows.c.role,
             rows.c.identity_id,
+            rows.c.identity_kind,
             rows.c.name,
             func.count().label("payment_count"),
             amount.label("amount"),
@@ -211,12 +217,27 @@ def directory(
             (func.count() - func.count(rows.c.paid_on)).label("undated_payment_count"),
         )
         .where(*where)
-        .group_by(rows.c.dataset, rows.c.role, rows.c.identity_id, rows.c.name)
+        .group_by(
+            rows.c.dataset,
+            rows.c.role,
+            rows.c.identity_id,
+            rows.c.identity_kind,
+            rows.c.name,
+        )
         .subquery()
     )
-    total, payments = db.execute(
+    selected_tab = {
+        "all": literal(True),
+        "confirmed": grouped.c.identity_kind == "organization",
+        "printed": grouped.c.identity_id.is_(None),
+    }[tab]
+    all_count, confirmed_count, printed_count, total, payments = db.execute(
         select(
-            func.count(), func.coalesce(func.sum(grouped.c.payment_count), 0)
+            func.count(),
+            func.count().filter(grouped.c.identity_kind == "organization"),
+            func.count().filter(grouped.c.identity_id.is_(None)),
+            func.count().filter(selected_tab),
+            func.coalesce(func.sum(grouped.c.payment_count).filter(selected_tab), 0),
         ).select_from(grouped)
     ).one()
     ordering = {
@@ -226,6 +247,7 @@ def directory(
     }[sort]
     selected = db.execute(
         select(grouped)
+        .where(selected_tab)
         .order_by(
             *ordering,
             grouped.c.name,
@@ -244,11 +266,13 @@ def directory(
                 **dict(row._mapping),
                 "key": f"{row.dataset}:{row.identity_id or 'printed'}:{row.name}",
                 "record_kind": "confirmed_vendor"
-                if row.identity_id
+                if row.identity_kind == "organization"
+                else "confirmed_person"
+                if row.identity_kind == "person"
                 else "printed_name",
                 "identity": {
                     "id": row.identity_id,
-                    "kind": "organization",
+                    "kind": row.identity_kind,
                     "name": row.name,
                 }
                 if row.identity_id
@@ -265,6 +289,11 @@ def directory(
         "state": "reported" if total else "not_reported",
         "rows": answer,
         "total": total,
+        "counts": {
+            "all": all_count,
+            "confirmed": confirmed_count,
+            "printed": printed_count,
+        },
         "payment_count": int(payments),
         "has_more": offset + len(answer) < total,
     }

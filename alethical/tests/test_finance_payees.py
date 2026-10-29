@@ -100,10 +100,12 @@ def test_payees_confirm_only_selected_current_fingerprints_and_follow_withdrawal
     finance_db.commit()
     confirmed = get(finance_api, tab="confirmed")
     assert confirmed["total"] == 1
+    assert confirmed["counts"] == {"all": 3, "confirmed": 1, "printed": 2}
     assert confirmed["rows"][0]["identity"]["id"] == entity["id"]
     assert confirmed["rows"][0]["amount"] == "1200.5000"
     assert confirmed["rows"][0]["payment_count"] == 1
     printed = get(finance_api, q="Example Media", tab="printed")
+    assert printed["counts"] == {"all": 2, "confirmed": 0, "printed": 2}
     assert {(r["role"], r["amount"]) for r in printed["rows"]} == {
         ("vendor", "20.0000"),
         ("independent_vendor", "900.0000"),
@@ -163,3 +165,26 @@ def test_payees_merge_follows_identity_and_name_search_is_literal(
     assert data["rows"][0]["identity"]["id"] == other["id"]
     assert data["rows"][0]["amount"] == "1210.5000"
     assert get(finance_api, q="%")["total"] == 0
+
+
+def test_confirmed_people_are_people_in_all_recipients_never_vendors(
+    finance_api, board
+):
+    fingerprints = prints(finance_api, "payee_name", VENDOR)
+    entity = create(
+        finance_api, "person", "Confirmed person", payee(board, [fingerprints[52]])
+    )
+    data = get(finance_api)
+    assert data["counts"] == {"all": 2, "confirmed": 0, "printed": 1}
+    person = next(row for row in data["rows"] if row["identity"])
+    assert person["record_kind"] == "confirmed_person"
+    assert person["identity"] == {
+        "id": entity["id"],
+        "name": "Confirmed person",
+        "kind": "person",
+    }
+    assert person["amount"] == "1200.5000"
+    assert get(finance_api, tab="confirmed")["total"] == 0
+    printed = get(finance_api, tab="printed")
+    assert printed["total"] == 1
+    assert printed["counts"] == data["counts"]
