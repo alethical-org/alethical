@@ -94,11 +94,12 @@ in 1 request took 15 seconds. Donors by employer, exactly as printed, is alethic
   email would name the client.
 - **Each entry records whether the account belongs to Alethical's own team.** Finance never
   shows or uses this; it decides only what alethical.com may print (§5).
-- **Sign-in is Google, or a code emailed to the address.** Finance has no passwords. The code
-  length is the shared sign-in service's setting, 8 digits for both sites
-  ([repo-and-service-settings.md](../operations/repo-and-service-settings.md), Supabase
-  sign-in); Finance accepts whatever length arrives.
-  An account that signs in but is not on the list sees the no-access state. Sign-in returns
+- **Sign-in is Google, or a code emailed to the address.** Finance has no passwords.
+  Alethical sends its own 8-digit codes, only to listed addresses, and answers every
+  address alike, so sign-in never shows whether an address is a client; the Supabase
+  account is created or found only after a code is proved
+  ([sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in)).
+  An account that signs in but is not on the list sees the no-access state. Google returns
   to the page's own address, so Supabase's list of allowed return addresses needs
   finance.alethical.com now and alethicalfinance.com at launch.
 - **The server checks the list on every Finance request.** A request carrying an

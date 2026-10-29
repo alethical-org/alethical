@@ -1,4 +1,4 @@
-<!-- describes: api/page.ts, apps/frontend/App.tsx, apps/frontend/src/components/auth/*.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/lib/auth/*.ts, apps/frontend/src/lib/signIn.ts, apps/frontend/src/lib/trackIntent.ts, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/screens/auth/EmailLinkPage.tsx, alethical/api/routers/pending_actions.py, alethical/api/services/auth.py, alethical/api/services/pending_actions.py, alethical/db/models.py -->
+<!-- describes: alethical/api/routers/finance_sign_in.py, alethical/api/services/finance_sign_in.py, api/page.ts, apps/frontend/App.tsx, apps/frontend/src/components/auth/*.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/lib/auth/*.ts, apps/frontend/src/lib/signIn.ts, apps/frontend/src/lib/trackIntent.ts, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/screens/auth/EmailLinkPage.tsx, alethical/api/routers/pending_actions.py, alethical/api/services/auth.py, alethical/api/services/pending_actions.py, alethical/db/models.py -->
 
 # How sign-in works
 
@@ -252,6 +252,70 @@ Exclusion from traffic counts is a separate decision and grants no private acces
 [How Site Metrics works](traffic-guide.md).
 
 Sign out ends only the ordinary session on this browser or device.
+
+## Alethical Finance sign-in
+
+Alethical Finance, the sign-in-only research product, uses the same Supabase accounts. It
+has 2 ways in, Google or a code emailed to the address, and no password or sign-up. Whether
+an address is on Finance's access list names a client, so no answer shows it.
+
+- **Alethical sends the codes, not Supabase.** `POST /api/v1/finance/sign-in/code` checks
+  only that the value is an address and answers 202 at once, for every address, with the
+  same body: a new random challenge. After that answer has gone, 1 of the API process's 2
+  sending threads checks the access list and, for an active entry within the sending caps
+  only, makes an 8-digit code and emails it through Alethical's own sender (Resend, from
+  `ALETHICAL_EMAIL_FROM`). The email carries the code and no link. The delivery holds no
+  request slot.
+- **Sending caps** keep Finance's codes to 40 of the 100 emails a day that Resend's free
+  plan allows, which Contact us, comment alerts and alethical.com's sign-in emails share.
+  An address's codes are at least 50 seconds apart, under the sign-in page's 60-second
+  resend wait, with at most 5 an hour and 10 a day, and Finance sends at most 40 codes a day
+  in total (constants in `alethical/api/services/finance_sign_in.py`). A request held back
+  by a cap gets the same answer as any other, and no email. The log names the cap; the
+  Finance-wide daily cap is logged as a warning and reported to Sentry at most once an hour
+  per API process, without the address.
+- **A held-back request still proves the code already sent.** When a cap holds back a
+  request for an address with a live code, its challenge is bound to that address's newest
+  live code, up to 10 challenges a code. So a reload, a dropped tab or Use another email
+  keeps the code in the inbox working, except when that code already has 10 challenges
+  bound to it (anyone asking for the same address can fill them) or when no live code is
+  held for the address; the page then waits for the new code that request sends, if any.
+- **Only hashes are kept**: each code's salted scrypt hash, with a 10-minute expiry
+  (`finance_sign_in_code`), and a SHA-256 of each bound challenge
+  (`finance_sign_in_challenge`). Each challenge has its own count of wrong tries, and 5
+  wrong tries use up that challenge only, so a stranger's requests and wrong tries can never
+  use up someone else's. A code works once, and allows at most 50 wrong tries across its
+  challenges. Rows stay 2 days so the caps can count them, and older rows are removed when a
+  code is made.
+- **Proving the code goes through the API too** (`POST /api/v1/finance/sign-in/verify`,
+  with the address, the code and the challenge). A wrong, expired, used or used-up code, a
+  wrong, missing or used-up challenge, a never-sent code, an address revoked since, and a
+  code another proof is checking at that moment all get the same 400 answer. Every answer
+  except a sign-in token or "busy", including a 503 from a database or Supabase failure, is
+  sent after the same minimum time (0.5 seconds), waited out without holding a worker
+  thread. Each API process checks at most 3 proofs at once, each keeping its place through
+  that wait; a proof that finds every place taken is answered 429 at once, the same way for
+  every address.
+- **The Finance sign-in page keeps this tab's newest code request** (the address, its
+  challenge and when it was made) in the browser's sessionStorage, and proves the code with
+  that challenge. Reloaded within the code's 10 minutes, the page opens at the code step for
+  the same address. Where the browser refuses storage, the page keeps the request only
+  until it reloads.
+- **A proved code is the only point where the Supabase account is created or found**, with
+  the server's secret key (`SUPABASE_SECRET_KEY`). The API then returns a 1-time Supabase
+  sign-in token of type `email`, which Supabase checks against both a sign-in token and a
+  new account's sign-up token, and the browser turns it into its session. The 2 Supabase
+  calls each wait at most 1.5 seconds to connect and 3 seconds to answer, so they finish
+  inside the browser's 10-second limit. If Supabase cannot finish, the code stays valid for
+  another try.
+- **Nothing is sent or proved until it is switched on**: both routes answer 503 for every
+  address until `ALETHICAL_FINANCE_SIGN_IN_CODE_ENABLED`, `SUPABASE_SECRET_KEY` and the
+  email sender's settings are all set. `ALETHICAL_EMAIL_ALLOWLIST`, when set, holds back
+  every other address's email. Each internet address may make 10 requests a minute,
+  counted across both routes together (`ALETHICAL_FINANCE_SIGN_IN_RATE_PER_MIN`); a failed
+  email is logged and never reported to the caller.
+- Every Finance request checks the list again
+  ([backend-stack.md § 4. Sign-in](../architecture/backend-stack.md#4-sign-in)).
 
 ## Live settings and email sender
 
