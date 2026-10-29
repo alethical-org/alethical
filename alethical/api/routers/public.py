@@ -802,39 +802,49 @@ def member_slug_by_legislator(db: Session, legislator_ids) -> dict[str, str]:
     return {str(legislator_id): slug for legislator_id, slug in rows}
 
 
-def member_party_by_legislator(db: Session, legislator_ids) -> dict[str, str | None]:
-    """Current/latest party per legislator id, batched in one query for a whole
-    roll call (no per-member N+1). Picks each legislator's current period, else
-    the most recent one, via DISTINCT ON. Party is served raw (prod has 'DFL',
-    'R', and a stray 'Republican'). Feeds the /votes per-member records (#83)."""
-    ids = list(legislator_ids)
-    if not ids:
+def party_at_vote(db: Session, bill, events) -> dict[tuple, str | None]:
+    """Parties held for this Legislature/chamber and date, with ambiguity withheld."""
+    voters = {record.legislator_id for event in events for record in event.records}
+    if not voters:
         return {}
+    period = LegislatorServicePeriod
+    session = LegislativeSession
     rows = db.execute(
         select(
-            LegislatorServicePeriod.legislator_id,
-            LegislatorServicePeriod.party,
+            period.legislator_id,
+            period.chamber_id,
+            period.party,
+            period.start_date,
+            period.end_date,
+            session.year_start,
+            session.year_end,
         )
-        .join(
-            LegislativeSession,
-            LegislatorServicePeriod.session_id == LegislativeSession.id,
-        )
-        .where(LegislatorServicePeriod.legislator_id.in_(ids))
-        .distinct(LegislatorServicePeriod.legislator_id)
-        # Order the current period first; among non-current periods, the newest
-        # session wins. service_period.start_date is always null (#343), so the
-        # session's populated start_date is what makes the pick deterministic.
-        # period_sequence (later period within a session) then the row id are
-        # final tiebreakers so two periods in the same session never tie.
-        .order_by(
-            LegislatorServicePeriod.legislator_id,
-            LegislatorServicePeriod.is_current.desc(),
-            LegislativeSession.start_date.desc().nullslast(),
-            LegislatorServicePeriod.period_sequence.desc(),
-            LegislatorServicePeriod.id.desc(),
+        .join(session, session.id == period.session_id)
+        .where(
+            period.legislator_id.in_(voters),
+            session.jurisdiction_id == bill.session.jurisdiction_id,
+            session.session_number == bill.session.session_number,
         )
     ).all()
-    return {str(legislator_id): party for legislator_id, party in rows}
+    held = defaultdict(list)
+    for row in rows:
+        held[(row.legislator_id, row.chamber_id)].append(row)
+    result = {}
+    for event in events:
+        day = event.occurred_at.date() if event.occurred_at else None
+        for record in event.records:
+            parties = {
+                row.party
+                for row in held[(record.legislator_id, event.chamber_id)]
+                if day is not None
+                and row.year_start <= day.year <= row.year_end
+                and (row.start_date is None or row.start_date <= day)
+                and (row.end_date is None or day <= row.end_date)
+            }
+            result[(event.id, record.legislator_id)] = (
+                next(iter(parties)) if len(parties) == 1 else None
+            )
+    return result
 
 
 def chamber_slug_by_id(db: Session, chamber_ids) -> dict[str, str | None]:
@@ -2545,6 +2555,51 @@ def same_legislature_session_ids(db: Session, session_id) -> tuple:
     )
 
 
+def bill_actions_payload(db: Session, actions, cross_references=None):
+    chambers = chamber_slug_by_id(db, [action.chamber_id for action in actions])
+    links = cross_references or {}
+    return [
+        {
+            "action_number": action.action_number,
+            "action_text": action.action_text,
+            "action_group": action.action_group,
+            "action_description": action.action_description,
+            "committee_name": action.committee_name,
+            "committee_id": str(action.committee_id) if action.committee_id else None,
+            "chamber_id": str(action.chamber_id) if action.chamber_id else None,
+            "chamber": chambers.get(str(action.chamber_id)),
+            "action_at": action.action_at,
+            "journal_page": action.journal_page,
+            "roll_call_text": action.roll_call_text,
+            **(
+                {"cross_references": links[action.action_number]}
+                if links.get(action.action_number)
+                else {}
+            ),
+        }
+        for action in actions
+    ]
+
+
+def summary_source_version(bill, enrichment):
+    """Name only the saved version explicitly linked to this summary."""
+    if enrichment is None or enrichment.bill_version_id is None:
+        return None
+    version = next(
+        (item for item in bill.versions if item.id == enrichment.bill_version_id), None
+    )
+    if version is None:
+        return None
+    return {
+        "id": str(version.id),
+        "version_code": version.version_code,
+        "version_name": version.version_name,
+        "document_date": version.document_date,
+        "html_url": version.html_url,
+        "pdf_url": version.pdf_url,
+    }
+
+
 @router.get("/bills/{bill_id}", response_model=DetailResponse)
 def bill_detail(
     bill_id: str,
@@ -2671,6 +2726,7 @@ def bill_detail(
             citation_section_orders,
         ),
         "ai_summary": ai_enrichment.content_json if ai_enrichment else None,
+        "summary_source_version": summary_source_version(row, ai_enrichment),
     }
     if "all_sponsors" in include_set:
         payload["all_sponsors"] = [
@@ -2687,26 +2743,7 @@ def bill_detail(
         # Resolved once for the whole bill, then attached per row, so the Actions
         # timeline can link a "See also HF 2446" to that bill's page (#745).
         cross_references = action_cross_references(db, row) or {}
-        payload["actions"] = [
-            {
-                "action_number": action.action_number,
-                "action_text": action.action_text,
-                "action_group": action.action_group,
-                "action_description": action.action_description,
-                "committee_name": action.committee_name,
-                "action_at": action.action_at,
-                "journal_page": action.journal_page,
-                "roll_call_text": action.roll_call_text,
-                # Omitted entirely on the ~97% of rows that name no bill, rather
-                # than sent as null on every one of them.
-                **(
-                    {"cross_references": links}
-                    if (links := cross_references.get(action.action_number))
-                    else {}
-                ),
-            }
-            for action in row.actions
-        ]
+        payload["actions"] = bill_actions_payload(db, row.actions, cross_references)
     if "versions" in include_set:
         payload["versions"] = bill_version_payloads(row)
     return DetailResponse(
@@ -2718,19 +2755,7 @@ def bill_detail(
 def bill_actions(bill_id: str, db: Session = Depends(get_db)):
     bill_row = get_bill_by_key(db, bill_id)
     row = db.scalar(bill_detail_stmt(bill_row.id))
-    data = [
-        {
-            "action_number": action.action_number,
-            "action_text": action.action_text,
-            "action_group": action.action_group,
-            "action_description": action.action_description,
-            "committee_name": action.committee_name,
-            "action_at": action.action_at,
-            "journal_page": action.journal_page,
-            "roll_call_text": action.roll_call_text,
-        }
-        for action in row.actions
-    ]
+    data = bill_actions_payload(db, row.actions)
     return CollectionResponse(
         data=data, page={"limit": len(data), "next_cursor": None, "has_more": False}
     )
@@ -2829,61 +2854,74 @@ def bill_version_text(
     )
 
 
+def vote_payloads(db: Session, bill, events):
+    voter_ids = {record.legislator_id for event in events for record in event.records}
+    names = member_name_by_legislator(db, voter_ids)
+    parties = party_at_vote(db, bill, events)
+    slugs = member_slug_by_legislator(db, voter_ids)
+    chambers = chamber_slug_by_id(db, [event.chamber_id for event in events])
+    return [
+        {
+            "id": str(event.id),
+            "motion_text": event.motion_text,
+            "result_text": event.result_text,
+            "chamber": chambers.get(str(event.chamber_id)),
+            "yes_count": event.yes_count,
+            "no_count": event.no_count,
+            "absent_count": event.absent_count,
+            "excused_count": event.excused_count,
+            "present_count": event.present_count,
+            "occurred_at": event.occurred_at,
+            "official_url": event.official_url,
+            "records": [
+                {
+                    "legislator_id": str(record.legislator_id),
+                    "legislator_name": names.get(str(record.legislator_id)),
+                    "slug": slugs.get(str(record.legislator_id)),
+                    "party": parties.get((event.id, record.legislator_id)),
+                    "vote_value": record.vote_value.value,
+                }
+                for record in event.records
+            ],
+        }
+        for event in events
+    ]
+
+
 @router.get("/bills/{bill_id}/votes", response_model=CollectionResponse)
 def bill_votes(
     bill_id: str,
     db: Session = Depends(get_db),
     response: Response = None,  # type: ignore[assignment]
 ):
-    # Vote records carry no per-user data — always publicly cacheable.
     response.headers["Cache-Control"] = PUBLIC_CACHE_CONTROL
     bill_row = get_bill_by_key(db, bill_id)
     row = db.scalar(bill_detail_stmt(bill_row.id))
-    # Resolve each voter's name + party once for the whole roll call, batched
-    # across every vote event, so party-grouped attribution renders (#83).
-    voter_ids = {
-        record.legislator_id
-        for vote_event in row.vote_events
-        for record in vote_event.records
-    }
-    names = member_name_by_legislator(db, voter_ids)
-    parties = member_party_by_legislator(db, voter_ids)
-    slugs = member_slug_by_legislator(db, voter_ids)
-    chambers = chamber_slug_by_id(
-        db, {vote_event.chamber_id for vote_event in row.vote_events}
-    )
-    data = [
-        {
-            "id": str(vote_event.id),
-            "motion_text": vote_event.motion_text,
-            "result_text": vote_event.result_text,
-            # Definitive chamber for this roll call (never inferred from tallies).
-            "chamber": chambers.get(str(vote_event.chamber_id)),
-            "yes_count": vote_event.yes_count,
-            "no_count": vote_event.no_count,
-            "absent_count": vote_event.absent_count,
-            "excused_count": vote_event.excused_count,
-            "present_count": vote_event.present_count,
-            "occurred_at": vote_event.occurred_at,
-            "official_url": vote_event.official_url,
-            # Per-member roll call (#83). Records are eager-loaded by
-            # bill_detail_stmt; only yes/no records are ingested today, so a
-            # "did-not-vote" state is deliberately not synthesized here.
-            "records": [
-                {
-                    "legislator_id": str(record.legislator_id),
-                    "legislator_name": names.get(str(record.legislator_id)),
-                    "slug": slugs.get(str(record.legislator_id)),
-                    "party": parties.get(str(record.legislator_id)),
-                    "vote_value": record.vote_value.value,
-                }
-                for record in vote_event.records
-            ],
-        }
-        for vote_event in row.vote_events
-    ]
+    data = vote_payloads(db, row, row.vote_events)
     return CollectionResponse(
         data=data, page={"limit": len(data), "next_cursor": None, "has_more": False}
+    )
+
+
+@router.get("/votes/{vote_event_id}", response_model=DetailResponse)
+def vote_detail(
+    vote_event_id: UUID,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    event = db.scalar(
+        select(schema.VoteEvent)
+        .where(schema.VoteEvent.id == vote_event_id)
+        .options(selectinload(schema.VoteEvent.records))
+    )
+    if event is None:
+        raise HTTPException(404, "vote not found")
+    response.headers["Cache-Control"] = PUBLIC_CACHE_CONTROL
+    bill = db.get(Bill, event.bill_id)
+    if bill is None:
+        raise HTTPException(404, "bill not found")
+    return DetailResponse(
+        data={"bill_id": bill.bill_key, **vote_payloads(db, bill, [event])[0]}
     )
 
 
@@ -5736,7 +5774,7 @@ def search(
 ):
     type_set = {item.strip() for item in types.split(",")}
     session_row = get_session_by_slug(db, session)
-    payload: dict[str, list[dict]] = {"bills": [], "legislators": []}
+    payload: dict[str, Any] = {"bills": [], "legislators": [], "bill_total": None}
     if "bills" in type_set:
         number_clause = bill_number_clause(q)
         # Relevance-rank a free-text search; a bill-number lookup stays exact.
@@ -5749,9 +5787,12 @@ def search(
             keyword_clause = keyword_search_clause(BILL_SEARCH_COLUMNS, q)
             if keyword_clause is not None:
                 bills_stmt = bills_stmt.where(keyword_clause)
+        rows, _, total = paginated_scalars_with_total(
+            db, bills_stmt, limit=limit, offset=0
+        )
+        payload["bill_total"] = total
         payload["bills"] = [
-            bill_list_item(row).model_dump(exclude_none=True)
-            for row in db.scalars(bills_stmt.limit(limit)).all()
+            bill_list_item(row).model_dump(exclude_none=True) for row in rows
         ]
     if "legislators" in type_set:
         legislators_stmt = legislator_directory_stmt(session_row.id)
