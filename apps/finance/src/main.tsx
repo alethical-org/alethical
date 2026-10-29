@@ -9,6 +9,7 @@ import { NotConfigured } from './pages/Status';
 import './styles.css';
 
 const config = readConfig(import.meta.env);
+const screens = screensApproved(import.meta.env);
 const root = createRoot(document.getElementById('root')!);
 
 if (!config) {
@@ -21,8 +22,9 @@ if (!config) {
         apiBaseUrl={config.apiBaseUrl}
         googleSignIn={config.googleSignIn}
         emailSignIn={config.emailSignIn}
+        screens={screens}
       >
-        <FinanceSite screens={screensApproved(import.meta.env)} />
+        <FinanceSite screens={screens} />
       </SessionProvider>
     </StrictMode>,
   );

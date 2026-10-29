@@ -1,24 +1,24 @@
-import { safeReturnPath } from '../routes';
+import { homePath, safeReturnPath } from '../routes';
 
 const KEY = 'alethical-finance-return-path';
 
 /** Remember where to go after Google or an emailed link brings the reader back.
  * Kept for the whole browser, not 1 tab, because an emailed link opens a new tab;
  * it holds only a Finance address, and is cleared once used. */
-export function rememberReturnPath(path: string) {
+export function rememberReturnPath(path: string, screens: boolean) {
   try {
-    window.localStorage.setItem(KEY, safeReturnPath(path));
+    window.localStorage.setItem(KEY, safeReturnPath(path, screens));
   } catch {
     // Storage can be unavailable; the reader then lands on Finance home.
   }
 }
 
-export function takeReturnPath(): string {
+export function takeReturnPath(screens: boolean): string {
   try {
     const value = window.localStorage.getItem(KEY);
     window.localStorage.removeItem(KEY);
-    return safeReturnPath(value);
+    return safeReturnPath(value, screens);
   } catch {
-    return '/';
+    return homePath(screens);
   }
 }

@@ -18,9 +18,9 @@ export const RESEND_WAIT_SECONDS = 60;
  * reload within a code's lifetime returns to the code step for the same request.
  */
 export function SignIn() {
-  const { supabase, apiBaseUrl, googleSignIn, emailSignIn, status } = useFinanceSession();
+  const { supabase, apiBaseUrl, googleSignIn, emailSignIn, screens, status } = useFinanceSession();
   const location = useLocation();
-  const next = safeReturnPath(location.searchParams.get('next'));
+  const next = safeReturnPath(location.searchParams.get('next'), screens);
   const googleCancelled = location.searchParams.get('google') === 'cancelled';
   // This tab's newest code request; the code is proved with its challenge.
   const [request, setRequest] = useState(readCodeRequest);
@@ -76,7 +76,7 @@ export function SignIn() {
     setBusy('google');
     setError(null);
     forgetCodeRequest();
-    rememberReturnPath(next);
+    rememberReturnPath(next, screens);
     const { error: failure } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {

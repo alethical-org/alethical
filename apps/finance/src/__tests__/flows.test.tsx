@@ -8,6 +8,7 @@ import { readCodeRequest } from '../auth/codeRequest';
 import { rememberReturnPath, takeReturnPath } from '../auth/returnPath';
 import { SessionProvider } from '../auth/session';
 import { STORAGE_KEY } from '../auth/supabase';
+import { navigate } from '../router';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -96,7 +97,7 @@ async function render(path: string, client: SupabaseClient, fetcher: typeof fetc
   vi.stubGlobal('fetch', fetcher);
   await act(async () => {
     root.render(
-      <SessionProvider supabase={client} apiBaseUrl={API} googleSignIn emailSignIn>
+      <SessionProvider supabase={client} apiBaseUrl={API} googleSignIn emailSignIn screens>
         <App />
       </SessionProvider>,
     );
@@ -123,6 +124,10 @@ function accepted(challenge = 'challenge-1') {
 
 const text = () => container.textContent ?? '';
 
+/** How many times the access check was asked; pages make their own reads too. */
+const accessChecks = (fetcher: ReturnType<typeof vi.fn>) =>
+  fetcher.mock.calls.filter(([url]) => String(url).endsWith('/finance/access')).length;
+
 describe('the access answer', () => {
   it('keeps the page when a returning tab hands over the same session again', async () => {
     const supabase = fakeSupabase(session('token-1'));
@@ -131,7 +136,7 @@ describe('the access answer', () => {
     const heading = container.querySelector('h1');
     await act(async () => supabase.emit('SIGNED_IN', session('token-1')));
     expect(container.querySelector('h1')).toBe(heading);
-    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(accessChecks(fetcher)).toBe(1);
   });
 
   it('re-checks a refreshed token quietly and keeps the page if that check fails', async () => {
@@ -140,8 +145,8 @@ describe('the access answer', () => {
     await render('/money', supabase.client, fetcher);
     await act(async () => supabase.emit('TOKEN_REFRESHED', session('token-2')));
     await act(async () => {});
-    expect(fetcher).toHaveBeenCalledTimes(2);
-    expect(text()).toContain('This page is waiting for its final design.');
+    expect(accessChecks(fetcher)).toBe(2);
+    expect(container.querySelector('h1')?.textContent).toBe('Campaign money');
     expect(text()).not.toContain('Checking access');
   });
 
@@ -252,7 +257,7 @@ describe('sign-in steps', () => {
     expect(document.activeElement?.id).toBe('code');
     // A code finishes on this page, which still holds where to go next; nothing is saved.
     expect(new URLSearchParams(window.location.search).get('next')).toBe('/lobbying');
-    expect(takeReturnPath()).toBe('/');
+    expect(takeReturnPath(true)).toBe('/home');
   });
 
   it('stays busy after a correct code until access is known', async () => {
@@ -285,7 +290,7 @@ describe('sign-in steps', () => {
     expect(button('Signing in…').disabled).toBe(true);
     await act(async () => answer(new Response(null, { status: 200 })));
     await act(async () => {});
-    expect(window.location.pathname).toBe('/');
+    expect(window.location.pathname).toBe('/home');
     expect(readCodeRequest()).toBeNull();
   });
 
@@ -472,11 +477,8 @@ describe('sign-in steps', () => {
 
   it('moves focus to the new screen’s heading', async () => {
     await render('/money', fakeSupabase(session('token-1')).client, answering(200));
-    const lobbying = [...container.querySelectorAll('a')].find(
-      (a) => a.textContent === 'Lobbying',
-    )!;
-    await act(async () => lobbying.click());
-    expect(document.activeElement?.textContent).toBe('Lobbying');
+    await act(async () => navigate('/no-such-page'));
+    expect(document.activeElement?.textContent).toBe('We couldn’t find that page');
     expect(document.activeElement?.tagName).toBe('H1');
   });
 });
@@ -495,7 +497,7 @@ describe('Google and sign-out', () => {
         redirectTo: `${window.location.origin}/auth/return?source=google`,
       },
     });
-    expect(takeReturnPath()).toBe('/money/committees/7');
+    expect(takeReturnPath(true)).toBe('/money/committees/7');
   });
 
   it('signs out this browser only, and clears the saved session if Supabase cannot', async () => {
@@ -544,7 +546,7 @@ describe('the return page', () => {
     '/auth/return?token_hash=hash-1&type=email',
   ])('never uses a sign-in token from a link: %s', async (path) => {
     const supabase = fakeSupabase(null);
-    rememberReturnPath('/lobbying');
+    rememberReturnPath('/money', true);
     await render(path, supabase.client, answering(401));
     expect(window.location.href).not.toContain('hash-1');
     expect(supabase.auth.verifyOtp).not.toHaveBeenCalled();
@@ -567,7 +569,7 @@ describe('the return page', () => {
   });
 
   it('finishes Google at the page that was asked for', async () => {
-    rememberReturnPath('/bills/94-2025-SF1832');
+    rememberReturnPath('/bills/94-2025-SF1832', true);
     await render(
       '/auth/return?source=google',
       fakeSupabase(session('token-1')).client,
@@ -578,6 +580,6 @@ describe('the return page', () => {
 
   it('never returns to another site, even if storage was changed', () => {
     window.localStorage.setItem('alethical-finance-return-path', '//example.com/money');
-    expect(takeReturnPath()).toBe('/');
+    expect(takeReturnPath(true)).toBe('/home');
   });
 });
