@@ -21,6 +21,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import uuid
 from contextlib import contextmanager, nullcontext
 from datetime import datetime, timezone
@@ -33,6 +34,9 @@ DEFAULT_STATE = (
     Path.home() / "Library/Application Support/alethical-worktree-maintenance"
 )
 PROJECT = "alethical"
+# A turn hook waits this long for another session's brief hold on the lock; a
+# longer hold (a sweep) still blocks, so a folder in use is never left unrecorded.
+HOOK_LOCK_WAIT_SECONDS = 5
 ADMITTED_PATHS: set[Path] = set()
 PROTECTED_PATHS: set[Path] = set()
 PROJECTS = ("alethical", "commercialdeals")
@@ -129,10 +133,22 @@ def write_json(path: Path, value: dict) -> None:
 
 
 @contextmanager
-def locked(state: Path, wait: bool = False):
+def locked(state: Path, wait: bool = False, timeout: float = 0):
+    """Hold the cleanup lock; without `wait`, give up after `timeout` seconds."""
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
     with (state / "cleanup.lock").open("a") as stream:
-        fcntl.flock(stream, fcntl.LOCK_EX | (0 if wait else fcntl.LOCK_NB))
+        if wait:
+            fcntl.flock(stream, fcntl.LOCK_EX)
+        else:
+            deadline = time.monotonic() + timeout
+            while True:
+                try:
+                    fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    if time.monotonic() >= deadline:
+                        raise
+                    time.sleep(0.05)
         yield
 
 
@@ -1111,7 +1127,12 @@ def main() -> int:
             nullcontext()
             if args.command in ("inspect", "status")
             or (args.command == "sweep" and not args.apply)
-            else locked(args.state, wait=args.command == "sweep")
+            else locked(
+                args.state,
+                wait=args.command == "sweep",
+                # Turn hooks from parallel sessions often collide for a moment.
+                timeout=HOOK_LOCK_WAIT_SECONDS if args.command == "hook" else 0,
+            )
         )
         with guard:
             configure_project(args.project, args.repo, args.state)

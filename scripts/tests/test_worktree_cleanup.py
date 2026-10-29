@@ -853,6 +853,36 @@ class CleanupTest(unittest.TestCase):
         thread.join(timeout=2)
         self.assertTrue(completed.is_set())
 
+    def test_hook_lock_waits_for_a_brief_hold_then_gives_up_on_a_long_one(self):
+        import threading
+
+        acquired = threading.Event()
+        release = threading.Event()
+
+        def holder(seconds):
+            with self.cleanup.locked(self.state, wait=True):
+                acquired.set()
+                release.wait(seconds)
+
+        thread = threading.Thread(target=holder, args=(0.2,))
+        thread.start()
+        acquired.wait(2)
+        with self.cleanup.locked(self.state, timeout=2):
+            pass
+        thread.join(timeout=2)
+
+        acquired.clear()
+        thread = threading.Thread(target=holder, args=(5,))
+        thread.start()
+        acquired.wait(2)
+        try:
+            with self.assertRaises(BlockingIOError):
+                with self.cleanup.locked(self.state, timeout=0.2):
+                    pass
+        finally:
+            release.set()
+            thread.join(timeout=2)
+
     def test_release_needs_active_matching_scheduler(self):
         with self.assertRaises((OSError, self.cleanup.CleanupError)):
             self.cleanup.require_scheduler(self.repo, self.state)

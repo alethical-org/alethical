@@ -221,7 +221,10 @@ It never blocks a reply or asks an agent to wake up just to record that default.
 A failed finish-record write leaves cleanup unauthorized and reports only a local
 error. Failure to record resumed work remains a safety stop: the hook cannot let
 editing start while it might still have a queued deletion. This is distinct from
-routine housekeeping, and the agent must repair it before using the folder.
+routine housekeeping, and the agent must repair it before using the folder. Before
+that stop, the hook waits up to 5 seconds for the shared cleanup lock, so 2
+sessions' hooks firing together no longer block a turn; a lock held longer, as
+during a sweep, still stops it.
 
 The owner retains completed external/Claude and Codex folders for follow-up.
 Only a user cleanup request authorizes a release or archive after acceptance.
