@@ -67,10 +67,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
-from typing import Optional
+from typing import Literal, Optional
 from uuid import UUID
 
-from sqlalchemy import Select, func, literal, select, true, union_all
+from sqlalchemy import (
+    Numeric,
+    Select,
+    case,
+    cast,
+    func,
+    literal,
+    select,
+    true,
+    union_all,
+)
 from sqlalchemy.orm import Session, aliased
 
 from alethical.api.services.independent_spending import REPORTED, UNAVAILABLE
@@ -111,11 +121,19 @@ ORDERED_BY_PERIOD_END = "period_end"
 #: ``filed_date``, because a caller told the list is in filing order would read the
 #: undated rows as having arrived when their period closed.
 ORDERED_BY_FILED_DATE_THEN_PERIOD_END = "filed_date_then_period_end"
-#: The only order the committees list has, served on every page so a caller never has to
-#: assume one. Alphabetical by the name as filed, and there is deliberately no way to ask
-#: for another: ordering 1,603 filers by money would rank filing calendars rather than
-#: fundraising, because these filers file to different ones (§7).
+#: The default order of the committees list, served on every page so a caller never has
+#: to assume one. Alphabetical by the name as filed.
 ORDERED_BY_NAME = "name"
+#: The other order the committees list offers: the Board's registration number, ascending
+#: in numeric order. Served as the order a page came back in, beside ``ORDERED_BY_NAME``.
+ORDERED_BY_REGISTRATION_NUMBER = "registration_number"
+#: The values of the committees list's ``sort`` parameter, which are the only 2 orders it
+#: offers. Neither is an amount and none ever will be: ordering 1,603 filers by money
+#: would rank filing calendars rather than fundraising, because these filers file to
+#: different ones (§7).
+CommitteeSort = Literal["name", "registration"]
+SORT_BY_NAME: CommitteeSort = "name"
+SORT_BY_REGISTRATION: CommitteeSort = "registration"
 
 
 def _utc_today() -> date:
@@ -989,16 +1007,30 @@ def committees(
     kind: Optional[str] = None,
     query: Optional[str] = None,
     release=None,
+    sort: CommitteeSort = SORT_BY_NAME,
 ) -> CommitteesPage:
-    """One page of the register, ordered by the filed name, A to Z.
+    """One page of the register, ordered by the filed name, A to Z, unless ``sort`` says
+    otherwise.
 
-    **Ordered by name and nothing else, with no way to ask for another order.** Not a
+    **2 orders, both over the register's own columns, and never one over money.** Not a
     simplification to revisit: any order over money would compare filers who file to
     different calendars, and 2 periods on this register can end nearly 7 months apart
-    (§7). Alphabetical is also the only order that is stable while a reader pages, since
-    names are unique within a snapshot -- checked on the live register, 0 duplicates in
-    1,603 rows -- so ``name`` alone is a deterministic tie-breaker and no second sort key
-    is needed.
+    (§7). ``name`` is the default and the order every caller that passes no ``sort`` has
+    always received. ``registration`` is the Board's registration number in numeric
+    order, so 9999 comes before 10000 although the column is text.
+
+    **Each order is a total order, so paging through either one never repeats or skips a
+    filer.** Names are unique within a snapshot -- checked on the live register, 0
+    duplicates in 1,603 rows -- so ``name`` alone needs no second key. A registration
+    number is the table's key within a snapshot, so it is unique by construction; its
+    numeric reading is the first key and the text itself is the second, which settles
+    2 spellings of one number (``007`` and ``7``).
+
+    **A number with anything but digits in it reads as no number and goes after every
+    numeric one.** The loader keeps whatever the Board printed and checks only that it is
+    not empty, so the column's type promises nothing. The live register read on 28 Oct
+    2026 held 1,607 numbers, every one 5 digits with no leading zero: the guard is not an
+    observation of today's data.
 
     ``kind`` filters to one of the Board's 3 register kinds. There are only 3, and that
     is the source's shape rather than something our loader dropped: independent-
@@ -1014,11 +1046,16 @@ def committees(
     looking at a set that has been replaced, and "Minnesota registers nobody" is a claim
     about the state we would be making about ourselves.
     """
+    ordered_by = (
+        ORDERED_BY_REGISTRATION_NUMBER
+        if sort == SORT_BY_REGISTRATION
+        else ORDERED_BY_NAME
+    )
     snapshot = live_filings_snapshot(db)
     if snapshot is None:
         return CommitteesPage(
             state=UNAVAILABLE,
-            ordered_by=ORDERED_BY_NAME,
+            ordered_by=ordered_by,
             committees=(),
             limit=limit,
             offset=offset,
@@ -1038,7 +1075,7 @@ def committees(
         # than a second one, so a caller sees one explanation for both.
         return CommitteesPage(
             state=summary.state,
-            ordered_by=ORDERED_BY_NAME,
+            ordered_by=ordered_by,
             committees=(),
             limit=limit,
             offset=offset,
@@ -1081,7 +1118,7 @@ def committees(
             func.count().over(),
         )
         .where(*filters)
-        .order_by(filer.name.asc())
+        .order_by(*_committee_order(filer, sort))
         .limit(limit + 1)
         .offset(offset)
     ).all()
@@ -1095,7 +1132,7 @@ def committees(
     sub_types = sub_types_for(db, release, (row[0] for row in page))
     return CommitteesPage(
         state=REPORTED,
-        ordered_by=ORDERED_BY_NAME,
+        ordered_by=ordered_by,
         committees=tuple(_committee_row(row, sub_types=sub_types) for row in page),
         limit=limit,
         offset=offset,
@@ -1108,6 +1145,23 @@ def committees(
         release_id=getattr(release, "id", None),
         reason=None,
     )
+
+
+def _committee_order(filer, sort: CommitteeSort) -> tuple:
+    """The ``ORDER BY`` terms for one of the committees list's 2 orders."""
+    if sort == SORT_BY_REGISTRATION:
+        number = filer.registration_number
+        return (
+            # Digits only, read as a number, so the text "9999" sorts below "10000".
+            # The ``CASE`` keeps the cast from ever seeing a value with a letter in it,
+            # and ``numeric`` rather than ``bigint`` because the column allows 20
+            # characters, which overflows a 64-bit integer.
+            case((number.regexp_match("^[0-9]+$"), cast(number, Numeric)))
+            .asc()
+            .nulls_last(),
+            number.asc(),
+        )
+    return (filer.name.asc(),)
 
 
 def _committee_row(row, *, sub_types: dict[str, str]) -> CommitteeRow:
