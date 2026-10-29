@@ -580,6 +580,34 @@ def test_without_the_boards_file_nothing_is_called_gone(finance_api, finance_db,
     assert unavailable.status_code == 503
 
 
+@pytest.mark.parametrize("declared_rows", [0, 4])
+def test_pruned_source_is_unavailable_but_genuine_empty_file_is_empty(
+    finance_api, finance_db, board, declared_rows
+):
+    selected = prints(finance_api)
+    person = create(finance_api, "person", DONOR, donor(board, [selected[31]]))
+    finance_db.execute(
+        text("UPDATE cf_snapshot SET row_count = :count WHERE id = :id"),
+        {"count": declared_rows, "id": board.contributions_snapshot_id},
+    )
+    finance_db.execute(
+        text("DELETE FROM cf_contribution_row WHERE snapshot_id = :id"),
+        {"id": board.contributions_snapshot_id},
+    )
+    finance_db.commit()
+    response = finance_api.get(
+        BASE + "/records", params={"record_kind": "donor_name", "record_key": DONOR}
+    )
+    [record] = get(finance_api, person["id"])["confirmations"][0]["records"]
+    if declared_rows:
+        assert response.status_code == 503, response.json()
+        assert (record["rows"], record["in_board_file"]) == (None, None)
+    else:
+        assert response.status_code == 200
+        assert response.json()["data"]["records"] == 0
+        assert (record["rows"], record["in_board_file"]) == (0, False)
+
+
 def test_names_are_listed_and_identifiers_looked_up(finance_api, board):  # noqa: F811
     by_name = finance_api.get(
         f"{BASE}/lookup", params={"record_kind": "donor_name", "record_key": DONOR}
