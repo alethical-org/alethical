@@ -76,7 +76,7 @@ function mount(page = '1') {
 describe('Short posts reader paths', () => {
   it('shows the empty archive without promising unpublished articles', () => {
     const { element, root } = mount();
-    expect(element.textContent).toContain('No short posts yet.');
+    expect(element.textContent).toContain('No articles yet.');
     expect(element.querySelector('a')?.getAttribute('href')).toBe('/blog');
     expect(element.querySelector('nav')).toBeNull();
     act(() => root.unmount());

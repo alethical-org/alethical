@@ -4,10 +4,10 @@ import { pageMetadata, publicPageUrl, titleFor, type PageMetadata } from './shar
 
 export function eventsPageMetadata(): PageMetadata {
   return pageMetadata({
-    title: titleFor('Events'),
-    socialTitle: 'Alethical Events',
+    title: titleFor('Debates and recordings'),
+    socialTitle: 'Debates and recordings',
     description:
-      'Public discussions and events hosted by Alethical. Find dates, locations and registration links.',
+      'Debates and recordings hosted by Alethical. Watch published replays and find event details.',
     canonicalPath: EVENTS_PATH,
   });
 }

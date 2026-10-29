@@ -2,7 +2,7 @@
 
 # How the top bar works (plain English)
 
-**Net:** Most pages carry the same bar: **Money · Search ▾ · Blog · About ▾**, then **Sign in**, or
+**Net:** Most pages carry the same bar: **Media · Money · Search ▾ · About ▾**, then **Sign in**, or
 your account control once you are signed in. The bar is drawn from one typed list of pages
 (`apps/frontend/src/navigation/ia.ts`), so a page is in the bar because that list says so, and
 addresses are resolved by one router (`apps/frontend/src/navigation/webRoutes.ts`).
@@ -20,12 +20,12 @@ shared navigation described here. See [services-guide.md](services-guide.md).
 ## What is in the bar
 
 - **Money** is a plain link to `/money`, before Search. It uses the same direct-link
-  treatment as Blog. Neither direct destination carries a NEW label.
+  treatment as Media. Neither direct destination carries a NEW label.
 - **Search ▾** opens a dropdown of 4 live rows, each with a one-line description: **Bills and votes**
   (`/bills`), **Legislators** (`/legislators`), **Find my candidates** (`/candidates`), and **Find my legislators** (`/find-my-legislator`).
   The candidate row says **See who is running for office in your area** on desktop; phone rows have no supporting descriptions.
-- **Blog** is a plain link, not a dropdown. It opens the `/blog` page, which lists Alethical's
-  own research, short posts and guides.
+- **Media** is the first plain link in the bar. It opens `/blog`, listing Articles,
+  Research reports, Debates and recordings, then Guides. Existing article addresses stay valid.
 - **About ▾** opens **About us** (`/about`), **Campaign services** (`/services`), and
   **Contact us** (`/about/contact`).
   Each desktop row has its approved picture: people, a briefcase, and an envelope.

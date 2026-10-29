@@ -2,7 +2,7 @@ import { EVENT_INDEX } from './eventsIndex';
 
 /** Event announcements are host information, separate from research and guides. */
 export const EVENTS_PATH = '/blog/events';
-export const EVENTS_TITLE = 'Events';
+export const EVENTS_TITLE = 'Debates and recordings';
 export const COALITION_CANDIDATES_URL = 'https://forwardcoalition.com/candidates';
 
 export const EVENTS = [

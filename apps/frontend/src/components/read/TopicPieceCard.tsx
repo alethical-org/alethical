@@ -114,7 +114,7 @@ export function ShortPostsPreview({
   return (
     <div className="short-posts-preview">
       <style>{`.short-posts-preview{margin-top:18px;background:#fff;border:1px solid rgba(17,21,15,.08);border-radius:16px;padding:12px 36px 28px}.short-posts-preview>ol{list-style:none;margin:0;padding:0}.short-posts-preview>ol>li+li{border-top:1px solid rgba(17,21,15,.07)}.short-posts-preview-all{border-top:1px solid rgba(17,21,15,.08);padding-top:20px}.short-posts-preview-all a{display:inline-flex;align-items:center;gap:9px;min-height:44px;font-family:'Libre Franklin',sans-serif;font-size:17px;font-weight:600;color:#0f7a45;text-decoration:none}.short-posts-preview-all a:focus-visible{outline:2px solid #7c5cff;outline-offset:2px}@media(hover:hover){.short-posts-preview-all a:hover{color:#11832b;text-decoration:underline}}@media(max-width:767px){.short-posts-preview{margin-top:14px;padding:8px 20px 20px}.short-posts-preview-all{padding-top:16px}}`}</style>
-      <ol aria-label="Short posts">
+      <ol aria-label="Articles">
         {pieces.map((piece) => (
           <li key={piece.articleId ?? piece.slug}>
             <TopicPieceCard

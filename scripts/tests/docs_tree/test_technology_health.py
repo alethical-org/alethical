@@ -932,3 +932,98 @@ def test_git_inventory_failure_blocks_security_scan(monkeypatch, tmp_path) -> No
         "The tracked JavaScript/research security inventory is unreadable or unsupported"
         in check_technology_health.run_security_audits(tmp_path)
     )
+
+
+def decode_uri_advisory() -> dict:
+    return {
+        "github_advisory_id": check_technology_health.DECODE_URI_ADVISORY,
+        "module_name": "decode-uri-component",
+        "severity": "high",
+        "vulnerable_versions": "<=0.5.0",
+        "patched_versions": ">=0.5.1",
+        "findings": [
+            {"version": "0.5.0", "paths": [check_technology_health.DECODE_URI_PATH]}
+        ],
+    }
+
+
+def test_decode_uri_finding_requires_an_installed_verified_backport() -> None:
+    report = javascript_report({"decode": decode_uri_advisory()})
+    assert check_technology_health.javascript_audit_problems(report) == [
+        "GHSA-qr28-fpjm-wq7f (high)"
+    ]
+    assert (
+        check_technology_health.javascript_audit_problems(
+            report, decode_uri_repaired=True
+        )
+        == []
+    )
+    report["advisories"]["other"] = {"severity": "high"}
+    assert check_technology_health.javascript_audit_problems(
+        report, decode_uri_repaired=True
+    ) == ["other (high)"]
+
+
+@pytest.mark.parametrize(
+    "change", ["id", "module", "version", "path", "fixed", "range", "severity"]
+)
+def test_decode_uri_repair_cannot_accept_changed_findings(change: str) -> None:
+    advisory = decode_uri_advisory()
+    if change == "id":
+        advisory["github_advisory_id"] = "GHSA-other"
+    elif change == "module":
+        advisory["module_name"] = "other"
+    elif change == "version":
+        advisory["findings"][0]["version"] = "0.4.0"
+    elif change == "path":
+        advisory["findings"][0]["paths"].append("apps__frontend>decode-uri-component")
+    elif change == "fixed":
+        advisory["patched_versions"] = ">=0.5.2"
+    elif change == "range":
+        advisory["vulnerable_versions"] = "<=0.5.1"
+    else:
+        advisory["severity"] = "critical"
+    assert check_technology_health.javascript_audit_problems(
+        javascript_report({"decode": advisory}), decode_uri_repaired=True
+    )
+
+
+@pytest.mark.parametrize("repair_passes", [True, False])
+def test_decode_uri_installed_check_decides_whether_its_finding_blocks_release(
+    monkeypatch, repair_passes: bool
+) -> None:
+    def run(command, root):
+        if command == ["pnpm", "audit", "--json"]:
+            return subprocess.CompletedProcess(
+                command,
+                1,
+                json.dumps(javascript_report({"decode": decode_uri_advisory()})),
+                "",
+            )
+        if command[0] == "uvx":
+            requirements = Path(command[command.index("--requirement") + 1]).read_text()
+            report = {
+                "dependencies": [
+                    {"name": name, "version": version, "vulns": []}
+                    for name, version in (
+                        line.split("==") for line in requirements.splitlines()
+                    )
+                ]
+            }
+            return subprocess.CompletedProcess(command, 0, json.dumps(report), "")
+        failed = not repair_passes and command == [
+            "node",
+            "apps/frontend/scripts/check-decode-uri-security.mjs",
+        ]
+        return subprocess.CompletedProcess(command, int(failed), "", "")
+
+    monkeypatch.setattr(check_technology_health, "_run", run)
+    problems = check_technology_health.run_security_audits(ROOT)
+    blocked = {
+        "The installed GHSA-qr28-fpjm-wq7f repair did not pass",
+        "GHSA-qr28-fpjm-wq7f (high)",
+    }
+    if repair_passes:
+        assert not blocked & set(problems)
+    else:
+        assert blocked <= set(problems)

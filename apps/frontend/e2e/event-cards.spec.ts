@@ -28,7 +28,7 @@ test.beforeEach(async ({ context, baseURL }) => {
 });
 
 for (const preview of [true, false]) {
-  test(`event ${preview ? 'Blog preview' : 'collection'} card has one full-card link`, async ({
+  test(`event ${preview ? 'Media preview' : 'collection'} card has one full-card link`, async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
@@ -36,7 +36,7 @@ for (const preview of [true, false]) {
       `<main style="padding:30px;max-width:900px">${renderEventList(Date.now(), preview)}</main>`,
     );
     const card = page.locator('.event-list > li').first();
-    const link = card.getByRole('link', { name: 'The Forward Debate', exact: true });
+    const link = card.getByRole('link', { name: /The Forward Debate/ });
     await expect(card.getByRole('link')).toHaveCount(1);
     await card.hover({ position: { x: 12, y: 12 } });
     await expect(card).toHaveCSS('border-top-color', 'rgba(45, 212, 126, 0.85)');
@@ -93,19 +93,39 @@ test('separate event cards keep independent destinations and phone text fits', a
 });
 
 for (const width of [320, 768, 1280]) {
-  test(`Blog puts Events first and the card opens its article at ${width}px`, async ({ page }) => {
+  test(`Media keeps publishing order and the card opens its article at ${width}px`, async ({
+    page,
+  }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/blog');
     const headings = page.getByRole('heading', { level: 2 });
-    await expect(headings.first()).toHaveText('EVENTS');
+    await expect(headings.first()).toHaveText('ARTICLES');
     expect((await headings.allTextContents()).slice(0, 4)).toEqual([
-      'EVENTS',
+      'ARTICLES',
       'RESEARCH REPORTS',
-      'SHORT POSTS',
+      'DEBATES AND RECORDINGS',
       'GUIDES',
     ]);
     const card = page.locator('.event-list > li').first();
-    await expect(card.locator('.event-list-meta')).toHaveText('October 15, 2026');
+    await expect(card.locator('.event-list-meta')).toHaveText(
+      'Minnesota Senate District 13 · October 15, 2026',
+    );
+    await expect(card).toContainText('Hosted by Alethical');
+    await expect(card).toContainText('Minnesota Senate District 13');
+    await expect(card.locator('.event-watch-action')).toHaveText('Watch the debate');
+    await expect(card).not.toContainText(/Thursday|6–8 PM CDT|Free admission|RSVP/);
+    await expect(card.getByRole('link')).toHaveCount(1);
+    const photo = card.locator('img.event-preview-photo');
+    await expect(photo).toBeVisible();
+    const photoBox = await card.locator('.event-preview-photo-frame').boundingBox();
+    const titleBox = await card.getByRole('heading', { name: 'The Forward Debate' }).boundingBox();
+    expect(photoBox).not.toBeNull();
+    expect(titleBox).not.toBeNull();
+    if (width < 768) expect(photoBox!.y + photoBox!.height).toBeLessThanOrEqual(titleBox!.y);
+    else expect(photoBox!.x).toBeGreaterThan(titleBox!.x);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
     await card.hover({ position: { x: 12, y: 12 } });
     await expect(card).toHaveCSS('transform', width >= 768 ? 'matrix(1, 0, 0, 1, 0, -3)' : 'none');
     await card.click({ position: { x: 12, y: 12 } });
@@ -115,12 +135,13 @@ for (const width of [320, 768, 1280]) {
     ).toBeVisible();
     // The existing replay return is an absolute public URL. Keep premerge checks
     // on this build; the live review exercises the public round trip.
-    await expect(page.getByRole('link', { name: 'Back to Events', exact: true })).toHaveAttribute(
-      'href',
-      'https://www.alethical.com/blog/events',
-    );
+    await expect(
+      page.getByRole('link', { name: 'Back to Debates and recordings', exact: true }),
+    ).toHaveAttribute('href', 'https://www.alethical.com/blog/events');
     await page.goto('/blog/events');
-    await expect(card.locator('.event-list-meta')).toHaveText('October 15, 2026');
+    await expect(card.locator('.event-list-meta')).toHaveText(
+      'Minnesota Senate District 13 · October 15, 2026',
+    );
     await page.keyboard.press('Tab');
     await card.getByRole('link').focus();
     await expect(card).toHaveCSS('outline', 'rgb(124, 92, 255) solid 2px');
@@ -198,7 +219,7 @@ for (const width of [320, 1280]) {
     await page.locator('[name="subject"]').fill('My debate request');
     await page.locator('[name="message"]').fill('My community request');
     if (width < 768) await page.getByRole('button', { name: 'Open menu' }).click();
-    await page.getByRole('link', { name: 'Blog', exact: true }).first().click();
+    await page.getByRole('link', { name: 'Media', exact: true }).first().click();
     await expect(page).toHaveURL(/\/blog$/);
     await page.goBack();
     await expect(page.locator('[name="subject"]')).toHaveValue('My debate request');

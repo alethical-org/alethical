@@ -40,10 +40,11 @@ test('Read collection links underline one whole label and leave the arrow bare',
 }) => {
   await page.goto('/blog');
   const collections = page.locator('a.read-collection-link');
-  await expect(collections).toHaveCount(3);
+  await expect(collections).toHaveCount(4);
   for (const [name, visible] of [
+    ['All articles', 'All articles'],
     ['All research reports', 'All reports'],
-    ['All short posts', 'All posts'],
+    ['All debates and recordings', 'All debates and recordings'],
     ['All guides', 'All guides'],
   ]) {
     await expectWordsOnlyUnderline(page.getByRole('link', { name, exact: true }), visible);
@@ -60,15 +61,15 @@ test('reading return links underline the complete label but not the chevron', as
   for (const path of ['/blog/research', '/blog/short-posts', '/blog/guides']) {
     await page.goto(path);
     await expectReturnUnderline(
-      page.getByRole('link', { name: 'Back to Blog', exact: true }),
-      'Back to Blog',
+      page.getByRole('link', { name: 'Back to Media', exact: true }),
+      'Back to Media',
     );
   }
 
   await page.goto('/blog/sets/how-the-money-works');
   await expectReturnUnderline(
-    page.getByRole('link', { name: 'All guides', exact: true }),
-    'All guides',
+    page.getByRole('link', { name: 'Back to Guides', exact: true }),
+    'Back to Guides',
   );
 
   for (const path of [
@@ -78,8 +79,8 @@ test('reading return links underline the complete label but not the chevron', as
   ]) {
     await page.goto(path);
     await expectReturnUnderline(
-      page.getByRole('link', { name: 'Back to Blog', exact: true }),
-      'Back to Blog',
+      page.getByRole('link', { name: 'Back to Media', exact: true }),
+      'Back to Media',
     );
   }
 });

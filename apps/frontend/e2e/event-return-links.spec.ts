@@ -2,14 +2,22 @@ import { expect, test } from '@playwright/test';
 
 for (const width of [320, 390, 1280]) {
   for (const [path, destination, name] of [
-    ['/blog/events/forward-debate-2026', '/blog/events', 'Back to Events'],
-    ['/blog/events', '/blog', 'Back to Blog'],
+    ['/blog/events/forward-debate-2026', '/blog/events', 'Back to Debates and recordings'],
+    ['/blog/events', '/blog', 'Back to Media'],
   ]) {
-    test(`event return remains usable at ${width}px on ${path}`, async ({ page }) => {
+    test(`event return remains usable at ${width}px on ${path}`, async ({ page, baseURL }) => {
+      const base = new URL(baseURL!);
+      if (!['localhost', '127.0.0.1'].includes(base.hostname))
+        throw new Error('Event return checks require a loopback build');
+      // The replay preserves its public return URL. Keep this premerge journey
+      // on the app under test instead of visiting the deployed site.
+      await page.route('https://www.alethical.com/blog/events', (route) =>
+        route.fulfill({ status: 302, headers: { location: `${baseURL}/blog/events` } }),
+      );
       await page.setViewportSize({ width, height: 900 });
       await page.goto(path);
       const link = page.getByRole('link', { name, exact: true });
-      await expect(link).toHaveAttribute('href', destination);
+      await expect(link).toHaveAttribute('href', new RegExp(`${destination}$`));
       await expect(link).toHaveCSS('color', 'rgb(75, 82, 75)');
       await expect(link).toHaveCSS('min-height', '44px');
       await expect(link).toHaveCSS('column-gap', '9px');

@@ -13,8 +13,7 @@ than only by pasting an address, and a name that got paid opens every payment fi
 that exact spelling
 ([#1780](https://github.com/alethical-org/alethical/issues/1780)). Our own signed research
 lives one level up, on the `/blog` page, which the money landing points at. The `/blog`
-page lists 6 long-form pieces (1 Research piece and 5 Guides) and the newest 3 Short
-posts. The full Short post collection at `/blog/short-posts` also retains older
+page lists 6 long-form pieces (1 Research piece and 5 Guides) and the newest 3 articles. The full article collection at `/blog/short-posts` also retains older
 articles. The newest article, “3 Realtor PACs. 12 shared campaigns.”, is at
 `/blog/research/realtor-pacs-shared-candidates`. It separates Florida candidate
 payments from national dues-funded election spending and brokerage membership rules.
@@ -29,11 +28,13 @@ at `/money/outside-spending`. See [lobbying-guide.md](lobbying-guide.md).
 own writing carries a **Research** or **Guide** trait. A **Short post** is a focused format
 that can carry either or both traits (settled in
 [`published-writing-decisions.md §7`](../architecture/published-writing-decisions.md#7-short-posts-from-checked-social-material)).
-The `/blog` page and its pieces use Blog as their permanent section name.
+The `/blog` page and its pieces use Media as their section name, with Articles, Research
+reports, Debates and recordings, then Guides. Reader-facing Articles replaces Short posts;
+the internal format stays `short-post`.
 Every retired `/read` address forwards permanently and straight to its matching `/blog`
 address. Older `/money/reports`, `/reports` and `/reading` forwards also target `/blog`
 directly, never through an address in between. The name and address requirements are in
-[published-writing-decisions.md §2.15](../architecture/published-writing-decisions.md#215-the-section-is-blog-and-its-permanent-addresses-start-with-blog).
+[published-writing-decisions.md Media first release](../architecture/published-writing-decisions.md#media-first-release).
 
 ## Ways in
 
@@ -1228,44 +1229,44 @@ Campaign money, top to bottom:
      statement's 4 fields and its PDF link.
 
 10. **Where itemized individual contributions came from**, after the statements card. Its own card, with nothing to click to reach the figures. A bar
-   shows Minnesota, other states and unknown as shares of every itemized individual
-   contribution dollar the committee took that year, in a green (#0f7a45), a blue
-   (#2f6fb5) and an amber (#a8741a). Nothing on the card is carried by colour alone:
-   every figure the bar draws is also printed in the table, and the row label beside each
-   swatch names its category, which is what a reader who cannot tell the green from the
-   blue relies on. The table under the bar is captioned “Itemized individual
-   contributions by state, {year}” and gives each category's name count, amount and
-   share, with every state that gave money listed alphabetically by its full name under
-   **Other states**. The **Other states** label is a button that folds those state rows
-   away and back. It arrives open every time and remembers nothing between years,
-   committees or visits, so nobody lands on a hidden list; inside one committee and year
-   the reader's choice survives an ordinary redraw. Closing removes only the state rows,
-   leaving the subtotal, the bar, the caption, the notes and every percentage untouched.
-   Its spoken name counts what is inside, “Show the 7 states in Other states”, and reads
-   “the state” where only 1 sits there. Minnesota and Unknown carry no button. Four notes
-   close the card, one line each and none ending in a dot. Below 768px the state name
-   takes a line of its own and its 3 figures sit beneath it, in whichever of 3 shapes the
-   card measures as fitting the room it has at the text size the browser is really
-   drawing; nothing is shortened, clipped or put behind a sideways scroll, and the card's
-   own pieces grow with enlarged text. The card is absent for a
-   political fund or a party organisation, which this display does not cover; that
-   absence is never a statement that they took no individual contributions.
+    shows Minnesota, other states and unknown as shares of every itemized individual
+    contribution dollar the committee took that year, in a green (#0f7a45), a blue
+    (#2f6fb5) and an amber (#a8741a). Nothing on the card is carried by colour alone:
+    every figure the bar draws is also printed in the table, and the row label beside each
+    swatch names its category, which is what a reader who cannot tell the green from the
+    blue relies on. The table under the bar is captioned “Itemized individual
+    contributions by state, {year}” and gives each category's name count, amount and
+    share, with every state that gave money listed alphabetically by its full name under
+    **Other states**. The **Other states** label is a button that folds those state rows
+    away and back. It arrives open every time and remembers nothing between years,
+    committees or visits, so nobody lands on a hidden list; inside one committee and year
+    the reader's choice survives an ordinary redraw. Closing removes only the state rows,
+    leaving the subtotal, the bar, the caption, the notes and every percentage untouched.
+    Its spoken name counts what is inside, “Show the 7 states in Other states”, and reads
+    “the state” where only 1 sits there. Minnesota and Unknown carry no button. Four notes
+    close the card, one line each and none ending in a dot. Below 768px the state name
+    takes a line of its own and its 3 figures sit beneath it, in whichever of 3 shapes the
+    card measures as fitting the room it has at the text size the browser is really
+    drawing; nothing is shortened, clipped or put behind a sideways scroll, and the card's
+    own pieces grow with enlarged text. The card is absent for a
+    political fund or a party organisation, which this display does not cover; that
+    absence is never a statement that they took no individual contributions.
 
 11. **More on this year’s contributions**, 18px below the location card. This shared
-   panel contains **What the committee’s own report says** and **Contributor names also
-   listed for other candidates**, in that order. Each row starts closed on a fresh
-   address, and several can stay open. Open rows are recorded in the address for the
-   selected committee and year, as row 0 and row 2; row 1 belonged to the location block
-   and is not reused, so a link somebody saved still opens the row it named. The
-   existing tables and qualifications appear under their row without a repeated title.
-   A party unit or political committee or fund omits the candidate-report comparison.
-   Missing or failed data for an
-   eligible row stays visible as that row's own explanation. One unavailable comparison
-   does not erase an independently available geography or names result. Opening a row
-   reuses the selected-year records already requested, rather than making a new request.
-   The whole heading row remains clickable and keyboard-accessible. Its purple
-   focus ring surrounds the arrow's rounded 44px area, with the arrow centred and
-   no second keyboard stop.
+    panel contains **What the committee’s own report says** and **Contributor names also
+    listed for other candidates**, in that order. Each row starts closed on a fresh
+    address, and several can stay open. Open rows are recorded in the address for the
+    selected committee and year, as row 0 and row 2; row 1 belonged to the location block
+    and is not reused, so a link somebody saved still opens the row it named. The
+    existing tables and qualifications appear under their row without a repeated title.
+    A party unit or political committee or fund omits the candidate-report comparison.
+    Missing or failed data for an
+    eligible row stays visible as that row's own explanation. One unavailable comparison
+    does not erase an independently available geography or names result. Opening a row
+    reuses the selected-year records already requested, rather than making a new request.
+    The whole heading row remains clickable and keyboard-accessible. Its purple
+    focus ring surrounds the arrow's rounded 44px area, with the arrow centred and
+    no second keyboard stop.
 
 12. **Spending by outside groups**, after the shared contribution panel. It
     follows the selected year and groups spending about this registration number by
@@ -2026,7 +2027,6 @@ prior year. The first served HTML exposes the same year choices.
 The 17 September control, source-copy and punctuation changes are recorded in
 [committee-money-refinements-copy.md](https://github.com/alethical-org/alethical/blob/main/docs/design/committee-money-refinements-copy.md),
 including the complete old-to-new strings for future Design work.
-
 
 ## Record counts and matching limits, September 19, 2026
 

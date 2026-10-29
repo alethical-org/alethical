@@ -46,8 +46,9 @@ it('keeps a published local list as the return link in a new tab', () => {
 });
 
 it.each([
+  ['/blog', 'Back to Media'],
   ['/blog/research?page=2&post=example', 'Back to Research reports'],
-  ['/blog/short-posts?page=3&post=example', 'Back to Short posts'],
+  ['/blog/short-posts?page=3&post=example', 'Back to Articles'],
   ['/blog/guides?post=example', 'Back to Guides'],
 ])('names the same retained collection address in an article return: %s', (href, label) => {
   expect(articleReturnDestination(href)).toEqual({ href, label });
