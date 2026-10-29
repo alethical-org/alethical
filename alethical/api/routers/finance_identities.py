@@ -149,7 +149,7 @@ def _answer(db: Session, work):
 def list_entities(
     q: str = Query("", max_length=500),
     kind: Literal["person", "organization"] | None = Query(None),
-    page: int = Query(1, ge=1),
+    page: int = Query(1, ge=1, le=2147483647),
     page_size: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -169,7 +169,7 @@ def queue(
     record_type: Literal["all", "donor", "payee"] = Query("all"),
     status: Literal["unconfirmed", "confirmed", "all"] = Query("unconfirmed"),
     q: str = Query("", max_length=500),
-    page: int = Query(1, ge=1),
+    page: int = Query(1, ge=1, le=2147483647),
     page_size: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -203,7 +203,7 @@ def lookup(
 def records(
     record_kind: str = Query(max_length=40),
     record_key: str = Query(max_length=500),
-    page: int = Query(1, ge=1),
+    page: int = Query(1, ge=1, le=2147483647),
     page_size: int = Query(100, ge=1, le=identities.MAX_PAGE_SIZE),
     year: int | None = Query(None, ge=1900, le=2100),
     snapshot_id: UUID | None = Query(None),
