@@ -697,6 +697,76 @@ def test_a_code_another_proof_is_checking_is_refused_at_once(committed, services
     assert token == {"token_hash": "one-time-token", "type": "email"}
 
 
+def _2_challenges_for_1_code(email):
+    first, second = finance_sign_in.new_challenge(), finance_sign_in.new_challenge()
+    for challenge in (first, second):
+        # The second request falls inside the spacing, so it is bound to the code
+        # the first one sent.
+        finance_sign_in.deliver_code(email, finance_sign_in._challenge_hash(challenge))
+    return first, second
+
+
+def test_a_code_works_once_when_2_of_its_challenges_prove_it_at_once(
+    committed, services, monkeypatch
+):
+    first, second = _2_challenges_for_1_code(committed)
+    [code] = services.codes()
+    real_token = finance_sign_in._supabase_token
+
+    def slow_token(settings, email):
+        # The first proof still holds the code while the second one arrives.
+        time.sleep(0.3)
+        return real_token(settings, email)
+
+    monkeypatch.setattr(finance_sign_in, "_supabase_token", slow_token)
+    start = threading.Barrier(2)
+    tokens, refusals = [], []
+
+    def prove_with(challenge):
+        start.wait(5)
+        with get_session_factory()() as session:
+            try:
+                tokens.append(
+                    finance_sign_in.prove_code(session, committed, code, challenge)
+                )
+            except finance_sign_in.CodeNotAccepted:
+                refusals.append(challenge)
+
+    threads = [
+        threading.Thread(target=prove_with, args=(challenge,))
+        for challenge in (first, second)
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(10)
+    assert (len(tokens), len(refusals)) == (1, 1)
+
+
+def test_binding_a_new_challenge_never_refuses_a_correct_proof(committed, services):
+    first, _ = _2_challenges_for_1_code(committed)
+    [code] = services.codes()
+    factory = get_session_factory()
+    with factory() as binding, factory() as prover:
+        code_id = binding.scalar(
+            select(FinanceSignInCode.id).where(FinanceSignInCode.email == committed)
+        )
+        # An unsaved binding holds a key-share lock on the code row until it ends.
+        binding.add(
+            FinanceSignInChallenge(
+                code_id=code_id,
+                challenge_hash=finance_sign_in._challenge_hash(
+                    finance_sign_in.new_challenge()
+                ),
+            )
+        )
+        binding.flush()
+        prover.execute(text("SET LOCAL lock_timeout = '2s'"))
+        token = finance_sign_in.prove_code(prover, committed, code, first)
+        binding.rollback()
+    assert token == {"token_hash": "one-time-token", "type": "email"}
+
+
 def test_an_address_revoked_after_its_code_was_sent_is_refused(api, db, services):
     challenge = challenge_for(api, LISTED)
     [code] = services.codes()

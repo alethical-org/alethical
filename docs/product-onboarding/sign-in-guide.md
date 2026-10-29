@@ -276,8 +276,10 @@ an address is on Finance's access list names a client, so no answer shows it.
   per API process, without the address.
 - **A held-back request still proves the code already sent.** When a cap holds back a
   request for an address with a live code, its challenge is bound to that address's newest
-  live code, up to 10 challenges a code. A reload, a dropped tab or Use another email
-  therefore never strands the code in the inbox.
+  live code, up to 10 challenges a code. So a reload, a dropped tab or Use another email
+  keeps the code in the inbox working, except when that code already has 10 challenges
+  bound to it (anyone asking for the same address can fill them) or when no live code is
+  held for the address; the page then waits for the new code that request sends, if any.
 - **Only hashes are kept**: each code's salted scrypt hash, with a 10-minute expiry
   (`finance_sign_in_code`), and a SHA-256 of each bound challenge
   (`finance_sign_in_challenge`). Each challenge has its own count of wrong tries, and 5

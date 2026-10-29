@@ -389,10 +389,12 @@ def prove_code(db: Session, raw_email: str, raw_code: str, raw_challenge: str) -
         raise CodeNotAccepted
     # Only the right code reaches here. Taking the code row, never waiting for
     # it, makes it work once even when 2 of its challenges prove it together.
+    # The lock is FOR NO KEY UPDATE: binding a new challenge to this code holds a
+    # key-share lock on the row, and that must never refuse a correct proof.
     claimed = db.scalar(
         select(FinanceSignInCode.id)
         .where(FinanceSignInCode.id == sent.id, FinanceSignInCode.used_at.is_(None))
-        .with_for_update(skip_locked=True)
+        .with_for_update(key_share=True, skip_locked=True)
     )
     if claimed is None:
         db.rollback()
