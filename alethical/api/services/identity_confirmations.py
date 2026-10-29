@@ -315,6 +315,8 @@ def _current_snapshot(db: Session, dataset: Dataset) -> UUID | None:
     """The Board's file as published now, or None when no usable copy is held."""
     try:
         release = reader.live_release(db)
+        if release is not None:
+            reader._refuse_if_rows_are_gone(db, release, dataset)
     except reader.ReleaseNoLongerHeld:
         return None
     return None if release is None else release.file_for(dataset).snapshot_id
