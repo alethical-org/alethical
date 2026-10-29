@@ -684,8 +684,8 @@ def _payments(
 
     Nothing is filtered by the source's own labels. Every ``Receipt type`` and every
     expenditure ``Type`` is listed and each row carries its own, because those filters
-    exist to keep a *total* honest and there is no total here -- dropping a label would
-    instead lose real money the Board published from a list of what the record says.
+    exist to keep a *money total* honest and there is no money total here. Dropping a
+    label would instead lose real money the Board published from the listed records.
 
     The 2 number arguments are the fields whose registration numbers a surface might
     follow, and they are separate because the claims differ in strength.

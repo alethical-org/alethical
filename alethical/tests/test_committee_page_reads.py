@@ -1218,9 +1218,8 @@ def test_a_page_past_the_last_row_still_serves_the_count(db, client):
     assert data["page"]["total_payments"] == 1
 
 
-def test_the_name_keyed_lookups_serve_no_count(db, client):
-    """A count under a printed name is the number a page would print largest and
-    trust most, about a key that is only a spelling -- deliberately absent."""
+def test_the_name_keyed_lookups_count_source_records(db, client):
+    """The count describes matching source rows, never people or a money total."""
     published = Published(db)
     _receipt(db, published.contributions, reg_num=CANDIDATE, amount="50.00")
     db.commit()
@@ -1232,7 +1231,7 @@ def test_the_name_keyed_lookups_serve_no_count(db, client):
     assert response.status_code == 200, response.text
     data = response.json()["data"]
     assert data["state"] == "reported"
-    assert data["page"]["total_payments"] is None
+    assert data["page"]["total_payments"] == 1
 
 
 # --- Rule 12's second number for money out, and the printed period start ---------
