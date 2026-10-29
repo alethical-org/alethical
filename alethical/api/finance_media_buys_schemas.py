@@ -77,6 +77,46 @@ class FinanceRecent(Model):
     stations: list[FinanceRecentStation]
 
 
+class FinanceQueueReason(Model):
+    kind: Literal["agency_checked_elsewhere", "folder_committee_checked"]
+    label: str
+
+
+class FinanceQueueRow(FinanceFileRow):
+    saved_at: str
+    suggestion_count: int
+    reasons: list[FinanceQueueReason]
+
+
+class FinanceQueue(Model):
+    rows: list[FinanceQueueRow]
+    total: int
+    has_more: bool
+    limit: int
+    offset: int
+    q: str
+    station: str
+    sort: Literal["suggested", "newest"]
+
+
+class FinanceFactSuggestion(Model):
+    field: str
+    machine_field: str
+    value: str
+    page: int
+    pages: list[int]
+    quote: str
+    in_source_text: bool
+    already_checked: bool
+
+
+class FinanceSuggestions(Model):
+    key: str
+    version_id: str
+    extraction_version: str
+    facts: list[FinanceFactSuggestion]
+
+
 class FinanceBrowseGroup(Model):
     unchecked: bool = False
     folder_count: int | None = None
