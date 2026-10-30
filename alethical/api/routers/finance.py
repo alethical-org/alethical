@@ -10,6 +10,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -19,7 +20,7 @@ from alethical.api.services.campaign_finance_search import MIN_QUERY_LENGTH
 from alethical.api.routers.public import same_legislature_session_ids
 from alethical.api.routers.public import search as legislature_search
 from alethical.api.routers.finance_money_reads import router as money_router
-from alethical.api.problems import problem_exception
+from alethical.api.problems import problem_exception, problem_payload
 from alethical.api.serializers import companion_payload, sponsor_payloads
 from alethical.api.services import (
     finance_records,
@@ -34,7 +35,7 @@ router = APIRouter(prefix="/finance", dependencies=[Depends(require_finance_acce
 router.include_router(money_router)
 
 
-@router.get("/connections")
+@router.get("/connections", response_model=dict)
 def money_connections(
     q: str = Query("", max_length=200, pattern=r"^[^\x00]*$"),
     year: int | None = Query(None, ge=1900, le=2200),
@@ -43,9 +44,9 @@ def money_connections(
     limit: int = Query(100, ge=1, le=200),
     offset: int = Query(0, ge=0, le=2147483647),
     db: Session = Depends(get_db),
-) -> dict:
-    return {
-        "data": finance_connections.connections(
+) -> dict | JSONResponse:
+    try:
+        data = finance_connections.connections(
             db,
             query=q.strip(),
             year=year,
@@ -54,7 +55,21 @@ def money_connections(
             limit=limit,
             offset=offset,
         )
-    }
+    except finance_connections.BroadGraphBusy:
+        # Expected admission, not an operational failure. A short retry would
+        # exhaust the client's retries while the admitted graph is still running.
+        return JSONResponse(
+            status_code=503,
+            content=problem_payload(
+                type_slug="service-busy",
+                title="Service busy",
+                status=503,
+                detail="The service is busy. Please try again in a moment.",
+                instance="/api/v1/finance/connections",
+            ),
+            headers={"Cache-Control": "private, no-store", "Retry-After": "10"},
+        )
+    return {"data": data}
 
 
 @router.get("/access")

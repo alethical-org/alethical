@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from contextlib import contextmanager
 from typing import Literal
 
 from sqlalchemy import (
@@ -15,10 +16,12 @@ from sqlalchemy import (
     literal,
     or_,
     select,
+    text,
     true,
     union_all,
 )
 from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.exc import DBAPIError
 
 from alethical.api.services import (
     committee_finance,
@@ -71,6 +74,57 @@ MONEY_ORDER = (
     "from_id",
     "to_id",
 )
+
+
+class BroadGraphBusy(Exception):
+    """Another broad graph read owns the shared database's hash budget."""
+
+
+@contextmanager
+def _hash_budget(db, enabled):
+    """Give one broad query room to group without changing pooled defaults.
+
+    The transaction lock works across API processes and the transaction pooler.
+    Each hash node gets at most 3500kB * 8, with at most one parallel worker;
+    this is a per-node budget, not a bound on the database's total memory use.
+    Other reads retain their settings. A failed SQL transaction must roll back.
+    """
+    if not enabled:
+        yield
+        return
+    held, work, work_bytes, multiplier, workers = db.execute(
+        text("""SELECT pg_try_advisory_xact_lock(4606286, 1),
+            current_setting('work_mem'),
+            pg_size_bytes(current_setting('work_mem')),
+            current_setting('hash_mem_multiplier'),
+            current_setting('max_parallel_workers_per_gather')""")
+    ).one()
+    if not held:
+        raise BroadGraphBusy()
+    configure = text("""SELECT set_config('work_mem',:work,true),
+        set_config('hash_mem_multiplier',:multiplier,true),
+        set_config('max_parallel_workers_per_gather',:workers,true)""")
+    db.execute(
+        configure,
+        {
+            "work": f"{min(work_bytes // 1024, 3500)}kB",
+            "multiplier": "8",
+            "workers": str(min(int(workers), 1)),
+        },
+    )
+    failed_sql = False
+    try:
+        yield
+    except DBAPIError:
+        # A failed transaction refuses another statement. Its rollback clears
+        # both the local settings and the lock; never mask the original error.
+        failed_sql = True
+        raise
+    finally:
+        if not failed_sql:
+            db.execute(
+                configure, {"work": work, "multiplier": multiplier, "workers": workers}
+            )
 
 
 def _identity_maps(db):
@@ -403,7 +457,7 @@ def _money_groups(db, release, kind, *, entities, identifiers, query, year, focu
     return grouped, years
 
 
-def _money_page(db, release, groups, *, year, offset, limit):
+def _money_page(db, release, groups, *, year, offset, limit, budget=False):
     """Page all money sources in SQL without loading the skipped edges into Python."""
     if not groups:
         return [], 0
@@ -418,11 +472,12 @@ def _money_page(db, release, groups, *, year, offset, limit):
         .limit(limit)
         .subquery()
     )
-    selected = db.execute(
-        select(totals.c.total, page)
-        .select_from(totals.outerjoin(page, true()))
-        .order_by(*(page.c[name].collate("C") for name in MONEY_ORDER))
-    )
+    with _hash_budget(db, budget):
+        selected = db.execute(
+            select(totals.c.total, page)
+            .select_from(totals.outerjoin(page, true()))
+            .order_by(*(page.c[name].collate("C") for name in MONEY_ORDER))
+        ).all()
     result, total = [], 0
     for row in selected:
         data = row._mapping
@@ -735,7 +790,13 @@ def connections(
     money_offset = max(0, offset - len(other))
     local_offset = offset - money_offset
     edges, money_total = _money_page(
-        db, release, groups, year=year, offset=money_offset, limit=limit + local_offset
+        db,
+        release,
+        groups,
+        year=year,
+        offset=money_offset,
+        limit=limit + local_offset,
+        budget=not query and year is None and not focus,
     )
     total = money_total + len(other)
     edges.extend(other)
