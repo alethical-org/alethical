@@ -3,6 +3,7 @@
 # ruff: noqa: F811
 from decimal import Decimal
 
+import pytest
 from sqlalchemy import delete, event, insert, select
 
 from alethical.db import models as m
@@ -67,6 +68,37 @@ def test_graph_counts_and_pages_money_groups_in_one_statement(
         event.remove(connection, "before_cursor_execute", record)
     assert data["total"] > 1 and len(data["edges"]) == 1
     assert len(statements) == 1
+
+
+@pytest.mark.parametrize("relationship", ["contributions", "payments"])
+def test_large_held_filer_set_keeps_graph_statement_bounded(
+    finance_api, finance_db, board, monkeypatch, relationship
+):
+    from alethical.api.services import finance_connections as graph
+
+    numbers = frozenset(str(number) for number in range(100000, 102000))
+    monkeypatch.setattr(graph, "linkable_committees", lambda *args: numbers)
+    statements = []
+    connection = finance_db.connection()
+    table = (
+        "cf_contribution_row"
+        if relationship == "contributions"
+        else "cf_expenditure_row"
+    )
+
+    def record(conn, cursor, statement, parameters, context, executemany):
+        if "GROUP BY" in statement and table in statement:
+            statements.append((len(statement), len(parameters)))
+
+    event.listen(connection, "before_cursor_execute", record)
+    try:
+        data = get(finance_api, relationship=relationship, limit=1)
+    finally:
+        event.remove(connection, "before_cursor_execute", record)
+    assert data["edges"]
+    assert statements and all(
+        size < 30000 and params < 200 for size, params in statements
+    )
 
 
 def test_graph_reads_payment_years_and_transfer_numbers_in_one_scan(
