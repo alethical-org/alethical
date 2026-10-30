@@ -3075,6 +3075,12 @@ class CampaignFinanceExpenditureRow(Base):
 
     __table_args__ = (
         Index("ix_cf_expenditure_row_committee", "committee_reg_num", "year"),
+        Index(
+            "ix_cf_expenditure_row_snapshot_year_metadata",
+            "snapshot_id",
+            "year",
+            postgresql_include=["type", "affected_committee_reg_num"],
+        ),
         # See the contribution table above: exact by B-tree, substring by trigram.
         Index("ix_cf_expenditure_row_snapshot_vendor", "snapshot_id", "vendor_name"),
         Index(
