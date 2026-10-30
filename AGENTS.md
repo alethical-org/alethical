@@ -92,9 +92,10 @@ see [manual server tests](CONTRIBUTING.md#manual-server-tests-use-a-temporary-po
 - **Never invent a fact about a bill, vote, or legislator.** If it is not in the
   database or an official source, the honest answer is that we do not have it. See
   [`.claude/rules/grounded-answers.md`](.claude/rules/grounded-answers.md) rule 1.
-- **Never fire an irreversible action to prove a change works** — a real send to real
-  users, a paid run, or a destructive production data or schema change. Keep the live
-  trigger behind config and verify with a dry run.
+- **Keep live verification scoped and authorized.** Controlled test emails to an
+  authorized maintainer or test mailbox are allowed; follow
+  [workflow rule 10](.claude/rules/workflow.md) for recipient, sending and verification
+  limits. Unapproved sends, spending and destructive production changes remain barred.
 - **Any write into the shared checkout is the danger, not only a git command.** Several
   agents work in this repository at once, in separate worktrees under `.claude/worktrees/`
   and elsewhere. `cd` into the shared checkout (`/Users/eug/Code/Alethical`, the main

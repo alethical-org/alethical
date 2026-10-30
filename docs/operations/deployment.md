@@ -519,8 +519,12 @@ team, built from `apps/finance` with that folder's `vercel.json`. Its address is
 Vercel gives for the domain. Vercel also answers at `https://alethical-finance.vercel.app`.
 The 6 build settings are public values: `VITE_SUPABASE_URL`,
 `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_API_BASE_URL` (`https://api.alethical.com`),
-`VITE_GOOGLE_SIGN_IN`, `VITE_EMAIL_SIGN_IN`, and `VITE_FINANCE_SCREENS`, which is `on`
-so a listed account reaches the signed-in screens built so far; unset, the site serves only
+`VITE_GOOGLE_SIGN_IN`, `VITE_EMAIL_SIGN_IN`, and `VITE_FINANCE_SCREENS`.
+`VITE_EMAIL_SIGN_IN` is `on`, exposing the shipped emailed-code flow; its server settings
+must also be enabled as described in
+[sign-in-guide.md § Alethical Finance sign-in](../product-onboarding/sign-in-guide.md#alethical-finance-sign-in).
+`VITE_FINANCE_SCREENS` is `on`, so a listed account reaches the signed-in screens built so far;
+unset, the site serves only
 the landing page and sign-in
 ([finance-app-guide.md § The public site](../product-onboarding/finance-app-guide.md#the-public-site)).
 
