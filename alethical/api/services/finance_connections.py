@@ -5,13 +5,17 @@ from __future__ import annotations
 import hashlib
 import json
 from contextlib import contextmanager
-from typing import Literal
+from dataclasses import dataclass
+from typing import Any, Literal
 
 from sqlalchemy import (
     String,
+    and_,
     any_,
     case,
     cast,
+    column,
+    false,
     func,
     literal,
     or_,
@@ -19,9 +23,12 @@ from sqlalchemy import (
     text,
     true,
     union_all,
+    values,
 )
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.exc import DBAPIError
+from sqlalchemy.sql import Select, visitors
+from sqlalchemy.sql.elements import ColumnClause
 
 from alethical.api.services import (
     committee_finance,
@@ -74,6 +81,18 @@ MONEY_ORDER = (
     "from_id",
     "to_id",
 )
+
+
+@dataclass(frozen=True)
+class _MoneyGroup:
+    base: Select
+    grouped: Select
+    keys: Select
+    dataset: str
+    account_number: Any
+    account_name: Any
+    account_side: str
+    identifiers: dict
 
 
 class BroadGraphBusy(Exception):
@@ -262,6 +281,39 @@ def _column_node(kind, record_id, label, role, identifiers):
     ] + [literal(role)]
 
 
+def _aggregate_money_rows(rows, dataset, where=()):
+    all_amounts = func.count(rows.c.amount) == func.count()
+    all_dates = func.count(rows.c.date) == func.count()
+    all_years = func.count(rows.c.year) == func.count()
+    whole_period = all_dates | all_years
+    return (
+        select(
+            *(rows.c[name] for name in NODE_COLUMNS),
+            literal(dataset).label("dataset"),
+            func.count().label("count"),
+            case(
+                (all_amounts & whole_period, func.sum(rows.c.amount)),
+                else_=None,
+            ).label("amount"),
+            case(
+                (~all_amounts, "incomplete"),
+                (whole_period, "reported"),
+                else_="incomplete_period",
+            ).label("amount_state"),
+            case((all_dates, "dates"), (all_years, "years"), else_="unknown").label(
+                "period_basis"
+            ),
+            func.min(rows.c.year).label("first_year"),
+            func.max(rows.c.year).label("last_year"),
+            func.min(rows.c.date).label("first"),
+            func.max(rows.c.date).label("last"),
+            (func.count() - func.count(rows.c.date)).label("undated"),
+        )
+        .where(*where)
+        .group_by(*(rows.c[name] for name in NODE_COLUMNS))
+    )
+
+
 def _money_groups(db, release, kind, *, entities, identifiers, query, year, focus):
     spec = identities._PRINTED[kind]
     model = spec.model
@@ -418,35 +470,38 @@ def _money_groups(db, release, kind, *, entities, identifiers, query, year, focu
         )
     if focus:
         where.append(or_(rows.c.from_key == focus, rows.c.to_key == focus))
-    all_amounts = func.count(rows.c.amount) == func.count()
-    all_dates = func.count(rows.c.date) == func.count()
-    all_years = func.count(rows.c.year) == func.count()
-    whole_period = all_dates | all_years
-    grouped = (
-        select(
-            *(rows.c[name] for name in names),
-            literal(source.dataset.value).label("dataset"),
-            func.count().label("count"),
-            case(
-                (all_amounts & whole_period, func.sum(rows.c.amount)),
-                else_=None,
-            ).label("amount"),
-            case(
-                (~all_amounts, "incomplete"),
-                (whole_period, "reported"),
-                else_="incomplete_period",
-            ).label("amount_state"),
-            case((all_dates, "dates"), (all_years, "years"), else_="unknown").label(
-                "period_basis"
-            ),
-            func.min(rows.c.year).label("first_year"),
-            func.max(rows.c.year).label("last_year"),
-            func.min(rows.c.date).label("first"),
-            func.max(rows.c.date).label("last"),
-            (func.count() - func.count(rows.c.date)).label("undated"),
+    grouped = _aggregate_money_rows(rows, source.dataset.value, where)
+    # Many source rows share the same node inputs. Reduce those first, before
+    # repeating identifier/confirmation expressions for every payment. Preserve
+    # the per-record confirmation join before deduplication, and keep the final
+    # distinct step because several raw inputs can resolve to one identity.
+    inputs = [number, account_name, name]
+    if is_gift:
+        inputs.append(model.contrib_reg_num)
+    elif kind == "payee_name":
+        inputs.extend(
+            [
+                model.type,
+                model.affected_committee_reg_num,
+                model.affected_committee_name,
+            ]
         )
-        .where(*where)
-        .group_by(*(rows.c[name] for name in names))
+    if entities:
+        inputs.append(confirmation.entity_id)
+    raw = base.with_only_columns(*inputs).distinct().subquery("graph_inputs")
+
+    def input_column(element):
+        if isinstance(element, ColumnClause):
+            return raw.corresponding_column(element)
+        return None
+
+    key_columns = [visitors.replacement_traverse(c, {}, input_column) for c in columns]
+    # This unfiltered key set is used only by the broad path. Filtered requests
+    # retain the grouped statement with its original label/focus predicates.
+    keys = (
+        select(*key_columns, literal(source.dataset.value).label("dataset"))
+        .select_from(raw)
+        .distinct()
     )
     if years is None:
         years = db.scalars(
@@ -454,7 +509,16 @@ def _money_groups(db, release, kind, *, entities, identifiers, query, year, focu
             .where(model.snapshot_id == source.snapshot_id, model.year.is_not(None))
             .distinct()
         ).all()
-    return grouped, years
+    return _MoneyGroup(
+        base,
+        grouped,
+        keys,
+        source.dataset.value,
+        number,
+        account_name,
+        "to" if is_gift else "from",
+        identifiers,
+    ), years
 
 
 def _money_page(db, release, groups, *, year, offset, limit, budget=False):
@@ -527,6 +591,103 @@ def _money_page(db, release, groups, *, year, offset, limit, budget=False):
                 period_basis=data["period_basis"],
             )
         )
+    return result, total
+
+
+def _account_predicate(group, chosen):
+    """An indexed superset; the complete node tuple still decides membership."""
+    numbers, names = set(), set()
+    side = group.account_side
+    for row in chosen:
+        kind, record_id = row[side + "_kind"], row[side + "_id"]
+        if kind == "committee":
+            numbers.add(record_id)
+        elif kind in {"person", "organization"}:
+            matches = {
+                key
+                for (held_kind, key), entity in group.identifiers.items()
+                if held_kind == "committee" and str(entity.id) == record_id
+            }
+            if not matches:
+                return true()
+            numbers.update(matches)
+        elif kind == "printed_name":
+            names.add(record_id)
+        else:
+            return true()
+    predicates = []
+    if numbers:
+        predicates.append(
+            group.account_number == any_(literal(sorted(numbers), type_=ARRAY(String)))
+        )
+    if names:
+        predicates.append(
+            group.account_number.is_(None)
+            & (group.account_name == any_(literal(sorted(names), type_=ARRAY(String))))
+        )
+    return or_(*predicates) if predicates else false()
+
+
+def _broad_page(db, release, groups, other, *, year, offset, limit):
+    """Count exact keys, merge the page, then total only its displayed money rows.
+
+    The request's pinned view covers both queries. The SQL key window can include
+    len(other) extra rows for the merge, but the metrics VALUES table has at most
+    the requested page size, never that potentially large skipped window.
+    """
+    keys = union_all(*(group.keys for group in groups)).cte("graph_keys")
+    totals = select(func.count().label("total")).select_from(keys).subquery()
+    money_offset = max(0, offset - len(other))
+    local_offset = offset - money_offset
+    page = (
+        select(keys)
+        .order_by(*(keys.c[name].collate("C") for name in MONEY_ORDER))
+        .offset(money_offset)
+        .limit(limit + local_offset)
+        .subquery()
+    )
+    with _hash_budget(db, True):
+        found = db.execute(
+            select(totals.c.total, page).select_from(totals.outerjoin(page, true()))
+        ).all()
+        total = found[0]._mapping["total"]
+        # Money tuples are unique on MONEY_ORDER. Other source datasets are
+        # disjoint, so their ID tie-breaker only compares other/other edges.
+        combined = [
+            (tuple(row._mapping[n] for n in MONEY_ORDER), row._mapping, None)
+            for row in found
+            if row._mapping["dataset"] is not None
+        ]
+        combined.extend((_edge_order(edge), None, edge) for edge in other)
+        combined.sort(key=lambda item: item[0])
+        selected = combined[local_offset : local_offset + limit]
+        chosen = [row for _, row, edge in selected if edge is None]
+        result = [edge for _, _, edge in selected if edge is not None]
+        filtered = []
+        for i, group in enumerate(groups):
+            held = [row for row in chosen if row["dataset"] == group.dataset]
+            if not held:
+                continue
+            rows = group.base.where(_account_predicate(group, held)).subquery()
+            picked = (
+                values(
+                    *(column(name, String) for name in NODE_COLUMNS),
+                    name="picked_" + str(i),
+                )
+                .data([tuple(row[n] for n in NODE_COLUMNS) for row in held])
+                .alias()
+            )
+            filtered.append(
+                _aggregate_money_rows(rows, group.dataset).join(
+                    picked, and_(*(rows.c[n] == picked.c[n] for n in NODE_COLUMNS))
+                )
+            )
+        if filtered:
+            edges, _ = _money_page(
+                db, release, filtered, year=year, offset=0, limit=len(chosen)
+            )
+            result.extend(edges)
+    result.sort(key=_edge_order)
     return result, total
 
 
@@ -785,23 +946,26 @@ def connections(
         if (relationship == "all" or e["relationship"] == relationship)
         and _matches(e, query, focus)
     ]
-    # At most len(other) non-money edges can precede the requested global page.
-    # Skip the remaining prefix in SQL, then merge only this bounded money window.
-    money_offset = max(0, offset - len(other))
-    local_offset = offset - money_offset
-    edges, money_total = _money_page(
-        db,
-        release,
-        groups,
-        year=year,
-        offset=money_offset,
-        limit=limit + local_offset,
-        budget=not query and year is None and not focus,
-    )
+    if groups and not query and year is None and not focus:
+        selected, money_total = _broad_page(
+            db, release, groups, other, year=year, offset=offset, limit=limit
+        )
+    else:
+        # Filtered reads keep their cheaper single grouped count/page statement.
+        money_offset = max(0, offset - len(other))
+        local_offset = offset - money_offset
+        edges, money_total = _money_page(
+            db,
+            release,
+            [group.grouped for group in groups],
+            year=year,
+            offset=money_offset,
+            limit=limit + local_offset,
+        )
+        edges.extend(other)
+        edges.sort(key=_edge_order)
+        selected = edges[local_offset : local_offset + limit]
     total = money_total + len(other)
-    edges.extend(other)
-    edges.sort(key=_edge_order)
-    selected = edges[local_offset : local_offset + limit]
     nodes = {n["key"]: n for e in selected for n in e["_nodes"]}
     if release is not None:
         money_nodes = {

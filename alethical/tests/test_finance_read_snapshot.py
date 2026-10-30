@@ -7,15 +7,24 @@ open and close a fresh request session, as production does.
 
 import hashlib
 import uuid
+from decimal import Decimal
 
 import pytest
-from sqlalchemy import delete, select, text, update
+from sqlalchemy import delete, event, select, text, update
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.orm import Session
 
 from alethical.api.auth import get_auth_service
-from alethical.api.services import committee_finance, finance_access
+from alethical.api.services import (
+    committee_finance,
+    finance_access,
+    finance_connections,
+)
 from alethical.api.services.auth import AuthenticatedPrincipal
 from alethical.db import models as m
-from alethical.db.session import get_session_factory
+from alethical.db.session import get_engine, get_session_factory
+from alethical.tests.test_campaign_finance_landing_reads import _published_release
+from alethical.tests.test_identity_confirmations import gift
 
 
 @pytest.fixture()
@@ -134,3 +143,121 @@ def test_finance_read_pins_after_access_and_ends_its_transaction(
             next_request.scalar(text("SHOW transaction_isolation")) == "read committed"
         )
         assert next_request.scalar(source_value) == 2
+
+
+@pytest.fixture()
+def committed_graph(committed_snapshot_access):
+    factory = get_session_factory()
+    with factory() as db:
+        previous = db.scalar(text("SELECT release_id FROM cf_current_release"))
+        release = _published_release(db)
+        release_id = release.id
+        snapshots = [
+            release.contributions_snapshot_id,
+            release.expenditures_snapshot_id,
+            release.independent_expenditures_snapshot_id,
+        ]
+        db.add(gift(snapshots[0], 1, amount=Decimal("250")))
+        db.execute(
+            update(m.CampaignFinanceSnapshot)
+            .where(m.CampaignFinanceSnapshot.id == snapshots[0])
+            .values(row_count=1)
+        )
+        db.commit()
+    try:
+        yield snapshots[0]
+    finally:
+        with factory.begin() as db:
+            db.execute(
+                text("UPDATE cf_current_release SET release_id = :id"), {"id": previous}
+            )
+            db.execute(
+                delete(m.CampaignFinanceContributionRow).where(
+                    m.CampaignFinanceContributionRow.snapshot_id == snapshots[0]
+                )
+            )
+            db.execute(
+                delete(m.CampaignFinanceRelease).where(
+                    m.CampaignFinanceRelease.id == release_id
+                )
+            )
+            db.execute(
+                delete(m.CampaignFinanceSnapshot).where(
+                    m.CampaignFinanceSnapshot.id.in_(snapshots)
+                )
+            )
+
+
+def test_graph_keys_and_amounts_survive_source_pruning_in_one_request(
+    client, committed_graph, monkeypatch
+):
+    original = finance_connections._money_page
+    observations = []
+
+    def prune_then_total(db, *args, **kwargs):
+        observations.append(db.scalar(text("SHOW transaction_isolation")))
+        with get_session_factory().begin() as publisher:
+            publisher.execute(
+                delete(m.CampaignFinanceContributionRow).where(
+                    m.CampaignFinanceContributionRow.snapshot_id == committed_graph
+                )
+            )
+        return original(db, *args, **kwargs)
+
+    monkeypatch.setattr(finance_connections, "_money_page", prune_then_total)
+    headers = {"Authorization": "Bearer snapshot-test-token"}
+    params = {"relationship": "contributions"}
+    response = client.get("/api/v1/finance/connections", params=params, headers=headers)
+    assert response.status_code == 200, response.text
+    data = response.json()["data"]
+    assert observations == ["repeatable read"]
+    assert data["total"] == len(data["edges"]) == 1
+    assert Decimal(data["edges"][0]["amount"]) == Decimal("250")
+    assert data["edges"][0]["source"]["snapshot_id"] == str(committed_graph)
+    later = client.get("/api/v1/finance/connections", params=params, headers=headers)
+    assert later.status_code == 200
+    assert later.json()["data"]["state"] == "unavailable"
+    assert later.json()["data"]["edges"] == []
+
+
+def test_graph_second_query_failure_releases_budget_on_same_connection(
+    committed_graph, monkeypatch
+):
+    original = finance_connections._money_page
+    settings = text(
+        "SELECT current_setting('work_mem'), current_setting('hash_mem_multiplier'), current_setting('max_parallel_workers_per_gather')"
+    )
+    lock = text("SELECT pg_try_advisory_xact_lock(4606286, 1)")
+    keys = []
+
+    def observe(conn, cursor, statement, parameters, context, executemany):
+        if "graph_keys AS" in statement:
+            keys.append(True)
+
+    def fail_metrics(db, *args, **kwargs):
+        assert keys == [True]
+        db.execute(text("SELECT 1 / 0"))
+
+    with get_engine().connect() as connection:
+        previous = connection.execute(settings).one()
+        connection.rollback()
+        event.listen(connection, "before_cursor_execute", observe)
+        monkeypatch.setattr(finance_connections, "_money_page", fail_metrics)
+        try:
+            with Session(bind=connection) as db:
+                with pytest.raises(DBAPIError) as failure:
+                    finance_connections.connections(db, relationship="contributions")
+                assert failure.value.orig.sqlstate == "22012"
+                db.rollback()
+        finally:
+            event.remove(connection, "before_cursor_execute", observe)
+        with Session(bind=connection) as fresh:
+            assert fresh.execute(settings).one() == previous
+        with get_engine().connect() as competing:
+            assert competing.scalar(lock)
+        monkeypatch.setattr(finance_connections, "_money_page", original)
+        with Session(bind=connection) as fresh:
+            data = finance_connections.connections(fresh, relationship="contributions")
+            assert data["total"] == len(data["edges"]) == 1
+            assert Decimal(data["edges"][0]["amount"]) == Decimal("250")
+            assert fresh.execute(settings).one() == previous
