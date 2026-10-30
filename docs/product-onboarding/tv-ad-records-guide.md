@@ -101,6 +101,20 @@ checks them (`alethical/api/services/finance_station_checks.py`).
 
 ### Checking an original in Finance
 
+`GET /api/v1/finance/media-buys/queue` lists the newest held version of each file,
+with exact totals and paging, original name/folder search, a station filter, and
+suggested or newest-first order. Suggested order first uses an exact agency name
+checked on another file, then a standing folder-to-committee check, then the number
+of unchecked machine fact suggestions. A Finance withdrawal removes a copied
+check from those reasons. Public-copy approval never affects the order.
+
+`GET /api/v1/finance/media-buys/files/{key}/suggestions?version={content hash}`
+returns only machine fact drafts for that exact held original. Each draft keeps
+its field, printed value, quotation and page numbers, whether the quotation is in
+the readable original text, and whether that field/value is already checked on
+that version. Repeated values retain all their pages in one suggestion; malformed
+drafts are omitted. Neither reading nor choosing a suggestion saves a check.
+
 Every Finance account records facts, dates and file connections on an exact original
 version, under `/files/{key}/versions/{content hash}/`: `target-preview?kind=&target_id=`
 (with `election_stage`, `money_office`, `money_district` and `role` where a target needs

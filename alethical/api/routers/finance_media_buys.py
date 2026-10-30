@@ -13,6 +13,7 @@ identifiers, nor whether a team account made a check.
 
 from __future__ import annotations
 
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, Path, Query, Response
@@ -24,6 +25,7 @@ from alethical.api.finance_access import require_finance_access
 from alethical.api.problems import problem_exception
 from alethical.api.services import finance_media_buys as media
 from alethical.api.services import finance_station_checks as checks
+from alethical.api.services import finance_station_queue as station_queue
 from alethical.api.services import tv_ad_review as review
 from alethical.api.services import tv_ads as reader
 from alethical.api.services.finance_access import FinanceAccount
@@ -153,6 +155,31 @@ def connections(
     if kind not in CONNECTION_KINDS:
         raise ValueError("Unsupported connection kind")
     return {"data": media.connected(db, kind, target)}
+
+
+@router.get("/queue", **answer(schema.FinanceQueue))
+def queue(
+    q: str = Query("", max_length=200),
+    station: str = Query("", max_length=40),
+    sort: Literal["suggested", "newest"] = "suggested",
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(records),
+) -> dict:
+    return {
+        "data": station_queue.queue(
+            db, q=q, station=station, sort=sort, limit=limit, offset=offset
+        )
+    }
+
+
+@router.get("/files/{key}/suggestions", **answer(schema.FinanceSuggestions))
+def suggestions(
+    key: str,
+    version: str = Query(pattern=r"^[a-f0-9]{64}$"),
+    db: Session = Depends(records),
+) -> dict:
+    return {"data": station_queue.suggestions(db, key, version)}
 
 
 @router.get("/files/{key}", **answer(schema.FinanceFileDetail))
