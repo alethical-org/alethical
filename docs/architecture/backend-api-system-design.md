@@ -657,20 +657,23 @@ Response fields for `view=directory`:
 - special-session identity when applicable
 - plain-language short title
 
+Both list views return the exact whole-filter `page.total`, including a request with
+`limit=0` or an offset beyond the last result.
+
 #### `GET /api/v1/bills/{bill_id}`
 
 Purpose:
 
 - main bill detail screen
 
-Optional includes — the branches `bill_detail()` actually implements are
-`all_sponsors`, `actions`, `versions`, `progress`, `tracking`:
+Optional includes:
 
 - `include=all_sponsors,actions,versions,progress,tracking`
+- `include=ai_summary` or `include=ai_analysis` supplies the held summary and analysis.
+  `summary_source_version` identifies the enrichment's explicitly linked bill version
+  with `id`, `version_code`, `version_name`, `document_date`, `html_url` and `pdf_url`.
+  It is absent when that link is not held; the current version is never substituted.
 - `include=topics` — **NOT BUILT**; no branch reads it, so it changes nothing.
-- `include=ai_summary` — **NOT BUILT** as an include, because it is unconditional: the AI
-  analysis payload ships on the response whether or not you ask.
-- `include=progress` is real and was undocumented here until the Aug 3 2026 audit.
 
 Default shape:
 
@@ -686,6 +689,10 @@ Heavy secondary data:
 Purpose:
 
 - full bill timeline
+
+Both this collection and bill detail's `include=actions` carry the action's held
+`chamber` slug, `chamber_id` and `committee_id`. Missing links remain null; a printed
+committee name alone never creates a link.
 
 #### `GET /api/v1/bills/{bill_id}/versions`
 
@@ -715,14 +722,19 @@ Purpose:
 
 - list vote events for a bill
 
-#### `GET /api/v1/bills/{bill_id}/votes/{vote_event_id}` — **NOT BUILT**
+#### `GET /api/v1/votes/{vote_event_id}`
 
-Purpose:
+A public detail response for that exact vote-event UUID, with the same event and
+per-member fields as the bill's vote collection, plus `bill_id` (the canonical bill
+key). An unknown event returns 404; an invalid UUID returns 422. It does not need a
+bill query parameter and never substitutes another event from that bill.
 
-- vote-event detail with roll-call records
-
-Never needed: `GET /bills/{bill_id}/votes` already embeds each event's full per-voter `records`
-array, so a detail route would only re-slice a response the client already has.
+Both vote reads resolve each member's `party` from held service periods in the
+vote's chamber and Legislature, including same-Legislature special sessions. A held
+personal start/end date bounds that party; no current flag or later Legislature is
+substituted. Missing vote dates, missing parties or conflicting eligible periods
+leave the party null. Neither route invents unrecorded votes. Responses remain
+publicly cacheable and names, slugs, chambers and periods are read in batches.
 
 ### Legislators
 
@@ -1516,6 +1528,13 @@ the search served it, uses no `year`, and never prints a total across the rows �
 `total_payments` staying `null` here costs it nothing: it says how many rows it is showing and
 that more are filed, never "of N".
 
+#### `GET /api/v1/committees/{registration_number}/notices?year=…`
+
+The detail response pins `release_id` and `contributions_snapshot_id` to the exact
+contributions copy used to match notices. A matched payment’s `record_number` belongs
+only to that copy. Clients must verify both pins before locating it in a later payment
+response; a reused row number from another release is not evidence of a match.
+
 #### `GET /api/v1/campaign-finance/outside-spending`
 
 Shipped Sep 2026 ([#1945](https://github.com/alethical-org/alethical/issues/1945)). The
@@ -2267,6 +2286,9 @@ Filters:
 Response:
 
 - grouped results by resource type
+- `bill_total`: the exact number of bills matching the same query and session before
+  the result limit, including 0 for a genuine empty match; null when bills were not
+  requested. This is separate from `/bills`, which already returns `page.total`.
 
 ### Grounded Ask
 
