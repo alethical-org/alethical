@@ -433,12 +433,18 @@ updates and independently inspect the live behaviour before reporting completion
     unblocked-and-highest-value first, and work through all of them.
 
     **THE HARD LINE, the one thing that stops a build.** Never let a build fire an
-    irreversible external side effect unverified: a real send to real users, real money
+    irreversible external side effect unverified: an unapproved send to real users, real money
     on an unverified run, a destructive or irreversible production data, schema or access
     change. Honor it by **engineering, not by asking**: build the capability fully, keep
     the live trigger behind config (env or flag, dry-run default off), verify with tests
     plus a dry run and a scoped single-record live check read back. An additive,
-    reversible, verified migration or backfill is not this.
+    reversible, verified migration or backfill is not this. Controlled live email tests
+    to an authorized maintainer or test mailbox are allowed when delivery is part of the
+    requested acceptance check. Verify the recipient and purpose first, send only what
+    that check needs through the real product flow, retain existing rate limits and access
+    rules, and read back delivery and the resulting action. Never send tests to unrelated
+    customers or expand access to make a test pass; keep codes and session tokens out of
+    logs and committed evidence. A dry run alone does not finish email delivery acceptance.
 
     **Reserved stops, exactly 2, alongside the hard line.** (1) A genuine **toss-up**: no
     basis to prefer an option, so surface it briefly and lead with a recommendation, never

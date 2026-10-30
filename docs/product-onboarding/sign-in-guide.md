@@ -317,6 +317,15 @@ an address is on Finance's access list names a client, so no answer shows it.
 - Every Finance request checks the list again
   ([backend-stack.md § 4. Sign-in](../architecture/backend-stack.md#4-sign-in)).
 
+Live acceptance uses an authorized maintainer or test mailbox already on the access list,
+under [workflow rule 10](../../.claude/rules/workflow.md). Send through the product's code
+request, then verify delivery, wrong-code recovery, successful proof and session exchange,
+Finance access, session refresh, and rejection of reused codes and tokens. Check the browser
+returns to the requested Finance page. Provider delivery and API checks do not prove that
+browser return or inbox placement. Keep codes and session tokens out of saved evidence;
+sign out only the test session, preserving other sessions. Never add access merely to make
+a test pass.
+
 ## Live settings and email sender
 
 [repo-and-service-settings.md § Supabase sign-in](../operations/repo-and-service-settings.md#supabase-sign-in)
