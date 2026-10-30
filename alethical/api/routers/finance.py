@@ -20,7 +20,7 @@ from alethical.api.routers.public import same_legislature_session_ids
 from alethical.api.routers.public import search as legislature_search
 from alethical.api.problems import problem_exception
 from alethical.api.serializers import companion_payload, sponsor_payloads
-from alethical.api.services import finance_records, finance_payees
+from alethical.api.services import finance_records, finance_payees, finance_people
 from alethical.db.models import Bill, Legislator, LegislatorServicePeriod, Sponsorship
 from alethical.db.session import get_db
 
@@ -164,6 +164,33 @@ def payees(
             year=year,
             payment_type=payment_type,
             tab=tab,
+            sort=sort,
+            limit=limit,
+            offset=offset,
+        )
+    }
+
+
+@router.get("/people")
+def people(
+    q: str = Query(default="", max_length=200, pattern=r"^[^\x00]*$"),
+    type: finance_people.PeopleType = "all",
+    scope: finance_people.PeopleScope = "all",
+    year: int | None = Query(default=None, ge=1900, le=2200),
+    service: finance_people.Service | None = None,
+    sort: finance_people.PeopleSort = "name",
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+) -> dict:
+    return {
+        "data": finance_people.directory(
+            db,
+            query=q,
+            type=type,
+            scope=scope,
+            year=year,
+            service=service,
             sort=sort,
             limit=limit,
             offset=offset,
