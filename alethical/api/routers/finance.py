@@ -18,13 +18,43 @@ from alethical.api.routers.public import campaign_finance_search
 from alethical.api.services.campaign_finance_search import MIN_QUERY_LENGTH
 from alethical.api.routers.public import same_legislature_session_ids
 from alethical.api.routers.public import search as legislature_search
+from alethical.api.routers.finance_money_reads import router as money_router
 from alethical.api.problems import problem_exception
 from alethical.api.serializers import companion_payload, sponsor_payloads
-from alethical.api.services import finance_records, finance_payees
+from alethical.api.services import (
+    finance_records,
+    finance_payees,
+    finance_people,
+    finance_connections,
+)
 from alethical.db.models import Bill, Legislator, LegislatorServicePeriod, Sponsorship
 from alethical.db.session import get_db
 
 router = APIRouter(prefix="/finance", dependencies=[Depends(require_finance_access)])
+router.include_router(money_router)
+
+
+@router.get("/connections")
+def money_connections(
+    q: str = Query("", max_length=200, pattern=r"^[^\x00]*$"),
+    year: int | None = Query(None, ge=1900, le=2200),
+    relationship: finance_connections.Relationship = "all",
+    focus: str | None = Query(None, max_length=2000, pattern=r"^[^\x00]*$"),
+    limit: int = Query(100, ge=1, le=200),
+    offset: int = Query(0, ge=0, le=2147483647),
+    db: Session = Depends(get_db),
+) -> dict:
+    return {
+        "data": finance_connections.connections(
+            db,
+            query=q.strip(),
+            year=year,
+            relationship=relationship,
+            focus=focus,
+            limit=limit,
+            offset=offset,
+        )
+    }
 
 
 @router.get("/access")
@@ -164,6 +194,33 @@ def payees(
             year=year,
             payment_type=payment_type,
             tab=tab,
+            sort=sort,
+            limit=limit,
+            offset=offset,
+        )
+    }
+
+
+@router.get("/people")
+def people(
+    q: str = Query(default="", max_length=200, pattern=r"^[^\x00]*$"),
+    type: finance_people.PeopleType = "all",
+    scope: finance_people.PeopleScope = "all",
+    year: int | None = Query(default=None, ge=1900, le=2200),
+    service: finance_people.Service | None = None,
+    sort: finance_people.PeopleSort = "name",
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+) -> dict:
+    return {
+        "data": finance_people.directory(
+            db,
+            query=q,
+            type=type,
+            scope=scope,
+            year=year,
+            service=service,
             sort=sort,
             limit=limit,
             offset=offset,

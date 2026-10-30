@@ -1803,7 +1803,7 @@ def test_bill_votes_returns_per_member_records_summing_to_the_tally(client):
 
 
 def test_bill_votes_records_carry_legislator_name_and_party(client):
-    """Each /votes record carries the voter's full_name and current-period party
+    """Each /votes record carries the voter's full_name and vote-period party
     (#435 fidelity), resolved batched across the whole roll. Party is served raw
     ('DFL'/'R'); legislator_name is the Legislator.full_name."""
     schema = load_schema()
@@ -1912,16 +1912,13 @@ def test_bill_votes_records_carry_legislator_name_and_party(client):
                 db.commit()
 
 
-def test_member_party_prefers_newest_session_without_a_current_period(client):
-    """When a legislator has several non-current service periods, the party pick
-    comes from the newest legislative session. service_period.start_date is always
-    null (#343) and period_sequence always 1, so the tiebreak must ride on the
-    session's populated start_date; otherwise the DISTINCT ON pick is arbitrary.
-    Exercises member_party_by_legislator's ordering directly."""
+def test_member_party_uses_the_votes_legislature_not_a_newer_session(client):
+    """An older roll call keeps that Legislature's held party without current evidence."""
     schema = load_schema()
     from datetime import datetime, timezone
 
-    from alethical.api.routers.public import member_party_by_legislator
+    from types import SimpleNamespace
+    from alethical.api.routers.public import party_at_vote
 
     created: dict[str, object] = {}
     try:
@@ -1971,8 +1968,8 @@ def test_member_party_prefers_newest_session_without_a_current_period(client):
             )
             db.add(member)
             db.flush()
-            # Both non-current, both start_date null (the #343 reality). The older
-            # session carries 'R', the newer 'DFL'; the newer session must win.
+            # Both are held session records; no current flag may move an old
+            # vote into the newer Legislature's party.
             db.add_all(
                 [
                     schema.LegislatorServicePeriod(
@@ -2001,8 +1998,14 @@ def test_member_party_prefers_newest_session_without_a_current_period(client):
                 "newer": newer.id,
             }
 
-            result = member_party_by_legislator(db, [member.id])
-            assert result[str(member.id)] == "DFL"
+            event = SimpleNamespace(
+                id="old-vote",
+                chamber_id=chamber.id,
+                occurred_at=datetime(2021, 5, 1, tzinfo=timezone.utc),
+                records=[SimpleNamespace(legislator_id=member.id)],
+            )
+            result = party_at_vote(db, SimpleNamespace(session=older), [event])
+            assert result[(event.id, member.id)] == "R"
     finally:
         with Session(get_engine()) as db:
             if created:
@@ -2020,14 +2023,12 @@ def test_member_party_prefers_newest_session_without_a_current_period(client):
                 db.commit()
 
 
-def test_member_party_tiebreaks_same_session_by_period_sequence(client):
-    """Two non-current periods in the *same* session tie on session start_date, so
-    the pick falls to period_sequence (later period wins) then the row id. Not
-    reachable from current ingestion (which always writes sequence 1), but the
-    schema permits it, so the ordering must stay deterministic (#343 follow-up)."""
+def test_member_party_withholds_ambiguous_undated_periods(client):
+    """Sequence alone cannot date a party change within one Legislature."""
     schema = load_schema()
 
-    from alethical.api.routers.public import member_party_by_legislator
+    from types import SimpleNamespace
+    from alethical.api.routers.public import party_at_vote
 
     created: dict[str, object] = {}
     try:
@@ -2058,8 +2059,8 @@ def test_member_party_tiebreaks_same_session_by_period_sequence(client):
             )
             db.add(member)
             db.flush()
-            # Same session, both non-current; sequence 2 (the later period) carries
-            # 'DFL' and must win over sequence 1's 'R'.
+            # The held periods disagree and have no personal dates. Picking
+            # sequence 2 would invent when the member changed parties.
             db.add_all(
                 [
                     schema.LegislatorServicePeriod(
@@ -2085,8 +2086,14 @@ def test_member_party_tiebreaks_same_session_by_period_sequence(client):
             db.commit()
             created = {"member": member.id, "district": district.id}
 
-            result = member_party_by_legislator(db, [member.id])
-            assert result[str(member.id)] == "DFL"
+            event = SimpleNamespace(
+                id="ambiguous-vote",
+                chamber_id=chamber.id,
+                occurred_at=datetime(2025, 5, 1, tzinfo=timezone.utc),
+                records=[SimpleNamespace(legislator_id=member.id)],
+            )
+            result = party_at_vote(db, SimpleNamespace(session=session_row), [event])
+            assert result[(event.id, member.id)] is None
     finally:
         with Session(get_engine()) as db:
             if created:

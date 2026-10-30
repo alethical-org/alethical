@@ -5989,6 +5989,32 @@ class FinanceTVConnection(_FinanceTVCheck, Base):
     )
 
 
+class FinanceTVCopyWithdrawal(UUIDPrimaryKeyMixin, Base):
+    """An immutable Finance-only withdrawal of a public-copy check.
+
+    The source check remains untouched, including on the public site. Exactly 1
+    check is named, and each check can be withdrawn in Finance only once.
+    """
+
+    __tablename__ = "finance_tv_copy_withdrawal"
+    fact_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("tv_ad_fact.id"), unique=True
+    )
+    connection_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("tv_ad_connection.id"), unique=True
+    )
+    withdrawn_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    withdrawal_reason: Mapped[str] = mapped_column(Text, nullable=False)
+    __table_args__ = (
+        CheckConstraint(
+            "(fact_id IS NULL) != (connection_id IS NULL)",
+            name="finance_copy_withdrawal_check",
+        ),
+    )
+
+
 class TVAdReviewEvent(UUIDPrimaryKeyMixin, Base):
     """Append-only actor, decision, exact revision and evidence history."""
 

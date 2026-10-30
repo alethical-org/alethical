@@ -8,6 +8,7 @@ types here (names, relations, bases, reasons) is readable by every Finance accou
 
 from __future__ import annotations
 
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -18,6 +19,7 @@ from sqlalchemy.orm import Session
 from alethical.api.finance_access import require_finance_access
 from alethical.api.problems import problem_exception
 from alethical.api.services import identity_confirmations as identities
+from alethical.api.services import finance_identity_directory as directory
 from alethical.api.services.finance_access import FinanceAccount
 from alethical.db.session import get_db
 
@@ -30,6 +32,15 @@ SHARED = "Every Finance account can read this, so never write anything confident
 
 class _Request(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+
+class RecordSelectionRequest(_Request):
+    snapshot_id: str = Field(
+        description="The source copy shown by the records listing."
+    )
+    year: StrictInt | None = Field(
+        None, ge=1900, le=2100, description="Omit to select all years."
+    )
 
 
 class IdentityConfirmationRequest(_Request):
@@ -69,10 +80,11 @@ class IdentityConfirmationRequest(_Request):
     )
     fingerprints: list[str] | None = Field(
         None,
-        description="For a printed name only: the records confirmed, by the"
-        " fingerprints the records listing serves, at most 5,000. 'All records' and"
-        " '{year} records' choose from that listing; nothing about the choice is"
-        " stored, and a record added later is never covered.",
+        description="For a printed name: exact fingerprints selected across listing pages. A later record is never covered.",
+    )
+    record_selection: RecordSelectionRequest | None = Field(
+        None,
+        description="Alternative to fingerprints: all unconfirmed records under this name in the pinned source copy, optionally for 1 year. Only the resulting fingerprints are saved.",
     )
 
 
@@ -133,6 +145,50 @@ def _answer(db: Session, work):
         ) from None
 
 
+@router.get("")
+def list_entities(
+    q: str = Query("", max_length=500),
+    kind: Literal["person", "organization"] | None = Query(None),
+    page: int = Query(1, ge=1, le=2147483647),
+    page_size: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Find an existing active identity; no name-based identity inference."""
+    return {
+        "data": _answer(
+            db,
+            lambda: directory.entities(
+                db, q=q.strip(), kind=kind, page=page, page_size=page_size
+            ),
+        )
+    }
+
+
+@router.get("/queue")
+def queue(
+    record_type: Literal["all", "donor", "payee"] = Query("all"),
+    status: Literal["unconfirmed", "confirmed", "all"] = Query("unconfirmed"),
+    q: str = Query("", max_length=500),
+    page: int = Query(1, ge=1, le=2147483647),
+    page_size: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Exact printed names by recorded amount; each payment file stays separate."""
+    return {
+        "data": _answer(
+            db,
+            lambda: directory.queue(
+                db,
+                record_type=record_type,
+                status=status,
+                q=q.strip(),
+                page=page,
+                page_size=page_size,
+            ),
+        )
+    }
+
+
 @router.get("/lookup")
 def lookup(
     record_kind: str = Query(max_length=40),
@@ -147,11 +203,26 @@ def lookup(
 def records(
     record_kind: str = Query(max_length=40),
     record_key: str = Query(max_length=500),
+    page: int = Query(1, ge=1, le=2147483647),
+    page_size: int = Query(100, ge=1, le=identities.MAX_PAGE_SIZE),
+    year: int | None = Query(None, ge=1900, le=2100),
+    snapshot_id: UUID | None = Query(None),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Every record in the Board's current file printing a name, with its claim."""
+    """A page of a printed name's records, with totals and their standing claims."""
     return {
-        "data": _answer(db, lambda: identities.records(db, record_kind, record_key))
+        "data": _answer(
+            db,
+            lambda: identities.records(
+                db,
+                record_kind,
+                record_key,
+                page=page,
+                page_size=page_size,
+                year=year,
+                snapshot_id=snapshot_id,
+            ),
+        )
     }
 
 

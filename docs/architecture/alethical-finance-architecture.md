@@ -1,5 +1,7 @@
 # Alethical Finance — architecture and access decisions
 
+<!-- describes: alethical/api/routers/finance_identities.py, alethical/api/services/identity_confirmations.py, alethical/api/services/finance_identity_directory.py, alethical/api/services/finance_station_checks.py -->
+
 **Net:** Alethical Finance is a sign-in-only research product for law firms and their
 political committees. It runs on the same records, database, server and product rules as
 alethical.com; only its screens are separate. Every account Alethical lets in has the same
@@ -44,6 +46,18 @@ Finance). Identity confirmations (§4) answer under `/identities/`
 database session, so the money search still reads its whole answer from 1 instant of the
 database.
 
+### People records
+
+`GET /api/v1/finance/people` pages held candidacies, public person records and
+legislative records as separate kinds, even when their names match. Literal name
+search, stable paging and whole-filter counts apply to every kind. Candidate
+filters use the election year and date; legislative filters use current or former
+service evidence. Each legislative record carries its held seat, party, source and
+personal service dates. Missing personal dates stay null, never session dates.
+An ended older term does not establish former service when a later term is undated.
+When sibling sessions leave the latest service ambiguous, status remains unknown.
+This directory reads no private account, address or claim information.
+
 ## 2. Built separately
 
 - **Finance's screens.** Finance has its own look and shows more than alethical.com
@@ -70,21 +84,81 @@ database.
 - **1 guide per data feature**, with a short section for each site's differences, rather
   than a second guide per site ([workflow.md](../../.claude/rules/workflow.md) rule 6).
 
-Finance's reads about legislators are records, never money
-(`alethical/api/services/finance_records.py`). `GET /api/v1/finance/legislative-committees`
-lists the sitting Legislature's committees; `/legislative-committees/{id}/members` lists a
-committee's members with their roles; `/bills/{bill_id}/authors` lists a bill's authors with
-the bill page's own formatter, each row marked with the chamber whose file named it, so a
-companion bill's authors stay distinguishable. It names the bill as the bill page does:
-by its plain-language title, or by its number when it has none, never by its legal title;
-its status is served beside them. The read takes the same few database trips however many
-authors a bill has. Each legislator carries `link_state` (confirmed, reviewed with none confirmed, or
-unconfirmed) and the committees confirmed as theirs, each with the office it registered for
-and whether that is a Legislature seat. Each account's figures for a year come from
-`/legislators/{legislator_id}/campaign-finance`, 1 member at a time, which leaves out a race
-for another office; no figure is combined across members, and reading 27 members' figures
-in 1 request took 15 seconds. Donors by employer, exactly as printed, is alethical.com's own
-`/campaign-finance/payments-under-name?role=employer`, which never adds across donors.
+Finance's legislative reads (`alethical/api/services/finance_records.py`) list the sitting
+Legislature's committees and each committee's members and roles. Member districts come
+from service in that committee's session and chamber; ambiguous districts stay unknown.
+`roster_copied_at` dates the latest complete successful roster copy for that session,
+not a later page request or a partial collection. Bill authors use the bill page's own
+formatter and keep the chamber whose file named each author. Bills use their plain-language
+title, or their number when none is held, and carry their status. Each legislator carries
+`link_state` and reviewed accounts, including the office each account registered for.
+Money remains per account and year; it is never added across members.
+
+### Money reads and exact printed names
+
+`alethical/api/services/finance_money_reads.py` supplies read-only routes under Finance's
+existing access boundary. All reads preserve missing amounts and source dates under
+[grounded-answers.md rule 12](../../.claude/rules/grounded-answers.md). Source files no longer
+held produce an unavailable state, never a zero. A requested release that changed returns
+409 so a caller reloads rather than joining pages from different copies.
+
+- `/candidates/{id}/campaign-finance` and `/campaign-finance/years` reuse the account/year
+  readers after checking a reviewed candidacy-to-person link, a confirmed account covering
+  the election year, and the Board's held office and district against that candidacy.
+  Only that account set can appear in its historical years, each still subject to the
+  existing reviewed or filed year coverage. Missing seat or identity evidence means
+  unconfirmed; names alone never create a link.
+- `/committees/{number}/report-figures?year=Y` lists the held catalogue's filed report names
+  and effective amendments. A catalogue entry without an amendment marker is not proof
+  of filing. The latest held cumulative figures attach only to a unique regular report
+  whose period end matches; older or ambiguous reports keep null figures. Total receipts,
+  complete contribution lines and total expenditures require the official calendar's
+  period start. Beginning and ending balance dates come from their own printed labels;
+  an undated balance is withheld. Expenditures are never relabelled as all
+  disbursements. Filing dates never come from period ends. Retained figures keep their
+  own copy date.
+- `/committees/{number}/payment-groups` pages exact named groups for one filing year and
+  direction, with whole-filter group/payment counts and itemized amount before paging.
+  The same missing-amount and complete-period rules apply to that whole-filter total.
+  An optional exact source `record_number` locates its complete group and exact row
+  offset for a notice link, even beyond its first preview page.
+  Contribution categories stay separate; candidate committees belong with committees
+  and funds; outgoing transfers retain the receiving committee's filed number. Unnamed
+  records stay individual. A sum is withheld if any amount is missing; every shown sum
+  has a complete date span or the held filing-year span, never a substituted transaction
+  year. Each group includes its first 50 rows; `/group-payments` reads the remaining rows
+  by its opaque key and release pin. Matching filer links use the existing own-money
+  availability check. Statement evidence stays attached to the contribution rows.
+- `/employers?q=...` searches exact printed employer spellings with at least 3 characters,
+  with donor-name and record counts, plus current organization-confirmed record coverage.
+  `/employers/donors?name=...` pages donors under one exact employer spelling; unnamed
+  records stay individual. `/employers/donor-payments` pages each group's source rows.
+  Loans remain loans, missing amounts remain null, and nothing is summed as employer money.
+- The existing payments-under-name readers return a whole-filter `total_payments` for
+  contributor, vendor, independent vendor and employer roles, including past-last pages.
+  Their source files and meanings stay separate; the count does not turn a printed name
+  into an identity or its rows into a money total.
+
+Identity record pages also carry source address/copy date and display-only filer name,
+number, link availability and printed transaction types. These fields never change a
+fingerprint. Conflicting names or types on repeated fingerprints remain distinguishable;
+no unresolved filer number becomes a link.
+
+### Recorded connections
+
+`alethical/api/services/finance_connections.py` serves `/connections` inside Finance's
+access boundary. It combines direct recorded contributions, payments, reviewed campaign
+accounts, lobbying registrations and checked original station-file relationships. It
+never infers that one payment funded another. Station-file relationships carry no amount.
+Outgoing committee contributions use the separately filed recipient, never a processor's
+confirmed identity. A recipient without held filer evidence remains a printed name.
+
+Money groups are counted and paged together in SQL, with the same complete ordering as
+the other relationships. Deep pages load only a bounded money window into the app;
+different roles for one identity remain separate relationships. A request pins its
+money reads to one database view and returns the source copies. Missing sources are
+reported separately while available relationships remain usable; held station files
+without matching checks are an empty result, not an unavailable source.
 
 ## 3. Access
 
@@ -147,10 +221,37 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
   share 1 claim. A fingerprint that matches no current row stays and shows as no longer in
   the Board's file. A record added later is never covered until someone confirms it. The
   database lets each fingerprint belong to only 1 active confirmation. `GET /records` lists
-  the current records printing a name (at most 5,000), each with the confirmation and
-  identity standing for it; the "All records" and "{year} records" choices select
-  fingerprints from that listing when confirming, and nothing about the choice is stored.
+  the current records printing a name in stable pages of whole fingerprints, each with
+  the confirmation and identity standing for it. Pages include the full matching row
+  and fingerprint counts; identical repeated rows stay together. The listing accepts
+  `page`, `page_size` (100 by default, at most 500), `year` and a `snapshot_id` pin;
+  a changed source copy refuses a pinned page and asks the reader to reload. Selections
+  across pages send their fingerprints. The "All records" and "{year} records" choices
+  send `record_selection` with the displayed `snapshot_id` and optional `year`; the
+  server selects every matching unconfirmed fingerprint, including names over 5,000
+  records, and refuses a changed source copy. Only the resulting fingerprints are
+  stored; a record added later is never covered. Explicit selections have a 16 MiB
+  request limit, with a refusal naming Alethical's limit and the quick-selection route.
   An identity's `printed_names` gives "Confirmed for {k} of {n} records" for each name.
+- **The confirmation queue groups exact spellings, never inferred identities.**
+  `GET /queue` accepts `record_type` (`all`, `donor`, `payee`), `status`
+  (`unconfirmed`, `confirmed`, `all`), `q`, `page` and `page_size` (50 by default,
+  at most 100). Contributions, expenditures and independent expenditures stay
+  separate, even when they print the same name. Each row gives current record and
+  confirmation counts, actual years and dates, missing-amount count, source copy,
+  source URL and copy date. Any missing amount withholds the figure, following
+  `campaign_finance_reader.Bucket.rows_missing_an_amount` and
+  [grounded-answers.md](../../.claude/rules/grounded-answers.md) rule 12; complete
+  figures sort highest first and withheld figures follow them. `period_basis` is
+  `dates` when every record has a date, otherwise `years` when every record has its
+  held filing year, otherwise null and the amount is withheld. Filing year and
+  payment-date year can disagree, so a missing filing year is never derived from
+  a date. `amount_state` distinguishes `reported`, `incomplete_amount` and
+  `incomplete_period`; `undated_records` counts records lacking both year and date.
+  A partly confirmed
+  name remains in the unconfirmed queue. `GET /identities` finds saved active
+  identities by `q` and optional `kind`, with the same paging bounds; it returns
+  only id, kind and name, without a suggested match or any account details.
 - **An identifier is confirmed whole, for all time.** A committee's or lobbyist's
   registration number, a principal's id, or the id of a held legislator or public person
   is itself an identifier; at most 1 active confirmation holds each, and `GET /lookup`
@@ -192,6 +293,12 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
 - alethical.com prints no Finance station-file check: its station-file readers read only
   checks on its own public copies (`tv_ad_fact`, `tv_ad_connection`), and a Finance check
   never changes them.
+- Every Finance account can withdraw any station-file fact, date or connection,
+  including a public-copy check or folder connection. The withdrawal needs a reason
+  and is recorded once. A public-copy check is withdrawn **only inside Finance**:
+  an immutable `finance_tv_copy_withdrawal` row records the decision, while the
+  public check and every public-site answer remain unchanged. Finance's file views,
+  correction history, lists, connections and counts honor the withdrawal.
 - Inside Finance every account sees every check. No check names the account that made it
   or says whether a team account did; a Finance check keeps no account identity, only
   that flag (`made_by_alethical_team`), which no Finance answer serves.

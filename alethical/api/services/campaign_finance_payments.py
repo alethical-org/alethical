@@ -7,7 +7,7 @@ the data a clickable name needs ([#1331](https://github.com/alethical-org/alethi
 and it deliberately builds none of the clicking, which waits on
 [#1329](https://github.com/alethical-org/alethical/issues/1329).
 
-**Nothing here returns a total, and that is the design rather than an omission.** Every
+**Nothing here returns a money total. Row counts cover the whole matching set.** Every
 figure a surface may print already exists in ``committee_finance.py``, sourced from
 ``campaign_finance_reader.py`` where the source's traps are enforced once. What this
 module adds is rows: each with its own amount, its own date, its own label in the
@@ -284,11 +284,9 @@ class PaymentPage:
     3 values are the 3 different facts an empty list can be (see this module's
     docstring). A caller must read it first.
 
-    ``has_more`` exists so no surface can present a truncated list as complete, which is
-    the same failure ``.claude/rules/grounded-answers.md`` rule 11 forbids of a generated
-    answer. ``matched_payments`` is deliberately absent: counting every row under a
-    donor's name means scanning for it, and a count is the one number a page would print
-    largest and trust most.
+    ``has_more`` and ``total_payments`` describe the whole matching row set, so a
+    page never presents a truncated list as complete. Counts describe records under
+    one exact spelling, never a number of people or a money total.
 
     ``linkable_registration_numbers`` are the counterparty numbers on this page that this
     release holds as a filer of its own. Only those may be rendered as links: 912
@@ -309,8 +307,7 @@ class PaymentPage:
     #: How many rows match in all, counted with the page's own WHERE clause, so
     #: "Showing 250 of 1,284" is a measured sentence. ``None`` on every page that is
     #: not ``REPORTED`` -- an absence must never arrive as a countable 0 -- and on the
-    #: name-keyed lookups, which deliberately serve no count (see the module
-    #: docstring: a count is the one number a page would print largest).
+    #: reads that did not request a count.
     total_payments: Optional[int]
     linkable_registration_numbers: frozenset[str]
     dataset: Dataset
@@ -687,8 +684,8 @@ def _payments(
 
     Nothing is filtered by the source's own labels. Every ``Receipt type`` and every
     expenditure ``Type`` is listed and each row carries its own, because those filters
-    exist to keep a *total* honest and there is no total here -- dropping a label would
-    instead lose real money the Board published from a list of what the record says.
+    exist to keep a *money total* honest and there is no money total here. Dropping a
+    label would instead lose real money the Board published from the listed records.
 
     The 2 number arguments are the fields whose registration numbers a surface might
     follow, and they are separate because the claims differ in strength.
@@ -950,6 +947,7 @@ def payments_from_contributor(
         year=year,
         limit=limit,
         offset=offset,
+        count_total=True,
         by_year_first=True,
         numbers_that_are_filers_here=("recipient_registration_number",),
     )
@@ -1009,6 +1007,7 @@ def payments_to_vendor(
         year=year,
         limit=limit,
         offset=offset,
+        count_total=True,
         by_year_first=True,
         numbers_that_are_filers_here=("committee_registration_number",),
     )
@@ -1034,6 +1033,7 @@ def independent_payments_to_vendor(
         year=year,
         limit=limit,
         offset=offset,
+        count_total=True,
         by_year_first=True,
         numbers_to_check=(
             "spender_registration_number",
@@ -1070,6 +1070,7 @@ def payments_from_donors_typing(
         year=year,
         limit=limit,
         offset=offset,
+        count_total=True,
         numbers_that_are_filers_here=("recipient_registration_number",),
     )
 

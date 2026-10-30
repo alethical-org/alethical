@@ -30,7 +30,8 @@ from typing import Any
 from urllib.parse import urlsplit
 from uuid import UUID
 
-from sqlalchemy import Numeric, Text, cast, func, literal, literal_column, select
+from sqlalchemy import Numeric, Text, any_, cast, func, literal, literal_column, select
+from sqlalchemy.dialects.postgresql import ARRAY, aggregate_order_by
 from sqlalchemy.orm import Session
 
 from alethical.db import models as m
@@ -47,8 +48,8 @@ MAX_NAME = 300
 MIN_QUOTE = 3
 # Saved source rows are numbered by a PostgreSQL integer.
 MAX_ROW = 2**31 - 1
-# The most records 1 listing serves or 1 confirmation selects.
-MAX_RECORDS = 5000
+# Listings are bounded; a confirmation may cover every matching record.
+MAX_PAGE_SIZE = 500
 _FINGERPRINT = re.compile(r"[0-9a-f]{64}")
 # An official page's address: printable ASCII with no backslash, so no space,
 # control character or anything a browser would rewrite into another host.
@@ -310,55 +311,96 @@ def _evidence(db: Session, kind: str, key: str, data: dict) -> _Evidence:
     return _Evidence(source, snapshot_id, str(locator), None, quote)
 
 
-def _current_snapshot(db: Session, dataset: Dataset) -> UUID | None:
-    """The Board's file as published now, or None when no usable copy is held."""
+def _available_release(db: Session, dataset: Dataset):
+    """The published release, only when the requested source copy is still held."""
     try:
         release = reader.live_release(db)
+        if release is not None:
+            reader._refuse_if_rows_are_gone(db, release, dataset)
     except reader.ReleaseNoLongerHeld:
         return None
+    return release
+
+
+def _current_snapshot(db: Session, dataset: Dataset) -> UUID | None:
+    release = _available_release(db, dataset)
     return None if release is None else release.file_for(dataset).snapshot_id
 
 
-def _selected(db: Session, kind: str, key: str, value: Any) -> list[tuple[str, dict]]:
-    """The selected records, each in the Board's current file and not yet confirmed."""
-    if not isinstance(value, list) or not value:
-        raise IdentityError("Select at least 1 record")
-    if len(value) > MAX_RECORDS:
-        raise IdentityError(f"Select at most {MAX_RECORDS:,} records at a time")
-    if not all(
-        isinstance(item, str) and _FINGERPRINT.fullmatch(item) for item in value
+def _same_snapshot(snapshot: UUID, expected: Any) -> None:
+    if (
+        expected is not None
+        and _uuid(str(expected), "Select a source copy") != snapshot
     ):
-        raise IdentityError("Select records by the fingerprints the listing gives")
-    if len(set(value)) != len(value):
-        raise IdentityError("Select each record once")
+        raise IdentityError(
+            "The Board's file changed. Reload the records and select again."
+        )
+
+
+def _fingerprints_in(column, values):
+    # Bind 1 array rather than a parameter per record, including names over
+    # PostgreSQL's parameter limit. Fingerprints still match exactly.
+    return column == any_(cast(list(values), ARRAY(Text)))
+
+
+def _selected(
+    db: Session, kind: str, key: str, value: Any, selection: Any = None
+) -> list[tuple[str, dict]]:
+    """Selected current records; quick picks resolve only unconfirmed records."""
     printed = _PRINTED[kind]
     snapshot = _current_snapshot(db, printed.dataset)
     if snapshot is None:
         raise Unavailable("The Board's current file is not loaded. Try again later.")
     fingerprint = printed.fingerprint(kind)
+    where = [printed.model.snapshot_id == snapshot, printed.name == key]
+    if selection is not None:
+        if value is not None:
+            raise IdentityError(
+                "Choose records individually or use a quick selection, not both"
+            )
+        selection = _object(selection, "The record selection")
+        if set(selection) - {"snapshot_id", "year"} or not selection.get("snapshot_id"):
+            raise IdentityError(
+                "A quick selection needs its source copy and optional year"
+            )
+        _same_snapshot(snapshot, selection["snapshot_id"])
+        year = selection.get("year")
+        if year is not None:
+            if type(year) is not int or not 1900 <= year <= 2100:
+                raise IdentityError("Select a valid record year")
+            where.append(printed.model.year == year)
+        where.append(
+            ~select(Record.fingerprint)
+            .where(Record.fingerprint == fingerprint, Record.active)
+            .exists()
+        )
+    else:
+        if not isinstance(value, list) or not value:
+            raise IdentityError("Select at least 1 record")
+        if not all(
+            isinstance(item, str) and _FINGERPRINT.fullmatch(item) for item in value
+        ):
+            raise IdentityError("Select records by the fingerprints the listing gives")
+        if len(set(value)) != len(value):
+            raise IdentityError("Select each record once")
+        where.append(_fingerprints_in(fingerprint, value))
     found = dict(
         db.execute(
-            select(fingerprint, printed.printed_fields())
-            .where(
-                printed.model.snapshot_id == snapshot,
-                printed.name == key,
-                fingerprint.in_(value),
-            )
-            .distinct()
+            select(fingerprint, printed.printed_fields()).where(*where).distinct()
         ).all()
     )
-    if missing := len(set(value) - set(found)):
-        raise IdentityError(
-            f"{missing} of the selected records are not in the Board's current file"
-            " under this name"
-        )
-    if taken := _taken(db, value):
-        raise IdentityError(
-            f"{len(taken)} of the selected records are already confirmed"
-            " for an identity"
-        )
-    # Sorted, so 2 requests for overlapping records wait on each other in 1 order
-    # and the second is refused rather than deadlocked.
+    if selection is None:
+        if missing := len(set(value) - set(found)):
+            raise IdentityError(
+                f"{missing} of the selected records are not in the Board's current file under this name"
+            )
+        if taken := _taken(db, value):
+            raise IdentityError(
+                f"{len(taken)} of the selected records are already confirmed for an identity"
+            )
+    if not found:
+        raise IdentityError("Select at least 1 unconfirmed record")
+    # Lock overlapping claims in 1 order, so a race refuses rather than deadlocks.
     return sorted(found.items())
 
 
@@ -367,7 +409,7 @@ def _taken(db: Session, fingerprints: list[str]) -> list[str]:
     return list(
         db.scalars(
             select(Record.fingerprint).where(
-                Record.fingerprint.in_(fingerprints), Record.active
+                _fingerprints_in(Record.fingerprint, fingerprints), Record.active
             )
         )
     )
@@ -396,9 +438,14 @@ def _confirm(db: Session, entity: Entity, data: Any, *, team: bool) -> Confirmat
     basis = _text(data.get("basis"), "Basis")
     evidence = _evidence(db, kind, key, data)
     if kind in _PRINTED:
-        records = _selected(db, kind, key, data.get("fingerprints"))
+        records = _selected(
+            db, kind, key, data.get("fingerprints"), data.get("record_selection")
+        )
     else:
-        if data.get("fingerprints") is not None:
+        if (
+            data.get("fingerprints") is not None
+            or data.get("record_selection") is not None
+        ):
             raise IdentityError("An identifier is confirmed whole; select no records")
         if _standing(db, kind, key) is not None:
             raise IdentityError("This record is already confirmed for an identity")
@@ -708,7 +755,7 @@ def _matches(
     fingerprint = printed.fingerprint(kind)
     rows = db.execute(
         select(fingerprint, func.count())
-        .where(*where, fingerprint.in_(fingerprints))
+        .where(*where, _fingerprints_in(fingerprint, fingerprints))
         .group_by(fingerprint)
     ).all()
     return total, dict(rows)
@@ -868,51 +915,150 @@ def lookup(db: Session, record_kind: Any, record_key: Any) -> dict | None:
     }
 
 
-def records(db: Session, record_kind: Any, record_key: Any) -> dict:
-    """Every record in the Board's current file printing a name, by fingerprint.
+def records(
+    db: Session,
+    record_kind: Any,
+    record_key: Any,
+    *,
+    page: int = 1,
+    page_size: int = 100,
+    year: int | None = None,
+    snapshot_id: Any = None,
+) -> dict:
+    """A stable page of complete fingerprints, with counts for the whole filter.
 
-    Each carries the confirmation holding it and the identity that stands for it
-    today, or null. A confirmed record no longer in the file is listed apart.
+    Paging never splits identical repeated rows. Snapshot pins refuse a refresh
+    between pages; confirmations for other pages never look like missing records.
     """
     kind = _kind(record_kind)
     printed = _PRINTED.get(kind)
     if printed is None:
         raise IdentityError("An identifier is confirmed whole; look it up instead")
+    if (
+        type(page) is not int
+        or page < 1
+        or type(page_size) is not int
+        or not 1 <= page_size <= MAX_PAGE_SIZE
+    ):
+        raise IdentityError(f"Select a page of 1 to {MAX_PAGE_SIZE} records")
+    if year is not None and (type(year) is not int or not 1900 <= year <= 2100):
+        raise IdentityError("Select a valid record year")
     key = _key(kind, record_key)
-    snapshot = _current_snapshot(db, printed.dataset)
-    if snapshot is None:
+    release = _available_release(db, printed.dataset)
+    if release is None:
         raise Unavailable("The Board's current file is not loaded. Try again later.")
+    snapshot = release.file_for(printed.dataset).snapshot_id
+    _same_snapshot(snapshot, snapshot_id)
     model = printed.model
-    where = (model.snapshot_id == snapshot, printed.name == key)
-    total = db.scalar(select(func.count()).select_from(model).where(*where))
-    if total > MAX_RECORDS:
-        raise IdentityError(
-            f"This name is printed on {total:,} records, more than the"
-            f" {MAX_RECORDS:,} Finance lists at once"
+    where = [model.snapshot_id == snapshot, printed.name == key]
+    years = list(
+        db.scalars(
+            select(model.year)
+            .where(*where, model.year.is_not(None))
+            .distinct()
+            .order_by(model.year.desc())
         )
+    )
     fingerprint = printed.fingerprint(kind)
-    listed: dict[str, dict] = {}
-    for row in db.execute(
+    all_matches = dict(
+        db.execute(
+            select(fingerprint, func.count()).where(*where).group_by(fingerprint)
+        ).all()
+    )
+    if year is not None:
+        where.append(model.year == year)
+    fields = printed.printed_fields()
+    grouped = (
         select(
             fingerprint.label("fingerprint"),
-            printed.printed_fields().label("fields"),
-            model.row_number,
-            model.year,
+            fields.label("fields"),
+            func.min(model.row_number).label("first_row"),
+            func.count().label("count"),
+            func.jsonb_agg(
+                aggregate_order_by(
+                    func.jsonb_build_object(
+                        literal_column("'row_number'"),
+                        model.row_number,
+                        literal_column("'year'"),
+                        model.year,
+                    ),
+                    model.row_number,
+                )
+            ).label("rows"),
         )
         .where(*where)
-        .order_by(model.row_number)
-    ):
-        entry = listed.setdefault(
-            row.fingerprint,
-            {
-                "fingerprint": row.fingerprint,
-                "fields": row.fields,
-                "rows": [],
-                "confirmation": None,
-            },
+        .group_by(fingerprint, fields)
+        .subquery()
+    )
+    total, total_fingerprints = db.execute(
+        select(func.coalesce(func.sum(grouped.c.count), 0), func.count()).select_from(
+            grouped
         )
-        entry["rows"].append({"row_number": row.row_number, "year": row.year})
-    # Every fingerprint holds its printed name, so these are all its claims.
+    ).one()
+    listed = {
+        row.fingerprint: {
+            "fingerprint": row.fingerprint,
+            "fields": row.fields,
+            "rows": row.rows,
+            "confirmation": None,
+        }
+        for row in db.execute(
+            select(grouped)
+            .order_by(grouped.c.first_row, grouped.c.fingerprint)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+    }
+    # Display metadata never participates in the stable identity fingerprint.
+    # Repeated identical fingerprints can print different filer names or types.
+    from alethical.api.services.campaign_finance_payments import linkable_committees
+
+    filer_name, filer_number, record_type = {
+        "donor_name": (_Gave.recipient, _Gave.recipient_reg_num, _Gave.receipt_type),
+        "employer_name": (_Gave.recipient, _Gave.recipient_reg_num, _Gave.receipt_type),
+        "payee_name": (_Paid.committee_name, _Paid.committee_reg_num, _Paid.type),
+        "independent_payee_name": (
+            _Independent.spender,
+            _Independent.spender_reg_num,
+            _Independent.type,
+        ),
+    }[kind]
+    displays = (
+        db.execute(
+            select(
+                fingerprint.label("fingerprint"),
+                func.array_agg(filer_name.distinct()).label("names"),
+                func.min(filer_number).label("number"),
+                func.array_agg(record_type.distinct()).label("types"),
+            )
+            .where(*where, _fingerprints_in(fingerprint, listed))
+            .group_by(fingerprint)
+        ).all()
+        if listed
+        else []
+    )
+    held = linkable_committees(
+        db, release, [item.number for item in displays if item.number]
+    )
+    for item in displays:
+        names = sorted(name for name in item.names if name)
+        types = sorted(value for value in item.types if value)
+        listed[item.fingerprint]["display"] = {
+            "filer_name": names[0] if len(names) == 1 else None,
+            "filer_registration_number": item.number,
+            "filer_is_held": item.number in held,
+            "record_type": types[0] if len(types) == 1 else None,
+            "record_types": types,
+        }
+    filtered_matches = (
+        all_matches
+        if year is None
+        else dict(
+            db.execute(
+                select(fingerprint, func.count()).where(*where).group_by(fingerprint)
+            ).all()
+        )
+    )
     claims = db.execute(
         select(
             Record.fingerprint, Record.fields, Confirmation.id, Confirmation.entity_id
@@ -935,8 +1081,9 @@ def records(db: Session, record_kind: Any, record_key: Any) -> dict:
         reference = {"id": str(claim.id), "identity": _summary(identity)}
         if claim.fingerprint in listed:
             listed[claim.fingerprint]["confirmation"] = reference
-            covered[identity.id] += len(listed[claim.fingerprint]["rows"])
-        else:
+        if claim.fingerprint in filtered_matches:
+            covered[identity.id] += filtered_matches[claim.fingerprint]
+        elif claim.fingerprint not in all_matches:
             gone.append(
                 {
                     "fingerprint": claim.fingerprint,
@@ -949,9 +1096,16 @@ def records(db: Session, record_kind: Any, record_key: Any) -> dict:
         "record_kind": kind,
         "record_key": key,
         "file": printed.dataset.value,
+        "source_url": release.file_for(printed.dataset).source_url,
+        "copied_at": _iso(release.copied_at(printed.dataset)),
         "snapshot_id": str(snapshot),
-        "records": total,
+        "records": int(total),
         "confirmed": sum(covered.values()),
+        "page": page,
+        "page_size": page_size,
+        "total_fingerprints": total_fingerprints,
+        "pages": (total_fingerprints + page_size - 1) // page_size,
+        "years": years,
         "identities": [
             {**_summary(standing[identity_id]), "confirmed": count}
             for identity_id, count in covered.items()
