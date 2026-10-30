@@ -168,6 +168,19 @@ only contribution rows supply transfer numbers. Held registration sets use array
 parameters, keeping statement size bounded as the source files grow. These changes do
 not cache relationships or weaken the per-record identity checks.
 
+An unfiltered, all-year money graph can spill large grouped results to disk. One
+database-wide transaction lock admits such a query to a larger hash budget at a
+time, across API workers and the transaction pooler. Its `work_mem` is capped at
+3500kB (or the existing lower value), `hash_mem_multiplier` is 8, and parallel
+workers per query are capped at 1 (or the existing lower value). These are per-node
+limits, not a ceiling on total database memory. Filtered reads keep their normal
+settings. Another broad money read receives private, non-cacheable `503 service-busy`
+with `Retry-After: 10`; no partial graph is returned. The admitted read restores
+settings before returning, and transaction completion or rollback releases the lock
+and all local settings. No pool-wide or database-wide defaults change. Request
+timeouts still need validation when the graph frontend is built; service timings
+alone do not establish signed-in HTTP performance.
+
 ## 3. Access
 
 - **1 access level.** Every account on Finance's access list has the same access. Finance
