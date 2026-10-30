@@ -27,8 +27,8 @@ the tie-breaker when a tactic and an intent disagree.
   discipline (rule 14).
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — setup, the commands, the CI reference and what makes a test count.
 - [`docs/design/design-principles.md`](docs/design/design-principles.md) governs UI work
-  and every Design handoff, including the **Type** rule: use Libre Franklin with equal-width
-  digits for numbers even when a drawing specifies dotted or slashed zeros, without another approval.
+  and every Design handoff, including the **Type** rule and its Alethical Finance exception:
+  use the product's approved face with equal-width digits for numbers, without another approval.
   Its [contextual page-return links](docs/design/design-principles.md#contextual-page-return-links)
   requirement also takes precedence over conflicting Design or peer handoffs; apply settled
   corrections during authorized builds and keep Design's record aligned.
