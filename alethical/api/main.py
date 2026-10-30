@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
@@ -262,10 +263,17 @@ def create_app() -> FastAPI:
                 "/api/v1/finance/",
             )
         ):
+            # A large printed name can select fingerprints across every page.
+            # Keep other Finance writes at the existing transport limit.
+            identity_selection = request.method == "POST" and re.fullmatch(
+                r"/api/v1/finance/identities(?:/[0-9a-fA-F-]{36}/confirmations)?/?",
+                request.url.path,
+            )
+            limit = 16 * 1024 * 1024 if identity_selection else 65_536
             body = bytearray()
             async for chunk in request.stream():
                 body.extend(chunk)
-                if len(body) > 65_536:
+                if len(body) > limit:
                     headers = {
                         "Cache-Control": "private, no-store",
                         "Referrer-Policy": "no-referrer",
@@ -278,7 +286,13 @@ def create_app() -> FastAPI:
                         headers["Access-Control-Allow-Credentials"] = "true"
                     return JSONResponse(
                         status_code=413,
-                        content={"detail": "The request is too large"},
+                        content={
+                            "detail": (
+                                "The selected records exceed Alethical's request limit. Use an All records or year selection."
+                                if identity_selection
+                                else "The request is too large"
+                            )
+                        },
                         headers=headers,
                     )
             request._body = bytes(body)

@@ -15,7 +15,7 @@ from uuid import UUID
 from types import SimpleNamespace
 from urllib.parse import quote
 
-from sqlalchemy import func, select, text, tuple_
+from sqlalchemy import func, select, text, true, tuple_
 from sqlalchemy.orm import Session
 
 from alethical.db import models as m
@@ -197,6 +197,9 @@ def counts(
                 m.TVAdPublication.facility_id.in_(STATIONS),
                 m.TVAdConnection.scope == "file",
                 m.TVAdConnection.status == "checked",
+                ~select(m.FinanceTVCopyWithdrawal.id)
+                .where(m.FinanceTVCopyWithdrawal.connection_id == m.TVAdConnection.id)
+                .exists(),
             )
         )
         finance = select(
@@ -299,21 +302,29 @@ def _original_checks(db, files=None):
         m.TVAdPublication.content_hash,
     )
     copies = (m.TVAdPublication.status != "draft", *held(m.TVAdPublication))
-    for fact, *identity_ in db.execute(
-        select(m.TVAdFact, *version)
+    for fact, withdrawal, *identity_ in db.execute(
+        select(m.TVAdFact, m.FinanceTVCopyWithdrawal, *version)
         .join(m.TVAdPublication, m.TVAdFact.publication_id == m.TVAdPublication.id)
+        .outerjoin(
+            m.FinanceTVCopyWithdrawal,
+            m.FinanceTVCopyWithdrawal.fact_id == m.TVAdFact.id,
+        )
         .where(*copies)
     ):
-        facts[tuple(identity_)].append(fact)
-    for connection, *identity_ in db.execute(
-        select(m.TVAdConnection, *version)
+        facts[tuple(identity_)].append(_copy_check_view(fact, withdrawal))
+    for connection, withdrawal, *identity_ in db.execute(
+        select(m.TVAdConnection, m.FinanceTVCopyWithdrawal, *version)
         .join(
             m.TVAdPublication,
             m.TVAdConnection.publication_id == m.TVAdPublication.id,
         )
+        .outerjoin(
+            m.FinanceTVCopyWithdrawal,
+            m.FinanceTVCopyWithdrawal.connection_id == m.TVAdConnection.id,
+        )
         .where(*copies, m.TVAdConnection.scope == "file")
     ):
-        connections[tuple(identity_)].append(connection)
+        connections[tuple(identity_)].append(_copy_check_view(connection, withdrawal))
     for fact in _finance_facts(
         db.scalars(select(m.FinanceTVFact).where(*held(m.FinanceTVFact)))
     ):
@@ -326,6 +337,15 @@ def _original_checks(db, files=None):
     for checks in (*facts.values(), *connections.values()):
         checks.sort(key=lambda check: (check.checked_at, check.id))
     return cache["original_checks"]
+
+
+def _copy_check_view(row, withdrawal):
+    """A Finance-only view; never assign to an ORM object the public reader uses."""
+    if withdrawal is None:
+        return row
+    values = {column.key: getattr(row, column.key) for column in row.__table__.columns}
+    values.update(status="withdrawn", withdrawn_at=withdrawal.withdrawn_at)
+    return SimpleNamespace(**values)
 
 
 def _finance_facts(rows):
@@ -1480,6 +1500,11 @@ def folder_detail(db, key):
                 m.TVAdConnection.folder_content_hash == folder.content_hash,
                 m.TVAdConnection.scope == "folder",
                 m.TVAdConnection.status == "checked",
+                ~select(m.FinanceTVCopyWithdrawal.id)
+                .where(m.FinanceTVCopyWithdrawal.connection_id == m.TVAdConnection.id)
+                .exists()
+                if _originals(db)
+                else true(),
                 m.TVAdConnection.publication_approved.is_(True),
             )
             .order_by(m.TVAdConnection.checked_at.desc())
@@ -1493,6 +1518,11 @@ def folder_detail(db, key):
                 m.TVAdConnection.folder_id == folder_id,
                 m.TVAdConnection.scope == "folder",
                 m.TVAdConnection.status == "checked",
+                ~select(m.FinanceTVCopyWithdrawal.id)
+                .where(m.FinanceTVCopyWithdrawal.connection_id == m.TVAdConnection.id)
+                .exists()
+                if _originals(db)
+                else true(),
             )
             .order_by(m.TVAdConnection.checked_at.desc(), m.TVAdConnection.id)
             .limit(1)
@@ -2077,6 +2107,14 @@ def _fact_history(db, fact):
         old = db.get(m.TVAdFact, current.supersedes_id)
         if (
             old is None
+            or (
+                _originals(db)
+                and db.scalar(
+                    select(m.FinanceTVCopyWithdrawal.id).where(
+                        m.FinanceTVCopyWithdrawal.fact_id == old.id
+                    )
+                )
+            )
             or old.publication_id != fact.publication_id
             or not (old.history_publication_approved or _originals(db))
         ):
