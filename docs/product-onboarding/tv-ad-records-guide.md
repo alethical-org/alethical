@@ -140,8 +140,9 @@ only its `id` and `status`.
   row. Folder relationships stay with alethical.com's review.
 - **Keyed by exact version, never by a copy** (`finance_tv_fact`,
   `finance_tv_connection`). Withdrawing or changing an alethical.com public copy never
-  changes a Finance check, and a Finance account cannot withdraw or correct a check made on
-  a public copy: that check is alethical.com's record.
+  changes a Finance check. A Finance account may withdraw a copied public check from
+  Finance's reads through a separate immutable `finance_tv_copy_withdrawal` record.
+  This neither corrects the public check nor changes its visibility on alethical.com.
 - **Append-only.** A correction is a new fact naming the standing fact it replaces, 1
   correction per fact; the earlier value appears in its history. A withdrawal sets its time
   and reason once; withdrawing a corrected fact removes its value from the history. Nothing

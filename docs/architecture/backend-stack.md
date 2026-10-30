@@ -70,9 +70,10 @@ them to FastAPI. One Uvicorn process runs per container.
 - Public and signed-in routes sit under `/api/v1`. Operations routes we use ourselves sit
   under `/internal/v1`. The version number is in the address so a future change can ship
   beside the old one instead of breaking every client at once.
-- Five route files, split by who the caller is: open data (`public.py`), question answering
-  (`ask.py`), signed-in features (`me.py`), the contact form (`contact.py`), and our own
-  operations checks (`internal.py`).
+- Route files group related work: open data (`public.py`), question answering (`ask.py`),
+  signed-in features (`me.py`), the contact form (`contact.py`), and our own operations
+  checks (`internal.py`). Finance routes group private research and checking work;
+  [Finance architecture](alethical-finance-architecture.md) maps their access and data rules.
 - Which websites may call the API is set by an environment variable
   (`ALETHICAL_CORS_ORIGINS`), not hard-coded, so a new frontend address is a setting change.
 - Errors come back in one consistent shape (`alethical/api/problems.py`) rather than
