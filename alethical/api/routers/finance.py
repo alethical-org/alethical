@@ -18,6 +18,7 @@ from alethical.api.routers.public import campaign_finance_search
 from alethical.api.services.campaign_finance_search import MIN_QUERY_LENGTH
 from alethical.api.routers.public import same_legislature_session_ids
 from alethical.api.routers.public import search as legislature_search
+from alethical.api.routers.finance_money_reads import router as money_router
 from alethical.api.problems import problem_exception
 from alethical.api.serializers import companion_payload, sponsor_payloads
 from alethical.api.services import (
@@ -30,6 +31,7 @@ from alethical.db.models import Bill, Legislator, LegislatorServicePeriod, Spons
 from alethical.db.session import get_db
 
 router = APIRouter(prefix="/finance", dependencies=[Depends(require_finance_access)])
+router.include_router(money_router)
 
 
 @router.get("/connections")
