@@ -3,7 +3,8 @@
 # ruff: noqa: F811
 from decimal import Decimal
 
-from sqlalchemy import insert, select
+import pytest
+from sqlalchemy import delete, event, insert, select
 
 from alethical.db import models as m
 from alethical.db.session import get_db
@@ -28,6 +29,161 @@ from alethical.tests.test_finance_media_buys import (  # noqa: F401
 )
 
 BASE = "/api/v1/finance/connections"
+
+
+def test_first_graph_page_builds_only_requested_money_edges(
+    finance_api, finance_db, board, monkeypatch
+):
+    from alethical.api.services import finance_connections as graph
+
+    _pair(finance_db)
+    built = []
+    build = graph._edge
+
+    def record(relation, *args, **kwargs):
+        if relation in {"contributions", "payments"}:
+            built.append(kwargs["key"])
+        return build(relation, *args, **kwargs)
+
+    monkeypatch.setattr(graph, "_edge", record)
+    data = get(finance_api, limit=1)
+    assert data["total"] > 1 and len(data["edges"]) == 1
+    assert len(built) == 1
+
+
+def test_graph_counts_and_pages_money_groups_in_one_statement(
+    finance_api, finance_db, board
+):
+    statements = []
+    connection = finance_db.connection()
+
+    def record(conn, cursor, statement, parameters, context, executemany):
+        if "GROUP BY" in statement and "cf_expenditure_row" in statement:
+            statements.append(statement)
+
+    event.listen(connection, "before_cursor_execute", record)
+    try:
+        data = get(finance_api, relationship="payments", limit=1)
+    finally:
+        event.remove(connection, "before_cursor_execute", record)
+    assert data["total"] > 1 and len(data["edges"]) == 1
+    assert len(statements) == 1
+
+
+@pytest.mark.parametrize("relationship", ["contributions", "payments"])
+def test_large_held_filer_set_keeps_graph_statement_bounded(
+    finance_api, finance_db, board, monkeypatch, relationship
+):
+    from alethical.api.services import finance_connections as graph
+
+    numbers = frozenset(str(number) for number in range(100000, 102000))
+    monkeypatch.setattr(graph, "linkable_committees", lambda *args: numbers)
+    statements = []
+    connection = finance_db.connection()
+    table = (
+        "cf_contribution_row"
+        if relationship == "contributions"
+        else "cf_expenditure_row"
+    )
+
+    def record(conn, cursor, statement, parameters, context, executemany):
+        if "GROUP BY" in statement and table in statement:
+            statements.append((len(statement), len(parameters)))
+
+    event.listen(connection, "before_cursor_execute", record)
+    try:
+        data = get(finance_api, relationship=relationship, limit=1)
+    finally:
+        event.remove(connection, "before_cursor_execute", record)
+    assert data["edges"]
+    assert statements and all(
+        size < 30000 and params < 200 for size, params in statements
+    )
+
+
+def test_graph_reads_payment_years_and_transfer_numbers_in_one_scan(
+    finance_api, finance_db, board
+):
+    statements = []
+    connection = finance_db.connection()
+
+    def record(conn, cursor, statement, parameters, context, executemany):
+        if (
+            "FROM cf_expenditure_row" in statement
+            and "GROUP BY" not in statement
+            and "EXISTS" not in statement
+            and (
+                "affected_committee_reg_num" in statement
+                or "cf_expenditure_row.year" in statement
+            )
+        ):
+            statements.append(statement)
+
+    event.listen(connection, "before_cursor_execute", record)
+    try:
+        data = get(finance_api, relationship="payments", limit=1)
+    finally:
+        event.remove(connection, "before_cursor_execute", record)
+    assert data["years"]
+    assert len(statements) == 1
+
+
+def test_graph_payment_metadata_keeps_all_years_and_only_transfer_numbers(
+    finance_api, finance_db, board, monkeypatch
+):
+    from alethical.api.services import finance_connections as graph
+
+    for row_number, fields in enumerate(
+        [
+            {"year": 1990},  # No recipient, still part of the year choices.
+            {"year": 1991, "type": "Payment", "affected_committee_reg_num": "ordinary"},
+            {"year": 1992, "type": "Contribution", "affected_committee_reg_num": "0"},
+            {"year": 1993, "type": "Contribution", "affected_committee_name": "Named"},
+            {
+                "year": 1994,
+                "type": "Contribution",
+                "affected_committee_reg_num": "held",
+            },
+            {
+                "year": None,
+                "type": "Contribution",
+                "affected_committee_reg_num": "undated",
+            },
+        ],
+        100,
+    ):
+        finance_db.add(
+            m.CampaignFinanceExpenditureRow(
+                snapshot_id=board.expenditures_snapshot_id,
+                row_number=row_number,
+                committee_reg_num="18135",
+                **fields,
+            )
+        )
+    finance_db.commit()
+    collected = []
+
+    def linkable(db, release, numbers):
+        collected.append(set(numbers))
+        return frozenset()
+
+    monkeypatch.setattr(graph, "linkable_committees", linkable)
+    result = get(finance_api, relationship="payments", q="No matching name", year=2026)
+    assert result["edges"] == []
+    assert set(result["years"]) == {1990, 1991, 1992, 1993, 1994, 2026}
+    assert collected[0] == {"held", "undated"}
+
+    finance_db.execute(
+        delete(m.CampaignFinanceExpenditureRow).where(
+            m.CampaignFinanceExpenditureRow.snapshot_id
+            == board.expenditures_snapshot_id
+        )
+    )
+    finance_db.commit()
+    collected.clear()
+    empty = get(finance_api, relationship="payments")
+    assert empty["years"] == [2026]  # Independent expenditure still has its year.
+    assert collected[0] == set()
 
 
 def test_committee_transfer_targets_filed_recipient_not_processor(

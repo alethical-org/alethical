@@ -154,11 +154,19 @@ Outgoing committee contributions use the separately filed recipient, never a pro
 confirmed identity. A recipient without held filer evidence remains a printed name.
 
 Money groups are counted and paged together in SQL, with the same complete ordering as
-the other relationships. Deep pages load only a bounded money window into the app;
+the other relationships. A shared grouped result avoids aggregating the sources twice;
+the first page loads at most its requested number of money groups. Deep pages load
+only a bounded money window into the app;
 different roles for one identity remain separate relationships. A request pins its
 money reads to one database view and returns the source copies. Missing sources are
 reported separately while available relationships remain usable; held station files
 without matching checks are an empty result, not an unavailable source.
+
+Expenditure year choices and transfer registration numbers come from one scan of the
+snapshot, backed by a covering index. Years include rows that cannot form a graph edge;
+only contribution rows supply transfer numbers. Held registration sets use array
+parameters, keeping statement size bounded as the source files grow. These changes do
+not cache relationships or weaken the per-record identity checks.
 
 ## 3. Access
 

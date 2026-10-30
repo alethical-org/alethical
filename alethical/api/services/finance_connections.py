@@ -6,7 +6,19 @@ import hashlib
 import json
 from typing import Literal
 
-from sqlalchemy import String, case, cast, func, literal, or_, select, union_all
+from sqlalchemy import (
+    String,
+    any_,
+    case,
+    cast,
+    func,
+    literal,
+    or_,
+    select,
+    true,
+    union_all,
+)
+from sqlalchemy.dialects.postgresql import ARRAY
 
 from alethical.api.services import (
     committee_finance,
@@ -237,6 +249,7 @@ def _money_groups(db, release, kind, *, entities, identifiers, query, year, focu
         for a, b in zip(account, unnamed_account)
     ]
     printed = _column_node("printed_name", name, name, role, identifiers)
+    years = None
     if is_gift:
         held_filers = linkable_committees(
             db,
@@ -257,9 +270,11 @@ def _money_groups(db, release, kind, *, entities, identifiers, query, year, focu
             "committee",
             identifiers,
         )
+        registered_filer = model.contrib_reg_num == any_(
+            literal(sorted(held_filers), type_=ARRAY(String))
+        )
         printed = [
-            case((model.contrib_reg_num.in_(held_filers), a), else_=b)
-            for a, b in zip(registered, printed)
+            case((registered_filer, a), else_=b) for a, b in zip(registered, printed)
         ]
     confirmation, record = m.IdentityConfirmation, m.IdentityConfirmedRecord
     entity_key = cast(confirmation.entity_id, String)
@@ -285,23 +300,29 @@ def _money_groups(db, release, kind, *, entities, identifiers, query, year, focu
         transfer_label = func.coalesce(
             model.affected_committee_name, literal("Committee ") + transfer_number
         )
-        held_recipients = linkable_committees(
-            db,
-            release,
-            db.scalars(
-                select(transfer_number)
-                .where(model.snapshot_id == source.snapshot_id, transfer)
-                .distinct()
-            ).all(),
-        )
+        # The filter belongs only to the recipient numbers. Available years cover
+        # the entire saved file, including rows that cannot form a graph edge.
+        years, numbers = db.execute(
+            select(
+                func.array_agg(model.year.distinct()).filter(model.year.is_not(None)),
+                func.array_agg(transfer_number.distinct()).filter(
+                    (model.type == "Contribution") & transfer_number.is_not(None)
+                ),
+            ).where(model.snapshot_id == source.snapshot_id)
+        ).one()
+        years = years or []
+        held_recipients = linkable_committees(db, release, numbers or [])
         registered = _column_node(
             "committee", transfer_number, transfer_label, "committee", identifiers
         )
         unresolved = _column_node(
             "printed_name", transfer_label, transfer_label, "recipient", identifiers
         )
+        registered_recipient = transfer_number == any_(
+            literal(sorted(held_recipients), type_=ARRAY(String))
+        )
         recipient = [
-            case((transfer_number.in_(held_recipients), a), else_=b)
+            case((registered_recipient, a), else_=b)
             for a, b in zip(registered, unresolved)
         ]
         printed = [case((transfer, a), else_=b) for a, b in zip(recipient, printed)]
@@ -373,11 +394,12 @@ def _money_groups(db, release, kind, *, entities, identifiers, query, year, focu
         .where(*where)
         .group_by(*(rows.c[name] for name in names))
     )
-    years = db.scalars(
-        select(model.year)
-        .where(model.snapshot_id == source.snapshot_id, model.year.is_not(None))
-        .distinct()
-    ).all()
+    if years is None:
+        years = db.scalars(
+            select(model.year)
+            .where(model.snapshot_id == source.snapshot_id, model.year.is_not(None))
+            .distinct()
+        ).all()
     return grouped, years
 
 
@@ -385,19 +407,28 @@ def _money_page(db, release, groups, *, year, offset, limit):
     """Page all money sources in SQL without loading the skipped edges into Python."""
     if not groups:
         return [], 0
-    grouped = union_all(*groups).subquery()
-    total = db.scalar(select(func.count()).select_from(grouped))
-    if offset >= total:
-        return [], total
-    selected = db.execute(
+    # Count and page the same materialized groups rather than aggregating every
+    # source twice. The left join retains the total on empty and past-last pages.
+    grouped = union_all(*groups).cte("money_groups")
+    totals = select(func.count().label("total")).select_from(grouped).subquery()
+    page = (
         select(grouped)
         .order_by(*(grouped.c[name].collate("C") for name in MONEY_ORDER))
         .offset(offset)
         .limit(limit)
+        .subquery()
     )
-    result = []
+    selected = db.execute(
+        select(totals.c.total, page)
+        .select_from(totals.outerjoin(page, true()))
+        .order_by(*(page.c[name].collate("C") for name in MONEY_ORDER))
+    )
+    result, total = [], 0
     for row in selected:
         data = row._mapping
+        total = data["total"]
+        if data["dataset"] is None:
+            continue
         dataset = reader.Dataset(data["dataset"])
         source = release.file_for(dataset)
         relation = (
@@ -702,13 +733,13 @@ def connections(
     # At most len(other) non-money edges can precede the requested global page.
     # Skip the remaining prefix in SQL, then merge only this bounded money window.
     money_offset = max(0, offset - len(other))
+    local_offset = offset - money_offset
     edges, money_total = _money_page(
-        db, release, groups, year=year, offset=money_offset, limit=limit + len(other)
+        db, release, groups, year=year, offset=money_offset, limit=limit + local_offset
     )
     total = money_total + len(other)
     edges.extend(other)
     edges.sort(key=_edge_order)
-    local_offset = offset - money_offset
     selected = edges[local_offset : local_offset + limit]
     nodes = {n["key"]: n for e in selected for n in e["_nodes"]}
     if release is not None:

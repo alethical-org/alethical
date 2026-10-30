@@ -174,14 +174,15 @@ figure is ever added across committees or members.
   counted and failed on its own ("At least {n}" when the server's count is capped). A name
   search runs from 3 characters. View all opens the rest of a family in place.
 - **People (`/people`)**: sitting legislators, searchable by name, sorted by surname, 10 a
-  page. The server holds no list of candidates or of former legislators, so People shows
-  neither, and Finance Home has no Candidates entrance.
+  page. The server also offers candidates, person records and former legislators, but
+  the current screen has not adopted those lists. Finance Home has no Candidates entrance.
 - **Legislator profile (`/legislators/:id`)**: current or former service (a former legislator
   carries no current title, party, district or committees), each confirmed campaign account
   with its own year and figures, spending by outside groups by contest, committees (each
   opening its members' accounts), and chief-authored bills, 20 a page.
 - **Candidate profile (`/candidates/:id`)**: the held candidacy facts and confirmed links. No
-  route links a candidacy to a committee, so its money section says none is confirmed.
+  campaign-account link is read by this screen yet, so its money section is incomplete;
+  the server now supplies confirmed links.
 - **Campaign money (`/money`)**: the committee register by kind (Candidate committees,
   Committees and funds, Party units), searched and paged on the server, names A to Z.
 - **Committee (`/money/committees/:id`)**: the official report figures for the chosen report
@@ -202,15 +203,15 @@ figure is ever added across committees or members.
 - **Donors by employer (`/money/employers`, `/money/employers/:name`)**: the donors who printed
   1 exact employer spelling, each donor's payments listed apart with "Employer name as printed"
   on every row; no total is ever added across donors, and a donor's payments are never the
-  employer's money. No server list of employer spellings exists yet, so `/money/employers`
-  offers a search box that opens 1 exact spelling.
+  employer's money. `/money/employers` currently offers a search box that opens 1 exact
+  spelling; the server's paged employer directory awaits its screen update.
 - **Money by race (`/money/races/:id?year=`)**: 1 contest's candidate committees, each with its
   own reported total and itemized contributions and their periods, and outside spending by
   spender, never added across committees. The address names the contest (`house-34b`,
   `senate-41`, `governor`).
 - **Lobbying (`/lobbying`)**: registered lobbyists and principals, searched and paged on the
-  server, names A to Z. The drawing's principal spending column and year menu wait for their
-  server route.
+  server, names A to Z. The server supplies principal spending by year; the spending column
+  and year menu await their screen update.
 - **Lobbyist (`/lobbying/lobbyists/:id`)** and **Principal (`/lobbying/principals/:id`)**: a
   lobbyist's registration, the organizations it represented on the copy date (5 at a time with
   "Show more") and its matched campaign contribution records; a principal's spending by year
@@ -220,15 +221,16 @@ figure is ever added across committees or members.
   confirmations cover. A merged record's address opens the surviving record; a split record's
   address lists the records it became.
 - **Not built yet:** Vendors and payees (`/money/recipients`) answers "not found" until the
-  server serves its drawn payee list and confirmed vendors.
+  screen adopts the server's payee list and confirmed vendors.
 - **Legislation (`/bills`)**: bills searched by words or number, with Session, Chamber and
   Status menus, 20 a page.
 - **Bill (`/bills/:id`)**: the plain-language title, Summary (with passages from the bill
   text), Actions, Votes, Bill Text and Versions, chief author and co-authors, companion bill,
   official page, and each author's confirmed campaign accounts.
 - **Roll call (`/votes/:id?bill=`)**: the exact motion, date, recorded result and each member's
-  recorded vote, filtered and searched in place. The address names its bill because no route
-  reads a roll call by its own id.
+  recorded vote, filtered and searched in place. The current screen still needs its bill
+  in the address. The server also reads a roll call by its own id; adopting that read
+  awaits the screen update.
 
 Reads queue so that at most 4 run at once (a finished read hands its place to the next), because the shared API serves only 12 requests at
 a time across both sites; a "busy" answer is retried after the server's suggested wait. Only
