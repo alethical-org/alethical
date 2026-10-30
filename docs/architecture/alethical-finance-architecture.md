@@ -156,7 +156,7 @@ confirmed identity. A recipient without held filer evidence remains a printed na
 Money groups are counted and paged together in SQL, with the same complete ordering as
 the other relationships. Deep pages load only a bounded money window into the app;
 different roles for one identity remain separate relationships. A request pins its
-money reads to one database view and returns the source release. Missing sources are
+money reads to one database view and returns the source copies. Missing sources are
 reported separately while available relationships remain usable; held station files
 without matching checks are an empty result, not an unavailable source.
 
