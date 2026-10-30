@@ -153,12 +153,20 @@ never infers that one payment funded another. Station-file relationships carry n
 Outgoing committee contributions use the separately filed recipient, never a processor's
 confirmed identity. A recipient without held filer evidence remains a printed name.
 
-Money groups are counted and paged together in SQL, with the same complete ordering as
-the other relationships. A shared grouped result avoids aggregating the sources twice;
-the first page loads at most its requested number of money groups. Deep pages load
-only a bounded money window into the app;
-different roles for one identity remain separate relationships. A request pins its
-money reads to one database view and returns the source copies. Missing sources are
+Broad money reads first count and page exact relationship keys in SQL, with the same
+complete ordering as the other relationships. Repeated raw node inputs are grouped
+before resolving their names and identities; per-record confirmation joins still happen
+before that grouping. A final distinct step combines raw inputs that resolve to the
+same nodes. The key page is merged with non-money relationships before amounts and
+periods are calculated, so only the returned money edges receive those calculations.
+The metrics join has at most the requested page size, capped at 200; its parameter
+count cannot grow with the page offset or the number of non-money relationships.
+The key window can include as many extra rows as there are non-money relationships;
+that merge is not a fixed memory ceiling. Filtered reads retain their single grouped
+count-and-page statement. Different roles for one identity remain separate relationships.
+A request pins both key and amount reads to one database view and returns the source
+copies. Source pruning between those reads cannot remove an already selected amount.
+Missing sources are
 reported separately while available relationships remain usable; held station files
 without matching checks are an empty result, not an unavailable source.
 
@@ -170,7 +178,8 @@ not cache relationships or weaken the per-record identity checks.
 
 An unfiltered, all-year money graph can spill large grouped results to disk. One
 database-wide transaction lock admits such a query to a larger hash budget at a
-time, across API workers and the transaction pooler. Its `work_mem` is capped at
+time, across API workers and the transaction pooler. The lock spans key selection and
+amount calculation. Its `work_mem` is capped at
 3500kB (or the existing lower value), `hash_mem_multiplier` is 8, and parallel
 workers per query are capped at 1 (or the existing lower value). These are per-node
 limits, not a ceiling on total database memory. Filtered reads keep their normal
@@ -178,8 +187,9 @@ settings. Another broad money read receives private, non-cacheable `503 service-
 with `Retry-After: 10`; no partial graph is returned. The admitted read restores
 settings before returning, and transaction completion or rollback releases the lock
 and all local settings. No pool-wide or database-wide defaults change. Request
-timeouts still need validation when the graph frontend is built; service timings
-alone do not establish signed-in HTTP performance.
+timeouts require signed-in HTTP validation before graph acceptance; service timings
+alone do not establish it. Slow responses remain backend acceptance work, independent
+of approval to build the graph frontend.
 
 ## 3. Access
 
