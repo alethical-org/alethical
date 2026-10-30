@@ -3,7 +3,7 @@
 # ruff: noqa: F811
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import insert, select
 
 from alethical.db import models as m
 from alethical.db.session import get_db
@@ -12,9 +12,11 @@ from alethical.tests.test_identity_confirmations import (  # noqa: F401
     VENDOR,
     board,
     create,
+    committee,
     payee,
     prints,
     gift,
+    registered,
 )
 from alethical.tests.test_lobbying_api import _pair
 from alethical.tests.test_finance_records import _link
@@ -26,6 +28,235 @@ from alethical.tests.test_finance_media_buys import (  # noqa: F401
 )
 
 BASE = "/api/v1/finance/connections"
+
+
+def test_committee_transfer_targets_filed_recipient_not_processor(
+    finance_api, finance_db, board
+):
+    # A confirmed processor must not replace the transfer's separately named recipient.
+    selected = prints(finance_api, "payee_name", VENDOR)
+    create(
+        finance_api, "organization", "Confirmed processor", payee(board, [selected[52]])
+    )
+    original = finance_db.scalar(
+        select(m.CampaignFinanceExpenditureRow).where(
+            m.CampaignFinanceExpenditureRow.snapshot_id
+            == board.expenditures_snapshot_id,
+            m.CampaignFinanceExpenditureRow.row_number == 52,
+        )
+    )
+    original.type = "Contribution"
+    original.affected_committee_name = "Recipient committee"
+    original.affected_committee_reg_num = "99998"
+    for number, vendor in ((101, None),):
+        finance_db.add(
+            m.CampaignFinanceExpenditureRow(
+                snapshot_id=board.expenditures_snapshot_id,
+                row_number=number,
+                committee_reg_num="18135",
+                vendor_name=vendor,
+                type="Contribution",
+                affected_committee_name="Recipient committee",
+                affected_committee_reg_num="99998",
+                year=2026,
+                amount=Decimal("50"),
+            )
+        )
+    finance_db.commit()
+    data = get(finance_api, relationship="payments", q="Recipient committee")
+    assert data["total"] == 1
+    edge = data["edges"][0]
+    recipient = next(n for n in data["nodes"] if n["key"] == edge["to"])
+    assert recipient["label"] == "Recipient committee"
+    assert recipient["kind"] == "printed_name"
+    assert recipient["target"] is None  # No filer held for this registration.
+    assert edge["record_count"] == 2 and Decimal(edge["amount"]) == Decimal("1250.5")
+    finance_db.add(
+        gift(board.contributions_snapshot_id, 101, recipient_reg_num="99998")
+    )
+    finance_db.commit()
+    linked = get(finance_api, relationship="payments", q="Recipient committee")
+    recipient = next(n for n in linked["nodes"] if n["record_id"] == "99998")
+    assert recipient["kind"] == "committee"
+    assert recipient["target"] == {"kind": "committee", "id": "99998"}
+    assert linked["edges"][0]["record_count"] == 2
+
+
+def test_graph_pages_match_full_result_for_mixed_case_and_punctuation(
+    finance_api, finance_db, board
+):
+    for number, name in enumerate(["aaaa", "ZZZZ", "____", "zzzz", "AAAA"], 100):
+        finance_db.add(
+            m.CampaignFinanceExpenditureRow(
+                snapshot_id=board.expenditures_snapshot_id,
+                row_number=number,
+                committee_reg_num="18135",
+                vendor_name=name,
+                year=2026,
+                amount=Decimal("1"),
+            )
+        )
+    finance_db.commit()
+    whole = get(finance_api, relationship="payments")["edges"]
+    pages = [
+        get(finance_api, relationship="payments", limit=1, offset=i)["edges"][0]
+        for i in range(len(whole))
+    ]
+    assert [edge["id"] for edge in pages] == [edge["id"] for edge in whole]
+
+
+def test_graph_pages_keep_same_identity_with_distinct_roles(
+    finance_api, finance_db, board, registered
+):
+    original = finance_db.get(
+        m.CampaignFinanceExpenditureRow, (board.expenditures_snapshot_id, 52)
+    )
+    original.committee_reg_num = "40100"
+    finance_db.commit()
+    entity = create(
+        finance_api, "organization", "Recipient and vendor", committee(registered)
+    )
+    selected = prints(finance_api, "payee_name", VENDOR)
+    response = finance_api.post(
+        f"/api/v1/finance/identities/{entity['id']}/confirmations",
+        json=payee(board, [selected[52]]),
+    )
+    assert response.status_code == 201, response.text
+    finance_db.add(
+        m.CampaignFinanceExpenditureRow(
+            snapshot_id=board.expenditures_snapshot_id,
+            row_number=101,
+            committee_reg_num="40100",
+            type="Contribution",
+            affected_committee_name="Example for Senate",
+            affected_committee_reg_num="18135",
+            year=2026,
+            amount=Decimal("50"),
+        )
+    )
+    finance_db.commit()
+    filters = {"relationship": "payments", "focus": "identity:" + entity["id"]}
+    whole = get(finance_api, **filters)["edges"]
+    assert len(whole) == 2
+    assert len({(edge["from"], edge["to"]) for edge in whole}) == 1
+    assert [Decimal(edge["amount"]) for edge in whole] == [
+        Decimal("50"),
+        Decimal("1200.5"),
+    ]
+    pages = [
+        get(finance_api, **filters, limit=1, offset=i)["edges"][0]
+        for i in range(len(whole))
+    ]
+    assert [edge["id"] for edge in pages] == [edge["id"] for edge in whole]
+
+
+def test_deep_graph_page_is_reachable_without_building_preceding_edges(
+    finance_api, finance_db, board, monkeypatch
+):
+    from alethical.api.services import finance_connections as graph
+
+    finance_db.execute(
+        insert(m.CampaignFinanceExpenditureRow),
+        [
+            {
+                "snapshot_id": board.expenditures_snapshot_id,
+                "row_number": 100 + number,
+                "committee_reg_num": "18135",
+                "vendor_name": f"Deep {number:05}",
+                "year": 2026,
+                "amount": Decimal("1"),
+            }
+            for number in range(10025)
+        ],
+    )
+    finance_db.commit()
+    built = []
+    build = graph._edge
+
+    def record(*args, **kwargs):
+        built.append(kwargs["key"])
+        return build(*args, **kwargs)
+
+    monkeypatch.setattr(graph, "_edge", record)
+    data = get(finance_api, relationship="payments", q="Deep", limit=2, offset=10020)
+    assert data["total"] == 10025 and data["has_more"]
+    assert [edge["to"] for edge in data["edges"]] == [
+        "printed_name:vendor:Deep 10020",
+        "printed_name:vendor:Deep 10021",
+    ]
+    assert len(built) == 2
+    end = get(finance_api, relationship="payments", q="Deep", limit=2, offset=10024)
+    assert len(end["edges"]) == 1 and not end["has_more"]
+    past = get(finance_api, relationship="payments", q="Deep", limit=2, offset=10026)
+    assert past["total"] == 10025 and not past["edges"] and not past["has_more"]
+
+
+def test_missing_station_source_is_unavailable_but_other_edges_remain(
+    finance_api, board
+):
+    missing = get(finance_api, relationship="station_agency")
+    assert missing["state"] == "unavailable"
+    assert missing["unavailable_sources"] == ["station_file"]
+    combined = get(finance_api)
+    assert combined["state"] == "partial" and combined["total"] > 0
+    assert combined["edges"] and "station_file" in combined["unavailable_sources"]
+
+
+def test_held_station_files_without_matching_checks_are_known_empty(
+    finance_api, held, listed
+):
+    no_matches = get(finance_api, relationship="station_agency", q="Not in the file")
+    assert no_matches["state"] == "not_reported"
+    assert no_matches["total"] == 0 and not no_matches["unavailable_sources"]
+    for fact in listed.scalars(select(m.TVAdFact)):
+        fact.status = "withdrawn"
+    listed.commit()
+    no_checks = get(finance_api, relationship="station_agency")
+    assert no_checks["state"] == "not_reported"
+    assert no_checks["total"] == 0 and not no_checks["unavailable_sources"]
+
+
+def test_graph_pages_merge_money_and_non_money_at_every_boundary(
+    finance_api, finance_db, board, held
+):
+    active, _, _ = _pair(finance_db)
+    associations = list(
+        finance_db.scalars(
+            select(m.LobbyistAssociation)
+            .where(m.LobbyistAssociation.snapshot_id == active.id)
+            .order_by(
+                m.LobbyistAssociation.registration_number,
+                m.LobbyistAssociation.position,
+            )
+        )
+    )
+    # Keep this boundary matrix small; the source fixture holds 99 associations.
+    for association in associations[3:]:
+        finance_db.delete(association)
+    active.association_count = 3
+    member = finance_db.scalar(select(m.Legislator))
+    _link(finance_db, member, "18135", m.CommitteeLinkReviewDecision.confirmed)
+    finance_db.commit()
+    whole = get(finance_api, limit=200)
+    assert not whole["unavailable_sources"]
+    assert not whole["has_more"]
+    assert {edge["source"]["dataset"] for edge in whole["edges"]} == {
+        "contributions",
+        "expenditures",
+        "independent_expenditures",
+        "campaign_committee_confirmation",
+        "lobbyist_register",
+        "station_file",
+    }
+    for size in (1, 3):
+        pages = [
+            edge
+            for offset in range(0, whole["total"], size)
+            for edge in get(finance_api, limit=size, offset=offset)["edges"]
+        ]
+        assert [edge["id"] for edge in pages] == [edge["id"] for edge in whole["edges"]]
+    beyond = get(finance_api, offset=whole["total"] + 5)
+    assert beyond["total"] == whole["total"] and not beyond["edges"]
 
 
 def get(api, **params):

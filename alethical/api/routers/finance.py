@@ -41,7 +41,7 @@ def money_connections(
     relationship: finance_connections.Relationship = "all",
     focus: str | None = Query(None, max_length=2000, pattern=r"^[^\x00]*$"),
     limit: int = Query(100, ge=1, le=200),
-    offset: int = Query(0, ge=0, le=10000),
+    offset: int = Query(0, ge=0, le=2147483647),
     db: Session = Depends(get_db),
 ) -> dict:
     return {

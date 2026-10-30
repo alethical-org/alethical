@@ -6,7 +6,7 @@ import hashlib
 import json
 from typing import Literal
 
-from sqlalchemy import String, case, cast, func, literal, or_, select
+from sqlalchemy import String, case, cast, func, literal, or_, select, union_all
 
 from alethical.api.services import (
     committee_finance,
@@ -39,6 +39,26 @@ RELATIONSHIPS = [
     "station_named",
     "station_agency",
 ]
+NODE_COLUMNS = tuple(
+    f"{side}_{field}"
+    for side in ("from", "to")
+    for field in ("key", "kind", "id", "label", "role")
+)
+# Every grouped column participates, including distinct roles of the same identity.
+# SQL uses C collation so the database and Python compare text in the same order.
+MONEY_ORDER = (
+    "from_key",
+    "to_key",
+    "from_label",
+    "to_label",
+    "dataset",
+    "from_role",
+    "to_role",
+    "from_kind",
+    "to_kind",
+    "from_id",
+    "to_id",
+)
 
 
 def _identity_maps(db):
@@ -176,7 +196,7 @@ def _column_node(kind, record_id, label, role, identifiers):
     ] + [literal(role)]
 
 
-def _money(db, release, kind, *, entities, identifiers, query, year, focus, take):
+def _money_groups(db, release, kind, *, entities, identifiers, query, year, focus):
     spec = identities._PRINTED[kind]
     model = spec.model
     source = release.file_for(spec.dataset)
@@ -254,19 +274,47 @@ def _money(db, release, kind, *, entities, identifiers, query, year, focus, take
             case(value, value=entity_key, else_=default)
             for value, default in zip(values, printed)
         ] + [literal(role)]
+    recipient_available = name.is_not(None)
+    if kind == "payee_name":
+        # Contributions in the spending file name their recipient separately
+        # from a processor/vendor. A vendor confirmation cannot identify it.
+        transfer_number = func.nullif(model.affected_committee_reg_num, "0")
+        transfer = (model.type == "Contribution") & or_(
+            model.affected_committee_name.is_not(None), transfer_number.is_not(None)
+        )
+        transfer_label = func.coalesce(
+            model.affected_committee_name, literal("Committee ") + transfer_number
+        )
+        held_recipients = linkable_committees(
+            db,
+            release,
+            db.scalars(
+                select(transfer_number)
+                .where(model.snapshot_id == source.snapshot_id, transfer)
+                .distinct()
+            ).all(),
+        )
+        registered = _column_node(
+            "committee", transfer_number, transfer_label, "committee", identifiers
+        )
+        unresolved = _column_node(
+            "printed_name", transfer_label, transfer_label, "recipient", identifiers
+        )
+        recipient = [
+            case((transfer_number.in_(held_recipients), a), else_=b)
+            for a, b in zip(registered, unresolved)
+        ]
+        printed = [case((transfer, a), else_=b) for a, b in zip(recipient, printed)]
+        recipient_available = recipient_available | transfer
     start, end = (printed, account) if is_gift else (account, printed)
-    names = [
-        f"{side}_{field}"
-        for side in ("from", "to")
-        for field in ("key", "kind", "id", "label", "role")
-    ]
+    names = NODE_COLUMNS
     columns = [value.label(label) for value, label in zip(start + end, names)]
     base = (
         select(*columns, model.amount, date.label("date"), model.year)
         .select_from(model)
         .where(
             model.snapshot_id == source.snapshot_id,
-            name.is_not(None),
+            recipient_available,
             or_(number.is_not(None), account_name.is_not(None)),
         )
     )
@@ -302,6 +350,7 @@ def _money(db, release, kind, *, entities, identifiers, query, year, focus, take
     grouped = (
         select(
             *(rows.c[name] for name in names),
+            literal(source.dataset.value).label("dataset"),
             func.count().label("count"),
             case(
                 (all_amounts & whole_period, func.sum(rows.c.amount)),
@@ -323,23 +372,37 @@ def _money(db, release, kind, *, entities, identifiers, query, year, focus, take
         )
         .where(*where)
         .group_by(*(rows.c[name] for name in names))
-        .subquery()
     )
+    years = db.scalars(
+        select(model.year)
+        .where(model.snapshot_id == source.snapshot_id, model.year.is_not(None))
+        .distinct()
+    ).all()
+    return grouped, years
+
+
+def _money_page(db, release, groups, *, year, offset, limit):
+    """Page all money sources in SQL without loading the skipped edges into Python."""
+    if not groups:
+        return [], 0
+    grouped = union_all(*groups).subquery()
     total = db.scalar(select(func.count()).select_from(grouped))
+    if offset >= total:
+        return [], total
     selected = db.execute(
         select(grouped)
-        .order_by(
-            grouped.c.from_key,
-            grouped.c.to_key,
-            grouped.c.from_label,
-            grouped.c.to_label,
-        )
-        .limit(take)
+        .order_by(*(grouped.c[name].collate("C") for name in MONEY_ORDER))
+        .offset(offset)
+        .limit(limit)
     )
     result = []
-    relation = "contributions" if is_gift else "payments"
     for row in selected:
         data = row._mapping
+        dataset = reader.Dataset(data["dataset"])
+        source = release.file_for(dataset)
+        relation = (
+            "contributions" if dataset == reader.Dataset.contributions else "payments"
+        )
         nodes = [
             _node(
                 data[side + "_kind"],
@@ -351,7 +414,7 @@ def _money(db, release, kind, *, entities, identifiers, query, year, focus, take
         ]
         key = hashlib.sha256(
             json.dumps(
-                [source.dataset.value, year] + [data[n] for n in names],
+                [source.dataset.value, year] + [data[n] for n in NODE_COLUMNS],
                 ensure_ascii=False,
             ).encode()
         ).hexdigest()
@@ -364,7 +427,7 @@ def _money(db, release, kind, *, entities, identifiers, query, year, focus, take
                     "dataset": source.dataset.value,
                     "snapshot_id": str(source.snapshot_id),
                     "url": source.source_url,
-                    "copied_at": release.copied_at(spec.dataset),
+                    "copied_at": release.copied_at(dataset),
                 },
                 key=key,
                 count=data["count"],
@@ -378,12 +441,27 @@ def _money(db, release, kind, *, entities, identifiers, query, year, focus, take
                 period_basis=data["period_basis"],
             )
         )
-    years = db.scalars(
-        select(model.year)
-        .where(model.snapshot_id == source.snapshot_id, model.year.is_not(None))
-        .distinct()
-    ).all()
-    return result, total, years
+    return result, total
+
+
+def _edge_order(edge):
+    start, end = edge["_nodes"]
+    # Same complete tuple as MONEY_ORDER. Money groups are unique on this tuple;
+    # the final ID only distinguishes repeated non-money checks of the same relation.
+    return (
+        edge["from"],
+        edge["to"],
+        start["label"],
+        end["label"],
+        edge["source"]["dataset"],
+        start["role"] or "",
+        end["role"] or "",
+        start["kind"],
+        end["kind"],
+        start["record_id"],
+        end["record_id"],
+        edge["id"],
+    )
 
 
 def _accounts(db, identifiers, year):
@@ -548,7 +626,7 @@ def _station_edges(db, identifiers, year):
                     key=connection.id,
                 )
             )
-    return edges, years
+    return edges, years, bool(documents)
 
 
 def connections(
@@ -563,9 +641,8 @@ def connections(
 ):
     committee_finance.pin_to_one_view(db)
     entities, identifiers = _identity_maps(db)
-    edges, total, years, unavailable = [], 0, set(), []
+    groups, years, unavailable = [], set(), []
     release = None
-    take = offset + limit
     if relationship in {"all", "contributions", "payments"}:
         try:
             release = committee_finance.current_release(db)
@@ -584,7 +661,7 @@ def connections(
                     except reader.ReleaseNoLongerHeld:
                         unavailable.append(identities._PRINTED[kind].dataset.value)
                         continue
-                    found, count, held_years = _money(
+                    grouped, held_years = _money_groups(
                         db,
                         release,
                         kind,
@@ -593,10 +670,8 @@ def connections(
                         query=query,
                         year=year,
                         focus=focus,
-                        take=take,
                     )
-                    edges.extend(found)
-                    total += count
+                    groups.append(grouped)
                     years.update(held_years)
         except reader.ReleaseNoLongerHeld:
             unavailable.append("campaign_finance")
@@ -611,30 +686,30 @@ def connections(
         if not available:
             unavailable.append("lobbying")
     if relationship == "all" or relationship.startswith("station_"):
-        found, held_years = _station_edges(db, identifiers, year, originals=True)
+        found, held_years, available = _station_edges(
+            db, identifiers, year, originals=True
+        )
         other.extend(found)
         years.update(held_years)
+        if not available:
+            unavailable.append("station_file")
     other = [
         e
         for e in other
         if (relationship == "all" or e["relationship"] == relationship)
         and _matches(e, query, focus)
     ]
-    total += len(other)
-    edges.extend(other)
-    # Same node-key ordering as each bounded payment query; no omitted edge can
-    # sort before the selected global page. Sources and IDs break all ties.
-    edges.sort(
-        key=lambda e: (
-            e["from"],
-            e["to"],
-            e["_nodes"][0]["label"],
-            e["_nodes"][1]["label"],
-            e["source"]["dataset"],
-            e["id"],
-        )
+    # At most len(other) non-money edges can precede the requested global page.
+    # Skip the remaining prefix in SQL, then merge only this bounded money window.
+    money_offset = max(0, offset - len(other))
+    edges, money_total = _money_page(
+        db, release, groups, year=year, offset=money_offset, limit=limit + len(other)
     )
-    selected = edges[offset : offset + limit]
+    total = money_total + len(other)
+    edges.extend(other)
+    edges.sort(key=_edge_order)
+    local_offset = offset - money_offset
+    selected = edges[local_offset : local_offset + limit]
     nodes = {n["key"]: n for e in selected for n in e["_nodes"]}
     if release is not None:
         money_nodes = {

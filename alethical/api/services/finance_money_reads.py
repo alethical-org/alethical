@@ -350,7 +350,8 @@ def _committee_rows(release, registration, year, direction):
             (kind.ilike("Individual%"), "individuals"),
             (kind.ilike("%lobbyist%"), "lobbyists"),
             (
-                kind.ilike("%political committee%")
+                kind.ilike("%candidate committee%")
+                | kind.ilike("%political committee%")
                 | kind.ilike("%political fund%")
                 | kind.ilike("%committee/fund%"),
                 "committees",

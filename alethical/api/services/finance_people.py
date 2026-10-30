@@ -71,10 +71,35 @@ def directory(
         )
         .exists()
     )
+    # A previous term ending cannot establish that a later term also ended.
+    # Use the latest held personal period; missing dates remain unknown.
+    held_periods = (
+        select(
+            period.legislator_id,
+            period.end_date,
+            session.year_start,
+            func.max(session.year_start)
+            .over(partition_by=period.legislator_id)
+            .label("latest_year"),
+            func.row_number()
+            .over(
+                partition_by=(period.legislator_id, period.session_id),
+                order_by=period.period_sequence.desc(),
+            )
+            .label("session_position"),
+        )
+        .join(session, session.id == period.session_id)
+        .subquery()
+    )
     ended = (
-        select(1)
-        .where(period.legislator_id == member.id, period.end_date < today)
-        .exists()
+        select(func.bool_and(func.coalesce(held_periods.c.end_date < today, False)))
+        .where(
+            held_periods.c.legislator_id == member.id,
+            held_periods.c.year_start == held_periods.c.latest_year,
+            held_periods.c.session_position == 1,
+        )
+        .correlate(member)
+        .scalar_subquery()
     )
     status = case((current, "current"), (ended, "former"), else_="unknown")
     # Every branch has the same small sort/filter shape; full payloads are read

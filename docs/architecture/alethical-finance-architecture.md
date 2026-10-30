@@ -46,6 +46,18 @@ Finance). Identity confirmations (§4) answer under `/identities/`
 database session, so the money search still reads its whole answer from 1 instant of the
 database.
 
+### People records
+
+`GET /api/v1/finance/people` pages held candidacies, public person records and
+legislative records as separate kinds, even when their names match. Literal name
+search, stable paging and whole-filter counts apply to every kind. Candidate
+filters use the election year and date; legislative filters use current or former
+service evidence. Each legislative record carries its held seat, party, source and
+personal service dates. Missing personal dates stay null, never session dates.
+An ended older term does not establish former service when a later term is undated.
+When sibling sessions leave the latest service ambiguous, status remains unknown.
+This directory reads no private account, address or claim information.
+
 ## 2. Built separately
 
 - **Finance's screens.** Finance has its own look and shows more than alethical.com
@@ -110,8 +122,8 @@ held produce an unavailable state, never a zero. A requested release that change
   The same missing-amount and complete-period rules apply to that whole-filter total.
   An optional exact source `record_number` locates its complete group and exact row
   offset for a notice link, even beyond its first preview page.
-  Contribution categories stay
-  separate; outgoing transfers retain the receiving committee's filed number. Unnamed
+  Contribution categories stay separate; candidate committees belong with committees
+  and funds; outgoing transfers retain the receiving committee's filed number. Unnamed
   records stay individual. A sum is withheld if any amount is missing; every shown sum
   has a complete date span or the held filing-year span, never a substituted transaction
   year. Each group includes its first 50 rows; `/group-payments` reads the remaining rows
@@ -131,6 +143,22 @@ Identity record pages also carry source address/copy date and display-only filer
 number, link availability and printed transaction types. These fields never change a
 fingerprint. Conflicting names or types on repeated fingerprints remain distinguishable;
 no unresolved filer number becomes a link.
+
+### Recorded connections
+
+`alethical/api/services/finance_connections.py` serves `/connections` inside Finance's
+access boundary. It combines direct recorded contributions, payments, reviewed campaign
+accounts, lobbying registrations and checked original station-file relationships. It
+never infers that one payment funded another. Station-file relationships carry no amount.
+Outgoing committee contributions use the separately filed recipient, never a processor's
+confirmed identity. A recipient without held filer evidence remains a printed name.
+
+Money groups are counted and paged together in SQL, with the same complete ordering as
+the other relationships. Deep pages load only a bounded money window into the app;
+different roles for one identity remain separate relationships. A request pins its
+money reads to one database view and returns the source release. Missing sources are
+reported separately while available relationships remain usable; held station files
+without matching checks are an empty result, not an unavailable source.
 
 ## 3. Access
 

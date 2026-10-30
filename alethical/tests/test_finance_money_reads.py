@@ -20,6 +20,29 @@ from alethical.tests.test_identity_confirmations import (  # noqa: F401
 BASE = "/api/v1/finance"
 
 
+def test_candidate_committee_gifts_belong_with_committees(
+    finance_api, finance_db, board
+):
+    finance_db.add(
+        gift(
+            board.contributions_snapshot_id,
+            199,
+            contributor="Other candidate committee",
+            contrib_type="Candidate Committee",
+            contrib_reg_num="18136",
+        )
+    )
+    finance_db.commit()
+    data = get(
+        finance_api,
+        "/committees/18135/payment-groups",
+        year=2026,
+        tab="committees",
+    )
+    assert [row["name"] for row in data["rows"]] == ["Other candidate committee"]
+    assert data["tab_counts"]["committees"] == 1
+
+
 def get(api, path, **params):
     api.app.dependency_overrides[get_db]().connection()
     response = api.get(BASE + path, params=params)
