@@ -128,6 +128,11 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   and equal-width digits during the build, without another approval. Preserve the intended
   size and weight unless a separate approved change requires otherwise. Existing screens
   outside the task's scope do not need a separate migration to complete that handoff.
+  **Alethical Finance exception.** Finance uses Inter for titles, body, controls and
+  numbers, including return links, with equal-width digits for numeric values. Keep its
+  approved text-only label and wordmark faces. This Finance-specific choice takes
+  precedence over this guide's Libre Franklin requirements; the public civic site
+  keeps Libre Franklin. It does not authorize a frontend build or a font migration.
 - **Selected content tabs use one green underline everywhere.** Every horizontal content-tab
   row uses a 3px `brand.base` green underline on the selected tab. Inactive tabs reserve the
   same 3px space with a transparent line so the row never moves when the selection changes.
