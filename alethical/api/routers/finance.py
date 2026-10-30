@@ -20,11 +20,39 @@ from alethical.api.routers.public import same_legislature_session_ids
 from alethical.api.routers.public import search as legislature_search
 from alethical.api.problems import problem_exception
 from alethical.api.serializers import companion_payload, sponsor_payloads
-from alethical.api.services import finance_records, finance_payees, finance_people
+from alethical.api.services import (
+    finance_records,
+    finance_payees,
+    finance_people,
+    finance_connections,
+)
 from alethical.db.models import Bill, Legislator, LegislatorServicePeriod, Sponsorship
 from alethical.db.session import get_db
 
 router = APIRouter(prefix="/finance", dependencies=[Depends(require_finance_access)])
+
+
+@router.get("/connections")
+def money_connections(
+    q: str = Query("", max_length=200, pattern=r"^[^\x00]*$"),
+    year: int | None = Query(None, ge=1900, le=2200),
+    relationship: finance_connections.Relationship = "all",
+    focus: str | None = Query(None, max_length=2000, pattern=r"^[^\x00]*$"),
+    limit: int = Query(100, ge=1, le=200),
+    offset: int = Query(0, ge=0, le=10000),
+    db: Session = Depends(get_db),
+) -> dict:
+    return {
+        "data": finance_connections.connections(
+            db,
+            query=q.strip(),
+            year=year,
+            relationship=relationship,
+            focus=focus,
+            limit=limit,
+            offset=offset,
+        )
+    }
 
 
 @router.get("/access")

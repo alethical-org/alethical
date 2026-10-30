@@ -3404,3 +3404,31 @@ keep their filed sign. Expenditure and independent-expenditure files remain
 separate rows and amounts because a payment can appear in both. A confirmed
 person or organization covers only active matching fingerprints, follows identity merges,
 and loses withdrawn claims; new records under the same spelling stay unconfirmed.
+## 11. Finance money connections
+
+`GET /api/v1/finance/connections` returns a paged set of direct relations, with
+exact counts, node targets, search, year, relationship and focus filters. A focus
+shows only lines touching that exact node. It never follows money through a
+committee or attributes a payment to an earlier donor. The map and table use the
+same returned edges; a partial page states that more are held.
+
+Contribution edges include only the file's `Contribution` receipt type. Payment
+edges keep the expenditure and independent-expenditure files separate. Refunds
+keep their sign, missing amounts withhold the sum, and a sum must have a period
+covering every record: all payment dates or all filed years. An incomplete
+period withholds the sum as `incomplete_period`. Each edge carries its file,
+snapshot, copy date, record count and period basis. Confirmed identities cover
+only active matching fingerprints or explicitly confirmed identifiers, follow
+merges and lose withdrawn claims; other spellings remain separate printed nodes.
+
+Campaign-account links come only from standing confirmed decisions. A year
+filter includes a link only when both held reviewed years bound it. Lobbying
+representation comes from the current active list; because that list does not
+establish a historical interval, those edges appear only under All years.
+Both are relations without money. Station-file edges also have no amount: they
+come from standing checks, keep the exact file version, page and quotation, and
+lose withdrawn checks. A checked name printed on a file remains a printed name
+unless a separate check identifies a held record. No station-file amount is
+read or combined into this graph. Missing source sets are named in
+`unavailable_sources`, never presented as proof of no connections.
+
