@@ -157,8 +157,10 @@ describe('Campaign money directory', () => {
       'Limits of the campaign records',
     );
     expect(text).toContain('Campaign payment records before 2015 are not included');
-    expect(container.querySelector('a[href^="/money/connections"]')).toBeTruthy();
-    expect(container.querySelector('a[href^="/money/recipients"]')).toBeTruthy();
+    // Money connections and Vendors and payees are off BUILT until their screens
+    // are aligned with Design's current drawing, so nothing links to them.
+    expect(container.querySelector('a[href^="/money/connections"]')).toBeNull();
+    expect(container.querySelector('a[href^="/money/recipients"]')).toBeNull();
     expect(text).not.toMatch(/illustrative|example|sample|fixture|demo/i);
   });
 

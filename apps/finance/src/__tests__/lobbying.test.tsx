@@ -640,9 +640,9 @@ describe('Lobbyist record', () => {
     const box = container.querySelector('[aria-label="Confirmed identity"]');
     expect(box?.textContent).toContain('CONFIRMED IDENTITY');
     expect(box?.textContent).toContain('Andrew Kozak');
-    expect(box?.querySelector('a')?.getAttribute('href')).toBe(
-      '/people/p-1?from=%2Flobbying%2Flobbyists%2F141',
-    );
+    // Person profile is off BUILT until its screen is aligned with Design's
+    // current drawing, so the name is printed without a link.
+    expect(box?.querySelector('a')).toBeNull();
   });
 
   it('keeps a failed contribution file apart from no records', async () => {
