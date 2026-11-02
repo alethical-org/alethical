@@ -156,6 +156,25 @@ copies, and works with Back and Forward. While the screens are off, only `/`, `/
 
 ## Research pages
 
+Money connections (`/money/connections`, in the code but not built yet: its route answers
+"not found" until the pull request that aligns it turns it on) reads direct recorded
+relationships from
+`GET /api/v1/finance/connections`. Search, year, relationship and the focused record are
+server filters. Each page holds up to 50 relationships and shows the whole selection's
+count with Previous and Next. Map starts on tablet/computer; Table starts on phone. An
+explicit view choice stays in the address across resizing and return visits. Nodes and
+lines are keyboard selectable; the table carries every relationship too. Full labels wrap
+inside map nodes, with the columns stacked when their container is narrow.
+
+Each relationship keeps its own source, record count and complete date or year period.
+A missing amount or incomplete period withholds the figure. Sources are never added
+together and a connected path never claims that one payment funded another. Printed names
+stay separate from confirmed people/organizations; a committee registration is an official
+record, not an identity check. Only explicit link targets supplied by the server open a
+profile. A station-file source opens the cited version and page. Partial source availability
+is named, and failed updates keep the last results with a retry. These reads do not write
+checks or confirmations.
+
 Each page is built from its approved Design drawing and reads alethical.com's own records
 through the shared API (`api.alethical.com`). Every page has a loading state, a failure with
 Try again that never reads as an empty result, and a "no longer available" state for a record
@@ -173,9 +192,10 @@ figure is ever added across committees or members.
   (lobbying principals), Committees, Bills and Payments under a name, each family loaded,
   counted and failed on its own ("At least {n}" when the server's count is capped). A name
   search runs from 3 characters. View all opens the rest of a family in place.
-- **People (`/people`)**: sitting legislators, searchable by name, sorted by surname, 10 a
-  page. The server also offers candidates, person records and former legislators, but
-  the current screen has not adopted those lists. Finance Home has no Candidates entrance.
+- **People (`/people`)**: people, candidacies and legislative service stay separate,
+  searched and paged on the server, 10 a page. Candidate scope, election year and
+  current or former service filters remain in the address. Former service requires
+  a held service end; missing current membership never establishes it.
 - **Legislator profile (`/legislators/:id`)**: current or former service (a former legislator
   carries no current title, party, district or committees), each confirmed campaign account
   with its own year and figures, spending by outside groups by contest, committees (each
@@ -184,7 +204,8 @@ figure is ever added across committees or members.
   campaign-account link is read by this screen yet, so its money section is incomplete;
   the server now supplies confirmed links.
 - **Campaign money (`/money`)**: the committee register by kind (Candidate committees,
-  Committees and funds, Party units), searched and paged on the server, names A to Z.
+  Committees and funds, Party units), searched and paged on the server. Sort by chooses
+  names A to Z or numeric registration-number order.
 - **Committee (`/money/committees/:id`)**: the official report figures for the chosen report
   (contributions and expenditures as filed), itemized contributions in 5 tabs by donor kind and
   itemized expenditures, each name grouped with its own records and a sum only when every
@@ -210,8 +231,10 @@ figure is ever added across committees or members.
   spender, never added across committees. The address names the contest (`house-34b`,
   `senate-41`, `governor`).
 - **Lobbying (`/lobbying`)**: registered lobbyists and principals, searched and paged on the
-  server, names A to Z. The server supplies principal spending by year; the spending column
-  and year menu await their screen update.
+  server. Lobbyists use name order. Principals add year and name or reported-spending
+  order, with one filed total per organization for that year. Missing figures and
+  multiple filed reports stay explicit, never zero or an added total. Links keep the
+  selected year, and old rows retain their own year while a new selection loads.
 - **Lobbyist (`/lobbying/lobbyists/:id`)** and **Principal (`/lobbying/principals/:id`)**: a
   lobbyist's registration, the organizations it represented on the copy date (5 at a time with
   "Show more") and its matched campaign contribution records; a principal's spending by year
@@ -220,8 +243,13 @@ figure is ever added across committees or members.
   political giving and payments received, read only for the exact spellings and records its
   confirmations cover. A merged record's address opens the surviving record; a split record's
   address lists the records it became.
-- **Not built yet:** Vendors and payees (`/money/recipients`) answers "not found" until the
-  screen adopts the server's payee list and confirmed vendors.
+- **Not built yet:** Vendors and payees (`/money/recipients`), Person profile (`/people/:id`),
+  Money connections (`/money/connections`), the Media buys pages (`/media-buys`,
+  `/media-buys/folders/:id`, `/media-buys/files/:key`, `/media-buys/agencies/:name`,
+  `/media-buys/stations/:id`), Check TV station files (`/media-buys/check`) and Confirm
+  identities (`/money/identities`) each have a screen in the code but answer "not found"
+  and are linked from nowhere until the pull request that aligns that screen with Design's
+  current drawing turns its route on in `BUILT`.
 - **Legislation (`/bills`)**: bills searched by words or number, with Session, Chamber and
   Status menus, 20 a page.
 - **Bill (`/bills/:id`)**: the plain-language title, Summary (with passages from the bill
@@ -238,6 +266,14 @@ Finance's own routes (`/api/v1/finance/…`) carry the account's token; public r
 none.
 
 ## Limits and privacy
+
+The read sections for Check station files and Confirm identities are implemented as
+independent components in `apps/finance/src/pages/checking/`. They read paged queues,
+exact source versions, machine suggestions and pinned identity record pages. Preparing
+or dismissing a suggestion is local only. Their product routes remain unavailable until
+the required write forms are drawn, reviewed and built; neither queue makes a check or
+confirmation. Filer names and links use explicit display metadata; absent metadata shows
+the printed registration without assuming that a committee page exists.
 
 - Finance never links to alethical.com; a CI test fails if any app file names an
   alethical.com page. A check of the production build (`pnpm run check:built-links`) reads
@@ -267,3 +303,28 @@ none.
   sign-up figures.
 - The site runs at https://finance.alethical.com, the `alethical-finance` Vercel project,
   until alethicalfinance.com launches ([deployment.md § Alethical Finance](../operations/deployment.md#alethical-finance)).
+
+## Media buys
+
+The screens at `/media-buys`, `/media-buys/folders/:id`,
+`/media-buys/files/:key`, `/media-buys/agencies/:name` and
+`/media-buys/stations/:id` are in the code but not built yet: each answers "not found"
+until the pull request that aligns it turns its route on. They use Finance's private
+original-file routes. The directory
+browses station folders, exact agency spellings, stations and years. Its filters
+and pages stay in the address. A capped count says “At least”; a failed refresh
+keeps the earlier rows and offers another try.
+
+A file shows the selected saved version, its original page images, checked facts
+and connections, evidence, and machine-read text marked Not checked. Images carry
+the signed-in account's access header, never a token in an address; changing the
+account or version removes the earlier image. Check evidence opens the exact
+version and page. Withdrawn checks remain distinct from standing connections.
+Station counts are files and saved contents, never ads or money. Campaign and
+outside-spending searches under an agency name stay separate.
+
+Check station files stays unavailable until its forms and queue are complete.
+This read-only release saves no checks and makes no data changes.
+
+Campaign money's Sort by control reads the whole register in name order or numeric
+registration-number order; a choice resets the page and remains in the address.

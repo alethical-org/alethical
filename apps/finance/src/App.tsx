@@ -14,7 +14,12 @@ import { Principal } from './pages/Principal';
 import { Organization } from './pages/Organization';
 import { DonorsByEmployer } from './pages/DonorsByEmployer';
 import { SearchResults } from './pages/Search';
+import { MediaBuys } from './pages/MediaBuys';
+import { StationFile } from './pages/StationFile';
+import { StationFolder, TVStation, PrintedAgency } from './pages/StationRecords';
 import { People } from './pages/People';
+import { Person } from './pages/Person';
+import { MoneyConnections } from './pages/MoneyConnections';
 import { CandidateProfile } from './pages/Candidate';
 import { LegislatorProfile } from './pages/Legislator';
 import { CampaignMoney } from './pages/CampaignMoney';
@@ -34,6 +39,11 @@ import './ui/finance.css';
 /** Each built signed-in screen. A route missing here answers "not found". */
 const SCREENS: Partial<Record<RouteName, (match: RouteMatch) => ReactNode>> = {
   home: () => <FinanceHome />,
+  'media-buys': () => <MediaBuys />,
+  'station-file': (match) => <StationFile match={match} />,
+  'station-folder': (match) => <StationFolder match={match} />,
+  station: (match) => <TVStation match={match} />,
+  'printed-agency-name': (match) => <PrintedAgency match={match} />,
   'payments-under-name': (match) => <PaymentsUnderName match={match} />,
   'money-by-race': (match) => <MoneyByRace match={match} />,
   recipients: (match) => <Recipients match={match} />,
@@ -45,6 +55,8 @@ const SCREENS: Partial<Record<RouteName, (match: RouteMatch) => ReactNode>> = {
   employer: (match) => <DonorsByEmployer match={match} />,
   search: (match) => <SearchResults match={match} />,
   people: (match) => <People match={match} />,
+  person: (match) => <Person match={match} />,
+  'money-connections': () => <MoneyConnections />,
   candidate: (match) => <CandidateProfile match={match} />,
   legislator: (match) => <LegislatorProfile match={match} />,
   'campaign-money': (match) => <CampaignMoney match={match} />,

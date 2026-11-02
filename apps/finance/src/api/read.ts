@@ -174,20 +174,30 @@ export function useRead<T>(
   {
     keepPrevious = false,
     unwrapped = false,
+    acceptData,
   }: {
     keepPrevious?: boolean;
     /** A few routes (`/candidates/{id}`, `/people/{id}`) answer with the record
      * itself rather than `{ data: … }`. */
     unwrapped?: boolean;
+    /** A served unavailable state is a failed read, retaining earlier results. */
+    acceptData?: (data: T) => boolean;
   } = {},
 ): Read<T> {
   const { apiBaseUrl, accessToken } = useFinanceSession();
-  const key = path ? `${accessToken}|${path}` : null;
+  const accept = useRef(acceptData);
+  accept.current = acceptData;
+  const scope = `${apiBaseUrl}|${accessToken}`;
+  const key = path ? `${scope}|${path}` : null;
   const [answer, setAnswer] = useState<{ key: string; answer: ReadAnswer<T> } | null>(() => {
     const held = key ? cache.get(key) : undefined;
     return held && key ? { key, answer: held.answer as ReadAnswer<T> } : null;
   });
-  const [lastData, setLastData] = useState<{ data: T; page: PageInfo | null } | null>(null);
+  const [lastData, setLastData] = useState<{
+    data: T;
+    page: PageInfo | null;
+    scope: string;
+  } | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [pending, setPending] = useState(false);
   const latest = useRef(0);
@@ -198,7 +208,7 @@ export function useRead<T>(
     if (held && Date.now() - held.at < CACHE_MS && attempt === 0) {
       setAnswer({ key, answer: held.answer as ReadAnswer<T> });
       if (held.answer.state === 'ok') {
-        setLastData({ data: held.answer.data as T, page: held.answer.page ?? null });
+        setLastData({ data: held.answer.data as T, page: held.answer.page ?? null, scope });
       }
       setPending(false);
       return;
@@ -207,12 +217,16 @@ export function useRead<T>(
     const controller = new AbortController();
     setPending(true);
     void apiGet<T>(apiBaseUrl, path, accessToken, fetch, controller.signal, unwrapped).then(
-      (next) => {
+      (received) => {
         if (request !== latest.current) return;
+        const next: ReadAnswer<T> =
+          received.state === 'ok' && accept.current && !accept.current(received.data)
+            ? { state: 'failed' }
+            : received;
         setPending(false);
         if (next.state !== 'failed') cache.set(key, { at: Date.now(), answer: next });
         setAnswer({ key, answer: next });
-        if (next.state === 'ok') setLastData({ data: next.data, page: next.page ?? null });
+        if (next.state === 'ok') setLastData({ data: next.data, page: next.page ?? null, scope });
       },
     );
     return () => {
@@ -221,7 +235,7 @@ export function useRead<T>(
       latest.current += 1;
       controller.abort();
     };
-  }, [apiBaseUrl, accessToken, key, path, attempt, unwrapped]);
+  }, [apiBaseUrl, accessToken, key, path, attempt, unwrapped, scope]);
 
   // A new address starts over: a retry count belongs to the view it was made on.
   useEffect(() => setAttempt(0), [key]);
@@ -229,12 +243,18 @@ export function useRead<T>(
   const retry = useCallback(() => setAttempt((value) => value + 1), []);
   const current = answer && answer.key === key ? answer.answer : null;
   const own = current?.state === 'ok' ? { data: current.data, page: current.page ?? null } : null;
-  const shown = own ?? (keepPrevious ? lastData : null);
+  const prior = lastData?.scope === scope ? lastData : null;
+  const shown = key === null ? null : (own ?? (keepPrevious ? prior : null));
   return {
     data: shown?.data ?? null,
     page: shown?.page ?? null,
-    loading: shown === null && (current === null || pending),
-    updating: keepPrevious && own === null && lastData !== null && (current === null || pending),
+    loading: key !== null && shown === null && (current === null || pending),
+    updating:
+      key !== null &&
+      keepPrevious &&
+      own === null &&
+      prior !== null &&
+      (current === null || pending),
     failed: current?.state === 'failed' && !pending,
     notFound: current?.state === 'not-found',
     pending,

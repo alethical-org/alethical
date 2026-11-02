@@ -35,10 +35,6 @@ export const PRINCIPAL_NOT_HELD =
   'This principal is not in the current copy of the lobbying records';
 /** The server's largest page of payments (MAX_PAYMENTS in campaign_finance_payments.py). */
 const PAGE = 250;
-/** The most records a confirmation can select (MAX_RECORDS in identity_confirmations.py),
- * with room for a file that grew since; past this a spelling's load fails visibly. */
-const MAX_PAGES = 40;
-
 /** Printed-name kinds whose records are this organization's own money. A donor's
  * employer (`employer_name`) is never the organization's giving (build notes Round 20). */
 export type GivingKind = 'donor_name';
@@ -135,11 +131,32 @@ export async function loadSpelling<T extends GivenPayment | PaidPayment>(
     apiPath(['finance', 'identities', 'records'], {
       record_kind: spelling.kind,
       record_key: spelling.key,
+      page_size: 500,
     }),
   );
   if (listing.state !== 'ok') return null;
   const wanted = new Map<number, Record<string, string | null>>();
-  for (const print of listing.data.fingerprints ?? []) {
+  const fingerprints = [...(listing.data.fingerprints ?? [])];
+  for (let page = 2; page <= (listing.data.pages ?? 1); page += 1) {
+    if (!listing.data.snapshot_id) return null;
+    const next = await get<RecordsListing>(
+      apiPath(['finance', 'identities', 'records'], {
+        record_kind: spelling.kind,
+        record_key: spelling.key,
+        page_size: 500,
+        page,
+        snapshot_id: listing.data.snapshot_id,
+      }),
+    );
+    if (
+      next.state !== 'ok' ||
+      next.data.snapshot_id !== listing.data.snapshot_id ||
+      next.data.page !== page
+    )
+      return null;
+    fingerprints.push(...next.data.fingerprints);
+  }
+  for (const print of fingerprints) {
     if (print.confirmation?.identity.id !== identityId) continue;
     for (const row of print.rows) wanted.set(row.row_number, print.fields ?? {});
   }
@@ -154,8 +171,7 @@ export async function loadSpelling<T extends GivenPayment | PaidPayment>(
   if (wanted.size === 0) return empty;
 
   const pages: NamePage<T>[] = [];
-  for (let offset = 0, count = 0; ; count += 1) {
-    if (count >= MAX_PAGES) return null;
+  for (let offset = 0; ;) {
     const answer = await get<NamePage<T>>(
       apiPath(['campaign-finance', 'payments-under-name'], {
         name: spelling.key,
@@ -168,7 +184,8 @@ export async function loadSpelling<T extends GivenPayment | PaidPayment>(
     // A page from another release would mix 2 copies of the file.
     if (pages.length > 0 && answer.data.release_id !== pages[0].release_id) return null;
     pages.push(answer.data);
-    if (!answer.data.page.has_more || answer.data.payments.length === 0) break;
+    if (!answer.data.page.has_more) break;
+    if (answer.data.payments.length === 0) return null;
     offset += answer.data.payments.length;
   }
 

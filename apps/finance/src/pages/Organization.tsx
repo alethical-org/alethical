@@ -86,18 +86,32 @@ function SplitCorrection({ identity, here }: { identity: Identity; here: string 
   );
 }
 
-function Row({ row, onView }: { row: ProfileRow; onView: (evidence: Evidence) => void }) {
+function Row({
+  row,
+  onView,
+  linkTitle,
+}: {
+  row: ProfileRow;
+  onView: (evidence: Evidence) => void;
+  linkTitle: boolean;
+}) {
   return (
     <li className="org-row">
       <span className="org-row-text">
-        <span className="org-row-title">{row.title}</span>
+        {linkTitle && row.links[0]?.label === 'Open committee' ? (
+          <Link to={row.links[0].href} className="org-row-title f-dest">
+            {row.title}
+          </Link>
+        ) : (
+          <span className="org-row-title">{row.title}</span>
+        )}
         {row.note && <span className="org-row-note f-num">{row.note}</span>}
       </span>
       <span className="org-row-amount f-num" data-missing={row.missing || undefined}>
         {row.amount}
       </span>
       <span className="org-row-actions">
-        {row.links.map((link) => (
+        {(linkTitle ? [] : row.links).map((link) => (
           <Link
             key={link.label}
             to={link.href}
@@ -135,14 +149,16 @@ function stateOf<T>(load: Load<T>, needed: boolean): SectionState {
   return needed ? load : SETTLED;
 }
 
-function Section({
+export function ProfileMoneySection({
   id,
   title,
   period,
   rows,
   state,
   onView,
+  linkTitle = false,
 }: {
+  linkTitle?: boolean;
   id: string;
   title: string;
   period: string | null;
@@ -169,7 +185,7 @@ function Section({
         )}
         <ul className="org-rows">
           {rows.map((row) => (
-            <Row key={row.key} row={row} onView={onView} />
+            <Row key={row.key} row={row} onView={onView} linkTitle={linkTitle} />
           ))}
         </ul>
       </>
@@ -342,7 +358,7 @@ function Profile({
           )}
         </header>
         <div className="org-sections">
-          <Section
+          <ProfileMoneySection
             id="org-lobbying"
             title="Lobbying"
             period={lobbyCopied ? `Listed ${centralDateLabel(lobbyCopied)}` : null}
@@ -350,7 +366,7 @@ function Profile({
             state={stateOf(lobbying, principals.length > 0)}
             onView={setEvidence}
           />
-          <Section
+          <ProfileMoneySection
             id="org-giving"
             title="Political giving"
             period={givePeriod ? `Period ${givePeriod}` : null}
@@ -358,7 +374,7 @@ function Profile({
             state={stateOf(giving, giveConfirmations.length > 0)}
             onView={setEvidence}
           />
-          <Section
+          <ProfileMoneySection
             id="org-received"
             title="Payments received"
             period={recdPeriod ? `Period ${recdPeriod}` : null}
@@ -366,7 +382,7 @@ function Profile({
             state={stateOf(received, recdConfirmations.length > 0)}
             onView={setEvidence}
           />
-          <Section
+          <ProfileMoneySection
             id="org-made"
             title="Payments made"
             period={null}
@@ -374,7 +390,7 @@ function Profile({
             state={SETTLED}
             onView={setEvidence}
           />
-          <Section
+          <ProfileMoneySection
             id="org-related"
             title="Related committees and funds"
             period={null}
