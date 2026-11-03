@@ -260,6 +260,15 @@ export function CommitteePaymentsScreen({
         <Text style={styles.stampDetail}>
           {paymentFileCopyLine(tab === 'gave' ? 'contributions' : 'expenditures', copiedAt)}
         </Text>
+        {(money?.sourceNotices ?? [])
+          .filter(
+            (notice) => notice.dataset === (tab === 'gave' ? 'contributions' : 'expenditures'),
+          )
+          .map((notice) => (
+            <Text key={notice.key} style={styles.stampDetail}>
+              {notice.text}
+            </Text>
+          ))}
         {reportCopied ? (
           <Text style={styles.stampDetail}>
             {`Report totals copied ${reportCopied}. This is a copy date, not a reporting period.`}
