@@ -27,7 +27,7 @@ import { PAYMENT_FILE_LABELS, paymentCopyLines } from '@alethical/shared/payment
 import { apiPath, useRead } from '../api/read';
 import { useLocation } from '../router';
 import { returnTarget } from '../returnContext';
-import type { RouteMatch } from '../routes';
+import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
 import { Dropdown, Empty, EvidencePanel, Refused, type Evidence } from '../ui/controls';
 import { BackLink, SourcesAndUpdates, WithArrow } from '../ui/parts';
@@ -56,6 +56,7 @@ import {
   type SortKey,
   type TabKey,
 } from './committee/data';
+import { YearBlocks } from './committee/Breakdowns';
 import { Figures } from './committee/Figures';
 import { AlertIcon, Notices, type NoticeTarget } from './committee/Notices';
 import { PaymentTable } from './committee/PaymentTable';
@@ -151,7 +152,10 @@ function evidenceFor(
 export function Committee({ match }: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
-  const back = returnTarget(location.search);
+  // With no usable earlier page, the drawing's named parent: Campaign money.
+  const back =
+    returnTarget(location.search) ??
+    (isBuilt('campaign-money') ? { to: hrefFor('campaign-money'), name: 'Campaign money' } : null);
   const registration = registrationNumberFromSlug(match.params.id) ?? match.params.id;
   const id = encodeURIComponent(registration);
   const years = useMemo(() => campaignMoneyHistoryYears(), []);
@@ -552,6 +556,7 @@ export function Committee({ match }: { match: RouteMatch }) {
                     year={year}
                     report={address.report}
                     onReport={(value) => setAddress({ report: value })}
+                    byKind={current.stated_by_kind}
                   />
 
                   <div className="cmt-tab-row">
@@ -664,6 +669,16 @@ export function Committee({ match }: { match: RouteMatch }) {
                 </>
               )}
             </section>
+
+            {current && (
+              <YearBlocks
+                donorStates={current.donor_states}
+                nameConnections={current.name_connections}
+                candidate={registerKind === 'candidate_committee'}
+                year={year}
+                here={here}
+              />
+            )}
 
             {showNotices && (
               <Notices
