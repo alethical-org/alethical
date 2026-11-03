@@ -373,7 +373,7 @@ export function Person({ match }: { match: RouteMatch }) {
             }}
             retrying={loading}
           >
-            We couldn’t load this record. This is a problem on our side.
+            We couldn’t load this record
           </Refused>
         )}
         {notFound && (

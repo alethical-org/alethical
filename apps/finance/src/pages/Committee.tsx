@@ -362,8 +362,7 @@ export function Committee({ match }: { match: RouteMatch }) {
           {finance.failed ? (
             <div className="cmt-top-gap">
               <Refused onRetry={finance.retry} retrying={finance.pending}>
-                We couldn’t load this committee right now. This is a problem on our side and says
-                nothing about the committee.
+                We couldn’t load this committee
               </Refused>
             </div>
           ) : (
@@ -534,8 +533,8 @@ export function Committee({ match }: { match: RouteMatch }) {
                     <div role="alert" className="f-alert cmt-gap">
                       <AlertIcon />
                       <div>
-                        We could not refresh these payments. This is a problem on our side. The last
-                        complete payment list is still shown.{' '}
+                        We couldn’t refresh these payments. The last complete payment list is still
+                        shown.{' '}
                         <button
                           type="button"
                           className="f-btn f-btn-secondary cmt-inline-retry"

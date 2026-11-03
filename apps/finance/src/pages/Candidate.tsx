@@ -173,7 +173,7 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
         {read.loading && <LoadingLine>Loading…</LoadingLine>}
         {read.failed && (
           <Refused onRetry={read.retry} retrying={read.pending}>
-            We couldn’t load this record. This is a problem on our side.
+            We couldn’t load this record
           </Refused>
         )}
         {read.notFound && <NotFound />}

@@ -248,7 +248,7 @@ describe('Candidate profile', () => {
 
   it('a failed read offers Try again', async () => {
     await render(`/candidates/${ID}`, () => raw({}, 503));
-    expect(text()).toContain('We couldn’t load this record. This is a problem on our side.');
+    expect(text()).toContain('We couldn’t load this record');
     expect(
       [...container.querySelectorAll('button')].some((b) => b.textContent === 'Try again'),
     ).toBe(true);

@@ -576,7 +576,8 @@ describe('Committee page', () => {
       '/money/committees/90001',
       loadedAnswers({ '/committees/90001/finance': { status: 500 } }),
     );
-    expect(text()).toContain('We couldn’t load this committee right now');
+    expect(text()).toContain('We couldn’t load this committee');
+    expect(text()).not.toContain('problem on our side');
     expect(button('Try again')).toBeDefined();
   });
 

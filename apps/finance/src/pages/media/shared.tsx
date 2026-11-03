@@ -192,8 +192,15 @@ export function ReadState<T>({ read, noun = 'results' }: { read: Read<T>; noun?:
       {read.updating && <Updating />}
       {read.failed && (
         <Refused onRetry={read.retry} retrying={read.pending}>
-          We couldn’t load these {noun}. This is a problem on our side.
-          {read.data ? ' Previous results are shown.' : ''}
+          {/* Media buys draws this sentence for its results only; elsewhere the
+              failure names what failed (settled wording row 19). */}
+          We couldn’t load these {noun}
+          {noun === 'results' ? '. This is a problem on our side.' : ''}
+          {read.data
+            ? noun === 'results'
+              ? ' Previous results are shown.'
+              : '. Previous results are shown.'
+            : ''}
         </Refused>
       )}
       {read.notFound && <Empty title="This record is no longer available" />}

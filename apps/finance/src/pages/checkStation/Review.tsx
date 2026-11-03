@@ -135,7 +135,7 @@ export function Review({
       <div className="ck-detail">
         {read.failed ? (
           <Refused onRetry={read.retry} retrying={read.pending}>
-            We couldn’t load this TV station file. This is a problem on our side.
+            We couldn’t load this TV station file
           </Refused>
         ) : (
           <div className="ck-detail-loading" role="status" aria-busy="true" aria-label="Loading" />
@@ -1152,9 +1152,7 @@ function Workbench({
               {err('target') && <Warning>{err('target')}</Warning>}
             </div>
             {search === 'failed' && (
-              <Refused onRetry={() => void runSearch()}>
-                We couldn’t load these records. This is a problem on our side.
-              </Refused>
+              <Refused onRetry={() => void runSearch()}>We couldn’t load these records</Refused>
             )}
             {conn.results && conn.results.length > 0 && !conn.target && (
               <ul aria-label="Records found" className="ck-results">
@@ -1209,7 +1207,7 @@ function Workbench({
                 {previewing === 'busy' && <LoadingLine>Loading…</LoadingLine>}
                 {previewing === 'failed' && (
                   <Refused onRetry={() => conn.target && void preview(conn.target)}>
-                    We couldn’t load this record. This is a problem on our side.
+                    We couldn’t load this record
                   </Refused>
                 )}
                 {previewOk && conn.preview && (

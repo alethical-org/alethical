@@ -220,7 +220,7 @@ export function StationFile({ match }: { match: RouteMatch }) {
             onRetry={missing ? current.retry : read.retry}
             retrying={missing ? current.pending : read.pending}
           >
-            We couldn’t load this TV station file. This is a problem on our side.
+            We couldn’t load this TV station file
           </Refused>
         </div>
       )}
