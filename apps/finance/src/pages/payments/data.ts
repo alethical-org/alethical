@@ -5,22 +5,53 @@ import { useFinanceSession } from '../../auth/session';
 
 /**
  * Reads for the 2 printed-name pages (Payments under this name, Donors by employer):
- * `/campaign-finance/payments-under-name` (alethical/api/routers/public.py) and the
- * identity records listing (`/finance/identities/records`,
- * alethical/api/routers/finance_identities.py). Only the fields the pages print are
- * typed; every value may be missing and is read as such.
+ * Finance's `/finance/payments-under-name` (alethical/api/routers/finance.py,
+ * services/finance_payments_under_name.py: the shared money site's own rows, states and
+ * paging, plus each row's fingerprint, confirmed identity, evidence locator and
+ * excerpt) and the identity records listing (`/finance/identities/records`,
+ * alethical/api/routers/finance_identities.py). Only the fields the pages print
+ * are typed; every value may be missing and is read as such.
  */
 
 /** The server's own role values, verbatim. */
 export type ServerRole = 'contributor' | 'vendor' | 'independent_vendor' | 'employer';
 
-/** The server's largest page of payments (MAX_PAYMENTS in campaign_finance_payments.py). */
-export const NAME_PAGE = 250;
+/** The Finance route's largest page of payments (its `limit` maximum). */
+export const NAME_PAGE = 200;
 
 export type NameState = 'reported' | 'not_reported' | 'unavailable';
 
+/** The identity a row's own fingerprint is confirmed to, as it stands today. */
+export interface RowIdentity {
+  id: string;
+  kind: string;
+  name: string;
+  reference?: string | null;
+}
+
+/** Where a row is held: the file, the saved copy and the record number in it. */
+export interface RowEvidence {
+  dataset: string | null;
+  snapshot_id: string | null;
+  record_number: number | null;
+  source_url: string | null;
+  copied_at: string | null;
+}
+
+/** What every Finance row adds: its server fingerprint, its identity or null, its
+ * evidence locator and its excerpt (the whole source row, in the file's order). */
+export interface RowFacts {
+  fingerprint?: string | null;
+  identity?: RowIdentity | null;
+  evidence?: RowEvidence | null;
+  /** Every column of the source row as the file lays it out: [the file's column
+   * label, the held value as text]. A blank cell is null; amounts, dates
+   * (YYYY-MM-DD) and years are the values the loader parsed. */
+  excerpt?: Array<[string, string | null]> | null;
+}
+
 /** A received-payments row (role `contributor` or `employer`). */
-export interface ReceivedRow {
+export interface ReceivedRow extends RowFacts {
   recipient_registration_number: string | null;
   recipient_name: string | null;
   contributor: string | null;
@@ -31,10 +62,12 @@ export interface ReceivedRow {
   year: number | null;
   receipt_type: string | null;
   record_number: number;
+  /** The ZIP exactly as filed; never padded or repaired. */
+  contributor_zip?: string | null;
 }
 
 /** An expenditures row (role `vendor`). */
-export interface SpentRow {
+export interface SpentRow extends RowFacts {
   committee_registration_number: string | null;
   committee_name: string | null;
   vendor_name: string | null;
@@ -47,7 +80,7 @@ export interface SpentRow {
 }
 
 /** An independent-expenditures row (role `independent_vendor`). */
-export interface OutsideRow {
+export interface OutsideRow extends RowFacts {
   spender: string | null;
   spender_registration_number: string | null;
   affected_committee_name: string | null;
@@ -61,10 +94,21 @@ export interface OutsideRow {
   record_number: number;
 }
 
+/** Each identity holding records of the spelling in the read's scope (year and
+ * filer), with how many. */
+export interface ScopeIdentity {
+  id: string;
+  kind: string;
+  name: string;
+  reference?: string | null;
+  confirmed_records: number;
+}
+
 export interface NamePage<T> {
   name: string;
   role: ServerRole;
   year: number | null;
+  filer?: string | null;
   state: NameState;
   payments: T[];
   page: { limit: number; offset: number; has_more: boolean; total_payments: number | null };
@@ -72,19 +116,24 @@ export interface NamePage<T> {
   source_url: string | null;
   release_id: string;
   fetched_at: string | null;
+  identities?: ScopeIdentity[];
 }
 
-/** Every page of payments read so far for 1 name, role and year. */
+/** Every page of payments read so far for 1 name, role, year and filer. */
 export interface NamePayments<T> {
-  /** The name, role and year these payments answer, so earlier results shown while
-   * a new view loads are always read as what they are. */
+  /** The name, role, year and filer these payments answer, so earlier results shown
+   * while a new view loads are always read as what they are. */
   name: string;
   role: ServerRole;
   year: number | null;
+  filer: string | null;
   state: NameState;
   payments: T[];
-  /** More rows are filed than are loaded; the server serves no count of them. */
   hasMore: boolean;
+  /** Every row the read's scope matches, counted by the server; null when not served. */
+  total: number | null;
+  /** The identities holding records in this scope, with their counts. */
+  identities: ScopeIdentity[];
   linkable: ReadonlySet<string>;
   sourceUrl: string | null;
   fetchedAt: string | null;
@@ -105,24 +154,33 @@ export interface NamePaymentsRead<T> {
   loadingMore: boolean;
   /** The next page failed; the payments already loaded stay. */
   moreFailed: boolean;
+  /** The Board's file changed since the first page: the pages cannot be joined. */
+  changed: boolean;
+  /** Read the first page again, starting over. */
   retry: () => void;
   more: () => void;
 }
 
-/** The path for 1 name's payments, without paging. */
+/** The query for 1 name's payments, without paging. */
 export function namePaymentsQuery(
   name: string,
   role: ServerRole,
   year: number | null,
+  filer: string | null = null,
 ): Record<string, string | number | null> {
-  return { name, role, year };
+  return { name, role, year, filer };
 }
 
-function pagePath(query: Record<string, string | number | null>, offset: number): string {
-  return apiPath(['campaign-finance', 'payments-under-name'], {
+function pagePath(
+  query: Record<string, string | number | null>,
+  offset: number,
+  releaseId: string | null = null,
+): string {
+  return apiPath(['finance', 'payments-under-name'], {
     ...query,
     limit: NAME_PAGE,
-    offset,
+    offset: offset || null,
+    release_id: releaseId,
   });
 }
 
@@ -131,9 +189,12 @@ function fromPage<T>(page: NamePage<T>): NamePayments<T> {
     name: page.name,
     role: page.role,
     year: page.year ?? null,
+    filer: page.filer ?? null,
     state: page.state,
     payments: page.state === 'reported' ? page.payments : [],
     hasMore: page.state === 'reported' && page.page.has_more,
+    total: page.state === 'reported' ? (page.page.total_payments ?? null) : null,
+    identities: page.identities ?? [],
     linkable: new Set(page.linkable_registration_numbers ?? []),
     sourceUrl: page.source_url ?? null,
     fetchedAt: page.fetched_at ?? null,
@@ -142,11 +203,11 @@ function fromPage<T>(page: NamePage<T>): NamePayments<T> {
 }
 
 /**
- * 1 name's payments, a page of 250 at a time. The server serves no count on a
- * name-keyed lookup, so a page never says how many remain; `more` reads the next
- * page and adds it, refusing a page from another release (2 copies of the file
- * must never mix). A new name, role or year keeps the earlier results visible
- * while it loads. An abandoned read never writes its answer.
+ * 1 name's payments, a page of 200 at a time. Later pages are pinned to the first
+ * page's `release_id`: a changed Board file answers 409, and the page then says so
+ * and offers to start over, because 2 copies of the file must never mix. A new
+ * name, role, year or filer keeps the earlier results visible while it loads. An
+ * abandoned read never writes its answer.
  */
 export function useNamePayments<T>(
   query: Record<string, string | number | null> | null,
@@ -164,6 +225,7 @@ export function useNamePayments<T>(
   const [pending, setPending] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreFailed, setMoreFailed] = useState(false);
+  const [changed, setChanged] = useState(false);
   const latest = useRef(0);
   const moreController = useRef<AbortController | null>(null);
 
@@ -174,6 +236,7 @@ export function useNamePayments<T>(
     setPending(true);
     setLoadingMore(false);
     setMoreFailed(false);
+    setChanged(false);
     void apiGet<NamePage<T>>(apiBaseUrl, first, accessToken, fetch, controller.signal).then(
       (next) => {
         if (request !== latest.current) return;
@@ -202,21 +265,31 @@ export function useNamePayments<T>(
   const own = current?.value ?? null;
 
   const more = useCallback(() => {
-    if (!query || !key || !own || !own.hasMore || loadingMore) return;
+    if (!query || !key || !own || !own.hasMore || loadingMore || changed) return;
     const request = latest.current;
     const controller = new AbortController();
     moreController.current = controller;
     setLoadingMore(true);
     setMoreFailed(false);
+    let status = 0;
+    const seen: typeof fetch = async (input, init) => {
+      const response = await fetch(input, init);
+      status = response.status;
+      return response;
+    };
     void apiGet<NamePage<T>>(
       apiBaseUrl,
-      pagePath(query, own.payments.length),
+      pagePath(query, own.payments.length, own.releaseId),
       accessToken,
-      fetch,
+      seen,
       controller.signal,
     ).then((next) => {
       if (request !== latest.current) return;
       setLoadingMore(false);
+      if (status === 409) {
+        setChanged(true);
+        return;
+      }
       if (
         next.state !== 'ok' ||
         next.data.release_id !== own.releaseId ||
@@ -235,7 +308,7 @@ export function useNamePayments<T>(
       setLast(value);
     });
     // `query` is rebuilt each render; `key` carries its meaning.
-  }, [apiBaseUrl, accessToken, key, own, loadingMore]);
+  }, [apiBaseUrl, accessToken, key, own, loadingMore, changed]);
 
   const retry = useCallback(() => setAttempt((value) => value + 1), []);
   // A failed view never shows another view's results.
@@ -249,6 +322,7 @@ export function useNamePayments<T>(
     pending,
     loadingMore,
     moreFailed,
+    changed,
     retry,
     more,
   };
@@ -278,13 +352,62 @@ export interface IdentityRecords {
   identities: IdentitySummary[];
 }
 
-/** The identities that confirm records printing exactly this name, for 1 kind. */
-export function useIdentityRecords(kind: PrintedKind, name: string | null) {
+/** The identities that confirm records printing exactly this name, for 1 kind,
+ * counted over 1 year's records when a year is given. Only the counts are read, so
+ * 1 fingerprint is asked for. */
+export function useIdentityRecords(
+  kind: PrintedKind,
+  name: string | null,
+  year: number | null = null,
+) {
   return useRead<IdentityRecords>(
     name
-      ? apiPath(['finance', 'identities', 'records'], { record_kind: kind, record_key: name })
+      ? apiPath(['finance', 'identities', 'records'], {
+          record_kind: kind,
+          record_key: name,
+          year,
+          page_size: 1,
+        })
       : null,
   );
+}
+
+/** 1 confirmation as `GET /finance/identities/{id}` serves it (only what is printed). */
+export interface IdentityConfirmationRead {
+  record_kind: string;
+  record_key: string;
+  status: 'confirmed' | 'withdrawn' | string;
+  checked_at: string | null;
+}
+
+export interface IdentityRead {
+  id: string;
+  kind: string;
+  name: string;
+  confirmations?: IdentityConfirmationRead[];
+}
+
+/** The day this identity's standing confirmations of exactly this spelling were
+ * checked, only when they were all checked the same day; several days are not
+ * folded into 1. */
+export function checkedDay(
+  identity: IdentityRead | null,
+  kinds: readonly string[],
+  name: string,
+  dayOf: (iso: string) => string,
+): string | null {
+  const days = new Set(
+    (identity?.confirmations ?? [])
+      .filter(
+        (item) =>
+          item.status === 'confirmed' &&
+          kinds.includes(item.record_kind) &&
+          item.record_key === name &&
+          item.checked_at,
+      )
+      .map((item) => dayOf(item.checked_at!)),
+  );
+  return days.size === 1 ? [...days][0] : null;
 }
 
 /** "Confirmed for {k} of {n} records" (Confirm Identities wording, build notes

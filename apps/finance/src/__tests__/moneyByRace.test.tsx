@@ -6,9 +6,12 @@ import { clearReadCache } from '../api/read';
 import {
   clearOutsideSpending,
   contestAnchor,
+  contestHeading,
+  groupAmountText,
   MoneyByRace,
   moneyByRaceHref,
   officeOfAnchor,
+  outsideBar,
   outsideGroups,
   paymentDates,
   positionAsFiled,
@@ -16,6 +19,7 @@ import {
   seatPart,
   type OutsideRow,
 } from '../pages/MoneyByRace';
+import * as routes from '../routes';
 import { matchRoute } from '../routes';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -267,7 +271,60 @@ describe('Money by race helpers', () => {
       ['Excellence Minnesota', '19469', '500.0000'],
     ]);
     expect(groups[1].dates).toBe('Oct 2, 2025 to Oct 9, 2025');
+    expect(groups[1].recordYear).toBe('2025');
     expect(groups[2].direction).toBe('Against');
+    expect(groupAmountText(groups[0])).toBe('Missing payment amount');
+  });
+
+  it('applies the shared total rule and draws each net on its own side', () => {
+    const [undated] = outsideGroups(
+      [row({ paid_on: null, amount: '100.0000' }), row({ amount: '50.0000' })],
+      ['18558'],
+    );
+    expect(undated.state).toBe('period-incomplete');
+    expect(groupAmountText(undated)).toBe('Reporting period incomplete');
+    expect(outsideBar(undated).amount).toBeNull();
+    const [nothingDated] = outsideGroups([row({ paid_on: null })], ['18558']);
+    expect(nothingDated.recordYear).toBeNull();
+
+    const [refund] = outsideGroups(
+      [row({ direction: 'Against', amount: '-1500.0000' })],
+      ['18558'],
+    );
+    // The side comes from the filed position; a negative net draws no bar.
+    expect(outsideBar(refund)).toEqual({
+      side: 'against',
+      amount: 0,
+      value: '\u2212$1,500',
+      negative: true,
+    });
+    const [against] = outsideGroups([row({ direction: 'Against', amount: '500.0000' })], ['18558']);
+    expect(outsideBar(against)).toMatchObject({ side: 'against', amount: 500 });
+    const [forRow] = outsideGroups([row({ amount: '500.0000' })], ['18558']);
+    expect(outsideBar(forRow)).toMatchObject({ side: 'for', amount: 500 });
+    expect(contestHeading({ office: 'House', district: '1A' }, 2026)).toBe(
+      'State\u00a0Representative\u00a0· District\u00a01A\u00a0·\u00a02026',
+    );
+  });
+
+  it('titles each state office from its code and keeps the seat label for the rest', () => {
+    const nb = (text: string) => text.replace(/\u00a0/g, ' ');
+    expect(nb(contestHeading({ office: 'Senate', district: '41' }, 2026))).toBe(
+      'State Senator · District 41 · 2026',
+    );
+    expect(nb(contestHeading({ office: 'Governor', district: null }, 2026))).toBe(
+      'Governor · Statewide · 2026',
+    );
+    expect(nb(contestHeading({ office: 'Attorney General', district: null }, 2026))).toBe(
+      'Attorney General · Statewide · 2026',
+    );
+    // Courts, and any office code the table does not know, keep the shipped form.
+    expect(nb(contestHeading({ office: 'District Court', district: '2-14' }, 2026))).toBe(
+      'District Court · District 2 · Seat 14 · 2026',
+    );
+    expect(nb(contestHeading({ office: 'Soil and Water', district: '3' }, 2026))).toBe(
+      'Soil and Water · 3 · 2026',
+    );
   });
 
   it('dates the sources from the served copy dates only', () => {
@@ -292,8 +349,13 @@ describe('Money by race page', () => {
     const text = container.textContent ?? '';
     expect(container.querySelector('h1')?.textContent).toBe('Money by race');
     expect(requests).toContain(`${API}/api/v1/campaign-finance/races?year=2026&office=House`);
-    expect(container.querySelector('h2')?.textContent).toBe('House District 1A · 2026');
-    expect(text).toContain('These records do not confirm who is on the ballot');
+    expect(container.querySelector('h2')?.textContent).toBe(
+      'State\u00a0Representative\u00a0· District\u00a01A\u00a0·\u00a02026',
+    );
+    // The caveat joins the end note, so it ends with a period there.
+    expect(container.querySelector('.mr-end-note')?.textContent).toContain(
+      'Totals are not added across committees. These records do not confirm who is on the ballot.',
+    );
     expect(text).not.toContain('The reported totals in this group cover different periods');
 
     const link = container.querySelector<HTMLAnchorElement>(
@@ -305,21 +367,52 @@ describe('Money by race page', () => {
     );
     expect(text).toContain('Registration 18558');
     expect(text).toContain('$10,700');
-    expect(text).toContain('Figures for Jan 1, 2026 to Jul 20, 2026');
+    expect(text).toContain('Figures for Jan\u00a01,\u00a02026 to Jul\u00a020,\u00a02026');
     expect(text).toContain('$10,075');
-    expect(text).toContain('Payments dated Jan 16, 2026 to Oct 16, 2026');
+    expect(text).toContain('Payments dated Jan\u00a016,\u00a02026 to Oct\u00a016,\u00a02026');
     expect(text).toContain('No usable official total in our records for 2026');
     expect(text).toContain('No itemized contributions in our records for 2026');
     expect(text).toContain('Totals are not added across committees.');
 
-    const outside = container.querySelector('[aria-label="Spending by outside groups"]');
+    // Chart is the default view: a labelled list, For to the right.
+    const chart = container.querySelector('ul[aria-label="Spending by outside groups"]');
+    expect(chart?.querySelector('.f-split-position')?.textContent).toBe(
+      'For Burkel, John House Committee',
+    );
+    expect(chart?.textContent).toContain('$2,000');
+    expect(chart?.textContent).toContain(
+      'Payments dated Mar\u00a031,\u00a02026 to Apr\u00a02,\u00a02026',
+    );
+    expect(chart?.querySelector('a')?.getAttribute('href')).toBe(
+      '/money/committees/41395?tab=independent&year=2026&from=%2Fmoney%2Fraces%2Fhouse-1a',
+    );
+    // A For spender's bar is drawn on the For half.
+    expect(chart?.querySelector<HTMLElement>('.f-split-for .f-split-fill')?.style.width).toBe(
+      '100%',
+    );
+    expect(chart?.querySelector<HTMLElement>('.f-split-against .f-split-fill')?.style.width).toBe(
+      '0%',
+    );
+    expect(
+      container.querySelector('[role="table"][aria-label="Spending by outside groups"]'),
+    ).toBeNull();
+    expect(text).toContain('Independent expenditures for this contest');
+    expect(text).not.toContain('Independent expenditures file');
+
+    const table = [...container.querySelectorAll('[aria-label="View"] button')].find(
+      (item) => item.textContent === 'Table',
+    ) as HTMLButtonElement;
+    await act(async () => table.click());
+    expect(window.location.search).toBe('?osView=table');
+    const outside = container.querySelector(
+      '[role="table"][aria-label="Spending by outside groups"]',
+    );
     expect(outside?.textContent).toContain('For Burkel, John House Committee');
     expect(outside?.textContent).toContain('$2,000');
     expect(outside?.textContent).toContain('Mar 31, 2026 to Apr 2, 2026');
     expect(outside?.querySelector('a')?.getAttribute('href')).toBe(
-      '/money/committees/41395?year=2026&tab=independent&from=%2Fmoney%2Fraces%2Fhouse-1a',
+      '/money/committees/41395?tab=independent&year=2026&from=%2Fmoney%2Fraces%2Fhouse-1a%3FosView%3Dtable',
     );
-    expect(text).toContain('Independent expenditures file · 2026');
     expect(text).toContain(
       'Minnesota’s payment files copied Oct 9, 2026; report totals copied Oct 28, 2026.',
     );
@@ -327,6 +420,34 @@ describe('Money by race page', () => {
     const outsideReads = requests.filter((url) => url.includes('/outside-spending'));
     expect(outsideReads).toHaveLength(2);
     expect(outsideReads.every((url) => url.includes('year=2026'))).toBe(true);
+  });
+
+  it('links a spender to its own payment year, and to no year when undated', async () => {
+    await render(
+      '/money/races/house-1a?year=2026',
+      answers({
+        '18558': [
+          row({ paid_on: '2025-10-02', amount: '40.0000' }),
+          row({
+            spender: 'Undated Fund',
+            spender_registration_number: '50001',
+            paid_on: null,
+            amount: '-75.0000',
+          }),
+        ],
+      }),
+    );
+    const links = [
+      ...container.querySelectorAll<HTMLAnchorElement>(
+        'ul[aria-label="Spending by outside groups"] a',
+      ),
+    ].map((link) => link.getAttribute('href'));
+    expect(links).toEqual([
+      '/money/committees/41395?tab=independent&year=2025&from=%2Fmoney%2Fraces%2Fhouse-1a%3Fyear%3D2026',
+      '/money/committees/50001?tab=independent&from=%2Fmoney%2Fraces%2Fhouse-1a%3Fyear%3D2026',
+    ]);
+    // An undated row withholds the total; no bar is drawn for it.
+    expect(container.textContent).toContain('Reporting period incomplete');
   });
 
   it('labels the 3 menus with the current choices', async () => {
@@ -365,6 +486,7 @@ describe('Money by race page', () => {
       'No independent expenditure names this contest in the file for 2026. This does not mean none was made.',
     );
     expect(container.querySelector('[aria-label="Spending by outside groups"]')).toBeNull();
+    expect(container.querySelector('[aria-label="View"]')).toBeNull();
   });
 
   it('fails the outside section on its own, with Try again', async () => {
@@ -428,5 +550,92 @@ describe('Money by race page', () => {
     expect(container.querySelectorAll('.mr-field-button')).toHaveLength(3);
     expect(container.textContent).toContain('Loading…');
     expect(container.textContent).not.toContain('$10,700');
+  });
+});
+
+describe('Money by race page, Media buys card', () => {
+  const CONNECTIONS = '/finance/media-buys/connections';
+  const ROW = {
+    key: 'kmsp-5',
+    name: 'order.pdf',
+    label: 'order.pdf',
+    station: 'KMSP-TV',
+    year: 2026,
+    category: 'Local',
+    kind: 'Order',
+    uploaded_at: '2026-04-09',
+    version_id: 'd'.repeat(64),
+    version_count: 1,
+    source_changed: false,
+  };
+  const withConnections = (answer: () => Response) => {
+    const base = answers();
+    return (url: string) => (url.includes(CONNECTIONS) ? answer() : base(url));
+  };
+  const card = () => container.querySelector('.mb-buys-card');
+  const reads = () =>
+    requests.map((url) => new URL(url)).filter((url) => url.pathname.endsWith(CONNECTIONS));
+  const text = () => (card()?.textContent ?? '').replace(/ /g, ' ');
+
+  it('reads the files whose checked election names this contest, below outside spending', async () => {
+    await render(
+      '/money/races/house-1a?year=2026',
+      withConnections(() =>
+        json({
+          agency_key: null,
+          exact_name_count: 0,
+          files: [ROW],
+          total: 1,
+          groups: [{ label: 'General election', files: [{ ...ROW, role: 'General election' }] }],
+        }),
+      ),
+    );
+    expect(
+      reads().map((url) => [url.searchParams.get('kind'), url.searchParams.get('target')]),
+    ).toEqual([['race', '{"office":"House","district":"1A","year":2026}']]);
+    expect(card()?.parentElement?.className).toBe('mb-buys-after');
+    expect(card()?.parentElement?.previousElementSibling?.querySelector('h3')?.textContent).toBe(
+      'Spending by outside groups',
+    );
+    expect(card()?.querySelector('h3')).toBeNull();
+    expect(text()).toContain('KMSP-TV order ·');
+    expect(text()).toContain('General election');
+    expect(card()?.querySelector('a')?.getAttribute('href')).toBe(
+      `/media-buys/files/kmsp-5?version=${'d'.repeat(64)}&from=%2Fmoney%2Fraces%2Fhouse-1a%3Fyear%3D2026`,
+    );
+  });
+
+  it('says no file is connected to the contest by its heading', async () => {
+    await render(
+      '/money/races/house-1a?year=2026',
+      withConnections(() =>
+        json({ agency_key: null, exact_name_count: 0, files: [], total: 0, groups: [] }),
+      ),
+    );
+    expect(text()).toContain(
+      'No TV station files have a checked connection to State Representative · District 1A · 2026',
+    );
+  });
+
+  it('says the files could not be loaded, with Try again', async () => {
+    await render(
+      '/money/races/house-1a?year=2026',
+      withConnections(() => new Response('down', { status: 500 })),
+    );
+    expect(text()).toContain('We couldn’t load these TV station files');
+    expect(text()).toContain('Try again');
+    expect(text()).not.toContain('problem on our side');
+  });
+
+  it('is left off while the TV station file page is off', async () => {
+    const real = routes.isBuilt;
+    const spy = vi
+      .spyOn(routes, 'isBuilt')
+      .mockImplementation((name) => name !== 'station-file' && real(name));
+    await render('/money/races/house-1a?year=2026', answers());
+    expect(container.querySelector('.mr-contest-title')).not.toBeNull();
+    expect(card()).toBeNull();
+    expect(reads()).toHaveLength(0);
+    spy.mockRestore();
   });
 });

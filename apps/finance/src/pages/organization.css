@@ -169,52 +169,70 @@
     text-decoration: underline;
     text-underline-offset: 3px;
   }
-  .org-split-link:hover {
+  a.org-split-link:hover .org-split-name {
     color: var(--link-hover);
     text-decoration: underline;
     text-underline-offset: 3px;
   }
 }
 
+.org-split {
+  padding: 18px 20px;
+  box-sizing: border-box;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
+.org-split-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.25;
+}
 .org-split-lead {
   margin: 8px 0 0;
-  max-width: 640px;
-  font-size: 15px;
+  font-size: 14px;
+  line-height: 1.5;
   color: var(--secondary);
 }
+/* Stacked two-line link rows: 8px apart, 4px inside, hover underlines only the
+ * name (eug-8). */
 .org-split-list {
-  margin: 16px 0 0;
+  margin: 12px 0 0;
   padding: 0;
   list-style: none;
-  max-width: 640px;
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  border-radius: 10px;
-  overflow: hidden;
-}
-.org-split-list li {
-  align-items: center;
-  min-height: 48px;
-  padding: 8px 20px;
-  box-sizing: border-box;
-  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
-}
-.org-split-list li:last-child {
-  border-bottom: 0;
-}
-.org-split-link,
-.org-split-name {
-  display: inline-flex;
-  align-items: center;
-  min-height: 36px;
-  font-weight: 600;
-  overflow-wrap: anywhere;
+  display: grid;
+  gap: 8px;
 }
 .org-split-link {
-  color: var(--link);
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 4px 0;
+  box-sizing: border-box;
   text-decoration: none;
+  border-radius: 3px;
 }
-.org-split-link:active {
+.org-split-text {
+  min-width: 0;
+}
+.org-split-name {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--link);
+  overflow-wrap: anywhere;
+}
+.org-split-static .org-split-name {
+  color: var(--ink);
+}
+.org-split-sub {
+  display: inline-block;
+  font-size: 13px;
+  color: var(--secondary);
+  overflow-wrap: anywhere;
+}
+.org-split-link:active .org-split-name {
   color: var(--link-hover);
 }
 
@@ -253,8 +271,7 @@
   .org-row-actions {
     justify-content: flex-start;
   }
-  .org-action,
-  .org-split-link {
+  .org-action {
     min-height: 44px;
   }
 }
