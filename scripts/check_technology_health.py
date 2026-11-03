@@ -48,8 +48,9 @@ FORGE_RELEASE_ADVISORIES = {
     "GHSA-hqq3-7jhf-c5jx": "high",
     "GHSA-5x38-2vff-x55p": "high",
 }
-# glob 14.0.2 and minimatch 11.0.1 (both 27 October 2026) are major versions
-# younger than the 7-day gate; local patches carry their exact fix commits.
+# glob 14.0.3 (28 October 2026) and minimatch 11.0.1 (27 October 2026) are
+# major versions younger than the 7-day gate; local patches carry their exact
+# fix commits, including in the minimatch copy inside glob's minified bundles.
 GLOB_ADVISORY = "GHSA-3g3m-2fjr-6pw4"
 GLOB_BUILD_PATH = "apps__frontend>expo>@expo/cli>glob"
 MINIMATCH_ADVISORY = "GHSA-g3hv-75wg-m249"
@@ -1203,9 +1204,10 @@ def main() -> int:
             "\nLocal security repair: minimatch 10.2.5 retains the raw "
             "GHSA-g3hv-75wg-m249 warning. It passes only after frozen installation, "
             "exact upstream-backport patch/lock/installed-code fingerprints, bounded "
-            "hostile-pattern checks and ordinary matching checks through the glob "
-            "copy Expo's command-line tool loads. Any changed finding or failed "
-            "repair check blocks release.\n"
+            "hostile-pattern checks and ordinary matching checks through the "
+            "minimatch package and the minimatch copy inside both glob bundles "
+            "Expo's command-line tool loads. Any changed finding or failed repair "
+            "check blocks release.\n"
             "\nRecorded exception policy: only image-size 1.2.1 in Expo's Metro "
             "build tool may retain "
             + ", ".join(sorted(KNOWN_JAVASCRIPT_EXCEPTIONS))

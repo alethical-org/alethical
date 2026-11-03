@@ -252,8 +252,8 @@ which fixes 11 advisories: the
 [OID first-arc truncation](https://github.com/advisories/GHSA-4642-5mcj-2rqw),
 [negative modInverse infinite loop](https://github.com/advisories/GHSA-h6cr-wjv9-3cpp) and
 [CA-store depletion during chain verification](https://github.com/advisories/GHSA-4487-j8r4-4g2f).
-node-forge 1.4.1 was published on 27 October 2026 at 14:09 UTC; the unchanged
-7-day gate admits it from 3 November at 14:09 UTC. Until that reviewed upgrade,
+node-forge 1.4.1 was published on 27 October 2026 at 04:44 UTC; the unchanged
+7-day gate admits it from 3 November at 04:44 UTC. Until that reviewed upgrade,
 the 1.4.0 backport is byte-identical to 1.4.1 in those 11 files apart from the
 rsa.js hunk above. Replace the backport with the 1.4.1 release, keeping only the
 rsa.js hunk as a `node-forge@1.4.1` patch, through
@@ -331,11 +331,13 @@ Expo's command-line tool uses glob 13.0.6. Its
 repaired by the exact walker change from
 [upstream commit 4682e8c](https://github.com/isaacs/node-glob/commit/4682e8c9babee1b385202ede36389634e12076d7):
 every abort branch returns after its callback, so an aborted directory walk
-stops reading instead of rejecting and then reading the whole tree. The fixed
-14.0.2 package is a major version, published on 27 October 2026 at 22:07 UTC;
-the unchanged 7-day gate admits it from 3 November at 22:07 UTC. The patch
-changes both compiled walkers and both minified entry bundles, because the
-package's main entries are the minified bundles and that is what Expo loads.
+stops reading instead of rejecting and then reading the whole tree. glob 14.0.2
+fixes this advisory, but its minified bundles still embed an unrepaired
+minimatch copy; 14.0.3, a major version published on 28 October 2026 at 04:08
+UTC, is the first release with both fixes, and the unchanged 7-day gate admits
+it from 4 November at 04:08 UTC. The patch changes both compiled walkers and
+both minified entry bundles, because the package's main entries are the
+minified bundles and that is what Expo loads.
 `check-glob-security.mjs` verifies the exact patch, lock binding and the 4
 installed file fingerprints, then counts directory reads through glob's own
 file-system option: an abort during the first read must reject with no further
@@ -346,20 +348,28 @@ range and reported dependency path can be classified as repaired after these
 checks pass. Replace the backport with the released fix after cross-major
 compatibility checks through [issue #2812](https://github.com/alethical-org/alethical/issues/2812).
 
-The same glob copy uses minimatch 10.2.5. Its
+The same glob package depends on minimatch 10.2.5, and its minified bundles
+embed their own copy of that minimatch code. The
 [pattern-amplification advisory](https://github.com/advisories/GHSA-g3hv-75wg-m249)
-is repaired by the exact change from
+is repaired in both places by the exact change from
 [upstream commit 77a0f5c](https://github.com/isaacs/minimatch/commit/77a0f5c4b80bdc641c3c930a1d9edf5ad2db57f8):
 the `**/..` preprocessing pass stops splitting patterns at `braceExpandMax`,
 and the pairwise dedupe pass is skipped above 1,000 patterns, which match the
 same paths either way. The fixed 11.0.1 package is a major version, published
 on 27 October 2026 at 22:26 UTC; the gate admits it from 3 November at 22:26
 UTC. minimatch 10.2.6 differs from 10.2.5 only in its manifest and carries no
-fix. `check-minimatch-security.mjs` verifies the exact patch, lock binding and
-the 4 installed file fingerprints, then runs a 15-segment `**/..` pattern in a
-bounded child process through both compiled modules: the pairwise pass must run
-0 times on the large set, a lower `braceExpandMax` must cap the generated
-patterns, small sets must still dedupe, and ordinary patterns must still match.
+fix. `patches/minimatch@10.2.5.patch` repairs the package, which glob's
+unminified entries and other Expo tools load; `patches/glob@13.0.6.patch`
+carries the same 3 changes into the copy inside both glob bundles, which is
+what Expo's command-line tool runs. `check-minimatch-security.mjs` verifies the
+exact patch, lock binding and the 4 installed package fingerprints, then runs a
+15-segment `**/..` pattern in bounded child processes: through both package
+modules the pairwise pass must run 0 times on the large set, and through both
+glob bundles the default cap must hold the set at 10,000 patterns, where the
+unrepaired bundle builds 32,768 and takes seconds. In every form a lower
+`braceExpandMax` must cap the generated patterns, small sets must still dedupe,
+and ordinary patterns must still match. `check-glob-security.mjs` fingerprints
+the bundles.
 The raw audit warning stays visible under the same exact-match classification.
 Replace the backport with the released fix through
 [issue #2812](https://github.com/alethical-org/alethical/issues/2812).

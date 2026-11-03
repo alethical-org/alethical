@@ -10,15 +10,18 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 const patchPath = 'patches/glob@13.0.6.patch';
-const patchHash = '5d5d1fa72fbd15472192cbe9daa0937769fd7ffe83111970b03396f4da6163c6';
+const patchHash = '6ed41945ff7a9a3e8e48f2bcb15792998f98c269cd642d09e0c4d8966661066a';
 // Exact isaacs/node-glob 4682e8c backport (abort branches return after cb()),
-// applied to both compiled walkers and both minified entry bundles. The fixed
-// 14.0.2 (27 Oct 2026) is a major version and younger than the 7-day gate.
+// applied to both compiled walkers and both minified entry bundles. The
+// minified bundles embed their own minimatch copy, so they also carry
+// isaacs/minimatch 77a0f5c (GHSA-g3hv-75wg-m249), which
+// check-minimatch-security.mjs exercises. The fixed glob 14.0.3 (28 Oct 2026)
+// is a major version and younger than the 7-day gate.
 const fileHashes = {
   'dist/esm/walker.js': '8afedbdf3bb2bddaf37ee3ef4b393b76a5a99c80ef12aaedd2160a77c2effadb',
   'dist/commonjs/walker.js': '4eca6e1f2fd9c9ef7469977a12c7e9bd6503bc7a9257ccdc8e79b346ec34fccd',
-  'dist/esm/index.min.js': '948cfcfa16c15cb2a3ac020c08640e1e97527b20160de00fbdb5aae0a32f6eef',
-  'dist/commonjs/index.min.js': '682658aec006a5ec59de9e0b5e2ebaff1a0085c63c4c68a1731d42f916261a6a',
+  'dist/esm/index.min.js': '310fc63244579a961f19528fff9f9f6a9204d9cd273c5fef257a90f890d0aeae',
+  'dist/commonjs/index.min.js': '4683d8a138788795035bde4b5b8d12485eb6547dfa37fd6a92e415b3c105c6f9',
 };
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 

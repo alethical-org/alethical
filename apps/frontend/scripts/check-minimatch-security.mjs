@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const root = join(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -13,7 +13,9 @@ const patchHash = '6e9b5b0bb1b4da39bf8c426e8962f700abfa5864a6c80cfbdd90ba616bc6d
 // Exact isaacs/minimatch 77a0f5c backport (bound the **/.. preprocessing pass
 // and skip pairwise dedupe above 1,000 patterns), applied to both compiled
 // modules and their type declarations. The fixed 11.0.1 (27 Oct 2026) is a
-// major version and younger than the 7-day gate.
+// major version and younger than the 7-day gate. The minified glob bundles Expo
+// loads embed their own minimatch copy; patches/glob@13.0.6.patch carries the
+// same fix there, and the bundle probe below exercises it.
 const fileHashes = {
   'dist/esm/index.js': '212e3c577b86d562b0aab51656cf483f7bb12b69a26f816d1193496ff90e5fb5',
   'dist/commonjs/index.js': '8020da06ae4bde907949aebcf32c2aa187d10547e99cb67246c4d1d6d63201eb',
@@ -35,8 +37,9 @@ assert.match(
   ),
 );
 
-// Resolve through the glob copy Expo's command-line tool loads, which is the
-// reported dependency path, and through the matching ESM entry.
+// Resolve the minimatch package through the glob copy Expo's command-line tool
+// depends on, which is the reported dependency path. glob's unminified entries
+// and other Expo tools load this package.
 const expoRequire = createRequire(require.resolve('@expo/cli/package.json'));
 const globRequire = createRequire(expoRequire.resolve('glob/package.json'));
 const minimatchDirectory = dirname(globRequire.resolve('minimatch/package.json'));
@@ -124,6 +127,66 @@ for (const [label, entry] of [
   console.log(`${label}: ${JSON.stringify(outcome)}`);
 }
 
+// Expo's glob entry is a minified bundle with its own minimatch copy, so the
+// package check above does not reach it. Build the hostile pattern through
+// both bundles in a bounded child process: unrepaired, 15 segments make
+// 32,768 patterns and take seconds; repaired, the default cap holds 10,000.
+const globDirectory = dirname(expoRequire.resolve('glob/package.json'));
+assert.equal(expoRequire.resolve('glob'), join(globDirectory, 'dist/commonjs/index.min.js'));
+const bundleProbe = String.raw`
+  const hostile = '**/../a/b/'.repeat(15) + 'c';
+  const start = performance.now();
+  const large = new Glob(hostile, { optimizationLevel: 2, cwd: process.cwd() });
+  const ms = Math.round(performance.now() - start);
+  const capped = new Glob(hostile, { optimizationLevel: 2, braceExpandMax: 2000, cwd: process.cwd() });
+  const small = new Glob('**/../a/b/c', { optimizationLevel: 2, cwd: process.cwd() });
+  console.log(JSON.stringify({
+    ms,
+    largePatterns: large.patterns.length,
+    cappedPatterns: capped.patterns.length,
+    smallPatterns: small.patterns.length,
+    ordinary: globSync('scripts/check-minimatch-*.mjs', { cwd: process.argv[2] }),
+  }));
+`;
+for (const [label, entry] of [
+  ['commonjs bundle', join(globDirectory, 'dist/commonjs/index.min.js')],
+  ['esm bundle', join(globDirectory, 'dist/esm/index.min.js')],
+]) {
+  const frontend = join(root, 'apps/frontend');
+  const result = spawnSync(
+    process.execPath,
+    label === 'esm bundle'
+      ? [
+          '--input-type=module',
+          '--eval',
+          `const { Glob, globSync } = await import(process.argv[1]);${bundleProbe}`,
+          '--',
+          pathToFileURL(entry).href,
+          frontend,
+        ]
+      : [
+          '--eval',
+          `const { Glob, globSync } = require(process.argv[1]);${bundleProbe}`,
+          '--',
+          entry,
+          frontend,
+        ],
+    { encoding: 'utf8', timeout: 10000 },
+  );
+  assert.equal(result.error, undefined, `${label}: the probe must finish, rather than time out`);
+  assert.equal(result.status, 0, result.stderr);
+  const outcome = JSON.parse(result.stdout);
+  assert.ok(outcome.ms < 3000, `${label}: preprocessing took ${outcome.ms} ms`);
+  assert.equal(outcome.largePatterns, 10000, `${label}: the default cap did not hold`);
+  assert.ok(
+    outcome.cappedPatterns <= 2000,
+    `${label}: ${outcome.cappedPatterns} patterns above braceExpandMax`,
+  );
+  assert.equal(outcome.smallPatterns, 2, label);
+  assert.deepEqual(outcome.ordinary, ['scripts/check-minimatch-security.mjs'], label);
+  console.log(`${label}: ${JSON.stringify(outcome)}`);
+}
+
 console.log(
-  'GHSA-g3hv-75wg-m249: exact upstream preprocessing-limit backport verified through the glob copy Expo loads; hostile patterns stay bounded and ordinary matching still works',
+  'GHSA-g3hv-75wg-m249: exact upstream preprocessing-limit backport verified in the minimatch package and in the minimatch copy inside both glob bundles Expo loads; hostile patterns stay bounded and ordinary matching still works',
 );
