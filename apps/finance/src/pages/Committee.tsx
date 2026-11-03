@@ -16,7 +16,6 @@ import {
 } from '@alethical/shared/committeeNotices';
 import { PAYMENTS_LOAD_ERROR, REPORT_LOAD_ERROR } from '@alethical/shared/committeePaymentsPage';
 import {
-  CONTRIBUTION_PERIOD_LIMIT,
   OFFICIAL_TOTAL_RECORD_LIMIT,
   REPEATED_RECORD_LIMIT,
 } from '@alethical/shared/moneyRecordTrust';
@@ -62,11 +61,11 @@ import { PaymentTable } from './committee/PaymentTable';
 import type {
   CommitteeConfirmationAnswer,
   CommitteeFinance,
-  Filings,
   IndependentPayment,
   MadePayment,
   PaymentPage,
   ReceivedPayment,
+  ReportFigures,
 } from './committee/types';
 import { Unlinked } from './committee/Unlinked';
 import { useYearPayments } from './committee/useYearPayments';
@@ -75,6 +74,41 @@ import './committee.css';
 const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
 /** Names shown before "Show the other {n} names". */
 const STEP = 25;
+
+/** About these records: background moved unchanged from Sources and updates
+ * (Round 35), 1 group in which every item has 2 sentences (eug-31). */
+const ABOUT = [
+  OFFICIAL_TOTAL_RECORD_LIMIT,
+  'Each record names the committee that reported it. Committees report on different schedules, so the available records may not cover a full year.',
+  REPEATED_RECORD_LIMIT,
+];
+
+/** The registration's own status beside its number (Rounds 30 to 32): a
+ * retained filer the current register no longer lists, a terminated one, an
+ * open one, or a status the register does not give us. */
+export function registrationStatus(register: CommitteeFinance['register']): string {
+  if (register.state !== 'reported') return 'Registration status not held';
+  if (register.retained) {
+    const copied = formatDay(register.copied_on ?? null);
+    return copied
+      ? `No longer listed in the current register · Last listed in the register copied ${copied}`
+      : 'No longer listed in the current register';
+  }
+  if (register.termination_date !== undefined && register.termination_date !== null) {
+    const day = formatDay(register.termination_date);
+    return day ? `Terminated ${day}` : 'Terminated';
+  }
+  if (register.termination_date === undefined) return 'Registration status not held';
+  const registered = formatDay(register.registration_date ?? null);
+  return registered ? `Registered ${registered}` : 'Open registration';
+}
+
+/** A Sources and updates group punctuated as 1 group (eug-31): when any line has
+ * 2 or more sentences, every line ends with a period. */
+export function punctuated(lines: string[]): string[] {
+  const long = lines.some((line) => (line.match(/[.!?](\s|$)/g) ?? []).length >= 2);
+  return long ? lines.map((line) => (/[.!?]$/.test(line) ? line : `${line}.`)) : lines;
+}
 
 function chosenYear(raw: string, years: readonly number[]): number {
   const year = Number(raw);
@@ -141,7 +175,10 @@ export function Committee({ match }: { match: RouteMatch }) {
   const record =
     finance.data && finance.data.registration_number === registration ? finance.data : null;
   const current = record && record.year === year && !finance.updating ? record : null;
-  const filings = useRead<Filings>(apiPath(['committees', id, 'filings']));
+  const reports = useRead<ReportFigures>(
+    apiPath(['finance', 'committees', id, 'report-figures'], { year }),
+    { acceptData: (data) => data.state !== 'unavailable' },
+  );
   const confirmation = useRead<CommitteeConfirmationAnswer>(
     apiPath(['committees', id, 'confirmation']),
   );
@@ -341,6 +378,7 @@ export function Committee({ match }: { match: RouteMatch }) {
   const kind = committeeEyebrow(registerKind, record.entity_sub_type);
   const ballot = isBallotQuestionFiler(record.entity_sub_type);
 
+  const status = registrationStatus(record.register);
   const tabs = TABS.map((item) => {
     let count: number | null = null;
     if (item.value === 'expenditures') {
@@ -358,9 +396,7 @@ export function Committee({ match }: { match: RouteMatch }) {
 
   const label = tabLabel(tab);
   const listUnavailable = list.data?.state === 'unavailable';
-  const emptyLine = isExp
-    ? 'No expenditure records are held for this account and year'
-    : `No ${label} contribution records are held for this account and year`;
+  const emptyLine = `None held for ${year}`;
   const tabNote = isExp
     ? 'Minnesota makes a committee name a recipient only once payments to them pass $200 in total for the year. The listed payments may leave out smaller payments whose recipients are not named.'
     : `Itemized contributions list donor names and amounts; non-itemized contributions are reported as a combined total without names. Minnesota requires donors to be named when their total giving to this committee exceeds ${ballot ? '$500' : '$200'} in a year; committees may also name donors who give ${ballot ? '$500' : '$200'} or less.`;
@@ -375,8 +411,10 @@ export function Committee({ match }: { match: RouteMatch }) {
     (listedHere !== null && listedHere.statements.length > 0);
 
   // --- Sources and updates ------------------------------------------------------------
+  // 1 group: the copy line has 2 sentences, so every line ends with a period
+  // (Round 34).
   const copies = record.payment_copied_at;
-  const sourceItems: ReactNode[] = [
+  const textLines = [
     'Registered with the Minnesota Campaign Finance and Public Disclosure Board',
     ...paymentCopyLines(
       {
@@ -387,6 +425,9 @@ export function Committee({ match }: { match: RouteMatch }) {
       record.filings_copied_at ? centralDateLabel(record.filings_copied_at) : null,
     ),
   ];
+  const groupHasPeriods = punctuated(textLines).some((line, index) => line !== textLines[index]);
+  const end = groupHasPeriods ? '.' : '';
+  const sourceItems: ReactNode[] = punctuated(textLines);
   if (parsedNotices && noticesCardDraws(parsedNotices)) {
     const day = formatDay(parsedNotices.copiedOn);
     sourceItems.push(
@@ -399,7 +440,7 @@ export function Committee({ match }: { match: RouteMatch }) {
         >
           {NOTICES_SOURCE_LABEL}
         </a>
-        {day && ` copied ${day}`}
+        {day ? ` copied ${day}${end}` : end}
       </>,
     );
   }
@@ -416,10 +457,9 @@ export function Committee({ match }: { match: RouteMatch }) {
     sourceItems.push(
       `Minnesota Campaign Finance Board committee report catalogues · Disclosure statements listed${
         days.length === 1 ? ` · copied ${days[0]}` : ''
-      }`,
+      }${end}`,
     );
   }
-  sourceItems.push(OFFICIAL_TOTAL_RECORD_LIMIT, CONTRIBUTION_PERIOD_LIMIT, REPEATED_RECORD_LIMIT);
   sourceItems.push(
     <a href={sourceHref} target="_blank" rel="noopener noreferrer" className="f-dest cmt-link-44">
       <span>
@@ -437,6 +477,7 @@ export function Committee({ match }: { match: RouteMatch }) {
           <div className="cmt-eyebrow">
             {kind && <span className="cmt-kind">{kind}</span>}
             <span className="cmt-reg">Registration {registration}</span>
+            <span className="cmt-reg-status">{status}</span>
           </div>
           <h1 tabIndex={-1} className="f-page-title cmt-title">
             {name}
@@ -504,8 +545,8 @@ export function Committee({ match }: { match: RouteMatch }) {
                     </div>
                   )}
                   <Figures
-                    finance={current}
-                    filings={filings.data?.state === 'reported' ? filings.data.filings : []}
+                    read={reports}
+                    year={year}
                     report={address.report}
                     onReport={(value) => setAddress({ report: value })}
                   />
@@ -590,6 +631,8 @@ export function Committee({ match }: { match: RouteMatch }) {
                             here={here}
                             onView={view}
                             statementLevel={4}
+                            year={year}
+                            sort={sort}
                           />
                           {remaining > 0 && (
                             <div className="cmt-more">
@@ -665,6 +708,14 @@ export function Committee({ match }: { match: RouteMatch }) {
             <RelatedCard confirmation={confirmation} here={here} />
           </aside>
         </div>
+        <section aria-labelledby="cmt-about-h" className="cmt-about">
+          <h2 id="cmt-about-h">About these records</h2>
+          <ul>
+            {ABOUT.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </section>
       </div>
       <SourcesAndUpdates groups={[{ source: BOARD, items: sourceItems }]} />
       <EvidencePanel evidence={evidence} onClose={closeEvidence} />

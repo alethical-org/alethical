@@ -10,6 +10,7 @@ import {
   contributionGroups,
   expenditureGroups,
   groupCountLabel,
+  orderedRows,
   reportLabel,
   sortGroups,
   sumAmounts,
@@ -101,7 +102,15 @@ const FINANCE = {
     independent_expenditures: '2026-10-27T17:00:00Z',
   },
   filings_copied_at: '2026-10-27T03:00:00Z',
-  register: { state: 'reported', kind: 'candidate_committee', name: 'Example Candidate Committee' },
+  register: {
+    state: 'reported',
+    kind: 'candidate_committee',
+    name: 'Example Candidate Committee',
+    registration_date: '2025-02-03',
+    termination_date: null,
+    retained: false,
+    copied_on: null,
+  },
   money_in: {
     state: 'reported',
     itemized_contribution_payments: 6,
@@ -130,6 +139,38 @@ const FILINGS = {
     },
   ],
 };
+
+function reportRow(overrides: Record<string, unknown> = {}) {
+  return {
+    record_number: 7,
+    report_name: '2026 Pre-Primary Report',
+    report_type: 'Pre-Primary',
+    cut_off_date: '2026-07-20',
+    filed_date: '2026-07-27',
+    effective_amendment_index: 1,
+    special_election: false,
+    period_start: '2026-01-01',
+    beginning_cash_balance: '12000.0000',
+    beginning_balance_as_of: '2026-01-01',
+    ending_balance_as_of: '2026-07-20',
+    contributions: '438900.5000',
+    total_expenditures: '171268.0000',
+    total_disbursements: null,
+    total_receipts: '440100.0000',
+    ending_cash_balance: '280832.0000',
+    figures_state: 'reported',
+    ...overrides,
+  };
+}
+
+function reports(rows: unknown[] = [reportRow()]) {
+  return {
+    registration_number: '90001',
+    year: 2026,
+    state: rows.length ? 'reported' : 'not_reported',
+    reports: rows,
+  };
+}
 
 function page<T>(state: string, payments: T[], extra: Record<string, unknown> = {}) {
   return {
@@ -193,6 +234,7 @@ function loadedAnswers(overrides: Answers = {}): Answers {
   return {
     '/committees/90001/finance': { status: 200, body: FINANCE },
     '/committees/90001/filings': { status: 200, body: FILINGS },
+    '/finance/committees/90001/report-figures': { status: 200, body: reports() },
     '/committees/90001/confirmation': {
       status: 200,
       body: {
@@ -303,25 +345,64 @@ describe('Committee page', () => {
     await render(
       '/money/committees/90001',
       loadedAnswers({
-        '/committees/90001/finance': {
+        '/finance/committees/90001/report-figures': {
           status: 200,
-          body: {
-            ...FINANCE,
-            money_out: {
-              ...FINANCE.money_out,
-              state: 'not_reported',
-              reported_total: null,
-              reported_through: null,
-            },
-          },
+          body: reports([reportRow({ total_expenditures: null, ending_cash_balance: null })]),
         },
       }),
     );
     expect(text()).toContain('Contributions$438,900');
+    expect(text()).toContain('Ending balanceReport total unavailable');
     expect(text()).toContain(
       'We do not hold an official spending total for this committee for this year',
     );
-    expect(text()).not.toContain('Expenditures$');
+    expect(text()).not.toContain('Total expenditures');
+  });
+
+  it('prints a filed $0 with its own-zero note and keeps the chosen report in the address', async () => {
+    await render(
+      '/money/committees/90001?report=8',
+      loadedAnswers({
+        '/finance/committees/90001/report-figures': {
+          status: 200,
+          body: reports([
+            reportRow(),
+            reportRow({
+              record_number: 8,
+              report_name: '2026 Pre-General Report',
+              effective_amendment_index: 0,
+              cut_off_date: '2026-10-19',
+              period_start: '2026-07-21',
+              total_expenditures: '0.0000',
+            }),
+          ]),
+        },
+      }),
+    );
+    expect(text()).toContain('Report: 2026 Pre-General Report · as filed');
+    expect(text()).toContain('Total expenditures$0');
+    expect(text()).toContain('The committee’s own report states $0 in expenditures.');
+    const menu = button('Report: 2026 Pre-General Report · as filed')!;
+    await act(async () => menu.click());
+    const first = [...container.querySelectorAll('[role="option"] button')].find(
+      (item) => item.textContent === '2026 Pre-Primary Report · Amendment 1',
+    ) as HTMLButtonElement;
+    await act(async () => first.click());
+    expect(window.location.search).toContain('report=7');
+    expect(text()).toContain('Total expenditures$171,268');
+  });
+
+  it('says the registration status the register gives', async () => {
+    await render(
+      '/money/committees/90001',
+      loadedAnswers({
+        '/committees/90001/finance': {
+          status: 200,
+          body: { ...FINANCE, register: { ...FINANCE.register, termination_date: '2026-07-28' } },
+        },
+      }),
+    );
+    expect(container.querySelector('.cmt-reg-status')?.textContent).toBe('Terminated Jul 28, 2026');
   });
 
   it('shows the official figures, the 6 tabs with counts, and grouped names', async () => {
@@ -329,9 +410,20 @@ describe('Committee page', () => {
     expect(container.querySelector('h1')?.textContent).toBe('Example Candidate Committee');
     expect(text()).toContain('Candidate committee');
     expect(text()).toContain('Registration 90001');
+    expect(container.querySelector('.cmt-reg-status')?.textContent).toBe('Registered Feb 3, 2025');
     expect(text()).toContain('Report: 2026 Pre-Primary Report · Amendment 1');
+    const figures = [...container.querySelectorAll('.cmt-figure-box dt')].map(
+      (item) => item.textContent,
+    );
+    expect(figures).toEqual([
+      'Beginning balance',
+      'Total receipts',
+      'Contributions',
+      'Total expenditures',
+      'Ending balance',
+    ]);
     expect(text()).toContain('Contributions$438,900');
-    expect(text()).toContain('Expenditures$171,268');
+    expect(text()).toContain('Total expenditures$171,268');
     expect(text()).toContain(
       'Period Jan 1, 2026 to Jul 20, 2026. Figures are as filed in the selected report.',
     );
@@ -340,17 +432,22 @@ describe('Committee page', () => {
     expect(tabs).toEqual([
       'Individuals4',
       'Lobbyists0',
-      'Committees & Funds1',
-      'Party Units1',
+      'Committees and funds1',
+      'Party units1',
       'Other kinds0',
       'Expenditures2',
     ]);
     expect(text()).toContain('2 names · 4 payment records');
     // One amount is missing, so neither the name's sum nor the table's total is shown.
+    expect(text()).toContain('Itemized contributions Incomplete');
+    expect(text()).toContain('Example, Jordan A · 2\u00a0payment\u00a0records');
+    // About these records sits above Sources and updates; the Sources group
+    // ends every line with a period because 1 line has 2 sentences.
+    expect(container.querySelector('#cmt-about-h')?.textContent).toBe('About these records');
     expect(text()).toContain(
-      'Itemized contributions Unavailable because a payment amount is missing',
+      'Registered with the Minnesota Campaign Finance and Public Disclosure Board.',
     );
-    expect(text()).toContain('Example, Jordan A · 2 payment records');
+    expect(text()).toContain('Minnesota’s list of large-contribution notices copied Oct 27, 2026.');
     expect(text()).toContain('$3,500');
     expect(container.querySelector('[role="table"]')?.getAttribute('aria-label')).toBe(
       'Contributions, Individuals',
@@ -360,7 +457,9 @@ describe('Committee page', () => {
   it('opens a name to its payments with missing values left missing', async () => {
     await render('/money/committees/90001', loadedAnswers());
     const toggle = [...container.querySelectorAll('button')].find((item) =>
-      item.getAttribute('aria-label')?.startsWith('Show the 2 payment records from EXAMPLE, PRIYA'),
+      item
+        .getAttribute('aria-label')
+        ?.startsWith('Show the 2\u00a0payment\u00a0records from EXAMPLE, PRIYA'),
     )!;
     await act(async () => toggle.click());
     expect(toggle.textContent).toContain('Hide details');
@@ -378,7 +477,8 @@ describe('Committee page', () => {
 
   it('links a registered committee name and shows a disclosure statement inside its payment', async () => {
     await render('/money/committees/90001?tab=committees', loadedAnswers());
-    expect(text()).toContain('1 payment record with a disclosure statement');
+    expect(text()).toContain('1\u00a0payment\u00a0record with a disclosure statement');
+    expect(container.querySelector('a[href^="/money/committees/"]')).toBeNull();
     const toggle = button('Show details')!;
     await act(async () => toggle.click());
     for (let i = 0; i < 4; i += 1) await act(async () => {});
@@ -390,11 +490,11 @@ describe('Committee page', () => {
     expect(text()).toContain('Signed: Jul 1, 2026 · Received by the Board: Jul 6, 2026');
   });
 
-  it('jumps from a matched notice to its payment under Party Units', async () => {
+  it('jumps from a matched notice to its payment under Party units', async () => {
     await render('/money/committees/90001', loadedAnswers());
     expect(text()).toContain('Large-contribution notices');
     const jump = [...container.querySelectorAll('button')].find((item) =>
-      item.textContent?.includes('Also a payment in the list above, under Party Units'),
+      item.textContent?.includes('Also a payment in the list above, under Party units'),
     )!;
     await act(async () => jump.click());
     await act(async () => {});
@@ -408,9 +508,7 @@ describe('Committee page', () => {
   it('lists expenditures with a withheld total when an amount is missing', async () => {
     await render('/money/committees/90001?tab=expenditures', loadedAnswers());
     expect(text()).toContain('1 name · 2 payment records');
-    expect(text()).toContain(
-      'Total itemized expenditures Unavailable because a payment amount is missing',
-    );
+    expect(text()).toContain('Total itemized expenditures Incomplete');
     expect(container.querySelector('[role="table"]')?.getAttribute('aria-label')).toBe(
       'Expenditures',
     );
@@ -420,24 +518,7 @@ describe('Committee page', () => {
     await render(
       '/money/committees/90001',
       loadedAnswers({
-        '/committees/90001/finance': {
-          status: 200,
-          body: {
-            ...FINANCE,
-            money_in: {
-              ...FINANCE.money_in,
-              state: 'not_reported',
-              reported_total: null,
-              reported_through: null,
-            },
-            money_out: {
-              ...FINANCE.money_out,
-              state: 'not_reported',
-              reported_total: null,
-              reported_through: null,
-            },
-          },
-        },
+        '/finance/committees/90001/report-figures': { status: 200, body: reports([]) },
         '/committees/90001/payments?direction=received': {
           status: 200,
           body: page('not_reported', []),
@@ -445,10 +526,36 @@ describe('Committee page', () => {
       }),
     );
     expect(text()).toContain('No official report figures are held for 2026.');
-    expect(text()).toContain(
-      'No Individuals contribution records are held for this account and year',
-    );
+    expect(text()).toContain('None held for 2026');
     expect(text()).not.toContain('$0');
+  });
+
+  it('offers Try again when the report figures cannot be read, keeping the payments', async () => {
+    await render(
+      '/money/committees/90001',
+      loadedAnswers({ '/finance/committees/90001/report-figures': { status: 500 } }),
+    );
+    expect(text()).toContain('We couldn’t load the report information');
+    expect(text()).toContain('Example, Jordan A');
+  });
+
+  it('carries the year on name links and sorts by payment date', async () => {
+    await render('/money/committees/90001?tab=party&year=2026', loadedAnswers());
+    expect(
+      container.querySelector('a[href^="/money/committees/20003"]')?.getAttribute('href'),
+    ).toBe(
+      '/money/committees/20003?year=2026&from=%2Fmoney%2Fcommittees%2F90001%3Ftab%3Dparty%26year%3D2026',
+    );
+    await act(async () => {
+      window.history.replaceState(null, '', '/money/committees/90001?sort=earliest');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    for (let i = 0; i < 4; i += 1) await act(async () => {});
+    const names = [...container.querySelectorAll('.cmt-group-row .cmt-wrap > :first-child')].map(
+      (item) => item.textContent,
+    );
+    expect(names).toEqual(['Example, Jordan A', 'EXAMPLE, PRIYA']);
+    expect(text()).toContain('Sort names: Earliest payment first');
   });
 
   it('offers Try again when the committee cannot be read', async () => {
@@ -506,7 +613,9 @@ describe('Committee figures and labels', () => {
         { record_number: 2, statement_id: 'y', state: 'read', pdf_url: 'p' },
       ],
     ).individuals;
-    expect(groupCountLabel(group)).toBe('2 payment records, both with a disclosure statement');
+    expect(groupCountLabel(group)).toBe(
+      '2\u00a0payment\u00a0records, both with a disclosure statement',
+    );
   });
 
   it('sorts a withheld total after every known total', () => {
@@ -519,7 +628,35 @@ describe('Committee figures and labels', () => {
       new Set(),
     );
     expect(sortGroups(groups, 'total').map((group) => group.name)).toEqual(['C', 'A', 'B']);
-    expect(tableTotal(groups)).toBe('Unavailable because a payment amount is missing');
+    expect(sortGroups(groups, 'smallest').map((group) => group.name)).toEqual(['A', 'C', 'B']);
+    expect(tableTotal(groups)).toBe('Incomplete');
+  });
+
+  it('sorts by known payment dates with undated groups last, and orders payments to match', () => {
+    const groups = expenditureGroups(
+      [
+        made('Undated', '1.0000', '', 1),
+        made('Early', '1.0000', '2026-01-03', 2),
+        made('Late', '1.0000', '2026-06-01', 3),
+        made('Late', '1.0000', '2026-02-01', 4),
+      ].map((payment) => (payment.paid_on ? payment : { ...payment, paid_on: null })),
+      new Set(),
+    );
+    expect(sortGroups(groups, 'latest').map((group) => group.name)).toEqual([
+      'Late',
+      'Early',
+      'Undated',
+    ]);
+    expect(sortGroups(groups, 'earliest').map((group) => group.name)).toEqual([
+      'Early',
+      'Late',
+      'Undated',
+    ]);
+    const late = groups.find((group) => group.name === 'Late')!;
+    expect(orderedRows(late, 'earliest').map((row) => row.date)).toEqual([
+      '2026-02-01',
+      '2026-06-01',
+    ]);
   });
 
   it('names a report and the version our copy holds', () => {

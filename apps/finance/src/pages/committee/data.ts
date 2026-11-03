@@ -12,8 +12,8 @@ export type ContributionTab = Exclude<TabKey, 'expenditures'>;
 export const TABS: ReadonlyArray<{ value: TabKey; label: string }> = [
   { value: 'individuals', label: 'Individuals' },
   { value: 'lobbyists', label: 'Lobbyists' },
-  { value: 'committees', label: 'Committees & Funds' },
-  { value: 'party', label: 'Party Units' },
+  { value: 'committees', label: 'Committees and funds' },
+  { value: 'party', label: 'Party units' },
   { value: 'other', label: 'Other kinds' },
   { value: 'expenditures', label: 'Expenditures' },
 ];
@@ -76,7 +76,10 @@ export function sumAmounts(amounts: ReadonlyArray<string | null>): string | null
 }
 
 export const AMOUNT_MISSING = 'Amount not given';
-export const TOTAL_WITHHELD = 'Unavailable because a payment amount is missing';
+/** A withheld total under an amount heading (AMOUNT column, a tab's total). */
+export const TOTAL_WITHHELD = 'Incomplete';
+/** A withheld total where no amount heading names the value (phone rows). */
+export const TOTAL_WITHHELD_UNLABELLED = 'Missing payment amount';
 export const DATE_MISSING = 'Date not given in the public file';
 
 // --- Rows and groups ----------------------------------------------------------------
@@ -250,9 +253,12 @@ export function expenditureGroups(
 
 // --- Sorting, filtering, counting ----------------------------------------------------
 
-export type SortKey = 'total' | 'name' | 'records';
+export type SortKey = 'total' | 'smallest' | 'latest' | 'earliest' | 'name' | 'records';
 export const SORTS: ReadonlyArray<{ value: SortKey; label: string }> = [
   { value: 'total', label: 'Largest total first' },
+  { value: 'smallest', label: 'Smallest total first' },
+  { value: 'latest', label: 'Latest payment first' },
+  { value: 'earliest', label: 'Earliest payment first' },
   { value: 'name', label: 'Name A–Z' },
   { value: 'records', label: 'Most records' },
 ];
@@ -261,22 +267,51 @@ export function isSort(value: string): value is SortKey {
   return SORTS.some((sort) => sort.value === value);
 }
 
-/** A withheld total sorts after every known one; it is never read as 0. */
+/** Known values in the chosen direction; an unknown value sorts last both ways. */
+function knownFirst<T>(a: T | null, b: T | null, compare: (x: T, y: T) => number): number {
+  if (a === null || b === null) return a === null ? (b === null ? 0 : 1) : -1;
+  return compare(a, b);
+}
+
+function bigCompare(x: bigint, y: bigint): number {
+  return x === y ? 0 : x > y ? 1 : -1;
+}
+
+/** A group's newest or oldest known payment date ("2026-05-14"), or null. */
+function knownDate(group: Group, newest: boolean): string | null {
+  const days = group.rows.map((row) => row.date).filter((day): day is string => Boolean(day));
+  if (days.length === 0) return null;
+  return days.reduce((best, day) => ((newest ? day > best : day < best) ? day : best));
+}
+
+/**
+ * The whole filtered set, sorted before Show more (Round 31). A withheld total
+ * sorts after every known one in both amount orders and is never read as 0; a
+ * group with no known payment date sorts last in both date orders. Ties fall
+ * back to the name.
+ */
 export function sortGroups(groups: readonly Group[], sort: SortKey): Group[] {
-  const sorted = [...groups];
-  if (sort === 'name') sorted.sort((a, b) => a.name.localeCompare(b.name));
-  else if (sort === 'records') sorted.sort((a, b) => b.rows.length - a.rows.length);
-  else {
-    sorted.sort((a, b) => {
-      if (a.total === null || b.total === null) {
-        return a.total === null ? (b.total === null ? 0 : 1) : -1;
-      }
-      const left = units(a.total)!;
-      const right = units(b.total)!;
-      return left === right ? 0 : left > right ? -1 : 1;
-    });
-  }
-  return sorted;
+  const total = (group: Group) => (group.total === null ? null : units(group.total));
+  const compare: Record<SortKey, (a: Group, b: Group) => number> = {
+    total: (a, b) => knownFirst(total(a), total(b), (x, y) => bigCompare(y, x)),
+    smallest: (a, b) => knownFirst(total(a), total(b), bigCompare),
+    latest: (a, b) =>
+      knownFirst(knownDate(a, true), knownDate(b, true), (x, y) => y.localeCompare(x)),
+    earliest: (a, b) =>
+      knownFirst(knownDate(a, false), knownDate(b, false), (x, y) => x.localeCompare(y)),
+    name: () => 0,
+    records: (a, b) => b.rows.length - a.rows.length,
+  };
+  return [...groups].sort((a, b) => compare[sort](a, b) || a.name.localeCompare(b.name));
+}
+
+/** A group's payments in the sort's date direction: oldest first for Earliest
+ * payment first, newest first otherwise; unknown dates last either way. */
+export function orderedRows(group: Group, sort: SortKey): Row[] {
+  const ascending = sort === 'earliest';
+  return [...group.rows].sort((a, b) =>
+    knownFirst(a.date, b.date, (x, y) => (ascending ? x.localeCompare(y) : y.localeCompare(x))),
+  );
 }
 
 export function matchName(groups: readonly Group[], query: string): Group[] {
@@ -320,7 +355,8 @@ export function groupCountLabel(group: Group): string {
           ? ', both with a disclosure statement'
           : `, all ${count(n)} with a disclosure statement`
         : `, ${count(withStatement)} with a disclosure statement`;
-  return `${count(n)} ${n === 1 ? 'payment record' : 'payment records'}${fragment}`;
+  // "{n} payment records" stays together (Round 35); the rest may wrap.
+  return `${count(n)}\u00a0${n === 1 ? 'payment\u00a0record' : 'payment\u00a0records'}${fragment}`;
 }
 
 export function dayOrMissing(value: string | null): string {
@@ -331,8 +367,11 @@ export function amountOrMissing(value: string | null): string {
   return formatMoney(value) ?? AMOUNT_MISSING;
 }
 
-export function totalOrWithheld(value: string | null): string {
-  return value === null ? TOTAL_WITHHELD : (formatMoney(value) ?? TOTAL_WITHHELD);
+/** A group's total: "Incomplete" under the AMOUNT heading, "Missing payment
+ * amount" where no heading names it (Round 36). */
+export function totalOrWithheld(value: string | null, labelled = true): string {
+  const withheld = labelled ? TOTAL_WITHHELD : TOTAL_WITHHELD_UNLABELLED;
+  return value === null ? withheld : (formatMoney(value) ?? withheld);
 }
 
 // --- Report figures ------------------------------------------------------------------
