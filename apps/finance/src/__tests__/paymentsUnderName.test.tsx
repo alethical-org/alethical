@@ -361,6 +361,13 @@ describe('Payments under this name', () => {
       'Recipient reg num: 19369\nAmount: 250.00\nReceipt date: Sep 18, 2026\nContributor: Example, Wen\nContrib zip: 55401',
     );
     expect(dialog.textContent).toContain('ZIP as filed55401');
+    // The employer as filed opens that exact spelling on Donors by employer (Round 37).
+    const employer = [...dialog.querySelectorAll('dd a')].find(
+      (link) => link.textContent === 'Example Health Association',
+    )!;
+    expect(employer.getAttribute('href')).toMatch(
+      /^\/money\/employers\/Example%20Health%20Association\?from=/,
+    );
     // An excerpt is held, so the generic Board link is not offered.
     expect(dialog.querySelector('a[href*="cfb.mn.gov"]')).toBeNull();
     expect(dialog.textContent).toContain('Example Health Association');
@@ -680,6 +687,52 @@ describe('Payments under this name', () => {
     const clear = container.querySelector<HTMLButtonElement>('.pn-scope button')!;
     await act(async () => clear.click());
     expect(window.location.search).toBe('?role=payee&year=2026');
+  });
+
+  it('keeps a spelling with stray spaces exactly, and shows its spaces', async () => {
+    await render('/money/names/%20Schmidt%2C%20Steven', () =>
+      json(page('vendor', [], { name: ' Schmidt, Steven' })),
+    );
+    const payments = requests.filter((url) => url.pathname.endsWith('/payments-under-name'));
+    // The exact printed spelling, never its trimmed neighbour.
+    expect(payments[0].searchParams.get('name')).toBe(' Schmidt, Steven');
+    const empty = section('Campaign payments').querySelector('.pn-empty')!;
+    expect(empty.textContent).toContain('“ Schmidt, Steven”');
+    expect(getComputedStyle(empty).whiteSpace).toBe('pre-wrap');
+  });
+
+  it('returns to Campaign money when opened directly', async () => {
+    await render('/money/names/Example%20Media%20LLC', payee);
+    const back = container.querySelector<HTMLAnchorElement>('.f-back')!;
+    expect(back.textContent).toBe('Back to Campaign money');
+    expect(back.getAttribute('href')).toBe('/money');
+  });
+
+  it('keeps the earlier results under their own name and year when a new view fails', async () => {
+    await render('/money/names/Example%20Media%20LLC?year=2026', (url) =>
+      role(url) === 'vendor'
+        ? json(page('vendor', [spent()], { year: 2026 }))
+        : json(page('independent_vendor', [], { year: 2026 })),
+    );
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => json(null, 500)),
+    );
+    const next = '/money/names/Other%20Name?year=2026';
+    window.history.replaceState(null, '', next);
+    await act(async () => {
+      root.render(<PaymentsUnderName match={matchRoute('/money/names/Other%20Name')!} />);
+    });
+    await settle();
+    const campaign = section('Campaign payments');
+    // The earlier rows stay, said to be the earlier view's, with the failure and Try again.
+    expect(campaign.textContent).toContain('Education Minn PAC');
+    expect(campaign.querySelector('.pn-count')?.textContent).toBe(
+      '1 record under “Example Media LLC” in 2026',
+    );
+    const alert = campaign.querySelector('[role="alert"]')!;
+    expect(alert.textContent).toContain('We couldn’t load these results.');
+    expect(alert.querySelector('button')?.textContent).toBe('Try again');
   });
 
   it('changes the record type in the address', async () => {
