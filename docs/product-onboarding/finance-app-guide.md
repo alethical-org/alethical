@@ -202,8 +202,8 @@ Each page is built from its approved Design drawing and reads alethical.com's ow
 through the shared API (`api.alethical.com`). Every page has a loading state, a failure with
 Try again that never reads as an empty result, and a "no longer available" state for a record
 the server does not hold. A page reached from another carries "Back to {page}" to exactly the
-earlier view, except the 5 top-bar destinations. Routine sources and copy dates sit in "Sources and updates" at the foot of the
-page, below the first screen. Money figures follow
+earlier view, except the 5 top-bar destinations. Routine sources and copy dates sit in
+"Sources and updates" at the foot of the page, below the first screen. Money figures follow
 [grounded-answers.md rule 12](../../.claude/rules/grounded-answers.md): a missing figure is
 never $0 (a missing itemized figure reads "Not reported", a missing official report total
 "Report total unavailable", a missing official spending total "We do not hold an official
