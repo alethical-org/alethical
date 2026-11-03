@@ -1,4 +1,4 @@
-import type { Confirmation, Identity, PrintedKind } from './types';
+import type { Confirmation, Identity, PrintedKind, SplitPart } from './types';
 import { coveredDates, coveredRows, day, named, period, plural, refOf, sourceOf } from './words';
 
 export interface HistoryRow {
@@ -17,6 +17,10 @@ export function confirmationSource(confirmation: Confirmation): string {
 
 export function confirmationNote(confirmation: Confirmation): string {
   return confirmation.basis ?? '';
+}
+
+function countable(part: SplitPart): boolean {
+  return typeof part.confirmed_records === 'number' && Number.isFinite(part.confirmed_records);
 }
 
 function confirmationsOf(identity: Identity, kind: PrintedKind, name: string) {
@@ -127,8 +131,12 @@ export function historyRows(
         seen.add(`split|${old.id}`);
         // The split's own order: the part that kept the records first, the new one second.
         const [stay, moved] = parts;
-        const count = (part: (typeof parts)[number]) =>
-          plural(part.confirmed_records ?? 0, 'record', 'records');
+        // A count is printed only as served. A part whose file is not held, or that was
+        // later merged or split, has none, and a missing count never reads as 0
+        // (grounded-answers rule 12); no words are drawn for that row yet, so it waits.
+        if (!countable(stay) || !countable(moved)) continue;
+        const count = (part: SplitPart) =>
+          plural(part.confirmed_records as number, 'record', 'records');
         rows.push({
           key: `split|${old.id}`,
           at: split.at ?? '',

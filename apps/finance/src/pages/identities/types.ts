@@ -121,6 +121,18 @@ export interface Confirmation {
   records: ConfirmedRecord[] | null;
 }
 
+/** 1 part of a split as it stands today. */
+export interface SplitPart extends IdentitySummary {
+  status?: 'active' | 'merged' | 'split' | string;
+  /** An active part: the Board's current rows its confirmations cover (identical
+   * repeated rows each count), plus 1 per identifier. Null when a file is not held,
+   * and for a part later merged or split. */
+  confirmed_records?: number | null;
+  /** A part later merged: the identity standing today, by id and reference. */
+  redirect_to?: string | null;
+  redirect_to_reference?: string | null;
+}
+
 export interface Identity {
   id: string;
   reference?: string | null;
@@ -130,8 +142,8 @@ export interface Identity {
   created_at: string | null;
   redirect_to?: string | null;
   redirect_to_reference?: string | null;
-  /** In the split's own order, each with the records confirmed to it today. */
-  split_into?: Array<IdentitySummary & { confirmed_records?: number | null }> | null;
+  /** In the split's own order, each as it stands today. */
+  split_into?: SplitPart[] | null;
   confirmations: Confirmation[];
   printed_names: Array<{
     record_kind: string;

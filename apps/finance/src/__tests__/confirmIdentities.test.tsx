@@ -372,10 +372,35 @@ describe('history', () => {
 });
 
 describe('history of a split', () => {
-  it('names each part by reference with its confirmed records, in the split order', () => {
-    const OLD = 'aaaaaaaa-0000-0000-0000-000000000090';
-    const STAY = 'aaaaaaaa-0000-0000-0000-000000000091';
-    const MOVED = 'aaaaaaaa-0000-0000-0000-000000000092';
+  const OLD = 'aaaaaaaa-0000-0000-0000-000000000090';
+  const STAY = 'aaaaaaaa-0000-0000-0000-000000000091';
+  const MOVED = 'aaaaaaaa-0000-0000-0000-000000000092';
+  const SPLIT_REFS: Record<string, string> = {
+    [OLD]: 'ORG-0090',
+    [STAY]: 'ORG-0091',
+    [MOVED]: 'ORG-0092',
+  };
+  // Each part as the merged server serves it (identity_confirmations._part): an active
+  // part carries its count; a part later merged carries no count but its redirect.
+  const active = (id: string, name: string, count: number | null, reference: string | null) => ({
+    id,
+    reference,
+    kind: 'organization',
+    name,
+    status: 'active',
+    confirmed_records: count,
+  });
+  const merged = (id: string, name: string, into: string) => ({
+    id,
+    reference: SPLIT_REFS[id],
+    kind: 'organization',
+    name,
+    status: 'merged',
+    confirmed_records: null,
+    redirect_to: into,
+    redirect_to_reference: SPLIT_REFS[into],
+  });
+  function splitReads(parts: unknown[], partHistory: unknown[] = [], partConfs: unknown[] = []) {
     const old = {
       ...identity(
         OLD,
@@ -391,39 +416,53 @@ describe('history of a split', () => {
               reason: 'Two registrations',
               source: 'SOS 1 and SOS 2',
             },
-            references: { [OLD]: 'ORG-0090', [STAY]: 'ORG-0091', [MOVED]: 'ORG-0092' },
+            references: SPLIT_REFS,
           },
         ],
       ),
       reference: 'ORG-0090',
       status: 'split',
-      split_into: [
+      split_into: parts,
+    } as Identity;
+    const part = {
+      ...identity(MOVED, 'Example Media Buying Co', partConfs, [
         {
-          id: STAY,
-          reference: 'ORG-0091',
-          kind: 'organization',
-          name: 'Example Media LLC',
-          confirmed_records: 2,
+          action: 'created',
+          at: '2026-10-22T12:00:00Z',
+          detail: { split_from: OLD },
+          references: { [OLD]: 'ORG-0090' },
         },
-        {
-          id: MOVED,
-          reference: null,
-          kind: 'organization',
-          name: 'Example Media Buying Co',
-          confirmed_records: 1,
-        },
-      ],
-    };
-    const part = identity(
-      MOVED,
-      'Example Media Buying Co',
-      [],
-      [{ action: 'created', at: '2026-10-22T12:00:00Z', detail: { split_from: OLD } }],
-    );
+        ...partHistory,
+      ]),
+      reference: SPLIT_REFS[MOVED],
+    } as Identity;
+    return new Map([
+      [OLD, old],
+      [MOVED, part],
+    ]);
+  }
+
+  it('names each active part with its served count, in the split order', () => {
     const rows = historyRows(
-      new Map([
-        [OLD, old],
-        [MOVED, part],
+      splitReads([
+        active(STAY, 'Example Media LLC', 2, 'ORG-0091'),
+        active(MOVED, 'Example Media Buying Co', 1, 'ORG-0092'),
+      ]),
+      'payee_name',
+      NAME,
+      3,
+    );
+    expect(rows.map((row) => row.text)).toEqual([
+      'Split: 1 record moved to Example Media Buying Co (ORG-0092); 2 records stay with Example Media LLC (ORG-0091); ORG-0090 now opens a choice of both',
+    ]);
+    expect(rows[0].evidence).toEqual(['Evidence: Two registrations', 'Source: SOS 1 and SOS 2']);
+  });
+
+  it('names a part by its name while its reference is not served yet', () => {
+    const rows = historyRows(
+      splitReads([
+        active(STAY, 'Example Media LLC', 2, 'ORG-0091'),
+        active(MOVED, 'Example Media Buying Co', 1, null),
       ]),
       'payee_name',
       NAME,
@@ -432,7 +471,88 @@ describe('history of a split', () => {
     expect(rows.map((row) => row.text)).toEqual([
       'Split: 1 record moved to Example Media Buying Co; 2 records stay with Example Media LLC (ORG-0091); ORG-0090 now opens a choice of both',
     ]);
-    expect(rows[0].evidence).toEqual(['Evidence: Two registrations', 'Source: SOS 1 and SOS 2']);
+    expect(rows[0].text).not.toContain(MOVED);
+  });
+
+  it('prints repeated identical rows as separate records, as the server counts them', () => {
+    // 1 fingerprint matching 2 identical rows in the Board's file: the server counts 2,
+    // and so does the confirmation's own "for k of n records".
+    const repeated = confirmation('c-twice', MOVED, [1], {
+      checked_at: '2026-10-23T12:00:00Z',
+      records: [
+        {
+          fingerprint: FP(1),
+          fields: { transaction_date: '2026-03-03' },
+          rows: 2,
+          in_board_file: true,
+        },
+      ],
+    });
+    const rows = historyRows(
+      splitReads(
+        [
+          active(STAY, 'Example Media LLC', 2, 'ORG-0091'),
+          active(MOVED, 'Example Media Buying Co', 2, 'ORG-0092'),
+        ],
+        [],
+        [repeated],
+      ),
+      'payee_name',
+      NAME,
+      4,
+    );
+    expect(rows.map((row) => row.text)).toEqual([
+      'Confirmed as Example Media Buying Co (ORG-0092) for 2 of 4 records, Mar 3, 2026',
+      'Split: 2 records moved to Example Media Buying Co (ORG-0092); 2 records stay with Example Media LLC (ORG-0091); ORG-0090 now opens a choice of both',
+    ]);
+  });
+
+  it('never prints a missing count as 0 when a part’s file is not held', () => {
+    const rows = historyRows(
+      splitReads([
+        active(STAY, 'Example Media LLC', null, 'ORG-0091'),
+        active(MOVED, 'Example Media Buying Co', 1, 'ORG-0092'),
+      ]),
+      'payee_name',
+      NAME,
+      3,
+    );
+    // No words are drawn for a part whose count is not held: the row waits on them.
+    expect(rows).toEqual([]);
+  });
+
+  it('never prints a count for a part later merged; the merge names where it opens', () => {
+    // The survivor's read carries the merged part's confirmations, each a replacement
+    // made by the split.
+    const fromSplit = confirmation('c-moved', STAY, [1, 2], { replaces: 'c-before-split' });
+    const reads = splitReads(
+      [
+        merged(STAY, 'Example Media LLC', MOVED),
+        active(MOVED, 'Example Media Buying Co', 3, 'ORG-0092'),
+      ],
+      [
+        {
+          action: 'merged',
+          at: '2026-10-25T12:00:00Z',
+          detail: { from: STAY, into: MOVED, reason: 'Same registration after all' },
+          references: { [STAY]: 'ORG-0091', [MOVED]: 'ORG-0092' },
+        },
+      ],
+      [fromSplit],
+    );
+    reads.set(STAY, {
+      ...identity(STAY, 'Example Media LLC', []),
+      reference: 'ORG-0091',
+      status: 'merged',
+      redirect_to: MOVED,
+      redirect_to_reference: 'ORG-0092',
+    });
+    const rows = historyRows(reads, 'payee_name', NAME, 3);
+    expect(rows.map((row) => row.text)).toEqual([
+      'Example Media LLC (ORG-0091) merged into Example Media Buying Co (ORG-0092); 2 confirmed records moved with their own evidence and dates; ORG-0091 now opens ORG-0092',
+    ]);
+    expect(rows.some((row) => /\b0 records?\b/.test(row.text))).toBe(false);
+    expect(rows.some((row) => row.text.includes(STAY) || row.text.includes(MOVED))).toBe(false);
   });
 });
 

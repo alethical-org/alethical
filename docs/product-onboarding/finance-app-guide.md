@@ -237,8 +237,12 @@ figure is ever added across committees or members.
   after previewing the links that move, or split 1 into 2; each needs an evidence note that
   says more than the shared name, and a source, which is kept apart from the note. An
   identity is shown by its reference (ORG-0042 for an organization, PER-0042 for a person),
-  never by its internal id. A selection is the server's record
-  fingerprints, or "All records" / "{year} records", which the server resolves. "Saved" appears
+  or by its name while the server has not served one, never by its internal id. A split's
+  history row gives each part's confirmed records as the server counts them today (repeated
+  identical rows count separately); when a part has no count, because a file is not held
+  or the part was later merged or split, the row is left out rather than printing 0, and a
+  later merge keeps its own row naming the reference it now opens. A selection is the
+  server's record fingerprints, or "All records" / "{year} records", which the server resolves. "Saved" appears
   only after the server accepts; otherwise "Not saved. Your entries are kept." with Try again,
   "These records changed since this form opened…" or, after the Board's file is replaced,
   "Reload the records", which keeps the words and clears the selection. Unfinished entries are
