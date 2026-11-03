@@ -1136,9 +1136,27 @@
   font-weight: 600;
   line-height: 1.4;
 }
+.mb-buys-card .mb-card-line {
+  margin-top: 4px;
+  line-height: 1.45;
+}
+.mb-buys-card .mb-card-empty {
+  margin-top: 10px;
+  line-height: 1.45;
+}
+.mb-buys-card .mb-link-list {
+  margin-top: 4px;
+}
 .mb-buys-card .mb-link-row {
   min-height: 48px;
   padding: 6px 0;
+}
+.mb-buys-card .mb-link-row:active {
+  background: var(--tint);
+}
+/* Placed under a page's full-width content (Organization, Principal, Money by race). */
+.mb-buys-after {
+  margin-top: 28px;
 }
 .mb-buys-lead {
   display: flex;

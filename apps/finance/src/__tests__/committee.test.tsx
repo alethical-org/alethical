@@ -18,6 +18,7 @@ import {
   tableTotal,
 } from '../pages/committee/data';
 import { clearYearPayments } from '../pages/committee/useYearPayments';
+import * as routes from '../routes';
 import type { MadePayment, ReceivedPayment } from '../pages/committee/types';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -596,6 +597,98 @@ describe('Committee page', () => {
     );
     expect(text()).toContain('We couldn’t load these payments right now.');
     expect(text()).not.toContain('contribution records are held');
+  });
+});
+
+describe('Committee page, Media buys card', () => {
+  const CONNECTIONS = '/finance/media-buys/connections';
+  const KEY = 'kare-1234';
+  const VERSION = 'a'.repeat(64);
+  const ROW = {
+    key: KEY,
+    name: 'invoice.pdf',
+    label: 'invoice.pdf',
+    station: 'KARE',
+    year: 2026,
+    category: 'Local',
+    kind: 'Invoice',
+    uploaded_at: '2026-03-04',
+    version_id: VERSION,
+    version_count: 1,
+    source_changed: false,
+  };
+  const card = () => container.querySelector('.mb-buys-card');
+  const reads = () =>
+    (fetch as unknown as { mock: { calls: [RequestInfo | URL][] } }).mock.calls
+      .map(([url]) => new URL(String(url)))
+      .filter((url) => url.pathname.endsWith(CONNECTIONS));
+
+  it('reads the files connected to this registration and sits above Related records', async () => {
+    await render(
+      '/money/committees/90001',
+      loadedAnswers({
+        [CONNECTIONS]: {
+          status: 200,
+          body: {
+            agency_key: null,
+            exact_name_count: 0,
+            files: [ROW],
+            total: 1,
+            groups: [{ label: '', files: [{ ...ROW, role: 'Advertiser, as printed' }] }],
+          },
+        },
+      }),
+    );
+    expect(reads().map((url) => [...url.searchParams])).toEqual([
+      [
+        ['kind', 'committee'],
+        ['target', '90001'],
+      ],
+    ]);
+    const aside = [...container.querySelectorAll('.cmt-aside h2')].map((h) => h.textContent);
+    expect(aside.slice(-2)).toEqual(['Media buys', 'Related records']);
+    expect(card()?.textContent).toContain('KARE invoice ·');
+    expect(card()?.textContent).toContain('Advertiser, as printed');
+    expect(card()?.querySelectorAll('a')).toHaveLength(1);
+    expect(card()?.querySelector('a')?.getAttribute('href')).toBe(
+      `/media-buys/files/${KEY}?version=${VERSION}&from=%2Fmoney%2Fcommittees%2F90001`,
+    );
+  });
+
+  it('says no file is connected to the committee by its name', async () => {
+    await render(
+      '/money/committees/90001',
+      loadedAnswers({
+        [CONNECTIONS]: {
+          status: 200,
+          body: { agency_key: null, exact_name_count: 0, files: [], total: 0, groups: [] },
+        },
+      }),
+    );
+    const name = container.querySelector('h1')?.textContent;
+    expect(name).toBeTruthy();
+    expect(card()?.textContent).toContain(
+      `No TV station files have a checked connection to ${name}`,
+    );
+  });
+
+  it('says the files could not be loaded, with Try again', async () => {
+    await render('/money/committees/90001', loadedAnswers({ [CONNECTIONS]: { status: 500 } }));
+    expect(card()?.textContent).toContain('We couldn’t load these TV station files');
+    expect(card()?.textContent).toContain('Try again');
+    expect(card()?.textContent).not.toContain('problem on our side');
+  });
+
+  it('is left off while the TV station file page is off', async () => {
+    const real = routes.isBuilt;
+    const spy = vi
+      .spyOn(routes, 'isBuilt')
+      .mockImplementation((name) => name !== 'station-file' && real(name));
+    await render('/money/committees/90001', loadedAnswers());
+    expect(container.querySelector('h1')).toBeTruthy();
+    expect(card()).toBeNull();
+    expect(reads()).toHaveLength(0);
+    spy.mockRestore();
   });
 });
 

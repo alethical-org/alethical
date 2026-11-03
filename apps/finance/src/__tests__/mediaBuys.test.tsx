@@ -570,57 +570,158 @@ describe('TV station file', () => {
 });
 
 describe('Media buys card', () => {
-  it('lists connected TV station files at their exact versions, or says none are connected', async () => {
+  /** The connections answer as the server builds it (`connected` in
+   * alethical/api/services/tv_ads.py): every row once in `files` without a role,
+   * and again in its group with the role line. */
+  function connected(groups: { label: string; files: Record<string, unknown>[] }[]) {
+    const files = groups.flatMap((group) => group.files.map(({ role: _role, ...row }) => row));
+    return { agency_key: null, exact_name_count: 0, files, total: files.length, groups };
+  }
+  const INVOICE = {
+    ...FILE,
+    kind: 'Invoice',
+    uploaded_at: '2026-03-04',
+    role: 'Advertiser, as printed',
+  };
+
+  it('lists each connected file once, at its exact version, with a way back', async () => {
     const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');
     vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
-    const fetcher = serve((url) =>
-      url.searchParams.get('target') === 'none'
-        ? json({ agency_key: null, exact_name_count: 0, files: [], total: 0, groups: [] })
-        : json({
-            agency_key: null,
-            exact_name_count: 0,
-            files: [
-              {
-                ...FILE,
-                kind: 'Invoice',
-                uploaded_at: '2026-03-04',
-                role: 'Advertiser, as printed on page 2',
-              },
-            ],
-            total: 1,
-            groups: [],
-          }),
-    );
-    await render('/money/committees/90001', () => (
+    const fetcher = serve(() => json(connected([{ label: '', files: [INVOICE] }])));
+    await render('/money/committees/90001?year=2026', () => (
       <MediaBuysCard kind="committee" target="90001" name="Example Committee" />
     ));
     expect(text()).toContain('KSTP-TV, KARE and KMSP-TV station files, not in money totals');
     expect(text()).toContain('KARE invoice ·Mar 4, 2026');
-    expect(text()).toContain('Advertiser, as printed on page 2');
-    expect(
-      container.querySelector(`a[href^="/media-buys/files/${KEY}?version=${VERSION}"]`),
-    ).toBeTruthy();
-    expect(
-      fetcher.mock.calls.some(([url]) =>
-        String(url).includes('connections?kind=committee&target=90001'),
-      ),
-    ).toBe(true);
-    act(() => root.unmount());
-    root = createRoot(container);
-    await render('/money/committees/1', () => (
-      <MediaBuysCard kind="committee" target="none" name="Example Committee" />
-    ));
-    expect(text()).toContain('No TV station files have a checked connection to Example Committee');
+    expect(text()).toContain('Advertiser, as printed');
+    const links = container.querySelectorAll('.mb-buys-card a');
+    expect(links).toHaveLength(1);
+    expect(links[0].getAttribute('href')).toBe(
+      `/media-buys/files/${KEY}?version=${VERSION}&from=%2Fmoney%2Fcommittees%2F90001%3Fyear%3D2026`,
+    );
+    expect(container.querySelector('.mb-buys-card h3')).toBeNull();
+    const asked = fetcher.mock.calls.map(([url]) => new URL(String(url)));
+    const read = asked.find((url) => url.pathname.endsWith('/finance/media-buys/connections'));
+    expect(read?.searchParams.get('kind')).toBe('committee');
+    expect(read?.searchParams.get('target')).toBe('90001');
   });
 
-  it('treats an answer without its lists as a failed read, never an empty card', async () => {
+  it('says no file is connected, by the record’s name', async () => {
     const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');
-    const fetcher = serve(() => json({}));
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
+    serve(() => json(connected([])));
+    await render('/money/committees/1', () => (
+      <MediaBuysCard kind="committee" target="1" name="Example Committee" />
+    ));
+    expect(text()).toContain('No TV station files have a checked connection to Example Committee');
+    expect(container.querySelector('.mb-buys-card ul')).toBeNull();
+  });
+
+  it('says the files could not be loaded, with Try again, never an empty card', async () => {
+    const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
+    let fail = true;
+    const fetcher = serve(() =>
+      fail ? json(null, 500) : json(connected([{ label: '', files: [INVOICE] }])),
+    );
     await render('/money/committees/90001', () => (
       <MediaBuysCard kind="committee" target="90001" name="X" />
     ));
-    expect(fetcher.mock.calls.some(([url]) => String(url).includes('/connections'))).toBe(true);
+    expect(text()).toContain('We couldn’t load these TV station files');
+    expect(text()).not.toContain('problem on our side');
+    expect(text()).not.toContain('No TV station files have a checked connection');
+    fail = false;
+    const before = fetcher.mock.calls.length;
+    await click('Try again');
+    expect(fetcher.mock.calls.length).toBeGreaterThan(before);
+    expect(text()).toContain('KARE invoice');
+    expect(text()).not.toContain('We couldn’t load these TV station files');
+  });
+
+  it('treats an answer without its lists as a failed read', async () => {
+    const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
+    serve(() => json({}));
+    await render('/money/committees/90001', () => (
+      <MediaBuysCard kind="committee" target="90001" name="X" />
+    ));
     expect(text()).toContain('We couldn’t load these TV station files');
     expect(text()).not.toContain('No TV station files have a checked connection');
+  });
+
+  it('lists a candidacy’s committee files first, then the files that name the candidate', async () => {
+    const { MediaBuysCard, NAMED_TITLE } = await import('../pages/media/MediaBuysCard');
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
+    const ORDER = { ...FILE, key: 'kstp-9', kind: 'Order', uploaded_at: '2026-04-09' };
+    // Served in the other order, to show the card keeps the committee group first.
+    serve(() =>
+      json(
+        connected([
+          {
+            label: 'Station files that name this candidate',
+            files: [{ ...ORDER, role: 'Named on page 1' }],
+          },
+          {
+            label: 'Files with a checked connection to Example Candidate Committee',
+            files: [INVOICE],
+          },
+        ]),
+      ),
+    );
+    await render('/candidates/abc', () => (
+      <MediaBuysCard kind="candidate" target="abc" name="Morgan Example" />
+    ));
+    const titles = [...container.querySelectorAll('.mb-buys-card h3')].map((h) => h.textContent);
+    expect(titles).toEqual([
+      'Files with a checked connection to Example Candidate Committee',
+      NAMED_TITLE,
+    ]);
+    expect(NAMED_TITLE).toBe('TV station files that name this candidate');
+    const groups = [...container.querySelectorAll('.mb-buys-group')].map((g) => g.textContent);
+    expect(groups[0]).toContain('KARE invoice');
+    expect(groups[0]).not.toContain('Named on page 1');
+    expect(groups[1]).toContain('Named on page 1');
+    expect(groups[1]).not.toContain('KARE invoice');
+  });
+
+  it('asks for a race by its exact campaign-money contest and prints no stage titles', async () => {
+    const { MediaBuysCard, raceTarget } = await import('../pages/media/MediaBuysCard');
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
+    const fetcher = serve(() =>
+      json(
+        connected([
+          { label: 'General election', files: [{ ...INVOICE, role: 'General election' }] },
+        ]),
+      ),
+    );
+    const target = raceTarget('House', '99A', 2026);
+    expect(JSON.parse(target)).toEqual({ office: 'House', district: '99A', year: 2026 });
+    await render('/money/races/house-99a?year=2026', () => (
+      <MediaBuysCard
+        kind="race"
+        target={target}
+        name="State Representative · District 99A · 2026"
+      />
+    ));
+    const read = fetcher.mock.calls
+      .map(([url]) => new URL(String(url)))
+      .find((url) => url.pathname.endsWith('/connections'));
+    expect(read?.searchParams.get('kind')).toBe('race');
+    expect(read?.searchParams.get('target')).toBe(
+      '{"office":"House","district":"99A","year":2026}',
+    );
+    expect(container.querySelector('.mb-buys-card h3')).toBeNull();
+    expect(text()).toContain('General election');
+  });
+
+  it('is left off, with nothing read, while the TV station file page is off', async () => {
+    const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');
+    vi.spyOn(routes, 'isBuilt').mockImplementation((name) => name !== 'station-file');
+    const fetcher = serve(() => json(connected([])));
+    await render('/money/committees/90001', () => (
+      <MediaBuysCard kind="committee" target="90001" name="X" />
+    ));
+    expect(container.querySelector('.mb-buys-card')).toBeNull();
+    expect(fetcher.mock.calls.some(([url]) => String(url).includes('/connections'))).toBe(false);
   });
 });
