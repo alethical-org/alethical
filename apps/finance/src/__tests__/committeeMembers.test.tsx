@@ -195,7 +195,7 @@ describe('Committee members’ campaign accounts', () => {
     expect(ben.textContent).toContain('Total contributions$4,110');
     expect(ben.textContent).toContain('Expenditures$6,527');
     expect(ben.textContent).toContain(
-      "The committee's own report to the state, covering through Jul 20, 2026",
+      'The committee’s own report to the state, covering through Jul 20, 2026',
     );
   });
 
@@ -315,7 +315,7 @@ describe('derived figures and labels', () => {
       state: 'figures',
       figures: [{ label: 'Total contributions', value: '$10', missing: false }],
       notes: ['We do not hold an official spending total for this committee for this year'],
-      period: "The committee's own report to the state, covering through Jul 20, 2026",
+      period: 'The committee’s own report to the state, covering through Jul 20, 2026',
     });
   });
 
@@ -328,8 +328,8 @@ describe('derived figures and labels', () => {
     if (result.state !== 'figures') throw new Error('expected figures');
     expect(result.period).toBeNull();
     expect(result.figures.map((figure) => figure.period)).toEqual([
-      "The committee's own report to the state, covering through Jul 20, 2026",
-      "The committee's own report to the state, covering through Oct 19, 2026",
+      'The committee’s own report to the state, covering through Jul 20, 2026',
+      'The committee’s own report to the state, covering through Oct 19, 2026',
     ]);
   });
 
