@@ -16,7 +16,7 @@ import './raceAndRecipients.css';
 
 export const PAGE_SIZE = 10;
 export type RecipientTab = 'all' | 'confirmed' | 'printed';
-export type RecipientSort = 'name' | 'amount' | 'records';
+export type RecipientSort = 'name' | 'amount' | 'amount_smallest' | 'records';
 
 export interface Recipient {
   key: string;
@@ -55,6 +55,10 @@ export interface RecipientsPage {
   tab?: string;
   year?: number | null;
   payment_type?: string | null;
+  /** Served only by a server that bounds totals (PR 2823): each recipient left out
+   * of the range because its total is withheld, counted once under its reason; null
+   * while no bound is set. Its presence is what offers the range. */
+  range_excluded?: { incomplete_amount: number; incomplete_period: number } | null;
 }
 
 const DATE_MISSING = 'Date not given in the public file';
@@ -63,6 +67,7 @@ const DATE_MISSING = 'Date not given in the public file';
  * total first (Design Round 31). */
 export function sortFromParam(raw: string): RecipientSort {
   if (raw === 'amount' || raw === 'Itemized amount') return 'amount';
+  if (raw === 'amount_smallest') return 'amount_smallest';
   if (raw === 'records') return 'records';
   return 'name';
 }
@@ -141,6 +146,55 @@ export function sourceLines(sources: RecipientsPage['sources'] | undefined): str
   ];
 }
 
+/** The largest bound the server takes, and its finest step. */
+const BOUND_LIMIT = 1_000_000_000_000;
+const BOUND = /^-?(\d+\.?\d{0,4}|\.\d{1,4})$/;
+
+/**
+ * A typed bound as the amount text the server is sent: "$", commas and spaces
+ * stripped, a typed minus sign read as "-", the digits otherwise as typed, never a
+ * number computed from them (Design Round 31). Blank is no bound. Anything else
+ * (text, Infinity, a lone "-", more than 4 decimal places, beyond ±1 trillion) is
+ * not an amount.
+ */
+export function parseBound(raw: string): { ok: true; value: string | null } | { ok: false } {
+  const text = raw.trim();
+  if (text === '') return { ok: true, value: null };
+  const value = text.replace(/\u2212/g, '-').replace(/[$,\s]/g, '');
+  if (!BOUND.test(value) || Math.abs(Number(value)) > BOUND_LIMIT) return { ok: false };
+  return { ok: true, value };
+}
+
+/** Whether a minimum and maximum can stand together (either may be absent). */
+export function boundsInOrder(min: string | null, max: string | null): boolean {
+  return min === null || max === null || Number(min) <= Number(max);
+}
+
+/** "{n} recipients with incomplete amounts are excluded from this range filter"
+ * and its reporting-period sibling (Design Rounds 35 and 36); a count of 0 prints
+ * nothing. */
+export function exclusionLines(excluded: RecipientsPage['range_excluded']): string[] {
+  if (!excluded) return [];
+  const lines: string[] = [];
+  const amount = excluded.incomplete_amount;
+  const period = excluded.incomplete_period;
+  if (amount > 0) {
+    lines.push(
+      amount === 1
+        ? '1 recipient with an incomplete amount is excluded from this range filter'
+        : `${formatCount(amount)} recipients with incomplete amounts are excluded from this range filter`,
+    );
+  }
+  if (period > 0) {
+    lines.push(
+      period === 1
+        ? '1 recipient with an incomplete reporting period is excluded from this range filter'
+        : `${formatCount(period)} recipients with incomplete reporting periods are excluded from this range filter`,
+    );
+  }
+  return lines;
+}
+
 export function countLine(data: RecipientsPage, tab: RecipientTab): string {
   const total = data.total ?? 0;
   const noun =
@@ -178,6 +232,8 @@ export function Recipients(_props: { match: RouteMatch }) {
     type: '',
     sort: 'name',
     page: '1',
+    min: '',
+    max: '',
   });
   const tab: RecipientTab =
     state.tab === 'confirmed' || state.tab === 'printed' ? state.tab : 'all';
@@ -185,6 +241,25 @@ export function Recipients(_props: { match: RouteMatch }) {
   const sort = sortFromParam(state.sort);
   const [typed, setTyped] = useState(state.q);
   useEffect(() => setTyped(state.q), [state.q]);
+  // The address holds the last valid range; the fields hold what is typed.
+  const held = { min: parseBound(state.min), max: parseBound(state.max) };
+  const min = held.min.ok ? held.min.value : null;
+  const max =
+    held.max.ok && boundsInOrder(min, held.max.ok ? held.max.value : null) ? held.max.value : null;
+  const [draft, setDraft] = useState({ min: state.min, max: state.max });
+  useEffect(() => setDraft({ min: state.min, max: state.max }), [state.min, state.max]);
+  const typedMin = parseBound(draft.min);
+  const typedMax = parseBound(draft.max);
+  const reversed = typedMin.ok && typedMax.ok && !boundsInOrder(typedMin.value, typedMax.value);
+  function setBound(key: 'min' | 'max', raw: string) {
+    const next = { ...draft, [key]: raw };
+    setDraft(next);
+    const a = parseBound(next.min);
+    const b = parseBound(next.max);
+    // Text that is not an amount, or a reversed range, keeps the last valid range.
+    if (!a.ok || !b.ok || !boundsInOrder(a.value, b.value)) return;
+    setState({ min: a.value ?? '', max: b.value ?? '', page: '1' });
+  }
   const read = useRead<RecipientsPage>(
     apiPath(['finance', 'payees'], {
       q: state.q.trim().slice(0, 200),
@@ -192,6 +267,8 @@ export function Recipients(_props: { match: RouteMatch }) {
       year: state.year,
       payment_type: state.type,
       sort,
+      min_amount: min,
+      max_amount: max,
       limit: PAGE_SIZE,
       offset: (page - 1) * PAGE_SIZE,
     }),
@@ -212,7 +289,16 @@ export function Recipients(_props: { match: RouteMatch }) {
     e.preventDefault();
     setState({ q: typed.trim(), page: '1' });
   }
-  const filtered = state.year !== '' || state.type !== '' || sort !== 'name';
+  // The range is offered only by a server that bounds totals.
+  const ranges = data != null && 'range_excluded' in data;
+  const filtered =
+    state.year !== '' ||
+    state.type !== '' ||
+    sort !== 'name' ||
+    state.min !== '' ||
+    state.max !== '' ||
+    draft.min !== '' ||
+    draft.max !== '';
   const noPrevious = shownPage <= 1;
   const noNext = !data?.has_more;
   return (
@@ -290,12 +376,40 @@ export function Recipients(_props: { match: RouteMatch }) {
             options={[
               { value: 'name', label: 'Name A–Z' },
               { value: 'amount', label: 'Largest total first' },
+              ...(ranges || sort === 'amount_smallest'
+                ? [{ value: 'amount_smallest' as const, label: 'Smallest total first' }]
+                : []),
               { value: 'records', label: 'Payment records' },
             ]}
             onChange={(sort) => setState({ sort, page: '1' })}
           />
+          {ranges && (
+            <div role="group" aria-label="Amount range" className="vp-range">
+              <AmountField
+                id="min"
+                label="Minimum amount ($)"
+                value={draft.min}
+                bad={!typedMin.ok}
+                reversed={reversed}
+                onChange={(raw) => setBound('min', raw)}
+              />
+              <AmountField
+                id="max"
+                label="Maximum amount ($)"
+                value={draft.max}
+                bad={!typedMax.ok}
+                reversed={reversed}
+                onChange={(raw) => setBound('max', raw)}
+              />
+            </div>
+          )}
           {filtered && (
-            <ClearAll onClick={() => setState({ year: '', type: '', sort: 'name', page: '1' })} />
+            <ClearAll
+              onClick={() => {
+                setDraft({ min: '', max: '' });
+                setState({ year: '', type: '', sort: 'name', page: '1', min: '', max: '' });
+              }}
+            />
           )}
         </div>
         <section ref={list} tabIndex={-1} aria-label="Recipients" className="vp-list">
@@ -314,8 +428,16 @@ export function Recipients(_props: { match: RouteMatch }) {
           )}
           {data && (
             <>
+              <p id="vp-range-error" aria-live="polite" className="vp-range-error">
+                {reversed ? 'Minimum is more than maximum' : ''}
+              </p>
               <div className="vp-count f-count-line" aria-live="polite">
                 {countLine(data, tab)}
+                {exclusionLines(data.range_excluded).map((line) => (
+                  <span key={line} className="vp-excluded">
+                    {line}
+                  </span>
+                ))}
               </div>
               {!rows.length && !read.updating ? (
                 <Empty title="No matching records" />
@@ -388,6 +510,45 @@ export function Recipients(_props: { match: RouteMatch }) {
         ))}
       </SourcesAndUpdates>
     </main>
+  );
+}
+
+function AmountField({
+  id,
+  label,
+  value,
+  bad,
+  reversed,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  bad: boolean;
+  reversed: boolean;
+  onChange: (raw: string) => void;
+}) {
+  const error = `vp-${id}-error`;
+  return (
+    <label className="vp-bound">
+      {label}
+      <input
+        type="text"
+        inputMode="decimal"
+        autoComplete="off"
+        className="f-field vp-bound-field f-num"
+        value={value}
+        aria-invalid={bad || reversed || undefined}
+        aria-describedby={`${error} vp-range-error`}
+        data-invalid={bad || reversed || undefined}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {bad && (
+        <span id={error} className="vp-bound-error">
+          Enter a valid amount
+        </span>
+      )}
+    </label>
   );
 }
 

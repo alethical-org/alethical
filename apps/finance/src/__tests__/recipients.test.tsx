@@ -3,7 +3,9 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { clearReadCache } from '../api/read';
 import {
+  boundsInOrder,
   countLine,
+  parseBound,
   Recipients,
   recipientAmount,
   recipientHref,
@@ -282,4 +284,120 @@ it('shows a whole year span or withholds a total whose period is incomplete', ()
   expect(recipientPeriod({ ...row, period_basis: 'unknown' })).toBe(
     'Date not given in the public file',
   );
+});
+
+// --- Amount range (Design Rounds 30, 31, 35 and 36; server PR 2823) ---------------
+
+/** An answer from a server that bounds totals: it always carries `range_excluded`. */
+const ranged = (excluded: RecipientsPage['range_excluded'] = null): RecipientsPage => ({
+  ...data,
+  range_excluded: excluded,
+});
+
+const field = (label: string) =>
+  [...container.querySelectorAll('label')]
+    .find((item) => item.textContent?.startsWith(label))!
+    .querySelector('input')!;
+
+async function type(input: HTMLInputElement, value: string) {
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    setter.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await settle();
+}
+
+it('reads a typed bound as plain amount text, never a computed number', () => {
+  expect(parseBound('')).toEqual({ ok: true, value: null });
+  expect(parseBound('  ')).toEqual({ ok: true, value: null });
+  expect(parseBound('$1,000')).toEqual({ ok: true, value: '1000' });
+  expect(parseBound('-$2,500')).toEqual({ ok: true, value: '-2500' });
+  expect(parseBound('−250')).toEqual({ ok: true, value: '-250' });
+  expect(parseBound('$-2,500.50')).toEqual({ ok: true, value: '-2500.50' });
+  expect(parseBound(' 0.1 ')).toEqual({ ok: true, value: '0.1' });
+  expect(parseBound('.5')).toEqual({ ok: true, value: '.5' });
+  for (const bad of [
+    'abc',
+    'Infinity',
+    'NaN',
+    '-',
+    '$',
+    '1e3',
+    '1.23456',
+    '10000000000000',
+    '1,2,3.4.5',
+  ]) {
+    expect(parseBound(bad)).toEqual({ ok: false });
+  }
+  expect(boundsInOrder('-2500', '1000')).toBe(true);
+  expect(boundsInOrder('1000.5', '1000.25')).toBe(false);
+  expect(boundsInOrder(null, '5')).toBe(true);
+});
+
+it('offers the range and Smallest total first only where the server bounds totals', async () => {
+  await render('/money/recipients');
+  expect(container.textContent).not.toContain('Minimum amount ($)');
+  act(() => root.unmount());
+  root = createRoot(container);
+  clearReadCache();
+  await render('/money/recipients', () => json(ranged()));
+  expect(field('Minimum amount ($)').getAttribute('placeholder')).toBeNull();
+  expect(field('Maximum amount ($)')).toBeTruthy();
+  const sort = [...container.querySelectorAll<HTMLButtonElement>('.f-dropdown-button')].find(
+    (item) => item.textContent?.startsWith('Sort by'),
+  )!;
+  await act(async () => sort.click());
+  expect(
+    [...container.querySelectorAll('.f-dropdown-option')].map((item) => item.textContent),
+  ).toEqual(['Name A–Z', 'Largest total first', 'Smallest total first', 'Payment records']);
+});
+
+it('sends each bound as typed amount text and counts what the range leaves out', async () => {
+  await render('/money/recipients?sort=amount_smallest', (url) =>
+    json(
+      url.searchParams.get('min_amount')
+        ? ranged({ incomplete_amount: 6, incomplete_period: 1 })
+        : ranged(),
+    ),
+  );
+  expect(requests[0].searchParams.get('sort')).toBe('amount_smallest');
+  await type(field('Minimum amount ($)'), '-$1,000');
+  const last = requests.at(-1)!;
+  expect(last.searchParams.get('min_amount')).toBe('-1000');
+  expect(last.searchParams.get('max_amount')).toBeNull();
+  // Back to the first page.
+  expect(last.searchParams.get('offset')).toBe('0');
+  expect(window.location.search).toContain('min=-1000');
+  expect(container.textContent).toContain(
+    '6 recipients with incomplete amounts are excluded from this range filter',
+  );
+  expect(container.textContent).toContain(
+    '1 recipient with an incomplete reporting period is excluded from this range filter',
+  );
+  expect(container.textContent).toContain('Clear all');
+});
+
+it('keeps the last valid range when a bound is not an amount or the range is reversed', async () => {
+  await render('/money/recipients?min=100', () =>
+    json(ranged({ incomplete_amount: 0, incomplete_period: 0 })),
+  );
+  const sent = requests.length;
+  await type(field('Maximum amount ($)'), 'abc');
+  expect(container.textContent).toContain('Enter a valid amount');
+  expect(field('Maximum amount ($)').getAttribute('aria-invalid')).toBe('true');
+  expect(requests.length).toBe(sent);
+  await type(field('Maximum amount ($)'), '50');
+  expect(container.textContent).not.toContain('Enter a valid amount');
+  expect(container.textContent).toContain('Minimum is more than maximum');
+  expect(requests.length).toBe(sent);
+  expect(window.location.search).toBe('?min=100');
+  // Counts of 0 print no exclusion line.
+  expect(container.textContent).not.toContain('excluded from this range filter');
+  expect(container.querySelectorAll('a.vp-name-link')).toHaveLength(2);
+  await act(async () => button('Clear all').click());
+  await settle();
+  expect(window.location.search).toBe('');
+  expect(field('Minimum amount ($)').value).toBe('');
+  expect(field('Maximum amount ($)').value).toBe('');
 });

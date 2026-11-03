@@ -417,6 +417,53 @@
 .vp-notice {
   margin-top: 16px;
 }
+/* Minimum and maximum amount: a label beside each 120px field; on a phone each
+ * takes its own full row. */
+.vp-range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+.vp-bound {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--secondary);
+}
+.vp-bound-field {
+  width: 120px;
+  height: 40px;
+  padding: 0 10px;
+  font-size: 14px;
+}
+.vp-bound-field[data-invalid] {
+  border-color: #b26a00;
+}
+.vp-bound-error,
+.vp-range-error {
+  font-size: 13px;
+  font-weight: 600;
+  color: #8a5300;
+}
+.vp-range-error {
+  margin: 0;
+  padding-left: 2px;
+}
+.vp-range-error:empty {
+  display: none;
+}
+.vp-range-error:not(:empty) {
+  padding-top: 16px;
+  font-size: 14px;
+}
+.vp-excluded {
+  display: block;
+}
+
 /* The count line sits 24px below the controls (eug-26), as padding. */
 .vp-count {
   padding-bottom: 10px;
@@ -616,6 +663,16 @@
   }
 }
 @media (max-width: 767px) {
+  .vp-range,
+  .vp-bound {
+    flex: 1 1 100%;
+  }
+  .vp-bound {
+    justify-content: space-between;
+  }
+  .vp-bound-field {
+    height: 44px;
+  }
   .vp-search {
     flex-direction: column;
   }
