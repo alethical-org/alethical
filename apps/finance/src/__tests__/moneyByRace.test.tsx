@@ -455,7 +455,7 @@ describe('Money by race page', () => {
     const buttons = [...container.querySelectorAll('.mr-field-button')].map(
       (button) => button.textContent,
     );
-    expect(buttons).toEqual(['House', 'District 1A', '2024']);
+    expect(buttons).toEqual(['State Representative', 'District 1A', '2024']);
     expect(requests).toContain(`${API}/api/v1/campaign-finance/races?year=2024&office=House`);
   });
 
@@ -516,7 +516,7 @@ describe('Money by race page', () => {
   it('says no committee is held for a contest the register does not list', async () => {
     await render('/money/races/house-99z', answers());
     const text = container.textContent ?? '';
-    expect(text).toContain('No registered candidate committee is held for this contest');
+    expect(text).toContain('No registered candidate committee held');
     expect(container.querySelectorAll('.mr-field-button')[1].textContent).toBe('Not held');
     expect(requests.some((url) => url.includes('/outside-spending'))).toBe(false);
   });

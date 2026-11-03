@@ -204,8 +204,8 @@ figure is ever added across committees or members.
 - **Campaign money (`/money`)**: the committee register by kind (Candidate committees,
   Committees and funds, Party units), searched by name and paged on the server, with each
   registration's status ("Open registration", "Terminated {date}"). Sort by chooses names
-  A to Z or numeric registration-number order. Other ways in opens Donors by employer, and
-  Vendors and payees once it is built; About these records states the records' limits. Results stay on
+  A to Z or numeric registration-number order. Other ways in opens Donors by employer and
+  Money by race, and Vendors and payees once it is built; About these records states the records' limits. Results stay on
   screen while an update loads or fails, with Try again.
 - **Committee (`/money/committees/:id`)**: the registration's status, the official report
   figures for the chosen report (beginning balance, total receipts, contributions, total
