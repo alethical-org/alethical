@@ -141,10 +141,12 @@ held produce an unavailable state, never a zero. A requested release that change
   standing today for the active confirmation holding that fingerprint under this exact
   spelling and role, or null, its `evidence` (file, saved copy, record number, address,
   copy date) and its `excerpt`: every column of the row in the file's own order, as
-  [the file's column label, the held value]; text is exactly as printed, and amounts,
-  dates and years are the values the loader parsed. Each source row appears and counts
-  once. With nothing published the answer is `state: unavailable` with no count, as on
-  Finance's other money reads. `identities` lists
+  [the file's column label, the held value]; text is as printed except that a blank cell
+  is null, and amounts, dates (YYYY-MM-DD) and years are the values the loader parsed,
+  not the file's own bytes. Each source row appears and counts once. With nothing
+  published, or a published release whose files are gone, the answer is
+  `state: unavailable` with no count, as on Finance's other money reads; a `release_id`
+  pin is then refused with 409. `identities` lists
   each identity holding records of the spelling in scope with its count. `filer` narrows
   rows and every count to 1 filer's own filings; `year` filters on the file's Year; a
   `release_id` pin answers 409 once the Board's file changes. Employer rows carry the

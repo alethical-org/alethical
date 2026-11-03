@@ -12,8 +12,9 @@ payments a spelling has. Finance adds what only Finance accounts may see, per ro
   from a name.
 * ``evidence``: where the row is held (file, saved copy, record number, address,
   copy date) and ``excerpt``: every column of the row as the file lays it out, an
-  ordered list of [the file's column label, the held value]. Text is exactly as
-  printed; amounts, dates and years are the values the loader parsed from it.
+  ordered list of [the file's column label, the held value]. Text is as printed,
+  except that a blank cell is null; amounts, dates (YYYY-MM-DD) and years are the
+  values the loader parsed from it, not the file's own bytes.
 
 and for the whole filtered set, ``identities``: each identity holding records of this
 spelling in scope, with how many. ``filer`` narrows rows and every count to 1 filer's
@@ -40,6 +41,7 @@ from alethical.api.services import (
 )
 from alethical.db import models as m
 from alethical.pipeline.campaign_finance import SPEC_BY_DATASET
+from alethical.pipeline.campaign_finance_reader import ReleaseNoLongerHeld
 
 Role = Literal["contributor", "vendor", "independent_vendor", "employer"]
 
@@ -54,12 +56,6 @@ ROLES = {
         "independent_payee_name",
     ),
     "employer": (payments.payments_from_donors_typing, "employer", "employer_name"),
-}
-FILER_COLUMN = {
-    "donor_name": "recipient_reg_num",
-    "employer_name": "recipient_reg_num",
-    "payee_name": "committee_reg_num",
-    "independent_payee_name": "spender_reg_num",
 }
 
 
@@ -83,14 +79,17 @@ def _excerpt(printed):
         *(
             func.jsonb_build_array(
                 cast(literal(column.source), Text),
-                cast(getattr(printed.model, column.attribute), Text),
+                # Dates as YYYY-MM-DD whatever the connection's date style.
+                func.to_char(getattr(printed.model, column.attribute), "YYYY-MM-DD")
+                if column.kind == "date"
+                else cast(getattr(printed.model, column.attribute), Text),
             )
             for column in spec.columns
         )
     )
 
 
-def _claims(db: Session, kind: str, name: str, where: list):
+def _claims(kind: str, name: str, where: list):
     """Rows in scope, 1 per source row, with their fingerprint and active claim."""
     printed = identities._PRINTED[kind]
     model = printed.model
@@ -136,7 +135,14 @@ def read(
     release_id: UUID | None,
 ) -> dict:
     committee_finance.pin_to_one_view(db)
-    release = committee_finance.current_release(db)
+    try:
+        release = committee_finance.current_release(db)
+    except ReleaseNoLongerHeld:
+        # A published release whose files are gone: our gap, the same state.
+        release = None
+    if release is None and release_id is not None:
+        # The pinned file is gone, as Finance's other money reads answer.
+        raise ReleaseChanged()
     if release is None:
         # A fact about our records, never about the name: the same unavailable
         # state Finance's other money reads give, with no count.
@@ -160,25 +166,41 @@ def read(
     if year is not None:
         scope.append(model.year == year)
     if filer is not None:
-        scope.append(getattr(model, FILER_COLUMN[kind]) == filer)
+        filer_column = SPEC_BY_DATASET[printed.dataset].filer_attribute
+        scope.append(getattr(model, filer_column) == filer)
     numbers = [payment.record_number for payment in page.payments]
     per_row = {}
     if numbers:
         per_row = {
             row.row_number: row
             for row in db.execute(
-                _claims(db, kind, name, [*scope, model.row_number.in_(numbers)])
+                _claims(kind, name, [*scope, model.row_number.in_(numbers)])
             )
         }
     # Each identity standing today for the rows in scope, merges followed; a split
-    # identity holds no active confirmation, so it is never listed.
-    in_scope = _claims(db, kind, name, scope).subquery()
+    # identity holds no active confirmation, so it is never listed. Skipped when no
+    # active confirmation names this spelling, so common strings such as "Retired"
+    # cost no fingerprint pass.
+    claimed = db.scalar(
+        select(m.IdentityConfirmation.id)
+        .where(
+            m.IdentityConfirmation.record_kind == kind,
+            m.IdentityConfirmation.record_key == name,
+            m.IdentityConfirmation.active,
+        )
+        .limit(1)
+    )
+    in_scope = _claims(kind, name, scope).subquery()
     counts: dict[str, int] = defaultdict(int)
     standing: dict[str, m.IdentityEntity] = {}
-    for entity_id, records in db.execute(
-        select(in_scope.c.entity_id, func.count())
-        .where(in_scope.c.entity_id.is_not(None))
-        .group_by(in_scope.c.entity_id)
+    for entity_id, records in (
+        db.execute(
+            select(in_scope.c.entity_id, func.count())
+            .where(in_scope.c.entity_id.is_not(None))
+            .group_by(in_scope.c.entity_id)
+        )
+        if claimed is not None
+        else ()
     ):
         entity = identities._today(db, entity_id)
         standing[str(entity.id)] = entity

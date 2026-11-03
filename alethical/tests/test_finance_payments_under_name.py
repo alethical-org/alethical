@@ -258,3 +258,25 @@ def test_nothing_published_is_an_unavailable_state_not_an_error(
     assert data["payments"] == [] and data["identities"] == []
     assert data["page"]["total_payments"] is None
     assert (data["dataset"], data["release_id"]) == ("contributions", None)
+
+
+def test_a_release_whose_files_are_gone_is_unavailable_and_a_pin_is_refused(
+    finance_api, board, monkeypatch
+):
+    from alethical.api.services import committee_finance
+    from alethical.pipeline.campaign_finance_reader import ReleaseNoLongerHeld
+
+    def gone(db):
+        raise ReleaseNoLongerHeld("replaced")
+
+    monkeypatch.setattr(committee_finance, "current_release", gone)
+    data = read(finance_api, name=DONOR, role="contributor")
+    assert data["state"] == "unavailable" and data["payments"] == []
+    monkeypatch.setattr(committee_finance, "current_release", lambda db: None)
+    read(
+        finance_api,
+        status=409,
+        name=DONOR,
+        role="contributor",
+        release_id=str(board.id),
+    )
