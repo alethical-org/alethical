@@ -65,6 +65,9 @@ try {
 
   // Count directory reads through glob's own `fs` option and abort on the
   // first one. Unrepaired 13.0.6 rejects, then keeps reading the whole tree.
+  // Only the asynchronous case tells stock from repaired code; the synchronous
+  // stream case passes on both, as in upstream's own test, and guards the fix
+  // against breaking that path.
   const counted = (controller) => {
     const counter = { calls: 0 };
     const abortFirst = () => {

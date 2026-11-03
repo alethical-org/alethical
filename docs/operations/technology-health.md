@@ -255,8 +255,9 @@ which fixes 11 advisories: the
 node-forge 1.4.1 was published on 27 October 2026 at 04:44 UTC; the unchanged
 7-day gate admits it from 3 November at 04:44 UTC. Until that reviewed upgrade,
 the 1.4.0 backport is byte-identical to 1.4.1 in those 11 files apart from the
-rsa.js hunk above. Replace the backport with the 1.4.1 release, keeping only the
-rsa.js hunk as a `node-forge@1.4.1` patch, through
+rsa.js hunk above. Replace the backport with the 1.4.2 release, which also
+fixes a 1.4.1 crash when `pem.decode` receives a Buffer, keeping only the rsa.js
+hunk as a `node-forge@1.4.2` patch, through
 [issue #2812](https://github.com/alethical-org/alethical/issues/2812); never
 bypass the waiting period.
 

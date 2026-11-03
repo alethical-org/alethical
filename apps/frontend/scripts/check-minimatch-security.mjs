@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -145,14 +146,20 @@ const bundleProbe = String.raw`
     largePatterns: large.patterns.length,
     cappedPatterns: capped.patterns.length,
     smallPatterns: small.patterns.length,
-    ordinary: globSync('scripts/check-minimatch-*.mjs', { cwd: process.argv[2] }),
+    ordinary: globSync('src/*.js', { cwd: process.argv[2] }),
   }));
 `;
+// Ordinary matching runs against a small private folder, so unrelated
+// repository files never change the expected result.
+const matchDirectory = mkdtempSync(join(tmpdir(), 'alethical-minimatch-security-'));
+mkdirSync(join(matchDirectory, 'src'));
+writeFileSync(join(matchDirectory, 'src/a.js'), '');
+writeFileSync(join(matchDirectory, 'src/b.ts'), '');
+process.on('exit', () => rmSync(matchDirectory, { recursive: true, force: true }));
 for (const [label, entry] of [
   ['commonjs bundle', join(globDirectory, 'dist/commonjs/index.min.js')],
   ['esm bundle', join(globDirectory, 'dist/esm/index.min.js')],
 ]) {
-  const frontend = join(root, 'apps/frontend');
   const result = spawnSync(
     process.execPath,
     label === 'esm bundle'
@@ -162,14 +169,14 @@ for (const [label, entry] of [
           `const { Glob, globSync } = await import(process.argv[1]);${bundleProbe}`,
           '--',
           pathToFileURL(entry).href,
-          frontend,
+          matchDirectory,
         ]
       : [
           '--eval',
           `const { Glob, globSync } = require(process.argv[1]);${bundleProbe}`,
           '--',
           entry,
-          frontend,
+          matchDirectory,
         ],
     { encoding: 'utf8', timeout: 10000 },
   );
@@ -183,7 +190,7 @@ for (const [label, entry] of [
     `${label}: ${outcome.cappedPatterns} patterns above braceExpandMax`,
   );
   assert.equal(outcome.smallPatterns, 2, label);
-  assert.deepEqual(outcome.ordinary, ['scripts/check-minimatch-security.mjs'], label);
+  assert.deepEqual(outcome.ordinary, ['src/a.js'], label);
   console.log(`${label}: ${JSON.stringify(outcome)}`);
 }
 
