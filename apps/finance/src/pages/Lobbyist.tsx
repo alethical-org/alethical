@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { boardRecordUrl } from '@alethical/shared/boardRecordLink';
 import { registerKindFromEntityType } from '@alethical/shared/committeeMoneyShared';
 import {
   LOBBYIST_SOURCE_URL,
   lobbyingLobbyistCopy as COPY,
-  lobbyingRecordNotFound,
   lobbyingRevealLabel,
   LOBBYING_NO_SPENDING_PAGE,
   LOBBYING_RECORD_LOADING,
@@ -24,6 +23,7 @@ import { contributionRecordReview } from '@alethical/shared/moneyRecordTrust';
 import { PAYMENT_FILE_LABELS } from '@alethical/shared/paymentCopyDates';
 
 import { apiPath, useRead } from '../api/read';
+import { sumAmounts } from './committee/data';
 import { Link, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
@@ -43,7 +43,60 @@ const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
 const CONTRIBUTION_FILE_PAGE =
   'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/';
 const FAILED =
-  'We couldn’t load the Board’s lobbying record just now. This says nothing about what was reported.';
+  'We couldn’t load the Board’s lobbying record. This says nothing about what was reported.';
+const ORGS_HEADING = 'Organizations represented';
+const ORGS_SCOPE =
+  'The lobbyist list shows which organizations this lobbyist represented on the copy date';
+const ORGS_NOTE = 'It does not show past clients';
+const NO_ORGS = 'The lobbyist list names no organization for this lobbyist on the copy date';
+const GAVE_SCOPE = 'Campaign contributions, separate from lobbying spending';
+const GAVE_NOTE =
+  'Years follow the state file’s filing year. A payment date can fall in a different calendar year. Records are matched using registration numbers in the contribution file or confirmed in official reports; a name alone is not enough. The count is of matching records, not a confirmed count of separate donations. These records may not capture all giving.';
+const TOTAL_MISSING = 'Missing payment amount';
+const PERIOD_INCOMPLETE = 'Reporting period incomplete';
+
+/** "No lobbying record was found for {id}": 1 sentence, so no closing period (eug-31). */
+export function notFoundLine(id: string | undefined): string {
+  return `No lobbying record was found for ${id ?? ''}`.trim();
+}
+
+/**
+ * A committee's matched records in 1 filing year, added up under the shared rule
+ * (Rounds 36 and 41): every amount held, and the filing year or every date held.
+ * A missing amount withholds the sum first; a refund keeps its sign.
+ */
+export function committeeTotal(
+  committee: LobbyingContributionCommittee,
+  year: number | null,
+): string {
+  const payments = committee.payments;
+  if (payments.length !== committee.payment_count) return TOTAL_MISSING;
+  const sum = sumAmounts(payments.map((payment) => payment.amount));
+  if (sum === null) return TOTAL_MISSING;
+  if (year === null && payments.some((payment) => !payment.received_on)) {
+    return PERIOD_INCOMPLETE;
+  }
+  return formatMoney(sum) ?? TOTAL_MISSING;
+}
+
+/** How many payment rows to show first so the asked-for year's records are on
+ * screen: every row of the years before it, then 1 reveal step of its own. */
+export function firstShown(years: readonly LobbyingContributionYear[], year: string): number {
+  const at = years.findIndex((item) => String(item.year) === year);
+  if (at <= 0) return LOBBYING_RECORD_REVEAL_STEP;
+  const before = years.slice(0, at).reduce((sum, item) => sum + item.payment_count, 0);
+  return before + LOBBYING_RECORD_REVEAL_STEP;
+}
+
+/** This page's own address at its contributions, for the year of a record: the
+ * return a committee page's "Back to Lobbyist" opens (Round 32). */
+export function contributionsReturn(pathname: string, search: string, year: number | null) {
+  const params = new URLSearchParams(search);
+  if (year === null) params.delete('year');
+  else params.set('year', String(year));
+  const query = params.toString();
+  return `${pathname}${query ? `?${query}` : ''}#contributions`;
+}
 const DONATIONS_FAILED =
   'We couldn’t load the state’s campaign contribution file. This does not mean no donation was filed under this registration number.';
 const DATE_MISSING = 'Date not given in the public file';
@@ -142,23 +195,28 @@ function ConfirmedMark() {
 
 function Donations({
   record,
-  from,
+  pathname,
+  search,
+  year: askedYear,
   onRetry,
   retrying,
 }: {
   record: LobbyingLobbyist;
-  from: string;
+  pathname: string;
+  search: string;
+  /** The year the reader arrived for, from the address. */
+  year: string;
   onRetry: () => void;
   retrying: boolean;
 }) {
   const contributions = record.contributions;
-  const [shown, setShown] = useState(LOBBYING_RECORD_REVEAL_STEP);
+  const [shown, setShown] = useState(() => firstShown(contributions.years, askedYear));
   const reveal = useRevealFocus<HTMLDivElement>();
   const [evidence, setEvidence] = useState<Evidence | null>(null);
   const closeEvidence = useCallback(() => setEvidence(null), []);
   useEffect(
-    () => setShown(LOBBYING_RECORD_REVEAL_STEP),
-    [record.registration_number, contributions.release_id],
+    () => setShown(firstShown(contributions.years, askedYear)),
+    [record.registration_number, contributions.release_id, askedYear, contributions.years],
   );
 
   const total = contributions.payment_count ?? 0;
@@ -170,11 +228,11 @@ function Donations({
   const registered = record.name?.trim() || null;
 
   return (
-    <section aria-labelledby="lbl-gave" className="lbl-section">
-      <h2 id="lbl-gave" className="f-section-title">
+    <section id="contributions" aria-labelledby="lbl-gave" className="lbl-section">
+      <h2 id="lbl-gave" tabIndex={-1} className="f-section-title lbl-gave">
         {COPY.donationsHeading}
       </h2>
-      <p className="lb-intro">{COPY.donationsIntroduction}</p>
+      <p className="f-scope">{GAVE_SCOPE}</p>
       {failed && (
         <div className="lbl-box">
           <Refused onRetry={onRetry} retrying={retrying}>
@@ -200,6 +258,7 @@ function Donations({
               return (
                 <section
                   key={year.year ?? `none-${yearIndex}`}
+                  id={year.year != null ? `yr-${year.year}` : undefined}
                   aria-label={label}
                   className="lbl-year"
                 >
@@ -211,6 +270,13 @@ function Donations({
                   </div>
                   {groups.map((committee, index) => {
                     const name = committee.name ?? NAME_MISSING;
+                    const whole = year.committees.find(
+                      (item) =>
+                        item.registration_number === committee.registration_number &&
+                        item.name === committee.name,
+                    );
+                    const total = committeeTotal(whole ?? committee, year.year);
+                    const printed = committee.payments[0]?.contributor_name?.trim() || null;
                     const href =
                       committee.linkable &&
                       committee.registration_number &&
@@ -223,9 +289,10 @@ function Donations({
                               {
                                 year: year.year != null ? String(year.year) : null,
                                 tab: 'lobbyists',
+                                name: printed,
                               },
                             ),
-                            from,
+                            contributionsReturn(pathname, search, year.year),
                           )
                         : null;
                     return (
@@ -243,6 +310,14 @@ function Donations({
                           )}{' '}
                           <span className="lbl-committee-count f-num">
                             · {records(committee.payment_count)}
+                          </span>
+                          <span
+                            className="lbl-committee-total f-num"
+                            data-missing={
+                              total === TOTAL_MISSING || total === PERIOD_INCOMPLETE || undefined
+                            }
+                          >
+                            {total}
                           </span>
                         </div>
                         {committee.payments.map((payment) => {
@@ -314,7 +389,7 @@ function Donations({
               </button>
             </div>
           )}
-          <p className="lb-note">{COPY.filingYearNote}</p>
+          <p className="lb-note lbl-end-note">{GAVE_NOTE}</p>
         </>
       )}
       <EvidencePanel evidence={evidence} onClose={closeEvidence} />
@@ -333,6 +408,7 @@ export function Lobbyist({ match }: { match: RouteMatch }) {
   const here = location.pathname + location.search;
   const back = returnTarget(location.search);
   const reg = recordNumber(match.params.id);
+  const askedYear = location.searchParams.get('year') ?? '';
   const read = useRead<LobbyingLobbyist>(reg ? apiPath(['lobbying', 'lobbyists', reg]) : null);
   const record = read.data && read.data.registration_number === reg ? read.data : null;
   // A number on no copied list and in no contribution record is a record we do not have.
@@ -353,6 +429,27 @@ export function Lobbyist({ match }: { match: RouteMatch }) {
   useEffect(() => setOrgsShown(LOBBYING_RECORD_REVEAL_STEP), [reg]);
   const visibleOrgs = orgs.slice(0, orgsShown);
   const orgsReveal = useRevealFocus<HTMLUListElement>();
+  // Arriving for a year's records (#contributions, from the directory or a
+  // committee's "Back to Lobbyist"): bring that year into view and put focus on the
+  // section heading. It waits a task so the page's own arrival scroll runs first.
+  const arrived = useRef<string | null>(null);
+  useEffect(() => {
+    if (!shown || window.location.hash !== '#contributions') return;
+    const key = `${reg}|${askedYear}`;
+    if (arrived.current === key) return;
+    arrived.current = key;
+    const timer = window.setTimeout(() => {
+      const target =
+        document.getElementById(`yr-${askedYear}`) ?? document.getElementById('contributions');
+      if (target) {
+        const top = target.getBoundingClientRect().top + window.scrollY - 80;
+        window.scrollTo({ top: Math.max(0, top) });
+      }
+      document.getElementById('lbl-gave')?.focus({ preventScroll: true });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [shown, reg, askedYear]);
+
   const contributionsCopied =
     shown &&
     shown.contributions.state === 'reported' &&
@@ -367,7 +464,7 @@ export function Lobbyist({ match }: { match: RouteMatch }) {
         {read.loading && !missing && <LoadingLine>{LOBBYING_RECORD_LOADING}</LoadingLine>}
         {missing && (
           <div className="lb-state">
-            <Refused>{lobbyingRecordNotFound(match.params.id)}</Refused>
+            <Refused>{notFoundLine(match.params.id)}</Refused>
           </div>
         )}
         {(unavailable || (read.failed && !record)) && !missing && (
@@ -394,11 +491,11 @@ export function Lobbyist({ match }: { match: RouteMatch }) {
             <div className="lb-main">
               <section aria-labelledby="lbl-orgs" className="lbl-section">
                 <h2 id="lbl-orgs" className="f-section-title">
-                  {COPY.principalsHeading}
+                  {ORGS_HEADING}
                 </h2>
-                <p className="lb-intro">{COPY.principalsIntroduction}</p>
+                <p className="f-scope">{ORGS_SCOPE}</p>
                 {orgs.length === 0 ? (
-                  <div className="f-empty-box lbl-box">{COPY.noPrincipals}</div>
+                  <div className="f-empty-box lbl-box">{NO_ORGS}</div>
                 ) : (
                   <ul className="lb-list" ref={orgsReveal.list}>
                     {visibleOrgs.map((row) => {
@@ -442,8 +539,16 @@ export function Lobbyist({ match }: { match: RouteMatch }) {
                     </button>
                   </div>
                 )}
+                {orgs.length > 0 && <p className="lb-note lb-note-flush">{ORGS_NOTE}</p>}
               </section>
-              <Donations record={shown} from={here} onRetry={read.retry} retrying={read.pending} />
+              <Donations
+                record={shown}
+                pathname={location.pathname}
+                search={location.search}
+                year={askedYear}
+                onRetry={read.retry}
+                retrying={read.pending}
+              />
             </div>
           </>
         )}
@@ -472,7 +577,7 @@ export function Lobbyist({ match }: { match: RouteMatch }) {
           )}
           {contributionsCopied && (
             <p className="f-sources-line f-num">
-              Campaign contribution file copied {centralDateLabel(contributionsCopied)}.
+              Campaign contribution file copied {centralDateLabel(contributionsCopied)}
             </p>
           )}
         </SourcesAndUpdates>

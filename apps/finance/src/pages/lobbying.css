@@ -356,16 +356,17 @@
   max-width: none;
   padding: 20px;
 }
+/* End-of-section commentary: 24px below its list, table or chart (eug-26). */
 .lb-note {
-  margin: 12px 0 0;
+  margin: 24px 0 0;
   padding-left: 17px;
   max-width: 760px;
   font-size: 13px;
   line-height: 1.55;
   color: var(--muted);
 }
-.lb-list + .lb-note {
-  margin-top: 10px;
+.lb-note-flush {
+  padding-left: 0;
 }
 .lb-list {
   margin: 12px 0 0;
@@ -514,6 +515,27 @@ a.lbl-committee-name {
 .lbl-committee-count {
   font-size: 13px;
   color: var(--muted);
+}
+.lbl-committee-total {
+  margin-left: auto;
+  padding-left: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.lbl-committee-total[data-missing] {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+/* The contributions heading is focused on arrival from the directory or a
+ * committee page, and shows the ring then (Round 35). */
+.f-app .lbl-gave {
+  border-radius: 3px;
+}
+.f-app .lbl-gave:focus {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 .lbl-pay {
   display: grid;

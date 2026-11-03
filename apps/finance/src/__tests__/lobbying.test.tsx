@@ -23,7 +23,16 @@ import {
   tabFromParam,
   yearFromParam,
 } from '../pages/Lobbying';
-import { Lobbyist, paymentKind, registrationStatus, revealed } from '../pages/Lobbyist';
+import {
+  Lobbyist,
+  committeeTotal,
+  contributionsReturn,
+  firstShown,
+  notFoundLine,
+  paymentKind,
+  registrationStatus,
+  revealed,
+} from '../pages/Lobbyist';
 import { Principal, distinctLobbyists, spendingFigure } from '../pages/Principal';
 import { recordNumber } from '../pages/lobbying/parts';
 import { matchRoute } from '../routes';
@@ -719,7 +728,19 @@ describe('Lobbyist record', () => {
     );
     expect(text()).toContain('No spending page available');
 
-    // Contributions: 5 shown of 7, grouped by filing year and committee, no committee totals.
+    expect(text()).toContain(
+      'The lobbyist list shows which organizations this lobbyist represented on the copy date',
+    );
+    expect(container.querySelector('.lb-note-flush')?.textContent).toBe(
+      'It does not show past clients',
+    );
+
+    // Contributions: 5 shown of 7, grouped by filing year and committee; a committee's
+    // total adds all its records under the shared rule, withheld for a missing amount.
+    expect(container.querySelector('#contributions h2')?.textContent).toBe(
+      'Campaign contribution records matched to this lobbyist',
+    );
+    expect(text()).toContain('Campaign contributions, separate from lobbying spending');
     expect(text()).toContain('7 matching records · showing 5');
     expect(text()).toContain('1 committee · 4 payment records');
     expect(text()).toContain('DFL House Caucus');
@@ -731,11 +752,24 @@ describe('Lobbyist record', () => {
     expect(text()).toContain('Filed as Kozak, Andrew V');
     expect(text()).toContain('Identity confirmed in an official report');
     expect(container.querySelectorAll('.lbl-pay')).toHaveLength(5);
+    const totals = [...container.querySelectorAll('.lbl-committee-total')].map(
+      (t) => t.textContent,
+    );
+    expect(totals).toEqual(['Missing payment amount', '$600']);
     expect(text()).not.toContain('$225');
-    expect(text()).not.toContain('$600');
+    // A record's committee opens on its Lobbyists tab for that year and printed name;
+    // Back to Lobbyist returns to this page's contributions for that year.
     const committee = container.querySelector<HTMLAnchorElement>('a.lbl-committee-name');
-    expect(committee?.getAttribute('href')).toBe(
-      '/money/committees/20006?year=2026&tab=lobbyists&from=%2Flobbying%2Flobbyists%2F141%3Ffrom%3D%252Flobbying',
+    const href = new URL(committee!.getAttribute('href')!, 'https://finance.test');
+    expect(href.pathname).toBe('/money/committees/20006');
+    expect([...href.searchParams.entries()]).toEqual([
+      ['year', '2026'],
+      ['tab', 'lobbyists'],
+      ['name', 'Kozak, Andrew V'],
+      ['from', '/lobbying/lobbyists/141?from=%2Flobbying&year=2026#contributions'],
+    ]);
+    expect(container.querySelector('.lbl-end-note')?.textContent).toBe(
+      'Years follow the state file’s filing year. A payment date can fall in a different calendar year. Records are matched using registration numbers in the contribution file or confirmed in official reports; a name alone is not enough. The count is of matching records, not a confirmed count of separate donations. These records may not capture all giving.',
     );
 
     await act(async () => button('Show 2 more payment records')!.click());
@@ -744,7 +778,8 @@ describe('Lobbyist record', () => {
     expect(button('Show 2 more payment records')).toBeUndefined();
 
     expect(text()).toContain('Lobbyist registration list copied Oct 29, 2026');
-    expect(text()).toContain('Campaign contribution file copied Oct 29, 2026.');
+    expect(text()).toContain('Campaign contribution file copied Oct 29, 2026');
+    expect(text()).not.toContain('Campaign contribution file copied Oct 29, 2026.');
     expect(text()).toContain('View the Board’s Lobbyist Search Tool');
     expect(text()).not.toMatch(/illustrative|example|sample|fixture|demo/i);
   });
@@ -823,8 +858,10 @@ describe('Lobbyist record', () => {
       'No contribution records match this registration number in our source. This does not mean no giving.',
     );
     expect(text()).toContain(
-      'The lobbyist list names no organisation for this lobbyist on the copy date.',
+      'The lobbyist list names no organization for this lobbyist on the copy date',
     );
+    expect(text()).not.toContain('on the copy date.');
+    expect(container.querySelector('.lb-note-flush')).toBeNull();
   });
 
   it('keeps a registration off the copied list that still has contribution records', async () => {
@@ -851,7 +888,7 @@ describe('Lobbyist record', () => {
       ANSWER({ ...unknown, registration_number: '999999' }),
     );
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(
-      'No lobbying record was found for 999999.',
+      'No lobbying record was found for 999999',
     );
     expect(button('Try again')).toBeUndefined();
 
@@ -863,7 +900,7 @@ describe('Lobbyist record', () => {
       (match) => <Lobbyist match={match} />,
       () => null,
     );
-    expect(text()).toContain('No lobbying record was found for abc.');
+    expect(text()).toContain('No lobbying record was found for abc');
     expect(requests.filter((url) => url.includes('/lobbying/'))).toEqual([]);
   });
 
@@ -874,19 +911,67 @@ describe('Lobbyist record', () => {
       ANSWER(null, 500),
     );
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t load the Board’s lobbying record just now. This says nothing about what was reported.',
+      'We couldn’t load the Board’s lobbying record. This says nothing about what was reported.',
     );
+    expect(text()).not.toContain('just now');
     expect(button('Try again')).toBeDefined();
   });
 
-  it('labels payments, status and the revealed rows', () => {
+  it('opens at the asked-for year’s records with focus on the contributions heading', async () => {
+    window.history.replaceState(null, '', '/');
+    await render(
+      '/lobbying/lobbyists/141?year=2025&from=%2Flobbying#contributions',
+      (match) => <Lobbyist match={match} />,
+      ANSWER(lobbyist()),
+    );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    });
+    // The 2025 rows come after 2026's 4, so all 7 are shown at once.
+    expect(container.querySelectorAll('.lbl-pay')).toHaveLength(7);
+    expect(container.querySelector('#yr-2025')).not.toBeNull();
+    expect(document.activeElement?.id).toBe('lbl-gave');
+    expect(window.scrollTo).toHaveBeenCalled();
+  });
+
+  it('labels payments, status, totals and the revealed rows', () => {
+    expect(notFoundLine('12')).toBe('No lobbying record was found for 12');
+    expect(
+      contributionsReturn('/lobbying/lobbyists/141', '?year=2024&from=%2Flobbying', 2025),
+    ).toBe('/lobbying/lobbyists/141?year=2025&from=%2Flobbying#contributions');
+    expect(contributionsReturn('/lobbying/lobbyists/141', '', null)).toBe(
+      '/lobbying/lobbyists/141#contributions',
+    );
+    const years = lobbyist().contributions.years;
+    expect(firstShown(years, '')).toBe(5);
+    expect(firstShown(years, '2026')).toBe(5);
+    expect(firstShown(years, '2025')).toBe(9);
+    const committee = years[1].committees[0];
+    expect(committeeTotal(committee, 2025)).toBe('$600');
+    // A refund keeps its sign; a verified zero is $0.
+    const refund = {
+      ...committee,
+      payment_count: 2,
+      payments: [payment(1, '-150.0000', '2025-01-01'), payment(2, '150.0000', '2025-01-02')],
+    };
+    expect(committeeTotal(refund, 2025)).toBe('$0');
+    expect(committeeTotal(years[0].committees[0], 2026)).toBe('Missing payment amount');
+    // No filing year and a payment without a date: the period is incomplete.
+    const undated = {
+      ...committee,
+      payment_count: 1,
+      payments: [payment(3, '20.0000', null)],
+    };
+    expect(committeeTotal(undated, null)).toBe('Reporting period incomplete');
+    expect(committeeTotal(undated, 2025)).toBe('$20');
+    // A committee served with fewer rows than its count never shows a partial sum.
+    expect(committeeTotal({ ...committee, payment_count: 4 }, 2025)).toBe('Missing payment amount');
     expect(registrationStatus('reported')).toBe('Registered on the copy date');
     expect(registrationStatus('not_registered_today')).toBe('Not listed on the copy date');
     expect(paymentKind(payment(1, '5', null))).toBe('Contribution');
     expect(paymentKind(payment(1, '5', null, { in_kind: 'Yes' }))).toBe(
       'Donated goods or services',
     );
-    const years = lobbyist().contributions.years;
     const five = revealed(years, 5);
     expect(five.map((item) => item.committees.map((c) => c.payments.length))).toEqual([[4], [1]]);
     // Whole counts stay with the year and committee.
