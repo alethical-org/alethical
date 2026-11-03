@@ -375,7 +375,7 @@ describe('history', () => {
     ]);
     const rows = historyRows(reads, 'payee_name', NAME, 4);
     expect(rows.map((row) => row.text)).toEqual([
-      'Example Media LLC of Duluth (ORG-0043) merged into Example Media LLC (ORG-0002); 0 confirmed records moved with their own evidence and dates; ORG-0043 now opens ORG-0002',
+      'Example Media LLC of Duluth (ORG-0043) merged into Example Media LLC (ORG-0002); confirmed records moved to ORG-0002 with their own evidence and dates; ORG-0043 now opens ORG-0002',
       'Confirmation as Example Media LLC (ORG-0002) withdrawn for 1 record: Different registration number',
       'Confirmed as Example Media LLC (ORG-0002) for 2 of 4 records, Jan 1, 2026 to Feb 2, 2026',
       'Confirmed as Example Media LLC (ORG-0002) for 1 of 4 records, Mar 3, 2026',
@@ -456,11 +456,15 @@ describe('history of a split', () => {
     } as Identity;
     return new Map([
       [OLD, old],
+      [
+        STAY,
+        { ...identity(STAY, 'Example Media LLC', [], []), reference: SPLIT_REFS[STAY] } as Identity,
+      ],
       [MOVED, part],
     ]);
   }
 
-  it('names each active part with its served count, in the split order', () => {
+  it('names each active part in the split order without current counts', () => {
     const rows = historyRows(
       splitReads([
         active(STAY, 'Example Media LLC', 2, 'ORG-0091'),
@@ -471,7 +475,7 @@ describe('history of a split', () => {
       3,
     );
     expect(rows.map((row) => row.text)).toEqual([
-      'Split: 1 record moved to Example Media Buying Co (ORG-0092); 2 records stay with Example Media LLC (ORG-0091); ORG-0090 now opens a choice of both',
+      'Split: records moved to ORG-0092; records stay with ORG-0091; ORG-0090 now opens a choice of both',
     ]);
     expect(rows[0].evidence).toEqual(['Evidence: Two registrations', 'Source: SOS 1 and SOS 2']);
   });
@@ -487,7 +491,7 @@ describe('history of a split', () => {
       3,
     );
     expect(rows.map((row) => row.text)).toEqual([
-      'Split: 1 record moved to Example Media Buying Co; 2 records stay with Example Media LLC (ORG-0091); ORG-0090 now opens a choice of both',
+      'Split: records moved to Example Media Buying Co; records stay with ORG-0091; ORG-0090 now opens a choice of both',
     ]);
     expect(rows[0].text).not.toContain(MOVED);
   });
@@ -521,11 +525,11 @@ describe('history of a split', () => {
     );
     expect(rows.map((row) => row.text)).toEqual([
       'Confirmed as Example Media Buying Co (ORG-0092) for 2 of 4 records, Mar 3, 2026',
-      'Split: 2 records moved to Example Media Buying Co (ORG-0092); 2 records stay with Example Media LLC (ORG-0091); ORG-0090 now opens a choice of both',
+      'Split: records moved to ORG-0092; records stay with ORG-0091; ORG-0090 now opens a choice of both',
     ]);
   });
 
-  it('says "1 record stays with" for a part holding 1 record', () => {
+  it('does not present a current single-record count as a historical count', () => {
     const rows = historyRows(
       splitReads([
         active(STAY, 'Example Media LLC', 1, 'ORG-0091'),
@@ -536,7 +540,7 @@ describe('history of a split', () => {
       3,
     );
     expect(rows.map((row) => row.text)).toEqual([
-      'Split: 2 records moved to Example Media Buying Co (ORG-0092); 1 record stays with Example Media LLC (ORG-0091); ORG-0090 now opens a choice of both',
+      'Split: records moved to ORG-0092; records stay with ORG-0091; ORG-0090 now opens a choice of both',
     ]);
   });
 
@@ -551,7 +555,7 @@ describe('history of a split', () => {
       3,
     );
     expect(rows.map((row) => row.text)).toEqual([
-      'Split: 1 record moved to Example Media Buying Co (ORG-0092); records stay with ORG-0091; ORG-0090 now opens a choice of both',
+      'Split: records moved to ORG-0092; records stay with ORG-0091; ORG-0090 now opens a choice of both',
     ]);
   });
 
@@ -583,8 +587,8 @@ describe('history of a split', () => {
     });
     const rows = historyRows(reads, 'payee_name', NAME, 3);
     expect(rows.map((row) => row.text)).toEqual([
-      'Example Media LLC (ORG-0091) merged into Example Media Buying Co (ORG-0092); 2 confirmed records moved with their own evidence and dates; ORG-0091 now opens ORG-0092',
-      'Split: 3 records moved to Example Media Buying Co (ORG-0092); records stay with ORG-0091; ORG-0090 now opens a choice of both',
+      'Example Media LLC (ORG-0091) merged into Example Media Buying Co (ORG-0092); confirmed records moved to ORG-0092 with their own evidence and dates; ORG-0091 now opens ORG-0092',
+      'Split: records moved to ORG-0092; records stay with ORG-0091; ORG-0090 now opens a choice of both',
     ]);
     expect(rows.some((row) => /\b0 records?\b/.test(row.text))).toBe(false);
     expect(rows.some((row) => row.text.includes(STAY) || row.text.includes(MOVED))).toBe(false);
@@ -599,7 +603,7 @@ describe('history of a split', () => {
       3,
     );
     expect(rows.map((row) => row.text)).toEqual([
-      'Split: 1 record moved to Example Media Buying Co (ORG-0092); records stay with ORG-0091; ORG-0090 now opens a choice of both',
+      'Split: records moved to ORG-0092; records stay with ORG-0091; ORG-0090 now opens a choice of both',
     ]);
   });
 
@@ -619,7 +623,7 @@ describe('history of a split', () => {
       },
     ];
     expect(historyRows(reads, 'payee_name', NAME, 6).map((row) => row.text)).toEqual([
-      'Split: 1 record moved to Example Media Buying Co (ORG-0092); 3 records moved to Example Media Sales (ORG-0093); 2 records stay with Example Media LLC (ORG-0091); ORG-0090 now opens a choice of all 3',
+      'Split: records moved to ORG-0092; records moved to ORG-0093; records stay with ORG-0091; ORG-0090 now opens a choice of all 3',
     ]);
   });
 
@@ -668,7 +672,7 @@ describe('history of a split', () => {
     expect(text()).toContain('Example Media Buying Co');
     expect(container.querySelector('#hist-h')?.textContent).toBe('History');
     expect(text()).toContain(
-      'Split: 1 record moved to Example Media Buying Co (ORG-0092); records stay with ORG-0091; ORG-0090 now opens a choice of both',
+      'Split: records moved to ORG-0092; records stay with ORG-0091; ORG-0090 now opens a choice of both',
     );
     expect(text()).not.toContain('No confirmations or suggestions yet');
     expect(text()).not.toMatch(/\b0 records?\b/);
