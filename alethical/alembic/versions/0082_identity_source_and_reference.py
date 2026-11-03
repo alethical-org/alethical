@@ -20,6 +20,10 @@ down_revision = "0081_cf_graph_money_summary"
 branch_labels = None
 depends_on = None
 
+REFERENCE_CHECK = (
+    "(kind = 'organization' AND reference ~ '^ORG-[0-9]{4,}$')"
+    " OR (kind = 'person' AND reference ~ '^PER-[0-9]{4,}$')"
+)
 SEQUENCES = {
     "organization": ("ORG", "identity_organization_reference_seq"),
     "person": ("PER", "identity_person_reference_seq"),
@@ -32,12 +36,17 @@ def upgrade() -> None:
     op.add_column("identity_entity", sa.Column("reference", sa.Text()))
     for kind, (prefix, sequence) in SEQUENCES.items():
         # Numbered explicitly, oldest first: nextval inside an UPDATE follows the
-        # order rows are visited, which no ORDER BY in a subquery controls.
+        # order rows are visited, which no ORDER BY in a subquery controls. Parts of
+        # 1 split share created_at, so their own first history event breaks the tie.
         op.execute(
             f"""
             UPDATE identity_entity AS e
                SET reference = '{prefix}-' || lpad(ordered.n::text, 4, '0')
-              FROM (SELECT id, row_number() OVER (ORDER BY created_at, id) AS n
+              FROM (SELECT id, row_number() OVER (
+                             ORDER BY created_at,
+                                      (SELECT min(v.created_at) FROM identity_event v
+                                        WHERE v.entity_id = identity_entity.id),
+                                      id) AS n
                       FROM identity_entity WHERE kind = '{kind}') AS ordered
              WHERE e.id = ordered.id
             """
@@ -52,10 +61,13 @@ def upgrade() -> None:
     op.create_unique_constraint(
         op.f("uq_identity_entity_reference"), "identity_entity", ["reference"]
     )
+    # The prefix names the kind. Null is allowed so an API still running the
+    # previous release during a deploy can create an identity; the new release
+    # always assigns one.
     op.create_check_constraint(
         op.f("ck_identity_entity_entity_reference"),
         "identity_entity",
-        "reference ~ '^(ORG|PER)-[0-9]{4,}$'",
+        REFERENCE_CHECK,
     )
     op.add_column("identity_confirmation", sa.Column("source", sa.Text()))
     op.add_column("identity_confirmation", sa.Column("withdrawal_source", sa.Text()))

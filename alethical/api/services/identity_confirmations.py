@@ -210,6 +210,8 @@ def _optional_text(value: Any, label: str, limit: int = MAX_TEXT) -> str | None:
     """An optional free-text field: absent, null or blank is stored as nothing."""
     if value is None or (isinstance(value, str) and not value.strip()):
         return None
+    if not isinstance(value, str):
+        raise IdentityError(f"{label} must be text")
     return _text(value, label, limit)
 
 
@@ -765,6 +767,24 @@ def _iso(value) -> str | None:
     return value.isoformat() if value else None
 
 
+def _part(db: Session, entity: Entity) -> dict:
+    """1 part of a split as it stands today.
+
+    A part later merged or split holds no confirmations of its own any more, so its
+    records are counted where they stand today (``redirect_to``), never twice.
+    """
+    part = {**_summary(entity), "status": entity.status}
+    if entity.status == "active":
+        part["confirmed_records"] = _confirmed_records(db, entity.id)
+    else:
+        part["confirmed_records"] = None
+    if entity.status == "merged":
+        standing = _today(db, entity.id)
+        part["redirect_to"] = str(standing.id)
+        part["redirect_to_reference"] = standing.reference
+    return part
+
+
 def _summary(entity: Entity) -> dict:
     return {
         "id": str(entity.id),
@@ -774,29 +794,26 @@ def _summary(entity: Entity) -> dict:
     }
 
 
-def _confirmed_records(db: Session, entity_id: UUID) -> int:
-    """Records actively confirmed to an identity, its merged-in ones included.
+def _confirmed_records(db: Session, entity_id: UUID) -> int | None:
+    """The Board's current rows actively confirmed to an identity, merged-in included.
 
-    An identifier confirmation counts as 1 record; a printed name counts each
-    fingerprint it holds.
+    The same count as ``printed_names``' "Confirmed for k of n records": each printed
+    name counts the current rows its confirmed fingerprints match, so identical
+    repeated rows count separately and a record no longer in the Board's file counts
+    0; an identifier confirmation counts 1. None when a printed name's file is not
+    held, which says nothing either way.
     """
-    standing = [entity_id, *_merged_in(db, entity_id)]
-    printed = db.scalar(
-        select(func.count())
-        .select_from(Record)
-        .join(Confirmation, Confirmation.id == Record.confirmation_id)
-        .where(Confirmation.entity_id.in_(standing), Confirmation.active)
-    )
-    identifiers = db.scalar(
-        select(func.count())
-        .select_from(Confirmation)
-        .where(
-            Confirmation.entity_id.in_(standing),
+    standing = db.scalars(
+        select(Confirmation).where(
+            Confirmation.entity_id.in_([entity_id, *_merged_in(db, entity_id)]),
             Confirmation.active,
-            Confirmation.record_kind.not_in(list(_PRINTED)),
         )
-    )
-    return (printed or 0) + (identifiers or 0)
+    ).all()
+    _, coverage = _payloads(db, list(standing))
+    if any(name["confirmed"] is None for name in coverage):
+        return None
+    identifiers = sum(1 for c in standing if c.record_kind not in _PRINTED)
+    return sum(name["confirmed"] for name in coverage) + identifiers
 
 
 def _matches(
@@ -952,12 +969,7 @@ def read(db: Session, entity_id: UUID) -> dict:
         }
         # In the split's own order, each with the records confirmed to it today.
         payload["split_into"] = [
-            {
-                **_summary(held[part]),
-                "confirmed_records": _confirmed_records(db, held[part].id),
-            }
-            for part in parts
-            if part in held
+            _part(db, held[part]) for part in parts if part in held
         ]
     confirmations = db.scalars(
         select(Confirmation)

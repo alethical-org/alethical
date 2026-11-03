@@ -279,7 +279,11 @@ class IdentityEntity(Base):
         ),
         CheckConstraint("merged_into_id <> id", name="entity_not_self"),
         CheckConstraint("length(btrim(name)) > 0", name="entity_name"),
-        CheckConstraint("reference ~ '^(ORG|PER)-[0-9]{4,}$'", name="entity_reference"),
+        CheckConstraint(
+            "(kind = 'organization' AND reference ~ '^ORG-[0-9]{4,}$')"
+            " OR (kind = 'person' AND reference ~ '^PER-[0-9]{4,}$')",
+            name="entity_reference",
+        ),
     )
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4

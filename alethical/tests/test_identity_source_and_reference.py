@@ -11,6 +11,11 @@ reference's form and order, never a particular number.
 # ruff: noqa: F811
 import re
 
+import pytest
+from sqlalchemy.exc import IntegrityError
+
+from alethical.db import models as m
+
 from alethical.tests.finance_fixtures import finance_api, finance_db  # noqa: F401
 from alethical.tests.test_finance_payees import get as payees
 from alethical.tests.test_identity_confirmations import (  # noqa: F401
@@ -170,7 +175,14 @@ def test_split_parts_carry_new_references_counts_and_the_source(finance_api, boa
     assert [number(r, "PER") for r in references] == sorted(
         number(r, "PER") for r in references
     )
-    assert [part["confirmed_records"] for part in parts] == [1, 1]
+    # The Board's current rows, as "Confirmed for k of n records" counts them: Jordan A's
+    # donor fingerprint matches 2 identical rows, Jordan B's employer fingerprint 1.
+    assert [(part["status"], part["confirmed_records"]) for part in parts] == [
+        ("active", 2),
+        ("active", 1),
+    ]
+    jordan_a = get(finance_api, parts[0]["id"])
+    assert sum(name["confirmed"] for name in jordan_a["printed_names"]) == 2
     old = {c["id"]: c for c in done["confirmations"]}
     assert old[first]["withdrawal_source"] == "Board register, 2 addresses"
     [event] = [e for e in done["history"] if e["action"] == "split"]
@@ -202,3 +214,65 @@ def test_the_payees_directory_names_a_confirmed_identity_by_reference(
         "kind": "organization",
         "name": "Confirmed firm",
     }
+
+
+def test_a_part_merged_into_another_is_counted_once_where_it_stands(finance_api, board):
+    person, first, second, _ = two_confirmations(finance_api, board)
+    done = post(
+        finance_api,
+        f"/{person['id']}/split",
+        {
+            "reason": "2 people.",
+            "parts": [
+                {"name": "Jordan A", "confirmations": [first]},
+                {"name": "Jordan B", "confirmations": [second]},
+            ],
+        },
+    ).json()["data"]
+    part_a, part_b = done["split_into"]
+    merged = post(
+        finance_api,
+        f"/{part_a['id']}/merge",
+        {"into": part_b["id"], "reason": "The same person after all."},
+    )
+    assert merged.status_code == 200, merged.text
+    parts = get(finance_api, person["id"])["split_into"]
+    assert parts[0] == {
+        "id": part_a["id"],
+        "reference": part_a["reference"],
+        "kind": "person",
+        "name": "Jordan A",
+        "status": "merged",
+        "confirmed_records": None,
+        "redirect_to": part_b["id"],
+        "redirect_to_reference": part_b["reference"],
+    }
+    assert (parts[1]["status"], parts[1]["confirmed_records"]) == ("active", 3)
+
+
+def test_a_reference_must_name_its_kind(finance_db, board):
+    finance_db.add(
+        m.IdentityEntity(
+            kind="person",
+            name="Mislabelled",
+            reference="ORG-9999",
+            made_by_alethical_team=False,
+        )
+    )
+    with pytest.raises(IntegrityError):
+        finance_db.flush()
+    finance_db.rollback()
+
+
+def test_graph_identity_nodes_carry_their_reference(finance_api, finance_db, board):
+    [vendor] = prints(finance_api, "payee_name", VENDOR).values()
+    firm = create(finance_api, "organization", "Confirmed firm", payee(board, [vendor]))
+    finance_db.connection()
+    graph = finance_api.get(
+        "/api/v1/finance/connections", params={"relationship": "payments"}
+    ).json()["data"]
+    [node] = [n for n in graph["nodes"] if n["kind"] == "organization"]
+    assert (node["record_id"], node["reference"]) == (firm["id"], firm["reference"])
+    assert all(
+        "reference" not in n for n in graph["nodes"] if n["kind"] != "organization"
+    )

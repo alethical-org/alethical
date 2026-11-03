@@ -7,6 +7,7 @@ import json
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Literal
+from uuid import UUID
 
 from sqlalchemy import (
     String,
@@ -1147,6 +1148,28 @@ def connections(
         selected = edges[local_offset : local_offset + limit]
     total = money_total + len(other)
     nodes = {n["key"]: n for e in selected for n in e["_nodes"]}
+    # Identity nodes carry the identity's short reference (ORG-0042, PER-0042).
+    identity_ids = {
+        n["record_id"]
+        for n in nodes.values()
+        if n["kind"] in {"person", "organization"}
+    }
+    references = (
+        dict(
+            db.execute(
+                select(
+                    cast(m.IdentityEntity.id, String), m.IdentityEntity.reference
+                ).where(
+                    m.IdentityEntity.id.in_([UUID(value) for value in identity_ids])
+                )
+            ).all()
+        )
+        if identity_ids
+        else {}
+    )
+    for node in nodes.values():
+        if node["kind"] in {"person", "organization"}:
+            node["reference"] = references.get(node["record_id"])
     if release is not None:
         money_nodes = {
             n["key"]: n

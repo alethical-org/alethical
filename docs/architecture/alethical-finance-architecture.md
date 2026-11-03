@@ -307,7 +307,7 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
   A partly confirmed
   name remains in the unconfirmed queue. `GET /identities` finds saved active
   identities by `q` and optional `kind`, with the same paging bounds; it returns
-  only id, kind and name, without a suggested match or any account details.
+  only id, reference, kind and name, without a suggested match or any account details.
 - **An identifier is confirmed whole, for all time.** A committee's or lobbyist's
   registration number, a principal's id, or the id of a held legislator or public person
   is itself an identifier; at most 1 active confirmation holds each, and `GET /lookup`
@@ -327,9 +327,12 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
   a person, numbered by kind in creation order and never reused; existing identities were
   numbered oldest first. A split's parts each get a new reference. Every identity read,
   search row and lookup carries it; a merged identity's read adds `redirect_to_reference`;
-  each `split_into` part adds its `confirmed_records` (fingerprints held by its active
-  confirmations, plus 1 per identifier); every history event adds `references`, mapping
-  each identity it names to its reference.
+  each `split_into` part adds its `status` and, while active, its `confirmed_records`
+  (the Board's current rows its active confirmations cover, the same count as "Confirmed
+  for k of n records", plus 1 per identifier; null when a file is not held); a part later
+  merged adds `redirect_to` and `redirect_to_reference` instead of a count, so no record
+  is counted twice; every history event adds `references`, mapping each identity it
+  names to its reference; identity nodes in the money graph carry it too.
 - **A decision may name where its evidence was found.** `source` is optional free text kept
   apart from the basis or reason: on a confirmation (copied to a split's replacement), on
   its withdrawal (`withdrawal_source`), and in a merge's or split's history event. Blank is

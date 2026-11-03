@@ -8,6 +8,7 @@ coverage is joined by the same fingerprints the confirmation service writes.
 from __future__ import annotations
 
 from typing import Literal
+from uuid import UUID
 
 from sqlalchemy import String, case, cast, func, literal, select, union_all
 from sqlalchemy.orm import Session
@@ -276,7 +277,7 @@ def directory(
             db.execute(
                 select(
                     cast(m.IdentityEntity.id, String), m.IdentityEntity.reference
-                ).where(cast(m.IdentityEntity.id, String).in_(shown))
+                ).where(m.IdentityEntity.id.in_([UUID(value) for value in shown]))
             ).all()
         )
         if shown

@@ -5,7 +5,7 @@ import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy import inspect, text
 
@@ -53,11 +53,22 @@ def test_identity_references_backfill_in_creation_order_and_reverse():
                 ("later person", "person", start + timedelta(hours=2)),
                 ("first organization", "organization", start + timedelta(hours=1)),
                 ("first person", "person", start),
+                # 2 parts of 1 split share created_at; their first event decides.
+                ("split part b", "person", start + timedelta(hours=3)),
+                ("split part a", "person", start + timedelta(hours=3)),
             ]
+            first_event = {
+                "split part a": start + timedelta(hours=3, seconds=1),
+                "split part b": start + timedelta(hours=3, seconds=2),
+            }
             ids = {}
             with engine.begin() as db:
                 for name, kind, created in made:
-                    ids[name] = uuid4()
+                    # Part b's id sorts first, so ordering by id alone would be wrong.
+                    ids[name] = {
+                        "split part b": UUID(int=1),
+                        "split part a": UUID(int=2),
+                    }.get(name, uuid4())
                     db.execute(
                         text(
                             "INSERT INTO identity_entity (id, kind, name, made_by_alethical_team, created_at)"
@@ -70,6 +81,19 @@ def test_identity_references_backfill_in_creation_order_and_reverse():
                             "created": created,
                         },
                     )
+                    if name in first_event:
+                        db.execute(
+                            text(
+                                "INSERT INTO identity_event (id, entity_id, action,"
+                                " detail, made_by_alethical_team, created_at)"
+                                " VALUES (:id, :entity, 'created', '{}', false, :at)"
+                            ),
+                            {
+                                "id": uuid4(),
+                                "entity": ids[name],
+                                "at": first_event[name],
+                            },
+                        )
 
             def references():
                 with engine.connect() as db:
@@ -82,6 +106,8 @@ def test_identity_references_backfill_in_creation_order_and_reverse():
             expected = {
                 "first person": "PER-0001",
                 "later person": "PER-0002",
+                "split part a": "PER-0003",
+                "split part b": "PER-0004",
                 "first organization": "ORG-0001",
             }
             migrate("upgrade", HEAD)
@@ -89,7 +115,7 @@ def test_identity_references_backfill_in_creation_order_and_reverse():
             with engine.connect() as db:
                 assert (
                     db.scalar(text("SELECT nextval('identity_person_reference_seq')"))
-                    == 3
+                    == 5
                 )
                 db.rollback()
             columns = {
@@ -112,7 +138,7 @@ def test_identity_references_backfill_in_creation_order_and_reverse():
                     )
                     is None
                 )
-                assert db.scalar(text("SELECT count(*) FROM identity_entity")) == 3
+                assert db.scalar(text("SELECT count(*) FROM identity_entity")) == 5
 
             migrate("upgrade", HEAD)
             assert references() == expected
