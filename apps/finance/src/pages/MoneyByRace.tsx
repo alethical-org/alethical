@@ -11,7 +11,7 @@ import {
 } from 'react';
 
 import { campaignMoneyHistoryYears } from '@alethical/shared/campaignMoneyYears';
-import { formatDay, formatMoney } from '@alethical/shared/moneyFormat';
+import { formatDay, formatMoney } from '../ui/money';
 import {
   committeeFigures,
   contestSeatLabel,

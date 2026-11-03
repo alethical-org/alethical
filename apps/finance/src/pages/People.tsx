@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { formatDay } from '@alethical/shared/moneyFormat';
+import { formatDay } from '../ui/money';
 import { currentChamber, legislatorDistrictLine } from '@alethical/shared/legislatorProfile';
 import { apiPath, useRead } from '../api/read';
 import { Link, useLocation } from '../router';

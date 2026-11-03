@@ -161,6 +161,12 @@ describe('Campaign money directory', () => {
     // are aligned with Design's current drawing, so nothing links to them.
     expect(container.querySelector('a[href^="/money/connections"]')).toBeNull();
     expect(container.querySelector('a[href^="/money/recipients"]')).toBeNull();
+    // Donors by employer is entered from here (Round 29, eug-44), not from Home.
+    const employers = container.querySelector('a[href^="/money/employers"]');
+    expect(employers?.textContent).toContain('Donors by employer');
+    expect(employers?.textContent).toContain(
+      'Find donors by the employer name reported in their filings.',
+    );
     expect(text).not.toMatch(/illustrative|example|sample|fixture|demo/i);
   });
 
