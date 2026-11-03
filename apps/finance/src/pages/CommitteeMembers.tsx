@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { campaignMoneyHistoryYears } from '@alethical/shared/campaignMoneyYears';
 import { EMPTY_YEAR_VALUE } from '@alethical/shared/committeeMoney';
@@ -86,6 +86,25 @@ export function chamberName(chamber: string | null): string | null {
   return chamber;
 }
 
+/**
+ * 1 entry per person. The roster can list an officer twice, once without a role
+ * and once with it (Co-Chair, Alternate); the entries are 1 member, so they are
+ * joined by id, keeping each distinct role in served order.
+ */
+export function uniqueMembers(members: Member[]): Member[] {
+  const byId = new Map<string, Member>();
+  for (const member of members) {
+    const held = byId.get(member.id);
+    if (!held) {
+      byId.set(member.id, member);
+      continue;
+    }
+    const roles = [held.role, member.role].filter((role): role is string => Boolean(role));
+    byId.set(member.id, { ...held, role: roles.length ? [...new Set(roles)].join(', ') : null });
+  }
+  return [...byId.values()];
+}
+
 /** "House · 2025–26 session · 27 members". */
 export function committeeMeta(answer: MembersAnswer): string {
   const session = answer.committee.session ? billSession(answer.committee.session) : null;
@@ -165,7 +184,10 @@ export function CommitteeMembers({ match }: { match: RouteMatch }) {
   const read = useRead<MembersAnswer>(
     apiPath(['finance', 'legislative-committees', match.params.id, 'members']),
   );
-  const answer = read.data;
+  const answer = useMemo(
+    () => (read.data ? { ...read.data, members: uniqueMembers(read.data.members) } : undefined),
+    [read.data],
+  );
   // Each member's own read reports the date its report totals were copied, so
   // the page states 1 copy date without reading every member's figures itself.
   const [copied, setCopied] = useState<{ year: string; dates: Record<string, string> }>({

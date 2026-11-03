@@ -15,8 +15,9 @@ import { Link, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
-import { ClearAll, Dropdown, Empty, LoadingRows, Refused, Tabs, Updating } from '../ui/controls';
+import { ClearAll, Dropdown, Empty, LoadingRows, Refused, Updating } from '../ui/controls';
 import { RecordMark } from '../ui/marks';
+import { ScrollingTabs } from '../ui/scrollingTabs';
 import { Arrow, BackLink, SourcesAndUpdates, type SourceGroup } from '../ui/parts';
 import './campaignMoney.css';
 
@@ -345,7 +346,7 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
         <div className="cm-layout">
           <section aria-label={tabLabel} className="cm-directory">
             <div className="cm-tabs">
-              <Tabs
+              <ScrollingTabs
                 label="Directory"
                 value={tab}
                 tabs={tabs}

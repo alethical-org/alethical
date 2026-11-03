@@ -167,6 +167,18 @@ describe('Committee members’ campaign accounts', () => {
     expect(container.textContent).toContain('House · 2025–26 session · 4 members');
   });
 
+  it('lists an officer the roster names twice once, with the role', async () => {
+    // The live roster sends an officer as 2 entries with the same id: 1 without a
+    // role and 1 with it.
+    const [ben, ...rest] = MEMBERS.members;
+    const twice = { ...MEMBERS, members: [{ ...ben, role: null }, ...rest, ben] };
+    await render(PATH, (url) => (url.endsWith('/members') ? json(twice) : loaded(url)));
+    expect(container.textContent).toContain('House · 2025–26 session · 4 members');
+    const names = [...container.querySelectorAll('.cmm-name')].map((node) => node.textContent);
+    expect(names.filter((name) => name?.includes('Ben Davis'))).toHaveLength(1);
+    expect(container.textContent).toContain('Co-Chair');
+  });
+
   it('shows each account’s own filed figures, never a combined total', async () => {
     await render(PATH, loaded);
     const ben = card('Ben Davis');

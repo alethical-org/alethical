@@ -43,10 +43,11 @@ import './organization.css';
 function NotFound() {
   return (
     <section className="org-gone">
+      {/* 1 line for a removed record and an id that never existed, true for both
+          (settled wording rows 8 and 25). */}
       <h1 tabIndex={-1} className="org-gone-title">
-        This record is no longer available
+        No organization with this reference is in the current copy
       </h1>
-      <p>No organization with this reference is in the current copy</p>
     </section>
   );
 }
