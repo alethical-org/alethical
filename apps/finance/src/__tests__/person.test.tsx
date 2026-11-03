@@ -183,8 +183,32 @@ it('a split record’s old reference opens the choice of the person meant', asyn
           name: 'Split Person',
           status: 'split',
           split_into: [
-            { id: 'a', kind: 'person', name: 'Split Person A' },
-            { id: 'b', kind: 'organization', name: 'Split Organization B' },
+            {
+              id: 'a',
+              reference: 'PER-0007',
+              kind: 'person',
+              name: 'Split Person A',
+              status: 'active',
+              confirmed_records: 3,
+            },
+            {
+              id: 'b',
+              reference: 'ORG-0012',
+              kind: 'organization',
+              name: 'Split Organization B',
+              status: 'active',
+              confirmed_records: null,
+            },
+            {
+              id: 'c',
+              reference: 'ORG-0013',
+              kind: 'organization',
+              name: 'Merged Organization C',
+              status: 'merged',
+              confirmed_records: null,
+              redirect_to: 'd',
+              redirect_to_reference: 'ORG-0020',
+            },
           ],
           confirmations: [],
         }),
@@ -192,6 +216,15 @@ it('a split record’s old reference opens the choice of the person meant', asyn
   expect(container.querySelector('h1')?.textContent).toBe(SPLIT_TITLE);
   expect(container.textContent).toContain(SPLIT_LEAD);
   expect(container.textContent).toContain('Split Person A');
+  const lines = [...container.querySelectorAll('.person-split-link')].map((row) => row.textContent);
+  // The served reference and count; no count held reads the reference alone, never 0.
+  expect(lines).toEqual([
+    'Split Person APER-0007 · 3 confirmed records',
+    'Split Organization BORG-0012',
+    'Merged Organization CORG-0013',
+  ]);
+  // A part later merged opens the record it became.
+  expect(container.querySelector('a[href^="/organizations/d"]')).not.toBeNull();
   // An organization part opens its profile; a person part links only once Person is on.
   expect(container.querySelector('a[href^="/organizations/b"]')?.getAttribute('href')).toBe(
     isBuilt('person') ? '/organizations/b?from=%2Fpeople%2Fp' : '/organizations/b',

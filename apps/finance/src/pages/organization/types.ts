@@ -5,8 +5,17 @@
 
 export interface IdentitySummary {
   id: string;
+  /** "ORG-0042"; null only while a deploy is numbering identities. */
+  reference?: string | null;
   kind: string;
   name: string;
+  /** Split parts only: the part as it stands today. */
+  status?: 'active' | 'merged' | 'split' | string;
+  /** The Board's current rows its confirmations cover, plus 1 per identifier;
+   * null when a file is not held or the part no longer stands on its own. */
+  confirmed_records?: number | null;
+  redirect_to?: string | null;
+  redirect_to_reference?: string | null;
 }
 
 export interface ConfirmedRecord {
@@ -37,6 +46,7 @@ export interface IdentityConfirmation {
 
 export interface Identity {
   id: string;
+  reference?: string | null;
   kind: string;
   name: string;
   status: 'active' | 'merged' | 'split' | string;
