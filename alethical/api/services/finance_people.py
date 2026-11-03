@@ -33,6 +33,7 @@ PeopleType = Literal["all", "candidates", "legislators", "persons"]
 PeopleScope = Literal["all", "past"]
 PeopleSort = Literal["name", "election_year"]
 Service = Literal["current", "former"]
+Chamber = Literal["house", "senate"]
 
 
 def read_time() -> datetime:
@@ -48,6 +49,9 @@ def directory(
     scope: PeopleScope = "all",
     year: int | None = None,
     service: Service | None = None,
+    party: str | None = None,
+    office: str | None = None,
+    chamber: Chamber | None = None,
     sort: PeopleSort = "name",
     limit: int = 50,
     offset: int = 0,
@@ -134,10 +138,63 @@ def directory(
         literal(None, candidate.election_date.type),
         status,
     )
+    typed = query.strip()
+    candidate_party = candidate.public_payload["candidate"]["party"].astext
+    candidate_office = candidate.public_payload["office"].astext
+    if typed:
+        candidates = candidates.where(
+            or_(
+                name_contains(
+                    candidate.public_payload["candidate"]["name"].astext, typed
+                ),
+                name_contains(candidate.public_payload["votingArea"].astext, typed),
+            )
+        )
+        people = people.where(name_contains(person.name, typed))
+    if party is not None:
+        candidates = candidates.where(candidate_party == party)
+    if office is not None:
+        candidates = candidates.where(candidate_office == office)
+    if chamber is not None:
+        # Candidate offices do not have a held chamber field. Never derive one
+        # from the office's wording, or lend a linked person's chamber to a filing.
+        candidates = candidates.where(False)
+    if party is not None or office is not None or chamber is not None:
+        # Public-person names alone establish none of these source facts.
+        people = people.where(False)
+    if office is not None:
+        members = members.where(False)
+    period_filters = [period.legislator_id == member.id]
+    if party is not None:
+        period_filters.append(period.party == party)
+    if chamber is not None:
+        period_filters.append(m.Chamber.chamber_type == m.ChamberType(chamber))
+    if typed:
+        period_filters.append(
+            or_(
+                name_contains(member.full_name, typed),
+                name_contains(m.District.code, typed),
+            )
+        )
+    matching_period = (
+        select(1)
+        .select_from(period)
+        .join(m.District, m.District.id == period.district_id)
+        .join(m.Chamber, m.Chamber.id == period.chamber_id)
+        .where(*period_filters)
+        .correlate(member)
+        .exists()
+    )
+    if party is not None or chamber is not None:
+        # One held service period must satisfy every filter, not a district from
+        # one term and a party from another. This is not a claim of current service.
+        members = members.where(matching_period)
+    elif typed:
+        members = members.where(
+            or_(name_contains(member.full_name, typed), matching_period)
+        )
     rows = union_all(candidates, people, members).subquery()
     where = []
-    if query.strip():
-        where.append(name_contains(rows.c.name, query.strip()))
     if type != "all":
         where.append(
             rows.c.kind
@@ -206,6 +263,18 @@ def directory(
         if member_ids
         else {}
     )
+    matching_ids = set()
+    if member_ids and (typed or party is not None or chamber is not None):
+        matching_ids = set(
+            db.scalars(
+                select(period.id)
+                .select_from(period)
+                .join(member, member.id == period.legislator_id)
+                .join(m.District, m.District.id == period.district_id)
+                .join(m.Chamber, m.Chamber.id == period.chamber_id)
+                .where(member.id.in_(member_ids), *period_filters)
+            )
+        )
     result = []
     for row in selected:
         item = {"kind": row.kind, "id": row.id, "name": row.name}
@@ -221,30 +290,22 @@ def directory(
                 year=row.year,
                 election=profile.get("election"),
                 office=profile.get("office"),
+                party=(profile.get("candidate") or {}).get("party"),
                 voting_area=profile.get("votingArea"),
                 source=source,
             )
         elif row.kind == "legislator":
             held = legislators[row.id]
+            periods = sorted(
+                held.service_periods,
+                key=lambda p: (p.session.year_start, p.period_sequence),
+                reverse=True,
+            )
             item.update(
                 slug=held.slug,
                 service_status=row.service_status,
-                periods=[
-                    {
-                        "chamber": p.chamber.chamber_type.value,
-                        "district": p.district.code,
-                        "party": p.party,
-                        "start_date": p.start_date,
-                        "end_date": p.end_date,
-                        "session": p.session.slug,
-                        "source_url": p.profile_url,
-                    }
-                    for p in sorted(
-                        held.service_periods,
-                        key=lambda p: (p.session.year_start, p.period_sequence),
-                        reverse=True,
-                    )
-                ],
+                periods=[_period(p) for p in periods],
+                matching_periods=[_period(p) for p in periods if p.id in matching_ids],
             )
         result.append(item)
     years = list(
@@ -254,6 +315,38 @@ def directory(
             .order_by(cast(extract("year", candidate.election_date), Integer).desc())
         )
     )
+    options = {"party": [], "office": [], "chamber": []}
+    option_reads = []
+    if type in {"all", "candidates"}:
+        option_reads.extend(
+            [
+                select(literal("party").label("kind"), candidate_party.label("value")),
+                select(
+                    literal("office").label("kind"), candidate_office.label("value")
+                ),
+            ]
+        )
+    if type in {"all", "legislators"}:
+        option_reads.extend(
+            [
+                select(literal("party").label("kind"), period.party.label("value")),
+                select(
+                    literal("chamber").label("kind"),
+                    cast(m.Chamber.chamber_type, String).label("value"),
+                )
+                .select_from(period)
+                .join(m.Chamber, m.Chamber.id == period.chamber_id),
+            ]
+        )
+    if option_reads:
+        held_options = union_all(*option_reads).subquery()
+        for kind, value in db.execute(
+            select(held_options)
+            .distinct()
+            .order_by(held_options.c.kind, held_options.c.value)
+        ):
+            if value:
+                options[kind].append(value)
     return {
         "state": "reported" if total else "not_reported",
         "rows": result,
@@ -268,5 +361,23 @@ def directory(
         "scope": scope,
         "year": year,
         "service": service,
+        "party": party,
+        "office": office,
+        "chamber": chamber,
+        "parties": options["party"],
+        "offices": options["office"],
+        "chambers": options["chamber"],
         "sort": sort,
+    }
+
+
+def _period(period) -> dict:
+    return {
+        "chamber": period.chamber.chamber_type.value,
+        "district": period.district.code,
+        "party": period.party,
+        "start_date": period.start_date,
+        "end_date": period.end_date,
+        "session": period.session.slug,
+        "source_url": period.profile_url,
     }

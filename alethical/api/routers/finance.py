@@ -320,6 +320,13 @@ def people(
     scope: finance_people.PeopleScope = "all",
     year: int | None = Query(default=None, ge=1900, le=2200),
     service: finance_people.Service | None = None,
+    party: str | None = Query(
+        default=None, min_length=1, max_length=100, pattern=r"^[^\x00]*$"
+    ),
+    office: str | None = Query(
+        default=None, min_length=1, max_length=200, pattern=r"^[^\x00]*$"
+    ),
+    chamber: finance_people.Chamber | None = None,
     sort: finance_people.PeopleSort = "name",
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
@@ -348,6 +355,9 @@ def people(
                 scope=scope,
                 year=year,
                 service=service,
+                party=party,
+                office=office,
+                chamber=chamber,
                 sort=sort,
                 limit=limit,
                 offset=offset,
