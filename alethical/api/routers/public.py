@@ -3109,7 +3109,7 @@ def legislator_bills(
             raise HTTPException(
                 status_code=422, detail=f"Unknown role: {role}"
             ) from exc
-    rows, has_more = paginated_scalars(
+    rows, has_more, total = paginated_scalars_with_total(
         db,
         legislator_sponsored_bills_stmt(
             legislator.id, session_row.id, role=role_filter
@@ -3133,6 +3133,7 @@ def legislator_bills(
             "offset": offset,
             "next_cursor": None,
             "has_more": has_more,
+            "total": total,
         },
     )
 
