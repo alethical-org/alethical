@@ -279,7 +279,9 @@ export function People(_props: { match: RouteMatch }) {
                 {count}
               </div>
               {!rows.length && !read.updating ? (
-                <Empty title="No matching records" next="Try another name" />
+                // "Try another name" only answers a typed name; a filter alone gets the
+                // drawn first line.
+                <Empty title="No matching records" next={query ? 'Try another name' : undefined} />
               ) : (
                 <ul className="pp-list">
                   {rows.map((row) => {
