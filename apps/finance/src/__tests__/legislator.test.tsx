@@ -12,6 +12,7 @@ import {
   type FinanceYears,
 } from '../parts/CampaignFinance';
 import {
+  candidacyNote,
   committeeIdFor,
   LegislatorProfile,
   serviceLine,
@@ -300,7 +301,9 @@ describe('Legislator profile', () => {
   it('lists outside spending by contest as filed, and an unknown amount as incomplete', async () => {
     await render('/legislators/patty-acomb', answering(CURRENT));
     const contest = container.querySelector('.cf-contest')!;
-    expect(contest.textContent).toContain('State Representative · District 45B · 2025');
+    expect(contest.textContent?.replace(/\u00a0/g, ' ')).toContain(
+      'State Representative · District 45B · 2025',
+    );
     expect(contest.textContent).toContain('Payments dated Aug 13, 2025 to Oct 11, 2025');
     expect(contest.textContent).toContain('Example Political Fund');
     expect(contest.textContent).toContain('For');
@@ -384,6 +387,17 @@ describe('Legislator profile', () => {
 });
 
 describe('Legislator helpers', () => {
+  it('names each candidacy’s own election in its related row', () => {
+    expect(
+      candidacyNote({
+        candidateId: 'c',
+        office: 'State Representative',
+        votingArea: 'District 45B',
+        election: { date: '2024-11-05', type: 'general' },
+      }),
+    ).toBe('2024 general · State Representative, District 45B');
+  });
+
   it('names a current seat and never a former one', () => {
     expect(serviceLine(CURRENT)).toBe('Serving as State Representative · House District 45B · DFL');
     expect(serviceLine(FORMER)).toBeNull();
@@ -440,7 +454,9 @@ describe('Legislator helpers', () => {
   });
 
   it('names a contest by seat, district and year', () => {
-    expect(contestLabel('Senate', '12', 2026)).toBe('State Senator · District 12 · 2026');
+    expect(contestLabel('Senate', '12', 2026)).toBe(
+      'State Senator · District\u00a012\u00a0·\u00a02026',
+    );
     expect(contestLabel('Governor', null, 2026)).toBe('Governor · 2026');
   });
 });

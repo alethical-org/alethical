@@ -247,9 +247,11 @@ export function contestLabel(
 ): string {
   const title =
     office === 'House' ? 'State Representative' : office === 'Senate' ? 'State Senator' : office;
-  return [title, district ? `District ${district}` : null, String(year)]
+  // "District 99A · 2026" stays together (Design Round 34): no-break spaces.
+  const tail = [district ? `District\u00a0${district}` : null, String(year)]
     .filter(Boolean)
-    .join(' · ');
+    .join('\u00a0·\u00a0');
+  return [title, tail].filter(Boolean).join(' · ');
 }
 
 /** One account's figures for one year, read for one legislator. */

@@ -384,7 +384,7 @@
 .lg2-related .f-row-links {
   margin-top: 8px;
 }
-.lg2-related-link {
+.f-row-link.lg2-related-link {
   display: flex;
   align-items: center;
   justify-content: space-between;

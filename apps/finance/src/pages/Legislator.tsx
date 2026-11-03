@@ -88,7 +88,7 @@ interface PersonRecord {
     candidateId: string;
     office?: string | null;
     votingArea?: string | null;
-    election?: { label?: string | null; date?: string | null } | null;
+    election?: { label?: string | null; date?: string | null; type?: string | null } | null;
   }>;
 }
 
@@ -132,6 +132,16 @@ export function committeeIdFor(
 
 export function billNumber(row: BillRow): string {
   return `${row.file_type} ${row.file_number}`;
+}
+
+/** "2026 general · State Representative, District 99A": each candidacy row names
+ * its own election, so 2 candidacies for one seat never read alike. */
+export function candidacyNote(item: NonNullable<PersonRecord['elections']>[number]): string {
+  const election =
+    item.election?.label ||
+    [item.election?.date?.slice(0, 4), item.election?.type].filter(Boolean).join(' ');
+  const seat = [item.office, item.votingArea].filter(Boolean).join(', ');
+  return [election, seat].filter(Boolean).join(' · ');
 }
 
 function NotFound() {
@@ -352,11 +362,7 @@ function Related({ record, from }: { record: LegislatorRecord; from: string }) {
               <span>
                 <span className="f-row-link-name">View candidate profile</span>
                 <br />
-                <span className="f-row-link-note">
-                  {[item.election?.label, [item.office, item.votingArea].filter(Boolean).join(', ')]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </span>
+                <span className="f-row-link-note">{candidacyNote(item)}</span>
               </span>
               <Arrow />
             </Link>
