@@ -29,10 +29,6 @@ export function confirmationNote(confirmation: Confirmation): string {
   return confirmation.basis ?? '';
 }
 
-function countable(part: SplitPart): boolean {
-  return typeof part.confirmed_records === 'number' && Number.isFinite(part.confirmed_records);
-}
-
 function confirmationsOf(identity: Identity, kind: PrintedKind, name: string) {
   return (identity.confirmations ?? []).filter(
     (confirmation) => confirmation.record_kind === kind && confirmation.record_key === name,
@@ -66,16 +62,16 @@ export function historyRows(
     { at: string; identity: Identity; reason: string; source: string | null; items: Confirmation[] }
   >();
   for (const identity of identities.values()) {
-    if (identity.status === 'merged') continue;
     const history = identity.history ?? [];
-    const createdWith =
-      history[0]?.action === 'created' && !history[0].detail?.split_from
-        ? history.find((event) => event.action === 'confirmed')?.detail?.confirmation_id
-        : null;
     for (const confirmation of confirmationsOf(identity, kind, name)) {
       if (seen.has(confirmation.id)) continue;
       seen.add(confirmation.id);
       const holder = identities.get(confirmation.identity_id) ?? identity;
+      const holderHistory = holder.history ?? [];
+      const createdWith =
+        holderHistory[0]?.action === 'created' && !holderHistory[0].detail?.split_from
+          ? holderHistory.find((event) => event.action === 'confirmed')?.detail?.confirmation_id
+          : null;
       const k = coveredRows(confirmation);
       // Every event stays; a count resting on a file that is not held is dropped, never
       // printed as 0 (settled wording row 27).
@@ -87,7 +83,7 @@ export function historyRows(
           at: confirmation.checked_at,
           date: day(confirmation.checked_at) ?? '',
           text:
-            createdWith === confirmation.id && holder.id === identity.id
+            createdWith === confirmation.id
               ? `Created ${named(holder)} and confirmed this name as it${scope}`
               : `Confirmed as ${named(holder)}${scope}`,
           evidence: [
@@ -122,18 +118,16 @@ export function historyRows(
         typeof detail.from === 'string'
       ) {
         const from = detail.from;
-        const fromName = identities.get(from)?.name ?? null;
-        const fromLabel = { name: fromName ?? references[from] ?? '', reference: references[from] };
+        const fromIdentity = identities.get(from);
+        const fromName = fromIdentity?.name ?? null;
+        const fromLabel = {
+          name: fromName ?? references[from] ?? '',
+          reference: fromIdentity?.reference ?? references[from],
+        };
         if (!fromLabel.name) continue;
-        const moved = sumCounts(
-          (identity.confirmations ?? [])
-            .filter((c) => c.identity_id === from && c.status === 'confirmed')
-            .map((c) => (c.records ? coveredRows(c) : 1)),
-        );
-        const movedText =
-          moved === null
-            ? `confirmed records moved to ${refOf(identity)}`
-            : `${plural(moved, 'confirmed record', 'confirmed records')} moved`;
+        // Events do not save historical source-row counts. Today's confirmations
+        // cannot establish how many records moved when this merge happened.
+        const movedText = `confirmed records moved to ${refOf(identity)}`;
         rows.push({
           key: `merge|${from}|${identity.id}`,
           at: event.at ?? '',
@@ -168,16 +162,10 @@ export function historyRows(
         if (parts.length < 2) continue;
         seen.add(`split|${old.id}`);
         const [stay, ...moved] = parts;
-        // A count is printed only as served. A part whose file is not held, or that was
-        // later merged or split, has none: it is named by its reference alone and never
-        // reads as 0 (settled wording row 28).
-        const movedText = (part: SplitPart) =>
-          countable(part)
-            ? `${plural(part.confirmed_records as number, 'record', 'records')} moved to ${named(part)}`
-            : `records moved to ${refOf(part)}`;
-        const stayText = countable(stay)
-          ? `${plural(stay.confirmed_records as number, 'record', 'records')} ${stay.confirmed_records === 1 ? 'stays' : 'stay'} with ${named(stay)}`
-          : `records stay with ${refOf(stay)}`;
+        // Current part counts change after later source updates and confirmations;
+        // the split event does not save the counts at the time of the split.
+        const movedText = (part: SplitPart) => `records moved to ${refOf(part)}`;
+        const stayText = `records stay with ${refOf(stay)}`;
         // "a choice of both" is drawn for 2 parts; more parts read "a choice of all {n}".
         const choice = parts.length === 2 ? 'both' : `all ${parts.length}`;
         rows.push({
