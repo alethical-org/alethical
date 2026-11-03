@@ -1,0 +1,39 @@
+/* Money by race, Design export 49 additions (Rounds 31 to 35). Loaded after
+ * raceAndRecipients.css, which holds the page's earlier rules. */
+
+/* End-of-section commentary sits 24px under its table or chart (eug-26). */
+.mr-end-note {
+  margin: 0;
+  padding: 24px 0 0 17px;
+  max-width: 760px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.mr-end-note p {
+  margin: 0;
+}
+.mr-end-note p + p {
+  margin-top: 6px;
+}
+
+/* The scope line and the Chart/Table switch share the heading row's right side. */
+.mr-os-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+/* ---------- Spending by outside groups, Chart ----------
+ * The shared For/Against chart (ui/view.tsx SplitBarList) draws the Round 35
+ * layout; the page only sets the card's padding. */
+.mr-os-chart {
+  margin-top: 12px;
+  padding: 20px;
+}
+@media (max-width: 767px) {
+  .mr-os-chart {
+    padding: 16px;
+  }
+}

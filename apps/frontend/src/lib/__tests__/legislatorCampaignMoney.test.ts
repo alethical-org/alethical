@@ -312,7 +312,7 @@ describe('dates', () => {
 
   it('names the report a total comes from, with the day it runs to', () => {
     expect(reportedThroughLabel('2026-03-31')).toBe(
-      "The committee's own report to the state, covering through Mar 31, 2026",
+      'The committee’s own report to the state, covering through Mar 31, 2026',
     );
   });
 

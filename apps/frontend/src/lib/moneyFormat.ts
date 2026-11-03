@@ -8,6 +8,19 @@
  * prints changes here; `legislatorCampaignMoney.ts` re-exports both.
  */
 
+let siteMinusSign = false;
+
+/**
+ * Which sign this site prints on a negative figure, set once at start-up.
+ * Alethical Finance calls `setNegativeSign('minus')` in its own start-up file
+ * (apps/finance/src/moneySign.ts), so every figure its screens format, through
+ * any shared helper, reads "−$150" as Finance's design system draws it.
+ * alethical.com never calls this, so it keeps the hyphen ("-$150").
+ */
+export function setNegativeSign(sign: 'minus' | 'hyphen'): void {
+  siteMinusSign = sign === 'minus';
+}
+
 /**
  * A money amount as a reader would check it against the filing.
  *
@@ -49,7 +62,7 @@
 export function formatMoney(
   value: number | string | null | undefined,
   {
-    minusSign = false,
+    minusSign = siteMinusSign,
   }: {
     /** Print a negative figure with the true minus sign (U+2212, "−$150"), as
      * Alethical Finance's design system draws it; alethical.com keeps the hyphen. */

@@ -7,7 +7,7 @@ import { REQUEST_TIMEOUT_MS } from '../api/client';
 import { useRead } from '../api/read';
 import { useFinanceSession } from '../auth/session';
 import type { ServedCounts } from '../landing/counts';
-import { returnTarget, withFrom } from '../returnContext';
+import { withFrom } from '../returnContext';
 import { Link, useLocation } from '../router';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { billSession } from '../search/suggestions';
@@ -21,7 +21,7 @@ import {
   Updating,
   type Option,
 } from '../ui/controls';
-import { Arrow, BackLink, Chevron, SourcesAndUpdates, WithArrow } from '../ui/parts';
+import { Arrow, Chevron, SourcesAndUpdates, WithArrow } from '../ui/parts';
 import {
   billCode,
   billHeading,
@@ -30,6 +30,7 @@ import {
   dayLabel,
   fileChamber,
   sessionShortLabel,
+  together,
   type BillListItem,
   type ServedSession,
 } from './legislationRecords';
@@ -209,11 +210,12 @@ export function clearBillListCache() {
 // ---------- The page ----------
 
 /** Legislation (Bills drawing): search, Session, Chamber and Status menus, and
- * the bill list, paged on the server. */
+ * the bill list, paged on the server. The Session menu lists the sessions the
+ * server serves (`/sessions`), newest first with the current one at the top;
+ * 1 held session is 1 option, and the menu stays. */
 export function Legislation(_props: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
-  const back = returnTarget(location.search);
   const [address, setAddress] = useAddressState({
     q: '',
     session: '',
@@ -291,14 +293,13 @@ export function Legislation(_props: { match: RouteMatch }) {
   return (
     <main id="main" className="f-page">
       <div className="f-content">
-        {back && <BackLink to={back.to} name={back.name} />}
         <header>
           <h1 tabIndex={-1} className="f-page-title">
             Legislation
           </h1>
           <p className="lg-intro">
             Minnesota bills with their versions, actions, authors, committees and recorded roll
-            calls.
+            calls
           </p>
         </header>
         <form role="search" onSubmit={submit} className="lg-search">
@@ -357,7 +358,7 @@ export function Legislation(_props: { match: RouteMatch }) {
           {list.updating && !list.failed && <Updating />}
           {list.shown && (
             <>
-              <div aria-live="polite" className="lg-count">
+              <div aria-live="polite" className="f-count-line lg-count">
                 {total !== null ? billCountLine(total, chosenLabel) : null}
               </div>
               {rows.length === 0 ? (
@@ -374,7 +375,7 @@ export function Legislation(_props: { match: RouteMatch }) {
                       />
                     ))}
                   </ul>
-                  <p className="lg-note">
+                  <p className="f-section-note lg-note">
                     Status and date are the latest recorded action from the Legislature. A vote
                     result differs from a bill’s eventual status.
                   </p>
@@ -411,7 +412,8 @@ export function Legislation(_props: { match: RouteMatch }) {
       </div>
       <SourcesAndUpdates>
         <p className="f-sources-line">
-          Minnesota Legislature · revisor.mn.gov{updated ? ` · Updated ${updated}` : ''}
+          Minnesota Legislature · revisor.mn.gov
+          {updated ? ` · ${together(`Updated ${updated}`)}` : ''}
         </p>
         <a
           href="https://www.revisor.mn.gov/bills/"
@@ -457,14 +459,16 @@ function BillRow({
     session,
     fileChamber(code),
     billStatus(bill.status_key, bill.current_status),
-    dayLabel(bill.latest_action_at),
+    // The date stays whole; a long status may still wrap.
+    dayLabel(bill.latest_action_at) && together(dayLabel(bill.latest_action_at)!),
   ].filter(Boolean);
   const content = (
     <>
       {code && <span className="f-code lg-code">{code}</span>}
       <span className="lg-row-text">
         <span className="lg-row-title">{billHeading(bill.ai_analysis?.short_title, code)}</span>
-        <span className="lg-row-meta">{meta.join(' · ')}</span>
+        {/* Each dot ends its line, so a wrapped fact never starts with one (eug-8). */}
+        <span className="lg-row-meta">{meta.join('\u00a0· ')}</span>
       </span>
       <Arrow />
     </>
