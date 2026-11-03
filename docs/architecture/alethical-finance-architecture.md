@@ -255,15 +255,15 @@ of approval to build the graph frontend.
 - **The server checks the list on every Finance request.** A request carrying an
   Authorization header is never marked cacheable (`default_public_cache` in
   `alethical/api/main.py`), so 1 account's response never reaches another.
-- **What every access-checked request answers** (`alethical/api/finance_access.py`), so a
+- **What the access check answers** (`alethical/api/finance_access.py`), so a
   client can tell an ended listing from an ended session:
 
   | Answer | When | What the client does |
   |---|---|---|
-  | 200 (`GET /access`: `{"allowed": true}`) | A listed account with a valid session | Shows Finance |
+  | 200 (`GET /access`: `{"data": {"allowed": true}}`) | A listed account with a valid session | Shows Finance |
   | 401, "Sign in to continue." | No token | Asks the person to sign in |
-  | 401, "Sign in again to continue." | An expired, invalid or unreadable token | Signs in again; nothing about the listing changed |
-  | 403, type `finance-no-access`, "This account does not have access to Alethical Finance." | Not listed: never listed, revoked, unconfirmed address, locked, banned or deleted account | Treats the listing as ended for this account |
+  | 401, "Sign in again to continue." | An expired, invalid or unreadable token | Asks the person to sign in again |
+  | 403, type `finance-no-access`, "This account does not have access to Alethical Finance." | Refused: never listed, revoked, unconfirmed address, locked, banned or deleted account | Shows the no-access state |
   | 503, type `service-unavailable` | The sign-in service or the list cannot be read | Keeps the page and offers Try again; never reads it as no access |
 
   A listing has no expiry date: it ends only when Alethical revokes it
