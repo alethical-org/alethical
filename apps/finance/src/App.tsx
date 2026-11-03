@@ -100,10 +100,19 @@ export function App() {
   const screen = signedOutRoute
     ? `${location.pathname}|${signInShowsUnavailable ? 'unavailable' : 'page'}`
     : `${location.pathname}|${status === 'granted' ? 'page' : status}`;
-  const first = useRef(true);
+  // The page a reader opened is still their first screen while sign-in and
+  // the access check resolve on the same address, so it keeps the browser's
+  // starting point too; only a later move to another screen takes focus.
+  const previous = useRef<string | null>(null);
   useEffect(() => {
-    if (first.current) {
-      first.current = false;
+    const before = previous.current;
+    previous.current = screen;
+    const [beforePath, beforeState] = before?.split('|') ?? [];
+    if (
+      before === null ||
+      (beforePath === location.pathname &&
+        (beforeState === 'loading' || beforeState === 'checking'))
+    ) {
       return;
     }
     const back = cameByHistory() ? savedScroll() : null;

@@ -477,6 +477,12 @@ describe('sign-in steps', () => {
     expect(text()).toContain('We couldn’t check your access');
   });
 
+  it('leaves the first screen where the browser starts it, through the access check', async () => {
+    await render('/money', fakeSupabase(session('token-1')).client, answering(200));
+    expect(container.querySelector('main h1')).not.toBeNull();
+    expect(document.activeElement?.tagName).not.toBe('H1');
+  });
+
   it('moves focus to the new screen’s heading', async () => {
     await render('/money', fakeSupabase(session('token-1')).client, answering(200));
     await act(async () => navigate('/no-such-page'));
