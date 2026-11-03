@@ -111,24 +111,16 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
   bill number", and "Suggestions couldn’t load" are the panel's other states, each announced
   to screen readers. Arrow keys move through the rows and View all results, Enter opens the
   chosen row, Escape closes the panel; pressing Search opens `/search` with the typed words.
-- **Finance Home (`/home`)**: "Research public records" with the search field, and the 1
-  header-corner action "Explore money connections" (a filled button beside the eyebrow and
-  heading, dropping under the heading on a tablet or phone), shown once Money connections is
-  built; under "Browse records", entrances into each built directory (Legislators,
-  Candidates, Lobbyists, Committees and funds, Party units, Vendors and payees, Lobbying
-  organizations), each shown once its page is built; a card per built record family; and
-  "Sources and updates" naming each family's source with its copy or update date, read from
-  the landing counts, below the first screen. Confirm identities and Check TV station files
-  are entered only from their context (Media buys, a TV station file, Payments under this
-  name, Donors by employer), and Donors by employer from Campaign money, never from Home.
+- **Finance Home (`/home`)**: "Research public records" with the search field; under
+  "Browse records", entrances into each built directory (Legislators, Lobbyists,
+  Committees and funds, Party units, Vendors and payees, Lobbying organizations) and the
+  actions Explore money connections, Confirm identities and Donors by employer, as printed,
+  each shown once its page is built; a card per built record family; and "Sources and
+  updates" naming each family's source with its copy or update date, read from the landing
+  counts, below the first screen.
 - **Not listed:** "This account doesn’t have access to Alethical Finance", the signed-in
   address, Switch account and Contact us (an email to ask@alethical.com). The page never
-  says why, because the server never says. An account refused after having access in this
-  session reads "This account does not have access to Alethical Finance" with "Results kept
-  from this account are no longer shown": every held answer and unfinished entry is cleared.
-- **Unfinished entries (drafts)** on the checking forms belong to the account that wrote
-  them, in this browser: the same account finds them again after its sign-in expires and it
-  signs in again, and signing in as a different account clears every draft the browser held.
+  says why, because the server never says.
 - **Access cannot be checked:** "We couldn’t check your access" with Try again. A failed
   check never shows the no-access state.
 - **Unknown address, or a page not built yet:** "We couldn’t find that page" inside the
@@ -163,25 +155,6 @@ copies, and works with Back and Forward. While the screens are off, only `/`, `/
 `/auth/return` answer (§ The public site).
 
 ## Research pages
-
-Money connections (`/money/connections`, in the code but not built yet: its route answers
-"not found" until the pull request that aligns it turns it on) reads direct recorded
-relationships from
-`GET /api/v1/finance/connections`. Search, year, relationship and the focused record are
-server filters. Each page holds up to 50 relationships and shows the whole selection's
-count with Previous and Next. Map starts on tablet/computer; Table starts on phone. An
-explicit view choice stays in the address across resizing and return visits. Nodes and
-lines are keyboard selectable; the table carries every relationship too. Full labels wrap
-inside map nodes, with the columns stacked when their container is narrow.
-
-Each relationship keeps its own source, record count and complete date or year period.
-A missing amount or incomplete period withholds the figure. Sources are never added
-together and a connected path never claims that one payment funded another. Printed names
-stay separate from confirmed people/organizations; a committee registration is an official
-record, not an identity check. Only explicit link targets supplied by the server open a
-profile. A station-file source opens the cited version and page. Partial source availability
-is named, and failed updates keep the last results with a retry. These reads do not write
-checks or confirmations.
 
 Each page is built from its approved Design drawing and reads alethical.com's own records
 through the shared API (`api.alethical.com`). Every page has a loading state, a failure with
@@ -241,8 +214,8 @@ figure is ever added across committees or members.
 - **Lobbying (`/lobbying`)**: registered lobbyists and principals, searched and paged on the
   server. Lobbyists use name order. Principals add year and name or reported-spending
   order, with one filed total per organization for that year. Missing figures and
-  multiple filed reports stay explicit, never zero or an added total. Links keep the
-  selected year, and old rows retain their own year while a new selection loads.
+  multiple filed reports stay explicit, never zero or an added total. Old rows retain their
+  own year while a new selection loads.
 - **Lobbyist (`/lobbying/lobbyists/:id`)** and **Principal (`/lobbying/principals/:id`)**: a
   lobbyist's registration, the organizations it represented on the copy date (5 at a time with
   "Show more") and its matched campaign contribution records; a principal's spending by year
@@ -297,14 +270,6 @@ none.
 
 ## Limits and privacy
 
-The read sections for Check station files are implemented as independent components in
-`apps/finance/src/pages/checking/`. They read paged queues, exact source versions and machine
-suggestions. Preparing or dismissing a suggestion is local only, and the queue makes no check
-until its write form is built. Filer names and links use explicit display metadata; absent
-metadata shows the printed registration without assuming that a committee page exists.
-Confirm identities writes through the server's identity routes; every account reads every
-note, reason and name typed there.
-
 - Finance never links to alethical.com; a CI test fails if any app file names an
   alethical.com page. A check of the production build (`pnpm run check:built-links`) reads
   every text file Finance ships except source maps, code from `@alethical/shared` included.
@@ -315,6 +280,8 @@ note, reason and name typed there.
   writes after its own server's address (`/admin/users`, `/admin/generate_link`,
   `/admin/oauth/clients`, `/admin/custom-providers`). Contact actions use email addresses,
   and data comes from `api.alethical.com`.
+- Confirm identities writes through the server's identity routes; every account reads every
+  note, source, reason and name typed there.
 - Every page is marked not to be indexed (`noindex`) in a response header and a meta tag.
   `robots.txt` allows crawling on purpose: a crawler that may not fetch a page never reads
   its `noindex`, and can list a linked address without its content. The server marks every
@@ -333,28 +300,3 @@ note, reason and name typed there.
   sign-up figures.
 - The site runs at https://finance.alethical.com, the `alethical-finance` Vercel project,
   until alethicalfinance.com launches ([deployment.md § Alethical Finance](../operations/deployment.md#alethical-finance)).
-
-## Media buys
-
-The screens at `/media-buys`, `/media-buys/folders/:id`,
-`/media-buys/files/:key`, `/media-buys/agencies/:name` and
-`/media-buys/stations/:id` are in the code but not built yet: each answers "not found"
-until the pull request that aligns it turns its route on. They use Finance's private
-original-file routes. The directory
-browses station folders, exact agency spellings, stations and years. Its filters
-and pages stay in the address. A capped count says “At least”; a failed refresh
-keeps the earlier rows and offers another try.
-
-A file shows the selected saved version, its original page images, checked facts
-and connections, evidence, and machine-read text marked Not checked. Images carry
-the signed-in account's access header, never a token in an address; changing the
-account or version removes the earlier image. Check evidence opens the exact
-version and page. Withdrawn checks remain distinct from standing connections.
-Station counts are files and saved contents, never ads or money. Campaign and
-outside-spending searches under an agency name stay separate.
-
-Check station files stays unavailable until its forms and queue are complete.
-This read-only release saves no checks and makes no data changes.
-
-Campaign money's Sort by control reads the whole register in name order or numeric
-registration-number order; a choice resets the page and remains in the address.

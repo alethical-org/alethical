@@ -1,4 +1,4 @@
-<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py scripts/check_pillow_advisory.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs apps/frontend/scripts/check-braces-security.mjs apps/frontend/scripts/check-deepmerge-security.mjs apps/frontend/scripts/check-decode-uri-security.mjs apps/frontend/scripts/test-decode-uri-security.mjs apps/frontend/scripts/check-source-map-security.mjs apps/frontend/scripts/test-source-map-security.mjs apps/frontend/scripts/test-compression-security.mjs patches/metro@0.84.4.patch patches/node-forge@1.4.0.patch patches/braces@3.0.3.patch patches/deepmerge@4.3.1.patch patches/decode-uri-component@0.5.0.patch pnpm-lock.yaml uv.lock alethical/tests/test_multidict_security.py -->
+<!-- describes: .github/dependabot.yml .github/workflows/ci.yml .github/workflows/technology-health.yml .github/workflows/*deploy.yml Dockerfile.backend docker-compose.yml package.json apps/frontend/package.json pnpm-workspace.yaml pyproject.toml .python-version justfile scripts/check_technology_health.py scripts/check_pillow_advisory.py apps/frontend/scripts/check-build-tool-security.mjs apps/frontend/scripts/check-node-forge-security.mjs apps/frontend/scripts/check-braces-security.mjs apps/frontend/scripts/check-deepmerge-security.mjs apps/frontend/scripts/check-decode-uri-security.mjs apps/frontend/scripts/test-decode-uri-security.mjs apps/frontend/scripts/check-glob-security.mjs apps/frontend/scripts/check-minimatch-security.mjs apps/frontend/scripts/check-source-map-security.mjs apps/frontend/scripts/test-source-map-security.mjs apps/frontend/scripts/test-compression-security.mjs patches/metro@0.84.4.patch patches/node-forge@1.4.0.patch patches/braces@3.0.3.patch patches/deepmerge@4.3.1.patch patches/decode-uri-component@0.5.0.patch patches/glob@13.0.6.patch patches/minimatch@10.2.5.patch pnpm-lock.yaml uv.lock alethical/tests/test_multidict_security.py -->
 <!-- last-major-tool-review: 2026-08-15 -->
 
 # Keeping every tool supported and useful
@@ -238,15 +238,46 @@ has no published fixed package. The official package name and version stay intac
 the raw audit warning stays in the security log. This is a local code repair, not
 an exception for vulnerable code.
 
+The same patch also carries the exact node-forge 1.4.0 to 1.4.1 `lib/` diff
+(asn1, cipher, cipherModes, http, jsbn, pbe, pem, pkcs12, rsa, tls and x509),
+which fixes 11 advisories: the
+[PKCS#12 zero-iteration MAC forgery](https://github.com/advisories/GHSA-jc66-7q78-782g),
+[PEM regular-expression denial of service](https://github.com/advisories/GHSA-7wch-p9px-956x),
+[2 TLS record-processing crashes](https://github.com/advisories/GHSA-hqq3-7jhf-c5jx)
+([and](https://github.com/advisories/GHSA-8hrf-8g6f-7xwp)),
+[X.509 basicConstraints bypass through deprecated OIDs](https://github.com/advisories/GHSA-5x38-2vff-x55p),
+[AES-GCM empty-tag bypass](https://github.com/advisories/GHSA-5cwg-6vw7-rj6p),
+[cookie prototype pollution](https://github.com/advisories/GHSA-6wvx-3r32-xmcg),
+[TLS client crash on a missing server certificate](https://github.com/advisories/GHSA-525v-9gp9-w22h),
+[OID first-arc truncation](https://github.com/advisories/GHSA-4642-5mcj-2rqw),
+[negative modInverse infinite loop](https://github.com/advisories/GHSA-h6cr-wjv9-3cpp) and
+[CA-store depletion during chain verification](https://github.com/advisories/GHSA-4487-j8r4-4g2f).
+node-forge 1.4.1 was published on 27 October 2026 at 04:44 UTC; the unchanged
+7-day gate admits it from 3 November at 04:44 UTC. Until that reviewed upgrade,
+the 1.4.0 backport is byte-identical to 1.4.1 in those 11 files apart from the
+rsa.js hunk above. Replace the backport with the 1.4.2 release, which also
+fixes a 1.4.1 crash when `pem.decode` receives a Buffer, keeping only the rsa.js
+hunk as a `node-forge@1.4.2` patch, through
+[issue #2812](https://github.com/alethical-org/alethical/issues/2812); never
+bypass the waiting period.
+
 The always-required security invocation installs the frozen JavaScript lockfile
 without running package scripts, then runs `check-node-forge-security.mjs` itself.
 Acceptance requires the exact advisory, package, version, reported dependency
-path, patch file fingerprint, lockfile patch fingerprint, and installed RSA code
-fingerprint. Both Expo consumers must resolve the repaired package. Signature checks
-use ordinary verification options and valid padding, accept valid SHA-256 signatures
-with and without NULL parameters, and reject extra nested elements in either form.
-The malformed test signatures are made with a known test private key to isolate the
-parser defect; they do not claim to recreate a forgery without that key.
+path, patch file fingerprint, lockfile patch fingerprint, and the installed
+fingerprint of every patched library file. Both Expo consumers must resolve the
+repaired package. Signature checks use ordinary verification options and valid
+padding, accept valid SHA-256 signatures with and without NULL parameters, and
+reject extra nested elements in either form. The malformed test signatures are
+made with a known test private key to isolate the parser defect; they do not
+claim to recreate a forgery without that key. The 1.4.1 checks refuse a PKCS#12
+file whose MAC was forged with the constant key a zero iteration count produced,
+decode the advisory's crafted PEM inputs and a negative modInverse in a bounded
+child process, refuse out-of-range OID arcs and a zero GCM tag length, reject
+mismatched CBC padding bytes, and verify a chain without emptying a CA store
+that holds 2 same-subject certificates, while ordinary signatures, PEM text with
+headers, GCM and CBC round trips and chain verification still work. The security
+check classifies the 12 advisories as repaired only on those proofs.
 Installation failure, missing or changed repair evidence, changed findings, and
 unrelated advisories block release. A published fixed version requires a reviewed
 upgrade rather than silently carrying this local classification forward.
@@ -295,6 +326,60 @@ package, version, range and reported dependency path can be classified as repair
 after these checks pass. Changed evidence, a new finding or failed installation
 blocks release. Replace this temporary backport with 0.5.1 once its package age
 and compatibility checks pass; never bypass the waiting period.
+
+Expo's command-line tool uses glob 13.0.6. Its
+[abort-signal advisory](https://github.com/advisories/GHSA-3g3m-2fjr-6pw4) is
+repaired by the exact walker change from
+[upstream commit 4682e8c](https://github.com/isaacs/node-glob/commit/4682e8c9babee1b385202ede36389634e12076d7):
+every abort branch returns after its callback, so an aborted directory walk
+stops reading instead of rejecting and then reading the whole tree. glob 14.0.2
+fixes this advisory, but its minified bundles still embed an unrepaired
+minimatch copy; 14.0.3, a major version published on 28 October 2026 at 04:08
+UTC, is the first release with both fixes, and the unchanged 7-day gate admits
+it from 4 November at 04:08 UTC. The patch changes both compiled walkers and
+both minified entry bundles, because the package's main entries are the
+minified bundles and that is what Expo loads.
+`check-glob-security.mjs` verifies the exact patch, lock binding and the 4
+installed file fingerprints, then counts directory reads through glob's own
+file-system option: an abort during the first read must reject with no further
+reads, in the asynchronous and the synchronous stream forms, through both
+bundles, while ordinary matching and a paused stream still return every match.
+The raw audit warning stays visible; only the exact advisory, package, version,
+range and reported dependency path can be classified as repaired after these
+checks pass. Replace the backport with the released fix after cross-major
+compatibility checks through [issue #2812](https://github.com/alethical-org/alethical/issues/2812).
+
+The same glob package depends on minimatch 10.2.5, and its minified bundles
+embed their own copy of that minimatch code. The
+[pattern-amplification advisory](https://github.com/advisories/GHSA-g3hv-75wg-m249)
+is repaired in both places by the exact change from
+[upstream commit 77a0f5c](https://github.com/isaacs/minimatch/commit/77a0f5c4b80bdc641c3c930a1d9edf5ad2db57f8):
+the `**/..` preprocessing pass stops splitting patterns at `braceExpandMax`,
+and the pairwise dedupe pass is skipped above 1,000 patterns, which match the
+same paths either way. The fixed 11.0.1 package is a major version, published
+on 27 October 2026 at 22:26 UTC; the gate admits it from 3 November at 22:26
+UTC. minimatch 10.2.6 differs from 10.2.5 only in its manifest and carries no
+fix. `patches/minimatch@10.2.5.patch` repairs the package, which glob's
+unminified entries and other Expo tools load; `patches/glob@13.0.6.patch`
+carries the same 3 changes into the copy inside both glob bundles, which is
+what Expo's command-line tool runs. `check-minimatch-security.mjs` verifies the
+exact patch, lock binding and the 4 installed package fingerprints, then runs a
+15-segment `**/..` pattern in bounded child processes: through both package
+modules the pairwise pass must run 0 times on the large set, and through both
+glob bundles the default cap must hold the set at 10,000 patterns, where the
+unrepaired bundle builds 32,768 and takes seconds. In every form a lower
+`braceExpandMax` must cap the generated patterns, small sets must still dedupe,
+and ordinary patterns must still match. `check-glob-security.mjs` fingerprints
+the bundles.
+The raw audit warning stays visible under the same exact-match classification.
+Replace the backport with the released fix through
+[issue #2812](https://github.com/alethical-org/alethical/issues/2812).
+
+The PDF reader uses pypdf 6.21.4, the published fix for 7 parser advisories
+(CVE-2026-119203 through CVE-2026-119209). Python packages have no release-age
+gate, so this is an ordinary lock upgrade; the campaign-finance report, notice,
+refund, lobbyist and broadcast-file readers that import it keep passing their
+tests. No audit exception exists for pypdf.
 
 The jsdom CSS parser and PostCSS use source-map-js 1.2.2, the published fix for
 its [section-offset advisory](https://github.com/advisories/GHSA-68fv-2mgg-jv7q).

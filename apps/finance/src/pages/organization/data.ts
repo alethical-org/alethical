@@ -33,6 +33,8 @@ export const EMPTY_SECTION = 'No confirmed records are held for this section';
 export const SECTION_FAILED = 'We couldn’t load these records. This is a problem on our side.';
 export const PRINCIPAL_NOT_HELD =
   'This principal is not in the current copy of the lobbying records';
+/** At most this many payment pages are read for 1 spelling. */
+const MAX_PAGES = 40;
 /** The server's largest page of payments (MAX_PAYMENTS in campaign_finance_payments.py). */
 const PAGE = 250;
 /** Printed-name kinds whose records are this organization's own money. A donor's
@@ -171,7 +173,9 @@ export async function loadSpelling<T extends GivenPayment | PaidPayment>(
   if (wanted.size === 0) return empty;
 
   const pages: NamePage<T>[] = [];
-  for (let offset = 0; ;) {
+  for (let offset = 0, count = 0; ; count += 1) {
+    // A server that kept answering "more" would otherwise loop without end.
+    if (count >= MAX_PAGES) return null;
     const answer = await get<NamePage<T>>(
       apiPath(['campaign-finance', 'payments-under-name'], {
         name: spelling.key,
