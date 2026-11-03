@@ -3,13 +3,13 @@ import { currentChamber, legislatorDistrictLine } from '@alethical/shared/legisl
 import { apiPath, useRead } from '../api/read';
 import { copyDate, type ServedCounts } from '../landing/counts';
 import { Link, useLocation } from '../router';
-import { returnTarget, withFrom } from '../returnContext';
+import { withFrom } from '../returnContext';
 import { hrefFor, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
 import { useBand } from '../ui/band';
 import { Chips, ClearAll, Dropdown, Empty, LoadingRows, Refused, Updating } from '../ui/controls';
 import { RecordMark } from '../ui/marks';
-import { Arrow, BackLink, Chevron, SourcesAndUpdates } from '../ui/parts';
+import { Arrow, Chevron, SourcesAndUpdates } from '../ui/parts';
 import { candidateSeat } from './seat';
 import './people.css';
 export { candidateSeat };
@@ -108,8 +108,7 @@ export function peopleLink(row: PersonDirectoryRow) {
 }
 export function People(_props: { match: RouteMatch }) {
   const location = useLocation(),
-    here = location.pathname + location.search,
-    back = returnTarget(location.search);
+    here = location.pathname + location.search;
   const band = useBand();
   const [state, setState] = useAddressState({
     q: '',
@@ -179,7 +178,6 @@ export function People(_props: { match: RouteMatch }) {
   return (
     <main id="main" className="f-page">
       <div className="f-content">
-        {back && <BackLink to={back.to} name={back.name} />}
         <h1 tabIndex={-1} className="f-page-title">
           People
         </h1>
@@ -281,7 +279,9 @@ export function People(_props: { match: RouteMatch }) {
                 {count}
               </div>
               {!rows.length && !read.updating ? (
-                <Empty title="No matching records" next="Try another name" />
+                // "Try another name" only answers a typed name; a filter alone gets the
+                // drawn first line.
+                <Empty title="No matching records" next={query ? 'Try another name' : undefined} />
               ) : (
                 <ul className="pp-list">
                   {rows.map((row) => {

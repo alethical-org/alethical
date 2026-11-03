@@ -246,7 +246,9 @@ function Bills({ record, from }: { record: LegislatorRecord; from: string }) {
             We couldn’t load these bills. This is a problem on our side.
           </Refused>
         )}
-        {read.data && !read.loading && rows.length === 0 && !read.updating && (
+        {/* "None held" only when the record's own count agrees: a list that comes
+            back empty against a positive count is a gap, never a stated zero. */}
+        {read.data && !read.loading && rows.length === 0 && !read.updating && !total && (
           <div className="f-empty-box">No chief-authored bills held for this service</div>
         )}
         {rows.length > 0 && (
@@ -428,7 +430,7 @@ export function LegislatorProfile({ match }: { match: RouteMatch }) {
         {read.loading && <LoadingLine>Loading…</LoadingLine>}
         {read.failed && (
           <Refused onRetry={read.retry} retrying={read.pending}>
-            We couldn’t load this record. This is a problem on our side.
+            We couldn’t load this record
           </Refused>
         )}
         {read.notFound && <NotFound />}

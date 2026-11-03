@@ -334,6 +334,15 @@ describe('Legislator profile', () => {
     expect(requests.some((url) => url.includes('campaign-finance?year=2019'))).toBe(false);
   });
 
+  it('never says no bills are held when the record counts some the list did not return', async () => {
+    // The live server: stats count 20 chief-authored bills while the list comes back empty.
+    await render(
+      '/legislators/patty-acomb',
+      answering({ ...CURRENT, stats: { chief_bill_count: 20 } }, { '/bills?role': json([]) }),
+    );
+    expect(text()).not.toContain('No chief-authored bills held');
+  });
+
   it('a former legislator inherits no current title, party, district or committees', async () => {
     await render(
       '/legislators/former-member',
@@ -371,7 +380,8 @@ describe('Legislator profile', () => {
 
   it('a failed record read offers Try again and shows no other record', async () => {
     await render('/legislators/patty-acomb', () => new Response(null, { status: 503 }));
-    expect(text()).toContain('We couldn’t load this record. This is a problem on our side.');
+    expect(text()).toContain('We couldn’t load this record');
+    expect(text()).not.toContain('problem on our side');
     expect(container.querySelector('h1')).toBeNull();
   });
 

@@ -731,6 +731,10 @@ a.pp-row:active,
   .pp-end {
     justify-content: space-between;
   }
+  /* A row with no source text (a person record) keeps its arrow at the right. */
+  .pp-end > svg {
+    margin-left: auto;
+  }
   .pp-page-btn {
     min-height: 44px;
   }

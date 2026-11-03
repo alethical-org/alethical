@@ -173,7 +173,7 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
         {read.loading && <LoadingLine>Loading…</LoadingLine>}
         {read.failed && (
           <Refused onRetry={read.retry} retrying={read.pending}>
-            We couldn’t load this record. This is a problem on our side.
+            We couldn’t load this record
           </Refused>
         )}
         {read.notFound && <NotFound />}
@@ -188,7 +188,7 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
                 <KeyFigures legislatorId={legislatorId} account={accounts[0] ?? null} />
               )}
               <p className="lg2-line">
-                Official candidate record · {runningPhrase(record)} {record.office}
+                Official candidate record · {runningPhrase(record)} {seat[0] || record.office}
               </p>
             </header>
             <div className="lg2-layout">

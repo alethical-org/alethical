@@ -387,7 +387,7 @@ function AccountCard({
       {held && read.loading && <LoadingRows />}
       {held && read.failed && (
         <Refused onRetry={read.retry} retrying={read.pending}>
-          We couldn’t load these accounts. This is a problem on our side.
+          We couldn’t load these accounts
         </Refused>
       )}
       {(!held || (read.data && !read.loading)) && (
@@ -434,7 +434,7 @@ function OutsideContest({
   if (failed) {
     return (
       <Refused onRetry={read.retry} retrying={read.pending}>
-        We couldn’t load these results. This is a problem on our side.
+        We couldn’t load these results
       </Refused>
     );
   }
@@ -568,7 +568,7 @@ export function CampaignFinance({
         {loading && <LoadingRows />}
         {failed && years && (
           <Refused onRetry={years.retry} retrying={years.pending}>
-            We couldn’t load these accounts. This is a problem on our side.
+            We couldn’t load these accounts
           </Refused>
         )}
         {!loading && !failed && accounts.length === 0 && (
