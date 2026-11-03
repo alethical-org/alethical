@@ -251,7 +251,7 @@ figure is ever added across committees or members.
   Lobbyists tab for the year and printed name (its "Back to Lobbyist" returns to the same
   year's records); a principal's total reported spending by year as a chart (a dashed gap for
   a year with no report held), its categories one click away in Table, and the lobbyists
-  listed for it.
+  listed for it. Opened with no earlier page, each returns to Lobbying.
 - **Organization profile (`/organizations/:id`)**: 1 confirmed organization's lobbying,
   political giving and payments received, read only for the exact spellings and records its
   confirmations cover; group totals follow the shared rule, labelled by filing year when

@@ -33,7 +33,7 @@ export const TOTAL_WITHHELD = 'Missing payment amount';
 /** Every amount is held but neither every date nor every filing year (Round 36). */
 export const PERIOD_INCOMPLETE = 'Reporting period incomplete';
 export const EMPTY_SECTION = 'No confirmed records held';
-export const SECTION_FAILED = 'We couldn’t load these records. This is a problem on our side.';
+export const SECTION_FAILED = 'We couldn’t load these records';
 export const PRINCIPAL_NOT_HELD =
   'This principal is not in the current copy of the lobbying records';
 /** At most this many payment pages are read for 1 spelling. */

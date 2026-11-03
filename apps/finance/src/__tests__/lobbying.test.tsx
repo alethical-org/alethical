@@ -457,6 +457,51 @@ describe('Lobbying directory', () => {
     expect(text()).not.toMatch(/organis|illustrative|example|sample|fixture|demo/i);
   });
 
+  it('keeps the shown rows labelled with their own year when a new year fails to load', async () => {
+    await render(
+      '/lobbying',
+      (match) => <Lobbying match={match} />,
+      directoryAnswer(
+        () => json(lobbyistsPage()),
+        () => json(principalsPage()),
+      ),
+    );
+    const failing = (url: string) =>
+      url.includes('year=2024') && !url.includes('limit=1&')
+        ? new Response(null, { status: 503 })
+        : directoryAnswer(
+            () => json(lobbyistsPage()),
+            () => json(principalsPage()),
+          )(url);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string) => {
+        requests.push(input);
+        return failing(input) ?? new Response(null, { status: 404 });
+      }),
+    );
+    const year = [...container.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
+      b.textContent?.startsWith('Year'),
+    )!;
+    await act(async () => year.click());
+    const option = [...container.querySelectorAll<HTMLElement>('[role="option"] button')].find(
+      (o) => o.textContent?.trim() === '2024',
+    )!;
+    await act(async () => option.click());
+    await settle();
+    // The 2025 rows stay, still labelled 2025, with a failure and Try again.
+    expect(container.querySelector('[role="alert"]')).not.toBeNull();
+    expect(container.querySelector('.lb-head')?.textContent).toContain(
+      'CONTRIBUTIONS RECORDED IN 2025',
+    );
+    expect(container.querySelector('.lb-phone-only')?.textContent).toBe(
+      'Contributions recorded in 2025: ',
+    );
+    expect(
+      container.querySelector<HTMLAnchorElement>('[role="cell"] a')?.getAttribute('href'),
+    ).toContain('year=2025');
+  });
+
   it('sorts lobbyists by contributions on the server for a chosen completed year', async () => {
     await render(
       '/lobbying',
@@ -811,7 +856,10 @@ describe('Lobbyist record', () => {
       (match) => <Lobbyist match={match} />,
       ANSWER(lobbyist()),
     );
-    expect(container.querySelector('.f-back')).toBeNull();
+    // Opened with no earlier page: the drawn named fallback.
+    const back = container.querySelector<HTMLAnchorElement>('.f-back');
+    expect(back?.textContent).toBe('Back to Lobbying');
+    expect(back?.getAttribute('href')).toBe('/lobbying');
     const view = [...container.querySelectorAll('button')].filter(
       (b) => b.textContent === 'View source',
     );

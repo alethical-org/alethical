@@ -231,7 +231,8 @@ function Spending({ principal }: { principal: LobbyingPrincipal }) {
 export function Principal({ match }: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
-  const back = returnTarget(location.search);
+  // With no usable earlier page, the drawn named fallback (contextual page-return rule).
+  const back = returnTarget(location.search) ?? { to: hrefFor('lobbying'), name: 'Lobbying' };
   const id = recordNumber(match.params.id);
   const read = useRead<LobbyingPrincipal>(id ? apiPath(['lobbying', 'principals', id]) : null);
   const record = read.data && String(read.data.entity_id) === id ? read.data : null;
