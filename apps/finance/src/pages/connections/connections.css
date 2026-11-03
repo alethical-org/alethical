@@ -423,6 +423,11 @@
   border: 1px solid #f1d49a;
   color: #6b4a00;
 }
+.mc-notice-busy {
+  background: #fff;
+  border: 1px solid rgba(20, 27, 34, 0.12);
+  color: #141b22;
+}
 .mc-notice-failed {
   background: #fdecec;
   border: 1px solid #f4c9c6;

@@ -12,6 +12,7 @@ import {
   edgePeriod,
   loadedLine,
   moreLabel,
+  paymentCopyLine,
   nodeHref,
   nodeSub,
   type ConnectionsPage,
@@ -213,6 +214,41 @@ describe('the loaded set (Rounds 37 item 7 and 41 item 6)', () => {
   });
 });
 
+describe('copy dates (grounded-answers rule 12; settled wording row 74)', () => {
+  const gift: GraphEdge = {
+    ...payment,
+    id: 'contributions:a',
+    source: { dataset: 'contributions', copied_at: '2026-11-03T15:18:00Z' },
+  };
+  const spent: GraphEdge = {
+    ...payment,
+    source: { dataset: 'expenditures', copied_at: '2026-10-09T21:05:10Z' },
+  };
+
+  it('names each payment file with its own copy date, never 1 combined date', () => {
+    expect(paymentCopyLine([spent, gift])).toBe(
+      'Minnesota Campaign Finance and Public Disclosure Board contribution file, copied Nov 3, 2026; expenditure file, copied Oct 9, 2026. These are copy dates, not reporting periods.',
+    );
+  });
+
+  it('says 1 file’s date is a copy date, and borrows no date for an undated file', () => {
+    expect(paymentCopyLine([spent, { ...gift, source: { dataset: 'contributions' } }])).toBe(
+      'Minnesota Campaign Finance and Public Disclosure Board expenditure file, copied Oct 9, 2026. This is a copy date, not a reporting period.',
+    );
+  });
+
+  it('prints no copy line without a dated payment file', () => {
+    expect(
+      paymentCopyLine([
+        { ...spent, source: { dataset: 'station_file', copied_at: '2026-10-09T21:05:10Z' } },
+      ]),
+    ).toBeNull();
+    expect(
+      paymentCopyLine([{ ...spent, source: { dataset: 'expenditures', copied_at: 'soon' } }]),
+    ).toBeNull();
+  });
+});
+
 describe('the map', () => {
   it('wraps long words without losing letters or exceeding the measured width', () => {
     const text = 'A verylongunbrokenorganizationnamewithallitsletters remains readable';
@@ -309,9 +345,9 @@ describe('Money connections page', () => {
       'A connection does not show that one payment funded another.',
     );
     expect(button('Show ')).toBeUndefined();
-    // Opened with no earlier page: the drawn fallback to Finance Home.
+    // Opened with no earlier page: the drawn fallback to Home, named by its heading.
     const back = container.querySelector<HTMLAnchorElement>('.f-back');
-    expect(back?.textContent).toBe('Back to Finance Home');
+    expect(back?.textContent).toBe('Back to Research public records');
     expect(back?.getAttribute('href')).toBe('/home');
   });
 
@@ -380,6 +416,40 @@ describe('Money connections page', () => {
     expect(container.textContent).toContain('Some connections could not be loaded');
     expect(container.textContent).toContain('100 connections');
     expect(button('Try again')).toBeDefined();
+  });
+
+  it('keeps loaded rows with the drawn busy notice when the server stays busy', async () => {
+    const first = Array.from({ length: 100 }, (_, i) => ({ ...payment, id: `e${i}` }));
+    serve((url) =>
+      url.searchParams.get('offset') === '100'
+        ? new Response(null, { status: 503, headers: { 'Retry-After': '0.01' } })
+        : answer(page({ edges: first, total: 150, has_more: true })),
+    );
+    await act(async () => root.render(<MoneyConnections />));
+    await flush();
+    await act(async () => button('Show 50 more connections')!.click());
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+    await flush();
+    const notice = container.querySelector('.mc-notice-busy');
+    expect(notice?.getAttribute('role')).toBe('status');
+    expect(notice?.textContent).toContain(
+      'The service is busy. The connections shown are the last loaded.',
+    );
+    expect(container.textContent).not.toContain('Some connections could not be loaded');
+    expect(button('Show 50 more connections')).toBeUndefined();
+    expect(container.textContent).toContain('100 connections');
+    expect(button('Try again')).toBeDefined();
+  });
+
+  it('shows the loaded payment files’ copy dates under Sources and updates', async () => {
+    serve(() => answer(page()));
+    await act(async () => root.render(<MoneyConnections />));
+    await flush();
+    const sources = container.querySelector('[aria-labelledby="sources-heading"]');
+    expect(sources?.textContent).toContain('expenditure file, copied');
+    expect(sources?.textContent).toContain('This is a copy date, not a reporting period.');
   });
 
   it('names unavailable sources without counting them', async () => {
