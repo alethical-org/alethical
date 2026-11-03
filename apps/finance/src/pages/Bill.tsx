@@ -143,7 +143,7 @@ export function Bill({ match }: { match: RouteMatch }) {
     return (
       <Frame back={back}>
         <Refused onRetry={record.retry} retrying={record.pending}>
-          We couldn’t load this bill right now. Please try again in a moment.
+          We couldn’t load this bill
         </Refused>
       </Frame>
     );
@@ -342,7 +342,7 @@ export function Bill({ match }: { match: RouteMatch }) {
               {votes.loading && <LoadingRows />}
               {votes.failed && (
                 <Refused onRetry={votes.retry} retrying={votes.pending}>
-                  We couldn’t load this bill’s votes right now. Please try again in a moment.
+                  We couldn’t load this bill’s votes
                 </Refused>
               )}
               {votes.data && voteList.length === 0 && (
@@ -683,7 +683,7 @@ function BillText({
   if (read.failed) {
     return (
       <Refused onRetry={read.retry} retrying={read.pending}>
-        We couldn’t load the full text right now. Please try again in a moment.
+        We couldn’t load the full text
       </Refused>
     );
   }

@@ -734,7 +734,7 @@ describe('Bill', () => {
   it('offers Try again when the bill fails to load', async () => {
     await renderBill('/bills/94-2025-SF334', broken);
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t load this bill right now. Please try again in a moment.',
+      'We couldn’t load this bill',
     );
   });
 });
