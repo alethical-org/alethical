@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from alethical.api.finance_access import require_finance_access
-from alethical.api.routers.public import campaign_finance_search
+from alethical.api.routers.public import _payment_page_payload, campaign_finance_search
 from alethical.api.services.campaign_finance_search import MIN_QUERY_LENGTH
 from alethical.api.routers.public import same_legislature_session_ids
 from alethical.api.routers.public import search as legislature_search
@@ -28,6 +28,7 @@ from alethical.api.services import (
     finance_payees,
     finance_people,
     finance_connections,
+    finance_payments_under_name as under_name,
 )
 from alethical.db.models import Bill, Legislator, LegislatorServicePeriod, Sponsorship
 from alethical.db.session import get_db
@@ -71,6 +72,83 @@ def money_connections(
             headers={"Cache-Control": "private, no-store", "Retry-After": "10"},
         )
     return {"data": data}
+
+
+@router.get("/payments-under-name")
+def payments_under_name(
+    name: str = Query(min_length=1, max_length=200, pattern=r"^[^\x00]*$"),
+    role: under_name.Role = Query(),
+    year: int | None = Query(default=None, ge=2015, le=2100),
+    filer: str | None = Query(
+        default=None, min_length=1, max_length=20, pattern=r"^[^\x00]*$"
+    ),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0, le=2147483647),
+    release_id: UUID | None = None,
+    db: Session = Depends(get_db),
+) -> dict:
+    """alethical.com's payments under 1 exact printed name, with Finance's facts per row.
+
+    The rows, states and paging are ``/campaign-finance/payments-under-name``'s own.
+    Each payment adds its ``fingerprint``, the ``identity`` it is confirmed to (or
+    null), its ``evidence`` locator and ``excerpt``; ``identities`` counts the records
+    each identity holds in this scope. ``filer`` limits rows and counts to 1 filer's
+    filings. ``release_id`` pins the Board's file: a changed file answers 409.
+    """
+    try:
+        result = under_name.read(
+            db,
+            name=name,
+            role=role,
+            year=year,
+            filer=filer,
+            limit=limit,
+            offset=offset,
+            release_id=release_id,
+        )
+    except under_name.ReleaseChanged:
+        raise HTTPException(409, "The Board's file changed. Reload the records.")
+    except under_name.NothingPublished:
+        # Missing records are a state, not a failure (grounded-answers rule 12).
+        return {
+            "data": {
+                "name": name,
+                "role": role,
+                "year": year,
+                "filer": filer,
+                "record_kind": under_name.ROLES[role][2],
+                "identities": [],
+                "state": "unavailable",
+                "payments": [],
+                "page": {
+                    "limit": limit,
+                    "offset": offset,
+                    "has_more": False,
+                    "total_payments": None,
+                },
+                "linkable_registration_numbers": [],
+                "dataset": under_name.dataset_for(role).value,
+                "source_url": None,
+                "release_id": None,
+                "fetched_at": None,
+            }
+        }
+    payload = _payment_page_payload(result["page"])
+    payload["payments"] = [
+        {**payment, **extra}
+        for payment, extra in zip(payload["payments"], result["rows"], strict=True)
+    ]
+    return {
+        "data": {
+            "name": name,
+            "role": role,
+            "year": year,
+            "filer": filer,
+            "record_kind": result["record_kind"],
+            "identities": result["identities"],
+            **payload,
+        }
+    }
 
 
 @router.get("/access")
