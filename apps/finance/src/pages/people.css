@@ -577,6 +577,11 @@
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+/* End-of-section commentary 24px below the figures (eug-26): the card's 14px
+ * gap plus 10px. */
+.cf-notes {
+  padding-top: 10px;
+}
 .cf-notes p {
   margin: 0;
   font-size: 13px;

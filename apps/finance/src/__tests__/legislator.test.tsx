@@ -260,6 +260,10 @@ describe('Legislator profile', () => {
     expect(text()).toContain('2025–26 session');
     expect(links).toContain('/bills/94-2025-HF1596?from=%2Flegislators%2Fpatty-acomb');
     expect(links).toContain(CURRENT.current_service!.profile_url);
+    // Related records are stacked two-line link rows (eug-8, Round 34).
+    const official = container.querySelector(`a[href="${CURRENT.current_service!.profile_url}"]`);
+    expect(official?.className).toContain('f-row-link');
+    expect(official?.closest('ul')?.className).toBe('f-row-links');
     expect(text()).toContain('Bills updated Oct 20, 2026');
     expect(text()).toContain('Payment files copied Oct 28, 2026');
   });
@@ -278,6 +282,7 @@ describe('Legislator profile', () => {
     );
     expect(card.textContent).toContain('$3,485');
     expect(card.textContent).toContain(DONOR_THRESHOLD_SENTENCE);
+    expect(card.querySelector('.cf-notes p')?.textContent).toBe(DONOR_THRESHOLD_SENTENCE);
     const pressed = card.querySelector('[aria-pressed="true"]');
     expect(pressed?.textContent).toBe('2025');
     // Key figures under the name read the same account-year.
@@ -313,6 +318,8 @@ describe('Legislator profile', () => {
     expect(card.textContent).toContain('Not reported');
     expect(card.textContent).not.toContain('$0');
     expect(card.textContent).toContain('We do not hold an official contribution total');
+    // The notes are one group: with a 2-sentence note beside it, the donor line ends with a period.
+    expect(card.querySelector('.cf-notes p')?.textContent).toBe(`${DONOR_THRESHOLD_SENTENCE}.`);
     expect(text()).toContain('No confirmed records held');
   });
 

@@ -393,7 +393,11 @@ function AccountCard({
           <FigureList figures={accountFigures(held ? committee : null)} className="cf-figs" />
           {held && committee && (
             <div className="cf-notes">
-              <p>{DONOR_THRESHOLD_SENTENCE}</p>
+              {/* One group (eug-31): when the 2-sentence split note shows, every line ends with a period. */}
+              <p>
+                {DONOR_THRESHOLD_SENTENCE}
+                {split && /\.\s/.test(split) ? '.' : ''}
+              </p>
               {split && <p>{split}</p>}
             </div>
           )}
