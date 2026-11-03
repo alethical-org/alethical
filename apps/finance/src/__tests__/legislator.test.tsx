@@ -371,7 +371,8 @@ describe('Legislator profile', () => {
 
   it('a failed record read offers Try again and shows no other record', async () => {
     await render('/legislators/patty-acomb', () => new Response(null, { status: 503 }));
-    expect(text()).toContain('We couldn’t load this record. This is a problem on our side.');
+    expect(text()).toContain('We couldn’t load this record');
+    expect(text()).not.toContain('problem on our side');
     expect(container.querySelector('h1')).toBeNull();
   });
 

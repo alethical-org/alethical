@@ -29,6 +29,7 @@ import {
 import type { GivenPayment, Identity, IdentitySummary, PaidPayment } from './organization/types';
 import { splitPartSub, splitPartTarget } from './organization/split';
 import { useLoad } from './organization/useLoad';
+import { seatParts } from './seat';
 import './people.css';
 import './person.css';
 export interface PersonRecord {
@@ -109,18 +110,24 @@ export function timelineRows(
   for (const e of record?.elections ?? []) {
     const outcome = finalOutcome(e.result);
     const status = e.result ? RESULT_LABELS[e.result.status] : RESULT_LABELS.pending;
+    // Each seat fact once: the served office often repeats the district its voting
+    // area names ("State Representative District 56A", "House District 56A").
+    const seat = seatParts(e.office, e.votingArea);
+    const office = seat[0] || e.office;
     const title = outcome
-      ? `${OUTCOME_LABELS[outcome]} · ${e.office}`
+      ? `${OUTCOME_LABELS[outcome]} · ${office}`
       : upcoming(e, today)
-        ? `Running for ${e.office}`
-        : `${status} · ${e.office}`;
+        ? `Running for ${office}`
+        : `${status} · ${office}`;
     const year = e.election.date.slice(0, 4);
     rows.push({
       key: `e|${e.candidateId}`,
       date: e.election.date,
       kind: 'ELECTION',
       title,
-      detail: [electionKind(e.election), e.votingArea, status].filter(Boolean).join(' · '),
+      detail: [electionKind(e.election), seat.slice(1).join(', ') || e.votingArea, status]
+        .filter(Boolean)
+        .join(' · '),
       href: isBuilt('candidate') ? hrefFor('candidate', { id: e.candidateId }) : null,
       link: 'View candidate profile',
       source: [
@@ -311,7 +318,8 @@ function SplitChoice({ parts, here }: { parts: IdentitySummary[]; here: string }
 export function Person({ match }: { match: RouteMatch }) {
   const location = useLocation(),
     here = location.pathname + location.search,
-    back = returnTarget(location.search),
+    // With no usable earlier page, the drawn named fallback (contextual page-return rule).
+    back = returnTarget(location.search) ?? { to: hrefFor('people'), name: 'People' },
     id = match.params.id;
   const [sourceItems, setSourceItems] = useState<string[]>([]);
   useEffect(() => setSourceItems([]), [id]);
@@ -373,7 +381,7 @@ export function Person({ match }: { match: RouteMatch }) {
             }}
             retrying={loading}
           >
-            We couldn’t load this record. This is a problem on our side.
+            We couldn’t load this record
           </Refused>
         )}
         {notFound && (
