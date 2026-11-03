@@ -290,3 +290,35 @@ it('says Running for while an upcoming election’s result is pending', () => {
     'General election · District 1A · Election results pending',
   );
 });
+it('names each seat fact once when the served office repeats the voting area', () => {
+  // The live record's shape: the office carries the district, and the voting area
+  // names it again with its chamber.
+  const live = {
+    ...profile,
+    elections: [
+      {
+        ...profile.elections[0],
+        office: 'State Representative District 56A',
+        votingArea: 'House District 56A',
+        election: { id: 'e3', date: '2026-11-03', type: 'general' as const },
+        result: { status: 'pending' as const },
+      },
+    ],
+  };
+  const [row] = timelineRows(live, null, '2026-11-02');
+  expect(row.title).toBe('Running for State Representative');
+  expect(row.detail).toBe('General election · District 56A · Election results pending');
+});
+it('returns to People when opened with no earlier page', async () => {
+  window.history.replaceState(null, '', '/people/p');
+  await render((url) =>
+    url.pathname.endsWith('/people/p')
+      ? json(profile, false)
+      : url.pathname.endsWith('/lookup')
+        ? json(null)
+        : json({ link_state: 'unconfirmed', years: [] }),
+  );
+  const back = container.querySelector<HTMLAnchorElement>('.f-back');
+  expect(back?.textContent).toBe('Back to People');
+  expect(back?.getAttribute('href')).toBe('/people');
+});

@@ -291,6 +291,15 @@ describe('People controls (Design Rounds 30 to 37)', () => {
     );
   });
 
+  it('asks for another name only when a name was typed', async () => {
+    // The server holds no former legislators: an empty answer to a filter alone.
+    await render('/people?type=legislators&service=former', (url) =>
+      url.includes('service=former') ? loaded(`${url}&q=nobody-at-all`) : loaded(url),
+    );
+    expect(text()).toContain('No matching records');
+    expect(text()).not.toContain('Try another name');
+  });
+
   it('says what to try when nothing matches', async () => {
     await render('/people?q=Nobody', loaded);
     expect(text()).toContain('No matching records');
