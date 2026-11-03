@@ -1,0 +1,47 @@
+.person-timeline > .f-section-title {
+  margin: 0 0 12px;
+}
+.person-event {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 16px;
+  padding: 14px 20px;
+}
+.person-event > div {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  overflow-wrap: anywhere;
+}
+.person-date {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--secondary);
+}
+.person-event-kind {
+  width: max-content;
+}
+.person-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  width: fit-content;
+  font-size: 14px;
+}
+.person-money-sources {
+  font-size: 13px;
+  color: var(--secondary);
+}
+.person-money-sources p {
+  margin: 0;
+}
+@media (max-width: 767px) {
+  .person-event {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    padding: 14px 16px;
+  }
+  .person-link {
+    min-height: 44px;
+  }
+}

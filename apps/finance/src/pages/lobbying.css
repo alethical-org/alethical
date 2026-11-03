@@ -112,9 +112,6 @@
   box-sizing: border-box;
   border-bottom: 1px solid rgba(20, 27, 34, 0.08);
 }
-.lb-table-two .lb-tr {
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-}
 .lb-tr:last-child {
   border-bottom: 0;
 }
@@ -155,6 +152,9 @@
 }
 .lb-strong {
   font-weight: 700;
+}
+.lb-spending.lb-strong .lb-spending-value {
+  white-space: nowrap;
 }
 .lb-missing {
   font-weight: 400;

@@ -153,8 +153,9 @@ export const ROUTES: readonly RouteDefinition[] = [
 ];
 
 /** The signed-in screens that are built. Every other route answers not found
- * and is never linked to. Vendors and payees (`recipients`) has a page but stays
- * unbuilt until the server serves the payee list its drawing needs (#2783). */
+ * and is never linked to. A screen that exists in the code but has not been
+ * aligned with Design's current drawing stays off this list until the pull
+ * request that aligns it turns it on. */
 export const BUILT: ReadonlySet<RouteName> = new Set<RouteName>([
   'landing',
   'home',

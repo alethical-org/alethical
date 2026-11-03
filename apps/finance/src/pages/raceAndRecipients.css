@@ -560,3 +560,53 @@
     width: 100%;
   }
 }
+
+.vp-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+.vp-row.vp-full {
+  grid-template-columns: minmax(0, 1.6fr) 150px 120px minmax(150px, 1fr) minmax(0, 1.1fr);
+}
+.vp-file {
+  display: block;
+  font-size: 12px;
+  color: var(--secondary);
+  margin-top: 4px;
+}
+.vp-tag[data-confirmed] {
+  background: var(--tint);
+  border-color: var(--link);
+  color: var(--link);
+}
+.vp-amount {
+  font-weight: 800;
+  text-align: right;
+  white-space: nowrap;
+}
+.vp-amount[data-missing] {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: normal;
+}
+.vp-period {
+  font-size: 13px;
+  color: var(--secondary);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1099px) and (min-width: 768px) {
+  .vp-row.vp-full {
+    grid-template-columns: minmax(0, 1.4fr) 130px 92px minmax(100px, 1fr) minmax(0, 1fr);
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
+@media (max-width: 767px) {
+  .vp-phone-row .vp-records,
+  .vp-phone-row .vp-amount {
+    text-align: left;
+  }
+}

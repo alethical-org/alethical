@@ -1104,6 +1104,8 @@
 /* ---------- Dropdown ---------- */
 .f-dropdown {
   position: relative;
+}
+.f-dropdown[data-open] {
   z-index: 40;
 }
 .f-dropdown-button {
@@ -1137,6 +1139,7 @@
   transform: rotate(180deg);
 }
 .f-dropdown-list {
+  box-sizing: border-box;
   animation: f-lift 0.16s var(--ease) both;
   position: absolute;
   z-index: 1;
