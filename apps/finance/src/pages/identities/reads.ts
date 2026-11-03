@@ -41,14 +41,22 @@ const MAX_HISTORY_IDENTITIES = 1000;
 export function useIdentities(ids: ReadonlyArray<string>, version: number): IdentityReads {
   const { apiBaseUrl, accessToken } = useFinanceSession();
   const wanted = useMemo(() => [...new Set(ids)].sort(), [ids.join('|')]);
-  const [held, setHeld] = useState<Map<string, Identity>>(new Map());
+  const scope = `${apiBaseUrl}|${accessToken}|${wanted.join('|')}`;
+  const [held, setHeld] = useState<{ scope: string; byId: Map<string, Identity> }>({
+    scope: '',
+    byId: new Map(),
+  });
+  const byId = useMemo(
+    () => (held.scope === scope ? held.byId : new Map<string, Identity>()),
+    [held, scope],
+  );
   const [state, setState] = useState<{ key: string; failed: boolean; done: boolean }>({
     key: '',
     failed: false,
     done: false,
   });
   const [attempt, setAttempt] = useState(0);
-  const key = `${apiBaseUrl}|${accessToken}|${wanted.join('|')}|${version}|${attempt}`;
+  const key = `${scope}|${version}|${attempt}`;
 
   useEffect(() => {
     if (wanted.length === 0) {
@@ -92,7 +100,7 @@ export function useIdentities(ids: ReadonlyArray<string>, version: number): Iden
         pending = [...next];
       }
       if (!live) return;
-      setHeld(found);
+      if (!failed) setHeld({ scope, byId: found });
       setState({ key, failed, done: true });
     })();
     return () => {
@@ -103,8 +111,8 @@ export function useIdentities(ids: ReadonlyArray<string>, version: number): Iden
 
   const current = state.key === key;
   return {
-    byId: held,
-    loading: wanted.length > 0 && (!current || !state.done) && held.size === 0,
+    byId,
+    loading: wanted.length > 0 && (!current || !state.done) && byId.size === 0,
     failed: current && state.failed,
     settled: wanted.length === 0 || (current && state.done && !state.failed),
     retry: () => setAttempt((value) => value + 1),

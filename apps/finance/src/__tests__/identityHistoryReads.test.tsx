@@ -7,8 +7,12 @@ import { historyRows } from '../pages/identities/history';
 import type { Identity } from '../pages/identities/types';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+const session = vi.hoisted(() => ({
+  apiBaseUrl: 'https://api.example.test',
+  accessToken: 'token',
+}));
 vi.mock('../auth/session', () => ({
-  useFinanceSession: () => ({ apiBaseUrl: 'https://api.example.test', accessToken: 'token' }),
+  useFinanceSession: () => session,
 }));
 
 let container: HTMLDivElement;
@@ -62,6 +66,7 @@ function serve(records: Map<string, Identity>, missingStatus = 404) {
   return calls;
 }
 beforeEach(() => {
+  session.accessToken = 'token';
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -179,4 +184,83 @@ it('keeps earlier merge events when their receiving identity is merged again', (
   const rows = historyRows(identities, 'payee_name', 'Printed name', 1);
   expect(rows.map((row) => row.key)).toEqual(['merge|middle|part', 'merge|original|middle']);
   expect(rows[1].text).toContain('Name original');
+});
+
+it('keeps creation wording when a merged-in confirmation arrives before its original holder', () => {
+  const original = record('original', [
+    { action: 'created', at: '2026-10-01', detail: {} },
+    { action: 'confirmed', at: '2026-10-01', detail: { confirmation_id: 'created-confirmation' } },
+  ]);
+  original.status = 'merged';
+  const confirmation = {
+    id: 'created-confirmation',
+    identity_id: 'original',
+    record_kind: 'payee_name',
+    record_key: 'Printed name',
+    relation: null,
+    status: 'confirmed',
+    checked_at: '2026-10-01',
+    withdrawn_at: null,
+    withdrawal_reason: null,
+    basis: 'Saved evidence',
+    source: 'Saved source',
+    replaces: null,
+    replaced_by: null,
+    evidence: null,
+    records: null,
+  } as NonNullable<Identity['confirmations']>[number];
+  original.confirmations = [confirmation];
+  const current = record('current');
+  current.confirmations = [confirmation];
+  const rows = historyRows(
+    new Map([
+      ['current', current],
+      ['original', original],
+    ]),
+    'payee_name',
+    'Printed name',
+    1,
+  );
+  expect(rows).toHaveLength(1);
+  expect(rows[0].text).toContain(
+    'Created Name original (ORG-original) and confirmed this name as it',
+  );
+});
+
+it('keeps the last complete history when retry fails halfway through the chain', async () => {
+  const records = new Map([
+    ['part', record('part', madeFrom('older'))],
+    ['older', record('older')],
+  ]);
+  serve(records);
+  await render();
+  expect(container.textContent).toContain('part,older');
+  records.delete('older');
+  await act(async () => container.querySelector('button')!.click());
+  await render();
+  expect(container.textContent).toContain('failed');
+  expect(container.textContent).toContain('part,older');
+});
+
+it('never retains another account history when its new read fails', async () => {
+  serve(new Map([['part', record('part')]]));
+  await render();
+  expect(container.textContent).toContain('part');
+  session.accessToken = 'another-account';
+  let finish: (response: Response) => void;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          finish = resolve;
+        }),
+    ),
+  );
+  await act(async () => root.render(<Probe />));
+  expect(container.textContent).not.toContain('part');
+  await act(async () => finish!(new Response('{}', { status: 500 })));
+  await render();
+  expect(container.textContent).toContain('failed');
+  expect(container.textContent).not.toContain('part');
 });

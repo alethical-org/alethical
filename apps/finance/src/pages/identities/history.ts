@@ -63,14 +63,15 @@ export function historyRows(
   >();
   for (const identity of identities.values()) {
     const history = identity.history ?? [];
-    const createdWith =
-      history[0]?.action === 'created' && !history[0].detail?.split_from
-        ? history.find((event) => event.action === 'confirmed')?.detail?.confirmation_id
-        : null;
     for (const confirmation of confirmationsOf(identity, kind, name)) {
       if (seen.has(confirmation.id)) continue;
       seen.add(confirmation.id);
       const holder = identities.get(confirmation.identity_id) ?? identity;
+      const holderHistory = holder.history ?? [];
+      const createdWith =
+        holderHistory[0]?.action === 'created' && !holderHistory[0].detail?.split_from
+          ? holderHistory.find((event) => event.action === 'confirmed')?.detail?.confirmation_id
+          : null;
       const k = coveredRows(confirmation);
       // Every event stays; a count resting on a file that is not held is dropped, never
       // printed as 0 (settled wording row 27).
@@ -82,7 +83,7 @@ export function historyRows(
           at: confirmation.checked_at,
           date: day(confirmation.checked_at) ?? '',
           text:
-            createdWith === confirmation.id && holder.id === identity.id
+            createdWith === confirmation.id
               ? `Created ${named(holder)} and confirmed this name as it${scope}`
               : `Confirmed as ${named(holder)}${scope}`,
           evidence: [
