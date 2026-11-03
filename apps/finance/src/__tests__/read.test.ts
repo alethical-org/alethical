@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { apiGet, apiPath, MAX_CONCURRENT_READS } from '../api/read';
+import { apiGet, apiPath, BUSY_RETRIES, MAX_CONCURRENT_READS } from '../api/read';
 
 afterEach(() => vi.useRealTimers());
 
@@ -60,6 +60,17 @@ describe('apiGet', () => {
       state: 'failed',
     });
     expect(plain).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks a failure busy only when the server stays busy through every retry', async () => {
+    vi.useFakeTimers();
+    const busy = vi.fn(
+      async () => new Response(null, { status: 503, headers: { 'Retry-After': '1' } }),
+    );
+    const pending = apiGet('https://api.test', 'bills/1', null, busy);
+    await vi.advanceTimersByTimeAsync(5000);
+    await expect(pending).resolves.toEqual({ state: 'failed', busy: true });
+    expect(busy).toHaveBeenCalledTimes(BUSY_RETRIES + 1);
   });
 });
 
