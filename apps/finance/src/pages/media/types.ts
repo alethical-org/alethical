@@ -1,3 +1,6 @@
+/** Answers of `/finance/media-buys/*` (alethical/api/finance_media_buys_schemas.py).
+ * A file is keyed by station and FCC source file id (`{station slug}-{file id}`),
+ * never by its filename; a version is the exact content hash. */
 export interface Source {
   call_sign: string;
   facility_id: string;
@@ -18,12 +21,16 @@ export interface FileRow {
   station: string;
   year: number | null;
   category: string;
+  kind?: string | null;
   uploaded_at: string | null;
   version_id: string;
   version_count: number;
   source_changed: boolean;
   agency_unchecked?: boolean;
   role?: string | null;
+  match_label?: string | null;
+  excerpt?: string | null;
+  text_match?: boolean | null;
 }
 export interface Group {
   key: string;
@@ -46,12 +53,14 @@ export interface Browse {
   page_size: number;
   total: number;
   capped: boolean;
-  rows: Group[];
+  /** File rows while a search runs; folder, name, station or year groups otherwise. */
+  rows: Array<Group | FileRow>;
   years: number[];
   categories: string[];
 }
 export interface Fact {
   id: string;
+  /** The printed label for the checked field ("Gross amount", "Bill to"). */
   kind: string;
   status: 'checked' | 'withdrawn';
   version_id: string;
@@ -62,7 +71,7 @@ export interface Fact {
   page?: number | null;
   checked_at?: string | null;
   withdrawn_at?: string | null;
-  history: { value: string; corrected_at: string }[];
+  history?: { value: string; corrected_at: string }[];
 }
 export interface Connection {
   id: string;
@@ -80,15 +89,29 @@ export interface Connection {
   page?: number | null;
   checked_at?: string | null;
   withdrawn_at?: string | null;
+  reported_amount?: string | null;
+  reported_date?: string | null;
+  source_changed?: boolean | null;
+  evidence_label?: string | null;
+}
+export interface Version {
+  id: string;
+  first_saved_at: string;
+  uploaded_at: string | null;
+}
+export interface FilePage {
+  number: number;
+  text: string | null;
+  text_status: string;
 }
 export interface FileDetail extends FileRow {
   agencies: { key: string; name: string; unchecked: boolean }[];
   folder: { key: string; label: string };
   fcc_url: string;
   fcc_available: boolean;
-  versions: { id: string; first_saved_at: string; uploaded_at: string | null }[];
+  versions: Version[];
   page_count: number;
-  pages: { number: number; text: string | null; text_status: string; image: string }[];
+  pages: FilePage[];
   facts: Fact[];
   dates: Fact[];
   connections: Connection[];
@@ -104,22 +127,21 @@ export interface Folder {
   relationship: Connection | null;
   files: FileRow[];
 }
+export interface AddressEvidence {
+  file_key: string;
+  file_name: string;
+  version_id: string;
+  page: number;
+  uploaded_at?: string | null;
+  checked_at: string;
+  role?: string | null;
+}
 export interface Agency {
   key: string;
   name: string;
   unchecked: boolean;
   groups: { station: string; year: number | null; files: FileRow[] }[];
-  addresses: {
-    address: string;
-    role?: string | null;
-    evidence: {
-      file_key: string;
-      file_name: string;
-      version_id: string;
-      page: number;
-      checked_at: string;
-    }[];
-  }[];
+  addresses: { address: string; role?: string | null; evidence: AddressEvidence[] }[];
 }
 export interface Counts {
   station_files_held: number;
@@ -137,4 +159,53 @@ export interface Station extends Source {
     categories: { name: string; count: number }[];
     file_count: number;
   }[];
+}
+export interface QueueRow extends FileRow {
+  saved_at: string;
+  suggestion_count: number;
+  reasons: Array<{ kind: 'agency_checked_elsewhere' | 'folder_committee_checked'; label: string }>;
+}
+export interface Queue {
+  rows: QueueRow[];
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+  sort: string;
+}
+export interface Suggestion {
+  field: string;
+  machine_field: string;
+  value: string;
+  page: number;
+  pages: number[];
+  quote: string;
+  in_source_text: boolean;
+  already_checked: boolean;
+}
+export interface Suggestions {
+  key: string;
+  version_id: string;
+  extraction_version: string;
+  facts: Suggestion[];
+}
+export interface TargetPreview {
+  kind: string;
+  target_id: string;
+  label: string;
+  target_fingerprint: string;
+  fields: { label: string; value: string }[];
+  source_dataset?: string | null;
+  source_snapshot_id?: string | null;
+  source_content_hash?: string | null;
+  source_row_number?: number | null;
+  source_date?: string | null;
+}
+export interface Connected {
+  committee?: { name: string; office: string | null; district: string | null } | null;
+  agency_key: string | null;
+  exact_name_count: number;
+  files: FileRow[];
+  total: number;
+  groups: { label: string; files: FileRow[] }[];
 }
