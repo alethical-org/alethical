@@ -11,11 +11,17 @@ payments a spelling has. Finance adds what only Finance accounts may see, per ro
   fingerprint under this exact spelling, or ``None``. A confirmation is never inferred
   from a name.
 * ``evidence``: where the row is held (file, saved copy, record number, address,
-  copy date) and ``excerpt``, its printed fields exactly as fingerprinted.
+  copy date) and ``excerpt``: every column of the row as the file lays it out, an
+  ordered list of [the file's column label, the held value]. Text is exactly as
+  printed; amounts, dates and years are the values the loader parsed from it.
 
 and for the whole filtered set, ``identities``: each identity holding records of this
 spelling in scope, with how many. ``filer`` narrows rows and every count to 1 filer's
 own filings. Nothing here sums money.
+
+Each source row appears and counts once. The database already lets a fingerprint
+belong to at most 1 active confirmation, and a merge moves no confirmation, but the
+read takes 1 claim per row anyway, so no change elsewhere can double a count here.
 """
 
 from __future__ import annotations
@@ -24,7 +30,7 @@ from collections import defaultdict
 from typing import Literal
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import Text, cast, func, literal, select
 from sqlalchemy.orm import Session
 
 from alethical.api.services import (
@@ -33,6 +39,7 @@ from alethical.api.services import (
     identity_confirmations as identities,
 )
 from alethical.db import models as m
+from alethical.pipeline.campaign_finance import SPEC_BY_DATASET
 
 Role = Literal["contributor", "vendor", "independent_vendor", "employer"]
 
@@ -56,6 +63,11 @@ FILER_COLUMN = {
 }
 
 
+def dataset_for(role: Role):
+    """The Board file a role's rows come from."""
+    return identities._PRINTED[ROLES[role][2]].dataset
+
+
 class ReleaseChanged(Exception):
     """The caller's pinned release is not the published one."""
 
@@ -64,8 +76,22 @@ class NothingPublished(Exception):
     """No usable release is published, which says nothing about any name."""
 
 
+def _excerpt(printed):
+    """The whole row in the file's column order: [label, held value as text]."""
+    spec = SPEC_BY_DATASET[printed.dataset]
+    return func.jsonb_build_array(
+        *(
+            func.jsonb_build_array(
+                cast(literal(column.source), Text),
+                cast(getattr(printed.model, column.attribute), Text),
+            )
+            for column in spec.columns
+        )
+    )
+
+
 def _claims(db: Session, kind: str, name: str, where: list):
-    """Rows in scope with their fingerprint and active confirmation, as a subquery."""
+    """Rows in scope, 1 per source row, with their fingerprint and active claim."""
     printed = identities._PRINTED[kind]
     model = printed.model
     record, confirmation = m.IdentityConfirmedRecord, m.IdentityConfirmation
@@ -74,9 +100,10 @@ def _claims(db: Session, kind: str, name: str, where: list):
         select(
             model.row_number.label("row_number"),
             fingerprint.label("fingerprint"),
-            printed.printed_fields().label("excerpt"),
+            _excerpt(printed).label("excerpt"),
             confirmation.entity_id.label("entity_id"),
         )
+        .distinct(model.row_number)
         .select_from(model)
         .outerjoin(record, (record.fingerprint == fingerprint) & record.active)
         .outerjoin(
@@ -87,6 +114,13 @@ def _claims(db: Session, kind: str, name: str, where: list):
             & (confirmation.record_key == name),
         )
         .where(printed.name == name, *where)
+        # 1 claim per source row: a claim of this spelling first, then the earliest.
+        .order_by(
+            model.row_number,
+            confirmation.entity_id.is_(None),
+            confirmation.checked_at,
+            confirmation.id,
+        )
     )
 
 
@@ -104,6 +138,8 @@ def read(
     committee_finance.pin_to_one_view(db)
     release = committee_finance.current_release(db)
     if release is None:
+        # A fact about our records, never about the name: the same unavailable
+        # state Finance's other money reads give, with no count.
         raise NothingPublished()
     if release_id is not None and release.id != release_id:
         raise ReleaseChanged()

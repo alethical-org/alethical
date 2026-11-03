@@ -108,11 +108,30 @@ def payments_under_name(
     except under_name.ReleaseChanged:
         raise HTTPException(409, "The Board's file changed. Reload the records.")
     except under_name.NothingPublished:
-        raise problem_exception(
-            503,
-            "Service Unavailable",
-            "No campaign-finance release is published; this says nothing about the name.",
-        ) from None
+        # Missing records are a state, not a failure (grounded-answers rule 12).
+        return {
+            "data": {
+                "name": name,
+                "role": role,
+                "year": year,
+                "filer": filer,
+                "record_kind": under_name.ROLES[role][2],
+                "identities": [],
+                "state": "unavailable",
+                "payments": [],
+                "page": {
+                    "limit": limit,
+                    "offset": offset,
+                    "has_more": False,
+                    "total_payments": None,
+                },
+                "linkable_registration_numbers": [],
+                "dataset": under_name.dataset_for(role).value,
+                "source_url": None,
+                "release_id": None,
+                "fetched_at": None,
+            }
+        }
     payload = _payment_page_payload(result["page"])
     payload["payments"] = [
         {**payment, **extra}

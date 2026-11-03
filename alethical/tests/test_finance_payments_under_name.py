@@ -69,8 +69,23 @@ def test_each_row_carries_the_fingerprint_confirmations_store(finance_api, board
         "source_url": data["source_url"],
         "copied_at": first["evidence"]["copied_at"],
     }
-    assert first["excerpt"]["contributor"] == DONOR
-    assert first["excerpt"]["amount"] == "250.0000"
+    # The whole row in the file's own column order, labelled as the file labels it.
+    labels = [label for label, _ in first["excerpt"]]
+    assert labels[:5] == [
+        "Recipient reg num",
+        "Recipient",
+        "Recipient type",
+        "Recipient subtype",
+        "Amount",
+    ]
+    assert labels[-1] == "Contrib Employer name"
+    printed = dict(first["excerpt"])
+    assert (printed["Contributor"], printed["Amount"], printed["Receipt date"]) == (
+        DONOR,
+        "250.0000",
+        "2026-03-02",
+    )
+    assert printed["Recipient type"] is None
 
 
 def test_rows_name_the_identity_their_fingerprint_is_confirmed_to(finance_api, board):
@@ -192,3 +207,54 @@ def test_a_changed_release_is_refused_and_bad_input_is_422(finance_api, board):
     read(finance_api, status=422, name="bad\x00name", role="contributor")
     read(finance_api, status=422, name=DONOR, role="donor")
     read(finance_api, status=422, name=DONOR, role="contributor", limit=500)
+
+
+def test_a_fingerprint_is_claimed_once_so_each_row_counts_once(finance_api, board):
+    held = prints(finance_api)
+    person = create(finance_api, "person", "Example, Jordan", donor(board, [held[31]]))
+    # The same fingerprint cannot be confirmed again for another identity.
+    second = finance_api.post(
+        "/api/v1/finance/identities",
+        json={
+            "kind": "person",
+            "name": "Someone else",
+            "confirmation": donor(board, [held[31]]),
+        },
+    )
+    assert second.status_code == 422
+    data = read(finance_api, name=DONOR, role="contributor")
+    public = read(finance_api, PUBLIC, name=DONOR, role="contributor")
+    assert [p["record_number"] for p in data["payments"]] == [
+        p["record_number"] for p in public["payments"]
+    ]
+    assert [(i["id"], i["confirmed_records"]) for i in data["identities"]] == [
+        (person["id"], 2)
+    ]
+
+
+def test_a_merge_neither_repeats_rows_nor_doubles_counts(finance_api, board):
+    held = prints(finance_api)
+    old = create(finance_api, "person", "Old", donor(board, [held[31]]))
+    new = create(finance_api, "person", "New", donor(board, [held[32]]))
+    finance_api.post(
+        f"/api/v1/finance/identities/{old['id']}/merge",
+        json={"into": new["id"], "reason": "Same person."},
+    )
+    data = read(finance_api, name=DONOR, role="contributor")
+    public = read(finance_api, PUBLIC, name=DONOR, role="contributor")
+    assert len(data["payments"]) == len(public["payments"]) == 3
+    assert data["page"]["total_payments"] == 3
+    assert sum(i["confirmed_records"] for i in data["identities"]) == 3
+
+
+def test_nothing_published_is_an_unavailable_state_not_an_error(
+    finance_api, board, monkeypatch
+):
+    from alethical.api.services import committee_finance
+
+    monkeypatch.setattr(committee_finance, "current_release", lambda db: None)
+    data = read(finance_api, name=DONOR, role="contributor")
+    assert data["state"] == "unavailable"
+    assert data["payments"] == [] and data["identities"] == []
+    assert data["page"]["total_payments"] is None
+    assert (data["dataset"], data["release_id"]) == ("contributions", None)
