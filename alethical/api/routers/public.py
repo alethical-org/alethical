@@ -473,8 +473,32 @@ def current_committee_names(db: Session, legislator_ids) -> dict[str, list[str]]
     ).all()
     result: dict[str, list[str]] = {}
     for legislator_id, name in rows:
-        result.setdefault(str(legislator_id), []).append(name)
+        names = result.setdefault(str(legislator_id), [])
+        # An officer's committee can be held as 2 rows (plain and with a role).
+        if name not in names:
+            names.append(name)
     return result
+
+
+def committee_entries(memberships) -> list[dict]:
+    """1 entry per committee and role; a plain row beside a role row is the same seat.
+
+    The roster import used to add a plain row beside an officer's role row
+    (``MinnesotaIngestionPipeline.upsert_committees``); a rebuild interrupted before
+    it clears them can still leave both, and the role replaces the plain row.
+    """
+    roles: dict[str, set] = {}
+    order: list[tuple[str, str | None]] = []
+    for membership in memberships:
+        name = membership.committee.name
+        roles.setdefault(name, set()).add(membership.role)
+    for membership in memberships:
+        name, role = membership.committee.name, membership.role
+        if role is None and roles[name] - {None}:
+            continue
+        if (name, role) not in order:
+            order.append((name, role))
+    return [{"name": name, "role": role} for name, role in order]
 
 
 def current_committee_assignments(
@@ -498,7 +522,15 @@ def current_committee_assignments(
     ).all()
     result: dict[str, list[tuple[str, str | None]]] = {}
     for legislator_id, name, role in rows:
-        result.setdefault(str(legislator_id), []).append((name, role))
+        held = result.setdefault(str(legislator_id), [])
+        # 1 entry per committee: a role, when held, replaces the plain row.
+        same = [index for index, (other, _) in enumerate(held) if other == name]
+        if not same:
+            held.append((name, role))
+        elif role and held[same[0]][1] is None:
+            held[same[0]] = (name, role)
+        elif role and role != held[same[0]][1]:
+            held.append((name, role))
     return result
 
 
@@ -3033,10 +3065,7 @@ def legislator_detail(
                 "committee_count": stats.committee_count if stats else 0,
             }
     if "committees" in include_set:
-        payload["committees"] = [
-            {"name": membership.committee.name, "role": membership.role}
-            for membership in row.committee_memberships
-        ]
+        payload["committees"] = committee_entries(row.committee_memberships)
     if "service_history" in include_set:
         service_history = service_history_payload(row.election_history)
         if service_history:
