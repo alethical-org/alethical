@@ -305,8 +305,9 @@ figure is ever added across committees or members.
   current one first; with 1 session held it shows 1 option.
 - **Bill (`/bills/:id`)**: the plain-language title, Summary (with passages from the bill
   text), Actions (each with its date and chamber), Votes, Bill Text and Versions, chief
-  author and co-authors, companion bill, the committee (opening its members' campaign
-  accounts when the record names the committee), official page, and each author's
+  author and co-authors, companion bill, the committee (printed by name: the bill records
+  carry no committee id, so it opens its members' campaign accounts only when an action
+  names one), official page, and each author's
   confirmed campaign accounts, with "No confirmed campaign account" where none is
   confirmed. Opened with no earlier page, it returns to Legislation.
 - **Roll call (`/votes/:id`)**: the exact motion, date, recorded result and each member's
