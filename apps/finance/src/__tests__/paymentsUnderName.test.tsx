@@ -582,6 +582,11 @@ describe('Payments under this name helpers', () => {
     expect(emptyLine(data)).toBe(
       'No outside spending payments are recorded under “A B”. This does not mean none were made.',
     );
+    // Under a filer scope the read cannot know no payments exist at all.
+    const scoped = { name: 'A B', role: 'vendor', year: 2025 } as NamePayments<unknown>;
+    expect(emptyLine(scoped, 'Education Minn PAC')).toBe(
+      'No campaign payments under “A B” are recorded for Education Minn PAC in 2025',
+    );
   });
 
   it('counts each identity over every file the role reads, and waits for all of them', () => {
@@ -621,7 +626,7 @@ describe('Payments under this name helpers', () => {
     expect(scopeLine('A', 'independentExpenditures')).toBe(
       'Showing records filed by A, outside spending file',
     );
-    expect(scopeLine(null, 'contributions')).toBe('Showing records contributions file');
+    expect(scopeLine(null, 'contributions')).toBe('Showing records from the contributions file');
     expect(scopeLine(null, null)).toBeNull();
     expect(filerFromParam('example-pac-30558')).toBe('30558');
     expect(filerFromParam(' 30558 ')).toBe('30558');

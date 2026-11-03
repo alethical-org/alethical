@@ -449,7 +449,9 @@ export function scopeLine(
   const bits = [filerName ? `filed by ${filerName}` : null, file ? SCOPE_FILE[file] : null].filter(
     Boolean,
   );
-  return bits.length ? `Showing records ${bits.join(', ')}` : null;
+  if (!bits.length) return null;
+  // "filed by {committee}, {file}" with a filer; "from the {file}" with a file alone.
+  return filerName ? `Showing records ${bits.join(', ')}` : `Showing records from the ${bits[0]}`;
 }
 
 /** The filer an address names, as a registration number (a committee slug ends in one). */
@@ -460,9 +462,12 @@ export function filerFromParam(raw: string): string | null {
 }
 
 /** Nothing carries this spelling: a fact about the spelling and our records. */
-export function emptyLine(data: NamePayments<unknown>): string {
+export function emptyLine(data: NamePayments<unknown>, filerName: string | null = null): string {
   const title = sectionOf(data.role).title.toLowerCase();
   const year = data.year === null ? '' : ` in ${data.year}`;
+  // Under a filer scope the read cannot say no payments exist at all, only none
+  // for that committee.
+  if (filerName) return `No ${title} under “${data.name}” are recorded for ${filerName}${year}`;
   return `No ${title} are recorded under “${data.name}”${year}. This does not mean none were made.`;
 }
 
@@ -661,6 +666,7 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
               phone={band === 'phone'}
               here={here}
               filer={filer}
+              filerName={filerName}
               onView={setEvidence}
             />
           ))}
@@ -809,6 +815,7 @@ function Section({
   phone,
   here,
   filer,
+  filerName,
   onView,
 }: {
   spec: SectionSpec;
@@ -817,6 +824,8 @@ function Section({
   here: string;
   /** Only this filer's rows, of those loaded (the server reads every filer's). */
   filer: string | null;
+  /** The filer as its rows print it, else its registration, for the empty line. */
+  filerName: string | null;
   onView: (evidence: Evidence) => void;
 }) {
   const data = read.data;
@@ -860,7 +869,7 @@ function Section({
         </div>
       )}
       {data && data.state !== 'unavailable' && rows.length === 0 && !data.hasMore && (
-        <div className="f-empty-box pn-empty">{emptyLine(data)}</div>
+        <div className="f-empty-box pn-empty">{emptyLine(data, filerName)}</div>
       )}
       {rows.length > 0 && (
         <div role="table" aria-label={spec.title} className="pn-table">
