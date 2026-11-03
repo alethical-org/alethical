@@ -472,21 +472,25 @@ one names its exact saved version and page.
 
 - **Media buys (`/media-buys`)**: TV political-ad files from KSTP-TV, KARE and KMSP-TV,
   browsed by TV station folders (Station, Year and Category menus), agency names, stations
-  and years, or searched by words; a search lists matching TV station files. The tab,
+  and years, with served totals on each tab. Word search filters the chosen tab; station
+  rows name the years held. The tab,
   filters, words and page stay in the address. A capped count says "At least"; a failed
   refresh keeps the earlier rows with Try again. About these records states the coverage
   limits, and Sources and updates names the date the station files were copied.
 - **TV station folder (`/media-buys/folders/:id`)**: the files held, each with its saved
-  versions and station upload date, and the folder's one checked connection, which never
+  versions, station upload date and the date those exact contents were first saved,
+  and the folder's one checked connection, which never
   stands for each file inside it.
 - **TV station (`/media-buys/stations/:id`)**: the station's counts once for all years (files
   held, unique file contents, files whose text could not be fully read, files we couldn't
-  download, folders we couldn't list, with the 3 drawn notes on what they mean), then files
-  held by year, each year linking to its folders, and the other stations held. Counts are
-  files, never ads or money; a per-year breakdown of the other counts waits on the server.
+  download, folders we couldn't list, with the 3 drawn notes on what they mean), then the
+  same served counts per year, each year linking to its folders, and the other stations
+  held. Unplaced collection failures remain under Year unavailable. Unique contents are
+  never summed across years. Sources and updates shows the latest check date. Counts are
+  files, never ads or money.
 - **Printed agency name (`/media-buys/agencies/:name`)**: files under that exact spelling,
-  each marked Checked or Machine-read · Not checked, addresses checked for it with View
-  evidence at the exact version and page, and separate campaign and outside-spending
+  each marked Checked or Machine-read · Not checked, addresses checked for it with their
+  quoted text, date and View evidence at the exact version and page, and separate campaign and outside-spending
   payment searches under the name, which do not prove a file was paid.
 - **TV station file (`/media-buys/files/:key`)**: 1 saved version's original page images
   (version, page and zoom in the document bar; version and page in the address), checked
@@ -513,7 +517,8 @@ one names its exact saved version and page.
 - **Media buys card**: Committee (by registration number), Candidate (by candidacy),
   Principal (by entity number) and Money by race (by the contest's office, district and
   year, matched against checked elections) list the TV station files with a checked
-  connection to that record, each at its exact version with "Back to" the page, under
+  connection to that record, each at its exact version and cited page with "Back to"
+  the record, under
   "KSTP-TV, KARE and KMSP-TV station files, not in money totals". A candidacy lists its
   confirmed committees' files first, each under "Files with a checked connection to
   {committee}", then "TV station files that name this candidate", never mixed. With none:

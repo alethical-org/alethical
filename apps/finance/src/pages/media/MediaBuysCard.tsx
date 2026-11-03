@@ -41,7 +41,9 @@ export function cardGroups(kind: MediaBuysKind, data: Connected): CardGroup[] {
   const groups = data.groups
     .filter((group) => group.files.length > 0)
     .map((group, index) => {
-      const named = group.label === NAMED_GROUP || group.label === NAMED_TITLE;
+      const named =
+        group.kind === 'named' ||
+        (group.kind == null && (group.label === NAMED_GROUP || group.label === NAMED_TITLE));
       return {
         key: `${index}-${group.label}`,
         named,
@@ -60,7 +62,10 @@ function Row({ row, here }: { row: FileRow; here: string }) {
     : `${row.station} ${row.label}`;
   return (
     <li>
-      <Link className="mb-link-row" to={withFrom(fileHref(row.key, row.version_id), here)}>
+      <Link
+        className="mb-link-row"
+        to={withFrom(fileHref(row.key, row.version_id, row.page ?? undefined), here)}
+      >
         <span>
           <span className="mb-link-name mb-buys-lead">
             <span>{lead} ·</span>

@@ -608,6 +608,16 @@
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
+.mb-address-quote {
+  margin: 0 0 6px;
+}
+.mb-address-quote blockquote {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
 .mb-address-foot {
   display: flex;
   flex-wrap: wrap;

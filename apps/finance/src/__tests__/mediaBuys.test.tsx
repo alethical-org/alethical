@@ -48,6 +48,7 @@ const FILE = {
   year: 2026,
   category: 'Local',
   uploaded_at: null,
+  first_saved_at: '2026-03-05T03:14:00Z',
   version_id: VERSION,
   version_count: 2,
   source_changed: false,
@@ -213,7 +214,7 @@ describe('Media buys', () => {
     expect(browse).not.toContain('station=');
   });
 
-  it('says a word search lists TV station files, naming the words', async () => {
+  it('says a word search filters the selected tab, naming the words', async () => {
     serve(() =>
       json({
         tab: 'folders',
@@ -229,10 +230,41 @@ describe('Media buys', () => {
     );
     await render('/media-buys?q=walz', () => <MediaBuys />);
     expect(container.querySelector('.mb-count')?.textContent).toBe(
-      '0 TV station files matching “walz”',
+      '0 TV station folders matching “walz”',
     );
     act(() => root.unmount());
     root = createRoot(container);
+  });
+
+  it('shows served tab totals, station years and tab-scoped search requests', async () => {
+    const fetcher = serve(() =>
+      json({
+        tab: 'stations',
+        q: 'KARE',
+        page: 1,
+        page_size: 12,
+        total: 1,
+        capped: false,
+        years: [2026, 2024],
+        categories: [],
+        tab_counts: { folders: 700, agencies: 610, stations: 3, years: 5 },
+        rows: [
+          { key: 'KARE', label: 'KARE', file_count: 80, folder_count: 12, years: [2026, 2024] },
+        ],
+      }),
+    );
+    await render('/media-buys?tab=stations&q=KARE', () => <MediaBuys />);
+    expect(
+      fetcher.mock.calls
+        .map(([url]) => String(url))
+        .some((url) => url.includes('search_scope=tab')),
+    ).toBe(true);
+    expect(container.querySelector('[role="tablist"]')?.textContent).toContain(
+      'TV station folders700',
+    );
+    expect(container.querySelector('[role="tablist"]')?.textContent).toContain('Agency names610');
+    expect(container.querySelector('.mb-count')?.textContent).toBe('1 station matching “KARE”');
+    expect(container.textContent).toContain('Folders held for 2026, 2024');
   });
 
   it('shows the checking entrance only once its page is built', async () => {
@@ -362,6 +394,8 @@ describe('TV station folder, station and printed agency name', () => {
     expect(text).toContain('TV STATION FOLDER');
     expect(text).toContain('1 file held');
     expect(text).toContain('2 saved versions');
+    expect(text).toContain('FIRST SAVED');
+    expect(text).toContain('Mar 4, 2026');
     expect(text).toContain('Unavailable');
     expect(text).toContain('Folder checked as relating to this committee · Checked on Oct 3, 2026');
     expect(text).toContain(
@@ -398,8 +432,32 @@ describe('TV station folder, station and printed agency name', () => {
         },
         folder_count: 2,
         folder_failures: 0,
+        latest_check_at: '2026-10-03T01:00:00Z',
         years: [
-          { year: 2026, categories: [], file_count: 3 },
+          {
+            year: 2026,
+            categories: [],
+            file_count: 3,
+            counts: {
+              station_files_held: 3,
+              unique_file_contents: 2,
+              text_read_failures: 1,
+              download_failures: 0,
+              folder_failures: 2,
+            },
+          },
+          {
+            year: null,
+            categories: [],
+            file_count: 0,
+            counts: {
+              station_files_held: 0,
+              unique_file_contents: 0,
+              text_read_failures: 0,
+              download_failures: 1,
+              folder_failures: 1,
+            },
+          },
           { year: 2024, categories: [], file_count: 0 },
         ],
       }),
@@ -413,6 +471,16 @@ describe('TV station folder, station and printed agency name', () => {
     expect(text).toContain('None held');
     expect(text).toContain('Other stations held');
     expect(text).toContain('Latest station upload held');
+    expect(text).toContain('Latest review checkOct 2, 2026');
+    expect(container.querySelector('[aria-label="2026"]')?.textContent).toContain(
+      'Unique file contents2',
+    );
+    expect(container.querySelector('[aria-label="2026"]')?.textContent).toContain(
+      'Folders we couldn’t list2',
+    );
+    expect(container.querySelector('[aria-label="Year unavailable"]')?.textContent).toContain(
+      'Files we couldn’t download1',
+    );
     // The station-wide counts, once, for all years, with the drawn notes: gaps in
     // the collection are never hidden.
     const all = container.querySelector('[aria-label="All years"]')!;
@@ -451,6 +519,7 @@ describe('TV station folder, station and printed agency name', () => {
                 version_id: OLD,
                 page: 4,
                 checked_at: '2026-10-01',
+                quote: 'BILL TO EXACT AGENCY AT 100 MAIN',
               },
             ],
           },
@@ -464,6 +533,9 @@ describe('TV station folder, station and printed agency name', () => {
     expect(text).toContain('1 file · KARE');
     expect(text).toContain('Machine-read · Not checked');
     expect(text).toContain('Checked on Oct 1, 2026');
+    expect(container.querySelector('blockquote')?.textContent).toBe(
+      'BILL TO EXACT AGENCY AT 100 MAIN',
+    );
     expect(text).toContain('A payment under this name does not prove the file was paid');
     const evidence = [...container.querySelectorAll('a')].find((a) =>
       a.textContent?.replace(/\u00a0/g, ' ').includes('View evidence'),
@@ -621,6 +693,29 @@ describe('Media buys card', () => {
     uploaded_at: '2026-03-04',
     role: 'Advertiser, as printed',
   };
+
+  it('uses the served connection kind and cited page without guessing from its label', async () => {
+    const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');
+    vi.spyOn(routes, 'isBuilt').mockReturnValue(true);
+    serve(() =>
+      json({
+        agency_key: null,
+        exact_name_count: 0,
+        files: [INVOICE],
+        total: 1,
+        groups: [{ label: 'Unrelated title', kind: 'named', files: [{ ...INVOICE, page: 4 }] }],
+      }),
+    );
+    await render('/candidates/example', () => (
+      <MediaBuysCard kind="candidate" target="example" name="Example" />
+    ));
+    expect(container.querySelector('.mb-buys-card h3')?.textContent).toBe(
+      'TV station files that name this candidate',
+    );
+    expect(container.querySelector('.mb-buys-card a')?.getAttribute('href')).toContain(
+      `version=${VERSION}&page=4`,
+    );
+  });
 
   it('lists each connected file once, at its exact version, with a way back', async () => {
     const { MediaBuysCard } = await import('../pages/media/MediaBuysCard');

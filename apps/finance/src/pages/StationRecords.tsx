@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { centralDateLabel } from '@alethical/shared/moneyLanding';
 import { useRead } from '../api/read';
 import { Link, useLocation } from '../router';
 import { withFrom } from '../returnContext';
@@ -18,6 +19,12 @@ import {
   plural,
 } from './media/shared';
 import type { Agency, FileRow, Folder, Sources, Station } from './media/types';
+
+/** Saved/check instants use Minnesota's calendar day; a plain source date stays as filed. */
+function checkedDay(value?: string | null): string {
+  if (!value || Number.isNaN(new Date(value).getTime())) return 'Unavailable';
+  return value.includes('T') ? centralDateLabel(value) : day(value);
+}
 
 const MEDIA_BUYS = { to: hrefFor('media-buys'), name: 'Media buys' };
 
@@ -44,6 +51,19 @@ export function stationCounts(station: Station): [string, number][] {
     ['Files we couldn’t download', station.counts.download_failures],
     ['Folders we couldn’t list', station.folder_failures],
   ];
+}
+
+/** Missing new fields stay unknown; an old response can still show its held-file count. */
+function yearCountRows(year: Station['years'][number]): [string, number][] {
+  const counts = year.counts ?? {};
+  const rows: [string, number | undefined][] = [
+    ['TV station files held', counts.station_files_held ?? year.file_count],
+    ['Unique file contents', counts.unique_file_contents],
+    ['Files whose text could not be fully read', counts.text_read_failures],
+    ['Files we couldn’t download', counts.download_failures],
+    ['Folders we couldn’t list', counts.folder_failures],
+  ];
+  return rows.filter((row): row is [string, number] => row[1] != null);
 }
 
 /** The 3 drawn notes on what the counts mean (TV Station drawing). */
@@ -206,14 +226,15 @@ export function StationFolder({ match }: { match: RouteMatch }) {
 
 function FolderFiles({ files, here }: { files: FileRow[]; here: string }) {
   const cols = {
-    '--cols': 'minmax(0, 1fr) 150px',
-    '--cols-tablet': 'minmax(0, 1fr) 130px',
+    '--cols': 'minmax(0, 1fr) 150px 150px',
+    '--cols-tablet': 'minmax(0, 1fr) 130px 130px',
   } as CSSProperties;
   return (
     <div role="table" aria-label="Files held" className="mb-table">
       <div role="row" className="mb-table-row mb-table-head" style={cols}>
         <span role="columnheader">FILE</span>
         <span role="columnheader">STATION UPLOAD</span>
+        <span role="columnheader">FIRST SAVED</span>
       </div>
       {files.map((file) => (
         <div role="row" key={file.key} className="mb-table-row" style={cols}>
@@ -232,6 +253,14 @@ function FolderFiles({ files, here }: { files: FileRow[]; here: string }) {
           >
             <span className="mb-cell-label mb-phone-only">Station upload</span>
             {file.uploaded_at ? day(file.uploaded_at) : 'Unavailable'}
+          </span>
+          <span
+            role="cell"
+            className="mb-cell mb-cell-strong"
+            data-missing={!file.first_saved_at || undefined}
+          >
+            <span className="mb-cell-label mb-phone-only">First saved</span>
+            {checkedDay(file.first_saved_at)}
           </span>
         </div>
       ))}
@@ -265,6 +294,10 @@ export function TVStation({ match }: { match: RouteMatch }) {
               <div>
                 <dt>Latest station upload held</dt>
                 <dd className="f-num">{day(data.newest_upload)}</dd>
+              </div>
+              <div>
+                <dt>Latest review check</dt>
+                <dd className="f-num">{checkedDay(data.latest_check_at)}</dd>
               </div>
             </dl>
           </SourcesAndUpdates>
@@ -303,9 +336,8 @@ export function TVStation({ match }: { match: RouteMatch }) {
                 <h2 id="held-heading">Records held, by year</h2>
               </div>
               <div className="mb-years">
-                {/* The server counts these for the station as a whole, not per year, so
-                    they are shown once, for all years: without them a reader could take
-                    the collection as complete. */}
+                {/* All-years unique contents are served directly; never sum the
+                    per-year counts because a copy can occur in several years. */}
                 <section aria-label="All years" className="mb-year">
                   <div className="mb-year-head">
                     <span>All years</span>
@@ -345,17 +377,16 @@ export function TVStation({ match }: { match: RouteMatch }) {
                           <span className="mb-section-count">None held</span>
                         ) : null}
                       </div>
-                      {year.file_count > 0 && (
-                        <dl
-                          className="mb-metrics"
-                          style={{ gridTemplateColumns: 'minmax(0, 1fr)' }}
-                        >
-                          <div>
-                            <dt>TV station files held</dt>
-                            <dd>{year.file_count.toLocaleString('en-US')}</dd>
+                      <dl className="mb-metrics">
+                        {yearCountRows(year).map(([label, value]) => (
+                          <div key={label}>
+                            <dt>{label}</dt>
+                            <dd data-zero={value === 0 || undefined}>
+                              {value.toLocaleString('en-US')}
+                            </dd>
                           </div>
-                        </dl>
-                      )}
+                        ))}
+                      </dl>
                     </section>
                   );
                 })}
@@ -509,13 +540,21 @@ export function PrintedAgency({ match }: { match: RouteMatch }) {
                             key={`${evidence.file_key}|${evidence.version_id}|${evidence.page}`}
                             className="mb-address-source"
                           >
-                            <span className="mb-address-cite">
-                              <strong>Page {evidence.page}</strong> · {evidence.file_name}
-                            </span>
+                            <figure className="mb-address-quote">
+                              <figcaption className="mb-address-cite">
+                                {evidence.quote && (
+                                  <>
+                                    <span className="f-label">QUOTE</span> ·{' '}
+                                  </>
+                                )}
+                                <strong>Page {evidence.page}</strong> · {evidence.file_name}
+                              </figcaption>
+                              {evidence.quote && <blockquote>{evidence.quote}</blockquote>}
+                            </figure>
                             <div className="mb-address-foot">
                               <span className="mb-checked">
                                 <CheckedIcon />
-                                Checked on {day(evidence.checked_at)}
+                                Checked on {checkedDay(evidence.checked_at)}
                               </span>
                               <Link
                                 className="f-dest mb-inline-dest"

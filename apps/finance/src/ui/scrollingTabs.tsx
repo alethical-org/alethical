@@ -58,13 +58,18 @@ export function ScrollingTabs<T extends string>(props: {
     };
   }, [check]);
   useEffect(check);
+  // Counts can arrive after the first layout and widen earlier tabs. Keep the
+  // selected label clear of the fade when that content changes too.
+  const tabContent = JSON.stringify(
+    props.tabs.map(({ value, label, count }) => [value, label, count]),
+  );
   // The selected tab comes into view on load and whenever it changes.
   useEffect(() => {
     const element = row();
     const selected = element?.querySelector<HTMLElement>('[aria-selected="true"]');
     if (element && selected) revealTab(element, selected);
     check();
-  }, [props.value, check]);
+  }, [props.value, tabContent, check]);
   return (
     <div
       ref={wrapper}
