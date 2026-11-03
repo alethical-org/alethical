@@ -167,6 +167,18 @@ describe('Committee members’ campaign accounts', () => {
     expect(container.textContent).toContain('House · 2025–26 session · 4 members');
   });
 
+  it('lists an officer the roster names twice once, with the role', async () => {
+    // The live roster sends an officer as 2 entries with the same id: 1 without a
+    // role and 1 with it.
+    const [ben, ...rest] = MEMBERS.members;
+    const twice = { ...MEMBERS, members: [{ ...ben, role: null }, ...rest, ben] };
+    await render(PATH, (url) => (url.endsWith('/members') ? json(twice) : loaded(url)));
+    expect(container.textContent).toContain('House · 2025–26 session · 4 members');
+    const names = [...container.querySelectorAll('.cmm-name')].map((node) => node.textContent);
+    expect(names.filter((name) => name?.includes('Ben Davis'))).toHaveLength(1);
+    expect(container.textContent).toContain('Co-Chair');
+  });
+
   it('shows each account’s own filed figures, never a combined total', async () => {
     await render(PATH, loaded);
     const ben = card('Ben Davis');
@@ -183,7 +195,7 @@ describe('Committee members’ campaign accounts', () => {
     expect(ben.textContent).toContain('Total contributions$4,110');
     expect(ben.textContent).toContain('Expenditures$6,527');
     expect(ben.textContent).toContain(
-      "The committee's own report to the state, covering through Jul 20, 2026",
+      'The committee’s own report to the state, covering through Jul 20, 2026',
     );
   });
 
@@ -194,7 +206,7 @@ describe('Committee members’ campaign accounts', () => {
     expect(casey.textContent).toContain('Total contributionsReport total unavailable');
     expect(casey.textContent).toContain('Expenditures$0');
     expect(casey.textContent).toContain('the filing’s own zero');
-    expect(casey.textContent).toContain(`No report for ${YEAR} is held for this account`);
+    expect(casey.textContent).toContain(`No ${YEAR} report held`);
   });
 
   it('gives a member with no confirmed account its own line, whatever the reason', async () => {
@@ -303,7 +315,7 @@ describe('derived figures and labels', () => {
       state: 'figures',
       figures: [{ label: 'Total contributions', value: '$10', missing: false }],
       notes: ['We do not hold an official spending total for this committee for this year'],
-      period: "The committee's own report to the state, covering through Jul 20, 2026",
+      period: 'The committee’s own report to the state, covering through Jul 20, 2026',
     });
   });
 
@@ -316,8 +328,8 @@ describe('derived figures and labels', () => {
     if (result.state !== 'figures') throw new Error('expected figures');
     expect(result.period).toBeNull();
     expect(result.figures.map((figure) => figure.period)).toEqual([
-      "The committee's own report to the state, covering through Jul 20, 2026",
-      "The committee's own report to the state, covering through Oct 19, 2026",
+      'The committee’s own report to the state, covering through Jul 20, 2026',
+      'The committee’s own report to the state, covering through Oct 19, 2026',
     ]);
   });
 

@@ -3,8 +3,18 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { clearReadCache } from '../api/read';
-import { DonorsByEmployer, employerConfirmation, groupDonors } from '../pages/DonorsByEmployer';
-import type { IdentityRecords, ReceivedRow } from '../pages/payments/data';
+import {
+  DonorsByEmployer,
+  donorHref,
+  employerConfirmation,
+  paymentHref,
+  spellingMeta,
+  type DonorGroup,
+  type DonorPaymentRow,
+  type EmployerDonors,
+  type EmployerSpellings,
+} from '../pages/DonorsByEmployer';
+import type { IdentityRecords } from '../pages/payments/data';
 import { matchRoute } from '../routes';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -14,51 +24,90 @@ vi.mock('../auth/session', () => ({
 }));
 
 const SPELLING = 'Example Health Association';
+const FETCHED = '2026-10-29T06:49:45Z';
 
 function gift(
-  contributor: string | null,
+  record: number,
   amount: string | null,
   on: string | null,
-  record: number,
   recipient = 'Example Candidate Committee',
   registration = '90001',
-): ReceivedRow {
+  filer = true,
+): DonorPaymentRow {
   return {
     recipient_registration_number: registration,
     recipient_name: recipient,
-    contributor,
+    contributor: null,
     contributor_type: 'Individual',
     employer: SPELLING,
     amount,
     received_on: on,
-    year: 2026,
+    year: on ? Number(on.slice(0, 4)) : null,
     receipt_type: 'Contribution',
     record_number: record,
+    recipient_is_filer: filer,
   };
 }
 
-const GIFTS: ReceivedRow[] = [
-  gift('Example, Wen', '1000.0000', '2026-06-03', 1),
-  gift('EXAMPLE, WEN', '250.0000', '2025-11-02', 2, 'Example Senate Caucus', '90005'),
-  gift('Example, Wen', '300.0000', '2025-10-01', 3),
-  gift('Example, Priya', null, null, 4, 'Example Action PAC', '90004'),
+function group(
+  name: string | null,
+  payments: DonorPaymentRow[],
+  count = payments.length,
+): DonorGroup {
+  return {
+    key: name === null ? `record:${payments[0].record_number}` : `name:${name}`,
+    name,
+    record_number: name === null ? payments[0].record_number : null,
+    payment_count: count,
+    payments: payments.map((item) => ({ ...item, contributor: name })),
+  };
+}
+
+const GROUPS: DonorGroup[] = [
+  group('Example, Wen', [gift(1, '1000.0000', '2026-06-03'), gift(3, '300.0000', '2025-10-01')]),
+  group('EXAMPLE, WEN', [gift(2, '250.0000', '2025-11-02', 'Example Senate Caucus', '90005')]),
+  group('Example, Priya', [gift(4, null, null, 'Example Action PAC', '90004', false)]),
 ];
 
-function page(payments: ReceivedRow[], { hasMore = false, state = '' } = {}) {
+function donors(rows: DonorGroup[], { hasMore = false, state = '' } = {}): EmployerDonors {
   return {
+    state: (state || (rows.length ? 'reported' : 'not_reported')) as EmployerDonors['state'],
     name: SPELLING,
-    role: 'employer',
-    year: null,
-    state: state || (payments.length ? 'reported' : 'not_reported'),
-    payments,
-    page: { limit: 250, offset: 0, has_more: hasMore, total_payments: null },
-    linkable_registration_numbers: ['90001', '90005'],
-    dataset: 'contributions',
-    source_url: 'https://cfb.mn.gov/x',
+    rows,
+    total: rows.length,
+    page: { limit: 20, offset: 0, has_more: hasMore },
     release_id: 'release-1',
-    fetched_at: '2026-10-29T06:49:45Z',
+    fetched_at: FETCHED,
   };
 }
+
+function spellings(rows: EmployerSpellings['rows'], hasMore = false): EmployerSpellings {
+  return {
+    state: rows.length ? 'reported' : 'not_reported',
+    q: 'health',
+    rows,
+    total: rows.length,
+    page: { limit: 50, offset: 0, has_more: hasMore },
+    fetched_at: FETCHED,
+  };
+}
+
+const LIST = spellings([
+  {
+    name: 'EXAMPLE HEALTH ASSN',
+    record_count: 2,
+    donor_name_count: 2,
+    unnamed_records: 0,
+    confirmed_records: 0,
+  },
+  {
+    name: SPELLING,
+    record_count: 4,
+    donor_name_count: 3,
+    unnamed_records: 0,
+    confirmed_records: 2,
+  },
+]);
 
 function records(identities: IdentityRecords['identities'], count = 4): IdentityRecords {
   return {
@@ -126,15 +175,21 @@ async function render(path: string, answer: Answer) {
 
 const PATH = '/money/employers/Example%20Health%20Association';
 
-function answer(
-  payments: ReturnType<typeof page>,
-  identity: IdentityRecords | Response = records([]),
-): Answer {
+function answer({
+  list = LIST,
+  detail = donors(GROUPS),
+  identity = records([]) as IdentityRecords | Response,
+}: {
+  list?: EmployerSpellings | Response;
+  detail?: EmployerDonors | Response;
+  identity?: IdentityRecords | Response;
+} = {}): Answer {
   return (url) => {
-    if (url.pathname.endsWith('/finance/identities/records')) {
-      return identity instanceof Response ? identity : json(identity);
-    }
-    return json(payments);
+    const respond = (value: unknown) => (value instanceof Response ? value : json(value));
+    if (url.pathname.endsWith('/finance/identities/records')) return respond(identity);
+    if (url.pathname.endsWith('/finance/employers/donors')) return respond(detail);
+    if (url.pathname.endsWith('/finance/employers')) return respond(list);
+    return json(null, 404);
   };
 }
 
@@ -142,160 +197,167 @@ function donor(name: string): HTMLElement {
   return container.querySelector<HTMLElement>(`section[aria-label="${name}"]`)!;
 }
 
+function setWidth(width: number) {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches:
+      query === '(max-width: 767px)'
+        ? width < 768
+        : query === '(min-width: 1100px)' && width >= 1100,
+    addEventListener() {},
+    removeEventListener() {},
+  }));
+}
+
 describe('Donors by employer', () => {
-  it('holds only the search box at the spelling list, and reads nothing', async () => {
-    await render('/money/employers', answer(page(GIFTS)));
-    expect(requests).toHaveLength(0);
-    expect(container.querySelector('h1')?.textContent).toBe('Donors by employer, as printed');
-    expect(container.textContent).toContain(
-      'Where people who name an employer give. Each spelling is its own entry, and each donor’s payments are their own, never the employer’s money.',
-    );
+  it('holds only the search box at the start, and reads nothing', async () => {
+    await render('/money/employers', answer());
+    expect(container.querySelector('h1')?.textContent).toBe('Donors by employer');
     expect(container.textContent).toContain('Employer name as printed');
-    const input = container.querySelector<HTMLInputElement>('input')!;
-    await act(async () => {
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
-      setter.call(input, '  EXAMPLE HEALTH ASSN ');
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-    await act(async () => {
-      container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true }));
-    });
-    expect(window.location.pathname).toBe('/money/employers/EXAMPLE%20HEALTH%20ASSN');
+    expect(requests).toHaveLength(0);
   });
 
-  it('reads the exact spelling and lists each donor spelling apart, with no totals', async () => {
-    await render(PATH, answer(page(GIFTS)));
-    const read = requests.find((url) => url.pathname.endsWith('/payments-under-name'))!;
-    expect(read.searchParams.get('role')).toBe('employer');
-    expect(read.searchParams.get('name')).toBe(SPELLING);
-    const identity = requests.find((url) => url.pathname.endsWith('/finance/identities/records'))!;
-    expect(identity.searchParams.get('record_kind')).toBe('employer_name');
-    expect(identity.searchParams.get('record_key')).toBe(SPELLING);
+  it('searches the employer directory and opens the first spelling beside the list', async () => {
+    setWidth(1280);
+    await render('/money/employers?q=health', answer());
+    const search = requests.find((url) => url.pathname.endsWith('/finance/employers'))!;
+    expect(search.searchParams.get('q')).toBe('health');
+    expect(container.textContent).toContain('Employer spellings');
+    expect(container.textContent).toContain('2 spellings');
+    const items = [...container.querySelectorAll('.de-spelling-item')];
+    expect(items.map((item) => item.querySelector('.de-spelling-meta')?.textContent)).toEqual([
+      '2 donor names',
+      '3 donor names · Confirmed for 2 of 4 records',
+    ]);
+    expect(items[1].getAttribute('href')).toBe(
+      '/money/employers/Example%20Health%20Association?q=health',
+    );
+    // On a computer the first spelling opens until another is chosen.
+    expect(items[0].getAttribute('aria-current')).toBe('true');
+    expect(container.querySelector('#de-employer-h')?.textContent).toBe('EXAMPLE HEALTH ASSN');
+  });
 
-    expect(container.querySelector('.de-label')?.textContent).toBe('EMPLOYER AS PRINTED');
-    expect(container.querySelector('h2')?.textContent).toBe(SPELLING);
-    expect(container.textContent).toContain('Donors who printed this employer');
+  it('keeps the list beside the chosen spelling on a computer, and only the detail on a phone', async () => {
+    setWidth(1280);
+    await render(`${PATH}?q=health`, answer());
+    expect(container.querySelector('.de-layout')?.hasAttribute('data-split')).toBe(true);
+    expect(container.querySelector('.de-spelling-item[aria-current]')?.textContent).toContain(
+      SPELLING,
+    );
+    expect(container.textContent).not.toContain('Back to Employer spellings');
+    // The directory's own count of donor names.
     expect(container.querySelector('.de-donors-head')?.textContent).toContain('3 donor names');
 
+    act(() => root.unmount());
+    root = createRoot(container);
+    setWidth(375);
+    await render(`${PATH}?q=health`, answer());
+    expect(container.querySelector('.de-spellings')).toBeNull();
+    const back = [...container.querySelectorAll('a')].find(
+      (link) => link.textContent === 'Back to Employer spellings',
+    )!;
+    expect(back.getAttribute('href')).toBe('/money/employers?q=health');
+  });
+
+  it('opens a typed spelling of under 3 characters exactly, since the directory needs 3', async () => {
+    await render('/money/employers?q=ab', answer());
+    expect(requests.some((url) => url.pathname.endsWith('/finance/employers'))).toBe(false);
+  });
+
+  it('lists each donor spelling apart with its own payments, never a total', async () => {
+    setWidth(1280);
+    await render(PATH, answer());
+    const read = requests.find((url) => url.pathname.endsWith('/finance/employers/donors'))!;
+    expect(read.searchParams.get('name')).toBe(SPELLING);
+    expect(container.querySelector('.de-donors-head')?.textContent).toContain('3 donor names');
+    expect(donor('Example, Wen').textContent).toContain('2 payment records');
+    expect(donor('EXAMPLE, WEN').textContent).toContain('1 payment record');
     const wen = donor('Example, Wen');
-    expect(wen.textContent).toContain('2 payments');
-    expect(wen.textContent).toContain('$1,000');
-    expect(wen.textContent).toContain('$300');
-    expect(wen.textContent).not.toContain('$1,300');
-    expect(wen.querySelector('a')?.getAttribute('href')).toBe(
-      '/money/names/Example%2C%20Wen?role=donor&from=%2Fmoney%2Femployers%2FExample%2520Health%2520Association',
+    // The donor's own page, all years.
+    expect(wen.querySelector('.de-donor-name')?.getAttribute('href')).toMatch(
+      /^\/money\/names\/Example%2C%20Wen\?role=donor&from=/,
     );
-    // A second spelling of what may be the same person stays its own entry.
-    expect(donor('EXAMPLE, WEN').textContent).toContain('1 payment');
-    expect(container.textContent).not.toContain('$1,550');
-
-    const header = wen.querySelector('.de-head')!;
-    expect(header.textContent).toBe('RECIPIENTEMPLOYER NAME AS PRINTEDDATEAMOUNT');
-    const row = wen.querySelectorAll('.de-row:not(.de-head)')[0];
-    expect(row.querySelector('.de-employer')?.textContent).toBe(SPELLING);
-    expect(row.querySelector('a')?.getAttribute('href')).toContain(
-      '/money/committees/90001?year=2026&tab=individuals',
+    // Each payment opens its committee at the record's year, its kind's tab and the donor.
+    expect(wen.querySelector('.de-recipient-link')?.getAttribute('href')).toMatch(
+      /^\/money\/committees\/90001\?year=2026&tab=individuals&name=Example%2C\+Wen&from=/,
     );
-
     const priya = donor('Example, Priya');
     expect(priya.textContent).toContain('Date not given');
     expect(priya.textContent).toContain('Amount not given');
-    // Not held as a filer here, so the recipient is plain text.
     expect(priya.querySelector('.de-recipient a')).toBeNull();
-
+    expect(container.textContent).not.toContain('$1,550');
     expect(container.textContent).toContain(
       'Employer names and payments: Minnesota Campaign Finance and Public Disclosure Board contribution files, copied Oct 29, 2026. Employer names are printed as each donor wrote them.',
     );
   });
 
-  it('never pairs a new spelling’s confirmation with the earlier spelling’s donors', async () => {
-    await render(PATH, answer(page(GIFTS)));
-    expect(container.textContent).toContain('Example Health Association');
-    // The next spelling's confirmation answers at once; its donors are still loading.
-    const next = '/money/employers/Target';
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: string, init?: RequestInit) => {
-        const url = new URL(input);
-        if (url.pathname.endsWith('/finance/identities/records')) {
-          return json(
-            records([{ id: 'org-9', kind: 'organization', name: 'Target', confirmed: 4 }]),
-          );
-        }
-        return hang(url, init);
+  it('gives each identity its own line and its own profile link', async () => {
+    await render(
+      PATH,
+      answer({
+        identity: records(
+          [
+            { id: 'org-1', kind: 'organization', name: 'Example Health', confirmed: 1 },
+            { id: 'org-2', kind: 'organization', name: 'Example Health Duluth', confirmed: 1 },
+          ],
+          3,
+        ),
       }),
     );
-    window.history.replaceState(null, '', next);
-    await act(async () => {
-      root.render(<DonorsByEmployer match={matchRoute(next)!} />);
-    });
-    await settle();
-    expect(container.textContent).not.toContain('organization record confirms this spelling');
+    const lines = [...container.querySelectorAll('.de-confirm')];
+    expect(lines.map((line) => line.querySelector('.de-confirm-text')?.textContent)).toEqual([
+      'Confirmed as Example Health for 1 of 3 records',
+      'Confirmed as Example Health Duluth for 1 of 3 records',
+    ]);
+    expect(lines[1].querySelector('a')?.getAttribute('href')).toMatch(/^\/organizations\/org-2\?/);
   });
 
-  it('names the organization only where its record confirms this spelling', async () => {
-    await render(
-      PATH,
-      answer(
-        page(GIFTS),
-        records([{ id: 'org-1', kind: 'organization', name: 'Example Health', confirmed: 4 }]),
-      ),
-    );
+  it('says no organization confirms the spelling, and opens Confirm identities for it', async () => {
+    await render(PATH, answer());
     const line = container.querySelector('.de-confirm')!;
-    expect(line.textContent).toContain(
-      'The Example Health organization record confirms this spelling',
+    expect(line.querySelector('.de-confirm-text')?.textContent).toBe(
+      'No organization record confirms this spelling',
     );
-    expect(line.textContent).not.toContain('Confirmed for');
-    expect(line.querySelector('a')?.getAttribute('href')).toMatch(/^\/organizations\/org-1\?from=/);
-    expect(line.textContent).toContain('Open\u00a0profile');
-  });
-
-  it('says how many records a partial confirmation covers', async () => {
-    await render(
-      PATH,
-      answer(
-        page(GIFTS),
-        records([{ id: 'org-1', kind: 'organization', name: 'Example Health', confirmed: 1 }]),
-      ),
+    const link = line.querySelector('a');
+    expect(link?.textContent?.replace(/\u00a0/g, ' ')).toBe('Confirm this employer');
+    expect(link?.getAttribute('href')).toMatch(
+      /^\/money\/identities\?name=[^&]+&role=employer&from=/,
     );
-    expect(container.querySelector('.de-confirm')?.textContent).toContain(
-      'Confirmed for 1 of 4 records',
-    );
-  });
-
-  it('never counts a person confirmation as the organization’s', async () => {
-    await render(
-      PATH,
-      answer(page(GIFTS), records([{ id: 'p-1', kind: 'person', name: 'Wen', confirmed: 1 }])),
-    );
-    const line = container.querySelector('.de-confirm')!;
-    expect(line.textContent).toBe('No organization record confirms this spelling');
-    // The confirm-identities page is not built yet, so no link to it.
-    expect(line.querySelector('a')).toBeNull();
   });
 
   it('says the check could not be read rather than that nothing confirms', async () => {
-    await render(PATH, answer(page(GIFTS), json(null, 422)));
-    expect(container.querySelector('.de-confirm')?.textContent).toBe(
+    await render(PATH, answer({ identity: json(null, 422) }));
+    expect(container.querySelector('.de-confirm .de-confirm-text')?.textContent).toBe(
       'We couldn’t check whether an organization record confirms this spelling',
     );
   });
 
-  it('says so when no donor printed the spelling', async () => {
-    await render(PATH, answer(page([])));
+  it('says so when no donor printed the spelling, in the list and on the spelling', async () => {
+    await render('/money/employers?q=zzzz', answer({ list: { ...spellings([]), q: 'zzzz' } }));
     expect(container.textContent).toContain(
-      `No employer printed as “${SPELLING}” appears in the copied contribution records. This does not mean no donor works there.`,
+      'No employer printed as “zzzz” appears in the copied contribution records. This does not mean no donor works there.',
+    );
+    act(() => root.unmount());
+    root = createRoot(container);
+    await render(PATH, answer({ detail: donors([]) }));
+    expect(container.textContent).toContain(
+      `No employer printed as “${SPELLING}” appears in the copied contribution records.`,
     );
     expect(container.querySelector('.de-donor')).toBeNull();
   });
 
   it('says our copy could not be read rather than that nothing was filed', async () => {
-    await render(PATH, answer(page([], { state: 'unavailable' })));
+    await render(PATH, answer({ detail: donors([], { state: 'unavailable' }) }));
     expect(container.textContent).toContain('We could not read this part of our records just now');
     expect(container.textContent).not.toContain('This does not mean no donor works there');
   });
 
-  it('shows the loading line while the donors load', async () => {
+  it('shows the loading lines while the spellings and donors load', async () => {
+    await render('/money/employers?q=health', hang);
+    expect(container.querySelector('[role="status"]')?.textContent).toBe(
+      'Loading employer spellings…',
+    );
+    act(() => root.unmount());
+    root = createRoot(container);
     await render(PATH, hang);
     expect(container.querySelector('[role="status"]')?.textContent).toBe('Loading…');
   });
@@ -305,7 +367,7 @@ describe('Donors by employer', () => {
     await render(PATH, (url) => {
       if (url.pathname.endsWith('/finance/identities/records')) return json(records([]));
       calls += 1;
-      return calls === 1 ? json(null, 500) : json(page(GIFTS));
+      return calls === 1 ? json(null, 500) : json(donors(GROUPS));
     });
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
       'We couldn’t load these donors. This is a problem on our side and says nothing about what was filed under this employer.',
@@ -318,33 +380,199 @@ describe('Donors by employer', () => {
     expect(container.querySelector('.de-donors-head')?.textContent).toContain('3 donor names');
   });
 
-  it('counts only what is loaded while more payments are filed', async () => {
-    await render(PATH, answer(page(GIFTS, { hasMore: true })));
+  it('reads more donors and more payments from the same copy of the file', async () => {
+    const wen = group('Example, Wen', [gift(1, '1000.0000', '2026-06-03')], 2);
+    await render(PATH, (url) => {
+      if (url.pathname.endsWith('/finance/identities/records')) return json(records([]));
+      if (url.pathname.endsWith('/donor-payments')) {
+        return json({
+          state: 'reported',
+          payments: [{ ...gift(3, '300.0000', '2025-10-01'), contributor: 'Example, Wen' }],
+          page: { limit: 50, offset: 1, has_more: false },
+        });
+      }
+      if (url.searchParams.get('offset')) return json(donors([GROUPS[2]]));
+      return json(donors([wen], { hasMore: true }));
+    });
     expect(container.querySelector('.de-donors-head')?.textContent).toContain(
-      '3 donor names so far',
+      '1 donor name so far',
     );
-    expect(donor('Example, Wen').textContent).toContain('2 payments so far');
-    expect(container.querySelector('.pn-more-btn')?.textContent).toBe('Show more payments');
+    const showPayments = donor('Example, Wen').querySelector<HTMLButtonElement>('.pn-more-btn')!;
+    expect(showPayments.textContent).toBe('Show more payments');
+    await act(async () => showPayments.click());
+    await settle();
+    const read = requests.find((url) => url.pathname.endsWith('/donor-payments'))!;
+    expect(read.searchParams.get('donor')).toBe('Example, Wen');
+    expect(read.searchParams.get('offset')).toBe('1');
+    expect(read.searchParams.get('release_id')).toBe('release-1');
+    expect(donor('Example, Wen').querySelectorAll('.de-row:not(.de-head)')).toHaveLength(2);
+    expect(donor('Example, Wen').querySelector('.pn-more-btn')).toBeNull();
+
+    const showDonors = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+      (item) => item.textContent === 'Show more',
+    )!;
+    await act(async () => showDonors.click());
+    await settle();
+    const page = requests.find(
+      (url) => url.pathname.endsWith('/employers/donors') && url.searchParams.get('offset'),
+    )!;
+    expect(page.searchParams.get('offset')).toBe('1');
+    expect(page.searchParams.get('release_id')).toBe('release-1');
+    expect(donor('Example, Priya')).toBeTruthy();
+    expect(container.querySelector('.de-donors-head')?.textContent).toContain('2 donor names');
+  });
+
+  it('says a failed load of more donors plainly, and tries it again', async () => {
+    let later = 0;
+    await render(PATH, (url) => {
+      if (url.pathname.endsWith('/finance/identities/records')) return json(records([]));
+      if (url.searchParams.get('offset')) {
+        later += 1;
+        return later === 1 ? json(null, 500) : json(donors([GROUPS[2]]));
+      }
+      return json(donors(GROUPS.slice(0, 2), { hasMore: true }));
+    });
+    const show = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+      (item) => item.textContent === 'Show more',
+    )!;
+    await act(async () => show.click());
+    await settle();
+    const alert = container.querySelector('.de-results > .pn-more [role="alert"]')!;
+    expect(alert.textContent).toContain('We couldn’t load more donors');
+    expect(alert.textContent).not.toContain('problem on our side');
+    await act(async () => alert.querySelector<HTMLButtonElement>('button')!.click());
+    await settle();
+    expect(donor('Example, Priya')).toBeTruthy();
+  });
+
+  it('says the Board’s file changed when a later page answers 409, and reloads', async () => {
+    let firsts = 0;
+    await render(PATH, (url) => {
+      if (url.pathname.endsWith('/finance/identities/records')) return json(records([]));
+      if (url.searchParams.get('offset')) return json(null, 409);
+      firsts += 1;
+      return json({
+        ...donors(GROUPS.slice(0, 2), { hasMore: true }),
+        release_id: `release-${firsts}`,
+      });
+    });
+    const show = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+      (item) => item.textContent === 'Show more',
+    )!;
+    await act(async () => show.click());
+    await settle();
+    const alert = container.querySelector('.de-results [role="alert"]')!;
+    expect(alert.textContent).toContain('The Board’s file changed. Reload the records.');
+    const reload = alert.querySelector<HTMLButtonElement>('button')!;
+    expect(reload.textContent).toBe('Reload the records');
+    const before = firsts;
+    await act(async () => reload.click());
+    await settle();
+    // The first page is read again, from the file now published.
+    expect(firsts).toBe(before + 1);
+    expect(container.querySelector('.de-results [role="alert"]')).toBeNull();
+  });
+
+  it('says a failed load of more spellings plainly', async () => {
+    await render('/money/employers?q=health', (url) => {
+      if (url.searchParams.get('offset')) return json(null, 500);
+      if (url.pathname.endsWith('/finance/employers')) return json(spellings(LIST.rows, true));
+      return answer()(url);
+    });
+    const show = container.querySelector<HTMLButtonElement>('.de-list-more button')!;
+    await act(async () => show.click());
+    await settle();
+    const alert = container.querySelector('.de-list-more [role="alert"]')!;
+    expect(alert.textContent).toContain('We couldn’t load more employer spellings');
+    expect(alert.querySelector('button')?.textContent).toBe('Try again');
+  });
+
+  it('returns to Search results when opened directly', async () => {
+    await render('/money/employers', answer());
+    const back = container.querySelector<HTMLAnchorElement>('.f-back')!;
+    expect(back.textContent).toBe('Back to Search results');
+    expect(back.getAttribute('href')).toBe('/search');
+  });
+
+  it('tells apart spellings that differ only by stray spaces', async () => {
+    setWidth(1280);
+    const spaced = (name: string) => ({ ...LIST.rows[0], name });
+    await render(
+      '/money/employers?q=target',
+      answer({ list: spellings([spaced(' Target '), spaced('Target'), spaced('Target ')]) }),
+    );
+    expect(
+      [...container.querySelectorAll('.de-spelling-name')].map((item) => item.textContent),
+    ).toEqual(['“ Target ”', 'Target', '“Target ”']);
+    expect(container.querySelector('#de-employer-h')?.textContent).toBe('“ Target ”');
+    expect(container.querySelector('.de-spelling-item')?.getAttribute('href')).toBe(
+      '/money/employers/%20Target%20?q=target',
+    );
+  });
+
+  it('counts a donor’s records as payment records', async () => {
+    await render(PATH, answer());
+    expect(donor('Example, Wen').querySelector('.de-donor-head .de-count')?.textContent).toBe(
+      '2 payment records',
+    );
+  });
+
+  it('offers Try again when the confirmation check could not be read', async () => {
+    let checks = 0;
+    await render(PATH, (url) => {
+      if (url.pathname.endsWith('/finance/identities/records')) {
+        checks += 1;
+        return checks === 1 ? json(null, 500) : json(records([]));
+      }
+      return answer()(url);
+    });
+    const line = container.querySelector('.de-confirm')!;
+    expect(line.textContent).toContain(
+      'We couldn’t check whether an organization record confirms this spelling',
+    );
+    await act(async () => line.querySelector<HTMLButtonElement>('button')!.click());
+    await settle();
+    // With Confirm identities on, the line also carries its "Confirm this employer" link.
+    expect(container.querySelector('.de-confirm .de-confirm-text')?.textContent).toBe(
+      'No organization record confirms this spelling',
+    );
+  });
+
+  it('names the kept spellings’ own search when a new search fails', async () => {
+    setWidth(1280);
+    await render('/money/employers?q=health', answer());
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string) =>
+        new URL(input).pathname.endsWith('/finance/employers')
+          ? json(null, 500)
+          : answer()(new URL(input)),
+      ),
+    );
+    window.history.replaceState(null, '', '/money/employers?q=other');
+    await act(async () => {
+      root.render(<DonorsByEmployer match={matchRoute('/money/employers')!} />);
+    });
+    await settle();
+    expect(container.querySelector('.de-spellings-head .de-count')?.textContent).toBe(
+      '2 spellings matching “health”',
+    );
   });
 });
 
 describe('Donors by employer helpers', () => {
-  it('groups by the exact printed name and keeps unnamed rows apart', () => {
-    const donors = groupDonors(
-      [...GIFTS, gift(null, '5.0000', '2026-01-01', 8), gift(null, '6.0000', '2026-01-02', 9)],
-      SPELLING,
-      new Set(['90001']),
-      '/money/employers/x',
+  it('words a spelling with its donor names and any confirmed records', () => {
+    expect(spellingMeta(LIST.rows[0])).toBe('2 donor names');
+    expect(spellingMeta({ ...LIST.rows[0], donor_name_count: 1 })).toBe('1 donor name');
+    expect(spellingMeta(LIST.rows[1])).toBe('3 donor names · Confirmed for 2 of 4 records');
+  });
+
+  it('links a payment only to a held filer, leaving an unknown year unclaimed', () => {
+    expect(paymentHref(gift(9, '5.0000', null), 'A', '/x')).toBe(
+      '/money/committees/90001?tab=individuals&name=A',
     );
-    expect(donors.map((item) => [item.name, item.payments.length])).toEqual([
-      ['Example, Wen', 2],
-      ['EXAMPLE, WEN', 1],
-      ['Example, Priya', 1],
-      ['Name not given in the filing', 1],
-      ['Name not given in the filing', 1],
-    ]);
-    expect(donors[3].href).toBeNull();
-    expect(donors[1].payments[0].href).toBeNull();
+    expect(paymentHref(gift(9, '5.0000', null, 'X', '90001', false), 'A', '/x')).toBeNull();
+    expect(donorHref(null, '/x')).toBeNull();
   });
 
   it('reads the confirmation states', () => {

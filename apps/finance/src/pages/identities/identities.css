@@ -1,0 +1,893 @@
+/* Confirm identities (/money/identities), from Design's "Confirm Identities" drawing.
+ * Bands: computer 1100 and up (queue beside the open name), tablet and phone (1
+ * column: the queue, or the open name with "Back to Names to review"). */
+
+.ci-header {
+  margin-top: 8px;
+  max-width: 760px;
+}
+.ci-lead {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--secondary);
+}
+.ci-miss {
+  margin-top: 12px;
+  padding: 18px 20px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.ci-miss > span {
+  display: block;
+}
+.ci-miss-next {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--secondary);
+}
+.ci-arrival {
+  margin-top: 12px;
+}
+.ci-strong {
+  font-weight: 600;
+}
+.ci-ink {
+  color: var(--ink);
+}
+.ci-muted {
+  color: var(--secondary);
+}
+.ci-small {
+  font-size: 13px;
+}
+.ci-small14 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ci-wrap {
+  overflow-wrap: anywhere;
+}
+.ci-layout {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: 380px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.ci-layout[data-single] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* ---------- Cards ---------- */
+.ci-card {
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  padding: 17px 20px;
+  box-sizing: border-box;
+  display: grid;
+  gap: 10px;
+}
+
+/* ---------- Names to review ---------- */
+.ci-queue {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+.ci-queue-head {
+  padding: 16px 17px 14px;
+  display: grid;
+  gap: 12px;
+  border-bottom: 1px solid var(--hairline);
+}
+.ci-queue-head .f-chips {
+  gap: 6px;
+}
+.ci-queue-head .f-chip {
+  padding: 0 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.ci-queue-head .f-chip[aria-pressed='true'] {
+  font-weight: 700;
+}
+.ci-queue-title {
+  display: grid;
+  gap: 2px;
+}
+.ci-queue-title h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+.ci-queue-title span {
+  font-size: 13px;
+}
+.ci-pad {
+  padding: 14px 17px;
+}
+.ci-queue-empty {
+  margin: 0;
+  padding: 20px 17px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--secondary);
+}
+.ci-queue-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ci-queue-list li {
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+}
+.ci-queue-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  padding: 12px 17px;
+  border: 0;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ci-queue-item[aria-current] {
+  background: var(--tint);
+  cursor: default;
+}
+.f-app .ci-queue-item:focus-visible {
+  outline-offset: -2px;
+}
+.ci-queue-item:active:not([aria-current]) {
+  background: #eef2f5;
+}
+.ci-queue-name {
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--link);
+  overflow-wrap: anywhere;
+}
+.ci-queue-item[aria-current] .ci-queue-name {
+  font-weight: 700;
+  color: var(--ink);
+}
+.ci-queue-money {
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-align: right;
+}
+.ci-queue-money[data-withheld] {
+  color: var(--muted);
+}
+.ci-queue-line {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  color: var(--secondary);
+}
+.ci-queue-draft {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b4a00;
+}
+
+/* ---------- The open name ---------- */
+.ci-detail {
+  min-width: 0;
+  display: grid;
+  gap: 20px;
+}
+.ci-back-button {
+  justify-self: start;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+.ci-name-card h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.ci-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--secondary);
+}
+.ci-status svg {
+  flex: none;
+}
+.ci-identities {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.ci-identities li {
+  padding: 12px 17px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 16px;
+}
+.ci-identity-text {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.ci-identity-text .ci-strong {
+  font-size: 15px;
+}
+.ci-identity-text .ci-small {
+  overflow-wrap: anywhere;
+}
+.ci-identity-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+}
+.ci-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.ci-btn,
+.ci-btn-s {
+  height: auto;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: normal;
+  text-align: left;
+}
+.ci-btn {
+  min-height: 40px;
+  padding: 0 14px;
+}
+.ci-btn-s {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+.ci-start {
+  justify-self: start;
+}
+.ci-discard {
+  display: flex;
+  justify-content: flex-end;
+}
+.ci-failed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 13px 15px;
+  border-radius: 8px;
+  background: #fdecec;
+  border: 1px solid #f4c9c6;
+  color: var(--refused);
+  line-height: 1.5;
+  font-size: 14px;
+}
+.ci-plan-error,
+.ci-stale {
+  border-radius: 8px;
+  background: #fff4e0;
+  border: 1px solid #e7c98a;
+  color: #6b4a00;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ci-plan-error {
+  padding: 12px 14px;
+}
+.ci-stale {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 14px;
+}
+
+/* Confirmed identity */
+.ci-confirmed {
+  gap: 12px;
+}
+.ci-confirmed-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.ci-confirmed-name {
+  font-size: 17px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.ci-dest {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  font-size: 14px;
+}
+.ci-dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 6px 16px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ci-dl[data-group] {
+  padding-top: 10px;
+  border-top: 1px solid rgba(20, 27, 34, 0.08);
+}
+.ci-dl dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+.ci-dl dd {
+  margin: 0;
+  min-width: 0;
+}
+.ci-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Suggested matches */
+.ci-suggest {
+  display: grid;
+  gap: 10px;
+}
+.ci-suggest h3,
+.ci-records-head h3,
+.ci-history-section h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+.ci-suggestion {
+  gap: 8px;
+}
+.ci-suggestion[data-open] {
+  border-color: var(--fill);
+}
+.ci-suggestion-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.ci-suggestion-name {
+  width: max-content;
+  max-width: 100%;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.ci-suggestion-plain {
+  font-size: 17px;
+  font-weight: 600;
+}
+.ci-create {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  font-size: 14px;
+  color: var(--secondary);
+}
+
+/* ---------- The form ---------- */
+.ci-form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 17px 20px;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.ci-form-head {
+  display: grid;
+  gap: 6px;
+}
+.ci-form-head h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.ci-form-head p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--secondary);
+}
+.ci-field {
+  display: grid;
+  gap: 6px;
+}
+.ci-field-label {
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ci-hint {
+  font-size: 13px;
+  color: var(--secondary);
+}
+.ci-input {
+  height: 44px;
+  width: 100%;
+  padding: 0 12px;
+  box-sizing: border-box;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  outline: none;
+}
+.ci-textarea {
+  height: auto;
+  min-height: 88px;
+  padding: 10px 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.ci-input[aria-invalid='true'] {
+  border-color: var(--code);
+}
+.f-app .ci-input:focus,
+.f-app .ci-input:focus-visible {
+  border-color: var(--field-focus);
+  box-shadow: 0 0 0 3px rgba(91, 48, 214, 0.22);
+  outline: none;
+}
+.ci-field-error {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--code);
+}
+.ci-fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.ci-fieldset > legend {
+  margin-bottom: 6px;
+}
+.ci-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.ci-chip {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.ci-chip[aria-pressed='true'] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+  font-weight: 700;
+}
+.ci-chip:active:not([aria-pressed='true']) {
+  background: var(--tint-selected);
+}
+.ci-option {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 10px;
+  box-sizing: border-box;
+  border-radius: 6px;
+  border: 1px solid var(--hairline);
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.ci-option[data-checked] {
+  border-color: var(--fill);
+  background: var(--tint);
+}
+.ci-option input,
+.ci-role input,
+.ci-radio input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--fill);
+  flex: none;
+}
+.ci-option-text {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+.ci-option-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.ci-option-meta {
+  color: var(--secondary);
+}
+.ci-roles {
+  margin: 10px 0 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 8px;
+}
+.ci-roles legend {
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.ci-roles p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--secondary);
+}
+.ci-role {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  font-size: 14px;
+}
+.ci-pick {
+  gap: 4px;
+}
+.ci-radio {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.ci-radio span {
+  font-weight: 400;
+  min-width: 0;
+}
+.ci-preview {
+  display: grid;
+  gap: 8px;
+  padding: 14px 17px;
+  border-radius: 8px;
+  background: var(--ground);
+}
+.ci-preview h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+.ci-preview p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--secondary);
+}
+.ci-preview ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.ci-preview li {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid var(--hairline);
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.ci-form-actions {
+  display: flex;
+  gap: 8px;
+}
+.ci-form-actions .f-btn {
+  height: auto;
+  min-height: 44px;
+  font-size: 14px;
+}
+.ci-submit {
+  min-width: 180px;
+  padding: 0 18px;
+}
+.ci-form-actions .f-btn-secondary {
+  padding: 0 16px;
+  font-weight: 600;
+}
+.ci-spinner {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  animation: f-spin 0.8s linear infinite;
+}
+
+/* ---------- Records under this exact spelling ---------- */
+.ci-records-section,
+.ci-history-section {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.ci-records-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.ci-table {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+.ci-row {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr) 112px 112px;
+  gap: 12px;
+  align-items: center;
+  min-height: 48px;
+  padding: 6px 17px;
+  box-sizing: border-box;
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+  font-size: 14px;
+}
+.ci-row-head {
+  min-height: 0;
+  padding: 10px 17px;
+  border-bottom: 1px solid var(--hairline);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.ci-right {
+  text-align: right;
+}
+.ci-date {
+  font-weight: 700;
+  color: var(--secondary);
+}
+.ci-filer-cell {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  overflow-wrap: anywhere;
+}
+.ci-filer {
+  justify-self: start;
+  font-weight: 600;
+  text-decoration: none;
+}
+.ci-filer-plain {
+  font-weight: 600;
+}
+.ci-amount {
+  font-weight: 700;
+}
+.ci-amount[data-missing] {
+  color: var(--muted);
+}
+.ci-row-status {
+  color: var(--secondary);
+}
+.ci-row-status[data-confirmed] {
+  color: var(--link);
+  font-weight: 600;
+}
+.ci-row-phone {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+  display: grid;
+  gap: 4px;
+}
+.ci-row-phone-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 15px;
+}
+.ci-row-phone-top > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ci-row-phone-top .ci-amount {
+  white-space: nowrap;
+}
+
+/* ---------- History ---------- */
+.ci-history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  gap: 0;
+  overflow: hidden;
+}
+.ci-history > li {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 4px 16px;
+  padding: 12px 17px;
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.ci-history > li:last-child {
+  border-bottom: 0;
+}
+.ci-history-date {
+  font-weight: 700;
+  color: var(--secondary);
+}
+.ci-history-body {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+.ci-evidence {
+  margin: 0;
+  padding: 10px 14px;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+  border-radius: 8px;
+  background: var(--ground);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--secondary);
+}
+.ci-evidence li {
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Sources and updates ---------- */
+.ci-page .f-sources {
+  margin-top: 64px;
+}
+.ci-copy {
+  margin: 8px 0 0;
+}
+.ci-board-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 4px;
+  font-size: 14px;
+}
+
+/* ---------- Hover: tablet and computer only ---------- */
+@media (hover: hover) and (min-width: 768px) {
+  .ci-queue-item:not([aria-current]):hover {
+    background: var(--row-hover);
+  }
+  .ci-link:hover,
+  .ci-suggestion-name:hover,
+  .ci-filer:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .ci-chip:not([aria-pressed='true']):hover {
+    border-color: var(--fill);
+    background: var(--tint);
+  }
+  .ci-option:hover {
+    border-color: var(--fill);
+  }
+  .ci-radio:hover {
+    background: var(--ground);
+  }
+  .ci-back-button:hover {
+    color: var(--ink);
+  }
+}
+
+@media (max-width: 1099px) {
+  .ci-row {
+    grid-template-columns: 100px minmax(0, 1fr) 104px 110px;
+  }
+  .ci-page .f-sources {
+    margin-top: 48px;
+  }
+}
+@media (max-width: 767px) {
+  .ci-card,
+  .ci-form {
+    padding: 16px;
+  }
+  .ci-queue,
+  .ci-table,
+  .ci-history {
+    padding: 0;
+  }
+  .ci-name-card h2 {
+    font-size: 20px;
+  }
+  .ci-btn,
+  .ci-btn-s,
+  .ci-chip,
+  .ci-link,
+  .ci-dest,
+  .ci-role {
+    min-height: 44px;
+  }
+  .ci-chip {
+    height: 44px;
+  }
+  .ci-dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ci-history > li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ci-form-actions {
+    flex-direction: column;
+  }
+}

@@ -46,7 +46,12 @@ export const NOT_HELD = 'Not held';
 /** Rule 12: a missing official report total. */
 export const REPORT_TOTAL_UNAVAILABLE = 'Report total unavailable';
 
-export const INCOMPLETE = 'Incomplete: a payment amount is missing';
+/** A total withheld for a missing payment amount, where no amount heading
+ * names the value (Design Round 34): under an amount heading it reads "Incomplete". */
+export const INCOMPLETE = 'Missing payment amount';
+
+/** No outside-spending rows for the selected years (Design Round 34, fewest words). */
+export const NO_OUTSIDE = 'No confirmed records held';
 
 export interface FinanceYears {
   link_state: 'unconfirmed' | 'reviewed_none_confirmed' | 'confirmed';
@@ -242,9 +247,11 @@ export function contestLabel(
 ): string {
   const title =
     office === 'House' ? 'State Representative' : office === 'Senate' ? 'State Senator' : office;
-  return [title, district ? `District ${district}` : null, String(year)]
+  // "District 99A · 2026" stays together (Design Round 34): no-break spaces.
+  const tail = [district ? `District\u00a0${district}` : null, String(year)]
     .filter(Boolean)
-    .join(' · ');
+    .join('\u00a0·\u00a0');
+  return [title, tail].filter(Boolean).join(' · ');
 }
 
 /** One account's figures for one year, read for one legislator. */
@@ -329,9 +336,20 @@ function AccountCard({
   const kind = registerKindLabel(committee?.register_kind);
   const checkedOn = formatDay(committee?.checked?.checked_on);
   const split = committee?.split?.state ? splitExplanation(committee.split.state) : null;
+  // The link carries the exact report whose figures the card shows (Round 37
+  // item 4): Committee reads `report` as that report's period end.
   const href = isBuilt('committee')
     ? withFrom(
-        hrefFor('committee', { id: account.registrationNumber }, { year: String(year) }),
+        hrefFor(
+          'committee',
+          { id: account.registrationNumber },
+          {
+            year: String(year),
+            report: committee?.split?.reported_total
+              ? (committee.split.reported_through ?? '')
+              : '',
+          },
+        ),
         from,
       )
     : null;
@@ -369,7 +387,7 @@ function AccountCard({
       {held && read.loading && <LoadingRows />}
       {held && read.failed && (
         <Refused onRetry={read.retry} retrying={read.pending}>
-          We couldn’t load these accounts. This is a problem on our side.
+          We couldn’t load these accounts
         </Refused>
       )}
       {(!held || (read.data && !read.loading)) && (
@@ -377,7 +395,11 @@ function AccountCard({
           <FigureList figures={accountFigures(held ? committee : null)} className="cf-figs" />
           {held && committee && (
             <div className="cf-notes">
-              <p>{DONOR_THRESHOLD_SENTENCE}</p>
+              {/* One group (eug-31): when the 2-sentence split note shows, every line ends with a period. */}
+              <p>
+                {DONOR_THRESHOLD_SENTENCE}
+                {split && /\.\s/.test(split) ? '.' : ''}
+              </p>
               {split && <p>{split}</p>}
             </div>
           )}
@@ -412,7 +434,7 @@ function OutsideContest({
   if (failed) {
     return (
       <Refused onRetry={read.retry} retrying={read.pending}>
-        We couldn’t load these results. This is a problem on our side.
+        We couldn’t load these results
       </Refused>
     );
   }
@@ -504,7 +526,7 @@ function OutsideSpending({
           onSettled={onSettled}
         />
       ))}
-      {none && <div className="f-empty-box">No confirmed records are held for this section</div>}
+      {none && <div className="f-empty-box">{NO_OUTSIDE}</div>}
     </div>
   );
 }
@@ -546,7 +568,7 @@ export function CampaignFinance({
         {loading && <LoadingRows />}
         {failed && years && (
           <Refused onRetry={years.retry} retrying={years.pending}>
-            We couldn’t load these accounts. This is a problem on our side.
+            We couldn’t load these accounts
           </Refused>
         )}
         {!loading && !failed && accounts.length === 0 && (
