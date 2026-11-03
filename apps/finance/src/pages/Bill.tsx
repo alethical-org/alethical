@@ -86,7 +86,10 @@ export function Bill({ match }: { match: RouteMatch }) {
   const id = match.params.id ?? '';
   const location = useLocation();
   const here = location.pathname + location.search;
-  const back = returnTarget(location.search);
+  // With no earlier page in the address, the drawing's named parent: Legislation.
+  const back =
+    returnTarget(location.search) ??
+    (isBuilt('legislation') ? { to: hrefFor('legislation'), name: 'Legislation' } : null);
   const [address, setAddress] = useAddressState({ tab: 'summary', version: '' });
   const tab = tabFromParam(address.tab);
   const record = useRead<BillDetail>(billPath(id));

@@ -383,16 +383,20 @@ describe('legislation records', () => {
   });
 });
 
-function legislationAnswer(list: Answer): Answer {
+function legislationAnswer(list: Answer, sessions: unknown[] = SESSIONS): Answer {
   return (url) => {
-    if (url.endsWith('/sessions')) return json(SESSIONS);
+    if (url.endsWith('/sessions')) return json(sessions);
     if (url.includes('/finance/landing/counts')) return json(COUNTS);
     return list(url);
   };
 }
 
-const renderLegislation = (path: string, answer: Answer) =>
-  render(path, () => <Legislation match={matchRoute('/bills')!} />, legislationAnswer(answer));
+const renderLegislation = (path: string, answer: Answer, sessions: unknown[] = SESSIONS) =>
+  render(
+    path,
+    () => <Legislation match={matchRoute('/bills')!} />,
+    legislationAnswer(answer, sessions),
+  );
 
 describe('Legislation', () => {
   it('lists bills with their count, session, chamber, status and date', async () => {
@@ -448,6 +452,40 @@ describe('Legislation', () => {
     await settle();
     expect(container.querySelector('[role="alert"]')).toBeNull();
     expect(text()).toContain('1 bill · 2025–26 session');
+  });
+
+  it('builds the Session menu from the sessions the server serves, current first', async () => {
+    await renderLegislation('/bills', () => json([LIST_ROW], 200, { total: 1 }));
+    expect(requests).toContain(`${API}/api/v1/sessions`);
+    const button = [...container.querySelectorAll('button')].find((item) =>
+      item.textContent?.startsWith('Session:'),
+    )!;
+    expect(button.textContent).toContain('2025–26');
+    await act(async () => button.click());
+    const options = [...container.querySelectorAll('[role="option"]')].map(
+      (item) => item.textContent,
+    );
+    expect(options).toEqual(['2025–26', '2025 First Special']);
+  });
+
+  it('keeps the Session menu with 1 option when 1 session is held', async () => {
+    await renderLegislation('/bills', () => json([LIST_ROW], 200, { total: 1 }), [SESSIONS[0]]);
+    const button = [...container.querySelectorAll('button')].find((item) =>
+      item.textContent?.startsWith('Session:'),
+    )!;
+    await act(async () => button.click());
+    expect([...container.querySelectorAll('[role="option"]')].map((i) => i.textContent)).toEqual([
+      '2025–26',
+    ]);
+  });
+
+  it('puts the count line under the menus and the note under the list', async () => {
+    await renderLegislation('/bills', () => json([LIST_ROW], 200, { total: 1 }));
+    expect(container.querySelector('.lg-count')?.classList.contains('f-count-line')).toBe(true);
+    const note = container.querySelector('.lg-note');
+    expect(note?.classList.contains('f-section-note')).toBe(true);
+    expect(note?.previousElementSibling?.classList.contains('lg-list')).toBe(true);
+    expect(container.querySelector('.lg-intro')?.textContent?.trim().endsWith('.')).toBe(false);
   });
 
   it('reads an unknown session as no matching records, not a failure', async () => {
@@ -543,6 +581,13 @@ describe('Bill', () => {
     expect(official?.getAttribute('href')).toBe(
       'https://www.revisor.mn.gov/bills/94/2025/0/SF/334/',
     );
+  });
+
+  it('returns to Legislation when the address names no earlier page', async () => {
+    await renderBill('/bills/94-2025-SF334', billAnswer());
+    const back = container.querySelector<HTMLAnchorElement>('.f-back');
+    expect(back?.textContent).toBe('Back to Legislation');
+    expect(back?.getAttribute('href')).toBe('/bills');
   });
 
   it('lists each author’s confirmed account, or says none is confirmed', async () => {
@@ -729,6 +774,23 @@ describe('Roll call', () => {
     ).toBe(VOTE.official_url);
     expect(text()).toContain('www.senate.mn');
     expect(text()).toContain('· Updated Oct 26, 2026. Journal of the Senate, Feb 10, 2025');
+  });
+
+  it('returns to the bill’s Votes tab when the address names no earlier page', async () => {
+    await renderVote(`/votes/${VOTE_ID}`, billAnswer());
+    const back = container.querySelector<HTMLAnchorElement>('.f-back');
+    expect(back?.textContent).toBe('Back to Bill votes');
+    expect(back?.getAttribute('href')).toBe('/bills/94-2025-SF334?tab=votes');
+  });
+
+  it('returns to the earlier page the address names', async () => {
+    await renderVote(
+      `/votes/${VOTE_ID}?from=%2Fbills%2F94-2025-SF334%3Ftab%3Dactions`,
+      billAnswer(),
+    );
+    const back = container.querySelector<HTMLAnchorElement>('.f-back');
+    expect(back?.textContent).toBe('Back to Bill');
+    expect(back?.getAttribute('href')).toBe('/bills/94-2025-SF334?tab=actions');
   });
 
   it('filters members by search', async () => {

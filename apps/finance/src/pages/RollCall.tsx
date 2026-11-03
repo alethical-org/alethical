@@ -100,11 +100,19 @@ export function RollCall({ match }: { match: RouteMatch }) {
   const id = match.params.id ?? '';
   const location = useLocation();
   const here = location.pathname + location.search;
-  const back = returnTarget(location.search);
   const [address, setAddress] = useAddressState({ recorded: 'all', q: '' });
   const read = useRead<RollCallRecord>(isVoteId(id) ? votePath(id) : null);
   const vote: ServedVote | null = read.data;
   const billId = read.data?.bill_id ?? '';
+  // With no earlier page in the address, the drawing's named parents: the
+  // bill's Votes tab once the roll call names its bill, else Legislation.
+  const back =
+    returnTarget(location.search) ??
+    (billId && isBuilt('bill')
+      ? { to: hrefFor('bill', { id: billId }, { tab: 'votes' }), name: 'Bill votes' }
+      : isBuilt('legislation')
+        ? { to: hrefFor('legislation'), name: 'Legislation' }
+        : null);
   // The bill's own read, for its title and update date; the same address the
   // bill page reads, so returning to it shows the bill at once.
   const bill = useRead<BillDetail>(billId ? billPath(billId) : null);

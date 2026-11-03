@@ -259,14 +259,18 @@ figure is ever added across committees or members.
   and are linked from nowhere until the pull request that aligns that screen with Design's
   current drawing turns its route on in `BUILT`.
 - **Legislation (`/bills`)**: bills searched by words or number, with Session, Chamber and
-  Status menus, 20 a page.
+  Status menus, 20 a page. The Session menu lists the sessions the server holds, the
+  current one first; with 1 session held it shows 1 option.
 - **Bill (`/bills/:id`)**: the plain-language title, Summary (with passages from the bill
-  text), Actions, Votes, Bill Text and Versions, chief author and co-authors, companion bill,
-  official page, and each author's confirmed campaign accounts.
-- **Roll call (`/votes/:id?bill=`)**: the exact motion, date, recorded result and each member's
-  recorded vote, filtered and searched in place. The current screen still needs its bill
-  in the address. The server also reads a roll call by its own id; adopting that read
-  awaits the screen update.
+  text), Actions (each with its date and chamber), Votes, Bill Text and Versions, chief
+  author and co-authors, companion bill, the committee (opening its members' campaign
+  accounts when the record names the committee), official page, and each author's
+  confirmed campaign accounts, with "No confirmed campaign account" where none is
+  confirmed. Opened with no earlier page, it returns to Legislation.
+- **Roll call (`/votes/:id`)**: the exact motion, date, recorded result and each member's
+  recorded vote, filtered and searched in place. The roll call is read by its own id, which
+  names its bill; an older link that also carries `?bill=` still opens. Opened with no
+  earlier page, it returns to the bill's Votes tab.
 
 Reads queue so that at most 4 run at once (a finished read hands its place to the next), because the shared API serves only 12 requests at
 a time across both sites; a "busy" answer is retried after the server's suggested wait. Only
