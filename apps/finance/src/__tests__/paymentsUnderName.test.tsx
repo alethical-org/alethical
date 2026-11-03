@@ -8,6 +8,7 @@ import {
   copyLines,
   countLine,
   coverageLine,
+  excerptAmount,
   excerptText,
   rowIdentityNote,
   filerFromParam,
@@ -357,7 +358,7 @@ describe('Payments under this name', () => {
     expect(dialog.textContent).toContain('Employer as filed');
     // The served excerpt, in the file's own order; the ZIP as filed comes from it.
     expect(dialog.querySelector('blockquote')?.textContent).toBe(
-      'Recipient reg num: 19369\nAmount: 250.0000\nReceipt date: Sep 18, 2026\nContributor: Example, Wen\nContrib zip: 55401',
+      'Recipient reg num: 19369\nAmount: 250.00\nReceipt date: Sep 18, 2026\nContributor: Example, Wen\nContrib zip: 55401',
     );
     expect(dialog.textContent).toContain('ZIP as filed55401');
     // An excerpt is held, so the generic Board link is not offered.
@@ -778,6 +779,17 @@ describe('Payments under this name helpers', () => {
     ).toEqual({ records: 0, identities: [] });
   });
 
+  it('prints a stored decimal in the excerpt with 2 decimals, never below the cent', () => {
+    expect(excerptAmount('1250.5000')).toBe('1250.50');
+    expect(excerptAmount('900.0000')).toBe('900.00');
+    expect(excerptAmount('-150.2500')).toBe('-150.25');
+    expect(excerptAmount('12.3456')).toBe('12.3456');
+    expect(excerptAmount('12.3450')).toBe('12.345');
+    // Text that is not a stored decimal prints as served.
+    expect(excerptAmount('19369')).toBe('19369');
+    expect(excerptAmount('Example, Wen')).toBe('Example, Wen');
+  });
+
   it('prints the served excerpt in its own order, dates as dates and blanks as not given', () => {
     expect(
       excerptText([
@@ -789,7 +801,7 @@ describe('Payments under this name helpers', () => {
         ['Contrib zip', null],
       ]),
     ).toBe(
-      'Recipient reg num: 19369\nAmount: 250.0000\nReceipt date: Sep 18, 2026\nYear: 2026\nContributor: Example, Wen\nContrib zip: Not given',
+      'Recipient reg num: 19369\nAmount: 250.00\nReceipt date: Sep 18, 2026\nYear: 2026\nContributor: Example, Wen\nContrib zip: Not given',
     );
     expect(excerptText(null)).toBeNull();
     expect(excerptText([])).toBeNull();

@@ -199,10 +199,22 @@ const DATASET_SOURCE: Record<string, string> = {
 
 const NOT_GIVEN = 'Not given';
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const STORED_DECIMAL = /^(-?\d+)\.(\d+)$/;
+
+/** A stored decimal as the filing's amount: exactly 2 decimals ("1250.5000" reads
+ * "1250.50"), more only where the value truly has them, never rounded below the
+ * cent; no currency sign or grouping (settled wording row 32). */
+export function excerptAmount(value: string): string {
+  const parts = STORED_DECIMAL.exec(value);
+  if (!parts) return value;
+  const decimals = parts[2].replace(/0+$/, '');
+  return `${parts[1]}.${decimals.length >= 2 ? decimals : decimals.padEnd(2, '0')}`;
+}
 
 /** The served excerpt as SOURCE TEXT: 1 "label: value" line per column, in the
- * order the server serves them (the file's own), a date as the page prints dates
- * and a blank cell as "Not given"; null when no excerpt is held. */
+ * order the server serves them (the file's own), a date as the page prints dates,
+ * a stored decimal with 2 decimals and a blank cell as "Not given"; null when no
+ * excerpt is held. */
 export function excerptText(excerpt: RowFacts['excerpt']): string | null {
   if (!Array.isArray(excerpt) || excerpt.length === 0) return null;
   return excerpt
@@ -212,7 +224,7 @@ export function excerptText(excerpt: RowFacts['excerpt']): string | null {
           ? NOT_GIVEN
           : ISO_DAY.test(value)
             ? (formatDay(value) ?? value)
-            : value;
+            : excerptAmount(value);
       return `${label}: ${shown}`;
     })
     .join('\n');

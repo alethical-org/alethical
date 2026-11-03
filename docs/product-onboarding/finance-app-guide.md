@@ -228,8 +228,8 @@ figure is ever added across committees or members.
   scope. Each record shows its date, amount, committee, "Confirmed as {identity}" when its own
   fingerprint is confirmed, and source evidence (the saved source, its copy, the row, the
   employer and ZIP as filed where held, and the whole source row as SOURCE TEXT, 1 "label:
-  value" line per column in the file's order, a date as the page prints dates and a blank cell
-  as "Not given"; the Board's file is linked only when no excerpt is held). A file our copy
+  value" line per column in the file's order, a date as the page prints dates, an amount with
+  2 decimals ("1250.50") and a blank cell as "Not given"; the Board's file is linked only when no excerpt is held). A file our copy
   cannot read shows "We could not read this part of our records just now" in its section,
   never the failure line. Each committee link opens the tab
   holding that record's kind, the record's own filing year and the printed name. A card lists
