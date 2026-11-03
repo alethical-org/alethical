@@ -454,6 +454,19 @@ describe('Committee page', () => {
     );
   });
 
+  it("filters the names by the name a link carries, and by an older link's q", async () => {
+    await render('/money/committees/90001?name=Jordan', loadedAnswers());
+    expect(text()).toContain('Example, Jordan A');
+    expect(text()).not.toContain('EXAMPLE, PRIYA');
+    expect(container.querySelector<HTMLInputElement>('.cmt-field')?.value).toBe('Jordan');
+    act(() => root.unmount());
+    root = createRoot(container);
+    clearReadCache();
+    await render('/money/committees/90001?q=Jordan', loadedAnswers());
+    expect(text()).toContain('Example, Jordan A');
+    expect(text()).not.toContain('EXAMPLE, PRIYA');
+  });
+
   it('opens a name to its payments with missing values left missing', async () => {
     await render('/money/committees/90001', loadedAnswers());
     const toggle = [...container.querySelectorAll('button')].find((item) =>

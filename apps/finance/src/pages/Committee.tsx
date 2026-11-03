@@ -157,11 +157,14 @@ export function Committee({ match }: { match: RouteMatch }) {
   const [address, setAddress] = useAddressState({
     year: String(years[0]),
     tab: 'individuals',
-    q: '',
+    name: '',
     sort: 'total',
     report: '',
   });
   const year = chosenYear(address.year, years);
+  // The name filter is `name` in every link into this page (Committee drawing);
+  // older links carried `q`, which still opens the same filter.
+  const nameFilter = address.name || (location.searchParams.get('q') ?? '');
   const focusIndependent = address.tab === 'independent';
   const tab: TabKey = isTab(address.tab) ? address.tab : 'individuals';
   const sort: SortKey = isSort(address.sort) ? address.sort : 'total';
@@ -239,7 +242,7 @@ export function Committee({ match }: { match: RouteMatch }) {
 
   const list = isExp ? made : received;
   const tabGroups: Group[] | null = isExp ? spent : (groups?.[tab as ContributionTab] ?? null);
-  const matched = tabGroups ? matchName(tabGroups, address.q) : [];
+  const matched = tabGroups ? matchName(tabGroups, nameFilter) : [];
   const sorted = sortGroups(matched, sort);
   const visible = sorted.slice(0, shown);
   const remaining = sorted.length - visible.length;
@@ -318,7 +321,7 @@ export function Committee({ match }: { match: RouteMatch }) {
       return {
         tabLabel: tabLabel(where),
         jump: () => {
-          setAddress({ tab: where, q: '' });
+          setAddress({ tab: where, name: '' });
           setShown(Number.POSITIVE_INFINITY);
           setOpen((previous) => new Set(previous).add(group.key));
           setJumped(row.id);
@@ -557,7 +560,7 @@ export function Committee({ match }: { match: RouteMatch }) {
                       value={tab}
                       tabs={tabs}
                       onChange={(value) => {
-                        setAddress({ tab: value, q: '' });
+                        setAddress({ tab: value, name: '' });
                         setShown(STEP);
                       }}
                     />
@@ -569,11 +572,11 @@ export function Committee({ match }: { match: RouteMatch }) {
                       <input
                         type="search"
                         className="f-field cmt-field"
-                        value={address.q}
+                        value={nameFilter}
                         placeholder="Search names in this tab"
                         autoComplete="off"
                         onChange={(event) => {
-                          setAddress({ q: event.target.value });
+                          setAddress({ name: event.target.value });
                           setShown(STEP);
                         }}
                       />
