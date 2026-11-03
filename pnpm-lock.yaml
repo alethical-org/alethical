@@ -5,31 +5,31 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@babel/core': 7.29.6
-  '@expo/xcpretty': 4.4.3
   '@react-navigation/core': 7.17.2
   '@react-navigation/elements': 2.9.15
   '@react-navigation/routers': 7.5.3
   '@supabase/phoenix': 0.4.1
-  '@xmldom/xmldom@0.8': 0.8.15
-  '@xmldom/xmldom@0.9': 0.9.12
+  '@expo/xcpretty': 4.4.3
+  metro@0.84.4>image-size: 2.0.3
+  '@babel/core': 7.29.6
   brace-expansion: 5.0.12
   compression: 1.8.2
   js-yaml@3: 3.15.2
   js-yaml@4: 4.3.2
-  metro@0.84.4>image-size: 2.0.3
+  '@xmldom/xmldom@0.8': 0.8.15
+  '@xmldom/xmldom@0.9': 0.9.12
+  query-string@7.1.3>decode-uri-component: 0.5.0
   minimatch@3.1.5>brace-expansion: 2.1.7
   nanoid: 3.3.18
   postcss: 8.5.23
-  query-string@7.1.3>decode-uri-component: 0.5.0
-  shell-quote: 1.11.0
   source-map-js: 1.2.2
-  undici: 8.12.2
-  uuid: 11.1.1
-  vite: 8.1.6
+  shell-quote: 1.11.0
   ws@7: 7.5.11
   ws@8: 8.21.0
+  undici: 8.12.2
+  uuid: 11.1.1
   zod: 4.6.7
+  vite: 8.1.6
 
 patchedDependencies:
   '@expo/metro-config@57.0.7':
@@ -45,7 +45,7 @@ patchedDependencies:
     hash: 88b0436747f9b7041c39bdf27baadee2fc9632348fa0615b0f69b78ecc7210a8
     path: patches/deepmerge@4.3.1.patch
   glob@13.0.6:
-    hash: 5d5d1fa72fbd15472192cbe9daa0937769fd7ffe83111970b03396f4da6163c6
+    hash: 6ed41945ff7a9a3e8e48f2bcb15792998f98c269cd642d09e0c4d8966661066a
     path: patches/glob@13.0.6.patch
   metro@0.84.4:
     hash: 745d9cbaf87fa685fc820225527a92c32acebfd00dd1b6ea3f876b07db75e3b8
@@ -3926,7 +3926,7 @@ snapshots:
       expo-server: 57.0.1
       fetch-nodeshim: 0.4.10
       getenv: 2.0.0
-      glob: 13.0.6(patch_hash=5d5d1fa72fbd15472192cbe9daa0937769fd7ffe83111970b03396f4da6163c6)
+      glob: 13.0.6(patch_hash=6ed41945ff7a9a3e8e48f2bcb15792998f98c269cd642d09e0c4d8966661066a)
       lan-network: 0.2.1
       multitars: 1.0.0
       node-forge: 1.4.0(patch_hash=b6b641c5516784f73c3ada59a215dbd7bb2eb7d4b2c254699a06551baa835ff6)
@@ -3976,7 +3976,7 @@ snapshots:
       chalk: 4.1.2
       debug: 4.4.3
       getenv: 2.0.0
-      glob: 13.0.6(patch_hash=5d5d1fa72fbd15472192cbe9daa0937769fd7ffe83111970b03396f4da6163c6)
+      glob: 13.0.6(patch_hash=6ed41945ff7a9a3e8e48f2bcb15792998f98c269cd642d09e0c4d8966661066a)
       semver: 7.8.5
       slugify: 1.6.9
       xcode: 3.0.1
@@ -3995,7 +3995,7 @@ snapshots:
       '@expo/require-utils': 57.0.4(typescript@6.0.3)
       deepmerge: 4.3.1(patch_hash=88b0436747f9b7041c39bdf27baadee2fc9632348fa0615b0f69b78ecc7210a8)
       getenv: 2.0.0
-      glob: 13.0.6(patch_hash=5d5d1fa72fbd15472192cbe9daa0937769fd7ffe83111970b03396f4da6163c6)
+      glob: 13.0.6(patch_hash=6ed41945ff7a9a3e8e48f2bcb15792998f98c269cd642d09e0c4d8966661066a)
       resolve-workspace-root: 2.0.1
       semver: 7.8.5
       slugify: 1.6.9
@@ -4041,7 +4041,7 @@ snapshots:
       chalk: 4.1.2
       debug: 4.4.3
       getenv: 2.0.0
-      glob: 13.0.6(patch_hash=5d5d1fa72fbd15472192cbe9daa0937769fd7ffe83111970b03396f4da6163c6)
+      glob: 13.0.6(patch_hash=6ed41945ff7a9a3e8e48f2bcb15792998f98c269cd642d09e0c4d8966661066a)
       ignore: 5.3.2
       minimatch: 10.2.5(patch_hash=6e9b5b0bb1b4da39bf8c426e8962f700abfa5864a6c80cfbdd90ba616bc6d0ad)
       resolve-from: 5.0.0
@@ -4109,7 +4109,7 @@ snapshots:
       chalk: 4.1.2
       debug: 4.4.3
       getenv: 2.0.0
-      glob: 13.0.6(patch_hash=5d5d1fa72fbd15472192cbe9daa0937769fd7ffe83111970b03396f4da6163c6)
+      glob: 13.0.6(patch_hash=6ed41945ff7a9a3e8e48f2bcb15792998f98c269cd642d09e0c4d8966661066a)
       hermes-parser: 0.36.1
       jsc-safe-url: 0.2.4
       lightningcss: 1.33.0
@@ -5478,7 +5478,7 @@ snapshots:
 
   getenv@2.0.0: {}
 
-  glob@13.0.6(patch_hash=5d5d1fa72fbd15472192cbe9daa0937769fd7ffe83111970b03396f4da6163c6):
+  glob@13.0.6(patch_hash=6ed41945ff7a9a3e8e48f2bcb15792998f98c269cd642d09e0c4d8966661066a):
     dependencies:
       minimatch: 10.2.5(patch_hash=6e9b5b0bb1b4da39bf8c426e8962f700abfa5864a6c80cfbdd90ba616bc6d0ad)
       minipass: 7.1.3
