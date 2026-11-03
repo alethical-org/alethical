@@ -17,9 +17,13 @@ export interface PersonDirectoryRow {
   name: string;
   slug?: string;
   year?: number;
-  election?: string;
+  /** The candidacy's election as the held record carries it: an object
+   * (`{ id, date, label, type: 'general' }`), never a ready-made string. */
+  election?: { type?: string | null; label?: string | null; date?: string | null } | string | null;
   office?: string;
   voting_area?: string;
+  /** The party as filed, where the server serves it. */
+  party?: string | null;
   source?: { authority?: string; checkedDate?: string };
   service_status?: 'current' | 'former' | 'unknown';
   periods?: Array<{
@@ -58,9 +62,69 @@ const plural = (n: number, one: string, many: string) =>
 export function countLine(total: number, query: string, type = 'legislators') {
   return `${plural(total, ...((type === 'candidates' ? ['candidacy', 'candidacies'] : type === 'legislators' ? ['service record', 'service records'] : ['record', 'records']) as [string, string]))}${query ? ` matching “${query}”` : ''}`;
 }
+const NOT_SIGNIFICANT = new Set(['district', 'member']);
+const words = (text: string) =>
+  text
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+
+/**
+ * The office and where it sits, each fact once (People drawing: "State
+ * Representative, District 99A"). The server sends the office title ("State
+ * Representative District 56A", "School Board Member (ISD #272)") and a voting
+ * area that often repeats part of it ("House District 56A", "ISD #272 · Whole
+ * district"). The office keeps its own words; an area part is added only for
+ * what the office does not already say.
+ */
+export function candidateSeat(office?: string, area?: string): string {
+  const original = office?.trim() ?? '';
+  // The area's parts, without the seat count ("(Elect 2)") and without a part
+  // that just restates the office.
+  const parts = (area ?? '')
+    .split('·')
+    .map((part) => part.replace(/\(Elect \d+\)/g, '').trim())
+    .map((part) =>
+      original && part.startsWith(original) ? part.slice(original.length).trim() : part,
+    )
+    // "House District 56A" says no more than the office's "District 56A".
+    .map((part) =>
+      original
+        ? part.replace(/^(House|Senate|Congressional|Judicial)\s+(?=District\b)/i, '')
+        : part,
+    )
+    .filter(Boolean);
+  const areaText = parts.join(' ').toLowerCase();
+  // An office's parenthesis the area repeats ("(ISD #272)") is said by the area.
+  const title = original
+    .replace(/\s*\(([^)]*)\)/g, (whole, inner: string) =>
+      areaText.includes(inner.trim().toLowerCase()) ? '' : whole,
+    )
+    .trim();
+  const split = /^(.*\S)\s+(District\s+\S+)$/i.exec(title);
+  const printed = split ? [split[1], split[2]] : title ? [title] : [];
+  for (const part of parts) {
+    const rest = split
+      ? part.replace(new RegExp(split[2].replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), '').trim()
+      : part;
+    const said = words(printed.join(' '));
+    const significant = words(rest).filter((word) => !NOT_SIGNIFICANT.has(word));
+    if (significant.length === 0 || significant.every((word) => said.includes(word))) continue;
+    printed.push(part);
+  }
+  return printed.join(', ');
+}
 export function rowNote(row: PersonDirectoryRow) {
-  if (row.kind === 'candidate')
-    return [row.year, row.election, row.office, row.voting_area].filter(Boolean).join(' · ');
+  if (row.kind === 'candidate') {
+    // The People drawing's row: "2026 general · State Representative, District
+    // 99A", then the party where held. The election is served as an object; only
+    // its type is printed beside the year.
+    const type = typeof row.election === 'string' ? row.election : row.election?.type;
+    const election = [row.year, type].filter(Boolean).join(' ');
+    return [election, candidateSeat(row.office, row.voting_area), row.party]
+      .filter(Boolean)
+      .join(' · ');
+  }
   if (row.kind === 'person') return 'Elections and service over time';
   const period = row.periods?.[0];
   const seat = period
