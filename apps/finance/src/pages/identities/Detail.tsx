@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { apiPath, useRead } from '../../api/read';
 import { useFinanceSession } from '../../auth/session';
@@ -29,6 +29,8 @@ import {
   coveredDates,
   coveredRows,
   coverageLine,
+  printableKey,
+  roleTitle,
   sumCounts,
   day,
   draftKey,
@@ -64,14 +66,21 @@ interface Ui {
   tried: boolean;
   saving: boolean;
   storeFailed: boolean;
+  /** A withdrawal of several confirmations stopped after some were withdrawn. */
+  partial: boolean;
   refused: boolean;
   planError: string;
   stale: boolean;
 }
+/** No drawn words: a withdrawal of several confirmations that stopped part way. */
+const PARTLY_WITHDRAWN =
+  'Some confirmations were withdrawn. The rest were not saved. Your note is kept below; try again.';
+
 const READY: Ui = {
   tried: false,
   saving: false,
   storeFailed: false,
+  partial: false,
   refused: false,
   planError: '',
   stale: false,
@@ -179,6 +188,8 @@ export function Detail({
 
   const [form, setForm] = useState<DraftFields | null>(null);
   const [ui, setUi] = useState<Ui>(READY);
+  // Confirmations this open withdrawal has already withdrawn: a retry skips them.
+  const withdrawn = useRef<Set<string>>(new Set());
   const [histOpen, setHistOpen] = useState<Record<string, boolean>>({});
 
   // Every change to the open form is kept as its draft; an emptied form keeps none.
@@ -192,6 +203,7 @@ export function Detail({
 
   function open(fields: DraftKeyFields | null) {
     setUi(READY);
+    withdrawn.current = new Set();
     onLive('');
     if (!fields) {
       setForm(null);
@@ -410,11 +422,17 @@ export function Detail({
         ],
       });
     }
-    // Withdraw: each confirmation of this spelling for the shown identity.
-    let last: WriteResult<unknown> = { ok: false, reason: 'failed' };
-    for (const group of groups) {
+    // Withdraw: each confirmation of this spelling for the shown identity, 1 request
+    // each; a retry skips the ones already withdrawn.
+    const pending = groups.filter((group) => !withdrawn.current.has(group.id));
+    let last: WriteResult<unknown> =
+      pending.length || withdrawn.current.size
+        ? { ok: true, data: null }
+        : { ok: false, reason: 'failed' };
+    for (const group of pending) {
       last = await post(['confirmations', group.id, 'withdraw'], { reason: current.note.trim() });
       if (!last.ok) return last;
+      withdrawn.current.add(group.id);
     }
     return last;
   }
@@ -457,6 +475,7 @@ export function Detail({
       ]);
     const result = await perform(current, mode);
     if (result.ok) {
+      withdrawn.current = new Set();
       discardDraft(draftKey(kind, name, current));
       setForm(null);
       setUi(READY);
@@ -466,7 +485,13 @@ export function Detail({
       onDraftsChanged();
       return;
     }
-    if (result.reason === 'source-changed') {
+    if (mode === 'withdraw' && withdrawn.current.size > 0) {
+      // Part of the withdrawal saved: show what changed and keep the note for the rest.
+      setUi({ ...READY, partial: true });
+      onLive(PARTLY_WITHDRAWN);
+      setVersion((value) => value + 1);
+      onSaved();
+    } else if (result.reason === 'source-changed') {
       setUi({ ...READY, tried: true, stale: true });
       onLive('');
     } else if (
@@ -621,7 +646,7 @@ export function Detail({
       const checked = form.roles.includes(c.id);
       return {
         key: c.id,
-        title: `${ROLE_LABELS[c.record_kind] ?? c.record_kind} · ${c.record_key}`,
+        title: roleTitle(c),
         meta: '',
         checked,
         toggle: () =>
@@ -704,11 +729,20 @@ export function Detail({
             <ul>
               {moving.map((c) => (
                 <li key={c.id}>
-                  <span className="ci-strong">{c.record_key}</span>
+                  <span className="ci-strong">
+                    {printableKey(c) ?? ROLE_LABELS[c.record_kind] ?? c.record_kind}
+                  </span>
                   <span className="ci-muted f-num">
                     {c.records
                       ? coverageLine(c)
-                      : `${ROLE_LABELS[c.record_kind] ?? c.record_kind}${c.checked_at ? ` · Checked on ${day(c.checked_at)}` : ''}`}
+                      : [
+                          printableKey(c) === null
+                            ? null
+                            : (ROLE_LABELS[c.record_kind] ?? c.record_kind),
+                          c.checked_at ? `Checked on ${day(c.checked_at)}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
                   </span>
                   <span>
                     <span className="ci-strong">Evidence:</span> {confirmationNote(c)} ·{' '}
@@ -841,6 +875,18 @@ export function Detail({
       {ui.storeFailed && (
         <div role="alert" className="ci-failed">
           <span>Not saved. Your entries are kept.</span>
+          <button
+            type="button"
+            className="f-btn f-btn-secondary ci-btn-s"
+            onClick={() => void submit()}
+          >
+            Try again
+          </button>
+        </div>
+      )}
+      {ui.partial && (
+        <div role="alert" className="ci-failed">
+          <span>{PARTLY_WITHDRAWN}</span>
           <button
             type="button"
             className="f-btn f-btn-secondary ci-btn-s"
@@ -1076,45 +1122,51 @@ export function Detail({
 
       <section aria-labelledby="hist-h" className="ci-history-section">
         <h3 id="hist-h">History</h3>
-        <ol className="ci-card ci-history">
-          {history.length === 0 && (
-            <li>
-              <span />
-              <span>No confirmations or suggestions yet</span>
-            </li>
-          )}
-          {history.map((row) => (
-            <li key={row.key}>
-              <span className="ci-history-date f-num">{row.date}</span>
-              <span className="ci-history-body">
-                <span className="f-num ci-wrap">
-                  <Refs>{row.text}</Refs>
-                </span>
-                {row.evidence.length > 0 && (
-                  <span>
-                    <button
-                      type="button"
-                      className="f-btn f-btn-secondary ci-btn-s"
-                      aria-expanded={!!histOpen[row.key]}
-                      onClick={() =>
-                        setHistOpen((value) => ({ ...value, [row.key]: !value[row.key] }))
-                      }
-                    >
-                      View evidence
-                    </button>
+        {reads.failed && <Refused onRetry={reads.retry}>We couldn’t load the history</Refused>}
+        {history.length === 0 && !reads.settled && !reads.failed && <LoadingRows />}
+        {(history.length > 0 || reads.settled) && (
+          <ol className="ci-card ci-history">
+            {/* Empty only when every identity read finished: never while loading or
+              after a failure (settled wording row 29). */}
+            {history.length === 0 && reads.settled && (
+              <li>
+                <span />
+                <span>No confirmations or suggestions yet</span>
+              </li>
+            )}
+            {history.map((row) => (
+              <li key={row.key}>
+                <span className="ci-history-date f-num">{row.date}</span>
+                <span className="ci-history-body">
+                  <span className="f-num ci-wrap">
+                    <Refs>{row.text}</Refs>
                   </span>
-                )}
-                {histOpen[row.key] && (
-                  <ul className="ci-evidence">
-                    {row.evidence.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                )}
-              </span>
-            </li>
-          ))}
-        </ol>
+                  {row.evidence.length > 0 && (
+                    <span>
+                      <button
+                        type="button"
+                        className="f-btn f-btn-secondary ci-btn-s"
+                        aria-expanded={!!histOpen[row.key]}
+                        onClick={() =>
+                          setHistOpen((value) => ({ ...value, [row.key]: !value[row.key] }))
+                        }
+                      >
+                        View evidence
+                      </button>
+                    </span>
+                  )}
+                  {histOpen[row.key] && (
+                    <ul className="ci-evidence">
+                      {row.evidence.map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ul>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ol>
+        )}
       </section>
     </section>
   );

@@ -8,6 +8,8 @@ export interface IdentityReads {
   byId: Map<string, Identity>;
   loading: boolean;
   failed: boolean;
+  /** Every read for the current ids finished, and none failed. */
+  settled: boolean;
   retry: () => void;
 }
 
@@ -71,8 +73,11 @@ export function useIdentities(ids: ReadonlyArray<string>, version: number): Iden
         (id) => !found.has(id),
       );
       const second = await Promise.all(more.map(read));
+      // An identity the history names that cannot be read leaves an event unprintable,
+      // so it fails the whole read with Try again rather than dropping the event.
       second.forEach((answer, index) => {
         if (answer.state === 'ok') found.set(more[index], answer.data);
+        else failed = true;
       });
       if (!live) return;
       setHeld(found);
@@ -89,6 +94,7 @@ export function useIdentities(ids: ReadonlyArray<string>, version: number): Iden
     byId: held,
     loading: wanted.length > 0 && (!current || !state.done) && held.size === 0,
     failed: current && state.failed,
+    settled: wanted.length === 0 || (current && state.done && !state.failed),
     retry: () => setAttempt((value) => value + 1),
   };
 }

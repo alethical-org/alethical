@@ -173,6 +173,27 @@ export const ROLE_LABELS: Record<string, string> = {
   public_person: 'Official IDs',
 };
 
+/** Identifier kinds whose record key is Alethical's internal id for a held record
+ * (identity_confirmations._HELD_RECORDS). That id is never printed (settled wording
+ * row 21); the role label stands alone. */
+const HELD_ID_KINDS = new Set(['legislator', 'public_person']);
+
+/** The record key a reader may see: a printed name or registration number as filed,
+ * or null for a held record's internal id. */
+export function printableKey(confirmation: {
+  record_kind: string;
+  record_key: string;
+}): string | null {
+  return HELD_ID_KINDS.has(confirmation.record_kind) ? null : confirmation.record_key;
+}
+
+/** "{role} · {registration}", or the role alone for a held record. */
+export function roleTitle(confirmation: { record_kind: string; record_key: string }): string {
+  const label = ROLE_LABELS[confirmation.record_kind] ?? confirmation.record_kind;
+  const key = printableKey(confirmation);
+  return key === null ? label : `${label} · ${key}`;
+}
+
 /**
  * The drawn check that evidence names something besides the shared name: the note
  * with the names and filler words removed must keep at least 8 characters.

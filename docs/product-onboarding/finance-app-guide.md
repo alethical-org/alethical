@@ -318,8 +318,18 @@ figure is ever added across committees or members.
   hold is never printed as 0 or as a partial sum: every row and History event stays and only
   the number is dropped ("Confirmed as {identity}", "withdrawn: {reason}", "confirmed
   records moved to {reference}", "These confirmed records will move from …", "{k} records
-  selected" without "of n", and "Records covered" without its "N records"). History reads
-  "No confirmations or suggestions yet" only when there are no events. A selection is the
+  selected" without "of n", and "Records covered" without its "N records"). History shows a
+  loading bar while the identities it reads load, "We couldn’t load the history" with Try
+  again when any of them fails (including an identity a merge or split names), and "No
+  confirmations or suggestions yet" only when every read finished and none returned an
+  event. It reads only identities that still hold records of the spelling, so a spelling
+  whose every confirmation was withdrawn shows that empty line even though withdrawals
+  happened. A split into more than 2 parts lists each part and reads "now opens a choice of
+  all {n}". A legislator or public-person link is named by its role ("Legislative service",
+  "Official IDs"), never by its internal id. A withdrawal of several confirmations sends 1
+  request each; if a later one fails, the page refreshes, says "Some confirmations were
+  withdrawn. The rest were not saved. Your note is kept below; try again.", and Try again
+  sends only the rest. A selection is the
   server's record fingerprints, or "All records" / "{year} records", which the server
   resolves. "Saved" appears only after the server accepts; otherwise "Not saved. Your
   entries are kept." with Try again, "These records changed since this form opened…" or,
