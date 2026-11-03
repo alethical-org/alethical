@@ -118,8 +118,12 @@ export function historyRows(
         typeof detail.from === 'string'
       ) {
         const from = detail.from;
-        const fromName = identities.get(from)?.name ?? null;
-        const fromLabel = { name: fromName ?? references[from] ?? '', reference: references[from] };
+        const fromIdentity = identities.get(from);
+        const fromName = fromIdentity?.name ?? null;
+        const fromLabel = {
+          name: fromName ?? references[from] ?? '',
+          reference: fromIdentity?.reference ?? references[from],
+        };
         if (!fromLabel.name) continue;
         // Events do not save historical source-row counts. Today's confirmations
         // cannot establish how many records moved when this merge happened.

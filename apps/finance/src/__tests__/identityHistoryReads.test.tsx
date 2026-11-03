@@ -183,7 +183,7 @@ it('keeps earlier merge events when their receiving identity is merged again', (
   ]);
   const rows = historyRows(identities, 'payee_name', 'Printed name', 1);
   expect(rows.map((row) => row.key)).toEqual(['merge|middle|part', 'merge|original|middle']);
-  expect(rows[1].text).toContain('Name original');
+  expect(rows[1].text).toContain('Name original (ORG-original)');
 });
 
 it('keeps creation wording when a merged-in confirmation arrives before its original holder', () => {
