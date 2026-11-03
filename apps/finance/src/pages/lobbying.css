@@ -516,7 +516,9 @@
 .lbl-committee-name {
   font-size: 15px;
   font-weight: 600;
-  overflow-wrap: anywhere;
+  /* Breaks only a word too long for the line, so the name's last word and the
+     dot after it stay together. */
+  overflow-wrap: break-word;
 }
 a.lbl-committee-name {
   color: var(--link);
@@ -827,11 +829,11 @@ a.lbl-committee-name {
   }
 }
 
-/* Standalone links keep a 44px target on phone. */
+/* Standalone links keep a 44px target on phone. The committee name stays inline
+ * text, so its last word and the dot after it wrap together; padding makes the
+ * target 44px tall (22px line + 11px above and below). */
 @media (max-width: 767px) {
   a.lbl-committee-name {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
+    padding: 11px 0;
   }
 }

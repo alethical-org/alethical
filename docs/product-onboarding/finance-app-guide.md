@@ -205,7 +205,7 @@ figure is ever added across committees or members.
   Committees and funds, Party units), searched by name and paged on the server, with each
   registration's status ("Open registration", "Terminated {date}"). Sort by chooses names
   A to Z or numeric registration-number order. Other ways in opens Donors by employer and
-  Vendors and payees; About these records states the records' limits. Results stay on
+  Money by race, and Vendors and payees; About these records states the records' limits. Results stay on
   screen while an update loads or fails, with Try again.
 - **Committee (`/money/committees/:id`)**: the registration's status, the official report
   figures for the chosen report (beginning balance, total receipts, contributions, total

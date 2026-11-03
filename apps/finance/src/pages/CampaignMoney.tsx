@@ -15,6 +15,7 @@ import { Link, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
+import { useBand } from '../ui/band';
 import { ClearAll, Dropdown, Empty, LoadingRows, Refused, Updating } from '../ui/controls';
 import { RecordMark } from '../ui/marks';
 import { ScrollingTabs } from '../ui/scrollingTabs';
@@ -142,7 +143,12 @@ export function sourceGroups(
  * worded and punctuated as 1 group. Donors by employer is entered from here, not
  * from Finance Home (eug-44). Payments under a name and Money by race open only
  * with a name or a contest, so neither has a plain entrance here. */
-const SIDE_CARDS = [
+const SIDE_CARDS: ReadonlyArray<{
+  route: 'recipients' | 'employers' | 'money-by-race';
+  params?: Record<string, string>;
+  title: string;
+  body: string;
+}> = [
   {
     route: 'recipients' as const,
     title: 'Vendors and payees',
@@ -152,6 +158,14 @@ const SIDE_CARDS = [
     route: 'employers' as const,
     title: 'Donors by employer',
     body: 'Find donors by the employer name reported in their filings.',
+  },
+  {
+    // An office alone opens that office's first contest, as the drawing's
+    // unparameterised link does.
+    route: 'money-by-race' as const,
+    params: { id: 'house' },
+    title: 'Money by race',
+    body: 'Candidate committees and outside spending for one office, district and year, kept distinct.',
   },
 ];
 
@@ -212,10 +226,14 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
   // Back, Forward or a new link changes the address: the field follows it.
   useEffect(() => setTyped(submitted), [submitted]);
 
+  // An unavailable register is a failed read, so the last list stays on screen
+  // with Try again rather than being replaced by the outage.
   const read = useRead<CommitteeRegister>(registerPath(tab, submitted, page, address.sort), {
     keepPrevious: true,
+    acceptData: (data) => data.state === 'reported',
   });
   const summary = useRead<MoneySummary>('campaign-finance/summary');
+  const phone = useBand() === 'phone';
   const register = read.data;
   const unavailable = register !== null && register.state !== 'reported';
   const rows = register && !unavailable ? register.committees : [];
@@ -297,7 +315,9 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
         </header>
 
         <form role="search" onSubmit={submit} className="cm-search">
-          <label htmlFor="money-name" className="f-visually-hidden">
+          {/* The drawn label shows on phone, above the field; elsewhere the field's
+              hint says it (settled wording row 3). */}
+          <label htmlFor="money-name" className={phone ? 'cm-search-label' : 'f-visually-hidden'}>
             Search by name
           </label>
           <input
@@ -307,7 +327,7 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
             value={typed}
             maxLength={MAX_QUERY}
             autoComplete="off"
-            placeholder="Search by name"
+            placeholder={phone ? 'Name' : 'Search by name'}
             onChange={(event) => setTyped(event.target.value)}
           />
           <button type="submit" className="f-btn cm-submit">
@@ -506,7 +526,7 @@ export function CampaignMoney(_props: { match: RouteMatch }) {
             {cards.map((card) => (
               <Link
                 key={card.route}
-                to={withFrom(hrefFor(card.route), here)}
+                to={withFrom(hrefFor(card.route, card.params), here)}
                 className="cm-card cm-side-card"
               >
                 <span className="cm-side-head">
