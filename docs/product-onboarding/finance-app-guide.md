@@ -527,3 +527,17 @@ one names its exact saved version and page.
 
 Campaign money's Sort by control reads the whole register in name order or numeric
 registration-number order; a choice resets the page and remains in the address.
+
+### List copies and changed records
+
+People, Vendors, Money connections, identity lists and station-file lists keep one
+server version for later pages of the same filtered list. A source change refuses
+the next page: the previous results stay visible with “These records changed.
+Reload the list. Previous results are shown.” Try again reloads page 1 without
+combining old and new records. A filter change starts its own version. A normal
+read failure keeps previous results with a notice and retry; an access refusal
+clears held results and checks the account's access again.
+
+Identity record replies separately name `history_identities` for withdrawn
+confirmations under the exact printed spelling. Those owners are read for History
+only; they do not become current confirmations or merge choices.

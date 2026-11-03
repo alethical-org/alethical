@@ -30,6 +30,7 @@ export interface QueueRow extends QueueSource {
 }
 
 export interface QueuePage {
+  version?: string;
   rows: QueueRow[];
   page: number;
   page_size: number;
@@ -78,6 +79,8 @@ export interface RecordsPage {
   pages: number;
   years: number[];
   identities: Array<IdentitySummary & { confirmed: number }>;
+  /** Original owners with exact-spelling history, never active coverage or merge choices. */
+  history_identities?: IdentitySummary[];
   fingerprints: Fingerprint[];
   no_longer_in_board_file: Array<{
     fingerprint: string;
@@ -161,6 +164,7 @@ export interface Identity {
 }
 
 export interface EntityPage {
+  version?: string;
   rows: IdentitySummary[];
   total: number;
   page: number;

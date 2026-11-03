@@ -1,6 +1,7 @@
+import { RECORDS_CHANGED, useVersionedRead } from '../../api/versionedRead';
 import { useEffect } from 'react';
 
-import { apiPath, useRead } from '../../api/read';
+import { apiPath } from '../../api/read';
 import { useAddressState } from '../../ui/addressState';
 import { Chips, Refused, Updating } from '../../ui/controls';
 import { LoadingLine } from '../../ui/parts';
@@ -35,20 +36,15 @@ export function Queue({
   const status =
     state.status === 'confirmed' || state.status === 'all' ? state.status : 'unconfirmed';
   const page = Math.max(1, Math.trunc(Number(state.queue_page) || 1));
-  const read = useRead<QueuePage>(
+  const read = useVersionedRead<QueuePage>(
     apiPath(['finance', 'identities', 'queue'], {
       record_type: type,
       status,
       page,
       page_size: PAGE_SIZE,
     }),
-    { keepPrevious: true },
+    { page, onRestart: () => setState({ queue_page: '1' }), refresh: version },
   );
-  useEffect(() => {
-    if (version > 0) read.retry();
-    // Only a saved change asks for a fresh read.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version]);
   useEffect(() => {
     if (read.data) onLoaded(read.data);
   }, [read.data, onLoaded]);
@@ -98,7 +94,9 @@ export function Queue({
       {read.failed && (
         <div className="ci-pad">
           <Refused onRetry={read.retry} retrying={read.pending}>
-            We couldn’t load the names to review. This is a problem on our side.
+            {read.changed
+              ? RECORDS_CHANGED
+              : `We couldn’t load the names to review. This is a problem on our side.${data ? ' Previous results are shown.' : ''}`}
           </Refused>
         </div>
       )}

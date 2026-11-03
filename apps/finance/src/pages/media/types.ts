@@ -44,6 +44,7 @@ export interface Group {
   unchecked?: boolean;
 }
 export interface Browse {
+  version?: string;
   tab: string;
   q: string;
   station: string;
@@ -166,6 +167,7 @@ export interface QueueRow extends FileRow {
   reasons: Array<{ kind: 'agency_checked_elsewhere' | 'folder_committee_checked'; label: string }>;
 }
 export interface Queue {
+  version?: string;
   rows: QueueRow[];
   total: number;
   limit: number;

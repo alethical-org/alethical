@@ -1,3 +1,4 @@
+import { RECORDS_CHANGED, useVersionedRead } from '../api/versionedRead';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { currentChamber, legislatorDistrictLine } from '@alethical/shared/legislatorProfile';
 import { apiPath, useRead } from '../api/read';
@@ -38,6 +39,7 @@ export interface PersonDirectoryRow {
   }>;
 }
 export interface PeoplePage {
+  version?: string;
   state: string;
   rows: PersonDirectoryRow[];
   total: number;
@@ -133,7 +135,7 @@ export function People(_props: { match: RouteMatch }) {
     /^\d{4}$/.test(state.year) && Number(state.year) >= 1900 && Number(state.year) <= 2200
       ? state.year
       : '';
-  const read = useRead<PeoplePage>(
+  const read = useVersionedRead<PeoplePage>(
     apiPath(['finance', 'people'], {
       q: query,
       type,
@@ -144,7 +146,7 @@ export function People(_props: { match: RouteMatch }) {
       limit: PAGE_SIZE,
       offset: (page - 1) * PAGE_SIZE,
     }),
-    { keepPrevious: true },
+    { page, onRestart: () => setState({ page: '1' }) },
   );
   const data = read.data,
     rows = data?.rows ?? [],
@@ -269,8 +271,9 @@ export function People(_props: { match: RouteMatch }) {
           {read.updating && <Updating />}
           {read.failed && (
             <Refused onRetry={read.retry} retrying={read.pending}>
-              We couldn’t load these results. This is a problem on our side.
-              {data ? ' Previous results are shown.' : ''}
+              {read.changed
+                ? RECORDS_CHANGED
+                : `We couldn’t load these results. This is a problem on our side.${data ? ' Previous results are shown.' : ''}`}
             </Refused>
           )}
           {data && (
