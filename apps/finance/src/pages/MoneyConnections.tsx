@@ -6,11 +6,12 @@ import { hrefFor } from '../routes';
 import { useAddressState } from '../ui/addressState';
 import { useBand } from '../ui/band';
 import { Dropdown, EvidencePanel, Refused, Tabs, Updating, type Evidence } from '../ui/controls';
-import { BackLink, WithArrow } from '../ui/parts';
+import { BackLink, SourcesAndUpdates, WithArrow } from '../ui/parts';
 import { useView } from '../ui/view';
 import { ConnectionsMap } from './connections/Map';
 import {
   combinePages,
+  paymentCopyLine,
   committeeEdgeHref,
   countLine,
   edgeAmount,
@@ -54,8 +55,12 @@ function nodeLinkLabel(node: GraphNode) {
 export function MoneyConnections() {
   const location = useLocation(),
     here = location.pathname + location.search;
-  // With no usable earlier page, the drawn fallback: Finance Home (contextual page-return rule).
-  const back = returnTarget(location.search) ?? { to: hrefFor('home'), name: 'Finance Home' };
+  // With no usable earlier page, the drawn fallback: Home, named by its heading
+  // (contextual page-return rule; settled wording row 73).
+  const back = returnTarget(location.search) ?? {
+    to: hrefFor('home'),
+    name: 'Research public records',
+  };
   const band = useBand();
   const [address, setAddress] = useAddressState({
     q: '',
@@ -117,6 +122,7 @@ export function MoneyConnections() {
   }, [arrived, held, scope, count, restoreTo]);
   const current = held?.scope === scope;
   const shown = held ? combinePages(held.pages) : null;
+  const copyLine = shown ? paymentCopyLine(shown.edges) : null;
   const last = held?.pages.at(-1) ?? null;
   const loaded = last ? last.offset + last.edges.length : 0;
   const remaining = current && last ? Math.max(0, last.total - loaded) : 0;
@@ -300,10 +306,13 @@ export function MoneyConnections() {
             </Refused>
           )}
           {held && !current && read.updating && <Updating />}
-          {held && !current && read.failed && (
+          {held && !current && read.failed && !read.busy && (
             <Refused onRetry={read.retry} retrying={read.pending}>
               We couldn’t update these results
             </Refused>
+          )}
+          {held && !current && read.busy && (
+            <BusyNotice retrying={read.pending} onRetry={read.retry} />
           )}
           {held && (
             <div className="mc-loaded">
@@ -501,7 +510,8 @@ export function MoneyConnections() {
                 </button>
               </div>
             )}
-            {count > 1 && read.failed && (
+            {count > 1 && read.busy && <BusyNotice retrying={read.pending} onRetry={read.retry} />}
+            {count > 1 && read.failed && !read.busy && (
               <div role="alert" className="mc-notice mc-notice-failed">
                 <span>Some connections could not be loaded</span>
                 <button
@@ -539,6 +549,11 @@ export function MoneyConnections() {
         )}
         <EvidencePanel evidence={evidence} onClose={closeEvidence} />
       </div>
+      {copyLine && (
+        <SourcesAndUpdates>
+          <p className="f-sources-line f-num">{copyLine}</p>
+        </SourcesAndUpdates>
+      )}
     </main>
   );
 }
@@ -566,5 +581,23 @@ function NodeCell({
       )}
       {sub && <span className="mc-sub">{sub}</span>}
     </>
+  );
+}
+
+/** The server stayed busy through every retry while earlier rows are on screen
+ * (Money Connections drawing): the rows stay, with Try again. */
+function BusyNotice({ retrying, onRetry }: { retrying: boolean; onRetry: () => void }) {
+  return (
+    <div role="status" className="mc-notice mc-notice-busy">
+      <span>The service is busy. The connections shown are the last loaded.</span>
+      <button
+        type="button"
+        className="f-btn f-btn-secondary f-btn-small"
+        aria-disabled={retrying || undefined}
+        onClick={() => !retrying && onRetry()}
+      >
+        Try again
+      </button>
+    </div>
   );
 }

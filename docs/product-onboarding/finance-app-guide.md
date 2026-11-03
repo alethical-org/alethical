@@ -133,9 +133,11 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
   focus to its field.
 - A link to a record carries the earlier page's own address (`?from=`), so the record's
   "Back to {page}" link reopens exactly that page, its tab, year and search included; up to
-  3 earlier pages are kept. The 5 destinations the top bar reaches (Legislation, People,
-  Campaign money, Lobbying, Media buys) carry no return link. In-page choices (tab, year, sort, page, search) are kept in the
-  address, so a copied link or a new tab opens the same view.
+  3 earlier pages are kept. A link back to Finance Home names it by its heading, "Back to
+  Research public records". The 5 destinations the top bar reaches (Legislation, People,
+  Campaign money, Lobbying, Media buys) carry no return link. In-page choices (tab, year,
+  sort, page, search) are kept in the address, so a copied link or a new tab opens the same
+  view.
 
 ## Addresses
 
@@ -167,7 +169,8 @@ Money connections (`/money/connections`), opened from Finance Home's and Campaig
 relationships from `GET /api/v1/finance/connections`. Search, year, relationship and the
 selected name (`focus`) are server filters; a selected line stays in the address (`edge`),
 with how many pages were loaded (`pages`, up to 10), so a return from a record reloads those
-pages and restores it. Opened with no earlier page, it returns to Finance Home. The page loads 100 relationships at a time: "Show
+pages and restores it. Opened with no earlier page, it reads "Back to Research public
+records", Finance Home. The page loads 100 relationships at a time: "Show
 {n} more connections" adds the next min(100, remaining), and "{loaded} of {total}
 connections loaded" appears once the selection is larger than 1 page. Map and Table read
 the same loaded set. Map opens at every band, phone included, where the 3 columns stack
@@ -185,9 +188,15 @@ another. Printed names stay separate from confirmed people and organizations; on
 explicit target from the server opens a profile. Totals and counts cover only the
 available sources; unavailable ones are named in "Some sources are unavailable · …". A
 failed first load reads "We couldn’t load these connections", a failed next page "Some
-connections could not be loaded", each with Try again and the loaded rows kept; a
-selection the server does not hold reads "This record is not held in the connections".
-These reads do not write checks or confirmations.
+connections could not be loaded", each with Try again and the loaded rows kept. When the
+server stays busy through every retry while rows are on screen, "The service is busy. The
+connections shown are the last loaded." keeps them with Try again. A selection the server
+does not hold reads "This record is not held in the connections". Sources and updates
+names each loaded payment file with its own copy date ("contribution file, copied Nov 3,
+2026; expenditure file, copied Oct 9, 2026"), a copy date, not a reporting period. Under
+each name and row, only the registration prints; the drawn record kind, printed spelling,
+saved date and "Position as filed" wait on the server. These reads do not write checks or
+confirmations.
 
 Each page is built from its approved Design drawing and reads alethical.com's own records
 through the shared API (`api.alethical.com`). Every page has a loading state, a failure with

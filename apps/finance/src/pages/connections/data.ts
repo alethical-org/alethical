@@ -1,4 +1,4 @@
-import { formatCount } from '@alethical/shared/moneyLanding';
+import { centralDateLabel, formatCount } from '@alethical/shared/moneyLanding';
 import { formatMoney } from '../../ui/money';
 import { hrefFor, isBuilt, type RouteName } from '../../routes';
 import type { Evidence } from '../../ui/controls';
@@ -353,4 +353,32 @@ export function loadedLine(loaded: number, total: number) {
   return total > PAGE_SIZE
     ? `${formatCount(loaded)} of ${formatCount(total)} connections loaded`
     : '';
+}
+
+const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
+const PAYMENT_FILES: Record<string, string> = {
+  contributions: 'contribution file',
+  expenditures: 'expenditure file',
+  independent_expenditures: 'independent expenditure file',
+};
+
+/** The loaded payment files, each named with its own copy date, never 1 combined
+ * date (grounded-answers rule 12; settled wording row 74). Null when no loaded
+ * payment line carries a copy date. */
+export function paymentCopyLine(edges: ReadonlyArray<GraphEdge>): string | null {
+  const parts: string[] = [];
+  for (const [dataset, words] of Object.entries(PAYMENT_FILES)) {
+    const days = new Set<string>();
+    for (const edge of edges) {
+      const at = edge.source.dataset === dataset ? edge.source.copied_at : null;
+      if (at && !Number.isNaN(new Date(at).getTime())) days.add(centralDateLabel(at));
+    }
+    for (const label of days) parts.push(`${words}, copied ${label}`);
+  }
+  if (parts.length === 0) return null;
+  const note =
+    parts.length === 1
+      ? 'This is a copy date, not a reporting period.'
+      : 'These are copy dates, not reporting periods.';
+  return `${BOARD} ${parts.join('; ')}. ${note}`;
 }

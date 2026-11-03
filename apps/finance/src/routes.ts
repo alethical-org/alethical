@@ -47,6 +47,9 @@ export interface RouteDefinition {
   name: RouteName;
   pattern: string;
   title: string;
+  /** The page's own heading where a return link names it differently from the
+   * tab title (settled wording row 73). */
+  returnName?: string;
   section?: NavSection;
   /** Reachable without signing in. */
   signedOut?: boolean;
@@ -54,7 +57,12 @@ export interface RouteDefinition {
 
 export const ROUTES: readonly RouteDefinition[] = [
   { name: 'landing', pattern: '/', title: 'Alethical Finance', signedOut: true },
-  { name: 'home', pattern: '/home', title: 'Finance Home' },
+  {
+    name: 'home',
+    pattern: '/home',
+    title: 'Finance Home',
+    returnName: 'Research public records',
+  },
   { name: 'sign-in', pattern: '/sign-in', title: 'Sign in', signedOut: true },
   { name: 'auth-return', pattern: '/auth/return', title: 'Signing in', signedOut: true },
   { name: 'search', pattern: '/search', title: 'Search results' },
