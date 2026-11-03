@@ -551,16 +551,6 @@
   color: var(--secondary);
   font-variant-numeric: tabular-nums;
 }
-/* A row link with a trailing arrow: words left, the arrow right. */
-.f-row-link-arrowed {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-.f-row-link-arrowed > span:first-child {
-  min-width: 0;
-}
 .f-row-link:active .f-row-link-name {
   color: var(--link-hover);
 }

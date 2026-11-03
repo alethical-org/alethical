@@ -189,7 +189,7 @@ export function CandidateProfile({ match }: { match: RouteMatch }) {
                 <KeyFigures legislatorId={legislatorId} account={accounts[0] ?? null} />
               )}
               <p className="lg2-line">
-                Official candidate record · {runningPhrase(record)} {record.office}
+                Official candidate record · {runningPhrase(record)} {seat[0] || record.office}
               </p>
             </header>
             <div className="lg2-layout">
