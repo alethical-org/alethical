@@ -236,25 +236,36 @@ figure is ever added across committees or members.
   Representative · District 34B · 2026", "State Senator", "Governor" and the other statewide
   offices); a court seat keeps its seat label ("District Court · District 2 · Seat 14").
 - **Lobbying (`/lobbying`)**: registered lobbyists and principals, searched and paged on the
-  server. Lobbyists use name order. Principals add year and name or reported-spending
-  order, with one filed total per organization for that year. Missing figures and
-  multiple filed reports stay explicit, never zero or an added total. Old rows retain their
-  own year while a new selection loads.
+  server; each tab keeps its own Year and Sort in the address. Lobbyists show the campaign
+  contributions matched to each registration in a completed calendar year ("No matching
+  donation records", or "Amount unavailable" when any matching amount is missing), sorted by
+  name or by amount with rows without an amount last. Principals show each year's own filed
+  spending ("No spending report for {year}", never the latest total), sorted by spending or
+  name. Missing figures stay explicit, never zero. A lobbyist row opens that year's
+  contribution records; links keep the selected year, and old rows keep their own year while
+  a new selection loads.
 - **Lobbyist (`/lobbying/lobbyists/:id`)** and **Principal (`/lobbying/principals/:id`)**: a
   lobbyist's registration, the organizations it represented on the copy date (5 at a time with
-  "Show more") and its matched campaign contribution records; a principal's spending by year
-  and category and the lobbyists listed for it.
+  "Show more") and its matched campaign contribution records by filing year and committee,
+  each committee with its total under the shared rule and a link to that committee's
+  Lobbyists tab for the year and printed name (its "Back to Lobbyist" returns to the same
+  year's records); a principal's total reported spending by year as a chart (a dashed gap for
+  a year with no report held), its categories one click away in Table, and the lobbyists
+  listed for it. Opened with no earlier page, each returns to Lobbying.
 - **Organization profile (`/organizations/:id`)**: 1 confirmed organization's lobbying,
   political giving and payments received, read only for the exact spellings and records its
-  confirmations cover. A merged record's address opens the surviving record; a split record's
-  address lists the records it became.
+  confirmations cover; group totals follow the shared rule, labelled by filing year when
+  dates are incomplete. A merged record's address opens the surviving record; a split
+  record's address asks which part was meant, with each part's reference and
+  confirmed-record count.
 - **Person profile (`/people/:id`)**: confirmed links to 1
   person's candidacies, legislative service and lobbying, their campaign finance, political
   giving and payments received, each event with its own source line. A merged record's
   address opens the surviving record; a split record's address asks which person was meant.
   Each election names its office and district once. Opened with no earlier page, it returns to
   People.
-- **Not built yet:** Vendors and payees (`/money/recipients`), Money connections (`/money/connections`), the Media buys pages (`/media-buys`,
+- **Not built yet:** Vendors and payees (`/money/recipients`),
+  Money connections (`/money/connections`), the Media buys pages (`/media-buys`,
   `/media-buys/folders/:id`, `/media-buys/files/:key`, `/media-buys/agencies/:name`,
   `/media-buys/stations/:id`), Check TV station files (`/media-buys/check`) and Confirm
   identities (`/money/identities`) each have a screen in the code but answer "not found"
