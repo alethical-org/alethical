@@ -166,22 +166,29 @@ copies, and works with Back and Forward. While the screens are off, only `/`, `/
 
 Money connections (`/money/connections`, in the code but not built yet: its route answers
 "not found" until the pull request that aligns it turns it on) reads direct recorded
-relationships from
-`GET /api/v1/finance/connections`. Search, year, relationship and the focused record are
-server filters. Each page holds up to 50 relationships and shows the whole selection's
-count with Previous and Next. Map starts on tablet/computer; Table starts on phone. An
-explicit view choice stays in the address across resizing and return visits. Nodes and
-lines are keyboard selectable; the table carries every relationship too. Full labels wrap
-inside map nodes, with the columns stacked when their container is narrow.
+relationships from `GET /api/v1/finance/connections`. Search, year, relationship and the
+selected name (`focus`) are server filters; a selected line stays in the address (`edge`)
+so a return from a record restores it. The page loads 100 relationships at a time: "Show
+{n} more connections" adds the next min(100, remaining), and "{loaded} of {total}
+connections loaded" appears once the selection is larger than 1 page. Map and Table read
+the same loaded set. Map opens at every band, phone included, where the 3 columns stack
+into 1 list so no name or line is cut; an explicit Table choice stays in the address
+(`view=table`). Names and lines show hover, keyboard focus and a pressed state on touch,
+and Enter or Space selects them; the selection panel lists the chosen name's own
+connections with "Show connections" and "View source".
 
-Each relationship keeps its own source, record count and complete date or year period.
-A missing amount or incomplete period withholds the figure. Sources are never added
-together and a connected path never claims that one payment funded another. Printed names
-stay separate from confirmed people/organizations; a committee registration is an official
-record, not an identity check. Only explicit link targets supplied by the server open a
-profile. A station-file source opens the cited version and page. Partial source availability
-is named, and failed updates keep the last results with a retry. These reads do not write
-checks or confirmations.
+Each relationship keeps its own source, record count and date or filing-year period
+("Filing year 2025"). A total is shown only when every amount is held and every date or
+every filing year is; otherwise it reads "Incomplete" in the Amount column, "Missing
+payment amount" elsewhere, or "Reporting period incomplete". Station-file lines carry no
+amount. Sources are never added together and a line never claims that one payment funded
+another. Printed names stay separate from confirmed people and organizations; only an
+explicit target from the server opens a profile. Totals and counts cover only the
+available sources; unavailable ones are named in "Some sources are unavailable · …". A
+failed first load reads "We couldn’t load these connections", a failed next page "Some
+connections could not be loaded", each with Try again and the loaded rows kept; a
+selection the server does not hold reads "This record is not held in the connections".
+These reads do not write checks or confirmations.
 
 Each page is built from its approved Design drawing and reads alethical.com's own records
 through the shared API (`api.alethical.com`). Every page has a loading state, a failure with
