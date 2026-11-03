@@ -538,8 +538,8 @@ export function Committee({ match }: { match: RouteMatch }) {
                     <div role="alert" className="f-alert cmt-gap">
                       <AlertIcon />
                       <div>
-                        We couldn’t refresh these payments. The last complete payment list is still
-                        shown.{' '}
+                        We could not refresh these payments. This is a problem on our side. The last
+                        complete payment list is still shown.{' '}
                         <button
                           type="button"
                           className="f-btn f-btn-secondary cmt-inline-retry"

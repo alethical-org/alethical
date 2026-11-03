@@ -467,7 +467,8 @@ function BillRow({
       {code && <span className="f-code lg-code">{code}</span>}
       <span className="lg-row-text">
         <span className="lg-row-title">{billHeading(bill.ai_analysis?.short_title, code)}</span>
-        <span className="lg-row-meta">{meta.join(' · ')}</span>
+        {/* Each dot ends its line, so a wrapped fact never starts with one (eug-8). */}
+        <span className="lg-row-meta">{meta.join('\u00a0· ')}</span>
       </span>
       <Arrow />
     </>

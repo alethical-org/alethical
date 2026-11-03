@@ -420,7 +420,8 @@ describe('Legislation', () => {
     expect(rows[0].getAttribute('href')).toBe('/bills/94-2025-SF334?from=%2Fbills');
     expect(rows[0].textContent).toContain('New Council and Fund to Modernize Human Services IT');
     const meta = rows[0].querySelector('.lg-row-meta')?.textContent;
-    expect(meta).toBe('2025–26 · Senate · Signed into Law · May\u00a017,\u00a02026');
+    // Each dot ends its line, so the date never starts a phone line with one.
+    expect(meta).toBe('2025–26\u00a0· Senate\u00a0· Signed into Law\u00a0· May\u00a017,\u00a02026');
     // No plain-language title: the bill's number, never its legal title.
     expect(rows[1].querySelector('.lg-row-title')?.textContent).toBe('HF 9');
     expect(text()).toContain('Page 1 of 201');
@@ -657,6 +658,19 @@ describe('Bill', () => {
     expect(container.querySelector('.bl-section del')?.textContent).toBe('may');
     expect(container.querySelector('.bl-section ins')?.textContent).toContain(
       'The fund is created.',
+    );
+  });
+
+  it('says plainly when the votes or the full text fail, with Try again', async () => {
+    await renderBill('/bills/94-2025-SF334?tab=votes', billAnswer({ votes: broken }));
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      'We couldn’t load this bill’s votesTry again',
+    );
+    act(() => root.unmount());
+    root = createRoot(container);
+    await renderBill('/bills/94-2025-SF334?tab=text', billAnswer({ text: broken }));
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      'We couldn’t load the full textTry again',
     );
   });
 
