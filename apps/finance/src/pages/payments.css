@@ -53,7 +53,9 @@
 }
 .pn-fields {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 160px 150px auto;
+  /* The drawing labels each menu above it (160px and 150px columns); the shared
+   * Dropdown carries its name inside the button, so its columns size to it. */
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   gap: 12px;
   align-items: end;
 }
@@ -334,9 +336,6 @@
 @media (max-width: 1099px) {
   .pn-row {
     grid-template-columns: 100px minmax(0, 1fr) 120px 170px 100px;
-  }
-  .pn-fields {
-    grid-template-columns: minmax(0, 1fr) 150px 140px auto;
   }
 }
 @media (max-width: 767px) {

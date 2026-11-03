@@ -227,13 +227,21 @@ figure is ever added across committees or members.
 - **Payments under this name (`/money/names/:query?role=`)**: every payment record filed under
   1 exact printed spelling, as a payee (campaign spending and outside spending listed
   separately, never added together), a donor or an employer, with each record's date, amount,
-  committee and source evidence ("{payer} to {recipient}"). A confirmed identity box appears
-  only when a confirmation covers that exact spelling.
-- **Donors by employer (`/money/employers`, `/money/employers/:name`)**: the donors who printed
-  1 exact employer spelling, each donor's payments listed apart with "Employer name as printed"
-  on every row; no total is ever added across donors, and a donor's payments are never the
-  employer's money. `/money/employers` currently offers a search box that opens 1 exact
-  spelling; the server's paged employer directory awaits its screen update.
+  committee and source evidence (the saved source, its copy, the row, and the employer and ZIP
+  as filed where held). Each committee link opens the tab holding that record's kind, the
+  record's own filing year and the printed name. A card lists every identity whose
+  confirmations cover records of the spelling, each "Confirmed for {k} of {n} records" over the
+  selected year, or "No confirmed identity for this spelling". An address naming a filer and a
+  file (Organization's "View payments") shows only that file and that filer's loaded records
+  under "Showing records filed by {committee}, {file}" with Clear all; no identity count is
+  shown under a filer scope.
+- **Donors by employer (`/money/employers`, `/money/employers/:name`)**: a search of the employer
+  spellings donors printed (3 characters or more; shorter text opens that exact spelling), each
+  with its donor names and any confirmed records, and for the chosen spelling the donors who
+  printed it, each donor's payments listed apart with "Employer name as printed" on every row.
+  On a computer the list stays beside the chosen spelling; on a tablet or phone the spelling
+  opens on its own with "Back to Employer spellings". No total is ever added across donors,
+  and a donor's payments are never the employer's money.
 - **Money by race (`/money/races/:id?year=`)**: 1 contest's candidate committees, each with its
   own reported total and itemized contributions and their periods, and outside spending by
   spender, never added across committees. The address names the contest (`house-34b`,
@@ -251,7 +259,9 @@ figure is ever added across committees or members.
   political giving and payments received, read only for the exact spellings and records its
   confirmations cover. A merged record's address opens the surviving record; a split record's
   address lists the records it became.
-- **Not built yet:** Vendors and payees (`/money/recipients`), Person profile (`/people/:id`),
+- **Not built yet:** Vendors and payees (`/money/recipients`; built to Design's drawing:
+  server search, tabs, year, payment type and sort, each total under the shared rule, "Filing
+  year" labels and the source file under each kind), Person profile (`/people/:id`),
   Money connections (`/money/connections`), the Media buys pages (`/media-buys`,
   `/media-buys/folders/:id`, `/media-buys/files/:key`, `/media-buys/agencies/:name`,
   `/media-buys/stations/:id`), Check TV station files (`/media-buys/check`) and Confirm
