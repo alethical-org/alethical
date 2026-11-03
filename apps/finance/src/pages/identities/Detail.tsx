@@ -34,7 +34,6 @@ import {
   hasEntries,
   identityKindLabel,
   isPrintedKind,
-  joinBasis,
   period,
   plural,
   recordAmount,
@@ -42,6 +41,10 @@ import {
   registrationOf,
   relationOf,
   ROLE_LABELS,
+  named,
+  nameDotRef,
+  optional,
+  refOf,
   type DraftFields,
   type DraftKeyFields,
   type Mode,
@@ -295,7 +298,7 @@ export function Detail({
               }
             : form.mode === 'merge'
               ? {
-                  title: `Merge another record into ${conf.name} (${conf.id})`,
+                  title: `Merge another record into ${named(conf)}`,
                   lead: 'Choose the record to merge in, then check every link that will move before you save',
                   noteLabel: 'Evidence that they are the same',
                   submit: 'Merge records',
@@ -307,8 +310,8 @@ export function Detail({
                   beyond: pickName ?? '',
                 }
               : {
-                  title: `Split ${conf.name} (${conf.id}) into 2 records`,
-                  lead: `Only the records you choose move to a new record. ${conf.id} will then open a page listing both records. Both histories are kept.`,
+                  title: `Split ${named(conf)} into 2 records`,
+                  lead: `Only the records you choose move to a new record. ${refOf(conf)} will then open a page listing both records. Both histories are kept.`,
                   noteLabel: 'Evidence that they are different',
                   submit: 'Split record',
                   busy: 'Splitting…',
@@ -353,7 +356,8 @@ export function Detail({
   async function perform(current: DraftFields, mode: Mode): Promise<WriteResult<unknown>> {
     const post = (parts: string[], body: unknown) =>
       write(apiBaseUrl, accessToken, apiPath(['finance', 'identities', ...parts]), body);
-    const basis = joinBasis(current.note, current.src);
+    const basis = current.note.trim();
+    const source = optional(current.src);
     const confirmation = () => {
       const first = pickedKeys.length ? current.picked[pickedKeys[0]].row : null;
       return {
@@ -365,6 +369,7 @@ export function Detail({
         evidence_locator: first ?? data?.fingerprints[0]?.rows[0]?.row_number ?? null,
         evidence_quote: name,
         basis,
+        ...(source ? { source } : {}),
         ...(current.quick
           ? {
               record_selection: {
@@ -383,11 +388,16 @@ export function Detail({
         confirmation: confirmation(),
       });
     if (mode === 'merge' && conf)
-      return post([current.pick ?? '', 'merge'], { into: conf.id, reason: basis });
+      return post([current.pick ?? '', 'merge'], {
+        into: conf.id,
+        reason: basis,
+        ...(source ? { source } : {}),
+      });
     if (mode === 'split' && conf) {
       const moving = [...current.parts, ...current.roles];
       return post([conf.id, 'split'], {
         reason: basis,
+        ...(source ? { source } : {}),
         parts: [
           {
             name: conf.name,
@@ -627,19 +637,28 @@ export function Detail({
           .filter((row) => row.id !== conf.id)
           .map((row) => ({
             key: row.id,
-            label: `${row.name} · ${row.id}`,
+            label: nameDotRef(row),
             checked: form.pick === row.id,
             choose: () => open({ ...keyOf({ mode: 'merge' }), pick: row.id }),
           }))
       : [];
   const pickPager =
-    form?.mode === 'merge' && entities.data && entities.data.pages > 1 ? (
-      <Pager
-        page={entities.data.page}
-        pages={entities.data.pages}
-        busy={entities.loading}
-        onChange={setPickPage}
-      />
+    form?.mode === 'merge' ? (
+      <>
+        {entities.failed && (
+          <Refused onRetry={entities.retry} retrying={entities.pending}>
+            We couldn’t load the records to merge in
+          </Refused>
+        )}
+        {entities.data && entities.data.pages > 1 && (
+          <Pager
+            page={entities.data.page}
+            pages={entities.data.pages}
+            busy={entities.pending}
+            onChange={setPickPage}
+          />
+        )}
+      </>
     ) : null;
 
   let mergePreview: ReactNode = null;
@@ -648,16 +667,16 @@ export function Detail({
     else if (pickRead.failed)
       mergePreview = (
         <Refused onRetry={pickRead.retry} retrying={pickRead.pending}>
-          We couldn’t load these links. This is a problem on our side.
+          We couldn’t load the links that will move
         </Refused>
       );
     else if (pickRead.data) {
       const moving = pickRead.data.confirmations.filter((c) => c.status === 'confirmed');
       const count = moving.reduce((sum, c) => sum + (c.records ? coveredRows(c) : 1), 0);
-      const from = `${pickRead.data.name} (${pickRead.data.id})`;
+      const from = named(pickRead.data);
       const lead = count
-        ? `${count === 1 ? 'This confirmed record' : `These ${count} confirmed records`} will move from ${from} to ${conf.name} (${conf.id}). Each keeps its own evidence. ${pickRead.data.id} will then open ${conf.id}.`
-        : `${from} holds no confirmed records. ${pickRead.data.id} will then open ${conf.id}.`;
+        ? `${count === 1 ? 'This confirmed record' : `These ${count} confirmed records`} will move from ${from} to ${named(conf)}. Each keeps its own evidence. ${refOf(pickRead.data)} will then open ${refOf(conf)}.`
+        : `${from} holds no confirmed records. ${refOf(pickRead.data)} will then open ${refOf(conf)}.`;
       mergePreview = (
         <section aria-labelledby="move-h" className="ci-preview">
           <h4 id="move-h">Links that will move</h4>
@@ -705,7 +724,7 @@ export function Detail({
           staleNotice
         ) : (
           <Refused onRetry={records.retry} retrying={records.pending}>
-            We couldn’t load these records. This is a problem on our side.
+            We couldn’t load the records
           </Refused>
         )}
       </section>
@@ -749,7 +768,7 @@ export function Detail({
                 <span className="ci-identity-text">
                   <span className="ci-strong">{identity.name}</span>
                   <span className="ci-muted ci-small f-num">
-                    {identityKindLabel(identity.kind)} · {identity.id} ·{' '}
+                    {identityKindLabel(identity.kind)} · {refOf(identity)} ·{' '}
                     {identityLine(
                       spellingConfirmations(reads.byId.get(identity.id), kind, name),
                       identity.confirmed,
@@ -832,7 +851,7 @@ export function Detail({
             <span className="ci-identity-text">
               <span className="ci-confirmed-name">{conf.name}</span>
               <span className="ci-muted ci-small f-num">
-                {identityKindLabel(conf.kind)} · {conf.id}
+                {identityKindLabel(conf.kind)} · {refOf(conf)}
               </span>
             </span>
             {confHref && (
@@ -848,9 +867,7 @@ export function Detail({
             )}
           </div>
           {reads.failed && (
-            <Refused onRetry={reads.retry}>
-              We couldn’t load these confirmations. This is a problem on our side.
-            </Refused>
+            <Refused onRetry={reads.retry}>We couldn’t load the confirmations</Refused>
           )}
           {groups.length > 1 && (
             <dl className="ci-dl">
@@ -927,7 +944,7 @@ export function Detail({
                       <span className="ci-suggestion-plain">{identity.name}</span>
                     )}
                     <span className="ci-muted ci-small f-num">
-                      {identityKindLabel(identity.kind)} · {identity.id}
+                      {identityKindLabel(identity.kind)} · {refOf(identity)}
                     </span>
                   </span>
                   <span className="ci-status ci-small">
@@ -1008,8 +1025,7 @@ export function Detail({
         {records.updating && <Updating />}
         {records.failed && (
           <Refused onRetry={records.retry} retrying={records.pending}>
-            We couldn’t load these records. This is a problem on our side. Previous results are
-            shown.
+            We couldn’t load the records
           </Refused>
         )}
         {(!form || spec?.recs !== 'name') && staleNotice}

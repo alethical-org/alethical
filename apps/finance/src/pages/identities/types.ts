@@ -41,7 +41,10 @@ export interface QueuePage {
 export type Fields = Record<string, string | number | null>;
 
 export interface IdentitySummary {
+  /** The key in addresses and requests; never printed to readers. */
   id: string;
+  /** The label readers see: ORG-0042 or PER-0042. */
+  reference?: string | null;
   kind: string;
   name: string;
 }
@@ -100,7 +103,11 @@ export interface Confirmation {
   checked_at: string | null;
   withdrawn_at: string | null;
   withdrawal_reason: string | null;
+  /** Where the withdrawal's evidence was found; null when none was given. */
+  withdrawal_source?: string | null;
   basis: string | null;
+  /** Where the confirmation's evidence was found, apart from the basis. */
+  source?: string | null;
   replaces: string | null;
   replaced_by: string | null;
   evidence: {
@@ -116,12 +123,15 @@ export interface Confirmation {
 
 export interface Identity {
   id: string;
+  reference?: string | null;
   kind: string;
   name: string;
   status: 'active' | 'merged' | 'split' | string;
   created_at: string | null;
   redirect_to?: string | null;
-  split_into?: IdentitySummary[] | null;
+  redirect_to_reference?: string | null;
+  /** In the split's own order, each with the records confirmed to it today. */
+  split_into?: Array<IdentitySummary & { confirmed_records?: number | null }> | null;
   confirmations: Confirmation[];
   printed_names: Array<{
     record_kind: string;
@@ -129,7 +139,13 @@ export interface Identity {
     records: number | null;
     confirmed: number | null;
   }>;
-  history: Array<{ action: string; at: string | null; detail: Record<string, unknown> }>;
+  history: Array<{
+    action: string;
+    at: string | null;
+    detail: Record<string, unknown>;
+    /** Each identity the event names, by id, with its reference. */
+    references?: Record<string, string | null>;
+  }>;
 }
 
 export interface EntityPage {

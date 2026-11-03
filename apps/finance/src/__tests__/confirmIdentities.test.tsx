@@ -6,13 +6,7 @@ import { clearReadCache } from '../api/read';
 import { ConfirmIdentities, sourceLine } from '../pages/ConfirmIdentities';
 import { historyRows } from '../pages/identities/history';
 import type { Identity, QueuePage, QueueRow, RecordsPage } from '../pages/identities/types';
-import {
-  beyondName,
-  joinBasis,
-  queueAmount,
-  queuePeriod,
-  splitBasis,
-} from '../pages/identities/words';
+import { beyondName, named, queueAmount, queuePeriod, refOf } from '../pages/identities/words';
 import { hasDraft } from '../ui/drafts';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -58,6 +52,12 @@ const FP = (n: number) => String(n).repeat(64).slice(0, 64);
 const SNAP = '11111111-1111-1111-1111-111111111111';
 const ORG = 'aaaaaaaa-0000-0000-0000-000000000002';
 const DULUTH = 'aaaaaaaa-0000-0000-0000-000000000043';
+const OTHER = 'aaaaaaaa-0000-0000-0000-000000000042';
+const REFS: Record<string, string> = {
+  [ORG]: 'ORG-0002',
+  [DULUTH]: 'ORG-0043',
+  [OTHER]: 'ORG-0042',
+};
 
 function queueRow(over: Partial<QueueRow> = {}): QueueRow {
   return {
@@ -156,7 +156,8 @@ function confirmation(
     checked_at: '2026-08-02T15:00:00Z',
     withdrawn_at: null,
     withdrawal_reason: null,
-    basis: 'Registration number 7654321 on both filings\nSource: Secretary of State record 7654321',
+    basis: 'Registration number 7654321 on both filings',
+    source: 'Secretary of State record 7654321',
     replaces: null,
     replaced_by: null,
     evidence: {
@@ -183,6 +184,7 @@ function identity(
 ): Identity {
   return {
     id,
+    reference: REFS[id] ?? null,
     kind: 'organization',
     name,
     status: 'active',
@@ -298,12 +300,13 @@ describe('word and money rules', () => {
     expect(beyondName('Registration number 1234567 on both filings', [NAME])).toBe(true);
   });
 
-  it('keeps the evidence note and its source apart in the stored basis', () => {
-    expect(splitBasis(joinBasis('Registration 1234567', 'SOS record'))).toEqual({
-      note: 'Registration 1234567',
-      src: 'SOS record',
-    });
-    expect(splitBasis('Only a note')).toEqual({ note: 'Only a note', src: null });
+  it('prints a reference, or the name when the payload has none, never the id', () => {
+    expect(refOf({ reference: 'ORG-0042', name: 'Example Media Group' })).toBe('ORG-0042');
+    expect(refOf({ reference: null, name: 'Example Media Group' })).toBe('Example Media Group');
+    expect(named({ reference: 'ORG-0042', name: 'Example Media Group' })).toBe(
+      'Example Media Group (ORG-0042)',
+    );
+    expect(named({ name: 'Example Media Group' })).toBe('Example Media Group');
   });
 
   it('names 1 copy date when the files share it, else each file with its own', () => {
@@ -331,6 +334,7 @@ describe('history', () => {
       status: 'withdrawn',
       withdrawn_at: '2026-10-01T12:00:00Z',
       withdrawal_reason: 'Different registration number',
+      withdrawal_source: 'Secretary of State record 9999999',
     });
     const reads = new Map([
       [
@@ -343,7 +347,8 @@ describe('history', () => {
             {
               action: 'merged',
               at: '2026-10-20T12:00:00Z',
-              detail: { from: DULUTH, into: ORG, reason: 'Same registration\nSource: SOS 1' },
+              detail: { from: DULUTH, into: ORG, reason: 'Same registration', source: 'SOS 1' },
+              references: { [DULUTH]: 'ORG-0043', [ORG]: 'ORG-0002' },
             },
           ],
         ),
@@ -352,16 +357,82 @@ describe('history', () => {
     ]);
     const rows = historyRows(reads, 'payee_name', NAME, 4);
     expect(rows.map((row) => row.text)).toEqual([
-      `Example Media LLC of Duluth (${DULUTH}) merged into Example Media LLC (${ORG}); 0 confirmed records moved with their own evidence and dates; ${DULUTH} now opens ${ORG}`,
-      `Confirmation as Example Media LLC (${ORG}) withdrawn for 1 record: Different registration number`,
-      `Confirmed as Example Media LLC (${ORG}) for 2 of 4 records, Jan 1, 2026 to Feb 2, 2026`,
-      `Confirmed as Example Media LLC (${ORG}) for 1 of 4 records, Mar 3, 2026`,
+      'Example Media LLC of Duluth (ORG-0043) merged into Example Media LLC (ORG-0002); 0 confirmed records moved with their own evidence and dates; ORG-0043 now opens ORG-0002',
+      'Confirmation as Example Media LLC (ORG-0002) withdrawn for 1 record: Different registration number',
+      'Confirmed as Example Media LLC (ORG-0002) for 2 of 4 records, Jan 1, 2026 to Feb 2, 2026',
+      'Confirmed as Example Media LLC (ORG-0002) for 1 of 4 records, Mar 3, 2026',
     ]);
     expect(rows[0].evidence).toEqual(['Evidence: Same registration', 'Source: SOS 1']);
     expect(rows[1].evidence).toEqual([
       'Evidence: Different registration number',
+      'Source: Secretary of State record 9999999',
       'Earlier confirmation, checked on Aug 2, 2026: Registration number 7654321 on both filings · Secretary of State record 7654321',
     ]);
+  });
+});
+
+describe('history of a split', () => {
+  it('names each part by reference with its confirmed records, in the split order', () => {
+    const OLD = 'aaaaaaaa-0000-0000-0000-000000000090';
+    const STAY = 'aaaaaaaa-0000-0000-0000-000000000091';
+    const MOVED = 'aaaaaaaa-0000-0000-0000-000000000092';
+    const old = {
+      ...identity(
+        OLD,
+        'Example Media LLC',
+        [],
+        [
+          {
+            action: 'split',
+            at: '2026-10-22T12:00:00Z',
+            detail: {
+              from: OLD,
+              into: [STAY, MOVED],
+              reason: 'Two registrations',
+              source: 'SOS 1 and SOS 2',
+            },
+            references: { [OLD]: 'ORG-0090', [STAY]: 'ORG-0091', [MOVED]: 'ORG-0092' },
+          },
+        ],
+      ),
+      reference: 'ORG-0090',
+      status: 'split',
+      split_into: [
+        {
+          id: STAY,
+          reference: 'ORG-0091',
+          kind: 'organization',
+          name: 'Example Media LLC',
+          confirmed_records: 2,
+        },
+        {
+          id: MOVED,
+          reference: null,
+          kind: 'organization',
+          name: 'Example Media Buying Co',
+          confirmed_records: 1,
+        },
+      ],
+    };
+    const part = identity(
+      MOVED,
+      'Example Media Buying Co',
+      [],
+      [{ action: 'created', at: '2026-10-22T12:00:00Z', detail: { split_from: OLD } }],
+    );
+    const rows = historyRows(
+      new Map([
+        [OLD, old],
+        [MOVED, part],
+      ]),
+      'payee_name',
+      NAME,
+      3,
+    );
+    expect(rows.map((row) => row.text)).toEqual([
+      'Split: 1 record moved to Example Media Buying Co; 2 records stay with Example Media LLC (ORG-0091); ORG-0090 now opens a choice of both',
+    ]);
+    expect(rows[0].evidence).toEqual(['Evidence: Two registrations', 'Source: SOS 1 and SOS 2']);
   });
 });
 
@@ -459,9 +530,16 @@ describe('Confirm identities page', () => {
             records: 4,
             confirmed: 3,
             identities: [
-              { id: ORG, kind: 'organization', name: 'Example Media LLC', confirmed: 2 },
+              {
+                id: ORG,
+                reference: 'ORG-0002',
+                kind: 'organization',
+                name: 'Example Media LLC',
+                confirmed: 2,
+              },
               {
                 id: DULUTH,
+                reference: 'ORG-0043',
                 kind: 'organization',
                 name: 'Example Media LLC of Duluth',
                 confirmed: 1,
@@ -479,9 +557,12 @@ describe('Confirm identities page', () => {
     await render(`/money/identities?name=${encodeURIComponent(NAME)}&kind=payee_name`);
     expect(text()).toContain('2 identities · Confirmed for 3 of 4 records');
     expect(text()).toContain(
-      `Organization · ${ORG} · Confirmed for 2 of 4 records · Checked on Aug 2, 2026`,
+      'Organization · ORG-0002 · Confirmed for 2 of 4 records · Checked on Aug 2, 2026',
     );
     expect(text()).toContain('Shown below');
+    // Readers see references; the ids stay in addresses only.
+    expect(text()).not.toContain(ORG);
+    expect(text()).not.toContain(DULUTH);
     expect(text()).toContain('1 of 4 records not confirmed');
     expect(text()).toContain('Already confirmed for 2 of 4 records under this spelling');
     expect(text()).toContain('Already confirmed for 1 of 4 records under this spelling');
@@ -512,7 +593,13 @@ describe('Confirm identities page', () => {
               }),
             ] as RecordsPage['fingerprints'],
             identities: [
-              { id: ORG, kind: 'organization', name: 'Example Media LLC', confirmed: 1 },
+              {
+                id: ORG,
+                reference: 'ORG-0002',
+                kind: 'organization',
+                name: 'Example Media LLC',
+                confirmed: 1,
+              },
             ],
           }),
         );
@@ -556,8 +643,8 @@ describe('Confirm identities page', () => {
       evidence_locator: 201,
       evidence_quote: NAME,
       fingerprints: [FP(1)],
-      basis:
-        'Both records give the registration number on the business filing\nSource: Secretary of State record 1234567',
+      basis: 'Both records give the registration number on the business filing',
+      source: 'Secretary of State record 1234567',
     });
     expect(posts[0].body.record_selection).toBeUndefined();
     expect(container.querySelector('[aria-live]')?.textContent).toBe('Saved');
@@ -694,7 +781,7 @@ describe('Confirm identities page', () => {
   });
 
   it('previews the links that move before a merge and merges the chosen record in', async () => {
-    const other = 'aaaaaaaa-0000-0000-0000-000000000042';
+    const other = OTHER;
     serve((url, init) => {
       if (init?.method === 'POST') return json(identity(ORG, 'Example Media LLC', []));
       if (url.pathname.endsWith('/queue')) return json(queuePage([]));
@@ -703,7 +790,13 @@ describe('Confirm identities page', () => {
           recordsPage({
             confirmed: 2,
             identities: [
-              { id: ORG, kind: 'organization', name: 'Example Media LLC', confirmed: 2 },
+              {
+                id: ORG,
+                reference: 'ORG-0002',
+                kind: 'organization',
+                name: 'Example Media LLC',
+                confirmed: 2,
+              },
             ],
           }),
         );
@@ -718,8 +811,8 @@ describe('Confirm identities page', () => {
       if (url.pathname.endsWith('/identities'))
         return json({
           rows: [
-            { id: ORG, kind: 'organization', name: 'Example Media LLC' },
-            { id: other, kind: 'organization', name: 'Example Media Group' },
+            { id: ORG, reference: 'ORG-0002', kind: 'organization', name: 'Example Media LLC' },
+            { id: other, reference: 'ORG-0042', kind: 'organization', name: 'Example Media Group' },
           ],
           total: 2,
           page: 1,
@@ -732,7 +825,7 @@ describe('Confirm identities page', () => {
     expect(container.querySelectorAll('input[type="radio"]')).toHaveLength(1);
     await click(container.querySelector<HTMLInputElement>('input[type="radio"]')!);
     expect(text()).toContain(
-      `These 2 confirmed records will move from Example Media Group (${other}) to Example Media LLC (${ORG}). Each keeps its own evidence. ${other} will then open ${ORG}.`,
+      'These 2 confirmed records will move from Example Media Group (ORG-0042) to Example Media LLC (ORG-0002). Each keeps its own evidence. ORG-0042 will then open ORG-0002.',
     );
     expect(text()).toContain('EXAMPLE MEDIA GROUP INC');
     await type(noteField(), 'Registration number 7654321 on both business filings');
@@ -742,7 +835,8 @@ describe('Confirm identities page', () => {
       path: `finance/identities/${other}/merge`,
       body: {
         into: ORG,
-        reason: 'Registration number 7654321 on both business filings\nSource: SOS 7654321',
+        reason: 'Registration number 7654321 on both business filings',
+        source: 'SOS 7654321',
       },
     });
   });
@@ -756,7 +850,13 @@ describe('Confirm identities page', () => {
           recordsPage({
             confirmed: 2,
             identities: [
-              { id: ORG, kind: 'organization', name: 'Example Media LLC', confirmed: 2 },
+              {
+                id: ORG,
+                reference: 'ORG-0002',
+                kind: 'organization',
+                name: 'Example Media LLC',
+                confirmed: 2,
+              },
             ],
           }),
         );
@@ -776,6 +876,8 @@ describe('Confirm identities page', () => {
     });
     await render(`/money/identities?name=${encodeURIComponent(NAME)}&kind=payee_name`);
     await click(button('Split this record'));
+    expect(text()).toContain('Split Example Media LLC (ORG-0002) into 2 records');
+    expect(text()).toContain('ORG-0002 will then open a page listing both records');
     expect(text()).toContain('Roles that move to the new record');
     expect(text()).toContain('Campaign accounts · 30212');
     const boxes = () => [
@@ -798,5 +900,7 @@ describe('Confirm identities page', () => {
       { name: 'Example Media LLC', confirmations: ['c-1'] },
       { name: 'Example Media Buying Co', confirmations: ['c-2', 'c-3'] },
     ]);
+    expect(posts[0].body.reason).toBe('Different registration numbers on the two filings');
+    expect(posts[0].body.source).toBe('SOS 1 and SOS 2');
   });
 });

@@ -149,9 +149,7 @@ export function ConfirmIdentities(_props: { match?: RouteMatch }) {
           )}
           {arrival.state === 'failed' && (
             <div className="ci-arrival">
-              <Refused onRetry={arrival.retry}>
-                We couldn’t load these records. This is a problem on our side.
-              </Refused>
+              <Refused onRetry={arrival.retry}>We couldn’t load the records</Refused>
             </div>
           )}
         </header>

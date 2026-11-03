@@ -239,20 +239,25 @@ export function hasEntries(fields: DraftFields): boolean {
   );
 }
 
-const SOURCE_MARK = '\nSource: ';
-
-/** The server keeps 1 free-text basis (or reason); the form's evidence note and its
- * source are stored together in it and read back apart. */
-export function joinBasis(note: string, src: string): string {
-  return src.trim() ? `${note.trim()}${SOURCE_MARK}${src.trim()}` : note.trim();
+/** What readers see for an identity: its reference, or its name when the payload has
+ * none. The id stays the key in addresses and requests and is never printed. */
+export function refOf(identity: { reference?: string | null; name: string }): string {
+  return identity.reference || identity.name;
 }
 
-export function splitBasis(basis: string | null | undefined): { note: string; src: string | null } {
-  const text = basis ?? '';
-  const at = text.lastIndexOf(SOURCE_MARK);
-  return at < 0
-    ? { note: text, src: null }
-    : { note: text.slice(0, at), src: text.slice(at + SOURCE_MARK.length) };
+/** "{name} ({reference})", or the name alone when there is no reference. */
+export function named(identity: { reference?: string | null; name: string }): string {
+  return identity.reference ? `${identity.name} (${identity.reference})` : identity.name;
+}
+
+/** "{name} · {reference}", or the name alone. */
+export function nameDotRef(identity: { reference?: string | null; name: string }): string {
+  return identity.reference ? `${identity.name} · ${identity.reference}` : identity.name;
+}
+
+/** An optional free-text field: blank is sent as nothing. */
+export function optional(value: string): string | undefined {
+  return value.trim() ? value.trim() : undefined;
 }
 
 export function identityKindLabel(kind: string): string {
