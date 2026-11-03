@@ -192,8 +192,12 @@
 .f-back svg {
   flex: none;
 }
+/* `.f-app a` would otherwise paint the return link in the link colour. */
+.f-app .f-back {
+  color: var(--secondary);
+}
 @media (hover: hover) and (min-width: 768px) {
-  .f-back:hover {
+  .f-app .f-back:hover {
     color: var(--ink);
   }
   .f-back:hover span {
@@ -244,6 +248,13 @@
   background: var(--surface);
   color: var(--ink);
   border-color: var(--border);
+}
+/* A link drawn as a button keeps the button's text colour over `.f-app a`. */
+.f-app a.f-btn {
+  color: #fff;
+}
+.f-app a.f-btn-secondary {
+  color: var(--ink);
 }
 .f-btn-secondary:active:not([aria-disabled='true']) {
   background: var(--tint);
