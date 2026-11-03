@@ -155,7 +155,9 @@ describe('the access answer', () => {
     await render('/money', supabase.client, answering(200, 403));
     await act(async () => supabase.emit('TOKEN_REFRESHED', session('token-2')));
     await act(async () => {});
-    expect(text()).toContain('doesn’t have access');
+    // Access held in this session and now refused (Access drawing, Revoked).
+    expect(text()).toContain('This account does not have access to Alethical Finance');
+    expect(text()).toContain('Results kept from this account are no longer shown');
   });
 
   it('never lets an older answer replace the answer for the current account', async () => {

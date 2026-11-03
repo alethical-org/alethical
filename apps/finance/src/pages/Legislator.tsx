@@ -8,7 +8,7 @@ import {
   servesNow,
   type LegislatorServiceHistorySource,
 } from '@alethical/shared/legislatorProfile';
-import { formatDay } from '@alethical/shared/moneyFormat';
+import { formatDay } from '../ui/money';
 import { centralDateLabel } from '@alethical/shared/moneyLanding';
 import { formatLegislativeYearRange } from '@alethical/shared/sessionLabel';
 

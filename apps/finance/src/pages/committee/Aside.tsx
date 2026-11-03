@@ -3,7 +3,7 @@ import { UNNAMED_PAYMENT_PARTY } from '@alethical/shared/committeeMoneyShared';
 import { showingLine } from '@alethical/shared/committeePaymentsPage';
 import { currentClaimIsWithheld } from '@alethical/shared/currentClaimFreshness';
 import { centralDateLabel } from '@alethical/shared/moneyLanding';
-import { formatMoney } from '@alethical/shared/moneyFormat';
+import { formatMoney } from '../../ui/money';
 
 import type { Read } from '../../api/read';
 import { Link } from '../../router';

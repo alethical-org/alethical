@@ -102,7 +102,7 @@ it('lists all payees without a query, preserving separate payment files and sign
   expect(container.querySelectorAll('a.vp-name-link')).toHaveLength(2);
   expect(container.querySelector('a[href*="section=campaign-payments"]')).toBeTruthy();
   expect(container.querySelector('a[href*="section=outside-payments"]')).toBeTruthy();
-  expect(container.textContent).toContain('-$145');
+  expect(container.textContent).toContain('\u2212$145');
   expect(container.textContent).toContain('Incomplete: a payment amount is missing');
   expect(container.textContent).not.toContain('$0');
 });
