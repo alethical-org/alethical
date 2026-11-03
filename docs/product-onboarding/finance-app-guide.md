@@ -199,7 +199,8 @@ figure is ever added across committees or members.
   result, and confirmed related records. The office and district print once each, as on
   People. Campaign finance shows the accounts confirmed for
   the legislator record the candidacy is connected to; a candidacy connected to none shows
-  "No campaign committee is confirmed for this candidacy".
+  "No campaign committee is confirmed for this candidacy". Media buys sits between
+  Campaign finance and Election.
 - **Campaign money (`/money`)**: the committee register by kind (Candidate committees,
   Committees and funds, Party units), searched by name and paged on the server, with each
   registration's status ("Open registration", "Terminated {date}"). Sort by chooses names
@@ -213,7 +214,8 @@ figure is ever added across committees or members.
   own records and a sum only when every amount is present ("Incomplete" otherwise), sorted by
   total, payment date, name or record count, disclosure statements inside payment rows,
   large-contribution notices, statements not linked to a payment, independent expenditures,
-  related records and source evidence for each payment. Name links keep the selected year.
+  Media buys and related records in the side column, and source evidence for each payment.
+  Name links keep the selected year.
   Money received that is not a contribution is not shown yet; it waits for its own drawing.
 - **Committee members' campaign accounts (`/legislature/committees/:id/members`)**: each
   member of a sitting legislative committee with their own confirmed accounts and that
@@ -236,6 +238,7 @@ figure is ever added across committees or members.
   `senate-41`, `governor`). The contest line names the office by its title ("State
   Representative · District 34B · 2026", "State Senator", "Governor" and the other statewide
   offices); a court seat keeps its seat label ("District Court · District 2 · Seat 14").
+  Media buys follows outside spending.
 - **Lobbying (`/lobbying`)**: registered lobbyists and principals, searched and paged on the
   server; each tab keeps its own Year and Sort in the address. Lobbyists show the campaign
   contributions matched to each registration in a completed calendar year ("No matching
@@ -251,8 +254,8 @@ figure is ever added across committees or members.
   each committee with its total under the shared rule and a link to that committee's
   Lobbyists tab for the year and printed name (its "Back to Lobbyist" returns to the same
   year's records); a principal's total reported spending by year as a chart (a dashed gap for
-  a year with no report held), its categories one click away in Table, and the lobbyists
-  listed for it.
+  a year with no report held), its categories one click away in Table, the lobbyists
+  listed for it, and Media buys below them.
 - **Organization profile (`/organizations/:id`)**: 1 confirmed organization's lobbying,
   political giving and payments received, read only for the exact spellings and records its
   confirmations cover; group totals follow the shared rule, labelled by filing year when
@@ -363,8 +366,19 @@ one names its exact saved version and page.
   the reason. Each file and version keeps 1 draft, with each mode's own entries, in this
   browser for this account. A link naming another version shows the version-mismatch
   notice and Check the current copy before any form opens.
-- **Media buys card**: a record page may list the TV station files with a checked
-  connection to that record, each at its exact version, under "not in money totals".
+- **Media buys card**: Committee (by registration number), Candidate (by candidacy),
+  Principal (by entity number) and Money by race (by the contest's office, district and
+  year, matched against checked elections) list the TV station files with a checked
+  connection to that record, each at its exact version with "Back to" the page, under
+  "KSTP-TV, KARE and KMSP-TV station files, not in money totals". A candidacy lists its
+  confirmed committees' files first, each under "Files with a checked connection to
+  {committee}", then "TV station files that name this candidate", never mixed. With none:
+  "No TV station files have a checked connection to {name}"; a failed read says "We
+  couldn’t load these TV station files" with Try again. The card is absent while the TV
+  station file page is off. Person, Legislator and Organization profiles do not show it
+  yet: the server lists connected files only for a committee, candidacy, principal,
+  election, race or printed name, and each of those profiles covers several such records.
+  A row opens the file's first page, not the page the check cites.
 
 Campaign money's Sort by control reads the whole register in name order or numeric
 registration-number order; a choice resets the page and remains in the address.

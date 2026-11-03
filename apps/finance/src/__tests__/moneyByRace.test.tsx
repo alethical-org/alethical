@@ -19,6 +19,7 @@ import {
   seatPart,
   type OutsideRow,
 } from '../pages/MoneyByRace';
+import * as routes from '../routes';
 import { matchRoute } from '../routes';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -549,5 +550,92 @@ describe('Money by race page', () => {
     expect(container.querySelectorAll('.mr-field-button')).toHaveLength(3);
     expect(container.textContent).toContain('Loading…');
     expect(container.textContent).not.toContain('$10,700');
+  });
+});
+
+describe('Money by race page, Media buys card', () => {
+  const CONNECTIONS = '/finance/media-buys/connections';
+  const ROW = {
+    key: 'kmsp-5',
+    name: 'order.pdf',
+    label: 'order.pdf',
+    station: 'KMSP-TV',
+    year: 2026,
+    category: 'Local',
+    kind: 'Order',
+    uploaded_at: '2026-04-09',
+    version_id: 'd'.repeat(64),
+    version_count: 1,
+    source_changed: false,
+  };
+  const withConnections = (answer: () => Response) => {
+    const base = answers();
+    return (url: string) => (url.includes(CONNECTIONS) ? answer() : base(url));
+  };
+  const card = () => container.querySelector('.mb-buys-card');
+  const reads = () =>
+    requests.map((url) => new URL(url)).filter((url) => url.pathname.endsWith(CONNECTIONS));
+  const text = () => (card()?.textContent ?? '').replace(/ /g, ' ');
+
+  it('reads the files whose checked election names this contest, below outside spending', async () => {
+    await render(
+      '/money/races/house-1a?year=2026',
+      withConnections(() =>
+        json({
+          agency_key: null,
+          exact_name_count: 0,
+          files: [ROW],
+          total: 1,
+          groups: [{ label: 'General election', files: [{ ...ROW, role: 'General election' }] }],
+        }),
+      ),
+    );
+    expect(
+      reads().map((url) => [url.searchParams.get('kind'), url.searchParams.get('target')]),
+    ).toEqual([['race', '{"office":"House","district":"1A","year":2026}']]);
+    expect(card()?.parentElement?.className).toBe('mb-buys-after');
+    expect(card()?.parentElement?.previousElementSibling?.querySelector('h3')?.textContent).toBe(
+      'Spending by outside groups',
+    );
+    expect(card()?.querySelector('h3')).toBeNull();
+    expect(text()).toContain('KMSP-TV order ·');
+    expect(text()).toContain('General election');
+    expect(card()?.querySelector('a')?.getAttribute('href')).toBe(
+      `/media-buys/files/kmsp-5?version=${'d'.repeat(64)}&from=%2Fmoney%2Fraces%2Fhouse-1a%3Fyear%3D2026`,
+    );
+  });
+
+  it('says no file is connected to the contest by its heading', async () => {
+    await render(
+      '/money/races/house-1a?year=2026',
+      withConnections(() =>
+        json({ agency_key: null, exact_name_count: 0, files: [], total: 0, groups: [] }),
+      ),
+    );
+    expect(text()).toContain(
+      'No TV station files have a checked connection to State Representative · District 1A · 2026',
+    );
+  });
+
+  it('says the files could not be loaded, with Try again', async () => {
+    await render(
+      '/money/races/house-1a?year=2026',
+      withConnections(() => new Response('down', { status: 500 })),
+    );
+    expect(text()).toContain('We couldn’t load these TV station files');
+    expect(text()).toContain('Try again');
+    expect(text()).not.toContain('problem on our side');
+  });
+
+  it('is left off while the TV station file page is off', async () => {
+    const real = routes.isBuilt;
+    const spy = vi
+      .spyOn(routes, 'isBuilt')
+      .mockImplementation((name) => name !== 'station-file' && real(name));
+    await render('/money/races/house-1a?year=2026', answers());
+    expect(container.querySelector('.mr-contest-title')).not.toBeNull();
+    expect(card()).toBeNull();
+    expect(reads()).toHaveLength(0);
+    spy.mockRestore();
   });
 });
