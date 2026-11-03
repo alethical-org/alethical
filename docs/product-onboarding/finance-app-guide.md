@@ -134,8 +134,10 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
 - A link to a record carries the earlier page's own address (`?from=`), so the record's
   "Back to {page}" link reopens exactly that page, its tab, year and search included; up to
   3 earlier pages are kept. A link back to Finance Home names it by its heading, "Back to
-  Research public records". In-page choices (tab, year, sort, page, search) are kept in the
-  address, so a copied link or a new tab opens the same view.
+  Research public records". The 5 destinations the top bar reaches (Legislation, People,
+  Campaign money, Lobbying, Media buys) carry no return link. In-page choices (tab, year,
+  sort, page, search) are kept in the address, so a copied link or a new tab opens the same
+  view.
 
 ## Addresses
 
@@ -200,8 +202,8 @@ Each page is built from its approved Design drawing and reads alethical.com's ow
 through the shared API (`api.alethical.com`). Every page has a loading state, a failure with
 Try again that never reads as an empty result, and a "no longer available" state for a record
 the server does not hold. A page reached from another carries "Back to {page}" to exactly the
-earlier view. Routine sources and copy dates sit in "Sources and updates" at the foot of the
-page, below the first screen. Money figures follow
+earlier view, except the 5 top-bar destinations. Routine sources and copy dates sit in
+"Sources and updates" at the foot of the page, below the first screen. Money figures follow
 [grounded-answers.md rule 12](../../.claude/rules/grounded-answers.md): a missing figure is
 never $0 (a missing itemized figure reads "Not reported", a missing official report total
 "Report total unavailable", a missing official spending total "We do not hold an official
@@ -249,11 +251,32 @@ figure is ever added across committees or members.
   total, payment date, name or record count, disclosure statements inside payment rows,
   large-contribution notices, statements not linked to a payment, independent expenditures,
   Media buys and related records in the side column, and source evidence for each payment.
-  Name links keep the selected year.
+  Name links keep the selected year. Inside the report figures, contributions by type as
+  filed sets each filed line beside the itemized cash and the difference, as a chart or a
+  table, only for the report the server's comparison matches ("A type breakdown isn’t
+  available for this report" or "The sources disagree" otherwise). Under the payments, for
+  the calendar year: individual contributions by state for a candidate committee (Minnesota,
+  Other states and Unknown, each other state on request, assigned from filed ZIP codes), and
+  donor names also at other candidate committees (exact printed names counted, the names
+  with the most other committees each opening its payments under that name). Each says in
+  its own words when it is not available, never $0; a year with no contribution records held
+  shows neither. With no earlier page in the address, the return link reads "Back to
+  Campaign money".
+  A source notice returned for the selected committee and year appears beside its expenditures,
+  using the server’s exact words. It is absent from other tabs and is removed on a year or committee
+  change; the frontend never infers a notice from the registration number or year.
   Money received that is not a contribution is not shown yet; it waits for its own drawing.
+  The drawn Contributions made tab and the Open race and Matching station invoice links are
+  not shown: the server serves no recipient type, contest or invoice link for them.
 - **Committee members' campaign accounts (`/legislature/committees/:id/members`)**: each
-  member of a sitting legislative committee with their own confirmed accounts and that
-  year's report figures, read 1 member at a time and never combined.
+  member of a sitting legislative committee appears once, with every served role and the
+  district for that committee’s session where available. Each has their own confirmed accounts and, for
+  each account, the Total receipts, Total expenditures and Ending balance of its report for
+  the chosen year as filed, with the report's name and period, read the way Committee reads
+  them and never combined. A figure the report does not give reads "Report total
+  unavailable", an account with no such report reads "No {year} report held", and a failed
+  read, including one the server cannot find, fails that account alone with Try again. The return link appears only when the
+  address names the earlier page.
 - **Payments under this name (`/money/names/:query?role=`)**: every payment record filed under
   1 exact printed spelling, as a payee (campaign spending and outside spending listed
   separately, never added together), a donor or an employer, read from Finance's own
@@ -298,7 +321,10 @@ figure is ever added across committees or members.
   `senate-41`, `governor`). The contest line names the office by its title ("State
   Representative · District 34B · 2026", "State Senator", "Governor" and the other statewide
   offices); a court seat keeps its seat label ("District Court · District 2 · Seat 14").
-  Media buys follows outside spending.
+  Media buys follows outside spending. A year or office change keeps the last contest's
+  figures on screen under their own year, dimmed with "Updating results…" while the next
+  answer loads, and with "We couldn’t update these results" and Try again when it fails.
+  With no earlier page in the address, the return link reads "Back to Campaign money".
 - **Lobbying (`/lobbying`)**: registered lobbyists and principals, searched and paged on the
   server; each tab keeps its own Year and Sort in the address. Lobbyists show the campaign
   contributions matched to each registration in a completed calendar year ("No matching
