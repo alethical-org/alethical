@@ -126,9 +126,6 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
   says why, because the server never says. An account refused after having access in this
   session reads "This account does not have access to Alethical Finance" with "Results kept
   from this account are no longer shown": every held answer and unfinished entry is cleared.
-- **Unfinished entries (drafts)** on the checking forms belong to the account that wrote
-  them, in this browser: the same account finds them again after its sign-in expires and it
-  signs in again, and signing in as a different account clears every draft the browser held.
 - **Access cannot be checked:** "We couldn’t check your access" with Try again. A failed
   check never shows the no-access state.
 - **Unknown address, or a page not built yet:** "We couldn’t find that page" inside the
@@ -194,7 +191,8 @@ figure is ever added across committees or members.
   the server now supplies confirmed links.
 - **Campaign money (`/money`)**: the committee register by kind (Candidate committees,
   Committees and funds, Party units), searched and paged on the server. Sort by chooses
-  names A to Z or numeric registration-number order.
+  names A to Z or numeric registration-number order. Other ways in: Donors by employer, and
+  Vendors and payees once it is built.
 - **Committee (`/money/committees/:id`)**: the official report figures for the chosen report
   (contributions and expenditures as filed), itemized contributions in 5 tabs by donor kind and
   itemized expenditures, each name grouped with its own records and a sum only when every

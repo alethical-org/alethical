@@ -6,15 +6,23 @@ import { usSpelling } from './scripts/usSpelling.mjs';
 // shell needs nothing more than that. Finance prints US spelling, including in
 // the wording it imports from @alethical/shared (scripts/usSpelling.mjs).
 // Real-data checks before a release: with FINANCE_QA_PROXY set, the dev server
-// forwards /api to the shared API as the same origin, so a browser signed in to
-// Finance can read production records from a local build (the API allows only
-// Finance's own address across origins). Reads only pass through unchanged;
-// nothing here ships in the build.
+// forwards GET and HEAD requests under /api to the shared API as the same origin,
+// with a desktop browser's identity, and refuses every other method with 405, so
+// a local build can read records but never write them. Nothing here ships in the
+// build.
 const qaProxy = process.env.FINANCE_QA_PROXY
   ? {
       '/api': {
         target: 'https://api.alethical.com',
         changeOrigin: true,
+        bypass(req: { method?: string }, res: { statusCode: number; end: () => void } | undefined) {
+          if (req.method === 'GET' || req.method === 'HEAD') return undefined;
+          if (res) {
+            res.statusCode = 405;
+            res.end();
+          }
+          return false;
+        },
         headers: {
           accept: 'application/json',
           'accept-language': 'en-US,en;q=0.9',

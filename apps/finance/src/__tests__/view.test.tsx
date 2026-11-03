@@ -96,26 +96,53 @@ describe('bar charts', () => {
     expect(container.querySelector('.f-bars a, .f-bars button, .f-bars [tabindex]')).toBeNull();
   });
 
-  it('puts For bars right and Against bars left of the centre line', async () => {
+  it('draws each bar on the filed position’s side and none for a negative net', async () => {
     await act(async () =>
       root.render(
         <SplitBarList
           label="Spending by outside groups"
           rows={[
-            { key: 'a', label: 'A', amount: 500, value: '$500' },
-            { key: 'b', label: 'B', amount: -250, value: '−$250' },
-            { key: 'c', label: 'C', amount: null, value: 'Missing payment amount' },
+            { key: 'a', label: 'A', position: 'For', side: 'for', amount: 500, value: '$500' },
+            {
+              key: 'b',
+              label: 'B',
+              position: 'Against',
+              side: 'against',
+              amount: 250,
+              value: '$250',
+            },
+            // A For spender whose net is negative: no bar on either side.
+            {
+              key: 'c',
+              label: 'C',
+              position: 'For',
+              side: 'for',
+              amount: -1500,
+              value: '−$1,500',
+              valueNote: 'Net amount is negative',
+            },
+            {
+              key: 'd',
+              label: 'D',
+              position: 'For',
+              side: 'for',
+              amount: null,
+              value: 'Missing payment amount',
+            },
           ]}
         />,
       ),
     );
-    const fills = container.querySelectorAll<HTMLElement>('.f-bar-fill');
-    expect(fills).toHaveLength(2);
-    expect(fills[0].style.left).toBe('50%');
-    expect(fills[0].style.width).toBe('50%');
-    expect(fills[1].style.right).toBe('50%');
-    expect(fills[1].style.width).toBe('25%');
-    expect(container.textContent).toContain('Against');
-    expect(container.textContent).toContain('For');
+    const widths = (side: string) =>
+      [...container.querySelectorAll<HTMLElement>(`.f-split-${side} .f-split-fill`)].map(
+        (fill) => fill.style.width,
+      );
+    expect(widths('for')).toEqual(['100%', '0%', '0%', '0%']);
+    expect(widths('against')).toEqual(['0%', '50%', '0%', '0%']);
+    expect(container.textContent).toContain('−$1,500 · Net amount is negative');
+    expect(container.textContent).toContain('Missing payment amount');
+    expect(container.querySelector('.f-split-value-note')?.textContent).toBe(
+      ' · Net amount is negative',
+    );
   });
 });

@@ -43,9 +43,13 @@ export function clearDrafts() {
 export function setDraftAccount(userId: string | null) {
   const store = storage();
   if (!store || userId === null) return;
-  const owner = store.getItem(ACCOUNT_KEY);
-  if (owner !== null && owner !== userId) clearDrafts();
-  store.setItem(ACCOUNT_KEY, userId);
+  try {
+    const owner = store.getItem(ACCOUNT_KEY);
+    if (owner !== null && owner !== userId) clearDrafts();
+    store.setItem(ACCOUNT_KEY, userId);
+  } catch {
+    // Full or refused storage must never stop sign-in; drafts just are not kept.
+  }
 }
 
 export function readDraft<T>(key: string): T | null {
