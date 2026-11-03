@@ -339,7 +339,8 @@ figure is ever added across committees or members.
   "Official IDs"), never by its internal id. A withdrawal of several confirmations sends 1
   request each; if a later one fails, the page refreshes (each one withdrawn leaves the
   confirmed card and gets its History withdrawal row), says "{k} of {n} confirmations were
-  withdrawn. The other {m} were not saved. Your note is kept below." with Try again, and Try
+  withdrawn. The other {m} were not saved. Your note is kept below." (each verb "was" for a
+  count of 1) with Try again, and Try
   again sends only the rest. A selection is the server's record fingerprints, or "All
   records" / "{year} records", which the server resolves. "Saved" appears only after the
   server accepts; otherwise "Not saved. Your entries are kept." with Try again, "These

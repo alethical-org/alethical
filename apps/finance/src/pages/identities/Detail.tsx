@@ -72,9 +72,12 @@ interface Ui {
   planError: string;
   stale: boolean;
 }
-/** A withdrawal of several confirmations that stopped part way (settled wording, #2833). */
-function partlyWithdrawn({ k, n }: { k: number; n: number }): string {
-  return `${k} of ${n} confirmations were withdrawn. The other ${n - k} were not saved. Your note is kept below.`;
+/** A withdrawal of several confirmations that stopped part way (settled wording row 66);
+ * each verb follows its own count ("1 of 2 confirmations was withdrawn"). */
+export function partlyWithdrawn({ k, n }: { k: number; n: number }): string {
+  const m = n - k;
+  const verb = (count: number) => (count === 1 ? 'was' : 'were');
+  return `${k} of ${n} confirmations ${verb(k)} withdrawn. The other ${m} ${verb(m)} not saved. Your note is kept below.`;
 }
 
 const READY: Ui = {

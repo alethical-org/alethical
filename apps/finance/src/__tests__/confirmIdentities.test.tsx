@@ -1,6 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { partlyWithdrawn } from '../pages/identities/Detail';
 
 import { clearReadCache } from '../api/read';
 import { ConfirmIdentities, sourceLine } from '../pages/ConfirmIdentities';
@@ -1340,7 +1341,7 @@ describe('Confirm identities page', () => {
       'finance/identities/confirmations/c-2/withdraw',
     ]);
     expect(text()).toContain(
-      '1 of 3 confirmations were withdrawn. The other 2 were not saved. Your note is kept below.',
+      '1 of 3 confirmations was withdrawn. The other 2 were not saved. Your note is kept below.',
     );
     expect(text()).not.toContain('Not saved. Your entries are kept.');
     // The page reads the identity again; the withdrawn one is marked by its drawn
@@ -1364,7 +1365,7 @@ describe('Confirm identities page', () => {
       'finance/identities/confirmations/c-3/withdraw',
     ]);
     expect(text()).toContain(
-      '2 of 3 confirmations were withdrawn. The other 1 were not saved. Your note is kept below.',
+      '2 of 3 confirmations were withdrawn. The other 1 was not saved. Your note is kept below.',
     );
 
     failing.clear();
@@ -1498,5 +1499,16 @@ describe('Confirm identities page', () => {
     ]);
     expect(posts[0].body.reason).toBe('Different registration numbers on the two filings');
     expect(posts[0].body.source).toBe('SOS 1 and SOS 2');
+  });
+});
+
+describe('Partial withdrawal wording', () => {
+  it('makes each verb follow its own count', () => {
+    expect(partlyWithdrawn({ k: 1, n: 2 })).toBe(
+      '1 of 2 confirmations was withdrawn. The other 1 was not saved. Your note is kept below.',
+    );
+    expect(partlyWithdrawn({ k: 2, n: 5 })).toBe(
+      '2 of 5 confirmations were withdrawn. The other 3 were not saved. Your note is kept below.',
+    );
   });
 });
