@@ -91,6 +91,20 @@
   line-height: 1.5;
   color: var(--secondary);
 }
+.pn-scope {
+  margin: 8px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.pn-scope .f-clear {
+  min-height: 36px;
+  font-size: 13px;
+}
 .pn-identity {
   margin-top: 12px;
   display: flex;
@@ -541,6 +555,106 @@
   .de-employer {
     grid-column: 1 / -1;
     font-size: 13px;
+  }
+}
+
+/* ---------- Donors by employer: spellings beside the chosen spelling ---------- */
+.de-layout {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.de-layout[data-split] {
+  grid-template-columns: 340px minmax(0, 1fr);
+}
+.de-layout .de-results {
+  margin-top: 0;
+}
+.de-spellings {
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.de-spellings-head {
+  padding: 16px 17px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  border-bottom: 1px solid var(--hairline);
+}
+.de-spellings-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+.de-spelling-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.de-spelling-list li {
+  border-bottom: 1px solid rgba(20, 27, 34, 0.08);
+}
+.de-spelling-list li:last-child {
+  border-bottom: 0;
+}
+.de-spelling-item {
+  display: grid;
+  gap: 3px;
+  padding: 12px 17px;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--surface);
+}
+.f-app .de-spelling-item:focus-visible {
+  outline-offset: -2px;
+}
+.de-spelling-item:active {
+  background: #eef2f5;
+}
+.de-spelling-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--link);
+  overflow-wrap: anywhere;
+}
+.de-spelling-meta {
+  font-size: 13px;
+  color: var(--secondary);
+}
+.de-spelling-item[aria-current] {
+  background: var(--tint);
+  cursor: default;
+}
+.de-spelling-item[aria-current] .de-spelling-name {
+  font-weight: 700;
+  color: var(--ink);
+}
+.de-list-more {
+  padding: 12px 17px 16px;
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  border-top: 1px solid rgba(20, 27, 34, 0.08);
+}
+.de-to-list {
+  justify-self: start;
+}
+.de-status {
+  margin-top: 0;
+}
+.de-donor-more {
+  padding: 0 17px 14px;
+}
+@media (hover: hover) and (min-width: 768px) {
+  .de-spelling-item:not([aria-current]):hover {
+    background: var(--row-hover);
   }
 }
 
