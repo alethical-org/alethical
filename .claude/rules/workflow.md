@@ -128,9 +128,9 @@ updates and independently inspect the live behaviour before reporting completion
    deferred work go to GitHub issues, filed at the moment of discovery with what it is,
    what exists today, why deferred, what unblocks it, **a milestone, an issue type, a topic
    label, and its board fields (Epic, Priority, LOE, Status)**, then cross-linked back into
-   the doc that spawned it. Product invariants go to
-   `docs/architecture/grounded-answer-policy.md`, with short reminders and task routes
-   in `.claude/rules/grounded-answers.md`; working-process norms go to this file.
+   the doc that spawned it. Product invariants go to their owning section, found
+   through `.claude/rules/grounded-answers.md`; keep each full rule in 1 place and
+   link to it. Working-process norms go to this file.
    Chat is a scratchpad, never a system of record.
 
    **A decision reached in conversation, with no file changed, still ships a doc edit in
