@@ -337,8 +337,9 @@ tests to write; this section says when a test is evidence.
 **Never commit directly to `main`.** Pushing to `main` triggers a production
 deploy (see below), so all changes go through pull requests.
 
-The [workflow map](.claude/rules/workflow.md) routes to the numbered rules in
-[development-workflow.md](docs/operations/development-workflow.md). The short version:
+The full working policy is in [workflow.md](.claude/rules/workflow.md);
+[development-workflow.md](docs/operations/development-workflow.md) indexes its sections.
+The short version:
 
 1. **Branch off `origin/main` in your own worktree** (`just worktree <branch>`), one
    topic per branch, named literally with a topic prefix (`feat/`, `fix/`, `docs/`,

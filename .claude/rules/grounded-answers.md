@@ -2,8 +2,8 @@
 
 These rules govern **shipped product surfaces**, not the agent's conversation,
 analysis, commits or code comments. They bind anything that generates, displays or
-advertises an answer, including prose, previews and marketing. The full rules,
-exceptions and supporting evidence live in
+advertises an answer, including prose, previews and marketing. Rule 3 is owned here
+in full. Other full rules, exceptions and supporting evidence live in
 [grounded-answer-policy.md](../../docs/architecture/grounded-answer-policy.md).
 Read each linked rule whose subject the task touches before dependent work; file
 extensions do not decide applicability. A missing required guide holds that work.
@@ -17,11 +17,25 @@ The numbers preserve existing references. [Workflow](workflow.md) governs how we
 2. **Never advertise what you cannot answer.** System suggestions must not lead to
    refusal; chips, placeholders, empty states and marketing only name supported intents.
    Read [rule 2](../../docs/architecture/grounded-answer-policy.md#rule-2) before writing them.
-3. **Grounded neutrality.** Describe records and directly supported relationships,
-   never infer motive, causation, positions, corruption or influence. Use author/co-author
-   in displayed legislative copy; code identifiers keep their actual meanings.
-   Read [rule 3](../../docs/architecture/grounded-answer-policy.md#rule-3) for record-based
-   claims. Signed research has only the conditioned exception in rule 13.
+<a id="rule-3"></a>
+
+3. **Grounded neutrality.** Describe records and source-backed relationships, never inferred
+   positions or causes: "authored / co-authored N bills", "voted yes on HF xxxx", never
+   "supports X" as an opinion claim. Official campaign-finance filings, lobbying disclosures
+   and the relationships those records explicitly name are records too; Alethical may show
+   and connect them. **Influence tracking means tracking documented money, relationships and
+   activity, not deciding that one caused another.** One narrow, conditioned exception
+   exists for derived classifications inside signed research pieces (rule 13); nothing in it
+   loosens this rule anywhere else. Never claim that a contribution or disclosed
+   relationship caused a vote, reveals a hidden motive, proves influence or establishes
+   corruption unless a source directly supports that specific claim. Use Minnesota
+   Legislature terminology: author / co-author (not "sponsor" / "co-sponsor") in
+   user-facing copy. This governs *displayed strings only*: code identifiers and the data
+   model keep their names, including the genuine `SponsorshipRole.sponsor` enum value, a
+   distinct role from chief/co-author (`docs/product-onboarding/grounded-ask-spec.md` §4.2,
+   Sponsorship display). Framing sentences that carry this rule are fixed UI copy owned by
+   the layout, never LLM output.
+
 4. **Records and generated answers have different contracts.** DB facts on record
    surfaces do not authorize uncited generated answers or interim leaks.
    Read [rule 4](../../docs/architecture/grounded-answer-policy.md#rule-4) for data/answer boundaries.

@@ -10,8 +10,9 @@ into plain language, with every claim checkable against its official source.
   first. The local owner is `~/Code/tool-settings/shared/PERSONAL_RULES.md`.
   If inaccessible, say so in the first reply; cloud briefs include the rules they need.
 - Read [workflow](.claude/rules/workflow.md), [grounded answers](.claude/rules/grounded-answers.md)
-  and [CONTRIBUTING.md](CONTRIBUTING.md). These compact rule maps route to full owners:
-  read the sections their task triggers name before dependent work, not every guide.
+  and [CONTRIBUTING.md](CONTRIBUTING.md). Workflow and neutrality are present in full;
+  the other product rules route to full owners. Read the sections their task triggers
+  name before dependent work, not every guide.
   If a required guide cannot be read, hold that action and continue independent work.
 - Before building, read [philosophy](docs/philosophy.md), the purpose beneath tactics.
   Use [docs/README.md](docs/README.md) to find intent. Issues and the Roadmap board own
@@ -22,8 +23,8 @@ into plain language, with every claim checkable against its official source.
   Record a hold when its reason changes, not after every reply. Native Codex hooks
   run only after supported user trust review; prepared does not mean active.
 
-Claude Code loads this file and the unscoped `.claude/rules/` maps automatically.
-Other agents must open those maps themselves. Detailed owners are read when their
+Claude Code loads this file and the unscoped `.claude/rules/` files automatically.
+Other agents must open those files themselves. Read other linked owners when their
 triggers apply; a link is not evidence that its contents were loaded.
 
 ## Read for the task
@@ -53,7 +54,7 @@ approve publishing unfinished media.
   [grounded answers](.claude/rules/grounded-answers.md) defines the product contract.
 - **Keep live verification scoped and authorized.** Unapproved sends, spending and
   destructive production changes remain barred. Controlled test emails may use a
-  verified authorized maintainer/test mailbox under [workflow rule 10](docs/operations/development-workflow.md#rule-10).
+  verified authorized maintainer/test mailbox under [workflow rule 10](.claude/rules/workflow.md#rule-10).
 - **Check your directory before every write.** `/Users/eug/Code/Alethical`, the shared
   checkout, is other tasks' live state. Do not edit, format, delete or switch its branch.
   Never `git reset --hard`, `git clean -fd`, `git checkout .`, `git stash`, `git update-ref`
@@ -76,7 +77,7 @@ approve publishing unfinished media.
 
 Keep the chat, folder and local branch after delivery with no expiry. Age, silence,
 clean files and merged changes never establish completion or authorize cleanup.
-[Workflow rule 1](docs/operations/development-workflow.md#rule-1) and
+[Workflow rule 1](.claude/rules/workflow.md#rule-1) and
 [working-folder lifecycle](docs/operations/worktree-lifecycle.md) own retention and cleanup.
 When the user requests cleanup:
 

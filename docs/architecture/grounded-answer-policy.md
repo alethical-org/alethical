@@ -4,9 +4,10 @@
 or talk.** They bind anything you build or change that generates, displays or advertises an
 answer to a reader. They do not govern your own conversation, analysis, commit messages or
 code comments: a chat reply needs no citations, and cite-or-refuse is a product contract, not
-a chat style. [The workflow map](../../.claude/rules/workflow.md) routes working-process rules.
-This file is the full policy owner; [grounded-answers.md](../../.claude/rules/grounded-answers.md)
-keeps the always-available invariants and task routes. Update both when a rule changes.
+a chat style. [The workflow rules](../../.claude/rules/workflow.md) own working processes.
+This file owns the full product rules except rule 3, whose complete body is resident in
+[grounded-answers.md](../../.claude/rules/grounded-answers.md#rule-3). That file also keeps
+the other always-available invariants and task routes. Update affected routes when a rule changes.
 
 Page-return controls also obey the canonical
 [contextual page-return links](../../docs/design/design-principles.md#contextual-page-return-links)
@@ -44,22 +45,8 @@ decides.
 
 <a id="rule-3"></a>
 
-3. **Grounded neutrality.** Describe records and source-backed relationships, never inferred
-   positions or causes: "authored / co-authored N bills", "voted yes on HF xxxx", never
-   "supports X" as an opinion claim. Official campaign-finance filings, lobbying disclosures
-   and the relationships those records explicitly name are records too; Alethical may show
-   and connect them. **Influence tracking means tracking documented money, relationships and
-   activity, not deciding that one caused another.** One narrow, conditioned exception
-   exists for derived classifications inside signed research pieces (rule 13); nothing in it
-   loosens this rule anywhere else. Never claim that a contribution or disclosed
-   relationship caused a vote, reveals a hidden motive, proves influence or establishes
-   corruption unless a source directly supports that specific claim. Use Minnesota
-   Legislature terminology: author / co-author (not "sponsor" / "co-sponsor") in
-   user-facing copy. This governs *displayed strings only*: code identifiers and the data
-   model keep their names, including the genuine `SponsorshipRole.sponsor` enum value, a
-   distinct role from chief/co-author (`docs/product-onboarding/grounded-ask-spec.md` §4.2,
-   Sponsorship display). Framing sentences that carry this rule are fixed UI copy owned by
-   the layout, never LLM output.
+3. **Grounded neutrality.** Read the complete resident
+   [rule 3](../../.claude/rules/grounded-answers.md#rule-3), which owns this policy.
 
 <a id="rule-4"></a>
 
