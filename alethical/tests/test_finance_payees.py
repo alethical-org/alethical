@@ -311,3 +311,27 @@ def test_amount_sorts_put_withheld_totals_last_both_ways(
 def test_a_range_refuses_bad_bounds(finance_api, board, params):
     finance_api.app.dependency_overrides[get_db]().connection()
     assert finance_api.get(BASE, params=params).status_code == 422
+
+
+def test_a_missing_amount_takes_precedence_over_a_missing_period_in_a_range(
+    finance_api, finance_db, board
+):
+    finance_db.add(
+        m.CampaignFinanceExpenditureRow(
+            snapshot_id=board.expenditures_snapshot_id,
+            row_number=81,
+            committee_reg_num="18135",
+            vendor_name="Range both missing",
+            amount=None,
+            transaction_date=None,
+            year=None,
+        )
+    )
+    finance_db.commit()
+    data = get(finance_api, q="Range both", min_amount="0")
+    assert data["range_excluded"] == {"incomplete_amount": 1, "incomplete_period": 0}
+
+
+def test_bounds_echo_as_plain_numbers(finance_api, board):
+    data = get(finance_api, min_amount="-0", max_amount="1e3")
+    assert (data["min_amount"], data["max_amount"]) == ("0", "1000")

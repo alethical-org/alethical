@@ -115,6 +115,13 @@ def _rows(db: Session, release: reader.Release):
     return union_all(*parts).subquery()
 
 
+def _plain(value: Decimal | None) -> str | None:
+    if value is None:
+        return None
+    text = format(value.normalize(), "f")
+    return "0" if text in {"-0", "0"} else text
+
+
 def directory(
     db: Session,
     *,
@@ -154,8 +161,9 @@ def directory(
         "payment_type": payment_type,
         "tab": tab,
         "sort": sort,
-        "min_amount": None if min_amount is None else str(min_amount),
-        "max_amount": None if max_amount is None else str(max_amount),
+        # Plain fixed-point text, so "1e3" echoes as "1000" and "-0" as "0".
+        "min_amount": _plain(min_amount),
+        "max_amount": _plain(max_amount),
         "range_excluded": None,
         "years": [],
         "payment_types": [],
