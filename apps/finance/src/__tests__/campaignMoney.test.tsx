@@ -222,7 +222,7 @@ describe('Campaign money directory', () => {
     );
     expect(registerRequests()[0]).toContain('kind=party_unit');
     expect(container.querySelector('[aria-selected="true"]')?.textContent).toContain('Party units');
-    expect(container.querySelector('.f-back')?.textContent).toBe('Back to Finance Home');
+    expect(container.querySelector('.f-back')?.textContent).toBe('Back to Research public records');
     act(() => root.unmount());
     root = createRoot(container);
     requests = [];
