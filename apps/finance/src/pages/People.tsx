@@ -17,7 +17,9 @@ export interface PersonDirectoryRow {
   name: string;
   slug?: string;
   year?: number;
-  election?: string;
+  /** The candidacy's election as the held record carries it: an object
+   * (`{ id, date, label, type: 'general' }`), never a ready-made string. */
+  election?: { type?: string | null; label?: string | null; date?: string | null } | string | null;
   office?: string;
   voting_area?: string;
   source?: { authority?: string; checkedDate?: string };
@@ -59,8 +61,12 @@ export function countLine(total: number, query: string, type = 'legislators') {
   return `${plural(total, ...((type === 'candidates' ? ['candidacy', 'candidacies'] : type === 'legislators' ? ['service record', 'service records'] : ['record', 'records']) as [string, string]))}${query ? ` matching “${query}”` : ''}`;
 }
 export function rowNote(row: PersonDirectoryRow) {
-  if (row.kind === 'candidate')
-    return [row.year, row.election, row.office, row.voting_area].filter(Boolean).join(' · ');
+  if (row.kind === 'candidate') {
+    // The election is an object; only its type ("general") is printed beside the year.
+    const type = typeof row.election === 'string' ? row.election : row.election?.type;
+    const election = [row.year, type].filter(Boolean).join(' ');
+    return [election, row.office, row.voting_area].filter(Boolean).join(' · ');
+  }
   if (row.kind === 'person') return 'Elections and service over time';
   const period = row.periods?.[0];
   const seat = period

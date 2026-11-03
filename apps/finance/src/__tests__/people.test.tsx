@@ -245,6 +245,27 @@ describe('People wording', () => {
   });
 
   it('never prints a seat the record does not name', () => {
+    // The served candidate row (GET /api/v1/finance/people, 3 Nov 2026): the
+    // election is an object, never interpolated whole ("[object Object]").
+    const candidate = {
+      kind: 'candidate',
+      id: 'c-1',
+      name: 'Example Candidate',
+      year: 2026,
+      election: {
+        date: '2026-11-03',
+        id: '8334',
+        label: 'November 3, 2026 general election',
+        type: 'general',
+      },
+      office: 'State Representative District 56A',
+      voting_area: 'House District 56A',
+      source: { checkedDate: '2026-11-02', url: 'https://myballotmn.sos.mn.gov/' },
+    } as PersonDirectoryRow;
+    expect(rowNote(candidate)).toBe(
+      '2026 general · State Representative District 56A · House District 56A',
+    );
+    expect(rowNote(candidate)).not.toContain('[object');
     expect(rowNote({ kind: 'legislator', id: 'x', name: 'X', service_status: 'unknown' })).toBe(
       'Current service not confirmed',
     );
