@@ -182,6 +182,7 @@ def test_confirmed_people_are_people_in_all_recipients_never_vendors(
     assert person["record_kind"] == "confirmed_person"
     assert person["identity"] == {
         "id": entity["id"],
+        "reference": entity["reference"],
         "name": "Confirmed person",
         "kind": "person",
     }

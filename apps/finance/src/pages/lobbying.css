@@ -42,18 +42,8 @@
   gap: 24px;
   align-items: start;
 }
-@media (min-width: 1100px) {
-  .lb-layout {
-    grid-template-columns: minmax(0, 1fr) 320px;
-  }
-}
-.lb-dir,
-.lb-aside {
+.lb-dir {
   min-width: 0;
-}
-.lb-aside {
-  display: grid;
-  gap: 14px;
 }
 /* The tabs scroll sideways rather than wrap, down to 320px. */
 .lb-tabs .f-tabs {
@@ -81,15 +71,25 @@
   align-items: center;
   gap: 8px;
 }
-.lb-list {
+/* Each menu wrapper sits at 40 and the open one at 41, so a following menu never
+ * covers an open list (eug-19/77, Round 32). */
+.lb-controls .f-dropdown {
+  z-index: 40;
+}
+.lb-controls .f-dropdown[data-open] {
+  z-index: 41;
+}
+.lb-results {
   margin-top: 14px;
   outline: none;
 }
 .lb-notice {
   margin-bottom: 10px;
 }
+/* The count line's text sits 24px below the controls (eug-26): the results'
+ * 14px margin plus 10px of padding, so it never collapses into a margin. */
 .lb-count {
-  padding: 0 0 10px 2px;
+  padding: 10px 0 10px 2px;
   font-size: 14px;
   color: var(--secondary);
 }
@@ -150,10 +150,19 @@
   font-size: inherit;
   color: inherit;
 }
+.lb-head-year {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.lb-second-b {
+  display: block;
+}
 .lb-strong {
   font-weight: 700;
 }
-.lb-spending.lb-strong .lb-spending-value {
+.lb-figure.lb-strong .lb-figure-value {
   white-space: nowrap;
 }
 .lb-missing {
@@ -164,7 +173,7 @@
   display: none;
 }
 .lb-list-note {
-  margin: 10px 0 0;
+  margin: 24px 0 0;
   padding-left: 17px;
   max-width: 760px;
   font-size: 13px;
@@ -198,21 +207,28 @@
   font-weight: 700;
   color: var(--secondary);
 }
+/* About these records: below the directory, above Sources and updates (eug-135). */
 .lb-about {
-  padding: 18px 20px;
+  margin-top: 36px;
+  max-width: 900px;
 }
 .lb-about h2 {
   margin: 0;
-  letter-spacing: 0.08em;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
 }
 .lb-about ul {
-  margin: 10px 0 0;
+  margin: 8px 0 0;
   padding-left: 18px;
   display: grid;
   gap: 6px;
   font-size: 13px;
   line-height: 1.55;
   color: var(--secondary);
+}
+.lb-sources-next {
+  margin-top: 4px;
 }
 .lb-sources-gap {
   margin-top: 6px;
@@ -340,16 +356,23 @@
   max-width: none;
   padding: 20px;
 }
+/* End-of-section commentary: 24px below its list, table or chart (eug-26). */
 .lb-note {
-  margin: 12px 0 0;
+  margin: 24px 0 0;
   padding-left: 17px;
   max-width: 760px;
   font-size: 13px;
   line-height: 1.55;
   color: var(--muted);
 }
-.lb-list + .lb-note {
-  margin-top: 10px;
+.lb-note-flush {
+  padding-left: 0;
+}
+.lbp-spelling {
+  margin: 8px 0 0;
+  padding-left: 17px;
+  font-size: 13px;
+  color: var(--muted);
 }
 .lb-list {
   margin: 12px 0 0;
@@ -499,6 +522,27 @@ a.lbl-committee-name {
   font-size: 13px;
   color: var(--muted);
 }
+.lbl-committee-total {
+  margin-left: auto;
+  padding-left: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.lbl-committee-total[data-missing] {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+/* The contributions heading is focused on arrival from the directory or a
+ * committee page, and shows the ring then (Round 35). */
+.f-app .lbl-gave {
+  border-radius: 3px;
+}
+.f-app .lbl-gave:focus {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
 .lbl-pay {
   display: grid;
   grid-template-columns: 120px minmax(0, 1fr) 120px 110px;
@@ -581,8 +625,19 @@ a.lbl-committee-name {
 }
 
 /* ---------- Principal: spending by year ---------- */
-.lbp-spending {
+/* The year sits left of its bar at every band, 56px wide (Principal drawing). */
+.lbp-chart .f-bar-row {
+  grid-template-columns: var(--bar-label) minmax(0, 1fr);
+}
+.lbp-chart .f-bar-value,
+.lbp-chart .f-bar-note {
+  grid-column: 2;
+}
+.lbp-view-row {
   margin-top: 12px;
+}
+.lbp-spending {
+  margin-top: 8px;
   background: var(--surface);
   border: 1px solid var(--hairline);
   border-radius: 10px;
@@ -682,7 +737,7 @@ a.lbl-committee-name {
   text-align: right;
 }
 .lbp-notes {
-  margin: 12px 0 0;
+  margin: 24px 0 0;
   padding-left: 35px;
   max-width: 780px;
   display: grid;

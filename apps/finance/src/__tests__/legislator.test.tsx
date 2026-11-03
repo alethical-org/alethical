@@ -12,6 +12,7 @@ import {
   type FinanceYears,
 } from '../parts/CampaignFinance';
 import {
+  candidacyNote,
   committeeIdFor,
   LegislatorProfile,
   serviceLine,
@@ -239,9 +240,7 @@ describe('Legislator profile', () => {
   it('shows current service, committees with their members’ accounts links, and chief-authored bills', async () => {
     await render('/legislators/patty-acomb', answering(CURRENT));
     expect(container.querySelector('h1')?.textContent).toBe('Patty Acomb');
-    expect(text()).toContain(
-      'Currently serving as State Representative · House District 45B · DFL',
-    );
+    expect(text()).toContain('Serving as State Representative · House District 45B · DFL');
     expect(text()).toContain('Party as recorded: DFL');
     expect(text()).toContain('Elected to the House');
     const links = [...container.querySelectorAll('a')].map((a) => a.getAttribute('href'));
@@ -262,6 +261,10 @@ describe('Legislator profile', () => {
     expect(text()).toContain('2025–26 session');
     expect(links).toContain('/bills/94-2025-HF1596?from=%2Flegislators%2Fpatty-acomb');
     expect(links).toContain(CURRENT.current_service!.profile_url);
+    // Related records are stacked two-line link rows (eug-8, Round 34).
+    const official = container.querySelector(`a[href="${CURRENT.current_service!.profile_url}"]`);
+    expect(official?.className).toContain('f-row-link');
+    expect(official?.closest('ul')?.className).toBe('f-row-links');
     expect(text()).toContain('Bills updated Oct 20, 2026');
     expect(text()).toContain('Payment files copied Oct 28, 2026');
   });
@@ -280,6 +283,7 @@ describe('Legislator profile', () => {
     );
     expect(card.textContent).toContain('$3,485');
     expect(card.textContent).toContain(DONOR_THRESHOLD_SENTENCE);
+    expect(card.querySelector('.cf-notes p')?.textContent).toBe(DONOR_THRESHOLD_SENTENCE);
     const pressed = card.querySelector('[aria-pressed="true"]');
     expect(pressed?.textContent).toBe('2025');
     // Key figures under the name read the same account-year.
@@ -290,21 +294,23 @@ describe('Legislator profile', () => {
       a.textContent?.includes('Open campaign'),
     );
     expect(open?.getAttribute('href')).toBe(
-      '/money/committees/18272?year=2025&from=%2Flegislators%2Fpatty-acomb',
+      '/money/committees/18272?year=2025&report=2025-12-31&from=%2Flegislators%2Fpatty-acomb',
     );
   });
 
   it('lists outside spending by contest as filed, and an unknown amount as incomplete', async () => {
     await render('/legislators/patty-acomb', answering(CURRENT));
     const contest = container.querySelector('.cf-contest')!;
-    expect(contest.textContent).toContain('State Representative · District 45B · 2025');
+    expect(contest.textContent?.replace(/\u00a0/g, ' ')).toContain(
+      'State Representative · District 45B · 2025',
+    );
     expect(contest.textContent).toContain('Payments dated Aug 13, 2025 to Oct 11, 2025');
     expect(contest.textContent).toContain('Example Political Fund');
     expect(contest.textContent).toContain('For');
     expect(contest.textContent).toContain('$5,297');
     expect(contest.textContent).toContain('8 payment records');
-    expect(contest.textContent).toContain('Incomplete: a payment amount is missing');
-    expect(text()).not.toContain('No confirmed records are held for this section');
+    expect(contest.textContent).toContain('Missing payment amount');
+    expect(text()).not.toContain('No confirmed records held');
   });
 
   it('a year with no report total and no itemized rows says so, never $0', async () => {
@@ -315,7 +321,9 @@ describe('Legislator profile', () => {
     expect(card.textContent).toContain('Not reported');
     expect(card.textContent).not.toContain('$0');
     expect(card.textContent).toContain('We do not hold an official contribution total');
-    expect(text()).toContain('No confirmed records are held for this section');
+    // The notes are one group: with a 2-sentence note beside it, the donor line ends with a period.
+    expect(card.querySelector('.cf-notes p')?.textContent).toBe(`${DONOR_THRESHOLD_SENTENCE}.`);
+    expect(text()).toContain('No confirmed records held');
   });
 
   it('a requested year the account does not hold gets its own Not held chip', async () => {
@@ -335,11 +343,11 @@ describe('Legislator profile', () => {
       }),
     );
     expect(container.querySelector('h1')?.textContent).toBe('Former Member');
-    expect(text()).not.toContain('Currently serving');
+    expect(text()).not.toContain('Serving as');
     expect(text()).not.toContain('Party as recorded');
     expect(text()).toContain('Committee assignments are held for current service only');
     expect(text()).toContain('No campaign committee is confirmed for this service record');
-    expect(text()).toContain('No chief-authored bills are held for this service');
+    expect(text()).toContain('No chief-authored bills held for this service');
     expect(text()).not.toContain('Official source website');
     expect(requests.some((url) => url.includes('/finance/legislative-committees'))).toBe(false);
   });
@@ -379,10 +387,30 @@ describe('Legislator profile', () => {
 });
 
 describe('Legislator helpers', () => {
+  it('names each candidacy’s own election in its related row', () => {
+    expect(
+      candidacyNote({
+        candidateId: 'c',
+        office: 'State Representative',
+        votingArea: 'District 45B',
+        election: { date: '2024-11-05', type: 'general' },
+      }),
+    ).toBe('2024 general · State Representative, District 45B');
+  });
+
+  it('names each seat fact once when the served office repeats the voting area', () => {
+    expect(
+      candidacyNote({
+        candidateId: 'c',
+        office: 'State Representative District 56A',
+        votingArea: 'House District 56A',
+        election: { date: '2026-11-03', type: 'general' },
+      }),
+    ).toBe('2026 general · State Representative, District 56A');
+  });
+
   it('names a current seat and never a former one', () => {
-    expect(serviceLine(CURRENT)).toBe(
-      'Currently serving as State Representative · House District 45B · DFL',
-    );
+    expect(serviceLine(CURRENT)).toBe('Serving as State Representative · House District 45B · DFL');
     expect(serviceLine(FORMER)).toBeNull();
   });
 
@@ -437,7 +465,9 @@ describe('Legislator helpers', () => {
   });
 
   it('names a contest by seat, district and year', () => {
-    expect(contestLabel('Senate', '12', 2026)).toBe('State Senator · District 12 · 2026');
+    expect(contestLabel('Senate', '12', 2026)).toBe(
+      'State Senator · District\u00a012\u00a0·\u00a02026',
+    );
     expect(contestLabel('Governor', null, 2026)).toBe('Governor · 2026');
   });
 });

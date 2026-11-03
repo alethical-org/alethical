@@ -6,11 +6,13 @@ import { clearReadCache } from '../api/read';
 import { Organization } from '../pages/Organization';
 import {
   EMPTY_SECTION,
-  INCOMPLETE,
+  eligibleTotal,
+  filingYearsLabel,
   paymentCopyItems,
   periodOf,
   rolesOf,
   SECTION_FAILED,
+  TOTAL_WITHHELD,
 } from '../pages/organization/data';
 import type { Identity, IdentityConfirmation } from '../pages/organization/types';
 import { clearOrganizationLoads } from '../pages/organization/useLoad';
@@ -55,6 +57,7 @@ function confirmation(
 
 const PROFILE: Identity = {
   id: ORG,
+  reference: 'ORG-0042',
   kind: 'organization',
   name: 'Example Health Association',
   status: 'active',
@@ -411,7 +414,7 @@ describe('Organization profile', () => {
     expect(caucus).toContain('$1,000');
     const candidate = recd.find((row) => row.includes('Example Candidate Committee'))!;
     expect(candidate).toContain('1 payment record · Apr 1, 2026');
-    expect(candidate).toContain(INCOMPLETE);
+    expect(candidate).toContain(TOTAL_WITHHELD);
     expect(candidate).not.toContain('$5,000');
     const outside = recd.find((row) => row.includes('Example Political Fund'))!;
     expect(outside).toContain('Position as filed: For');
@@ -437,10 +440,23 @@ describe('Organization profile', () => {
     const hrefs = [...container.querySelectorAll('a')].map((a) => a.getAttribute('href'));
     const from = encodeURIComponent(`/organizations/${ORG}`);
     expect(hrefs).toContain(`/lobbying/principals/8450?from=${from}`);
-    expect(hrefs).toContain(`/money/committees/30004?year=2026&tab=other&from=${from}`);
+    // A contribution opens the tab of its own kind with the printed name (Round 41).
+    expect(hrefs).toContain(
+      `/money/committees/30004?year=2026&tab=other&name=Example+Health+Association&from=${from}`,
+    );
     expect(hrefs).toContain(`/money/committees/30004?tab=expenditures&year=2026&from=${from}`);
     expect(hrefs).toContain(`/money/committees/80012?tab=independent&year=2025&from=${from}`);
-    expect(hrefs).toContain(`/money/names/Example%20Health%20Association?role=payee&from=${from}`);
+    // View payments carries role, filer and dataset, and the year when every record
+    // in the group holds the same one (Round 38).
+    expect(hrefs).toContain(
+      `/money/names/Example%20Health%20Association?role=payee&filer=30004&dataset=expenditures&from=${from}`,
+    );
+    expect(hrefs).toContain(
+      `/money/names/Example%20Health%20Association?role=payee&year=2026&filer=30005&dataset=expenditures&from=${from}`,
+    );
+    expect(hrefs).toContain(
+      `/money/names/Example%20Health%20Association?role=payee&year=2025&filer=80012&dataset=independent&from=${from}`,
+    );
     expect(hrefs).toContain(`/money/committees/30004?from=${from}`);
     // Nothing links to the public site or to unbuilt pages.
     expect(hrefs.some((href) => href?.includes('/money/identities'))).toBe(false);
@@ -453,7 +469,8 @@ describe('Organization profile', () => {
     expect(sources).toContain('Campaign payment files copied Oct 28, 2026');
     expect(sources).toContain('Lobbyist list and spending reports copied Oct 29, 2026');
     expect(sources).toContain('Committee registrations copied Oct 28, 2026');
-    expect(sources).toContain(`Organization reference ${ORG}`);
+    expect(sources).toContain('Organization reference ORG-0042');
+    expect(sources).not.toContain(ORG);
     expect(sources).toContain('Official identifiers');
     expect(sources).toContain('Lobbying principal entity ID 8450');
     // No street address, phone or email is copied from a record into the profile.
@@ -528,7 +545,8 @@ describe('Organization profile', () => {
   it('says the record is no longer available for an unknown reference', async () => {
     await render(`/organizations/${ORG}`, () => new Response(null, { status: 404 }));
     expect(container.querySelector('h1')?.textContent).toBe('This record is no longer available');
-    expect(text()).toContain('No organization with this reference is in the current copy.');
+    expect(text()).toContain('No organization with this reference is in the current copy');
+    expect(text()).not.toContain('current copy.');
   });
 
   it('never reads a reference that is not an identity id', async () => {
@@ -554,23 +572,66 @@ describe('Organization profile', () => {
     expect(window.location.search).toBe('?from=%2Fmoney');
   });
 
-  it('opens a correction page listing every record a split reference became', async () => {
+  it('opens a choice of the parts a split reference became, each with its served count', async () => {
+    const MERGED_INTO = '33333333-3333-4333-8333-333333333333';
     const split: Identity = {
       ...EMPTY,
       status: 'split',
       split_into: [
-        { id: OTHER, kind: 'organization', name: 'Example Health Association' },
-        { id: SURVIVOR, kind: 'organization', name: 'Example Health Foundation' },
+        {
+          id: OTHER,
+          reference: 'ORG-0043',
+          kind: 'organization',
+          name: 'Example Health Association',
+          status: 'active',
+          confirmed_records: 2,
+        },
+        {
+          id: SURVIVOR,
+          reference: 'ORG-0044',
+          kind: 'organization',
+          name: 'Example Health Foundation',
+          status: 'active',
+          // A file not held: the count is unknown, never 0.
+          confirmed_records: null,
+        },
+        {
+          id: 'merged-part',
+          reference: null,
+          kind: 'organization',
+          name: 'Example Health Fund',
+          status: 'merged',
+          confirmed_records: null,
+          redirect_to: MERGED_INTO,
+          redirect_to_reference: 'ORG-0050',
+        },
       ],
     };
-    await render(`/organizations/${ORG}`, answering(split));
-    expect(container.querySelector('h1')?.textContent).toBe(
-      'Example Health Association was split into 2 records',
+    await render(`/organizations/${ORG}?from=%2Fmoney`, answering(split));
+    expect(container.querySelector('h1')?.textContent).toBe('This record was split');
+    expect(text()).toContain(
+      'Choose the organization you meant. Each keeps its own confirmed records, evidence and history.',
     );
-    const hrefs = [...container.querySelectorAll('a')].map((a) => a.getAttribute('href'));
-    const from = encodeURIComponent(`/organizations/${ORG}`);
-    expect(hrefs).toContain(`/organizations/${OTHER}?from=${from}`);
-    expect(hrefs).toContain(`/organizations/${SURVIVOR}?from=${from}`);
+    const rows = [...container.querySelectorAll('.org-split-list li')].map((li) => li.textContent);
+    expect(rows).toEqual([
+      'Example Health AssociationORG-0043 · 2 confirmed records',
+      'Example Health FoundationORG-0044',
+      // A reference still being numbered falls back to the name alone.
+      'Example Health Fund',
+    ]);
+    // No internal id is printed anywhere.
+    expect(text()).not.toContain(OTHER);
+    expect(text()).not.toContain(SURVIVOR);
+    const hrefs = [...container.querySelectorAll('.org-split-list a')].map((a) =>
+      a.getAttribute('href'),
+    );
+    // Each part keeps the page's own return, not the split page; a part later
+    // merged opens the record it became.
+    expect(hrefs).toEqual([
+      `/organizations/${OTHER}?from=%2Fmoney`,
+      `/organizations/${SURVIVOR}?from=%2Fmoney`,
+      `/organizations/${MERGED_INTO}?from=%2Fmoney`,
+    ]);
     expect(text()).not.toContain('Political giving');
   });
 
@@ -609,6 +670,36 @@ describe('Organization derived labels', () => {
     expect(paymentCopyItems({ independentExpenditures: null })).toEqual([
       'Outside-spending file copy date unavailable',
     ]);
+  });
+
+  it('adds up a group only under the shared rule', () => {
+    expect(filingYearsLabel([])).toBeNull();
+    expect(filingYearsLabel([2025, 2025])).toBe('Filing year 2025');
+    expect(filingYearsLabel([2026, 2024, 2025])).toBe('Filing years 2024–2026');
+    const row = (amount: string | null, date: string | null, year: number | null) => ({
+      amount,
+      date,
+      year,
+    });
+    expect(
+      eligibleTotal([row('600', '2025-03-01', 2025), row('-150', '2025-04-01', 2025)]),
+    ).toMatchObject({ label: '$450', period: 'Mar 1, 2025 to Apr 1, 2025' });
+    // A date missing but every filing year held: summed, labelled by filing year.
+    expect(eligibleTotal([row('420', null, 2025)])).toMatchObject({
+      label: '$420',
+      period: 'Filing year 2025',
+    });
+    // Neither every date nor every filing year: no total.
+    expect(eligibleTotal([row('900', '2025-01-01', 2025), row('100', null, null)])).toMatchObject({
+      amount: null,
+      label: 'Reporting period incomplete',
+    });
+    // A missing amount takes precedence.
+    expect(eligibleTotal([row(null, null, null)])).toMatchObject({
+      amount: null,
+      label: 'Missing payment amount',
+    });
+    expect(eligibleTotal([row('0', '2025-01-01', 2025)]).label).toBe('$0');
   });
 
   it('claims only the roles the held records support', () => {

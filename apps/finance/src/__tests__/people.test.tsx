@@ -3,7 +3,13 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { clearReadCache } from '../api/read';
-import { countLine, People, rowNote, type PersonDirectoryRow } from '../pages/People';
+import {
+  candidateSeat,
+  countLine,
+  People,
+  rowNote,
+  type PersonDirectoryRow,
+} from '../pages/People';
 import { matchRoute } from '../routes';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -123,14 +129,14 @@ describe('People', () => {
     expect(rows).toHaveLength(10);
     expect(rows[0].querySelector('.f-mark')).not.toBeNull();
     expect(rows[0].textContent).toContain('Member 01');
-    expect(rows[0].textContent).toContain('Senate District 1A · Currently serving');
+    expect(rows[0].textContent).toContain('Senate District 1A · Serving');
     expect(rows[0].textContent).toContain('LEGISLATOR');
     expect(rows[0].getAttribute('href')).toBe(
       '/legislators/member-01?from=%2Fpeople%3Ftype%3Dlegislators%26service%3Dcurrent',
     );
     // The Home entrance's choices are honoured.
     expect(button('Legislators').getAttribute('aria-pressed')).toBe('true');
-    expect(button('Current').getAttribute('aria-pressed')).toBe('true');
+    expect(text()).toContain('Service: Current');
     expect(text()).toContain('Page 1 of 3');
   });
 
@@ -185,6 +191,15 @@ describe('People', () => {
     expect(button('Try again')).toBeDefined();
   });
 
+  it('sends only filter values the server accepts', async () => {
+    await render('/people?type=legislators&service=x', loaded);
+    expect(new URL(requests[0]).searchParams.get('service')).toBeNull();
+    await render('/people?type=candidates&scope=x&year=12', loaded);
+    const params = new URL(requests.at(-1)!).searchParams;
+    expect(params.get('scope')).toBe('all');
+    expect(params.get('year')).toBeNull();
+  });
+
   it('sends candidate scope, year and sort to the whole directory', async () => {
     await render('/people?type=candidates&scope=past&year=2024&sort=election_year', loaded);
     const params = new URL(requests[0]).searchParams;
@@ -193,7 +208,8 @@ describe('People', () => {
     expect(params.get('year')).toBe('2024');
     expect(params.get('sort')).toBe('election_year');
     expect(button('Candidates').getAttribute('aria-pressed')).toBe('true');
-    expect(button('Past candidates').getAttribute('aria-pressed')).toBe('true');
+    expect(text()).toContain('Election year: Past candidates');
+    expect(text()).toContain('Sort by: Election year');
   });
 
   it('keeps person and candidacy records separate even for the same name', async () => {
@@ -227,6 +243,57 @@ describe('People', () => {
   });
 });
 
+describe('People controls (Design Rounds 30 to 37)', () => {
+  it('offers Election year with Past candidates, and choosing one keeps it in the address', async () => {
+    await render('/people?type=candidates', loaded);
+    await act(async () => button('Election year: All years').click());
+    const options = [...container.querySelectorAll('[role="option"]')].map((o) => o.textContent);
+    expect(options).toEqual(['All years', 'Past candidates', '2026', '2024']);
+    await act(async () => button('Past candidates').click());
+    await settle();
+    expect(window.location.search).toBe('?type=candidates&scope=past');
+    await act(async () => button('Election year: Past candidates').click());
+    await act(async () => button('2024').click());
+    await settle();
+    expect(window.location.search).toBe('?type=candidates&year=2024');
+  });
+
+  it('switching record type clears the other type’s filters, and All records has no menus', async () => {
+    await render('/people?type=candidates&scope=past&sort=election_year', loaded);
+    await act(async () => button('Legislators').click());
+    await settle();
+    expect(window.location.search).toBe('?type=legislators');
+    expect(text()).toContain('Service: Current and former');
+    expect(text()).not.toContain('Election year');
+    await act(async () => button('All records').click());
+    await settle();
+    expect(text()).not.toContain('Service:');
+    expect(text()).not.toContain('Election year:');
+    expect(text()).toContain('Sort by: Name A–Z');
+  });
+
+  it('puts the count line under the controls and the background below the results', async () => {
+    await render('/people', loaded);
+    expect(container.querySelector('.f-count-line')?.textContent).toBe(
+      '0 people · 0 candidacies · 23 service records',
+    );
+    expect(text()).toContain('Candidacy or an election result does not prove current service');
+    expect(text()).not.toContain('current service.');
+    const about = container.querySelector('#about-h')?.parentElement;
+    expect(about?.textContent).toContain('About these records');
+    expect(about?.textContent).toContain(
+      'Minnesota records only; candidate lookup is not a complete national directory',
+    );
+  });
+
+  it('says what to try when nothing matches', async () => {
+    await render('/people?q=Nobody', loaded);
+    expect(text()).toContain('No matching records');
+    expect(text()).toContain('Try another name');
+    expect(text()).not.toContain('does not prove current service');
+  });
+});
+
 describe('People wording', () => {
   it('counts what it lists', () => {
     expect(countLine(1, '')).toBe('1 service record');
@@ -234,11 +301,121 @@ describe('People wording', () => {
   });
 
   it('never prints a seat the record does not name', () => {
+    // The served candidate row (GET /api/v1/finance/people, 3 Nov 2026): the
+    // election is an object, never interpolated whole ("[object Object]").
+    const candidate = {
+      kind: 'candidate',
+      id: 'c-1',
+      name: 'Example Candidate',
+      year: 2026,
+      election: {
+        date: '2026-11-03',
+        id: '8334',
+        label: 'November 3, 2026 general election',
+        type: 'general',
+      },
+      office: 'State Representative District 56A',
+      voting_area: 'House District 56A',
+      source: { checkedDate: '2026-11-02', url: 'https://myballotmn.sos.mn.gov/' },
+    } as PersonDirectoryRow;
+    // The drawing's row, with the district printed once.
+    expect(rowNote(candidate)).toBe('2026 general · State Representative, District 56A');
+    expect(rowNote(candidate)).not.toContain('[object');
+    expect(rowNote({ ...candidate, party: 'DFL' })).toBe(
+      '2026 general · State Representative, District 56A · DFL',
+    );
+    // Every office and area pair the live People list served on 3 Nov 2026:
+    // each fact once, nothing lost.
+    const seats: Array<[string, string, string]> = [
+      [
+        'State Representative District 56A',
+        'House District 56A',
+        'State Representative, District 56A',
+      ],
+      ['State Senator District 60', 'Senate District 60', 'State Senator, District 60'],
+      [
+        'School Board Member (ISD #272)',
+        'ISD #272 · Whole district',
+        'School Board Member, ISD #272, Whole district',
+      ],
+      ['County Sheriff', 'Cass County', 'County Sheriff, Cass County'],
+      [
+        'County Commissioner District 3',
+        'Hennepin County · District 3',
+        'County Commissioner, District 3, Hennepin County',
+      ],
+      [
+        'School Board Member District 1 (SSD #1)',
+        'SSD #1 · Member district 1',
+        'School Board Member, District 1, SSD #1',
+      ],
+      [
+        'Council Member (Wayzata)',
+        'Council Member (Wayzata) (Elect 2) · Hennepin County',
+        'Council Member (Wayzata), Hennepin County',
+      ],
+      ['Judge - 1st District Court 36', 'Judicial District 1st', 'Judge - 1st District Court 36'],
+      [
+        'School Board Member District 4 (SSD #1)',
+        'Minneapolis Public Schools · SSD #1',
+        'School Board Member, District 4, Minneapolis Public Schools, SSD #1',
+      ],
+      [
+        'School Board Member At Large (SSD #1)',
+        'Minneapolis Public Schools · SSD #1',
+        'School Board Member At Large, Minneapolis Public Schools, SSD #1',
+      ],
+    ];
+    for (const [office, area, seat] of seats) expect(candidateSeat(office, area)).toBe(seat);
+    expect(candidateSeat('Governor', 'Statewide')).toBe('Governor, Statewide');
+    expect(candidateSeat('County Commissioner', undefined)).toBe('County Commissioner');
+    expect(candidateSeat(undefined, 'House District 56A')).toBe('House District 56A');
     expect(rowNote({ kind: 'legislator', id: 'x', name: 'X', service_status: 'unknown' })).toBe(
       'Current service not confirmed',
     );
     expect(rowNote({ kind: 'legislator', id: 'x', name: 'X', service_status: 'former' })).toBe(
       'Formerly served',
     );
+  });
+
+  it('prints a candidacy’s election and seat, and a legislator’s party only where held', () => {
+    expect(
+      rowNote({
+        kind: 'candidate',
+        id: 'c',
+        name: 'C',
+        year: 2026,
+        election: { type: 'general' },
+        office: 'State Representative',
+        voting_area: 'District 45B',
+      }),
+    ).toBe('2026 general · State Representative, District 45B');
+    const period = {
+      chamber: 'house',
+      district: '45B',
+      party: 'DFL',
+      start_date: null,
+      end_date: null,
+      session: null,
+      source_url: null,
+    };
+    expect(
+      rowNote({
+        kind: 'legislator',
+        id: 'l',
+        name: 'L',
+        service_status: 'current',
+        periods: [period],
+      }),
+    ).toBe('House District 45B · DFL · Serving');
+    expect(
+      rowNote({
+        kind: 'legislator',
+        id: 'l',
+        name: 'L',
+        service_status: 'current',
+        periods: [{ ...period, party: null }],
+      }),
+    ).toBe('House District 45B · Serving');
   });
 });
