@@ -1,6 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { partlyWithdrawn } from '../pages/identities/Detail';
 
 import { clearReadCache } from '../api/read';
 import { ConfirmIdentities, sourceLine } from '../pages/ConfirmIdentities';
@@ -589,6 +590,39 @@ describe('history of a split', () => {
     expect(rows.some((row) => row.text.includes(STAY) || row.text.includes(MOVED))).toBe(false);
   });
 
+  it('names a part the server no longer lists by the split’s own references', () => {
+    // split_into lists only parts the server still holds; the split event names all.
+    const rows = historyRows(
+      splitReads([active(MOVED, 'Example Media Buying Co', 1, 'ORG-0092')]),
+      'payee_name',
+      NAME,
+      3,
+    );
+    expect(rows.map((row) => row.text)).toEqual([
+      'Split: 1 record moved to Example Media Buying Co (ORG-0092); records stay with ORG-0091; ORG-0090 now opens a choice of both',
+    ]);
+  });
+
+  it('keeps a split into more than 2 parts, each part named', () => {
+    const THIRD = 'aaaaaaaa-0000-0000-0000-000000000093';
+    const reads = splitReads([
+      active(STAY, 'Example Media LLC', 2, 'ORG-0091'),
+      active(MOVED, 'Example Media Buying Co', 1, 'ORG-0092'),
+      active(THIRD, 'Example Media Sales', 3, 'ORG-0093'),
+    ]);
+    const old = reads.get(OLD)!;
+    old.history = [
+      {
+        ...old.history[0],
+        detail: { ...old.history[0].detail, into: [STAY, MOVED, THIRD] },
+        references: { ...SPLIT_REFS, [THIRD]: 'ORG-0093' },
+      },
+    ];
+    expect(historyRows(reads, 'payee_name', NAME, 6).map((row) => row.text)).toEqual([
+      'Split: 1 record moved to Example Media Buying Co (ORG-0092); 3 records moved to Example Media Sales (ORG-0093); 2 records stay with Example Media LLC (ORG-0091); ORG-0090 now opens a choice of all 3',
+    ]);
+  });
+
   it('on the page, keeps a split with an uncounted part in a History that is not empty', async () => {
     const reads = splitReads([
       active(STAY, 'Example Media LLC', null, 'ORG-0091'),
@@ -1136,6 +1170,213 @@ describe('Confirm identities page', () => {
     ]);
   });
 
+  // The page's records answer for 1 identity holding records of the spelling.
+  function oneIdentityRecords() {
+    return json(
+      recordsPage({
+        confirmed: 2,
+        identities: [
+          {
+            id: ORG,
+            reference: 'ORG-0002',
+            kind: 'organization',
+            name: 'Example Media LLC',
+            confirmed: 2,
+          },
+        ],
+      }),
+    );
+  }
+  const LEGISLATOR_ID = '8d39c91c-e7e3-4aa9-8a29-f9ce0df7e826';
+  const PUBLIC_PERSON_ID = '1b2c3d4e-0000-4000-8000-00000000abcd';
+  const heldRecord = (id: string, owner: string, kind: string, key: string) => ({
+    ...confirmation(id, owner, []),
+    record_kind: kind,
+    record_key: key,
+    records: null,
+  });
+
+  it('never prints a legislator’s or public person’s internal id in the split and merge forms', async () => {
+    serve((url) => {
+      if (url.pathname.endsWith('/queue')) return json(queuePage([]));
+      if (url.pathname.endsWith('/records')) return oneIdentityRecords();
+      if (url.pathname.endsWith(OTHER))
+        return json(
+          identity(OTHER, 'Example Media Group', [
+            heldRecord('c-8', OTHER, 'public_person', PUBLIC_PERSON_ID),
+          ]),
+        );
+      if (url.pathname.endsWith(ORG))
+        return json(
+          identity(ORG, 'Example Media LLC', [
+            confirmation('c-1', ORG, [1]),
+            confirmation('c-2', ORG, [2]),
+            heldRecord('c-3', ORG, 'legislator', LEGISLATOR_ID),
+            heldRecord('c-4', ORG, 'committee', '30212'),
+          ]),
+        );
+      if (url.pathname.endsWith('/identities'))
+        return json({
+          rows: [
+            { id: OTHER, reference: 'ORG-0042', kind: 'organization', name: 'Example Media Group' },
+          ],
+          total: 1,
+          page: 1,
+          page_size: 20,
+          pages: 1,
+        });
+    });
+    await render(`/money/identities?name=${encodeURIComponent(NAME)}&kind=payee_name`);
+    await click(button('Split this record'));
+    expect(text()).toContain('Legislative service');
+    expect(text()).toContain('Campaign accounts · 30212');
+    expect(text()).not.toContain(LEGISLATOR_ID);
+    await click(button('Merge with another record'));
+    await click(container.querySelector<HTMLInputElement>('input[type="radio"]')!);
+    expect(text()).toContain('Links that will move');
+    expect(text()).toContain('Official IDs');
+    expect(text()).not.toContain(PUBLIC_PERSON_ID);
+  });
+
+  it('says History is empty only after its reads finish, and offers Try again on failure', async () => {
+    let answer: 'pending' | 'fail' | 'ok' = 'pending';
+    serve((url) => {
+      if (url.pathname.endsWith('/queue')) return json(queuePage([]));
+      if (url.pathname.endsWith('/records')) return oneIdentityRecords();
+      if (url.pathname.endsWith(ORG)) {
+        if (answer === 'pending') return new Promise<Response>(() => {});
+        if (answer === 'fail') return new Response('{}', { status: 503 });
+        return json(identity(ORG, 'Example Media LLC', [confirmation('c-1', ORG, [1, 2])]));
+      }
+    });
+    await render(`/money/identities?name=${encodeURIComponent(NAME)}&kind=payee_name`);
+    expect(container.querySelector('#hist-h')?.textContent).toBe('History');
+    expect(text()).not.toContain('No confirmations or suggestions yet');
+
+    answer = 'fail';
+    clearReadCache();
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await render(`/money/identities?name=${encodeURIComponent(NAME)}&kind=payee_name`);
+    expect(text()).toContain('We couldn’t load the history');
+    expect(text()).not.toContain('No confirmations or suggestions yet');
+
+    answer = 'ok';
+    const history = container.querySelector('.ci-history-section')!;
+    await click(
+      [...history.querySelectorAll<HTMLButtonElement>('button')].find(
+        (b) => b.textContent === 'Try again',
+      )!,
+    );
+    expect(text()).not.toContain('We couldn’t load the history');
+    expect(text()).toContain('Confirmed as Example Media LLC (ORG-0002) for 2 of 2 records');
+  });
+
+  it('fails History with Try again when an identity its events name cannot be read', async () => {
+    const SOURCE = 'aaaaaaaa-0000-0000-0000-000000000090';
+    serve((url) => {
+      if (url.pathname.endsWith('/queue')) return json(queuePage([]));
+      if (url.pathname.endsWith('/records')) return oneIdentityRecords();
+      if (url.pathname.endsWith(SOURCE)) return new Response('{}', { status: 503 });
+      if (url.pathname.endsWith(ORG))
+        return json(
+          identity(
+            ORG,
+            'Example Media LLC',
+            [confirmation('c-1', ORG, [1, 2], { replaces: 'c-was' })],
+            [{ action: 'created', at: '2026-10-22T12:00:00Z', detail: { split_from: SOURCE } }],
+          ),
+        );
+    });
+    await render(`/money/identities?name=${encodeURIComponent(NAME)}&kind=payee_name`);
+    expect(text()).toContain('We couldn’t load the history');
+    expect(text()).not.toContain('No confirmations or suggestions yet');
+  });
+
+  it('counts what a partly failed withdrawal saved, marks it, and retries only the rest', async () => {
+    const failing = new Set(['c-2', 'c-3']);
+    const done = new Set<string>();
+    const REASON = 'Different registration number on the later filing';
+    let reads = 0;
+    serve((url, init) => {
+      if (init?.method === 'POST') {
+        const id = url.pathname.split('/').at(-2)!;
+        if (failing.has(id)) return new Response('{}', { status: 500 });
+        done.add(id);
+        return json({});
+      }
+      if (url.pathname.endsWith('/queue')) return json(queuePage([]));
+      if (url.pathname.endsWith('/records')) return oneIdentityRecords();
+      if (url.pathname.endsWith(ORG)) {
+        reads += 1;
+        // As the server answers: a withdrawn confirmation keeps its row, withdrawn.
+        const state = (id: string) =>
+          done.has(id)
+            ? {
+                status: 'withdrawn',
+                withdrawn_at: '2026-11-03T12:00:00Z',
+                withdrawal_reason: REASON,
+              }
+            : {};
+        return json(
+          identity(ORG, 'Example Media LLC', [
+            confirmation('c-1', ORG, [1], state('c-1')),
+            confirmation('c-2', ORG, [2], { checked_at: '2026-09-04T15:00:00Z', ...state('c-2') }),
+            confirmation('c-3', ORG, [3], { checked_at: '2026-09-05T15:00:00Z', ...state('c-3') }),
+          ]),
+        );
+      }
+    });
+    await render(`/money/identities?name=${encodeURIComponent(NAME)}&kind=payee_name`);
+    const readsBefore = reads;
+    await click(button('Withdraw confirmation'));
+    const submit = () =>
+      [...container.querySelectorAll<HTMLButtonElement>('#identity-form button')].find(
+        (b) => b.textContent === 'Withdraw confirmation',
+      )!;
+    await type(noteField(), REASON);
+    await click(submit());
+    expect(posts.map((post) => post.path)).toEqual([
+      'finance/identities/confirmations/c-1/withdraw',
+      'finance/identities/confirmations/c-2/withdraw',
+    ]);
+    expect(text()).toContain(
+      '1 of 3 confirmations was withdrawn. The other 2 were not saved. Your note is kept below.',
+    );
+    expect(text()).not.toContain('Not saved. Your entries are kept.');
+    // The page reads the identity again; the withdrawn one is marked by its drawn
+    // History row and leaves the confirmed card.
+    expect(reads).toBeGreaterThan(readsBefore);
+    expect(text()).toContain(
+      `Confirmation as Example Media LLC (ORG-0002) withdrawn for 1 record: ${REASON}`,
+    );
+    expect(container.querySelectorAll('.ci-confirmed dl[data-group]')).toHaveLength(2);
+    expect(noteField().value).toBe(REASON);
+
+    const tryAgain = () =>
+      [...container.querySelectorAll<HTMLButtonElement>('.ci-failed button')].find(
+        (b) => b.textContent === 'Try again',
+      )!;
+    failing.delete('c-2');
+    posts.length = 0;
+    await click(tryAgain());
+    expect(posts.map((post) => post.path)).toEqual([
+      'finance/identities/confirmations/c-2/withdraw',
+      'finance/identities/confirmations/c-3/withdraw',
+    ]);
+    expect(text()).toContain(
+      '2 of 3 confirmations were withdrawn. The other 1 was not saved. Your note is kept below.',
+    );
+
+    failing.clear();
+    posts.length = 0;
+    await click(tryAgain());
+    expect(posts.map((post) => post.path)).toEqual([
+      'finance/identities/confirmations/c-3/withdraw',
+    ]);
+    expect(container.querySelector('#identity-form')).toBeNull();
+  });
+
   it('previews the links that move before a merge and merges the chosen record in', async () => {
     const other = OTHER;
     serve((url, init) => {
@@ -1258,5 +1499,16 @@ describe('Confirm identities page', () => {
     ]);
     expect(posts[0].body.reason).toBe('Different registration numbers on the two filings');
     expect(posts[0].body.source).toBe('SOS 1 and SOS 2');
+  });
+});
+
+describe('Partial withdrawal wording', () => {
+  it('makes each verb follow its own count', () => {
+    expect(partlyWithdrawn({ k: 1, n: 2 })).toBe(
+      '1 of 2 confirmations was withdrawn. The other 1 was not saved. Your note is kept below.',
+    );
+    expect(partlyWithdrawn({ k: 2, n: 5 })).toBe(
+      '2 of 5 confirmations were withdrawn. The other 3 were not saved. Your note is kept below.',
+    );
   });
 });

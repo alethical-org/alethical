@@ -275,3 +275,16 @@
     min-height: 44px;
   }
 }
+.org-gone a {
+  color: var(--link);
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 3px;
+}
+@media (hover: hover) and (min-width: 768px) {
+  .org-gone a:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}

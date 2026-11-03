@@ -53,13 +53,6 @@
   margin-top: 24px;
   min-width: 0;
 }
-.mb-browse .f-tabs {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-  padding-top: 4px;
-}
 .mb-tab-intro {
   margin: 12px 0 0;
   font-size: 14px;
@@ -560,6 +553,14 @@
   background: #fff;
   padding: 12px 16px;
   min-width: 0;
+}
+/* A last count alone on its row spans the rest of it, as the drawing's count rows
+ * do, so no empty cell shows. */
+.mb-metrics > div:last-child:nth-child(3n + 2) {
+  grid-column: span 2;
+}
+.mb-metrics > div:last-child:nth-child(3n + 1) {
+  grid-column: 1 / -1;
 }
 .mb-metrics dt {
   font-size: 12px;
@@ -1347,4 +1348,12 @@
 .mb-cell-source svg {
   flex: none;
   margin-top: 3px;
+}
+
+/* The station counts' notes: a list under the year cards, 24px below (eug-26). */
+.mb-note-list {
+  padding-left: 34px;
+}
+.mb-note-list li + li {
+  margin-top: 4px;
 }

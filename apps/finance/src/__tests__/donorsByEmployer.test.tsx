@@ -269,8 +269,8 @@ describe('Donors by employer', () => {
     const read = requests.find((url) => url.pathname.endsWith('/finance/employers/donors'))!;
     expect(read.searchParams.get('name')).toBe(SPELLING);
     expect(container.querySelector('.de-donors-head')?.textContent).toContain('3 donor names');
-    expect(donor('Example, Wen').textContent).toContain('2 payments');
-    expect(donor('EXAMPLE, WEN').textContent).toContain('1 payment');
+    expect(donor('Example, Wen').textContent).toContain('2 payment records');
+    expect(donor('EXAMPLE, WEN').textContent).toContain('1 payment record');
     const wen = donor('Example, Wen');
     // The donor's own page, all years.
     expect(wen.querySelector('.de-donor-name')?.getAttribute('href')).toMatch(
@@ -326,7 +326,7 @@ describe('Donors by employer', () => {
 
   it('says the check could not be read rather than that nothing confirms', async () => {
     await render(PATH, answer({ identity: json(null, 422) }));
-    expect(container.querySelector('.de-confirm')?.textContent).toBe(
+    expect(container.querySelector('.de-confirm .de-confirm-text')?.textContent).toBe(
       'We couldn’t check whether an organization record confirms this spelling',
     );
   });
@@ -485,6 +485,78 @@ describe('Donors by employer', () => {
     const alert = container.querySelector('.de-list-more [role="alert"]')!;
     expect(alert.textContent).toContain('We couldn’t load more employer spellings');
     expect(alert.querySelector('button')?.textContent).toBe('Try again');
+  });
+
+  it('returns to Search results when opened directly', async () => {
+    await render('/money/employers', answer());
+    const back = container.querySelector<HTMLAnchorElement>('.f-back')!;
+    expect(back.textContent).toBe('Back to Search results');
+    expect(back.getAttribute('href')).toBe('/search');
+  });
+
+  it('tells apart spellings that differ only by stray spaces', async () => {
+    setWidth(1280);
+    const spaced = (name: string) => ({ ...LIST.rows[0], name });
+    await render(
+      '/money/employers?q=target',
+      answer({ list: spellings([spaced(' Target '), spaced('Target'), spaced('Target ')]) }),
+    );
+    expect(
+      [...container.querySelectorAll('.de-spelling-name')].map((item) => item.textContent),
+    ).toEqual(['“ Target ”', 'Target', '“Target ”']);
+    expect(container.querySelector('#de-employer-h')?.textContent).toBe('“ Target ”');
+    expect(container.querySelector('.de-spelling-item')?.getAttribute('href')).toBe(
+      '/money/employers/%20Target%20?q=target',
+    );
+  });
+
+  it('counts a donor’s records as payment records', async () => {
+    await render(PATH, answer());
+    expect(donor('Example, Wen').querySelector('.de-donor-head .de-count')?.textContent).toBe(
+      '2 payment records',
+    );
+  });
+
+  it('offers Try again when the confirmation check could not be read', async () => {
+    let checks = 0;
+    await render(PATH, (url) => {
+      if (url.pathname.endsWith('/finance/identities/records')) {
+        checks += 1;
+        return checks === 1 ? json(null, 500) : json(records([]));
+      }
+      return answer()(url);
+    });
+    const line = container.querySelector('.de-confirm')!;
+    expect(line.textContent).toContain(
+      'We couldn’t check whether an organization record confirms this spelling',
+    );
+    await act(async () => line.querySelector<HTMLButtonElement>('button')!.click());
+    await settle();
+    // With Confirm identities on, the line also carries its "Confirm this employer" link.
+    expect(container.querySelector('.de-confirm .de-confirm-text')?.textContent).toBe(
+      'No organization record confirms this spelling',
+    );
+  });
+
+  it('names the kept spellings’ own search when a new search fails', async () => {
+    setWidth(1280);
+    await render('/money/employers?q=health', answer());
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string) =>
+        new URL(input).pathname.endsWith('/finance/employers')
+          ? json(null, 500)
+          : answer()(new URL(input)),
+      ),
+    );
+    window.history.replaceState(null, '', '/money/employers?q=other');
+    await act(async () => {
+      root.render(<DonorsByEmployer match={matchRoute('/money/employers')!} />);
+    });
+    await settle();
+    expect(container.querySelector('.de-spellings-head .de-count')?.textContent).toBe(
+      '2 spellings matching “health”',
+    );
   });
 });
 

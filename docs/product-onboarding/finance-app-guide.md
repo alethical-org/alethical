@@ -280,16 +280,24 @@ figure is ever added across committees or members.
   "View payments") shows only that file and that filer's records, counted on the server, under
   "Showing records filed by {committee}, {file}" with Clear all. Later pages are read from the
   same copy of the Board's file; if the file has changed, the page says "The Board’s file
-  changed. Reload the records." and "Reload the records" starts over.
+  changed. Reload the records." and "Reload the records" starts over. A new view that fails
+  keeps the earlier records, labelled "{n} records under “{name}” in {year}", with the
+  failure line and Try again. The address keeps the spelling exactly as printed; a spelling
+  with spaces around it prints in quotes (“ Target ”), on this page and on Donors by employer
+  and Vendors and payees. "Employer as filed" in the source evidence opens that spelling on
+  Donors by employer. Opened with no earlier page, it returns to Campaign money.
 - **Donors by employer (`/money/employers`, `/money/employers/:name`)**: a search of the employer
   spellings donors printed (3 characters or more; shorter text opens that exact spelling), each
   with its donor names and any confirmed records, and for the chosen spelling the donors who
-  printed it, each donor's payments listed apart with "Employer name as printed" on every row.
+  printed it, each donor's payment records listed apart ("{n} payment records") with "Employer
+  name as printed" on every row. Spellings kept after a failed new search name their own
+  search ("{n} spellings matching “{words}”"); a confirmation check that could not be read
+  offers Try again.
   On a computer the list stays beside the chosen spelling; on a tablet or phone the spelling
   opens on its own with "Back to Employer spellings". Later donors and payments come from the
   same copy of the Board's file; if it has changed, "The Board’s file changed. Reload the
   records." offers a reload. No total is ever added across donors, and a donor's payments are
-  never the employer's money.
+  never the employer's money. Opened with no earlier page, it returns to Search results.
 - **Money by race (`/money/races/:id?year=`)**: 1 contest's candidate committees, each with its
   own reported total and itemized contributions and their periods, and outside spending by
   spender as a chart (For to the right, Against to the left) or a table, never added across
@@ -324,7 +332,8 @@ figure is ever added across committees or members.
   confirmations cover; group totals follow the shared rule, labelled by filing year when
   dates are incomplete. A merged record's address opens the surviving record; a split
   record's address asks which part was meant, with each part's reference and
-  confirmed-record count.
+  confirmed-record count. An unknown reference reads "No organization with this reference is
+  in the current copy", with "Open Vendors and payees to search the held records".
 - **Person profile (`/people/:id`)**: confirmed links to 1
   person's candidacies, legislative service and lobbying, their campaign finance, political
   giving and payments received, each event with its own source line. A merged record's
@@ -340,7 +349,8 @@ figure is ever added across committees or members.
   narrow the whole set (each sent as the typed amount, "$" and commas stripped), with "Smallest
   total first"; text that is not an amount reads "Enter a valid amount", a reversed range
   "Minimum is more than maximum", and both keep the last valid results. Recipients whose
-  totals are withheld are left out of a range and counted under the count line.
+  totals are withheld are left out of a range and counted under the count line. Opened with no
+  earlier page, it returns to Campaign money.
 - **Confirm identities (`/money/identities`)**: "Names to review" lists exact printed names
   (donor, campaign payee and outside-spending payee, each file its own row) by money recorded
   under the name, with All names, Donor names or Payee names and Not confirmed, Confirmed or All,
@@ -363,16 +373,28 @@ figure is ever added across committees or members.
   hold is never printed as 0 or as a partial sum: every row and History event stays and only
   the number is dropped ("Confirmed as {identity}", "withdrawn: {reason}", "confirmed
   records moved to {reference}", "These confirmed records will move from …", "{k} records
-  selected" without "of n", and "Records covered" without its "N records"). History reads
-  "No confirmations or suggestions yet" only when there are no events. A selection is the
-  server's record fingerprints, or "All records" / "{year} records", which the server
-  resolves. "Saved" appears only after the server accepts; otherwise "Not saved. Your
-  entries are kept." with Try again, "These records changed since this form opened…" or,
-  after the Board's file is replaced, "Reload the records", which keeps the words and clears
-  the selection. Unfinished entries are kept as 1 draft per name, role, action and target
-  ("Unsaved draft", "Discard draft"). A contextual arrival names the spelling and its role
-  (`?name=&role=`); a spelling with no records reads "This record is not held". It is
-  entered only from its context, never from Finance Home.
+  selected" without "of n", and "Records covered" without its "N records"). History shows a
+  loading bar while the identities it reads load, "We couldn’t load the history" with Try
+  again when any of them fails (including an identity a merge or split names), and "No
+  confirmations or suggestions yet" only when every read finished and none returned an
+  event. It reads only identities that still hold records of the spelling, so a spelling
+  whose every confirmation was withdrawn shows that empty line even though withdrawals
+  happened. A split into more than 2 parts lists each part and reads "now opens a choice of
+  all {n}". A legislator or public-person link is named by its role ("Legislative service",
+  "Official IDs"), never by its internal id. A withdrawal of several confirmations sends 1
+  request each; if a later one fails, the page refreshes (each one withdrawn leaves the
+  confirmed card and gets its History withdrawal row), says "{k} of {n} confirmations were
+  withdrawn. The other {m} were not saved. Your note is kept below." (each verb "was" for a
+  count of 1) with Try again, and Try
+  again sends only the rest. A selection is the server's record fingerprints, or "All
+  records" / "{year} records", which the server resolves. "Saved" appears only after the
+  server accepts; otherwise "Not saved. Your entries are kept." with Try again, "These
+  records changed since this form opened…" or, after the Board's file is replaced, "Reload
+  the records", which keeps the words and clears the selection. Unfinished entries are kept
+  as 1 draft per name, role, action and target ("Unsaved draft", "Discard draft"). A
+  contextual arrival names the spelling and its role (`?name=&role=`); a spelling with no
+  records reads "This record is not held". It is entered only from its context, never from
+  Finance Home.
 - **Legislation (`/bills`)**: bills searched by words or number, with Session, Chamber and
   Status menus, 20 a page. The Session menu lists the sessions the server holds, the
   current one first; with 1 session held it shows 1 option.
@@ -443,8 +465,11 @@ one names its exact saved version and page.
 - **TV station folder (`/media-buys/folders/:id`)**: the files held, each with its saved
   versions and station upload date, and the folder's one checked connection, which never
   stands for each file inside it.
-- **TV station (`/media-buys/stations/:id`)**: files held by year, each year linking to its
-  folders, and the other stations held. Counts are files, never ads or money.
+- **TV station (`/media-buys/stations/:id`)**: the station's counts once for all years (files
+  held, unique file contents, files whose text could not be fully read, files we couldn't
+  download, folders we couldn't list, with the 3 drawn notes on what they mean), then files
+  held by year, each year linking to its folders, and the other stations held. Counts are
+  files, never ads or money; a per-year breakdown of the other counts waits on the server.
 - **Printed agency name (`/media-buys/agencies/:name`)**: files under that exact spelling,
   each marked Checked or Machine-read · Not checked, addresses checked for it with View
   evidence at the exact version and page, and separate campaign and outside-spending

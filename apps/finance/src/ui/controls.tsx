@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 
+import { Link } from '../router';
 import { WithArrow } from './parts';
 
 function Caret({ up = false }: { up?: boolean }) {
@@ -369,6 +370,8 @@ export function Empty({ title, next }: { title: string; next?: string }) {
 export interface EvidenceRow {
   label: string;
   value: string;
+  /** A Finance page the value opens (an employer as filed opens its spelling). */
+  href?: string;
 }
 
 export interface Evidence {
@@ -486,7 +489,15 @@ export function EvidencePanel({
             {evidence.rows.map((row) => (
               <div key={row.label} className="f-sources-row">
                 <dt>{row.label}</dt>
-                <dd>{row.value}</dd>
+                <dd>
+                  {row.href ? (
+                    <Link to={row.href} className="f-evidence-link">
+                      {row.value}
+                    </Link>
+                  ) : (
+                    row.value
+                  )}
+                </dd>
               </div>
             ))}
           </dl>
