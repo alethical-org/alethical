@@ -782,6 +782,14 @@ a.bl-companion:active {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+/* A count the record does not state reads as words, not as a figure. */
+.rc-tally dd[data-missing] {
+  margin-top: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--secondary);
+  white-space: normal;
+}
 .rc-members-head {
   margin-top: 20px;
   display: flex;

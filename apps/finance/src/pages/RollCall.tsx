@@ -38,27 +38,28 @@ export function recordedLabel(value: string): string {
 
 export interface Tally {
   label: string;
-  value: number;
+  /** The printed count, or "Not recorded". */
+  value: string;
 }
 
+const NOT_RECORDED = 'Not recorded';
+
 /**
- * The tallies the record states. Yes and No are always shown. Absent, Excused
- * and Present are shown only when the record holds a count above 0 for them:
- * those columns read 0 when the source carried nothing, so a 0 there is not a
- * recorded zero.
+ * The 4 drawn tallies: Yes, No, Absent, Excused. Yes and No are read from the
+ * official record. Absent and Excused are never read from it: the vote loader
+ * (alethical/pipeline/votes.py) stores only the Yes and No counts and names, so
+ * those columns hold the database's default 0, not a stated zero. They keep
+ * their drawn place and read "Not recorded" (rule 12: missing is never zero).
  */
 export function rollTallies(vote: ServedVote): Tally[] {
-  const tallies: Tally[] = [];
-  if (vote.yes_count != null) tallies.push({ label: 'Yes', value: vote.yes_count });
-  if (vote.no_count != null) tallies.push({ label: 'No', value: vote.no_count });
-  for (const [label, value] of [
-    ['Absent', vote.absent_count],
-    ['Excused', vote.excused_count],
-    ['Present', vote.present_count],
-  ] as const) {
-    if (typeof value === 'number' && value > 0) tallies.push({ label, value });
-  }
-  return tallies;
+  const count = (value: number | null | undefined) =>
+    typeof value === 'number' ? value.toLocaleString('en-US') : NOT_RECORDED;
+  return [
+    { label: 'Yes', value: count(vote.yes_count) },
+    { label: 'No', value: count(vote.no_count) },
+    { label: 'Absent', value: NOT_RECORDED },
+    { label: 'Excused', value: NOT_RECORDED },
+  ];
 }
 
 /** The filter choices: All, then each value at least 1 member is recorded as. */
@@ -144,7 +145,7 @@ export function RollCall({ match }: { match: RouteMatch }) {
     return (
       <Frame back={back}>
         <Refused onRetry={read.retry} retrying={read.pending}>
-          We couldn’t load this roll call right now. Please try again in a moment.
+          We couldn’t load this roll call
         </Refused>
       </Frame>
     );
@@ -235,7 +236,7 @@ export function RollCall({ match }: { match: RouteMatch }) {
               {tallies.map((tally) => (
                 <div key={tally.label} className="rc-tally">
                   <dt>{tally.label}</dt>
-                  <dd>{tally.value.toLocaleString('en-US')}</dd>
+                  <dd data-missing={tally.value === NOT_RECORDED || undefined}>{tally.value}</dd>
                 </div>
               ))}
             </dl>

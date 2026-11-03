@@ -371,14 +371,13 @@ describe('legislation records', () => {
   });
 
   it('never prints an unrecorded absent count as 0', () => {
-    expect(rollTallies(VOTE)).toEqual([
-      { label: 'Yes', value: 62 },
-      { label: 'No', value: 0 },
-    ]);
-    expect(rollTallies({ ...VOTE, absent_count: 3 }).map((tally) => tally.label)).toEqual([
-      'Yes',
-      'No',
-      'Absent',
+    // Yes and No come from the official record, 0 included; Absent and Excused
+    // are never read from it, so a served 0 or 3 there still reads "Not recorded".
+    expect(rollTallies({ ...VOTE, absent_count: 3 })).toEqual([
+      { label: 'Yes', value: '62' },
+      { label: 'No', value: '0' },
+      { label: 'Absent', value: 'Not recorded' },
+      { label: 'Excused', value: 'Not recorded' },
     ]);
     expect(recordedFilters(VOTE.records!).map((item) => item.label)).toEqual(['All', 'Yes']);
   });
@@ -756,7 +755,10 @@ describe('Roll call', () => {
     expect(text()).toContain('Recorded result · Third reading Passed as amended');
     expect(text()).toContain('2 members recorded');
     expect([...container.querySelectorAll('.rc-tally dt')].map((item) => item.textContent)).toEqual(
-      ['Yes', 'No'],
+      ['Yes', 'No', 'Absent', 'Excused'],
+    );
+    expect([...container.querySelectorAll('.rc-tally dd')].map((item) => item.textContent)).toEqual(
+      ['62', '0', 'Not recorded', 'Not recorded'],
     );
     expect(text()).toContain('New Council and Fund to Modernize Human Services IT');
     const rows = [...container.querySelectorAll('.rc-row:not(.rc-row-head)')];
@@ -834,7 +836,7 @@ describe('Roll call', () => {
       }),
     );
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      'We couldn’t load this roll call right now. Please try again in a moment.',
+      'We couldn’t load this roll call',
     );
     const retry = [...container.querySelectorAll('button')].find(
       (button) => button.textContent === 'Try again',
