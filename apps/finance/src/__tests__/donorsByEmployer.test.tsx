@@ -415,6 +415,71 @@ describe('Donors by employer', () => {
     expect(donor('Example, Priya')).toBeTruthy();
     expect(container.querySelector('.de-donors-head')?.textContent).toContain('2 donor names');
   });
+
+  it('says a failed load of more donors plainly, and tries it again', async () => {
+    let later = 0;
+    await render(PATH, (url) => {
+      if (url.pathname.endsWith('/finance/identities/records')) return json(records([]));
+      if (url.searchParams.get('offset')) {
+        later += 1;
+        return later === 1 ? json(null, 500) : json(donors([GROUPS[2]]));
+      }
+      return json(donors(GROUPS.slice(0, 2), { hasMore: true }));
+    });
+    const show = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+      (item) => item.textContent === 'Show more',
+    )!;
+    await act(async () => show.click());
+    await settle();
+    const alert = container.querySelector('.de-results > .pn-more [role="alert"]')!;
+    expect(alert.textContent).toContain('We couldn’t load more donors');
+    expect(alert.textContent).not.toContain('problem on our side');
+    await act(async () => alert.querySelector<HTMLButtonElement>('button')!.click());
+    await settle();
+    expect(donor('Example, Priya')).toBeTruthy();
+  });
+
+  it('says the Board’s file changed when a later page answers 409, and reloads', async () => {
+    let firsts = 0;
+    await render(PATH, (url) => {
+      if (url.pathname.endsWith('/finance/identities/records')) return json(records([]));
+      if (url.searchParams.get('offset')) return json(null, 409);
+      firsts += 1;
+      return json({
+        ...donors(GROUPS.slice(0, 2), { hasMore: true }),
+        release_id: `release-${firsts}`,
+      });
+    });
+    const show = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+      (item) => item.textContent === 'Show more',
+    )!;
+    await act(async () => show.click());
+    await settle();
+    const alert = container.querySelector('.de-results [role="alert"]')!;
+    expect(alert.textContent).toContain('The Board’s file changed. Reload the records.');
+    const reload = alert.querySelector<HTMLButtonElement>('button')!;
+    expect(reload.textContent).toBe('Reload the records');
+    const before = firsts;
+    await act(async () => reload.click());
+    await settle();
+    // The first page is read again, from the file now published.
+    expect(firsts).toBe(before + 1);
+    expect(container.querySelector('.de-results [role="alert"]')).toBeNull();
+  });
+
+  it('says a failed load of more spellings plainly', async () => {
+    await render('/money/employers?q=health', (url) => {
+      if (url.searchParams.get('offset')) return json(null, 500);
+      if (url.pathname.endsWith('/finance/employers')) return json(spellings(LIST.rows, true));
+      return answer()(url);
+    });
+    const show = container.querySelector<HTMLButtonElement>('.de-list-more button')!;
+    await act(async () => show.click());
+    await settle();
+    const alert = container.querySelector('.de-list-more [role="alert"]')!;
+    expect(alert.textContent).toContain('We couldn’t load more employer spellings');
+    expect(alert.querySelector('button')?.textContent).toBe('Try again');
+  });
 });
 
 describe('Donors by employer helpers', () => {

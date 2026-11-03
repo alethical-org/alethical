@@ -181,19 +181,33 @@ function useMore<Row>(
   });
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
-  useEffect(() => {
+  // The pinned copy of the Board's file is no longer the published one (409).
+  const [changed, setChanged] = useState(false);
+  const reset = useCallback(() => {
     setExtra({ key, rows: [], hasMore: null });
     setFailed(false);
+    setChanged(false);
     setLoading(false);
   }, [key]);
+  useEffect(reset, [reset]);
   const own = extra.key === key ? extra : { key, rows: [] as Row[], hasMore: null };
   const more = useCallback(
     (offset: number) => {
       if (loading) return;
       setLoading(true);
       setFailed(false);
-      void apiGet<{ page: Paging }>(apiBaseUrl, path(offset), accessToken).then((answer) => {
+      let status = 0;
+      const seen: typeof fetch = async (input, init) => {
+        const response = await fetch(input, init);
+        status = response.status;
+        return response;
+      };
+      void apiGet<{ page: Paging }>(apiBaseUrl, path(offset), accessToken, seen).then((answer) => {
         setLoading(false);
+        if (status === 409) {
+          setChanged(true);
+          return;
+        }
         const rows = answer.state === 'ok' ? rowsOf(answer.data) : null;
         if (answer.state !== 'ok' || rows === null) {
           setFailed(true);
@@ -209,7 +223,41 @@ function useMore<Row>(
     // `path` and `rowsOf` are rebuilt each render; `key` carries their meaning.
     [apiBaseUrl, accessToken, key, loading],
   );
-  return { rows: own.rows, hasMore: own.hasMore, loading, failed, more };
+  return { rows: own.rows, hasMore: own.hasMore, loading, failed, changed, more, reset };
+}
+
+/** A later page was asked for against a Board file that has since changed (409). */
+export const RELEASE_CHANGED = 'The Board’s file changed. Reload the records.';
+
+/** The changed-file notice, with a reload that starts the donors over. */
+function ChangedNotice({ onReload, reloading }: { onReload: () => void; reloading: boolean }) {
+  return (
+    <div role="alert" className="f-alert">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" stroke="#c0392b" strokeWidth="2" />
+        <path
+          d="M12 7.5 V13 M12 16 V16.5"
+          stroke="#c0392b"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+        />
+      </svg>
+      <div>
+        {RELEASE_CHANGED}
+        <div className="f-alert-action">
+          <button
+            type="button"
+            className="f-btn f-btn-secondary f-btn-small"
+            aria-disabled={reloading || undefined}
+            onClick={() => !reloading && onReload()}
+          >
+            {reloading && <span className="f-spinner" aria-hidden="true" />}
+            Reload the records
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -319,7 +367,7 @@ export function DonorsByEmployer({ match }: { match: RouteMatch }) {
         {searching && list.failed && (
           <div className="pn-gap pn-narrow">
             <Refused onRetry={list.retry} retrying={list.pending}>
-              {list.data ? 'We couldn’t update these results' : FAILED}
+              {list.data ? 'We couldn’t load these employer spellings' : FAILED}
             </Refused>
           </div>
         )}
@@ -372,16 +420,24 @@ export function DonorsByEmployer({ match }: { match: RouteMatch }) {
                 </ul>
                 {spellingsHasMore && (
                   <div className="de-list-more">
-                    {moreSpellings.failed && <p className="pn-more-error">{FAILED}</p>}
-                    <button
-                      type="button"
-                      className="f-btn f-btn-secondary f-btn-small"
-                      aria-disabled={moreSpellings.loading || undefined}
-                      onClick={() => moreSpellings.more(spellings.length)}
-                    >
-                      {moreSpellings.loading && <span className="f-spinner" aria-hidden="true" />}
-                      Show more
-                    </button>
+                    {moreSpellings.failed ? (
+                      <Refused
+                        onRetry={() => moreSpellings.more(spellings.length)}
+                        retrying={moreSpellings.loading}
+                      >
+                        We couldn’t load more employer spellings
+                      </Refused>
+                    ) : (
+                      <button
+                        type="button"
+                        className="f-btn f-btn-secondary f-btn-small"
+                        aria-disabled={moreSpellings.loading || undefined}
+                        onClick={() => moreSpellings.more(spellings.length)}
+                      >
+                        {moreSpellings.loading && <span className="f-spinner" aria-hidden="true" />}
+                        Show more
+                      </button>
+                    )}
                   </div>
                 )}
               </section>
@@ -466,6 +522,16 @@ function Detail({
     (offset) => donorsPath(spelling, offset, release),
     (page) => (page as EmployerDonors).rows ?? null,
   );
+  // A later page of any donor's payments found the file changed; every donor's
+  // added pages are dropped when the records reload.
+  const [paymentsChanged, setPaymentsChanged] = useState(false);
+  const [generation, setGeneration] = useState(0);
+  function reload() {
+    setPaymentsChanged(false);
+    setGeneration((value) => value + 1);
+    moreDonors.reset();
+    read.retry();
+  }
   const reveal = useRevealFocus<HTMLElement>();
   const donors = data ? [...data.rows, ...moreDonors.rows] : [];
   const donorsHasMore = moreDonors.hasMore ?? data?.page.has_more ?? false;
@@ -531,16 +597,21 @@ function Detail({
               release={release}
               phone={phone}
               here={here}
+              generation={generation}
+              onChanged={() => setPaymentsChanged(true)}
             />
           ))}
-          {donorsHasMore && (
+          {(moreDonors.changed || paymentsChanged) && (
+            <ChangedNotice onReload={reload} reloading={read.pending} />
+          )}
+          {donorsHasMore && !moreDonors.changed && !paymentsChanged && (
             <div className="pn-more">
               {moreDonors.failed && (
                 <Refused
                   onRetry={() => moreDonors.more(donors.length)}
                   retrying={moreDonors.loading}
                 >
-                  {FAILED}
+                  We couldn’t load more donors
                 </Refused>
               )}
               {!moreDonors.failed && (
@@ -571,15 +642,20 @@ function Donor({
   release,
   phone,
   here,
+  generation,
+  onChanged,
 }: {
   donor: DonorGroup;
   spelling: string;
   release: string | null;
   phone: boolean;
   here: string;
+  /** Bumped when the records reload, so added pages start over. */
+  generation: number;
+  onChanged: () => void;
 }) {
   const more = useMore<DonorPaymentRow>(
-    `${spelling}|${release}|${donor.key}`,
+    `${spelling}|${release}|${donor.key}|${generation}`,
     (offset) =>
       apiPath(['finance', 'employers', 'donor-payments'], {
         name: spelling,
@@ -591,9 +667,13 @@ function Donor({
       }),
     (page) => (page as DonorPayments).payments ?? null,
   );
+  useEffect(() => {
+    if (more.changed) onChanged();
+    // `onChanged` is rebuilt each render; the change itself is what matters.
+  }, [more.changed]);
   const reveal = useRevealFocus<HTMLElement>();
   const payments = [...donor.payments, ...more.rows];
-  const hasMore = payments.length < donor.payment_count && more.hasMore !== false;
+  const hasMore = payments.length < donor.payment_count && more.hasMore !== false && !more.changed;
   const name = donor.name ?? UNNAMED_PAYMENT_PARTY;
   const href = donorHref(donor.name, here);
   return (
