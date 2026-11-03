@@ -42,18 +42,8 @@
   gap: 24px;
   align-items: start;
 }
-@media (min-width: 1100px) {
-  .lb-layout {
-    grid-template-columns: minmax(0, 1fr) 320px;
-  }
-}
-.lb-dir,
-.lb-aside {
+.lb-dir {
   min-width: 0;
-}
-.lb-aside {
-  display: grid;
-  gap: 14px;
 }
 /* The tabs scroll sideways rather than wrap, down to 320px. */
 .lb-tabs .f-tabs {
@@ -81,15 +71,25 @@
   align-items: center;
   gap: 8px;
 }
-.lb-list {
+/* Each menu wrapper sits at 40 and the open one at 41, so a following menu never
+ * covers an open list (eug-19/77, Round 32). */
+.lb-controls .f-dropdown {
+  z-index: 40;
+}
+.lb-controls .f-dropdown[data-open] {
+  z-index: 41;
+}
+.lb-results {
   margin-top: 14px;
   outline: none;
 }
 .lb-notice {
   margin-bottom: 10px;
 }
+/* The count line's text sits 24px below the controls (eug-26): the results'
+ * 14px margin plus 10px of padding, so it never collapses into a margin. */
 .lb-count {
-  padding: 0 0 10px 2px;
+  padding: 10px 0 10px 2px;
   font-size: 14px;
   color: var(--secondary);
 }
@@ -150,10 +150,19 @@
   font-size: inherit;
   color: inherit;
 }
+.lb-head-year {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.lb-second-b {
+  display: block;
+}
 .lb-strong {
   font-weight: 700;
 }
-.lb-spending.lb-strong .lb-spending-value {
+.lb-figure.lb-strong .lb-figure-value {
   white-space: nowrap;
 }
 .lb-missing {
@@ -164,7 +173,7 @@
   display: none;
 }
 .lb-list-note {
-  margin: 10px 0 0;
+  margin: 24px 0 0;
   padding-left: 17px;
   max-width: 760px;
   font-size: 13px;
@@ -198,21 +207,28 @@
   font-weight: 700;
   color: var(--secondary);
 }
+/* About these records: below the directory, above Sources and updates (eug-135). */
 .lb-about {
-  padding: 18px 20px;
+  margin-top: 36px;
+  max-width: 900px;
 }
 .lb-about h2 {
   margin: 0;
-  letter-spacing: 0.08em;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
 }
 .lb-about ul {
-  margin: 10px 0 0;
+  margin: 8px 0 0;
   padding-left: 18px;
   display: grid;
   gap: 6px;
   font-size: 13px;
   line-height: 1.55;
   color: var(--secondary);
+}
+.lb-sources-next {
+  margin-top: 4px;
 }
 .lb-sources-gap {
   margin-top: 6px;

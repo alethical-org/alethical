@@ -339,7 +339,13 @@ export function Lobbying(_props: { match: RouteMatch }) {
   const shownPage = reported ? Math.floor((reported.offset ?? 0) / PAGE_SIZE) + 1 : page;
   const showing =
     reported && total !== null ? lobbyingShowingLine(tab, shownPage, rowCount, total) : null;
-  const filtered = year !== '' || sort !== defaultSort;
+  // The year the server opens on: the newest completed year with matched
+  // contributions, or the newest spending year. Choosing it leaves the address.
+  const defaultYear =
+    tab === 'lobbyists'
+      ? String(donations?.available_years?.[0] ?? '')
+      : String(summary.data?.latest_reported_year ?? '');
+  const filtered = (year !== '' && year !== defaultYear) || sort !== defaultSort;
 
   return (
     <main id="main" className="f-page">
@@ -389,7 +395,9 @@ export function Lobbying(_props: { match: RouteMatch }) {
                 onChange={openTab}
               />
             </div>
-            <p className="lb-lane">{tab === 'lobbyists' ? COPY.lobbyists.intro : PRINCIPALS_INTRO}</p>
+            <p className="lb-lane">
+              {tab === 'lobbyists' ? COPY.lobbyists.intro : PRINCIPALS_INTRO}
+            </p>
             <div className="lb-controls">
               {yearOptions.length > 0 && (
                 <Dropdown
@@ -399,7 +407,9 @@ export function Lobbying(_props: { match: RouteMatch }) {
                     value: String(option),
                     label: String(option),
                   }))}
-                  onChange={(next) => setAddress({ year: next, page: '1' })}
+                  onChange={(next) =>
+                    setAddress({ year: next === defaultYear ? '' : next, page: '1' })
+                  }
                 />
               )}
               <Dropdown
@@ -415,7 +425,7 @@ export function Lobbying(_props: { match: RouteMatch }) {
               )}
             </div>
 
-            <div ref={list} tabIndex={-1} className="lb-list">
+            <div ref={list} tabIndex={-1} className="lb-results">
               {read.loading && (
                 <LoadingRows
                   label={tab === 'lobbyists' ? COPY.lobbyists.loading : COPY.principals.loading}
@@ -445,7 +455,7 @@ export function Lobbying(_props: { match: RouteMatch }) {
                       </Refused>
                     </div>
                   )}
-                  <div aria-live="polite" className="f-count-line lb-count">
+                  <div aria-live="polite" className="lb-count f-num">
                     {showing}
                   </div>
                   {rowCount === 0 ? (
@@ -463,7 +473,9 @@ export function Lobbying(_props: { match: RouteMatch }) {
                             {tab === 'lobbyists' ? 'REGISTRATION AND CLIENTS' : 'ENTITY ID'}
                           </span>
                           <span role="columnheader" className="lb-third">
-                            {tab === 'lobbyists' ? 'CONTRIBUTIONS RECORDED IN' : 'REPORTED SPENDING'}
+                            {tab === 'lobbyists'
+                              ? 'CONTRIBUTIONS RECORDED IN'
+                              : 'REPORTED SPENDING'}
                             {shownYear && (
                               <>
                                 {' '}
