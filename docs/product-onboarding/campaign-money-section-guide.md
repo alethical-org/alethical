@@ -871,8 +871,11 @@ Campaign money, top to bottom:
    A committee-year with a known gap in one of the Board's own payment files adds a
    reviewed note to this panel, in fixed words that name the file and the gap. The note
    is served with that year's figures (`source_notices` on the committee's year read)
-   only while the file still holds exactly the rows it was reviewed against, so a
-   correction from the Board withdraws it. 1 committee-year carries one: Coleman,
+   only while the file's record-set hash matches the reviewed hash and that
+   committee-year's count and total still match. Byte order and copy identifiers do
+   not identify the records. A changed or missing record-set hash withdraws the note
+   until the source is reviewed again, even if the changed records belong to another
+   committee. 1 committee-year carries one: Coleman,
    Christopher B Gov Committee (18127) in 2017, whose note says the Board's spending file
    lists only part of that year's payments
    ([issue 2831](https://github.com/alethical-org/alethical/issues/2831)).

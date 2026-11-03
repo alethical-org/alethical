@@ -5,10 +5,11 @@ specific known discrepancy needs a source-scoped notice. Each entry here is one 
 discrepancy, found by a person and recorded on its issue, with fixed words the page
 prints beside that committee-year's payments. Nothing here is generated.
 
-Every entry carries the fingerprint of the rows it was reviewed against (how many rows
-the file holds for that committee-year, and their summed amount). The notice is served
-only while the live file still holds exactly those rows, so a Board correction
-withdraws it instead of leaving a sentence about a file that has changed.
+Every entry pins the reviewed file's record-set hash, not its byte hash or snapshot id:
+the Board can reorder unchanged records when it exports a file. The committee-year's
+row count and amount are additional checks, not proof that its records are identical.
+A changed or unknown file hash withdraws the notice until the source is reviewed again,
+even when the changed records belong to another committee.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ class SourceNotice:
     dataset: str
     registration_number: str
     year: int
+    record_set_hash: str
     rows: int
     amount_sum: Decimal
     text: str
@@ -45,6 +47,9 @@ NOTICES: tuple[SourceNotice, ...] = (
         dataset="expenditures",
         registration_number="18127",
         year=2017,
+        record_set_hash=(
+            "a1a35d6244c631c765cacfdb3bdcde46959db2e78e87069f2ca4b40601f96b33"
+        ),
         rows=244,
         amount_sum=Decimal("560171.70"),
         text=(
@@ -71,9 +76,14 @@ def source_notices(
             continue
         table = _ROW_TABLES[notice.dataset]
         snapshot_id = getattr(release, notice.dataset).snapshot_id
+        snapshot = schema.CampaignFinanceSnapshot
         rows, amount = db.execute(
-            select(func.count(), func.coalesce(func.sum(table.amount), 0)).where(
+            select(func.count(), func.coalesce(func.sum(table.amount), 0))
+            .select_from(table)
+            .join(snapshot, snapshot.id == table.snapshot_id)
+            .where(
                 table.snapshot_id == snapshot_id,
+                snapshot.record_set_hash == notice.record_set_hash,
                 table.committee_reg_num == registration_number,
                 table.year == year,
             )
