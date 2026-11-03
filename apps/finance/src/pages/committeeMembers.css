@@ -178,9 +178,6 @@ p.cmm-rule {
 .cmm-value[data-missing] {
   color: var(--muted);
 }
-.cmm-figure-period {
-  grid-column: 1 / -1;
-}
 .cmm-report {
   font-size: 13px;
   color: var(--muted);
