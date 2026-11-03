@@ -138,6 +138,7 @@ def browse(
         pattern=r"^[0-9a-f]{16}$",
         description="The version an earlier page returned; 409 when its sources changed.",
     ),
+    search_scope: Literal["files", "tab"] = "files",
     db: Session = Depends(records),
 ) -> dict:
     token = finance_versions.check(db, version, "station")
@@ -153,6 +154,7 @@ def browse(
                 category=category,
                 page=page,
                 default_year=default_year,
+                search_scope=search_scope,
             ),
         }
     }

@@ -456,6 +456,24 @@ exact name or number confirmed, and the quotation (at least 3 characters) must s
   money totals, recipient sums or profile money figures, and a Money connections line to a
   station file carries no amount, because an order or invoice does not prove payment.
 
+The Media buys browse answer carries `tab_counts` for the whole held inventory, before
+the open tab's filters or result cap. Station rows carry their held folder years.
+`search_scope=tab` searches the selected tab's labels; the default `files` scope keeps
+file-name, checked-fact and text search available. Neither search establishes an identity.
+File rows carry the displayed version's `first_saved_at`. Connected rows carry a page
+actually cited by their checks, and groups identify `committee` or `named` without the
+client interpreting a display label. Checked address evidence includes its exact quote
+and check date; no account or public-copy metadata is exposed.
+
+Each station year carries current file count, distinct saved contents across versions,
+current-version text-reading failures, and the latest file/folder download outcomes.
+Years come from held document metadata or the FCC folder path, as in ingestion; a failure
+without a held year remains in a `null` year group. Distinct contents across different
+years can overlap and must not be summed as a station-wide distinct count. The latest
+check date is the latest held check on a saved version, never proof that every file was
+checked. A missing date stays null. These fields supplement the separately labelled
+all-years counts and preserve the distinction between files, contents and purchases.
+
 ## 7. Finance never links to alethical.com
 
 Every record and tool opens inside Finance. Contact actions use email addresses.
