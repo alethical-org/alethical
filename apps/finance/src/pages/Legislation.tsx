@@ -30,6 +30,7 @@ import {
   dayLabel,
   fileChamber,
   sessionShortLabel,
+  together,
   type BillListItem,
   type ServedSession,
 } from './legislationRecords';
@@ -413,7 +414,8 @@ export function Legislation(_props: { match: RouteMatch }) {
       </div>
       <SourcesAndUpdates>
         <p className="f-sources-line">
-          Minnesota Legislature · revisor.mn.gov{updated ? ` · Updated ${updated}` : ''}
+          Minnesota Legislature · revisor.mn.gov
+          {updated ? ` · ${together(`Updated ${updated}`)}` : ''}
         </p>
         <a
           href="https://www.revisor.mn.gov/bills/"
@@ -459,7 +461,8 @@ function BillRow({
     session,
     fileChamber(code),
     billStatus(bill.status_key, bill.current_status),
-    dayLabel(bill.latest_action_at),
+    // The date stays whole; a long status may still wrap.
+    dayLabel(bill.latest_action_at) && together(dayLabel(bill.latest_action_at)!),
   ].filter(Boolean);
   const content = (
     <>

@@ -17,13 +17,13 @@
   gap: 10px;
   max-width: 760px;
 }
-.lg-search-field {
+.f-field.lg-search-field {
   flex: 1 1 auto;
   height: 48px;
   padding: 0 14px;
   font-size: 16px;
 }
-.lg-search-submit {
+.f-btn.lg-search-submit {
   flex: none;
   height: 48px;
   padding: 0 20px;
@@ -119,10 +119,17 @@ a.lg-row:active {
 }
 /* End-of-section commentary under a list or table: the shared .f-section-note
  * gives the 24px above it (eug-26); the drawings set its size and colour. */
-.lg-note {
+/* Doubled class so the drawings' size and colour win over the shared rule
+ * whatever order the stylesheets load in. Bills and Bill notes run the list's
+ * full width; the Roll call members note keeps the drawing's 760px. */
+.f-section-note.lg-note {
+  max-width: none;
   padding-left: 17px;
   font-size: 13px;
   color: var(--muted);
+}
+.rc-table + .f-section-note.lg-note {
+  max-width: 760px;
 }
 .lg-pager {
   margin-top: 14px;
@@ -131,11 +138,11 @@ a.lg-row:active {
   justify-content: space-between;
   gap: 12px;
 }
-.lg-pager-button {
+.f-btn.lg-pager-button {
   gap: 6px;
   padding: 0 16px 0 13px;
 }
-.lg-pager-next {
+.f-btn.lg-pager-next {
   padding: 0 13px 0 16px;
 }
 .lg-pager-line {
@@ -144,7 +151,7 @@ a.lg-row:active {
   color: var(--secondary);
   font-variant-numeric: tabular-nums;
 }
-.lg-unavailable {
+.f-card.lg-unavailable {
   margin-top: 12px;
   max-width: 640px;
   padding: 24px;
@@ -154,7 +161,7 @@ a.lg-row:active {
   font-size: 22px;
   font-weight: 600;
 }
-.lg-unavailable p {
+.f-card.lg-unavailable p {
   margin: 8px 0 0;
   font-size: 14px;
   line-height: 1.5;
@@ -166,7 +173,7 @@ a.lg-row:active {
   }
   .lg-menus .f-dropdown-button,
   .lg-menus .f-clear,
-  .lg-pager-button {
+  .f-btn.lg-pager-button {
     min-height: 44px;
   }
   .lg-row {
@@ -200,7 +207,7 @@ a.lg-row:active {
   align-items: center;
   gap: 8px;
 }
-.bl-code {
+.f-code.bl-code {
   height: 28px;
   padding: 0 10px;
   font-size: 15px;
@@ -232,7 +239,7 @@ a.lg-row:active {
   border: 1px solid var(--fill);
   color: var(--link);
 }
-.bl-title {
+.f-page-title.bl-title {
   margin-top: 8px;
   line-height: 1.25;
   overflow-wrap: anywhere;
@@ -595,7 +602,7 @@ a.bl-vote:active {
   color: var(--secondary);
   font-variant-numeric: tabular-nums;
 }
-.bl-version-action {
+.f-dest.bl-version-action {
   display: inline-flex;
   align-items: center;
   min-height: 36px;
@@ -603,21 +610,21 @@ a.bl-vote:active {
 }
 
 /* Side column */
-.bl-facts {
+.f-card.bl-facts {
   padding: 18px 20px;
 }
-.bl-facts dl {
+.f-card.bl-facts dl {
   margin: 0;
   display: grid;
   gap: 12px;
   font-size: 14px;
 }
-.bl-facts dt {
+.f-card.bl-facts dt {
   font-size: 12px;
   font-weight: 600;
   color: var(--secondary);
 }
-.bl-facts dd {
+.f-card.bl-facts dd {
   margin: 2px 0 0;
   overflow-wrap: anywhere;
 }
@@ -635,7 +642,7 @@ a.bl-companion:active {
     background: #f6e4c8;
   }
 }
-.bl-official {
+.f-dest.bl-official {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -645,7 +652,7 @@ a.bl-companion:active {
 .bl-facts-source {
   margin-top: 6px;
 }
-.bl-accounts {
+.f-card.bl-accounts {
   padding: 18px 20px;
 }
 .bl-accounts-intro {
@@ -654,7 +661,7 @@ a.bl-companion:active {
   line-height: 1.5;
   color: var(--secondary);
 }
-.bl-accounts .f-skeleton {
+.f-card.bl-accounts .f-skeleton {
   margin-top: 10px;
 }
 .bl-accounts-failed {
@@ -675,7 +682,7 @@ a.bl-companion:active {
   font-size: 14px;
   color: var(--secondary);
 }
-.bl-accounts-note {
+.f-section-note.bl-accounts-note {
   font-size: 13px;
   line-height: 1.55;
   color: var(--muted);
@@ -708,7 +715,7 @@ a.bl-companion:active {
   font-size: 13px;
   color: var(--secondary);
 }
-.bl-account-link {
+.f-dest.bl-account-link {
   justify-self: start;
   display: inline-flex;
   align-items: center;
@@ -716,7 +723,7 @@ a.bl-companion:active {
 }
 
 @media (max-width: 767px) {
-  .bl-title {
+  .f-page-title.bl-title {
     font-size: 22px;
   }
   .bl-action {
@@ -730,8 +737,8 @@ a.bl-companion:active {
     display: none;
   }
   .bl-text-button,
-  .bl-version-action,
-  .bl-account-link {
+  .f-dest.bl-version-action,
+  .f-dest.bl-account-link {
     min-height: 44px;
   }
   .bl-tabs .f-tab {
@@ -791,13 +798,18 @@ a.bl-companion:active {
   margin-top: 12px;
   max-width: 420px;
 }
-.rc-search-field {
+/* The Vote drawing has no side column: the record runs the full width. */
+.bl-layout.rc-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+.f-field.rc-search-field {
+  font-weight: 400;
   width: 100%;
   height: 44px;
   font-size: 15px;
   border-radius: 6px;
 }
-.rc-none {
+.f-empty-box.rc-none {
   margin-top: 12px;
 }
 .rc-table {

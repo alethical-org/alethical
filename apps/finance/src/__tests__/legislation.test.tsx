@@ -287,8 +287,9 @@ async function render(path: string, element: () => React.ReactElement, answer: A
   await settle();
 }
 
+/** The page's words, with the no-break spaces that keep dates whole read as spaces. */
 function text() {
-  return container.textContent ?? '';
+  return (container.textContent ?? '').replace(/\u00a0/g, ' ');
 }
 
 describe('legislation records', () => {
@@ -419,7 +420,8 @@ describe('Legislation', () => {
     const rows = [...container.querySelectorAll<HTMLAnchorElement>('.lg-row')];
     expect(rows[0].getAttribute('href')).toBe('/bills/94-2025-SF334?from=%2Fbills');
     expect(rows[0].textContent).toContain('New Council and Fund to Modernize Human Services IT');
-    expect(rows[0].textContent).toContain('2025–26 · Senate · Signed into Law · May 17, 2026');
+    const meta = rows[0].querySelector('.lg-row-meta')?.textContent;
+    expect(meta).toBe('2025–26 · Senate · Signed into Law · May\u00a017,\u00a02026');
     // No plain-language title: the bill's number, never its legal title.
     expect(rows[1].querySelector('.lg-row-title')?.textContent).toBe('HF 9');
     expect(text()).toContain('Page 1 of 201');

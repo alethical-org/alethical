@@ -13,6 +13,7 @@ import {
   chamberName,
   dayLabel,
   isVoteId,
+  together,
   votePath,
   type BillDetail,
   type RollCallRecord,
@@ -165,13 +166,13 @@ export function RollCall({ match }: { match: RouteMatch }) {
   const sourceLine = [
     'Minnesota Legislature',
     host ?? 'revisor.mn.gov',
-    updatedDay ? `Updated ${updatedDay}` : null,
+    updatedDay ? together(`Updated ${updatedDay}`) : null,
   ]
     .filter(Boolean)
     .join(' · ');
   const journal =
     chamber && date && /journal/i.test(vote.official_url ?? '')
-      ? `. Journal of the ${chamber}, ${date}`
+      ? `. Journal of the ${chamber}, ${together(date)}`
       : '';
   const billHref = isBuilt('bill') ? withFrom(hrefFor('bill', { id: billId }), here) : null;
 
@@ -219,7 +220,7 @@ export function RollCall({ match }: { match: RouteMatch }) {
         {shortTitle && <p className="rc-bill-title">{shortTitle}</p>}
       </header>
 
-      <div className="bl-layout">
+      <div className="bl-layout rc-layout">
         <section aria-labelledby="members-heading" className="bl-main">
           <div className="f-card">
             <div className="rc-result-head">

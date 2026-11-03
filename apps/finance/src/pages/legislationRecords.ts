@@ -216,6 +216,11 @@ function dayValue(value: string | null | undefined): number | null {
   return match ? Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null;
 }
 
+/** A short run of words that must stay on 1 line, such as a date. */
+export function together(value: string): string {
+  return value.replace(/ /g, '\u00a0');
+}
+
 /** The status shown beside a bill, in the public site's words. */
 export function billStatus(
   statusKey: string | null | undefined,
@@ -245,7 +250,7 @@ export function sessionShortLabel(session: ServedSession): string {
  * Round 23): the source and site, then the date the bill records were updated. */
 export function legislatureSource(updatedIso: string | null | undefined): string {
   const day = dayLabel(updatedIso);
-  return `Minnesota Legislature · revisor.mn.gov${day ? ` · Updated ${day}` : ''}`;
+  return `Minnesota Legislature · revisor.mn.gov${day ? ` · ${together(`Updated ${day}`)}` : ''}`;
 }
 
 /** The bill's status page on revisor.mn.gov: `official_url` names a text version,
