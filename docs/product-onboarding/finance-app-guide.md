@@ -150,7 +150,7 @@ Media buys: `/` (landing), `/home`, `/search`, `/organizations/:id`, `/money`,
 Built: `/`, `/home`, `/sign-in`, `/auth/return`, `/search`, `/people`, `/people/:id`,
 `/candidates/:id`,
 `/legislators/:id`, `/money`, `/money/committees/:id`, `/money/names/:query`,
-`/money/races/:id`, `/money/employers`, `/money/employers/:name`,
+`/money/races/:id`, `/money/recipients`, `/money/employers`, `/money/employers/:name`,
 `/legislature/committees/:id/members`, `/lobbying`, `/lobbying/lobbyists/:id`,
 `/lobbying/principals/:id`, `/organizations/:id`, `/bills`, `/bills/:id`, `/votes/:id`,
 `/media-buys`, `/media-buys/folders/:id`, `/media-buys/files/:key`, `/media-buys/agencies/:name`,
@@ -204,8 +204,8 @@ figure is ever added across committees or members.
 - **Campaign money (`/money`)**: the committee register by kind (Candidate committees,
   Committees and funds, Party units), searched by name and paged on the server, with each
   registration's status ("Open registration", "Terminated {date}"). Sort by chooses names
-  A to Z or numeric registration-number order. Other ways in opens Donors by employer and
-  Money by race, and Vendors and payees once it is built; About these records states the records' limits. Results stay on
+  A to Z or numeric registration-number order. Other ways in opens Vendors and payees,
+  Donors by employer and Money by race; About these records states the records' limits. Results stay on
   screen while an update loads or fails, with Try again.
 - **Committee (`/money/committees/:id`)**: the registration's status, the official report
   figures for the chosen report (beginning balance, total receipts, contributions, total
@@ -222,14 +222,40 @@ figure is ever added across committees or members.
   year's report figures, read 1 member at a time and never combined.
 - **Payments under this name (`/money/names/:query?role=`)**: every payment record filed under
   1 exact printed spelling, as a payee (campaign spending and outside spending listed
-  separately, never added together), a donor or an employer, with each record's date, amount,
-  committee and source evidence ("{payer} to {recipient}"). A confirmed identity box appears
-  only when a confirmation covers that exact spelling.
-- **Donors by employer (`/money/employers`, `/money/employers/:name`)**: the donors who printed
-  1 exact employer spelling, each donor's payments listed apart with "Employer name as printed"
-  on every row; no total is ever added across donors, and a donor's payments are never the
-  employer's money. `/money/employers` currently offers a search box that opens 1 exact
-  spelling; the server's paged employer directory awaits its screen update.
+  separately, never added together), a donor or an employer, read from Finance's own
+  `/finance/payments-under-name`, 200 at a time with the server's count of every record in
+  scope. Each record shows its date, amount, committee, "Confirmed as {identity}" when its own
+  fingerprint is confirmed, and source evidence (the saved source, its copy, the row, the
+  employer and ZIP as filed where held, and the whole source row as SOURCE TEXT, 1 "label:
+  value" line per column in the file's order, a date as the page prints dates, an amount with
+  2 decimals ("1250.50") and a blank cell as "Not given"; the Board's file is linked only when no excerpt is held). A file our copy
+  cannot read shows "We could not read this part of our records just now" in its section,
+  never the failure line. Each committee link opens the tab
+  holding that record's kind, the record's own filing year and the printed name. A card lists
+  every identity whose confirmations cover records of the spelling, each "Confirmed for {k} of
+  {n} records" over the selected year and filer, with its reference where one is held, or "No
+  confirmed identity for this spelling". An address naming a filer and a file (Organization's
+  "View payments") shows only that file and that filer's records, counted on the server, under
+  "Showing records filed by {committee}, {file}" with Clear all. Later pages are read from the
+  same copy of the Board's file; if the file has changed, the page says "The Board’s file
+  changed. Reload the records." and "Reload the records" starts over. A new view that fails
+  keeps the earlier records, labelled "{n} records under “{name}” in {year}", with the
+  failure line and Try again. The address keeps the spelling exactly as printed; a spelling
+  with spaces around it prints in quotes (“ Target ”), on this page and on Donors by employer
+  and Vendors and payees. "Employer as filed" in the source evidence opens that spelling on
+  Donors by employer. Opened with no earlier page, it returns to Campaign money.
+- **Donors by employer (`/money/employers`, `/money/employers/:name`)**: a search of the employer
+  spellings donors printed (3 characters or more; shorter text opens that exact spelling), each
+  with its donor names and any confirmed records, and for the chosen spelling the donors who
+  printed it, each donor's payment records listed apart ("{n} payment records") with "Employer
+  name as printed" on every row. Spellings kept after a failed new search name their own
+  search ("{n} spellings matching “{words}”"); a confirmation check that could not be read
+  offers Try again.
+  On a computer the list stays beside the chosen spelling; on a tablet or phone the spelling
+  opens on its own with "Back to Employer spellings". Later donors and payments come from the
+  same copy of the Board's file; if it has changed, "The Board’s file changed. Reload the
+  records." offers a reload. No total is ever added across donors, and a donor's payments are
+  never the employer's money. Opened with no earlier page, it returns to Search results.
 - **Money by race (`/money/races/:id?year=`)**: 1 contest's candidate committees, each with its
   own reported total and itemized contributions and their periods, and outside spending by
   spender as a chart (For to the right, Against to the left) or a table, never added across
@@ -261,16 +287,27 @@ figure is ever added across committees or members.
   confirmations cover; group totals follow the shared rule, labelled by filing year when
   dates are incomplete. A merged record's address opens the surviving record; a split
   record's address asks which part was meant, with each part's reference and
-  confirmed-record count.
+  confirmed-record count. An unknown reference reads "No organization with this reference is
+  in the current copy", with "Open Vendors and payees to search the held records".
 - **Person profile (`/people/:id`)**: confirmed links to 1
   person's candidacies, legislative service and lobbying, their campaign finance, political
   giving and payments received, each event with its own source line. A merged record's
   address opens the surviving record; a split record's address asks which person was meant.
   Each election names its office and district once. Opened with no earlier page, it returns to
   People.
-- **Not built yet:** Vendors and payees (`/money/recipients`),
-  Money connections (`/money/connections`) and Confirm identities (`/money/identities`)
-  each have a screen in the code but answer "not found"
+- **Vendors and payees (`/money/recipients`)**: the server-paged directory of payees, searched
+  by name, with All recipients, Confirmed vendors and Printed names, year, payment type and
+  sort; each total under the shared rule ("Incomplete" under the amount heading, "Missing
+  payment amount" on a phone row, "Reporting period incomplete", "Filing year" labels) and the
+  source file under each kind. A printed name opens its payments in the payee role for the
+  selected year. Where the server bounds totals, "Minimum amount ($)" and "Maximum amount ($)"
+  narrow the whole set (each sent as the typed amount, "$" and commas stripped), with "Smallest
+  total first"; text that is not an amount reads "Enter a valid amount", a reversed range
+  "Minimum is more than maximum", and both keep the last valid results. Recipients whose
+  totals are withheld are left out of a range and counted under the count line. Opened with no
+  earlier page, it returns to Campaign money.
+- **Not built yet:** Money connections (`/money/connections`) and Confirm identities
+  (`/money/identities`) each have a screen in the code but answer "not found"
   and are linked from nowhere until the pull request that aligns that screen with Design's
   current drawing turns its route on in `BUILT`.
 - **Legislation (`/bills`)**: bills searched by words or number, with Session, Chamber and
