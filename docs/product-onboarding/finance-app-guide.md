@@ -238,16 +238,24 @@ figure is ever added across committees or members.
   "View payments") shows only that file and that filer's records, counted on the server, under
   "Showing records filed by {committee}, {file}" with Clear all. Later pages are read from the
   same copy of the Board's file; if the file has changed, the page says "The Board’s file
-  changed. Reload the records." and "Reload the records" starts over.
+  changed. Reload the records." and "Reload the records" starts over. A new view that fails
+  keeps the earlier records, labelled "{n} records under “{name}” in {year}", with the
+  failure line and Try again. The address keeps the spelling exactly as printed; a spelling
+  with spaces around it prints in quotes (“ Target ”), on this page and on Donors by employer
+  and Vendors and payees. "Employer as filed" in the source evidence opens that spelling on
+  Donors by employer. Opened with no earlier page, it returns to Campaign money.
 - **Donors by employer (`/money/employers`, `/money/employers/:name`)**: a search of the employer
   spellings donors printed (3 characters or more; shorter text opens that exact spelling), each
   with its donor names and any confirmed records, and for the chosen spelling the donors who
-  printed it, each donor's payments listed apart with "Employer name as printed" on every row.
+  printed it, each donor's payment records listed apart ("{n} payment records") with "Employer
+  name as printed" on every row. Spellings kept after a failed new search name their own
+  search ("{n} spellings matching “{words}”"); a confirmation check that could not be read
+  offers Try again.
   On a computer the list stays beside the chosen spelling; on a tablet or phone the spelling
   opens on its own with "Back to Employer spellings". Later donors and payments come from the
   same copy of the Board's file; if it has changed, "The Board’s file changed. Reload the
   records." offers a reload. No total is ever added across donors, and a donor's payments are
-  never the employer's money.
+  never the employer's money. Opened with no earlier page, it returns to Search results.
 - **Money by race (`/money/races/:id?year=`)**: 1 contest's candidate committees, each with its
   own reported total and itemized contributions and their periods, and outside spending by
   spender as a chart (For to the right, Against to the left) or a table, never added across
@@ -279,7 +287,8 @@ figure is ever added across committees or members.
   confirmations cover; group totals follow the shared rule, labelled by filing year when
   dates are incomplete. A merged record's address opens the surviving record; a split
   record's address asks which part was meant, with each part's reference and
-  confirmed-record count.
+  confirmed-record count. An unknown reference reads "No organization with this reference is
+  in the current copy", with "Open Vendors and payees to search the held records".
 - **Person profile (`/people/:id`)**: confirmed links to 1
   person's candidacies, legislative service and lobbying, their campaign finance, political
   giving and payments received, each event with its own source line. A merged record's
@@ -295,7 +304,8 @@ figure is ever added across committees or members.
   narrow the whole set (each sent as the typed amount, "$" and commas stripped), with "Smallest
   total first"; text that is not an amount reads "Enter a valid amount", a reversed range
   "Minimum is more than maximum", and both keep the last valid results. Recipients whose
-  totals are withheld are left out of a range and counted under the count line.
+  totals are withheld are left out of a range and counted under the count line. Opened with no
+  earlier page, it returns to Campaign money.
 - **Not built yet:** Money connections (`/money/connections`) and Confirm identities
   (`/money/identities`) each have a screen in the code but answer "not found"
   and are linked from nowhere until the pull request that aligns that screen with Design's
