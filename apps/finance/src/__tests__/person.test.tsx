@@ -78,7 +78,9 @@ it('shows elections and service without treating a result as current service', a
   expect(container.textContent).not.toContain('Currently serving');
   expect(container.querySelector('a[href^="/candidates/c"]')).toBeTruthy();
   expect(container.querySelector('a[href^="/legislators/example-person"]')).toBeTruthy();
-  expect([...container.querySelectorAll('a')].some((a) => a.href.includes('alethical.com'))).toBe(
+  // No link leaves for alethical.com or any of its subdomains (finance-architecture §7).
+  const hosts = [...container.querySelectorAll('a')].map((a) => new URL(a.href).hostname);
+  expect(hosts.some((host) => host === 'alethical.com' || host.endsWith('.alethical.com'))).toBe(
     false,
   );
 });

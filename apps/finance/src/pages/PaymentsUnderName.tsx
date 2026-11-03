@@ -5,7 +5,8 @@ import {
   registrationNumberFromSlug,
   UNNAMED_PAYMENT_PARTY,
 } from '@alethical/shared/committeeMoneyShared';
-import { formatDay, formatMoney } from '@alethical/shared/moneyFormat';
+import { formatDay } from '@alethical/shared/moneyFormat';
+import { formatMoney } from '../ui/money';
 import { centralDateLabel, formatCount } from '@alethical/shared/moneyLanding';
 import { paymentFileCopyLine } from '@alethical/shared/paymentCopyDates';
 import {

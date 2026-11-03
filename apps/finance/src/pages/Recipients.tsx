@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { formatMoney } from '@alethical/shared/moneyFormat';
+import { formatMoney } from '../ui/money';
 import { centralDateLabel, formatCount } from '@alethical/shared/moneyLanding';
 import { paymentFileCopyLine } from '@alethical/shared/paymentCopyDates';
 import { apiPath, useRead } from '../api/read';

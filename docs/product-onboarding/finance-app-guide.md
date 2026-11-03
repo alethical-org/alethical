@@ -118,17 +118,13 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
   Candidates, Lobbyists, Committees and funds, Party units, Vendors and payees, Lobbying
   organizations), each shown once its page is built; a card per built record family; and
   "Sources and updates" naming each family's source with its copy or update date, read from
-  the landing counts, below the first screen. Confirm identities and Check TV station files
-  are entered only from their context (Media buys, a TV station file, Payments under this
-  name, Donors by employer), and Donors by employer from Campaign money, never from Home.
+  the landing counts, below the first screen. Confirm identities, Check TV station files and
+  Donors by employer are not entered from Home.
 - **Not listed:** "This account doesn’t have access to Alethical Finance", the signed-in
   address, Switch account and Contact us (an email to ask@alethical.com). The page never
   says why, because the server never says. An account refused after having access in this
   session reads "This account does not have access to Alethical Finance" with "Results kept
   from this account are no longer shown": every held answer and unfinished entry is cleared.
-- **Unfinished entries (drafts)** on the checking forms belong to the account that wrote
-  them, in this browser: the same account finds them again after its sign-in expires and it
-  signs in again, and signing in as a different account clears every draft the browser held.
 - **Access cannot be checked:** "We couldn’t check your access" with Try again. A failed
   check never shows the no-access state.
 - **Unknown address, or a page not built yet:** "We couldn’t find that page" inside the
@@ -213,7 +209,8 @@ figure is ever added across committees or members.
   the server now supplies confirmed links.
 - **Campaign money (`/money`)**: the committee register by kind (Candidate committees,
   Committees and funds, Party units), searched and paged on the server. Sort by chooses
-  names A to Z or numeric registration-number order.
+  names A to Z or numeric registration-number order. Other ways in: Donors by employer and
+  Vendors and payees.
 - **Committee (`/money/committees/:id`)**: the official report figures for the chosen report
   (contributions and expenditures as filed), itemized contributions in 5 tabs by donor kind and
   itemized expenditures, each name grouped with its own records and a sum only when every
@@ -254,8 +251,8 @@ figure is ever added across committees or members.
 - **Lobbying (`/lobbying`)**: registered lobbyists and principals, searched and paged on the
   server. Lobbyists use name order. Principals add year and name or reported-spending
   order, with one filed total per organization for that year. Missing figures and
-  multiple filed reports stay explicit, never zero or an added total. Links keep the
-  selected year, and old rows retain their own year while a new selection loads.
+  multiple filed reports stay explicit, never zero or an added total. Old rows retain their
+  own year while a new selection loads.
 - **Lobbyist (`/lobbying/lobbyists/:id`)** and **Principal (`/lobbying/principals/:id`)**: a
   lobbyist's registration, the organizations it represented on the copy date (5 at a time with
   "Show more") and its matched campaign contribution records; a principal's spending by year
@@ -270,7 +267,8 @@ figure is ever added across committees or members.
   payment amount" on a phone row, "Reporting period incomplete", "Filing year" labels) and the
   source file under each kind. A printed name opens its payments in the payee role for the
   selected year. Minimum and maximum amount wait for the server's range filter.
-- **Not built yet:** Person profile (`/people/:id`), Money connections (`/money/connections`), the Media buys pages (`/media-buys`,
+- **Not built yet:** Person profile (`/people/:id`), Money connections (`/money/connections`),
+  the Media buys pages (`/media-buys`,
   `/media-buys/folders/:id`, `/media-buys/files/:key`, `/media-buys/agencies/:name`,
   `/media-buys/stations/:id`), Check TV station files (`/media-buys/check`) and Confirm
   identities (`/money/identities`) each have a screen in the code but answer "not found"

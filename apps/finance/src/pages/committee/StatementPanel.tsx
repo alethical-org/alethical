@@ -1,4 +1,4 @@
-import { formatDay, formatMoney } from '@alethical/shared/moneyFormat';
+import { formatDay, formatMoney } from '../../ui/money';
 import {
   sourcePlace,
   STATEMENT_BOX_SENTENCE,

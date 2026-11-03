@@ -8,7 +8,7 @@ import {
   servesNow,
   type LegislatorServiceHistorySource,
 } from '@alethical/shared/legislatorProfile';
-import { formatDay } from '@alethical/shared/moneyFormat';
+import { formatDay } from '../ui/money';
 import { centralDateLabel } from '@alethical/shared/moneyLanding';
 import { formatLegislativeYearRange } from '@alethical/shared/sessionLabel';
 
@@ -334,7 +334,12 @@ function Related({ record, from }: { record: LegislatorRecord; from: string }) {
     <section className="f-card lg2-related">
       <h2 className="f-card-title">Related records</h2>
       <ul className="lg2-related-list">
-        {connectedPerson && (
+        {connectedPerson && !isBuilt('person') && (
+          // The Person profile is off until its screen is aligned, so the name
+          // is printed without a link to a page that would answer not found.
+          <li className="lg2-related-plain">{connectedPerson.name}</li>
+        )}
+        {connectedPerson && isBuilt('person') && (
           <li>
             <Link
               to={withFrom(hrefFor('person', { id: connectedPerson.id }), from)}

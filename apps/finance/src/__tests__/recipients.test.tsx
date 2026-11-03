@@ -106,7 +106,7 @@ it('lists all payees without a query, preserving separate payment files and sign
   expect(container.querySelectorAll('a.vp-name-link')).toHaveLength(2);
   expect(container.querySelector('a[href*="section=campaign-payments"]')).toBeTruthy();
   expect(container.querySelector('a[href*="section=outside-payments"]')).toBeTruthy();
-  expect(container.textContent).toContain('-$145');
+  expect(container.textContent).toContain('−$145');
   // Under the amount heading a withheld total reads "Incomplete" (Design Round 34).
   expect(container.querySelector('.vp-amount[data-missing]')?.textContent).toBe('Incomplete');
   expect(container.textContent).not.toContain('$0');

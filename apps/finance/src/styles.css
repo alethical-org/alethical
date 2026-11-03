@@ -27,6 +27,12 @@ a {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
 }
+/* A heading takes focus only when the screen changes, so screen readers land
+ * on it; Tab never reaches it, so it draws no ring (Access drawing). */
+h1[tabindex='-1']:focus,
+h1[tabindex='-1']:focus-visible {
+  outline: none;
+}
 .skip {
   position: absolute;
   left: -9999px;

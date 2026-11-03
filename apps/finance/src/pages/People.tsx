@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { formatDay } from '@alethical/shared/moneyFormat';
+import { formatDay } from '../ui/money';
 import { currentChamber, legislatorDistrictLine } from '@alethical/shared/legislatorProfile';
 import { apiPath, useRead } from '../api/read';
 import { Link, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
-import { hrefFor, type RouteMatch } from '../routes';
+import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
 import { Chips, ClearAll, Dropdown, Empty, LoadingRows, Refused, Updating } from '../ui/controls';
 import { RecordMark } from '../ui/marks';
@@ -17,9 +17,13 @@ export interface PersonDirectoryRow {
   name: string;
   slug?: string;
   year?: number;
-  election?: string;
+  /** The candidacy's election as the held record carries it: an object
+   * (`{ id, date, label, type: 'general' }`), never a ready-made string. */
+  election?: { type?: string | null; label?: string | null; date?: string | null } | string | null;
   office?: string;
   voting_area?: string;
+  /** The party as filed, where the server serves it. */
+  party?: string | null;
   source?: { authority?: string; checkedDate?: string };
   service_status?: 'current' | 'former' | 'unknown';
   periods?: Array<{
@@ -58,9 +62,69 @@ const plural = (n: number, one: string, many: string) =>
 export function countLine(total: number, query: string, type = 'legislators') {
   return `${plural(total, ...((type === 'candidates' ? ['candidacy', 'candidacies'] : type === 'legislators' ? ['service record', 'service records'] : ['record', 'records']) as [string, string]))}${query ? ` matching “${query}”` : ''}`;
 }
+const NOT_SIGNIFICANT = new Set(['district', 'member']);
+const words = (text: string) =>
+  text
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+
+/**
+ * The office and where it sits, each fact once (People drawing: "State
+ * Representative, District 99A"). The server sends the office title ("State
+ * Representative District 56A", "School Board Member (ISD #272)") and a voting
+ * area that often repeats part of it ("House District 56A", "ISD #272 · Whole
+ * district"). The office keeps its own words; an area part is added only for
+ * what the office does not already say.
+ */
+export function candidateSeat(office?: string, area?: string): string {
+  const original = office?.trim() ?? '';
+  // The area's parts, without the seat count ("(Elect 2)") and without a part
+  // that just restates the office.
+  const parts = (area ?? '')
+    .split('·')
+    .map((part) => part.replace(/\(Elect \d+\)/g, '').trim())
+    .map((part) =>
+      original && part.startsWith(original) ? part.slice(original.length).trim() : part,
+    )
+    // "House District 56A" says no more than the office's "District 56A".
+    .map((part) =>
+      original
+        ? part.replace(/^(House|Senate|Congressional|Judicial)\s+(?=District\b)/i, '')
+        : part,
+    )
+    .filter(Boolean);
+  const areaText = parts.join(' ').toLowerCase();
+  // An office's parenthesis the area repeats ("(ISD #272)") is said by the area.
+  const title = original
+    .replace(/\s*\(([^)]*)\)/g, (whole, inner: string) =>
+      areaText.includes(inner.trim().toLowerCase()) ? '' : whole,
+    )
+    .trim();
+  const split = /^(.*\S)\s+(District\s+\S+)$/i.exec(title);
+  const printed = split ? [split[1], split[2]] : title ? [title] : [];
+  for (const part of parts) {
+    const rest = split
+      ? part.replace(new RegExp(split[2].replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), '').trim()
+      : part;
+    const said = words(printed.join(' '));
+    const significant = words(rest).filter((word) => !NOT_SIGNIFICANT.has(word));
+    if (significant.length === 0 || significant.every((word) => said.includes(word))) continue;
+    printed.push(part);
+  }
+  return printed.join(', ');
+}
 export function rowNote(row: PersonDirectoryRow) {
-  if (row.kind === 'candidate')
-    return [row.year, row.election, row.office, row.voting_area].filter(Boolean).join(' · ');
+  if (row.kind === 'candidate') {
+    // The People drawing's row: "2026 general · State Representative, District
+    // 99A", then the party where held. The election is served as an object; only
+    // its type is printed beside the year.
+    const type = typeof row.election === 'string' ? row.election : row.election?.type;
+    const election = [row.year, type].filter(Boolean).join(' ');
+    return [election, candidateSeat(row.office, row.voting_area), row.party]
+      .filter(Boolean)
+      .join(' · ');
+  }
   if (row.kind === 'person') return 'Elections and service over time';
   const period = row.periods?.[0];
   const seat = period
@@ -82,7 +146,9 @@ export function rowNote(row: PersonDirectoryRow) {
     .filter(Boolean)
     .join(' · ');
 }
-export function peopleLink(row: PersonDirectoryRow) {
+/** A row's page, or null for a person record while the Person profile is off. */
+export function peopleLink(row: PersonDirectoryRow): string | null {
+  if (row.kind !== 'legislator' && row.kind !== 'candidate' && !isBuilt('person')) return null;
   return hrefFor(
     row.kind === 'legislator' ? 'legislator' : row.kind === 'candidate' ? 'candidate' : 'person',
     { id: row.kind === 'legislator' ? (row.slug ?? row.id) : row.id },
@@ -107,13 +173,21 @@ export function People(_props: { match: RouteMatch }) {
   const [typed, setTyped] = useState(state.q);
   useEffect(() => setTyped(state.q), [state.q]);
   const sort = type === 'candidates' && state.sort === 'election_year' ? 'election_year' : 'name';
+  // Only values the server accepts reach it, so a hand-edited address reads as
+  // the unfiltered view rather than as a failure on our side.
+  const service = state.service === 'current' || state.service === 'former' ? state.service : '';
+  const scope = state.scope === 'past' ? 'past' : 'all';
+  const year =
+    /^\d{4}$/.test(state.year) && Number(state.year) >= 1900 && Number(state.year) <= 2200
+      ? state.year
+      : '';
   const read = useRead<PeoplePage>(
     apiPath(['finance', 'people'], {
       q: query,
       type,
-      service: type === 'legislators' ? state.service : '',
-      scope: type === 'candidates' ? state.scope : 'all',
-      year: type === 'candidates' ? state.year : '',
+      service: type === 'legislators' ? service : '',
+      scope: type === 'candidates' ? scope : 'all',
+      year: type === 'candidates' ? year : '',
       sort,
       limit: PAGE_SIZE,
       offset: (page - 1) * PAGE_SIZE,
@@ -274,22 +348,34 @@ export function People(_props: { match: RouteMatch }) {
                   <ul className="pp-list">
                     {rows.map((row) => (
                       <li key={`${row.kind}|${row.id}`}>
-                        <Link className="pp-row" to={withFrom(peopleLink(row), here)}>
-                          <span className="f-marked pp-who">
-                            <RecordMark kind="person" />
-                            <span className="pp-name">{row.name}</span>
-                            <span className="pp-note f-num">{rowNote(row)}</span>
-                          </span>
-                          <span className="pp-kind">{row.kind.toUpperCase()}</span>
-                          <span className="pp-end f-num">
-                            {row.kind === 'legislator'
-                              ? 'Minnesota Legislature'
-                              : row.kind === 'candidate'
-                                ? 'Minnesota Secretary of State'
-                                : ''}
-                            <Arrow />
-                          </span>
-                        </Link>
+                        {(() => {
+                          const href = peopleLink(row);
+                          const content = (
+                            <>
+                              <span className="f-marked pp-who">
+                                <RecordMark kind="person" />
+                                <span className="pp-name">{row.name}</span>
+                                <span className="pp-note f-num">{rowNote(row)}</span>
+                              </span>
+                              <span className="pp-kind">{row.kind.toUpperCase()}</span>
+                              <span className="pp-end f-num">
+                                {row.kind === 'legislator'
+                                  ? 'Minnesota Legislature'
+                                  : row.kind === 'candidate'
+                                    ? 'Minnesota Secretary of State'
+                                    : ''}
+                                {href && <Arrow />}
+                              </span>
+                            </>
+                          );
+                          return href ? (
+                            <Link className="pp-row" to={withFrom(href, here)}>
+                              {content}
+                            </Link>
+                          ) : (
+                            <div className="pp-row pp-row-plain">{content}</div>
+                          );
+                        })()}
                       </li>
                     ))}
                   </ul>

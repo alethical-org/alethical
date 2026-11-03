@@ -30,7 +30,13 @@ def verified_runtime_for_scanner_unit_tests(monkeypatch):
 
 
 def test_current_repository_has_consistent_versions_and_update_coverage() -> None:
-    assert check_technology_health.find_local_problems(ROOT) == []
+    # Saved versions and update coverage are checked as of the recorded
+    # major-tool review date. Approaching support deadlines and an overdue
+    # review are calendar facts that the monthly `--online` workflow reports;
+    # they must not fail the required pull-request gate on a fixed date.
+    reviewed_on = check_technology_health.capability_review_date(ROOT)
+    assert reviewed_on is not None
+    assert check_technology_health.find_local_problems(ROOT, today=reviewed_on) == []
 
 
 def test_unpinned_deployment_command_is_reported(tmp_path: Path) -> None:
@@ -1027,3 +1033,188 @@ def test_decode_uri_installed_check_decides_whether_its_finding_blocks_release(
         assert not blocked & set(problems)
     else:
         assert blocked <= set(problems)
+
+
+def forge_release_advisory(advisory_id: str = "GHSA-jc66-7q78-782g") -> dict:
+    return {
+        "github_advisory_id": advisory_id,
+        "module_name": "node-forge",
+        "severity": check_technology_health.FORGE_RELEASE_ADVISORIES[advisory_id],
+        "vulnerable_versions": "<=1.4.0",
+        "patched_versions": ">=1.4.1",
+        "findings": [
+            {"version": "1.4.0", "paths": [check_technology_health.FORGE_BUILD_PATH]}
+        ],
+    }
+
+
+def test_every_node_forge_release_advisory_needs_the_installed_repair() -> None:
+    report = javascript_report(
+        {
+            advisory_id: forge_release_advisory(advisory_id)
+            for advisory_id in check_technology_health.FORGE_RELEASE_ADVISORIES
+        }
+    )
+    assert len(check_technology_health.FORGE_RELEASE_ADVISORIES) == 11
+    assert check_technology_health.javascript_audit_problems(report) == sorted(
+        f"{advisory_id} ({severity})"
+        for advisory_id, severity in (
+            check_technology_health.FORGE_RELEASE_ADVISORIES.items()
+        )
+    )
+    assert (
+        check_technology_health.javascript_audit_problems(report, forge_repaired=True)
+        == []
+    )
+    report["advisories"]["other"] = {"severity": "low"}
+    assert check_technology_health.javascript_audit_problems(
+        report, forge_repaired=True
+    ) == ["other (low)"]
+
+
+@pytest.mark.parametrize(
+    "change", ["id", "module", "version", "path", "fixed", "range", "severity"]
+)
+def test_node_forge_release_repair_cannot_accept_changed_findings(
+    change: str,
+) -> None:
+    advisory = forge_release_advisory()
+    if change == "id":
+        advisory["github_advisory_id"] = "GHSA-other"
+    elif change == "module":
+        advisory["module_name"] = "other"
+    elif change == "version":
+        advisory["findings"][0]["version"] = "1.3.1"
+    elif change == "path":
+        advisory["findings"][0]["paths"].append("apps__frontend>node-forge")
+    elif change == "fixed":
+        advisory["patched_versions"] = ">=1.4.2"
+    elif change == "range":
+        advisory["vulnerable_versions"] = "<=1.4.1"
+    else:
+        advisory["severity"] = "critical"
+    assert check_technology_health.javascript_audit_problems(
+        javascript_report({"forge": advisory}), forge_repaired=True
+    )
+
+
+def glob_advisory() -> dict:
+    return {
+        "github_advisory_id": check_technology_health.GLOB_ADVISORY,
+        "module_name": "glob",
+        "severity": "moderate",
+        "vulnerable_versions": ">=9.0.0 <=14.0.1",
+        "patched_versions": ">=14.0.2",
+        "findings": [
+            {"version": "13.0.6", "paths": [check_technology_health.GLOB_BUILD_PATH]}
+        ],
+    }
+
+
+def minimatch_advisory() -> dict:
+    return {
+        "github_advisory_id": check_technology_health.MINIMATCH_ADVISORY,
+        "module_name": "minimatch",
+        "severity": "moderate",
+        "vulnerable_versions": "<11.0.1",
+        "patched_versions": ">=11.0.1",
+        "findings": [
+            {
+                "version": "10.2.5",
+                "paths": [check_technology_health.MINIMATCH_BUILD_PATH],
+            }
+        ],
+    }
+
+
+def test_glob_and_minimatch_findings_require_their_own_installed_repairs() -> None:
+    report = javascript_report({"glob": glob_advisory(), "mm": minimatch_advisory()})
+    assert check_technology_health.javascript_audit_problems(report) == [
+        "GHSA-3g3m-2fjr-6pw4 (moderate)",
+        "GHSA-g3hv-75wg-m249 (moderate)",
+    ]
+    assert check_technology_health.javascript_audit_problems(
+        report, glob_repaired=True
+    ) == ["GHSA-g3hv-75wg-m249 (moderate)"]
+    assert check_technology_health.javascript_audit_problems(
+        report, minimatch_repaired=True
+    ) == ["GHSA-3g3m-2fjr-6pw4 (moderate)"]
+    assert (
+        check_technology_health.javascript_audit_problems(
+            report, glob_repaired=True, minimatch_repaired=True
+        )
+        == []
+    )
+    report["advisories"]["other"] = {"severity": "low"}
+    assert check_technology_health.javascript_audit_problems(
+        report, glob_repaired=True, minimatch_repaired=True
+    ) == ["other (low)"]
+
+
+@pytest.mark.parametrize("package", ["glob", "minimatch"])
+@pytest.mark.parametrize(
+    "change", ["id", "module", "version", "path", "fixed", "range", "severity"]
+)
+def test_glob_and_minimatch_repairs_cannot_accept_changed_findings(
+    package: str, change: str
+) -> None:
+    advisory = glob_advisory() if package == "glob" else minimatch_advisory()
+    if change == "id":
+        advisory["github_advisory_id"] = "GHSA-other"
+    elif change == "module":
+        advisory["module_name"] = "other"
+    elif change == "version":
+        advisory["findings"][0]["version"] = "1.0.0"
+    elif change == "path":
+        advisory["findings"][0]["paths"].append(f"apps__frontend>{package}")
+    elif change == "fixed":
+        advisory["patched_versions"] = ">=99.0.0"
+    elif change == "range":
+        advisory["vulnerable_versions"] = "<99.0.0"
+    else:
+        advisory["severity"] = "critical"
+    assert check_technology_health.javascript_audit_problems(
+        javascript_report({package: advisory}),
+        glob_repaired=True,
+        minimatch_repaired=True,
+    )
+
+
+@pytest.mark.parametrize("package", ["glob", "minimatch"])
+@pytest.mark.parametrize("repair_passes", [True, False])
+def test_glob_and_minimatch_installed_checks_decide_their_findings(
+    monkeypatch, package: str, repair_passes: bool
+) -> None:
+    advisory = glob_advisory() if package == "glob" else minimatch_advisory()
+    script = f"apps/frontend/scripts/check-{package}-security.mjs"
+
+    def run(command, root):
+        if command == ["pnpm", "audit", "--json"]:
+            return subprocess.CompletedProcess(
+                command, 1, json.dumps(javascript_report({package: advisory})), ""
+            )
+        if command[0] == "uvx":
+            report = {
+                "dependencies": [
+                    {"name": name, "version": version, "vulns": []}
+                    for name, version in check_technology_health.locked_python_packages(
+                        ROOT
+                    )
+                ]
+            }
+            return subprocess.CompletedProcess(command, 0, json.dumps(report), "")
+        status = int(command == ["node", script] and not repair_passes)
+        return subprocess.CompletedProcess(command, status, "", "")
+
+    monkeypatch.setattr(check_technology_health, "_run", run)
+    problems = check_technology_health.run_security_audits(ROOT)
+    finding = f"{advisory['github_advisory_id']} (moderate)"
+    if repair_passes:
+        assert finding not in problems
+        assert not any(advisory["github_advisory_id"] in p for p in problems)
+    else:
+        assert finding in problems
+        assert (
+            f"The installed {advisory['github_advisory_id']} repair did not pass"
+            in problems
+        )

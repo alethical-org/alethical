@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 
 import { UNNAMED_PAYMENT_PARTY } from '@alethical/shared/committeeMoneyShared';
-import { formatDay, formatMoney } from '@alethical/shared/moneyFormat';
+import { formatDay, formatMoney } from '../ui/money';
 import { centralDateLabel, formatCount } from '@alethical/shared/moneyLanding';
 import {
   CAP_NEXT_LABEL,
