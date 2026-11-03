@@ -2,13 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { campaignMoneyHistoryYears } from '@alethical/shared/campaignMoneyYears';
 import { EMPTY_YEAR_VALUE } from '@alethical/shared/committeeMoney';
-import {
-  MONEY_IN_REPORTED_LABEL,
-  moneyOutSummary,
-  registerKindLabel,
-} from '@alethical/shared/committeeMoneyShared';
-import { otherOfficeNote, reportedThroughLabel } from '@alethical/shared/legislatorCampaignMoney';
-import { formatMoney } from '../ui/money';
+import { registerKindLabel } from '@alethical/shared/committeeMoneyShared';
+import { REPORT_LOAD_ERROR, reportPeriodLine } from '@alethical/shared/committeePaymentsPage';
+import { otherOfficeNote } from '@alethical/shared/legislatorCampaignMoney';
+import { formatDay, formatMoney } from '../ui/money';
 import { centralDateLabel } from '@alethical/shared/moneyLanding';
 
 import { apiPath, useRead } from '../api/read';
@@ -19,6 +16,8 @@ import { billSession } from '../search/suggestions';
 import { useAddressState } from '../ui/addressState';
 import { Chips, Refused } from '../ui/controls';
 import { BackLink, LoadingLine, SourcesAndUpdates, type SourceGroup } from '../ui/parts';
+import { reportFigureLabel } from './committee/Figures';
+import type { ReportFigures } from './committee/types';
 import './committeeMembers.css';
 
 /**
@@ -68,8 +67,6 @@ export interface FiguresCommittee {
   registration_number: string;
   register_kind?: string | null;
   filings_copied_at?: string | null;
-  split?: { reported_total: string | null; reported_through: string | null } | null;
-  money_out?: { reported_total: string | null; reported_through: string | null } | null;
 }
 
 export interface FiguresAnswer {
@@ -122,55 +119,38 @@ export interface Figure {
   label: string;
   value: string;
   missing: boolean;
-  /** This figure's own report period, set only when the 2 figures' reports end
-   * on different days; otherwise the account's shared `period` covers both. */
-  period?: string;
 }
 
 export type AccountFigures =
-  | { state: 'none' }
-  | { state: 'figures'; figures: Figure[]; notes: string[]; period: string | null };
+  { state: 'none' } | { state: 'figures'; figures: Figure[]; report: string | null };
 
 /**
- * 1 account's figures for the year, as its filing states them: the report's
- * contributions total and its expenditures total. A missing total is never $0,
- * and an account with neither total held has no report for the year. Each total
- * states the period its report covers.
+ * 1 account's figures for the year, read the way Committee reads them: the
+ * report whose figures the server holds for the year (`figures_state:
+ * 'reported'`), with its Total receipts, Total disbursements and Ending balance
+ * as filed, and the report's name and period. A figure the report does not give
+ * us reads "Report total unavailable", never $0 (grounded-answers rule 12); an
+ * account with no such report has no report for the year.
  */
-export function accountFigures(committee: FiguresCommittee | undefined): AccountFigures {
-  const contributions = committee?.split?.reported_total ?? null;
-  const spending = committee?.money_out ?? null;
-  if (!committee || (contributions === null && (spending?.reported_total ?? null) === null)) {
-    return { state: 'none' };
-  }
-  const contributionsText = formatMoney(contributions);
-  const figures: Array<Figure & { through: string | null }> = [
-    {
-      label: MONEY_IN_REPORTED_LABEL,
-      value: contributionsText ?? EMPTY_YEAR_VALUE,
-      missing: contributionsText === null,
-      through: contributionsText !== null ? (committee.split?.reported_through ?? null) : null,
-    },
-  ];
-  const out = moneyOutSummary(spending ? { reportedTotal: spending.reported_total } : null);
-  if (out.label && out.amount !== null) {
-    figures.push({
-      label: out.label,
-      value: out.amount,
-      missing: false,
-      through: spending?.reported_through ?? null,
-    });
-  }
-  const throughs = [...new Set(figures.map((figure) => figure.through).filter(Boolean))];
-  const shared = throughs.length === 1 ? reportedThroughLabel(throughs[0]) : null;
+export function accountFigures(answer: ReportFigures | null | undefined): AccountFigures {
+  const row = answer?.reports.find((item) => item.figures_state === 'reported');
+  if (!row) return { state: 'none' };
+  const box = (label: string, amount: string | null): Figure => {
+    const value = formatMoney(amount);
+    return { label, value: value ?? EMPTY_YEAR_VALUE, missing: value === null };
+  };
+  const first = formatDay(row.period_start);
+  const last = formatDay(row.cut_off_date);
+  const period = first && last ? `${first} to ${last}` : reportPeriodLine(row.cut_off_date, null);
+  const report = [reportFigureLabel(row), period].filter(Boolean).join(' · ');
   return {
     state: 'figures',
-    figures: figures.map(({ through, ...figure }) => {
-      const own = throughs.length > 1 ? reportedThroughLabel(through) : null;
-      return own ? { ...figure, period: own } : figure;
-    }),
-    notes: out.notes,
-    period: shared,
+    figures: [
+      box('Total receipts', row.total_receipts),
+      box('Total disbursements', row.total_disbursements),
+      box('Ending balance', row.ending_cash_balance),
+    ],
+    report: report || null,
   };
 }
 
@@ -392,7 +372,14 @@ function Account({
     ? withFrom(hrefFor('committee', { id: reg }, { year }), here)
     : null;
   const kind = registerKindLabel(served?.register_kind);
-  const result = accountFigures(served);
+  // The account's own report figures, the read Committee's Official report
+  // figures uses; an unavailable answer is a failed read with Try again.
+  const read = useRead<ReportFigures>(
+    apiPath(['finance', 'committees', reg, 'report-figures'], { year }),
+    { acceptData: (data) => data.state !== 'unavailable' },
+  );
+  const data = read.data && String(read.data.year) === year ? read.data : null;
+  const result = data ? accountFigures(data) : null;
   return (
     <div className="cmm-account">
       <div className="cmm-who">
@@ -407,9 +394,15 @@ function Account({
           {kind ? `${kind} · Registration ${reg}` : `Registration ${reg}`}
         </span>
       </div>
-      {result.state === 'none' ? (
-        <p className="cmm-line">No {year} report held</p>
-      ) : (
+      {!data && read.loading && <LoadingLine>Loading…</LoadingLine>}
+      {!data && read.failed && (
+        <Refused onRetry={read.retry} retrying={read.pending}>
+          {REPORT_LOAD_ERROR}
+        </Refused>
+      )}
+      {!data && read.notFound && <p className="cmm-line">No {year} report held</p>}
+      {result?.state === 'none' && <p className="cmm-line">No {year} report held</p>}
+      {result?.state === 'figures' && (
         <>
           <dl className="cmm-figures">
             {result.figures.map((figure) => (
@@ -418,16 +411,10 @@ function Account({
                 <dd className="cmm-value" data-missing={figure.missing || undefined}>
                   {figure.value}
                 </dd>
-                {figure.period && <dd className="cmm-report cmm-figure-period">{figure.period}</dd>}
               </div>
             ))}
           </dl>
-          {result.notes.map((note) => (
-            <p key={note} className="cmm-line">
-              {note}
-            </p>
-          ))}
-          {result.period && <span className="cmm-report">{result.period}</span>}
+          {result.report && <span className="cmm-report">{result.report}</span>}
         </>
       )}
     </div>

@@ -12,6 +12,7 @@ import {
   type Member,
   type MembersAnswer,
 } from '../pages/CommitteeMembers';
+import type { ReportFigureRow, ReportFigures } from '../pages/committee/types';
 import { matchRoute } from '../routes';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -68,24 +69,52 @@ function figures(committees: FiguresAnswer['committees']): FiguresAnswer {
   return { year: Number(YEAR), filings_copied_at: '2026-10-28T03:18:52Z', committees };
 }
 
-const BEN = figures([
-  {
-    registration_number: '18822',
-    register_kind: 'candidate_committee',
-    split: { reported_total: '4110.0000', reported_through: '2026-07-20' },
-    money_out: { reported_total: '6527.8100', reported_through: '2026-07-20' },
-  },
-]);
-// Casey's second account has no report this year; the first has no official
-// contributions total and a filed zero for spending.
-const CASEY = figures([
-  {
-    registration_number: '100',
-    register_kind: 'candidate_committee',
-    split: { reported_total: null, reported_through: null },
-    money_out: { reported_total: '0', reported_through: '2026-07-20' },
-  },
-]);
+const BEN = figures([{ registration_number: '18822', register_kind: 'candidate_committee' }]);
+const CASEY = figures([{ registration_number: '100', register_kind: 'candidate_committee' }]);
+
+function reportRow(overrides: Partial<ReportFigureRow> = {}): ReportFigureRow {
+  return {
+    record_number: 7,
+    report_name: '2026 Pre-Primary Report',
+    report_type: 'Pre-Primary',
+    cut_off_date: '2026-07-20',
+    filed_date: '2026-07-27',
+    effective_amendment_index: 1,
+    special_election: false,
+    period_start: '2026-01-01',
+    beginning_cash_balance: '12000.0000',
+    beginning_balance_as_of: '2026-01-01',
+    ending_balance_as_of: '2026-07-20',
+    contributions: '4110.0000',
+    total_expenditures: '6527.8100',
+    total_disbursements: '6600.0000',
+    total_receipts: '4200.0000',
+    ending_cash_balance: '9600.0000',
+    figures_state: 'reported',
+    ...overrides,
+  };
+}
+
+function reports(reg: string, rows: ReportFigureRow[]): ReportFigures {
+  return {
+    registration_number: reg,
+    year: Number(YEAR),
+    state: rows.length ? 'reported' : 'not_reported',
+    reports: rows,
+  };
+}
+
+// Ben's account holds its pre-primary figures and an older report without them;
+// Casey's first account has no receipts total and a filed zero for disbursements;
+// Casey's second account has no report this year.
+const REPORTS: Record<string, ReportFigures> = {
+  '18822': reports('18822', [
+    reportRow(),
+    reportRow({ record_number: 6, report_name: 'Year-End Report', figures_state: 'unavailable' }),
+  ]),
+  '100': reports('100', [reportRow({ total_receipts: null, total_disbursements: '0.0000' })]),
+  '101': reports('101', []),
+};
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify({ data }), {
@@ -141,6 +170,8 @@ const loaded: Answer = (url) => {
   if (url.endsWith('/members')) return json(MEMBERS);
   if (url.includes('/legislators/ben/')) return json(BEN);
   if (url.includes('/legislators/casey/')) return json(CASEY);
+  const reg = /\/finance\/committees\/(\d+)\/report-figures/.exec(url)?.[1];
+  if (reg && REPORTS[reg]) return json(REPORTS[reg]);
   return new Response(null, { status: 500 });
 };
 
@@ -192,21 +223,47 @@ describe('Committee members’ campaign accounts', () => {
       `/money/committees/18822?year=${YEAR}&from=${encodeURIComponent(PATH)}`,
     );
     expect(ben.textContent).toContain('Candidate committee · Registration 18822');
-    expect(ben.textContent).toContain('Total contributions$4,110');
-    expect(ben.textContent).toContain('Expenditures$6,527');
-    expect(ben.textContent).toContain(
-      'The committee’s own report to the state, covering through Jul 20, 2026',
+    const labels = [...ben.querySelectorAll('.cmm-figure dt')].map((item) => item.textContent);
+    expect(labels).toEqual(['Total receipts', 'Total disbursements', 'Ending balance']);
+    expect(ben.textContent).toContain('Total receipts$4,200');
+    expect(ben.textContent).toContain('Total disbursements$6,600');
+    expect(ben.textContent).toContain('Ending balance$9,600');
+    expect(ben.querySelector('.cmm-report')?.textContent).toBe(
+      '2026 Pre-Primary Report · Amendment 1 · Jan 1, 2026 to Jul 20, 2026',
     );
+    expect(requests.filter((url) => url.includes('/report-figures')).sort()).toEqual([
+      `https://api.example.test/api/v1/finance/committees/100/report-figures?year=${YEAR}`,
+      `https://api.example.test/api/v1/finance/committees/101/report-figures?year=${YEAR}`,
+      `https://api.example.test/api/v1/finance/committees/18822/report-figures?year=${YEAR}`,
+    ]);
   });
 
   it('keeps a missing total missing and a filed zero a zero', async () => {
     await render(PATH, loaded);
     const casey = card('Casey Two');
     expect(casey.querySelector('.f-label')?.textContent).toBe('Campaign accounts');
-    expect(casey.textContent).toContain('Total contributionsReport total unavailable');
-    expect(casey.textContent).toContain('Expenditures$0');
-    expect(casey.textContent).toContain('the filing’s own zero');
+    expect(casey.textContent).toContain('Total receiptsReport total unavailable');
+    expect(casey.querySelector('[data-missing]')?.textContent).toBe('Report total unavailable');
+    expect(casey.textContent).toContain('Total disbursements$0');
     expect(casey.textContent).toContain(`No ${YEAR} report held`);
+  });
+
+  it('fails 1 account’s report figures on their own, with Try again', async () => {
+    let calls = 0;
+    await render(PATH, (url) => {
+      if (url.includes('/committees/18822/report-figures')) {
+        calls += 1;
+        return calls === 1 ? new Response(null, { status: 503 }) : json(REPORTS['18822']);
+      }
+      return loaded(url);
+    });
+    const alert = card('Ben Davis').querySelector('[role="alert"]');
+    expect(alert?.textContent).toContain('We couldn’t load the report information');
+    expect(card('Casey Two').querySelector('[role="alert"]')).toBeNull();
+    await act(async () => alert!.querySelector<HTMLButtonElement>('button')!.click());
+    await settle();
+    expect(card('Ben Davis').querySelector('[role="alert"]')).toBeNull();
+    expect(card('Ben Davis').textContent).toContain('Total receipts$4,200');
   });
 
   it('gives a member with no confirmed account its own line, whatever the reason', async () => {
@@ -294,43 +351,37 @@ describe('derived figures and labels', () => {
     );
   });
 
-  it('has no report when neither official total is held', () => {
+  it('has no report when no report of the year carries figures', () => {
     expect(accountFigures(undefined)).toEqual({ state: 'none' });
+    expect(accountFigures(reports('1', []))).toEqual({ state: 'none' });
+    expect(accountFigures(reports('1', [reportRow({ figures_state: 'unavailable' })]))).toEqual({
+      state: 'none',
+    });
+  });
+
+  it('reads the 3 drawn figures as filed, never a missing one as $0', () => {
     expect(
-      accountFigures({
-        registration_number: '1',
-        split: { reported_total: null, reported_through: null },
-        money_out: { reported_total: null, reported_through: null },
-      }),
-    ).toEqual({ state: 'none' });
-  });
-
-  it('omits a missing spending total and says it is our gap', () => {
-    const result = accountFigures({
-      registration_number: '1',
-      split: { reported_total: '10', reported_through: '2026-07-20' },
-      money_out: { reported_total: null, reported_through: null },
-    });
-    expect(result).toEqual({
+      accountFigures(
+        reports('1', [reportRow({ total_disbursements: null, ending_cash_balance: '-150.0000' })]),
+      ),
+    ).toEqual({
       state: 'figures',
-      figures: [{ label: 'Total contributions', value: '$10', missing: false }],
-      notes: ['We do not hold an official spending total for this committee for this year'],
-      period: 'The committee’s own report to the state, covering through Jul 20, 2026',
+      figures: [
+        { label: 'Total receipts', value: '$4,200', missing: false },
+        { label: 'Total disbursements', value: 'Report total unavailable', missing: true },
+        { label: 'Ending balance', value: '\u2212$150', missing: false },
+      ],
+      report: '2026 Pre-Primary Report · Amendment 1 · Jan 1, 2026 to Jul 20, 2026',
     });
   });
 
-  it('dates each figure when the 2 reports end on different days', () => {
-    const result = accountFigures({
-      registration_number: '1',
-      split: { reported_total: '10', reported_through: '2026-07-20' },
-      money_out: { reported_total: '5', reported_through: '2026-10-19' },
-    });
-    if (result.state !== 'figures') throw new Error('expected figures');
-    expect(result.period).toBeNull();
-    expect(result.figures.map((figure) => figure.period)).toEqual([
-      'The committee’s own report to the state, covering through Jul 20, 2026',
-      'The committee’s own report to the state, covering through Oct 19, 2026',
-    ]);
+  it('names the report’s end alone when its start is not printed', () => {
+    const result = accountFigures(
+      reports('1', [reportRow({ period_start: null, effective_amendment_index: 0 })]),
+    );
+    expect(result.state === 'figures' && result.report).toBe(
+      '2026 Pre-Primary Report · as filed · Report figures through Jul 20, 2026',
+    );
   });
 
   it('states 1 copy date, or both when members disagree', () => {
