@@ -194,6 +194,8 @@ describe('Media buys', () => {
     await render('/media-buys?tab=agencies', () => <MediaBuys />);
     const text = container.textContent ?? '';
     expect(text).toContain('At least 500 agency names');
+    // The shared scrolling tab row (Round 35): 1 line, with a cue on phone.
+    expect(document.querySelector('.f-scroll-tabs [role="tablist"]')).not.toBeNull();
     expect(text).toContain('Names as printed, with each spelling listed separately');
     expect(text).toContain('KARE, KSTP-TV');
     expect(text).toContain('Not checked');

@@ -53,13 +53,6 @@
   margin-top: 24px;
   min-width: 0;
 }
-.mb-browse .f-tabs {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-  padding-top: 4px;
-}
 .mb-tab-intro {
   margin: 12px 0 0;
   font-size: 14px;
