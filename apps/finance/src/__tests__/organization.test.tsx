@@ -4,13 +4,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { clearReadCache } from '../api/read';
 import { Organization } from '../pages/Organization';
+import { confirmedRecordCount } from '../pages/Organization';
 import {
   EMPTY_SECTION,
-  INCOMPLETE,
+  eligibleTotal,
+  filingYearsLabel,
   paymentCopyItems,
   periodOf,
   rolesOf,
   SECTION_FAILED,
+  TOTAL_WITHHELD,
 } from '../pages/organization/data';
 import type { Identity, IdentityConfirmation } from '../pages/organization/types';
 import { clearOrganizationLoads } from '../pages/organization/useLoad';
@@ -411,7 +414,7 @@ describe('Organization profile', () => {
     expect(caucus).toContain('$1,000');
     const candidate = recd.find((row) => row.includes('Example Candidate Committee'))!;
     expect(candidate).toContain('1 payment record · Apr 1, 2026');
-    expect(candidate).toContain(INCOMPLETE);
+    expect(candidate).toContain(TOTAL_WITHHELD);
     expect(candidate).not.toContain('$5,000');
     const outside = recd.find((row) => row.includes('Example Political Fund'))!;
     expect(outside).toContain('Position as filed: For');
@@ -437,10 +440,23 @@ describe('Organization profile', () => {
     const hrefs = [...container.querySelectorAll('a')].map((a) => a.getAttribute('href'));
     const from = encodeURIComponent(`/organizations/${ORG}`);
     expect(hrefs).toContain(`/lobbying/principals/8450?from=${from}`);
-    expect(hrefs).toContain(`/money/committees/30004?year=2026&tab=other&from=${from}`);
+    // A contribution opens the tab of its own kind with the printed name (Round 41).
+    expect(hrefs).toContain(
+      `/money/committees/30004?year=2026&tab=other&name=Example+Health+Association&from=${from}`,
+    );
     expect(hrefs).toContain(`/money/committees/30004?tab=expenditures&year=2026&from=${from}`);
     expect(hrefs).toContain(`/money/committees/80012?tab=independent&year=2025&from=${from}`);
-    expect(hrefs).toContain(`/money/names/Example%20Health%20Association?role=payee&from=${from}`);
+    // View payments carries role, filer and dataset, and the year when every record
+    // in the group holds the same one (Round 38).
+    expect(hrefs).toContain(
+      `/money/names/Example%20Health%20Association?role=payee&filer=30004&dataset=expenditures&from=${from}`,
+    );
+    expect(hrefs).toContain(
+      `/money/names/Example%20Health%20Association?role=payee&year=2026&filer=30005&dataset=expenditures&from=${from}`,
+    );
+    expect(hrefs).toContain(
+      `/money/names/Example%20Health%20Association?role=payee&year=2025&filer=80012&dataset=independent&from=${from}`,
+    );
     expect(hrefs).toContain(`/money/committees/30004?from=${from}`);
     // Nothing links to the public site or to unbuilt pages.
     expect(hrefs.some((href) => href?.includes('/money/identities'))).toBe(false);
@@ -528,7 +544,8 @@ describe('Organization profile', () => {
   it('says the record is no longer available for an unknown reference', async () => {
     await render(`/organizations/${ORG}`, () => new Response(null, { status: 404 }));
     expect(container.querySelector('h1')?.textContent).toBe('This record is no longer available');
-    expect(text()).toContain('No organization with this reference is in the current copy.');
+    expect(text()).toContain('No organization with this reference is in the current copy');
+    expect(text()).not.toContain('current copy.');
   });
 
   it('never reads a reference that is not an identity id', async () => {
@@ -554,7 +571,7 @@ describe('Organization profile', () => {
     expect(window.location.search).toBe('?from=%2Fmoney');
   });
 
-  it('opens a correction page listing every record a split reference became', async () => {
+  it('opens a choice of the parts a split reference became, each with its count', async () => {
     const split: Identity = {
       ...EMPTY,
       status: 'split',
@@ -563,14 +580,44 @@ describe('Organization profile', () => {
         { id: SURVIVOR, kind: 'organization', name: 'Example Health Foundation' },
       ],
     };
-    await render(`/organizations/${ORG}`, answering(split));
-    expect(container.querySelector('h1')?.textContent).toBe(
-      'Example Health Association was split into 2 records',
+    const part = (id: string, name: string, rows: number[]): Identity => ({
+      ...EMPTY,
+      id,
+      name,
+      confirmations: rows.map((count, index) =>
+        confirmation(`p-${id}-${index}`, 'payee_name', name, {
+          identity_id: id,
+          records: [
+            { fingerprint: 'f'.repeat(64), fields: null, rows: count, in_board_file: true },
+          ],
+        }),
+      ),
+    });
+    await render(
+      `/organizations/${ORG}?from=%2Fmoney`,
+      answering(split, {
+        [`/finance/identities/${OTHER}`]: json(part(OTHER, 'Example Health Association', [2])),
+        [`/finance/identities/${SURVIVOR}`]: new Response(null, { status: 500 }),
+      }),
     );
-    const hrefs = [...container.querySelectorAll('a')].map((a) => a.getAttribute('href'));
-    const from = encodeURIComponent(`/organizations/${ORG}`);
-    expect(hrefs).toContain(`/organizations/${OTHER}?from=${from}`);
-    expect(hrefs).toContain(`/organizations/${SURVIVOR}?from=${from}`);
+    expect(container.querySelector('h1')?.textContent).toBe('This record was split');
+    expect(text()).toContain(
+      'Choose the organization you meant. Each keeps its own confirmed records, evidence and history.',
+    );
+    const rows = [...container.querySelectorAll('.org-split-list li')].map((li) => li.textContent);
+    expect(rows).toEqual([
+      `Example Health Association${OTHER} · 2 confirmed records`,
+      // A part whose own read failed shows its reference alone, never a count.
+      `Example Health Foundation${SURVIVOR}`,
+    ]);
+    const hrefs = [...container.querySelectorAll('.org-split-list a')].map((a) =>
+      a.getAttribute('href'),
+    );
+    // Each part keeps the page's own return, not the split page.
+    expect(hrefs).toEqual([
+      `/organizations/${OTHER}?from=%2Fmoney`,
+      `/organizations/${SURVIVOR}?from=%2Fmoney`,
+    ]);
     expect(text()).not.toContain('Political giving');
   });
 
@@ -609,6 +656,63 @@ describe('Organization derived labels', () => {
     expect(paymentCopyItems({ independentExpenditures: null })).toEqual([
       'Outside-spending file copy date unavailable',
     ]);
+  });
+
+  it('adds up a group only under the shared rule', () => {
+    expect(filingYearsLabel([])).toBeNull();
+    expect(filingYearsLabel([2025, 2025])).toBe('Filing year 2025');
+    expect(filingYearsLabel([2026, 2024, 2025])).toBe('Filing years 2024–2026');
+    const row = (amount: string | null, date: string | null, year: number | null) => ({
+      amount,
+      date,
+      year,
+    });
+    expect(
+      eligibleTotal([row('600', '2025-03-01', 2025), row('-150', '2025-04-01', 2025)]),
+    ).toMatchObject({ label: '$450', period: 'Mar 1, 2025 to Apr 1, 2025' });
+    // A date missing but every filing year held: summed, labelled by filing year.
+    expect(eligibleTotal([row('420', null, 2025)])).toMatchObject({
+      label: '$420',
+      period: 'Filing year 2025',
+    });
+    // Neither every date nor every filing year: no total.
+    expect(eligibleTotal([row('900', '2025-01-01', 2025), row('100', null, null)])).toMatchObject({
+      amount: null,
+      label: 'Reporting period incomplete',
+    });
+    // A missing amount takes precedence.
+    expect(eligibleTotal([row(null, null, null)])).toMatchObject({
+      amount: null,
+      label: 'Missing payment amount',
+    });
+    expect(eligibleTotal([row('0', '2025-01-01', 2025)]).label).toBe('$0');
+  });
+
+  it('counts a part’s confirmed records from the server’s own counts', () => {
+    expect(confirmedRecordCount(EMPTY)).toBe(0);
+    const held = (rows: number | null) => ({
+      fingerprint: 'a'.repeat(64),
+      fields: null,
+      rows,
+      in_board_file: true,
+    });
+    const counted: Identity = {
+      ...EMPTY,
+      confirmations: [
+        confirmation('a', 'principal', '8450', { records: null }),
+        confirmation('b', 'donor_name', 'X', { records: [held(2), held(1)] }),
+        confirmation('c', 'donor_name', 'Y', { records: [held(9)], status: 'withdrawn' }),
+      ],
+    };
+    // 1 registration plus 3 covered rows; a withdrawn confirmation is not counted.
+    expect(confirmedRecordCount(counted)).toBe(4);
+    // A count the server could not make (no current copy) is unknown, never 0.
+    expect(
+      confirmedRecordCount({
+        ...EMPTY,
+        confirmations: [confirmation('d', 'donor_name', 'X', { records: [held(null)] })],
+      }),
+    ).toBeNull();
   });
 
   it('claims only the roles the held records support', () => {

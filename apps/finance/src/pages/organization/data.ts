@@ -27,9 +27,12 @@ import type {
 import type { Get, Loader } from './useLoad';
 
 export const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
-/** A group total with a missing amount (Organization drawing, finance-data INCOMPLETE). */
-export const INCOMPLETE = 'Incomplete: a payment amount is missing';
-export const EMPTY_SECTION = 'No confirmed records are held for this section';
+/** A group total withheld for a missing amount, where no amount heading names the
+ * value (Rounds 34 and 36). */
+export const TOTAL_WITHHELD = 'Missing payment amount';
+/** Every amount is held but neither every date nor every filing year (Round 36). */
+export const PERIOD_INCOMPLETE = 'Reporting period incomplete';
+export const EMPTY_SECTION = 'No confirmed records held';
 export const SECTION_FAILED = 'We couldn’t load these records. This is a problem on our side.';
 export const PRINCIPAL_NOT_HELD =
   'This principal is not in the current copy of the lobbying records';
@@ -365,12 +368,14 @@ export function givingRows(loads: ReadonlyArray<SpellingLoad<GivenPayment>>, her
           ? `Registration ${payment.recipient_registration_number}`
           : UNNAMED_PAYMENT_PARTY);
       const amount = formatMoney(payment.amount);
+      // The tab of the record's own kind, with the printed name (Round 41).
       const link = committeeHref(
         payment.recipient_registration_number,
         linkable,
         {
           ...(payment.year ? { year: String(payment.year) } : {}),
           tab: tabOfKind(payment.contributor_type),
+          name: payment.contributor ?? load.key,
         },
         here,
       );
@@ -410,6 +415,38 @@ function newestFirst(rows: ProfileRow[]): ProfileRow[] {
   });
 }
 
+/** "Filing year 2025" or "Filing years 2024–2026": the period when filing years,
+ * not dates, are the basis of a total (Round 41). */
+export function filingYearsLabel(years: ReadonlyArray<number>): string | null {
+  const held = [...new Set(years)].sort((a, b) => a - b);
+  if (held.length === 0) return null;
+  return held.length === 1
+    ? `Filing year ${held[0]}`
+    : `Filing years ${held[0]}–${held[held.length - 1]}`;
+}
+
+/**
+ * The 1 shared rule for a total that adds up source rows (Rounds 36, 41, 42): a
+ * missing amount withholds it first; otherwise it is shown when every date is held
+ * (period: the date range) or every stored filing year is held (period: "Filing
+ * year(s) …"); else it reads "Reporting period incomplete". Refunds keep their sign.
+ */
+export function eligibleTotal(
+  rows: ReadonlyArray<{ amount: string | null; date: string | null; year: number | null }>,
+): { amount: string | null; label: string; period: string } {
+  const sum = sumAmounts(rows.map((row) => row.amount));
+  const dates = rows.every((row) => Boolean(row.date && formatDay(row.date)));
+  const years = rows.every((row) => row.year !== null && row.year !== undefined);
+  const period = dates
+    ? (periodOf(rows.map((row) => row.date)) ?? PERIOD_INCOMPLETE)
+    : years
+      ? (filingYearsLabel(rows.map((row) => row.year as number)) ?? PERIOD_INCOMPLETE)
+      : PERIOD_INCOMPLETE;
+  if (sum === null) return { amount: null, label: TOTAL_WITHHELD, period };
+  if (!dates && !years) return { amount: null, label: PERIOD_INCOMPLETE, period };
+  return { amount: sum, label: formatMoney(sum) ?? TOTAL_WITHHELD, period };
+}
+
 function count(n: number, one: string, many: string): string {
   return `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`;
 }
@@ -441,7 +478,13 @@ export function receivedRows(loads: ReadonlyArray<SpellingLoad<PaidPayment>>, he
       const payer =
         (independent ? first.spender : first.committee_name) ||
         (registration ? `Registration ${registration}` : UNNAMED_PAYMENT_PARTY);
-      const total = sumAmounts(payments.map((payment) => payment.amount));
+      const total = eligibleTotal(
+        payments.map((payment) => ({
+          amount: payment.amount,
+          date: payment.paid_on,
+          year: payment.year,
+        })),
+      );
       const types = [
         ...new Set(
           payments
@@ -457,9 +500,15 @@ export function receivedRows(loads: ReadonlyArray<SpellingLoad<PaidPayment>>, he
         ...new Set(payments.map((payment) => payment.stance).filter(Boolean) as string[]),
       ];
       const dates = payments.map((payment) => payment.paid_on);
-      const period = periodOf(dates);
       const years = payments.map((payment) => payment.year ?? 0);
       const year = Math.max(...years);
+      // A year goes on the payments link only when every record holds the same one,
+      // so the link never hides records of another year (eug-140).
+      const sameYear = payments.every(
+        (payment) => payment.year !== null && payment.year === first.year,
+      )
+        ? first.year
+        : null;
       const open = committeeHref(
         registration,
         linkable,
@@ -471,28 +520,37 @@ export function receivedRows(loads: ReadonlyArray<SpellingLoad<PaidPayment>>, he
       );
       const links: RowLink[] = open ? [open] : [];
       if (isBuilt('payments-under-name')) {
+        // Role, year, filer and dataset (Round 38): the page opens on exactly these records.
         links.push({
           label: 'View payments',
           href: withFrom(
-            hrefFor('payments-under-name', { query: load.key }, { role: 'payee' }),
+            hrefFor(
+              'payments-under-name',
+              { query: load.key },
+              {
+                role: 'payee',
+                year: sameYear === null ? null : String(sameYear),
+                filer: registration,
+                dataset: independent ? 'independent' : 'expenditures',
+              },
+            ),
             here,
           ),
         });
       }
-      const amount = total === null ? null : formatMoney(total);
       rows.push({
         key: `recd|${load.kind}|${load.key}|${key}`,
         title: payer,
         note: [
           count(payments.length, 'payment record', 'payment records'),
-          period,
+          total.period,
           types.join('; ') || null,
           stances.length > 0 ? `Position as filed: ${stances.join('; ')}` : null,
         ]
           .filter(Boolean)
           .join(' · '),
-        amount: amount ?? INCOMPLETE,
-        missing: amount === null,
+        amount: total.label,
+        missing: total.amount === null,
         links,
         evidence: paymentEvidence(
           `${payer} to ${load.key}`,
