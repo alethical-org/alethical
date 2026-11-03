@@ -8,6 +8,9 @@ import {
   copyLines,
   countLine,
   coverageLine,
+  filerFromParam,
+  scopedSections,
+  scopeLine,
   identityCoverage,
   emptyLine,
   PaymentsUnderName,
@@ -469,6 +472,48 @@ describe('Payments under this name', () => {
     expect(container.querySelector('.pn-identity')).toBeNull();
   });
 
+  it('opens Organization’s View payments link scoped to its filer and file', async () => {
+    await render(
+      '/money/names/Example%20Media%20LLC?role=payee&filer=30558&dataset=expenditures&year=2026',
+      (url) => {
+        if (url.pathname.includes('/finance/identities')) return json(NO_IDENTITY);
+        return json(
+          page(
+            'vendor',
+            [
+              spent(),
+              spent({
+                record_number: 12,
+                committee_registration_number: '99999',
+                committee_name: 'Another Filer',
+              }),
+            ],
+            { year: 2026 },
+          ),
+        );
+      },
+    );
+    const payments = requests.filter((url) => url.pathname.endsWith('/payments-under-name'));
+    // Only the named file is read, for the address's year.
+    expect(payments.map(role)).toEqual(['vendor']);
+    expect(payments[0].searchParams.get('year')).toBe('2026');
+    expect(container.textContent).not.toContain('Outside spending payments');
+    const campaign = section('Campaign payments');
+    expect(campaign.textContent).toContain('Education Minn PAC');
+    expect(campaign.textContent).not.toContain('Another Filer');
+    expect(campaign.textContent).toContain('1 record');
+    expect(container.querySelector('.pn-scope')?.textContent).toBe(
+      'Showing records filed by Education Minn PAC, campaign payments fileClear all',
+    );
+    // No identity count is claimed for 1 filer, which the server cannot count.
+    expect(requests.some((url) => url.pathname.includes('/finance/identities'))).toBe(false);
+    expect(container.querySelector('.pn-identity')).toBeNull();
+
+    const clear = container.querySelector<HTMLButtonElement>('.pn-scope button')!;
+    await act(async () => clear.click());
+    expect(window.location.search).toBe('?role=payee&year=2026');
+  });
+
   it('changes the record type in the address', async () => {
     await render('/money/names/Example%20Media%20LLC', payee);
     const button = [...container.querySelectorAll<HTMLButtonElement>('.f-dropdown-button')].find(
@@ -562,6 +607,25 @@ describe('Payments under this name helpers', () => {
       identities: [{ id: 'a', kind: 'organization', name: 'A', confirmed: 3 }],
     });
     expect(identityCoverage([first, null])).toBeNull();
+  });
+
+  it('narrows to the address’s file only where the role reads it', () => {
+    expect(scopedSections('payee', 'independent').map((spec) => spec.id)).toEqual([
+      'outside-payments',
+    ]);
+    expect(scopedSections('payee', 'contributions').map((spec) => spec.id)).toEqual([
+      'campaign-payments',
+      'outside-payments',
+    ]);
+    expect(scopedSections('donor', '').map((spec) => spec.id)).toEqual(['campaign-payments']);
+    expect(scopeLine('A', 'independentExpenditures')).toBe(
+      'Showing records filed by A, outside spending file',
+    );
+    expect(scopeLine(null, 'contributions')).toBe('Showing records contributions file');
+    expect(scopeLine(null, null)).toBeNull();
+    expect(filerFromParam('example-pac-30558')).toBe('30558');
+    expect(filerFromParam(' 30558 ')).toBe('30558');
+    expect(filerFromParam('')).toBeNull();
   });
 
   it('words the coverage with its year', () => {

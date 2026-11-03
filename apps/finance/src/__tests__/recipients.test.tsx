@@ -232,7 +232,10 @@ it('names both files once when copied the same day, else each with its own date'
       { dataset: 'expenditures', fetched_at: '2026-10-29T12:00:00Z', source_url: null },
       { dataset: 'independent_expenditures', fetched_at: null, source_url: null },
     ]),
-  ).toEqual(['Spending file copied Oct 29,\u00a02026', 'Outside-spending file copy date unavailable']);
+  ).toEqual([
+    'Spending file copied Oct 29,\u00a02026',
+    'Outside-spending file copy date unavailable',
+  ]);
 });
 
 it('treats an unavailable source as a failure rather than zero recipients', async () => {

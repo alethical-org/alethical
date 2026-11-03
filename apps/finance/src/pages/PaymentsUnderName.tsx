@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 
 import { campaignMoneyHistoryYears } from '@alethical/shared/campaignMoneyYears';
-import { UNNAMED_PAYMENT_PARTY } from '@alethical/shared/committeeMoneyShared';
+import {
+  registrationNumberFromSlug,
+  UNNAMED_PAYMENT_PARTY,
+} from '@alethical/shared/committeeMoneyShared';
 import { formatDay, formatMoney } from '@alethical/shared/moneyFormat';
 import { centralDateLabel, formatCount } from '@alethical/shared/moneyLanding';
 import { paymentFileCopyLine } from '@alethical/shared/paymentCopyDates';
 import {
   CAP_NEXT_LABEL,
   CAP_NOTE,
+  filerRegistrationLabel,
   LOAD_MORE_ERROR,
   paymentsShowingLine,
   RECORDS_UNAVAILABLE_TITLE,
@@ -20,7 +24,14 @@ import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
 import { useBand } from '../ui/band';
-import { Dropdown, EvidencePanel, Refused, Updating, type Evidence } from '../ui/controls';
+import {
+  ClearAll,
+  Dropdown,
+  EvidencePanel,
+  Refused,
+  Updating,
+  type Evidence,
+} from '../ui/controls';
 import { BackLink, SourcesAndUpdates, WithArrow } from '../ui/parts';
 import { useRevealFocus } from '../ui/revealFocus';
 import { tabOfKind } from './committee/data';
@@ -124,6 +135,8 @@ export interface PaymentRow {
   committee: string;
   /** Set only for a committee this release holds as a filer. */
   href: string | null;
+  /** The filing committee's registration number, as the row carries it. */
+  registration: string | null;
   /** Whole dollars, or null where the filing carries no readable amount. */
   amount: string | null;
   kind: string;
@@ -211,6 +224,7 @@ function row(
       fields.filterName,
       context.here,
     ),
+    registration: fields.registration,
     amount,
     kind,
     note: fields.note,
@@ -404,6 +418,47 @@ export function rowsFor(data: NamePayments<unknown>, here: string): PaymentRow[]
   return (data.payments as ReceivedRow[]).map((item) => receivedRow(item, context));
 }
 
+/** The source file an address's `dataset` names (Design Round 40). */
+const DATASET_FILE: Record<string, SectionSpec['file']> = {
+  expenditures: 'expenditures',
+  independent: 'independentExpenditures',
+  contributions: 'contributions',
+};
+
+const SCOPE_FILE: Record<SectionSpec['file'], string> = {
+  expenditures: 'campaign payments file',
+  independentExpenditures: 'outside spending file',
+  contributions: 'contributions file',
+};
+
+/** The sections an address's `dataset` keeps for this role. A dataset the role does
+ * not read narrows nothing, so the page never empties itself on a mismatched link. */
+export function scopedSections(role: Role, dataset: string): SectionSpec[] {
+  const all = sectionsFor(role);
+  const file = DATASET_FILE[dataset];
+  const kept = file ? all.filter((spec) => spec.file === file) : [];
+  return kept.length ? kept : all;
+}
+
+/** "Showing records filed by {committee}, {file}" (Design Round 40), or null with no
+ * scope. The committee is named as its rows print it, else by its registration. */
+export function scopeLine(
+  filerName: string | null,
+  file: SectionSpec['file'] | null,
+): string | null {
+  const bits = [filerName ? `filed by ${filerName}` : null, file ? SCOPE_FILE[file] : null].filter(
+    Boolean,
+  );
+  return bits.length ? `Showing records ${bits.join(', ')}` : null;
+}
+
+/** The filer an address names, as a registration number (a committee slug ends in one). */
+export function filerFromParam(raw: string): string | null {
+  const value = raw.trim();
+  if (!value) return null;
+  return registrationNumberFromSlug(value) ?? value;
+}
+
 /** Nothing carries this spelling: a fact about the spelling and our records. */
 export function emptyLine(data: NamePayments<unknown>): string {
   const title = sectionOf(data.role).title.toLowerCase();
@@ -424,10 +479,20 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
   const band = useBand();
   const name = (match.params.query ?? '').trim();
   const years = useMemo(() => campaignMoneyHistoryYears(), []);
-  const [address, setAddress] = useAddressState({ role: 'payee', year: 'all' });
+  const [address, setAddress] = useAddressState({
+    role: 'payee',
+    year: 'all',
+    filer: '',
+    dataset: '',
+  });
   const role = roleFromParam(address.role);
   const year = yearFromParam(address.year, years);
-  const sections = sectionsFor(role);
+  const all = sectionsFor(role);
+  const sections = scopedSections(role, address.dataset);
+  const keeps = (spec: SectionSpec | undefined) =>
+    !!spec && sections.some((item) => item.id === spec.id);
+  const filer = filerFromParam(address.filer);
+  const datasetFile = sections.length < all.length ? sections[0].file : null;
 
   const [draft, setDraft] = useState(name);
   // Back and Forward restore the earlier name into the field.
@@ -436,23 +501,37 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
   useEffect(() => setEvidence(null), [name, role, year]);
 
   const campaign = useNamePayments<ReceivedRow | SpentRow>(
-    name ? namePaymentsQuery(name, sections[0].serverRole, year) : null,
+    name && keeps(all[0]) ? namePaymentsQuery(name, all[0].serverRole, year) : null,
   );
   const outside = useNamePayments<OutsideRow>(
-    name && sections[1] ? namePaymentsQuery(name, sections[1].serverRole, year) : null,
+    name && keeps(all[1]) ? namePaymentsQuery(name, all[1].serverRole, year) : null,
   );
-  const reads: NamePaymentsRead<unknown>[] = sections[1] ? [campaign, outside] : [campaign];
+  const reads: NamePaymentsRead<unknown>[] = sections.map((spec) =>
+    spec.id === all[0].id ? campaign : outside,
+  );
 
+  // Identity counts cover the files in scope. The server cannot count them for 1
+  // filer, so under a filer scope no identity count is shown rather than one over
+  // other filers' records.
   const kinds = KINDS[role];
-  const firstIdentity = useIdentityRecords(kinds[0], name || null, year);
+  const counted = name && !filer;
+  const firstIdentity = useIdentityRecords(kinds[0], counted && keeps(all[0]) ? name : null, year);
   const secondIdentity = useIdentityRecords(
     'independent_payee_name',
-    role === 'payee' && name ? name : null,
+    counted && keeps(all[1]) ? name : null,
     year,
   );
-  const coverage = identityCoverage(
-    role === 'payee' ? [firstIdentity.data, secondIdentity.data] : [firstIdentity.data],
-  );
+  const coverage = counted
+    ? identityCoverage(
+        sections.map((spec) => (spec.id === all[0].id ? firstIdentity.data : secondIdentity.data)),
+      )
+    : null;
+  const filerName = filer
+    ? (reads
+        .flatMap((read) => (read.data?.state === 'reported' ? rowsFor(read.data, here) : []))
+        .find((item) => item.registration === filer)?.committee ?? filerRegistrationLabel(filer))
+    : null;
+  const scope = scopeLine(filerName, datasetFile);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -538,15 +617,15 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
                 ? 'Employer name as written in contribution records, not the organization’s giving'
                 : 'Records are grouped by the name printed in the source'}
             </p>
+            {scope && (
+              <p className="pn-scope">
+                {scope}
+                <ClearAll onClick={() => setAddress({ filer: '', dataset: '' })} />
+              </p>
+            )}
           </form>
           {coverage && (
-            <IdentityCard
-              coverage={coverage}
-              name={name}
-              role={role}
-              year={year}
-              here={here}
-            />
+            <IdentityCard coverage={coverage} name={name} role={role} year={year} here={here} />
           )}
         </header>
 
@@ -581,6 +660,7 @@ export function PaymentsUnderName({ match }: { match: RouteMatch }) {
               read={reads[index]}
               phone={band === 'phone'}
               here={here}
+              filer={filer}
               onView={setEvidence}
             />
           ))}
@@ -728,16 +808,27 @@ function Section({
   read,
   phone,
   here,
+  filer,
   onView,
 }: {
   spec: SectionSpec;
   read: NamePaymentsRead<unknown>;
   phone: boolean;
   here: string;
+  /** Only this filer's rows, of those loaded (the server reads every filer's). */
+  filer: string | null;
   onView: (evidence: Evidence) => void;
 }) {
   const data = read.data;
-  const rows = data && data.state === 'reported' ? rowsFor(data, here) : [];
+  const rows = (data && data.state === 'reported' ? rowsFor(data, here) : []).filter(
+    (item) => filer === null || item.registration === filer,
+  );
+  // Under a filer scope a capped list says nothing about how many rows it shows: the
+  // rows not loaded yet may hold more of that filer's.
+  const count =
+    data && data.state !== 'unavailable' && !(filer !== null && data.hasMore)
+      ? countLine(rows.length, data.hasMore)
+      : null;
   const headingId = `pn-${spec.id}`;
   const reveal = useRevealFocus<HTMLElement>();
   return (
@@ -746,9 +837,7 @@ function Section({
         <h2 id={headingId} tabIndex={-1} className="f-section-title">
           {spec.title}
         </h2>
-        {data && data.state !== 'unavailable' && (
-          <span className="pn-count f-num">{countLine(rows.length, data.hasMore)}</span>
-        )}
+        {count && <span className="pn-count f-num">{count}</span>}
       </div>
       {read.loading && (
         <div role="status" aria-busy="true" className="pn-loading pn-loading-section">
@@ -770,57 +859,28 @@ function Section({
           <div className="f-empty-next">{RECORDS_UNAVAILABLE_WHY}</div>
         </div>
       )}
-      {data && data.state !== 'unavailable' && rows.length === 0 && (
+      {data && data.state !== 'unavailable' && rows.length === 0 && !data.hasMore && (
         <div className="f-empty-box pn-empty">{emptyLine(data)}</div>
       )}
       {rows.length > 0 && (
-        <>
-          <div role="table" aria-label={spec.title} className="pn-table">
-            {!phone && (
-              <div role="row" className="pn-row pn-head">
-                <span role="columnheader">DATE</span>
-                <span role="columnheader">COMMITTEE</span>
-                <span role="columnheader" className="pn-amount">
-                  AMOUNT
-                </span>
-                <span role="columnheader">TYPE</span>
-                <span />
-              </div>
-            )}
-            {rows.map((item) =>
-              phone ? (
-                <div role="row" key={item.key} className="pn-phone-row">
-                  <div className="pn-phone-top">
-                    <span role="cell" className="pn-committee">
-                      <CommitteeName row={item} />
-                    </span>
-                    <span
-                      role="cell"
-                      className="pn-amount f-num"
-                      data-missing={item.amount === null || undefined}
-                    >
-                      {item.amount ?? AMOUNT_MISSING}
-                    </span>
-                  </div>
-                  <div className="pn-phone-meta f-num">
-                    {[item.date ?? DATE_MISSING, item.kind, item.note].filter(Boolean).join(' · ')}
-                  </div>
-                  <button type="button" className="pn-view" onClick={() => onView(item.evidence)}>
-                    View source
-                  </button>
-                </div>
-              ) : (
-                <div role="row" key={item.key} className="pn-row">
-                  <span
-                    role="cell"
-                    className="pn-date f-num"
-                    data-missing={item.date === null || undefined}
-                  >
-                    {item.date ?? DATE_MISSING}
-                  </span>
+        <div role="table" aria-label={spec.title} className="pn-table">
+          {!phone && (
+            <div role="row" className="pn-row pn-head">
+              <span role="columnheader">DATE</span>
+              <span role="columnheader">COMMITTEE</span>
+              <span role="columnheader" className="pn-amount">
+                AMOUNT
+              </span>
+              <span role="columnheader">TYPE</span>
+              <span />
+            </div>
+          )}
+          {rows.map((item) =>
+            phone ? (
+              <div role="row" key={item.key} className="pn-phone-row">
+                <div className="pn-phone-top">
                   <span role="cell" className="pn-committee">
                     <CommitteeName row={item} />
-                    {item.note && <span className="pn-note"> · {item.note}</span>}
                   </span>
                   <span
                     role="cell"
@@ -829,39 +889,68 @@ function Section({
                   >
                     {item.amount ?? AMOUNT_MISSING}
                   </span>
-                  <span role="cell" className="pn-kind">
-                    {item.kind}
-                  </span>
-                  <span role="cell" className="pn-view-cell">
-                    <button type="button" className="pn-view" onClick={() => onView(item.evidence)}>
-                      View source
-                    </button>
-                  </span>
                 </div>
-              ),
-            )}
-          </div>
-          <p className="f-section-note pn-section-note">{sectionOf(data!.role).note}</p>
-          {data?.hasMore && (
-            <div className="pn-more">
-              <p className="pn-more-note">{CAP_NOTE}</p>
-              {read.moreFailed && <p className="pn-more-error">{LOAD_MORE_ERROR}</p>}
-              <button
-                type="button"
-                className="f-btn f-btn-secondary pn-more-btn"
-                aria-disabled={read.loadingMore || undefined}
-                onClick={() => {
-                  if (read.loadingMore) return;
-                  reveal.mark();
-                  read.more();
-                }}
-              >
-                {read.loadingMore && <span className="f-spinner" aria-hidden="true" />}
-                {CAP_NEXT_LABEL}
-              </button>
-            </div>
+                <div className="pn-phone-meta f-num">
+                  {[item.date ?? DATE_MISSING, item.kind, item.note].filter(Boolean).join(' · ')}
+                </div>
+                <button type="button" className="pn-view" onClick={() => onView(item.evidence)}>
+                  View source
+                </button>
+              </div>
+            ) : (
+              <div role="row" key={item.key} className="pn-row">
+                <span
+                  role="cell"
+                  className="pn-date f-num"
+                  data-missing={item.date === null || undefined}
+                >
+                  {item.date ?? DATE_MISSING}
+                </span>
+                <span role="cell" className="pn-committee">
+                  <CommitteeName row={item} />
+                  {item.note && <span className="pn-note"> · {item.note}</span>}
+                </span>
+                <span
+                  role="cell"
+                  className="pn-amount f-num"
+                  data-missing={item.amount === null || undefined}
+                >
+                  {item.amount ?? AMOUNT_MISSING}
+                </span>
+                <span role="cell" className="pn-kind">
+                  {item.kind}
+                </span>
+                <span role="cell" className="pn-view-cell">
+                  <button type="button" className="pn-view" onClick={() => onView(item.evidence)}>
+                    View source
+                  </button>
+                </span>
+              </div>
+            ),
           )}
-        </>
+        </div>
+      )}
+      {rows.length > 0 && (
+        <p className="f-section-note pn-section-note">{sectionOf(data!.role).note}</p>
+      )}
+      {data?.hasMore && (
+        <div className="pn-more">
+          <p className="pn-more-note">{CAP_NOTE}</p>
+          {read.moreFailed && <p className="pn-more-error">{LOAD_MORE_ERROR}</p>}
+          <button
+            type="button"
+            className="f-btn f-btn-secondary pn-more-btn"
+            aria-disabled={read.loadingMore || undefined}
+            onClick={() => {
+              if (read.loadingMore) return;
+              reveal.mark();
+              read.more();
+            }}
+          >
+            {read.loadingMore && <span className="f-spinner" aria-hidden="true" />}
+            {CAP_NEXT_LABEL}
+          </button>
+        </div>
       )}
     </section>
   );
