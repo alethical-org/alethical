@@ -303,7 +303,7 @@ describe('Money by race helpers', () => {
     const [forRow] = outsideGroups([row({ amount: '500.0000' })], ['18558']);
     expect(outsideBar(forRow)).toMatchObject({ side: 'for', amount: 500 });
     expect(contestHeading({ office: 'House', district: '1A' }, 2026)).toBe(
-      'State Representative\u00a0·\u00a0District\u00a01A\u00a0·\u00a02026',
+      'State\u00a0Representative\u00a0· District\u00a01A\u00a0·\u00a02026',
     );
   });
 
@@ -350,7 +350,7 @@ describe('Money by race page', () => {
     expect(container.querySelector('h1')?.textContent).toBe('Money by race');
     expect(requests).toContain(`${API}/api/v1/campaign-finance/races?year=2026&office=House`);
     expect(container.querySelector('h2')?.textContent).toBe(
-      'State Representative\u00a0·\u00a0District\u00a01A\u00a0·\u00a02026',
+      'State\u00a0Representative\u00a0· District\u00a01A\u00a0·\u00a02026',
     );
     // The caveat joins the end note, so it ends with a period there.
     expect(container.querySelector('.mr-end-note')?.textContent).toContain(

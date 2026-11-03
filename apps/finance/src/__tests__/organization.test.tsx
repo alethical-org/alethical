@@ -542,22 +542,28 @@ describe('Organization profile', () => {
     expect(container.querySelector('h1')?.textContent).toBe('Example Health Association');
   });
 
-  it('says the record is no longer available for an unknown reference', async () => {
+  it('says no organization with this reference is held, for an unknown reference', async () => {
     await render(`/organizations/${ORG}`, () => new Response(null, { status: 404 }));
-    expect(container.querySelector('h1')?.textContent).toBe('This record is no longer available');
-    expect(text()).toContain('No organization with this reference is in the current copy');
+    expect(container.querySelector('h1')?.textContent).toBe(
+      'No organization with this reference is in the current copy',
+    );
+    expect(text()).not.toContain('no longer available');
     expect(text()).not.toContain('current copy.');
   });
 
   it('never reads a reference that is not an identity id', async () => {
     await render('/organizations/example-health-association', answering(PROFILE));
-    expect(container.querySelector('h1')?.textContent).toBe('This record is no longer available');
+    expect(container.querySelector('h1')?.textContent).toBe(
+      'No organization with this reference is in the current copy',
+    );
     expect(requests).toHaveLength(0);
   });
 
   it('treats a person’s reference as no organization', async () => {
     await render(`/organizations/${ORG}`, answering({ ...EMPTY, kind: 'person' }));
-    expect(container.querySelector('h1')?.textContent).toBe('This record is no longer available');
+    expect(container.querySelector('h1')?.textContent).toBe(
+      'No organization with this reference is in the current copy',
+    );
   });
 
   it('opens the surviving record for a merged reference, keeping the return context', async () => {
