@@ -13,20 +13,25 @@ export interface IdentityReads {
   retry: () => void;
 }
 
-/** Ids an identity's own history names: the identities merged into it, the identity
- * it was split from and the parts that split made. Read once, 1 level deep, so the
- * history can name them. */
+/** Read the identities needed to explain every linked history event. */
 function related(identity: Identity): string[] {
   const ids: string[] = [];
   for (const event of identity.history ?? []) {
     const detail = event.detail ?? {};
-    if (event.action === 'merged' && typeof detail.from === 'string') ids.push(detail.from);
-    if (event.action === 'created' && typeof detail.split_from === 'string')
-      ids.push(detail.split_from);
+    for (const value of [detail.from, detail.into, detail.split_from]) {
+      if (typeof value === 'string') ids.push(value);
+      else if (Array.isArray(value))
+        ids.push(...value.filter((id): id is string => typeof id === 'string'));
+    }
   }
+  for (const confirmation of identity.confirmations ?? []) ids.push(confirmation.identity_id);
   for (const part of identity.split_into ?? []) ids.push(part.id);
+  if (identity.redirect_to) ids.push(identity.redirect_to);
   return ids;
 }
+
+// Fail visibly rather than silently truncate an unexpectedly large history graph.
+const MAX_HISTORY_IDENTITIES = 1000;
 
 /**
  * Reads the identities that hold records of 1 spelling, then the identities their
@@ -64,21 +69,28 @@ export function useIdentities(ids: ReadonlyArray<string>, version: number): Iden
     (async () => {
       const found = new Map<string, Identity>();
       let failed = false;
-      const first = await Promise.all(wanted.map(read));
-      first.forEach((answer, index) => {
-        if (answer.state === 'ok') found.set(wanted[index], answer.data);
-        else if (answer.state === 'failed') failed = true;
-      });
-      const more = [...new Set([...found.values()].flatMap(related))].filter(
-        (id) => !found.has(id),
-      );
-      const second = await Promise.all(more.map(read));
-      // An identity the history names that cannot be read leaves an event unprintable,
-      // so it fails the whole read with Try again rather than dropping the event.
-      second.forEach((answer, index) => {
-        if (answer.state === 'ok') found.set(more[index], answer.data);
-        else failed = true;
-      });
+      const visited = new Set<string>();
+      let pending = wanted;
+      while (pending.length && live && !failed) {
+        if (visited.size + pending.length > MAX_HISTORY_IDENTITIES) {
+          failed = true;
+          break;
+        }
+        pending.forEach((id) => visited.add(id));
+        const answers = await Promise.all(pending.map(read));
+        const next = new Set<string>();
+        answers.forEach((answer, index) => {
+          if (answer.state !== 'ok') {
+            failed = true;
+            return;
+          }
+          found.set(pending[index], answer.data);
+          related(answer.data).forEach((id) => {
+            if (!visited.has(id)) next.add(id);
+          });
+        });
+        pending = [...next];
+      }
       if (!live) return;
       setHeld(found);
       setState({ key, failed, done: true });

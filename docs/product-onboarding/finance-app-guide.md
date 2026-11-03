@@ -353,20 +353,19 @@ figure is ever added across committees or members.
   after previewing the links that move, or split 1 into 2; each needs an evidence note that
   says more than the shared name, and a source, which is kept apart from the note. An
   identity is shown by its reference (ORG-0042 for an organization, PER-0042 for a person),
-  or by its name while the server has not served one, never by its internal id. A split's
-  history row gives each part's confirmed records as the server counts them today (repeated
-  identical rows count separately); a part with no count, because a file is not held or the
-  part was later merged or split, keeps the row and is named by its reference alone
-  ("records stay with ORG-0091"), never 0, and a later merge keeps its own row naming the
-  reference it now opens. A record count that rests on a Board file the server does not
+  or by its name while the server has not served one, never by its internal id. Merge and split history rows name the identities and keep the event's
+  evidence and date, without record counts: the saved events do not hold counts at the
+  time of the change, and current counts can change with later confirmations or source
+  updates. A later merge keeps its own row naming the reference it now opens. A record count that rests on a Board file the server does not
   hold is never printed as 0 or as a partial sum: every row and History event stays and only
   the number is dropped ("Confirmed as {identity}", "withdrawn: {reason}", "confirmed
   records moved to {reference}", "These confirmed records will move from …", "{k} records
   selected" without "of n", and "Records covered" without its "N records"). History shows a
   loading bar while the identities it reads load, "We couldn’t load the history" with Try
-  again when any of them fails (including an identity a merge or split names), and "No
+  again when any of them fails (including a missing identity that a merge or split names), and "No
   confirmations or suggestions yet" only when every read finished and none returned an
-  event. It reads only identities that still hold records of the spelling, so a spelling
+  event. Linked histories are followed through repeated merges and splits, reading each
+  identity once; an oversized history fails visibly instead of silently truncating. It starts with identities that still hold records of the spelling, so a spelling
   whose every confirmation was withdrawn shows that empty line even though withdrawals
   happened. A split into more than 2 parts lists each part and reads "now opens a choice of
   all {n}". A legislator or public-person link is named by its role ("Legislative service",
