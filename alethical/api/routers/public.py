@@ -60,6 +60,7 @@ from alethical.api.services.campaign_finance_register import (
     MAX_COMMITTEES,
     MAX_FILINGS,
     CommitteeSort,
+    RegistrationStatus,
     committee_filings,
     committees as register_committees,
     committees_worth_indexing,
@@ -4595,6 +4596,7 @@ def campaign_finance_committees(
     limit: int = Query(default=25, ge=1, le=MAX_COMMITTEES),
     offset: int = Query(default=0, ge=0),
     sort: CommitteeSort = Query(default="name"),
+    status: RegistrationStatus | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
     """Everyone registered to raise or spend money in Minnesota state politics.
@@ -4671,11 +4673,18 @@ def campaign_finance_committees(
     label themselves from it, and counts that moved when a filter was applied would read
     as the filter having found fewer of a kind than exist.
 
-    ``q`` is the screen's "find a committee by name" box: case-insensitive containment of
-    exactly what was typed, and **no closest-spelling suggestion of any kind**. 178
+    ``q`` matches the filed name or registration number by literal, case-insensitive
+    containment, with escaped wildcards and **no closest-spelling suggestion of any kind**. 178
     registered names sit a single character apart from another registered name and every
     one of those pairs is a different organisation, so a correction would quietly swap
     one for another (``campaign_finance_register.name_contains``).
+
+    ``status`` defaults to the current register, including its terminated rows.
+    ``open`` and ``terminated`` split those rows by the held termination date;
+    ``not_listed`` requests retained earlier copies, and ``all`` includes both sets.
+    Retention does not prove termination. Row status, dates, party and retention
+    provenance come from the held register, never a name or inferred date. The headline
+    ``register_total`` and ``by_kind`` still count only the current register.
 
     ``state`` decides whether ``committees`` may be read: ``unavailable`` with a
     ``reason`` means we hold no register (``no_filings_snapshot``) or the snapshot we
@@ -4700,11 +4709,14 @@ def campaign_finance_committees(
         query=q,
         release=release,
         sort=sort,
+        status=status,
+        search_registration=True,
     )
     return DetailResponse(
         data={
             "state": page.state,
             "ordered_by": page.ordered_by,
+            "status": status,
             "kind": kind,
             "q": q,
             "committees": [_committee_payload(row) for row in page.committees],
@@ -4951,6 +4963,14 @@ def _committee_payload(row: CommitteeRow) -> dict:
         "district": row.district,
         "is_closed": row.is_closed,
         "termination_date": row.termination_date,
+        "registration_date": row.registration_date,
+        "party": row.party,
+        "registration_status": row.registration_status,
+        "retained": row.retained,
+        "retained_from_snapshot_id": str(row.retained_from_snapshot_id)
+        if row.retained_from_snapshot_id
+        else None,
+        "captured_at": row.captured_at,
     }
 
 

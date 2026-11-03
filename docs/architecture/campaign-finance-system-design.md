@@ -1080,8 +1080,18 @@ captured it, copied forward, so `cf_filing.archive_line` still points into the a
 the response; it is also the one fact that marks a row as retained. Its termination date is the
 one we held, else the Board's recent-terminations list (§9.7), else none, and a page with none
 says the committee is no longer on the register as of the register's copy date and nothing
-about why. The current-register count and the `/money/committees` list exclude retained
-filers; the committee's own page, search and every link to it keep working. Retention survives
+about why. The current-register count and the default `/money/committees` list exclude
+retained filers; the committee's own page, search and every link to it keep working.
+The shared `/api/v1/campaign-finance/committees` read offers explicit `status=not_listed`
+and `status=all` filters for Finance's held-record directory; `open` and `terminated`
+select listed rows without or with a termination date. An omitted status keeps the
+current-register default. The filtered page total includes exactly its selected rows;
+`register_total` and `by_kind` always describe the current register. Rows carry
+`registration_status`, `registration_date`, `party`, `retained`, `captured_at` and
+`retained_from_snapshot_id`. Missing source values stay null, a name never establishes
+party, and a retained row is `not_listed` regardless of whether a termination date is
+held. Directory `q` matches literal name or registration-number substrings; the general
+money name search keeps its name-only contract. Neither read invents dates or amounts. Retention survives
 any number of refreshes, because the copy always carries the original date and source. A
 published filer-year whose filer left the register is therefore not "lost figures" to the
 check in §4.3; a filer still listed whose figures vanished still is.
