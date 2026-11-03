@@ -10,6 +10,7 @@ from typing import Any, Literal
 
 from sqlalchemy import (
     String,
+    Text,
     and_,
     any_,
     case,
@@ -18,6 +19,7 @@ from sqlalchemy import (
     false,
     func,
     literal,
+    null,
     or_,
     select,
     text,
@@ -38,6 +40,7 @@ from alethical.api.services import lobbying, tv_ads as station_reader
 from alethical.api.services.campaign_finance_search import name_contains
 from alethical.api.services.campaign_finance_payments import linkable_committees
 from alethical.db import models as m
+from alethical.pipeline import campaign_finance_graph_summary as summary
 from alethical.pipeline import campaign_finance_reader as reader
 
 Relationship = Literal[
@@ -169,7 +172,13 @@ def _identity_maps(db):
         }
         for kind in identities._PRINTED
     }
-    return printed_entities, identifiers
+    # Every printed name an active confirmation covers, whatever its identity's
+    # standing: those names are read from their raw rows, never from the summary.
+    confirmed_names = {
+        kind: {c.record_key for c in confirmations if c.record_kind == kind}
+        for kind in identities._PRINTED
+    }
+    return printed_entities, identifiers, confirmed_names
 
 
 def _target(kind, record_id, role=None, version=None):
@@ -281,18 +290,46 @@ def _column_node(kind, record_id, label, role, identifiers):
     ] + [literal(role)]
 
 
+# The per-row inputs every money group is built from, whether a row comes from
+# the publish-time summary (1 row per distinct inputs and year, with its counts
+# and sums) or from a raw payment row (counts of 1). The first 8 decide a group's
+# nodes; the rest are added up.
+INPUT_NAMES = (
+    "number",
+    "account_name",
+    "name",
+    "donor_number",
+    "payment_type",
+    "transfer_number",
+    "transfer_name",
+    "entity_id",
+    "year",
+    "record_count",
+    "amount_sum",
+    "missing_amounts",
+    "first_date",
+    "last_date",
+    "undated",
+)
+KEY_INPUTS = INPUT_NAMES[:8]
+
+
 def _aggregate_money_rows(rows, dataset, where=()):
-    all_amounts = func.count(rows.c.amount) == func.count()
-    all_dates = func.count(rows.c.date) == func.count()
-    all_years = func.count(rows.c.year) == func.count()
+    records = func.sum(rows.c.record_count)
+    all_amounts = func.coalesce(func.sum(rows.c.missing_amounts), 0) == 0
+    all_dates = func.coalesce(func.sum(rows.c.undated), 0) == 0
+    all_years = (
+        func.coalesce(func.sum(rows.c.record_count).filter(rows.c.year.is_(None)), 0)
+        == 0
+    )
     whole_period = all_dates | all_years
     return (
         select(
             *(rows.c[name] for name in NODE_COLUMNS),
             literal(dataset).label("dataset"),
-            func.count().label("count"),
+            records.label("count"),
             case(
-                (all_amounts & whole_period, func.sum(rows.c.amount)),
+                (all_amounts & whole_period, func.sum(rows.c.amount_sum)),
                 else_=None,
             ).label("amount"),
             case(
@@ -305,18 +342,127 @@ def _aggregate_money_rows(rows, dataset, where=()):
             ),
             func.min(rows.c.year).label("first_year"),
             func.max(rows.c.year).label("last_year"),
-            func.min(rows.c.date).label("first"),
-            func.max(rows.c.date).label("last"),
-            (func.count() - func.count(rows.c.date)).label("undated"),
+            func.min(rows.c.first_date).label("first"),
+            func.max(rows.c.last_date).label("last"),
+            func.sum(rows.c.undated).label("undated"),
         )
         .where(*where)
         .group_by(*(rows.c[name] for name in NODE_COLUMNS))
     )
 
 
-def _money_groups(db, release, kind, *, entities, identifiers, query, year, focus):
+def _text_or_null(column):
+    return cast(null(), Text) if column is None else column
+
+
+def _graph_inputs(db, source, graph, *, entities, confirmed_names, summary_held, year):
+    """The rows a dataset contributes to the graph, in the shape of INPUT_NAMES.
+
+    A snapshot with summary rows is read from them, except the printed names an
+    active confirmation covers: a confirmation claims records 1 by 1, so those
+    names are read from their raw rows with the per-record confirmation join.
+    A snapshot without summary rows reads every raw row, as before the summary.
+    """
+    model = graph.model
+    confirmation, record = m.IdentityConfirmation, m.IdentityConfirmedRecord
+    parts = []
+    names = sorted(confirmed_names) if summary_held else None
+    if summary_held:
+        rows = summary.Summary
+        part = select(
+            rows.account_number,
+            rows.account_name,
+            rows.printed_name,
+            rows.donor_number,
+            rows.payment_type,
+            rows.transfer_number,
+            rows.transfer_name,
+            cast(null(), confirmation.entity_id.type),
+            rows.year,
+            rows.record_count,
+            rows.amount_sum,
+            rows.missing_amount_count,
+            rows.first_date,
+            rows.last_date,
+            rows.undated_count,
+        ).where(rows.snapshot_id == source.snapshot_id)
+        if names:
+            part = part.where(
+                or_(rows.printed_name.is_(None), rows.printed_name.not_in(names))
+            )
+        if year is not None:
+            part = part.where(rows.year == year)
+        parts.append(part)
+    if not summary_held or names:
+        kind = {
+            reader.Dataset.contributions: "donor_name",
+            reader.Dataset.expenditures: "payee_name",
+            reader.Dataset.independent_expenditures: "independent_payee_name",
+        }[graph.dataset]
+        spec = identities._PRINTED[kind]
+        part = select(
+            graph.account_number,
+            graph.account_name,
+            graph.printed_name,
+            _text_or_null(graph.donor_number),
+            _text_or_null(graph.payment_type),
+            _text_or_null(graph.transfer_number),
+            _text_or_null(graph.transfer_name),
+            confirmation.entity_id
+            if entities
+            else cast(null(), confirmation.entity_id.type),
+            graph.year,
+            literal(1),
+            graph.amount,
+            case((graph.amount.is_(None), 1), else_=0),
+            graph.date,
+            graph.date,
+            case((graph.date.is_(None), 1), else_=0),
+        ).select_from(model)
+        if entities:
+            part = part.outerjoin(
+                record, (record.fingerprint == spec.fingerprint(kind)) & record.active
+            ).outerjoin(
+                confirmation,
+                (confirmation.id == record.confirmation_id)
+                & confirmation.active
+                & (confirmation.record_kind == kind)
+                & (confirmation.record_key == graph.printed_name),
+            )
+        part = part.where(model.snapshot_id == source.snapshot_id, *graph.eligible())
+        if names:
+            part = part.where(graph.printed_name.in_(names))
+        if year is not None:
+            part = part.where(graph.year == year)
+        parts.append(part)
+    parts = [
+        part.with_only_columns(
+            *(c.label(name) for c, name in zip(part.selected_columns, INPUT_NAMES))
+        )
+        for part in parts
+    ]
+    if len(parts) == 1:
+        return parts[0].subquery("graph_inputs")
+    return union_all(*parts).subquery("graph_inputs")
+
+
+def _money_groups(
+    db,
+    release,
+    kind,
+    *,
+    entities,
+    identifiers,
+    confirmed_names,
+    summary_held,
+    file_years,
+    query,
+    year,
+    focus,
+):
     spec = identities._PRINTED[kind]
-    model = spec.model
+    graph = summary.GRAPH_INPUTS[spec.dataset]
+    model = graph.model
     source = release.file_for(spec.dataset)
     is_gift = kind == "donor_name"
     role = {
@@ -324,22 +470,16 @@ def _money_groups(db, release, kind, *, entities, identifiers, query, year, focu
         "payee_name": "vendor",
         "independent_payee_name": "independent_vendor",
     }[kind]
-    name = model.contributor if is_gift else model.vendor_name
-    date = model.receipt_date if is_gift else model.transaction_date
-    number = (
-        model.recipient_reg_num
-        if is_gift
-        else model.committee_reg_num
-        if kind == "payee_name"
-        else model.spender_reg_num
+    inputs = _graph_inputs(
+        db,
+        source,
+        graph,
+        entities=entities,
+        confirmed_names=confirmed_names,
+        summary_held=summary_held,
+        year=year,
     )
-    account_name = (
-        model.recipient
-        if is_gift
-        else model.committee_name
-        if kind == "payee_name"
-        else model.spender
-    )
+    number, account_name, name = inputs.c.number, inputs.c.account_name, inputs.c.name
     account = _column_node(
         "committee",
         number,
@@ -357,33 +497,39 @@ def _money_groups(db, release, kind, *, entities, identifiers, query, year, focu
     printed = _column_node("printed_name", name, name, role, identifiers)
     years = None
     if is_gift:
-        held_filers = linkable_committees(
-            db,
-            release,
-            db.scalars(
+        if summary_held:
+            donor_numbers = db.scalars(
+                select(summary.Summary.donor_number)
+                .where(
+                    summary.Summary.snapshot_id == source.snapshot_id,
+                    summary.Summary.donor_number.is_not(None),
+                )
+                .distinct()
+            ).all()
+        else:
+            donor_numbers = db.scalars(
                 select(model.contrib_reg_num)
                 .where(
                     model.snapshot_id == source.snapshot_id,
                     model.contrib_reg_num.is_not(None),
                 )
                 .distinct()
-            ).all(),
-        )
+            ).all()
+        held_filers = linkable_committees(db, release, donor_numbers)
         registered = _column_node(
             "committee",
-            model.contrib_reg_num,
-            func.coalesce(name, literal("Committee ") + model.contrib_reg_num),
+            inputs.c.donor_number,
+            func.coalesce(name, literal("Committee ") + inputs.c.donor_number),
             "committee",
             identifiers,
         )
-        registered_filer = model.contrib_reg_num == any_(
+        registered_filer = inputs.c.donor_number == any_(
             literal(sorted(held_filers), type_=ARRAY(String))
         )
         printed = [
             case((registered_filer, a), else_=b) for a, b in zip(registered, printed)
         ]
-    confirmation, record = m.IdentityConfirmation, m.IdentityConfirmedRecord
-    entity_key = cast(confirmation.entity_id, String)
+    entity_key = cast(inputs.c.entity_id, String)
     if entities:
         values = [
             {key: "identity:" + str(e.id) for key, e in entities.items()},
@@ -395,28 +541,55 @@ def _money_groups(db, release, kind, *, entities, identifiers, query, year, focu
             case(value, value=entity_key, else_=default)
             for value, default in zip(values, printed)
         ] + [literal(role)]
-    recipient_available = name.is_not(None)
     if kind == "payee_name":
         # Contributions in the spending file name their recipient separately
         # from a processor/vendor. A vendor confirmation cannot identify it.
-        transfer_number = func.nullif(model.affected_committee_reg_num, "0")
-        transfer = (model.type == "Contribution") & or_(
-            model.affected_committee_name.is_not(None), transfer_number.is_not(None)
+        transfer_number = func.nullif(inputs.c.transfer_number, "0")
+        transfer = (inputs.c.payment_type == "Contribution") & or_(
+            inputs.c.transfer_name.is_not(None), transfer_number.is_not(None)
         )
         transfer_label = func.coalesce(
-            model.affected_committee_name, literal("Committee ") + transfer_number
+            inputs.c.transfer_name, literal("Committee ") + transfer_number
         )
         # The filter belongs only to the recipient numbers. Available years cover
         # the entire saved file, including rows that cannot form a graph edge.
-        years, numbers = db.execute(
-            select(
-                func.array_agg(model.year.distinct()).filter(model.year.is_not(None)),
-                func.array_agg(transfer_number.distinct()).filter(
-                    (model.type == "Contribution") & transfer_number.is_not(None)
-                ),
-            ).where(model.snapshot_id == source.snapshot_id)
-        ).one()
-        years = years or []
+        if summary_held:
+            numbers = db.scalars(
+                select(func.nullif(summary.Summary.transfer_number, "0"))
+                .where(
+                    summary.Summary.snapshot_id == source.snapshot_id,
+                    summary.Summary.payment_type == "Contribution",
+                    func.nullif(summary.Summary.transfer_number, "0").is_not(None),
+                )
+                .distinct()
+            ).all()
+            years = file_years
+            if years is None:
+                years = db.scalars(
+                    select(model.year)
+                    .where(
+                        model.snapshot_id == source.snapshot_id,
+                        model.year.is_not(None),
+                    )
+                    .distinct()
+                ).all()
+        else:
+            file_years_held, numbers = db.execute(
+                select(
+                    func.array_agg(model.year.distinct()).filter(
+                        model.year.is_not(None)
+                    ),
+                    func.array_agg(
+                        func.nullif(model.affected_committee_reg_num, "0").distinct()
+                    ).filter(
+                        (model.type == "Contribution")
+                        & func.nullif(model.affected_committee_reg_num, "0").is_not(
+                            None
+                        )
+                    ),
+                ).where(model.snapshot_id == source.snapshot_id)
+            ).one()
+            years = file_years_held or []
         held_recipients = linkable_committees(db, release, numbers or [])
         registered = _column_node(
             "committee", transfer_number, transfer_label, "committee", identifiers
@@ -432,33 +605,13 @@ def _money_groups(db, release, kind, *, entities, identifiers, query, year, focu
             for a, b in zip(registered, unresolved)
         ]
         printed = [case((transfer, a), else_=b) for a, b in zip(recipient, printed)]
-        recipient_available = recipient_available | transfer
     start, end = (printed, account) if is_gift else (account, printed)
     names = NODE_COLUMNS
     columns = [value.label(label) for value, label in zip(start + end, names)]
-    base = (
-        select(*columns, model.amount, date.label("date"), model.year)
-        .select_from(model)
-        .where(
-            model.snapshot_id == source.snapshot_id,
-            recipient_available,
-            or_(number.is_not(None), account_name.is_not(None)),
-        )
-    )
-    if entities:
-        base = base.outerjoin(
-            record, (record.fingerprint == spec.fingerprint(kind)) & record.active
-        ).outerjoin(
-            confirmation,
-            (confirmation.id == record.confirmation_id)
-            & confirmation.active
-            & (confirmation.record_kind == kind)
-            & (confirmation.record_key == name),
-        )
-    if is_gift:
-        base = base.where(model.receipt_type == "Contribution")
-    if year is not None:
-        base = base.where(model.year == year)
+    base = select(
+        *columns,
+        *(inputs.c[name] for name in INPUT_NAMES[8:]),
+    ).select_from(inputs)
     rows = base.subquery()
     where = []
     if query:
@@ -471,24 +624,15 @@ def _money_groups(db, release, kind, *, entities, identifiers, query, year, focu
     if focus:
         where.append(or_(rows.c.from_key == focus, rows.c.to_key == focus))
     grouped = _aggregate_money_rows(rows, source.dataset.value, where)
-    # Many source rows share the same node inputs. Reduce those first, before
-    # repeating identifier/confirmation expressions for every payment. Preserve
-    # the per-record confirmation join before deduplication, and keep the final
+    # Many rows share the same node inputs. Reduce those first, before repeating
+    # identifier/confirmation expressions for every row, and keep the final
     # distinct step because several raw inputs can resolve to one identity.
-    inputs = [number, account_name, name]
-    if is_gift:
-        inputs.append(model.contrib_reg_num)
-    elif kind == "payee_name":
-        inputs.extend(
-            [
-                model.type,
-                model.affected_committee_reg_num,
-                model.affected_committee_name,
-            ]
-        )
-    if entities:
-        inputs.append(confirmation.entity_id)
-    raw = base.with_only_columns(*inputs).distinct().subquery("graph_inputs")
+    raw = (
+        select(*(inputs.c[name] for name in KEY_INPUTS))
+        .select_from(inputs)
+        .distinct()
+        .subquery("graph_key_inputs")
+    )
 
     def input_column(element):
         if isinstance(element, ColumnClause):
@@ -503,6 +647,8 @@ def _money_groups(db, release, kind, *, entities, identifiers, query, year, focu
         .select_from(raw)
         .distinct()
     )
+    if years is None:
+        years = file_years
     if years is None:
         years = db.scalars(
             select(model.year)
@@ -876,6 +1022,35 @@ def _station_edges(db, identifiers, year):
     return edges, years, bool(documents)
 
 
+def _summaries(db, release):
+    """Which of the release's snapshots have summary rows, with each file's years.
+
+    1 statement for the 3 files. A snapshot with summary rows is read from them;
+    its year choices come from the file's own measured ``rows_by_year``, which
+    counts every row of the file, including rows that cannot form a graph edge,
+    exactly as the raw read's ``DISTINCT year`` does. A snapshot whose measured
+    years are not held (``None``) reads its years from the raw rows, so no year
+    choice is ever lost.
+    """
+    snapshot = m.CampaignFinanceSnapshot
+    wanted = [release.file_for(dataset).snapshot_id for dataset in reader.Dataset]
+    held = db.execute(
+        select(snapshot.id, snapshot.rows_by_year).where(
+            snapshot.id.in_(wanted),
+            select(summary.Summary.id)
+            .where(summary.Summary.snapshot_id == snapshot.id)
+            .exists(),
+        )
+    ).all()
+    return {
+        snapshot_id: sorted(int(year) for year in rows_by_year)
+        if isinstance(rows_by_year, dict)
+        and all(str(year).lstrip("-").isdigit() for year in rows_by_year)
+        else None
+        for snapshot_id, rows_by_year in held
+    }
+
+
 def connections(
     db,
     *,
@@ -887,7 +1062,7 @@ def connections(
     offset=0,
 ):
     committee_finance.pin_to_one_view(db)
-    entities, identifiers = _identity_maps(db)
+    entities, identifiers, confirmed_names = _identity_maps(db)
     groups, years, unavailable = [], set(), []
     release = None
     if relationship in {"all", "contributions", "payments"}:
@@ -896,6 +1071,7 @@ def connections(
             if release is None:
                 unavailable.append("campaign_finance")
             else:
+                summarized = _summaries(db, release)
                 for kind in ("donor_name", "payee_name", "independent_payee_name"):
                     if relationship != "all" and (kind == "donor_name") != (
                         relationship == "contributions"
@@ -908,12 +1084,16 @@ def connections(
                     except reader.ReleaseNoLongerHeld:
                         unavailable.append(identities._PRINTED[kind].dataset.value)
                         continue
+                    source = release.file_for(identities._PRINTED[kind].dataset)
                     grouped, held_years = _money_groups(
                         db,
                         release,
                         kind,
                         entities=entities[kind],
                         identifiers=identifiers,
+                        confirmed_names=confirmed_names[kind],
+                        summary_held=source.snapshot_id in summarized,
+                        file_years=summarized.get(source.snapshot_id),
                         query=query,
                         year=year,
                         focus=focus,

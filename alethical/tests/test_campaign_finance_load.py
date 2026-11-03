@@ -43,7 +43,7 @@ from typing import Iterable, Iterator, Optional
 from urllib.parse import parse_qs, urlparse
 
 import pytest
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 
 from alethical.db import models
 from alethical.db.session import get_session_factory
@@ -2622,3 +2622,81 @@ def test_publication_crash_before_pruning_keeps_retry_work(
     assert result.ok and checks == [True] and clears
     assert refresh.state_get(db, refresh.RECHECK_PENDING_KEY) is None
     assert refresh.state_get(db, refresh.CLEARING_PENDING_KEY) is None
+
+
+def test_publishing_writes_the_graph_summary_and_pruning_removes_it(
+    db, board, store
+) -> None:
+    """The Finance graph's groups are written with the rows and go with them.
+
+    Written inside the publish transaction, so the live pointer never names a
+    snapshot without its summary; counted against the raw rows the graph reads,
+    so a row the graph leaves out (the Miscellaneous receipt) is left out here
+    too and 2 identical payments count as 2.
+    """
+    from alethical.pipeline import campaign_finance_graph_summary as graph_summary
+
+    first = publish_first(db, board, store)
+    release = db.get(models.CampaignFinanceRelease, first.release_id)
+    generation_1 = snapshot_of(db, release, Dataset.contributions)
+    for spec in cf.DATASETS:
+        snapshot = snapshot_of(db, release, spec.dataset)
+        summary_rows = db.scalars(
+            select(models.CampaignFinanceGraphMoneySummary).where(
+                models.CampaignFinanceGraphMoneySummary.snapshot_id == snapshot.id
+            )
+        ).all()
+        assert summary_rows, f"{spec.key}: no summary was written at publish"
+        inputs = graph_summary.GRAPH_INPUTS[spec.dataset]
+        eligible = db.scalar(
+            select(func.count())
+            .select_from(spec.table)
+            .where(spec.table.snapshot_id == snapshot.id, *inputs.eligible())
+        )
+        assert sum(row.record_count for row in summary_rows) == eligible
+    gifts = {
+        row.printed_name: row
+        for row in db.scalars(
+            select(models.CampaignFinanceGraphMoneySummary).where(
+                models.CampaignFinanceGraphMoneySummary.snapshot_id == generation_1.id
+            )
+        )
+    }
+    assert "Olson, Rick" not in gifts, "a Miscellaneous receipt is not a contribution"
+    assert (
+        gifts["Wivoda, Zachary"].record_count,
+        gifts["Wivoda, Zachary"].amount_sum,
+    ) == (
+        2,
+        Decimal("60"),
+    )
+    assert gifts["Refund, Ray"].amount_sum == Decimal("-40")
+
+    board.set_rows(
+        Dataset.contributions,
+        [row.replace("Retired", "Nurse") for row in CONTRIBUTION_ROWS],
+    )
+    run(db, board, store)
+    board.set_rows(
+        Dataset.contributions,
+        [row.replace("Retired", "Baker") for row in CONTRIBUTION_ROWS],
+    )
+    third = run(db, board, store)
+    assert third.published and third.pruned_snapshots == 1
+    db.expire_all()
+    assert generation_1.status == SnapshotStatus.pruned
+    assert (
+        db.scalar(
+            select(func.count())
+            .select_from(models.CampaignFinanceGraphMoneySummary)
+            .where(
+                models.CampaignFinanceGraphMoneySummary.snapshot_id == generation_1.id
+            )
+        )
+        == 0
+    )
+    live_now = live(db)
+    assert graph_summary.held(
+        db,
+        [getattr(live_now, column) for column in cf.RELEASE_SNAPSHOT_COLUMN.values()],
+    ) == {getattr(live_now, column) for column in cf.RELEASE_SNAPSHOT_COLUMN.values()}
