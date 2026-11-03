@@ -232,11 +232,8 @@ def queue(
         raise identities.Unavailable("The Board's current file is not loaded") from None
     # Resolve only owners on this page. A merged predecessor and its successor
     # are 1 identity today, while a later split can create several owners.
-    standing = {
-        owner: identities._today(db, owner).id
-        for row in results
-        for owner in (row.identity_ids or [])
-    }
+    owners = {owner for row in results for owner in (row.identity_ids or [])}
+    standing = {owner: identities._today(db, owner).id for owner in owners}
     return {
         **_pagination(results[0].total, page, page_size),
         "sources": metadata,
