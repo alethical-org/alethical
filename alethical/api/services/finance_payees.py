@@ -7,6 +7,7 @@ coverage is joined by the same fingerprints the confirmation service writes.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Literal
 
 from sqlalchemy import String, case, cast, func, literal, select, union_all
@@ -21,7 +22,9 @@ from alethical.db import models as m
 from alethical.pipeline import campaign_finance_reader as reader
 
 PayeeTab = Literal["all", "confirmed", "printed"]
-PayeeSort = Literal["name", "amount", "records"]
+# "amount" is largest first; "amount_smallest" smallest first. Withheld totals sort
+# last either way.
+PayeeSort = Literal["name", "amount", "amount_smallest", "records"]
 KINDS = (("payee_name", "vendor"), ("independent_payee_name", "independent_vendor"))
 
 
@@ -119,9 +122,22 @@ def directory(
     payment_type: str | None = None,
     tab: PayeeTab = "all",
     sort: PayeeSort = "name",
+    min_amount: Decimal | None = None,
+    max_amount: Decimal | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> dict:
+    """1 page of payee groups, counted and filtered over the whole set before paging.
+
+    ``min_amount`` and ``max_amount`` bound each group's itemized total, inclusive
+    and signed, so a negative bound reaches refunds. A group whose total is withheld
+    cannot be placed in a range, so while either bound is set it is left out and
+    counted in exactly 1 of ``range_excluded``: ``incomplete_amount`` when any payment
+    amount is missing, otherwise ``incomplete_period``. Both counts cover the selected
+    tab's whole filtered set, and are null when no bound is set.
+    """
+    if min_amount is not None and max_amount is not None and min_amount > max_amount:
+        raise ValueError("Minimum is more than maximum")
     committee_finance.pin_to_one_view(db)
     base = {
         "state": "unavailable",
@@ -137,6 +153,9 @@ def directory(
         "payment_type": payment_type,
         "tab": tab,
         "sort": sort,
+        "min_amount": None if min_amount is None else str(min_amount),
+        "max_amount": None if max_amount is None else str(max_amount),
+        "range_excluded": None,
         "years": [],
         "payment_types": [],
         "release_id": None,
@@ -243,23 +262,47 @@ def directory(
         "confirmed": grouped.c.identity_kind == "organization",
         "printed": grouped.c.identity_id.is_(None),
     }[tab]
-    all_count, confirmed_count, printed_count, total, payments = db.execute(
+    bounded = min_amount is not None or max_amount is not None
+    in_range = literal(True)
+    if bounded:
+        in_range = grouped.c.amount.is_not(None)
+        if min_amount is not None:
+            in_range = in_range & (grouped.c.amount >= min_amount)
+        if max_amount is not None:
+            in_range = in_range & (grouped.c.amount <= max_amount)
+    shown = selected_tab & in_range
+    (
+        all_count,
+        confirmed_count,
+        printed_count,
+        total,
+        payments,
+        no_amount,
+        no_period,
+    ) = db.execute(
         select(
-            func.count(),
-            func.count().filter(grouped.c.identity_kind == "organization"),
-            func.count().filter(grouped.c.identity_id.is_(None)),
-            func.count().filter(selected_tab),
-            func.coalesce(func.sum(grouped.c.payment_count).filter(selected_tab), 0),
+            func.count().filter(in_range),
+            func.count().filter((grouped.c.identity_kind == "organization") & in_range),
+            func.count().filter(grouped.c.identity_id.is_(None) & in_range),
+            func.count().filter(shown),
+            func.coalesce(func.sum(grouped.c.payment_count).filter(shown), 0),
+            func.count().filter(
+                selected_tab & (grouped.c.amount_state == "incomplete")
+            ),
+            func.count().filter(
+                selected_tab & (grouped.c.amount_state == "incomplete_period")
+            ),
         ).select_from(grouped)
     ).one()
     ordering = {
         "name": (),
         "amount": (grouped.c.amount.desc().nulls_last(),),
+        "amount_smallest": (grouped.c.amount.asc().nulls_last(),),
         "records": (grouped.c.payment_count.desc(),),
     }[sort]
     selected = db.execute(
         select(grouped)
-        .where(selected_tab)
+        .where(shown)
         .order_by(
             *ordering,
             grouped.c.name,
@@ -306,5 +349,11 @@ def directory(
             "printed": printed_count,
         },
         "payment_count": int(payments),
+        "range_excluded": {
+            "incomplete_amount": no_amount,
+            "incomplete_period": no_period,
+        }
+        if bounded
+        else None,
         "has_more": offset + len(answer) < total,
     }
