@@ -4,7 +4,7 @@ import {
   isInKind,
   UNNAMED_PAYMENT_PARTY,
 } from '@alethical/shared/committeeMoneyShared';
-import { formatDay, formatMoney } from '@alethical/shared/moneyFormat';
+import { formatDay, formatMoney } from '../../ui/money';
 import { centralDateLabel } from '@alethical/shared/moneyLanding';
 import { PAYMENT_FILE_LABELS, paymentFileCopyLine } from '@alethical/shared/paymentCopyDates';
 

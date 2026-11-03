@@ -135,13 +135,20 @@ export function sourceGroups(
   return items.length > 0 ? [{ source: BOARD, items }] : [];
 }
 
-/** The side cards whose pages exist. Payments under a name and Money by race
- * open only with a name or a contest, so neither has a plain entrance here. */
+/** The Other ways in cards (Campaign Money drawing, Round 29) whose pages exist,
+ * worded and punctuated as 1 group. Donors by employer is entered from here, not
+ * from Finance Home (eug-44). Payments under a name and Money by race open only
+ * with a name or a contest, so neither has a plain entrance here. */
 const SIDE_CARDS = [
   {
     route: 'recipients' as const,
     title: 'Vendors and payees',
-    body: 'Find recipients named in payment records',
+    body: 'Find recipients named in payment records.',
+  },
+  {
+    route: 'employers' as const,
+    title: 'Donors by employer',
+    body: 'Find donors by the employer name reported in their filings.',
   },
 ];
 

@@ -12,12 +12,15 @@ import { Arrow, SourcesAndUpdates, type SourceGroup } from '../ui/parts';
 const BOARD = 'Minnesota Campaign Finance and Public Disclosure Board';
 const HOME = hrefFor('home');
 
-/** The 3 primary entrances beside the "Browse records" heading. */
-const ACTIONS: ReadonlyArray<{ label: string; route: RouteName }> = [
-  { label: 'Explore money connections', route: 'money-connections' },
-  { label: 'Confirm identities', route: 'identities' },
-  { label: 'Donors by employer, as printed', route: 'employers' },
-];
+/** The 1 header-corner action (Finance Home, Round 30 of 2 Nov 2026): the
+ * filled 48px button beside the eyebrow and title, dropping under the title
+ * where they cannot share a line. Confirm identities and Check TV station
+ * files are entered only from their context, and Donors by employer from
+ * Campaign money (rule eug-44), never from here. */
+const ACTION: { label: string; route: RouteName } = {
+  label: 'Explore money connections',
+  route: 'money-connections',
+};
 
 /** Entrances only: each opens an existing directory with its filter chosen. */
 const ENTRANCES: ReadonlyArray<{
@@ -26,7 +29,7 @@ const ENTRANCES: ReadonlyArray<{
   query?: Record<string, string>;
 }> = [
   { label: 'Legislators', route: 'people', query: { type: 'legislators', service: 'current' } },
-  // Candidates: shown once a candidate list route exists; /people lists sitting legislators only.
+  { label: 'Candidates', route: 'people', query: { type: 'candidates' } },
   { label: 'Lobbyists', route: 'lobbying', query: { tab: 'lobbyists' } },
   { label: 'Committees and funds', route: 'campaign-money', query: { tab: 'committees' } },
   { label: 'Party units', route: 'campaign-money', query: { tab: 'party' } },
@@ -84,7 +87,7 @@ const FAMILIES: readonly Family[] = [
     route: 'media-buys',
     body: 'TV station files for political ad time: folders, agency names, stations and years',
     source: 'KSTP-TV, KARE and KMSP-TV',
-    dated: (d) => dated('Station files', 'copied', d.tv_station_files),
+    dated: (d) => dated('TV station files', 'copied', d.tv_station_files),
   },
 ];
 
@@ -107,7 +110,7 @@ export function FinanceHome() {
   const counts = useRead<ServedCounts>('finance/landing/counts');
   const dates = copyDates(counts.data);
 
-  const actions = ACTIONS.filter((action) => isBuilt(action.route));
+  const action = isBuilt(ACTION.route) ? ACTION : null;
   const entrances = ENTRANCES.filter((entrance) => isBuilt(entrance.route));
   const families = FAMILIES.filter((family) => isBuilt(family.route));
   const groups = families.reduce<SourceGroup[]>((all, family) => {
@@ -122,10 +125,20 @@ export function FinanceHome() {
     <main id="main" className="f-page">
       <div className="f-content">
         <section className="f-home-hero">
-          <div className="f-label">MINNESOTA</div>
-          <h1 tabIndex={-1} className="f-home-title">
-            Research public records
-          </h1>
+          <div className="f-page-head">
+            <div>
+              <div className="f-label">MINNESOTA</div>
+              <h1 tabIndex={-1} className="f-home-title">
+                Research public records
+              </h1>
+            </div>
+            {action && (
+              <Link to={withFrom(hrefFor(action.route), HOME)} className="f-btn f-action">
+                <span>{action.label}</span>
+                <Arrow stroke="#FFFFFF" />
+              </Link>
+            )}
+          </div>
           <form role="search" onSubmit={box.submit} className="f-home-search">
             <label htmlFor="home-search" className="f-visually-hidden">
               Search records
@@ -146,27 +159,11 @@ export function FinanceHome() {
             </button>
           </form>
         </section>
-        {(actions.length > 0 || entrances.length > 0) && (
+        {entrances.length > 0 && (
           <section aria-labelledby="browse-h" className="f-home-browse">
-            <div className="f-home-browse-head">
-              <h2 id="browse-h" className="f-card-title">
-                Browse records
-              </h2>
-              {actions.length > 0 && (
-                <div className="f-home-actions">
-                  {actions.map((action) => (
-                    <Link
-                      key={action.route}
-                      to={withFrom(hrefFor(action.route), HOME)}
-                      className="f-btn f-action"
-                    >
-                      <span>{action.label}</span>
-                      <Arrow stroke="#FFFFFF" />
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
+            <h2 id="browse-h" className="f-card-title">
+              Browse records
+            </h2>
             {entrances.length > 0 && (
               <ul aria-labelledby="browse-h" className="f-home-entrances">
                 {entrances.map((entrance) => (

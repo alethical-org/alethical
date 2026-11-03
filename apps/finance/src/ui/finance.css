@@ -52,6 +52,13 @@
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
+/* A page heading takes focus only when the screen changes, so screen readers
+ * land on it; Tab never reaches it (tabIndex -1), so it keeps no ring (Design
+ * Round 23). A section heading focused on arrival keeps its ring (Round 35). */
+.f-app h1[tabindex='-1']:focus,
+.f-app h1[tabindex='-1']:focus-visible {
+  outline: none;
+}
 .f-num {
   font-variant-numeric: tabular-nums;
 }
@@ -185,8 +192,12 @@
 .f-back svg {
   flex: none;
 }
+/* `.f-app a` would otherwise paint the return link in the link colour. */
+.f-app .f-back {
+  color: var(--secondary);
+}
 @media (hover: hover) and (min-width: 768px) {
-  .f-back:hover {
+  .f-app .f-back:hover {
     color: var(--ink);
   }
   .f-back:hover span {
@@ -238,6 +249,13 @@
   color: var(--ink);
   border-color: var(--border);
 }
+/* A link drawn as a button keeps the button's text colour over `.f-app a`. */
+.f-app a.f-btn {
+  color: #fff;
+}
+.f-app a.f-btn-secondary {
+  color: var(--ink);
+}
 .f-btn-secondary:active:not([aria-disabled='true']) {
   background: var(--tint);
   border-color: var(--fill);
@@ -254,14 +272,28 @@
   cursor: not-allowed;
   opacity: 0.6;
 }
-/* The primary navigation link drawn as a filled 48px button with a white arrow. */
+/* The primary navigation link drawn as a filled 48px button with a white arrow,
+ * in a page header's corner beside the eyebrow and title; where the title and
+ * the button cannot share a line (tablet, phone) it drops under the title. */
 .f-action {
   height: auto;
   min-height: 48px;
   padding: 0 16px 0 20px;
   gap: 10px;
   max-width: 100%;
+  border-radius: 8px;
   white-space: normal;
+  flex: none;
+}
+.f-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px 24px;
+}
+.f-page-head > div {
+  min-width: 0;
 }
 .f-action span {
   min-width: 0;
@@ -447,6 +479,317 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   flex: none;
+}
+
+/* ---------- Spacing rules (eug-26) ---------- */
+/* End-of-section commentary (a note, scope or source line under a chart,
+ * table or list) sits 24px below it, so it reads as separate from the content. */
+.f-section-note {
+  margin: 0;
+  padding-top: 24px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--secondary);
+  max-width: 760px;
+}
+.f-section-note p {
+  margin: 0;
+}
+.f-section-note p + p {
+  margin-top: 6px;
+}
+/* A count or total line under search, filter and sort controls: 24px below
+ * them, as padding so it never collapses into a parent margin. */
+.f-count-line {
+  margin: 0;
+  padding-top: 24px;
+  font-size: 14px;
+  color: var(--secondary);
+  font-variant-numeric: tabular-nums;
+}
+/* A section's scope line beside its heading: 8px under it, nothing else there. */
+.f-scope {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--secondary);
+  max-width: 760px;
+}
+
+/* ---------- Stacked two-line link rows (eug-8) ---------- */
+/* 8px between rows and 4px inside each 44px row; hover underlines only the
+ * name, because the second line is inline-block, which the underline does not
+ * reach; a year or date stays on the line with the item before it. */
+.f-row-links {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.f-row-link {
+  display: block;
+  min-height: 44px;
+  padding: 4px 0;
+  box-sizing: border-box;
+  text-decoration: none;
+}
+.f-app .f-row-link {
+  color: var(--ink);
+}
+.f-row-link-name {
+  display: inline-block;
+  font-weight: 600;
+  color: var(--link);
+  overflow-wrap: anywhere;
+}
+.f-row-link-note {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--secondary);
+  font-variant-numeric: tabular-nums;
+}
+.f-row-link:active .f-row-link-name {
+  color: var(--link-hover);
+}
+@media (hover: hover) and (min-width: 768px) {
+  .f-row-link:hover .f-row-link-name {
+    color: var(--link-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+/* ---------- View switch: Chart or Table (eug-141) ---------- */
+.f-view-row {
+  display: flex;
+  justify-content: flex-end;
+}
+.f-view {
+  display: inline-flex;
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fff;
+}
+.f-view-button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.f-view-button + .f-view-button {
+  border-left: 1px solid var(--border);
+}
+.f-view-button[aria-pressed='true'] {
+  background: var(--ink);
+  color: #fff;
+}
+.f-app .f-view-button:focus-visible {
+  outline-offset: -2px;
+}
+@media (hover: hover) and (min-width: 768px) {
+  .f-view-button:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+@media (max-width: 767px) {
+  .f-view-button {
+    min-height: 44px;
+  }
+}
+
+/* ---------- Horizontal bars ---------- */
+.f-chart {
+  margin-top: 8px;
+  background: #fff;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  padding: 16px 20px;
+}
+.f-chart h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.f-bars {
+  --bar-label: minmax(120px, 220px);
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+.f-bar-row {
+  display: grid;
+  grid-template-columns: var(--bar-label) minmax(0, 1fr);
+  gap: 4px 12px;
+  align-items: center;
+}
+.f-bar-label {
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.f-bar-track {
+  position: relative;
+  height: 14px;
+  box-sizing: border-box;
+  border-radius: 2px;
+  background: #eef2f5;
+}
+.f-bar-row[data-gap] .f-bar-track {
+  background: transparent;
+  border: 1px dashed var(--border);
+}
+.f-bar-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 2px;
+  background: var(--fill);
+}
+.f-bar-marker {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ink);
+}
+.f-bar-value {
+  grid-column: 2;
+  font-size: 13px;
+  color: var(--secondary);
+  font-variant-numeric: tabular-nums;
+}
+.f-bar-value[data-figure] {
+  color: var(--ink);
+  font-weight: 700;
+}
+.f-bar-note {
+  grid-column: 2;
+  font-size: 13px;
+  color: var(--secondary);
+  font-variant-numeric: tabular-nums;
+}
+.f-split-ends {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--secondary);
+}
+.f-split-ends span:last-child {
+  text-align: right;
+}
+.f-split-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 24px;
+}
+.f-split-row {
+  display: grid;
+  gap: 6px;
+}
+.f-split-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 12px;
+  font-size: 14px;
+}
+.f-split-label {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.f-split-position {
+  color: var(--secondary);
+}
+.f-split-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 4px 16px;
+  align-items: center;
+}
+.f-split-track {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2px minmax(0, 1fr);
+  align-items: center;
+}
+.f-split-half {
+  position: relative;
+  height: 14px;
+  border-radius: 2px;
+  background: #eef2f5;
+}
+.f-split-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+  background: var(--fill);
+}
+.f-split-against .f-split-fill {
+  right: 0;
+}
+.f-split-for .f-split-fill {
+  left: 0;
+}
+.f-split-centre {
+  height: 22px;
+  background: var(--ink);
+}
+.f-split-value {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  text-align: left;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.f-split-amount {
+  font-weight: 700;
+}
+.f-split-value-note {
+  font-weight: 400;
+  color: var(--secondary);
+}
+.f-split-note {
+  color: var(--secondary);
+}
+@media (max-width: 1099px) {
+  .f-split-line {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 1099px) {
+  .f-bar-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .f-bar-value,
+  .f-bar-note {
+    grid-column: 1;
+  }
+}
+@media (max-width: 767px) {
+  .f-chart {
+    padding: 14px 16px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -979,21 +1322,6 @@
 }
 .f-home-browse {
   margin-top: 28px;
-}
-.f-home-browse-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px 24px;
-}
-.f-home-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.f-home-actions .f-btn {
-  border-radius: 8px;
 }
 .f-home-entrances {
   margin: 12px 0 0;

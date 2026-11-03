@@ -111,16 +111,20 @@ of this guide. `/` stays the landing page for everyone, signed in or not, and Fi
   bill number", and "Suggestions couldn’t load" are the panel's other states, each announced
   to screen readers. Arrow keys move through the rows and View all results, Enter opens the
   chosen row, Escape closes the panel; pressing Search opens `/search` with the typed words.
-- **Finance Home (`/home`)**: "Research public records" with the search field; under
-  "Browse records", entrances into each built directory (Legislators, Lobbyists,
-  Committees and funds, Party units, Vendors and payees, Lobbying organizations) and the
-  actions Explore money connections, Confirm identities and Donors by employer, as printed,
-  each shown once its page is built; a card per built record family; and "Sources and
-  updates" naming each family's source with its copy or update date, read from the landing
-  counts, below the first screen.
+- **Finance Home (`/home`)**: "Research public records" with the search field, and the 1
+  header-corner action "Explore money connections" (a filled button beside the eyebrow and
+  heading, dropping under the heading on a tablet or phone), shown once Money connections is
+  built; under "Browse records", entrances into each built directory (Legislators,
+  Candidates, Lobbyists, Committees and funds, Party units, Vendors and payees, Lobbying
+  organizations), each shown once its page is built; a card per built record family; and
+  "Sources and updates" naming each family's source with its copy or update date, read from
+  the landing counts, below the first screen. Confirm identities, Check TV station files and
+  Donors by employer are not entered from Home.
 - **Not listed:** "This account doesn’t have access to Alethical Finance", the signed-in
   address, Switch account and Contact us (an email to ask@alethical.com). The page never
-  says why, because the server never says.
+  says why, because the server never says. An account refused after having access in this
+  session reads "This account does not have access to Alethical Finance" with "Results kept
+  from this account are no longer shown": every held answer and unfinished entry is cleared.
 - **Access cannot be checked:** "We couldn’t check your access" with Try again. A failed
   check never shows the no-access state.
 - **Unknown address, or a page not built yet:** "We couldn’t find that page" inside the
@@ -186,7 +190,8 @@ figure is ever added across committees or members.
   the server now supplies confirmed links.
 - **Campaign money (`/money`)**: the committee register by kind (Candidate committees,
   Committees and funds, Party units), searched and paged on the server. Sort by chooses
-  names A to Z or numeric registration-number order.
+  names A to Z or numeric registration-number order. Other ways in: Donors by employer, and
+  Vendors and payees once it is built.
 - **Committee (`/money/committees/:id`)**: the official report figures for the chosen report
   (contributions and expenditures as filed), itemized contributions in 5 tabs by donor kind and
   itemized expenditures, each name grouped with its own records and a sum only when every

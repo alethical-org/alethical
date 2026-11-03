@@ -22,7 +22,7 @@ import {
 } from '@alethical/shared/moneyRecordTrust';
 import { unlinkedStatementsFromPayload } from '@alethical/shared/disclosureStatementCopy';
 import { centralDateLabel } from '@alethical/shared/moneyLanding';
-import { formatDay, formatMoney } from '@alethical/shared/moneyFormat';
+import { formatDay, formatMoney } from '../ui/money';
 import { PAYMENT_FILE_LABELS, paymentCopyLines } from '@alethical/shared/paymentCopyDates';
 
 import { apiPath, useRead } from '../api/read';
