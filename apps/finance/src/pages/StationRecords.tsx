@@ -429,9 +429,11 @@ export function PrintedAgency({ match }: { match: RouteMatch }) {
                             .filter((part) => part !== null && part !== '' && part !== undefined)
                             .join(' · ')}
                         </span>
-                        <span role="cell" className="mb-cell">
+                        <span role="cell" className="mb-cell mb-cell-source">
                           {file.agency_unchecked ? <NotCheckedIcon /> : <CheckedIcon />}
-                          {file.agency_unchecked ? 'Machine-read · Not checked' : 'Checked'}
+                          <span>
+                            {file.agency_unchecked ? 'Machine-read · Not checked' : 'Checked'}
+                          </span>
                         </span>
                         <span
                           role="cell"

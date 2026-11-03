@@ -1,10 +1,13 @@
 /* Media buys: the collection page and the TV station records (Media Buys,
  * TV Station Folder, TV Station, Printed Agency Name, TV Station File drawings). */
-.mb-page {
+.f-page.mb-page {
   --pad-top: 32px;
 }
-.mb-record {
+.f-page.mb-record {
   --pad-top: 16px;
+}
+.f-app .mb-page .f-back {
+  color: var(--secondary);
 }
 .mb-page .f-page-title,
 .mb-page h1 {
@@ -1150,10 +1153,10 @@
   .mb-file-grid {
     grid-template-columns: minmax(0, 1fr);
   }
-  .mb-page {
+  .f-page.mb-page {
     --pad-top: 24px;
   }
-  .mb-record {
+  .f-page.mb-record {
     --pad-top: 12px;
   }
   .mb-table-row {
@@ -1161,10 +1164,10 @@
   }
 }
 @media (max-width: 767px) {
-  .mb-page {
+  .f-page.mb-page {
     --pad-top: 20px;
   }
-  .mb-record {
+  .f-page.mb-record {
     --pad-top: 8px;
   }
   .mb-head-row {
@@ -1280,6 +1283,7 @@
 .f-sources .mb-src-dl {
   margin: 6px 0 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 4px;
 }
 .f-sources .mb-src-dl > div {
@@ -1305,4 +1309,24 @@
 .mb-related li[data-new] {
   background: var(--tint);
   border-radius: 6px;
+}
+.f-app a.mb-head-action,
+.f-app a.mb-check-link {
+  color: #fff;
+}
+@media (hover: hover) and (min-width: 768px) {
+  .f-app .mb-page .f-back:hover {
+    color: var(--ink);
+  }
+}
+.f-app a.mb-ev-action {
+  color: var(--ink);
+}
+.mb-cell-source {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+}
+.mb-cell-source svg {
+  flex: none;
+  margin-top: 3px;
 }
