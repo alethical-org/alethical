@@ -533,23 +533,117 @@ describe('Money by race page', () => {
     expect(container.querySelector('[role="table"]')).toBeNull();
   });
 
-  it('keeps the menus while another year loads, never the earlier year’s figures', async () => {
+  async function chooseYear(value: string) {
+    const year = container.querySelectorAll<HTMLButtonElement>('.mr-field-button')[2];
+    await act(async () => year.click());
+    const option = [
+      ...container.querySelectorAll<HTMLButtonElement>('[role="option"] button'),
+    ].find((item) => item.textContent === value)!;
+    await act(async () => option.click());
+    await settle();
+  }
+
+  const RACES_2024 = races({
+    year: 2024,
+    contests: [
+      {
+        office: 'House',
+        district: '1A',
+        anchor: 'house-1a',
+        committee_count: 1,
+        periods_differ: false,
+        committees: [
+          committee('18558', 'Burkel, John House Committee', {
+            reported_total: '5000.0000',
+            reported_through: '2024-07-22',
+            reported_period_start: '2024-01-01',
+          }),
+        ],
+      },
+    ],
+  });
+
+  it('keeps the last figures, dimmed and under their own year, while another year loads', async () => {
     await render('/money/races/house-1a', (url) =>
       url.includes('year=2024') && url.includes('/races')
         ? new Promise<Response>(() => {})
         : answers()(url),
     );
-    const year = container.querySelectorAll<HTMLButtonElement>('.mr-field-button')[2];
-    await act(async () => year.click());
-    const option = [
-      ...container.querySelectorAll<HTMLButtonElement>('[role="option"] button'),
-    ].find((item) => item.textContent === '2024')!;
-    await act(async () => option.click());
-    await settle();
+    await chooseYear('2024');
     expect(window.location.search).toBe('?year=2024');
     expect(container.querySelectorAll('.mr-field-button')).toHaveLength(3);
-    expect(container.textContent).toContain('Loading…');
+    expect(container.querySelectorAll('.mr-field-button')[2].textContent).toBe('2024');
+    // Never blank: the 2026 figures stay, labelled 2026, with an Updating status.
+    expect(container.textContent).not.toContain('Loading…');
+    expect(container.textContent).toContain('$10,700');
+    expect(container.querySelector('.mr-contest-title')?.textContent).toContain('2026');
+    const status = container.querySelector('.mr-status [role="status"]');
+    expect(status?.textContent).toContain('Updating results…');
+    const results = container.querySelector('.mr-results')!;
+    expect(results.hasAttribute('data-stale')).toBe(true);
+    expect(results.getAttribute('aria-busy')).toBe('true');
+    // The outside section stays on the year its figures belong to.
+    expect(requests.some((url) => url.includes('/outside-spending') && url.includes('2024'))).toBe(
+      false,
+    );
+  });
+
+  it('keeps the last figures with a notice and Try again when another year fails', async () => {
+    let fail = true;
+    await render('/money/races/house-1a', (url) => {
+      if (url.includes('year=2024') && url.includes('/races')) {
+        return fail ? new Response('down', { status: 500 }) : json(RACES_2024);
+      }
+      return answers()(url);
+    });
+    await chooseYear('2024');
+    const alert = container.querySelector('.mr-status [role="alert"]');
+    expect(alert?.textContent).toContain('We couldn’t update these results');
+    expect(container.textContent).toContain('$10,700');
+    expect(container.querySelector('.mr-contest-title')?.textContent).toContain('2026');
+    expect(container.querySelector('.mr-results')?.hasAttribute('data-stale')).toBe(false);
+    expect(container.textContent).not.toContain('We couldn’t load this race.');
+    fail = false;
+    await act(async () => alert!.querySelector<HTMLButtonElement>('button')!.click());
+    await settle();
+    expect(container.querySelector('.mr-status [role="alert"]')).toBeNull();
+    expect(container.textContent).toContain('$5,000');
     expect(container.textContent).not.toContain('$10,700');
+    expect(container.querySelector('.mr-contest-title')?.textContent).toContain('2024');
+  });
+
+  it('keeps the last figures when another year answers unavailable', async () => {
+    await render('/money/races/house-1a', (url) =>
+      url.includes('year=2024') && url.includes('/races')
+        ? json(races({ year: 2024, state: 'unavailable', contests: [] }))
+        : answers()(url),
+    );
+    await chooseYear('2024');
+    expect(container.querySelector('.mr-status [role="alert"]')?.textContent).toContain(
+      'We couldn’t update these results',
+    );
+    expect(container.textContent).toContain('$10,700');
+  });
+});
+
+describe('Money by race page, return link', () => {
+  it('falls back to Campaign money when opened with no usable earlier page', async () => {
+    await render('/money/races/house-1a?from=%2F%2Fexample.test', answers());
+    const back = container.querySelector<HTMLAnchorElement>('.f-back');
+    expect(back?.textContent).toBe('Back to Campaign money');
+    expect(back?.getAttribute('href')).toBe('/money');
+  });
+
+  it('keeps the named fallback when the race cannot be read', async () => {
+    await render('/money/races/house-1a', () => new Response('down', { status: 500 }));
+    expect(container.querySelector('.f-back')?.textContent).toBe('Back to Campaign money');
+  });
+
+  it('returns to the earlier page when the address names one', async () => {
+    await render('/money/races/house-1a?from=%2Fmoney%2Fcommittees%2F18558', answers());
+    const back = container.querySelector<HTMLAnchorElement>('.f-back');
+    expect(back?.textContent).toBe('Back to Committee');
+    expect(back?.getAttribute('href')).toBe('/money/committees/18558');
   });
 });
 

@@ -30,7 +30,7 @@ import { returnTarget, withFrom } from '../returnContext';
 import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
 import { useBand } from '../ui/band';
-import { Refused } from '../ui/controls';
+import { Refused, Updating } from '../ui/controls';
 import { BackLink, LoadingLine, SourcesAndUpdates, type SourceGroup } from '../ui/parts';
 import { SplitBarList, useView, ViewSwitch, type SplitBarRow } from '../ui/view';
 import { DATE_MISSING, sumAmounts } from './committee/data';
@@ -659,6 +659,9 @@ const FAILED =
 /** Not in the drawing: the outside-spending read failing on its own. */
 const OUTSIDE_FAILED =
   'We couldn’t load spending by outside groups. This is a problem on our side and says nothing about what was filed.';
+/** The design system's refused-attempt words for a filter whose next answer
+ * failed while the last figures stay (RULE Design system, Refused attempt). */
+const RETAINED_FAILED = 'We couldn’t update these results';
 /** The drawing's "not held" wording for a choice the records do not hold. */
 const NOT_HELD = 'Not held';
 
@@ -672,7 +675,10 @@ const NOT_HELD = 'Not held';
 export function MoneyByRace({ match }: { match: RouteMatch }) {
   const location = useLocation();
   const here = location.pathname + location.search;
-  const back = returnTarget(location.search);
+  // With no usable earlier page, the drawing's named parent: Campaign money.
+  const back =
+    returnTarget(location.search) ??
+    (isBuilt('campaign-money') ? { to: hrefFor('campaign-money'), name: 'Campaign money' } : null);
   const band = useBand();
   const anchor = (match.params.id ?? '').toLowerCase();
   const years = useMemo(() => campaignMoneyHistoryYears(), []);
@@ -680,24 +686,40 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
   const year = chosenYear(address.year, years);
 
   const guessed = officeOfAnchor(anchor, KNOWN_OFFICES);
-  // A result view for its menus: while another year or office loads, the menus keep
-  // the last answer's choices; the figures never show another view's answer.
+  // A year or office change is a filter (settled wording row 35): while the next
+  // answer loads, and when it fails, the last contest's figures stay on screen
+  // under their own year, never blank and never relabelled as the new year. An
+  // answer the server marks unavailable is a failed read, so it keeps them too.
   const read = useRead<ApiMoneyByRacePayload>(
     apiPath(['campaign-finance', 'races'], { year, office: guessed }),
-    { keepPrevious: true },
+    { keepPrevious: true, acceptData: (data) => data.state === 'reported' },
   );
   const summary = useRead<MoneySummary>('campaign-finance/summary');
+  const settled = read.data !== null && !read.updating && !read.failed;
+  // The year and contest of the figures last shown from a settled answer.
+  const lastShown = useRef<{ year: number; anchor: string } | null>(null);
+  const kept = !settled && read.data !== null ? lastShown.current : null;
+  const viewYear = kept ? kept.year : year;
   const shown = useMemo(
-    () => (read.data ? getCampaignFinanceRacesFromApiPayload(read.data, year) : null),
-    [read.data, year],
+    () => (read.data ? getCampaignFinanceRacesFromApiPayload(read.data, viewYear) : null),
+    [read.data, viewYear],
   );
-  const page = read.updating || read.failed ? null : shown;
+  const keptContest =
+    kept && shown ? (shown.contests.find((item) => item.anchor === kept.anchor) ?? null) : null;
+  const retained = keptContest !== null;
+  const page = settled || retained ? shown : null;
   const unavailable = page !== null && page.state !== 'reported';
   const offices = shown ? shown.offices.map((entry) => entry.office) : [];
   const office = shown ? (officeOfAnchor(anchor, offices) ?? guessed) : guessed;
   const menuContests = shown ? shown.contests.filter((item) => item.office === office) : [];
-  const officeContests = page ? page.contests.filter((item) => item.office === office) : [];
-  const contest = officeContests.find((item) => item.anchor === anchor) ?? null;
+  const officeContests =
+    page && settled ? page.contests.filter((item) => item.office === office) : [];
+  const contest = retained
+    ? keptContest
+    : (officeContests.find((item) => item.anchor === anchor) ?? null);
+  useEffect(() => {
+    if (settled) lastShown.current = contest ? { year, anchor: contest.anchor } : null;
+  }, [settled, contest, year]);
 
   // An office chosen from the menu opens its first district.
   const officeOnly = office !== null && anchor === contestAnchor(office, null);
@@ -714,7 +736,7 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
     () => (contest ? contest.committees.map((item) => item.registrationNumber) : null),
     [contest],
   );
-  const outside = useOutsideSpending(registrations, year);
+  const outside = useOutsideSpending(registrations, viewYear);
   const groups = useMemo(
     () => (outside.data && registrations ? outsideGroups(outside.data.rows, registrations) : []),
     [outside.data, registrations],
@@ -725,9 +747,11 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
   }
 
   const loaded = page !== null && !unavailable;
-  const failed = read.failed || unavailable || read.notFound;
+  const failed = (read.failed && !retained) || unavailable || read.notFound;
+  const retainedFailure = read.failed && retained;
+  const updating = read.updating && retained;
   const redirecting = !contest && officeOnly && firstContest !== null;
-  const loading = !failed && (read.loading || read.updating || redirecting);
+  const loading = !failed && (read.loading || (read.updating && !retained) || redirecting);
   const isPhone = band === 'phone';
   const [osView, setOsView] = useView('osView');
 
@@ -822,10 +846,27 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
           </div>
         )}
 
+        {updating && (
+          <div className="mr-status">
+            <Updating />
+          </div>
+        )}
+        {retainedFailure && (
+          <div className="mr-status mr-alert">
+            <Refused onRetry={read.retry} retrying={read.pending}>
+              {RETAINED_FAILED}
+            </Refused>
+          </div>
+        )}
+
         {loaded && contest && (
-          <>
+          <div
+            className="mr-results"
+            data-stale={updating || undefined}
+            aria-busy={updating || undefined}
+          >
             <div className="mr-contest">
-              <h2 className="mr-contest-title f-num">{contestHeading(contest, year)}</h2>
+              <h2 className="mr-contest-title f-num">{contestHeading(contest, viewYear)}</h2>
             </div>
 
             <section aria-labelledby="mr-cc-heading" className="mr-section">
@@ -852,9 +893,9 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
                       </div>
                     )}
                     {contest.committees.map((committee) => {
-                      const figures = committeeFigures(committee, year);
+                      const figures = committeeFigures(committee, viewYear);
                       const href = committeeHref(committee.registrationNumber, {
-                        year: String(year),
+                        year: String(viewYear),
                       });
                       return (
                         <div role="row" key={committee.registrationNumber} className="mr-cc-row">
@@ -930,8 +971,8 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
               )}
               {outside.data && !outside.failed && groups.length === 0 && (
                 <div className="mr-table-gap f-empty-box">
-                  No independent expenditure names this contest in the file for {year}. This does
-                  not mean none was made.
+                  No independent expenditure names this contest in the file for {viewYear}. This
+                  does not mean none was made.
                 </div>
               )}
               {outside.data && !outside.failed && groups.length > 0 && (
@@ -1047,11 +1088,11 @@ export function MoneyByRace({ match }: { match: RouteMatch }) {
             <div className="mb-buys-after">
               <MediaBuysCard
                 kind="race"
-                target={raceTarget(contest.office, contest.district, year)}
-                name={contestHeading(contest, year)}
+                target={raceTarget(contest.office, contest.district, viewYear)}
+                name={contestHeading(contest, viewYear)}
               />
             </div>
-          </>
+          </div>
         )}
       </div>
       <SourcesAndUpdates groups={loaded ? raceSources(summary.data, page?.asOf ?? null) : []} />
