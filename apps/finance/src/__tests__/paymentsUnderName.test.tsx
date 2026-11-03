@@ -262,8 +262,11 @@ describe('Payments under this name', () => {
     // The similar-names section carries this caveat in the drawing (Round 29).
     expect(container.textContent).not.toContain('Different spellings appear separately');
     // Nothing confirms the spelling, in either file.
-    expect(container.querySelector('[aria-label="Identity"]')?.textContent).toBe(
-      'No confirmed identity for this spelling',
+    const identity = container.querySelector('[aria-label="Identity"]')!;
+    expect(identity.textContent).toContain('No confirmed identity for this spelling');
+    // Confirm identities is built, so the card opens it for this spelling and role.
+    expect(identity.querySelector('a')?.getAttribute('href')).toMatch(
+      /^\/money\/identities\?name=[^&]+&role=payee/,
     );
   });
 

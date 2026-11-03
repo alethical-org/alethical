@@ -207,7 +207,7 @@ describe('the Finance shell', () => {
   });
 
   it('answers a route whose screen is not built exactly as an unknown address', async () => {
-    await renderAt('/money/identities', fakeSupabase(SIGNED_IN));
+    await renderAt('/money/connections', fakeSupabase(SIGNED_IN));
     expect(container.querySelector('h1')?.textContent).toBe('We couldn’t find that page');
     expect(document.title).toBe('Page not found · Alethical Finance');
   });

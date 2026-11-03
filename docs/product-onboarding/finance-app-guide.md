@@ -150,7 +150,7 @@ Media buys: `/` (landing), `/home`, `/search`, `/organizations/:id`, `/money`,
 Built: `/`, `/home`, `/sign-in`, `/auth/return`, `/search`, `/people`, `/people/:id`,
 `/candidates/:id`,
 `/legislators/:id`, `/money`, `/money/committees/:id`, `/money/names/:query`,
-`/money/races/:id`, `/money/recipients`, `/money/employers`, `/money/employers/:name`,
+`/money/races/:id`, `/money/recipients`, `/money/identities`, `/money/employers`, `/money/employers/:name`,
 `/legislature/committees/:id/members`, `/lobbying`, `/lobbying/lobbyists/:id`,
 `/lobbying/principals/:id`, `/organizations/:id`, `/bills`, `/bills/:id`, `/votes/:id`,
 `/media-buys`, `/media-buys/folders/:id`, `/media-buys/files/:key`, `/media-buys/agencies/:name`,
@@ -306,9 +306,52 @@ figure is ever added across committees or members.
   "Minimum is more than maximum", and both keep the last valid results. Recipients whose
   totals are withheld are left out of a range and counted under the count line. Opened with no
   earlier page, it returns to Campaign money.
-- **Not built yet:** Money connections (`/money/connections`) and Confirm identities
-  (`/money/identities`) each have a screen in the code but answer "not found"
-  and are linked from nowhere until the pull request that aligns that screen with Design's
+- **Confirm identities (`/money/identities`)**: "Names to review" lists exact printed names
+  (donor, campaign payee and outside-spending payee, each file its own row) by money recorded
+  under the name, with All names, Donor names or Payee names and Not confirmed, Confirmed or All,
+  20 a page; a total follows the shared money rule ("Missing payment amount", "Reporting period
+  incomplete", "Filing year 2025"). Opening a name shows every identity confirmed for some of its
+  records ("Confirmed for {k} of {n} records"), the remaining records and "Suggested matches"
+  (only identities already holding records of that spelling; Alethical never suggests by
+  name), then "Records under this exact spelling", 50 a page on 1 copy of the Board's file, and
+  the name's history with "View evidence". Every account can confirm selected records to an
+  identity, create a person or organization, withdraw (with a reason), merge another record in
+  after previewing the links that move, or split 1 into 2; each needs an evidence note that
+  says more than the shared name, and a source, which is kept apart from the note. An
+  identity is shown by its reference (ORG-0042 for an organization, PER-0042 for a person),
+  or by its name while the server has not served one, never by its internal id. A split's
+  history row gives each part's confirmed records as the server counts them today (repeated
+  identical rows count separately); a part with no count, because a file is not held or the
+  part was later merged or split, keeps the row and is named by its reference alone
+  ("records stay with ORG-0091"), never 0, and a later merge keeps its own row naming the
+  reference it now opens. A record count that rests on a Board file the server does not
+  hold is never printed as 0 or as a partial sum: every row and History event stays and only
+  the number is dropped ("Confirmed as {identity}", "withdrawn: {reason}", "confirmed
+  records moved to {reference}", "These confirmed records will move from …", "{k} records
+  selected" without "of n", and "Records covered" without its "N records"). History shows a
+  loading bar while the identities it reads load, "We couldn’t load the history" with Try
+  again when any of them fails (including an identity a merge or split names), and "No
+  confirmations or suggestions yet" only when every read finished and none returned an
+  event. It reads only identities that still hold records of the spelling, so a spelling
+  whose every confirmation was withdrawn shows that empty line even though withdrawals
+  happened. A split into more than 2 parts lists each part and reads "now opens a choice of
+  all {n}". A legislator or public-person link is named by its role ("Legislative service",
+  "Official IDs"), never by its internal id. A withdrawal of several confirmations sends 1
+  request each; if a later one fails, the page refreshes (each one withdrawn leaves the
+  confirmed card and gets its History withdrawal row), says "{k} of {n} confirmations were
+  withdrawn. The other {m} were not saved. Your note is kept below." (each verb "was" for a
+  count of 1) with Try again, and Try
+  again sends only the rest. A selection is the server's record fingerprints, or "All
+  records" / "{year} records", which the server resolves. "Saved" appears only after the
+  server accepts; otherwise "Not saved. Your entries are kept." with Try again, "These
+  records changed since this form opened…" or, after the Board's file is replaced, "Reload
+  the records", which keeps the words and clears the selection. Unfinished entries are kept
+  as 1 draft per name, role, action and target ("Unsaved draft", "Discard draft"). A
+  contextual arrival names the spelling and its role (`?name=&role=`); a spelling with no
+  records reads "This record is not held". It is entered only from its context, never from
+  Finance Home.
+- **Not built yet:** Money connections (`/money/connections`) has a screen in the code but
+  answers "not found" and is linked from nowhere until the pull request that aligns that screen with Design's
   current drawing turns its route on in `BUILT`.
 - **Legislation (`/bills`)**: bills searched by words or number, with Session, Chamber and
   Status menus, 20 a page. The Session menu lists the sessions the server holds, the
@@ -332,6 +375,8 @@ none.
 
 ## Limits and privacy
 
+- Confirm identities writes through the server's identity routes; every account reads every
+  note, source, reason and name typed there.
 - Finance never links to alethical.com; a CI test fails if any app file names an
   alethical.com page. A check of the production build (`pnpm run check:built-links`) reads
   every text file Finance ships except source maps, code from `@alethical/shared` included.

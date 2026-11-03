@@ -311,11 +311,17 @@ describe('Donors by employer', () => {
     expect(lines[1].querySelector('a')?.getAttribute('href')).toMatch(/^\/organizations\/org-2\?/);
   });
 
-  it('says no organization confirms the spelling, with no link to an unbuilt screen', async () => {
+  it('says no organization confirms the spelling, and opens Confirm identities for it', async () => {
     await render(PATH, answer());
     const line = container.querySelector('.de-confirm')!;
-    expect(line.textContent).toBe('No organization record confirms this spelling');
-    expect(line.querySelector('a')).toBeNull();
+    expect(line.querySelector('.de-confirm-text')?.textContent).toBe(
+      'No organization record confirms this spelling',
+    );
+    const link = line.querySelector('a');
+    expect(link?.textContent?.replace(/\u00a0/g, ' ')).toBe('Confirm this employer');
+    expect(link?.getAttribute('href')).toMatch(
+      /^\/money\/identities\?name=[^&]+&role=employer&from=/,
+    );
   });
 
   it('says the check could not be read rather than that nothing confirms', async () => {
@@ -526,7 +532,8 @@ describe('Donors by employer', () => {
     );
     await act(async () => line.querySelector<HTMLButtonElement>('button')!.click());
     await settle();
-    expect(container.querySelector('.de-confirm')?.textContent).toBe(
+    // With Confirm identities on, the line also carries its "Confirm this employer" link.
+    expect(container.querySelector('.de-confirm .de-confirm-text')?.textContent).toBe(
       'No organization record confirms this spelling',
     );
   });
