@@ -399,6 +399,36 @@ describe('Payments under this name', () => {
     expect(container.textContent).toContain('No campaign payments are recorded under “Example”');
   });
 
+  it('says a section our copy cannot read is not held, never the failure line', async () => {
+    await render('/money/names/Example%20Media%20LLC', (url) =>
+      role(url) === 'vendor'
+        ? json(page('vendor', [], { state: 'unavailable' }))
+        : json(page('independent_vendor', [outsideRow()], { linkable: ['40001'] })),
+    );
+    const campaign = section('Campaign payments');
+    expect(campaign.textContent).toContain('We could not read this part of our records just now');
+    expect(campaign.querySelector('[role="alert"]')).toBeNull();
+    expect(campaign.textContent).not.toContain('We couldn’t load');
+    expect(campaign.querySelector('.pn-count')).toBeNull();
+    // The other file still shows its own records, and no identity count is claimed.
+    expect(section('Outside spending payments').textContent).toContain('Example Action PAC');
+    expect(container.querySelector('.pn-identity')).toBeNull();
+  });
+
+  it('keeps the failure line with Try again for a server error', async () => {
+    await render('/money/names/Example%20Media%20LLC', (url) =>
+      role(url) === 'vendor'
+        ? json(null, 503)
+        : json(page('independent_vendor', [outsideRow()], { linkable: ['40001'] })),
+    );
+    const alert = section('Campaign payments').querySelector('[role="alert"]')!;
+    expect(alert.textContent).toContain('We couldn’t load these results.');
+    expect(alert.querySelector('button')?.textContent).toBe('Try again');
+    expect(section('Campaign payments').textContent).not.toContain(
+      'We could not read this part of our records',
+    );
+  });
+
   it('shows only the records loaded when more are filed, and reads the next page', async () => {
     await render('/money/names/Example%20Media%20LLC', (url) => {
       if (url.pathname.endsWith('/finance/identities/records')) return json(NO_IDENTITY);
