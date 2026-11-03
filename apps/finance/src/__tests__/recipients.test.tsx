@@ -3,10 +3,14 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { clearReadCache } from '../api/read';
 import {
+  countLine,
   Recipients,
   recipientAmount,
   recipientHref,
+  recipientKind,
   recipientPeriod,
+  sortFromParam,
+  sourceLines,
   type Recipient,
   type RecipientsPage,
 } from '../pages/Recipients';
@@ -103,8 +107,38 @@ it('lists all payees without a query, preserving separate payment files and sign
   expect(container.querySelector('a[href*="section=campaign-payments"]')).toBeTruthy();
   expect(container.querySelector('a[href*="section=outside-payments"]')).toBeTruthy();
   expect(container.textContent).toContain('-$145');
-  expect(container.textContent).toContain('Incomplete: a payment amount is missing');
+  // Under the amount heading a withheld total reads "Incomplete" (Design Round 34).
+  expect(container.querySelector('.vp-amount[data-missing]')?.textContent).toBe('Incomplete');
   expect(container.textContent).not.toContain('$0');
+  // Each group names its source file under its kind tag (Round 37).
+  expect([...container.querySelectorAll('.vp-file')].map((e) => e.textContent)).toEqual([
+    'Expenditure file',
+    'Independent expenditure file',
+  ]);
+  expect(container.querySelector('.vp-tag')?.textContent).toBe('Printed name');
+  // The pager is drawn with both ends inert on a single page.
+  expect(button('Previous').getAttribute('aria-disabled')).toBe('true');
+  expect(button('Next').getAttribute('aria-disabled')).toBe('true');
+  expect(container.textContent).toContain(
+    'A recipient is not a vendor unless confirmed; refunds keep their filed sign',
+  );
+});
+it('carries the selected year into a printed name’s payments link', async () => {
+  await render('/money/recipients?year=2026');
+  const link = container.querySelector<HTMLAnchorElement>('a.vp-name-link')!;
+  expect(link.getAttribute('href')).toBe(
+    '/money/names/Same%20Printed%20Name?role=payee&year=2026&section=campaign-payments',
+  );
+  // `from=` joins once the recipients route is on in BUILT (returnContext accepts
+  // only built pages); the row link is built with withFrom either way.
+});
+it('offers Largest total first in place of Itemized amount, and maps the old address', async () => {
+  await render('/money/recipients?sort=Itemized%20amount');
+  expect(requests[0].searchParams.get('sort')).toBe('amount');
+  expect(container.textContent).toContain('Sort by: Largest total first');
+  expect(container.textContent).not.toContain('Smallest total first');
+  expect(sortFromParam('nonsense')).toBe('name');
+  expect(sortFromParam('records')).toBe('records');
 });
 it('sends filters and sort to the whole server list', async () => {
   await render('/money/recipients?tab=confirmed&year=2026&type=Refund&sort=amount&page=3');
@@ -157,19 +191,48 @@ it('links only the covered confirmed identity and withholds incomplete totals', 
       record_kind: 'confirmed_vendor',
     }),
   ).toBe('/organizations/i');
+  // Person profiles are not built, so a confirmed person gets no link to a missing page.
   expect(
     recipientHref({
       ...row,
       identity: { id: 'p', kind: 'person', name: 'Person' },
       record_kind: 'confirmed_person',
     }),
-  ).toBe('/people/p');
-  expect(recipientAmount({ ...row, amount: '10', amount_state: 'incomplete' })).toContain(
-    'Incomplete',
+  ).toBeNull();
+  expect(recipientKind({ ...row, record_kind: 'confirmed_person' })).toBe('Person');
+  expect(recipientKind({ ...row, record_kind: 'confirmed_vendor' })).toBe('Organization');
+  expect(recipientAmount({ ...row, amount: '10', amount_state: 'incomplete' })).toBe('Incomplete');
+  // A phone row has no amount heading, so it says what is missing (Round 36).
+  expect(recipientAmount({ ...row, amount: '10', amount_state: 'incomplete' }, true)).toBe(
+    'Missing payment amount',
   );
-  expect(recipientPeriod({ ...row, undated_payment_count: 1 })).toContain(
-    '1 undated payment record',
+  expect(recipientAmount({ ...row, amount: '0' })).toBe('$0');
+  expect(recipientAmount({ ...row, amount: null })).toBe('Amount not given');
+});
+it('says the count line in the tab’s own noun', () => {
+  expect(countLine({ ...data, total: 1, payment_count: 1, q: 'x' }, 'printed')).toBe(
+    '1 printed name · 1 payment record matching “x”',
   );
+  expect(countLine({ ...data, total: 3, payment_count: 7 }, 'confirmed')).toBe(
+    '3 organizations · 7 payment records',
+  );
+  expect(countLine(data, 'all')).toBe('2 recipients · 4 payment records');
+});
+it('names both files once when copied the same day, else each with its own date', () => {
+  expect(
+    sourceLines([
+      { dataset: 'expenditures', fetched_at: '2026-10-29T12:00:00Z', source_url: null },
+      { dataset: 'independent_expenditures', fetched_at: '2026-10-29T15:00:00Z', source_url: null },
+    ]),
+  ).toEqual([
+    'Payment records from the expenditure and independent expenditure files, copied Oct 29, 2026',
+  ]);
+  expect(
+    sourceLines([
+      { dataset: 'expenditures', fetched_at: '2026-10-29T12:00:00Z', source_url: null },
+      { dataset: 'independent_expenditures', fetched_at: null, source_url: null },
+    ]),
+  ).toEqual(['Spending file copied Oct 29,\u00a02026', 'Outside-spending file copy date unavailable']);
 });
 
 it('treats an unavailable source as a failure rather than zero recipients', async () => {
@@ -198,11 +261,22 @@ it('keeps the previous rows when the source returns unavailable', async () => {
 });
 
 it('shows a whole year span or withholds a total whose period is incomplete', () => {
-  expect(recipientPeriod({ ...row, period_basis: 'years', undated_payment_count: 1 })).toContain(
-    'Years 2025–2026',
+  // A filing-year basis is labelled as such (Design Round 41).
+  expect(recipientPeriod({ ...row, period_basis: 'years', undated_payment_count: 1 })).toBe(
+    'Filing years 2025–2026',
   );
+  expect(recipientPeriod({ ...row, period_basis: 'years', last_year: 2025 })).toBe(
+    'Filing year 2025',
+  );
+  expect(recipientPeriod(row)).toBe('Jan 1, 2025 to Feb 2, 2026');
   expect(
     recipientAmount({ ...row, period_basis: 'unknown', amount_state: 'incomplete_period' }),
-  ).toBe('Amount unavailable: payment period is incomplete');
-  expect(recipientPeriod({ ...row, period_basis: 'unknown' })).not.toContain('Feb');
+  ).toBe('Reporting period incomplete');
+  // A missing amount is said first, before the period.
+  expect(recipientAmount({ ...row, period_basis: 'unknown', amount_state: 'incomplete' })).toBe(
+    'Incomplete',
+  );
+  expect(recipientPeriod({ ...row, period_basis: 'unknown' })).toBe(
+    'Date not given in the public file',
+  );
 });
