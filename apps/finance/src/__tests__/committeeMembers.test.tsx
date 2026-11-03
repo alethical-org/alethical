@@ -210,6 +210,36 @@ describe('Committee members’ campaign accounts', () => {
     expect(container.textContent).toContain('Co-Chair');
   });
 
+  it('shows all served roles and the committee-session district once per member', async () => {
+    const [ben, ...rest] = MEMBERS.members;
+    const roster = {
+      ...MEMBERS,
+      members: [
+        { ...ben, role: null, roles: ['Alternate', 'Co-Chair'], district: '10A' },
+        { ...ben, role: 'Co-Chair', roles: ['Co-Chair'], district: '10A' },
+        ...rest,
+      ],
+    };
+    await render(PATH, (url) => (url.endsWith('/members') ? json(roster) : loaded(url)));
+    expect(card('Ben Davis').querySelector('.cmm-sub')?.textContent).toBe(
+      'Alternate, Co-Chair · District 10A',
+    );
+    expect(container.querySelectorAll('.cmm-name')).toHaveLength(4);
+    expect(card('Drew None').querySelector('.cmm-sub')).toBeNull();
+  });
+
+  it('shows a served district without inventing a role and keeps legacy single roles', async () => {
+    const roster = {
+      ...MEMBERS,
+      members: MEMBERS.members.map((item) =>
+        item.id === 'drew' ? { ...item, roles: [], district: '42' } : item,
+      ),
+    };
+    await render(PATH, (url) => (url.endsWith('/members') ? json(roster) : loaded(url)));
+    expect(card('Drew None').querySelector('.cmm-sub')?.textContent).toBe('District 42');
+    expect(card('Ben Davis').querySelector('.cmm-sub')?.textContent).toBe('Co-Chair');
+  });
+
   it('shows each account’s own filed figures, never a combined total', async () => {
     await render(PATH, loaded);
     const ben = card('Ben Davis');

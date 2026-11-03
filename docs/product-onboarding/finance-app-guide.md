@@ -266,7 +266,8 @@ figure is ever added across committees or members.
   The drawn Contributions made tab and the Open race and Matching station invoice links are
   not shown: the server serves no recipient type, contest or invoice link for them.
 - **Committee members' campaign accounts (`/legislature/committees/:id/members`)**: each
-  member of a sitting legislative committee with their own confirmed accounts and, for
+  member of a sitting legislative committee appears once, with every served role and the
+  district for that committee’s session where available. Each has their own confirmed accounts and, for
   each account, the Total receipts, Total expenditures and Ending balance of its report for
   the chosen year as filed, with the report's name and period, read the way Committee reads
   them and never combined. A figure the report does not give reads "Report total

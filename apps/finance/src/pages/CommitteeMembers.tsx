@@ -46,6 +46,8 @@ export interface Member {
   slug: string | null;
   name: string;
   role: string | null;
+  roles?: string[];
+  district?: string | null;
   campaign_accounts: {
     link_state: 'confirmed' | 'reviewed_none_confirmed' | 'unconfirmed';
     confirmed: ConfirmedAccount[];
@@ -91,13 +93,17 @@ export function chamberName(chamber: string | null): string | null {
 export function uniqueMembers(members: Member[]): Member[] {
   const byId = new Map<string, Member>();
   for (const member of members) {
+    const roles = member.roles ?? (member.role ? [member.role] : []);
     const held = byId.get(member.id);
     if (!held) {
-      byId.set(member.id, member);
+      byId.set(member.id, { ...member, roles: [...new Set(roles)] });
       continue;
     }
-    const roles = [held.role, member.role].filter((role): role is string => Boolean(role));
-    byId.set(member.id, { ...held, role: roles.length ? [...new Set(roles)].join(', ') : null });
+    byId.set(member.id, {
+      ...held,
+      roles: [...new Set([...(held.roles ?? []), ...roles])],
+      district: held.district ?? member.district,
+    });
   }
   return [...byId.values()];
 }
@@ -308,6 +314,9 @@ function MemberCard({
     ? withFrom(hrefFor('legislator', { id: member.id }), here)
     : null;
   const otherNote = otherOfficeNote(otherOffice);
+  const memberMeta = [member.roles?.join(', '), member.district && `District ${member.district}`]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <li className="cmm-card">
@@ -319,7 +328,7 @@ function MemberCard({
         ) : (
           <span className="cmm-name">{member.name}</span>
         )}
-        {member.role && <span className="cmm-sub">{member.role}</span>}
+        {memberMeta && <span className="cmm-sub">{memberMeta}</span>}
       </div>
       {accounts.length === 0 && !otherNote && (
         <p className="cmm-rule cmm-line">No campaign account is confirmed for this member</p>
