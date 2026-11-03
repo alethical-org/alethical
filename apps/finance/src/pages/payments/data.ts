@@ -39,12 +39,15 @@ export interface RowEvidence {
 }
 
 /** What every Finance row adds: its server fingerprint, its identity or null, its
- * evidence locator and its excerpt (the printed fields as fingerprinted). */
+ * evidence locator and its excerpt (the whole source row, in the file's order). */
 export interface RowFacts {
   fingerprint?: string | null;
   identity?: RowIdentity | null;
   evidence?: RowEvidence | null;
-  excerpt?: Record<string, string | number | null> | null;
+  /** Every column of the source row as the file lays it out: [the file's column
+   * label, the held value as text]. A blank cell is null; amounts, dates
+   * (YYYY-MM-DD) and years are the values the loader parsed. */
+  excerpt?: Array<[string, string | null]> | null;
 }
 
 /** A received-payments row (role `contributor` or `employer`). */

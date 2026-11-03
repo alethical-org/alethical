@@ -197,39 +197,31 @@ const DATASET_SOURCE: Record<string, string> = {
   independent_expenditures: SAVED_SOURCE.independentExpenditures,
 };
 
-/** The fingerprinted fields of each file, in the file's own column order
- * (identity_confirmations._PRINTED). */
-const EXCERPT_FIELDS: Record<SectionSpec['file'], string[]> = {
-  contributions: [
-    'contributor',
-    'contrib_employer_name',
-    'recipient_reg_num',
-    'receipt_date',
-    'amount',
-    'contrib_zip',
-  ],
-  expenditures: ['vendor_name', 'committee_reg_num', 'transaction_date', 'amount', 'vendor_zip'],
-  independentExpenditures: [
-    'vendor_name',
-    'spender_reg_num',
-    'transaction_date',
-    'amount',
-    'vendor_zip',
-  ],
-};
+const NOT_GIVEN = 'Not given';
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
-/** The row's excerpt as the file prints it: each fingerprinted field's value in the
- * file's column order, an empty field kept empty, or null when no excerpt is held. */
-export function excerptText(
-  excerpt: RowFacts['excerpt'],
-  file: SectionSpec['file'],
-): string | null {
-  if (!excerpt || typeof excerpt !== 'object') return null;
-  const values = EXCERPT_FIELDS[file].map((field) => {
-    const value = excerpt[field];
-    return value === null || value === undefined ? '' : String(value);
-  });
-  return values.some(Boolean) ? values.join(' | ') : null;
+/** The served excerpt as SOURCE TEXT: 1 "label: value" line per column, in the
+ * order the server serves them (the file's own), a date as the page prints dates
+ * and a blank cell as "Not given"; null when no excerpt is held. */
+export function excerptText(excerpt: RowFacts['excerpt']): string | null {
+  if (!Array.isArray(excerpt) || excerpt.length === 0) return null;
+  return excerpt
+    .map(([label, value]) => {
+      const shown =
+        value === null || value === ''
+          ? NOT_GIVEN
+          : ISO_DAY.test(value)
+            ? (formatDay(value) ?? value)
+            : value;
+      return `${label}: ${shown}`;
+    })
+    .join('\n');
+}
+
+/** A held value of the excerpt by its column label. */
+function excerptValue(excerpt: RowFacts['excerpt'], label: string): string | null {
+  if (!Array.isArray(excerpt)) return null;
+  return excerpt.find(([name]) => name.toLowerCase() === label.toLowerCase())?.[1] ?? null;
 }
 
 /** "Confirmed as {identity}" from the row's own fingerprint (Design Round 39). */
@@ -296,11 +288,13 @@ function rowEvidence(
 ): Evidence {
   const held = fields.facts.evidence ?? null;
   const copied = held?.copied_at ?? context.fetchedAt;
-  const quote = excerptText(fields.facts.excerpt, context.spec.file);
-  const zipField = context.spec.file === 'contributions' ? 'contrib_zip' : 'vendor_zip';
-  const excerptZip = fields.facts.excerpt?.[zipField];
+  const quote = excerptText(fields.facts.excerpt);
   const zip =
-    fields.zip ?? (excerptZip === null || excerptZip === undefined ? null : String(excerptZip));
+    fields.zip ??
+    excerptValue(
+      fields.facts.excerpt,
+      context.spec.file === 'contributions' ? 'Contrib zip' : 'Vendor zip',
+    );
   return {
     title: `${context.name} · ${shown.amount ?? AMOUNT_MISSING}`,
     authority: BOARD,

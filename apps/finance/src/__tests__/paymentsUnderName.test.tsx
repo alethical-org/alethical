@@ -322,7 +322,24 @@ describe('Payments under this name', () => {
   it('keeps each donor on an employer row and the money theirs', async () => {
     await render('/money/names/Example%20Health%20Association?role=employer', (url) => {
       if (url.pathname.endsWith('/finance/identities/records')) return json(NO_IDENTITY);
-      return json(page('employer', [receivedRow()], { name: 'Example Health Association' }));
+      return json(
+        page(
+          'employer',
+          [
+            {
+              ...receivedRow(),
+              excerpt: [
+                ['Recipient reg num', '19369'],
+                ['Amount', '250.0000'],
+                ['Receipt date', '2026-09-18'],
+                ['Contributor', 'Example, Wen'],
+                ['Contrib zip', '55401'],
+              ],
+            },
+          ],
+          { name: 'Example Health Association' },
+        ),
+      );
     });
     expect(container.textContent).toContain('Employer name as reported');
     expect(container.querySelector('.pn-notice')?.textContent).toBe(
@@ -338,6 +355,13 @@ describe('Payments under this name', () => {
     const dialog = document.querySelector('[role="dialog"]')!;
     expect(dialog.querySelector('h2')?.textContent).toBe('Example Health Association · $250');
     expect(dialog.textContent).toContain('Employer as filed');
+    // The served excerpt, in the file's own order; the ZIP as filed comes from it.
+    expect(dialog.querySelector('blockquote')?.textContent).toBe(
+      'Recipient reg num: 19369\nAmount: 250.0000\nReceipt date: Sep 18, 2026\nContributor: Example, Wen\nContrib zip: 55401',
+    );
+    expect(dialog.textContent).toContain('ZIP as filed55401');
+    // An excerpt is held, so the generic Board link is not offered.
+    expect(dialog.querySelector('a[href*="cfb.mn.gov"]')).toBeNull();
     expect(dialog.textContent).toContain('Example Health Association');
     expect(dialog.textContent).toContain('Contribution file');
   });
@@ -482,6 +506,30 @@ describe('Payments under this name', () => {
     expect(firstPages).toBe(2);
     expect(section('Campaign payments').querySelector('[role="alert"]')).toBeNull();
     expect(section('Campaign payments').querySelector('.pn-more-btn')).toBeTruthy();
+  });
+
+  it('lands on the not-held state when the pinned file is gone and nothing is published', async () => {
+    let firstPages = 0;
+    await render('/money/names/Example%20Media%20LLC', (url) => {
+      if (role(url) !== 'vendor') return json(page('independent_vendor', []));
+      if (url.searchParams.get('offset')) return json(null, 409);
+      firstPages += 1;
+      return firstPages === 1
+        ? json(page('vendor', [spent()], { hasMore: true, total: 2 }))
+        : json(page('vendor', [], { state: 'unavailable' }));
+    });
+    await act(async () =>
+      section('Campaign payments').querySelector<HTMLButtonElement>('.pn-more-btn')!.click(),
+    );
+    await settle();
+    const reload =
+      section('Campaign payments').querySelector<HTMLButtonElement>('[role="alert"] button')!;
+    await act(async () => reload.click());
+    await settle();
+    const campaign = section('Campaign payments');
+    expect(campaign.textContent).toContain('We could not read this part of our records just now');
+    expect(campaign.querySelector('[role="alert"]')).toBeNull();
+    expect(campaign.textContent).not.toContain('We couldn’t load');
   });
 
   it('says a failed next page without claiming anything, and tries it again', async () => {
@@ -730,21 +778,21 @@ describe('Payments under this name helpers', () => {
     ).toEqual({ records: 0, identities: [] });
   });
 
-  it('prints the excerpt in the file’s column order and names the row’s identity', () => {
+  it('prints the served excerpt in its own order, dates as dates and blanks as not given', () => {
     expect(
-      excerptText(
-        {
-          amount: '250.0000',
-          contributor: 'Example, Wen',
-          contrib_zip: null,
-          receipt_date: '2026-09-18',
-          recipient_reg_num: '19369',
-          contrib_employer_name: 'Example Health',
-        },
-        'contributions',
-      ),
-    ).toBe('Example, Wen | Example Health | 19369 | 2026-09-18 | 250.0000 | ');
-    expect(excerptText(null, 'expenditures')).toBeNull();
+      excerptText([
+        ['Recipient reg num', '19369'],
+        ['Amount', '250.0000'],
+        ['Receipt date', '2026-09-18'],
+        ['Year', '2026'],
+        ['Contributor', 'Example, Wen'],
+        ['Contrib zip', null],
+      ]),
+    ).toBe(
+      'Recipient reg num: 19369\nAmount: 250.0000\nReceipt date: Sep 18, 2026\nYear: 2026\nContributor: Example, Wen\nContrib zip: Not given',
+    );
+    expect(excerptText(null)).toBeNull();
+    expect(excerptText([])).toBeNull();
     expect(rowIdentityNote({ identity: { id: 'x', kind: 'organization', name: 'A' } })).toBe(
       'Confirmed as A',
     );
