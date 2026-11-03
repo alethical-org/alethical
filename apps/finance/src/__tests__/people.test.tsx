@@ -185,6 +185,15 @@ describe('People', () => {
     expect(button('Try again')).toBeDefined();
   });
 
+  it('sends only filter values the server accepts', async () => {
+    await render('/people?type=legislators&service=x', loaded);
+    expect(new URL(requests[0]).searchParams.get('service')).toBeNull();
+    await render('/people?type=candidates&scope=x&year=12', loaded);
+    const params = new URL(requests.at(-1)!).searchParams;
+    expect(params.get('scope')).toBe('all');
+    expect(params.get('year')).toBeNull();
+  });
+
   it('sends candidate scope, year and sort to the whole directory', async () => {
     await render('/people?type=candidates&scope=past&year=2024&sort=election_year', loaded);
     const params = new URL(requests[0]).searchParams;
@@ -215,7 +224,9 @@ describe('People', () => {
       }),
     );
     expect(container.querySelectorAll('.pp-row')).toHaveLength(2);
-    expect(container.querySelector('a[href^="/people/person-a"]')).toBeTruthy();
+    // A person record is listed but not linked while the Person profile is off.
+    expect(container.querySelector('a[href^="/people/"]')).toBeNull();
+    expect(container.querySelector('.pp-row-plain')?.textContent).toContain('PERSON');
     expect(container.querySelector('a[href^="/candidates/candidacy-a"]')).toBeTruthy();
     expect(text()).toContain('1 person · 1 candidacy · 0 service records');
   });

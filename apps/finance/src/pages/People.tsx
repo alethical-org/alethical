@@ -4,7 +4,7 @@ import { currentChamber, legislatorDistrictLine } from '@alethical/shared/legisl
 import { apiPath, useRead } from '../api/read';
 import { Link, useLocation } from '../router';
 import { returnTarget, withFrom } from '../returnContext';
-import { hrefFor, type RouteMatch } from '../routes';
+import { hrefFor, isBuilt, type RouteMatch } from '../routes';
 import { useAddressState } from '../ui/addressState';
 import { Chips, ClearAll, Dropdown, Empty, LoadingRows, Refused, Updating } from '../ui/controls';
 import { RecordMark } from '../ui/marks';
@@ -82,7 +82,9 @@ export function rowNote(row: PersonDirectoryRow) {
     .filter(Boolean)
     .join(' · ');
 }
-export function peopleLink(row: PersonDirectoryRow) {
+/** A row's page, or null for a person record while the Person profile is off. */
+export function peopleLink(row: PersonDirectoryRow): string | null {
+  if (row.kind !== 'legislator' && row.kind !== 'candidate' && !isBuilt('person')) return null;
   return hrefFor(
     row.kind === 'legislator' ? 'legislator' : row.kind === 'candidate' ? 'candidate' : 'person',
     { id: row.kind === 'legislator' ? (row.slug ?? row.id) : row.id },
@@ -107,13 +109,21 @@ export function People(_props: { match: RouteMatch }) {
   const [typed, setTyped] = useState(state.q);
   useEffect(() => setTyped(state.q), [state.q]);
   const sort = type === 'candidates' && state.sort === 'election_year' ? 'election_year' : 'name';
+  // Only values the server accepts reach it, so a hand-edited address reads as
+  // the unfiltered view rather than as a failure on our side.
+  const service = state.service === 'current' || state.service === 'former' ? state.service : '';
+  const scope = state.scope === 'past' ? 'past' : 'all';
+  const year =
+    /^\d{4}$/.test(state.year) && Number(state.year) >= 1900 && Number(state.year) <= 2200
+      ? state.year
+      : '';
   const read = useRead<PeoplePage>(
     apiPath(['finance', 'people'], {
       q: query,
       type,
-      service: type === 'legislators' ? state.service : '',
-      scope: type === 'candidates' ? state.scope : 'all',
-      year: type === 'candidates' ? state.year : '',
+      service: type === 'legislators' ? service : '',
+      scope: type === 'candidates' ? scope : 'all',
+      year: type === 'candidates' ? year : '',
       sort,
       limit: PAGE_SIZE,
       offset: (page - 1) * PAGE_SIZE,
@@ -274,22 +284,34 @@ export function People(_props: { match: RouteMatch }) {
                   <ul className="pp-list">
                     {rows.map((row) => (
                       <li key={`${row.kind}|${row.id}`}>
-                        <Link className="pp-row" to={withFrom(peopleLink(row), here)}>
-                          <span className="f-marked pp-who">
-                            <RecordMark kind="person" />
-                            <span className="pp-name">{row.name}</span>
-                            <span className="pp-note f-num">{rowNote(row)}</span>
-                          </span>
-                          <span className="pp-kind">{row.kind.toUpperCase()}</span>
-                          <span className="pp-end f-num">
-                            {row.kind === 'legislator'
-                              ? 'Minnesota Legislature'
-                              : row.kind === 'candidate'
-                                ? 'Minnesota Secretary of State'
-                                : ''}
-                            <Arrow />
-                          </span>
-                        </Link>
+                        {(() => {
+                          const href = peopleLink(row);
+                          const content = (
+                            <>
+                              <span className="f-marked pp-who">
+                                <RecordMark kind="person" />
+                                <span className="pp-name">{row.name}</span>
+                                <span className="pp-note f-num">{rowNote(row)}</span>
+                              </span>
+                              <span className="pp-kind">{row.kind.toUpperCase()}</span>
+                              <span className="pp-end f-num">
+                                {row.kind === 'legislator'
+                                  ? 'Minnesota Legislature'
+                                  : row.kind === 'candidate'
+                                    ? 'Minnesota Secretary of State'
+                                    : ''}
+                                {href && <Arrow />}
+                              </span>
+                            </>
+                          );
+                          return href ? (
+                            <Link className="pp-row" to={withFrom(href, here)}>
+                              {content}
+                            </Link>
+                          ) : (
+                            <div className="pp-row pp-row-plain">{content}</div>
+                          );
+                        })()}
                       </li>
                     ))}
                   </ul>
